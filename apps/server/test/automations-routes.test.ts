@@ -229,7 +229,7 @@ describe('42 — the automations routes', () => {
     expect(res.json()).toMatchObject({ error: { code: 'FORBIDDEN' } });
   });
 
-  it('creates a complete rule enabled, and an incomplete one PAUSED (D12)', async () => {
+  it('creates a complete rule enabled, and an incomplete one PAUSED', async () => {
     const live = await post('/automations', {
       name: 'Welcome new signups',
       connectionId,
@@ -254,7 +254,7 @@ describe('42 — the automations routes', () => {
     expect(rebuilds).toBe(2);
   });
 
-  it('saves the modal\u2019s schedule + Update-field pair PAUSED, not 422 (D12)', async () => {
+  it('saves the modal\u2019s schedule + Update-field pair PAUSED, not 422', async () => {
     // The New-rule modal offers "Update field" beside "On a schedule" and
     // builds `values: {}`. That combination used to be refused outright — a
     // dead end in the create flow — because the "no record" check ran before
@@ -283,7 +283,7 @@ describe('42 — the automations routes', () => {
     expect(res.json()).toMatchObject({ enabled: false, valid: false, incompleteNodeId: 'n2' });
   });
 
-  it('refuses to switch an incomplete rule on, naming the step (D12)', async () => {
+  it('refuses to switch an incomplete rule on, naming the step', async () => {
     const created = await post('/automations', {
       name: 'Half built',
       connectionId,
@@ -301,7 +301,7 @@ describe('42 — the automations routes', () => {
     expect((await automationsRepo(t.meta).findById(id))?.enabled).toBe(false);
   });
 
-  it('refuses a save whose author cannot write the table it writes (D2)', async () => {
+  it('refuses a save whose author cannot write the table it writes', async () => {
     const graph: AutomationGraph = {
       version: 1,
       nodes: [
@@ -509,7 +509,7 @@ describe('42 — the automations routes', () => {
     expect(await runs.findById(run?.id ?? '')).toBeNull();
   });
 
-  it('the dry run executes nothing and reports the path it took (D14)', async () => {
+  it('the dry run executes nothing and reports the path it took', async () => {
     const created = await post('/automations', {
       name: 'Welcome new signups',
       connectionId,

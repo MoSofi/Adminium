@@ -388,7 +388,7 @@ export function TemplateFitPanel({
           ) : null}
           {/* Remedy 4, last: the one that brings none of the operator's
               existing rows with it. Renders nothing for the seven templates
-              with no repair descriptors (D4). */}
+              with no repair descriptors. */}
           <FitTableSetup connectionId={connectionId} template={template} onCreated={onUseTable} />
         </>
       )}

@@ -198,7 +198,7 @@ async function executeReportRun(
       unmasked: false,
       // The report's own page, so its derived columns are computed into the
       // snapshot — under the CREATOR's grants, which is what the live re-check
-      // above has already established they still hold (D28).
+      // above has already established they still hold.
       pageId: report.pageId,
     });
     await exportEntry.run(exportPayload, ctx);

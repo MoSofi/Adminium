@@ -293,12 +293,12 @@ export interface SubjectInput {
    * says which columns are read, and a value typed into the editor is read
    * from nothing. Keeping them apart is what lets a screen show a bound field
    * as its column name and a typed one as its value, so an operator can see
-   * which half of a document is live (O20).
+   * which half of a document is live.
    */
   values?: Readonly<Record<string, unknown>>;
   /**
    * Collection rows a caller supplies OUTRIGHT, keyed by the slot's own column
-   * ids — a request-shaped intent (D15), which has no source table to read.
+   * ids — a request-shaped intent, which has no source table to read.
    *
    * Distinct from `collections`, which holds CHILD ROWS keyed by their source
    * columns and is meaningless without a mapping to translate them. Folding the
@@ -432,7 +432,7 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
     if (mapped === undefined) {
       /*
        * A TYPED VALUE stands in for a column. It is consulted only where
-       * nothing is mapped, which makes "authored or mapped, never both" (O20)
+       * nothing is mapped, which makes "authored or mapped, never both"
        * true here rather than merely promised by the editor: a profile
        * carrying both — an older mapping whose literal was left behind when a
        * column was chosen — draws the live column, not the stale constant.

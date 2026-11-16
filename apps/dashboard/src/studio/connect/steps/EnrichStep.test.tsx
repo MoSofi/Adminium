@@ -193,7 +193,7 @@ describe('intent cards', () => {
     expect(screen.getByRole('radio', { name: /Use my AI provider/ })).toHaveProperty('disabled', true);
     expect(screen.getByRole('radio', { name: /Copy a prompt to my own AI tool/ })).toHaveProperty('disabled', false);
     expect(screen.getByRole('radio', { name: /Skip — use heuristics only/ })).toHaveProperty('disabled', false);
-    // The link points at Settings → AI (T12).
+    // The link points at Settings → AI.
     expect(screen.getByRole('link', { name: /Configure a provider in Settings/ })).toHaveProperty(
       'href',
       expect.stringContaining('/studio/settings/ai'),

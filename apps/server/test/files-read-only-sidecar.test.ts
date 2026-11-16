@@ -229,7 +229,7 @@ describe('a sidecar attachment on a read-only source (criterion 3)', () => {
       },
     });
 
-    // The panel's grants: `update` is what authorises an attach (D11), `read`
+    // The panel's grants: `update` is what authorises an attach, `read`
     // what lets the record page load at all.
     await t.grantTable(t.roles.editor, connId, TABLE, { read: true, create: true, update: true });
   });
@@ -303,7 +303,7 @@ describe('a sidecar attachment on a read-only source (criterion 3)', () => {
     expect(res.statusCode).toBe(200);
     expect(res.json().data.deletedAt).not.toBeNull();
 
-    // Trashed, not gone (D12) — and out of the live list the panel renders.
+    // Trashed, not gone — and out of the live list the panel renders.
     const listed = await t.app.inject({
       method: 'GET',
       url: `/api/v1/files?connectionId=${connId}&table=${encodeURIComponent(TABLE)}&recordId=${RECORD}`,

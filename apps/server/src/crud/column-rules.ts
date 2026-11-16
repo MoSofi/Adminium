@@ -169,7 +169,7 @@ export interface ColumnCheck {
   /** Values the DATABASE fixes: a native enum, MySQL `enum()`, a parsed CHECK. */
   enumValues?: readonly string[];
   /**
-   * Values an ADMIN fixed, with `column.options` (D19). Distinct from
+   * Values an ADMIN fixed, with `column.options`. Distinct from
    * `enumValues` because the two are refused for different reasons and the
    * route refuses to set this one where the database already decides.
    *
@@ -664,7 +664,7 @@ function enumValuesOf(column: EffectiveColumn, enums: readonly EnumDef[]): reado
 /**
  * The fill an admin asked for, if any. It wins over the implicit one whole —
  * `none` and `database` included, which is how an implicit fill is switched
- * off (D14).
+ * off.
  */
 function explicitFillFor(column: EffectiveColumn): ColumnFill | null {
   const rule = column.fill;
@@ -1531,7 +1531,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE = /^\+?\(?[0-9][0-9\s().-]{4,}$/;
 
 /**
- * The rules an ADMIN typed (D26). Never a classifier's guess: enforcing a
+ * The rules an ADMIN typed. Never a classifier's guess: enforcing a
  * guessed format would start refusing imports of old data that has always been
  * in the table.
  */
@@ -1764,9 +1764,9 @@ export function checkRow(
   for (const check of rules.checks) {
     const supplied = Object.prototype.hasOwnProperty.call(values, check.column);
     /*
-     * The ONE "required" the server enforces: an admin's explicit rule (D26).
+     * The ONE "required" the server enforces: an admin's explicit rule.
      * A NOT NULL column is still the database's business — a trigger may fill
-     * it, and refusing here would refuse writes that succeed today (D15).
+     * it, and refusing here would refuse writes that succeed today.
      *
      * On a create an absent key is a missing answer; on an update it means
      * "not part of this change", so only a supplied empty one is refused. A

@@ -14,12 +14,12 @@
  *  • No `list()`. The row is the index. A driver that could enumerate its own
  *    objects would tempt a reconciliation pass, and reconciling a bucket
  *    against a table is a feature with its own conflict rules, not a method.
- *  • No `copy()`. The migrate job (D20) reads through one driver and writes
+ *  • No `copy()`. The migrate job reads through one driver and writes
  *    through another, verifying sha256 on landing; a server-side copy would be
  *    S3-only and would skip the verification.
  *  • No `exists()` beyond `head()`, which returns the size a caller needs
  *    anyway.
- *  • `put` takes a PATH, not a stream. Every byte is spooled first (D4), so
+ *  • `put` takes a PATH, not a stream. Every byte is spooled first, so
  *    the driver is handed a finished file with a known length and hash — which
  *    is what a signed remote PUT requires and what lets the local driver
  *    implement `put` as a rename.
@@ -64,7 +64,7 @@ export interface DriverUsage {
   available?: number;
 }
 
-/** The key layout a NEW file gets on this driver (D19). */
+/** The key layout a NEW file gets on this driver. */
 export interface KeyRequest {
   id: string;
   kind: string;

@@ -14,7 +14,7 @@ import { WORKING_SCALE } from './decimal.js';
  * SELECT alias inside one SELECT list, so per-column definitions would each
  * re-derive the whole chain: four identical correlated subqueries for one row.
  * A `columns[]` entry therefore carries only `derived: { ref }` and points
- * here (D2). It is the relationship `lookup`/`reverse` already have to their
+ * here. It is the relationship `lookup`/`reverse` already have to their
  * projections, lifted one level.
  *
  * WHY THE SHAPES ARE THIS NARROW. Every restriction below is a measurement,
@@ -22,18 +22,18 @@ import { WORKING_SCALE } from './decimal.js';
  *
  * - **A measure body is a precedence-flat sum of signed products** — no
  *   parentheses to get wrong, and `×` binds tighter than `+` on all three
- *   dialects, so the emitted fragment cannot be mis-parenthesized (D5).
+ *   dialects, so the emitted fragment cannot be mis-parenthesized.
  * - **Division is banned inside a fold.** `sum(qty*rate*d/100)` returns `6`
  *   against a truth of `6.90` on SQLite integer storage and `select 7/100` is
  *   `0` on Postgres. A constant divisor rides as `of.factor` and is applied
  *   after the fold in exact BigInt, which is licensed by `k·Σx = Σ(k·x)` and
- *   is exact everywhere (D6).
+ *   is exact everywhere.
  * - **`min`/`max` take one term of one column and no factor**, because
  *   `k·min(x) = min(k·x)` holds only for `k > 0` — a negative factor turns a
- *   minimum into a maximum (D17).
+ *   minimum into a maximum.
  * - **A field's `div` denominator must be a non-zero decimal literal**, which
  *   removes Postgres's hard `ERROR: division by zero` (a 500 on the whole list
- *   read) as a class rather than as a guarded case (D6).
+ *   read) as a class rather than as a guarded case.
  * - **Field references point BACKWARD only**, which makes cycle detection one
  *   left-to-right pass instead of a graph walk.
  *
@@ -56,11 +56,11 @@ import { WORKING_SCALE } from './decimal.js';
  * an older one refuses whole rather than silently dropping a key: a stripped
  * key in an arithmetic spec is a wrong number on screen, and a blank cell is
  * the honest failure. Cross-release skew is handled a level up — an old server
- * strips the unknown `compute=` param entirely (D1).
+ * strips the unknown `compute=` param entirely.
  *
  * Pure-Zod leaf: the server reads this through `@adminium/engine/config`, the
  * dashboard binding through `@adminium/widgets/page-config`, and the Studio
- * live preview runs the identical evaluator — one definition, no drift (D4).
+ * live preview runs the identical evaluator — one definition, no drift.
  */
 
 // ---------------------------------------------------------------------------
@@ -91,7 +91,7 @@ export const measureTermSignSchema = z.enum(['plus', 'minus']);
 export type MeasureTermSign = z.infer<typeof measureTermSignSchema>;
 
 /**
- * What an empty fold reads as. Default per `fn` (D18): `zero` for `sum`,
+ * What an empty fold reads as. Default per `fn`: `zero` for `sum`,
  * `null` for `avg`/`min`/`max`. An invoice with no line items should read
  * `$0.00`, not an em-dash — but the average of nothing is not zero. Authorable
  * per measure so "no child rows" stays a state distinct from "you may not read
@@ -119,7 +119,7 @@ export const DERIVED_ALIAS_PATTERN = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
  */
 export const DECIMAL_LITERAL_PATTERN = /^-?(?:0|[1-9][0-9]{0,17})(?:\.[0-9]{1,6})?$/;
 
-/** Shared with `agg=`: 12 correlated subqueries per request, total (D13). */
+/** Shared with `agg=`: 12 correlated subqueries per request, total. */
 export const MAX_MEASURES = 12;
 /** Fields are in-process arithmetic, but a page with 9 of them is a report. */
 export const MAX_DERIVED_FIELDS = 8;
@@ -276,7 +276,7 @@ export const measureSchema = z.strictObject({
 export type Measure = z.infer<typeof measureSchema>;
 
 /**
- * The empty-fold policy actually in force for a measure (D18).
+ * The empty-fold policy actually in force for a measure.
  *
  * `count` never observes it — SQL answers an empty `COUNT` with `0`, not
  * `NULL` — so it is pinned to `zero` rather than left to a default that could
@@ -353,7 +353,7 @@ export const derivedFieldSchema = z.strictObject({
   /**
    * Decimals on OUTPUT only. A `{ field }` reference reads the referenced
    * field's unrounded working value — rounding at every hop is how
-   * `1.0049 × 3` becomes `3.00` instead of `3.01` (D7).
+   * `1.0049 × 3` becomes `3.00` instead of `3.01`.
    */
   scale: z.number().int().min(0).max(MAX_FIELD_SCALE),
   /**
@@ -382,7 +382,7 @@ export type CrudDerivedConfigInput = z.input<typeof crudDerivedConfigSchema>;
  * Why a block was refused, by name.
  *
  * These are page-AUTHOR mistakes, and the house split makes them hard 422s
- * that fail the read rather than silent degradations (D10) — the opposite
+ * that fail the read rather than silent degradations — the opposite
  * polarity from a per-caller permission refusal, which nulls one value and
  * marks it. Naming each one is what lets the 422 body say which measure and
  * which rule, instead of "invalid compute".
@@ -425,7 +425,7 @@ export type ParsedCrudDerived =
   | { ok: false; refusal: DerivedRefusal };
 
 /**
- * Names this block's ids must not collide with (D26).
+ * Names this block's ids must not collide with.
  *
  * Measure and field ids become ROW KEYS. A field called `total` on a table
  * that has a `total` column overwrites real data after masking — silently, and
@@ -589,7 +589,7 @@ function checkMeasureBody(measure: Measure): DerivedRefusal | null {
         id,
         // k·min(x) = min(k·x) only for k > 0; a negative factor turns a
         // minimum into a maximum, and carrying a sign rule for a case nobody
-        // asked for is dearer than refusing it (D17).
+        // asked for is dearer than refusing it.
         message: `Measure \`${id}\`: \`of.factor\` is not allowed on \`${fn}\` — factoring a constant out of a minimum or maximum flips it for a negative constant.`,
       };
     }
@@ -745,7 +745,7 @@ function inspectExpr(
           code: 'DERIVED_DIVISOR_NOT_LITERAL',
           id: field.id,
           // A per-row divisor reintroduces division by zero, which is a hard
-          // Postgres ERROR and would 500 the whole list read (D6).
+          // Postgres ERROR and would 500 the whole list read.
           message: `Derived field \`${field.id}\`: division needs a literal divisor.`,
         };
       }

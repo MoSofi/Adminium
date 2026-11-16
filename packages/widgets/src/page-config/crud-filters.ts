@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * THE FILTERS A PAGE OFFERS — `config.filters`, and the ones derived from the
- * table when a page defines none (D8).
+ * table when a page defines none.
  *
  * ─── Why an admin defines them ─────────────────────────────────────────────
  *

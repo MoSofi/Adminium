@@ -25,7 +25,7 @@ import { realOfTableId } from '../installs/table-id.js';
 import type { WriteContext } from './write-context.js';
 import type { PaymentRowRule, WriteTarget } from './write-service.js';
 
-/** The right that sends money back: the install's own, or (D20) the refunding app's. */
+/** The right that sends money back: the install's own, or the refunding app's. */
 async function mayRefund(context: WriteContext, ownerApp: string | null): Promise<boolean> {
   const request = context.request;
   if (request === null || typeof request.can !== 'function') return false;
@@ -55,7 +55,7 @@ export function paymentRowsOf(meta: MetaDb): (target: Pick<WriteTarget, 'connect
     const tableId = target.table.id;
     const has = (column: string): boolean => target.table.columns.has(column);
     const profiles = await payableProfilesRepo(meta).list(target.connectionId);
-    // A refund table of the app's own (E4); a payments table may be one too (a hotel keeps its given-back money there).
+    // A refund table of the app's own; a payments table may be one too (a hotel keeps its given-back money there).
     const refunds = profiles.flatMap((profile) => (profile.mapping?.refunds?.model === 'rows' && profile.mapping.refunds.table === tableId ? [refundRule(profile.mapping.refunds, profile.ownerApp)] : []))[0];
     for (const profile of profiles) {
       const payments = profile.mapping?.payments;

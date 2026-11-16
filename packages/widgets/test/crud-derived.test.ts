@@ -19,7 +19,7 @@ import {
  * Every refusal below is asserted BY NAME rather than by "it failed": a page
  * author whose measure is rejected has to be told which measure and which
  * rule, because these are hard 422s that blank the whole page rather than
- * degradations that blank one cell (D10).
+ * degradations that blank one cell.
  */
 
 /** The plan's own worked example — all five asks against the real schema. */
@@ -114,7 +114,7 @@ describe('what a valid block looks like', () => {
     expect(valueOf({})).toEqual({ measures: [], fields: [] });
   });
 
-  it('defaults the empty-fold policy per aggregate (D18)', () => {
+  it('defaults the empty-fold policy per aggregate', () => {
     const base = { id: 'm', table: 't', fkColumn: 'f' } as const;
     const body = { terms: [{ sign: 'plus' as const, factors: ['x'] }] };
     expect(emptyPolicyOf({ ...base, fn: 'sum', of: body })).toBe('zero');
@@ -180,7 +180,7 @@ describe('shape refusals', () => {
   });
 });
 
-describe('the shared alias namespace (D26)', () => {
+describe('the shared alias namespace', () => {
   it('refuses a measure id that collides with a base column', () => {
     const refusal = refusalOf(OWNERS_BLOCK, { columns: ['id', 'number', 'subtotal'] });
     expect(refusal.code).toBe('DERIVED_ALIAS_COLLISION');
@@ -285,7 +285,7 @@ describe('measure bodies', () => {
   });
 
   it('refuses `of.factor` on a min measure', () => {
-    // k·min(x) = min(k·x) only for k > 0 (D17).
+    // k·min(x) = min(k·x) only for k > 0.
     const refusal = refusalOf({
       measures: [
         {
@@ -385,7 +385,7 @@ describe('field references point backward only', () => {
   });
 });
 
-describe('division (D6)', () => {
+describe('division', () => {
   it('refuses a per-row divisor', () => {
     const refusal = refusalOf({
       fields: [

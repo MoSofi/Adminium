@@ -240,14 +240,14 @@ describe('the cross-block rules', () => {
     if (!result.ok) expect(result.issues.some((i) => i.code === 'SCOPE_OUT_OF_RANGE')).toBe(true);
   });
 
-  it('holds the first-party publisher gate, which matters MORE for an add-on (D13)', () => {
+  it('holds the first-party publisher gate, which matters MORE for an add-on', () => {
     const stranger = { ...DHL, publisher: { id: 'stranger', name: 'Someone Else' } };
     const result = validateManifest(stranger);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.issues.some((i) => i.path === 'publisher.id')).toBe(true);
   });
 
-  it('refuses a reserved key in the shared namespace (D17)', () => {
+  it('refuses a reserved key in the shared namespace', () => {
     for (const key of ['apps', 'add-ons', 'demo', 'search']) {
       expect(validateManifest({ ...DHL, key }).ok, key).toBe(false);
     }

@@ -878,7 +878,7 @@ async function main() {
 
     /*
      * A release this server is TOO OLD FOR is listed and refused before any
-     * address is built (G8-D2). Only checked when the live feed happens to
+     * address is built. Only checked when the live feed happens to
      * carry one — asserting it unconditionally would fail the day every
      * released app is installable, which is the state we want.
      */
@@ -930,7 +930,7 @@ async function main() {
   }
 
   // ── acceptance #4 — disconnect keeps the data ─────────────────────────────
-  step('acceptance #4 — disconnect leaves every table the add-on brought (D5)');
+  step('acceptance #4 — disconnect leaves every table the add-on brought');
   const brought = wanted[0];
   if (brought !== undefined) {
     await pg(`insert into ${brought} values (default)`, sourceUrl.toString()).catch(() => {

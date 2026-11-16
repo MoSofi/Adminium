@@ -1465,7 +1465,7 @@ export const updateAppReply = z.object({
   app: installedAppReply,
   from: z.string(),
   to: z.string(),
-  /** Older version directories removed once the update succeeded (D11). */
+  /** Older version directories removed once the update succeeded. */
   pruned: z.array(z.string()),
 });
 

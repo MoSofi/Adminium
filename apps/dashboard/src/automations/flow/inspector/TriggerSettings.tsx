@@ -20,7 +20,7 @@
  * **The watch line tells the truth about what this rule can see.** A record
  * trigger only ever hears writes Adminium made — unless the table has a
  * `created_at`-shaped column or an increasing key, in which case a poller
- * also sees rows the customer's own application wrote (D4). Which of those
+ * also sees rows the customer's own application wrote. Which of those
  * two worlds a rule is in changes whether it works at all, so the inspector
  * says it in a sentence rather than leaving a toggle whose consequence is
  * invisible. The server computes the answer per table (`watch` on
@@ -99,7 +99,7 @@ export function TriggerSettings({ trigger, sources, table, onChange }: TriggerSe
         event: next,
         // Never turn watching ON for someone — but an event this table cannot
         // be watched for must not keep the flag, or the line below says
-        // "watching" while nothing polls (D4).
+        // "watching" while nothing polls.
         watch: trigger.watch && watchesFor(next, table),
       });
       return;

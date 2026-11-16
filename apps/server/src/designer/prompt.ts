@@ -571,7 +571,7 @@ export function createPrompt(deps: PromptDeps) {
         message: `${provider}: this model's window is too small to build with (what it must be told takes most of the ${String(limit)} tokens it reads).`,
       });
     }
-    // What the turn no longer needs is cut first (T64); the budget then trims only what is still too long. Pictures get their bytes last, so no estimate reads them.
+    // What the turn no longer needs is cut first; the budget then trims only what is still too long. Pictures get their bytes last, so no estimate reads them.
     const fitted = trimTranscript(foldSpent(messages), budget - messages.reduce((sum, message) => sum + message.content.filter((block) => block.type === 'image').length, 0) * IMAGE_TOKENS);
     const hasPicture = fitted.some((message) => message.content.some((block) => block.type === 'image'));
     const reads = opts.pictures !== false && hasPicture && deps.attachments !== undefined ? (await deps.readsImages?.(session)) === true : false;

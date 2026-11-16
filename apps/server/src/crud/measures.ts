@@ -24,16 +24,16 @@
  * `sum("a" + "b" * "c")` with no parentheses — a silently wrong money number.
  * The `sql` template is the shipped house form (`widget-data/compiler.ts`),
  * and parenthesizing every term makes mis-parenthesization structurally
- * impossible rather than merely absent (D5).
+ * impossible rather than merely absent.
  *
  * WHAT NEVER REACHES THE SQL. Division: `sum(qty*rate*d/100)` returns 6
  * against a truth of 6.90 on SQLite integer storage, and `select 7/100` is 0
  * on Postgres. A constant divisor rides as `of.factor` and is applied AFTER
  * the fetch in exact BigInt, which `k·Σx = Σ(k·x)` licenses and which is
- * exact on all three dialects (D6). `emptyAs` is applied after the fetch too,
+ * exact on all three dialects. `emptyAs` is applied after the fetch too,
  * not as a `coalesce()`, so the emitted SQL is identical whatever it says and
  * "this invoice has no line items" stays a state distinct from "you may not
- * read that table" (D18).
+ * read that table".
  *
  * ACCESS is per REFERENCING table, degrade-don't-break: a measure over a
  * table the caller cannot read — or one that touches a masked column without
@@ -188,7 +188,7 @@ export interface ResolveMeasuresOptions {
   canReadPii: PiiAccess;
   /** Per-table read check (`table:<conn>:<id>:read`) for the referencing table. */
   canReadTable: (tableId: string) => Promise<boolean>;
-  /** Called once per refusal, for the audit trail (D16). */
+  /** Called once per refusal, for the audit trail. */
   onRefusal?: ((refusal: MeasureRefusal) => void) | undefined;
 }
 
@@ -227,7 +227,7 @@ export async function resolveMeasures(opts: ResolveMeasuresOptions): Promise<Res
     /*
      * Every column that reaches the subquery joins the refusal check, not
      * just the FK: the aggregated columns are the ones whose values the
-     * number actually discloses (D16). Two states, and they are not the same
+     * number actually discloses. Two states, and they are not the same
      * state — which is the defect this closes. `columnPolicyFor` puts a
      * column in EITHER the secret set or the masked set, never both, so a
      * SECRET base-side correlate reads `masked: false` and used to refuse
@@ -435,7 +435,7 @@ function normalizeCount(value: unknown): unknown {
  * all three — so the driver's own spelling cannot be passed through. Trailing
  * zeros beyond the value are trimmed: this is the shortest EXACT
  * representation, and how many decimals to SHOW is the display layer's
- * decision (D8), not the wire's.
+ * decision, not the wire's.
  */
 export function canonicalDecimal(value: unknown): string | null {
   const parsed = parseDecimal(value);
@@ -459,7 +459,7 @@ function measureValue(measure: ResolvedMeasure, raw: unknown): unknown {
   if (measure.fn === 'count') return normalizeCount(raw);
   if (raw === null || raw === undefined) {
     // An invoice with no line items reads $0.00; the average of nothing does
-    // not read zero. Applied here, never as a coalesce in the SQL (D18).
+    // not read zero. Applied here, never as a coalesce in the SQL.
     return measure.emptyAs === 'zero' ? '0' : null;
   }
   const parsed = parseDecimal(raw);

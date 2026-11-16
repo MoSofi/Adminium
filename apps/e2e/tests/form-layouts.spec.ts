@@ -58,7 +58,7 @@ test.describe('the form layouts', () => {
       await expect(dialog).toBeVisible();
 
       // Step one: its own field, the rail saying so, and Back DIMMED rather
-      // than hidden — a control that does nothing has to say so (DP13).
+      // than hidden — a control that does nothing has to say so.
       await expect(dialog.getByLabel(/Company Name/)).toBeVisible();
       await expect(dialog.getByLabel(/Phone/)).toHaveCount(0);
       await expect(dialog.getByTestId('record-form-back')).toBeDisabled();
@@ -79,7 +79,7 @@ test.describe('the form layouts', () => {
       /*
        * The last step also carries `shipper_id`: this table's key has no
        * database default, so the READ-TIME safety net appends the column the
-       * database will demand to the last section (D10) — a designed form can be
+       * database will demand to the last section — a designed form can be
        * incomplete, it can never be unable to create.
        */
       const key = dialog.getByLabel(/Shipper Id/);
@@ -124,7 +124,7 @@ test.describe('the form layouts', () => {
       await expect(pills).toBeVisible();
 
       // The date pill's menu: the four presets AND the comp's own date input,
-      // because the comp stores a label and a column stores a date (DP12).
+      // because the comp stores a label and a column stores a date.
       await dialog.getByTestId('quick-pill-hire_date').click();
       await expect(page.getByRole('button', { name: 'Today' })).toBeVisible();
       await expect(page.getByLabel('Pick a date')).toBeVisible();
@@ -157,7 +157,7 @@ test.describe('the form layouts', () => {
       const dialog = page.getByRole('dialog');
       await expect(dialog).toBeVisible();
       // 150px, the comp's own — a named section feature rather than a per-row
-      // pixel grid nobody could express (DP14).
+      // pixel grid nobody could express.
       const aside = dialog.locator('[data-part="section-aside"] > div').first();
       await expect(aside).toBeVisible();
       await expect(aside).toHaveClass(/w-\[150px\]/);

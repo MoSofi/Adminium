@@ -20,11 +20,11 @@
  * ─── Statuses, and which are terminal ──────────────────────────────────────
  *
  * `pending` → `running` → `succeeded | failed | skipped`, with `waiting`
- * between steps for a suspended run (D8) and `cancelled` for a rule switched
+ * between steps for a suspended run and `cancelled` for a rule switched
  * off mid-wait. `pending` and `waiting` are never swept by retention: they
  * are work that has not happened yet.
  *
- * ─── Stats are queries (D24) ───────────────────────────────────────────────
+ * ─── Stats are queries ───────────────────────────────────────────────
  *
  * Nothing here is denormalised onto the rule. `perRule`, `counts` and `stats`
  * are grouped queries over the two indexes 0028 leaves behind —
@@ -68,15 +68,15 @@ export interface AutomationRun {
 
 export interface BeginRunInput {
   automationId: string;
-  /** The occurrence identity (D6). NULL when there is nothing to collapse on. */
+  /** The occurrence identity. NULL when there is nothing to collapse on. */
   dedupeKey: string | null;
   origin: AutomationOrigin;
   triggerEvent: AutomationTriggerEvent;
-  /** When the run may start — `now + UNDO_TTL_MS` for a dashboard event (D7). */
+  /** When the run may start — `now + UNDO_TTL_MS` for a dashboard event. */
   wakeAt?: number | null | undefined;
 }
 
-/** `running` covers the comp's three-way filter: pending + running + waiting (D9). */
+/** `running` covers the comp's three-way filter: pending + running + waiting. */
 export type AutomationRunFilter = 'success' | 'failed' | 'running';
 
 export const AUTOMATION_RUNNING_STATUSES: readonly AutomationRunStatus[] = [
@@ -98,7 +98,7 @@ export interface AutomationRunCursor {
 }
 
 export interface ListRunsOptions {
-  /** Inclusive lower bound on `started_at` — the 7-day window (D22). */
+  /** Inclusive lower bound on `started_at` — the 7-day window. */
   since: number;
   filter?: AutomationRunFilter | undefined;
   automationId?: string | undefined;
@@ -244,7 +244,7 @@ export function automationRunsRepo(meta: MetaDb) {
       return affected(res.numUpdatedRows) === 1;
     },
 
-    /** running → waiting, with the trace so far and where to pick up (D8). */
+    /** running → waiting, with the trace so far and where to pick up. */
     async wait(
       id: string,
       input: { wakeAt: number; trace: AutomationTrace },
@@ -334,7 +334,7 @@ export function automationRunsRepo(meta: MetaDb) {
     },
 
     /**
-     * The undo mapping's worklist (D7): runs that have not started and are
+     * The undo mapping's worklist: runs that have not started and are
      * still inside their delay. Small by construction — the window is 60 s —
      * so the caller decodes `triggerEvent.record` in JS rather than the store
      * reaching into a json column.
@@ -376,7 +376,7 @@ export function automationRunsRepo(meta: MetaDb) {
       return true;
     },
 
-    /** Newest first, keyset-paginated — the Workflow Logs list (D22). */
+    /** Newest first, keyset-paginated — the Workflow Logs list. */
     async list(options: ListRunsOptions): Promise<AutomationRun[]> {
       let query = db
         .selectFrom('adminium_automation_runs')
@@ -410,7 +410,7 @@ export function automationRunsRepo(meta: MetaDb) {
       return rows.map(decode);
     },
 
-    /** The four filter-pill badges over the same window (D22). */
+    /** The four filter-pill badges over the same window. */
     async counts(
       options: { since: number; automationId?: string | undefined; connectionIds?: readonly string[] | undefined },
     ): Promise<AutomationRunCounts> {
@@ -493,7 +493,7 @@ export function automationRunsRepo(meta: MetaDb) {
     },
 
     /**
-     * Retention (D23): finished runs older than `days` go, and a FAILED run
+     * Retention: finished runs older than `days` go, and a FAILED run
      * is kept twice as long — the run you want to read is the one that went
      * wrong, and it is the one nobody looks at until later. `pending` and
      * `waiting` are never swept: they are future work.

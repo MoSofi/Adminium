@@ -12,7 +12,7 @@
  *     and no string on the page may say quota, upgrade, plan, tier, premium,
  *     hosted or free. This is the assertion that stops the meter growing a
  *     denominator the next time somebody "finishes" the strip.
- *  3. **Delete is soft and asks nothing (D12).** The request fires on the
+ *  3. **Delete is soft and asks nothing.** The request fires on the
  *     first click, with no dialog in the way, and the toast carries Undo.
  *  4. **There is no Empty trash button.** The wire has no purge route (see the
  *     page's docblock), so its absence is deliberate and is pinned here — an
@@ -316,7 +316,7 @@ describe('FilesPage', () => {
 
     await user.click(screen.getAllByTestId('files-row-delete')[0] as HTMLElement);
 
-    // No dialog stood in the way: the DELETE is already in flight (D12).
+    // No dialog stood in the way: the DELETE is already in flight.
     expect(screen.queryByRole('dialog')).toBeNull();
     await waitFor(() => {
       expect(calls.some((call) => call.method === 'DELETE' && fileIdIn(call.url) === 'file_1')).toBe(true);
@@ -469,12 +469,12 @@ describe('FilesPage — the File Manager comp', () => {
     renderPage();
     const strip = await screen.findByTestId('files-usage-strip');
 
-    // Exactly one: the local row has a capacity, the S3 row has none (D10).
+    // Exactly one: the local row has a capacity, the S3 row has none.
     expect(within(strip).getAllByTestId('files-usage-meter')).toHaveLength(1);
     expect(within(strip).getByText('900 MB used')).toBeTruthy();
   });
 
-  it('names the connection on a file that belongs to no record (D18)', async () => {
+  it('names the connection on a file that belongs to no record', async () => {
     stubFetch({ connections: CONNECTIONS });
     await renderListView();
 
@@ -530,7 +530,7 @@ describe('FilesPage — the File Manager comp', () => {
 
   it('has no preview for a kind the browser cannot show, nor for a trashed file', () => {
     expect(previewKindOf(makeFile({ mime: 'application/zip', filename: 'a.zip' }))).toBeNull();
-    // SVG is never served inline (D9), so it is never asked for inline.
+    // SVG is never served inline, so it is never asked for inline.
     expect(previewKindOf(makeFile({ mime: 'image/svg+xml', filename: 'a.svg' }))).toBeNull();
     expect(previewKindOf(makeFile({ deletedAt: 1 }))).toBeNull();
     expect(previewKindOf(makeFile({ mime: 'text/csv', filename: 'a.csv' }))).toBe('text');
@@ -543,7 +543,7 @@ describe('FilesPage — the File Manager comp', () => {
     await renderListView();
 
     expect(screen.queryByTestId('files-rail-connections')).toBeNull();
-    // A file always belongs to a connection (D4); with none to name, the
+    // A file always belongs to a connection; with none to name, the
     // dialog could only refuse.
     expect(screen.queryByTestId('files-upload-open')).toBeNull();
     expect(screen.getByTestId('files-preset-all')).toBeTruthy();

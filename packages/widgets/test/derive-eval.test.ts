@@ -14,7 +14,7 @@ import {
  * the three-state lattice — value / absent / refused — which is the whole of
  * the security argument: a refused operand must poison every node above it
  * INCLUDING a comparison, because a conditional evaluated over an unreadable
- * input leaks one bit per row (D11).
+ * input leaks one bit per row.
  */
 
 /** The plan's worked example: subtotal -> discount -> tax -> total -> shipping. */
@@ -113,7 +113,7 @@ describe('the owner five numbers, over a real row', () => {
     expect(masked).toEqual([]);
   });
 
-  it('carries the UNROUNDED earlier field forward (D7)', () => {
+  it('carries the UNROUNDED earlier field forward', () => {
     const fields: DerivedField[] = [
       { id: 'avg_rate', scale: 2, expr: { col: 'avg_rate' } },
       { id: 'tripled', scale: 2, expr: { op: 'mul', args: [{ field: 'avg_rate' }, { lit: '3' }] } },

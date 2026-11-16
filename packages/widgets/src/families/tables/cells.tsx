@@ -57,7 +57,7 @@ export interface CellContext {
    * thing from here.
    */
   files?: ReadonlyMap<string, ResolvedFile | null> | undefined;
-  /** Above this, an image column shows its chip instead of a preview (D24). */
+  /** Above this, an image column shows its chip instead of a preview. */
   thumbnailMaxBytes?: number | undefined;
   /**
    * The page's picture columns, in order (a `file` block that takes pictures
@@ -73,7 +73,7 @@ export interface ResolvedFile {
   filename: string;
   mime: string;
   sizeBytes: number;
-  /** Same-origin path. NEVER a destination's public URL — the CSP blocks it (D24). */
+  /** Same-origin path. NEVER a destination's public URL — the CSP blocks it. */
   contentPath: string;
 }
 
@@ -212,8 +212,8 @@ const THUMBNAIL_MIMES: ReadonlySet<string> = new Set(['image/png', 'image/jpeg',
  * A resolved file in a grid cell: a thumbnail for a small raster image,
  * otherwise a chip with the name and size.
  *
- * THE IMAGE IS THE ORIGINAL, rendered small. There is no server-side resizing
- * (D39), so the size cap is what stops a 40 px box from downloading twelve
+ * THE IMAGE IS THE ORIGINAL, rendered small. There is no server-side resizing,
+ * so the size cap is what stops a 40 px box from downloading twelve
  * megabytes — above it, the chip. And the `src` is always the SAME-ORIGIN
  * content path, never a destination's `publicBaseUrl`: the dashboard's CSP is
  * `default-src 'self'`, so a cross-origin `<img>` is blocked outright and

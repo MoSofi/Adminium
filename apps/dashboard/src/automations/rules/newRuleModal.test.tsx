@@ -64,7 +64,7 @@ afterAll(() => {
 });
 
 describe('NewRuleModal — the trigger fields', () => {
-  it('offers four events and never names a table in them (D25)', () => {
+  it('offers four events and never names a table in them', () => {
     renderModal();
     expect([...trigger().options].map((option) => option.textContent)).toEqual([
       'When (trigger)',
@@ -103,7 +103,7 @@ describe('NewRuleModal — the trigger fields', () => {
     });
   });
 
-  it('prefixes the connection when there is more than one (F4)', async () => {
+  it('prefixes the connection when there is more than one', async () => {
     const { user } = renderModal({
       ...ONE,
       connections: [
@@ -176,7 +176,7 @@ describe('NewRuleModal — the trigger fields', () => {
     });
   });
 
-  it('keeps the table when the event changes, and re-reads watch per event (D4)', async () => {
+  it('keeps the table when the event changes, and re-reads watch per event', async () => {
     const { user, onCreate } = renderModal();
     await user.type(screen.getByTestId('new-rule-name'), 'Greet the customer');
     await user.selectOptions(trigger(), 'updated');
@@ -194,7 +194,7 @@ describe('NewRuleModal — the trigger fields', () => {
     });
   });
 
-  it('a delete is never watched (D4)', async () => {
+  it('a delete is never watched', async () => {
     const { user, onCreate } = renderModal();
     await user.type(screen.getByTestId('new-rule-name'), 'Log the delete');
     await user.selectOptions(trigger(), 'deleted');

@@ -176,7 +176,7 @@ describe('DerivedNumbersCard', () => {
 
     const { derived } = state();
     // `× (col ÷ 100)`, the only division the grammar allows anywhere: by a
-    // literal, at field level, never inside the fold (D6).
+    // literal, at field level, never inside the fold.
     expect(derived.fields[0]?.expr).toEqual({
       op: 'mul',
       args: [{ measure: 'subtotal' }, { op: 'div', args: [{ col: 'tax_rate' }, { lit: '100' }] }],

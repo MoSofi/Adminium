@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The report manager (M1–M17): the topbar's title, subtitle and ONE primary
+ * The report manager: the topbar's title, subtitle and ONE primary
  * *New {template|report}*; the toolbar; the gallery or list of cards; the
  * four empty states; and the card actions.
  *

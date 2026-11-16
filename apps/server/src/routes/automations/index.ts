@@ -2,9 +2,9 @@
 /**
  * Automation rules (`/api/v1/automations`, 42-automations-and-workflow-
  * logs.md). Every route is behind `system:automations:manage` — one key
- * this wave, gating reads and writes alike (D1).
+ * this wave, gating reads and writes alike.
  *
- * --- The save is where authority is checked (D2) --------------------------
+ * --- The save is where authority is checked --------------------------
  *
  * A run executes as the SYSTEM principal: it writes records without a
  * per-table grant check, because there is no user standing behind it. What
@@ -18,7 +18,7 @@
  * somebody's table access does not disarm the rules they already wrote —
  * which is why the key is seeded to super-admin only.)
  *
- * --- Enabling is a second, softer gate (D12) ------------------------------
+ * --- Enabling is a second, softer gate ------------------------------
  *
  * A half-built rule saves fine; it just cannot be switched on. `POST` with
  * "Enable immediately" stores it PAUSED and says so in the reply, and
@@ -519,7 +519,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
           const finished = period.succeeded + period.failed;
           return finished === 0 ? null : period.succeeded / finished;
         };
-        // "Time saved" is runs × the rule's own minutes (F6), which is why it
+        // "Time saved" is runs × the rule's own minutes, which is why it
         // is computed here rather than stored: the number an operator typed
         // applies to every run the rule has ever made, including past ones.
         const savedFor = async (from: number): Promise<number> => {
@@ -761,7 +761,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
       async (request) => {
         const rule = await rules.findById(request.params.id);
         if (rule === null) throw new NotFoundError('No such rule.', { id: request.params.id });
-        // The ON-SCREEN document, not the stored one (D14): Test acts on what
+        // The ON-SCREEN document, not the stored one: Test acts on what
         // the person is looking at, which is why it needs no save first.
         const trigger = request.body.trigger;
         const graph = request.body.graph;
@@ -818,7 +818,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
   /**
    * The record a dry run walks over: the one the caller chose, else the newest
    * row of the trigger table. An empty table has none, and the toast says so
-   * rather than the Test button doing nothing (D14).
+   * rather than the Test button doing nothing.
    */
   async function pickSample(
     trigger: Automation['trigger'],

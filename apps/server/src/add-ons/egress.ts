@@ -77,7 +77,7 @@ export interface EgressRefusalRecord {
 export interface AddOnHttpClientOptions {
   /** The add-on's manifest key — what an audit row names. */
   key: string;
-  /** `addOn.network.allow` — exact hostnames, no wildcards, no ports (D14). */
+  /** `addOn.network.allow` — exact hostnames, no wildcards, no ports. */
   allow: readonly string[];
   /**
    * Whether the manifest declares the `outbound-http` capability.

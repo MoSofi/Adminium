@@ -249,7 +249,7 @@ describe('error hints', () => {
   });
 });
 
-describe('Supabase pooler login hint (V25, V29)', () => {
+describe('Supabase pooler login hint', () => {
   const pooler = 'postgresql://postgres.abcdefghijklmnop:x@aws-0-eu-west-1.pooler.supabase.com:5432/postgres';
 
   it('knows the shared pooler by its host, and nothing else', () => {

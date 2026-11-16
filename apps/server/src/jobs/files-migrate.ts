@@ -22,7 +22,7 @@
  * the one way this job could destroy data. Verification costs one extra read
  * of each object and is not optional.
  *
- * WHAT IT DOES NOT DO: rewrite references inside a customer's table (D20). An
+ * WHAT IT DOES NOT DO: rewrite references inside a customer's table. An
  * `id`-shaped or Adminium-URL reference stays valid by construction. A
  * reference minted from a destination's `publicBaseUrl` keeps pointing at the
  * old base — so the summary counts how many moved files could be named that
@@ -42,7 +42,7 @@ import type { createJobRegistry } from './registry.js';
 export const FILES_MIGRATE_KIND = 'files.migrate';
 
 export const filesMigratePayload = z.object({
-  /** `null` is this server's disk — the implicit destination (D3). */
+  /** `null` is this server's disk — the implicit destination. */
   from: z.string().min(1).nullable(),
   to: z.string().min(1).nullable(),
   kinds: z.array(z.string().min(1)).optional(),
@@ -64,7 +64,7 @@ export interface FilesMigrateResult {
   /**
    * How many moved files sat on a destination that publishes a `publicBaseUrl`
    * — i.e. how many references in customer tables may now point at the old
-   * base. Not a failure; a fact the operator has to be told (D20).
+   * base. Not a failure; a fact the operator has to be told.
    */
   publicRefsAffected: number;
 }

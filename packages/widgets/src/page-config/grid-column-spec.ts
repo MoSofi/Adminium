@@ -143,7 +143,7 @@ export const columnDisplaySchema = z
      * for percents: `8` means 8% in a 0-100 `tax_rate` column and 800% in a
      * 0-1 ratio column, and guessing wrong is a 100x error on screen. The
      * classifier already distinguishes the two and throws the information
-     * away; this is where it is finally stated (D9).
+     * away; this is where it is finally stated.
      */
     percentScale: z.enum(['unit', 'fraction']).optional(),
   })
@@ -160,7 +160,7 @@ export type ColumnDisplay = z.infer<typeof columnDisplaySchema>;
  */
 /**
  * The reference shapes a file column may store. `url` is the default and
- * what generation seeds (D31).
+ * what generation seeds.
  */
 export const COLUMN_FILE_REFS = ['url', 'id', 'key'] as const;
 export type ColumnFileRef = (typeof COLUMN_FILE_REFS)[number];
@@ -215,7 +215,7 @@ export const columnFileSchema = z
      * Render an image preview in the cell rather than a chip. Honoured only for
      * raster images under `files.thumbnailMaxBytes`, and always through the
      * same-origin content route — the dashboard's CSP is `default-src 'self'`,
-     * so a cross-origin `<img>` is blocked whatever this says (D24).
+     * so a cross-origin `<img>` is blocked whatever this says.
      */
     inline: z.boolean().optional(),
     /**

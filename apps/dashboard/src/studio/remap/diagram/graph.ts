@@ -5,7 +5,7 @@
  * Pure: model in, nodes and edges out. No React, no xyflow, no layout. That is
  * what lets the semantics below — which edge is declared, which is a guess,
  * which is ours; which node is over the column threshold — be tested without
- * mounting a canvas, and it is also what makes the text-equivalent view (D16)
+ * mounting a canvas, and it is also what makes the text-equivalent view
  * a rendering of the same data rather than a second derivation of it.
  */
 import type { EffectiveModel, EffectiveRelation, EffectiveTable } from '../model.js';
@@ -71,7 +71,7 @@ export interface DiagramOptions {
   columnLimit?: number;
   /**
    * Above this many tables the diagram renders a filtered view rather than the
-   * whole schema (D16). 400 unreadable boxes is not a picture of anything.
+   * whole schema. 400 unreadable boxes is not a picture of anything.
    *
    * This used to add "and the browser pays for every one", which the 200-table
    * measurement disproved: laying out all 200 costs 35 ms against 18 ms for 60

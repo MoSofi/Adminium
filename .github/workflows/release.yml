@@ -2,7 +2,7 @@ name: release
 
 # Phase 1 (tasks): on a `v*` tag, build and push the multi-arch image to ghcr.
 # The remaining release jobs land with their milestones: npm publish with
-# provenance, docs deploy, and the Electron matrix with signing (M11).
+# provenance, docs deploy, and the Electron matrix with signing.
 
 on:
   push:

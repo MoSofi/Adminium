@@ -6,7 +6,7 @@
  *
  * ONE resolver for the preview count and the run itself, so *1,240 recipients ·
  * 12 opted out* on the Send modal is the same arithmetic the job performs a
- * moment later — resolved at RUN START, never snapshotted (D11): a person who
+ * moment later — resolved at RUN START, never snapshotted: a person who
  * opts out between clicking Send and the scheduled time is not mailed.
  *
  * Suspended accounts are never recipients (`notify` skips them for the same
@@ -29,10 +29,10 @@ import {
 
 import { templateRequiredPlaceholders } from '../automations/templates.js';
 
-/** The notification-prefs kind a person switches off to stop receiving campaigns (D11). */
+/** The notification-prefs kind a person switches off to stop receiving campaigns. */
 export const EMAIL_CAMPAIGN_PREF_KIND = 'email.campaign';
 
-/** The in-app notice the creator gets when a run finishes (D11). */
+/** The in-app notice the creator gets when a run finishes. */
 export const EMAIL_CAMPAIGN_SENT_KIND = 'email.campaign.sent';
 
 const PAGE = 500;
@@ -100,7 +100,7 @@ export async function resolveCampaignAudience(meta: MetaDb, audience: Extract<Em
   return { recipients, skipped: optedOut.length, optedOut, total: recipients.length + optedOut.length };
 }
 
-/** The per-recipient substitutions of a workspace-user send (D11, D18). */
+/** The per-recipient substitutions of a workspace-user send. */
 export function recipientVars(user: Pick<User, 'name' | 'email'>, appName: string): Record<string, string> {
   const name = user.name.trim();
   return {

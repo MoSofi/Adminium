@@ -76,7 +76,7 @@ export interface ConnectionTestSummary {
 }
 
 /**
- * What a connection test records: the probe's verdicts, whether the role may write (C1) AND
+ * What a connection test records: the probe's verdicts, whether the role may write AND
  * whether it may run DDL.
  *
  * `canDdl` used to be dropped by every caller, so it stayed null — which Studio reads as "may

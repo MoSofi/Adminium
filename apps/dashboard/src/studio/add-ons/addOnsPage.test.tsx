@@ -536,7 +536,7 @@ describe('AddOnsPage', () => {
       });
     });
 
-    it('says so when the environment overrules the switch (O1)', async () => {
+    it('says so when the environment overrules the switch', async () => {
       // Saved, and still off. A toggle that springs back with no explanation
       // reads as a broken page rather than as a policy.
       const user = userEvent.setup();
@@ -717,7 +717,7 @@ describe('AddOnsPage', () => {
       expect(screen.queryByText('Design Studio')).toBeNull();
     });
 
-    it('searches on the tagline as well as the name (D6)', async () => {
+    it('searches on the tagline as well as the name', async () => {
       const user = userEvent.setup();
       await renderPage({ entries: many });
       await screen.findByText('Design Studio');
@@ -728,7 +728,7 @@ describe('AddOnsPage', () => {
       expect(screen.queryByText('Design Studio')).toBeNull();
     });
 
-    it('says what installing will ask for, before a download (D5)', async () => {
+    it('says what installing will ask for, before a download', async () => {
       await renderPage({ entries: many });
       await screen.findByText('DHL Shipping');
       expect(screen.getByText('Needs an API key')).toBeTruthy();
@@ -736,7 +736,7 @@ describe('AddOnsPage', () => {
       expect(screen.queryByText('Connects with OAuth')).toBeNull();
     });
 
-    it('renders an unknown category as its own slug rather than dropping the row (D4)', async () => {
+    it('renders an unknown category as its own slug rather than dropping the row', async () => {
       const user = userEvent.setup();
       await renderPage({
         entries: [makeEntry({ key: 'future-thing', name: 'Future Thing', categories: ['telemetry'] })],
@@ -749,7 +749,7 @@ describe('AddOnsPage', () => {
       expect(screen.getByText('Future Thing')).toBeTruthy();
     });
 
-    it('distinguishes a filter that matched nothing from an empty catalogue (D8)', async () => {
+    it('distinguishes a filter that matched nothing from an empty catalogue', async () => {
       const user = userEvent.setup();
       await renderPage({ entries: many });
       await screen.findByText('Barcode Labels');

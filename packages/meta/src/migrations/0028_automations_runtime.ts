@@ -13,7 +13,7 @@
  * occurrence has already fired, and when a suspended run wakes up. Those are
  * the six columns below.
  *
- * ─── `dedupe_key` is the exactly-once guarantee (D6) ───────────────────────
+ * ─── `dedupe_key` is the exactly-once guarantee ───────────────────────
  *
  * Four different producers can decide the same thing happened: the route
  * matcher (Adminium wrote the row), the watch poller (the customer's app
@@ -31,7 +31,7 @@
  * truncation would collapse two DIFFERENT records onto one key and silently
  * drop a run.
  *
- * ─── `wake_at` is on the RUN, not just the job (D7, D8) ────────────────────
+ * ─── `wake_at` is on the RUN, not just the job ────────────────────
  *
  * A wait step re-enqueues the run as a delayed job, so the job row already
  * knows when it resumes. `wake_at` duplicates that on the run because the

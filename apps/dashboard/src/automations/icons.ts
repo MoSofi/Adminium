@@ -81,7 +81,7 @@ export const AUTOMATION_ICONS: Readonly<Record<string, LucideIcon>> = {
   clock: Clock,
   'trending-up': TrendingUp,
   'trending-down': TrendingDown,
-  // run + trace statuses (D9)
+  // run + trace statuses
   loader: Loader,
   hourglass: Hourglass,
   minus: Minus,

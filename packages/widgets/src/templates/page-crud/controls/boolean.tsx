@@ -10,7 +10,7 @@ import { CheckRow, ToggleRow } from '@adminium/ui';
 
 import type { ControlProps } from './types.js';
 
-/** The default for a boolean column (D18). */
+/** The default for a boolean column. */
 export function ToggleRowControl(props: ControlProps) {
   return (
     <ToggleRow

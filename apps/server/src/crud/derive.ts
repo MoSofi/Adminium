@@ -8,7 +8,7 @@
  * and as a fourth stage on the single-record GET. The evaluator itself lives
  * in the page-config leaf and is reached through `@adminium/engine/config`,
  * so the Studio's live preview runs the identical code and cannot drift from
- * the number the grid shows (D3/D4). This file is only the placement and the
+ * the number the grid shows. This file is only the placement and the
  * marker bookkeeping.
  *
  * WHY AFTER MASKING, AND NOT IN SQL. A field reads measures, this row's own
@@ -21,7 +21,7 @@
  *
  * THE MARKER IS THE CONTRACT. A refused operand poisons its whole field —
  * including through a `cases` predicate, because a conditional evaluated over
- * an unreadable input leaks one bit per row (D11) — and the field's id joins
+ * an unreadable input leaks one bit per row — and the field's id joins
  * the row's `_masked` array, exactly as a masked base column does. An
  * unmarked null is a different state and keeps a different rule: it absorbs,
  * and the cell renders an em-dash rather than masked dots.

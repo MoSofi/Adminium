@@ -18,7 +18,7 @@
  * --- The status guard is the cancellation mechanism ------------------------
  *
  * `runs.start()` only moves `pending` or `waiting` to `running`. A run that
- * was skipped by an undo (D7) is already `skipped` when its job fires a
+ * was skipped by an undo is already `skipped` when its job fires a
  * minute later, so `start()` returns false and the handler stops. That is
  * also why `onUndo` does not cancel the queue row: the status IS the
  * decision, and two ways of saying it could disagree.
@@ -43,7 +43,7 @@ export const AUTOMATION_RUN_MAX_ATTEMPTS = 1;
 
 export const automationRunPayloadSchema = z.object({
   runId: z.string().min(1).max(36),
-  /** Index path into the graph; absent starts at the trigger (D8). */
+  /** Index path into the graph; absent starts at the trigger. */
   resume: z.array(z.number().int().min(0)).max(8).optional(),
 });
 export type AutomationRunPayload = z.infer<typeof automationRunPayloadSchema>;
@@ -120,7 +120,7 @@ export function registerAutomationRunHandler(registry: JobRegistry, deps: Automa
 
       if (outcome.kind === 'waiting') {
         await runs.wait(run.id, { wakeAt: outcome.wakeAt, trace: outcome.trace });
-        // The queue row IS the timer (D8): nothing here holds one, so a
+        // The queue row IS the timer: nothing here holds one, so a
         // restart mid-wait costs nothing.
         const resumed = await deps.enqueue({
           kind: AUTOMATION_RUN_KIND,

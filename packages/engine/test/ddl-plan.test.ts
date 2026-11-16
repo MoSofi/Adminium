@@ -500,7 +500,7 @@ describe('SQLite collapses every rebuild-needing change into ONE rebuild', () =>
   });
 });
 
-describe('the forward type map (D30)', () => {
+describe('the forward type map', () => {
   it.each([
     ['varchar', 'postgres', 'varchar(255)'],
     ['timestamptz', 'postgres', 'timestamptz'],
@@ -576,7 +576,7 @@ describe('a new table’s foreign keys ride IN the create, not beside it', () =>
    *
    * So the constraint belongs in the CREATE, where it cannot half-apply and
    * where all three dialects accept it. The review stays honest because the
-   * emitted SQL is the preview (D2) and the summary names the link.
+   * emitted SQL is the preview and the summary names the link.
    */
   const clients = tbl({ name: 'clients' });
   const reservations = tbl({

@@ -382,7 +382,7 @@ function PresetForm({
     if (kind === 'percent') {
       // `× column ÷ 100`, never `× (column/100)` inside a fold: the division is
       // a field-level one by a literal, which is the only division the grammar
-      // allows anywhere (D6).
+      // allows anywhere.
       onAdd(
         name,
         {

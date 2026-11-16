@@ -2,7 +2,7 @@
 /**
  * The list layout (M11; comp 214-245): ONE card-styled table with the comp's
  * four columns — Name · Status · Updated · Actions — and rows that open on
- * click. No group bands: this comp has no grouping (M7). The grid keeps the
+ * click. No group bands: this comp has no grouping. The grid keeps the
  * comp's column recipe; the roles make it a table for assistive tech without
  * giving up the grid.
  */
@@ -18,12 +18,12 @@ import { rowIcon, rowSub } from './model.js';
 
 /**
  * The comp's four columns (215): Name · Status · Updated · Actions, at
- * `minmax(0,1fr) 130px 120px 128px` (M11). Those fixed tracks need 450 px
+ * `minmax(0,1fr) 130px 120px 128px`. Those fixed tracks need 450 px
  * inside the card, which a phone does not have — at 390 px all three row
  * actions fell outside the card's `overflow: hidden` and were unreachable
  * (measured: 3 of 3 at 390, 2 of 3 at 430, clean from 500).
  *
- * The comp draws no responsive rule (E11), so below `sm` the two middle
+ * The comp draws no responsive rule, so below `sm` the two middle
  * columns collapse away and the row keeps Name + Actions. The status stays
  * readable in the gallery, which is the layout a phone opens on.
  */

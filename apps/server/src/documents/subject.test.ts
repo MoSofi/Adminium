@@ -286,7 +286,7 @@ describe('a value typed into the mapping instead of a column', () => {
     expect(subject.collections.items).toEqual([]);
   });
 
-  it('takes collection ROWS outright, in the slot’s own column ids (D15)', () => {
+  it('takes collection ROWS outright, in the slot’s own column ids', () => {
     /*
      * A request-shaped intent has no source table, so its lines arrive already
      * named for the slot. They go through the same coercion a mapped row does —

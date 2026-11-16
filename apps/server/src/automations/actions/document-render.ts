@@ -9,7 +9,7 @@
  * Every one of those already existed by the time 34b started — plan 42 built
  * them for automations on 2026-09-08 — and O4's only objection to reusing
  * them was that `automations.manage` was a reserved grant, which 42 also
- * un-reserved in the same change. So the owner ruled reuse (D55), and "when a
+ * un-reserved in the same change. So the owner ruled reuse, and "when a
  * new order is created, draw an invoice" is a rule with one step: this one.
  *
  * The consequence worth stating: this step is VISIBLE in the Automations UI,
@@ -81,7 +81,7 @@ export async function runDocumentRenderAction(
     profileId: action.profileId,
     pk: ctx.source.record.pk,
     // WHOEVER WROTE THE ROW, not the rule's author and not the system. A
-    // triggered render reads the source with the requester's grants (D16), so
+    // triggered render reads the source with the requester's grants, so
     // the identity has to be the one that caused the write.
     requestedBy: ctx.rule.createdBy ?? null,
     actorKind: 'system',

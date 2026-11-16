@@ -559,7 +559,7 @@ function planAlters(
     }
     if (change.defaultChanged !== null) {
       /*
-       * Auto-increment is NOT a default (D23). It is an identity sequence on
+       * Auto-increment is NOT a default. It is an identity sequence on
        * postgres, a column attribute on MySQL and the rowid alias on SQLite, so
        * it gets its own two step kinds — and a change FROM auto-increment TO a
        * real default is both of them, in that order, because the identity has

@@ -78,7 +78,7 @@ describe('FileStore over a configured destination', () => {
     const id = newId('file');
     const written = await store.write({ id, kind: 'branding', filename: 'logo.png', mime: 'image/png', bytes: PNG });
 
-    // The row now names the bucket, and the key is the dated layout (D19) —
+    // The row now names the bucket, and the key is the dated layout —
     // not the flat id, which is the local grammar.
     expect(written.destinationId).not.toBeNull();
     expect(written.storage).toBe('s3');
@@ -96,7 +96,7 @@ describe('FileStore over a configured destination', () => {
     expect(await readdir(join(dataDir, 'tmp'))).toEqual([]);
   });
 
-  it('applies the default to every kind, not just uploads (D38)', async () => {
+  it('applies the default to every kind, not just uploads', async () => {
     await makeS3Destination();
     for (const kind of ['upload', 'export', 'import', 'branding', 'schema', 'archive'] as const) {
       const written = await store.write({ id: newId('file'), kind, filename: `${kind}.pdf`, mime: 'application/pdf', bytes: PDF });
@@ -113,7 +113,7 @@ describe('FileStore over a configured destination', () => {
 
     const put = stub.log.find((entry) => entry.method === 'PUT');
     // The spool is what makes an exact Content-Length and a real payload hash
-    // possible for a body nobody knew the size of when it started (D4).
+    // possible for a body nobody knew the size of when it started.
     expect(put?.unchunked).toBe(true);
     expect(put?.payloadHashMatched).toBe(true);
     expect(stub.objects.get(written.storageKey)?.body.toString()).toContain('499,row');

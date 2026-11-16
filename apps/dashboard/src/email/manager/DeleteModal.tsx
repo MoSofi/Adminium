@@ -3,7 +3,7 @@
  * The comp's delete confirm (153-168, Appendix A §M9) in the system's modal
  * anatomy: danger tile, *Delete {name}?*, one sentence, Cancel / Delete.
  *
- * Three flavours share it (D4): `archive` — the everyday Delete, whose
+ * Three flavours share it: `archive` — the everyday Delete, whose
  * sentence says where the document goes; `forGood` — archived mode's second
  * step, with the comp's own "can't be undone" line; `reset` — the same slot
  * on a built-in key, which is re-seeded rather than removed.

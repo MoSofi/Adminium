@@ -3,7 +3,7 @@
  * Giving back an online payment, mounted on an app's own screen: the two
  * steps the dashboard's refund takes (what and why, then the one sentence
  * that says what will happen), its words, and its toast — never an app's own
- * copy of them (C1-F6, C3-F7). Over the person's own session: the server asks
+ * copy of them. Over the person's own session: the server asks
  * the refund right again, and refuses a payment whose refunds the app keeps
  * as its own rows (it says so: refund it in the app).
  *

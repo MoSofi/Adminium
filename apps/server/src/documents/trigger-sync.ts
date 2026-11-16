@@ -6,7 +6,7 @@
  * ─── WHY THERE IS NO TRIGGER TABLE FOR THIS TO WRITE ──────────────────────
  *
  * `adminium_record_triggers` was designed for this. The owner ruled reuse on
- * 2026-09-10 (D55) because plan 42 had already built the matcher, the 60 s
+ * 2026-09-10 because plan 42 had already built the matcher, the 60 s
  * undo window, the per-row dedupe key and the delay-by-origin rule that
  * section specified — and because O4's only objection, that
  * `automations.manage` was reserved, had gone away when 42 un-reserved it.
@@ -32,7 +32,7 @@
  * database are noticed. A document mapping must not: the step-5 note tells
  * the operator, in eight languages, that "rows added by an import or written
  * straight into the database do not draw anything — only writes through
- * Adminium do" (D10). Leaving the poller on would make that sentence false and
+ * Adminium do". Leaving the poller on would make that sentence false and
  * would mint invoices for a bulk import nobody meant to invoice.
  */
 

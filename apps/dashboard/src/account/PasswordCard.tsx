@@ -39,7 +39,7 @@ import { useCommonWords } from '../i18n/commonWords.js';
 export function PasswordCard(): ReactNode {
   // This screen's words load with it, not with the first paint.
   useCommonWords();
-  // The workspace's own rule, not a hard-coded 8 (V28); 8 is the policy's floor.
+  // The workspace's own rule, not a hard-coded 8; 8 is the policy's floor.
   const minLength = useQuery(setupStateQuery()).data?.passwordMinLength ?? 8;
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');

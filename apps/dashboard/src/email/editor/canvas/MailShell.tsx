@@ -3,8 +3,8 @@
  * The mail shell's fixed parts (comp 509-527, 562-581): the client chrome
  * (avatar, from name, from email, *now*), the brand banner, the footer, the
  * attachments card and the variables row. The shell itself sets `dir` to the
- * variation's locale and the `--adm-email-accent` property every block reads
- * (D15); it sits in the always-light scope because a mailbox is light.
+ * variation's locale and the `--adm-email-accent` property every block reads;
+ * it sits in the always-light scope because a mailbox is light.
  */
 import { FileCog, FileText, Hexagon, Paperclip } from 'lucide-react';
 import type { ReactNode } from 'react';

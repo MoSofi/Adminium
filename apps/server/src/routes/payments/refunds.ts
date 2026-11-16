@@ -68,7 +68,7 @@ const previewReply = z.object({
     refundable: z.string(),
     paidWith: z.string().nullable(),
     refusal: z.object({ code: z.string(), message: z.string() }).nullable(),
-    /** Refunded in its app, where its refund rows are kept (CR4): the app, and the staff screen a refund is made on. */
+    /** Refunded in its app, where its refund rows are kept: the app, and the staff screen a refund is made on. */
     inApp: z.object({ app: z.string().nullable(), openIn: z.string().nullable() }).nullable(),
   }),
 });
@@ -99,7 +99,7 @@ export function paymentRefundRoutes(deps: RefundDeps): FastifyPluginAsyncZod {
   const views = createPublicViews(deps.meta);
 
   /** The payment, when this person reaches its record; refuses (or answers "no such payment") otherwise. */
-  /** The install's refund right, or the app's own for a payment of its records (D20): a 403 otherwise. */
+  /** The install's refund right, or the app's own for a payment of its records: a 403 otherwise. */
   async function mayRefundOrRefuse(request: FastifyRequest, attempt: PaymentAttempt): Promise<void> {
     if (!(await mayRefundPayment(deps.meta, request, attempt.payable))) throw new ForbiddenError('Refunding needs the right to refund payments.', 'FORBIDDEN', { permission: PERMISSIONS.paymentsRefund });
   }
@@ -152,7 +152,7 @@ export function paymentRefundRoutes(deps: RefundDeps): FastifyPluginAsyncZod {
             paidWith: (attempt.paidWith as { label?: string } | null)?.label ?? null,
             ...(await (async () => {
               const inApp = await refundsKeptInApp(deps.meta, attempt.payable);
-              // Its refunds are the app's own rows: made in the app, never here (CR4).
+              // Its refunds are the app's own rows: made in the app, never here.
               return { refusal: refundRefusalOf(attempt) ?? (inApp === null ? null : { code: 'IN_APP', message: 'Refund this payment in its app, where its refunds are kept.' }), inApp };
             })()),
           },

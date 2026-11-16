@@ -390,7 +390,7 @@ function refundIssues(
       }
     });
   }
-  // The rows model writes the app's own refund row for an automatic refund (Q10): it says what goes in it.
+  // The rows model writes the app's own refund row for an automatic refund: it says what goes in it.
   if (rows !== null && rows.auto === undefined) out.push({ path: at('refundOn'), message: 'a refund that starts by itself writes the app\'s refund row: say its values (`refunds.auto`)' });
   const setting = (ref: { table: string; column: string }, type: 'bool' | 'number', name: (string | number)[]): void => {
     const found = index.column(ref.table, ref.column) as { type?: string } | undefined;

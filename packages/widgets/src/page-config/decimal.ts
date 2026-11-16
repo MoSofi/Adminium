@@ -40,7 +40,7 @@
  * Pure: imports nothing, touches no locale, allocates no `Intl` object. Lives
  * in the page-config leaf so the server (through `@adminium/engine/config`),
  * the dashboard binding and the Studio live preview run the identical code —
- * one money law, one implementation (D3/D4).
+ * one money law, one implementation.
  */
 
 /**
@@ -67,7 +67,7 @@ const WORKING_UNIT = 1_000_000n;
  */
 export type Decimal = bigint;
 
-/** The additive identity, and what an empty `sum` fold reads as (D18). */
+/** The additive identity, and what an empty `sum` fold reads as. */
 export const DECIMAL_ZERO: Decimal = 0n;
 
 /**

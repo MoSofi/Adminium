@@ -9,8 +9,8 @@
  * removes and never re-orders — trap 2); dragging is 50 % too; being dragged
  * OVER paints a 3 px accent bar on the top edge.
  *
- * DRAG IS THE COMP'S HTML5 CHOREOGRAPHY (306, 626) plus a keyboard path
- * (D17): the grip is a real button, so ArrowUp/ArrowDown reorder without a
+ * DRAG IS THE COMP'S HTML5 CHOREOGRAPHY (306, 626) plus a keyboard path:
+ * the grip is a real button, so ArrowUp/ArrowDown reorder without a
  * mouse — invisible at rest, and Playwright's `dragTo` cannot drive HTML5 DnD
  * reliably in CI.
  */
@@ -110,7 +110,7 @@ export function BlockCard({ block, index, count, selection, edits, dragging, ove
         <div className="mb-2.5 flex items-center gap-2">
           {/* The comp's grip is a bare `<span draggable>` (306). A real button
               carries the same drag handlers AND ArrowUp/ArrowDown, so a keyboard
-              reorders too (D17); it looks identical at rest. */}
+              reorders too; it looks identical at rest. */}
           <EditOnly>
             <button
               type="button"

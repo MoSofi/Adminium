@@ -13,8 +13,8 @@
  * navigation (acceptance #13).
  *
  * The provider form itself lives in `ProviderConfigForm.tsx` — this page is one
- * of its two hosts, the connect wizard's enrich step is the other
- * (R3). Its write-only key contract, model list and test button are documented
+ * of its two hosts, the connect wizard's enrich step is the other.
+ * Its write-only key contract, model list and test button are documented
  * there.
  */
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';

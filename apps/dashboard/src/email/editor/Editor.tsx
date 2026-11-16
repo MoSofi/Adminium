@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The email editor (`editor/`): the header, the
- * canvas and the inspector over ONE draft that only `save()` sends
- * (D1).
+ * canvas and the inspector over ONE draft that only `save()` sends.
  *
- * THE GUARD (D1). A router blocker asks before any navigation away from a
+ * THE GUARD. A router blocker asks before any navigation away from a
  * dirty draft — the topbar's Back, the sidebar, a language switch, the
  * browser's own back — and `beforeunload` covers the tab. One navigation
  * bypasses it on purpose: the one that follows a delete (the row is
@@ -17,7 +16,7 @@
  * SELECTION drives the inspector: picking anything — a canvas section, a
  * pinned row, an outline row — opens the Design tab on it (the comp's
  * `selectBlock` / `pickPinned`). The last-focused field is where the
- * variable chips append (D18).
+ * variable chips append.
  *
  * `Ctrl/⌘+S` saves, inside the name field too (`mod+s` is on the shortcut
  * manager's typing allowlist).
@@ -168,7 +167,7 @@ export function Editor({ detail }: EditorProps) {
     },
   });
 
-  // --- the document's files (image blocks), resolved once per set of ids (D9) ---
+  // --- the document's files (image blocks), resolved once per set of ids ---
   const draft = state.draft;
   const blocks = draft.document.blocks;
   const fileIds = useMemo(() => {
@@ -325,7 +324,7 @@ export function Editor({ detail }: EditorProps) {
   };
 
   // --- the header's actions ------------------------------------------------------
-  // --- campaign runs (D11, D12): save first, then POST /send; the run's controls follow the latest run ---
+  // --- campaign runs: save first, then POST /send; the run's controls follow the latest run ---
   const activeRun = detail.run !== undefined && (detail.run.status === 'scheduled' || detail.run.status === 'running') ? detail.run : null;
   // The job channel's events refresh the document (the run's own counts are read by its controls).
   useRunProgress(detail.run);

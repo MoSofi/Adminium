@@ -110,7 +110,7 @@ for (const dialect of TEST_DIALECTS) {
       });
     });
 
-    it('enforces the dedupe key with an index, and exempts NULL (D6)', async () => {
+    it('enforces the dedupe key with an index, and exempts NULL', async () => {
       await applyMigrations(t.meta.db, { dialect: t.meta.dialect });
       const runs = automationRunsRepo(t.meta);
       const rule = await automationsRepo(t.meta).create(

@@ -137,7 +137,7 @@ function stubImport(seen: string[]) {
   };
 }
 
-describe('Loading a server half (D4)', () => {
+describe('Loading a server half', () => {
   it('loads only from the installed package on local disk', async () => {
     await stage('shipping-dhl');
     const seen: string[] = [];

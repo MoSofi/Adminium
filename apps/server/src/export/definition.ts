@@ -18,7 +18,7 @@
  * answers 403 `COLUMN_FORBIDDEN` for it, which would turn a low-privilege
  * export into a FAILED job — so masked base columns ride in `requiredColumns`,
  * where `runList` keeps them in the SELECT list, lets `maskRow` null and mark
- * them, and the writer turns the mark into `•••••` (D6). Everything else the
+ * them, and the writer turns the mark into `•••••`. Everything else the
  * definition names goes through `select`.
  *
  * LEGACY. A source with no `columns` (every row written before this plan, and
@@ -37,7 +37,7 @@ import type { PiiAccess } from '../crud/mask.js';
 import type { ResolvedMeasure } from '../crud/measures.js';
 import { resolveProjections, type ProjectionRefusal } from '../crud/projections.js';
 
-/** Logical types whose values a JSON Lines writer may splice unquoted (D7). */
+/** Logical types whose values a JSON Lines writer may splice unquoted. */
 const NUMERIC_LOGICAL_TYPES: ReadonlySet<string> = new Set(['integer', 'bigint', 'decimal', 'float']);
 
 export type ExportColumnKind = 'base' | 'lookup' | 'count' | 'measure' | 'field';

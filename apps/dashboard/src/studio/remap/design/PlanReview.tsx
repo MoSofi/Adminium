@@ -130,7 +130,7 @@ function StepCard({ step, index }: { step: PlanStep; index: number }) {
 
       {step.sql.length > 0 ? (
         <div className="mt-2">
-          {/* Read-only by design (D14): an editable statement makes every guard
+          {/* Read-only by design: an editable statement makes every guard
               behind it advisory. This is also the exact text that will run — the
               plan compiles it with the same function the apply executes. */}
           <MonoText className="block whitespace-pre-wrap break-all text-body-sm">

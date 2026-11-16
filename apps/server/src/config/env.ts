@@ -927,7 +927,7 @@ export const envSchema = z.object({
             return z.NEVER;
           }
           // BEFORE the URL parse, deliberately: `self` is a sentinel the gate
-          // reads (D2), not an origin, and `new URL('self')` throws.
+          // reads, not an origin, and `new URL('self')` throws.
           if (origin === SELF_ORIGIN_SENTINEL) continue;
           try {
             if (new URL(origin).origin !== origin) {
@@ -1551,7 +1551,7 @@ export const envSchema = z.object({
     const pub = env.ADMINIUM_PUBLIC_API_ORIGINS;
     if (admin === undefined || pub === undefined) return;
     // The sentinel is not an origin, so it cannot produce a duplicate
-    // `Access-Control-Allow-Origin` — and it never emits one at all (D2).
+    // `Access-Control-Allow-Origin` — and it never emits one at all.
     const overlap = pub.filter(
       (origin) => origin !== SELF_ORIGIN_SENTINEL && admin.includes(origin),
     );

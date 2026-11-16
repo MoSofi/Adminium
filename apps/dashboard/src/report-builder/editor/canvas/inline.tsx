@@ -4,7 +4,7 @@
  * input and textarea (`.nb-in`), the light palette's literals, and the
  * image-file reader every upload label shares.
  *
- * THE SHEET IS ALWAYS LIGHT (D10): the paper has one palette whatever the
+ * THE SHEET IS ALWAYS LIGHT: the paper has one palette whatever the
  * theme, so the greys here are light literals like the invoice `PaperShell`'s
  * and the accent is the DOCUMENT's, riding `--adm-report-accent` (and its
  * 10 % soft) from `PaperShell` — never the theme's `--accent`.

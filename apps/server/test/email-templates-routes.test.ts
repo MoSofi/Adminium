@@ -6,8 +6,8 @@
  *
  * The assertions that carry the wave: a test send queues the REQUEST's
  * document, never the stored row; a save with mirror ops changes every
- * sibling and nothing else; a built-in is reset rather than deleted (D4);
- * an export re-imports byte-identical (D14); and every write is a
+ * sibling and nothing else; a built-in is reset rather than deleted;
+ * an export re-imports byte-identical; and every write is a
  * `settings.manage` power while every read is a session's.
  */
 import { createHash } from 'node:crypto';

@@ -113,7 +113,7 @@ export interface RecordWriteEvent {
 /** What a rule dispatcher must offer; decorated by `automations/plugin.ts`. */
 export interface AutomationDispatcher {
   onRecordEvent(event: RecordWriteEvent): Promise<void>;
-  /** A dashboard write was undone inside its window — drop the runs it queued (D7). */
+  /** A dashboard write was undone inside its window — drop the runs it queued. */
   onUndo(refs: readonly RecordRef[]): Promise<void>;
   /** A rule was written; rebuild the in-memory index. */
   onRulesChanged(): Promise<void>;

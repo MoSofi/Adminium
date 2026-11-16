@@ -403,7 +403,7 @@ export function compileSqliteRebuild(input: RebuildInput): CompiledQuery[] {
     );
   }
 
-  // Existing CHECKs pass through byte-identical (D30): a check already in the
+  // Existing CHECKs pass through byte-identical: a check already in the
   // snapshot is the database's own text, and re-deriving it would change it.
   for (const check of actual.checks) {
     /*

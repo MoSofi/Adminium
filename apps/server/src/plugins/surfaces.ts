@@ -159,7 +159,7 @@ declare module 'fastify' {
      * keeps unmapped hosts byte-identical to the pre-domain behaviour.
      */
     surfaceForHost: (request: FastifyRequest) => Promise<HostedSurface | null>;
-    /** Whether an app takes payments, and what this person may do with them (E5): read by its staff config; decorated by compose. */
+    /** Whether an app takes payments, and what this person may do with them: read by its staff config; decorated by compose. */
     appPaymentsState: (appKey: string, connectionId: string, request: FastifyRequest) => Promise<{ on: boolean; online: boolean; test: boolean; refund: boolean }>;
     /** The config document an app's customer side reads (its browser key, its tables' names), by the app's key. Throws `NotFoundError` with no live key. */
     customerSurfaceConfig: (appKey: string, request: FastifyRequest) => Promise<Record<string, unknown> | null>;
@@ -905,7 +905,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
           now: new Date().toISOString(),
           ...(kit === null ? {} : { kit }),
           maps: { enabled: maps.enabled, server: maps.server, routing: maps.routing },
-          // Whether this app takes payments, and what this person may do with them (E5): its staff screens show
+          // Whether this app takes payments, and what this person may do with them: its staff screens show
           // "Copy pay link", the online columns and "Refund" only while these say so.
           ...(bound === null || !request.server.hasDecorator('appPaymentsState') ? {} : { payments: await request.server.appPaymentsState(appKey, bound, request) }),
           ...signedIn,

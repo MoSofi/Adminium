@@ -32,7 +32,7 @@
  * - **`decimal` defaults to `(19,4)`** when no precision is authored — what
  *   accounting settled on, and binary floating point cannot represent a tenth
  *   of a cent.
- * - **`enum` is a string plus a CHECK on all three dialects (D32).** No
+ * - **`enum` is a string plus a CHECK on all three dialects.** No
  *   `CREATE TYPE` on postgres: a native enum is a second object to own, drop
  *   and migrate, and the introspector already lifts `CHECK (col IN (…))` back
  *   into an `EnumDef` — which is how the generated app gets a select instead
@@ -158,7 +158,7 @@ export function ddlTypeFor(column: TypeMapColumn, dialect: Dialect): string {
 /**
  * Convenience wrapper matching `desiredTableToModel`'s injected signature.
  *
- * A display-only type (D30) can appear on an EXISTING column the edit is not
+ * A display-only type can appear on an EXISTING column the edit is not
  * retyping — the validator allows that and the wire carries all nineteen types
  * — so the fallback returns the type's own name rather than throwing. The
  * emitted DDL for such a column is only ever a restatement of what the database

@@ -222,7 +222,7 @@ function consentRow(event: ConsentEvent): Record<string, unknown> {
   });
 }
 
-/** "Erased person", in the install's own language (D21): what a name that may not be empty reads from now on. */
+/** "Erased person", in the install's own language: what a name that may not be empty reads from now on. */
 export async function erasedNameOf(meta: MetaDb): Promise<string> {
   const { t } = await translatorFor(meta, null);
   return t('studio:privacy.erasedPerson', { defaultValue: 'Erased person' });

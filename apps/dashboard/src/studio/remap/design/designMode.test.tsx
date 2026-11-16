@@ -88,7 +88,7 @@ describe('the review step (D2 — the preview IS the statement)', () => {
   });
 });
 
-describe('type-to-confirm names the object, not a constant (D8)', () => {
+describe('type-to-confirm names the object, not a constant', () => {
   it('asks for the table’s own name and refuses until it is typed', async () => {
     /*
      * It asked for the literal "APPLY" for every destructive change in the
@@ -123,7 +123,7 @@ describe('type-to-confirm names the object, not a constant (D8)', () => {
   });
 });
 
-describe('the post-apply sequence (D11)', () => {
+describe('the post-apply sequence', () => {
   it('offers to put a NEW table in the app, and reports what regeneration did', async () => {
     const created = {
       ...APPLIED,
@@ -169,7 +169,7 @@ describe('the post-apply sequence (D11)', () => {
   });
 });
 
-describe('renaming an existing table is an explicit intent (D1)', () => {
+describe('renaming an existing table is an explicit intent', () => {
   it('sends a renames entry, not just a differently-named upsert', async () => {
     /*
      * `buffer.renameTable` existed, was typed, was reachable from the buffer's

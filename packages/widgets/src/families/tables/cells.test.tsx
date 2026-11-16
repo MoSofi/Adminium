@@ -98,7 +98,7 @@ describe('CellValue — type-aware cell renderers', () => {
   });
 
   it('renders a refused derived value as masked, and an absent one as an em-dash', () => {
-    // The two nulls the wire distinguishes with `_masked` (D11).
+    // The two nulls the wire distinguishes with `_masked`.
     const column = spec({
       name: 'total',
       label: 'Total',

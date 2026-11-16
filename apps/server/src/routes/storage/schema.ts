@@ -39,7 +39,7 @@ export const destinationPatchBody = z.object({
   config: z.union([localDestinationConfigSchema, s3DestinationConfigSchema, webdavDestinationConfigSchema]).optional(),
   /**
    * Omitted keeps the stored credential; `null` clears it. The editor sends a
-   * value only when the operator typed a new one (D16), so "keep" is the
+   * value only when the operator typed a new one, so "keep" is the
    * common case and needs no round trip.
    */
   secret: destinationSecret.nullable().optional(),

@@ -435,7 +435,7 @@ export function documentsRepo(meta: MetaDb) {
    * Mark a render successful and attach its bytes.
    *
    * `number` is passed in rather than claimed here: the sequence is claimed
-   * only after the provider has returned bytes (D11), so a failed render
+   * only after the provider has returned bytes, so a failed render
    * burns no number, and this repo never touches the sequence at all.
    */
   async function markRendered(

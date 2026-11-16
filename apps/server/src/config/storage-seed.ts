@@ -278,7 +278,7 @@ async function noDestinationYet(meta: MetaDb | undefined): Promise<boolean> {
   }
 }
 
-/** The Fly/Tigris quartet, which `fly storage create` writes for you (D15). */
+/** The Fly/Tigris quartet, which `fly storage create` writes for you. */
 function planFromAwsEnv(env: StorageSeedEnv): SeedPlan | null {
   const endpoint = env.AWS_ENDPOINT_URL_S3;
   const bucket = env.BUCKET_NAME;

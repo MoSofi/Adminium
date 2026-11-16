@@ -4,7 +4,7 @@
  * presentation metadata for the four self-host direct-API providers —
  * Anthropic, OpenAI, an OpenAI-compatible endpoint, and local Ollama.
  * `adminium-managed` (Cloud AI credits) is intentionally absent: it only
- * appears on Cloud instances (M12) and this build is self-host.
+ * appears on Cloud instances and this build is self-host.
  *
  * The dashboard cannot import `@adminium/llm` (dep-cruiser), so the static
  * fallback model ids mirror `packages/llm/src/providers/model-catalog.ts` and

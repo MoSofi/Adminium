@@ -157,7 +157,7 @@ describe('how each outcome reaches the run', () => {
   });
 
   it('renders as WHOEVER OWNS THE RULE, and passes the run id through', async () => {
-    // The source is read with the requester's grants (D16), so the identity
+    // The source is read with the requester's grants, so the identity
     // has to travel with the request rather than defaulting to ambient.
     renderDocument.mockResolvedValue({ status: 'rendered', document: { id: 'doc_1', number: 'X' } });
     await runDocumentRenderAction(ACTION, context());

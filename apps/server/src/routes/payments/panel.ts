@@ -529,7 +529,7 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
     );
 
     /*
-     * THE LIST READ (E5): each record's payment state, for an app's list. Each
+     * THE LIST READ: each record's payment state, for an app's list. Each
      * record is read as the panel reads it, through the person's own grants and
      * row limits: a record they may not read is left out, never said.
      */

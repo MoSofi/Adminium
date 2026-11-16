@@ -21,7 +21,7 @@
  *
  * SEARCH IS LOCAL. The index is small and ships with the bundle, so filtering
  * is a substring match over titles and excerpts — no request per keystroke, and
- * it works on an air-gapped Electron install (M11) where the docs links do not.
+ * it works on an air-gapped Electron install where the docs links do not.
  *
  * TRANSLATION. Titles/excerpts are i18n KEYS, not literals: unlike changelog
  * entries (a historical record), help copy is live UI text a reader needs in

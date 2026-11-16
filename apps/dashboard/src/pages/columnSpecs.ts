@@ -205,7 +205,7 @@ export interface ProjectionParams {
  *    grammar is `count` and nothing else — a stored `agg:'sum'` is a hard 422
  *    that blanks the whole page. Dropping it renders one empty column instead.
  *    Safe because the Studio never authors one: a new aggregate is a MEASURE
- *    on `compute=`, and the `reverse` vocabulary stays count-only (D15).
+ *    on `compute=`, and the `reverse` vocabulary stays count-only.
  * 2. **The shared budget is enforced here**, not discovered as a 422. Excess
  *    `agg` tokens are dropped in spec order; if the measures would not fit in
  *    what is left, the WHOLE compute block is dropped rather than part of it —

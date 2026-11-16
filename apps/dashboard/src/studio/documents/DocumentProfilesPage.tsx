@@ -20,7 +20,7 @@
  * ─── EVERY LABEL BELONGS TO THE PROVIDER ───────────────────────────────────
  *
  * `kind.label`, `slot.label`, `slot.help` are eight-locale records the add-on
- * carries (D14). This page picks the viewer's locale out of them. There is no
+ * carries. This page picks the viewer's locale out of them. There is no
  * invoice vocabulary anywhere in this file — a folio or certificate provider
  * drives the same page unchanged, which is the claim makes about the pipeline
  * and this page has to keep true on screen.

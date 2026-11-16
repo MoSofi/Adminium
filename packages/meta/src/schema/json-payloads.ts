@@ -235,7 +235,7 @@ export const SYSTEM_ACTION_KEYS = [
   'manifests.manage', // add-on + micro-SaaS install/connect/uninstall
   'audit.read',
   'sql.run', // reserved — deferred feature, no v1 enforcement (RESERVED_SYSTEM_ACTION_KEYS)
-  // M7 wave 2 — data-io (T5) + scheduled reports (T6). `exports.manage` /
+  // M7 wave 2 — data-io + scheduled reports. `exports.manage` /
   // `imports.manage` gate seeing/downloading OTHER users' artifacts (lists are
   // mine-only without them); `reports.manage` gates the scheduled-reports
   // admin verbs. Email templates deliberately add NO key: PUT rides the
@@ -271,7 +271,7 @@ export const SYSTEM_ACTION_KEYS = [
   //   them, restoring and deleting them, emptying the trash, the Files page.
   //   Without it a list is mine-only, exactly as `exports.manage` works. It is
   //   NOT what authorises uploading: that is the entity table's own
-  //   create/update grant (D11), because a file attached to a record is that
+  //   create/update grant, because a file attached to a record is that
   //   record's data and inherits its authority.
   //
   //   `storage.manage` is about WHERE BYTES LIVE — creating a destination,
@@ -1133,7 +1133,7 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       /**
        * `database` and `none` store no value and exist to be SAID: `database`
        * is "a trigger or an expression fills this, leave it alone" and `none`
-       * switches an implicit fill off (D14). Both are settings, not values.
+       * switches an implicit fill off. Both are settings, not values.
        * `from` fills a create from elsewhere: the connection's currency, a
        * settings row, or an add-on's setting (after a copy that came back empty).
        */
@@ -1913,7 +1913,7 @@ export type LlmRunReview = z.infer<typeof llmRunReviewSchema>;
  *
  * The step picker inserts a node before anyone has said which template it
  * sends or which table it writes, and that half-built rule has to survive a
- * save — the whole point of explicit save (D11) is that a person can put a
+ * save — the whole point of explicit save is that a person can put a
  * flow down and come back to it. So every setting an action needs is
  * nullable here, and "is this rule complete enough to switch on?" is a
  * SEPARATE predicate (`automationValidation.ts` on the server,
@@ -2101,7 +2101,7 @@ export type AutomationSchedule = z.infer<typeof automationScheduleSchema>;
  * FILL F1 — the comp draws domain triggers ("A user signs up", "Payment
  * fails") that no product primitive can produce. What Adminium actually
  * observes is a record write and a clock, so those are the two kinds; the
- * sign-up example becomes "a record is created in users", and `watch` (D4)
+ * sign-up example becomes "a record is created in users", and `watch`
  * is what makes that true for rows the customer's own app wrote.
  */
 export const automationTriggerSchema = z.discriminatedUnion('kind', [
@@ -2643,7 +2643,7 @@ export type AutomationTraceStep = z.infer<typeof automationTraceStepSchema>;
 export const automationTraceSchema = z.object({
   version: z.literal(1),
   steps: z.array(automationTraceStepSchema).max(400),
-  /** Where a suspended run picks up: the index path into the graph (D8). */
+  /** Where a suspended run picks up: the index path into the graph. */
   resume: z.array(z.number().int()).max(8).nullable(),
 });
 export type AutomationTrace = z.infer<typeof automationTraceSchema>;

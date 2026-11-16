@@ -141,7 +141,7 @@ describeFileDriver(
 
 // ── key layout, which needs no server at all ───────────────────────────────
 
-describe('remote key layout (D19)', () => {
+describe('remote key layout', () => {
   it('reduces a filename to a safe, readable part', () => {
     expect(safeNamePart('Rechnung Müller (final).pdf')).toBe('Rechnung-Mu-ller-final.pdf');
     expect(safeNamePart('../../etc/passwd')).toBe('passwd');

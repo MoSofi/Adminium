@@ -8,7 +8,7 @@
  * - the EMITTED fold fragment is parenthesized and carries no division, and
  *   `of.factor` appears nowhere in the SQL (D5/D6, criterion 4);
  * - every column that reaches the subquery joins the refusal check, and a
- *   SECRET base-side correlate refuses where it used to disclose (D16);
+ *   SECRET base-side correlate refuses where it used to disclose;
  * - a refused projection writes an audit row, closing the gap where the
  *   refusals that DEGRADE were the ones invisible to the trail;
  * - the envelope bounds CPU, not just bytes — the case the byte cap cannot
@@ -123,7 +123,7 @@ describe('CRUD measures (fake adapter)', () => {
       expect(status).toBe(200);
       // The defect this guards is not a wrong query shape, it is a wrong
       // NUMBER: kysely's `eb(ref, op, ref)` binds the right-hand REFERENCE as
-      // a parameter and nested `eb()` drops the parentheses (D5).
+      // a parameter and nested `eb()` drops the parentheses.
       expect(lastSelectFrom(sink, 'main.invoices')).toContain(
         'sum(("ag0"."qty" * "ag0"."rate") - ("ag0"."line_total"))',
       );
@@ -207,7 +207,7 @@ describe('CRUD measures (fake adapter)', () => {
       const row = invoice(body, 7);
       // `sum(qty*rate*discount_pct) x 0.01` against `sum(qty*rate) - sum(line_total)`.
       // They are NOT the same number: a stored line_total rounds per line. The
-      // plan refuses to claim they are interchangeable (D19) — here is the gap.
+      // plan refuses to claim they are interchangeable — here is the gap.
       expect(row['discount_fold']).toBe('33.9999');
       expect(row['gross']).toBe('1300');
       expect(row['subtotal']).toBe('1266');

@@ -152,7 +152,7 @@ export function AppFrame({ appKey, path, persona, title, onNavigate, src, origin
     post({ type: SET, path });
   }, [path, post, ready]);
 
-  // Theme and locale → child (D11), on every change rather than at init only:
+  // Theme and locale → child, on every change rather than at init only:
   // an operator flipping the dashboard to dark must restyle the frame live.
   useEffect(() => {
     if (!ready) return;

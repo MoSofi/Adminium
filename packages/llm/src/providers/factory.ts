@@ -24,7 +24,7 @@ export function createProviderClient(config: ProviderConfig): ProviderClient {
       throw new ProviderError({
         provider: 'adminium-managed',
         code: 'config',
-        message: 'the adminium-managed provider is not available in this build (M12)',
+        message: 'the adminium-managed provider is not available in this build',
       });
     default: {
       const exhaustive: never = config.provider;

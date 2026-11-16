@@ -490,7 +490,7 @@ export const uninstallAddOnPlanReply = z.object({
 
 /**
  * Connect. One route shape for all three kinds; this wave serves `api-key`
- * (T07) and refuses `oauth2` as not-yet (T08).
+ * and refuses `oauth2` as not-yet.
  *
  * `credentials` is a flat map of the add-on's OWN `secret: true` setting keys to
  * their values — `{ api_key: "…", account_number: "…" }` for shipping-dhl. Keys
@@ -611,7 +611,7 @@ export const catalogBrowseReply = z.object({
    * never browsed online — which is the air-gapped steady state, not an error.
    */
   catalogFetchedAt: z.number().nullable(),
-  /** Whether browsing online is switched on at all (D8). */
+  /** Whether browsing online is switched on at all. */
   onlineEnabled: z.boolean(),
   /** Whether the list is being fetched right now: a page that opens before the first fetch has answered reads again. */
   refreshing: z.boolean(),
@@ -636,7 +636,7 @@ export const catalogSettingsReply = z.object({
    * What the switch is now — which is NOT always what was asked for.
    *
    * `ADMINIUM_NETWORK_FEATURES=off` and desktop air-gap mode veto the setting
-   * outright (O1), so an operator can turn this on and have it stay off. The
+   * outright, so an operator can turn this on and have it stay off. The
    * reply says the effective state so the page can show that rather than a
    * toggle that springs back with no explanation.
    */
@@ -653,7 +653,7 @@ export const downloadAddOnBody = z.object({
 export const downloadAddOnReply = z.object({ jobId: z.string() });
 
 /**
- * The sideload upload's query (D4).
+ * The sideload upload's query.
  *
  * The TARBALL is the raw request body — this server has no `@fastify/multipart`
  * and its established idiom for a binary upload is a scoped content-type parser
@@ -749,7 +749,7 @@ export const upgradeAddOnReply = z.object({
   addOn: addOnDto,
   from: z.string(),
   to: z.string(),
-  /** Older version directories removed once the upgrade verified (D11). */
+  /** Older version directories removed once the upgrade verified. */
   pruned: z.array(z.string()),
 });
 

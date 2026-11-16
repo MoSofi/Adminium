@@ -7,7 +7,7 @@
  * to author anything is a calendar over `appointments`, each event titled with
  * the patient's name — the FK already declares the join, so there is no join
  * key to pick and no projection to choose. That is the whole reason this is the
- * foolproof form of "combine two tables" and a view is not (D1): a view would
+ * foolproof form of "combine two tables" and a view is not: a view would
  * be authored, and it would compose read-only.
  *
  * ─── How the title gets there ─────────────────────────────────────────────

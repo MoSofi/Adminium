@@ -313,7 +313,7 @@ for (const [dialect, available] of LEGS) {
       expect(await record(test)).toMatchObject({ state: 'recorded' });
       expect(await paymentsOf(20)).toEqual([expect.objectContaining({ payment_ref: test.id })]);
       expect((await order(20))!['status']).toBe('placed');
-      // Its paid mail goes to the person rehearsing, marked TEST: never to the address the order carries (AC1).
+      // Its paid mail goes to the person rehearsing, marked TEST: never to the address the order carries.
       await s.jobs();
       expect((await s.emails()).map((mail) => [mail.to, mail.subject])).toEqual([['rehearsal-owner@crumbandco.de', '[TEST] Order R-1 is paid']]);
       expect((await listed()).filter((line) => line.includes('order_payments'))).toHaveLength(1);

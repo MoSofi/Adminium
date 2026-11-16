@@ -26,7 +26,7 @@
  *    derived value the script needs pre-React.
  * 5. Notify `subscribeTheme` listeners after the DOM attributes are committed.
  *
- * Persistence to `adminium_user_prefs` (M8) is the caller's job via
+ * Persistence to `adminium_user_prefs` is the caller's job via
  * `onPrefChange`; the provider itself never talks to the server.
  */
 import { DirectionProvider } from '@radix-ui/react-direction';

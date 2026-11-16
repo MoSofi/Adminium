@@ -109,7 +109,7 @@ function webhookPolicy(ctx: ActionContext): OutboundPolicy {
   };
 }
 
-/** Everything resolved and checked, one line short of the send (D14). */
+/** Everything resolved and checked, one line short of the send. */
 export function planWebhook(action: WebhookAction, ctx: ActionContext): WebhookRequestPlan {
   if (action.url === null || action.url.trim() === '') {
     throw new ActionFailure('This step has no URL.');
@@ -155,7 +155,7 @@ export function planWebhook(action: WebhookAction, ctx: ActionContext): WebhookR
   return { url, method: action.method, headers, body };
 }
 
-/** The documented default payload (D19) — masked, because a webhook is outbound. */
+/** The documented default payload — masked, because a webhook is outbound. */
 function defaultJsonBody(ctx: ActionContext): Record<string, unknown> {
   return {
     event: 'automation.run',

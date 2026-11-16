@@ -195,7 +195,7 @@ export function TestStep({
         const probe = await studioApi.testDsn(engine, dsn);
         if (!probe.ok) {
           const code = probe.error?.code ?? 'UNKNOWN';
-          // Supabase's pooler: say how it wants the user written (V25, V29).
+          // Supabase's pooler: say how it wants the user written.
           const pooler = supabasePoolerHint(code, dsn);
           const hint = probe.error?.hint ?? null;
           fail(

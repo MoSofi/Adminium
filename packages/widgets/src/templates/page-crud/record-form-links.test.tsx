@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
- * SEVERAL references in the form (F8, D22).
+ * SEVERAL references in the form.
  *
  * A relation is not a column: its value is a list of keys that becomes rows of
  * a join table, and it travels beside the row rather than inside it. The three

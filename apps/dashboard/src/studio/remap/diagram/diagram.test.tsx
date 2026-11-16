@@ -3,7 +3,7 @@
  * The diagram.
  *
  * The graph mapping and the layout are pure, so most of this needs no canvas.
- * What DOES need one is the a11y contract (D16): the text-equivalent view has
+ * What DOES need one is the a11y contract: the text-equivalent view has
  * to expose the same tables and relations in DOM order, because a pan-and-zoom
  * canvas is invisible to a screen reader and hiding it would trade a violation
  * for a feature nobody can reach.
@@ -179,7 +179,7 @@ describe('layout', () => {
     expect(Object.keys(positions).sort()).toEqual(['public.a', 'public.b']);
   });
 
-  it('never recomputes a position the operator moved by hand (D21)', () => {
+  it('never recomputes a position the operator moved by hand', () => {
     const manual = { 'public.a': { x: 999, y: 111 } };
     const positions = layoutGraph(graph, { manual });
     expect(positions['public.a']).toEqual({ x: 999, y: 111 });
@@ -203,7 +203,7 @@ describe('layout', () => {
   });
 });
 
-describe('the text equivalent (D16)', () => {
+describe('the text equivalent', () => {
   const graph = buildGraph(
     model([table('orders'), table('customers')], [relation('orders', 'customers')]),
   );

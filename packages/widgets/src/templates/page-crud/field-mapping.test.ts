@@ -82,7 +82,7 @@ describe('controlForColumn — the one mapping', () => {
   });
 
   it('logicalType dispatch: boolean/number/date/time/datetime/json', () => {
-    // The comp's boolean is a toggle ROW, not a checkbox (D18).
+    // The comp's boolean is a toggle ROW, not a checkbox.
     expect(controlForColumn(spec({ name: 'ok', label: 'OK', logicalType: 'boolean' }))).toBe('toggle-row');
     expect(controlForColumn(spec({ name: 'seats', label: 'Seats', logicalType: 'integer' }))).toBe('number');
     // Money gets the currency prefix (Appendix C), which a plain number has no

@@ -17,7 +17,7 @@ import { newBlockId } from '../model/ops.js';
 import type { EffectiveBrand } from './canvas/MailShell.js';
 import type { EditorActions } from './useEditorDraft.js';
 
-/** Which field the variable chips append to (D18): the last one focused. */
+/** Which field the variable chips append to: the last one focused. */
 export type ActiveField =
   | { kind: 'subject' }
   | { kind: 'preheader' }
@@ -172,7 +172,7 @@ export function useDocumentEdits(actions: EditorActions, activeField: ActiveFiel
   const setPreheader = useCallback((preheader: string) => actions.mutate((draft) => ({ ...draft, document: { ...draft.document, preheader } })), [actions]);
   const setFooter = useCallback((footer: string) => actions.mutate((draft) => ({ ...draft, document: { ...draft.document, footer } })), [actions]);
 
-  /** Brand edits materialise the document's own brand from the effective one the first time (D6). */
+  /** Brand edits materialise the document's own brand from the effective one the first time. */
   const setBrand = useCallback(
     (effective: EffectiveBrand, patch: Partial<EffectiveBrand>, history: boolean) => {
       const apply = (draft: EditorDraft): EditorDraft => {

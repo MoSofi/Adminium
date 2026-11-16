@@ -11,7 +11,7 @@
  *    "has this patient missed an appointment before?". It runs one COUNT
  *    query through the CRUD list pipeline, which is why the caller supplies
  *    `countRelated` rather than this module reaching for a database.
- *  - the four RELATIVE-TIME operators (D5), which is how a schedule scan says
+ *  - the four RELATIVE-TIME operators, which is how a schedule scan says
  *    "starts within the next two hours" without anybody typing a timestamp.
  *
  * ─── Comparison rules, and why they are stated rather than inferred ────────
@@ -44,7 +44,7 @@ import type { ResolvedTable } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import { serverDay } from './relative-time.js';
 
-/** What "count the related rows" needs; the caller owns the query (F5). */
+/** What "count the related rows" needs; the caller owns the query. */
 export interface RelatedCountSpec {
   table: string;
   matchColumn: string;
@@ -163,7 +163,7 @@ function compareValues(op: AutomationConditionOp, left: unknown, right: unknown)
 }
 
 /**
- * The four relative-time operators, resolved against `now` (D5).
+ * The four relative-time operators, resolved against `now`.
  *
  * A `date` column (`day: true`) holds a calendar day, not an instant, and is
  * judged by comparing days on this server's clock — the bounds the scheduled

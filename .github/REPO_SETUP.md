@@ -69,4 +69,4 @@ gh api repos/MoSofi/Adminium/milestones -f title="M0 — Foundation" -f descript
 
 ## 6. Secrets (added as milestones need them)
 
-None needed for M0. Later: npm token with provenance (M10), ghcr push (M10), Electron signing/notarization certs (M11), docs deploy token (M10) — each documented in the PR that introduces the consuming workflow.
+None needed for M0. Later: npm token with provenance, ghcr push, Electron signing/notarization certs, docs deploy token — each documented in the PR that introduces the consuming workflow.

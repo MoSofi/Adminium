@@ -2,8 +2,8 @@
 /**
  * LLM run lifecycle service.
  *
- * The shared layer the direct-path runner (T08), the apply executor (T10b), and
- * the `/api/v1/llm/*` routes (T11) all call. It owns:
+ * The shared layer the direct-path runner, the apply executor, and
+ * the `/api/v1/llm/*` routes all call. It owns:
  *  - `createRun` — build the prompt (via the browser-safe `@adminium/llm`
  *    `buildPrompt`) against the connection's snapshot IR + collected stats,
  *    persist a `draft` run with its flattened `prompt_text` + `prompt_sha256`,
@@ -193,7 +193,7 @@ export interface MarkFailedInput {
   durationMs?: number | null;
 }
 
-/** running → validated persistence for the direct path (T08). */
+/** running → validated persistence for the direct path. */
 export interface RecordDirectResultInput {
   /** The merged (map-reduce) parsed response (`parsed_response`). */
   response: LlmResponseV1;
@@ -425,7 +425,7 @@ export function createRunService(deps: RunServiceDeps) {
 
     /**
      * validated → applied | partially_applied. The transactional overrides/pages
-     * writes are the apply-EXECUTOR's job (T10b); this only stamps the terminal
+     * writes are the apply-EXECUTOR's job; this only stamps the terminal
      * run row (and, optionally, the final review).
      */
     async markApplied(runId: string, input: MarkAppliedInput = {}): Promise<LlmRun> {
@@ -445,7 +445,7 @@ export function createRunService(deps: RunServiceDeps) {
     },
 
     /**
-     * running → validated for the direct path (T08). Records the merged parsed
+     * running → validated for the direct path. Records the merged parsed
      * response, token usage and wall-clock duration; `validation_status` is
      * `partial` when per-item errors survived, else `valid`.
      */

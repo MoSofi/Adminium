@@ -186,7 +186,7 @@ describe('export definitions (route + job)', () => {
     const byNumber = new Map(rows.slice(1).map((row) => [row[0], row]));
     expect(byNumber.get('INV-007')).toEqual(['INV-007', '8', 'ada@example.test', '2', '1266', '101.28', 'Waived']);
     expect(byNumber.get('INV-008')).toEqual(['INV-008', '8', '', '1', '120', '9.60', 'Standard']);
-    // No line items: the count is 0, the sum is zero (D18), the rule reads it.
+    // No line items: the count is 0, the sum is zero, the rule reads it.
     expect(byNumber.get('INV-009')).toEqual(['INV-009', '0', '', '0', '0', '0.00', 'Standard']);
   });
 

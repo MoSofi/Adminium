@@ -23,7 +23,7 @@ import type { FileFieldUpload } from './file-upload.js';
  *
  * WHAT THAT COSTS, STATED PLAINLY: an upload that is never saved leaves a file
  * nothing points at. That is the `attached_at IS NULL` state, and it is what
- * the daily sweep collects after `files.unattachedHours` (D12). The
+ * the daily sweep collects after `files.unattachedHours`. The
  * alternative — holding bytes in the browser until Save — cannot show progress
  * for a 200 MB file, cannot validate the type server-side before the user
  * commits, and turns one failure (the upload) into a failure of the record

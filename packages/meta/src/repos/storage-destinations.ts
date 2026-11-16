@@ -3,7 +3,7 @@
  * destinationsRepo — adminium_storage_destinations.
  *
  * One row per configured place bytes may live. THIS SERVER'S DISK IS NOT ONE
- * OF THEM (D3): `adminium_files.destination_id IS NULL` means `<dataDir>/files`
+ * OF THEM: `adminium_files.destination_id IS NULL` means `<dataDir>/files`
  * and always has, so a store with no rows here behaves exactly as it did
  * before wave 0024.
  *
@@ -12,7 +12,7 @@
  * its own `ADMINIUM_SECRET` derivation (a different HKDF salt —
  * `adminium:storage:v1` — so a leaked storage key never opens a DSN).
  * `list()` and `findById()` NEVER decrypt: they report `hasSecret` and nothing
- * more, which is what every read path except the driver factory needs (D16).
+ * more, which is what every read path except the driver factory needs.
  * `getSecret()` is the one door, and it is deliberately separate so a route
  * that renders a destination cannot accidentally serialize a credential.
  */
@@ -67,7 +67,7 @@ export interface UpdateDestinationInput {
   config?: unknown;
   /**
    * `undefined` leaves the stored credential alone — the editor sends a secret
-   * only when the operator typed a new one (D16). `null` clears it.
+   * only when the operator typed a new one. `null` clears it.
    */
   secret?: unknown | null;
   disabled?: boolean;
@@ -80,7 +80,7 @@ export interface DestinationProbeResult {
   at?: number;
 }
 
-/** A destination still holds files; the repo refuses before the FK does (D20). */
+/** A destination still holds files; the repo refuses before the FK does. */
 export class DestinationInUseError extends Error {
   override readonly name = 'DestinationInUseError';
   constructor(readonly destinationId: string, readonly fileCount: number) {
@@ -190,7 +190,7 @@ export function destinationsRepo(meta: MetaDb, crypto: DsnCrypto) {
       return row === undefined ? null : decode(row);
     },
 
-    /** The destination new bytes go to, or null when this server's disk is it (D3). */
+    /** The destination new bytes go to, or null when this server's disk is it. */
     async findDefault(): Promise<StorageDestination | null> {
       const row = await db
         .selectFrom('adminium_storage_destinations')
@@ -200,7 +200,7 @@ export function destinationsRepo(meta: MetaDb, crypto: DsnCrypto) {
       return row === undefined ? null : decode(row);
     },
 
-    /** True when no destination is configured at all — the seed's one precondition (D15). */
+    /** True when no destination is configured at all — the seed's one precondition. */
     async isEmpty(): Promise<boolean> {
       const row = await db
         .selectFrom('adminium_storage_destinations')
@@ -304,7 +304,7 @@ export function destinationsRepo(meta: MetaDb, crypto: DsnCrypto) {
     },
 
     /**
-     * Refuses while the destination holds files, naming the count (D20) — the
+     * Refuses while the destination holds files, naming the count — the
      * FK is RESTRICT underneath, but a constraint violation is not an error an
      * operator can act on and "12 files live here" is.
      */

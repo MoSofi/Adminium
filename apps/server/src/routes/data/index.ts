@@ -1906,8 +1906,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
 
     /**
      * Resolve `lookup=`, `agg=` and `compute=` for one request through the
-     * shared resolver (crud/projections.ts) and audit every refused projection
-     * (D16). The export preview and the export job call the same resolver, so
+     * shared resolver (crud/projections.ts) and audit every refused projection.
+     * The export preview and the export job call the same resolver, so
      * the per-reached-table permission decision is made in one place for every
      * reader of a row.
      */
@@ -1932,7 +1932,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
     }
 
     /**
-     * One `app.rbac.audit` row per refused projection (D16).
+     * One `app.rbac.audit` row per refused projection.
      *
      * The gap this closes: `contextFor` audits a denied TABLE read one file
      * over, while a lookup or a measure that resolves to `null` because the

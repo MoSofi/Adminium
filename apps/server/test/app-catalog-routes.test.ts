@@ -362,7 +362,7 @@ describe('GET /apps/catalog', () => {
     await app.close();
   });
 
-  it('lists a release above this server as not installable, and says why (G8-D2)', async () => {
+  it('lists a release above this server as not installable, and says why', async () => {
     const app = await buildApp('0.2.7');
     await store.writeCatalogCache(feed(row()), 1_700_000_000_000);
     const [clinic] = (await catalogOf(app)).apps;

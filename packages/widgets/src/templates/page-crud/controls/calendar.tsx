@@ -86,7 +86,7 @@ export function CalendarControl(props: ControlProps) {
       ...(resourceValue === undefined || resourceValue === null
         ? {}
         : { resourceValue: String(resourceValue) }),
-      // On an edit, this record's own instant is not taken (C2).
+      // On an edit, this record's own instant is not taken.
       ...(props.recordId === undefined ? {} : { exclude: props.recordId }),
     })
       .then((reply) => {

@@ -104,11 +104,11 @@ describe('every control in the catalog is reachable', () => {
 });
 
 // ---------------------------------------------------------------------------
-// The text family (T28)
+// The text family
 // ---------------------------------------------------------------------------
 
 describe('the text family', () => {
-  it('stores a phone WITH its prefix, and shows it without (D29)', async () => {
+  it('stores a phone WITH its prefix, and shows it without', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     renderControl('phone', {
@@ -126,7 +126,7 @@ describe('the text family', () => {
     expect(onChange).toHaveBeenLastCalledWith('+1 (555) 000-0000' + '1');
   });
 
-  it('masks a password and reveals it on request, storing the text as typed (D28)', async () => {
+  it('masks a password and reveals it on request, storing the text as typed', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     renderControl('password', { value: 'hunter2', onChange });
@@ -134,7 +134,7 @@ describe('the text family', () => {
     expect(field.type).toBe('password');
     await user.click(screen.getByRole('button', { name: 'Show' }));
     expect((document.querySelector('input') as HTMLInputElement).type).toBe('text');
-    // It hashes nothing (O1) and makes no column secret: the value is the text.
+    // It hashes nothing and makes no column secret: the value is the text.
     await user.type(document.querySelector('input') as HTMLInputElement, '!');
     expect(onChange).toHaveBeenLastCalledWith('hunter2!');
   });
@@ -172,7 +172,7 @@ describe('the text family', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Numbers (T29)
+// Numbers
 // ---------------------------------------------------------------------------
 
 describe('the number family', () => {
@@ -227,13 +227,13 @@ describe('the number family', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Choices (T30)
+// Choices
 // ---------------------------------------------------------------------------
 
 describe('the choice family', () => {
   const options = [{ value: 'new' }, { value: 'open', label: 'Open' }, { value: 'done' }];
 
-  it('keeps a stored value the list no longer offers (F15)', () => {
+  it('keeps a stored value the list no longer offers', () => {
     renderControl('select', {
       column: spec({ name: 'status', label: 'Status', logicalType: 'enum', enumValues: ['new'] }),
       options,
@@ -301,7 +301,7 @@ describe('the choice family', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Booleans and any-of (T31)
+// Booleans and any-of
 // ---------------------------------------------------------------------------
 
 describe('booleans and any-of', () => {
@@ -337,10 +337,10 @@ describe('booleans and any-of', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Chips (T32)
+// Chips
 // ---------------------------------------------------------------------------
 
-describe('chips over a list-valued column (D19)', () => {
+describe('chips over a list-valued column', () => {
   it('adds on Enter, refuses a duplicate, and refuses a bad item under a format', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

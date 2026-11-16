@@ -18,7 +18,7 @@ import { useMaybeT } from '../../../lib/i18n.js';
 
 import type { ControlProps } from './types.js';
 
-/** Fifty is the ceiling; past it a list is a table (D19). */
+/** Fifty is the ceiling; past it a list is a table. */
 export const MAX_CHIPS = 50;
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

@@ -63,7 +63,7 @@ function edgeLabel(edge: DiagramEdge): string {
 export interface DiagramModeProps {
   connectionId: string;
   model: EffectiveModel;
-  /** Positions persisted for this connection (D21). */
+  /** Positions persisted for this connection. */
   savedPositions: Record<string, Point>;
   /** Open a table in Design mode. */
   onOpenTable: (tableId: string) => void;

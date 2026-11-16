@@ -16,7 +16,7 @@
  *
  * If the owner ever reverses, this file is where the debounce goes — one
  * `setTimeout` around `mutate`, and this surface flips with the invoice one
- * in the same commit (D4).
+ * in the same commit.
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef, useState } from 'react';
@@ -52,7 +52,7 @@ export interface EditorActions {
   /**
    * PUTs the draft; resolves with the reply, rejects with the API error (the
    * chip shows *Couldn't save*). `override` lets *Publish* send a status the
-   * draft does not carry yet (D5/O2) without a render in between.
+   * draft does not carry yet without a render in between.
    */
   save: (override?: Partial<EditorDraft>) => Promise<ReportDetail>;
   /** Take a stored version as both the draft and the saved baseline (a save made from the assistant's panel). One undo step. */

@@ -3,8 +3,8 @@
  * automationsRepo + automationRunsRepo. The behaviours worth pinning are
  * the ones a later change could quietly break:
  *
- *  - `begin` is exactly-once through a UNIQUE index, not a check-then-insert
- *    (D6) — and it returns NULL rather than throwing, because "someone else
+ *  - `begin` is exactly-once through a UNIQUE index, not a check-then-insert —
+ *    and it returns NULL rather than throwing, because "someone else
  *    already fired this" is the normal answer for three of the four producers.
  *  - `advance` never touches what a person authored, so a poll every minute
  *    does not move `updated_at`.
@@ -169,7 +169,7 @@ for (const dialect of TEST_DIALECTS) {
       expect(read?.updatedAt).toBe(T0);
     });
 
-    it('begin is exactly-once: the second producer of an occurrence gets null (D6)', async () => {
+    it('begin is exactly-once: the second producer of an occurrence gets null', async () => {
       const rule = await makeRule({ enabled: true });
       const key = `${rule.id}:{"id":7}`;
       const first = await runs.begin(
@@ -244,7 +244,7 @@ for (const dialect of TEST_DIALECTS) {
       }
     });
 
-    it('skips a pending run for undo, and refuses to skip one that already started (D7)', async () => {
+    it('skips a pending run for undo, and refuses to skip one that already started', async () => {
       const rule = await makeRule({ enabled: true });
       const make = async (key: string) =>
         runs.begin(
@@ -296,7 +296,7 @@ for (const dialect of TEST_DIALECTS) {
       });
       expect(page2.map((r) => r.id)).toEqual([ids[2], ids[1]]);
 
-      // "Running" is the comp's word for pending + waiting + running (D9).
+      // "Running" is the comp's word for pending + waiting + running.
       expect(await runs.counts({ since: T0 - DAY })).toEqual({
         all: 5,
         success: 2,
@@ -314,7 +314,7 @@ for (const dialect of TEST_DIALECTS) {
       expect(perRule.get(rule.id)).toEqual({ runs: 5, succeeded: 2, failed: 1 });
     });
 
-    it('retention keeps a failed run twice as long and never sweeps future work (D23)', async () => {
+    it('retention keeps a failed run twice as long and never sweeps future work', async () => {
       const rule = await makeRule({ enabled: true });
       const at = T0 + 200 * DAY;
       const add = async (key: string, age: number, status: 'succeeded' | 'failed' | null) => {

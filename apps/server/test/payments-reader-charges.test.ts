@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * CHARGES ON A CARD READER (E6), on SQLite, Postgres and MySQL, against the
+ * CHARGES ON A CARD READER, on SQLite, Postgres and MySQL, against the
  * demo reader standing in for a live service: the amount read again from the
  * record, the reader held for one charge, the card tapped with a tip and
  * written into the app's payments table (what was asked beside the tip, the

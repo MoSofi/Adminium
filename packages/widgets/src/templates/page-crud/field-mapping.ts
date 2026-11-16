@@ -157,7 +157,7 @@ export function withFactChoices(columns: readonly GridColumnSpec[], facts: Colum
  *
  * This replaced `fieldKindFor` and its sixteen-word kind vocabulary. Two
  * mappings for one decision is how the form and the generator came to disagree
- * about when to hide a timestamp and when to segment an enum (B9).
+ * about when to hide a timestamp and when to segment an enum.
  */
 export function controlForColumn(
   column: GridColumnSpec,
@@ -215,7 +215,7 @@ export function controlForColumn(
     primaryKey: column.primaryKey,
     unique: column.unique,
     // A rule's values decide the CONTROL as well as the answers: six or fewer
-    // is a segmented control or choice cards, more is a select (D19).
+    // is a segmented control or choice cards, more is a select.
     ...(ruleValues === undefined
       ? column.enumValues === undefined
         ? {}

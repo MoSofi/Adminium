@@ -187,7 +187,7 @@ export interface PageCrudProps {
   childFacts?: Readonly<Record<string, ChildFacts>> | undefined;
   /**
    * The filters this page offers: the ones an admin defined, else the two the
-   * table derives (D8). Absent ⇒ no bar at all, which is what every page
+   * table derives. Absent ⇒ no bar at all, which is what every page
    * rendered before filters existed.
    */
   filterFields?: readonly CrudFilterField[] | undefined;
@@ -290,7 +290,7 @@ export interface PageCrudFiles {
   choose?: PictureChooser | undefined;
   /** The workspace cap, so the form can refuse before a request starts. */
   maxBytes?: number | undefined;
-  /** Above this an image column shows a chip rather than a preview (D24). */
+  /** Above this an image column shows a chip rather than a preview. */
   thumbnailMaxBytes?: number | undefined;
 }
 
@@ -832,7 +832,7 @@ function PageCrudPage({
       )
       .then((result) => {
         /*
-         * The dialog CLOSES on success (D4). It used to stay open on a second
+         * The dialog CLOSES on success. It used to stay open on a second
          * "added — Done" panel, after the toast below had already said the row
          * was added and offered the Undo — a second confirmation of something
          * the person had just watched happen, in front of the grid that now
@@ -1348,7 +1348,7 @@ function PageCrudPage({
       </div>
 
       {/*
-        * CREATE — the designed dialog (D3, D4, D17).
+        * CREATE — the designed dialog.
         *
         * It was a `TwoPhaseModal` whose second phase said "added — Done" after
         * the toast had already said so and offered the Undo. One dialog, one
@@ -1440,7 +1440,7 @@ function PageCrudPage({
       </Drawer>
 
       {/*
-        * EDIT — the same dialog as create (D3). It was a 480px drawer, which
+        * EDIT — the same dialog as create. It was a 480px drawer, which
         * made editing a row look like a different operation from adding one.
         * The PEEK below stays a drawer: it is a preview, not a form.
         */}

@@ -5,7 +5,7 @@
  * 381-384, and its two picker groups, 546-561).
  *
  * EVERY LABEL IS A LITERAL `t()` KEY. Not one of them is assembled from a
- * kind and a suffix (D21): `t(\`automations:kind.${kind}\`)` reads fine in
+ * kind and a suffix: `t(\`automations:kind.${kind}\`)` reads fine in
  * English and is unfindable by the extractor, untranslatable by a person who
  * cannot see the whole key, and silently English in every locale that missed
  * it. Exhaustive maps are longer and are the only version that survives eight
@@ -113,7 +113,7 @@ export function iconForNode(kind: NodeKind, action: Action | null): string {
  * about; offering them would be a tile that fails at run time on most
  * databases. "Update field" IS "add a tag" for a schema with a tag column,
  * and "Create record" is the owner's beneficiaries example. Slack stays,
- * because a Slack incoming webhook IS a webhook (D19).
+ * because a Slack incoming webhook IS a webhook.
  */
 export const ACTION_STEPS: readonly StepDefinition[] = [
   {
@@ -241,7 +241,7 @@ export function stepDescKey(key: string): string {
   return `automations:pick.${key}.desc`;
 }
 
-/** The comp's five operators first, then emptiness, then the date four (D18). */
+/** The comp's five operators first, then emptiness, then the date four. */
 export const VALUE_OPS: readonly ConditionOp[] = [
   'is',
   'is_not',
@@ -386,7 +386,7 @@ export const STATUS_META: Readonly<Record<RunStatus, StatusMeta>> = {
   },
 };
 
-/** The comp's four trace-step tones (Workflow Logs 185), plus `wait` (D9). */
+/** The comp's four trace-step tones (Workflow Logs 185), plus `wait`. */
 export const STEP_META: Readonly<
   Record<'ok' | 'fail' | 'run' | 'skip' | 'wait', { icon: string; text: string; soft: string; spin: boolean }>
 > = {
@@ -397,5 +397,5 @@ export const STEP_META: Readonly<
   wait: { icon: 'timer', text: 'text-accent', soft: 'bg-accent-soft', spin: false },
 };
 
-/** "Running" is the comp's word for pending + running + waiting (D9). */
+/** "Running" is the comp's word for pending + running + waiting. */
 export const RUNNING_STATUSES: readonly RunStatus[] = ['pending', 'running', 'waiting'];

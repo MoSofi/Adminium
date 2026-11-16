@@ -10,7 +10,7 @@
  *
  * When no provider is configured the step no longer just points at Settings: it
  * renders the SAME `ProviderConfigForm` that page does, inline, and the provider
- * card re-enables the moment a config saves (R3).
+ * card re-enables the moment a config saves.
  *
  * RBAC: the whole connect wizard is Admin+ (StudioGuard), so this step inherits
  * the acceptance-#13 gate — Editor/Viewer never see it, and `/api/v1/llm/config`

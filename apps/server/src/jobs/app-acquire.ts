@@ -4,7 +4,7 @@
  * release into the app store.
  *
  * The add-on acquisition jobs' twins (`add-on-acquire.ts`), kept apart because
- * the two catalogs are separate documents behind separate switches (R1, R2),
+ * the two catalogs are separate documents behind separate switches,
  * cache into separate stores, and audit under separate categories. What they
  * share is the rules:
  *
@@ -15,7 +15,7 @@
  *  - ONE ATTEMPT PER DOWNLOAD (48 A16, R5). A released file never changes, so a
  *    refusal repeats identically on every retry.
  *  - IDEMPOTENT PER `(key, version)` through the repo's `dedupeKey`.
- *  - A MINIMUM IS CHECKED BEFORE A BYTE IS FETCHED (G8-D2). The route checks it
+ *  - A MINIMUM IS CHECKED BEFORE A BYTE IS FETCHED. The route checks it
  *    too, so the page can say so at once; the job checks again because the cache
  *    it reads may have been refreshed between the click and the run.
  */

@@ -12,7 +12,7 @@
  * re-derives none of it. `AttachmentsColumnSetup` is the same shape for one
  * fixed column; this is that generalised to a set the fit report names.
  *
- * ─── The operator is not asked to name anything (D3) ──────────────────────
+ * ─── The operator is not asked to name anything ──────────────────────
  *
  * Naming is where this repair silently fails. `r12-event-timestamp` is a NAME
  * SUFFIX rule, so a column of the right TYPE called `appointment` is one the

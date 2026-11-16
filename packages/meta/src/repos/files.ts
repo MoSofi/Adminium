@@ -358,7 +358,7 @@ export function filesRepo(meta: MetaDb) {
 
     /**
      * Uploads no record ever claimed, older than `cutoff` — the sweep's first
-     * half (D12). Scoped to `kind = 'upload'` because every other kind is a
+     * half. Scoped to `kind = 'upload'` because every other kind is a
      * system artifact with its own lifecycle: an export is attached to nothing
      * by design and its retention is the exports sweep's business.
      */
@@ -378,7 +378,7 @@ export function filesRepo(meta: MetaDb) {
 
     /**
      * One page of a destination's files, id-keyset ordered so the migrate job
-     * resumes from where it was killed (D20). `destinationId === null` reads
+     * resumes from where it was killed. `destinationId === null` reads
      * the implicit local destination, which is how "move everything off this
      * server's disk" is expressed.
      */
@@ -419,7 +419,7 @@ export function filesRepo(meta: MetaDb) {
       return affected(res.numUpdatedRows) === 1;
     },
 
-    /** Restore a trashed row — the Undo affordance; no token machinery (D12). */
+    /** Restore a trashed row — the Undo affordance; no token machinery. */
     async restore(id: string): Promise<StoredFile | null> {
       await db
         .updateTable('adminium_files')
@@ -569,7 +569,7 @@ export function filesRepo(meta: MetaDb) {
     },
 
     /**
-     * Bytes and row count per destination, for the usage strip (D23).
+     * Bytes and row count per destination, for the usage strip.
      * `destinationId` is nullable in the result and NULL means this server's
      * disk. Counts LIVE rows only: trashed bytes are still on the disk but they
      * are not what the operator is being asked to reason about.

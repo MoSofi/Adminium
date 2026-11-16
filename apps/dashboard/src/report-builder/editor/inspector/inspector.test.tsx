@@ -79,7 +79,7 @@ afterAll(() => {
   restoreI18n();
 });
 
-describe('the banner (I2) and the three panels (I3–I5)', () => {
+describe('the banner and the three panels', () => {
   it('the header panel names the document’s fields, swatches and status (353-371)', async () => {
     const { edits, user } = renderInspector('header');
     expect(screen.getByTestId('report-inspector-title').textContent).toBe('Report header');
@@ -104,7 +104,7 @@ describe('the banner (I2) and the three panels (I3–I5)', () => {
     expect(screen.getAllByTestId('report-swatch').every((el) => el.getAttribute('aria-pressed') === 'false')).toBe(true);
   });
 
-  it('the background is upload → thumb + Replace/Remove + an Overlay range at 0–95 (I3)', async () => {
+  it('the background is upload → thumb + Replace/Remove + an Overlay range at 0–95', async () => {
     renderInspector('header');
     expect(screen.getByTestId('report-background-upload')).toBeDefined();
     expect(panel().textContent).toContain('Adds a full-bleed background behind the whole report');
@@ -118,14 +118,14 @@ describe('the banner (I2) and the three panels (I3–I5)', () => {
     expect(edits.histSetHeader).toHaveBeenCalledWith('bgImage', '');
   });
 
-  it('a selection that is neither the header nor a live block shows *Select a block* (I4)', () => {
+  it('a selection that is neither the header nor a live block shows *Select a block*', () => {
     renderInspector('gone');
     expect(screen.getByTestId('report-none-panel').textContent).toContain('Select a block');
     expect(screen.getByTestId('report-inspector-title').textContent).toBe('Nothing selected');
   });
 });
 
-describe('every one of the 25 field groups (I6)', () => {
+describe('every one of the 25 field groups', () => {
   const NAMED: Readonly<Record<ReportBlockKind, string>> = {
     heading: 'Text',
     text: 'Text',
@@ -152,18 +152,18 @@ describe('every one of the 25 field groups (I6)', () => {
     delivery: 'Step 1',
     image: 'Placeholder caption',
     // The one kind with no group of its own: title, width, show and delete are
-    // its whole panel (B25).
+    // its whole panel.
     divider: 'Block title',
   };
 
   it.each(REPORT_BLOCK_KINDS)('%s names its own control, and carries Width · Show · Delete', (kind) => {
     renderInspector(idOf(kind));
     const aside = panel();
-    // The banner reads the kind's LABEL, never its glyph slug (D13).
+    // The banner reads the kind's LABEL, never its glyph slug.
     expect(within(aside).getByTestId('report-inspector-title').textContent).not.toMatch(/^[a-z][a-z0-9-]*$/);
     expect(within(aside).getByTestId('report-block-panel').getAttribute('data-kind')).toBe(kind);
     expect(within(aside).getByRole('textbox', { name: NAMED[kind] })).toBeDefined();
-    // The three every kind shares (I7–I9).
+    // The three every kind shares.
     expect(within(aside).getAllByTestId('report-width-option').map((el) => el.getAttribute('data-value'))).toEqual(['full', 'half']);
     expect(within(aside).getByTestId('report-show-toggle').getAttribute('role')).toBe('switch');
     expect(within(aside).getByTestId('report-delete-block')).toBeDefined();
@@ -180,8 +180,8 @@ describe('every one of the 25 field groups (I6)', () => {
   });
 });
 
-describe('the eight repeaters (I10) and the fills', () => {
-  it('a KPI row carries Label · Value · Delta — the field the comp renders and cannot edit (D27/O8)', async () => {
+describe('the eight repeaters and the fills', () => {
+  it('a KPI row carries Label · Value · Delta — the field the comp renders and cannot edit', async () => {
     const { edits, user } = renderInspector(idOf('kpi'));
     const rows = screen.getAllByTestId('report-kpi-row');
     expect(rows).toHaveLength(2);
@@ -227,7 +227,7 @@ describe('the eight repeaters (I10) and the fills', () => {
     expect(edits.updateArrayItem).toHaveBeenCalledWith('k22', 'delSteps', 3, { status: 'current' });
   });
 
-  it('the image block gains Upload / Replace / Remove — the comp’s own background pattern (D26/O4)', async () => {
+  it('the image block gains Upload / Replace / Remove — the comp’s own background pattern', async () => {
     renderInspector(idOf('image'));
     expect(screen.getByTestId('report-block-image-upload')).toBeDefined();
     expect(screen.queryByTestId('report-block-image-remove')).toBeNull();

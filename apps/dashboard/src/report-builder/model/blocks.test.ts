@@ -6,7 +6,7 @@
  *
  *  · `BLOCK_KIND_META` is pinned entry by entry — the comp's `kindMeta` (473)
  *    returns `[icon, label]` for four of its 25 kinds, and this record is the
- *    fix (D13). A label that becomes a slug goes red here.
+ *    fix. A label that becomes a slug goes red here.
  *  · every kind round-trips encode → decode with its own fields.
  *  · `swapBlock` and `reorderBlock` are two DIFFERENT algorithms, both the
  *    comp's (537 vs 539), including `dest = from < to ? to − 1 : to` and the

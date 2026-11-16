@@ -4,7 +4,7 @@
  * as chips, *Quick add teammates* — the first three other active users —
  * the sample-data note, *N recipients* in the footer, then the success
  * phase: *Test sent!* with *Send another* and *Done*. The document the
- * server renders is the ON-SCREEN one (D1); the caller passes it through
+ * server renders is the ON-SCREEN one; the caller passes it through
  * `onSend`.
  */
 import { Info, Mail, Send } from 'lucide-react';

@@ -4,8 +4,8 @@
  * accent-soft banner, holding the header panel, one of the 25 block field
  * groups, or the *Nothing selected* fallback.
  *
- * BELOW `lg` IT IS A DRAWER under the canvas (D18): the comp
- * draws no responsive rule at all (E11), and two aside columns beside a 760 px
+ * BELOW `lg` IT IS A DRAWER under the canvas: the comp
+ * draws no responsive rule at all, and two aside columns beside a 760 px
  * sheet cannot fit a 390 px viewport. Both instances mount at once below `lg`
  * (one hidden by `lg:hidden`, one by `hidden lg:flex`), so an e2e or axe pass
  * that reaches for a panel test id finds it TWICE — scope to the aside or the
@@ -35,7 +35,7 @@ export interface InspectorProps {
   selection: Selection;
   edits: DocumentEdits;
   onImageRejected: (result: ImageRejection) => void;
-  /** `drawer` is the below-`lg` instance under the canvas (D18). */
+  /** `drawer` is the below-`lg` instance under the canvas. */
   variant?: 'aside' | 'drawer' | undefined;
   /** "Shown in" for the header panel; absent on a server with no workspaces. */
   shownIn?: ReactNode;

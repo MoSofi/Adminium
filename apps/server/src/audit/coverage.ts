@@ -216,7 +216,7 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   // An add-on's look-up reads rows the caller may already read; a row per scanned code would bury the trail.
   'POST /api/v1/add-ons/:key/look-up': auditExempt('reads rows the caller may already read; one audit row per scanned code would bury the trail'),
 
-  // ── Data-io (M7). The routes audit the request; the workers audit completion.
+  // ── Data-io. The routes audit the request; the workers audit completion.
   'POST /api/v1/exports': audited('rbac'), // export.request (+ export.complete, worker)
   'POST /api/v1/imports/upload': audited('rbac'), // import.upload
   'POST /api/v1/imports': audited('rbac'), // import.validate

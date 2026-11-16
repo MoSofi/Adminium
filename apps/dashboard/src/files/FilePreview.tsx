@@ -39,7 +39,7 @@ const TEXT_PREVIEW_BYTES = 64 * 1024;
 const THUMBNAIL_MAX_BYTES = 5 * 1024 * 1024;
 
 export function previewKindOf(file: FileDto): PreviewKind | null {
-  // Trashed bytes 404 (D12): there is nothing to show.
+  // Trashed bytes 404: there is nothing to show.
   if (file.deletedAt !== null) return null;
   if (IMAGE_MIMES.has(file.mime)) return 'image';
   if (VIDEO_MIMES.has(file.mime)) return 'video';

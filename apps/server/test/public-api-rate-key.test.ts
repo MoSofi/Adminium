@@ -6,7 +6,7 @@
  * That suite proves the same property for the LOGIN bucket, which is a
  * different limiter: `plugins/core.ts`'s `RATE_BUCKETS`, keyed by
  * `principalKey`. The public namespace deliberately does not use it — a
- * publishable key never becomes an rbac principal (D3), so a `keyBy: 'public'`
+ * publishable key never becomes an rbac principal, so a `keyBy: 'public'`
  * branch there would silently fall through to `ip:` — and it carries its own
  * `createPublicRateLimiter` with its own ladder: `flood|ip:<addr>` before the
  * key resolves, then `pubs:<session row>` or `pub:<keyId>:ip:<addr>`. Two

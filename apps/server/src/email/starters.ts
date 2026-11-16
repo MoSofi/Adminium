@@ -33,7 +33,7 @@ import type { Translate } from './builtins.js';
 import { newBlockId } from './ids.js';
 import type { EmailDocument } from './types.js';
 
-/** The comp's twelve starter slots, in its modal order, with the four re-themed (D10). */
+/** The comp's twelve starter slots, in its modal order, with the four re-themed. */
 export const EMAIL_STARTER_KEYS = [
   'welcome',
   'shipped',

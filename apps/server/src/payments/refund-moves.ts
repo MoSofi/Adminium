@@ -23,7 +23,7 @@
  * (`auto:<attempt>`), for what is still refundable:
  *
  *  - the column model: Adminium's own refund, as a person's would be;
- *  - the rows model (Q10): Adminium writes the app's refund row as the system,
+ *  - the rows model: Adminium writes the app's refund row as the system,
  *    with the app's own `auto` values, through the payments-table guard, then
  *    sends the money back for that row (`app-refunds.ts`). The row carries a
  *    mark (`auto:<attempt>`) in its reference column until the provider's

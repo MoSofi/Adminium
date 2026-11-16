@@ -57,7 +57,7 @@ export interface AvailabilityQuery {
   /** A column whose value scopes the question — the room, the practitioner. */
   resource?: string | undefined;
   resourceValue?: string | undefined;
-  /** The record this read is for, whose own instant is not "taken" (C2). */
+  /** The record this read is for, whose own instant is not "taken". */
   exclude?: Row | undefined;
 }
 

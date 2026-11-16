@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The layout gallery: one card per preset, as the comp's catalog page draws
- * them (D9).
+ * them.
  *
  * The cards are titled by PATTERN — "Quick create", "Sectioned" — rather than
  * by the comp's samples ("New task", "New patient"): a layout is not a patient,
- * and a gallery named after somebody's sample data reads as a template store
- * (DP3). Seven cards here; the repeater and split-pane layouts arrive with the
+ * and a gallery named after somebody's sample data reads as a template store.
+ * Seven cards here; the repeater and split-pane layouts arrive with the
  * controls they need.
  */
 import { CalendarDays, CreditCard, FileText, LayoutList, ListChecks, Mails, Rows3, Table2, UploadCloud } from 'lucide-react';

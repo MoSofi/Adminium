@@ -153,7 +153,7 @@ describe('the Upload dialog', () => {
     // Pre-set from the rail's filter.
     expect(url.searchParams.get('connectionId')).toBe('conn_2');
     // No table ⇒ authorised by `files.manage` and claimed at creation, so the
-    // unattached sweep leaves it (D4). A table here would make it a
+    // unattached sweep leaves it. A table here would make it a
     // create-form upload the sweep collects a day later.
     expect(url.searchParams.get('table')).toBeNull();
     expect(url.searchParams.get('recordId')).toBeNull();

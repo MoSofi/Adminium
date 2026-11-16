@@ -156,7 +156,7 @@ export function DesignMode({
   const stage = (key: string, table: DesiredTable): void => {
     buffer.upsert(key, table);
     /*
-     * Renaming an EXISTING table is a separate intent, not an inference (D1).
+     * Renaming an EXISTING table is a separate intent, not an inference.
      *
      * Every other edit is expressed by the desired document alone, but a
      * changed `name` on a table that already exists is ambiguous on the wire:
@@ -260,7 +260,7 @@ export function DesignMode({
         edit,
         authorised.checksum,
         // The operator has seen the row counts — they are on the review pane
-        // above the button they just pressed (D18).
+        // above the button they just pressed.
         true,
         acknowledged,
       );
@@ -305,7 +305,7 @@ export function DesignMode({
   );
 
   /**
-   * Choice columns with nothing to choose from (B5).
+   * Choice columns with nothing to choose from.
    *
    * `enum` is a type you can pick from the list, and an enum column with an
    * empty value list is refused by the gate as `ENUM_ON_NON_ENUM_COLUMN` — so
@@ -334,7 +334,7 @@ export function DesignMode({
   const brokenEnumValues = [...buffer.upserts.values()].flatMap((table) =>
     table.columns
       .filter((column) => {
-        // Any column with a list, whatever its type says (D32).
+        // Any column with a list, whatever its type says.
         const values = table.enumValues[column.name] ?? [];
         if (column.logicalType !== 'enum' && values.length === 0) return false;
         return (

@@ -145,7 +145,7 @@ describe('the Rules section writes the four ops', () => {
   it('says what already fills a column, so "leave it to the database" is not read as "nothing"', async () => {
     /*
      * A `created_at` with no database default is filled by Adminium with no
-     * rule stored at all (D5) — the fix the owner's failed insert needed. The
+     * rule stored at all — the fix the owner's failed insert needed. The
      * default choice reads "Leave it to the database", which for that column
      * would be a lie, so the helper says who really fills it.
      */

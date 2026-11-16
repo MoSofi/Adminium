@@ -37,10 +37,10 @@
  * a same-database meta store, and nothing persists it. The connections table
  * has `read_only` and no companion.
  *
- * Persisting it makes the Studio's honest-absence rule (D5) cheap: the Design
+ * Persisting it makes the Studio's honest-absence rule cheap: the Design
  * mode is hidden without a round trip. It is emphatically **not** the
  * authority for whether a step may run — that is the per-target preflight at
- * plan time (D17), because a role can own table A and not table B, and one
+ * plan time, because a role can own table A and not table B, and one
  * boolean on a connection cannot say so. This column is a UI hint, and the
  * comment is here so nobody later mistakes it for a guard.
  *
@@ -48,7 +48,7 @@
  * defaulted to false: "we have not asked" and "we asked and the answer was no"
  * lead to different UI, and a default would erase the difference.
  *
- * ─── `diagram_layout` (D21, M18) ───────────────────────────────────────────
+ * ─── `diagram_layout` ───────────────────────────────────────────
  *
  * Manual node positions for the ER diagram, per connection rather than per
  * user, because the diagram's value is as a shared map of the workspace.

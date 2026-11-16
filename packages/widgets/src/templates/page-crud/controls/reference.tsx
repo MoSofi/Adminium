@@ -24,7 +24,7 @@
  * ─── A target the caller cannot read ───────────────────────────────────────
  *
  * The lookup answers 403 and the field goes DISABLED with the reason naming the
- * table (F16). The alternative — an empty picker — says "there is nothing to
+ * table. The alternative — an empty picker — says "there is nothing to
  * choose", which is a different and untrue statement.
  */
 import { Combobox, MonoText } from '@adminium/ui';

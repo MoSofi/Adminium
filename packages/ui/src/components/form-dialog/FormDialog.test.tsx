@@ -54,7 +54,7 @@ describe('FormDialog', () => {
     expect(await screen.findByRole('dialog', { name: 'New patient' })).toBeDefined();
   });
 
-  it('closes on the close button and on Escape (D30)', async () => {
+  it('closes on the close button and on Escape', async () => {
     const user = userEvent.setup();
 
     const onClose = vi.fn();

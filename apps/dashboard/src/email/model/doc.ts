@@ -5,7 +5,7 @@
  * the dirty check cover all of them.
  *
  * The draft is read from the detail reply once, when the editor opens, and
- * from then on it is the editor's own (D1): a refetch never overwrites what is
+ * from then on it is the editor's own: a refetch never overwrites what is
  * being typed. The dirty state is DERIVED — the draft against the last saved
  * draft — so undoing back to exactly what was saved reads *All changes saved*
  * again, which is the truth.
@@ -28,7 +28,7 @@ export function draftFromDetail(detail: EmailDocumentDetail): EditorDraft {
   };
 }
 
-/** What `PUT /email-templates/:id` takes; mirror ops ride the same save (D1). */
+/** What `PUT /email-templates/:id` takes; mirror ops ride the same save. */
 export function putBodyOf(draft: EditorDraft, mirrorOps: readonly EmailMirrorOp[]) {
   const document: EmailDocumentInput = {
     subject: draft.document.subject,

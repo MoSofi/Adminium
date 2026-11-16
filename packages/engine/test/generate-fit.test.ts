@@ -132,7 +132,7 @@ describe('templateFit — the generic half (all ten table-bound templates)', () 
     expect(fit.unfilled[0]?.accepts.widgets).toContain('calendar-month');
   });
 
-  it('states a slot for a template with no repair descriptors (D4)', () => {
+  it('states a slot for a template with no repair descriptors', () => {
     // `page-directory` gets the generic half and no repair flow behind it.
     const fit = templateFit(MODEL, 'main.invoices', 'page-directory');
     expect(fit.bindable).toBe(true);
@@ -221,7 +221,7 @@ describe('templateFit — the repair descriptors', () => {
     expect(templateFit(tagged, 'main.visits', 'page-calendar').satisfied).toBe(true);
   });
 
-  it('pre-fills a conforming name rather than asking the operator for one (D3)', () => {
+  it('pre-fills a conforming name rather than asking the operator for one', () => {
     const fit = templateFit(MODEL, 'main.invoices', 'page-calendar');
     const date = fit.requirements.find((r) => r.role === 'event-date');
     expect(date?.taggable).toEqual([]); // nothing to tag — this is the DDL case

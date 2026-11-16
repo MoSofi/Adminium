@@ -19,7 +19,7 @@
  *  2. THE DEDUPE KEY. `begin()` INSERTs the run row first; a unique violation
  *     means another producer — almost always the watch poller a minute later
  *     — already claimed this occurrence. Nothing is enqueued in that case.
- *  3. THE UNDO WINDOW. A dashboard write can be taken back for 60 s (D7), so
+ *  3. THE UNDO WINDOW. A dashboard write can be taken back for 60 s, so
  *     a rule triggered by one starts 60 s late and is skipped if the undo
  *     arrives first. Public, watch and schedule origins have no undo and run
  *     immediately.
@@ -66,7 +66,7 @@ export interface MatcherDeps {
   meta: MetaDb;
   enqueue(input: EnqueueJobInput): Promise<Job>;
   /**
-   * Answers a related-records count for a trigger's `when` (F5), against the
+   * Answers a related-records count for a trigger's `when`, against the
    * connection the event came from. Absent means a count condition evaluates
    * false, which is the safe direction: a rule that cannot be evaluated does
    * not fire.
@@ -291,7 +291,7 @@ export class AutomationMatcher {
       wakeAt: delayed ? wakeAt : null,
     };
     let run = await runs.begin(claim, at);
-    // null = another producer already claimed this occurrence (D6)…
+    // null = another producer already claimed this occurrence…
     if (run === null && event.action === 'update' && dedupeKey !== null) {
       // …unless it was an earlier write of this server that left the row with
       // the same moment (MySQL keeps whole seconds): this write is a change
@@ -310,14 +310,14 @@ export class AutomationMatcher {
       runAt: wakeAt,
       dedupeKey: `run:${run.id}`,
       // A retried run would repeat every side effect it had already performed
-      // — a second welcome email, a second beneficiary row (D6).
+      // — a second welcome email, a second beneficiary row.
       maxAttempts: 1,
     });
     await runs.attachJob(run.id, job.id);
   }
 
   /**
-   * A dashboard write was undone inside its window (D7). Every run still
+   * A dashboard write was undone inside its window. Every run still
    * `pending` for one of these records is dropped before it starts.
    */
   async onUndo(refs: readonly RecordRef[]): Promise<void> {

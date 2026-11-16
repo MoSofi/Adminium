@@ -22,7 +22,7 @@ export function ResetPage() {
   const { token } = useParams({ from: '/reset/$token' });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  // The workspace's own rule (V28): this page said 8 while the default policy
+  // The workspace's own rule: this page said 8 while the default policy
   // is 10, so a 9-letter password passed here and was refused on save.
   const min = useQuery(setupStateQuery()).data?.passwordMinLength ?? POLICY_FLOOR;
 

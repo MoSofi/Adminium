@@ -94,7 +94,7 @@ export const exportSavedView = z.object({
   pageTitle: z.string(),
   name: z.string(),
   filterCount: z.number(),
-  /** The view's filter list, verbatim — what a `kind: 'table'` export carries (D8). */
+  /** The view's filter list, verbatim — what a `kind: 'table'` export carries. */
   filters: z.array(z.unknown()),
   /** A search term an export cannot carry; the builder warns and drops it. */
   hasSearch: z.boolean(),

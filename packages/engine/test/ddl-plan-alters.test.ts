@@ -403,7 +403,7 @@ describe('planAlters — constraints', () => {
   });
 });
 
-describe('literal defaults are validated per type (D30)', () => {
+describe('literal defaults are validated per type', () => {
   const base = (logicalType: DesiredColumn['logicalType'], text: string): SchemaEdit => ({
     baseSnapshotId: 's',
     renames: { tables: [], columns: [] },

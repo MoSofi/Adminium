@@ -998,7 +998,7 @@ export function LimitNote({ which, value, version, onKeepGoing, busy }: { which:
 
 /**
  * Above the message box, for as long as a spending mark is passed. It stops
- * nothing (D92): the person reads it, hears it once, and decides.
+ * nothing: the person reads it, hears it once, and decides.
  */
 export function SpendNotice({ warnings, onNewSession }: { warnings: readonly { which: SpendMark; mark: number }[]; onNewSession?: (() => void) | undefined }): ReactNode {
   if (warnings.length === 0) return null;

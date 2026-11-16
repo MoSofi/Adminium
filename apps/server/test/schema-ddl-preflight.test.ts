@@ -188,7 +188,7 @@ describe('a rename says what follows the name and what does not', () => {
   });
 });
 
-describe('the row ceiling counts and refuses the SAME set (D18)', () => {
+describe('the row ceiling counts and refuses the SAME set', () => {
   /*
    * These three were found by a design critique run before the Super-Admin door
    * was built, and all three were live in the shipped tree.
@@ -237,7 +237,7 @@ describe('the row ceiling counts and refuses the SAME set (D18)', () => {
   });
 });
 
-describe('a count that FAILED is not a count of zero (D18)', () => {
+describe('a count that FAILED is not a count of zero', () => {
   /*
    * `if (count === null) continue` deleted the row-count consequence, the
    * ceiling refusal and the acknowledgement door in one line — so a lock, a

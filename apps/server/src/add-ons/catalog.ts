@@ -205,7 +205,7 @@ export function pickLocalized(
 /** An add-on key: the grammar the store, the payloads and the download path share. */
 export const ADD_ON_KEY_PATTERN = /^[a-z][a-z0-9-]{1,79}$/;
 /**
- * EXACT — never a range, never `latest` (D9).
+ * EXACT — never a range, never `latest`.
  *
  * The prerelease/build tail is ONE optional group, not a repeated one. Repeating
  * `[-+][0-9A-Za-z.-]+` made the pattern ambiguous, because the tail class also
@@ -623,8 +623,8 @@ export interface CatalogClient {
    *
    * `isEnabled()` folds the two together, which is right for every caller that
    * only wants to know whether to proceed. The settings ROUTE needs them apart:
-   * `ADMINIUM_NETWORK_FEATURES=off` and desktop air-gap mode veto the toggle
-   * (O1), so an operator can switch it on and have it stay off — and a toggle
+   * `ADMINIUM_NETWORK_FEATURES=off` and desktop air-gap mode veto the toggle,
+   * so an operator can switch it on and have it stay off — and a toggle
    * that springs back with no explanation is worse than one that is absent.
    */
   networkFeaturesAllowed(): boolean;

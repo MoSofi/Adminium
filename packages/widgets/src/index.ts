@@ -109,7 +109,7 @@ export {
   type TsPointData,
 } from './lib/shapes.js';
 
-// Dashboard grid: static renderer + geometry (M4), edit mode
+// Dashboard grid: static renderer + geometry, edit mode
 export { DashboardGrid, type DashboardGridProps, type RenderItemContext } from './grid/DashboardGrid.js';
 export {
   GRID_COLUMNS,

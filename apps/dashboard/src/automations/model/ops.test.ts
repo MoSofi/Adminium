@@ -86,7 +86,7 @@ describe('insert (comp 405-417)', () => {
     const result = insert(graph(), { index: 1 }, emailStep);
     expect(result.graph.nodes[1]?.id).toBe(result.nodeId);
     expect(result.graph.nodes[1]?.title).toBe('Send email');
-    // The original is untouched — the page holds a draft (D11).
+    // The original is untouched — the page holds a draft.
     expect(graph().nodes).toHaveLength(3);
   });
 
@@ -199,7 +199,7 @@ describe('inspector edits', () => {
   });
 });
 
-describe('completeness (D12)', () => {
+describe('completeness', () => {
   it('is complete when every action and condition is filled in', () => {
     expect(firstIncompleteNode(graph())).toBeNull();
   });

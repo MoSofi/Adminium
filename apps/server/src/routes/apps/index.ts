@@ -7,7 +7,7 @@
  * `ADMINIUM_SURFACES_DIR`: a directory the operator populates by deploy, read
  * once at boot. These routes add the other half — bytes arrive over the API,
  * land in a store this server owns, and are served on the next request with no
- * restart (D1, D2).
+ * restart.
  *
  * ─── Two calls, not one, and the seam is deliberate ─────────────────────────
  *
@@ -26,7 +26,7 @@
  * installing an add-on than to uploading an avatar, and it gets the same
  * ceremony: `system:manifests:manage`, an expected sha512, the hardened
  * unpack, the per-file tree pin re-checked before install parses a byte, and
- * an audit row per outcome (D5).
+ * an audit row per outcome.
  *
  * ─── After changing this file ──────────────────────────────────────────────
  *
@@ -391,7 +391,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             );
           }
           /*
-           * THE FLOOR, ON THE PATH THAT HAS NO CATALOG (G8-D2).
+           * THE FLOOR, ON THE PATH THAT HAS NO CATALOG.
            *
            * `/apps/download` has checked `minAdminiumVersion` since the
            * feed grew the field, and this route never did — so the same
@@ -759,7 +759,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
 
         /**
          * What the catalog adds for an installed app: a newer release this
-         * server can take, or one it cannot and why (G8-D2).
+         * server can take, or one it cannot and why.
          */
         function catalogUpdate(
           key: string,
@@ -1134,7 +1134,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         }
 
         /*
-         * The cached row and its minimum, checked before a job exists (G8-D2),
+         * The cached row and its minimum, checked before a job exists,
          * so the page is told at once. The job checks both again: the cache may
          * be refreshed between this reply and the run.
          */

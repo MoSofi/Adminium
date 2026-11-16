@@ -267,7 +267,7 @@ const SHIFT_TYPE: RoleDescriptor = {
 
 /**
  * The three templates that render a blank rectangle when they cannot bind, and
- * therefore the three that earn repair descriptors (D4).
+ * therefore the three that earn repair descriptors.
  *
  * `page-scheduler` is listed by its PRIMARY branch (person × date × shift
  * type). Its rule has a second, narrower one — a project FK plus an hours

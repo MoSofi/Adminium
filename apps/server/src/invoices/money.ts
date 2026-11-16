@@ -21,7 +21,7 @@
  *
  * "Total", not the comp's "Total due" (452): recorded payments never reduce
  * it (1712) — there is no balance model, so "due" would be a claim the
- * document cannot support (O25).
+ * document cannot support.
  *
  * THIS FILE IS THE REFERENCE COPY of the arithmetic law. The invoices
  * add-on's page restates it in another repository, held equal by the fixture:
@@ -104,7 +104,7 @@ export function totalsOf(body: Pick<InvoiceBody, 'items' | 'taxRate' | 'discount
   return { lines, subtotal, discount, taxBase, tax, total: taxBase + tax };
 }
 
-/** Each component on the ladder's own base (O25). */
+/** Each component on the ladder's own base. */
 export function taxBreakdown(taxBase: number, lines: readonly TaxLine[]): { label: string; rate: string; amount: number }[] {
   return lines.map((line) => ({ label: line.label, rate: line.rate, amount: percentOf(taxBase, line.rate) }));
 }

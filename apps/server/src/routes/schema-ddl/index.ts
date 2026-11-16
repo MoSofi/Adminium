@@ -6,9 +6,9 @@
  *   POST /connections/:id/schema/apply           → run it (202 + job when the worker is up)
  *   POST /connections/:id/schema/adopt           → D11: include new tables and regenerate
  *   GET  /connections/:id/schema/changes         → the applied-change ledger
- *   PUT  /connections/:id/diagram-layout         → ER-diagram node positions (D21, M18)
+ *   PUT  /connections/:id/diagram-layout         → ER-diagram node positions
  *
- * ─── Honest absence is enforced here, not in the UI (D5) ───────────────────
+ * ─── Honest absence is enforced here, not in the UI ───────────────────
  *
  * A `schema-file` connection has no database; a read-only or DDL-less role
  * cannot write to one; a `read-only-analytics` connection was declared
@@ -18,7 +18,7 @@
  * hides the surface, and this is what makes hiding it honest rather than the
  * only thing standing between a caller and the customer's schema.
  *
- * ─── Not reachable by an API key (D23) ─────────────────────────────────────
+ * ─── Not reachable by an API key ─────────────────────────────────────
  *
  * Any `adm_sk_` bearer holding a grant can call any mutating route requiring
  * it. DDL by API key is either a CI feature worth designing or an unattended
@@ -526,14 +526,14 @@ export function schemaDdlRoutes(deps: SchemaDdlRoutesDeps): FastifyPluginAsyncZo
       },
     );
 
-    // --- the diagram layout (D21, M18) --------------------------------------
+    // --- the diagram layout --------------------------------------
     app.put(
       '/connections/:id/diagram-layout',
       {
         // `schema.remap`, not `connections.manage`: moving a box on a diagram
         // is a schema-presentation edit, and requiring the connection-management
         // grant to do it would mean only the people who can rotate credentials
-        // can tidy the map (D21).
+        // can tidy the map.
         preHandler: app.rbac.require(SCHEMA_REMAP),
         config: { audit: audited('rbac') },
         schema: {

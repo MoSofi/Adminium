@@ -41,7 +41,7 @@ export const DOCUMENT_RENDER_VERSION = 1;
 /** What every consumer of a provider reads: the kinds it can draw. */
 export interface DocumentProviderKind {
   id: string;
-  /** The provider's own eight-locale record (D14) — never a key. */
+  /** The provider's own eight-locale record — never a key. */
   label: Record<string, string>;
   formats: readonly string[];
   paper: readonly string[];

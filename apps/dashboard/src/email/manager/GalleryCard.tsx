@@ -2,9 +2,9 @@
 /**
  * One gallery card (comp 369-402): the mini preview, name + meta, the two
  * pills and the action row — Edit · Duplicate · Rename · Delete, sliding in
- * on hover AND on focus-within so a keyboard reaches every one (D17). In
+ * on hover AND on focus-within so a keyboard reaches every one. In
  * archived mode the four slots become Restore · Duplicate · (no rename) ·
- * Delete for good / Reset to built-in, and the card does not open (D4).
+ * Delete for good / Reset to built-in, and the card does not open.
  */
 import { ArchiveRestore, Copy, Pencil, RotateCcw, TextCursorInput, Trash2 } from 'lucide-react';
 import type { KeyboardEvent, ReactNode } from 'react';

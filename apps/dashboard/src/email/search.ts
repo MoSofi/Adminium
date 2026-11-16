@@ -8,7 +8,7 @@
 export interface EmailTemplatesSearch {
   /** Which tray opens — the campaign-sent notice links here with `campaign`. */
   kind?: 'template' | 'campaign' | undefined;
-  /** Archived mode (D4). */
+  /** Archived mode. */
   archived?: boolean | undefined;
   /** A document id to open straight in the editor. */
   open?: string | undefined;

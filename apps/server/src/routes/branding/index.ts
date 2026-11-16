@@ -211,7 +211,7 @@ export function brandingRoutes(deps: BrandingRoutesDeps): FastifyPluginAsyncZod 
             kind: 'branding',
             uploadedBy: actingUserId(request),
             // Wave 0024: a logo follows the default destination like every
-            // other kind (D18), which is what makes it survive a redeploy on a
+            // other kind, which is what makes it survive a redeploy on a
             // host with no persistent disk.
             storageKey: written.storageKey,
             destinationId: written.destinationId,

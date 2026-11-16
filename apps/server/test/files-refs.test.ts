@@ -56,7 +56,7 @@ describe('formatRef — writing uses exactly the configured shape', () => {
     expect(formatRef('key', published, ORIGIN)).toBe(target.storageKey);
   });
 
-  it('defaults to url (D31) and names all three shapes', () => {
+  it('defaults to url and names all three shapes', () => {
     expect(DEFAULT_REF_SHAPE).toBe('url');
     expect([...REF_SHAPES]).toEqual(['url', 'id', 'key']);
   });

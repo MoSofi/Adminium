@@ -179,7 +179,7 @@ describe('when, and by whom, a column may change (changes)', () => {
   });
 });
 
-describe('a rule never carries a code staff never see (E5)', () => {
+describe('a rule never carries a code staff never see', () => {
   const template = { key: 'quote-link', name: 'Quote link', locales: { 'en-US': { subject: 'Your quote {{share_code}}', blocks: [{ block: 'email.text', data: { text: 'Hello' } }] } } };
   const rule = (action: Doc, event = 'updated') => ({
     key: 'tell',

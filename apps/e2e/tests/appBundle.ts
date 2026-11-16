@@ -103,7 +103,7 @@ const TABLES = {
     },
   ],
   /*
-   * The Overview's card families (P2) over Northwind's own tables, used as they
+   * The Overview's card families over Northwind's own tables, used as they
    * are: nothing is created and no key is claimed (see `reuse`), so the
    * composed dashboard can be installed into the dataset every spec shares.
    */

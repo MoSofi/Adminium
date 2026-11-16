@@ -142,7 +142,7 @@ describe('projectionParamsOf', () => {
   it('never lets a stored non-count agg reach the wire', () => {
     // `reverse.agg` is an open string the config schema and the PATCH route
     // both accept, and the server's grammar is `count` — a stored `sum` is a
-    // hard 422 that blanks the page, so it is dropped instead (D15).
+    // hard 422 that blanks the page, so it is dropped instead.
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const params = projectionParamsOf([reverse('total', 'sum'), reverse('item_count')]);
     expect(params.agg).toEqual(['item_count:public.invoice_items.invoice_id:count']);
@@ -177,7 +177,7 @@ describe('projectionParamsOf', () => {
   });
 });
 
-describe('parseColumns forces projections closed to sorting (D14)', () => {
+describe('parseColumns forces projections closed to sorting', () => {
   it('overrides a hand-edited sortable:true on every projection family', () => {
     const columns = parseColumns(
       {

@@ -295,7 +295,7 @@ describe('getting one', () => {
   });
 });
 
-describe('the add-ons a model is told of (D100)', () => {
+describe('the add-ons a model is told of', () => {
   const lines = () => addOnLines({ meta, credentialCrypto: { encrypt: (v: string) => v, decrypt: (v: string) => v }, store, catalogEnabled: () => catalog().isEnabled() });
 
   it('names what the list holds only while the list is on, and as not here yet', async () => {

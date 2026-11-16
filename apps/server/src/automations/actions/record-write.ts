@@ -21,7 +21,7 @@
  * "Now" stays a marker in the stored rule and is resolved HERE, against the
  * column it is being written to, through the same coercion the generated
  * defaults use. Everything else is a literal, with `{{record.x}}` tokens
- * substituted first (D16).
+ * substituted first.
  *
  * --- A value from the settings row, a day so many days on ----------------
  *

@@ -3,7 +3,7 @@
  * Zod schemas for the files resource.
  *
  * The upload's metadata rides the QUERY STRING, not a JSON body, because the
- * body IS the file (D5). That is the same shape `POST /imports/upload` and
+ * body IS the file. That is the same shape `POST /imports/upload` and
  * `POST /branding/logo` already use — the three raw-body precedents this route
  * joins rather than reinventing with `@fastify/multipart`.
  */
@@ -14,7 +14,7 @@ import { fileKindSchema } from '@adminium/meta';
 
 import { SNIFF_TYPE_KEYS } from '../../files/sniff.js';
 
-/** A file id, or the `local` sentinel for this server's disk (D3). */
+/** A file id, or the `local` sentinel for this server's disk. */
 export const destinationIdOrLocal = z.string().min(1).max(64);
 
 export const fileIdParams = z.object({ id: z.string().min(1) });
@@ -60,7 +60,7 @@ export const fileView = z.object({
   sizeBytes: z.number(),
   sha256: z.string(),
   kind: fileKindSchema,
-  /** `null` = this server's disk (D3). */
+  /** `null` = this server's disk. */
   destinationId: z.string().nullable(),
   uploadedBy: z.string().nullable(),
   createdAt: z.number(),
@@ -90,7 +90,7 @@ export const filesUploadReply = z.object({
   data: fileView,
   /**
    * The value to write into the user's column, in the shape that column is
-   * configured for (D7/D31). Absent when the upload named no column.
+   * configured for. Absent when the upload named no column.
    */
   ref: z.string().optional(),
   /**
@@ -190,7 +190,7 @@ export const filesAttachBody = z.object({
 export const filesPatchBody = z.object({ filename: z.string().min(1).max(260) });
 
 export const filesContentQuery = z.object({
-  /** Honoured only for kinds a browser can display safely; SVG never (D9). */
+  /** Honoured only for kinds a browser can display safely; SVG never. */
   inline: z.coerce.boolean().optional(),
 });
 
@@ -205,7 +205,7 @@ export const filesUsageReply = z.object({
       driver: z.string(),
       files: z.number(),
       bytes: z.number(),
-      /** Local destinations only — remote drivers cannot know (D23). */
+      /** Local destinations only — remote drivers cannot know. */
       available: z.number().optional(),
     }),
   ),

@@ -7,13 +7,13 @@
  * `ddl-edit.test.ts`:
  *
  *   1. a literal default on a DISPLAY-ONLY column is accepted verbatim — it is
- *      the database's own literal, and Adminium has no grammar for it (D30);
+ *      the database's own literal, and Adminium has no grammar for it;
  *   2. an identifier that is not `^[a-z][a-z0-9_]*$` is reported ONCE and the
  *      value is not measured, reserved-checked or namespace-checked after that;
  *   3. a snapshot table whose own name is in the `adminium_` namespace is
  *      refused when the meta store shares this database — the gate that catches
  *      `adminium_pages` when introspection did not mark it `system`;
- *   4. `enumValues` may only name a column of THIS table (D32) — a key that
+ *   4. `enumValues` may only name a column of THIS table — a key that
  *      names nothing is `UNKNOWN_COLUMN`, not a silent no-op.
  */
 import { describe, expect, it } from 'vitest';
@@ -99,7 +99,7 @@ const codes = (issues: { code: string }[]) => issues.map((i) => i.code).sort();
 
 // ---------------------------------------------------------------------------
 
-describe('a literal default on a display-only column (D30)', () => {
+describe('a literal default on a display-only column', () => {
   /*
    * `literalMatchesType` has a grammar for each of the fourteen authorable
    * types and none for the other five, because there is none to have: an
@@ -262,7 +262,7 @@ describe('a snapshot table inside Adminium’s own namespace', () => {
   });
 });
 
-describe('enumValues names a column of this table (D32)', () => {
+describe('enumValues names a column of this table', () => {
   it('refuses a key that names no column here', () => {
     // The typo case: `status` carries the list, `statuz` carries nothing, and
     // silently dropping it would ship a table with no CHECK and no complaint.

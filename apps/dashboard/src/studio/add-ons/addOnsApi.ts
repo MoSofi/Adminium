@@ -428,7 +428,7 @@ export interface StagedPackage {
 }
 
 /**
- * Sideload: upload a `.tgz` the operator obtained themselves (D4).
+ * Sideload: upload a `.tgz` the operator obtained themselves.
  *
  * ── THE HASH IS REQUIRED, AND THAT IS THE POINT ────────────────────────────
  *
@@ -483,7 +483,7 @@ export interface AddOnJobView {
 }
 
 /**
- * Read one job's progress (D10).
+ * Read one job's progress.
  *
  * A download is a JOB, not a request — it runs on the worker with its retries,
  * its cancellation and its `jobs:<jobId>` topic. This is the same read the

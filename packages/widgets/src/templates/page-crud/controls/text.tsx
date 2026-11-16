@@ -6,7 +6,7 @@
  * are all about what the person is typing rather than what the column stores:
  * a title is the line the dialog is named after, a mono input is a code you
  * read character by character, a phone carries a prefix that is stored WITH the
- * number (D29), a password only masks what is being typed (D28 — it hashes
+ * number, a password only masks what is being typed (D28 — it hashes
  * nothing and makes no column secret).
  */
 import { Input, InputGroup, Textarea } from '@adminium/ui';
@@ -159,9 +159,9 @@ export function PhoneControl(props: ControlProps) {
 }
 
 /**
- * A password field that MASKS TYPING and nothing else (D28, F6).
+ * A password field that MASKS TYPING and nothing else.
  *
- * It does not hash (O1), it does not make the column secret, and it is never a
+ * It does not hash, it does not make the column secret, and it is never a
  * default — a secret column stays out of every form and is unwritable, which is
  * a server fact this control cannot and must not change. What it gives is the
  * one thing the comp asks for: a value nobody reads over your shoulder.

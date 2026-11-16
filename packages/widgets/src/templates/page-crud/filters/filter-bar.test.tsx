@@ -113,7 +113,7 @@ describe('the filter bar', () => {
     await waitFor(() => expect(lastWhere(wheres)).toBeUndefined());
   });
 
-  it('sends `gte`, `lte` or `between` as the range is filled in (F12)', async () => {
+  it('sends `gte`, `lte` or `between` as the range is filled in', async () => {
     const { user, wheres } = renderBar([{ column: 'mrr', control: 'number-range' }]);
     await screen.findByText('Initech');
 
@@ -127,7 +127,7 @@ describe('the filter bar', () => {
     await waitFor(() => expect(lastWhere(wheres)).toEqual({ column: 'mrr', op: 'between', value: [100, 500] }));
   });
 
-  it('offers the way out where the table is empty (F18)', async () => {
+  it('offers the way out where the table is empty', async () => {
     const { user } = renderBar([{ column: 'status', control: 'one-of' }], []);
     await waitFor(() => expect(screen.getByTestId('filter-open-status')).toBeTruthy());
     await user.click(screen.getByTestId('filter-open-status'));

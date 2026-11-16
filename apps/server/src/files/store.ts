@@ -8,7 +8,7 @@
  * a destination table. This module is what makes "one seam, many destinations"
  * true rather than aspirational — there is no second place that opens a file.
  *
- * ONE DEFAULT FOR EVERY KIND (D18/D38). When a default destination exists,
+ * ONE DEFAULT FOR EVERY KIND. When a default destination exists,
  * every NEW row of every kind is written there. Not just uploads: an export
  * artifact and a branding logo are not safer on a disk that does not persist,
  * and `deploy/do-app.yaml` says in its own header that App Platform containers
@@ -18,7 +18,7 @@
  * defect as a side effect.
  *
  * EXISTING ROWS ARE NEVER MOVED by writing. A row's own `destination_id` is
- * where its bytes are, forever, until the migrate job (D20) says otherwise.
+ * where its bytes are, forever, until the migrate job says otherwise.
  * Changing the default changes where the NEXT file goes and nothing else.
  *
  * WITH NO DESTINATION CONFIGURED THIS IS BYTE-IDENTICAL TO WHAT SHIPPED. The
@@ -49,7 +49,7 @@ export interface StoredBytes {
   storageKey: string;
   sizeBytes: number;
   sha256: string;
-  /** NULL = this server's disk (D3). */
+  /** NULL = this server's disk. */
   destinationId: string | null;
   /** The driver that wrote them; informational (`destination_id` is the authority). */
   storage: string;
@@ -68,7 +68,7 @@ export interface StoreWriter {
   abort(): Promise<void>;
 }
 
-/** An upload that failed the allowlist or the sniffing gate (D8). */
+/** An upload that failed the allowlist or the sniffing gate. */
 export class UnsupportedFileTypeError extends Error {
   override readonly name = 'UnsupportedFileTypeError';
   constructor(message: string, readonly sniffedMime?: string) {

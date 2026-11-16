@@ -17,7 +17,7 @@
  * the ONLY place a native type string is produced from an authored one — and
  * the rest of the pipeline speaks the IR as it always has.
  *
- * ─── Why the vocabulary is closed (D30) ────────────────────────────────────
+ * ─── Why the vocabulary is closed ────────────────────────────────────
  *
  * D14 says this is not a SQL console. That is a promise about what a caller
  * can cause to be executed, and it is kept HERE or nowhere: two fields in the
@@ -50,7 +50,7 @@ import {
 } from '../schema-model.js';
 
 // ---------------------------------------------------------------------------
-// The authorable subset of the IR (D30)
+// The authorable subset of the IR
 // ---------------------------------------------------------------------------
 
 /**
@@ -84,7 +84,7 @@ export function isAuthorableLogicalType(type: LogicalType): type is AuthorableLo
 }
 
 /**
- * The five default kinds a client may author (D30). `expression` is absent by
+ * The five default kinds a client may author. `expression` is absent by
  * design — see the header. `null` (the absence of a default) is expressed by
  * the field being `null`, not by a kind.
  */
@@ -153,14 +153,14 @@ export const desiredTableSchema = z.strictObject({
   name: identifierSchema,
   comment: z.string().max(1024).nullable().default(null),
   columns: z.array(desiredColumnSchema).min(1),
-  /** `[]` is allowed; the consequence is stated, never silent (D31). */
+  /** `[]` is allowed; the consequence is stated, never silent. */
   primaryKey: z.array(identifierSchema).default([]),
   uniques: z.array(constraintSchema).default([]),
   indexes: z
     .array(constraintSchema.extend({ unique: z.boolean().default(false) }))
     .default([]),
   foreignKeys: z.array(desiredForeignKeySchema).default([]),
-  /** The ONLY authorable CHECK (D30/D32): column → its permitted values. */
+  /** The ONLY authorable CHECK: column → its permitted values. */
   enumValues: z.record(z.string(), z.array(z.string().min(1)).min(1).max(256)).default({}),
 });
 export type DesiredTable = z.infer<typeof desiredTableSchema>;
@@ -276,7 +276,7 @@ export type AlterColumn = z.infer<typeof alterColumnSchema>;
 export const EDIT_COLUMNS_MAX = 400;
 
 export const schemaEditSchema = z.strictObject({
-  /** What the client was looking at; the apply re-checks it (D2). */
+  /** What the client was looking at; the apply re-checks it. */
   baseSnapshotId: z.string().min(1),
   renames: z
     .strictObject({
@@ -375,7 +375,7 @@ export const EDIT_ISSUE_CODES = [
   'INVALID_RENAME',
   /**
    * Auto-increment was asked for on a column that is not the table's whole
-   * primary key (D23). Every engine ties generated integers to the key —
+   * primary key. Every engine ties generated integers to the key —
    * MySQL requires an AUTO_INCREMENT column to be indexed first, and the CRUD
    * insert path reads a new row back by its single generated key — so this is
    * refused here rather than discovered as an engine error after Apply.
@@ -454,11 +454,11 @@ function uniqueKeyIssue(columns: readonly Pick<ColumnModel, 'logicalType' | 'max
 
 /**
  * Types a value list can constrain. `enum` is the authoring word; `varchar` and
- * `text` are what the database calls the same column once it exists (D32).
+ * `text` are what the database calls the same column once it exists.
  */
 const CAN_HOLD_VALUE_LIST: ReadonlySet<LogicalType> = new Set(['enum', 'varchar', 'text']);
 
-/** Literal defaults are validated against the column's logical type (D30). */
+/** Literal defaults are validated against the column's logical type. */
 function literalMatchesType(text: string, type: LogicalType): boolean {
   switch (type) {
     case 'integer':
@@ -491,7 +491,7 @@ function literalMatchesType(text: string, type: LogicalType): boolean {
     case 'enum':
       return true;
     default:
-      // A display-only type (D30) reaching here means an existing column is
+      // A display-only type reaching here means an existing column is
       // being re-defaulted, not created. Its literal is the database's own.
       return true;
   }
@@ -503,7 +503,7 @@ export type DefaultKind = (typeof DEFAULT_KINDS)[number];
 
 /**
  * Which default kinds make sense for a type. `autoincrement` is a key
- * generator, not a value — it belongs only on an integer key (D31).
+ * generator, not a value — it belongs only on an integer key.
  *
  * ─── Why the DIALECT matters for `now` ─────────────────────────────────────
  *
@@ -803,7 +803,7 @@ export function validateSchemaEdit(edit: SchemaEdit, ctx: EditValidationContext)
       }
     }
 
-    // enumValues may only name enum columns of THIS table (D32).
+    // enumValues may only name enum columns of THIS table.
     for (const columnName of Object.keys(table.enumValues)) {
       const column = table.columns.find((c) => c.name === columnName);
       if (column === undefined) {
@@ -815,7 +815,7 @@ export function validateSchemaEdit(edit: SchemaEdit, ctx: EditValidationContext)
         });
       } else if (!CAN_HOLD_VALUE_LIST.has(column.logicalType)) {
         /*
-         * `enum` is a string plus a CHECK on all three engines (D32), so a
+         * `enum` is a string plus a CHECK on all three engines, so a
          * column AUTHORED as `enum` reads back from the database as
          * `varchar(64)` with a parsed CHECK — never as logicalType `enum`.
          * Insisting on `enum` here meant the round trip could not close: open a
@@ -1556,7 +1556,7 @@ export function desiredTableToModel(
   opts: {
     /**
      * `(column) => native type string`, e.g. `varchar(120)`. A display-only
-     * type (D30) never reaches a CREATE — the validator refuses that — but it
+     * type never reaches a CREATE — the validator refuses that — but it
      * can reach a restatement of an existing column, where the caller returns
      * the snapshot's own `dbType` rather than inventing one.
      */
@@ -1607,7 +1607,7 @@ export function desiredTableToModel(
     uniques: desired.uniques.map((u) => ({ name: u.name, columns: u.columns })),
     checks: Object.entries(desired.enumValues).map(([column, values]) => ({
       name: null,
-      // The one CHECK shape the vocabulary admits (D30/D32). Values are
+      // The one CHECK shape the vocabulary admits. Values are
       // rendered by the executor's per-dialect literal escaper, never here.
       expression: `${column} in (${values.map((v) => JSON.stringify(v)).join(', ')})`,
     })),

@@ -10,7 +10,7 @@
  * so and points at the new-page screen, and never calls generate.
  *
  * Schema-file mode is preview-only this wave: schema-file connections are
- * not creatable server-side yet (M9) — the step says so instead of faking it.
+ * not creatable server-side yet — the step says so instead of faking it.
  */
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';

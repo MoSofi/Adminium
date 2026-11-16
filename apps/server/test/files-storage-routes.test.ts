@@ -442,7 +442,7 @@ describe('storage routes', () => {
       // The counter is about the SOURCE, not the target: a reference minted
       // from a destination's `publicBaseUrl` keeps pointing at that base after
       // its object has moved away, and the job cannot rewrite values inside a
-      // customer's table (D20). This move came OFF the local disk, which
+      // customer's table. This move came OFF the local disk, which
       // publishes no base, so nothing is stranded and the count is zero.
       expect(result.publicRefsAffected).toBe(0);
 

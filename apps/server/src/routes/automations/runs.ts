@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Workflow logs (`/api/v1/automation-runs`, 42-automations-and-workflow-
- * logs.md). Read-only, behind the same key the rules pages use (D1) — a
+ * logs.md). Read-only, behind the same key the rules pages use — a
  * read-only `automations.read` is a residual.
  *
  * --- The window is seven days, and that is a decision ---------------------
@@ -13,7 +13,7 @@
  * keeps this page fast on an instance with a busy rule. A date range is a
  * residual, not an omission.
  *
- * --- Three filters over seven statuses (D9) ------------------------------
+ * --- Three filters over seven statuses ------------------------------
  *
  * The comp knows success / failed / running. The product also has `pending`
  * (waiting out the undo window), `waiting` (suspended mid-flow), `skipped`
@@ -53,7 +53,7 @@ export interface AutomationRunsRoutesDeps {
   now?: (() => number) | undefined;
 }
 
-/** The comp's list window (D22). */
+/** The comp's list window. */
 /** A step of a run as it is shown: without the row it made, which is kept for the steps after it and for nobody's eyes. */
 function withoutMade<S extends { made?: unknown }>(step: S): Omit<S, 'made'> {
   const { made: _made, ...shown } = step;

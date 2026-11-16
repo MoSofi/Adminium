@@ -13,7 +13,7 @@
  *   3. every field a pill can hold — a choice, a date, a boolean, a reference —
  *      becomes a `MetaPill`, in order;
  *   4. anything else (a number, a file) keeps the ordinary field anatomy and
- *      sits between the detail box and the pills (F20).
+ *      sits between the detail box and the pills.
  *
  * ─── Why a pill and not a labelled field ───────────────────────────────────
  *
@@ -40,7 +40,7 @@ export interface QuickPill {
   /** What is chosen now, as the pill shows it. */
   label?: string | undefined;
   value: unknown;
-  /** The menu's rows. Empty for a boolean, which has no menu (F19). */
+  /** The menu's rows. Empty for a boolean, which has no menu. */
   options: readonly ControlOption[];
   onChange: (next: unknown) => void;
   /** "No date", "Unassigned" — only for a column that may be empty. */
@@ -51,7 +51,7 @@ export interface QuickPill {
    * Two things need it and both are in the comp: the date pill's sixth row is
    * a real date input ("Pick a date", DP12 — the comp stores a label, the
    * product must store a date), and a reference over a big table needs the
-   * picker's own search rather than a list of the first twenty rows (F14).
+   * picker's own search rather than a list of the first twenty rows.
    */
   menu?: ReactNode | undefined;
   /**
@@ -60,13 +60,13 @@ export interface QuickPill {
    * The rows are fetched when the pill is first opened — never before, because
    * a quick-create dialog with four pills would otherwise fire four searches
    * at a person who may set none of them. Past the cap the menu carries the
-   * PICKER instead (F14): twenty rows of a table with four thousand is a list
+   * PICKER instead: twenty rows of a table with four thousand is a list
    * that looks complete and is not.
    */
   reference?: { table: string; column: string; display?: string | undefined; lookup: CrudApi['lookup']; picker: ReactNode } | undefined;
 }
 
-/** Past this, a reference's menu is a search rather than a list (F14). */
+/** Past this, a reference's menu is a search rather than a list. */
 export const QUICK_REFERENCE_ROWS = 20;
 
 const ICONS: Record<PillKind, ReactNode> = {
@@ -79,7 +79,7 @@ const ICONS: Record<PillKind, ReactNode> = {
 export interface QuickLayoutProps {
   title: ReactNode;
   detail?: ReactNode | undefined;
-  /** Fields that cannot be a pill, in the ordinary anatomy (F20). */
+  /** Fields that cannot be a pill, in the ordinary anatomy. */
   rest?: ReactNode | undefined;
   pills: readonly QuickPill[];
 }
@@ -136,7 +136,7 @@ function PillControl({ pill }: { pill: QuickPill }) {
   }, [open, reference, rows]);
 
   // A boolean is a pill with NO menu: pressing it toggles between the two
-  // states the comp already draws (F19).
+  // states the comp already draws.
   if (pill.kind === 'boolean') {
     return (
       <MetaPill

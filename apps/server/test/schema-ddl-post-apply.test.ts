@@ -426,7 +426,7 @@ describe('renaming a table keeps the app whole (D33, criterion 13)', () => {
 });
 
 /**
- * A column rename carries the column's MEANING with it (D3).
+ * A column rename carries the column's MEANING with it.
  *
  * D3 pre-fills a conforming name AND stamps the override, "each covering the
  * other's failure: the name survives an override being cleared, the override
@@ -435,7 +435,7 @@ describe('renaming a table keeps the app whole (D33, criterion 13)', () => {
  * was orphaned — and a calendar whose `date` column had been TAGGED as its event
  * date stopped composing the moment someone renamed the column.
  */
-describe('renaming a column keeps its override (D3)', () => {
+describe('renaming a column keeps its override', () => {
   /** The model page composition reads: the latest snapshot + active overrides. */
   async function calendarFits(table: string): Promise<boolean> {
     const snapshot = await snapshotsRepo(t.meta).latest(connectionId);
@@ -512,7 +512,7 @@ describe('renaming a column keeps its override (D3)', () => {
     const insert = await t.app.inject({
       method: 'POST',
       url: `/api/v1/data/${connectionId}/main.rename_rebuild`,
-      // New tables receive no grants (D12); the super admin needs none.
+      // New tables receive no grants; the super admin needs none.
       headers: superAdminHeaders,
       payload: { values: { label: 'kept', old_note: 'carried' } },
     });

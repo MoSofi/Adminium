@@ -314,7 +314,7 @@ export interface AdminiumConnectionsTable {
    */
   canDdl: BoolColumn | null;
   /**
-   * Manual ER-diagram node positions (M18). Per connection rather than per
+   * Manual ER-diagram node positions. Per connection rather than per
    * user — the diagram is a shared map — and its own column rather than a key
    * in {@link settings}, which is written whole under `connections.manage`.
    */
@@ -353,7 +353,7 @@ export interface AdminiumSchemaChangesTable {
   resultSnapshotId: Id | null;
   error: string | null;
   /**
-   * Rows the operator confirmed they had seen before a rewrite ran (D18).
+   * Rows the operator confirmed they had seen before a rewrite ran.
    *
    * NULL is the common case and is meaningful: most plans warn about no rows at
    * all, and 0 would read as "they acknowledged zero rows", which is a
@@ -1174,7 +1174,7 @@ export interface AdminiumPublicScopesTable {
    */
   timezone: string;
   document: string;
-  /** Manifest key this was seeded from, or null when authored in Studio (O2). */
+  /** Manifest key this was seeded from, or null when authored in Studio. */
   proposedFromManifest: string | null;
   /**
    * The key whose grants this document was compiled from, or null for a

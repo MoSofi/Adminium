@@ -6,7 +6,7 @@
  * The switch narrows on the union's discriminant, so a kind added to
  * `ReportBlockKind` without a group here is a TYPE error, not an empty panel.
  * `divider` is the one kind with nothing of its own: title, width, show and
- * delete are its whole panel (B25).
+ * delete are its whole panel.
  */
 import type { DocumentEdits } from '../../../model/edits.js';
 import type { ReportBlock } from '../../../model/envelope.js';

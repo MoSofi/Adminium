@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The New modal: the grid is Blank + the twelve starters, plus *Your
- * templates* in the campaign tray (D21); a pick creates through the API and
+ * templates* in the campaign tray; a pick creates through the API and
  * hands the reply up.
  */
 import { QueryClientProvider } from '@tanstack/react-query';

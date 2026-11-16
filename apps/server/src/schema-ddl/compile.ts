@@ -447,7 +447,7 @@ export function renderDefault(
 }
 
 /**
- * The identity/auto-increment clause for a generated key (D31). Per dialect,
+ * The identity/auto-increment clause for a generated key. Per dialect,
  * because the CRUD insert path reads the key back differently on each:
  * RETURNING on pg and sqlite, `insertId` on MySQL — and `insertId` only works
  * for a single auto-increment column.
@@ -523,7 +523,7 @@ export function columnDefinition(
   const parts: string[] = [];
   if (opts.includeName !== false) parts.push(quoteIdent(column.name, dialect));
 
-  // A column coming back out of a snapshot may be a display-only type (D30) —
+  // A column coming back out of a snapshot may be a display-only type —
   // `columnTypeOf` keeps its verbatim `dbType` rather than refusing to restate
   // it, and applies the FK override when there is one.
   const type = columnTypeOf(column, dialect, opts.typeOverride);
@@ -596,7 +596,7 @@ export function mysqlAlgorithmClause(
  *
  * MySQL: `SET SESSION`, because there is no transaction to scope it to.
  * `lock_wait_timeout` defaults to **31536000 seconds — one year**. The caller
- * resets it in `finally` (D10), which is why {@link resetRails} exists.
+ * resets it in `finally`, which is why {@link resetRails} exists.
  */
 export function sessionRails(
   dialect: Dialect,
@@ -634,7 +634,7 @@ export function sessionRails(
 }
 
 /**
- * Undo {@link sessionRails} on a connection that outlives the apply (D10).
+ * Undo {@link sessionRails} on a connection that outlives the apply.
  *
  * On SQLite, foreign-key enforcement: a `drop-table` compiled
  * `withoutForeignKeys` turns it off around its DROP, and a DROP that fails
@@ -737,7 +737,7 @@ export function compileStep(step: DdlStep, ctx: CompileContext): CompiledQuery[]
         ),
       ];
       if (fills) statements.push(raw(`UPDATE ${t} SET ${quoteIdent(column.name, dialect)} = ${mysqlServerNow(ctx.now ?? new Date())}`));
-      // An enum column carries its CHECK (D32) as part of becoming an enum.
+      // An enum column carries its CHECK as part of becoming an enum.
       const values = ctx.enumValues?.[column.name];
       if (values !== undefined && values.length > 0) {
         statements.push(
@@ -935,7 +935,7 @@ export function compileStep(step: DdlStep, ctx: CompileContext): CompiledQuery[]
     }
 
     /*
-     * Auto-increment on a key that already exists (D23). Every clause here was
+     * Auto-increment on a key that already exists. Every clause here was
      * run against the real servers before it was written down:
      *
      *  - postgres 18.3: ADD GENERATED leaves `pg_relation_filenode` alone, and
@@ -1041,7 +1041,7 @@ export function compileStep(step: DdlStep, ctx: CompileContext): CompiledQuery[]
       // vocabulary because a snapshot can contain one, and it refuses loudly
       // rather than emitting an `ALTER TYPE` this wave has not tested.
       throw new DdlCompileError(
-        'extending a native Postgres enum is not compiled in this wave; new enum columns are CHECK-backed (D32)',
+        'extending a native Postgres enum is not compiled in this wave; new enum columns are CHECK-backed',
         step,
       );
 

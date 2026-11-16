@@ -31,7 +31,7 @@
  * --- Dry run -------------------------------------------------------------
  *
  * The same walk, with `dryRun` set: every action resolves everything and
- * performs nothing (D14), a wait logs "Would wait 2 days" and continues, and
+ * performs nothing, a wait logs "Would wait 2 days" and continues, and
  * conditions are evaluated for real — which is how the Test animation follows
  * the path the rule would actually take rather than the comp's "first branch
  * of every fork".
@@ -368,7 +368,7 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
         log: ok ? text.evaluated(true) : text.stopped(),
       });
       // A filter that does not match ends the run SUCCESSFULLY — the rule did
-      // exactly what it was told (D18); every later step is `skip`.
+      // exactly what it was told; every later step is `skip`.
       if (!ok) halted = true;
       continue;
     }
@@ -429,11 +429,11 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
         log: message,
       });
       // A run with a failed step is FAILED even when "Continue on error" let
-      // later steps run — the trace shows which one (D9).
+      // later steps run — the trace shows which one.
       failed = true;
       if (error === null) error = message;
       // "Continue on error" is the only thing that keeps the walk going; the
-      // RUN is red either way (D9).
+      // RUN is red either way.
       if (!node.onError) halted = true;
     }
     report();

@@ -41,7 +41,7 @@
  * ─── What it never does ───────────────────────────────────────────────────
  *
  * It never DROPS anything. Turning attachments off unbinds the page and leaves
- * the column and its data alone (D7) — dropping is the one step Adminium
+ * the column and its data alone — dropping is the one step Adminium
  * cannot take back, and it stays a deliberate act in the schema designer with
  * its own confirmation.
  */
@@ -276,7 +276,7 @@ export function AttachmentsColumnSetup({
   );
 }
 
-/** The column this feature always creates (D6): nullable text, no default. */
+/** The column this feature always creates: nullable text, no default. */
 function desiredColumn(name: string): DesiredColumn {
   return {
     name,

@@ -103,7 +103,7 @@ describe('TriggerSettings — the table pickers', () => {
     });
   });
 
-  it('picking a table clears the changed column and re-reads watch for the event (D4)', async () => {
+  it('picking a table clears the changed column and re-reads watch for the event', async () => {
     const { user, onChange } = renderSettings({ ...RECORD, event: 'created', changedColumn: 'x' });
     await user.click(tableBox());
     // `customers` has an updated_at and no creation stamp: a create cannot be watched.
@@ -125,7 +125,7 @@ describe('TriggerSettings — the table pickers', () => {
     expect(onChange.mock.calls[0]?.[0]).toMatchObject({ table: 'main.customers', watch: true });
   });
 
-  it('carries the connection in the value, so two connections stay apart (F4)', async () => {
+  it('carries the connection in the value, so two connections stay apart', async () => {
     const { user, onChange } = renderSettings(RECORD, TWO);
     await user.click(tableBox());
     const list = await screen.findByRole('listbox');
@@ -157,7 +157,7 @@ describe('TriggerSettings — the table pickers', () => {
     ]);
   });
 
-  it('picking a for-each table pins the connection the scan resolves against (D5)', async () => {
+  it('picking a for-each table pins the connection the scan resolves against', async () => {
     const { user, onChange } = renderSettings({ ...SCHEDULE, connectionId: 'cnx_2' }, TWO);
     await user.click(forEachBox());
     await user.click(await screen.findByRole('option', { name: 'invoices' }));
@@ -213,7 +213,7 @@ describe('TriggerSettings — "When"', () => {
     );
   });
 
-  it('drops a watch the new event cannot honour, and never turns one on (D4)', async () => {
+  it('drops a watch the new event cannot honour, and never turns one on', async () => {
     // `customers` has an updated_at and no creation stamp.
     const customers = ONE.connections[0]?.tables[2] ?? null;
     const { user, onChange } = renderSettings(

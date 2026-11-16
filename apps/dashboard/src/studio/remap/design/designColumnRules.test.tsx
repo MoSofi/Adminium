@@ -76,7 +76,7 @@ function modelWithGeneratedKey(): EffectiveModel {
 // B7 — an existing enum column keeps its values
 // ---------------------------------------------------------------------------
 
-describe('the value list of a column that already has one (B7)', () => {
+describe('the value list of a column that already has one', () => {
   it('loads it, shows it, and sends it back', async () => {
     /*
      * `RemapEditor` never passed `enumValuesByTable`, so every table with an
@@ -121,7 +121,7 @@ describe('the value list of a column that already has one (B7)', () => {
 // B5 — type `enum` is reachable now
 // ---------------------------------------------------------------------------
 
-describe('choosing the choice type (B5)', () => {
+describe('choosing the choice type', () => {
   it('asks for values before Review, and sends them once they are typed', async () => {
     const harness = installFetch({ onPlan: () => jsonResponse(200, EMPTY_PLAN) });
     await openDesign();
@@ -192,7 +192,7 @@ describe('choosing the choice type (B5)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// The Default control (D23, F2)
+// The Default control
 // ---------------------------------------------------------------------------
 
 describe('the Default control offers only what the type and the engine allow', () => {
@@ -263,7 +263,7 @@ describe('the Default control offers only what the type and the engine allow', (
 // B8 — a retype clears a default the new type cannot have
 // ---------------------------------------------------------------------------
 
-describe('retyping a column (B8)', () => {
+describe('retyping a column', () => {
   it('drops a default the new type cannot carry, so the plan comes back clean', async () => {
     /*
      * Retyping the generated `id` to `uuid` left `default: autoincrement`,
@@ -334,7 +334,7 @@ describe('turning a unique off on SQLite', () => {
 // Key generation, answered honestly per engine
 // ---------------------------------------------------------------------------
 
-describe('how a new table’s key is filled (D31)', () => {
+describe('how a new table’s key is filled', () => {
   it('offers a unique id on postgres', async () => {
     installFetch({ onPlan: () => jsonResponse(200, EMPTY_PLAN) });
     await openDesign();
@@ -385,7 +385,7 @@ describe('how a new table’s key is filled (D31)', () => {
 // B12 — the orphans now have callers
 // ---------------------------------------------------------------------------
 
-describe('a staged new table is discarded, not dropped (B12)', () => {
+describe('a staged new table is discarded, not dropped', () => {
   it('has a button that unstages it without touching the rest of the change', async () => {
     installFetch({ onPlan: () => jsonResponse(200, EMPTY_PLAN) });
     await openDesign();
@@ -409,7 +409,7 @@ describe('a staged new table is discarded, not dropped (B12)', () => {
 describe('changing the allowed values on a table that already exists', () => {
   it('sends the widened list with the table it belongs to', async () => {
     const model = makeModel();
-    // A CHECK-backed enum — Adminium's own shape (D32), where values can go.
+    // A CHECK-backed enum — Adminium's own shape, where values can go.
     const checkBacked: EffectiveModel = {
       ...model,
       enums: model.enums.map((def) => ({ ...def, source: 'check' as const })),

@@ -94,7 +94,7 @@ function renderRecord(api: CrudApi, extra: Partial<PageRecordProps> = {}) {
 }
 
 describe('PageRecord', () => {
-  it('renders the key-field hero, status meta, and the field grid (D4)', async () => {
+  it('renders the key-field hero, status meta, and the field grid', async () => {
     renderRecord(makeApi(), { related: makeRelated() });
     // Hero = keyField value; the entity noun + record id sit under it.
     expect((await screen.findByRole('heading', { level: 2 })).textContent).toBe('INV-1007');
@@ -111,7 +111,7 @@ describe('PageRecord', () => {
     // One column that may shrink below its text: a long unbroken value (a key, a token) is cut short, and never widens the page on a phone.
     expect(fields.className.split(' ')).toContain('grid-cols-1');
     // The masked column renders the masked treatment, exactly as the grid
-    // would (D7): the row's _masked marker drives it.
+    // would: the row's _masked marker drives it.
     expect(fields.querySelector('[data-part="cell-masked"]')).not.toBeNull();
   });
 
@@ -141,7 +141,7 @@ describe('PageRecord', () => {
     expect((await screen.findByRole('heading', { level: 2 })).textContent).toBe('Drift & Fern');
   });
 
-  it('related tab: real grid rows via the fk filter, count pill as total (D4/D5)', async () => {
+  it('related tab: real grid rows via the fk filter, count pill as total', async () => {
     const related = makeRelated();
     renderRecord(makeApi(), { related });
 
@@ -158,7 +158,7 @@ describe('PageRecord', () => {
     );
   });
 
-  it('related rows emit record-open with the TARGET table when linkable (D5)', async () => {
+  it('related rows emit record-open with the TARGET table when linkable', async () => {
     const user = userEvent.setup();
     const onEvent = vi.fn();
     renderRecord(makeApi(), { related: makeRelated(), onEvent });
@@ -186,14 +186,14 @@ describe('PageRecord', () => {
     expect(onEvent).not.toHaveBeenCalled();
   });
 
-  it('readOnly: no Edit, no Delete, anywhere (D7)', async () => {
+  it('readOnly: no Edit, no Delete, anywhere', async () => {
     renderRecord(makeApi(), { readOnly: true, related: makeRelated() });
     await screen.findByRole('heading', { level: 2 });
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
   });
 
-  it('the Activity tab is ABSENT without a feed, present with one (D6)', async () => {
+  it('the Activity tab is ABSENT without a feed, present with one', async () => {
     const { unmount } = renderRecord(makeApi(), { related: makeRelated() });
     await screen.findByRole('heading', { level: 2 });
     expect(screen.queryByRole('tab', { name: 'Activity' })).toBeNull();
@@ -214,7 +214,7 @@ describe('PageRecord', () => {
     expect(screen.getByText('2 fields changed')).toBeDefined();
   });
 
-  it('activity empty state says "No activity recorded", never "nothing happened" (D6)', async () => {
+  it('activity empty state says "No activity recorded", never "nothing happened"', async () => {
     const user = userEvent.setup();
     const feed: RecordActivityFeed = { list: vi.fn(async () => ({ entries: [], nextCursor: null })) };
     renderRecord(makeApi(), { related: makeRelated(), activity: feed });
@@ -321,7 +321,7 @@ describe('in-tab create (30 follow-up — "Add item")', () => {
     expect(form).not.toBeNull();
     expect(within(form).queryByLabelText(/Invoice$/)).toBeNull();
     await user.type(within(form).getByLabelText(/Description/), 'Follow-up sprint');
-    // The dialog's own word for the action (D27): "Create {entity}".
+    // The dialog's own word for the action: "Create {entity}".
     await user.click(screen.getByRole('button', { name: 'Create invoice item' }));
 
     await waitFor(() => {
@@ -377,7 +377,7 @@ describe('in-tab create (30 follow-up — "Add item")', () => {
     expect(form.querySelector('input[type="file"]')).not.toBeNull();
   });
 
-  it('offers nothing without the capability, without the api, or on a readOnly page (D7)', async () => {
+  it('offers nothing without the capability, without the api, or on a readOnly page', async () => {
     // canCreate absent (an older host, or a viewer's target page) → no button.
     const absent = renderRecord(makeApi(), {
       related: makeRelated({ api: vi.fn(() => makeChildApi()) }),
@@ -582,7 +582,7 @@ describe('PageRecord — the Attachments panel', () => {
     const panel = document.querySelector('[data-part="record-attachments"]') as HTMLElement;
     await user.click(within(panel).getByRole('button', { name: /delete/i }));
     expect(attachments.remove).toHaveBeenCalledWith(attachment().id);
-    // Trash, not delete (D12): a confirm dialog in front of a reversible action
+    // Trash, not delete: a confirm dialog in front of a reversible action
     // is a dialog nobody reads, so the panel offers Undo instead.
     await user.click(await screen.findByRole('button', { name: /undo/i }));
     expect(attachments.restore).toHaveBeenCalledWith(attachment().id);

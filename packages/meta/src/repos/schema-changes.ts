@@ -64,7 +64,7 @@ export interface SchemaChange {
   hazard: string;
   baseSnapshotId: string | null;
   resultSnapshotId: string | null;
-  /** Rows the operator confirmed before a rewrite ran (D18); null when none. */
+  /** Rows the operator confirmed before a rewrite ran; null when none. */
   acknowledgedRows: number | null;
   error: string | null;
   createdBy: string | null;
@@ -79,7 +79,7 @@ export interface StartSchemaChangeInput {
   steps: StepOutcome[];
   baseSnapshotId?: string | null;
   createdBy?: string | null;
-  /** Rows the operator confirmed before a rewrite ran (D18). */
+  /** Rows the operator confirmed before a rewrite ran. */
   acknowledgedRows?: number | null;
 }
 

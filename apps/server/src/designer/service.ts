@@ -164,8 +164,8 @@ export interface Designer {
   saveFiles(sessionId: string, files: readonly SavedFile[], by: Actor): Promise<SaveResult>;
   /**
    * Put the folder back as version `n` was (0: before the session), and apply
-   * it. With `record` that is a new version on top (O1); without, it is "put
-   * the files back" after a stopped turn (O3).
+   * it. With `record` that is a new version on top; without, it is "put
+   * the files back" after a stopped turn.
    */
   restore(sessionId: string, n: number, opts: { record: boolean; by: Actor }): Promise<{ version: { n: number; name: string } | null; applied: boolean }>;
   /** The look of the app's own screens, when it has screens whose look can be changed here; else null. */
@@ -1009,7 +1009,7 @@ export function createDesigner(host: DesignerHost): Designer {
       const connection = await host.connections.find(input.connectionId);
       if (connection === null) throw new NotFoundError('There is no such model connection.', { connectionId: input.connectionId });
       if (input.model.trim() === '') throw new ValidationFailedError('Choose a model.', { reason: 'MODEL' });
-      // A model that cannot call tools cannot build (Q15): said before anything is made. The operator's AI used up is
+      // A model that cannot call tools cannot build: said before anything is made. The operator's AI used up is
       // said by the first turn, with its card: the session is made all the same.
       const verdict = await host.connections.canBuildWith(connection.id, input.model).catch((error: unknown) => {
         if (isOperatorAiUsedUp(error)) return { canBuild: true as const, reportsUsage: false };

@@ -10,7 +10,7 @@
  *   no-access state is a state, not an error.
  * - `GET  /exports/views?connectionId=&table=` — the saved views of every
  *   page bound to the table (own + shared), with their filters verbatim, a
- *   `hasSearch` flag (D8) and an exact row count each.
+ *   `hasSearch` flag and an exact row count each.
  * - `POST /exports/preview` — the first N rows of a definition, read through
  *   the SAME resolver and the SAME writer the job uses, so the table tab is
  *   the file's cells and the raw tab is the file's first lines.

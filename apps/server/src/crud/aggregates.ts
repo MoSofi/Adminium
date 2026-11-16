@@ -18,7 +18,7 @@
  * compiler, one masking policy: a parallel legacy path would drift, and what
  * it would drift on is a permission check.
  *
- * The GRAMMAR itself is byte-frozen (D1). It has exactly one free token and
+ * The GRAMMAR itself is byte-frozen. It has exactly one free token and
  * an operand tree does not fit under any encoding, so richer aggregates
  * arrive on the new `compute=` param instead — which also means a server one
  * release behind simply STRIPS the unknown key and renders an empty column,
@@ -37,7 +37,7 @@ import { resolveMeasures, type MeasureRefusal, type ResolvedMeasure } from './me
 /**
  * Most correlated subqueries one request may carry — mirrors lookups'
  * MAX_LOOKUPS, and SHARED with `compute=`'s measures so a page cannot buy 24
- * of them by splitting across the two params (D13).
+ * of them by splitting across the two params.
  */
 export const MAX_AGGREGATES = 12;
 
@@ -85,7 +85,7 @@ function parseAggregateSpec(raw: string): ParsedAggregate {
 
 /**
  * A parsed `agg=` spec as a measure — the up-conversion that gives the two
- * param families one resolver (D15).
+ * param families one resolver.
  *
  * `count` carries no `of` body by construction, which is exactly what the
  * shared vocabulary requires of it, so the conversion is total: there is no
@@ -106,7 +106,7 @@ export interface ResolveAggregatesOptions {
   canReadTable: (tableId: string) => Promise<boolean>;
   /** Aliases already claimed by this request's `lookup=` params. */
   takenAliases?: ReadonlySet<string> | undefined;
-  /** Called once per refusal, for the audit trail (D16). */
+  /** Called once per refusal, for the audit trail. */
   onRefusal?: ((refusal: MeasureRefusal) => void) | undefined;
 }
 

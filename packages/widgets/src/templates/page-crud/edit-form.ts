@@ -15,7 +15,7 @@ import type { CrudApi, CrudRow } from './crud-api.js';
 import { MAX_CHILD_ROWS, type ChildFacts, type ChildRow } from './RecordForm.js';
 
 /**
- * THE FORM DOCUMENT (D10). A page carries one only when somebody designed a
+ * THE FORM DOCUMENT. A page carries one only when somebody designed a
  * form; with none it is derived from the live column facts, which is what
  * makes the dialog follow the table rather than the day the page was made.
  *

@@ -9,7 +9,7 @@ import { appRefundKeyOf, payableProfilesRepo, type AppRefundRow, type MetaDb, ty
 /**
  * Whether a payment's refunds are the app's own rows to write (the rows
  * model): then a refund is made in the app, where its refund row is written,
- * never asked from Adminium beside it (CR4). Its app, and the staff screen it
+ * never asked from Adminium beside it. Its app, and the staff screen it
  * is made on.
  */
 export async function refundsKeptInApp(meta: MetaDb, payable: PayableRef): Promise<{ app: string | null; openIn: string | null } | null> {

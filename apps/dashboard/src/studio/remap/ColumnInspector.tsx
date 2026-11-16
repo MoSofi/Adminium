@@ -50,7 +50,7 @@ export interface ColumnInspectorProps {
   shapeRules?: readonly ShapeRule[] | undefined;
 }
 
-/** Where a column's answers come from (D19/D20). */
+/** Where a column's answers come from. */
 type OptionsSource = 'any' | 'values' | 'list';
 
 /** One inline answer as the store keeps it: its label one string, or one per locale. */
@@ -334,7 +334,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError, shap
       : column.validation) ?? {};
 
   /**
-   * What already fills this column without a rule (D5), said where the rule
+   * What already fills this column without a rule, said where the rule
    * that would switch it off is — otherwise "Leave it to the database" reads
    * as "nothing happens", which for a `created_at` is untrue.
    *

@@ -6,7 +6,7 @@
  * "Sending · 2 of 5" (the run's own counts) with *Pause sending* and *Stop
  * sending* (which asks first), a paused one "Paused" with *Go on sending*,
  * and a `completed` event on the job channel refetches the document; the
- * Design tab's campaign status pills have no click handler (D13); a
+ * Design tab's campaign status pills have no click handler; a
  * scheduled campaign's header shows the chip and *Cancel schedule* POSTs
  * `/cancel`. The realtime client is replaced at the module seam so events
  * can be fired by hand.
@@ -311,7 +311,7 @@ describe('Campaigns', () => {
     expect(chip.getAttribute('data-status')).toBe('scheduled');
     expect(chip.textContent).toContain('Scheduled · ');
     expect(screen.getByTestId('email-send').hasAttribute('disabled')).toBe(true);
-    // Design → Brand & sender: a campaign's pills are display (D13) — clicking one changes nothing.
+    // Design → Brand & sender: a campaign's pills are display — clicking one changes nothing.
     await user.click(screen.getAllByTestId('email-pinned-row')[0] as HTMLElement);
     const panel = await screen.findByTestId('email-branding-panel');
     const pills = () => within(panel).getAllByTestId('email-status-pill');

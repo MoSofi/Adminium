@@ -10,7 +10,7 @@
  * only browser API that reports it, so it is the one this uses — a deliberate
  * choice, not a leftover.
  *
- * THE BODY IS THE FILE. Metadata rides the query string (D5), matching the
+ * THE BODY IS THE FILE. Metadata rides the query string, matching the
  * three raw-body calls this dashboard already makes (`app/branding.ts`,
  * `data-io/api.ts`) rather than introducing multipart for one surface.
  *
@@ -131,7 +131,7 @@ export function uploadFile(input: UploadFileInput): Promise<UploadFileResult> {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `/api/v1/files?${query.toString()}`);
     xhr.withCredentials = true;
-    // The client's claim is advisory — the server sniffs the bytes (D8) — but
+    // The client's claim is advisory — the server sniffs the bytes — but
     // sending it costs nothing and helps a proxy in between.
     xhr.setRequestHeader('content-type', input.file.type === '' ? 'application/octet-stream' : input.file.type);
     for (const [header, value] of Object.entries(csrfHeaders())) xhr.setRequestHeader(header, value);
@@ -225,12 +225,12 @@ export async function listRecordFiles(input: {
   return reply.data;
 }
 
-/** Move a file to the trash. Reversible for `retention.filesTrashDays` (D12). */
+/** Move a file to the trash. Reversible for `retention.filesTrashDays`. */
 export async function deleteFile(fileId: string): Promise<FileDto> {
   return (await api.delete<{ data: FileDto }>(`/api/v1/files/${encodeURIComponent(fileId)}`)).data;
 }
 
-/** Put a trashed file back — the panel's Undo. No token machinery (D12). */
+/** Put a trashed file back — the panel's Undo. No token machinery. */
 export async function restoreFile(fileId: string): Promise<FileDto> {
   return (await api.post<{ data: FileDto }>(`/api/v1/files/${encodeURIComponent(fileId)}/restore`)).data;
 }

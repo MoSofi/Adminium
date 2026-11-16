@@ -5,7 +5,7 @@
  * The behaviours worth pinning are the ones a later change could quietly
  * break, and for this wave they are all about SURVIVAL and DISCLOSURE:
  *
- * - uninstalling an add-on must not take documents or profiles with it (D5)
+ * - uninstalling an add-on must not take documents or profiles with it
  *  — there is no FK to `adminium_manifests` anywhere, so the test that
  *  proves it deletes the manifest row and reads the documents back;
  *  - a redacted read is still a row, minus exactly three fields;

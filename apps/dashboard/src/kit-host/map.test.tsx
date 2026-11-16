@@ -511,7 +511,7 @@ describe('the map, mounted', () => {
   });
 });
 
-// ── what the two map screens draw (T25) ─────────────────────────────────────
+// ── what the two map screens draw ─────────────────────────────────────
 
 describe('the map, mounted: names, colours, a list of the app’s own, click-to-place, "Try again"', () => {
   const NORTH = { type: 'Polygon' as const, coordinates: [[[13, 52], [14, 52], [14, 53], [13, 53], [13, 52]]] };

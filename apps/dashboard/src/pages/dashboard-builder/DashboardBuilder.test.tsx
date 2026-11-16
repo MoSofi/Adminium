@@ -114,7 +114,7 @@ describe('edit-mode gating', () => {
   });
 });
 
-describe('the edit canvas says its numbers are samples (V27)', () => {
+describe('the edit canvas says its numbers are samples', () => {
   // BuilderGrid draws every card from demo data, so "44,615" stood where the
   // live page said 78, with nothing to say why.
   it.each<[string, { roles: string[]; canEditLayout?: boolean }]>([

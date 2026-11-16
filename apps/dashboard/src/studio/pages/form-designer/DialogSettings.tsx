@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The dialog's own words (D27), overridden.
+ * The dialog's own words, overridden.
  *
  * Every one of them is GENERATED from what is true about the form — "New
  * customer", "Create customer", the subtitle from the sections, the footnote

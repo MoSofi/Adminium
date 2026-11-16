@@ -12,12 +12,12 @@
  *
  * ── WHAT IS DIFFERENT, AND WHY ──────────────────────────────────────────────
  *
- *  - ITS OWN SWITCH (R2). `apps.catalogEnabled` is a separate opt-in from the
+ *  - ITS OWN SWITCH. `apps.catalogEnabled` is a separate opt-in from the
  *    add-on one. An operator may want apps browsable online and add-ons not, or
  *    the reverse, and one switch could not say that.
- *  - ITS OWN SHELF (R1). `/api/v1/marketplace/apps`, beside the add-on one,
+ *  - ITS OWN SHELF. `/api/v1/marketplace/apps`, beside the add-on one,
  *    so neither can break the other's readers.
- *  - A MINIMUM THAT MEANS SOMETHING (G8-D2). Each row carries the
+ *  - A MINIMUM THAT MEANS SOMETHING. Each row carries the
  *    `minAdminiumVersion` its release manifest declares. Release tooling refuses
  *    a minimum no published Adminium meets (48 A17), so a row above this
  *    server's version is a real "not yet" and is listed that way rather than
@@ -65,7 +65,7 @@ import {
  */
 export const APP_CATALOG_ENDPOINT = 'https://adminium.dev/api/v1/marketplace/apps';
 
-/** The settings-registry key behind the app catalog's default-off switch (R2). */
+/** The settings-registry key behind the app catalog's default-off switch. */
 export const APP_CATALOG_ENABLED_SETTING = 'apps.catalogEnabled';
 
 const localized = z.record(z.string(), z.string());

@@ -135,7 +135,7 @@ export async function preflight(input: PreflightInput): Promise<PreflightResult>
   const warnAbove = input.rewriteWarnAbove ?? DEFAULT_REWRITE_WARN_ABOVE;
   const refuseAbove = input.rewriteRefuseAbove ?? DEFAULT_REWRITE_REFUSE_ABOVE;
 
-  // --- 1. privileges, per target (D17) -----------------------------
+  // --- 1. privileges, per target -----------------------------
   if (input.privileges !== undefined) {
     /*
      * A table this plan is CREATING cannot be owned yet, so it must never be
@@ -243,7 +243,7 @@ export async function preflight(input: PreflightInput): Promise<PreflightResult>
            * D18's door, and the reason it is checked HERE rather than at apply.
            *
            * Preflight is the one place that decides refusals, and the plan the
-           * operator authorises has to be the plan that runs (D2). Suppressing
+           * operator authorises has to be the plan that runs. Suppressing
            * the refusal only on the apply path produced two different plans —
            * a refused step compiles to no SQL (`compileFor`), so the door-open
            * plan hashed differently and `applySchemaEdit`'s checksum compare

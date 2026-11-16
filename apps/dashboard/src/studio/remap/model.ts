@@ -175,7 +175,7 @@ export function tableById(model: EffectiveModel, tableId: string): EffectiveTabl
  * `enumRef` is the whole question. It used to also demand
  * `logicalType === 'enum'`, which is true of a NATIVE postgres enum and of
  * nothing else: on all three engines an Adminium choice column is
- * `varchar(64)` plus a CHECK (D32), and MySQL's own `enum()` and a
+ * `varchar(64)` plus a CHECK, and MySQL's own `enum()` and a
  * hand-written `CHECK … IN` are the same shape. So the values were hidden for
  * every choice column the product itself creates — the enum-label editor never
  * appeared for one, and the schema designer opened it with an empty list.

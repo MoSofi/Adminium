@@ -80,7 +80,7 @@ describe('dashboard cards after a rename', () => {
   });
 });
 
-describe('what a rename repairs (D33)', () => {
+describe('what a rename repairs', () => {
   it('follows the table through includedTables, overrides, pages, grants and the layout', async () => {
     const connections = connectionsRepo(meta, crypto);
     await connections.update(connectionId, {

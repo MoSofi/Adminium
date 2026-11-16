@@ -30,7 +30,7 @@
  * That is the caller's rule, not this file's, but it is the reason this file
  * exists in the shape it does: a failed render must burn no number, so
  * claiming cannot be part of creating the register row. `adminium_documents`
- * accordingly has `number` nullable and no unique index over it (D11).
+ * accordingly has `number` nullable and no unique index over it.
  *
  * ─── GAPS ARE POSSIBLE AND ARE SAID SO ON THE SCREEN ───────────────────────
  *

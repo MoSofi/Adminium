@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Dashboard grid barrel. Static renderer + geometry/compaction (M4) plus the
+ * Dashboard grid barrel. Static renderer + geometry/compaction plus the
  * edit mode: dnd-kit drag/resize, keyboard a11y, `findFirstFit`, and the
  * `GridDragHandle`/`GridResizeHandle` the builder wires into the WidgetFrame
  * slots.

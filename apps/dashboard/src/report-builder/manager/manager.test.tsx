@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The report manager (M1–M17), rendered through the real router and shell so
+ * The report manager, rendered through the real router and shell so
  * the topbar's published actions, the toasts and the navigation are the
  * product's own. The API is a fetch stub keyed on the routes the manager
  * calls; the fixtures are the comp's seed (556-558): four templates and four
@@ -192,7 +192,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('the manager’s two trays (M4)', () => {
+describe('the manager’s two trays', () => {
   it('opens on Templates, counts both kinds, and switches on the tab', async () => {
     const { user } = await renderPage({ templates: seedTemplates(), reports: seedReports() });
     const templatesTab = screen.getByRole('tab', { name: /Templates/ });
@@ -237,7 +237,7 @@ describe('the manager’s two trays (M4)', () => {
   });
 });
 
-describe('the card and the row (M10, M11)', () => {
+describe('the card and the row', () => {
   it('the card’s meta is "N blocks" on Templates and "{kicker} · N blocks" on Reports (585)', async () => {
     const { user } = await renderPage({ templates: seedTemplates(), reports: seedReports() });
     expect(screen.getAllByTestId('report-card-meta')[0]?.textContent).toBe('4 blocks');
@@ -253,11 +253,11 @@ describe('the card and the row (M10, M11)', () => {
     const table = await screen.findByTestId('report-list');
     expect(within(table).getAllByRole('columnheader').map((el) => el.textContent)).toEqual(['Name', 'Status', 'Updated', 'Actions']);
     expect(screen.getAllByTestId('report-row-sub')[0]?.textContent).toBe('Q3 2026 Executive Summary · 4 blocks');
-    // The layout is remembered per browser (S4).
+    // The layout is remembered per browser.
     expect(window.localStorage.getItem(MANAGER_PREFS_KEY)).toContain('list');
   });
 
-  it('the thumbnail draws the summary’s KPI boxes and series, never the body (D16)', async () => {
+  it('the thumbnail draws the summary’s KPI boxes and series, never the body', async () => {
     await renderPage({ templates: seedTemplates() });
     const preview = screen.getAllByTestId('report-mini-preview')[0] as HTMLElement;
     expect(within(preview).getByTestId('report-mini-title').textContent).toBe('Q3 2026 Executive Summary');
@@ -265,7 +265,7 @@ describe('the card and the row (M10, M11)', () => {
     expect(within(preview).getByTestId('report-mini-bars').children).toHaveLength(6);
   });
 
-  it('the status pill reads the comp’s three labels; `sent` is *Published* (D22)', async () => {
+  it('the status pill reads the comp’s three labels; `sent` is *Published*', async () => {
     const { user } = await renderPage({ templates: seedTemplates(), reports: seedReports() });
     expect(screen.getAllByTestId('report-status').map((el) => el.textContent)).toEqual(['Live', 'Live', 'Live', 'Draft']);
     await user.click(screen.getByRole('tab', { name: /Reports/ }));
@@ -275,7 +275,7 @@ describe('the card and the row (M10, M11)', () => {
   });
 });
 
-describe('rename, duplicate, delete (M12–M14)', () => {
+describe('rename, duplicate, delete', () => {
   it('renames in place — Enter commits, an empty name becomes Untitled (562)', async () => {
     const { user, calls } = await renderPage({ templates: seedTemplates() });
     const card = screen.getAllByTestId('report-card')[0] as HTMLElement;
@@ -288,7 +288,7 @@ describe('rename, duplicate, delete (M12–M14)', () => {
     });
   });
 
-  it('the card’s glyph rides the ROW, not a title match — the comp’s `starterIconFor` defect (D14)', async () => {
+  it('the card’s glyph rides the ROW, not a title match — the comp’s `starterIconFor` defect', async () => {
     // Two documents whose report TITLE is identical and whose starter differs.
     // The comp finds a card's icon by matching `reportTitle` against the starter
     // table (697), so it would draw the same glyph for both — and a rename of the
@@ -318,7 +318,7 @@ describe('rename, duplicate, delete (M12–M14)', () => {
     expect(calls.filter((c) => c.method === 'PATCH')).toEqual([]);
   });
 
-  it('duplicate posts and offers Undo; delete asks first and hard-deletes (D8, D9)', async () => {
+  it('duplicate posts and offers Undo; delete asks first and hard-deletes', async () => {
     const { user, calls } = await renderPage({ templates: seedTemplates() });
     const card = screen.getAllByTestId('report-card')[0] as HTMLElement;
     await user.click(within(card).getByRole('button', { name: 'Duplicate' }));
@@ -337,7 +337,7 @@ describe('rename, duplicate, delete (M12–M14)', () => {
   });
 });
 
-describe('the empty states (M8) and the New modal (M15)', () => {
+describe('the empty states and the New modal', () => {
   it('carries the comp’s four copies verbatim (600)', async () => {
     const { user } = await renderPage({ templates: [], reports: [] });
     expect((await screen.findByTestId('report-empty')).textContent).toContain('No templates yet');
@@ -374,7 +374,7 @@ describe('the empty states (M8) and the New modal (M15)', () => {
     });
   });
 
-  it('on the Reports tab it adds *Your templates* — the flow the comp promises and never wires (D6/O3)', async () => {
+  it('on the Reports tab it adds *Your templates* — the flow the comp promises and never wires', async () => {
     const { user, calls } = await renderPage({ templates: seedTemplates(), reports: seedReports() }, '/report-builder?kind=report');
     await user.click(screen.getByTestId('report-new'));
     const section = await screen.findByTestId('report-your-templates');

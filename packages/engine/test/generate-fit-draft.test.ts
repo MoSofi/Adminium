@@ -49,7 +49,7 @@ describe('templateTableDraft', () => {
     }
   });
 
-  it('declines the seven templates with no repair descriptors (D4)', () => {
+  it('declines the seven templates with no repair descriptors', () => {
     expect(templateTableDraft(model(), 'page-directory')).toBeNull();
     expect(templateTableDraft(model(), 'page-crud')).toBeNull();
     expect(templateTableDraft(model(), 'page-dashboard')).toBeNull();

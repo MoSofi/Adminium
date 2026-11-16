@@ -3,7 +3,7 @@
  * The choice family (Appendix C, comp 194, 209, 419–421, 423–431, 456).
  *
  * One set of answers, four ways to show it, and the default is decided by arity
- * and by whether the column may be left empty (D18): four or fewer and required
+ * and by whether the column may be left empty: four or fewer and required
  * is a segmented tray, everything else is a select — because a select is the
  * one control with somewhere for "no answer" to live.
  *
@@ -28,7 +28,7 @@ function asText(value: unknown): string {
 }
 
 /**
- * The options, plus the current value when the list no longer offers it (F15).
+ * The options, plus the current value when the list no longer offers it.
  */
 function withCurrent(options: readonly ControlOption[], value: unknown): ControlOption[] {
   const current = asText(value);

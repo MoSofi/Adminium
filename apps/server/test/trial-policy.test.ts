@@ -46,7 +46,7 @@ const EXPECTED: Record<PolicyQuestion, [true | PolicyReason, true | PolicyReason
   liftMailHold: [true, 'trial-mode', true],
   aiBaseUrl: [true, 'trial-mode', true],
   customAiProviders: [true, 'trial-mode', true],
-  // A3: kept by the hosted profile (S2)
+  // A3: kept by the hosted profile
   packageUploads: [true, 'trial-mode', 'hosted-mode'],
   designerUploads: [true, 'trial-mode', 'hosted-mode'],
   designerCode: [true, 'trial-mode', 'hosted-mode'],
@@ -107,7 +107,7 @@ describe('every question, for every profile', () => {
   });
 });
 
-describe('past the end date (A5)', () => {
+describe('past the end date', () => {
   it('a trial turns read-only, hides its public pages and stops user mail; nothing else changes', () => {
     const policy = trialPolicy(makeEnv(TRIAL));
     for (const question of ['writes', 'publicPages', 'userMail'] as const) {

@@ -14,7 +14,7 @@
  *
  * The operator list changes with the column: the comp's five plus emptiness
  * everywhere, and the four relative-time operators ONLY on a date column,
- * because only a date column has bounds to compute (D5). A count compares
+ * because only a date column has bounds to compute. A count compares
  * with four (`is`, `is not`, greater, less) — `contains` on a number is
  * nonsense and the relative ones have nothing to compare against.
  */
@@ -201,7 +201,7 @@ function CountForm({
   const counted = tables.find((table) => table.id === count.table);
   return (
     <div className="flex flex-col gap-2.5">
-      {/* Searchable, like every other table picker in this feature (D25). */}
+      {/* Searchable, like every other table picker in this feature. */}
       <Row label={t('automations:insp.countOf', 'Count of')} htmlFor={tableId}>
         <Combobox
           id={tableId}

@@ -76,7 +76,7 @@ const EVENT_WORD: Record<RecordEvent, { key: string; fallback: string }> = {
   deleted: { key: 'automations:event.deleted', fallback: 'deleted' },
 };
 
-/** What the first dropdown offers (D25): the event, never the table. */
+/** What the first dropdown offers: the event, never the table. */
 type TriggerKind = RecordEvent | 'schedule';
 
 const KINDS: TriggerKind[] = [...EVENTS, 'schedule'];

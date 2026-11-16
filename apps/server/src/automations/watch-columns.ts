@@ -74,7 +74,7 @@ export function watchColumnFor(table: ResolvedTable, event: WatchEvent): WatchCo
 
 /**
  * The column whose value makes one UPDATE distinct from the next — the third
- * component of an `updated` occurrence key (D6). It is the `updated-at`
+ * component of an `updated` occurrence key. It is the `updated-at`
  * column and nothing else: without one, two updates to the same row are two
  * occurrences, which is the honest answer.
  */

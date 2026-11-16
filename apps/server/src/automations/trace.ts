@@ -209,7 +209,7 @@ export class TraceBuilder {
     });
   }
 
-  /** Where a suspended run picks up (D8); null for a run that is finishing. */
+  /** Where a suspended run picks up; null for a run that is finishing. */
   setResume(path: number[] | null): void {
     this.#resume = path;
   }

@@ -70,8 +70,8 @@ export interface AuthPluginOptions {
  * unauthenticated caller could spend the meta store a query at a time with
  * `adm_x`. Second, and the reason it blocks this wave, an `adm_pub_` token
  * would fall into this branch and be resolved against the wrong table —
- * defeating the property that makes a publishable key inert everywhere else
- * (D3), which is the whole basis of the off switch.
+ * defeating the property that makes a publishable key inert everywhere else,
+ * which is the whole basis of the off switch.
  *
  * One constant, one meaning. `parseBearerApiKey` gates on the same import.
  */

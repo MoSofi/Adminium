@@ -29,7 +29,7 @@
  * ── WHY NOT DIALECT `DEFAULT` EXPRESSIONS IN THE DDL ────────────────────────
  *
  * `gen_random_uuid()`, `(UUID())`, `lower(hex(randomblob(16)))` were the
- * alternative and are recorded as declined (O5). Two reasons: they reach only
+ * alternative and are recorded as declined. Two reasons: they reach only
  * tables Adminium itself created, so an app-owned table — which is most of
  * them — is no better off; and they apply only to FUTURE installs, leaving
  * every table already in an operator's database exactly where it was.

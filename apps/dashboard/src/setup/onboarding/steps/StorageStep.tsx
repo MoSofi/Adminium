@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 4 — where Adminium keeps its own data (R2).
+ * Step 4 — where Adminium keeps its own data.
  *
  * THE QUESTION THE OWNER RAN INTO. A fresh `npx` install creates an embedded
  * SQLite store and never asks; the choice existed only as step 5 of the Studio's

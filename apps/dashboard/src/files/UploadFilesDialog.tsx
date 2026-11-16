@@ -23,7 +23,7 @@
  *
  * ─── The connection is required, and is not always a question ──────────────
  *
- * A file always belongs to a connection (D4) — that is what makes it findable
+ * A file always belongs to a connection — that is what makes it findable
  * afterwards — but with exactly one configured there is nothing to ask, so the
  * picker does not render. With more than one it does, defaulting to whatever
  * the rail was already looking at.
@@ -101,7 +101,7 @@ export function UploadFilesDialog({
           connectionId: target,
           // No `table`: that is what makes this a library upload — authorised
           // by `files.manage` and claimed at creation, so the unattached sweep
-          // leaves it alone (D4).
+          // leaves it alone.
           signal: abort.signal,
           onProgress: (fraction) => update(index, { fraction }),
         });

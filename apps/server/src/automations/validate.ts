@@ -79,7 +79,7 @@ export function holdsAddOnStep(graph: AutomationGraph): boolean {
 }
 
 /**
- * The first step that is not finished, or null when the rule may run (D12).
+ * The first step that is not finished, or null when the rule may run.
  * With `steps`, a step whose add-on is gone or off counts as unfinished: the
  * rule keeps it and its settings, and cannot be switched on until the add-on
  * is back or the step is taken out.
@@ -424,7 +424,7 @@ function checkAction(
       return;
     }
     case 'record.create': {
-      // Unfinished is allowed to be saved (D11), and the New-rule modal makes
+      // Unfinished is allowed to be saved, and the New-rule modal makes
       // exactly this shape, so judge nothing until a target is named.
       if (action.table === null || action.table === '') return;
       /*
@@ -832,7 +832,7 @@ export function ruleWarnings(trigger: AutomationTrigger, graph: AutomationGraph,
   return out;
 }
 
-/** The tables a save must prove the AUTHOR can reach, and with which verb (D2). */
+/** The tables a save must prove the AUTHOR can reach, and with which verb. */
 export function requiredGrants(
   trigger: AutomationTrigger,
   graph: AutomationGraph,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A SCRIPTED CARD TESTER against the public starts (E3), through the pay
+ * A SCRIPTED CARD TESTER against the public starts, through the pay
  * page's own routes, against the demo payment service, on every meta store.
  *
  * A tester makes orders through an app's checkout, so each has a public

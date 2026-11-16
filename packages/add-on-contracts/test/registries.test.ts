@@ -219,7 +219,7 @@ describe('addOn block schema', () => {
     expect(JSON.stringify(result.error?.issues)).toContain('CONTRACT_UNKNOWN');
   });
 
-  it('refuses a wildcard hostname — the allow-list is exact hostnames only (D14)', () => {
+  it('refuses a wildcard hostname — the allow-list is exact hostnames only', () => {
     for (const host of ['*.example-carrier.test', '203.0.113.10', 'https://api.example.test']) {
       const bad = { ...DHL_BLOCK, network: { allow: [host] } };
       expect(addOnBlockSchema.safeParse(bad).success, host).toBe(false);

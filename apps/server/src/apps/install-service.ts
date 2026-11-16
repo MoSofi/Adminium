@@ -218,7 +218,7 @@ export interface AppRoutesDeps {
    * and this module must not import the CLI to ask. Installing over one of
    * these is refused: those surfaces own registered routes that an installed
    * app's hook deliberately yields to, so the install would appear to succeed
-   * and then serve nothing (D4).
+   * and then serve nothing.
    */
   directoryKeys: () => readonly string[];
   /**
@@ -793,7 +793,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
   }
 
   /**
-   * A DASHBOARD'S FILE IS NOT INSTALLED BACK ONTO ITSELF (D12): saved from this
+   * A DASHBOARD'S FILE IS NOT INSTALLED BACK ONTO ITSELF: saved from this
    * database on this server, its tables and pages are the dashboard's own, and
    * a second copy over them would run every rule twice. Another database —
    * a copy of this one, say — takes it.
@@ -819,7 +819,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
   }
 
   /**
-   * A FILE OF ANOTHER LINEAGE IS ANOTHER APP under the same key (YR3): two
+   * A FILE OF ANOTHER LINEAGE IS ANOTHER APP under the same key: two
    * dashboards saved with one key, or a file made elsewhere. Refused per
    * server, whichever database it is for: the key names the app across the
    * server, so this one is saved with another key.

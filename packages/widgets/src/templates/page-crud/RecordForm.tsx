@@ -86,7 +86,7 @@ export function relationIdOf(column: GridColumnSpec): string | null {
 }
 
 /**
- * The date pill's five rows (comp 741) — and what each one STORES (DP12).
+ * The date pill's five rows (comp 741) — and what each one STORES.
  *
  * The comp stores a label; a column stores a date. "This week" and "Next week"
  * are the last day of that week **in the viewer's locale**, which is why the
@@ -970,10 +970,10 @@ export function RecordForm({
    *
    * The first field is the title, the first long text after it is the detail
    * box, everything a pill can hold becomes one, and anything else keeps the
-   * ordinary field anatomy between the two (F20). Nothing here is a new
+   * ordinary field anatomy between the two. Nothing here is a new
    * control: a pill's menu is the column's own options, and the date pill's
    * last row is a real date input, because the comp stores a label and the
-   * product has to store a date (DP12).
+   * product has to store a date.
    */
   const quickParts = useMemo(() => {
     if (sections === null) return null;
@@ -1154,8 +1154,8 @@ export function RecordForm({
                         column: entry.column.fk.column,
                         ...(entry.column.fk.display === undefined ? {} : { display: entry.column.fk.display }),
                         lookup,
-                        // The picker itself, for a target too big to list
-                        // (F14) — the same control the sectioned form uses.
+                        // The picker itself, for a target too big to list —
+                        // the same control the sectioned form uses.
                         picker: renderField(entry.column, { sectioned: true, bare: true }),
                       },
                     }

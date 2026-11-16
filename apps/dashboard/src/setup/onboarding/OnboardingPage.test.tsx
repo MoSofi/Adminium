@@ -141,7 +141,7 @@ describe('the walk', () => {
 });
 
 describe('the check on the connection string', () => {
-  it('a Continue pressed during the check waits for its answer, then moves on by itself (V24)', async () => {
+  it('a Continue pressed during the check waits for its answer, then moves on by itself', async () => {
     renderPage();
     await userEvent.click(screen.getByRole('button', { name: /Continue/ }));
     await userEvent.type(screen.getByLabelText('Connection string'), 'postgres://u@h:5432/db');

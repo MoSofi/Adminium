@@ -300,7 +300,7 @@ function AppCard({
   busy: boolean;
   onInstall: () => void;
 }) {
-  // Listed, not offered (G8-D2): the server refuses it, and says so here first.
+  // Listed, not offered: the server refuses it, and says so here first.
   const tooNew = !app.installed && app.needsNewerAdminium !== null;
   const comingSoon = app.availability === 'coming-soon';
   const date = catalogDate(app.lastUpdatedAt);

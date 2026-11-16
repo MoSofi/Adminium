@@ -133,8 +133,8 @@ export interface SchemaPlan {
   requiresSuperAdmin: boolean;
   checksum: string;
   /**
-   * Tables the row ceiling gates, and whether this viewer can open the gate
-   * (D18). Plan-LEVEL because a ceiling is a fact about a table — and because a
+   * Tables the row ceiling gates, and whether this viewer can open the gate.
+   * Plan-LEVEL because a ceiling is a fact about a table — and because a
    * field added to a refusal object is silently dropped by the server's
    * response serializer, so it would exist on the server and never arrive here.
    */
@@ -164,7 +164,7 @@ export interface ApplyResult {
     durationMs: number | null;
   }[];
   error: string | null;
-  /** The re-introspection the apply ran for itself (D11); null when nothing succeeded. */
+  /** The re-introspection the apply ran for itself; null when nothing succeeded. */
   snapshotId: string | null;
   /** D33's meta-store repair after a rename; null when nothing was renamed. */
   repaired: {
@@ -181,7 +181,7 @@ export interface ApplyResult {
     tableRefs?: number;
     tableRefsFailed?: number;
   } | null;
-  /** Tables this apply created — the inclusion offer's subject (D11). */
+  /** Tables this apply created — the inclusion offer's subject. */
   createdTables: string[];
 }
 

@@ -574,7 +574,7 @@ const draftColumnSchema = z.object({
 
 export const pageFitDraftReply = z.object({
   data: z.object({
-    /** Null when the template has no repair descriptors (D4). */
+    /** Null when the template has no repair descriptors. */
     draft: z
       .object({
         template: z.string(),

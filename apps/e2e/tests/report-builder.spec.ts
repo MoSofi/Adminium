@@ -24,7 +24,7 @@
  *
  * DRAG IS NOT DRIVEN HERE. The comp's reorder is HTML5 `draggable` (306, 626)
  * and Playwright's `dragTo` drives it unreliably in CI; the KEYBOARD path
- * (D17) is exercised instead, and the mouse path is walked by hand (the same
+ * is exercised instead, and the mouse path is walked by hand (the same
  * split 34 took).
  */
 import { expect, test, type Locator, type Page } from '@playwright/test';
@@ -201,7 +201,7 @@ test.describe('the /report-builder surface', () => {
 
     await page.locator('[data-testid="report-palette-item"][data-kind="loyalty"]').click();
     await expect(blocks(page)).toHaveCount(5);
-    // The four kinds the comp's `kindMeta` returns backwards print LABELS (D13).
+    // The four kinds the comp's `kindMeta` returns backwards print LABELS.
     await expect(inspector(page).getByTestId('report-inspector-title')).toHaveText('Loyalty points');
     // …and the seed is Appendix D's *Level*, never the comp's Tier.
     await expect(inspector(page).getByRole('textbox', { name: 'Level' })).toHaveValue('Gold');
@@ -235,7 +235,7 @@ test.describe('the /report-builder surface', () => {
     await blocks(page).nth(1).getByRole('button', { name: 'Move up' }).click();
     await expect.poll(kinds).toEqual(['kpi', 'text', 'bar', 'table']);
 
-    // The grip is a real button, so ArrowDown reorders without a mouse (D17).
+    // The grip is a real button, so ArrowDown reorders without a mouse.
     await blocks(page).nth(0).getByTestId('report-block-grip').focus();
     await page.keyboard.press('ArrowDown');
     await expect.poll(kinds).toEqual(['text', 'kpi', 'bar', 'table']);
@@ -258,7 +258,7 @@ test.describe('the /report-builder surface', () => {
     await expect(inspector(page).getByTestId('report-show-toggle')).toHaveAttribute('aria-checked', 'false');
     // Dimmed, and STILL FIRST — `show: false` never removes or re-orders (trap
     // 2). Four blocks, because the previous test's delete was never saved: that
-    // is the point — nothing writes the row until the primary does (D4).
+    // is the point — nothing writes the row until the primary does.
     await expect(blocks(page).nth(0)).toHaveAttribute('data-hidden', '');
     await expect(blocks(page).nth(0)).toHaveAttribute('data-kind', 'text');
     await expect(blocks(page)).toHaveCount(4);
@@ -297,7 +297,7 @@ test.describe('the /report-builder surface', () => {
     await page.getByRole('radio', { name: 'Gallery' }).click();
   });
 
-  test('a report from a template copies the body, records its origin and survives the template’s deletion (D6)', async ({ page }) => {
+  test('a report from a template copies the body, records its origin and survives the template’s deletion', async ({ page }) => {
     await signIn(page);
     await page.goto('/report-builder?kind=report');
     await page.getByTestId('report-new').click();
@@ -308,7 +308,7 @@ test.describe('the /report-builder surface', () => {
     const reportId = idFromUrl(page);
     expect(reportId).not.toBe(templateId);
 
-    // The template's body, verbatim; a report's primary is *Publish* (D5).
+    // The template's body, verbatim; a report's primary is *Publish*.
     await expect(page.getByTestId('report-title')).toHaveValue('Q3 2026 — final');
     await expect(blocks(page)).toHaveCount(4);
     await expect(page.getByTestId('report-save')).toHaveText('Publish');
@@ -392,9 +392,9 @@ test.describe('the /report-builder surface', () => {
      * so the sheet takes whatever the canvas column has — and at the `lg`
      * breakpoint the shell rail (256) plus the palette (216) and the inspector
      * (288) leave 208 px, which cut block content off inside the paper's
-     * `overflow: hidden`. It now floors at 560 and the COLUMN scrolls (D18).
+     * `overflow: hidden`. It now floors at 560 and the COLUMN scrolls.
      *
-     * THE LIST. The comp's four fixed tracks need 450 px inside the card (M11);
+     * THE LIST. The comp's four fixed tracks need 450 px inside the card;
      * at 390 px all three row actions fell outside the card's `overflow:
      * hidden` and could not be clicked. Below `sm` the two middle columns
      * collapse away.
@@ -458,7 +458,7 @@ test.describe('the /report-builder surface', () => {
     await page.request.delete(`/api/v1/report-documents/${probeId}`);
   });
 
-  test('below `lg` the inspector is a drawer and the palette is a button (D18)', async ({ page }, testInfo) => {
+  test('below `lg` the inspector is a drawer and the palette is a button', async ({ page }, testInfo) => {
     await signIn(page);
     await page.setViewportSize({ width: 390, height: 900 });
     await page.goto('/report-builder?kind=report');
@@ -473,7 +473,7 @@ test.describe('the /report-builder surface', () => {
     await page.locator('[data-testid="report-palette-sheet"] [data-testid="report-palette-item"][data-kind="divider"]').click();
     await expect(blocks(page)).toHaveCount(5);
 
-    // The shell never scrolls sideways; the canvas column does (D18).
+    // The shell never scrolls sideways; the canvas column does.
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
     expect(overflow, 'the page scrolls horizontally at 390 px').toBe(true);
     await testInfo.attach('editor-390', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });

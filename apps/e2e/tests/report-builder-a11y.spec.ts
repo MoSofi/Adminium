@@ -216,7 +216,7 @@ test.describe('the /report-builder surfaces under axe', () => {
       await page.goto(`/report-builder/${scratch.fullId}`);
       await expect(page.getByTestId('report-paper')).toBeVisible();
       await expect(page.getByTestId('report-block')).toHaveCount(25);
-      // The sheet is ALWAYS LIGHT (D10) — including in the dark theme.
+      // The sheet is ALWAYS LIGHT — including in the dark theme.
       await sweep(page, 'editor · canvas, all 25 kinds', tally, testInfo);
       await testInfo.attach(`a11y-${theme}-editor-all-kinds`, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
 
@@ -243,7 +243,7 @@ test.describe('the /report-builder surfaces under axe', () => {
       await page.keyboard.press('Escape');
       await expect(page.getByRole('dialog')).toBeHidden();
 
-      // A dirty draft leaving the editor → the discard modal (D4/O6).
+      // A dirty draft leaving the editor → the discard modal.
       const name = page.getByTestId('report-editor-name');
       await name.click();
       await name.fill('A11y sweep edited');
@@ -255,7 +255,7 @@ test.describe('the /report-builder surfaces under axe', () => {
       await page.getByTestId('report-discard-confirm').click();
       await expect(page.getByRole('heading', { level: 1, name: 'Reports' })).toBeVisible();
 
-      // --- the narrow editor, its drawer and its palette sheet (D18) ----------
+      // --- the narrow editor, its drawer and its palette sheet ----------
       await page.setViewportSize({ width: 390, height: 844 });
       await page.goto(`/report-builder/${scratch.fullId}`);
       await expect(page.locator('[data-testid="report-inspector"][data-variant="drawer"]')).toBeVisible();

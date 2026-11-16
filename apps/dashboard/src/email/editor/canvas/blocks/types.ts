@@ -13,7 +13,7 @@ export interface BlockPreviewProps {
   def: EmailBlockDef;
   /** The block's translated label — the heading textarea's accessible name. */
   label: string;
-  /** Library files referenced by image blocks, resolved once for the document (D9). */
+  /** Library files referenced by image blocks, resolved once for the document. */
   files: ReadonlyMap<string, FileDto | null>;
   onHeadingChange?: ((text: string) => void) | undefined;
   onHeadingFocus?: (() => void) | undefined;

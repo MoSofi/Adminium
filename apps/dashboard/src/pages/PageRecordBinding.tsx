@@ -14,7 +14,7 @@
  * - the per-record activity feed over the audit entity filter (WS-A),
  * gated by the same role check the audit page uses — absent, not disabled,
  * for a viewer (the server enforces regardless);
- * - the sidecar attachments adapter and its realtime refresh (D27): the
+ * - the sidecar attachments adapter and its realtime refresh: the
  * table's widget-data channel re-creates the adapter, so a file attached in
  * another tab appears in an open panel without a remount;
  * - the per-caller `canUpdate`/`canDelete` capabilities the page reply
@@ -470,7 +470,7 @@ export function PageRecordBinding({
     }
   }, [queryClient, crud]);
 
-  /** Delete lands back on the list with the row gone + the undo toast (D4). */
+  /** Delete lands back on the list with the row gone + the undo toast. */
   const handleDeleted = useCallback(
     (undoToken: string | null) => {
       invalidateList();

@@ -14,7 +14,7 @@
  * package. A package is also a TREE, not a blob — the runtime serves individual
  * files out of it by relative path.
  *
- * THE THREE SOURCES ARE ONE PATH. Bundled (D3), downloaded and sideloaded (D4)
+ * THE THREE SOURCES ARE ONE PATH. Bundled, downloaded and sideloaded
  * packages all arrive here as a tarball plus an expected sha512, and all three
  * go through {@link AddOnStore.stage}. There is deliberately no second, softer
  * entry point.
@@ -368,7 +368,7 @@ export function createAddOnStore(opts: {
 
       // 1. Integrity FIRST: the cheapest gate, and the one that decides whether
       //    these bytes are the ones the packument/ledger named. Everything
-      //    downstream is still treated as hostile regardless (D5) — a matching
+      //    downstream is still treated as hostile regardless — a matching
       //    hash proves origin, not safety.
       const actual = sha512Integrity(input.tarball);
       if (!integrityMatches(actual, input.expectedIntegrity)) {
@@ -422,7 +422,7 @@ export function createAddOnStore(opts: {
         for (const entry of entries) {
           const file = fileIn(temp, entry.path);
           await mkdir(dirname(file), { recursive: true, mode: 0o700 });
-          // 0o600 regardless of the archive's mode bits (D5).
+          // 0o600 regardless of the archive's mode bits.
           await writeFile(file, entry.bytes, { mode: 0o600 });
           files[entry.path] = sha256(entry.bytes);
         }
@@ -462,7 +462,7 @@ export function createAddOnStore(opts: {
         if (replaced) await rm(backup, { recursive: true, force: true });
         return { key, version, dir: target, tree };
       } catch (err) {
-        // Any refusal leaves nothing behind (D5) — including the outgoing tree,
+        // Any refusal leaves nothing behind — including the outgoing tree,
         // which is put back rather than lost.
         await rm(temp, { recursive: true, force: true });
         if (replaced) {
@@ -674,7 +674,7 @@ export function createAddOnStore(opts: {
 }
 
 /**
- * Seeds the store from the image's bundled package set (D3), copy-if-absent.
+ * Seeds the store from the image's bundled package set, copy-if-absent.
  *
  * The bundled tarballs ship with a sidecar `<name>.integrity` file written at
  * image-build time, and the seed goes through {@link AddOnStore.stage} like any

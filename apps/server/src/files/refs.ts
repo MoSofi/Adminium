@@ -10,7 +10,7 @@
  *   key  apps with their own bucket credentials, which presign it themselves
  *
  * The one wrong move is to pick one silently, so the shape is a per-column
- * choice with `url` as the default (D31).
+ * choice with `url` as the default.
  *
  * PARSING IS DELIBERATELY GENEROUS AND WRITING IS DELIBERATELY NOT. A column
  * may already hold URLs a foreign app wrote, or a mix of shapes from before
@@ -36,7 +36,7 @@ export const DEFAULT_REF_SHAPE: RefShape = 'url';
 
 /**
  * Minimum column width each shape needs. The ColumnManager refuses a shape the
- * column cannot hold and says why (D7) — a `varchar(40)` cannot carry a URL,
+ * column cannot hold and says why — a `varchar(40)` cannot carry a URL,
  * and finding that out at save time is a data-loss bug on some engines and a
  * silent truncation on others.
  */

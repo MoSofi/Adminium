@@ -10,7 +10,7 @@
  * The type select lists exactly the fourteen; there is no free-text default
  * field and no expression box, because there is nowhere for their values to go.
  *
- * ─── The key choice is honest per dialect (D31) ────────────────────────────
+ * ─── The key choice is honest per dialect ────────────────────────────
  *
  * A new table's key must be generated in a way the CRUD insert path can read
  * back: RETURNING on postgres and sqlite, `insertId` on MySQL — and `insertId`
@@ -132,7 +132,7 @@ export function TableDesigner({
   };
 
   /**
-   * Retyping a column DROPS a default the new type cannot carry (B8).
+   * Retyping a column DROPS a default the new type cannot carry.
    *
    * The generated `id` retyped to `uuid` kept `default: autoincrement`, which is
    * legal on an integer and nowhere else, so the plan came back
@@ -533,7 +533,7 @@ export function TableDesigner({
               {/*
                 * A CHOICE column, which is not the same as a column typed
                 * `enum`: `enum` compiles to `varchar(64)` plus a CHECK on all
-                * three engines (D32), so a column created as a choice reads
+                * three engines, so a column created as a choice reads
                 * back as varchar with a value list. Keying this off the type
                 * alone hid the editor for every choice column that had ever
                 * been through the database.

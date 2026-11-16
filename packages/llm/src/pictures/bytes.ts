@@ -56,7 +56,7 @@ function jpegSize(b: Uint8Array): { width: number; height: number } | null {
     }
     const length = u16be(b, at + 2);
     if (length < 2) return null;
-    // Start of frame: every SOFn but DHT (C4), JPG (C8) and DAC (CC).
+    // Start of frame: every SOFn but DHT (0xC4), JPG (0xC8) and DAC (0xCC).
     if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
       return { height: u16be(b, at + 5), width: u16be(b, at + 7) };
     }

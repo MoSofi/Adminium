@@ -122,7 +122,7 @@ export interface FileReconciler {
     /** As on {@link ReconcileInput.ruled}. */
     ruled?: ReadonlyMap<string, ColumnFile> | undefined;
   }): Promise<string[]>;
-  /** Restore a delete's trashed files — the 60 s undo (D12). */
+  /** Restore a delete's trashed files — the 60 s undo. */
   restoreAll(fileIds: readonly string[]): Promise<void>;
 }
 
@@ -347,7 +347,7 @@ export function createFileReconciler(deps: FileReconcilerDeps): FileReconciler {
             result.attached.push(file.id);
           }
           // Removed or replaced: a file the column USED to name and no longer
-          // does. Trash, never delete (D12) — the undo window and the
+          // does. Trash, never delete — the undo window and the
           // retention sweep own the bytes. Only a file that was this record's.
           for (const file of previous) {
             if (nextIds.has(file.id)) continue;

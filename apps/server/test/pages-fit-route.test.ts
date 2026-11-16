@@ -239,7 +239,7 @@ describe('GET /pages/fit', () => {
   });
 });
 
-describe('the create refusal (D6)', () => {
+describe('the create refusal', () => {
   let t: Harness;
   beforeEach(async () => {
     t = await buildHarness();
@@ -335,7 +335,7 @@ describe('GET /pages/fit/new-table', () => {
     expect(data.composes).toBe(false);
   });
 
-  it('answers null for a template with no repair descriptors (D4)', async () => {
+  it('answers null for a template with no repair descriptors', async () => {
     const res = await draft({ template: 'page-directory' });
     expect(res.statusCode).toBe(200);
     expect(res.json().data.draft).toBeNull();

@@ -23,11 +23,11 @@ import { WriteControl } from '../../lib/write-lock.js';
  * Four call sites drew four different containers over the same form: create was
  * a `TwoPhaseModal` with a second "added — Done" panel, and the three edits were
  * 480px drawers. A row is the same thing wherever you meet it, and the comp
- * draws one dialog for all of them (D3). The success panel goes with them (D4):
+ * draws one dialog for all of them. The success panel goes with them:
  * the toast already says the row was added and carries the Undo, so the panel
  * was a second confirmation of something the person had just watched happen.
  *
- * ─── The words are generated, and can be typed over (D27) ──────────────────
+ * ─── The words are generated, and can be typed over ──────────────────
  *
  * Title, subtitle, button and footnote are derived from what is actually true
  * about this form — the entity's singular noun, the document's section labels,
@@ -51,7 +51,7 @@ export interface RecordFormDialogProps
   labels?: { title?: string | undefined; submit?: string | undefined; close?: string | undefined } | undefined;
   /** A refusal of the whole form, said at the top of its body (the page's settings changed under it). */
   alert?: string | undefined;
-  /** A save in flight: the CTA shows a spinner in place of its icon (F10). */
+  /** A save in flight: the CTA shows a spinner in place of its icon. */
   saving?: boolean | undefined;
   /** The header tile's icon; the page's own nav icon by default. */
   icon?: ReactNode | undefined;
@@ -136,7 +136,7 @@ export function RecordFormDialog({
   /*
    * The subtitle says what the form IS, and only what is true of it: the
    * sections it has, else the one sentence the old modal showed. A spelled-out
-   * number would not localize (DP4), so a list is a list.
+   * number would not localize, so a list is a list.
    */
   const subtitle =
     dialog?.subtitle ??
@@ -154,7 +154,7 @@ export function RecordFormDialog({
       : t('ui:templates.crud.saveSubmit', 'Save changes'));
 
   /*
-   * A generated footnote is only ever a TRUE one (DP7). "Required fields marked
+   * A generated footnote is only ever a TRUE one. "Required fields marked
    * *" is true exactly when a field carries the mark, so it is derived from the
    * document rather than always shown; `false` is an admin saying "none".
    */
@@ -200,7 +200,7 @@ export function RecordFormDialog({
       <FormDialogFooter {...(footnote === undefined ? {} : { footnote })}>
         {isWizard ? (
           /*
-           * DISABLED on step one, not hidden and not a no-op (DP13): the comp
+           * DISABLED on step one, not hidden and not a no-op: the comp
            * dims it, and a control that does nothing has to say so to
            * assistive tech as well as to the eye.
            */

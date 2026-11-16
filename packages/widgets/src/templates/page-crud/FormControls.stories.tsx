@@ -261,7 +261,7 @@ export const Catalog = {
 };
 
 /**
- * A reference whose target the caller cannot read (F16): the field is disabled
+ * A reference whose target the caller cannot read: the field is disabled
  * and says which table, rather than offering an empty list — which would read
  * as "there is nothing to choose".
  */

@@ -10,7 +10,7 @@
  *        one-time code bound to the challenge, and sends the browser back to
  *        `<instance>/connect/supabase/return?state=…&code=…`. Like a real
  *        operator it sends it only to the origin registered for the instance
- *        (`--instance`), never to the `instance` parameter as given (S14).
+ *        (`--instance`), never to the `instance` parameter as given.
  *   POST <base>/redeem {code, verifier}           the server-to-server redeem.
  *        Spends the code, checks S256(verifier) against the challenge, and
  *        answers as the scenario says.

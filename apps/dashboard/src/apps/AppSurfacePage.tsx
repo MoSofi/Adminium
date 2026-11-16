@@ -4,8 +4,8 @@
  * dashboard.
  *
  * ── Why `/a/` and not a bare `/pos/kitchen` ────────────────────────────────
- * The naked URL was the nicer one and is the one deviation this wave records
- * (D5). The dashboard already owns roughly twenty-two top-level segments and
+ * The naked URL was the nicer one and is the one deviation this wave records.
+ * The dashboard already owns roughly twenty-two top-level segments and
  * grows more each wave; the installer will accept arbitrary third-party app
  * keys; and the failure mode of a collision is SILENT SHADOWING years later,
  * where either an installed app stops working or a new dashboard route does,

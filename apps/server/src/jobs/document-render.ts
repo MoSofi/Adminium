@@ -37,7 +37,7 @@ export const documentRenderPayloadSchema = z
     profileId: z.string().min(1).max(36),
     /** The source row's primary key, as the enqueuer read it. */
     pk: z.record(z.string(), z.unknown()),
-    /** Who asked — their grants are what the source is read with (D16). */
+    /** Who asked — their grants are what the source is read with. */
     requestedBy: z.string().max(36).nullable().default(null),
     actorKind: z.enum(['user', 'system', 'api-key']).default('system'),
     /** Overrides the profile's own locale option, for a per-request language. */

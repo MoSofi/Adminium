@@ -252,7 +252,7 @@ describe('What the same-origin path does NOT do', () => {
   }, 60_000);
 
   it('registers the namespace when `self` is the ONLY value', async () => {
-    // Level 1 registration semantics (D2): `self` alone is a real opt-in, not
+    // Level 1 registration semantics: `self` alone is a real opt-in, not
     // an empty list. A hosted-only instance sets exactly this.
     const app = await serving('self');
     const tree = app.printRoutes({ commonPrefix: false });

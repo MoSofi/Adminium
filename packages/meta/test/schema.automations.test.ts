@@ -13,7 +13,7 @@
  * 2. The refusals that are SHAPE refuse here rather than three layers
  *  later. Everything that needs a schema to resolve against (does this
  *  table have that column? is that template live?) is deliberately NOT here
- *  — the store cannot know, and a draft is allowed to be half-built (D12).
+ *  — the store cannot know, and a draft is allowed to be half-built.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -146,7 +146,7 @@ describe('automation stored shapes — the owner’s examples', () => {
       throw new Error('expected a record.create action');
     }
     // `{ now: true }` survives as a MARKER, not a resolved timestamp — three
-    // dialects have three right answers and the runner picks one (D17).
+    // dialects have three right answers and the runner picks one.
     expect(create.action.values['claimed_at']).toEqual({ now: true });
   });
 
@@ -166,7 +166,7 @@ describe('automation stored shapes — the owner’s examples', () => {
     expect(condition.left.count.where?.right).toBe('no_show');
   });
 
-  it('stores a half-built action — a draft is allowed to be incomplete (D12)', () => {
+  it('stores a half-built action — a draft is allowed to be incomplete', () => {
     const graph = automationGraphSchema.parse({
       version: 1,
       nodes: [
@@ -273,7 +273,7 @@ describe('automation stored shapes — the refusals that are shape', () => {
     expect(automationGraphSchema.safeParse({ version: 1, nodes }).success).toBe(false);
   });
 
-  it('refuses a wait of zero and a wait past thirty days (D8 / O6)', () => {
+  it('refuses a wait of zero and a wait past thirty days', () => {
     const wait = (amount: number, unit: string) => ({
       version: 1,
       nodes: [trigger, { id: 'w', kind: 'wait', title: 'Wait', amount, unit }],
@@ -334,7 +334,7 @@ describe('run payloads', () => {
     expect(event.record).toBeNull();
   });
 
-  it('carries a resume path for a suspended run (D8)', () => {
+  it('carries a resume path for a suspended run', () => {
     const trace = automationTraceSchema.parse({
       version: 1,
       steps: [

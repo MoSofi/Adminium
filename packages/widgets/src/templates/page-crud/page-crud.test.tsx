@@ -153,7 +153,7 @@ describe('PageCrud template', () => {
 
     await user.click(screen.getByRole('button', { name: /New row/ }));
     /*
-     * The dialog's own words (D27): "New {entity}" for the title and "Create
+     * The dialog's own words: "New {entity}" for the title and "Create
      * {entity}" for the button, where this used to say "Add customer" twice.
      * The toolbar keeps the database's framing ("New row"), which is right for
      * a table nobody has named.
@@ -181,7 +181,7 @@ describe('PageCrud template', () => {
       });
     });
     /*
-     * The dialog CLOSES and the toast carries the Undo (D4). The second
+     * The dialog CLOSES and the toast carries the Undo. The second
      * "added — Done" panel is gone: it confirmed, in front of the grid that now
      * showed the row, something the toast had already said.
      */

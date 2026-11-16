@@ -126,7 +126,7 @@ describe('42 — the event seam and the matcher', () => {
     return { id: body.data.id, undoToken: body.undoToken };
   }
 
-  it('fires once for a dashboard create, delayed by the undo window (D7)', async () => {
+  it('fires once for a dashboard create, delayed by the undo window', async () => {
     const rule = await makeRule();
     await createUser({ id: 1, email: 'jordan@acme.io', status: 'new' });
 
@@ -176,7 +176,7 @@ describe('42 — the event seam and the matcher', () => {
     await createUser({ id: 1, email: 'a@acme.io', status: 'new' });
     expect(await automationRunsRepo(t.meta).list({ since: T0 - 1000 })).toHaveLength(0);
 
-    // `is` compares case-insensitively (D18).
+    // `is` compares case-insensitively.
     await createUser({ id: 2, email: 'b@acme.io', status: 'Trial' });
     expect(await automationRunsRepo(t.meta).list({ since: T0 - 1000 })).toHaveLength(1);
   });
@@ -252,7 +252,7 @@ describe('42 — the event seam and the matcher', () => {
     expect(await automationRunsRepo(t.meta).list({ since: T0 - 1000 })).toHaveLength(1);
   });
 
-  it('an undo inside the window skips the run it queued (D7)', async () => {
+  it('an undo inside the window skips the run it queued', async () => {
     await makeRule();
     const { undoToken } = await createUser({ id: 1, email: 'a@acme.io' });
     expect(undoToken).not.toBeNull();
@@ -269,7 +269,7 @@ describe('42 — the event seam and the matcher', () => {
     expect(runs[0]).toMatchObject({ status: 'skipped', error: 'undone' });
   });
 
-  it('a bulk update of three rows is three events and still ONE audit row (O7)', async () => {
+  it('a bulk update of three rows is three events and still ONE audit row', async () => {
     await makeRule({
       trigger: {
         kind: 'record',

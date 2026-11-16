@@ -1016,7 +1016,7 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
       })),
     }));
 
-    // Going back to a version (O1: as a new version on top), or putting the files back after a stop (O3).
+    // Going back to a version (O1: as a new version on top), or putting the files back after a stop.
     app.post(
       '/designer/sessions/:id/versions/:n/restore',
       {
@@ -1279,7 +1279,7 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
       return { connections: listedModels, selected, verdicts, canAdd: connections.envWritable && !onLive, kept: connections.keptBy(), ignoredEnv: connections.ignoredEnv() };
     });
 
-    // Whether one model can build: a round trip, kept for the process (Q15).
+    // Whether one model can build: a round trip, kept for the process.
     app.post(
       '/designer/models/check',
       {

@@ -87,7 +87,7 @@ const codes = (issues: { code: string }[]) => issues.map((i) => i.code).sort();
 
 // ---------------------------------------------------------------------------
 
-describe('the authorable vocabulary (D30)', () => {
+describe('the authorable vocabulary', () => {
   it('admits exactly fourteen logical types', () => {
     expect(AUTHORABLE_LOGICAL_TYPES).toHaveLength(14);
     expect([...AUTHORABLE_LOGICAL_TYPES].sort()).toEqual(
@@ -348,7 +348,7 @@ describe('D31 — a new table’s key must be readable back', () => {
           table({
             name: 'events_log',
             // No key, and therefore no generated key either: auto-increment is
-            // the key's own property (D23), so leaving the fixture's identity
+            // the key's own property, so leaving the fixture's identity
             // default on a keyless table would be testing two things at once.
             columns: [column({ name: 'id', logicalType: 'integer', nullable: false }), column()],
             primaryKey: [],
@@ -479,7 +479,7 @@ describe('offerableDefaultKinds — what a control may show', () => {
                 table({
                   columns,
                   primaryKey: ['id'],
-                  // An enum column carries its value list or it is not one (D32).
+                  // An enum column carries its value list or it is not one.
                   ...(logicalType === 'enum' ? { enumValues: { id: ['x'] } } : {}),
                 }),
               ],
@@ -520,7 +520,7 @@ function literalFor(type: string): string {
   }
 }
 
-describe('enum columns (D32)', () => {
+describe('enum columns', () => {
   it('requires a value list on an enum column', () => {
     const issues = validateSchemaEdit(
       edit({
@@ -548,7 +548,7 @@ describe('enum columns (D32)', () => {
     expect(codes(issues)).toContain('ENUM_ON_NON_ENUM_COLUMN');
   });
 
-  it('ACCEPTS one on a text column — that is what an enum reads back as (D32)', () => {
+  it('ACCEPTS one on a text column — that is what an enum reads back as', () => {
     /*
      * `enum` compiles to `varchar(64)` plus a CHECK on all three engines, so a
      * choice column created yesterday is introspected as `varchar` with a

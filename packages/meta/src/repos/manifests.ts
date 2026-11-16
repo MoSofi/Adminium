@@ -701,7 +701,7 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
     },
 
     /**
-     * Disconnect (D5): the keys go and NOTHING else does. One statement over a
+     * Disconnect: the keys go and NOTHING else does. One statement over a
      * table that holds only secrets, which is what makes "keeps your data" a
      * property of the schema rather than of the caller's care.
      */

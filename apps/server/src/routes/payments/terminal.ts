@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * CARD READERS (E6): the till's charge, and Studio's pairing.
+ * CARD READERS: the till's charge, and Studio's pairing.
  *
  * The till (a person's own session, never an API key):
  *   POST /payments/terminal/charge            put a record's amount on a reader

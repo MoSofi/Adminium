@@ -5,7 +5,7 @@
  * never computed; binding a block to a page's data or a 36 measure is a
  * candidate for a later wave.
  *
- * THE GEOMETRY IS THE COMP'S, NOT A CHART LIBRARY'S (D7). `@adminium/charts`'
+ * THE GEOMETRY IS THE COMP'S, NOT A CHART LIBRARY'S. `@adminium/charts`'
  * `sparkLine`/`sparkBars` pad differently from these four lines, and the
  * picture has to match the comp: `height = max(4, v/max·100)%` with a 5 px
  * floor for a bar (623), `y = 38 − v/max·34` in a `0 0 100 40` viewBox with

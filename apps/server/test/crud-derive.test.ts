@@ -13,7 +13,7 @@
  *   same position on both so they cannot diverge.
  * - **poisoning.** A refused operand refuses its whole field — INCLUDING
  *   through a `cases` predicate, because a conditional evaluated over an
- *   unreadable input leaks one bit per row (D11). An unmarked null is a
+ *   unreadable input leaks one bit per row. An unmarked null is a
  *   different state with a different rule: it absorbs, and the cell renders an
  *   em-dash rather than masked dots.
  */
@@ -163,7 +163,7 @@ describe('CRUD derived fields (fake adapter)', () => {
       });
     });
 
-    it('reads the UNROUNDED earlier field, not its displayed value (D7)', async () => {
+    it('reads the UNROUNDED earlier field, not its displayed value', async () => {
       // total = subtotal + tax_amount, where tax_amount's own working value
       // carries six digits. Rounding at every hop is how `1.0049 x 3` becomes
       // 3.00 instead of 3.01; here it would move the cent on 1367.28.

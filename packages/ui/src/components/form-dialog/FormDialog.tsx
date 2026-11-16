@@ -28,7 +28,7 @@ import { IconTile, type Tone } from '../icon-tile/index.js';
  * two comps, which is how both end up slightly wrong.
  *
  * Radix gives the focus trap, the Escape close, the outside-click close and the
- * aria wiring; the comp asks for all four (D30).
+ * aria wiring; the comp asks for all four.
  */
 
 /** Optional trigger; renders `asChild`-friendly. */
@@ -173,7 +173,7 @@ export interface FormDialogFooterProps extends ComponentPropsWithRef<'div'> {
   /**
    * The line on the left of the footer band (comp 510–511) — "Required fields
    * marked *", "Saves to Invoices". Generated footnotes are only ever the true
-   * ones (DP7); an admin may type any.
+   * ones; an admin may type any.
    */
   footnote?: ReactNode;
 }

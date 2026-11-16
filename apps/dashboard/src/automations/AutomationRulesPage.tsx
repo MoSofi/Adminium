@@ -16,7 +16,7 @@
  *
  * The two exceptions are the comp's own: the Active/Paused toggle and Test
  * act on the graph in front of the person, so neither needs a save first —
- * Test posts the on-screen document (D14) and the toggle is about the RULE,
+ * Test posts the on-screen document and the toggle is about the RULE,
  * not the draft.
  *
  * --- D12: a rule enables only when it validates ---------------------------
@@ -156,7 +156,7 @@ export function AutomationRulesPage(): ReactNode {
     [trigger, sources.data],
   );
 
-  // --- draft plumbing (D11) -------------------------------------------------
+  // --- draft plumbing -------------------------------------------------
 
   const edit = useCallback(
     (next: { graph?: Graph; trigger?: Trigger }) => {
@@ -311,7 +311,7 @@ export function AutomationRulesPage(): ReactNode {
     },
   });
 
-  // --- the KPI strip (D22) --------------------------------------------------
+  // --- the KPI strip --------------------------------------------------
 
   const kpis: RulesKpi[] = [
     {
@@ -384,7 +384,7 @@ export function AutomationRulesPage(): ReactNode {
       setPickerTarget(null);
       void navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, rule: id }) });
     };
-    // Selecting another rule while dirty asks first (D11).
+    // Selecting another rule while dirty asks first.
     if (dirty) setPendingLeave(() => go);
     else go();
   };
@@ -408,7 +408,7 @@ export function AutomationRulesPage(): ReactNode {
         </Button>
       </PageActions>
 
-      {/* ⌘S saves the draft (D11). On the surface's own subtree rather than a
+      {/* ⌘S saves the draft. On the surface's own subtree rather than a
           document listener: a shortcut that fires while somebody is typing in
           another page's field is a shortcut nobody asked for. */}
       <div

@@ -199,7 +199,7 @@ describe('formatMoney with an explicit decimals', () => {
   });
 });
 
-describe('formatDisplayValue — the opt-in display block (D8/D9)', () => {
+describe('formatDisplayValue — the opt-in display block', () => {
   it('renders each kind', () => {
     expect(formatDisplayValue('1367.28', { kind: 'currency', decimals: 2 }, { locale: 'en-US', currency: 'USD' })).toBe(
       '$1,367.28',

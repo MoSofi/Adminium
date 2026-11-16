@@ -2189,7 +2189,7 @@ describe('create screen — remedy 4 (new table)', () => {
       ],
     });
 
-    // The meaning rides beside the table (D3), keyed by the new table's id.
+    // The meaning rides beside the table, keyed by the new table's id.
     const put = await waitFor(() => {
       const call = calls.find((entry) => entry.method === 'PUT' && entry.path.includes('/overrides'));
       expect(call).toBeDefined();
@@ -2261,7 +2261,7 @@ describe('create screen — remedy 4 (new table)', () => {
     expect(screen.queryByTestId('studio-pages-create-new-table')).toBeNull();
   });
 
-  it('is not offered for a template the engine has no draft for (D4)', async () => {
+  it('is not offered for a template the engine has no draft for', async () => {
     const { calls } = await reachEntry({}, 'page-directory');
     await waitFor(() => {
       expect(calls.some((entry) => entry.path.startsWith('/api/v1/pages/fit/new-table'))).toBe(true);

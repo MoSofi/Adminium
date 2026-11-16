@@ -11,7 +11,7 @@
  * it has started (0.3.32: mostly its request and payload schemas), so such a
  * server starts with ~16 MB to spare; the code compiled as screens are used
  * and one large answer later, it stops with "JavaScript heap out of memory"
- * and nothing said before. Measured in plan 70 (A8): no store grew, the heap
+ * and nothing said before. Measured in plan 70: no store grew, the heap
  * was simply full.
  *
  * So the server says it: once a minute after start, and then every five

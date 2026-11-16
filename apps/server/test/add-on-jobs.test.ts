@@ -459,7 +459,7 @@ describe('add-on-download', () => {
   });
 });
 
-describe('enqueue idempotency (D10)', () => {
+describe('enqueue idempotency', () => {
   it('returns the same job for a second download of the same key@version', async () => {
     const first = await enqueueAddOnDownload(meta, { key: 'design-studio', version: '1.0.0' });
     const second = await enqueueAddOnDownload(meta, { key: 'design-studio', version: '1.0.0' });

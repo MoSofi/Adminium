@@ -10,7 +10,7 @@
  * converts the ladder total; the discount and tax amounts are free text where
  * the invoice computes them; the recurring banner prints no amount at all.
  * One multiply exists — `sym + amount × rate` — and it goes through
- * `model/numbers.ts` in integer minor units (D11).
+ * `model/numbers.ts` in integer minor units.
  */
 import { cn } from '@adminium/ui';
 
@@ -76,7 +76,7 @@ export function LateFeesBlock({ block }: BlockBodyProps<'latefees'>) {
   );
 }
 
-/** 330: bordered rows of code · `sym + amount × rate` in mono, two decimals (D11). */
+/** 330: bordered rows of code · `sym + amount × rate` in mono, two decimals. */
 export function MultiCurrencyBlock({ block, locale }: BlockBodyProps<'multicurrency'>) {
   const last = block.fx.length - 1;
   return (

@@ -44,7 +44,7 @@ test.describe('studio connect wizard (DSN mode)', () => {
     await expect(page.getByRole('heading', { name: 'Where should Adminium keep its own tables?' })).toBeVisible();
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
-    // Step 6 — Enrich with AI (M6): Continue stays disabled until a path is
+    // Step 6 — Enrich with AI: Continue stays disabled until a path is
     // chosen; this leg keeps the heuristic baseline (mirrors the enrich-step
     // interaction of llm-enrichment.spec.ts, which takes the BYO path).
     await expect(page.getByRole('heading', { name: 'Enrich with AI' })).toBeVisible();

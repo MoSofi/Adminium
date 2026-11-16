@@ -5,10 +5,10 @@
  * px icon tile, a label and a trailing `plus`. A click appends the block and
  * selects it (535).
  *
- * BELOW `lg` (D18) the column is not drawn: the editor shows an *Add block*
+ * BELOW `lg` the column is not drawn: the editor shows an *Add block*
  * button that opens {@link PaletteSheet} — the same 25 rows in a modal — so
  * a 390 px viewport can still add a block. The comp has no responsive rule at
- * all (E11); this is the fill.
+ * all; this is the fill.
  *
  * Every label and glyph comes from `blockText`/`BLOCK_KIND_META`, never from
  * an `icon:` literal: `gen-icon-core.mjs` sweeps those into the ENTRY chunk's
@@ -68,7 +68,7 @@ export function Palette({ onAdd }: PaletteProps) {
   );
 }
 
-/** The same 25 rows in a sheet, for the viewports the 216 px column cannot have (D18). */
+/** The same 25 rows in a sheet, for the viewports the 216 px column cannot have. */
 export function PaletteSheet({ onAdd, onClose }: { onAdd: (kind: ReportBlockKind) => void; onClose: () => void }) {
   const PlusGlyph = reportIcon('plus');
   return (

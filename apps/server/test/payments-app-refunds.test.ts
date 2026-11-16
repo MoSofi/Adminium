@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * REFUNDS AN APP KEEPS AS ROWS OF ITS OWN (E4), on SQLite, Postgres and MySQL.
+ * REFUNDS AN APP KEEPS AS ROWS OF ITS OWN, on SQLite, Postgres and MySQL.
  *
  * A cashier who may write the refund table but not refund cannot make a row
  * that sends money back; someone who may refund can, and the engine sends the

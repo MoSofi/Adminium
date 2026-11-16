@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The manager's view-model helpers (M4–M11): the status pill's tone and
+ * The manager's view-model helpers: the status pill's tone and
  * label, the starter categories, the comp's search rule, and the two text
  * lines a card and a row print.
  *
  * STATUS IS A COLUMN, shared by both kinds (comp `statusMeta` 563): the pill
  * maps the three stored values straight to tones — draft neutral ·
  * sent accent · live pos — and never derives. The KEY `sent` reads
- * *Published* (D22).
+ * *Published*.
  *
  * NO GROUPING. The invoice manager's `groupDocuments` has no twin here: this
- * comp draws no group segment and no group bands (M7).
+ * comp draws no group segment and no group bands.
  */
 import type { Tone } from '@adminium/ui';
 

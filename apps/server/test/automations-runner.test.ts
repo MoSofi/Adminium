@@ -236,7 +236,7 @@ describe('42 — the runner walks the owner’s first example', () => {
     const first = await walk(rule, null);
     expect(first.kind).toBe('waiting');
     expect(sent.map((m) => m.subject)).toEqual(['Welcome']);
-    // The SMTP reply IS the log line the comp draws (D15).
+    // The SMTP reply IS the log line the comp draws.
     expect(first.trace.steps[1]?.log).toBe('250 2.0.0 Ok: queued as 4B1C2 · delivered to jordan@acme.io');
     expect(first.trace.resume).toEqual([3]);
 
@@ -383,7 +383,7 @@ describe('42 — the runner walks the owner’s first example', () => {
     });
 
     // The same rule with "Continue on error" runs the later step and STILL
-    // reports a failed run (D9).
+    // reports a failed run.
     const graph = rule.graph;
     const second = graph.nodes[1];
     if (second?.kind !== 'action') throw new Error('expected an action');
@@ -458,7 +458,7 @@ describe('42 — the runner walks the owner’s first example', () => {
     ]);
   });
 
-  it('a filter that does not match ends the run succeeded with the rest skipped (D18)', async () => {
+  it('a filter that does not match ends the run succeeded with the rest skipped', async () => {
     const rule = await automationsRepo(t.meta).create(
       {
         connectionId,
@@ -496,7 +496,7 @@ describe('42 — the runner walks the owner’s first example', () => {
     expect(sent).toHaveLength(0);
   });
 
-  it('a dry run resolves everything and performs nothing (D14)', async () => {
+  it('a dry run resolves everything and performs nothing', async () => {
     const rule = await makeRule();
     const outcome = await walkRule(deps(), {
       rule,

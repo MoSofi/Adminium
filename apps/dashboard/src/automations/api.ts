@@ -35,7 +35,7 @@ export interface RuleView {
   graph: Graph;
   timeSavedMinutes: number | null;
   nextRunAt: number | null;
-  /** Complete enough to switch on (D12). */
+  /** Complete enough to switch on. */
   valid: boolean;
   incompleteNodeId: string | null;
   /** What a person should look at that does not stop the rule. Absent from a server before it said so. */
@@ -90,7 +90,7 @@ export interface SourceTable {
   canRead: boolean;
   canCreate: boolean;
   canUpdate: boolean;
-  /** Which column the poller could watch, per event (D4); null = cannot. */
+  /** Which column the poller could watch, per event; null = cannot. */
   watch: { created: string | null; updated: string | null };
   columns: SourceColumn[];
   /**
@@ -336,7 +336,7 @@ export interface RunsQuery {
   cursor?: string | undefined;
 }
 
-/** The viewer's own zone — "today" is theirs, not the server's (D22). */
+/** The viewer's own zone — "today" is theirs, not the server's. */
 function tz(): string {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -363,7 +363,7 @@ export const automationsApi = {
   patch: (id: string, input: PatchRuleInput) => api.patch<RuleView>(`${BASE}/${id}`, input),
   remove: (id: string) => api.delete<{ deleted: true }>(`${BASE}/${id}`),
   duplicate: (id: string) => api.post<RuleView>(`${BASE}/${id}/duplicate`),
-  /** The ON-SCREEN document, not the stored one (D14). */
+  /** The ON-SCREEN document, not the stored one. */
   test: (id: string, body: { trigger: Trigger; graph: Graph; sampleRecordId?: string }) =>
     api.post<{ trace: Trace; sample: { table: string; pk: Record<string, unknown>; label: string } | null }>(
       `${BASE}/${id}/test`,

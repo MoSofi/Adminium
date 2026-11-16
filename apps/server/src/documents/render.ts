@@ -26,8 +26,8 @@
  *   2. Find the provider BY THE PROFILE'S ADD-ON KEY. Not `resolveProvider`,
  *      which picks the lowest key and would render an invoice through a
  * barcode add-on (trap 11).
- *   3. Read the source row and its children with the REQUESTER'S grants
- *      (D16) — never with ambient authority, because a triggered render runs
+ *   3. Read the source row and its children with the REQUESTER'S grants —
+ *      never with ambient authority, because a triggered render runs
  *      as whoever wrote the row.
  *   4. Build the subject and freeze it into a register row. The row exists
  *      BEFORE the bytes, with status `failed`, so a crash between here and
@@ -839,7 +839,7 @@ async function renderCore(
     return { status: 'failed', document: await documents.markFailed(document.id, drawn.error), error: drawn.error };
   }
 
-  // 6 — the number, claimed only now that the draw succeeded (D11).
+  // 6 — the number, claimed only now that the draw succeeded.
   if (ownNumber === undefined && carried === null) {
     const claimed = `${prefix}${String(await sequences.claim(profile.id, at))}`;
     if (claimed !== number) {
@@ -924,7 +924,7 @@ async function renderCore(
   return { status: 'rendered', document: done! };
 }
 
-// --- the request-shaped intent (D15) -----------------------------------------
+// --- the request-shaped intent -----------------------------------------
 
 export interface IntentRequest {
   /** Which kind to draw. The provider is resolved from it — see below. */
@@ -932,7 +932,7 @@ export interface IntentRequest {
   locale?: string | undefined;
   fields: Readonly<Record<string, unknown>>;
   collections: Readonly<Record<string, readonly Readonly<Record<string, unknown>>[]>>;
-  /** The connection whose currency and number sequence this borrows (D11). */
+  /** The connection whose currency and number sequence this borrows. */
   connectionId: string | null;
   /** Stamped LAST, so a failure leaves no claimable row. */
   claim?: { column: string; value: string; keyId?: string | undefined } | undefined;
@@ -967,7 +967,7 @@ export async function renderIntent(
 
   /*
    * The provider is resolved from the KIND, because an intent has no profile to
-   * carry `add_on_key` (D8). Exactly one provider must offer it: zero is a
+   * carry `add_on_key`. Exactly one provider must offer it: zero is a
    * deployment that cannot draw this, and two is a question only a human can
    * answer — drawing with whichever loaded first would make the document depend
    * on install order.

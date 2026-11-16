@@ -337,7 +337,7 @@ export interface PageActionsProps {
    * list publishes the list's path; omit it and no back control renders.
    */
   backTo?: string | undefined;
-  /** A chip rendered beside the topbar h1 (D14) — a fact about THIS screen, not an action. */
+  /** A chip rendered beside the topbar h1 — a fact about THIS screen, not an action. */
   titleAdornment?: ReactNode;
   /** Controls rendered at the start of the topbar's right cluster. */
   children?: ReactNode;

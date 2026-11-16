@@ -3,7 +3,7 @@
  * The New modal (comp 117-151, Appendix A §M8): a dashed *Blank email* tile
  * and the twelve starters in a four-column grid, each starter drawn as a
  * mini preview in its own accent. In the campaign tab a *Your templates*
- * section follows (D21): a campaign can begin as a copy of a live template,
+ * section follows: a campaign can begin as a copy of a live template,
  * which `POST /:id/from-template` makes server-side.
  *
  * Picking creates the row at once and hands the reply up — the manager opens

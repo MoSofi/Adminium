@@ -10,7 +10,7 @@
  * workspace has tens of documents, not thousands, and a keystroke must not
  * be a round trip.
  *
- * ARCHIVED MODE (D4) is the same screen over `archived=true` rows with a
+ * ARCHIVED MODE is the same screen over `archived=true` rows with a
  * leading chip to leave: cards do not open, the Edit slot restores, Delete
  * becomes *Delete for good* (or *Reset to built-in* on a shipped key).
  *
@@ -106,7 +106,7 @@ function emptyCopy(tab: EmailDocumentKind, searching: boolean, archived: boolean
       };
 }
 
-/** *Export all* is a same-origin download (D14): an anchor click, so the session cookie rides along. */
+/** *Export all* is a same-origin download: an anchor click, so the session cookie rides along. */
 export function startDownload(url: string): void {
   const anchor = document.createElement('a');
   anchor.href = url;

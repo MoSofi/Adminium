@@ -150,7 +150,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('desktop setup step 4 with a server database (V29)', () => {
+describe('desktop setup step 4 with a server database', () => {
   it('stops on a refused login before creating anything, and says why', async () => {
     const server = newServer();
     seedAtGenerate(WRONG);

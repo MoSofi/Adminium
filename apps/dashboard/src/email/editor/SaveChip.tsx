@@ -2,7 +2,7 @@
 /**
  * The header's save chip (comp 479-482, Appendix A §E1): *Unsaved changes* ·
  * *Saving…* · *All changes saved*, plus *Couldn't save* when a PUT fails. The
- * system's `AutosaveIndicator` pill, re-labelled for explicit save (D1) — the
+ * system's `AutosaveIndicator` pill, re-labelled for explicit save — the
  * same four states, announced politely.
  */
 import { AutosaveIndicator } from '@adminium/ui';

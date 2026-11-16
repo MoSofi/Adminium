@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The step-3 transition (R1).
+ * The step-3 transition.
  *
  * What is pinned here is the ORDER and what survives a failure: the account is
  * created first because it is the only call that works without a session, and

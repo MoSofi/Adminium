@@ -9,7 +9,7 @@
  *
  * The shell is `dir`ed by the variation's locale while the page stays as it
  * is, sits in the always-light scope (a mailbox is light), and carries the
- * accent as `--adm-email-accent` for every block below it (D15).
+ * accent as `--adm-email-accent` for every block below it.
  *
  * READ-ONLY renders the same sheet with nothing on it to operate: no device
  * segment, no selection rings, no inline inputs, no insert pills and no *Add

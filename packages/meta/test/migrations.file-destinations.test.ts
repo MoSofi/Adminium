@@ -292,7 +292,7 @@ for (const dialect of TEST_DIALECTS) {
 
         await files.markDeleted(local.id, T0 + 2);
         // Trashed bytes are still on the disk, but they are not what the
-        // operator is being asked to reason about (D23).
+        // operator is being asked to reason about.
         const usage = await files.usageByDestination();
         expect(usage).toEqual([{ destinationId: dest.id, files: 1, bytes: 250 }]);
       });

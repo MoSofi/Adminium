@@ -28,7 +28,7 @@ import type { DerivedField, FieldExpr } from './crud-derived.js';
  * refusal bug here can only fail to null arithmetic — never to derived
  * plaintext. A SQL-side evaluator cannot have that property.
  *
- * THE THREE-STATE LATTICE, which is the whole of the security argument (D11):
+ * THE THREE-STATE LATTICE, which is the whole of the security argument:
  *
  * - **refused** — an operand the caller may not read. It POISONS: every node
  *   above it is refused, *including a comparison*, so a conditional cannot
@@ -64,8 +64,8 @@ const REFUSED: DerivedValue = { state: 'refused' };
 export interface DerivedRowInput {
   /**
    * The row AFTER masking — base columns, lookup aliases and measure aliases
-   * alike. Measures and columns share one key namespace by construction
-   * (D26), so `{ measure }` and `{ col }` are the same read here; they stay
+   * alike. Measures and columns share one key namespace by construction,
+   * so `{ measure }` and `{ col }` are the same read here; they stay
    * distinct in the AST so validation and the Studio can tell them apart.
    */
   row: Readonly<Record<string, unknown>>;
@@ -92,8 +92,7 @@ export interface DerivedRowOutput {
  * (enforced at parse time), so by the time one is evaluated every field it
  * reads is already computed. References read the **unrounded working value**,
  * never the rounded string — a field's `scale` is an output rounding only, and
- * rounding at every hop is how `1.0049 × 3` becomes `3.00` instead of `3.01`
- * (D7).
+ * rounding at every hop is how `1.0049 × 3` becomes `3.00` instead of `3.01`.
  */
 export function evaluateDerivedFields(
   fields: readonly DerivedField[],
@@ -187,8 +186,8 @@ function applyOp(op: 'add' | 'sub' | 'mul' | 'div', left: Decimal, right: Decima
     case 'mul':
       return { state: 'value', value: mulDecimal(left, right) };
     default: {
-      // Unreachable from a parsed spec — a divisor must be a non-zero literal
-      // (D6) — so this is the belt on that brace, not a policy.
+      // Unreachable from a parsed spec — a divisor must be a non-zero literal —
+      // so this is the belt on that brace, not a policy.
       const quotient = divDecimal(left, right);
       return quotient === null ? ABSENT : { state: 'value', value: quotient };
     }

@@ -2014,7 +2014,7 @@ export interface PaymentRowRule {
   /** The columns only Adminium fills, on any row: the reference, the service the payment was taken by, a refund's stamps. */
   engineOnly: readonly string[];
   /**
-   * A table where the app keeps refunds as rows (E4): a row that sends money
+   * A table where the app keeps refunds as rows: a row that sends money
    * back (`sendsMoney`, the mapping's `when`) is made only by someone who may
    * refund (`mayRefund`), so a cashier who may write the table cannot move
    * money; it is checked before the write commits.

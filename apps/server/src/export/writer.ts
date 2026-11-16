@@ -8,10 +8,10 @@
  *
  * - **definition** (a builder-made export): headers are the definition's
  *   labels; a cell the mask pass listed in the row's `_masked` marker is
- *   written as `•••••` (D6) — the comp's promise, and the one thing that keeps
+ *   written as `•••••` — the comp's promise, and the one thing that keeps
  *   a masked cell distinguishable from a null; JSON Lines is keyed by header
  *   text, a numeric column's value is spliced UNQUOTED when it reads as a
- *   number, empty is `null`, everything else is a JSON string (D7).
+ *   number, empty is `null`, everything else is a JSON string.
  * - **legacy** (an export with no `columns`, and every scheduled report):
  *   byte-identical to what shipped before this file existed — column names as
  *   headers, masked cells empty, JSON Lines keyed by column name with the
@@ -23,10 +23,10 @@ import { CRLF, EXPORT_BOM, serializeCsvRow } from '../data-io/csv.js';
 import type { Row } from '../crud/mask.js';
 import { placeCellText } from '../geo/values.js';
 
-/** What a masked cell reads as in a builder-made file (D6). */
+/** What a masked cell reads as in a builder-made file. */
 export const MASKED_CELL = '•••••';
 
-/** A value a numeric column may splice into JSON Lines unquoted (D7). */
+/** A value a numeric column may splice into JSON Lines unquoted. */
 const JSON_NUMBER = /^-?\d+(?:\.\d+)?$/;
 
 /** The row key `maskRow` writes its refusal list under. */

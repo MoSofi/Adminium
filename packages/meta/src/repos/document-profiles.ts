@@ -13,7 +13,7 @@
  *
  * There is no foreign key to `adminium_manifests`. Uninstalling an add-on
  * deletes its manifest row, and a profile — like the documents issued through
- * it — has to survive that (D5). What uninstall DOES do is disable the
+ * it — has to survive that. What uninstall DOES do is disable the
  * profile, so nothing tries to render through a provider that is gone; that
  * is transaction, and `setEnabledForAddOn` below is the half of it that lives
  * here.

@@ -234,7 +234,7 @@ describe('report document routes', () => {
     expect((await list('template')).items.map((i) => i.id)).toEqual([b.id, a.id, copy.id]);
   });
 
-  it('a report from a template copies the body, records the origin, and outlives it (D6)', async () => {
+  it('a report from a template copies the body, records the origin, and outlives it', async () => {
     const tpl = await create({ kind: 'template', starter: 'mbr' });
     const res = await app.inject({
       method: 'POST',

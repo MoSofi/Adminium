@@ -33,7 +33,7 @@ export interface StepRailProps extends Omit<ComponentPropsWithRef<'nav'>, 'child
  *
  * ─── Below 640px, badges only ──────────────────────────────────────────────
  *
- * The labels go and the numbered badges stay (DP11): three labels with hints do
+ * The labels go and the numbered badges stay: three labels with hints do
  * not fit a phone-width dialog, and a rail that wraps to three lines is a rail
  * that has eaten the form. `aria-current="step"` carries the same information
  * to a screen reader at every width.

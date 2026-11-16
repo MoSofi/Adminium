@@ -134,7 +134,7 @@ function PlainNav({ bootstrap }: { bootstrap: BootstrapData }) {
   );
 
   /*
-   * Blended apps sit AFTER `workspace` (D7): they are the operator's daily
+   * Blended apps sit AFTER `workspace`: they are the operator's daily
    * work, so burying them under Library/Planning/People/Account would put the
    * thing this wave exists to surface at the bottom of the rail.
    *

@@ -66,7 +66,7 @@ export interface SniffedType {
   key: SniffTypeKey;
   /** The mime stored on the row and served back on download. */
   mime: string;
-  /** Canonical extension, used only for the remote key layout (D19). */
+  /** Canonical extension, used only for the remote key layout. */
   ext: string;
 }
 

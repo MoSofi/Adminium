@@ -17,7 +17,7 @@ export interface RefundPreview {
   refundable: string;
   paidWith: string | null;
   refusal: { code: string; message: string } | null;
-  /** Refunded in its app, where its refund rows are kept (CR4): the app, and the staff screen a refund is made on. */
+  /** Refunded in its app, where its refund rows are kept: the app, and the staff screen a refund is made on. */
   inApp?: { app: string | null; openIn: string | null } | null;
 }
 

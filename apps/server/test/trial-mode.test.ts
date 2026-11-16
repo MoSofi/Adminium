@@ -5,8 +5,8 @@
  * drops it. Proved on a whole composed server wherever a route is the door,
  * and on the hook itself where the door is a job or a client.
  *
- * Connections (A1), storage (A1b), outgoing traffic and AI (A2), and the
- * operator's addresses and public pages (A4).
+ * Connections, storage, outgoing traffic and AI, and the
+ * operator's addresses and public pages.
  */
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';

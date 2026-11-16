@@ -294,7 +294,7 @@ describe('files routes', () => {
       expect(body.data.mime).toBe('application/pdf');
       expect(body.data.filename).toBe('inv-1042.pdf');
       expect(body.data.attachedAt).toBeNull();
-      // `url` is the configured shape (D31), and it names THIS instance.
+      // `url` is the configured shape, and it names THIS instance.
       expect(body.ref).toMatch(new RegExp(`/api/v1/files/${String(body.data.id)}/content$`));
       expect(body.data.contentPath).toBe(`/api/v1/files/${String(body.data.id)}/content`);
     });
@@ -558,7 +558,7 @@ describe('files routes', () => {
         headers: asUser(t.users.editor),
       });
       // Same-origin inline SVG is a stored-XSS primitive; the flag cannot turn
-      // it on (D9).
+      // it on.
       expect(res.headers['content-disposition']).toContain('attachment');
       // The instance-wide CSP is still on the response; what must NOT be there
       // is the per-response `sandbox` an inline render would add.

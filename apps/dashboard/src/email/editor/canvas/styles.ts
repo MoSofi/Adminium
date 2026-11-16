@@ -3,7 +3,7 @@
  * The eight style axes as canvas classes (the comp's `wrapOf`, 1407-1419).
  * The mail body is ALWAYS LIGHT, so the greys are the comp's
  * literals; the accent rides the `--adm-email-accent` custom property the
- * shell sets (D15).
+ * shell sets.
  *
  * `full` bleeds the block to the paper's edges: the body has 28 px side
  * padding, so the wrapper pulls out by that much and pads back in.

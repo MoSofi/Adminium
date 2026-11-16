@@ -677,7 +677,7 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
   }, [quick, staged, onlyDatabase, connectionId]);
   const quickNeedsChoice = quick && onlyDatabase === '';
   /*
-   * The one dialog: an add-on the app requires comes with it (D98), and it is
+   * The one dialog: an add-on the app requires comes with it, and it is
    * fetched by the dialog's own Install, never before: until that press the
    * person has only been shown its name. So Install does three things in
    * order: fetch each required add-on that is not on this server, check the

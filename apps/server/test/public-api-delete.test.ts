@@ -106,7 +106,7 @@ for (const leg of SOURCE_LEGS) {
     it('deletes in scope, refuses outside it with the same 404, and audits what it removed', async () => {
       served = await leg.serve(SPEC);
       const s = served;
-      // An `anon` endpoint offering DELETE saves (O4).
+      // An `anon` endpoint offering DELETE saves.
       await saveEndpoint(s, 'notes', notesEndpoint(await sourceIdOf(s, 'notes')));
       const token = await mint(s, [{ ref: 'notes', methods: ['GET', 'DELETE'] }]);
 

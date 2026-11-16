@@ -357,7 +357,7 @@ const DEFAULT_DISPLAY_DECIMALS = 2;
  * in a 0-100 `tax_rate` column and 800% in a 0-1 ratio column, and `Intl`'s
  * `style: 'percent'` multiplies by 100. `'unit'` therefore formats the number
  * and appends the sign; `'fraction'` hands it to Intl. Guessing either way is
- * a 100x error on screen (D9).
+ * a 100x error on screen.
  */
 export function formatDisplayValue(
   value: unknown,

@@ -44,7 +44,7 @@ export interface InsertTarget {
   branchId?: string | undefined;
 }
 
-/** What the picker's tiles carry (D10). */
+/** What the picker's tiles carry. */
 export interface StepDefinition {
   key: string;
   kind: NodeKind;

@@ -75,7 +75,7 @@ export interface PlanServiceInput {
   countRows?: PreflightInput['countRows'];
   /**
    * D18's ceiling door. On the PLAN path too, not only on apply: the plan the
-   * operator authorises has to be the plan that runs (D2), and a refused step
+   * operator authorises has to be the plan that runs, and a refused step
    * compiles to no SQL — so a door opened only at apply produced a different
    * checksum and `SCHEMA_DRIFT` fired before the door was consulted.
    */
@@ -98,8 +98,8 @@ export interface PlannedStep extends DdlStep {
 export interface SchemaPlan extends Omit<DdlPlan, 'steps'> {
   steps: PlannedStep[];
   /**
-   * Tables the row ceiling gates, and whether this principal can open the gate
-   * (D18). Plan-LEVEL because a ceiling is a fact about a table, and because
+   * Tables the row ceiling gates, and whether this principal can open the gate.
+   * Plan-LEVEL because a ceiling is a fact about a table, and because
    * `planReply`'s refusal object is a closed shape whose serializer silently
    * drops anything not declared in it.
    */
@@ -691,9 +691,9 @@ export interface ApplyServiceInput extends PlanServiceInput {
   /** The checksum the client is authorising. */
   checksum: string;
   createdBy: string | null;
-  /** Whether the caller holds Super Admin — gates `lossy`/`irreversible` (D7). */
+  /** Whether the caller holds Super Admin — gates `lossy`/`irreversible`. */
   superAdmin: boolean;
-  /** DSN crypto, for the rename repair's connection-settings rewrite (D33). */
+  /** DSN crypto, for the rename repair's connection-settings rewrite. */
   crypto?: Parameters<typeof repairAfterRename>[0]['crypto'];
   /** Re-introspect the touched tables, for the live-drift check. */
   reintrospect?: (tableIds: readonly string[]) => Promise<DatabaseModel | null>;
@@ -720,7 +720,7 @@ export interface ApplyResult {
 export async function applySchemaEdit(input: ApplyServiceInput): Promise<ApplyResult> {
   const { plan, desiredRelations } = await planWithRelations(input);
 
-  // --- checksum: did the SNAPSHOT move? (D2) -------------------------------
+  // --- checksum: did the SNAPSHOT move? -------------------------------
   if (plan.checksum !== input.checksum) {
     throw new ConflictError(
       'The schema changed since this plan was made. Review the new plan before applying.',
@@ -759,7 +759,7 @@ export async function applySchemaEdit(input: ApplyServiceInput): Promise<ApplyRe
     }
   }
 
-  // --- the ledger row, BEFORE the first statement (D3) -------------
+  // --- the ledger row, BEFORE the first statement -------------
   const ledger = schemaChangesRepo(input.meta);
   const outcomes: StepOutcome[] = plan.steps.map((step) => ({
     id: step.id,
@@ -870,7 +870,7 @@ export async function applySchemaEdit(input: ApplyServiceInput): Promise<ApplyRe
 
     for (let i = 0; i < plan.steps.length; i += 1) {
       const step = plan.steps[i]!;
-      // Cancellation is honoured BETWEEN statements, never mid-flight (D10):
+      // Cancellation is honoured BETWEEN statements, never mid-flight:
       // abandoning a running DDL statement does not stop the database from
       // finishing it, so the only honest place to stop is here.
       if (input.signal?.aborted === true) break;

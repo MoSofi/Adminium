@@ -2,7 +2,7 @@
 /**
  * The lifecycle hook that keeps `adminium_files` honest about what a
  * customer's own columns say, and the daily sweep that collects what nothing
- * claims (D12).
+ * claims.
  *
  * WHY THIS IS THE TEST THAT MATTERS MOST IN 37b. Without the hook, an upload
  * attached through a form stays `attached_at = NULL` and the sweep trashes it
@@ -226,7 +226,7 @@ describe('file reconcile', () => {
 
     expect(result.attached).toEqual([second.id]);
     expect(result.trashed).toEqual([first.id]);
-    // Trash, never delete: the bytes belong to the retention sweep (D12).
+    // Trash, never delete: the bytes belong to the retention sweep.
     expect((await filesRepo(meta).findById(first.id))?.deletedAt).not.toBeNull();
     expect((await filesRepo(meta).findById(second.id))?.attachedAt).not.toBeNull();
   });
@@ -626,7 +626,7 @@ describe('file reconcile', () => {
 
 });
 
-describe('the retention sweep’s two halves (D12)', () => {
+describe('the retention sweep’s two halves', () => {
   let meta: MetaDb;
 
   beforeEach(async () => {

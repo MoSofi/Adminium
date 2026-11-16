@@ -3,9 +3,9 @@
  * The Branding panel (comp 627-648, Appendix A §E3): brand name, the logo
  * mark grid (twelve marks + *Your logo* when the workspace has one, D6),
  * from name, from email — a Combobox over the configured senders, never
- * free text (D7) — brand colour swatches, category, the status pills (D13:
+ * free text — brand colour swatches, category, the status pills (D13:
  * a template's toggle `enabled`; a campaign's are display-only) and the
- * language variations rows (D3). Then, on a server with workspaces, "Shown in"
+ * language variations rows. Then, on a server with workspaces, "Shown in"
  * for the whole family (every language of its key), beside the sender as the
  * Workspaces comp groups them.
  */
@@ -285,7 +285,7 @@ const STATUS_PILL: Record<DocumentStatus, string> = {
   failed: 'bg-danger-soft text-danger',
 };
 
-/** The comp's status pill (1562): `onClick` only for a template's Draft/Live (D13). */
+/** The comp's status pill (1562): `onClick` only for a template's Draft/Live. */
 function StatusPillButton({ on, status, onClick }: { on: boolean; status: DocumentStatus; onClick?: (() => void) | undefined }) {
   return (
     <button

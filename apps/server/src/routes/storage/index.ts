@@ -4,7 +4,7 @@
  *
  * ONE GRANT GUARDS THE WHOLE GROUP: `storage.manage`. A destination carries a
  * credential and decides where every byte on the instance lands, so it is not
- * `settings.manage` (D10) and it is emphatically not `files.manage` — an admin
+ * `settings.manage` and it is emphatically not `files.manage` — an admin
  * who may tidy other people's uploads has no business pointing the instance's
  * storage at a bucket they control.
  *
@@ -212,7 +212,7 @@ export function storageRoutes(deps: StorageRoutesDeps): FastifyPluginAsyncZod {
         } catch (error) {
           if (error instanceof DestinationInUseError) {
             // The count is the whole value of this refusal: "12 files live
-            // here" is actionable, a constraint violation is not (D20).
+            // here" is actionable, a constraint violation is not.
             throw new ConflictError(
               `This destination still holds ${String(error.fileCount)} file(s). Move them to another destination first.`,
               'CONFLICT',

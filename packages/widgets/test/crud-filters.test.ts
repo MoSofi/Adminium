@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The filters a page offers (D8): what a column can be filtered with, what a
+ * The filters a page offers: what a column can be filtered with, what a
  * table gets for free, and what a stored block may say.
  *
  * The derivation's two rules are the ones worth pinning, because both are

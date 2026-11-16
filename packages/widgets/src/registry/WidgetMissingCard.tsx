@@ -10,7 +10,7 @@ export interface WidgetMissingConfig {
   missingId?: string | undefined;
   /**
    * Edit-mode action slot — the dashboard builder passes a "Remove from
-   * layout" button here (M7); view mode leaves it empty.
+   * layout" button here; view mode leaves it empty.
    */
   [key: string]: unknown;
 }

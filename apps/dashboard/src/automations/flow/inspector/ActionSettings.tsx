@@ -371,7 +371,7 @@ function RowPicker({ input, value, connectionId, label, onChange, testId }: { in
   );
 }
 
-// --- email (D15) ------------------------------------------------------------
+// --- email ------------------------------------------------------------
 
 /**
  * A template select's options: the keys listed in the tab's workspace, and
@@ -712,7 +712,7 @@ function PlaceholderLine({
   );
 }
 
-// --- notification (D20) -----------------------------------------------------
+// --- notification -----------------------------------------------------
 
 function NotificationSettings(props: ActionSettingsProps & { action: Extract<Action, { kind: 'notification' }> }): ReactNode {
   const { action, sources, onChange } = props;
@@ -1005,7 +1005,7 @@ function DigestSettings({ action, sources, connectionId, onChange }: ActionSetti
   );
 }
 
-// --- record create / update (D17) ------------------------------------------
+// --- record create / update ------------------------------------------
 
 function RecordSettings({
   action,
@@ -1157,7 +1157,7 @@ function RecordSettings({
             ))}
         </Select>
         {/* `{ now: true }` is a MARKER, not a timestamp: three dialects have
-            three right answers and the runner picks one (D17). */}
+            three right answers and the runner picks one. */}
         <Select
           value=""
           aria-label={t('automations:rec.now', 'Now')}
@@ -1180,7 +1180,7 @@ function RecordSettings({
   );
 }
 
-// --- webhook and its Slack preset (D19) ------------------------------------
+// --- webhook and its Slack preset ------------------------------------
 
 function WebhookSettings({
   action,

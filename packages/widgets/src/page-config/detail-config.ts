@@ -109,7 +109,7 @@ export const crudAttachmentsConfigSchema = z.object({
    * never could — there is no record to attach to before Save.
    *
    * Absent ⇒ the sidecar, unchanged: files linked on Adminium's side, which is
-   * the fallback for a connection whose schema Adminium cannot author (D2).
+   * the fallback for a connection whose schema Adminium cannot author.
    */
   column: z.string().min(1).max(128).optional(),
 });

@@ -1652,7 +1652,7 @@ describe('acquisition routes', () => {
       await app.close();
     });
 
-    it('prefers the feed tagline over the manifest one for a staged row (D3)', async () => {
+    it('prefers the feed tagline over the manifest one for a staged row', async () => {
       await stage('holiday-calendars');
       const app = await buildApp();
       await store.writeCatalogCache(
@@ -1690,7 +1690,7 @@ describe('acquisition routes', () => {
     });
   });
 
-  describe('refresh and download refuse when the catalog is off (D8)', () => {
+  describe('refresh and download refuse when the catalog is off', () => {
     /**
      * One catalogue row, cached, for the download route to resolve.
      *
@@ -1866,7 +1866,7 @@ describe('acquisition routes', () => {
     });
   });
 
-  describe('POST /add-ons/upload — the sideload path (D4)', () => {
+  describe('POST /add-ons/upload — the sideload path', () => {
     /**
      * Uploads bytes the way Studio does: the tarball and the operator's hash,
      * and nothing about which add-on it is — the manifest inside says that.
@@ -2254,7 +2254,7 @@ describe('acquisition routes', () => {
     it('reports VETOED when the environment overrules the setting', async () => {
       /*
        * `ADMINIUM_NETWORK_FEATURES=off` and desktop air-gap mode outrank the
-       * stored boolean (O1). An operator can switch this on and have it stay
+       * stored boolean. An operator can switch this on and have it stay
        * off, and the reply has to say so — a toggle that springs back with no
        * explanation reads as a broken page rather than as a policy.
        */

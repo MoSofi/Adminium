@@ -42,7 +42,7 @@ export interface ColumnFacts {
   semantic?: string | undefined;
   nullable: boolean;
   primaryKey?: boolean | undefined;
-  /** Masked or secret. A document may READ one; the panel says which (D16). */
+  /** Masked or secret. A document may READ one; the panel says which. */
   pii?: boolean | undefined;
 }
 
@@ -289,7 +289,7 @@ export function toMapping(bindings: Bindings): Record<string, unknown> {
          * NEITHER REACHES `mapping`, and they mean different things.
          *
          * `unmapped` is "the provider decides what an absent slot means" — for
-         * the invoices provider that is no tax line at all (D20), which is the
+         * the invoices provider that is no tax line at all, which is the
          * only honest answer to a rate nobody entered.
          *
          * `literal` is a value typed HERE, and it belongs in `options` rather
@@ -297,7 +297,7 @@ export function toMapping(bindings: Bindings): Record<string, unknown> {
          * literal is read from nothing. Keeping them apart is what lets the
          * editor show a bound field as its column name and a typed one as its
          * value, so an operator can see at a glance which half of the document
-         * is live (O20).
+         * is live.
          */
         break;
     }

@@ -4,7 +4,7 @@
  * workflow-logs.md).
  *
  * Two entry points per action, `run` and `dryRun`, and the split is the whole
- * design of the Test button (D14): a dry run resolves the template, the
+ * design of the Test button: a dry run resolves the template, the
  * recipients, the coerced values and the guarded URL — everything the real
  * one does — and stops one line short of the side effect. That is what makes
  * "Test executes nothing" a fact rather than a promise, and it is why the two
@@ -74,7 +74,7 @@ export interface ActionContext {
   via?: { assistant: { sessionId: string; turnId: string } } | undefined;
   now: number;
   source: ActionSource | null;
-  /** `{{record.x}}`, `{{now}}`, `{{ruleName}}`, `{{recordLabel}}` (D16). */
+  /** `{{record.x}}`, `{{now}}`, `{{ruleName}}`, `{{recordLabel}}`. */
   tokens: TokenMap;
   /**
    * The rows the run's steps made so far (`{{steps.<name>.<column>}}`), each

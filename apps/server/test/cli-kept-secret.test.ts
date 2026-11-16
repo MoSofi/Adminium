@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `adminium try` makes and keeps its own secret (V21): the quickstart's
+ * `adminium try` makes and keeps its own secret: the quickstart's
  * `npx @adminiumjs/adminium try` stopped at once without ADMINIUM_SECRET.
  */
 import { mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';

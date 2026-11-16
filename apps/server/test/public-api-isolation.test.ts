@@ -72,7 +72,7 @@ function memoryStore(meta: MetaDb): MetaStoreHandle {
  * compose would let a route escape by simply not existing in the suite.
  *
  * `HOST` is loopback so the public namespace itself registers without
- * `ADMINIUM_TRUST_PROXY` (D21) — the point is to prove the key is refused
+ * `ADMINIUM_TRUST_PROXY` — the point is to prove the key is refused
  * everywhere ELSE while the public routes are genuinely present.
  */
 async function composeWidest(
@@ -559,7 +559,7 @@ describe('The off switch', () => {
     expectNoPublicNamespace(composed.app.printRoutes({ commonPrefix: false }));
   }, 60_000);
 
-  it('refuses to register on a non-loopback bind without TRUST_PROXY, and says why (D18/D21)', async () => {
+  it('refuses to register on a non-loopback bind without TRUST_PROXY, and says why', async () => {
     const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
     await firstRun(meta);
     const runService = createRunService({ meta });

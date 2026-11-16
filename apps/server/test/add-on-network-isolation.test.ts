@@ -523,7 +523,7 @@ describe('add-on catalog: the shelf defers monetization by construction', () => 
     expect(JSON.stringify(catalog)).not.toContain('evil.example');
   });
 
-  it('refuses a floating version in a release (D9)', async () => {
+  it('refuses a floating version in a release', async () => {
     for (const version of ['latest', '^1.0.0', '1.x', '*']) {
       const catalog = await read(shelf([wireItem({}, { version })]));
       expect(catalog.addOns, `expected ${version} to be refused`).toEqual([]);

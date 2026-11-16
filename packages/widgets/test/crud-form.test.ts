@@ -5,10 +5,10 @@
  *
  * ─── The three failures this file exists to hold shut ──────────────────────
  *
- * 1. A form that hides a column nothing fills (B1) — the create the owner
+ * 1. A form that hides a column nothing fills — the create the owner
  *    reported. The derivation asks WHO FILLS IT, never what the column is
  *    called.
- * 2. A required column at the BOTTOM of the form (B10), because the grid's
+ * 2. A required column at the BOTTOM of the form, because the grid's
  *    eight-column cap dropped it and it was re-appended last. The derivation is
  *    in the table's own order and knows nothing about the grid.
  * 3. A stored document that predates a column the database now demands. The
@@ -169,7 +169,7 @@ describe('the form a table gets when nobody designed one', () => {
     expect(createdAt?.control).toBe('datetime');
   });
 
-  it('puts a required column where the TABLE puts it, not at the bottom (B10)', () => {
+  it('puts a required column where the TABLE puts it, not at the bottom', () => {
     // The grid's eight-column cap re-appended a required column last, so it
     // rendered under everything optional. The form knows nothing about the grid.
     const wide: FormColumnFact[] = [

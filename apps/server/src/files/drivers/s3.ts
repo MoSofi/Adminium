@@ -15,7 +15,7 @@
  * THE PUT BODY IS A FILE STREAM WITH AN EXACT `Content-Length`. undici accepts
  * a `Readable` as a body, but only sends it unchunked when the length is
  * declared — and a chunked PUT against a signature computed over the real
- * payload hash is a 403 on some targets and a 501 on others. The spool (D4)
+ * payload hash is a 403 on some targets and a 501 on others. The spool
  * knows the length, which is the whole reason it exists. `duplex: 'half'` is
  * required by the fetch spec for any streaming request body.
  *

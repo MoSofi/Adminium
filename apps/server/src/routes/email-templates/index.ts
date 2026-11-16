@@ -10,7 +10,7 @@
  * its body, the mirror ops on the save — so a half-typed password reset is
  * never the row `enqueueEmail` renders from between keystrokes.
  *
- * WHAT 39 RETIRED (D20). `PUT /email-templates/:key/:locale` (implicit create
+ * WHAT 39 RETIRED. `PUT /email-templates/:key/:locale` (implicit create
  * by key, the M7 autosave's target) and `POST /email-templates/:key/test-send`
  * (one address, the stored row, the actor's locale) are gone; their semantics
  * are the ones this module replaces. `GET /email-templates/:key/:locale` stays

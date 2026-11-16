@@ -3,7 +3,7 @@
 /**
  * What the rail has to say, and to whom.
  *
- * The labels hide below 640px (DP11), so the only thing carrying "which step am
+ * The labels hide below 640px, so the only thing carrying "which step am
  * I on" at every width is `aria-current` — which makes it the assertion.
  */
 import { cleanup, render, screen } from '@testing-library/react';

@@ -470,7 +470,7 @@ describe('bootstrap hostedApps', () => {
 describe('framing — the internal placement\'s precondition', () => {
   it('lets the dashboard frame a staff surface at its own origin', async () => {
     /*
-     * The internal placement (D6) puts `/apps/<key>/staff/` inside an iframe on
+     * The internal placement puts `/apps/<key>/staff/` inside an iframe on
      * `/a/<key>/…`. Both are this origin, so this passes — but it passed
      * NOTHING before: helmet shipped `frame-ancestors 'none'` and
      * `X-Frame-Options: DENY`, and the frame would have rendered blank with a

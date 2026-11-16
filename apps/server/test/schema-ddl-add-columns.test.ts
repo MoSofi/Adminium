@@ -500,7 +500,7 @@ describe('the refusals only this door can hit', () => {
   });
 });
 
-describe('the plan’s identity covers the added column (D2)', () => {
+describe('the plan’s identity covers the added column', () => {
   it('changes the checksum when the column changes', async () => {
     const one = await planSchemaEdit(
       planInput('postgres', { ...EMPTY_EDIT, addColumns: [{ table: 'public.invoices', column: attachments }] }),

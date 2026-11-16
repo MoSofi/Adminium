@@ -213,7 +213,7 @@ describe('default rendering', () => {
     expect(mysqlServerNow(summer)).toBe(mysqlServerNow(new Date(summer.getTime() + 60_000)));
   });
 
-  it('refuses a database-generated uuid off postgres (D31)', () => {
+  it('refuses a database-generated uuid off postgres', () => {
     const d = { logicalType: 'uuid' as const, default: { kind: 'uuid' as const } };
     expect(renderDefault(d, 'postgres')).toBe('gen_random_uuid()');
     expect(() => renderDefault(d, 'mysql')).toThrow(/Postgres-only/);
@@ -474,7 +474,7 @@ describe('compiled statements per step kind', () => {
     expect(() => sql('postgres', { ...step, constraint: null })).toThrow(/needs its name/);
   });
 
-  it('emits a CHECK for an enum column (D32) rather than a native type', () => {
+  it('emits a CHECK for an enum column rather than a native type', () => {
     const enumTable = tbl({
       name: 't',
       columns: [
@@ -960,7 +960,7 @@ describe('free SQL text from a snapshot or an import never leaves its place in a
   });
 });
 
-describe('columnDefinition keeps a display-only type verbatim (D30)', () => {
+describe('columnDefinition keeps a display-only type verbatim', () => {
   it('restates an interval column by its stored dbType rather than refusing', () => {
     const table = tbl({
       name: 't',

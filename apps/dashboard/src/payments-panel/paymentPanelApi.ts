@@ -88,7 +88,7 @@ export interface PaymentPanelView {
   due: string;
   paid: string;
   refusal: { code: string; message: string } | null;
-  /** Refunded in its app, where its refund rows are kept (CR4). */
+  /** Refunded in its app, where its refund rows are kept. */
   inApp?: { app: string | null; openIn: string | null } | null;
   links: { on: boolean; reason: string | null };
   mayChange: boolean;

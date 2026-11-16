@@ -13,7 +13,7 @@
  * who knows an order number and an email is that customer as far as this
  * module is concerned. That is acceptable for "track my order" and is not
  * acceptable for a medical record, which is why `compileScope` refuses the
- * `lookup` strategy on a resource the operator marked `sensitive` (D11/D17) —
+ * `lookup` strategy on a resource the operator marked `sensitive` —
  * boot-fatal, not advisory. The rate limiter is the only thing bounding a walk
  * of the reference space, and it is an in-process `Map`; both facts are
  * recorded rather than hidden.

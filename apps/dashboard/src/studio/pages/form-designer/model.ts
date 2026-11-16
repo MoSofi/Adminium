@@ -158,7 +158,7 @@ export function patchField(
   }));
 }
 
-/** The columns and relations the document does not name yet (F17). */
+/** The columns and relations the document does not name yet. */
 export function missingFields(
   document: CrudFormConfig,
   facts: { columns: readonly FormColumnFact[]; relations?: readonly FormRelationFact[] | undefined },

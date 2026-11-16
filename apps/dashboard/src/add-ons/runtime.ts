@@ -109,7 +109,7 @@ export function ensureAddOnRuntime(options: { data?: boolean } = {}): Promise<vo
         query: { QueryClient, queryOptions, useMutation, useQuery, useQueryClient },
         i18n: { tagForLocale },
         /*
-         * The host itself (O7). These are why an add-on page can BE a
+         * The host itself. These are why an add-on page can BE a
          * dashboard page rather than an iframe with a border: it renders into
          * the shell's own chrome, translates through the running catalogue,
          * and calls the API with the session's CSRF token.

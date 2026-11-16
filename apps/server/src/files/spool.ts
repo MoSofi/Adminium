@@ -13,7 +13,7 @@
  *     of the whole body. Both are known only after the last byte.
  *  2. The size cap must fire BEFORE the bucket has the object; aborting a
  *     stream that is already half-way into S3 leaves an object to clean up.
- *  3. The sniffing gate (D8) must see the head BEFORE anything is committed.
+ *  3. The sniffing gate must see the head BEFORE anything is committed.
  *  4. A browser upload may arrive chunked, with no length at all.
  *
  * On the local driver the spool IS the write: the finished temp file is

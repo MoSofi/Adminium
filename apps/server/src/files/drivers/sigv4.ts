@@ -25,7 +25,7 @@
  *     plan generates — dated paths with separators.
  *  4. The PAYLOAD hash. This signer always signs the real sha256, never
  *     `UNSIGNED-PAYLOAD`, so a plain-HTTP MinIO in dev is signed identically
- *     to production TLS. The spool (D4) is what makes that free: the hash is
+ *     to production TLS. The spool is what makes that free: the hash is
  *     known before the request starts.
  */
 
@@ -190,7 +190,7 @@ export function signRequest(request: SigV4Request, credentials: SigV4Credentials
 /**
  * A time-limited GET URL that carries its own signature.
  *
- * WRITTEN, UNIT-TESTED, AND WITHOUT A CALLER IN v1 — deliberately (D34/O4). v1
+ * WRITTEN, UNIT-TESTED, AND WITHOUT A CALLER IN v1 — deliberately. v1
  * proxies every byte through the server so the grant check, the audit row and
  * `nosniff` always apply; direct transfers are a phase-2 per-destination flag.
  * It lives here now because a presigner written later, against a signer that

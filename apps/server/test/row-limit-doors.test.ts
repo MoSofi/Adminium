@@ -142,7 +142,7 @@ for (const [dialect, available] of ENGINES) {
       await w?.close();
     });
 
-    describe('a file of a table (X1–X4)', () => {
+    describe('a file of a table', () => {
       it('holds the rows its requester reaches', async () => {
         expect(keysIn((await download('dana', await exportDeals('dana'))).body)).toEqual([1, 2, 5, 9]);
         expect(keysIn((await download('mara', await exportDeals('mara'))).body)).toEqual([1, 2, 3, 4, 5, 9]);
@@ -197,7 +197,7 @@ for (const [dialect, available] of ENGINES) {
       });
     });
 
-    describe('a file brought in (I1, I2)', () => {
+    describe('a file brought in', () => {
       it('links no row into a table its requester does not read, but for a row that is theirs', async () => {
         // Kim owns no deal; Sam owns deals 6 and 8. Neither reads the deals.
         const kims = await importDeals('kim', 'id,deal_id,total\n901,3,1\n902,,1\n', { mode: 'insert' }, w.id('quotes'));
@@ -358,7 +358,7 @@ for (const [dialect, available] of ENGINES) {
       });
     });
 
-    describe('a document (P1, P3)', () => {
+    describe('a document', () => {
       let plain: string;
       let lined: string;
       const kept: Record<string, string> = {};
@@ -448,7 +448,7 @@ for (const [dialect, available] of ENGINES) {
       });
     });
 
-    describe('a file hung on a record (F1–F3)', () => {
+    describe('a file hung on a record', () => {
       let hers: string;
       let omars: string;
       let inFlight: string;
@@ -569,7 +569,7 @@ for (const [dialect, available] of ENGINES) {
       });
     });
 
-    describe('the audit log (A1)', () => {
+    describe('the audit log', () => {
       it('leaves out the entries of a table its reader reads in part', async () => {
         const changed = await call('owner', 'PATCH', `data/${w.connectionId}/${encodeURIComponent(deals())}/3`, { values: { amount: 8001 } });
         expect(changed.statusCode, changed.body).toBe(200);
@@ -627,7 +627,7 @@ for (const [dialect, available] of ENGINES) {
       });
     });
 
-    describe('a rule and its runs (U1–U3)', () => {
+    describe('a rule and its runs', () => {
       const rule = (name: string) => ({
         name,
         connectionId: w.connectionId,
@@ -681,7 +681,7 @@ for (const [dialect, available] of ENGINES) {
       });
     });
 
-    describe('the figures a model is sent (G1)', () => {
+    describe('the figures a model is sent', () => {
       it('leave out a table the asker reads in part', async () => {
         const model = await w.model();
         const collect = createConnectionStatsCollector({ manager: w.manager });
@@ -713,7 +713,7 @@ for (const [dialect, available] of ENGINES) {
       });
     });
 
-    describe('the schema (H1)', () => {
+    describe('the schema', () => {
       it('tells nobody how many rows a table they read in part holds', async () => {
         // The stored snapshot, as an introspection that counted would have left it.
         const stored = (await snapshotsRepo(w.meta).latest(w.connectionId))!;

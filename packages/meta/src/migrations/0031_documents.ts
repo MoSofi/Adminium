@@ -37,7 +37,7 @@
  * re-derived its content would be a register of what things look like NOW,
  * which is not what an issued document is.
  *
- * ─── `number` has no unique index, and that is deliberate (D11) ────────────
+ * ─── `number` has no unique index, and that is deliberate ────────────
  *
  * A document number is claimed from `adminium_document_sequences` by
  * compare-and-set AFTER a successful render, so a failed render burns no

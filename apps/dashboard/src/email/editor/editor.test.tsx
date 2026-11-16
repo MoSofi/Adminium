@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The editor shell: explicit save (D1) with its chip and history, the
- * discard guard, and the language menu (D3). Rendered through the real
+ * The editor shell: explicit save with its chip and history, the
+ * discard guard, and the language menu. Rendered through the real
  * router and shell so the topbar's Back and the blocker are the product's
  * own.
  */
@@ -247,7 +247,7 @@ describe('Editor shell', () => {
     expect(byLocale['de_DE']).toBe('translated');
     expect(byLocale['fr_FR']).toBe('needsTranslation');
     expect(byLocale['cs_CZ']).toBe('missing');
-    // An archived sibling reads as not created (D3).
+    // An archived sibling reads as not created.
     expect(byLocale['da_DK']).toBe('missing');
     expect(rows[0]?.getAttribute('data-locale')).toBe('en_US');
     expect(within(rows[0] as HTMLElement).getByText('Editing now')).toBeDefined();

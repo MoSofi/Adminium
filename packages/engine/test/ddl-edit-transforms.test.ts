@@ -437,7 +437,7 @@ describe('desiredTableToModel — the authored index list', () => {
       { name: null, columns: ['status'], unique: false },
     ]);
     expect(model.indexes.map((i) => i.unique)).toEqual([true, false]);
-    // The four fields the closed vocabulary has no way to author (D30). An
+    // The four fields the closed vocabulary has no way to author. An
     // authored index is never the primary key's, never an expression index,
     // never partial, and never picks an access method — the planner's per-dialect
     // renderer chooses that.

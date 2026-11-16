@@ -89,7 +89,7 @@ describe('the wizard', () => {
     expect(screen.queryByLabelText(/Due/)).toBeNull();
     // The rail is a landmark with the steps as a list, and the current one
     // carries `aria-current` at every width — the labels themselves hide below
-    // 640px (DP11).
+    // 640px.
     const current = screen.getAllByRole('listitem').find((item) => item.getAttribute('aria-current') === 'step');
     expect(current?.textContent).toContain('Profile');
     expect(latest().steps).toBe(2);
@@ -140,7 +140,7 @@ describe('the media aside (comp 268)', () => {
     const aside = document.querySelector('[data-part="section-aside"]');
     expect(aside).not.toBeNull();
     // 150px, the comp's own — a named section feature rather than a per-row
-    // pixel grid an admin could not express (DP14).
+    // pixel grid an admin could not express.
     expect(aside?.firstElementChild?.className).toContain('w-[150px]');
     expect(aside?.firstElementChild?.textContent).toContain('Notes');
   });
@@ -154,7 +154,7 @@ describe('quick create', () => {
     expect(pills.textContent).toContain('Due');
     expect(pills.textContent).toContain('Priority');
     expect(pills.textContent).toContain('Done');
-    // A number cannot be a pill, so it keeps the ordinary field anatomy (F20).
+    // A number cannot be a pill, so it keeps the ordinary field anatomy.
     expect(screen.getByLabelText(/Hours/)).toBeTruthy();
   });
 
@@ -172,7 +172,7 @@ describe('quick create', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('toggles a boolean with no menu at all (F19)', async () => {
+  it('toggles a boolean with no menu at all', async () => {
     const { user } = renderForm(quick);
     const done = screen.getByTestId('quick-pill-done');
     expect(done.getAttribute('aria-pressed')).toBe('false');
@@ -181,7 +181,7 @@ describe('quick create', () => {
   });
 });
 
-describe('the date presets (DP12)', () => {
+describe('the date presets', () => {
   const t = ((_key: string, fallback: string) => fallback) as never;
 
   it('stores a DATE, not a label', () => {

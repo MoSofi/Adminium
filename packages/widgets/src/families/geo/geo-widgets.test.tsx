@@ -1363,7 +1363,7 @@ describe('map-bubble — shapes of several pieces, late areas, numbering, the li
   });
 });
 
-// ── what the two map screens draw (T25) ─────────────────────────────────────
+// ── what the two map screens draw ─────────────────────────────────────
 
 describe('map-bubble — names on areas, a colour per pin, select-and-frame, a host’s own list, click-to-place, "Try again", drive times, a link out', () => {
   const NORTH = { type: 'Polygon' as const, coordinates: [[[0, 0], [2, 0], [2, 2], [0, 2], [0, 0]]] };

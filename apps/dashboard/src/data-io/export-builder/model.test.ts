@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The Export Builder's draft rules: the comp's header casing (D4), the three
- * add outcomes (731-737), the per-family budgets (D9, D11), duplicate
- * headers, reorder, the wire shape (D1) and the round trip a finished export
+ * The Export Builder's draft rules: the comp's header casing, the three
+ * add outcomes (731-737), the per-family budgets, duplicate
+ * headers, reorder, the wire shape and the round trip a finished export
  * makes back into a draft ("Based on").
  */
 import { describe, expect, it } from 'vitest';
@@ -90,7 +90,7 @@ const schema: SchemaReply = {
 const itemsLink = inboundLinks(schema, invoices)[0];
 if (itemsLink === undefined) throw new Error('fixture: no inbound link');
 
-describe('headers follow the comp (D4)', () => {
+describe('headers follow the comp', () => {
   it('sentence-cases a column name and reads a trailing id as ID', () => {
     expect(sentence('contact_name')).toBe('Contact name');
     expect(sentence('client_id')).toBe('Client ID');
@@ -135,7 +135,7 @@ describe('the default draft and the add outcomes', () => {
     expect(added.draft.columns.at(-1)?.kind).toBe('count');
   });
 
-  it('budgets per family — twelve linked, twelve totals, eight calculated (D9, D11)', () => {
+  it('budgets per family — twelve linked, twelve totals, eight calculated', () => {
     let draft: Draft = { columns: [], measures: [], fields: [] };
     for (let i = 0; i < MAX_LINKED; i += 1) {
       const column = mkLinked([{ via: 'client_id', table: clients }], { name: `c${i}`, logicalType: 'text' }, new Set());
@@ -167,7 +167,7 @@ describe('the default draft and the add outcomes', () => {
     draft = withFold.draft;
     const operands = operandsOf(draft);
     // Every numeric base column (the comp's `numCols`, 1018 — keys and links
-    // included) and the fold; never a linked value (D10).
+    // included) and the fold; never a linked value.
     expect(operands.map((operand) => operand.column.spec.name)).toEqual(['id', 'client_id', 'tax_rate', 'invoice_items__line_total']);
     const tax = operands[2] as never;
     const subtotal = operands[3] as never;
@@ -209,7 +209,7 @@ describe('editing the list', () => {
   });
 });
 
-describe('the wire and the round trip (D1)', () => {
+describe('the wire and the round trip', () => {
   it('writes a page-config-shaped body and reads it back as the same draft', () => {
     let draft = defaultDraft(invoices);
     const linked = mkLinked([{ via: 'client_id', table: clients }], clients.columns[1] as never, new Set());
@@ -251,7 +251,7 @@ describe('the wire and the round trip (D1)', () => {
   });
 });
 
-describe('suggestions (D15)', () => {
+describe('suggestions', () => {
   it('offers the linked display value, the count and the money sum, hidden once added', () => {
     const suggestions = suggestionsFor(schema, invoices);
     expect(suggestions.map((suggestion) => suggestion.label)).toEqual([

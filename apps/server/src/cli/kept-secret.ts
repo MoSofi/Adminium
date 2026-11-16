@@ -3,7 +3,7 @@
  * The secret `adminium try` keeps beside its data.
  *
  * `try` is the "nothing to set up" door, yet it stopped at once without
- * `ADMINIUM_SECRET` (V21). So when the environment sets none, `try` makes one
+ * `ADMINIUM_SECRET`. So when the environment sets none, `try` makes one
  * and keeps it in `<data dir>/secret`, readable by the owner only, as the
  * desktop app keeps its own in `config.json`. Every later command that loads
  * the environment through `loadCliEnv` (`start`, `migrate`, `owner` …) reads it

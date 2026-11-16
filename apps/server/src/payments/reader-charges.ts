@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * CHARGES ON A CARD READER (E6): the till asks, the engine drives the reader.
+ * CHARGES ON A CARD READER: the till asks, the engine drives the reader.
  *
  *  1. The cashier presses Card. The engine reads the record again (what is due
  *     now, never the till's figure; a part payment may ask less), and inserts

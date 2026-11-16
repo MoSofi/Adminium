@@ -216,7 +216,7 @@ describe('the rail offers "Import data" to whoever can bring a file in', () => {
   });
 });
 
-describe('the rail offers "Data exports" to whoever can take a file out (V28)', () => {
+describe('the rail offers "Data exports" to whoever can take a file out', () => {
   // By address: the fixture's nav also holds a generated page titled "Data exports" (`/p/exports`).
   const exportsRow = () =>
     screen.getByRole('navigation', { name: 'Primary' }).querySelector('a[href="/exports"]');

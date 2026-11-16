@@ -133,7 +133,7 @@ const FOLD_OPTIONS: Record<Exclude<MeasureFn, 'count'>, () => string> = {
   max: () => t('studio:pages.columns.fold.max', 'Max'),
 };
 
-/** `min`/`max` take exactly one column; `sum`/`avg` may multiply up to four (D17). */
+/** `min`/`max` take exactly one column; `sum`/`avg` may multiply up to four. */
 const MAX_FACTORS = 4;
 
 /**
@@ -521,7 +521,7 @@ export function ColumnManager({
   /**
    * Every alias this page has already claimed — base columns, lookups,
    * reverse counts, measures and fields share ONE namespace, because they all
-   * become row keys and the server refuses a collision by name (D26).
+   * become row keys and the server refuses a collision by name.
    */
   const takenAliases = useMemo(
     () =>
@@ -594,7 +594,7 @@ export function ColumnManager({
    * It does NOT widen the `reverse` block. That vocabulary stays `count`-only
    * for good, which is what lets the client emitter drop any other `agg` token
    * before it reaches the wire without ever suppressing a column this editor
-   * just authored (D15).
+   * just authored.
    */
   function addMeasure(link: InboundLink, fn: MeasureFn, factors: SchemaColumn[]): void {
     const { measure, column } = specForMeasure({ link, fn, factors, taken: takenAliases });
@@ -1759,7 +1759,7 @@ function InboundRow({
     setFactors((current) => {
       if (current.includes(name)) return current.filter((entry) => entry !== name);
       // min/max take exactly one column; a factor beyond the fourth is refused
-      // by the schema, so the control stops offering one (D17).
+      // by the schema, so the control stops offering one.
       if (single) return [name];
       return current.length >= MAX_FACTORS ? current : [...current, name];
     });

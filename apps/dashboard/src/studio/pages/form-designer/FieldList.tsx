@@ -10,12 +10,12 @@
  * touch screen, and how a field crosses into the next section — which a
  * vertical drag inside one list cannot express.
  *
- * ─── The missing-column notice (F17) ───────────────────────────────────────
+ * ─── The missing-column notice ───────────────────────────────────────
  *
  * A designed form is a snapshot; the table moves. A column the form does not
  * name is offered at the bottom with an Add button, and one the database
  * DEMANDS is offered in the danger tone — because the dialog appends it at read
- * time anyway (D10), and a designer who cannot see that is a designer surprised
+ * time anyway, and a designer who cannot see that is a designer surprised
  * by a field they did not place.
  */
 import {

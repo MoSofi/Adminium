@@ -78,7 +78,7 @@ export interface ColumnFact {
   /**
    * The answers this column accepts, when an admin fixed them with
    * `column.options` (phase C). A LIST travels as its key, never as a copy of
-   * a 249-row list (D16) — the client resolves it once and caches it. Inline
+   * a 249-row list — the client resolves it once and caches it. Inline
    * values carry their words in the reader's language.
    */
   options?: { list: string } | { values: ColumnOptionItem[] };
@@ -268,7 +268,7 @@ function blockFor(
        * Required to the DIALOG, which is a different question from required to
        * the database: a NOT NULL column something fills is nobody's business,
        * and an admin's `column.required` on a nullable column is still a field
-       * the person must answer (D26).
+       * the person must answer.
        */
       required:
         filledBy === null &&

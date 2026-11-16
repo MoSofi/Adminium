@@ -116,8 +116,8 @@ describe('a mapping’s trigger becomes a rule', () => {
     /*
      * 42's record trigger can also poll, so rows written straight into the
      * database are noticed. A document mapping must not: the step-5 note
-     * tells the operator, in eight languages, that an import draws nothing
-     * (D10). Leaving the poller on would make that sentence false and mint
+     * tells the operator, in eight languages, that an import draws nothing.
+     * Leaving the poller on would make that sentence false and mint
      * invoices for a bulk import nobody meant to invoice.
      */
     const profile = await makeProfile({ trigger: { event: 'record.created' } });

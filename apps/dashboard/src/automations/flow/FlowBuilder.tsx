@@ -51,7 +51,7 @@ export interface FlowBuilderProps {
   /** The node the Test animation is on right now, and the ones it finished. */
   runningId: string | null;
   ranIds: readonly string[];
-  /** The step the server refused to enable on — lit until it is fixed (D12). */
+  /** The step the server refused to enable on — lit until it is fixed. */
   incompleteId: string | null;
   onSelect: (id: string) => void;
   onRemove: (id: string) => void;

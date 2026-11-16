@@ -103,7 +103,7 @@ export interface PageNavBefore {
 /**
  * Everything needed to revert exactly one apply in a single transaction. Returned
  * from {@link ApplyResult.undo} and consumed by {@link undoApply}; the route layer
- * (T11) parks it in the app-wide undo store and calls back on the toast action.
+ * parks it in the app-wide undo store and calls back on the toast action.
  */
 export interface ApplyUndo {
   connectionId: string;

@@ -10,7 +10,7 @@
  *
  * The empty stack is the comp's dashed box (344). There is no between-block
  * insert chip and no trailing *Add section* button — blocks are appended from
- * the palette only (C8).
+ * the palette only.
  *
  * READ-ONLY draws the same paper with nothing on it to operate: no outlines,
  * no selector buttons, no inline fields, no grips, no head-row actions. It
@@ -39,7 +39,7 @@ export interface ReportCanvasProps {
   readOnly?: boolean | undefined;
   edits?: DocumentEdits | undefined;
   selection?: Selection | undefined;
-  /** BCP-47, from the viewer's preference (D11). */
+  /** BCP-47, from the viewer's preference. */
   locale: string;
 }
 

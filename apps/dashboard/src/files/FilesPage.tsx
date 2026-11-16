@@ -55,7 +55,7 @@
  * (`packages/meta/src/repos/files.ts:175-183`) — so re-deleting a trashed file
  * updates zero rows. A button looping `DELETE` over the trash would be a
  * control that does nothing at all. Bytes leave only via the daily
- * retention sweep (D12), so the trash preset says that plainly instead of
+ * retention sweep, so the trash preset says that plainly instead of
  * offering a lever that is not connected to anything.
  *
  * ── DELETE IS SOFT, SO IT ASKS NOTHING ────────────────────────────────────
@@ -245,7 +245,7 @@ export function FilesPage(): ReactNode {
 
   const trash = useCallback(
     (file: FileDto) => {
-      // No confirm: this is reversible for the retention window (D12), and the
+      // No confirm: this is reversible for the retention window, and the
       // Undo below is both the safety net and the explanation of what happened.
       deleteFile(file.id)
         .then(() => {
@@ -519,7 +519,7 @@ export function FilesPage(): ReactNode {
   );
 }
 
-/* --- the usage strip (D23) --------------------------------------------------- */
+/* --- the usage strip --------------------------------------------------- */
 
 /**
  * Bytes per destination, as facts.
@@ -540,7 +540,7 @@ function UsageStrip({ entries }: { entries: readonly StorageUsageEntry[] }): Rea
     >
       {entries.map((entry) => {
         // Only a local disk reports one; a bucket returns no `available` and
-        // therefore gets no meter (D10).
+        // therefore gets no meter.
         const capacity = diskCapacityOf(entry);
         return (
         <Card key={entry.destinationId ?? LOCAL_DESTINATION_VALUE} className="flex flex-col gap-1.5">
@@ -815,7 +815,7 @@ interface FilesTableProps {
   state: FilesFilters['state'];
   localeTag: string;
   destinationNames: ReadonlyMap<string | null, string>;
-  /** Connection id → its name, for a file that belongs to no record (D18). */
+  /** Connection id → its name, for a file that belongs to no record. */
   connectionNames: ReadonlyMap<string, string>;
   /** All in one menu: the workspaces holding each file's database, as a column. */
   workspaces?: ListWorkspace;
@@ -930,8 +930,8 @@ function FilesTable(props: FilesTableProps): ReactNode {
                         A plain anchor, not a fetch: the content route answers
                         with `content-disposition: attachment` and a private
                         cache header, so the browser's own download machinery is
-                        already correct. Trashed bytes 404 there by design
-                        (D12), which is why this is absent — not disabled — in
+                        already correct. Trashed bytes 404 there by design,
+                        which is why this is absent — not disabled — in
                         the trash.
                       */}
                       <Button

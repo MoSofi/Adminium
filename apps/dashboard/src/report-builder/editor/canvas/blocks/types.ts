@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * What every canvas block body receives: ONE block object plus the editing
- * surface, and the viewer's locale for the three figures `Intl` formats
- * (D11).
+ * surface, and the viewer's locale for the three figures `Intl` formats.
  *
  * A PRIVATE SET. These components import nothing from `src/invoices`, nothing
  * from `@adminium/widgets` and nothing from `@adminium/charts`: seventeen of

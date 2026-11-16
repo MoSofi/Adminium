@@ -122,7 +122,7 @@ export interface JobsAndRealtimeOptions {
    * exists: `POST /documents/render`, a public request-shaped intent, and a
    * retry of either. The TRIGGERED path does not come through here — a
    * profile's trigger is an automation, and the render is a step inside that
-   * rule's own run (D55).
+   * rule's own run.
    */
   documents?: RenderDeps | undefined;
   dataIo?:

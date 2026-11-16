@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The report editor (E1–E11): the header, the palette, the canvas and the
+ * The report editor: the header, the palette, the canvas and the
  * inspector over ONE draft that only `save()` sends (D4/O6, inheriting
  * model).
  *
@@ -9,13 +9,13 @@
  * `beforeunload` covers the tab. One navigation bypasses it on purpose: the
  * one that follows a delete (the row is gone; an unsaved edit to it has
  * nowhere to go). The comp has no guard because it autosaves (524); the
- * explicit-save model forces this addition (E4).
+ * explicit-save model forces this addition.
  *
  * SELECTION drives the inspector (the comp's `selBlock`, 443): clicking the
  * header region or a block card sets it, adding a block selects the new one
  * (535), deleting one falls back to `header` (538).
  *
- * *PUBLISH* (D5/O2) saves the draft AND sets `status: 'sent'` in the same PUT;
+ * *PUBLISH* saves the draft AND sets `status: 'sent'` in the same PUT;
  * on an already-published report it just saves. A template's primary reads
  * *Save template* and only saves. `Ctrl/⌘+S` always saves without the status
  * change (`mod+s` is on the shortcut manager's typing allowlist).

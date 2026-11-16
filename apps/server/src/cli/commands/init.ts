@@ -440,7 +440,7 @@ export const initCommand: Command = {
     });
 
     // No ADMINIUM_SECRET: a new data folder gets one of its own, kept beside
-    // its data (`kept-secret.ts`), so `try` asks nothing first (V21). A folder
+    // its data (`kept-secret.ts`), so `try` asks nothing first. A folder
     // that already holds an instance is refused in words of its own, before a
     // single question, because nothing we collect could be stored without it.
     const secretDir = dataDirFlag ?? (deps.env.ADMINIUM_DATA_DIR || defaultDataDir());

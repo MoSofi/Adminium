@@ -11,7 +11,7 @@
  * topbar, so this header sticks just under it (`--adm-topbar-h`, measured by
  * the editor) rather than at the comp's `top: 0`.
  *
- * A campaign gets a secondary *Save* before the primary *Send campaign* (D11);
+ * A campaign gets a secondary *Save* before the primary *Send campaign*;
  * a template's primary IS the save. While a run is scheduled, sending or
  * paused the campaign wears its controls (`runControls`: *Scheduled · date*
  * and *Cancel schedule*, or *Sending · 120 of 470* with *Pause sending* and

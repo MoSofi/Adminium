@@ -49,7 +49,7 @@ interface StubOptions {
   authed?: boolean;
   /**
    * The server connected a database before the wizard opened — what
-   * `adminium new shop --database …` + `npm run dev` leaves behind (V7). Its
+   * `adminium new shop --database …` + `npm run dev` leaves behind. Its
    * connections list answers with it once signed in.
    */
   connected?: { name: string; status: string; tableCount: number | null; pageCount: number }[];

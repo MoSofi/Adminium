@@ -139,7 +139,7 @@ export function addOnSettingsPermission(addOnKey: string): string {
 const ADD_ON_SETTINGS_REF_PREFIX = 'add-on/';
 
 /**
- * `payments:<appKey>:refund` (D20) — give back the money paid online for ONE
+ * `payments:<appKey>:refund` — give back the money paid online for ONE
  * app's records: the refund right an app's role is given (`payments:@:refund`),
  * never the install's `system:payments:refund`, which reaches every payable.
  * Stored, like an add-on's settings grant, as an `app` row whose ref has a `/`

@@ -179,7 +179,7 @@ export interface AiConnectionsDeps {
   networkFeatures: boolean;
   /** `NODE_ENV === 'production'`: the database connection may not point at loopback there. */
   production: boolean;
-  /** Refuse private addresses too: a server on the internet running the Designer for others (M4). */
+  /** Refuse private addresses too: a server on the internet running the Designer for others. */
   blockPrivate?: boolean;
   /**
    * `ADMINIUM_NETWORK_POLICY=strict` (implied by trial mode and the hosted profile): an address the person gave, saved

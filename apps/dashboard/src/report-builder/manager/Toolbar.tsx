@@ -5,7 +5,7 @@
  * counts are the reply's, unfiltered — the comp's badges never respond to
  * the search box (580).
  *
- * NO GROUP SEGMENT and no actions menu: this comp draws neither (M7).
+ * NO GROUP SEGMENT and no actions menu: this comp draws neither.
  */
 import { SearchInput, SegmentedControl, TabsList, TabsTrigger } from '@adminium/ui';
 

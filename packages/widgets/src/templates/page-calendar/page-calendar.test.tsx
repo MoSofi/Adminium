@@ -338,7 +338,7 @@ describe('PageCalendar — title through a related table', () => {
 });
 
 /**
- * The empty-page hint (D2). A date column just added to a populated table
+ * The empty-page hint. A date column just added to a populated table
  * leaves every row undated, and the page must say so rather than look broken.
  * Paired with the controls: dated rows, a partly-dated table, and no rows at
  * all stay quiet.

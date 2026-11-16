@@ -11,10 +11,10 @@
  * against a real request rather than a hidden button:
  *
  *   • no `schema.ddl` grant                    → 403
- *   • an API key principal (D23/O7)            → 403
+ *   • an API key principal            → 403
  * • a read-only connection (D5/) → 403 READ_ONLY_MODE
  *   • a schema-file connection                 → 403 READ_ONLY_MODE
- *   • a destructive step without Super Admin   → 403 (D7)
+ *   • a destructive step without Super Admin   → 403
  */
 import BetterSqlite3 from 'better-sqlite3';
 import { SqliteDialect } from 'kysely';
@@ -207,7 +207,7 @@ async function snapshotId(): Promise<string> {
   return (res.json() as { snapshotId: string }).snapshotId;
 }
 
-/** Give the admin role `schema.ddl` — it deliberately does not have it (D6). */
+/** Give the admin role `schema.ddl` — it deliberately does not have it. */
 async function grantDdl(): Promise<void> {
   await permissionsRepo(t.meta).grant(t.roles.admin.id, 'system', 'schema.ddl', { allowed: true });
 }
@@ -218,7 +218,7 @@ async function revokeDdl(): Promise<void> {
 
 // ---------------------------------------------------------------------------
 
-describe('the grant (D6)', () => {
+describe('the grant', () => {
   it('refuses an admin who does not hold schema.ddl — it is not a built-in', async () => {
     await revokeDdl();
     const res = await t.app.inject({
@@ -252,7 +252,7 @@ describe('the grant (D6)', () => {
   });
 });
 
-describe('the plan (D2, D4)', () => {
+describe('the plan', () => {
   beforeAll(grantDdl);
 
   it('returns the ordered steps with their hazard, rationale and exact SQL', async () => {
@@ -340,7 +340,7 @@ describe('the plan (D2, D4)', () => {
   });
 });
 
-describe('apply (D2, D7)', () => {
+describe('apply', () => {
   beforeAll(grantDdl);
 
   it('refuses a checksum that does not match the plan — SCHEMA_DRIFT', async () => {
@@ -391,7 +391,7 @@ describe('apply (D2, D7)', () => {
     expect(body.changes[0]?.succeeded).toBe(1);
   });
 
-  it('refuses a destructive plan without Super Admin (D7)', async () => {
+  it('refuses a destructive plan without Super Admin', async () => {
     const id = await snapshotId();
     const edit = {
       baseSnapshotId: id,
@@ -429,7 +429,7 @@ describe('apply (D2, D7)', () => {
   });
 });
 
-describe('honest absence, enforced server-side (D5)', () => {
+describe('honest absence, enforced server-side', () => {
   it('403 READ_ONLY_MODE on a read-only connection', async () => {
     await grantDdl();
     await t.meta.db
@@ -474,7 +474,7 @@ describe('honest absence, enforced server-side (D5)', () => {
   });
 });
 
-describe('the diagram layout route (D21)', () => {
+describe('the diagram layout route', () => {
   it('accepts schema.remap and persists the positions', async () => {
     const res = await t.app.inject({
       method: 'PUT',

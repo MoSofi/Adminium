@@ -15,7 +15,7 @@
  * an object literal inline at the call site. It has a name a grep finds, and
  * a place a reader can put a breakpoint.
  *
- * ─── THE SOURCE IS READ WITH THE REQUESTER'S GRANTS (D16) ──────────────────
+ * ─── THE SOURCE IS READ WITH THE REQUESTER'S GRANTS ──────────────────
  *
  * `readSource` re-reads the row and its children at render time rather than
  * trusting whatever the trigger captured. Two reasons, and the second is the

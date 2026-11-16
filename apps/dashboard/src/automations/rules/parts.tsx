@@ -6,8 +6,8 @@
  * header, in the comp's geometry. Three things the comp draws that need a
  * word:
  *
- *  - **The delta pills** (200). They are computed from the runs history
- *    (D22); FILL F7 hides one when the previous period has no data, because
+ *  - **The delta pills** (200). They are computed from the runs history;
+ *    FILL F7 hides one when the previous period has no data, because
  *    "+100%" against nothing is not a fact.
  *  - **"saves 3m / run"** (241). Nothing in the product knows minutes, so
  *    FILL F6 makes it an optional number on the trigger, and the segment
@@ -40,7 +40,7 @@ export interface RulesKpi {
   icon: string;
   label: string;
   value: string;
-  /** Formatted delta, or null when the previous period has no data (F7). */
+  /** Formatted delta, or null when the previous period has no data. */
   delta: string | null;
   up: boolean;
 }

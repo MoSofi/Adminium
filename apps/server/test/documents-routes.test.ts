@@ -15,7 +15,7 @@
  * ─── And then the one that is this group's own ─────────────────────────────
  *
  * A document is built from the tables its profile MAPS, so reading one is not
- * one grant, it is all of them (D16). The behavioural half below builds two
+ * one grant, it is all of them. The behavioural half below builds two
  * documents and reads them as three different callers.
  */
 
@@ -121,7 +121,7 @@ describe('every documents route declares a guard', () => {
   it('gates the ADMIN routes behind manifests.manage, not merely on being signed in', async () => {
     /*
      * A profile decides what an add-on may read and what it renders — the
-     * same authority as installing one (O6). The three profile-writing routes
+     * same authority as installing one. The three profile-writing routes
      * therefore carry the rbac guard, and the rest carry `requireAuth`;
      * getting that backwards would let any signed-in user point a renderer at
      * a table they cannot read.

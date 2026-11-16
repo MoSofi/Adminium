@@ -44,7 +44,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { APP_KEY, APP_NEXT_VERSION, APP_VERSION, REUSE_CHOICES, appBundle } from './appBundle.js';
 import { seededConnectionId, serverDataDir, signIn } from './helpers.js';
 
-/** Catalogue-only rows: one this server can take, one it cannot (G8-D2). */
+/** Catalogue-only rows: one this server can take, one it cannot. */
 const MARKET_KEY = 'e2e-market';
 const FUTURE_KEY = 'e2e-future';
 
@@ -180,7 +180,7 @@ test.describe('the online app catalogue', () => {
     await expect(market.getByRole('button', { name: 'Install' })).toBeEnabled();
 
     /*
-     * The row this server is too old for is LISTED (G8-D2). Hiding it would
+     * The row this server is too old for is LISTED. Hiding it would
      * leave an operator who read about the app wondering where it went; the
      * card names the version it needs and the button does not offer to try.
      */

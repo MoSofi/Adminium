@@ -3,7 +3,7 @@
  * The six text field groups (comp 381, 401, 413, 415): one textarea each for
  * the heading, the paragraph, the image caption, the PO terms, the legal
  * footer and the refund policy. The divider block has no group at all —
- * title, width, show and delete are its whole panel (B25).
+ * title, width, show and delete are its whole panel.
  */
 import { t } from '../../../../i18n/t.js';
 import { TextAreaField } from '../parts.js';

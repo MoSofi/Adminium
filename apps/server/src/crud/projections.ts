@@ -12,14 +12,14 @@
  *
  * The order is the alias namespace: lookups claim first, aggregates check
  * against them, and `compute=` checks against both — one row key can only be
- * claimed once across all four families (D26). The subquery budget is shared
+ * claimed once across all four families. The subquery budget is shared
  * the same way: `compute=` is told how many `agg=` already bought, so a
- * request cannot buy 24 by splitting across two params (D13).
+ * request cannot buy 24 by splitting across two params.
  *
  * Refusals are RETURNED, not audited: auditing needs a request and the
  * app's audit writer, which the route has and the job does not. Every caller
  * decides what to do with the list; the route writes one `projection.denied`
- * row per entry (D16).
+ * row per entry.
  */
 
 import { resolveAggregates } from './aggregates.js';

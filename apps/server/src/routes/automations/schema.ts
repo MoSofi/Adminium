@@ -26,7 +26,7 @@ import {
 // --- rules ------------------------------------------------------------------
 
 const ruleStatsSchema = z.object({
-  /** Last 30 days (D22). */
+  /** Last 30 days. */
   runs30d: z.number().int(),
   /** succeeded ÷ (succeeded + failed); null with no finished runs. */
   successRate30d: z.number().nullable(),
@@ -43,7 +43,7 @@ export const ruleViewSchema = z.object({
   graph: automationGraphSchema,
   timeSavedMinutes: z.number().int().nullable(),
   nextRunAt: z.number().int().nullable(),
-  /** Complete enough to switch on (D12). */
+  /** Complete enough to switch on. */
   valid: z.boolean(),
   /** The first step that is not finished; null when `valid`. */
   incompleteNodeId: z.string().nullable(),
@@ -99,7 +99,7 @@ export const automationPatchBody = z.object({
 });
 
 export const automationTestBody = z.object({
-  /** The ON-SCREEN document, not the stored one (D14). */
+  /** The ON-SCREEN document, not the stored one. */
   trigger: automationTriggerSchema,
   graph: automationGraphSchema,
   /** Defaults to the newest row of the trigger table. */
@@ -136,7 +136,7 @@ const sourceTableSchema = z.object({
   canRead: z.boolean(),
   canCreate: z.boolean(),
   canUpdate: z.boolean(),
-  /** Which column the poller could watch, per event (D4); null = cannot. */
+  /** Which column the poller could watch, per event; null = cannot. */
   watch: z.object({ created: z.string().nullable(), updated: z.string().nullable() }),
   columns: z.array(sourceColumnSchema),
   /**
@@ -268,7 +268,7 @@ export const automationSourcesReply = z.object({
 // --- stats ------------------------------------------------------------------
 
 export const automationStatsQuery = z.object({
-  /** The VIEWER's IANA zone — "today" is theirs, not the server's (D22). */
+  /** The VIEWER's IANA zone — "today" is theirs, not the server's. */
   tz: z.string().max(64).optional(),
 });
 
@@ -306,7 +306,7 @@ export const runViewSchema = runRowSchema.extend({
 });
 
 export const automationRunsListQuery = z.object({
-  /** The comp's three filters (D9): running = pending + running + waiting. */
+  /** The comp's three filters: running = pending + running + waiting. */
   status: z.enum(['success', 'failed', 'running']).optional(),
   automationId: z.string().max(36).optional(),
   /** `<startedAt>:<id>` from the previous page's `cursor.next`. */

@@ -2,7 +2,7 @@
 /**
  * Wave 0026 — email documents: the room the comp needs.
  *
- * ─── One table, two kinds (D2) ─────────────────────────────────────────────
+ * ─── One table, two kinds ─────────────────────────────────────────────
  *
  * `adminium_email_templates` was `(key, locale, name, subject, blocks,
  * enabled, is_builtin_copy)` — enough for three built-ins and nothing the
@@ -26,7 +26,7 @@
  * ─── Legacy footer blocks are lifted on READ, not rewritten here ───────────
  *
  * Every seeded row and every install's edits hold a trailing `email.footer`
- * BLOCK; the comp's footer is a fixed envelope field (D5). Rewriting 24 seeded
+ * BLOCK; the comp's footer is a fixed envelope field. Rewriting 24 seeded
  * rows × N installs in a migration would move content nobody asked to move
  * and would have to reproduce the repo's decode rules in SQL on three
  * dialects. The repo lifts a trailing footer block into `footer` when it
@@ -39,7 +39,7 @@
  * `adminium_email_blocks` — saved reusable blocks (the comp's "Save as
  * reusable block" / "Saved blocks" group in the picker), workspace-wide.
  *
- * `adminium_email_runs` — one row per campaign send (D11). Counts and the
+ * `adminium_email_runs` — one row per campaign send. Counts and the
  * first hundred failures live on the run, not one row per recipient: the
  * product needs "18,240 sent · 12 failed", not a per-address ledger. The FK
  * to the template CASCADES: a campaign deleted for good takes its history

@@ -2,7 +2,7 @@
 /**
  * Send campaign (comp `Email To Contacts.dc.html` 1a–1e, 36-353). The
  * editor loads it lazily (`lazy.ts`) and saves the draft
- * before it POSTs `/send` (D1).
+ * before it POSTs `/send`.
  *
  *  - "Send to": two radio cards, "Users on this server" (everyone, or the holders
  *    of the roles picked as chips) and "People in a table". The table card is
@@ -86,7 +86,7 @@ export interface SendCampaignModalProps {
   documentId: string;
   documentName: string;
   subject: string;
-  /** Saves the draft first (D1), then `POST /send`; resolves with the run. */
+  /** Saves the draft first, then `POST /send`; resolves with the run. */
   onSend: (body: EmailSendBody) => Promise<EmailRunView>;
   onClose: () => void;
 }

@@ -990,7 +990,7 @@ export async function bootstrapHandler(
   const user = principal(request);
 
   /*
-   * The blended-app sections (D7). Read through `request.server` rather than
+   * The blended-app sections. Read through `request.server` rather than
    * `AuthContext` because they are a property of what this INSTANCE serves, not
    * of the session — and `hasDecorator` because minimal test harnesses mount
    * this route without the surfaces plugin, where the answer is simply "none".

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * SEND NOTIFICATION — the in-app notice named and the picker's second
- * tile (D10).
+ * tile.
  *
  * It goes through `notify()`, which is what makes it honour each recipient's
  * own channel preferences and mail them a copy when they asked for one. A

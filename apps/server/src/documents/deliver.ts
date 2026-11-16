@@ -57,7 +57,7 @@ export interface DocumentDelivery {
    * The outline slot whose value is the recipient's address, or null for "do
    * not email". A SLOT rather than a column: the address may arrive through a
    * lookup across a foreign key, and by the time a document exists the slot is
-   * the only name that still means anything — the subject is frozen (D12) and
+   * the only name that still means anything — the subject is frozen and
    * the source row may be gone.
    */
   emailSlot?: string | null;
@@ -94,7 +94,7 @@ export interface DeliverDeps {
 
 export interface DeliverInput {
   document: DocumentRow;
-  /** Null for a request-shaped intent (D15), which has no mapping. */
+  /** Null for a request-shaped intent, which has no mapping. */
   profile: DocumentProfile | null;
   /**
    * The recipient, when the CALLER knows it — a claim-bound public send, whose
@@ -144,7 +144,7 @@ function addressFrom(document: DocumentRow, slot: string | null | undefined): st
 /**
  * The address a CLAIMED document is bound to.
  *
- * A request-shaped intent (D15) has no mapping and therefore no address slot;
+ * A request-shaped intent has no mapping and therefore no address slot;
  * what it has is the claim that made it, is explicit that such a document
  * settles only to "the claimed session's own bound address". Reading it from
  * the row rather than from a request body is what stops this being a way to

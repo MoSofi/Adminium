@@ -6,7 +6,7 @@
  * is that a read which does not carry it is unchanged. Not "behaves the
  * same": emits the same SQL, byte for byte. `crud/aggregates.ts` was reduced
  * to a wire parser and its compiler moved into `crud/measures.ts` in the same
- * wave (D15), so the claim needs an assertion and not a reading of the diff.
+ * wave, so the claim needs an assertion and not a reading of the diff.
  *
  * The strings below were captured from the pre-wave build (`git worktree` at
  * the wave's base commit, same fixture, same requests) and pinned here. If a

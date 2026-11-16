@@ -257,7 +257,7 @@ export function automationsRepo(meta: MetaDb) {
       );
     },
 
-    /** Enabled rules whose trigger asks the poller to watch (D4). `deleted` cannot be watched. */
+    /** Enabled rules whose trigger asks the poller to watch. `deleted` cannot be watched. */
     async listWatching(): Promise<Automation[]> {
       const rules = await listEnabled();
       return rules.filter(

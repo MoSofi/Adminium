@@ -230,7 +230,7 @@ export interface MeasureSpecInput {
   fn: MeasureFn;
   /** Columns of the referencing table, multiplied together (1..4). Empty for count. */
   factors: readonly SchemaColumn[];
-  /** Current column names AND measure/field ids on the page — one namespace (D26). */
+  /** Current column names AND measure/field ids on the page — one namespace. */
   taken: ReadonlySet<string>;
 }
 
@@ -261,7 +261,7 @@ const MEASURE_VERBS: Record<MeasureFn, string> = {
  * `specForReverse` is deliberately NOT widened to emit these. The legacy
  * `reverse` vocabulary stays `count`-only for good, which is what lets the
  * client emitter drop any other `agg` token before it reaches the wire without
- * ever suppressing a column the editor just authored (D15).
+ * ever suppressing a column the editor just authored.
  */
 export function specForMeasure(input: MeasureSpecInput): {
   measure: Measure;
@@ -290,7 +290,7 @@ export function specForMeasure(input: MeasureSpecInput): {
       label,
       // A fold has no source column to inherit a type from, and a decimal
       // string is what crosses the wire — so presentation is DECLARED here
-      // rather than guessed downstream (D8).
+      // rather than guessed downstream.
       logicalType: fn === 'count' ? 'integer' : 'decimal',
       semantic: null,
       format: null,

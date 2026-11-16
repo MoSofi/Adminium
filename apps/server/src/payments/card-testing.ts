@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * CARD TESTING, when the public starts payments (E3).
+ * CARD TESTING, when the public starts payments.
  *
  * An app's own checkout lets a stranger make something payable and start a
  * payment for it, so a card tester no longer needs a link the shop sent. On

@@ -135,7 +135,7 @@ describe('files upload transport', () => {
     expect(url.searchParams.get('table')).toBe('public.invoices');
     expect(url.searchParams.get('recordId')).toBe('1042');
     expect(url.searchParams.get('column')).toBe('receipt');
-    // The body IS the file (D5); metadata rides the query string above.
+    // The body IS the file; metadata rides the query string above.
     expect(request.body).toBe(PNG);
 
     request.emitProgress(0, 300);
@@ -219,7 +219,7 @@ describe('files upload transport', () => {
     const pending = uploadFile({ file: untyped, connectionId: 'conn_1', table: 'public.invoices' });
 
     const request = lastRequest();
-    // The claim is advisory either way — the server sniffs the bytes (D8) — so
+    // The claim is advisory either way — the server sniffs the bytes — so
     // what this pins is that the header is always SENT, since it exists to help
     // a proxy in between and an empty one helps nobody.
     expect(request.headers.get('content-type')).toBe('application/octet-stream');

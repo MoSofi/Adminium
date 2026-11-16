@@ -11,7 +11,7 @@
  *
  * ─── Why the checks are asserted per ACTION ────────────────────────────────
  *
- * An explicit `required` is the one "required" the server enforces (D26), and
+ * An explicit `required` is the one "required" the server enforces, and
  * an update is not a create: a PATCH that does not mention the column is not
  * leaving it empty, it is not touching it. Getting that backwards would make
  * every partial update of a row with a required column fail.
@@ -121,7 +121,7 @@ describe('column.default — the fill an admin asked for', () => {
 
   it('`none` switches the implicit fill OFF — which is the only way to say that', () => {
     /*
-     * `created_at` is filled by Adminium with no rule at all (D5). An admin who
+     * `created_at` is filled by Adminium with no rule at all. An admin who
      * has a trigger doing it needs a way to say so, and the absence of a row
      * cannot mean it: absence is what turns the implicit fill ON.
      */

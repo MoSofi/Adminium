@@ -12,7 +12,7 @@
  * same pinned tests. A new param rather than a widened one is also what buys
  * cross-release forward compatibility for free: `recordListQuery` is a
  * non-strict `z.object`, so a server one release behind STRIPS an unknown
- * `compute=` key and the column renders empty instead of erroring (D1).
+ * `compute=` key and the column renders empty instead of erroring.
  *
  * This module is the gate, not the compiler. It bounds the raw string, parses
  * it, hands the structure to the ONE shared validator in the page-config leaf
@@ -22,7 +22,7 @@
  * namespace), and works out which base columns the read has to project.
  * Resolution against the snapshot and SQL compilation live in `measures.ts`.
  *
- * ERROR POLARITY, which is the opposite of the intuition and deliberate (D10):
+ * ERROR POLARITY, which is the opposite of the intuition and deliberate:
  * everything here is a page-AUTHOR mistake — malformed JSON, an unknown
  * identifier, a cycle, an over-cap block — and every one is a hard 422 that
  * fails the whole list read. Per-CALLER conditions (a missing read grant, a
@@ -147,7 +147,7 @@ export interface ParseComputeOptions {
   table: ResolvedTable;
   /** Aliases already claimed by this request's `lookup=` and `agg=` params. */
   takenAliases?: ReadonlySet<string> | undefined;
-  /** Correlated subqueries `agg=` already bought — the budget is SHARED (D13). */
+  /** Correlated subqueries `agg=` already bought — the budget is SHARED. */
   usedSubqueries?: number | undefined;
 }
 
@@ -206,7 +206,7 @@ export function parseComputeParam(raw: string, opts: ParseComputeOptions): Parse
   if (measures.length === 0 && fields.length === 0) return EMPTY;
 
   // One budget across both param families, or a page buys 24 correlated
-  // subqueries by splitting them across `agg=` and `compute=` (D13).
+  // subqueries by splitting them across `agg=` and `compute=`.
   const used = opts.usedSubqueries ?? 0;
   if (used + measures.length > MAX_MEASURES) {
     throw new ValidationFailedError(

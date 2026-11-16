@@ -123,7 +123,7 @@ export function DefaultControl({
           <LiteralEditor
             // A column with a value list takes one of its own answers, whether
             // the engine calls it `enum` or the `varchar(64)` a CHECK-backed
-            // choice column really is (D32).
+            // choice column really is.
             type={enumValues.length > 0 ? 'enum' : column.logicalType}
             value={literal}
             enumValues={enumValues}

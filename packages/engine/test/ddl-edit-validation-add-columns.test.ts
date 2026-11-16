@@ -292,7 +292,7 @@ describe('addColumns — the column it adds', () => {
       ctx(),
     );
     // Two faults, both real: the kind does not apply to the type, AND
-    // auto-increment belongs to the key, which this door cannot change (D23).
+    // auto-increment belongs to the key, which this door cannot change.
     expect(codes(auto)).toContain('UNSUPPORTED_DEFAULT');
     expect(codes(auto)).toContain('IDENTITY_NOT_A_KEY');
     // Substring, not equality: the message currently reads "a autoincrement",
@@ -319,7 +319,7 @@ describe('addColumns — the column it adds', () => {
    * Auto-increment is NOT one of the kinds that apply here, whatever the type.
    * This door adds a column to a table whose key it cannot change, and a
    * generated integer that is not the key is refused by MySQL outright and
-   * silently defaultless on SQLite (D23). It used to be accepted.
+   * silently defaultless on SQLite. It used to be accepted.
    */
   it('refuses auto-increment, because the key is not this door’s to change', () => {
     const issues = validateSchemaEdit(

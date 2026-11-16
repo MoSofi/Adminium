@@ -27,7 +27,7 @@
  * (`@adminium/engine/config`). They are served by the read routes like any
  * other list, with their labels resolved in the CALLER's locale, and they
  * cannot be edited or deleted — editing one makes a copy, which is an ordinary
- * row (D20).
+ * row.
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { FastifyRequest } from 'fastify';

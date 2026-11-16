@@ -447,7 +447,7 @@ export const TELEMETRY_JITTER_MS = 60 * 60 * 1000;
  * a schedule that silently does not exist when you revoke consent and grant it
  * again without a restart.
  *
- * The bundled set (D3) is what makes the Add-ons page useful in the meantime.
+ * The bundled set is what makes the Add-ons page useful in the meantime.
  */
 export const CATALOG_REFRESH_SCHEDULE_NAME = 'add-on-catalog-refresh';
 export const CATALOG_REFRESH_CRON = '0 5 * * *';
@@ -468,7 +468,7 @@ export const APP_CATALOG_REFRESH_SCHEDULE_NAME = 'app-catalog-refresh';
 export const APP_CATALOG_REFRESH_CRON = '30 5 * * *';
 
 /**
- * Where the image and the desktop build park the bundled add-on tarballs (D3).
+ * Where the image and the desktop build park the bundled add-on tarballs.
  * Relative to the process CWD, which for the container is `/app`; absent on a
  * dev checkout, where {@link seedBundledPackages} is simply a no-op.
  */
@@ -934,7 +934,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     app.log.warn({ err: error }, 'could not seal the stored webhook header values');
   }
 
-  // LLM assist (M6). Only the vocabulary is optional;
+  // LLM assist. Only the vocabulary is optional;
   // the key crypto and the resolver are cheap and pure.
   /*
    * The models this instance can call: the one saved in Settings → AI and the
@@ -958,7 +958,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     aiEnv,
     networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
     production: process.env.NODE_ENV === 'production',
-    // On a live server a signed-in person names the model's address: loopback and private ranges are refused (M22).
+    // On a live server a signed-in person names the model's address: loopback and private ranges are refused.
     ...(liveAllowed ? { blockPrivate: true } : {}),
     // Under ADMINIUM_NETWORK_POLICY=strict, an address the person gives reaches nothing on this server's network.
     strictNetwork: manager.networkPolicy === 'strict',
@@ -1000,7 +1000,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // With no destination configured it is byte-identical to what shipped before
   // wave 0024 — `<dataDir>/files/<file_ULID>`, the same flat key grammar that
   // IS the traversal guard. Configure a destination in Studio (or seed one from
-  // the environment) and every NEW file of every kind follows it (D18), which
+  // the environment) and every NEW file of every kind follows it, which
   // is what makes a host with no persistent disk viable at all.
   const storageCrypto = storageCryptoFromSecret(env.ADMINIUM_SECRET);
   const storageRoots = storageRootPolicyFor(env, opts.metaStore);
@@ -1456,7 +1456,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // Two things happen at boot and neither touches the network. Orphaned temp
   // directories from an unpack that was interrupted (SIGKILL mid-write, a full
   // disk) are pruned, because an atomic-rename staging scheme leaks exactly
-  // that on a hard stop. Then the image's bundled set (D3) is seeded
+  // that on a hard stop. Then the image's bundled set is seeded
   // copy-if-absent, with every hash re-verified on the way in — which is what
   // makes an air-gapped install able to browse and install with no registry at
   // all. Both are best-effort: a data dir that cannot be written is a real
@@ -1731,7 +1731,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     steps: stepLookupOf(() => addOnInstalls.fresh()),
     secret: env.ADMINIUM_SECRET,
     storage,
-    // The `document.render` step's way to the pipeline (D55). Without it a
+    // The `document.render` step's way to the pipeline. Without it a
     // rule with that step refuses with a sentence rather than throwing from
     // inside the renderer.
     documents,
@@ -1851,7 +1851,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       mode,
     );
   };
-  // Card readers at the counter (E6): the demo reader where the demo payment service is, and add-ons providing `card-terminal@1`.
+  // Card readers at the counter: the demo reader where the demo payment service is, and add-ons providing `card-terminal@1`.
   const terminalDemo = createDemoTerminalBackend();
   const terminalLookup = (key: string, mode: PaymentMode) =>
     cardTerminalFor(
@@ -1973,7 +1973,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     terminalFor: terminalLookup,
   };
   registerPaymentsRefundHandler(jobs.registry, paymentRefundDeps);
-  // An app's own refund rows (E4): each one that sends money back is asked for, and stamped.
+  // An app's own refund rows: each one that sends money back is asked for, and stamped.
   registerAppRefundHandler(jobs.registry, paymentRefundDeps);
   // A charge on a card reader: the reader asked where it stands, by short jobs that re-queue themselves.
   registerReaderPollHandler(jobs.registry, { meta, sources: paymentSources, terminalFor: terminalLookup, enqueue: (input) => jobs.enqueue(input) });
@@ -2339,7 +2339,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         schemaDdlRoutes({ manager, meta, crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET) }),
       );
       await api.register(dataRoutes({ manager, meta, undoStore, files: fileReconciler, writes: recordWrites, secret: env.ADMINIUM_SECRET, hub: jobs.hub }));
-      // M7 data-io + reports/notifications (T5/T6): exports and imports share
+      // M7 data-io + reports/notifications: exports and imports share
       // the jobs pipeline wired above; scheduled reports ride the same registry
       // via the poll schedule below.
       const enqueueDataIo = (input: EnqueueJobInput) => jobs.enqueue(input);
@@ -3426,7 +3426,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
               ownedElsewhere: copies.flatMap((one) => (one.row.id !== install.row.id && one.row.kind === 'add-on' && one.row.connectionId !== null ? [one.row.connectionId] : [])),
             };
             await documentProfilesRepo(meta).setEnabledForAddOn(which, false);
-            // …and through to the RULES those mappings own (D55). Disabling
+            // …and through to the RULES those mappings own. Disabling
             // the mapping alone would leave a rule that still fires on every
             // write and skips every time — a run row per write, in Workflow
             // Logs, for an add-on that is gone.
@@ -3502,7 +3502,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * if it moves inside:
    *  - it needs a different CORS posture (uncredentialed, its own origin list),
    *    and the `/api/v1` block inherits the credentialed admin one;
-   *  - it needs its own limiter, keyed on things `principalKey` cannot see (D9);
+   *  - it needs its own limiter, keyed on things `principalKey` cannot see;
    *  - its prefix is what the off switch and the isolation test both key on.
    * It still starts `/api/`, which is what the boot-time schema contract keys
    * on, so every route here is schema-checked like any other.
@@ -3669,7 +3669,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     meta,
     store: addOnStore,
     catalog: jobsAddOnCatalog,
-    // The server starting and the daily tick ask for both lists in one request when both are on (D103).
+    // The server starting and the daily tick ask for both lists in one request when both are on.
     both: { apps: appCatalog, appStore },
   });
   jobs.scheduler.registerSchedule(
@@ -3735,7 +3735,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * O1 was ratified in-process on 2026-08-29 on the plan's recorded
    * recommendation, so this loads server halves from the installed bundle on
    * local disk and nowhere else, after re-checking each file against the hash
-   * recorded when it was unpacked (D4).
+   * recorded when it was unpacked.
    *
    * Best-effort and AFTER everything else is composed: an add-on whose bundle is
    * corrupt must cost its own integration and nothing more. A boot that died

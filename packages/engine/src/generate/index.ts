@@ -179,7 +179,7 @@ export interface GenerateOptions {
   connectionId?: string | null | undefined;
   /**
    * Widget-registry membership test, threaded into the archetype step
-   * (H1/H4) so unregistered ids are dropped before they reach a stored
+   * so unregistered ids are dropped before they reach a stored
    * page.
    *
    * **Defaults to `isRegisteredWidgetId`** — the checked-in mirror of

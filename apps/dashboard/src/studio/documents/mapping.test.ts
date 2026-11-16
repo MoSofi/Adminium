@@ -143,7 +143,7 @@ describe('unmapped and literal are different things', () => {
     /*
      * `mapping` says which columns are read. A literal is read from nothing,
      * and an unmapped slot is the provider's business — for the invoices
-     * provider an absent rate means no tax line at all (D20), which is the only
+     * provider an absent rate means no tax line at all, which is the only
      * honest answer to a rate nobody entered.
      */
     expect(toMapping(bindings)).toEqual({

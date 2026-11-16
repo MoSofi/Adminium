@@ -354,7 +354,7 @@ export interface FormColumnShape {
   lookup?: unknown;
   reverse?: unknown;
   derived?: unknown;
-  /** A `json` column or a Postgres array: a list of strings (D19). */
+  /** A `json` column or a Postgres array: a list of strings. */
   list?: boolean | undefined;
 }
 
@@ -554,7 +554,7 @@ const FULL_WIDTH: ReadonlySet<FormControl> = new Set([
  * is right for a table and wrong for a form — a column that did not make the
  * grid still has to be settable, and a required column the cap dropped was
  * re-appended LAST, so it rendered at the bottom of the form under everything
- * optional (B10). The table's own order is the order the person who made the
+ * optional. The table's own order is the order the person who made the
  * table chose, and it is the only order that is about meaning rather than about
  * what fits.
  */

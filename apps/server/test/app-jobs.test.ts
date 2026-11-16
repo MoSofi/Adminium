@@ -4,7 +4,7 @@
  *
  * The add-on jobs' twin suite (`add-on-jobs.test.ts`), run the same way: the
  * real registry, a real in-memory meta store, a REAL app store on a temp dir,
- * and a stub catalog client. What is new for apps is the minimum (G8-D2): a
+ * and a stub catalog client. What is new for apps is the minimum: a
  * release above this server's version is refused before a byte is fetched.
  */
 
@@ -242,7 +242,7 @@ describe('app-download', () => {
     expect(asked).toEqual([{ key: 'clinic', version: '0.1.2', signal: ctx.signal }]);
   });
 
-  it('refuses a release above this server, before fetching a byte (G8-D2)', async () => {
+  it('refuses a release above this server, before fetching a byte', async () => {
     const fetchTarball = vi.fn();
     const registry = registryWith(stubCatalog({ fetchTarball: fetchTarball as never }), '0.2.7');
 
@@ -391,7 +391,7 @@ describe('enqueue', () => {
     expect(addOn.id).not.toBe(app.id);
   });
 
-  it('gives a download exactly one attempt (R5), and keeps one refresh in flight', async () => {
+  it('gives a download exactly one attempt, and keeps one refresh in flight', async () => {
     const job = await enqueueAppDownload(meta, { key: 'clinic', version: '0.1.2', userId: 'usr_1' });
     const stored = await jobsRepo(meta).findById(job.id);
     expect(stored).toMatchObject({ kind: APP_DOWNLOAD_KIND, maxAttempts: 1 });

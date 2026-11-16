@@ -483,7 +483,7 @@ function RelatedRecordsTab({
   }, [related, tab.table]);
 
   const fkColumn = tab.fkColumn;
-  // The related table's own default sort until the user sorts by hand (D4).
+  // The related table's own default sort until the user sorts by hand.
   const effectiveSort = sortTouched
     ? sort
     : resolution === 'pending'
@@ -520,7 +520,7 @@ function RelatedRecordsTab({
    * The in-tab create (30 follow-up): the child row is born already attached —
    * the FK column never renders as a field; its value is THIS record, injected
    * at submit. Offered only when every gate agrees: the parent page is
-   * writable (D7), the target table's own page resolved AND said the caller
+   * writable, the target table's own page resolved AND said the caller
    * may create (its per-caller `canCreate` + its own readOnly — see
    * `PageRecordRelatedResolution.canCreate`), and the host wired a write api.
    */
@@ -605,8 +605,8 @@ function RelatedRecordsTab({
     </WriteControl>
   ) : null;
   /*
-   * The related tab's "New row" — the SAME dialog as the table page's create
-   * (D3). The parent key is still injected at submit and its column is still
+   * The related tab's "New row" — the SAME dialog as the table page's create.
+   * The parent key is still injected at submit and its column is still
    * stripped from the form; what changed is the container it lives in.
    */
   const createDrawer = creatable ? (
@@ -754,7 +754,7 @@ function RelatedRecordsTab({
  * files routes yet, so the host owns the transport; when they land, the
  * dashboard wires `onFiles` to them". They have landed, and this is the wiring.
  *
- * Deleting is soft everywhere in this feature (D12), so the panel offers Undo
+ * Deleting is soft everywhere in this feature, so the panel offers Undo
  * rather than a confirmation: the file is in the trash for
  * `retention.filesTrashDays` and putting it back is one call. A confirm dialog
  * in front of a reversible action is a dialog nobody reads.
@@ -1421,7 +1421,7 @@ function PageRecordPage({
 
   return (
     <div data-part="page-record" data-testid={testId} className="flex flex-col gap-5">
-      {/* Hero — key field + meta chips + actions (D4). */}
+      {/* Hero — key field + meta chips + actions. */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex min-w-0 flex-wrap items-center gap-2.5">
@@ -1483,7 +1483,7 @@ function PageRecordPage({
         </div>
       )}
 
-      {/* Field grid — two columns at lg, one below (D4). */}
+      {/* Field grid — two columns at lg, one below. */}
       <div
         data-part="record-fields"
         className={`grid grid-cols-1 gap-x-8 ${fieldHalves.length === 2 ? 'lg:grid-cols-2' : ''}`}
@@ -1499,7 +1499,7 @@ function PageRecordPage({
       </div>
 
       {/*
-        * What this record is LINKED to (F8). Chips rather than a tab: a
+        * What this record is LINKED to. Chips rather than a tab: a
         * relation is a property of the record — "this booking's services" —
         * and a tab would file it with the child rows that belong to it.
         */}
@@ -1524,7 +1524,7 @@ function PageRecordPage({
         </div>
       )}
 
-      {/* Related-record tabs + Activity (D4/D6). */}
+      {/* Related-record tabs + Activity. */}
       {(hasTabs || hasHostTabs || hasActivity || hasAttachments) && (
         <Tabs defaultValue={hasTabs ? `tab-0` : hasHostTabs ? `host-${ownTabs[0]!.id}` : hasAttachments ? '__attachments' : '__activity'}>
           <TabsList>
@@ -1641,7 +1641,7 @@ function PageRecordPage({
         </div>
       )}
 
-      {/* Edit — the same dialog as every other form in the product (D3). */}
+      {/* Edit — the same dialog as every other form in the product. */}
       {showEdit && (
         <RecordFormDialog
           open={editOpen && !editChildrenPending && linkRead.read}
@@ -1674,7 +1674,7 @@ function PageRecordPage({
         />
       )}
 
-      {/* Cascade-aware type-to-confirm delete — same flow as the list (D4). */}
+      {/* Cascade-aware type-to-confirm delete — same flow as the list. */}
       {showDelete && (
         <ConfirmModal
           open={deleteTarget !== null}

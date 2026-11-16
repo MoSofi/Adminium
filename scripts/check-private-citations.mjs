@@ -80,7 +80,7 @@
  *
  * ─── Usage ─────────────────────────────────────────────────────────────────
  *
- *   pnpm check-private-citations            enforce the ratchet
+ *   pnpm check-private-citations            self-test, then enforce the ratchet
  *   pnpm check-private-citations --update   re-record the baseline after a sweep
  *   pnpm check-private-citations --report   per-area totals, exit 0
  *   pnpm check-private-citations --list <p> every reference under a path
@@ -120,6 +120,30 @@ const valueOf = (name) => {
  */
 const SEC = String.fromCharCode(0xa7);
 
+/**
+ * A bare id in parentheses. The plan's decisions (a D and a number), questions
+ * (Q), comp rulings (CR), facts and comp rows (F), tasks (T), milestones (M)
+ * and the like were tagged onto the end of a comment that way, in brackets,
+ * and a reader cannot open any of them. Written out here in words, and built
+ * in the self-test below, so this file never cites one itself. Narrow by
+ * construction, because a bare id is also ordinary code:
+ *
+ *  - the brackets must hold ONLY ids (one letter and up to three digits, or
+ *    one of the few two-letter prefixes the plan used), joined by a comma, a
+ *    slash, a dash or "and": an id followed by a colon and a reason, or a hex
+ *    byte such as 0xC4, is not read;
+ *  - the opening bracket must not follow a word character, a `$`, a dot or a
+ *    closing bracket, so a call such as `split(M1)` is never read;
+ *  - other two-letter prefixes are left alone: an MP3's ID3 tag is real.
+ */
+const TAG_ID = String.raw`(?:CR|BN|AC|DP|YR|[A-Z])\d{1,3}[a-z]?`;
+const TAG =
+  String.raw`(?<![\w$.\])])\(` +
+  TAG_ID +
+  String.raw`(?:\s*(?:,|\/|\u2013|-|\+|&|and)\s*` +
+  TAG_ID +
+  String.raw`)*\)`;
+
 const POINTER = new RegExp(
   [
     // A plan document filename: TWO digits, an optional letter, a kebab name.
@@ -141,12 +165,57 @@ const POINTER = new RegExp(
     // A plan task id, and a milestone task id.
     String.raw`(?<![\w-])\d{1,2}[a-z]?-T\d{1,3}\b`,
     String.raw`\bM\d{1,2}-T\d{1,3}\b`,
+    // A parenthesised id and nothing else: a decision, question, ruling, fact
+    // or task tag at the end of a sentence. See TAG below for why this form,
+    // and only this form.
+    TAG,
   ].join('|'),
   'g',
 );
 
 /** The unguarded form: a bare decision or open-question id. Reported, never enforced. */
 const LOOSE = new RegExp(String.raw`(?<![\w` + SEC + String.raw`.])[DO]\d{1,2}\b`, 'g');
+
+/**
+ * `--self-test`: the forms the gate must read, and the ordinary code it must
+ * not. Runs before the scan in `pnpm check-private-citations`.
+ */
+if (flag('self-test')) {
+  // Built, not written, for the reason given at TAG.
+  const tag = (...ids) => `(${ids.join(', ')})`;
+  const must = [
+    `// The rows model writes the refund row for an automatic refund ${tag('Q10')}: it says what.`,
+    `/** Refunded in its app ${tag('CR4')}. */`,
+    `describe('the sidebar section ${tag('D7')}', () => {`,
+    `// campaign runs ${tag('D11', 'D12')}: save first`,
+    `* The row this server is too old for is LISTED ${tag('G8-D2')}.`,
+    `* a file hung on a record ${tag('F1\u2013F3')}`,
+    'See NN-some-plan.md for more.'.replace('NN', '12'),
+  ];
+  const mustNot = [
+    'const [before, after] = sentence.split(M1);',
+    "{ name: 'MP3 (ID3)', bytes }",
+    'return fn(D1) + g.(T2);',
+    '// every SOFn but DHT (0xC4), JPG (0xC8) and DAC (0xCC).',
+    `// a decision spelled out ${tag('D13').replace(')', ': the reason)')} is a sentence`,
+    'expect(text).toMatch(/center \\(M7\\)/);',
+  ];
+  const fails = [];
+  for (const line of must) {
+    POINTER.lastIndex = 0;
+    if (!POINTER.test(line)) fails.push(`not read: ${line}`);
+  }
+  for (const line of mustNot) {
+    POINTER.lastIndex = 0;
+    if (POINTER.test(line)) fails.push(`read as a citation: ${line}`);
+  }
+  if (fails.length > 0) {
+    console.error(`private citations self-test failed:\n  ${fails.join('\n  ')}`);
+    process.exit(1);
+  }
+  console.log(`private citations self-test ok — ${String(must.length + mustNot.length)} cases`);
+  process.exit(0);
+}
 
 function trackedFiles() {
   return execFileSync('git', ['ls-files', '-z'], { cwd: repoRoot, maxBuffer: 1 << 28 })

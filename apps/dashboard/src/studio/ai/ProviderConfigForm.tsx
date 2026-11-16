@@ -3,7 +3,7 @@
  * The AI-provider configuration form — provider choice, base URL, model, the
  * write-only API key, Save and Test connection.
  *
- * ONE FORM, TWO HOSTS (R3). Settings → AI (`StudioAiPage`) has always rendered
+ * ONE FORM, TWO HOSTS. Settings → AI (`StudioAiPage`) has always rendered
  * it; the connect wizard's "Enrich with AI" step renders the same component
  * inline, so an operator who lands there with no provider configured can set one
  * up without leaving the wizard and losing the section toggles, locales and

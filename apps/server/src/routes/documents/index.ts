@@ -27,7 +27,7 @@
  *
  * ─── AND A ROW WITH NO MAPPED TABLES AT ALL ────────────────────────────────
  *
- * A request-shaped intent (D15) has no profile and no source row, so "every
+ * A request-shaped intent has no profile and no source row, so "every
  * mapped table's grant" resolves to an EMPTY set — which is vacuously true and
  * would let anybody read anybody's. The fallback the guard table names is
  * therefore explicit: such a row is visible to the person who asked for it, or
@@ -491,7 +491,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
 
     // ── the mappings ─────────────────────────────────────────────────────
     /*
-     * `manifests.manage` and NOT a new key (O6). A profile decides what an
+     * `manifests.manage` and NOT a new key. A profile decides what an
      * add-on may read and what it renders — the same authority as installing
      * one — so it rides the grant that already exists rather than un-reserving
      * a `documents.manage` nobody enforces yet. A lighter key stays deposited.
@@ -931,7 +931,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
       },
       async (request) => {
         /*
-         * THE HUMAN SETTLEMENT OF A `pending-review` ROW (D15).
+         * THE HUMAN SETTLEMENT OF A `pending-review` ROW.
          *
          * A public caller's document is never emailed unattended — that is the
          * whole reason `delivery` starts `pending-review` — so somebody with

@@ -414,7 +414,7 @@ describe('the install wizard', () => {
     expect(new URL(raw!, 'http://x').searchParams.get('expectedSha512')).toMatch(/^sha512-[A-Za-z0-9+/]+={0,2}$/);
   });
 
-  it('shows a connection as a choice before one is made (G1)', async () => {
+  it('shows a connection as a choice before one is made', async () => {
     const user = userEvent.setup();
     renderWizard();
     // Reach the database step without selecting anything.
@@ -435,7 +435,7 @@ describe('the install wizard', () => {
     );
   });
 
-  it('counts the steps in the footer, and names the app once it has one (G4, G5)', async () => {
+  it('counts the steps in the footer, and names the app once it has one', async () => {
     const user = userEvent.setup();
     renderWizard();
     await screen.findByLabelText(/Bundle file/i);

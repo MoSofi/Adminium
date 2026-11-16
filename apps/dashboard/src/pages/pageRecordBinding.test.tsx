@@ -813,7 +813,7 @@ describe('attachments bound to a column', () => {
   });
 
   it('still uses the sidecar adapter when the block names no column', async () => {
-    // The fallback path (D2) — unchanged from 37.
+    // The fallback path — unchanged from 37.
     const { fetchMock } = await renderAt('/p/customers/r/1', {
       pageReply: () => jsonResponse(200, { data: attachmentsEnvelope() }),
       filesReply: () => jsonResponse(200, { data: [fileDto(FILE_A, 'sidecar.pdf')] }),

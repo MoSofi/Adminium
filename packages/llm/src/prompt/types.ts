@@ -141,7 +141,7 @@ export interface PromptInput {
   sampling: Sampling;
   /** ULID; echoed (optionally) by the response. */
   runId: string;
-  /** Present only for a chunked run; the chunker (T04) fills it. */
+  /** Present only for a chunked run; the chunker fills it. */
   chunk?: PromptChunkInfo;
 }
 
@@ -170,7 +170,7 @@ export interface BuildPromptOptions {
 
 /**
  * One map-phase prompt. For an unchunked run the artifact carries exactly one
- * chunk (`index: 1, total: 1`). The chunker (T04) produces the multi-chunk case;
+ * chunk (`index: 1, total: 1`). The chunker produces the multi-chunk case;
  * this shape is what it packs.
  */
 export interface PromptChunk {

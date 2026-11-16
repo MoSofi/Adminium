@@ -113,11 +113,11 @@ test.describe('the export builder', () => {
    * `model.moveColumn`/`dropOn` (`model.test.ts`), which proves the reducer and
    * nothing about dnd-kit — the sensor, the 4px activation distance, the
    * `onDragMove` half-test that picks before/after, and the comp's insertion
-   * line (D12) are all browser-only. The in-app Browser pane cannot see them
+   * line are all browser-only. The in-app Browser pane cannot see them
    * (its rAF never ticks, so a dnd-kit drag never moves); Playwright's Chromium
    * can, so the pointer path is pinned here rather than walked by hand once.
    */
-  test('reorders a column by pointer drag, drawing the insertion line (D12)', async ({ page }) => {
+  test('reorders a column by pointer drag, drawing the insertion line', async ({ page }) => {
     await signIn(page);
     await page.goto('/exports/new');
     await page.getByTestId('export-builder-table-orders').click();

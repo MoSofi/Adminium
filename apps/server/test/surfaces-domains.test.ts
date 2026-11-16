@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Domain attachment and the served customer config (D10).
+ * Domain attachment and the served customer config.
  *
  * The two invariance properties demands are tests here, not prose:
  *
@@ -121,7 +121,7 @@ describe('isHostReservedPath — the D4 set, walked', () => {
     expect(isHostReservedPath('/api/v1/auth/login')).toBe(true);
     expect(isHostReservedPath('/apps/clients/customer/assets/x.js')).toBe(true);
     expect(isHostReservedPath('/assets/index-abc.js')).toBe(true);
-    // Deliberately NOT reserved (D4): the rest of the dashboard.
+    // Deliberately NOT reserved: the rest of the dashboard.
     for (const path of ['/', '/state', '/account', '/settings/team', '/p/invoices', '/loginx']) {
       expect(isHostReservedPath(path), path).toBe(false);
     }
@@ -145,7 +145,7 @@ describe('the pay page on a mapped host', () => {
   });
 });
 
-describe('mapped CUSTOMER host (D3)', () => {
+describe('mapped CUSTOMER host', () => {
   it('serves the surface at /, on deep paths, and for real files — the dashboard only inside the reserved set', async () => {
     const { app } = await build();
     await setDomains(t!, { [CUSTOMER_HOST]: { appKey: 'clients', side: 'customer' } });
@@ -244,7 +244,7 @@ describe('mapped CUSTOMER host (D3)', () => {
   });
 });
 
-describe('the address of an uninstalled app (D40)', () => {
+describe('the address of an uninstalled app', () => {
   it('answers 503 — never the admin panel', async () => {
     const { app } = await build();
     await setDomains(t!, { [CUSTOMER_HOST]: { appKey: 'clients', side: 'customer' } });
@@ -261,7 +261,7 @@ describe('the address of an uninstalled app (D40)', () => {
   });
 });
 
-describe('mapped STAFF host (D4) — sign-in on the mapped host', () => {
+describe('mapped STAFF host — sign-in on the mapped host', () => {
   it('gates anonymously, then serves with the cookie minted ON that host', async () => {
     const { app } = await build();
     await setDomains(t!, { [STAFF_HOST]: { appKey: 'clients', side: 'staff' } });
@@ -344,7 +344,7 @@ describe('unmapped hosts are byte-identical before and after a mapping exists', 
   });
 });
 
-describe('surface-config.json (D10)', () => {
+describe('surface-config.json', () => {
   const CONFIG_URL = '/apps/clients/customer/surface-config.json';
 
   async function seedBoundKey(fixture: AuthTestApp, at: number, revoked = false) {

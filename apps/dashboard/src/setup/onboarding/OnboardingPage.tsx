@@ -167,7 +167,7 @@ export function OnboardingPage({
     held.probedDsn !== dsnTrimmed;
 
   /**
-   * Continue pressed while the check is still out (V24). Pasting a string and
+   * Continue pressed while the check is still out. Pasting a string and
    * pressing Continue at once is the ordinary way through this step, and a
    * Continue that was disabled for those 400 ms swallowed the press, so the
    * person had to press it again. Held instead: the button shows busy, and the

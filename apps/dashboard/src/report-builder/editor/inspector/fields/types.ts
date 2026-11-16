@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * What every inspector field group receives (I6): ONE block object and the
+ * What every inspector field group receives: ONE block object and the
  * editing surface. The width segment, the *Show in export* toggle and *Delete
  * block* are the panel's, not a group's — every kind carries them (377-426).
  */

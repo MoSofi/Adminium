@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * THE FILTER BAR: the buttons an admin defined, the chips they produce, and
- * one Clear (D8, F4, F12, F13, F18).
+ * one Clear.
  *
  * ─── Six controls, one menu anatomy ────────────────────────────────────────
  *
@@ -9,7 +9,7 @@
  * the chosen one tinted and bold, a 6px dot where a value carries a tone. What
  * differs is only what a row MEANS — one of picks, any of ticks and stays
  * open, yes-no is two rows, a record is the reference picker, and the two
- * ranges are a pair of inputs (F12) or a preset track (F13).
+ * ranges are a pair of inputs or a preset track.
  *
  * ─── The chip says what was chosen, in words ───────────────────────────────
  *
@@ -55,7 +55,7 @@ export interface FilterBarProps {
   onChange: (next: CrudFilterCondition[]) => void;
 }
 
-/** The date presets the UI Kit's track draws (F13). */
+/** The date presets the UI Kit's track draws. */
 const DATE_PRESETS = [7, 30, 90] as const;
 
 export function FilterBar({ filters, active, onChange }: FilterBarProps) {
@@ -288,7 +288,7 @@ function ChoiceRows({
 }
 
 /**
- * From · To, as two of the comp's inputs (F12).
+ * From · To, as two of the comp's inputs.
  *
  * One end is a `gte` or an `lte`; both are a `between`. The server's grammar
  * already has all three, so a half-filled range is a real filter rather than a
@@ -360,7 +360,7 @@ function boundsOf(condition: CrudFilterCondition | null): [string, string] {
 }
 
 /**
- * The preset track, then Custom (F13).
+ * The preset track, then Custom.
  *
  * The presets are "the last N days", which is what a person means by 30d and
  * what the server can answer with one `gte` — a `between` would also pin the
@@ -445,11 +445,11 @@ const TONE_DOT: Record<string, string> = {
 };
 
 /**
- * A reference filter's menu: the picker, over the target (D21).
+ * A reference filter's menu: the picker, over the target.
  *
  * The same control the form uses, because "which customer" is the same
  * question in both places — and because a menu of the first twenty rows of a
- * table with four thousand is a list that looks complete and is not (F14).
+ * table with four thousand is a list that looks complete and is not.
  */
 export function ReferenceFilterPicker({
   column,

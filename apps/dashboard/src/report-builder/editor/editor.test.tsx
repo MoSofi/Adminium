@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The editor shell, canvas and palette (E1–E11, C1–C8, P1–P2): explicit
+ * The editor shell, canvas and palette: explicit
  * save with its chip and history, the discard guard, the palette's 25
  * kinds, the block card's four states, both reorder paths, the half width,
  * the *Show in export* toggle and the primary's two meanings.
@@ -134,8 +134,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('the header (E1–E7)', () => {
-  it('carries the kind pill, the inline name and the save chip; the primary follows the kind (D5)', async () => {
+describe('the header', () => {
+  it('carries the kind pill, the inline name and the save chip; the primary follows the kind', async () => {
     await renderEditor();
     const header = screen.getByTestId('report-editor-header');
     expect(within(header).getByText('Template')).toBeDefined();
@@ -144,7 +144,7 @@ describe('the header (E1–E7)', () => {
     expect(screen.getByTestId('report-save').textContent).toBe('Save template');
   });
 
-  it('a report’s primary reads *Publish* and saves with status `sent` (D5/O2)', async () => {
+  it('a report’s primary reads *Publish* and saves with status `sent`', async () => {
     const { user, calls } = await renderEditor(detail({ id: 'rpt_1', kind: 'report' }));
     expect(screen.getByTestId('report-save').textContent).toBe('Publish');
     await user.click(screen.getByTestId('report-save'));
@@ -164,7 +164,7 @@ describe('the header (E1–E7)', () => {
     expect(screen.queryByText('Published Executive summary')).toBeNull();
   });
 
-  it('nothing writes while typing — the chip goes dirty and only the primary PUTs (D4/O6)', async () => {
+  it('nothing writes while typing — the chip goes dirty and only the primary PUTs', async () => {
     const { user, calls } = await renderEditor();
     await user.type(screen.getByTestId('report-editor-name'), ' v2');
     await waitFor(() => {
@@ -187,7 +187,7 @@ describe('the header (E1–E7)', () => {
     });
   });
 
-  it('undo and redo walk the draft, and undoing back to the saved state reads *All changes saved* (E5)', async () => {
+  it('undo and redo walk the draft, and undoing back to the saved state reads *All changes saved*', async () => {
     const { user } = await renderEditor();
     const name = screen.getByTestId('report-editor-name') as HTMLInputElement;
     expect((screen.getByTestId('report-undo') as HTMLButtonElement).disabled).toBe(true);
@@ -233,7 +233,7 @@ describe('the header (E1–E7)', () => {
   });
 });
 
-describe('the palette (P1–P2)', () => {
+describe('the palette', () => {
   it('offers all 25 kinds in the comp’s order, and a click appends AND selects (535)', async () => {
     const { user } = await renderEditor();
     const items = screen.getAllByTestId('report-palette-item');
@@ -253,7 +253,7 @@ describe('the palette (P1–P2)', () => {
   });
 });
 
-describe('the canvas (C1–C8)', () => {
+describe('the canvas', () => {
   it('draws the paper, the header region’s three inputs and the block stack', async () => {
     await renderEditor();
     expect(screen.getByTestId('report-paper')).toBeDefined();
@@ -277,7 +277,7 @@ describe('the canvas (C1–C8)', () => {
     });
   });
 
-  it('the grip reorders from the keyboard — the addition the comp’s bare `<span draggable>` cannot (D17)', async () => {
+  it('the grip reorders from the keyboard — the addition the comp’s bare `<span draggable>` cannot', async () => {
     const { user } = await renderEditor();
     const grips = screen.getAllByTestId('report-block-grip');
     (grips[0] as HTMLElement).focus();

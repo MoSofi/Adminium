@@ -147,7 +147,7 @@ export interface CatalogApp {
   updateTo: string | null;
   /** True when `updateTo` is already on disk, so updating needs no download. */
   updateStaged: boolean;
-  /** A catalog release this server is too old for, and the version it needs (G8-D2). */
+  /** A catalog release this server is too old for, and the version it needs. */
   needsNewerAdminium: { version: string; minAdminiumVersion: string } | null;
   /** A newer release on disk that cannot update the installed version in place (its `updatesFrom` leaves it out). */
   cannotUpdate?: { version: string; updatesFrom: string } | null;
@@ -206,7 +206,7 @@ export function downloadApp(key: string, version: string): Promise<{ jobId: stri
 }
 
 /**
- * Move an installed app to the newest version already on disk (G8-D6). Same
+ * Move an installed app to the newest version already on disk. Same
  * row, same connection; new tables are created and a table short of columns
  * refuses the update.
  */

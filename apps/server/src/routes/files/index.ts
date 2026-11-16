@@ -2,7 +2,7 @@
 /**
  * File routes, mounted under `/api/v1`.
  *
- * THE AUTHORISATION MODEL IS THE THING TO READ FIRST (D11). There is no
+ * THE AUTHORISATION MODEL IS THE THING TO READ FIRST. There is no
  * "can upload" permission, deliberately:
  *
  *   • Uploading requires `create` or `update` on the table the file is FOR.
@@ -26,7 +26,7 @@
  * kind, which is a deliberate refusal and not an oversight.
  *
  * THE UPLOAD BODY IS THE FILE. Metadata rides the query string and the raw
- * stream goes to the spool (D5) — no multipart parser, matching the three
+ * stream goes to the spool — no multipart parser, matching the three
  * raw-body precedents already in the tree. The content-type parser is
  * registered INSIDE this plugin's encapsulation, so a wildcard parser here
  * cannot change how any other route reads a body.
@@ -96,7 +96,7 @@ const SERVED_KINDS: ReadonlySet<string> = new Set<FileKind>(['upload']);
  */
 const HARD_BODY_LIMIT = 2_147_483_648;
 
-/** Kinds a browser may render inline without becoming a delivery vector (D9). */
+/** Kinds a browser may render inline without becoming a delivery vector. */
 const INLINE_SAFE: ReadonlySet<string> = new Set([
   'image/png',
   'image/jpeg',
@@ -215,7 +215,7 @@ function requireUserId(request: FastifyRequest): string {
 }
 
 /**
- * RFC 5987 `filename*` plus an ASCII fallback (D9).
+ * RFC 5987 `filename*` plus an ASCII fallback.
  *
  * The existing download routes carry a naive quote/newline replace, which
  * mangles every non-ASCII name into underscores. This keeps the real name for
@@ -341,7 +341,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
    * The allowlist for THIS upload: the workspace setting, narrowed by the
    * column's `accept` when one is named. A column can only ever narrow — a
    * column that named a type the workspace refuses would be a way to widen the
-   * security boundary from a page config (D8).
+   * security boundary from a page config.
    */
   async function allowedTypesFor(columnAccept: readonly string[] | undefined): Promise<SniffTypeKey[]> {
     const configured = await settings.get('files.allowedTypes');
@@ -996,7 +996,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
       { schema: { params: fileIdParams, querystring: filesContentQuery } },
       async (request, reply) => {
       const file = await load(request.params.id);
-      // Trashed bytes 404 (D12): the row is still addressable so it can be
+      // Trashed bytes 404: the row is still addressable so it can be
       // restored, but its content is gone as far as every reader is concerned.
       if (file.deletedAt !== null) throw new NotFoundError(`File ${request.params.id} not found.`);
       if (!(await canRead(request, file))) throw new NotFoundError(`File ${request.params.id} not found.`);
@@ -1006,7 +1006,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
       const etag = `"${file.sha256}"`;
       if (request.headers['if-none-match'] === etag) return reply.status(304).send();
 
-      // SVG is NEVER inline, whatever is asked (D9): it is a document that can
+      // SVG is NEVER inline, whatever is asked: it is a document that can
       // carry script, and same-origin inline SVG is a stored-XSS primitive.
       const inline =
         request.query.inline === true && file.mime !== 'image/svg+xml' && INLINE_SAFE.has(file.mime);
@@ -1149,7 +1149,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         const file = await load(request.params.id);
         if (!(await canWrite(request, file))) throw new NotFoundError(`File ${request.params.id} not found.`);
         await refuseHeld(file);
-        // TRASH, never delete (D12). A file referenced from a customer's own
+        // TRASH, never delete. A file referenced from a customer's own
         // column cannot be proven unreferenced, so hard-delete is only ever the
         // retention purge.
         await files.markDeleted(file.id, app.rbac.now());

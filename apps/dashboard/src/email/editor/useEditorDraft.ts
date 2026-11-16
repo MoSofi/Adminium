@@ -28,7 +28,7 @@ export interface EditorState {
   error: string | null;
   canUndo: boolean;
   canRedo: boolean;
-  /** Structural edits queued for the siblings; they ride the next save (D1). */
+  /** Structural edits queued for the siblings; they ride the next save. */
   mirrorOps: readonly EmailMirrorOp[];
 }
 

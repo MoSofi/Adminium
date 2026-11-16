@@ -11,10 +11,9 @@
  * design (photos on R2, documents on the NAS) with exactly one default. And a
  * destination carries a SECRET — access keys, a WebDAV password — which needs
  * the same row-level `enc:v1:` treatment a connection DSN already gets, not a
- * settings blob that the config export would happily carry off the instance
- * (D16).
+ * settings blob that the config export would happily carry off the instance.
  *
- * ─── Why this server's disk is NOT one of those rows (D3) ──────────────────
+ * ─── Why this server's disk is NOT one of those rows ──────────────────
  *
  * `adminium_files.destination_id IS NULL` means `<dataDir>/files`, with the
  * exact key grammar `files/storage.ts` has enforced since M4. Every row that
@@ -26,15 +25,15 @@
  * an id that could be deleted.
  *
  * RESTRICT, not CASCADE, on the FK: deleting a destination that still holds
- * files would orphan the bytes, and the repo refuses first with the count
- * (D20) so the operator sees "12 files live here" rather than a constraint
+ * files would orphan the bytes, and the repo refuses first with the count,
+ * so the operator sees "12 files live here" rather than a constraint
  * violation. The FK is the backstop for a repo bug, not the mechanism.
  *
  * ─── The entity columns, and why they are not the `entity` json column ─────
  *
  * `adminium_files.entity` (a `RecordRef`, migration 0003) has been NULL on
  * every row ever written — nothing has ever set it. The sidecar attachment
- * mode (D6) needs "every file attached to THIS record", which is a lookup, and
+ * mode needs "every file attached to THIS record", which is a lookup, and
  * a lookup on packed JSON is the amplification anti-pattern 0016 exists to
  * rule out. So the same denormalisation 0016 applied to the audit log applies
  * here: three real, indexed columns beside the json.
@@ -51,7 +50,7 @@
  *
  * `idx_adminium_files_entity` is the record page's panel: equality on all
  * three columns. `idx_adminium_files_state` is the two halves of the daily
- * sweep (D12) — unattached uploads past their hour, then trashed rows past
+ * sweep — unattached uploads past their hour, then trashed rows past
  * their retention day — both of which scan by state and order by age.
  */
 

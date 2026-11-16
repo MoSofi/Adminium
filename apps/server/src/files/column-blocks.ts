@@ -125,7 +125,7 @@ const attachmentsSchema = z.object({
    * page that does not use them.
    *
    * Absent ⇒ the sidecar, unchanged: files linked on Adminium's side, which is
-   * the fallback for a connection whose schema Adminium cannot author (D2).
+   * the fallback for a connection whose schema Adminium cannot author.
    */
   column: z.string().min(1).max(128).optional(),
 });

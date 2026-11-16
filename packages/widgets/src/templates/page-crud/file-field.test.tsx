@@ -40,7 +40,7 @@ const resolved = (over: Partial<ResolvedFile> = {}): ResolvedFile => ({
   ...over,
 });
 
-describe('controlForColumn — the block is the only trigger (D14)', () => {
+describe('controlForColumn — the block is the only trigger', () => {
   it('returns the attachments look when a column carries a file block', () => {
     expect(controlForColumn(column({ file: { ref: 'url' } }))).toBe('attachments');
   });
@@ -226,7 +226,7 @@ describe('the grid chip', () => {
     const img = small.container.querySelector('img');
     expect(img).not.toBeNull();
     // NEVER a destination's public URL: the dashboard's CSP is
-    // `default-src 'self'` and a cross-origin <img> is blocked outright (D24).
+    // `default-src 'self'` and a cross-origin <img> is blocked outright.
     expect(img?.getAttribute('src')).toBe(`${image.contentPath}?inline=1`);
     expect(img?.getAttribute('loading')).toBe('lazy');
 
@@ -240,7 +240,7 @@ describe('the grid chip', () => {
         }}
       />,
     );
-    // There is no server-side resizing (D39), so the cap is what stops a 40 px
+    // There is no server-side resizing, so the cap is what stops a 40 px
     // box from downloading twelve megabytes.
     expect(large.container.querySelector('img')).toBeNull();
     expect(large.container.querySelector('[data-part="cell-file"]')).not.toBeNull();

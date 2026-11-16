@@ -12,7 +12,7 @@
  *    an attempt rather than silence;
  *  - the number is PRINTED — drawn with the number the register would hand
  *    out next — and claimed only AFTER a successful draw, so a failure burns
- *    none (D11); a race for it draws again with the number actually claimed;
+ *    none; a race for it draws again with the number actually claimed;
  *  - a disabled profile, a vanished provider and a deleted row are SKIPS with
  *    reasons, not failures — none of the three is anybody's error.
  */
@@ -338,7 +338,7 @@ describe('the render pipeline', () => {
     expect(outcome).toEqual({ status: 'skipped', reason: 'row-gone' });
   });
 
-  it('BURNS NO NUMBER when the provider refuses (D11)', async () => {
+  it('BURNS NO NUMBER when the provider refuses', async () => {
     const profile = await makeProfile();
     const outcome = await renderDocument(
       deps({

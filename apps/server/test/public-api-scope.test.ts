@@ -128,7 +128,7 @@ describe('compileScope — tenant config inherited from the connection', () => {
   });
 });
 
-describe('compileScope — the timezone requirement (D20)', () => {
+describe('compileScope — the timezone requirement', () => {
   it('refuses a missing timezone when the connection has none either', () => {
     // The field was made OPTIONAL so it can be inherited. The refusal is
     // unchanged in force and better in kind: it used to be a Zod shape error
@@ -206,7 +206,7 @@ describe('currency', () => {
   });
 });
 
-describe('compileScope — column reach (D5)', () => {
+describe('compileScope — column reach', () => {
   it('refuses a filterable column that is not exposed', () => {
     expect(
       issuesOf(
@@ -466,7 +466,7 @@ describe('compileScope — the meta namespace is never publishable', () => {
   });
 });
 
-describe('compileScope — claim tiers (D11/D17)', () => {
+describe('compileScope — claim tiers', () => {
   const sensitiveDoc = (strategy: string): Record<string, unknown> =>
     doc({
       claim: { strategy, ref: 'patients', match: ['phone', 'dob'] },

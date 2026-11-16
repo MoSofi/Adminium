@@ -235,7 +235,7 @@ describe('archetype pages are well-formed stored documents', () => {
     }
   });
 
-  it('is deterministic — a re-run is byte-identical (H5)', () => {
+  it('is deterministic — a re-run is byte-identical', () => {
     const again = generatePages(model, { connectionId: ARCHETYPE_CONNECTION });
     expect(JSON.stringify(again)).toBe(JSON.stringify(result));
   });

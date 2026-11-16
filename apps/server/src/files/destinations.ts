@@ -16,7 +16,7 @@
  *
  * A DISABLED DESTINATION STILL RESOLVES. Disabled means "take no NEW files",
  * not "the files there are gone" — every byte it holds must stay readable, or
- * disabling a destination would be a data-loss button (D2). The store is what
+ * disabling a destination would be a data-loss button. The store is what
  * refuses to WRITE to one.
  */
 
@@ -31,7 +31,7 @@ import { createWebdavDriver } from './drivers/webdav.js';
 import type { FileDriver } from './drivers/driver.js';
 import { assertStorageRootAllowed, type StorageRootPolicy } from './root-guard.js';
 
-/** The implicit destination's sentinel on the wire (D3). */
+/** The implicit destination's sentinel on the wire. */
 export const LOCAL_DESTINATION_ID = 'local';
 
 export class UnknownDestinationError extends Error {
@@ -204,7 +204,7 @@ function buildDriver(
 
 export interface DestinationResolverOptions {
   repo: DestinationsRepo;
-  /** `<dataDir>/files` — the implicit destination's root (D3). */
+  /** `<dataDir>/files` — the implicit destination's root. */
   localRoot: string;
   /** Refuse this machine's own address as a remote destination; default: in production. */
   blockLoopback?: boolean | undefined;

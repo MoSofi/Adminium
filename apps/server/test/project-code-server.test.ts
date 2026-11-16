@@ -616,7 +616,7 @@ describe('where project code runs', () => {
     expect(listed.json().data).toEqual([]);
   });
 
-  // Plan 66 (P12): the desktop app opens a project folder and serves it as a terminal does. Its classic
+  // Plan 66: the desktop app opens a project folder and serves it as a terminal does. Its classic
   // workspace passes no project at all, which is what keeps project code out of it.
   it('loads it for a project the desktop app opened', async () => {
     const { app, cookie } = await serve({ env: { ADMINIUM_RUNTIME: 'desktop' } });

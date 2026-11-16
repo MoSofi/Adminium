@@ -237,7 +237,7 @@ test.describe('LLM enrichment — BYO round-trip (golden e2e)', () => {
   // from the nav. Slug-scoped `href` locators, not labels: "Employees
   // Directory" also names the heuristic archetype page of every Northwind
   // connection, and slugs repeat across connections.
-  test('(f) BYO round-trip applies queue/board/directory template pages (M7)', async ({
+  test('(f) BYO round-trip applies queue/board/directory template pages', async ({
     page,
   }) => {
     await signIn(page);
@@ -334,7 +334,7 @@ test.describe('LLM enrichment — BYO round-trip (golden e2e)', () => {
 });
 
 /**
- * The enrich step configures its own provider (R3).
+ * The enrich step configures its own provider.
  *
  * The wizard's "Use my AI provider" card used to be a dead end on a fresh
  * install: disabled, with a sentence pointing at Settings → AI and no way to

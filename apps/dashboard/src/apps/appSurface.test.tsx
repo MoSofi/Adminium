@@ -120,7 +120,7 @@ function hostedLink(name: string): HTMLElement {
   return within(section as HTMLElement).getByRole('link', { name });
 }
 
-describe('the sidebar section (D7)', () => {
+describe('the sidebar section', () => {
   it('renders the app as its own labelled section with its own rows', async () => {
     await renderAt('/a/clients/home');
     expect(screen.getByText('Outline')).toBeTruthy();
@@ -194,7 +194,7 @@ describe('an installed app’s own section', () => {
   });
 });
 
-describe('the /a/ route (D5)', () => {
+describe('the /a/ route', () => {
   it('frames the surface, titled by the active nav item', async () => {
     await renderAt('/a/clients/invoices');
     const frame = await screen.findByTitle('Invoices');

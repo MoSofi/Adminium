@@ -262,7 +262,7 @@ export function FitTableSetup({
       />
     ) : null;
   }
-  // The template has no repair descriptors (D4), or the draft is not back yet.
+  // The template has no repair descriptors, or the draft is not back yet.
   if (draft === null) return null;
 
   if (halfDone !== null) {

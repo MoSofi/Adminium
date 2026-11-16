@@ -43,7 +43,7 @@ export interface SectionSlotProps {
 export const SECTION_RING =
   'relative cursor-pointer rounded-[5px] transition-shadow duration-150 hover:shadow-[0_0_0_5px_color-mix(in_srgb,var(--adm-email-accent)_8%,transparent)] data-[selected]:shadow-[0_0_0_5px_color-mix(in_srgb,var(--adm-email-accent)_13%,transparent)]';
 
-/** The hidden-until-focused selector every section carries (D17). */
+/** The hidden-until-focused selector every section carries. */
 export function SelectButton({ label, onSelect }: { label: string; onSelect: () => void }) {
   return (
     <button

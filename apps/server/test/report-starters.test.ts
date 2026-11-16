@@ -167,7 +167,7 @@ describe('the twelve starters (Appendix C, Appendix D)', () => {
   });
 });
 
-describe('the summary (D15/D16)', () => {
+describe('the summary', () => {
   it('carries exactly what the comp’s card thumbnail draws', () => {
     const starter = renderStarter('exec');
     expect(summaryOf(starter.body, { starterIcon: starter.card.icon })).toEqual({

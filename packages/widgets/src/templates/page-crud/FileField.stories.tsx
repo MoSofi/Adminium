@@ -109,7 +109,7 @@ export function SingleFile(): ReactNode {
   );
 }
 
-/** 38's list control (D19). */
+/** 38's list control. */
 export function MultipleFiles(): ReactNode {
   const spec = column({ file: { ref: 'id', multiple: true } });
   const resolvedByRef = new Map<string, ResolvedFile | null>([

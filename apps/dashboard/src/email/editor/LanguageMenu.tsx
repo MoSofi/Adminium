@@ -37,7 +37,7 @@ export interface LanguageRow {
   id: string | null;
 }
 
-/** The rows, in registry order; archived siblings read as *Not created yet* (D3). */
+/** The rows, in registry order; archived siblings read as *Not created yet*. */
 export function languageRows(currentLocale: string, languages: readonly EmailLanguageView[]): LanguageRow[] {
   const ids = [...new Set([...availableLocales().map((l) => l.id), ...languages.map((l) => l.locale), currentLocale])];
   ids.sort((a, b) => localeOrder(a) - localeOrder(b) || a.localeCompare(b));

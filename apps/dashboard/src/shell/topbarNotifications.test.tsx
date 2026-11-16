@@ -212,7 +212,7 @@ describe('the notification bell in the real Topbar', () => {
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Notifications' }));
 
     expect(await screen.findByText('You’re all caught up.')).toBeDefined();
-    // The stale "(M7)" deferral copy is gone for good.
+    // The stale deferral copy, which named a milestone, is gone for good.
     expect(screen.queryByText(/notification center \(M7\)/)).toBeNull();
   });
 

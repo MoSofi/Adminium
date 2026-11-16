@@ -5,7 +5,7 @@
  * settings — and the rules that shape it. Pure TypeScript: the steps render
  * it, this decides it.
  *
- * WHAT IS STORED (D1). `toSource` writes a page-config-shaped body: every
+ * WHAT IS STORED. `toSource` writes a page-config-shaped body: every
  * column as a `gridColumnSpec` INPUT (`name`, `label`, and `lookup` /
  * `reverse` / `derived` for a projection), the folds and counts authored here
  * as MEASURES in `derived.measures`, the calculated columns as FIELDS in
@@ -13,11 +13,11 @@
  * Studio's legacy `reverse` block, so a rule can read it (`{measure}`); a
  * count COPIED from a page keeps its `reverse` block and stays as it was.
  *
- * HEADERS (D4) follow the comp's script (692-712): first letter up,
+ * HEADERS follow the comp's script (692-712): first letter up,
  * underscores as spaces, a trailing `id` read as "ID"; a linked value is
  * "<Singular> <column>"; a count is "<Table> count"; a fold is "Sum of <col>".
  *
- * BUDGETS (D9, D11) are the server's, per family: 12 linked columns, 12
+ * BUDGETS are the server's, per family: 12 linked columns, 12
  * counts + folds, 8 calculated — the two caps the comp drew as one are two.
  */
 import {
@@ -84,7 +84,7 @@ export const EMPTY_DRAFT: Draft = { columns: [], measures: [], fields: [] };
 const NUMERIC_TYPES: ReadonlySet<string> = new Set(['integer', 'bigint', 'decimal', 'float']);
 
 // ---------------------------------------------------------------------------
-// Headers (D4)
+// Headers
 // ---------------------------------------------------------------------------
 
 /** `contact_name` → "Contact name", `client_id` → "Client ID", `id` → "ID". */
@@ -255,7 +255,7 @@ function mkCalc(id: string, header: string, source: string, numeric: boolean, fi
 }
 
 // ---------------------------------------------------------------------------
-// Operands (D10): base numeric columns, the folds and counts authored here,
+// Operands: base numeric columns, the folds and counts authored here,
 // and earlier numeric calculations — never a linked value.
 // ---------------------------------------------------------------------------
 
@@ -602,7 +602,7 @@ export function followPath(schema: SchemaReply, table: SchemaTable, path: readon
 }
 
 // ---------------------------------------------------------------------------
-// Suggestions (D15): four one-click chips the schema makes obvious
+// Suggestions: four one-click chips the schema makes obvious
 // ---------------------------------------------------------------------------
 
 export interface Suggestion {
@@ -664,7 +664,7 @@ export function suggestionsFor(schema: SchemaReply, table: SchemaTable): Suggest
 }
 
 // ---------------------------------------------------------------------------
-// The wire (D1, D8)
+// The wire
 // ---------------------------------------------------------------------------
 
 export interface DraftSettings {

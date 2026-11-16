@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Step 4 — where Adminium keeps its own data (R2).
+ * Step 4 — where Adminium keeps its own data.
  *
  * The gate worth pinning is the one the server also enforces: Adminium's own
  * tables may not go into a database its role cannot write to or run DDL in.

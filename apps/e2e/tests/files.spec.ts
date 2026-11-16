@@ -431,7 +431,7 @@ test.describe('a column-bound file — the sentence this feature exists for', ()
       expect(attached.attachedAt, 'the reconcile hook attached it on the write').not.toBeNull();
       expect(attached.entity).toEqual({ connectionId, table, recordId: '1' });
 
-      // ── replacing the value trashes what it used to name (D12) ───────────
+      // ── replacing the value trashes what it used to name ───────────
       const second = await upload(page.request, {
         filename: 'e2e-contract-v2.pdf',
         mime: 'application/pdf',
@@ -467,7 +467,7 @@ test.describe('a column-bound file — the sentence this feature exists for', ()
       await expect(chip).toHaveCount(1);
       await expect(chip).toBeVisible();
       await expect(chip).toContainText('e2e-contract-v2.pdf');
-      // The chip links to the SAME-ORIGIN content route (D24) — never to a
+      // The chip links to the SAME-ORIGIN content route — never to a
       // destination's public URL, which the dashboard's CSP would block.
       expect(await chip.getAttribute('href')).toBe(
         `/api/v1/files/${replacement.data.id}/content`,
@@ -701,7 +701,7 @@ test.describe('the Files page uploads', () => {
       await expect(page.getByText('terms.pdf')).toBeVisible();
 
       // The rows are LIBRARY files: a connection, no record, and claimed at
-      // creation so the unattached sweep leaves them (D4).
+      // creation so the unattached sweep leaves them.
       const listed = await page.request.get('/api/v1/files?limit=200');
       const { data } = (await listed.json()) as {
         data: { id: string; filename: string; entity: unknown; connectionId: string | null; attachedAt: number | null }[];
@@ -896,7 +896,7 @@ test.describe('attachments create the column and the dialog uses it', () => {
     } finally {
       // Put the page back: the suite runs serially against one seeded server.
       // The COLUMN stays — dropping one is the change Adminium will not make
-      // on its own (D7), and an unused text column costs the next spec nothing.
+      // on its own, and an unused text column costs the next spec nothing.
       const detail = await page.request.get(`/api/v1/pages/${pageId}`);
       const envelope = (await detail.json()) as { data: { config?: Record<string, unknown> } };
       const body = { ...(envelope.data.config ?? {}) };

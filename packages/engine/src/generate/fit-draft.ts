@@ -78,7 +78,7 @@ export interface DraftColumn {
   /** The generated `id` key. Exactly one per table. */
   primaryKey: boolean;
   /**
-   * The semantic to stamp as an override once the table exists (D3), or null
+   * The semantic to stamp as an override once the table exists, or null
    * for the key. Stamped even where the name already earns it, so the page
    * survives the column being renamed later.
    */

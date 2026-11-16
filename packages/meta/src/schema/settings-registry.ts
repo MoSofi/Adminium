@@ -562,10 +562,10 @@ export const SETTINGS_REGISTRY = {
   //
   // `files.maxBytes` default is 200 MiB figure, which is also the number the
   // File Manager comp puts in front of the user. The hard ceiling is 2 GiB and
-  // is below S3's 5 GiB single-PUT limit by design (D26): one request, one
+  // is below S3's 5 GiB single-PUT limit by design: one request, one
   // spool, one PUT, no multipart.
   'files.maxBytes': def(z.number().int().min(1024).max(2_147_483_648), 209_715_200, 'Largest single upload, in bytes', P),
-  // The SECURITY BOUNDARY, not a convenience list (D8). A type absent from
+  // The SECURITY BOUNDARY, not a convenience list. A type absent from
   // here is refused whatever the file claims to be and whatever a column's
   // `accept` allows — a column narrows this, it never widens it.
   'files.allowedTypes': def(
@@ -604,7 +604,7 @@ export const SETTINGS_REGISTRY = {
    */
   'retention.documentsDays': def(z.number().int().min(1).max(3650).nullable(), null, 'Days an issued document is kept before its bytes are deleted; empty keeps them forever', P),
   // Above this, a grid cell shows the chip rather than the image. There is no
-  // server-side resizing (D24/D39) — the thumbnail IS the original, rendered
+  // server-side resizing — the thumbnail IS the original, rendered
   // small — so the cap is what stops a 40 px box from downloading 12 MB.
   'files.thumbnailMaxBytes': def(z.number().int().min(0).max(52_428_800), 2_097_152, 'Largest image rendered as a grid thumbnail, in bytes', P),
   'retention.auditArchive': def(z.boolean(), false, 'Archive audit batches to adminium_files before deleting', P),

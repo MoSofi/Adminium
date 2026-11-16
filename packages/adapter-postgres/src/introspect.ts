@@ -666,7 +666,7 @@ export async function introspectPostgres(
     const reltuples = num(row['reltuples']);
     const inserts = num(row['n_ins']);
     // A table nobody has analysed yet reads -1 (PostgreSQL 14+): a fresh
-    // Supabase project's 8 cakes showed "—" (V24). The live-row counter knows,
+    // Supabase project's 8 cakes showed "—". The live-row counter knows,
     // for a plain table or a materialised view; a partitioned parent counts
     // none of its own, so it is never given it. The counter is reported late,
     // so a 0 may be rows not counted yet: it stays unknown, and an exact count

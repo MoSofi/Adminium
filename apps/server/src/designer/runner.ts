@@ -60,7 +60,7 @@ import { HAND_EDITS_MAX, plainPath } from './write-guard.js';
 
 export interface DesignerLimits {
   maxSteps: number;
-  /** Marks, not ceilings (D92): a turn or a session that passes one is warned about and goes on. */
+  /** Marks, not ceilings: a turn or a session that passes one is warned about and goes on. */
   turnTokens: number;
   sessionTokens: number;
 }
@@ -566,7 +566,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         turnTokens += usedIn + usedOut;
         sessionTokens += usedIn + usedOut;
         log.emit(turn, { kind: 'usage', step: steps, tokensIn: usedIn, tokensOut: usedOut, estimated, turnTokens });
-        // Tokens end nothing (D92): past a mark the person is told, once a turn for each mark, and the work goes on.
+        // Tokens end nothing: past a mark the person is told, once a turn for each mark, and the work goes on.
         if (!warned.has('turn-tokens') && turnTokens >= limits.turnTokens) {
           warned.add('turn-tokens');
           log.emit(turn, { kind: 'spend', which: 'turn-tokens', mark: limits.turnTokens, used: turnTokens });

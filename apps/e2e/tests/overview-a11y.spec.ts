@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * An app's Overview under axe — the composed `page-dashboard` of the POS
- * Overview design (P2), card family by card family, in light and dark, in
+ * Overview design, card family by card family, in light and dark, in
  * English and in Arabic (right to left), at the tablet width it was drawn for
  * and at a phone's.
  *

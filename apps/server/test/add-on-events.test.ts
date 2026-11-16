@@ -89,8 +89,8 @@ describe('Registering add-on events as job kinds', () => {
   });
 
   it('is INTERNAL, so POST /jobs cannot hand-craft the payload', () => {
-    // The payload reaches an add-on's server half, which runs in this process
-    // (O1). A jobs.manage holder able to author it would be feeding arbitrary
+    // The payload reaches an add-on's server half, which runs in this process.
+    // A jobs.manage holder able to author it would be feeding arbitrary
     // input straight to that code, past whatever the emitter would have checked.
     const registry = createJobRegistry();
     registerAddOnEventHandlers(registry, [event()]);

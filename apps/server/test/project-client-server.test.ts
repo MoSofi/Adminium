@@ -387,7 +387,7 @@ describe('a rebuild in dev', () => {
   });
 });
 
-// Plan 66 (P12): a project the desktop app opened is served as a terminal serves it.
+// Plan 66: a project the desktop app opened is served as a terminal serves it.
 describe('on the desktop app', () => {
   it('serves a project it opened: its pages and their code', async () => {
     const served = await serve({ env: { ADMINIUM_RUNTIME: 'desktop' } });

@@ -70,7 +70,7 @@ export function LoginPage() {
         labels={{
           // Straight after choosing a password (an invite, or a reset) the
           // person may never have signed in: "Welcome back" greeted a new
-          // helper (V28). Say what just happened instead.
+          // helper. Say what just happened instead.
           title:
             passwordSet === '1'
               ? t('auth.signIn.passwordSetTitle', 'Password saved')

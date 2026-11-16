@@ -69,7 +69,7 @@ export const documentReply = z.object({
 export const documentsListReply = z.object({ documents: z.array(documentReply) });
 
 /**
- * What Studio's profile editor reads (D14).
+ * What Studio's profile editor reads.
  *
  * The outline comes from the PROVIDER's own `describe(kind)` — labels in all
  * eight locales, which is why the engine needs no bundle from an add-on.

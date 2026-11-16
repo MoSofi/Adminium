@@ -107,7 +107,7 @@ export async function addOnLines(deps: {
     }
     out.set(key, { key, name, version, line, state: 'available', shapes, ledgers });
   }
-  // What the catalogue listed when it was last read. A list that is off is not read, even where an older one is still on disk (D100).
+  // What the catalogue listed when it was last read. A list that is off is not read, even where an older one is still on disk.
   if (await deps.catalogEnabled()) {
     const cached = await deps.store.readCatalogCache();
     if (cached !== null && isCurrentCatalogFormat(cached.document)) {

@@ -254,7 +254,7 @@ export interface ModelRelation {
   constraintName: string | null;
 }
 
-/** The five default kinds the designer can author (D30). */
+/** The five default kinds the designer can author. */
 const AUTHORABLE_DEFAULT_KINDS = new Set(['literal', 'now', 'uuid', 'autoincrement']);
 
 /** Convert a snapshot table into an editable `DesiredTable`. */

@@ -6,7 +6,7 @@
  * Choosing `enum` in the designer used to stage a column with an empty value
  * list, which `validateSchemaEdit` refuses as `ENUM_ON_NON_ENUM_COLUMN` at
  * Review: an option that could be picked and never applied, with nowhere in the
- * product to type the values it was asking for (B5).
+ * product to type the values it was asking for.
  *
  * ─── Two refusals, both with their reason on screen ────────────────────────
  *

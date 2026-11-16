@@ -9,7 +9,7 @@
  * nine lines of nginx, on by default on every NAS, on every Hetzner Storage
  * Box and inside Nextcloud. It needs no dependency at all, because it is the
  * same `fetch` the S3 driver uses. A bare VPS with only SSH gets the
- * MinIO/Garage recipe and the `s3` driver (D33).
+ * MinIO/Garage recipe and the `s3` driver.
  *
  * THE ONE PLACE IT IS NOT JUST HTTP: collections must exist before a PUT into
  * them. A dated key has three levels (`kind/yyyy/mm`), and a server answers a
@@ -18,11 +18,11 @@
  * is the entire protocol difference, and it is why `put` is the only verb here
  * with any logic in it.
  *
- * BASIC AUTH OVER HTTPS. The credential is stored encrypted (D2/D16) and sent
+ * BASIC AUTH OVER HTTPS. The credential is stored encrypted and sent
  * as `Authorization: Basic`. Over plain HTTP that is a credential in cleartext
  * on the wire; the destination editor and the docs say so, and the operator
  * pointing at their own LAN NAS is making an informed choice this driver does
- * not second-guess (D17).
+ * not second-guess.
  */
 
 import { createReadStream } from 'node:fs';

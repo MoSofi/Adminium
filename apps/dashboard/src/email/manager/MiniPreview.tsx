@@ -7,7 +7,7 @@
  * it, not for the dashboard's theme (39 Appendix A §M4).
  *
  * The accent is DATA, so it rides the sanctioned `--adm-email-accent` custom
- * property (D15) and the classes read it back; there is no `style` colour.
+ * property and the classes read it back; there is no `style` colour.
  */
 import { Hexagon } from 'lucide-react';
 

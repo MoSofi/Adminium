@@ -56,7 +56,7 @@ export function patchBlock<K extends ReportBlockKind>(body: ReportBody, id: stri
   );
 }
 
-/** The comp's `addBlock` (535): append and select. Never inserts between — this comp has no insert chip (C8). */
+/** The comp's `addBlock` (535): append and select. Never inserts between — this comp has no insert chip. */
 export function addBlock(body: ReportBody, block: ReportBlock): { body: ReportBody; selection: Selection } {
   return { body: withBlocks(body, [...body.blocks, block]), selection: block.id };
 }

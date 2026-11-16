@@ -80,7 +80,7 @@ const desiredTable = z.strictObject({
  * after any edit without saying why.
  *
  * Accepted on the PLAN body as well as on apply, deliberately: the plan the
- * operator authorises must be the plan that runs (D2). A door opened only at
+ * operator authorises must be the plan that runs. A door opened only at
  * apply produced a different plan — a refused step compiles to no SQL — and
  * `SCHEMA_DRIFT` fired before the door could be consulted.
  */
@@ -118,7 +118,7 @@ export const schemaEditBody = z.strictObject({
 });
 
 export const applyBody = schemaEditBody.extend({
-  /** The plan being authorised (D2); a mismatch is `SCHEMA_DRIFT`. */
+  /** The plan being authorised; a mismatch is `SCHEMA_DRIFT`. */
   checksum: z.string().min(1),
   /**
    * D18's acknowledgement door: the operator has SEEN the row count for every

@@ -66,7 +66,7 @@ describe('a plan differing only by its REFUSAL hashes differently', () => {
   });
 });
 
-describe('the ceiling acknowledgement is part of a plan’s identity (D18)', () => {
+describe('the ceiling acknowledgement is part of a plan’s identity', () => {
   it('separates an acknowledged plan from an unacknowledged one', () => {
     const steps = [planned({ sql: ['ALTER TABLE "huge" ...'] })];
     expect(checksumOf(steps, EDIT, [])).not.toBe(checksumOf(steps, EDIT, ['main.huge']));

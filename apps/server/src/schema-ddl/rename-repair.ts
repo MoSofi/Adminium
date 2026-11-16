@@ -397,7 +397,7 @@ async function repairIn(input: RenameRepairInput): Promise<RenameRepairResult> {
     }
   }
 
-  // --- the diagram layout's keys (D21) --------------------------------------
+  // --- the diagram layout's keys --------------------------------------
   const layout = connection.diagramLayout;
   if (layout !== null && typeof layout === 'object') {
     const positions = layout as Record<string, unknown>;

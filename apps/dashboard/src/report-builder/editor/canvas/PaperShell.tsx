@@ -17,8 +17,8 @@
  * (256) plus the palette (216) and the inspector (288), leaves 208 px and cuts
  * block content off inside `overflow: hidden` with no way to reach it
  * (measured: a contact e-mail 45 px past the edge, a delivery rail 35 px, a
- * table's amount column 20 px). The comp draws no responsive rule at all
- * (E11), so this is the ruling that fills the silence: keep the comp's squeeze
+ * table's amount column 20 px). The comp draws no responsive rule at all,
+ * so this is the ruling that fills the silence: keep the comp's squeeze
  * down to {@link SHEET_MIN} and let the CANVAS COLUMN scroll below that,
  * rather than clip. At a comfortable width the picture is the comp's,
  * unchanged.
@@ -28,7 +28,7 @@ import { cn } from '@adminium/ui';
 
 import type { ReportBody } from '../../model/envelope.js';
 
-/** The floor the sheet stops squeezing at; below it the canvas column scrolls (D18). */
+/** The floor the sheet stops squeezing at; below it the canvas column scrolls. */
 export const SHEET_MIN = 560;
 
 export interface PaperShellProps {

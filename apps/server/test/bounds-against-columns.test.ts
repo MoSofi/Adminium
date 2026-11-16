@@ -9,7 +9,7 @@
  *  - a time of day kept as text against another: work starts before it ends;
  *  - an end at most so many days after a start: a cover lasts a year at most,
  *    and an empty end ("until further notice") stays allowed;
- *  - a moment not before now on a create (D18): a visit is never booked in
+ *  - a moment not before now on a create: a visit is never booked in
  *    the past, while a later change, and a brought file (history), are not
  *    held to it.
  *

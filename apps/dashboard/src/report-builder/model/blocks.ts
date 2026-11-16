@@ -4,7 +4,7 @@
  * the 25 kinds in palette order, the label and glyph each one carries,
  * and the seed a palette click creates.
  *
- * ─── THE `kindMeta` DEFECT IS FIXED BY CONSTRUCTION (D13) ──────────────────
+ * ─── THE `kindMeta` DEFECT IS FIXED BY CONSTRUCTION ──────────────────
  *
  * The comp's `kindMeta` returns a POSITIONAL pair — `[label, icon]` for 21
  * kinds and `[icon, label]` for four (`refund`, `contact`, `loyalty`,

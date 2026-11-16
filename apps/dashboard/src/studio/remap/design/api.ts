@@ -4,13 +4,13 @@
  *
  *   POST /connections/:id/schema/plan   → the plan and its SQL (runs nothing)
  *   POST /connections/:id/schema/apply  → run it
- *   POST /connections/:id/schema/adopt  → include new tables and regenerate (D11)
+ *   POST /connections/:id/schema/adopt  → include new tables and regenerate
  *   GET  /connections/:id/schema/changes → the ledger
  *
  * `plan` is safe to call on every keystroke-settled edit: it executes no
  * statement against the customer's database. That is what makes a live review
  * pane honest rather than a mock — the SQL on screen is compiled by the same
- * function that will run it (D2).
+ * function that will run it.
  */
 import { queryOptions } from '@tanstack/react-query';
 
@@ -25,7 +25,7 @@ const base = (connectionId: string): string =>
  * ceiling, and the PLAN takes it as well as the apply.
  *
  * Both, deliberately. The plan an operator authorises has to be the plan that
- * runs (D2), and a refused step compiles to no SQL — so a door opened only at
+ * runs, and a refused step compiles to no SQL — so a door opened only at
  * apply produced a different plan, and the checksum compare rejected it with
  * SCHEMA_DRIFT before the door was ever consulted. So the flow is two round
  * trips: plan (refused, showing what to type) → plan again WITH the

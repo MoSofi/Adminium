@@ -138,7 +138,7 @@ test.describe('generated app on the seeded Northwind connection', () => {
     await dialog.getByRole('button', { name: 'Create customer' }).click();
 
     /*
-     * The dialog CLOSES on success and the toast carries the Undo (D4). The
+     * The dialog CLOSES on success and the toast carries the Undo. The
      * second "added — Done" panel is gone: it confirmed, in front of the grid
      * that now showed the row, something the toast had already said.
      */

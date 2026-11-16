@@ -477,7 +477,7 @@ export interface WizardState {
   metaPlacement: MetaPlacement | null;
   /**
    * The first-run wizard already asked where Adminium keeps its own data, and
-   * handed over to this one (V24): the meta step is skipped, not asked twice.
+   * handed over to this one: the meta step is skipped, not asked twice.
    */
   metaAsked: boolean;
   separateMetaDsn: string;

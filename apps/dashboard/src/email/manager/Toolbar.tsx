@@ -3,7 +3,7 @@
  * The manager's toolbar row (comp 323-344): the Templates/Campaigns tray
  * with count badges, the *Group by* segment, the search field and the
  * gallery/list segment. In archived mode a leading `FilterChip` says so and
- * is the way back (D4).
+ * is the way back.
  */
 import { FolderTree, Languages, LayoutGrid, LayoutTemplate, List, Send } from 'lucide-react';
 import { FilterChip, SearchInput, SegmentedControl, TabsList, TabsTrigger } from '@adminium/ui';

@@ -10,7 +10,7 @@
  *    methods — never a virtual default, never an ungranted row;
  *  - a recursive scan of the whole body finds no physical table, no filter
  *    and no count;
- *  - a service-role endpoint is listed when granted (O5);
+ *  - a service-role endpoint is listed when granted;
  *  - `baseUrl` never comes from `Origin`.
  */
 

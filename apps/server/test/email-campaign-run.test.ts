@@ -277,7 +277,7 @@ for (const engine of META_ENGINES) {
       const notes = await notificationsRepo(meta).listForUser(manager.id);
       expect(notes.some((n) => n.kind === EMAIL_CAMPAIGN_SENT_KIND && n.body === '3 sent · 0 failed')).toBe(true);
 
-      // The manager's summary derives the pill from the latest run (D2).
+      // The manager's summary derives the pill from the latest run.
       const list = (await app.inject({ method: 'GET', url: '/email-templates?kind=campaign', headers: as(viewer) })).json() as {
         items: { id: string; run?: EmailRunView }[];
       };

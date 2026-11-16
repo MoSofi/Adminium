@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `canExportSomewhere` (V28): the rail offered "Data exports" to a helper whose
+ * `canExportSomewhere`: the rail offered "Data exports" to a helper whose
  * role could export nothing.
  */
 import { describe, expect, it } from 'vitest';
