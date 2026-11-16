@@ -1655,6 +1655,23 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     return [...roleTablesChecked(manifest, addOns, installed.document as Manifest | null, running), ...others];
   }
 
+  /**
+   * This install's own consent to public access, given when it was made: a
+   * live key of its own on its own database. Any of its keys counts — the
+   * guest key, or a shared link's own key: an app whose only public door is a
+   * link (a quote opened by its code) has no guest key at all, and its
+   * access follows the version as a guest key's does. Another copy's key
+   * allows nothing here.
+   */
+  async function holdsPublicAccess(key: string, installId: string, connectionId: string | null): Promise<boolean> {
+    if (connectionId === null) return false;
+    const at = Date.now();
+    const here = new Set((await publicKeysRepo(deps.meta).listLiveDerived(connectionId, at)).map((one) => one.id));
+    return (await publicKeysRepo(deps.meta).listManagedBy(key)).some(
+      (one) => here.has(one.id) && one.revokedAt === null && (one.expiresAt === null || one.expiresAt > at) && (one.installId === null || one.installId === installId),
+    );
+  }
+
   /** What the app's guests could do, for the check step: its endpoints, what would stop them, who may allow them. */
   /**
    * WHAT AN UPDATE WOULD WIDEN FOR THE KEYS ALREADY USING ITS ENDPOINTS: each
@@ -2794,9 +2811,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
      * a page that silently did not change is the thing they would not find.
      */
     stage = 'pages';
-    // This install's own consent: the live key on its own database.
-    const liveKey = connectionId === null ? null : await publicKeysRepo(deps.meta).newestLiveByAppAndConnection(key, 'customer', connectionId);
-    const keepsPublicAccess = liveKey !== null && liveKey.managedBy === key && (liveKey.installId === null || liveKey.installId === installed.row.id);
+    // This install's own consent: a live key of its own on its own database.
+    const keepsPublicAccess = await holdsPublicAccess(key, installed.row.id, connectionId);
     const caught: { error?: unknown } = {};
     const watching: InstallHost = {
       ...host,
@@ -3915,9 +3931,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
        * keys. Not saying so gives nothing new. What it no longer declares
        * was taken back above, either way.
        */
-      // This install's own consent: the live key on its own database. Another copy's key allows nothing here.
-      const liveKey = connectionId === null ? null : await publicKeysRepo(deps.meta).newestLiveByAppAndConnection(key, 'customer', connectionId);
-      const keepsPublicAccess = liveKey !== null && liveKey.managedBy === key && (liveKey.installId === null || liveKey.installId === installed.row.id);
+      // This install's own consent: a live key of its own on its own database. Another copy's key allows nothing here.
+      const keepsPublicAccess = await holdsPublicAccess(key, installed.row.id, connectionId);
       const consent = input.body?.publicAccess;
       const grant =
         consent === true && canGrantKeys

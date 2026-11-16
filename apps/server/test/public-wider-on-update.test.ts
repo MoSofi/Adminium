@@ -147,6 +147,50 @@ describe.each(LEGS)('an update that widens a public endpoint a key uses — %s',
     expect(await audited('public-endpoint.widen')).toHaveLength(1);
   }, 120_000);
 
+  it.skipIf(!available)('an app whose public access is a shared link alone: allowed to widen, it widens, and the next update asks nothing', async () => {
+    h = await addOnHarness(dialect, { unbuiltWords: {} });
+    // A quote opened by its own link: the app's only public door is the link's key, no guest key at all.
+    const linked = (version: string, select: string[]) =>
+      shopManifest({
+        version,
+        requiredSchema: {
+          prefixed: true,
+          tables: [
+            {
+              ref: 'products',
+              columns: [
+                { ref: 'id', type: 'int', role: 'pk' },
+                { ref: 'name', type: 'text', maxLength: 80, nullable: true },
+                { ref: 'price', type: 'decimal', scale: 2, default: 0 },
+                { ref: 'share_token', type: 'text', maxLength: 16, nullable: true, unique: true, rules: { code: { length: 16 } } },
+              ],
+            },
+          ],
+        },
+        publicKeys: { handover: {} },
+        publicAccess: [{ table: 'products', key: 'handover', methods: ['GET'], select, claim: { by: 'token', column: 'share_token' } }],
+      });
+    await h.stageApp(linked('1.0.0', ['id', 'name']));
+    expect((await h.install('shop', '1.0.0')).statusCode).toBe(200);
+
+    // 1.0.1 shows the link's holder the price too.
+    await h.stageApp(linked('1.0.1', ['id', 'name', 'price']));
+    const refused = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: {} });
+    expect(refused.statusCode, refused.body).toBe(422);
+    expect(refused.json().error.details).toMatchObject({ reason: 'PUBLIC_WIDER', publicWider: [{ ref: 'shop_products_claimed', columns: ['price'] }] });
+    // Allowed to widen, and nothing else: the access allowed at install follows the version, as a guest key's does.
+    const updated = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: { publicWider: true } });
+    expect(updated.statusCode, updated.body).toBe(200);
+    expect(await versionOf('shop')).toBe('1.0.1');
+    expect(await selectOf('shop_products_claimed')).toEqual(['id', 'name', 'price']);
+    expect((await audited('public-endpoint.widen')).map((after) => after?.['ref'])).toEqual(['shop_products_claimed']);
+
+    // The next version changes no door: nothing is asked again.
+    await h.stageApp(linked('1.0.2', ['id', 'name', 'price']));
+    const again = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: {} });
+    expect(again.statusCode, again.body).toBe(200);
+  }, 120_000);
+
   it.skipIf(!available)('a widening that shows no new column (a filter dropped) is asked, and audited with why', async () => {
     h = await addOnHarness(dialect, { unbuiltWords: {} });
     const named = { table: 'products', methods: ['GET'], select: ['id', 'name'] };
