@@ -5,6 +5,7 @@ import { t } from '../i18n/t.js';
 export function serviceName(provider: string): string {
   if (provider === 'payments-stripe') return 'Stripe';
   if (provider === 'payments-paypal') return 'PayPal';
+  if (provider === 'payments-square') return 'Square';
   if (provider === 'demo') return t('payments:panel.demoService', 'the demo service');
   return provider.replace(/^payments-/, '');
 }

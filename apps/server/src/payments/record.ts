@@ -56,6 +56,7 @@ import { listRuleMadeRow, rehashSampleRow, sampleListsNaming, type SampleList } 
 import { followDocumentStatus } from './document-status.js';
 import type { RecordDeps } from './record-deps.js';
 import { followRefundsOnRecord } from './refunds.js';
+import { serviceMark } from './service-name.js';
 
 export const PAYMENTS_RECORD_JOB = 'payments.record';
 
@@ -78,9 +79,7 @@ export type RecordOutcome =
 
 /** The provider's name as the row says who recorded it: "Online payment (Stripe)". */
 export function recordedByOf(provider: string): string {
-  const name = provider === 'demo' ? 'Demo' : provider.replace(/^payments-/, '').replace(/^./, (first) => first.toUpperCase());
-  const known: Record<string, string> = { Stripe: 'Stripe', Paypal: 'PayPal' };
-  return `Online payment (${known[name] ?? name})`;
+  return `Online payment (${serviceMark(provider)})`;
 }
 
 function actorOf(attempt: PaymentAttempt): WriteActor & { kind: 'system' } {
@@ -387,7 +386,7 @@ export async function writePaymentRow(deps: RecordDeps, payable: ResolvedPayable
   if (into.note !== null && write.note !== null) values[into.note] = write.note;
   // A profile's own columns: when it was paid, by which service, a terminal's code and the card's last four, the currency.
   if (into.paidAt !== undefined && into.paidAt !== null) values[into.paidAt] = new Date(write.paidAt).toISOString();
-  if (into.provider !== undefined && into.provider !== null && write.provider !== null) values[into.provider] = providerWord(write.provider);
+  if (into.provider !== undefined && into.provider !== null && write.provider !== null) values[into.provider] = serviceMark(write.provider);
   if (into.approvalCode !== undefined && into.approvalCode !== null && write.approvalCode !== null) values[into.approvalCode] = write.approvalCode;
   if (into.last4 !== undefined && into.last4 !== null && write.cardLast4 !== null) values[into.last4] = write.cardLast4;
   if (into.currency !== undefined && into.currency !== null) values[into.currency] = write.currency;
@@ -397,7 +396,7 @@ export async function writePaymentRow(deps: RecordDeps, payable: ResolvedPayable
   }
   if (into.shapeColumns) {
     values['currency'] = write.currency;
-    if (write.provider !== null) values['provider'] = providerWord(write.provider);
+    if (write.provider !== null) values['provider'] = serviceMark(write.provider);
     // A person's write is stamped with their name by the table's own rule.
     if (write.actor.kind === 'system') values['recorded_by'] = write.actor.label;
     if (write.approvalCode !== null) values['approval_code'] = write.approvalCode;
@@ -433,11 +432,6 @@ export async function writePaymentRow(deps: RecordDeps, payable: ResolvedPayable
     },
   });
   return `row:${into.tableName}:${rowKeyOf(found.table, row)}`;
-}
-
-/** The service's name as a record shows it ("Stripe", "PayPal"). */
-function providerWord(provider: string): string {
-  return recordedByOf(provider).replace(/^Online payment \((.*)\)$/, '$1');
 }
 
 /** `YYYY-MM-DD` of an instant in a time zone. */

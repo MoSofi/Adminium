@@ -37,6 +37,7 @@ import { recipientLocale } from '../i18n/server-i18n.js';
 import { businessName } from '../privacy/business.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../routes/payments/ways.js';
 import { resolvePayable, type PayableSources, type ResolvedPayable } from './payables.js';
+import { serviceMark } from './service-name.js';
 
 export interface PaymentEmailDeps extends EnqueueEmailDeps {
   sources: PayableSources;
@@ -194,7 +195,7 @@ export async function queuePaymentReceipt(deps: PaymentEmailDeps, attempt: Payme
     const left = payable.currency === currency && compareAmounts(payable.due, '0') === 1 ? subtractAmounts(payable.due, '0', scale) : null;
     const lines = paymentEmailLines(t, { left: left === null ? null : moneyText(left, currency, template.locale), number: payable.label, contact: contactOf(shop) });
     const label = (attempt.paidWith as { label?: unknown } | null)?.label;
-    const service = attempt.provider === 'payments-stripe' ? 'Stripe' : attempt.provider === 'payments-paypal' ? 'PayPal' : attempt.provider.replace(/^payments-/, '');
+    const service = serviceMark(attempt.provider);
     const method = typeof label === 'string' && label.trim() !== '' ? label : t('email:paymentReceipt.online', { service, defaultValue: 'Online payment ({service})' });
     const job = await enqueueEmail(deps, {
       to,

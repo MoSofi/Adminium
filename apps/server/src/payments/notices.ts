@@ -32,6 +32,7 @@ import { z } from 'zod';
 
 import { translatorFor } from '../i18n/server-i18n.js';
 import { notify, type NotificationPublisher } from '../notifications/notify.js';
+import { serviceMark } from './service-name.js';
 
 export const NOTICE_KINDS = ['payments.landed', 'payments.needs-look', 'payments.key-refused', 'payments.webhook', 'payments.reads', 'payments.keys-removed', 'payments.refund-failed', 'payments.dispute', 'payments.card-testing', 'payments.auto-refund'] as const;
 export type NoticeKind = (typeof NOTICE_KINDS)[number];
@@ -76,10 +77,7 @@ export interface NoticeDeps {
 
 /** A provider's name as a reader sees it. */
 export function providerName(key: string): string {
-  if (key === 'payments-stripe') return 'Stripe';
-  if (key === 'payments-paypal') return 'PayPal';
-  if (key === 'demo') return 'Demo';
-  return key.replace(/^payments-/, '');
+  return serviceMark(key);
 }
 
 /** An amount in the reader's language, Latin digits, at the amount's own decimals. */
