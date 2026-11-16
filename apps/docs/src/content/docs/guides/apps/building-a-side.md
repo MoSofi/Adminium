@@ -261,7 +261,10 @@ What a public create can and cannot hold a stranger to is in
 you need that is not there, such as "the pickup date is not in the past", can only be checked in
 the screen: say so to whoever asked for it.
 
-The public API does not take payments, run a query you write, or run code of yours on the server.
+The public API never takes a card itself, runs a query you write, or runs code of yours on the
+server. A customer pays on Adminium's pay page, which a screen opens for a record the app's
+`payments.payables` name; the screen then asks how the payment stands (see
+[Paying from the app's own customer screens](/reference/manifest/#paying-from-the-apps-own-customer-screens)).
 What a customer may do is exactly the list the manifest grants.
 
 ## Pages and their addresses

@@ -6215,6 +6215,22 @@ payment fills (`provider`, `approvalCode`, `last4`). `ways` and `payPage` stay a
 | `ways` | Up to 32 ways to pay, each `{ "source", "method" }` once: `manual` or a payment service's key, and the way to pay, with `enabled`, a `label` per language, `rules` (`countries`, `currencies`, `min`, `max`) and `position`. |
 | `payPage` | The pay page's plain settings: `shopName`, `shopCountry` (two letters) and `showLines`. Never a logo or a contact. |
 
+#### Paying from the app's own customer screens
+
+A customer side asks the public API three things about payments, under the app's own key (the
+public client's `payments`). Only the app's own payables are answered, never a table another app or
+a person made payable:
+
+| Call | What it answers |
+|---|---|
+| `GET /api/v1/public/payments/available` (`client.payments.available()`) | `{ "online" }`: true only while someone who manages payments has switched the app on, a payment service is live and customers can reach the pay address. Show **Pay now** only then; otherwise the screens read as they always did. `test: true` while someone who manages payments rehearses the checkout on this address (show the TEST band). |
+| `POST /api/v1/public/payments/start` with `{ "ref", "id" }` (`client.payments.start(ref, id)`) | `{ "payUrl" }`: the pay link of a record the visitor can read through the entry `ref`. A proof is owed (`pay-start`; the client solves it). A record the visitor cannot read is `404 PUBLIC_REF_NOT_FOUND`, as for a read; one that cannot be paid now is `409 PUBLIC_PAY_REFUSED` with `params.reason` `off`, `not-payable`, `nothing-due` or `not-now`. The amount is always the record's own. |
+| `GET /api/v1/public/payments/state?ref=…&id=…` (`client.payments.state(ref, id)`) | `{ "state", "test"? }`: how the record's newest online payment stands, for the customer who comes back from the pay page. Read through the entry `ref` as a start is, with the same `404`. `none` (no payment was started online), `open` (a checkout is open at the service, which has not said yet: show "Checking your payment…" and ask again), `confirming` (the bank is confirming it, which some ways take days for: say so, and not to pay again), `paid` (the money arrived; read the record again for what it now says), `failed` (it did not finish; nothing was taken) or `expired` (the time to pay on the service's page ran out; nothing was taken). `test: true` for a rehearsal's test payment. One word and nothing else: no amount, no service, no id, nothing of the customer. Never kept by a browser or a cache. Adminium 0.3.61 and later. |
+
+All three are limited as every public call is (`429 PUBLIC_RATE_LIMITED`). A payable's `returnTo`
+is where the pay page's **Back to …** sends the customer; it carries no token, so the screen there
+finds the record by the customer's own session or claim, then asks `state`.
+
 ## Add-on manifests
 
 An add-on manifest has `"kind": "add-on"` and shares the identity fields, `compatibility`,
