@@ -82,6 +82,14 @@ export interface PublicPayStateAnswer {
 
 export interface PublicPay {
   available(connectionId: string, appKey: string): Promise<{ online: boolean }>;
+  /**
+   * Whether the app takes payments online for one of its tables right now:
+   * `available`, narrowed to the app's own payable on that table. What an
+   * entry open only while payments are on (or off) is opened by.
+   */
+  takesPaymentsFor(connectionId: string, appKey: string, table: string): Promise<boolean>;
+  /** Whether the app has a payable on this table, switched on or not: what a rehearsal of it walks. */
+  hasPayableOn(connectionId: string, appKey: string, table: string): Promise<boolean>;
   start(entity: RecordRef, appKey: string): Promise<{ ok: true; payUrl: string } | { ok: false; reason: StartRefusal }>;
   /**
    * How the newest online payment of the app's own payable record stands
@@ -117,6 +125,17 @@ export function createPublicPay(deps: PublicPayDeps & { meta: MetaDb; sources: P
       const owned = (await payableProfilesRepo(deps.meta).list(connectionId)).filter((profile) => profile.ownerApp === appKey);
       const switchedOn = owned.some((profile) => profile.enabled && (profile.mapping !== null || profile.shape !== null));
       return { online: switchedOn && (await open()) };
+    },
+
+    async takesPaymentsFor(connectionId, appKey, table) {
+      const profile = await payableProfilesRepo(deps.meta).byTable(connectionId, table);
+      if (profile === null || profile.ownerApp !== appKey || (profile.mapping === null && profile.shape === null) || !profile.enabled) return false;
+      return open();
+    },
+
+    async hasPayableOn(connectionId, appKey, table) {
+      const profile = await payableProfilesRepo(deps.meta).byTable(connectionId, table);
+      return profile !== null && profile.ownerApp === appKey && (profile.mapping !== null || profile.shape !== null);
     },
 
     async start(entity, appKey) {

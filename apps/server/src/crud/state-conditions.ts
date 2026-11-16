@@ -406,7 +406,7 @@ export function strictSources(
 
 /** Whether an error is one of the refusals a state judge makes (a guest's scope may then hide it as "no such row"). */
 export function isStateRefusal(error: unknown): boolean {
-  return error instanceof AppError && ['STATE_UNCHANGED', 'STATE_TOO_LATE', 'STATE_DATE_PASSED', 'WRITE_WINDOW_CLOSED', 'STATE_MOVE_REFUSED', 'RECORD_LOCKED'].includes(error.code);
+  return error instanceof AppError && ['STATE_UNCHANGED', 'STATE_TOO_LATE', 'STATE_DATE_PASSED', 'WRITE_WINDOW_CLOSED', 'STATE_MOVE_REFUSED', 'RECORD_LOCKED', 'PAYMENT_IN_FLIGHT'].includes(error.code);
 }
 
 /**

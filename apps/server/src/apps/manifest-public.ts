@@ -299,6 +299,8 @@ function definitionOf(
     ...(entry.humanCheck === true ? { human_check: true } : {}),
     // A create that answers the new row's pay link.
     ...(entry.pay === true ? { pay: true } : {}),
+    // Open only while the app takes payments online for this table (or only while it does not).
+    ...(entry.requirePayments === undefined ? {} : { require_payments: entry.requirePayments }),
     ...(entry.sensitive === undefined ? {} : { sensitive: entry.sensitive }),
     ...(entry.onClaim === undefined ? {} : { on_claim: { clear: [...entry.onClaim.clear] } }),
     ...(entry.maxOpen === undefined ? {} : { max_open: { ...entry.maxOpen } }),

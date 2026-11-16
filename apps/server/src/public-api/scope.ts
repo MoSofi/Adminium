@@ -431,6 +431,8 @@ const resourceSchema = z
     humanCheck: z.literal(true).optional(),
     /** A create answers the new row's pay link. */
     pay: z.literal(true).optional(),
+    /** Writes open only while the app takes payments online for this table (`on`), or only while it does not (`off`). */
+    requirePayments: z.enum(['on', 'off']).optional(),
     /** Writes refused while a bool in the settings row is false, or (`in`) while a choice there holds none of those values. */
     requireSetting: z
       .array(z.object({ table: z.string().min(1).max(200), column: columnSchema, when: z.literal('anonymous').optional(), in: z.array(z.string().min(1).max(64)).min(1).max(8).optional() }).strict())
@@ -714,6 +716,8 @@ export interface CompiledResource {
   humanCheck: boolean;
   /** A create answers the new row's pay link, when its app takes payments online right now. */
   pay?: boolean | undefined;
+  /** Writes open only while the app takes payments online for this table (`on`), or only while it does not (`off`). */
+  requirePayments?: 'on' | 'off' | undefined;
   /** The limits on a create nobody signed in for; null when there are none. */
   anonymous: AnonymousCaps | null;
   /** The limits on a change: per value a day, plain text (absent in a resource built by hand: none). */
@@ -1557,6 +1561,7 @@ export function compileScope(
       rank: r.rank === undefined ? null : { ...r.rank },
       humanCheck: r.humanCheck === true,
       ...(r.pay === true ? { pay: true } : {}),
+      ...(r.requirePayments === undefined ? {} : { requirePayments: r.requirePayments }),
       anonymous: r.anonymous === undefined ? null : { ...r.anonymous },
       limits: r.limits === undefined ? null : { ...r.limits },
       requireSetting: (r.requireSetting ?? []).map((setting) => ({ ...setting })),

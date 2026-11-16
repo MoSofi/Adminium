@@ -409,6 +409,7 @@ function storedMapping(payable: SavedPayable, realId: (ref: string) => string | 
             refunded: status.refunded ?? null,
             ...(status.from === undefined ? {} : { from: [...status.from] }),
             ...(status.refundedFrom === undefined ? {} : { refundedFrom: [...status.refundedFrom] }),
+            ...(status.set === undefined ? {} : { set: { ...status.set } }),
           },
     customerEmail: payable.customerEmail ?? null,
     customerCountry: payable.customerCountry ?? null,

@@ -96,7 +96,7 @@ export interface WriteContext {
    * timed move names its moment too (`at`): it is made only while the row, as
    * held, is still due by it.
    */
-  declared?: { from?: string | undefined; to: string; at?: Moment | undefined } | undefined;
+  declared?: { from?: string | undefined; to: string; at?: Moment | undefined; sets?: readonly string[] | undefined } | undefined;
   /**
    * A server action's new code for a row's own link ("make a new link", a
    * forgotten person's links stopped): the code columns it renews. A write

@@ -19,6 +19,7 @@ import { createFileColumnJudge } from '../files/column-judge.js';
 import { assertListedCanOpen } from './row-writes.js';
 import { peopleTablesOf } from '../people/tables-of.js';
 import { paymentRowsOf } from './payment-rows.js';
+import { paymentInFlight } from '../payments/in-flight.js';
 
 /**
  * One of an add-on's settings (or an app's own, under the app's key): the
@@ -51,8 +52,14 @@ function defaultIn(document: unknown, setting: string): unknown {
 
 export function writeStores(
   meta: MetaDb,
-): Pick<WriteServiceOptions, 'sequences' | 'timezoneOf' | 'settings' | 'rolesOf' | 'customerKey' | 'files' | 'fileFacts' | 'listings' | 'people' | 'paymentRows'> {
+): Pick<WriteServiceOptions, 'sequences' | 'timezoneOf' | 'settings' | 'rolesOf' | 'customerKey' | 'files' | 'fileFacts' | 'listings' | 'people' | 'paymentRows' | 'paymentInFlight'> {
   return {
+    // A move that waits for no payment on its way is refused while one is, whoever writes (`payments/in-flight.ts`).
+    paymentInFlight: async (target, row) => {
+      const key = target.table.primaryKey.length === 1 ? row[target.table.primaryKey[0]!] : undefined;
+      if (key === undefined || key === null) return false;
+      return paymentInFlight(meta, target.connectionId, target.table.id, String(key), Date.now());
+    },
     // A payment taken online is written by the payment alone and changed only by a refund, whoever writes (`payment-rows.ts`).
     paymentRows: paymentRowsOf(meta),
     // The people an app declares: a table's opt-out mark is set by no trigger of its own, whoever writes (`decide.ts`).

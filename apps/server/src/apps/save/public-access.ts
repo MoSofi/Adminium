@@ -216,10 +216,11 @@ function entryOf(inv: Inverse, endpoint: PublicEndpoint, def: Def, keyName: stri
     ...opt('level', ownToken ? undefined : def.level),
     ...(def.human_check === true ? { humanCheck: true as const } : {}),
     ...(def.pay === true ? { pay: true as const } : {}),
+    ...opt('requirePayments', def.require_payments),
     ...opt('sensitive', def.sensitive),
     ...opt('onClaim', def.on_claim === undefined ? undefined : { clear: [...def.on_claim.clear] }),
     ...opt('maxOpen', def.max_open as PublicAccess['maxOpen']),
-    ...opt('requireSetting', settings === undefined ? undefined : settings.map((s) => ({ table: tab(inv, s.table), column: s.column, ...opt('when', s.when) }))),
+    ...opt('requireSetting', settings === undefined ? undefined : settings.map((s) => ({ table: tab(inv, s.table), column: s.column, ...opt('when', s.when), ...opt('in', s.in === undefined ? undefined : [...s.in]) }))),
     ...opt(
       'anonymous',
       anonymous === undefined

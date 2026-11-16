@@ -1349,9 +1349,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * here, before any route, because every write reaches them through
    * `emitRecordEvent`.
    */
+  /** Whether an app takes payments online now: made with the payments further down, read by the outbox here. */
+  let publicPayOf: PublicPay | null = null;
   const outboxProducers = createOutboxProducers({
     meta,
     manager,
+    // A mail queued only while the app takes payments online for its row (or only while it does not), as its customers are told.
+    paymentsOn: async (connectionId, appKey, table, rehearsing) => {
+      if (publicPayOf === null) return false;
+      return rehearsing ? publicPayOf.hasPayableOn(connectionId, appKey, table) : publicPayOf.takesPaymentsFor(connectionId, appKey, table);
+    },
     viewFor: (connectionId) => publicViews.viewFor(connectionId),
     writes: recordWrites,
     logger: app.log,
@@ -1874,6 +1881,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const cardTesting = createCardTesting({ meta, secret: env.ADMINIUM_SECRET, hub: { publish: (channel: string, event: string, payload: unknown) => app.realtime.publish(channel, event, payload as never) } });
   // Paying from an app's own screens: only while the operator allows payments (never in a trial), the app is switched on, and public starts are not paused.
   const publicPay: PublicPay = createPublicPay({ ...payLinkDeps, cardTesting, paymentsAllowed: () => app.trialPolicy.allows('paymentProviders').allowed && app.trialPolicy.allows('payPages').allowed });
+  publicPayOf = publicPay;
   /*
    * An app's staff screens read whether it takes payments, and what the person may do (E5, the staff config):
    * `on` — someone switched the app on; `online` — customers can pay it online right now; `test` — this person is

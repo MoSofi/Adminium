@@ -395,6 +395,8 @@ export interface StateMoveRule {
     setting?: SettingCondition[];
     /** A date column of the row the move is not made after: refused once today, on the business's calendar, is later. */
     notPast?: string;
+    /** Refused while a payment for the row is on its way (the service processing it, or Adminium writing it down). */
+    noPaymentInFlight?: true;
   };
   roles?: string[];
   /** The move takes back the listed one the other way: made only by a write naming the state it saw. */

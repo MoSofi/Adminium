@@ -235,6 +235,8 @@ export class ConflictError extends AppError {
       | 'STATE_TOO_LATE'
       // A move made after the last day its row gives it (`details.date` the column, `details.until` the day).
       | 'STATE_DATE_PASSED'
+      // A move refused while a payment for its row is on its way (`details.column`, `from`, `to`).
+      | 'PAYMENT_IN_FLIGHT'
       // A public change outside the window its entry opens (`details.bound`, `details.at`).
       | 'WRITE_WINDOW_CLOSED'
       // A price by the night whose rate rule cannot be read (`details.table`, `key`, `column`).

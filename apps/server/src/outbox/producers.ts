@@ -127,6 +127,14 @@ export interface OutboxDeps {
   onQueued?: ((appKey: string) => void) | undefined;
   /** Tell the screens watching the log that a row was added or changed — no audit, no rule run. */
   announce?: ((connectionId: string, table: ResolvedTable, row: Row, action?: 'create' | 'update') => void) | undefined;
+  /**
+   * Whether the app takes payments online for one of its tables now, as its
+   * customers are told (`payments/public-pay.ts`) — or, for a row someone is
+   * rehearsing, whether it has a payable there at all: what a producer
+   * queued only while payments are on (or off) is judged by. Without it,
+   * payments are never on.
+   */
+  paymentsOn?: ((connectionId: string, appKey: string, table: string, rehearsing: boolean) => Promise<boolean>) | undefined;
 }
 
 /** An installed app's outbox, as stored — its tables already real. */
@@ -512,6 +520,11 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       // An email of a part of the app that is switched off is not queued.
       if (producer.module !== undefined && !(await appPartIsOn(deps.meta, box.appKey, producer.module, { installId: box.row.manifestId, connectionId: box.connectionId }))) return null;
       if (producer.gate !== undefined && !(await switchedOn(db, box, producer.gate))) return null;
+      // Payments on (or off) for the row the message is about, as its customer is told now: one of two mails of an event.
+      if (producer.payments !== undefined) {
+        const on = deps.paymentsOn === undefined ? false : await deps.paymentsOn(box.connectionId, box.appKey, about.table.id, rehearser !== null);
+        if (on !== (producer.payments === 'on')) return null;
+      }
       const read = settingReader(deps.meta, db, view, box.connectionId);
       // The log is the dedupe.
       let seen = db

@@ -189,7 +189,15 @@ export interface ResolvedPayable {
    * The status column to set when the due reaches zero (and back on a full refund);
    * `from`/`refundedFrom`, the states it is moved from (absent, any).
    */
-  status: { column: string; paid: string; refunded: string | null; from?: readonly string[] | undefined; refundedFrom?: readonly string[] | undefined } | null;
+  status: {
+    column: string;
+    paid: string;
+    refunded: string | null;
+    from?: readonly string[] | undefined;
+    refundedFrom?: readonly string[] | undefined;
+    /** Plain columns an online payment's move to paid writes beside the state, with fixed values. */
+    set?: Readonly<Record<string, string | number | boolean>> | undefined;
+  } | null;
   recordInto: RecordInto;
 }
 

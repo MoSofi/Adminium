@@ -54,7 +54,7 @@ const STRUCTURAL: ReadonlySet<string> = new Set([
 const TIMED: ReadonlySet<string> = new Set(['STATE_MOVE_REFUSED', 'STATE_TOO_LATE', 'WRITE_WINDOW_CLOSED', 'CAPACITY_TOO_LATE']);
 
 /** Refusals about a row's state: a lock, a delete, a move. */
-const stateRefusal = (code: string): boolean => code.startsWith('STATE_') || code === 'RECORD_LOCKED' || code === 'DELETE_REFUSED';
+const stateRefusal = (code: string): boolean => code.startsWith('STATE_') || code === 'RECORD_LOCKED' || code === 'DELETE_REFUSED' || code === 'PAYMENT_IN_FLIGHT';
 
 /** What a row's state is told by, in a state refusal's details. */
 const STATE_VALUES = ['state', 'from', 'to', 'named'] as const;
@@ -66,6 +66,7 @@ const TOLD: Readonly<Record<string, string>> = {
   STATE_MOVE_REFUSED: 'This move cannot be made now.',
   STATE_TOO_LATE: 'It is too late for this move.',
   STATE_DATE_PASSED: 'It is too late for this move.',
+  PAYMENT_IN_FLIGHT: 'A payment for this row is on its way. Wait for it to settle.',
   STATE_UNCHANGED: 'This row holds that already.',
   WRITE_WINDOW_CLOSED: 'This change can no longer be made.',
 };

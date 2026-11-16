@@ -2005,6 +2005,13 @@ export interface WriteServiceOptions {
    * guarded.
    */
   paymentRows?: ((target: Pick<WriteTarget, 'connectionId' | 'view' | 'table'>) => Promise<PaymentRowRule | null>) | undefined;
+  /**
+   * Whether a payment for one row is on its way now — the service processing
+   * it, or Adminium writing it down (`payments/in-flight.ts`): what a move
+   * that says `requires.noPaymentInFlight` is refused by, whoever writes.
+   * Without it, no payment is known of and no move is refused for one.
+   */
+  paymentInFlight?: ((target: Pick<WriteTarget, 'connectionId' | 'table'>, row: Row) => Promise<boolean>) | undefined;
 }
 
 /** What {@link WriteServiceOptions.paymentRows} says of a payable's payments table, or of an app's refund table. */
@@ -2773,6 +2780,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     return codes.length === 0 ? undefined : codes;
   }
 
+  /** Whether any move of the table is refused while a payment for its row is on its way. */
+  function waitsForNoPayment(rules: TableRules): boolean {
+    return Object.values(rules.states?.moves ?? {}).some((moves) => moves.some((move) => typeof move === 'object' && move.requires?.noPaymentInFlight === true));
+  }
+
   /**
    * What a checked row carries to its statement: the guard a document's
    * states judge it by (whether it is history, the writer's roles, the
@@ -2824,6 +2836,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             ? effectWriter(target, context, clock)
             : undefined,
         ...(renewing === undefined ? {} : { renewing }),
+        // A move that waits for no payment on its way asks, on the row as held.
+        ...(action === 'update' && opts.paymentInFlight !== undefined && waitsForNoPayment(rules)
+          ? { paymentInFlight: (row: Row) => opts.paymentInFlight!(target, row) }
+          : {}),
       });
     }
     const seals = history || action === 'delete' ? [] : (rules.seals ?? []).filter((stamp) => stampFires(stamp, action, values, stored));

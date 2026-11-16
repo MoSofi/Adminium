@@ -355,6 +355,8 @@ export const publicEndpointDefinitionSchema = z
     human_check: z.literal(true).optional(),
     /** A create answers the new row's pay link, when its app takes payments online right now. */
     pay: z.literal(true).optional(),
+    /** Writes open only while the app takes payments online for this table (`on`), or only while it does not (`off`). */
+    require_payments: z.enum(['on', 'off']).optional(),
     /** On an optional claim: the columns a signed-in create empties (a first visit's own details). */
     on_claim: z.object({ clear: z.array(columnSchema).min(1).max(12) }).strict().optional(),
     /** A signed-in person may hold at most `n` rows whose column is one of `values` (still ahead, with `upcoming`). */
@@ -615,6 +617,7 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
   if (def.level !== undefined) out['level'] = def.level;
   if (def.human_check !== undefined) out['human_check'] = def.human_check;
   if (def.pay !== undefined) out['pay'] = def.pay;
+  if (def.require_payments !== undefined) out['require_payments'] = def.require_payments;
   if (def.on_claim !== undefined) out['on_claim'] = { clear: [...def.on_claim.clear] };
   if (def.max_open !== undefined) out['max_open'] = { ...def.max_open };
   if (def.rank !== undefined) out['rank'] = { ...def.rank };
@@ -1003,6 +1006,7 @@ export function definitionToResource(
   if (def.level !== undefined) resource.level = def.level;
   if (def.human_check !== undefined) resource.humanCheck = true;
   if (def.pay !== undefined) resource.pay = true;
+  if (def.require_payments !== undefined) resource.requirePayments = def.require_payments;
   if (def.on_claim !== undefined) resource.onClaim = { clear: [...def.on_claim.clear] };
   if (def.max_open !== undefined) resource.maxOpen = { ...def.max_open };
   if (def.rank !== undefined) resource.rank = { orderBy: def.rank.order_by, ...(def.rank.where === undefined ? {} : { where: { ...def.rank.where } }) };

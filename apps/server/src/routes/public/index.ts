@@ -743,6 +743,10 @@ const refuseWrite = (error?: unknown, told?: Told): never => {
   if (error instanceof AppError && error.code === 'STATE_UNCHANGED') {
     throw new PublicWriteRefused({ column: String((error.details as { column?: unknown } | undefined)?.column ?? ''), reason: 'unchanged' });
   }
+  // A payment of the guest's own on its way: told so, on the state column, so the page waits for it rather than offering the move again.
+  if (error instanceof AppError && error.code === 'PAYMENT_IN_FLIGHT') {
+    throw new PublicWriteRefused({ column: String((error.details as { column?: unknown } | undefined)?.column ?? ''), reason: 'payment-in-flight' });
+  }
   if (error instanceof AppError) {
     const details = (error.details ?? {}) as { reason?: unknown; column?: unknown; fields?: Record<string, unknown> };
     const code = error.code === 'BOOKING_CLOSED' ? 'BOOKING_CLOSED' : typeof details.reason === 'string' ? details.reason : '';
@@ -1729,6 +1733,20 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     return Number(counted.rows[0]?.n ?? 0);
   };
 
+  /**
+   * Whether the key's app takes payments online for one of its tables now,
+   * as `GET /public/payments/available` would answer for it: an entry open
+   * only while payments are on (or off) asks this. Someone who manages
+   * payments rehearsing the app's checkout sees it on, for them alone, as
+   * they see "Pay now" in test mode.
+   */
+  const paymentsOnFor = async (request: FastifyRequest, key: ResolvedKey, table: string): Promise<boolean> => {
+    if (deps.pay === undefined || key.managedBy === null) return false;
+    if (await deps.pay.takesPaymentsFor(key.connectionId, key.managedBy, table)) return true;
+    if (!(await deps.pay.hasPayableOn(key.connectionId, key.managedBy, table))) return false;
+    return (await rehearsingPerson(request, meta, { sameOrigin: isSameOriginRequest, csrfOk: (one) => csrfHeaderMatches(one, csrfKey) })) !== null;
+  };
+
   const resolveResource = async (
     request: FastifyRequest,
     reply: FastifyReply,
@@ -1848,6 +1866,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           switchedOff = true;
           break;
         }
+      }
+      // An entry open only while the app takes payments online for this table (or only while it does not): a rehearsal counts as on, for the person rehearsing.
+      if (!switchedOff && resource.requirePayments !== undefined) {
+        if ((await paymentsOnFor(request, ok.key, table.id)) !== (resource.requirePayments === 'on')) switchedOff = true;
       }
       if (switchedOff && opts.deferSwitch !== true) {
         fail(reply, 403, 'PUBLIC_SWITCHED_OFF', 'This is not open online right now.');

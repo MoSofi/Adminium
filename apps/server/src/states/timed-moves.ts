@@ -56,7 +56,7 @@
 import type { FastifyInstance } from 'fastify';
 import { sql, type Kysely, type RawBuilder } from 'kysely';
 import type { Dialect } from '@adminium/engine';
-import { connectionTenantConfig, jobsRepo, paymentAttemptsRepo, type EnqueueJobInput, type MetaDb } from '@adminium/meta';
+import { connectionTenantConfig, jobsRepo, type EnqueueJobInput, type MetaDb } from '@adminium/meta';
 import type { Moment, TimedMove } from '@adminium/manifest';
 import { z } from 'zod';
 
@@ -73,6 +73,7 @@ import { writeStores } from '../crud/write-stores.js';
 import { bindWriteValue, normalizeWriteValue } from '../crud/write-values.js';
 import { isWriteConflict } from '../crud/db-errors.js';
 import { AppError } from '../errors.js';
+import { paymentInFlight } from '../payments/in-flight.js';
 import type { JobRegistry } from '../jobs/registry.js';
 import { createPublicViews } from '../public-api/runtime.js';
 import { rehashSampleRow } from '../apps/sample-data.js';
@@ -95,19 +96,12 @@ const LEAVE_ALONE_MS = 3_600_000;
 const SLOW_QUERY_MS = 200;
 /** Who a timed move is, in the audit log. */
 const ACTOR = { kind: 'system' as const, id: null, label: 'Timed move' };
-/** The longest a move waits for a payment on its way (a provider's page lives six hours at most). */
-export const PAYMENT_WAIT_MS = 7 * 3_600_000;
+export { PAYMENT_WAIT_MS } from '../payments/in-flight.js';
 
 /** A payment for the row the service has taken or is taking, and not yet written down: a move that waits for it waits. */
 async function paymentOnItsWay(meta: MetaDb, connectionId: string, table: ResolvedTable, pk: Row, now: Date): Promise<boolean> {
   if (table.primaryKey.length !== 1) return false;
-  const rowKey = String(pk[table.primaryKey[0]!]);
-  const attempts = paymentAttemptsRepo(meta);
-  for (const kind of ['profile', 'shape'] as const) {
-    const found = await attempts.forPayable({ kind, connectionId, tableName: table.id, rowKey });
-    if (found.some((attempt) => ['processing', 'succeeded', 'recording'].includes(attempt.state) && now.getTime() - attempt.createdAt < PAYMENT_WAIT_MS)) return true;
-  }
-  return false;
+  return paymentInFlight(meta, connectionId, table.id, String(pk[table.primaryKey[0]!]), now.getTime());
 }
 
 /** Refusals that pass: the next minute tries again. */

@@ -124,7 +124,8 @@ export async function recordAttempt(deps: RecordDeps, attemptId: string): Promis
   const finish = async (key: string, already: boolean, payable: ResolvedPayable | null = null): Promise<RecordOutcome> => {
     // The paid status first, so a crash or a failure here leaves the attempt
     // `recording` and the next run (which finds the row) sets it again.
-    const unmoved = payable === null ? null : await setPaidStatus(deps, attempt!.payable, payable, actorOf(attempt!), null, { resumed, mode: attempt!.mode });
+    // Paid on the pay page: the payable's further columns (`status.set`) go with the move. A card reader's charge at the counter writes none.
+    const unmoved = payable === null ? null : await setPaidStatus(deps, attempt!.payable, payable, actorOf(attempt!), null, { resumed, mode: attempt!.mode, online: attempt!.reader == null });
     // A sample row Adminium moved to paid is still the sample's own to take away.
     if (sampleLists !== null && payable !== null) await rehashPayable(deps, attempt!.payable);
     // The money is written; the record would not move to paid. Kept on the attempt and flagged for a person, never a log line only.
@@ -459,8 +460,12 @@ export async function setPaidStatus(
   before: ResolvedPayable,
   actor: PaymentActor,
   request: FastifyRequest | null,
-  /** A run that took over from one that died: a record it finds paid may never have been announced. */
-  opts: { resumed?: boolean; mode?: 'live' | 'test' } = {},
+  /**
+   * `resumed`: a run that took over from one that died — a record it finds paid may never have been announced.
+   * `online`: paid on the pay page — the payable's further columns (`status.set`) are written with the move; a
+   * payment recorded by hand, or taken on a card reader, writes none.
+   */
+  opts: { resumed?: boolean; mode?: 'live' | 'test'; online?: boolean } = {},
 ): Promise<AttemptProblem | null> {
   // A designer invoice: its Paid follows the balance (a meta write; a failure is thrown, so the job tries again).
   if (ref.kind === 'document') {
@@ -468,7 +473,7 @@ export async function setPaidStatus(
     return null;
   }
   try {
-    await setPaidStatusOnce(deps, ref, before, actor, request, opts.resumed === true, opts.mode ?? 'live');
+    await setPaidStatusOnce(deps, ref, before, actor, request, opts.resumed === true, opts.mode ?? 'live', opts.online === true);
     return null;
   } catch (error) {
     const problem = refusalOf(error);
@@ -478,7 +483,7 @@ export async function setPaidStatus(
   }
 }
 
-async function setPaidStatusOnce(deps: RecordDeps, ref: PayableRef, before: ResolvedPayable, actor: PaymentActor, request: FastifyRequest | null, resumed: boolean, mode: 'live' | 'test'): Promise<void> {
+async function setPaidStatusOnce(deps: RecordDeps, ref: PayableRef, before: ResolvedPayable, actor: PaymentActor, request: FastifyRequest | null, resumed: boolean, mode: 'live' | 'test', online: boolean): Promise<void> {
   const status = before.status;
   if (status === null || ref.connectionId === null || ref.tableName === null) return;
   const after = await resolvePayable(deps.sources, ref, { mode });
@@ -511,12 +516,14 @@ async function setPaidStatusOnce(deps: RecordDeps, ref: PayableRef, before: Reso
   if (status.from !== undefined && (from === null || !status.from.includes(from))) return;
   const pk = Object.fromEntries(found.table.primaryKey.map((column) => [column, row[column]]));
   const writes = deps.writes ?? createWriteService(writeStores(deps.meta));
+  // Paid online: the payable's further columns are written in the same statement as the move, open to the lock as its own.
+  const sets = online ? (status.set ?? {}) : {};
   await writes.update({
     target: found.target,
     pk,
-    values: { [status.column]: status.paid },
+    values: { ...sets, [status.column]: status.paid },
     // The app's own move to paid, made by Adminium: as a timed move is, whatever roles the move names.
-    context: { origin: 'payment', hops: 0, actor, request, ...(from === null ? {} : { declared: { from, to: status.paid } }) },
+    context: { origin: 'payment', hops: 0, actor, request, ...(from === null ? {} : { declared: { from, to: status.paid, ...(Object.keys(sets).length === 0 ? {} : { sets: Object.keys(sets) }) } }) },
     skipIfNone: true,
     announce: async (outcome) => {
       if (deps.app === undefined || outcome.count === 0) return;

@@ -148,11 +148,17 @@ export interface StateGuard {
    * move's moment (`at`) is read again on the row as held: a row re-dated
    * since it was found due is left as it is.
    */
-  declared?: { from?: string | undefined; to: string; at?: Moment | undefined } | undefined;
+  declared?: { from?: string | undefined; to: string; at?: Moment | undefined; sets?: readonly string[] | undefined } | undefined;
   /** Moves the row a link points at (an effect), by the write service's own statement, inside this transaction. */
   effect?: EffectWriter | undefined;
   /** The rows this write's effects moved, for the write to announce once it commits. */
   effected?: EffectWritten[] | undefined;
+  /**
+   * Whether a payment for the row is on its way now (`payments/in-flight.ts`):
+   * what a move that says `requires.noPaymentInFlight` is refused by. Absent on
+   * a write service built without the meta store: it knows of no payment.
+   */
+  paymentInFlight?: ((row: Row) => Promise<boolean>) | undefined;
 }
 
 /** A row a move of another row moved too (an effect), as it was and as it is. */
@@ -271,6 +277,19 @@ export class StateMoveRefused extends AppError {
   override readonly name = 'StateMoveRefused';
   constructor(message: string, details: Record<string, unknown>) {
     super(409, 'STATE_MOVE_REFUSED', message, details);
+  }
+}
+
+/**
+ * A move refused while a payment for its row is on its way
+ * (`requires.noPaymentInFlight`): the payment service processing it, or
+ * Adminium writing it down. Told apart from a move the row's state does not
+ * allow, so a screen can say "your payment is still landing".
+ */
+export class PaymentInFlight extends AppError {
+  override readonly name = 'PaymentInFlight';
+  constructor(message: string, details: Record<string, unknown>) {
+    super(409, 'PAYMENT_IN_FLIGHT', message, details);
   }
 }
 
@@ -641,6 +660,10 @@ async function judgeOwnUpdate(
           throw new StateDatePassed(`It is too late to move this ${table.name} row to ${String(to)}: its ${waits.notPast} was ${until}.`, { column: states.column, from, to, date: waits.notPast, until });
         }
       }
+      // Money landing for the row: refused for every writer but the payment's own move to paid, read on the row as held.
+      if (waits?.noPaymentInFlight === true && guard.origin !== 'payment' && guard.paymentInFlight !== undefined && (await guard.paymentInFlight(stored))) {
+        throw new PaymentInFlight(`A payment for this ${table.name} row is on its way: it cannot go from ${from} to ${String(to)} until the payment settles.`, { column: states.column, from, to });
+      }
       if (waits !== undefined) {
         await judgeWaits(waits, table, { moments: momentsOver(db, table, next, guard, judging), now: nowOf(db, guard) }, (message, details) =>
           refuse(`A ${table.name} row goes from ${from} to ${String(to)} ${message}.`, details),
@@ -657,7 +680,9 @@ async function judgeOwnUpdate(
       .filter((rule) => guard.declared !== undefined && rule.from === from && rule.to === to && guard.declared.to === to)
       .flatMap((rule) => Object.keys(rule.set ?? {}));
     const emptied = emptiedByMove.filter((name) => emptyValue(values[name]));
-    const open = new Set([states.column, ...(states.lock?.except ?? []), ...guard.decided, ...lateFlags, ...timedSets, ...emptied]);
+    // What the payment's own move to paid writes beside the state (`status.set`): the move's own, as a timed move's `set` is.
+    const paidSets = guard.declared !== undefined && guard.origin === 'payment' && guard.declared.to === to && (guard.declared.from === undefined || guard.declared.from === from) ? (guard.declared.sets ?? []) : [];
+    const open = new Set([states.column, ...(states.lock?.except ?? []), ...guard.decided, ...lateFlags, ...timedSets, ...emptied, ...paidSets]);
     const column = changed.find((name) => !open.has(name));
     if (column !== undefined) {
       throw new RecordLocked(`This ${table.name} row is ${from}: ${column} can no longer change.`, { column, state: from });
