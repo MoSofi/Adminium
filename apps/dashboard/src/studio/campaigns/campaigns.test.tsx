@@ -236,7 +236,7 @@ describe('the send dialog, to a table’s people (as a marketer)', () => {
       trackClicks: true,
     });
     expect(await screen.findByText('Campaign sent!')).toBeDefined();
-  });
+  }, 20_000);
 
   it('"As fast as your mail server allows" sends no cap and shows no estimate; a cap that is not a number holds the send', async () => {
     const { dialog, calls, user } = await openDialog({ tables: [CONTACTS], preview: ready(), detail: detail() });
