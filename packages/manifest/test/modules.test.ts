@@ -292,4 +292,24 @@ describe('modules: a payable of a part left out', () => {
     const shape = withoutModules({ ...paid(), payments: { payables: [{ table: 'quotes', shape: true, receipt: 'engine' }] } }, ['quotes']);
     expect(shape['payments']).toBeUndefined();
   });
+
+  it('opens what waited for payments to be off, drops what waited for them on, and refuses no move for a payment that can never come', () => {
+    const m = paid((doc) => {
+      tables(doc).find((table) => table['ref'] === 'deal_payments')!['module'] = 'quotes';
+      const deals = tables(doc)[0]!;
+      (deals['columns'] as Doc[]).push({ ref: 'stage', type: 'enum', enum: ['open', 'won', 'lost'], default: 'open' });
+      deals['states'] = { column: 'stage', initial: 'open', moves: { open: [{ to: 'won', requires: { noPaymentInFlight: true } }, 'lost'] } };
+      doc['publicAccess'] = [
+        { table: 'deals', methods: ['POST'], writable: ['name'], humanCheck: true, requirePayments: 'off' },
+        { table: 'deals', methods: ['POST'], writable: ['name'], humanCheck: true, pay: true, requirePayments: 'on' },
+      ];
+    });
+    m['compatibility'] = { ...(m['compatibility'] as Doc), minAdminiumVersion: '0.3.62' };
+    expect(messages(m)).toEqual([]);
+    const left = withoutModules(m, ['quotes']);
+    expect(left['payments']).toBeUndefined();
+    expect(left['publicAccess']).toEqual([{ table: 'deals', methods: ['POST'], writable: ['name'], humanCheck: true }]);
+    expect((tables(left)[0]!['states'] as { moves: Doc }).moves).toEqual({ open: [{ to: 'won' }, 'lost'] });
+    expect(messages(left)).toEqual([]);
+  });
 });

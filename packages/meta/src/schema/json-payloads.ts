@@ -1589,6 +1589,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
                     ...moveConditions,
                     /** A date column of the row the move is not made after: refused once today, where the business is, is later. */
                     notPast: ruleColumn.optional(),
+                    /** Refused while a payment for the row is on its way. */
+                    noPaymentInFlight: z.literal(true).optional(),
                   })
                   .optional(),
                 roles: z.array(z.string().min(1).max(64)).min(1).max(8).optional(),

@@ -433,6 +433,14 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'publicAccess.requireSettingIn',
   // A public create that answers the new row's pay link (routes/public/index.ts, payments/public-pay.ts).
   'publicAccess.pay',
+  // A move refused while a payment is on its way (crud/states.ts, payments/in-flight.ts); an entry open only while
+  // payments are on or off (routes/public/index.ts); a mail queued only while they are on or off, and more than 24
+  // producers (outbox/producers.ts); further columns the paid move writes (payments/record.ts).
+  'states.noPaymentInFlight',
+  'publicAccess.requirePayments',
+  'outbox.producerPayments',
+  'outbox.manyProducers',
+  'payments.statusSet',
   // A public entry's wider methods, address, pages, rate and reply (apps/manifest-public.ts).
   'publicAccess.put',
   'publicAccess.delete',

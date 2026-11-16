@@ -326,6 +326,8 @@ export const payableMappingSchema = z
         /** The states a row is moved to `paid` from; absent, from any (as the payments screen maps it). */
         from: z.array(z.string().min(1).max(64)).min(1).max(16).optional(),
         refundedFrom: z.array(z.string().min(1).max(64)).min(1).max(16).optional(),
+        /** Further plain columns an online payment's move to paid writes, with fixed values (never money, keys or links). */
+        set: z.record(column, z.union([z.string().max(255), z.number().finite(), z.boolean()])).optional(),
       })
       .strict()
       .nullable(),
