@@ -62,6 +62,22 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.60',
+    date: '2026-11-16',
+    title: 'Apps take payments, and card readers at the counter',
+    summary:
+      'Apps from the catalog can now ask their customers to pay online, keep and send refunds the way they already do, and put an amount on a card reader at the till. Every app’s payments arrive switched off, for someone who manages payments to switch on.',
+    changes: [
+      { tag: 'New', text: 'Payments → Apps: one “Can take payments” switch per installed app that asks customers to pay. An app’s payable tables read “From {app}” in What can be paid.' },
+      { tag: 'New', text: 'An app’s own screens ask whether payments are on (GET /api/v1/public/payments/available) and start one for a record the visitor can read (POST /api/v1/public/payments/start). The public client has payments.available() and payments.start().' },
+      { tag: 'New', text: 'Rehearse an app’s checkout before going live: “Try {app} as a customer” in Payments → Apps runs test payments on sample rows, with the app’s e-mails sent to you alone, marked [TEST].' },
+      { tag: 'New', text: 'Refunds the app’s way: an app that keeps a refund as a row of its own gets the money sent back for each such row, once; a payable may refund by itself after a cancellation the customer or the clock makes.' },
+      { tag: 'New', text: 'Card readers: a new add-on contract (card-terminal@1), Payments → Card readers to pair them, and charge routes a till uses to put an amount on a reader, follow it and cancel it. The tip lands apart. A reader-only service such as Card readers for Square is connected in Payments beside the others.' },
+      { tag: 'Security', text: 'Payments an app’s screens start are guarded against card testing: per-address and per-install limits, a lock after repeated declines, and a pause with “Resume now” when declines come from many addresses.' },
+      { tag: 'Security', text: 'A payment taken online is written by the payment alone: no person, key, rule or import may create, change or delete a row carrying a payment’s reference.' },
+    ],
+  },
+  {
     version: '0.3.59',
     date: '2026-11-15',
     title: 'Mail and archives for hosted installations',
