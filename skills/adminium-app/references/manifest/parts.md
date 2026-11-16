@@ -71,10 +71,18 @@ them elsewhere goes with them —
 - a kept total over one of its tables: the column stays, empty, with no rule;
 - a page bound to one of its tables, a role's grants and limits on them, a starting row and a
   sample row for them;
-- a role left with no part.
+- a role left with no part;
+- a [payable](https://docs.adminium.dev/reference/manifest/#payments) that names one of its tables: its own table, its payments table, its
+  refund table, or the settings table it reads its currency, its refund switch or its hours from,
+  and one that names a link column that went. A payable goes whole, never with half its
+  bookkeeping: the app takes no payment for it until the part is put in. A pay-page field
+  (`pageFields`) that went is only dropped from the page. A public entry's `pay` on a table no
+  longer payable goes too, and with no payable left, no role of the app is given
+  `payments:@:refund`.
 
 When the add-on is connected to the app later, the part is put in: the app is applied again from
 its own package, the tables and the link columns are made, and nothing that was there is touched.
+A payable that comes with the part arrives switched off, as an app's payables always do.
 A part that is in stays in; switching its add-on off for the app only turns the part off. The
 manifest must still be valid with the part left out, and the manifest check tries it: a formula of
 another table that reads the link column, for instance, is refused with "installed without

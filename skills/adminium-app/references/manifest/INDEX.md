@@ -47,7 +47,7 @@
 | `references/manifest/requiredschema--kept-by-law.md` | requiredSchema — Kept by law | 1055 |
 | `references/manifest/requiredschema--shared-tables.md` | requiredSchema — Shared tables | 1948 |
 | `references/manifest/requiredschema--tables-built-on-an-add-on-s-shape.md` | requiredSchema — Tables built on an add-on's shape | 5018 |
-| `references/manifest/parts.md` | Parts | 5719 |
+| `references/manifest/parts.md` | Parts | 6422 |
 | `references/manifest/maps.md` | Maps | 4830 |
 | `references/manifest/option-lists.md` | Option lists | 960 |
 | `references/manifest/pages.md` | Pages | 6950 |
