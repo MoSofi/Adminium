@@ -20,7 +20,7 @@
 | `references/manifest/public-access--guests-uploads.md` | Public access — Guests' uploads | 4192 |
 | `references/manifest/public-access--assets.md` | Public access — Assets | 1606 |
 | `references/manifest/public-access--availability.md` | Public access — Availability | 1991 |
-| `references/manifest/public-access--limits-on-a-stranger-s-create.md` | Public access — Limits on a stranger's create | 4789 |
+| `references/manifest/public-access--limits-on-a-stranger-s-create.md` | Public access — Limits on a stranger's create | 4808 |
 | `references/manifest/public-access--publickeys.md` | Public access — publicKeys | 3463 |
 | `references/manifest/automations.md` | Automations | 7120 |
 | `references/manifest/automations-2.md` | Automations (part 2) | 1062 |

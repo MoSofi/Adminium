@@ -5385,8 +5385,8 @@ three booking entries — unpaid with `"in": ["nothing", "optional"]`; unpaid wi
 and `"requirePayments": "off"`; and one that starts the stay in its paying state (`defaults`, from
 [`states.starts`](#states)) with `"in": ["required"]`, `"requirePayments": "on"` and `pay: true` — so
 while paying is required and possible the only booking a caller can make waits for its payment,
-and while payments are off the hotel books as it always did. The state column is never `writable`:
-which state a create starts in is the entry's, not the caller's. Someone who manages payments
+and while payments are off the hotel books as it always did. Keep the state column out of these
+creates' `writable`: which state a booking starts in is the entry's, not the caller's. Someone who manages payments
 rehearsing the app's checkout sees payments on, for them alone.
 
 ### publicKeys
