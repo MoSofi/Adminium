@@ -33,7 +33,8 @@ first if it has to, then checks the tables again:
   longer declares is revoked.
 - **Endpoints that would show visitors more are shown first.** When the new version changes a
   public endpoint the app's key already uses so that visitors would see or do more (a new column,
-  a new method, a filter loosened), the check lists each one on the **Shows visitors more** card,
+  a new method, a filter loosened), whether that key is the app's guest key or a shared link's own
+  key, the check lists each one on the **Shows visitors more** card,
   the app's own and those of an add-on it updates or serves, and **Update** waits until you tick
   **Allow it**. Only someone who may manage API keys can allow it. Through the API, send
   `"publicWider": true` with the update; without it the update is refused with `PUBLIC_WIDER` and

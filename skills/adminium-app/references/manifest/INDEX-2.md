@@ -50,7 +50,7 @@
 | `references/manifest/a-self-made-app--apps-requires.md` | A self-made app — `apps.requires` | 1407 |
 | `references/manifest/a-self-made-app--instance.md` | A self-made app — `instance` | 2327 |
 | `references/manifest/a-self-made-app--reports-invoicelayouts-and-scheduledreports.md` | A self-made app — `reports`, `invoiceLayouts` and `scheduledReports` | 1310 |
-| `references/manifest/a-self-made-app--payments.md` | A self-made app — `payments` | 3018 |
+| `references/manifest/a-self-made-app--payments.md` | A self-made app — `payments` | 5428 |
 | `references/manifest/add-on-manifests.md` | Add-on manifests | 5370 |
 | `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own.md` | Add-on manifests — An add-on with tables of its own | 7800 |
 | `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own-2.md` | Add-on manifests — An add-on with tables of its own (part 2) | 2439 |

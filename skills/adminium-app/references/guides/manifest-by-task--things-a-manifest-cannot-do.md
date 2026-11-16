@@ -4,8 +4,10 @@
 
 - **No server code.** An app package is a manifest, sample data and browser screens. Nothing in it
   runs on the server. A project's hooks and actions stay in the project and are not packed.
-- **No payments.** Nothing in a manifest charges a card. `payments` in `capabilities` is a label
-  on the app's card and does nothing else. Record a payment as a row staff enter.
+- **No card is charged by the app.** `payments` in `capabilities` is a label on the app's card
+  and does nothing else. A table the app's `payments.payables` names is paid on Adminium's own pay
+  page, once someone who manages payments switches the app on (see
+  [`payments`](https://docs.adminium.dev/reference/manifest/#payments)); everything else is recorded as a row staff enter.
 - **Not an empty app.** A manifest needs at least one table, one page and one `frontends` entry.
   An app with no screens of its own still declares one, of kind `none`:
 
