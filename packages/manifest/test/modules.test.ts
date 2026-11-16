@@ -183,3 +183,113 @@ describe('modules: a part left out while its add-on is not connected', () => {
     expect((left['seeds'] as Doc[]).map((seed) => seed['table'])).toEqual(['deals']);
   });
 });
+
+describe('modules: a payable of a part left out', () => {
+  const money = (ref: string) => ({ ref, type: 'decimal', scale: 2, default: 0 });
+  const paymentsTable = (ref: string, link: string, linkTo: string, module: string, more: Doc[] = []): Doc => ({
+    ref,
+    module,
+    columns: [
+      id,
+      { ref: link, type: 'fk', references: linkTo },
+      money('amount'),
+      { ref: 'paid_at', type: 'timestamptz', nullable: true },
+      { ref: 'method', type: 'enum', enum: ['cash', 'online'], default: 'cash' },
+      { ref: 'payment_ref', type: 'text', maxLength: 64, nullable: true, unique: true },
+      { ref: 'provider', type: 'text', maxLength: 40, nullable: true },
+      ...more,
+    ],
+  });
+  const payable = (table: string, payments: string, link: string, more: Doc = {}): Doc => ({
+    table,
+    amount: { column: table === 'quotes' ? 'total' : 'owed' },
+    currency: { fixed: 'EUR' },
+    due: { column: table === 'quotes' ? 'total' : 'owed' },
+    payments: { kind: 'table', table: payments, link, amount: 'amount', paidAt: 'paid_at', method: { column: 'method', values: { '*': 'online' } }, reference: 'payment_ref', provider: 'provider' },
+    ...more,
+  });
+  /** The CRM with quotes paid online, and deals that may be paid too (a deposit on the deal itself). */
+  const paid = (change: (m: Doc) => void = () => undefined): Doc =>
+    app((m) => {
+      const all = tables(m);
+      (all[0]!['columns'] as Doc[]).push(money('owed'), { ref: 'last_quote', type: 'fk', references: 'quotes', nullable: true });
+      all.push(paymentsTable('quote_payments', 'quote_id', 'quotes', 'quotes'), paymentsTable('deal_payments', 'deal_id', 'deals', 'selling'));
+      m['payments'] = { payables: [payable('quotes', 'quote_payments', 'quote_id'), payable('deals', 'deal_payments', 'deal_id', { pageFields: ['name', 'last_quote'] })] };
+      const roles = m['roles'] as Doc[];
+      (roles[0]!['permissions'] as string[]).push('payments:@:refund');
+      change(m);
+    }, '0.3.60');
+  const payables = (m: Doc): Doc[] => ((m['payments'] as Doc | undefined)?.['payables'] as Doc[] | undefined) ?? [];
+
+  it('goes with its table, and the manifest left is whole', () => {
+    const full = paid();
+    expect(messages(full)).toEqual([]);
+    const left = withoutModules(full, ['quotes']);
+    expect(payables(left).map((entry) => entry['table'])).toEqual(['deals']);
+    // A field of the pay page that was a link into the part is dropped from the page; the payable stays.
+    expect(payables(left)[0]!['pageFields']).toEqual(['name']);
+    // A payable is still left: the role keeps the right to give money back.
+    expect((left['roles'] as Doc[])[0]!['permissions']).toContain('payments:@:refund');
+    expect(messages(left)).toEqual([]);
+    expect(payables(full)).toHaveLength(2);
+  });
+
+  it('goes when its payments table is of the part, and the block goes when nothing is left', () => {
+    const m = paid((doc) => {
+      tables(doc).find((table) => table['ref'] === 'deal_payments')!['module'] = 'quotes';
+    });
+    expect(messages(m)).toEqual([]);
+    const left = withoutModules(m, ['quotes']);
+    expect(left['payments']).toBeUndefined();
+    // No payable left: no role of the app is given the refund right.
+    expect((left['roles'] as Doc[])[0]!['permissions']).not.toContain('payments:@:refund');
+    expect(messages(left)).toEqual([]);
+  });
+
+  it('goes when a column it names is a link that went with the part', () => {
+    const m = paid((doc) => {
+      payables(doc)[1]!['label'] = 'last_quote';
+    });
+    expect(payables(withoutModules(m, ['quotes'])).map((entry) => entry['table'])).toEqual([]);
+  });
+
+  it('goes when its refund rows, its currency or its refund switch are kept in a table of the part', () => {
+    const refundRows = { ref: 'deal_refunds', module: 'quotes', columns: [id, { ref: 'payment_id', type: 'fk', references: 'deal_payments' }, money('amount'), { ref: 'ref', type: 'text', maxLength: 64, nullable: true }, { ref: 'state', type: 'text', maxLength: 20, nullable: true }] };
+    const settings = { ref: 'quote_settings', module: 'quotes', columns: [id, { ref: 'currency', type: 'text', maxLength: 3, nullable: true }, { ref: 'auto_refund', type: 'bool', default: true }] };
+    const cases: ((doc: Doc) => void)[] = [
+      (doc) => {
+        tables(doc).push(refundRows);
+        payables(doc)[1]!['refunds'] = { model: 'rows', table: 'deal_refunds', payment: 'payment_id', amount: 'amount', when: [{ column: 'state', isNull: true }], providerRef: 'ref', state: 'state' };
+      },
+      (doc) => {
+        tables(doc).push(settings);
+        payables(doc)[1]!['currency'] = { setting: { table: 'quote_settings', column: 'currency' } };
+      },
+      (doc) => {
+        tables(doc).push(settings);
+        (tables(doc)[0]!['columns'] as Doc[]).push({ ref: 'stage', type: 'enum', enum: ['open', 'lost'], default: 'open' });
+        payables(doc)[1]!['status'] = { column: 'stage', paid: 'open', from: ['open'] };
+        payables(doc)[1]!['refundOn'] = { moves: [{ to: 'lost', by: ['customer'] }], switch: { table: 'quote_settings', column: 'auto_refund' } };
+      },
+    ];
+    for (const change of cases) {
+      const m = paid(change);
+      expect(messages(m)).toEqual([]);
+      const left = withoutModules(m, ['quotes']);
+      expect(left['payments']).toBeUndefined();
+      expect(messages(left)).toEqual([]);
+    }
+  });
+
+  it('takes the pay link off a create of a table no longer payable, and an invoice the shape maps goes with its table', () => {
+    const m = paid((doc) => {
+      tables(doc).find((table) => table['ref'] === 'deal_payments')!['module'] = 'quotes';
+      doc['publicAccess'] = [{ table: 'deals', key: 'shop', methods: ['POST'], writable: ['name'], humanCheck: true, pay: true }];
+      doc['publicKeys'] = { shop: { origins: ['https://shop.example'] } };
+    });
+    const left = withoutModules(m, ['quotes']);
+    expect((left['publicAccess'] as Doc[])[0]!['pay']).toBeUndefined();
+    const shape = withoutModules({ ...paid(), payments: { payables: [{ table: 'quotes', shape: true, receipt: 'engine' }] } }, ['quotes']);
+    expect(shape['payments']).toBeUndefined();
+  });
+});
