@@ -83,7 +83,8 @@ export default {
       "requested": "Demandé",
       "written": "Remboursement de {amount}",
       "disputeWon": "Litige gagné — {amount} sont revenus",
-      "undone": "Annulé"
+      "undone": "Annulé",
+      "by": "Par {person}"
     },
     "partlyRefunded": "Partiellement remboursé",
     "disputeWon": "Le litige a été gagné.",

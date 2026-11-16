@@ -56,7 +56,7 @@ import { isTestPayable } from '../../payments/test-payables.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { createPublicViews } from '../../public-api/runtime.js';
 import type { PermissionSet } from '../../rbac/resolver.js';
-import { refundView, refundViewOf } from './refunds.js';
+import { refundNamesOf, refundView, refundViewOf, toldRefundViewOf } from './refunds.js';
 import { HAND_REFERENCE_PREFIX } from '../../crud/write-service.js';
 import { mayRefundPayment } from '../../payments/app-refund-queue.js';
 import { tagRoutes } from '../../security/route-audience.js';
@@ -347,8 +347,9 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
   }
 
   /** Each online payment with what may still be refunded, its refunds and any dispute. */
-  async function withRefunds(attempts: PaymentAttempt[], rows: (Omit<PaymentView, keyof typeof BY_HAND> & { attemptId: string | null })[]): Promise<PaymentView[]> {
+  async function withRefunds(attempts: PaymentAttempt[], rows: (Omit<PaymentView, keyof typeof BY_HAND> & { attemptId: string | null })[], told: boolean): Promise<PaymentView[]> {
     const byId = new Map(attempts.map((attempt) => [attempt.id, attempt]));
+    const names = refundNamesOf(meta);
     const out: PaymentView[] = [];
     for (const row of rows) {
       // A reference that is not one of this record's attempts was written by someone else: shown as by hand.
@@ -362,7 +363,8 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
         attemptId: attempt.id,
         refundable: refundableOf(attempt),
         refundRefusal: refundRefusalOf(attempt),
-        refunds: (await refundsRepo(meta).forAttempt(attempt.id)).map(refundViewOf),
+        // Who asked for each and why: only for someone who may see payments, or refund these.
+        refunds: await Promise.all((await refundsRepo(meta).forAttempt(attempt.id)).map((refund) => (told ? toldRefundViewOf(refund, names) : refundViewOf(refund)))),
         dispute: attempt.dispute,
       });
     }
@@ -403,8 +405,8 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
     const paid = subtractAmounts(payable.total, payable.due, scale) ?? '0';
     const attempts = await paymentAttemptsRepo(meta).forPayable(ref);
     const kept = (await keptPaymentsRepo(meta).forPayable(ref)).filter((row) => !row.voided);
-    const payments = await withRefunds(attempts, [...tableRows, ...kept.map(keptView)]);
     const mayRefund = await mayRefundPayment(meta, request, ref);
+    const payments = await withRefunds(attempts, [...tableRows, ...kept.map(keptView)], mayRefund || (await request.can(PERMISSIONS.paymentsView)));
     // Paid by hand whatever state the record is in: only online payments wait for the app's own moment (`NOT_NOW`).
     const handOk = payable.refusal === null || payable.refusal.code === 'NEEDS_UPDATE' || payable.refusal.code === 'NOT_NOW';
     return {

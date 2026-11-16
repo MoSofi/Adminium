@@ -83,7 +83,8 @@ export default {
       "requested": "已申请",
       "written": "退款 {amount}",
       "disputeWon": "争议胜诉 — {amount} 已退回",
-      "undone": "已撤销"
+      "undone": "已撤销",
+      "by": "操作人：{person}"
     },
     "partlyRefunded": "部分退款",
     "disputeWon": "争议已胜诉。",

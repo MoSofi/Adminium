@@ -34,7 +34,8 @@ import { appRefundKeyOf, payableProfilesRepo, paymentAttemptsRepo, refundsRepo, 
 import { sql } from 'kysely';
 import { z } from 'zod';
 
-import type { RecordWriteEvent } from '../crud/after-record-write.js';
+import { afterRecordWrite, type RecordWriteEvent } from '../crud/after-record-write.js';
+import { pkLabel } from '../crud/records.js';
 import { createWriteService } from '../crud/write-service.js';
 import { writeStores } from '../crud/write-stores.js';
 import type { JobRegistry } from '../jobs/registry.js';
@@ -77,20 +78,46 @@ export async function refundTableOf(
   return null;
 }
 
-/** Stamps a refund row with what Adminium alone writes. A row since deleted is left alone. */
+/**
+ * Stamps a refund row with what Adminium alone writes. A row since deleted is
+ * left alone. A stamp that changed the row is announced as the paid move is:
+ * the audit row, the app's rules and its mail (a "Refund sent" mail on the
+ * stamp turning `done`), each once — the outbox's own log keeps a mail to one
+ * however often the stamp is written again.
+ */
 async function stamp(deps: RefundDeps, rows: RefundRowsMapping, row: AppRefundRow, providerRef: string | null, state: AppRefundStamp): Promise<void> {
   const found = await deps.sources.table(row.connectionId, row.table);
   if (found === null) return;
   const pk = pkOfRowKey(found.table, row.rowKey);
   if (pk === null) return;
   const writes = deps.writes ?? createWriteService(writeStores(deps.meta));
+  const actor = { kind: 'system' as const, id: null, label: 'Refund' };
+  // The row as it stood, for what the stamp changed: the write itself reads none when no hook asks.
+  const was = deps.app === undefined ? null : await deps.sources.readRow(row.connectionId, row.table, row.rowKey);
   await writes.update({
     target: found.target,
     pk,
     values: { [rows.providerRef]: providerRef, [rows.state]: state },
-    context: { origin: 'payment', hops: 0, actor: { kind: 'system', id: null, label: 'Refund' }, request: null },
+    context: { origin: 'payment', hops: 0, actor, request: null },
     skipIfNone: true,
-    announce: async () => {},
+    announce: async (outcome) => {
+      if (deps.app === undefined || outcome.count === 0 || outcome.after === null || outcome.after === undefined) return;
+      const before = outcome.before ?? was;
+      // Written again as it stood: nothing changed, nothing to say.
+      if (before !== null && before[rows.state] === outcome.after[rows.state] && before[rows.providerRef] === outcome.after[rows.providerRef]) return;
+      await afterRecordWrite(deps.app, {
+        request: null,
+        actor,
+        meta: deps.meta,
+        connectionId: found.target.connectionId,
+        table: found.table,
+        action: 'update',
+        entity: { connectionId: found.target.connectionId, table: found.table.id, pk, label: pkLabel(found.table, pk) },
+        before,
+        after: outcome.after,
+        origin: 'payment',
+      });
+    },
   });
 }
 
@@ -173,6 +200,8 @@ export function createAppRefundWatch(deps: { meta: MetaDb; enqueue: NonNullable<
   return {
     async onRecordEvent(event: RecordWriteEvent): Promise<void> {
       if (event.action === 'delete' || event.after === null) return;
+      // Adminium's own writes of the row (its stamps, an automatic refund's row) are asked by the one that wrote them.
+      if (event.origin === 'payment') return;
       try {
         const mapping = await refundTableOf(deps.meta, event.connectionId, event.table.id);
         if (mapping === null || !mapping.rows.when.every((condition) => conditionHolds(condition, event.after!))) return;

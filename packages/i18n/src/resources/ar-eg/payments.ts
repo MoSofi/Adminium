@@ -83,7 +83,8 @@ export default {
       "requested": "تم طلبه",
       "written": "استرداد {amount}",
       "disputeWon": "كُسب النزاع — عاد {amount}",
-      "undone": "أُلغي"
+      "undone": "أُلغي",
+      "by": "بواسطة {person}"
     },
     "partlyRefunded": "مستردة جزئيًا",
     "disputeWon": "تم كسب النزاع.",

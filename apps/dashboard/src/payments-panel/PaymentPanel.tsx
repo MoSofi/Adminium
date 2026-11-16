@@ -139,10 +139,33 @@ interface RefundLine {
   detail: string | null;
   /** Made outside Adminium: Activity holds it until someone has looked. */
   look: boolean;
+  /** Who asked for it and why ("By Ana Ruiz · Duplicate"), when the reader is told. */
+  who?: string | null;
+}
+
+/** "By {person} · {reason}", from what the server tells this reader; null when it tells nothing. */
+export function refundWho(refund: Pick<PanelRefund, 'by' | 'reason'>): string | null {
+  const reason =
+    refund.reason === undefined || refund.reason === null
+      ? null
+      : refund.reason === 'requested_by_customer'
+        ? t('payments:refund.reasons.requested_by_customer', 'Requested by customer')
+        : refund.reason === 'duplicate'
+          ? t('payments:refund.reasons.duplicate', 'Duplicate')
+          : refund.reason === 'fraudulent'
+            ? t('payments:refund.reasons.fraudulent', 'Fraudulent')
+            : t('payments:refund.reasons.other', 'Other');
+  const by = refund.by === undefined || refund.by === null || refund.by.trim() === '' ? null : t('payments:panel.refund.by', 'By {person}', { person: refund.by });
+  const parts = [by, reason].filter((part): part is string => part !== null);
+  return parts.length === 0 ? null : parts.join(' · ');
 }
 
 /** One refund under its payment, said whole: amount, where, when, and how it stands. */
 export function refundLine(refund: PanelRefund, provider: string | null, money: (amount: string) => string, locale: string): RefundLine {
+  return { ...refundLineOf(refund, provider, money, locale), who: refundWho(refund) };
+}
+
+function refundLineOf(refund: PanelRefund, provider: string | null, money: (amount: string) => string, locale: string): RefundLine {
   const amount = money(refund.amount);
   const service = serviceName(provider ?? '');
   const what =
@@ -195,6 +218,11 @@ function RefundSubLine({ line }: { line: RefundLine }): ReactNode {
           ·
         </span>
         <span className={`font-bold ${tone.state}`}>{line.state}</span>
+        {line.who === undefined || line.who === null ? null : (
+          <span className="mt-0.5 block text-fg-muted" data-testid="payment-refund-who">
+            {line.who}
+          </span>
+        )}
         {line.detail === null ? null : <span className="mt-0.5 block text-fg-muted">{line.detail}</span>}
       </span>
       {line.look ? (

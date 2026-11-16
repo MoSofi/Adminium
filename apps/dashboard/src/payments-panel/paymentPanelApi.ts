@@ -70,6 +70,14 @@ export interface PanelRefund {
   failureMessage: string | null;
   createdAt: number;
   settledAt: number | null;
+  /**
+   * Who asked for it and why, told only to someone who may see payments or
+   * refund this one: the person's name (null: no person — made by itself, in
+   * the service's dashboard, by a lost dispute), the reason and the note.
+   */
+  by?: string | null;
+  reason?: 'requested_by_customer' | 'duplicate' | 'fraudulent' | 'other' | null;
+  note?: string | null;
 }
 
 export interface PanelWaiting {

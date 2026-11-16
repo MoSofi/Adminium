@@ -83,7 +83,8 @@ export default {
       "requested": "Requested",
       "written": "Refund of {amount}",
       "disputeWon": "Dispute won — {amount} came back",
-      "undone": "Undone"
+      "undone": "Undone",
+      "by": "By {person}"
     },
     "partlyRefunded": "Partly refunded",
     "disputeWon": "The dispute was won.",

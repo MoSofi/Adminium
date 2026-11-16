@@ -39,7 +39,8 @@ import type { FastifyRequest } from 'fastify';
 import { sql } from 'kysely';
 import { z } from 'zod';
 
-import type { RecordWriteEvent } from '../crud/after-record-write.js';
+import { afterRecordWrite, type RecordWriteEvent } from '../crud/after-record-write.js';
+import { pkLabel } from '../crud/records.js';
 import { createWriteService } from '../crud/write-service.js';
 import { writeStores } from '../crud/write-stores.js';
 import type { JobRegistry } from '../jobs/registry.js';
@@ -177,11 +178,28 @@ export async function giveAutoRefund(deps: RefundDeps, attemptId: string): Promi
     const value = payments.amountUnit === 'minor' ? decimalToMinor(amount, scale) : amount;
     if (value === null) return 'refused';
     const writes = deps.writes ?? createWriteService(writeStores(deps.meta));
+    const actor = { kind: 'system' as const, id: null, label: 'Refund' };
     row = await writes.create({
       target: refundTable.target,
       values: { ...(rows.auto?.values ?? {}), [rows.payment]: paymentRow[paymentTable.table.primaryKey[0]!], [rows.amount]: value, [rows.providerRef]: autoMark(attempt.id), [rows.state]: 'asked' },
-      context: { origin: 'payment', hops: 0, actor: { kind: 'system', id: null, label: 'Refund' }, request: null },
-      announce: async () => {},
+      context: { origin: 'payment', hops: 0, actor, request: null },
+      // Told as any new row is (the audit row, the app's rules and mail); asked for below, by this job.
+      announce: async (created) => {
+        if (deps.app === undefined) return;
+        const pk = Object.fromEntries(refundTable.table.primaryKey.map((column) => [column, created[column]]));
+        await afterRecordWrite(deps.app, {
+          request: null,
+          actor,
+          meta: deps.meta,
+          connectionId: refundTable.target.connectionId,
+          table: refundTable.table,
+          action: 'create',
+          entity: { connectionId: refundTable.target.connectionId, table: refundTable.table.id, pk, label: pkLabel(refundTable.table, pk) },
+          before: null,
+          after: created,
+          origin: 'payment',
+        });
+      },
     });
   }
   const outcome = await askAppRefund(deps, { connectionId: ref.connectionId, table: refundTable.table.id, rowKey: rowKeyOf(refundTable.table, row) }, null, 'auto');

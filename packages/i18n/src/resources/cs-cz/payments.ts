@@ -83,7 +83,8 @@ export default {
       "requested": "Vyžádáno",
       "written": "Vrácení {amount}",
       "disputeWon": "Spor vyhrán — {amount} se vrátilo",
-      "undone": "Vráceno zpět"
+      "undone": "Vráceno zpět",
+      "by": "Provedl(a): {person}"
     },
     "partlyRefunded": "Částečně vráceno",
     "disputeWon": "Spor byl vyhrán.",

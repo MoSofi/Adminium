@@ -83,7 +83,8 @@ export default {
       "requested": "Anmodet",
       "written": "Refundering af {amount}",
       "disputeWon": "Indsigelsen vundet — {amount} kom tilbage",
-      "undone": "Fortrudt"
+      "undone": "Fortrudt",
+      "by": "Af {person}"
     },
     "partlyRefunded": "Delvist refunderet",
     "disputeWon": "Indsigelsen blev vundet.",

@@ -73,7 +73,8 @@
       "requested": "已申請",
       "written": "退款 {amount}",
       "disputeWon": "爭議勝訴 — {amount} 已退回",
-      "undone": "已撤銷"
+      "undone": "已撤銷",
+      "by": "操作人：{person}"
     },
     "partlyRefunded": "部分退款",
     "disputeWon": "爭議已勝訴。",

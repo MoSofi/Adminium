@@ -83,7 +83,8 @@ export default {
       "requested": "Angefordert",
       "written": "Erstattung von {amount}",
       "disputeWon": "Rückbuchung gewonnen — {amount} kamen zurück",
-      "undone": "Rückgängig gemacht"
+      "undone": "Rückgängig gemacht",
+      "by": "Von {person}"
     },
     "partlyRefunded": "Teilweise erstattet",
     "disputeWon": "Die Rückbuchung wurde zu Ihren Gunsten entschieden.",

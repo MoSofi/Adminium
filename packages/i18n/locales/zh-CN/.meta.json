@@ -22211,6 +22211,10 @@
     "status": "mt",
     "srcHash": "e9a5a2fcd01d"
   },
+  "payments.panel.refund.by": {
+    "status": "mt",
+    "srcHash": "1e3351f8ecfe"
+  },
   "payments.panel.refund.cancelled": {
     "status": "mt",
     "srcHash": "a6288a7bbd70"

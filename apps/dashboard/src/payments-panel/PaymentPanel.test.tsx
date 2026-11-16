@@ -320,6 +320,31 @@ describe('refunds and disputes on the Payment panel', () => {
     expect(screen.getByRole('link', { name: 'Needs a look' }).getAttribute('href')).toBe('/studio/payments?tab=activity');
   });
 
+  it('says who asked for a refund and why, when the server tells this reader, and nothing when it does not', async () => {
+    const at = Date.UTC(2026, 9, 22);
+    const refund = (patch: Partial<PanelRefund> & { id: string }): PanelRefund => ({ attemptId: 'pat_1', amount: '15.00', currency: 'EUR', state: 'succeeded', source: 'staff', failureMessage: null, createdAt: at, settledAt: at, ...patch, id: `rf_${patch.id}` });
+    await show(
+      viewOf({
+        due: '60.00',
+        paid: '60.00',
+        payments: [
+          paymentOf({
+            ...ONLINE,
+            refunded: '45.00',
+            refundable: '15.00',
+            refunds: [
+              refund({ id: 'told', by: 'Ana Ruiz', reason: 'duplicate', note: 'Charged twice' }),
+              refund({ id: 'reason', by: null, reason: 'other' }),
+              refund({ id: 'untold' }),
+            ],
+          }),
+        ],
+      }),
+    );
+    expect(screen.getAllByTestId('payment-refund-who').map((who) => who.textContent)).toEqual(['By Ana Ruiz · Duplicate', 'Other']);
+    expect(screen.getAllByTestId('payment-refund-line')[2]!.querySelector('[data-testid="payment-refund-who"]')).toBeNull();
+  });
+
   it('badges a payment refunded in full "Refunded"', async () => {
     const refund: PanelRefund = { id: 'rf_1', attemptId: 'pat_1', amount: '120.00', currency: 'EUR', state: 'succeeded', source: 'staff', failureMessage: null, createdAt: 1, settledAt: 1 };
     await show(viewOf({ due: '120.00', paid: '0.00', payments: [paymentOf({ ...ONLINE, refunded: '120.00', refunds: [refund] })] }));

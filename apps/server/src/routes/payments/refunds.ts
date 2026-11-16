@@ -16,7 +16,7 @@
  * What a refund does, and why each refusal, is `payments/refunds.ts`.
  */
 import { REFUND_REASONS } from '@adminium/add-on-contracts';
-import { REFUND_SOURCES, paymentAttemptsRepo, refundsRepo, type PaymentAttempt, type RefundRow } from '@adminium/meta';
+import { REFUND_SOURCES, paymentAttemptsRepo, refundsRepo, usersRepo, type PaymentAttempt, type RefundRow } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -56,7 +56,34 @@ export const refundView = z.object({
   failureMessage: z.string().nullable(),
   createdAt: z.number(),
   settledAt: z.number().nullable(),
+  /**
+   * Who asked for it and why, told only to someone who may see payments or
+   * refund this one (absent otherwise): the person's name (null when no
+   * person asked — a refund made by itself, in the service's dashboard, or by
+   * a lost dispute), the reason picked and the note typed.
+   */
+  by: z.string().nullable().optional(),
+  reason: z.enum(REFUND_REASONS).nullable().optional(),
+  note: z.string().nullable().optional(),
 });
+
+/** Who a refund's person is, by id: what {@link refundViewOf} names them with. Null for someone no longer here. */
+export type RefundNames = (userId: string) => Promise<string | null>;
+
+/** Who a refund's person is, from the meta store's people. */
+export function refundNamesOf(meta: RefundDeps['meta']): RefundNames {
+  const cache = new Map<string, Promise<string | null>>();
+  return (userId) => {
+    let found = cache.get(userId);
+    if (found === undefined) {
+      found = usersRepo(meta)
+        .findById(userId)
+        .then((user) => (user === null ? null : user.name));
+      cache.set(userId, found);
+    }
+    return found;
+  };
+}
 
 const previewReply = z.object({
   data: z.object({
@@ -86,6 +113,16 @@ export function refundViewOf(refund: RefundRow): z.infer<typeof refundView> {
     createdAt: refund.createdAt,
     settledAt: refund.settledAt,
   };
+}
+
+/** A refund with who asked for it and why: for someone who may see payments, or refund this one. */
+export async function toldRefundViewOf(refund: RefundRow, names: RefundNames): Promise<z.infer<typeof refundView>> {
+  const reason = (REFUND_REASONS as readonly string[]).includes(refund.reason) ? (refund.reason as (typeof REFUND_REASONS)[number]) : null;
+  // A refund asked in Adminium names its person, reason and note; one made by itself, in the service's dashboard, by a
+  // lost dispute or from an app's own refund row (which keeps its own) names none here.
+  const asked = refund.source === 'staff';
+  const by = !asked || refund.requestedBy === null ? null : await names(refund.requestedBy);
+  return { ...refundViewOf(refund), by, reason: asked ? reason : null, note: asked ? refund.note : null };
 }
 
 function personOf(request: FastifyRequest): string {
@@ -181,7 +218,7 @@ export function paymentRefundRoutes(deps: RefundDeps): FastifyPluginAsyncZod {
         }
         // The refund as it stands now (requested, pending, done or failed in the provider's words).
         const now = (await refundsRepo(deps.meta).byId(answer.refund.id)) ?? answer.refund;
-        return { data: { refund: refundViewOf(now), fresh: answer.fresh } };
+        return { data: { refund: await toldRefundViewOf(now, refundNamesOf(deps.meta)), fresh: answer.fresh } };
       },
     );
   };
