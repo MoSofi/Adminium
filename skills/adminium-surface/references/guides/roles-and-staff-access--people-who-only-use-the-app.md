@@ -44,11 +44,12 @@ is sent to the app instead of the dashboard:
   And they may take a payment at their app's counter (Adminium 0.3.62): the card readers
   (`GET /api/v1/payments/terminal/readers`), a charge on one (`POST …/terminal/charge`, followed at
   `GET …/terminal/charges/<id>` and taken off with `POST …/charges/<id>/cancel`), a record's pay link
-  (`POST /api/v1/payments/links` and `…/links/current`), what a record's payments are
-  (`POST /api/v1/payments/panel` and `…/panel/rows`), and a refund (`GET
-  /api/v1/payments/attempts/<id>/refund`, `POST /api/v1/payments/refunds`). Each still asks their
-  own rights on the record: reading it, adding a row to its payments table for a charge, changing
-  it for a pay link; a refund asks the refund right besides (`payments:@:refund` in their app's
+  (`POST /api/v1/payments/links` and `…/links/current`), closing one, such as a QR code shown at the
+  counter that should not be paid any more (`POST /api/v1/payments/links/<id>/revoke`, Adminium
+  0.3.63), what a record's payments are (`POST /api/v1/payments/panel` and `…/panel/rows`), and a
+  refund (`GET /api/v1/payments/attempts/<id>/refund`, `POST /api/v1/payments/refunds`). Each still
+  asks their own rights on the record: reading it, adding a row to its payments table for a charge,
+  changing it for a pay link, made or closed; a refund asks the refund right besides (`payments:@:refund` in their app's
   role, or the install's). Pairing readers, the pay address, the ways to pay and the rest of
   Payments stay the dashboard's.
 - the [assistant](https://docs.adminium.dev/guides/llm-assist/milo/#on-an-apps-own-staff-address), when an administrator

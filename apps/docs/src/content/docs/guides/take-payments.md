@@ -157,7 +157,8 @@ A draft invoice cannot be paid: "Send the invoice first."
 
 An email template can use `{{pay_url}}`, and an invoice made with the Invoices add-on can print its
 pay link and a QR code for it. Both are the record's current live link. They are left empty when
-the record cannot be paid online.
+the record cannot be paid online. A [rehearsal's](#try-an-app-as-a-customer) email carries a test
+link instead.
 
 ## What the customer sees
 
@@ -196,6 +197,28 @@ Switching an app on or off changes more than its screens, when the app says so i
 - **What waits for money on its way.** An order whose customer is paying is not moved to "pay when
   you pick up instead" while the bank is still confirming the payment; the customer is told to
   wait.
+
+### Try an app as a customer
+
+Before you go live, walk an app's own checkout yourself. In **Studio → Payments → Apps that can take
+payments**, **Try {app} as a customer** switches rehearsal on for you and opens the app's customer
+screens on this server's address. You need the right to set up payments. Rehearsal works whether
+or not the app is switched on, and ends by itself after four hours, or when you click **Stop
+rehearsing** on the TEST band.
+
+While it is on, for you alone:
+
+- The app shows **Pay now**, and its pay page takes test payments only.
+- Every row you make, on the app's customer screens or its staff screens, is sample data.
+  **Remove sample data** takes it all away. A test payment is written into the app's tables like
+  a real one, but only on such a row; a test payment never reaches a real order.
+- The app's emails about those rows come to you, marked `[TEST]` in the subject, never to the
+  address on the order. They carry what a customer's would (Adminium 0.3.63): the order's own link,
+  and a test pay link that opens for you on this server's address. The test link is the one your
+  checkout already opened while it works, else a new one for an hour.
+- An email never carries the link of a row you did not make in your rehearsal. An email about a
+  real order that would carry its link (after a note you add to the order, or one you queue by
+  hand) is not sent, and says why. A real customer's email never carries a test link.
 
 ## When a payment arrives
 

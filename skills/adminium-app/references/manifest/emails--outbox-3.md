@@ -45,8 +45,9 @@ whichever way the shop is set, each with its own subject and preheader:
   with them off) is two kinds, each with its template.
 - The row is one of the app's payable tables, or a child row whose `via` points at one. Never on an
   `onDelete` producer.
-- A row someone who manages payments is [rehearsing](https://docs.adminium.dev/guides/take-payments/) counts as on: its mail
-  goes to them, marked TEST.
+- A row someone who manages payments is [rehearsing](https://docs.adminium.dev/guides/take-payments/#try-an-app-as-a-customer)
+  counts as on: its mail goes to them, marked TEST, with the row's own link and a test pay link
+  (Adminium 0.3.63).
 
 `due.days` is one of:
 

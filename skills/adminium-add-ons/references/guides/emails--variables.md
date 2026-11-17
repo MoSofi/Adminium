@@ -25,7 +25,9 @@ is stored), and the row with the code is theirs or links to them by the link tha
 project's client, not the client who referred them). Addressed by hand to anyone else, or linking
 one client and another client's project, the message is **failed**: "Not sent:
 {{project.share_token}} is a code, and goes only to the address on file of the person it belongs
-to". A notice sent to one of your settings' addresses never carries such a code. A code no link
+to". A notice sent to one of your settings' addresses never carries such a code. A
+[rehearsal's](https://docs.adminium.dev/guides/take-payments/#try-an-app-as-a-customer) mail goes to the person rehearsing
+and carries the codes of the rows that rehearsal made, never another row's (Adminium 0.3.63). A code no link
 opens anything with, such as a booking's reference, is printed wherever the message goes. The desk,
 or the person whose import makes a message, may link it only to rows they can read.
 

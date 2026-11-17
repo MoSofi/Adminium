@@ -46,8 +46,8 @@ file. Every file is 8 KB or less.
 | `references/guides/take-payments--what-you-need.md` | What you need | 693 |
 | `references/guides/take-payments--who-may-do-what.md` | Who may do what | 662 |
 | `references/guides/take-payments--set-it-up.md` | Set it up | 5140 |
-| `references/guides/take-payments--on-a-record.md` | On a record | 1201 |
-| `references/guides/take-payments--what-the-customer-sees.md` | What the customer sees | 2440 |
+| `references/guides/take-payments--on-a-record.md` | On a record | 1326 |
+| `references/guides/take-payments--what-the-customer-sees.md` | What the customer sees | 3907 |
 | `references/guides/take-payments--when-a-payment-arrives.md` | When a payment arrives | 1712 |
 | `references/guides/take-payments--refunds.md` | Refunds | 1351 |
 | `references/guides/take-payments--disputes.md` | Disputes | 1354 |

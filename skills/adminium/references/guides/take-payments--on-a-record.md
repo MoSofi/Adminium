@@ -19,4 +19,5 @@ A draft invoice cannot be paid: "Send the invoice first."
 
 An email template can use `{{pay_url}}`, and an invoice made with the Invoices add-on can print its
 pay link and a QR code for it. Both are the record's current live link. They are left empty when
-the record cannot be paid online.
+the record cannot be paid online. A [rehearsal's](https://docs.adminium.dev/guides/take-payments/#try-an-app-as-a-customer) email carries a test
+link instead.

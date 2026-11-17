@@ -75,7 +75,7 @@
 | `references/manifest/emails.md` | Emails | 850 |
 | `references/manifest/emails--outbox.md` | Emails — outbox | 7347 |
 | `references/manifest/emails--outbox-2.md` | Emails — outbox (part 2) | 4433 |
-| `references/manifest/emails--outbox-3.md` | Emails — outbox (part 3) | 7503 |
+| `references/manifest/emails--outbox-3.md` | Emails — outbox (part 3) | 7593 |
 | `references/manifest/emails--outbox-4.md` | Emails — outbox (part 4) | 1158 |
 | `references/manifest/emails--a-reply-to-the-rep.md` | Emails — A reply to the rep | 1672 |
 | `references/manifest/emails--marketing-or-service.md` | Emails — Marketing or service | 1710 |
