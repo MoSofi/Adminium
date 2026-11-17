@@ -128500,12 +128500,16 @@
                         },
                         "checkedAt": {
                           "type": "number"
+                        },
+                        "proxyUnchecked": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
                         "state",
                         "origin",
-                        "checkedAt"
+                        "checkedAt",
+                        "proxyUnchecked"
                       ],
                       "additionalProperties": false
                     }
@@ -130020,10 +130024,14 @@
                                 "proxy-hidden",
                                 "reachable"
                               ]
+                            },
+                            "proxyUnchecked": {
+                              "type": "boolean"
                             }
                           },
                           "required": [
-                            "state"
+                            "state",
+                            "proxyUnchecked"
                           ],
                           "additionalProperties": false
                         },
