@@ -25,9 +25,10 @@
  */
 import { randomUUID } from 'node:crypto';
 
-import { formsOf, type AddOnManifest } from '@adminium/manifest';
+import { formsOf, type AddOnManifest, type RequiredColumn } from '@adminium/manifest';
 import type { PublicUpload, PublicUploadBinding } from '@adminium/meta';
 
+import { isMintedKey } from '../add-ons/install-ddl.js';
 import type { AddOnInstalls } from '../apps/table-ref.js';
 import type { DataHandle } from '../connections/manager.js';
 import type { RecordWriteEvent } from '../crud/after-record-write.js';
@@ -63,7 +64,7 @@ function primaryKeyOf(manifest: AddOnManifest, ref: string): string | null {
   return primaryColumnOf(manifest, ref)?.ref ?? null;
 }
 
-function primaryColumnOf(manifest: AddOnManifest, ref: string): { ref: string; type: string } | null {
+function primaryColumnOf(manifest: AddOnManifest, ref: string): RequiredColumn | null {
   const table = (manifest.requiredSchema?.tables ?? []).find((candidate) => candidate.ref === ref);
   return table?.columns.find((column) => column.role === 'pk') ?? null;
 }
@@ -90,7 +91,7 @@ export function formsTablesOn(installs: AddOnInstalls, connectionId: string): Fo
       answers,
       answersKey,
       // A key the database counts is left to it; an `id` or a `uuid` key is made here, as a save makes one.
-      files: filesTable === null || filesKey === null ? null : { table: filesTable, key: filesKey.ref, fill: filesKey.type === 'id' || filesKey.type === 'uuid' },
+      files: filesTable === null || filesKey === null ? null : { table: filesTable, key: filesKey.ref, fill: isMintedKey(filesKey) },
     });
   }
   return out;

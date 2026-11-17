@@ -44,7 +44,7 @@
  */
 import { addOnTablesFor } from './add-on-tables.js';
 import { keptSampleFile, SampleFileRefused } from './sample-files.js';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { basename } from 'node:path';
 
 import { sql, type Kysely } from 'kysely';
@@ -64,6 +64,7 @@ import {
   seedRowIdentity,
   shareCodeColumns,
   type Manifest,
+  type RequiredTable,
   type SampleBundle,
 } from '@adminium/manifest';
 import {
@@ -99,6 +100,7 @@ import { literalDefault, tableRulesFor } from '../crud/column-rules.js';
 import { countersPastTheTable, isUniqueViolation } from '../crud/decided-columns.js';
 import { labelColumnFor } from '../crud/labels.js';
 import { renderNow } from '../crud/instants.js';
+import { isMintedKey } from '../add-ons/install-ddl.js';
 import { createWriteService, deleteRows, insertRow, updateRows, type RecordWriteService, type WriteContext, type WriteTarget } from '../crud/write-service.js';
 import { ledgersOf } from '../ledgers/rules.js';
 import { fetchByPk, pkLabel } from '../crud/records.js';
@@ -168,7 +170,26 @@ interface AddPass {
   labels?: ReadonlyMap<string, unknown> | undefined;
   /** Labels a section row points at that are not in: such a row is left out, with every row that names it. */
   leftOut?: ReadonlySet<string> | undefined;
+  /** The keys Adminium makes, by the bundle's table ref (`mintedKeysOf`); absent: the owner's own declared tables. */
+  minted?: ReadonlyMap<string, string> | undefined;
 }
+
+/**
+ * The tables whose key Adminium makes (`isMintedKey`: an `id` or a `uuid`
+ * key), each with that key's column, by the ref a bundle names the table by
+ * (`prefix` + its ref: an app's rows for an add-on name `<addOn>:<ref>`).
+ */
+export function mintedKeysOf(tables: readonly RequiredTable[], prefix = ''): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const table of tables) {
+    const keys = table.columns.filter((column) => column.role === 'pk');
+    if (keys.length === 1 && isMintedKey(keys[0]!)) out.set(`${prefix}${table.ref}`, keys[0]!.ref);
+  }
+  return out;
+}
+
+/** The kinds of column a made key can be read back as: text on every engine, or Postgres's own uuid. */
+const MINTED_KEY_TYPES: ReadonlySet<string> = new Set(['text', 'varchar', 'uuid']);
 
 /** The installed app a sample-data call is about. */
 /** The people and teams one add made (or took back): who each key is, and what is new and so the ledger's to list. */
@@ -1478,6 +1499,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
       bundle: { ...section, tables: section.tables.map((table) => ({ ...table, ref: table.own === true ? table.ref : `${addOnKey}:${table.ref}` })) },
       section: addOnKey,
       owns: (ref) => ref.startsWith(`${addOnKey}:`),
+      // The add-on's tables are the add-on's: its declarations say which keys are made.
+      minted: mintedKeysOf(addOn.manifest.requiredSchema?.tables ?? [], `${addOnKey}:`),
       labels,
       leftOut: new Set([...named].filter((label) => !own.has(label) && !labels.has(label))),
     };
@@ -1680,6 +1703,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
     const now = opts.now ?? Date.now();
     const handle = await deps.manager.data(connectionId);
     const names = await namesOf(app, connectionId, handle);
+    const minted = pass.minted ?? mintedKeysOf(app.manifest.requiredSchema?.tables ?? []);
     const timeZone = (await connectionTenantConfig(deps.meta, connectionId))?.timezone ?? 'UTC';
     // An app's own rule about a shared table is about its own bundle; a section's tables are an add-on's.
     const skipped = new Set([...(pass.section === undefined ? await skippedWhenShared(app, connectionId, handle, names) : []), ...(await skippedWhenFilled(bundle, handle, names))]);
@@ -2189,6 +2213,23 @@ export function createSampleDataService(deps: SampleDataDeps) {
                 .where(sql.ref(column.name), '=', value as never)
                 .executeTakeFirst();
               if (taken !== undefined) throw sampleClash(table.ref, column.name, value);
+            }
+            /*
+             * A key Adminium makes (an add-on's `id` or `uuid` key) that the
+             * row does not name: a new uuid, as every other row Adminium
+             * writes into such a table is given. Made here, after the row's
+             * identity was read and after the keys it names were counted, so
+             * a made key is never taken for one the sample chose.
+             */
+            const mintedKey = minted.get(table.ref);
+            if (
+              mintedKey !== undefined &&
+              resolved.primaryKey.length === 1 &&
+              resolved.primaryKey[0] === mintedKey &&
+              MINTED_KEY_TYPES.has(resolved.columns.get(mintedKey)?.logicalType ?? '') &&
+              (values[mintedKey] === undefined || values[mintedKey] === null)
+            ) {
+              values[mintedKey] = randomUUID();
             }
             // Sample data is history the operator asked for, not bookings to judge.
             const checked = await writes.check('create', target, context, [values], { capacity: 'unchecked' });

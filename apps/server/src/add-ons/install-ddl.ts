@@ -700,6 +700,17 @@ export function isNumberedKey(column: RequiredColumn): boolean {
 }
 
 /**
+ * An `id` or a `uuid` primary key: the database fills neither (an `id` is
+ * text on every engine, a `uuid` is text on SQLite and MySQL), so a row
+ * written with none is given a new uuid, as a forms answer is and as a
+ * public `$generate: "uuid"` default is. Left empty, SQLite would keep a
+ * NULL key and Postgres and MySQL refuse the row.
+ */
+export function isMintedKey(column: RequiredColumn): boolean {
+  return column.role === 'pk' && (column.type === 'id' || column.type === 'uuid');
+}
+
+/**
  * A column's DEFAULT, rendered for the dialect, or `null` for none.
  *
  * The manifest schema has already refused every default that is not the same
