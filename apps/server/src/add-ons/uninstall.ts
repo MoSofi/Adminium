@@ -156,6 +156,8 @@ export async function uninstallAddOn(deps: AddOnInstallerDeps, input: UninstallA
       result.kept.tables = list.tables.map((entry) => realTableOf(entry.record)).filter((name) => !done.dropped.includes(name));
     } else if (installed.row.connectionId !== null) {
       // An add-on from before: its tables stay, as always; its records are let go so a reinstall finds them.
+      // The rules it wrote (the key Adminium made for each table) go first, while its records still list them.
+      if (core !== null) result.removed.rules = await core.removeRules(key, installed.row.connectionId);
       const records = appTablesRepo(deps.meta);
       for (const record of await records.forInstall(installed.row.connectionId, key)) {
         if (record.state !== 'dropped') await records.setState(record.id, 'released');
