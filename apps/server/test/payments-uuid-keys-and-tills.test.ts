@@ -19,13 +19,13 @@ import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-import { payableProfilesRepo, paymentAttemptsRepo, type PaymentAttempt } from '@adminium/meta';
+import { jobsRepo, payableProfilesRepo, paymentAttemptsRepo, type PaymentAttempt } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { createWriteService, type WriteContext, type WriteTarget } from '../src/crud/write-service.js';
 import { writeStores } from '../src/crud/write-stores.js';
 import { createPayableSources } from '../src/payments/payables.js';
-import { recordAttempt } from '../src/payments/record.js';
+import { enqueueRecord, recordAttempt } from '../src/payments/record.js';
 import { createPublicViews } from '../src/public-api/runtime.js';
 import { LEGS, said, wholeServer, type WholeServer } from './whole-server.helpers.js';
 
@@ -264,10 +264,16 @@ for (const [dialect, available] of LEGS) {
 
     it('writes the till\'s online payment with a uuid key, and the ticket owes nothing more', async () => {
       const tickets = real('tickets');
-      await s.rows(`INSERT INTO ${tickets} (number, total, due, status) VALUES ('P-1', 6.00, 6.00, 'open')`);
+      await s.rows(`INSERT INTO ${tickets} (number, subtotal, total, due, status) VALUES ('P-1', 6.00, 6.00, 6.00, 'open')`);
       const [ticket] = await s.rows(`SELECT id FROM ${tickets} WHERE number = 'P-1'`);
+      // One item on it, so the ticket's own figures come to what was paid when the payment settles them.
+      await s.rows(`INSERT INTO ${real('ticket_items')} (ticket_id, name, qty, unit_price) VALUES (${String(ticket!['id'])}, 'Flat white', 1, 6.00)`);
       const attempt = await paidOnline(s, s.t('tickets'), String(ticket!['id']), '6.00', 'pos1');
-      expect(await recordAttempt({ meta: s.meta, sources: createPayableSources({ meta: s.meta, manager: s.manager }), app: s.app }, attempt.id)).toMatchObject({ state: 'recorded' });
+      // Recorded by the server's own job, through its own writes (the till's postings asked of its ledgers, none here).
+      await enqueueRecord((input) => jobsRepo(s.meta).enqueue(input), attempt.id);
+      await s.jobs();
+      const after = (await paymentAttemptsRepo(s.meta).byId(attempt.id))!;
+      expect(after.state, JSON.stringify(after.problem)).toBe('recorded');
       const rows = await s.rows(`SELECT id FROM ${real('payments')} WHERE payment_ref = '${attempt.id}'`);
       expect(rows).toHaveLength(1);
       expect(String(rows[0]!['id'])).toMatch(UUID);
