@@ -16,8 +16,6 @@
  *    right; Payments' own settings stay the dashboard's.
  */
 import { readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
 
 import { jobsRepo, payableProfilesRepo, paymentAttemptsRepo, type PaymentAttempt } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -36,10 +34,12 @@ const uuidKey = { ref: 'id', type: 'uuid', role: 'pk' };
 const intKey = { ref: 'id', type: 'int', role: 'pk' };
 const text = (ref: string, maxLength = 120) => ({ ref, type: 'text', maxLength, nullable: true });
 
-/** Point of Sale's own manifest, from its lane, when that checkout is here. */
+/** Point of Sale's own manifest, when `ADMINIUM_TEST_POS_MANIFEST` names a checkout's `manifest.json`. */
 function posManifest(): Record<string, unknown> | null {
+  const file = process.env['ADMINIUM_TEST_POS_MANIFEST'];
+  if (file === undefined || file === '') return null;
   try {
-    return JSON.parse(readFileSync(join(homedir(), 'Work/lanes/p72-pos/manifest.json'), 'utf8')) as Record<string, unknown>;
+    return JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
   } catch {
     return null;
   }
