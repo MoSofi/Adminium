@@ -216,9 +216,11 @@ export function paymentLinksRoutes(deps: PaymentLinksDeps): FastifyPluginAsyncZo
         requirePerson(request);
         await assertMayLink(request, request.body);
         const link = await links.currentFor(request.body);
-        const address = await payAddress(meta);
-        if (link === null || address === null || link.revokedAt !== null || link.expiresAt <= app.rbac.now()) return { data: null };
-        return { data: viewOf(link, address, request) };
+        if (link === null || link.revokedAt !== null || link.expiresAt <= app.rbac.now()) return { data: null };
+        // A test link opens on the host the person is on, chosen address or not; a live one on the pay address, else the server's own.
+        const address = (await payAddress(meta)) ?? (await staffOrigin());
+        if (link.mode === 'live' && address === null) return { data: null };
+        return { data: viewOf(link, address ?? '', request) };
       },
     );
 

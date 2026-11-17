@@ -41,6 +41,16 @@ is sent to the app instead of the dashboard:
   names only those files, each at an address that ends in `?v=` and a pin of its bytes, so a new
   version is a new address and the browser may keep the file. An add-on's page, or a file that
   fills nothing on their screens, is refused `403`. Needs Adminium 0.3.53.
+  And they may take a payment at their app's counter (Adminium 0.3.62): the card readers
+  (`GET /api/v1/payments/terminal/readers`), a charge on one (`POST …/terminal/charge`, followed at
+  `GET …/terminal/charges/<id>` and taken off with `POST …/charges/<id>/cancel`), a record's pay link
+  (`POST /api/v1/payments/links` and `…/links/current`), what a record's payments are
+  (`POST /api/v1/payments/panel` and `…/panel/rows`), and a refund (`GET
+  /api/v1/payments/attempts/<id>/refund`, `POST /api/v1/payments/refunds`). Each still asks their
+  own rights on the record: reading it, adding a row to its payments table for a charge, changing
+  it for a pay link; a refund asks the refund right besides (`payments:@:refund` in their app's
+  role, or the install's). Pairing readers, the pay address, the ways to pay and the rest of
+  Payments stay the dashboard's.
 - the [assistant](https://docs.adminium.dev/guides/llm-assist/milo/#on-an-apps-own-staff-address), when an administrator
   has given their role the assistant permission: its button is on the app's staff screens, and it
   answers about their app's data within what their roles read. An app's manifest cannot grant
