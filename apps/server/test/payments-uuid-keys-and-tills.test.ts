@@ -264,7 +264,7 @@ for (const [dialect, available] of LEGS) {
 
     it('writes the till\'s online payment with a uuid key, and the ticket owes nothing more', async () => {
       const tickets = real('tickets');
-      await s.rows(`INSERT INTO ${tickets} (number, subtotal, total, due, status) VALUES ('P-1', 6.00, 6.00, 6.00, 'open')`);
+      await s.rows(`INSERT INTO ${tickets} (number, subtotal, total, due, status, opened_at) VALUES ('P-1', 6.00, 6.00, 6.00, 'open', '2026-11-17 09:00:00')`);
       const [ticket] = await s.rows(`SELECT id FROM ${tickets} WHERE number = 'P-1'`);
       // One item on it, so the ticket's own figures come to what was paid when the payment settles them.
       await s.rows(`INSERT INTO ${real('ticket_items')} (ticket_id, name, qty, unit_price) VALUES (${String(ticket!['id'])}, 'Flat white', 1, 6.00)`);
