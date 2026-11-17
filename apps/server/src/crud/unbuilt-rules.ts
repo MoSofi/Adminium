@@ -56,7 +56,11 @@ export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [];
  * to {@link MANIFEST_WORDS_RUN}: every word the manifest package can name is
  * in one of the two, and a test says so.
  */
-export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {};
+export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {
+  // An add-on's live chat: its tables are checked and known, but the door that keeps a stranger's conversation is not
+  // built yet, so a package that declares one is refused until the release that serves it.
+  'addOn.chat': '0.3.64',
+};
 
 /** The newer words of a manifest this server runs: nothing is refused for using one. */
 export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
@@ -304,6 +308,9 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // public API never serves (no key of that name is made, and the install plans no endpoint for it: apps/manifest-public.ts).
   'addOn.forms',
   'publicAccess.forms',
+  // A table an app opens to a chat's question left outside hours: the public API never serves it (no key of that name is
+  // made, and the install plans no endpoint for it: apps/manifest-public.ts), and only a chat add-on's door writes through it.
+  'publicAccess.chat',
   // A kind's consent purpose and a survey's link: read by the outbox sender (outbox/sender.ts `prepare`, outbox/survey-link.ts).
   'outbox.purposes',
   'outbox.surveyLinks',

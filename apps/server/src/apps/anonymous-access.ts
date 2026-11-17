@@ -11,8 +11,8 @@ type PublicAccessEntry = NonNullable<Extract<Manifest, { kind: 'app' }>['publicA
 
 /** The key every entry uses unless it names another. */
 const CUSTOMER_KEY_PURPOSE = 'customer';
-/** The reserved key of the entries forms add rows through (see `@adminium/manifest`'s `FORMS_KEY`). */
-const FORMS_KEY = 'forms';
+/** The reserved keys of the entries forms and a chat's left questions add rows through (see `@adminium/manifest`'s `DOOR_KEYS`). */
+const DOOR_KEYS: readonly string[] = ['forms', 'chat'];
 
 /**
  * An entry anyone at all may use: no claim, no sign-in, no person found or
@@ -32,8 +32,8 @@ export const openToAnyone = (entry: PublicAccessEntry): boolean =>
 export function anonymousAddAndRead(entries: readonly PublicAccessEntry[]): number[] {
   const keyOf = (entry: PublicAccessEntry): string => `${entry.key ?? CUSTOMER_KEY_PURPOSE}\n${entry.table}`;
   const added = new Set(entries.filter((entry) => openToAnyone(entry) && entry.methods.includes('POST')).map(keyOf));
-  // A stranger's form answer adds a row whichever key would read it: a table opened to forms is read by no key at all.
-  const formed = new Set(entries.filter((entry) => entry.key === FORMS_KEY).map((entry) => entry.table));
+  // A stranger's form answer or left question adds a row whichever key would read it: a table opened to either is read by no key at all.
+  const formed = new Set(entries.filter((entry) => entry.key !== undefined && DOOR_KEYS.includes(entry.key)).map((entry) => entry.table));
   return entries.flatMap((entry, index) =>
     openToAnyone(entry) && entry.methods.includes('GET') && !entry.methods.includes('POST') && (added.has(keyOf(entry)) || formed.has(entry.table)) ? [index] : [],
   );

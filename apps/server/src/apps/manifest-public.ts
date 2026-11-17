@@ -24,7 +24,7 @@
  * stop the key working — the public API off, no `self` in the origin list,
  * a database with no time zone — before anything is written.
  */
-import { FORMS_KEY, hasPhoneSide, LOCAL_PUBLISHER_ID, ownLinksOfPerson, type Manifest } from '@adminium/manifest';
+import { DOOR_KEYS, hasPhoneSide, LOCAL_PUBLISHER_ID, ownLinksOfPerson, type Manifest } from '@adminium/manifest';
 import {
   CUSTOMER_KEY_PURPOSE,
   connectionTenantConfig,
@@ -60,13 +60,14 @@ export type PublicAccessEntry = NonNullable<Extract<Manifest, { kind: 'app' }>['
 
 /**
  * The entries the public API serves: every one but those under the reserved
- * key `forms`, which open a table to a form's answers and are read by the
- * forms door alone. No endpoint is planned for one and no key is made for
- * it, so a request that would reach one is answered as for a table nobody
- * opened. Every reader that numbers the entries into endpoints numbers these.
+ * keys `forms` and `chat`, which open a table to a form's answers or to a
+ * chat's question left outside hours, and are read by that door alone. No
+ * endpoint is planned for one and no key is made for it, so a request that
+ * would reach one is answered as for a table nobody opened. Every reader that
+ * numbers the entries into endpoints numbers these.
  */
 export function servedPublicEntries(entries: readonly PublicAccessEntry[]): PublicAccessEntry[] {
-  return entries.filter((entry) => entry.key !== FORMS_KEY);
+  return entries.filter((entry) => entry.key === undefined || !DOOR_KEYS.includes(entry.key));
 }
 
 /** The one key an add-on may declare: a link that opens one row and only reads. Undefined for an app, or an add-on with none. */
@@ -964,7 +965,7 @@ export async function installPublicAccess(input: {
   const mine = (entry: PlannedPublicEndpoint) => entry.owner === manifest.key;
   // A key is made for what the manifest itself declares: an app's key is never made for an add-on's entries alone.
   const purposes = [...new Set(planned.filter(mine).map((entry) => entry.key))].filter(
-    (purpose) => purpose !== FORMS_KEY && (manifest.kind === 'app' || (purpose === ownLink && opensByToken(manifest, purpose))),
+    (purpose) => !DOOR_KEYS.includes(purpose) && (manifest.kind === 'app' || (purpose === ownLink && opensByToken(manifest, purpose))),
   );
   /*
    * The app's live keys, given what this version adds once the operator
