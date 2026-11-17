@@ -12,6 +12,9 @@
  * words, through both doors that map one: the Surfaces screen's whole map
  * and one app's own list. Another host is kept, and with no public address
  * set nothing extra is refused.
+ *
+ * And a pages host's home is never a door's own call: under each `/x/` door
+ * only a page one name below it is a home.
  */
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -30,7 +33,7 @@ import { customerHostAllows, isHostReservedPath } from '../src/plugins/surfaces.
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { appRoutes } from '../src/routes/apps/index.js';
 import { surfacesAdminRoutes } from '../src/routes/surfaces-admin/index.js';
-import { validateDomainEntries } from '../src/surfaces/validate.js';
+import { pagesHomeIssueFor, validateDomainEntries, X_DOORS } from '../src/surfaces/validate.js';
 import { packageTarball } from './app-bundle-helpers.js';
 import { adminPasswordHash } from './auth-helpers.js';
 import { makeEnv } from './helpers.js';
@@ -91,6 +94,26 @@ describe('an app’s side on the public address’s host', () => {
     // A staff side the same way; with no public address, nothing extra.
     expect(validateDomainEntries({ [PUBLIC]: { appKey: 'clients', side: 'staff' } }, { requestHost: '', surfaces, settings, publicOriginHost: PUBLIC }).issues.map((issue) => issue.code)).toEqual(['public_origin_host']);
     expect(validateDomainEntries({ [PUBLIC]: { appKey: 'clients', side: 'staff' } }, { requestHost: '', surfaces, settings, publicOriginHost: null }).issues).toEqual([]);
+  });
+});
+
+describe('a pages host’s home, by the /x/ doors', () => {
+  it('names each door the engine serves', () => {
+    expect(X_DOORS).toEqual(['forms', 'chat']);
+  });
+
+  it('is a page one name below a door, never the door, its api or a call below a page', () => {
+    for (const home of ['/x/forms/newsletter', '/x/chat/support', '/x/chat/support-desk']) expect(pagesHomeIssueFor(home), home).toBeNull();
+    for (const door of X_DOORS) {
+      for (const home of [`/x/${door}`, `/x/${door}/api`, `/x/${door}/api/newsletter`, `/x/${door}/api/support/messages`, `/x/${door}/support/messages`, `/x/${door}/support/config`]) {
+        expect(pagesHomeIssueFor(home), home).toBe('must be a page, not the pages’ own files or API');
+      }
+    }
+    // The chat window's own calls, by name: never a home.
+    for (const home of ['/x/chat', '/x/chat/support/config', '/x/chat/support/messages']) expect(pagesHomeIssueFor(home), home).not.toBeNull();
+    // The pages' own files and API, as before.
+    for (const home of ['/x/assets/x-abc', '/x/api/logo']) expect(pagesHomeIssueFor(home), home).toBe('must be a page, not the pages’ own files or API');
+    expect(pagesHomeIssueFor('/login')).toBe('must be a page address under /x/, such as /x/forms/newsletter');
   });
 });
 

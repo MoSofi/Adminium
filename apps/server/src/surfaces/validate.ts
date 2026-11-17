@@ -120,14 +120,25 @@ export function validateDomainEntries(
 }
 
 /**
+ * The doors under `/x/`, each serving its pages one name below it
+ * (`/x/forms/<form>`, `/x/chat/<add-on>`) and its own calls beside or below
+ * them (`/x/forms/api/…`, `/x/chat/<add-on>/messages`). A new door is added
+ * here, and its calls are never a pages home from then on.
+ */
+export const X_DOORS: readonly string[] = ['forms', 'chat'];
+
+/**
  * A home page a pages host sends `/` to: a page address under `/x/`, in lower
- * case, never the pages' own files (`/x/assets/…`), their API (`/x/api/…`,
- * `/x/forms/api/…`) or the loader. Null when it is fine, else what is wrong.
+ * case, never the pages' own files (`/x/assets/…`), their API (`/x/api/…`) or
+ * the loader. Under a door ({@link X_DOORS}) only a page one name below it is
+ * a home: not the door itself, not its `api`, nothing deeper (each door's
+ * calls). Null when it is fine, else what is wrong.
  */
 export function pagesHomeIssueFor(home: string): string | null {
   if (home.length > 200 || !/^\/x\/[a-z0-9-]+(?:\/[a-z0-9-]+)*$/.test(home)) return 'must be a page address under /x/, such as /x/forms/newsletter';
-  const [, , first, second] = home.split('/');
-  if (first === 'assets' || first === 'api' || (first === 'forms' && (second === undefined || second === 'api'))) return 'must be a page, not the pages’ own files or API';
+  const [, , first = '', ...below] = home.split('/');
+  const doorCall = X_DOORS.includes(first) && (below.length !== 1 || below[0] === 'api');
+  if (first === 'assets' || first === 'api' || doorCall) return 'must be a page, not the pages’ own files or API';
   return null;
 }
 
