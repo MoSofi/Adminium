@@ -129,7 +129,7 @@ async function follow(deps: ReaderChargeDeps, attempt: PaymentAttempt, state: Re
           takenAmount: state.amount,
           takenCurrency: state.currency,
           paymentRef: state.paymentRef,
-          paidWith: { method: 'card', label, delayed: false },
+          paidWith: { method: 'card', label, delayed: false, ...(state.brand === null ? {} : { brand: state.brand }) },
           tipAmount: state.tip ?? '0',
           approvalCode: state.approvalCode,
           cardLast4: state.last4,
@@ -206,21 +206,29 @@ export async function cancelReaderCharge(deps: ReaderChargeDeps, attemptId: stri
   return attempts.byId(attemptId);
 }
 
-/** Where a charge stands, as the till shows it. */
-export function chargeView(attempt: PaymentAttempt): { attemptId: string; state: 'sending' | 'on_reader' | 'paid' | 'declined' | 'cancelled' | 'failed'; amount: string; currency: string; tip: string | null; last4: string | null; message: string | null } {
+/**
+ * Where a charge stands, as the till shows it: `sending` to the reader,
+ * `on_reader` waiting for the card ("On the reader…"), `processing` once the
+ * card was presented and the service is deciding, then `paid`, `declined`,
+ * `cancelled` or `failed`. The card's brand and last four once it is paid.
+ */
+export function chargeView(attempt: PaymentAttempt): { attemptId: string; state: 'sending' | 'on_reader' | 'processing' | 'paid' | 'declined' | 'cancelled' | 'failed'; amount: string; currency: string; tip: string | null; brand: string | null; last4: string | null; message: string | null } {
+  const brand = (attempt.paidWith as { brand?: unknown } | null)?.brand;
   const state =
     attempt.state === 'creating'
       ? 'sending'
-      : attempt.state === 'open' || attempt.state === 'processing'
+      : attempt.state === 'open'
         ? 'on_reader'
-        : attempt.state === 'succeeded' || attempt.state === 'recording' || attempt.state === 'recorded'
+        : attempt.state === 'processing'
+          ? 'processing'
+          : attempt.state === 'succeeded' || attempt.state === 'recording' || attempt.state === 'recorded'
           ? 'paid'
           : attempt.state === 'cancelled' || attempt.state === 'expired' || attempt.state === 'abandoned'
             ? 'cancelled'
             : attempt.problem?.code === 'DECLINED'
               ? 'declined'
               : 'failed';
-  return { attemptId: attempt.id, state, amount: attempt.reader?.asked ?? attempt.amount, currency: attempt.currency, tip: attempt.reader?.tip ?? null, last4: attempt.reader?.last4 ?? null, message: attempt.problem?.message ?? null };
+  return { attemptId: attempt.id, state, amount: attempt.reader?.asked ?? attempt.amount, currency: attempt.currency, tip: attempt.reader?.tip ?? null, brand: typeof brand === 'string' && brand !== '' ? brand : null, last4: attempt.reader?.last4 ?? null, message: attempt.problem?.message ?? null };
 }
 
 const pollPayload = z.object({ attemptId: z.string().min(1).max(64), tick: z.number().int().nonnegative().optional() }).strict();

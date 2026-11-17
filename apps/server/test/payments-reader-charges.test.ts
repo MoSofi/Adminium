@@ -126,7 +126,7 @@ describe.each(LEGS)('charges on a card reader — %s', (dialect, available) => {
     expect(await recordAttempt({ meta: h.meta, sources }, started.attempt.id)).toMatchObject({ state: 'recorded' });
     const [row] = await h.rows(`select amount, tip, method, approval_code, last4 from ${h.real('ticket_payments')} where payment_ref = '${started.attempt.id}'`);
     expect([Number(row!['amount']), Number(row!['tip']), row!['method'], row!['approval_code'], row!['last4']]).toEqual([12.5, 2, 'card', 'DEMO01', '4242']);
-    expect(chargeView((await paymentAttemptsRepo(h.meta).byId(started.attempt.id))!)).toMatchObject({ state: 'paid', tip: '2.00', last4: '4242' });
+    expect(chargeView((await paymentAttemptsRepo(h.meta).byId(started.attempt.id))!)).toMatchObject({ state: 'paid', tip: '2.00', brand: 'Visa', last4: '4242' });
   });
 
   it.skipIf(!available)('sends a lost send again with the same key, and never gives the charge up blind', async () => {

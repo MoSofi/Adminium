@@ -61,10 +61,13 @@ const chargeBody = z
   .strict();
 const chargeView_ = z.object({
   attemptId: z.string(),
-  state: z.enum(['sending', 'on_reader', 'paid', 'declined', 'cancelled', 'failed']),
+  /** `on_reader`: waiting for the card; `processing`: the card was presented and the service is deciding. */
+  state: z.enum(['sending', 'on_reader', 'processing', 'paid', 'declined', 'cancelled', 'failed']),
   amount: z.string(),
   currency: z.string(),
   tip: z.string().nullable(),
+  /** The card's brand ("Visa"), once paid; null when the reader did not say. */
+  brand: z.string().nullable(),
   last4: z.string().nullable(),
   message: z.string().nullable(),
 });
