@@ -126133,6 +126133,7 @@
                           "enum": [
                             "sending",
                             "on_reader",
+                            "processing",
                             "paid",
                             "declined",
                             "cancelled",
@@ -126146,6 +126147,12 @@
                           "type": "string"
                         },
                         "tip": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "brand": {
                           "type": [
                             "string",
                             "null"
@@ -126170,6 +126177,7 @@
                         "amount",
                         "currency",
                         "tip",
+                        "brand",
                         "last4",
                         "message"
                       ],
@@ -126220,6 +126228,7 @@
                           "enum": [
                             "sending",
                             "on_reader",
+                            "processing",
                             "paid",
                             "declined",
                             "cancelled",
@@ -126233,6 +126242,12 @@
                           "type": "string"
                         },
                         "tip": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "brand": {
                           "type": [
                             "string",
                             "null"
@@ -126257,6 +126272,7 @@
                         "amount",
                         "currency",
                         "tip",
+                        "brand",
                         "last4",
                         "message"
                       ],
@@ -126307,6 +126323,7 @@
                           "enum": [
                             "sending",
                             "on_reader",
+                            "processing",
                             "paid",
                             "declined",
                             "cancelled",
@@ -126320,6 +126337,12 @@
                           "type": "string"
                         },
                         "tip": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "brand": {
                           "type": [
                             "string",
                             "null"
@@ -126344,6 +126367,7 @@
                         "amount",
                         "currency",
                         "tip",
+                        "brand",
                         "last4",
                         "message"
                       ],
