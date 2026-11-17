@@ -41,11 +41,16 @@ export function hostIssueFor(host: string): string | null {
 /**
  * Validate host → surface entries, normalising each host. `settings` names
  * the instances that exist; `requestHost` is the host Studio is reached on,
- * which must never be mapped away.
+ * which must never be mapped away. Nor is the host of the public address
+ * (`publicOriginHost`, from {@link publicOriginHostOf}): an app's side mapped
+ * there answers every path but the reserved few with the app, so the
+ * dashboard's own pages there, and the links its mail carries to them (a
+ * record's `/p/…`), would open the app instead, and a customer side refuses
+ * the sign-in page and the `/reset/…` an invitation or a reset links to.
  */
 export function validateDomainEntries(
   entries: Readonly<Record<string, { appKey: string; side: SurfaceSide; instance?: string | undefined }>>,
-  ctx: { requestHost: string; surfaces: readonly HostedSurface[]; settings: SurfaceSettings },
+  ctx: { requestHost: string; surfaces: readonly HostedSurface[]; settings: SurfaceSettings; publicOriginHost?: string | null | undefined },
 ): { normalized: Record<string, DomainMapping>; issues: DomainIssue[] } {
   const issues: DomainIssue[] = [];
   const normalized: Record<string, DomainMapping> = {};
@@ -70,6 +75,11 @@ export function validateDomainEntries(
         message: `"${host}" is the host you are using to reach Studio — mapping it would take this dashboard away from you.`,
         code: 'request_host',
       });
+      continue;
+    }
+    const publicHost = publicOriginIssue(host, key, ctx.publicOriginHost);
+    if (publicHost !== null) {
+      issues.push(publicHost);
       continue;
     }
     const exists = ctx.surfaces.some(
@@ -133,6 +143,20 @@ export function publicOriginHostOf(publicOrigin: string | null | undefined): str
 }
 
 /**
+ * The refusal of a host that is the public address's own (`key`, already
+ * normalised), worded the same for an app's side and for the add-on pages;
+ * null for any other host, and while no public address is set.
+ */
+function publicOriginIssue(host: string, key: string, publicOriginHost: string | null | undefined): DomainIssue | null {
+  if (publicOriginHost === null || publicOriginHost === undefined || key !== publicOriginHost) return null;
+  return {
+    path: host,
+    message: `"${host}" is the host of this server's public address — mapping it would take the dashboard away there, and with it the links in its mail and the pay page.`,
+    code: 'public_origin_host',
+  };
+}
+
+/**
  * Validate host → add-on pages entries, normalising each host, against the
  * hosts the app entries of the same save already hold (`taken`, normalised):
  * a host is in one map or the other, never both. Two hosts are never given to
@@ -161,12 +185,9 @@ export function validatePageHostEntries(
       issues.push({ path: host, message: `"${host}" is the host you are using to reach Studio — mapping it would take this dashboard away from you.`, code: 'request_host' });
       continue;
     }
-    if (ctx.publicOriginHost !== null && ctx.publicOriginHost !== undefined && key === ctx.publicOriginHost) {
-      issues.push({
-        path: host,
-        message: `"${host}" is the host of this server's public address — mapping it would take the dashboard away there, and with it the links in its mail and the pay page.`,
-        code: 'public_origin_host',
-      });
+    const publicHost = publicOriginIssue(host, key, ctx.publicOriginHost);
+    if (publicHost !== null) {
+      issues.push(publicHost);
       continue;
     }
     const homeIssue = pagesHomeIssueFor(target.home);

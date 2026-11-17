@@ -442,9 +442,9 @@ export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPlugi
         // Where the operator decides the addresses, only the domains it listed (`trial/operator-hosts.ts`).
         refuseUnlistedHosts(app, Object.keys(request.body.domains));
         const requestHost = normalizeHost(request.host);
-        const apps = validateDomainEntries(appEntries, { requestHost, surfaces: app.surfaces, settings: declared });
-        // The public address's host stays the dashboard's: the mail links, the pay page and staff's pages need it.
+        // The public address's host stays the dashboard's, for an app's side and the pages alike: the mail links, the pay page and staff's pages need it.
         const publicOriginHost = publicOriginHostOf(await settings.get('system.publicOrigin'));
+        const apps = validateDomainEntries(appEntries, { requestHost, surfaces: app.surfaces, settings: declared, publicOriginHost });
         const pages = validatePageHostEntries(pageEntries, { requestHost, taken: new Set(Object.keys(apps.normalized)), publicOriginHost });
         const issues = [...apps.issues, ...pages.issues];
 
