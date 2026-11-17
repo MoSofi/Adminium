@@ -69,8 +69,11 @@ export {
   ledgersOf,
   formsOf,
   formsEntriesOf,
+  chatOf,
+  chatEntriesOf,
   decidedColumnsOf,
   type FormsEntry,
+  type ChatEntry,
   addOnRoleTableHold,
   adjusterOf,
   checkerOf,
@@ -340,7 +343,7 @@ export {
   tableSchemaIssue,
 } from './table-names.js';
 
-export { FORMS_ENTRY_WORDS, FORMS_KEY, SELF_UNLOCK_MIN_LENGTH } from './public-access.js';
+export { CHAT_ENTRY_WORDS, CHAT_KEY, DOOR_KEYS, FORMS_ENTRY_WORDS, FORMS_KEY, SELF_UNLOCK_MIN_LENGTH } from './public-access.js';
 export {
   ANSWER_INVITATION_COLUMN,
   FORMS_ANSWERS_MONTHS_COLUMN,
@@ -355,7 +358,28 @@ export {
   type FormsColumn,
   type FormsPart,
   type FormsTableShape,
+  contractColumns,
+  describeContractColumn,
+  type ContractColumn,
 } from './forms.js';
+export {
+  CHAT_CATEGORY,
+  CHAT_COLUMNS,
+  CHAT_EVENTS,
+  CHAT_MESSAGE_KINDS,
+  CHAT_MESSAGE_MAX,
+  CHAT_OUTCOMES,
+  CHAT_PARTS,
+  CHAT_SETTINGS_COLUMNS,
+  CHAT_STATES,
+  CHAT_THEMES,
+  addOnChatSchema,
+  chatBlockIssues,
+  type AddOnChat,
+  type ChatAddOnShape,
+  type ChatColumn,
+  type ChatPart,
+} from './chat.js';
 export { CUSTOMER_KEY, claimKind, claimSchema, codeSchemaOf, codeWhereSchema, hiddenFromStaff, ownLinksOfPerson, personalColumn, publicKeySchema, shareCodeColumns, type Claim, type CodeSchema, type PersonOwnLink, type PublicKey } from './public-access.js';
 export { resendAddressOf, type ResendAddress, type ResendColumns, type ResendOutbox } from './public-access.js';
 export { PLAIN_TEXT_DIGITS_MOST, PLAIN_TEXT_LONGEST, PLAIN_TEXT_MAX, plainTextMax, plainTextRef, type PlainTextColumnRef } from './public-access.js';

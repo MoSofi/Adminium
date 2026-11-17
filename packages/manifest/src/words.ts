@@ -193,6 +193,10 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'outbox.surveyLinks',
   // The column of a table opened to forms that a form's fixed "Source" value goes into.
   'publicAccess.forms.source',
+  // An add-on's live chat: the tables that hold its conversations, messages, answers and the answerer's choices.
+  'addOn.chat',
+  // A table an app opens to a chat's question left outside hours, through an entry under the reserved key `chat`.
+  'publicAccess.chat',
   // An add-on step's person input and its fields, a record input named by a unique column and held to some rows, a
   // choice's help line, and the rule record's own table and key as tokens.
   'step.person',
@@ -519,6 +523,9 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'outbox.surveyLinks': '0.3.40',
   // The column of a table opened to forms that a form's fixed "Source" value goes into (an enquiry's "From form").
   'publicAccess.forms.source': '0.3.41',
+  // An add-on's live chat, which the engine keeps for a stranger, and a table an app opens to a question left outside hours.
+  'addOn.chat': '0.3.64',
+  'publicAccess.chat': '0.3.64',
   // A step about a person (the rule record, or one link of it): their address, name, language, company, table and key.
   'step.person': '0.3.41',
   // A record input that names its row by a unique column (a survey by its slug), and the rows it may pick (only live ones).
@@ -683,6 +690,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (block['steps'] !== undefined) out.push({ word: 'addOn.steps', path: 'addOn.steps' });
     if (block['assistant'] !== undefined) out.push({ word: 'addOn.assistant', path: 'addOn.assistant' });
     if (block['forms'] !== undefined) out.push({ word: 'addOn.forms', path: 'addOn.forms' });
+    if (block['chat'] !== undefined) out.push({ word: 'addOn.chat', path: 'addOn.chat' });
     if (block['scope'] !== undefined) out.push({ word: 'addOn.scope', path: 'addOn.scope' });
     // A step's person, its record named by a column and filtered, a choice's help line, and the record's own table and key.
     list(block['steps']).forEach((step, s) => {
@@ -1146,6 +1154,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (isDoc(entry) && entry['requiresWhen'] !== undefined) out.push({ word: 'publicAccess.requiresWhen', path: `publicAccess.${String(e)}.requiresWhen` });
     if (isDoc(entry) && entry['consent'] !== undefined) out.push({ word: 'publicAccess.consent', path: `publicAccess.${String(e)}.consent` });
     if (isDoc(entry) && entry['key'] === 'forms') out.push({ word: 'publicAccess.forms', path: `publicAccess.${String(e)}.key` });
+    if (isDoc(entry) && entry['key'] === 'chat') out.push({ word: 'publicAccess.chat', path: `publicAccess.${String(e)}.key` });
     if (isDoc(entry) && entry['source'] !== undefined) out.push({ word: 'publicAccess.forms.source', path: `publicAccess.${String(e)}.source` });
     if (isDoc(entry) && entry['appColumn'] !== undefined) out.push({ word: 'publicAccess.appColumn', path: `publicAccess.${String(e)}.appColumn` });
     // A guest's uploads, on the entry or on any level of its child rows.

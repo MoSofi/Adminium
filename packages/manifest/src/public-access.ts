@@ -69,6 +69,22 @@ export const FORMS_KEY = 'forms';
  */
 export const FORMS_ENTRY_WORDS = ['table', 'methods', 'key', 'writable', 'writableValues', 'defaults', 'requires', 'agrees', 'anonymous', 'requireSetting', 'module', 'source'] as const;
 
+/**
+ * The reserved key name of the entries that open a table to a CHAT's
+ * question left outside hours: a visitor who leaves one with an e-mail adds
+ * a new row of the table, through this entry's `writable` columns, `defaults`
+ * and `anonymous` limits. As with `forms`, no browser key of this name is
+ * ever made and the public API never serves such an entry: the chat door
+ * alone reads it. A table may carry both a `forms` and a `chat` entry.
+ */
+export const CHAT_KEY = 'chat';
+
+/** What a chat entry may say: a forms entry's words, but a chat's row has no form, so no form's "Source". */
+export const CHAT_ENTRY_WORDS = FORMS_ENTRY_WORDS.filter((word): word is Exclude<(typeof FORMS_ENTRY_WORDS)[number], 'source'> => word !== 'source');
+
+/** The reserved keys whose entries a door of Adminium's own writes through, and the public API never serves. */
+export const DOOR_KEYS: readonly string[] = [FORMS_KEY, CHAT_KEY];
+
 /** The longest a plain-text value may be unless its column says longer: a name. */
 export const PLAIN_TEXT_MAX = 80;
 /** The most digits a plain-text column may take in all: "table 12", "2 without onions", never a phone number. */
@@ -866,6 +882,9 @@ export const publicKeysSchema = z
   })
   .refine((keys) => !(FORMS_KEY in keys), {
     message: '"forms" is the name of the entries forms write through, and no browser key: name the key otherwise',
+  })
+  .refine((keys) => !(CHAT_KEY in keys), {
+    message: '"chat" is the name of the entries a chat\'s left questions write through, and no browser key: name the key otherwise',
   });
 export type PublicKey = z.infer<typeof publicKeySchema>;
 
@@ -1052,6 +1071,41 @@ function formsEntryIssues(entry: PublicAccess, i: number, entries: readonly Publ
 }
 
 /**
+ * A chat entry's own rules, those of a forms entry: it creates (POST) and
+ * nothing else, under anonymous limits, with the columns a left question may
+ * fill named; one per table, its table short enough for a conversation to
+ * keep whole; and no entry on any key lets anyone read the rows strangers
+ * add through it. A chat's row has no form, so it names no source.
+ */
+function chatEntryIssues(entry: PublicAccess, i: number, entries: readonly PublicAccess[], appKey: string | undefined): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  const at = (...rest: (string | number)[]) => ['publicAccess', i, ...rest];
+  // Each conversation keeps the row it became by its table's stored name: it must fit a conversations table, whole.
+  const stored = appKey === undefined ? 0 : appKey.length + 1 + entry.table.length;
+  if (stored > FORMS_BECAME_TABLE_MAX) {
+    out.push({ path: at('table'), message: `a chat names the row it became by "<app>:<table>", at most ${String(FORMS_BECAME_TABLE_MAX)} characters: "${appKey ?? ''}:${entry.table}" is ${String(stored)}` });
+  }
+  const allowed: readonly string[] = CHAT_ENTRY_WORDS;
+  for (const word of Object.keys(entry)) {
+    if (!allowed.includes(word)) out.push({ path: at(word), message: `a chat entry only lets a left question add a row: "${word}" is not said on it` });
+  }
+  if (entry.methods.length !== 1 || entry.methods[0] !== 'POST') out.push({ path: at('methods'), message: 'a chat entry adds a row and does nothing else: its methods are ["POST"]' });
+  if (entry.anonymous === undefined) out.push({ path: at('anonymous'), message: 'a question is left by strangers: a chat entry says its anonymous limits' });
+  if ((entry.writable ?? []).length === 0) out.push({ path: at('writable'), message: 'a chat entry names the columns a left question may fill (writable)' });
+  if (entries.findIndex((other) => other.key === CHAT_KEY && other.table === entry.table) !== i) {
+    out.push({ path: at('table'), message: `"${entry.table}" is opened to chat by another entry already: one chat entry per table` });
+  }
+  const reader = entries.findIndex((other) => other !== entry && other.table === entry.table && readByAnyone(other));
+  if (reader !== -1) {
+    out.push({
+      path: at('table'),
+      message: `strangers add rows to "${entry.table}" through chat, and entry ${String(reader)} lets anyone read its rows: everyone could read the questions people left`,
+    });
+  }
+  return out;
+}
+
+/**
  * An entry held to the app whose key serves it (`appColumn`): a text column
  * of its table, never one a browser writes or a value the entry sets, and
  * only on an entry that rides each app's own key (no key of the add-on's,
@@ -1199,10 +1253,11 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     }
     const column = (ref: string) => index.column(entry.table, ref);
     const key = entry.key ?? CUSTOMER_KEY;
-    if (key !== CUSTOMER_KEY && key !== FORMS_KEY && ctx.publicKeys?.[key] === undefined) {
+    if (key !== CUSTOMER_KEY && !DOOR_KEYS.includes(key) && ctx.publicKeys?.[key] === undefined) {
       out.push({ path: at('key'), message: `"${key}" is not one of the app's publicKeys` });
     }
     if (key === FORMS_KEY) out.push(...formsEntryIssues(entry, i, entries, ctx.appKey, index));
+    else if (key === CHAT_KEY) out.push(...chatEntryIssues(entry, i, entries, ctx.appKey));
     else if (entry.source !== undefined) out.push({ path: at('source'), message: 'a source is said only on a forms entry (key "forms"): the column a form\'s fixed "Source" value goes into' });
 
     for (const list of ['select', 'writable'] as const) {
@@ -1213,8 +1268,8 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     // An entry anyone may call (no claim, no parent, no session asked) shows no personal data: the install refuses it too.
     const sessionOnly = entry.level !== undefined && entry.claim === undefined && entry.claimedBy === undefined && entry.visibleWith === undefined;
     const anyone = entry.claim === undefined && entry.visibleWith === undefined && (entry.claimedBy === undefined || entry.claimedBy.optional === true) && !sessionOnly;
-    // An availability entry shows no row, whatever it names; nor does a forms entry, which answers nobody with the row.
-    if (anyone && entry.kind !== 'availability' && key !== FORMS_KEY) {
+    // An availability entry shows no row, whatever it names; nor does a forms or a chat entry, which answers nobody with the row.
+    if (anyone && entry.kind !== 'availability' && !DOOR_KEYS.includes(key)) {
       // No select shows every column but a code Adminium makes and a secret, as the install reads it.
       const shown =
         entry.select ??

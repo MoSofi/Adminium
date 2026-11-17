@@ -37,7 +37,7 @@ import { pageBoardIssues } from './page-board.js';
 import { pageCalendarIssues } from './page-calendar.js';
 import { pageConfigIssues } from './page-config.js';
 import { emailTemplateSchema, outboxIssues, outboxProducerSchema, outboxSchema } from './outbox.js';
-import { FORMS_KEY, codeWhereSchema, personalColumn, plainTextMax, plainTextRef, publicAccessIssues, publicAccessSchema, publicKeysSchema, shareCodeColumns, unlistedColumn, type PublicAccess } from './public-access.js';
+import { CHAT_KEY, FORMS_KEY, codeWhereSchema, personalColumn, plainTextMax, plainTextRef, publicAccessIssues, publicAccessSchema, publicKeysSchema, shareCodeColumns, unlistedColumn, type PublicAccess } from './public-access.js';
 import { appGrantsIssues, appGrantsSchema, roleTableHold, type AppGrantTableShape, type RoleTableHold } from './app-grants.js';
 import { belongsIssues, belongsSchema, privateTableIssues, roleAddOnTableIssues, roleAddOnTablesSchema, type RoleAddOnTable, roleLimitIssues, roleLimitsSchema, rowTablesOf, type RoleShape, privateShapeIssues, storedTotalIssues } from './roles.js';
 import { conditionIssues, stateConditionSchema, statesIssues, statesSchema, type States } from './states.js';
@@ -75,6 +75,7 @@ import { adjustDecidedColumns, adjustIssues, adjustSchema, adjusterIssues, adjus
 import { checkIssues, checkSchema, checkerIssues, checkerSchema, type Checker, type CheckTableShape } from './check.js';
 import { ledgerIssues, ledgersSchema, postingIssues, postingsSchema, receiptTableIssues, wordsIssues, wordsListSchema, type Ledger, type LedgerScopeTable, type LedgerTableShape, type StockWords } from './ledgers.js';
 import { addOnFormsSchema, formsBlockIssues, type AddOnForms, type FormsTableShape } from './forms.js';
+import { addOnChatSchema, chatBlockIssues, type AddOnChat } from './chat.js';
 
 export { compareSemver };
 
@@ -4205,7 +4206,7 @@ const ADD_ON_BLOCKS = ['pages', 'roles', 'seeds', 'navGroups', 'optionLists', 'p
 export function installsLikeAnApp(m: Manifest): boolean {
   if (m.kind !== 'add-on') return false;
   if (ADD_ON_BLOCKS.some((block) => m[block] !== undefined)) return true;
-  if (m.requiredSchema?.prefixed === true || m.addOn.settingsTable !== undefined || m.addOn.ledgers !== undefined || m.addOn.adjuster !== undefined || m.addOn.checker !== undefined || m.addOn.words !== undefined || m.addOn.recordTabs !== undefined || m.addOn.steps !== undefined || m.addOn.assistant !== undefined || m.addOn.forms !== undefined) return true;
+  if (m.requiredSchema?.prefixed === true || m.addOn.settingsTable !== undefined || m.addOn.ledgers !== undefined || m.addOn.adjuster !== undefined || m.addOn.checker !== undefined || m.addOn.words !== undefined || m.addOn.recordTabs !== undefined || m.addOn.steps !== undefined || m.addOn.assistant !== undefined || m.addOn.forms !== undefined || m.addOn.chat !== undefined) return true;
   return (m.requiredSchema?.tables ?? []).some(
     (table) =>
       table.states !== undefined ||
@@ -4360,6 +4361,13 @@ export function formsOf(m: Manifest): AddOnForms | null {
   return parsed.success ? parsed.data : null;
 }
 
+/** An add-on's chat block, typed; null for an app, and for an add-on that declares none. */
+export function chatOf(m: Manifest): AddOnChat | null {
+  if (m.kind !== 'add-on' || m.addOn.chat === undefined) return null;
+  const parsed = addOnChatSchema.safeParse(m.addOn.chat);
+  return parsed.success ? parsed.data : null;
+}
+
 /** Per table of an app (or an add-on's own), the columns Adminium decides and no writer may set. */
 export function decidedColumnsOf(m: Manifest): ReadonlyMap<string, ReadonlySet<string>> {
   const sink: { decided?: Map<string, ReadonlySet<string>> } = {};
@@ -4408,7 +4416,25 @@ export interface FormsEntry {
  * can never write a column the app did not open.
  */
 export function formsEntriesOf(m: Manifest): FormsEntry[] {
-  const entries = (m.publicAccess ?? []).filter((entry) => entry.key === FORMS_KEY);
+  return entriesUnder(m, FORMS_KEY);
+}
+
+/** One table an app opens to a chat's question left outside hours: the entry under the key `chat`, as the chat door reads it. */
+export type ChatEntry = Omit<FormsEntry, 'source'>;
+
+/**
+ * The tables an app opens to a chat's question left outside hours, each with
+ * what it may fill there: the entries under the reserved key `chat`. Empty
+ * for a manifest that opens none. The chat door reads these and nothing else.
+ */
+export function chatEntriesOf(m: Manifest): ChatEntry[] {
+  // A chat entry names no source (the validator refuses one), so none is handed on.
+  return entriesUnder(m, CHAT_KEY).map(({ source: _source, ...entry }) => entry);
+}
+
+/** The entries under one reserved key, as the door that writes through them reads them. */
+function entriesUnder(m: Manifest, key: typeof FORMS_KEY | typeof CHAT_KEY): FormsEntry[] {
+  const entries = (m.publicAccess ?? []).filter((entry) => entry.key === key);
   if (entries.length === 0) return [];
   const decided = decidedColumnsOf(m);
   return entries.map((entry): FormsEntry => {
@@ -4503,6 +4529,27 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
           steps: m.addOn.steps,
           decided: (table, column) => decidedByRules(byRef.get(table)?.columns.find((candidate) => candidate.ref === column)?.rules),
           settingsTable: m.addOn.settingsTable,
+        }),
+      );
+    }
+  }
+
+  // Chat: typed loosely in the contracts package; its tables, their columns, its settings and who may write them are checked here.
+  if (m.addOn.chat !== undefined) {
+    const parsed = addOnChatSchema.safeParse(m.addOn.chat);
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) out.push({ path: ['addOn', 'chat', ...issue.path.map((part) => (typeof part === 'symbol' ? String(part) : part))], message: issue.message });
+    } else {
+      out.push(
+        ...chatBlockIssues(parsed.data, {
+          categories: m.categories,
+          tables: tables as unknown as readonly FormsTableShape[],
+          roles: m.roles,
+          publicAccess: m.publicAccess,
+          steps: m.addOn.steps,
+          decided: (table, column) => decidedByRules(byRef.get(table)?.columns.find((candidate) => candidate.ref === column)?.rules),
+          settingsTable: m.addOn.settingsTable,
+          forms: m.addOn.forms !== undefined,
         }),
       );
     }

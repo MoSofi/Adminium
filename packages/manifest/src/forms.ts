@@ -53,8 +53,11 @@ export const FORMS_BECAME_TABLE_MAX = 64;
 /** The category a package that declares forms is filed under. */
 export const FORMS_CATEGORY = 'marketing';
 
-/** What one column of a forms table must be. */
-export interface FormsColumn {
+/**
+ * What one column of a table the engine reads and writes must be: forms'
+ * tables, and every other add-on word built the same way (chat's).
+ */
+export interface ContractColumn<Part extends string = string> {
   /** The column types it may be. */
   types: readonly string[];
   /** The engine writes it empty: the column must take that. */
@@ -66,15 +69,32 @@ export interface FormsColumn {
   /** An enum's values, exactly. */
   values?: readonly string[];
   /** A link to another part of the block. */
-  links?: FormsPart;
+  links?: Part;
 }
 
-const text = (atLeast?: number, nullable?: true): FormsColumn => ({ types: ['text'], ...(atLeast === undefined ? {} : { atLeast }), ...(nullable === undefined ? {} : { nullable }) });
-const moment = (nullable?: true): FormsColumn => ({ types: ['timestamptz'], ...(nullable === undefined ? {} : { nullable }) });
-const json = (nullable?: true): FormsColumn => ({ types: ['json'], ...(nullable === undefined ? {} : { nullable }) });
-const whole = (nullable?: true): FormsColumn => ({ types: ['int', 'bigint'], ...(nullable === undefined ? {} : { nullable }) });
-const choice = (values: readonly string[]): FormsColumn => ({ types: ['enum'], values });
-const link = (to: FormsPart, nullable?: true): FormsColumn => ({ types: ['fk'], links: to, ...(nullable === undefined ? {} : { nullable }) });
+/** What one column of a forms table must be. */
+export type FormsColumn = ContractColumn<FormsPart>;
+
+const emptyOr = (nullable?: true) => (nullable === undefined ? {} : { nullable });
+/** The kinds a contract's column may be, shared by every word that names the columns the engine reads and writes. */
+export const contractColumns = {
+  /** Text, at least this many characters when bounded. */
+  text: (atLeast?: number, nullable?: true): ContractColumn<never> => ({ types: ['text'], ...(atLeast === undefined ? {} : { atLeast }), ...emptyOr(nullable) }),
+  /** A moment (a date and a time, with its zone). */
+  moment: (nullable?: true): ContractColumn<never> => ({ types: ['timestamptz'], ...emptyOr(nullable) }),
+  /** A day, with no time. */
+  date: (nullable?: true): ContractColumn<never> => ({ types: ['date'], ...emptyOr(nullable) }),
+  json: (nullable?: true): ContractColumn<never> => ({ types: ['json'], ...emptyOr(nullable) }),
+  /** A whole number. */
+  whole: (nullable?: true): ContractColumn<never> => ({ types: ['int', 'bigint'], ...emptyOr(nullable) }),
+  /** A yes or a no: the manifest's `bool`, a boolean on every engine. */
+  bool: (nullable?: true): ContractColumn<never> => ({ types: ['bool'], ...emptyOr(nullable) }),
+  /** An enum of exactly these values. */
+  choice: (values: readonly string[], nullable?: true): ContractColumn<never> => ({ types: ['enum'], values, ...emptyOr(nullable) }),
+  /** A link to another part of the same block. */
+  link: <Part extends string>(to: Part, nullable?: true): ContractColumn<Part> => ({ types: ['fk'], links: to, ...emptyOr(nullable) }),
+} as const;
+const { text, moment, json, whole, choice, link } = contractColumns;
 
 /**
  * The columns each part has, which the engine reads and writes by these names.
@@ -212,12 +232,12 @@ export function formsBlockIssues(block: AddOnForms, m: FormsAddOnShape): Referen
       const c = table.columns.findIndex((column) => column.ref === name);
       const column = table.columns[c];
       if (column === undefined) {
-        out.push({ path: at(part), message: `"${ref}" holds the ${part}, so it has a column "${name}" (${describe(want)})` });
+        out.push({ path: at(part), message: `"${ref}" holds the ${part}, so it has a column "${name}" (${describeContractColumn(want)})` });
         continue;
       }
       const say = (message: string, ...rest: (string | number)[]) => out.push({ path: columnAt(c, ...rest), message: `"${ref}.${name}" ${message}` });
       if (!want.types.includes(column.type)) {
-        say(`is read and written by Adminium as ${describe(want)}, not ${column.type}`, 'type');
+        say(`is read and written by Adminium as ${describeContractColumn(want)}, not ${column.type}`, 'type');
         continue;
       }
       if (want.nullable === true && column.nullable !== true) say('is written empty until there is something to put in it: make it nullable', 'nullable');
@@ -292,7 +312,7 @@ function onlyAdminiumWrites(ref: string, t: number, part: FormsPart, m: FormsAdd
 }
 
 /** A column's contract in words, for a refusal. */
-function describe(want: FormsColumn): string {
+export function describeContractColumn(want: ContractColumn): string {
   const kind = want.links !== undefined ? `a link to the ${want.links}` : want.values !== undefined ? `an enum of ${want.values.join(', ')}` : want.types.join(' or ');
   return [kind, ...(want.atLeast === undefined ? [] : [`at least ${String(want.atLeast)} characters`]), ...(want.nullable === true ? ['nullable'] : []), ...(want.unique === true ? ['unique'] : [])].join(', ');
 }
