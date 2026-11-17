@@ -612,6 +612,22 @@ const NOTHING_BLANK: ReadonlySet<string> = new Set();
 /** The columns of a row a message prints empty, because the row's holder is someone the message does not go to. */
 type BlankOf = (table: ResolvedTable, record: Row) => Promise<ReadonlySet<string>>;
 
+/**
+ * A REHEARSAL'S MAIL (`payments/rehearsal.ts`): one about a row the person
+ * rehearsing made, addressed to them alone and marked TEST. `rows` says
+ * whether a row is one of that very rehearsal's — noted as theirs when it was
+ * made, and still one of the app's sample rows — whose codes the mail may
+ * carry to them. Every other row's codes are held back as in any mail; a
+ * real customer's row is never one.
+ */
+interface RehearsalMail {
+  userId: string;
+  rows: (table: ResolvedTable, record: Row) => Promise<boolean>;
+}
+
+/** The subject mark every rehearsal mail carries: never taken for a real customer's. */
+const TEST_MARK = '[TEST] ';
+
 /** What a template reads, and the codes held back from it. */
 interface WrittenValues {
   vars: Record<string, string>;
@@ -654,6 +670,12 @@ function holdersOf(box: LiveOutbox, view: SnapshotView, holder: CodeHolder | nul
     const deciding = links.includes(via) ? [via] : links;
     return deciding.length > 0 && deciding.every((column) => record[column] !== null && record[column] !== undefined && String(record[column]) === String(holder.id));
   };
+}
+
+/** Whose a row's codes are for this mail: the code holder's rows, and in a rehearsal's mail that rehearsal's own rows too. */
+function holdersFor(box: LiveOutbox, view: SnapshotView, holder: CodeHolder | null, rehearsal: RehearsalMail | null): (table: ResolvedTable, record: Row) => Promise<boolean> {
+  const holders = holdersOf(box, view, holder);
+  return async (table, record) => holders(table, record) || (rehearsal !== null && (await rehearsal.rows(table, record)));
 }
 
 const NUMBER_TYPES: ReadonlySet<string> = new Set(['integer', 'bigint', 'decimal', 'float']);
@@ -952,16 +974,19 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     addressed: Addressed | null,
     /** Whose codes the email may carry: the recipient, when it goes to their own address on file; else nobody's. */
     holder: CodeHolder | null,
+    /** A rehearsal's mail: its own rows' codes go to the person rehearsing too. */
+    rehearsal: RehearsalMail | null = null,
   ): Promise<{ vars: Record<string, string>; withheld: Set<string>; read: Map<string, ReadRow> }> {
     const { db, view } = ctx;
     const out: WrittenValues = { vars: {}, withheld: new Set<string>() };
     const { vars, withheld } = out;
     const read = new Map<string, ReadRow>();
-    const holders = holdersOf(box, view, holder);
+    const holders = holdersFor(box, view, holder, rehearsal);
     const put = async (prefix: string, table: ResolvedTable, record: Row, settingsRow = false) => {
       // A row of the message's own, under its name: never the settings row, which is nobody's.
       if (!settingsRow && !read.has(prefix)) read.set(prefix, { table, record });
-      putValues(out, ctx, holders, prefix, table, record, settingsRow, settingsRow ? NOTHING_BLANK : await ctx.blankOf(table, record));
+      const mine = !settingsRow && (await holders(table, record));
+      putValues(out, ctx, () => mine, prefix, table, record, settingsRow, settingsRow ? NOTHING_BLANK : await ctx.blankOf(table, record));
     };
 
     const links = Object.entries(box.definition.links ?? {});
@@ -1174,6 +1199,46 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
   }
 
   /**
+   * A rehearsal's mail and its own rows. A row's codes go to the person
+   * rehearsing only when ALL of these hold: the message is a
+   * rehearsal's (noted as theirs when the app queued it), it goes to their own
+   * address and nowhere else, its subject carries the TEST mark, and the row
+   * itself was made in their rehearsal (noted as theirs when it was made) and
+   * is one of the app's sample rows still. So a person who rehearses can never
+   * have a real customer's code mailed to them: a real row is never noted, a
+   * message they queue about one carries none of its codes, and a note that
+   * outlived its row (its sample removed, the key used again) counts for nothing.
+   */
+  function rehearsalMail(
+    box: LiveOutbox,
+    ctx: { db: Kysely<SourceDatabase> },
+    userId: string,
+    address: string | null,
+    to: string,
+    subject: string | undefined,
+  ): RehearsalMail {
+    const theirs = address !== null && plausibleAddress(address) && sameAddress(address.trim(), to) && subject !== undefined && subject.startsWith(TEST_MARK);
+    const asked = new Map<string, Promise<boolean>>();
+    const judge = async (table: ResolvedTable, pk: Row): Promise<boolean> =>
+      (await rehearsalRowOwner(deps.meta, box.connectionId, table.id, pk)) === userId && (await isSampleRow(deps.meta, ctx.db, box, table, pk));
+    return {
+      userId,
+      rows: async (table, record) => {
+        if (!theirs || table.primaryKey.length === 0) return false;
+        const pk = Object.fromEntries(table.primaryKey.map((column) => [column, record[column]]));
+        if (Object.values(pk).some((value) => value === null || value === undefined)) return false;
+        const key = JSON.stringify([table.id, table.primaryKey.map((column) => String(pk[column]))]);
+        let found = asked.get(key);
+        if (found === undefined) {
+          found = judge(table, pk).catch(() => false);
+          asked.set(key, found);
+        }
+        return found;
+      },
+    };
+  }
+
+  /**
    * Whose codes an email may carry: the recipient's, when it goes to the
    * address their own row keeps — the sign-in link's rule. A message to a
    * setting's address, to a person with no row, or to an address somebody
@@ -1314,6 +1379,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     message: Row,
     data: Record<string, unknown>,
     holder: CodeHolder | null,
+    rehearsal: RehearsalMail | null = null,
   ): Promise<WrittenValues[] | null> {
     const { db, view } = ctx;
     const from = (typeof data['from'] === 'object' && data['from'] !== null ? data['from'] : {}) as {
@@ -1389,7 +1455,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // What was taken off an order is kept a row a line: listed, a code that took a little off five lines is one row, named in the reader's language.
     const records = applied === undefined ? read : listedReductions(read, applied, ctx.forms.locale);
     // Each list one level down, for every row at once: at most twenty names a row.
-    const holders = holdersOf(box, view, holder);
+    const holders = holdersFor(box, view, holder, rehearsal);
     const joined = new Map<string, Map<string, string[]>>();
     const key = child.primaryKey[0];
     for (const [name, join] of Object.entries(joins)) {
@@ -1406,7 +1472,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       const shareCodes = ctx.shareCodes.get(table.id.slice(table.id.lastIndexOf('.') + 1)) ?? new Set<string>();
       for (const found of (await names.execute()) as Row[]) {
         // Judged as a `{{row.*}}` is: a shared link's code only to its holder, a withheld column never to anyone else.
-        if (shareCodes.has(join.column) && !holders(table, found)) continue;
+        if (shareCodes.has(join.column) && !(await holders(table, found))) continue;
         if ((await ctx.blankOf(table, found)).has(join.column)) continue;
         const value = found[join.column];
         if (value === null || value === undefined || String(value).trim() === '') continue;
@@ -1420,7 +1486,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const out: WrittenValues[] = [];
     for (const record of records) {
       const one: WrittenValues = { vars: {}, withheld: new Set<string>() };
-      putValues(one, ctx, holders, 'row', child, record, false, await ctx.blankOf(child, record));
+      const mine = await holders(child, record);
+      putValues(one, ctx, () => mine, 'row', child, record, false, await ctx.blankOf(child, record));
       // One hop through the row's own links: `{{row.ticket_type.name}}` through `ticket_type_id`.
       for (const link of child.columns.keys()) {
         if (!link.endsWith('_id') || record[link] === null || record[link] === undefined) continue;
@@ -1429,7 +1496,10 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         const cacheKey = `${targetId}\u0000${String(record[link])}`;
         if (!hops.has(cacheKey)) hops.set(cacheKey, await rowOf(db, view, targetId, record[link]));
         const target = hops.get(cacheKey) ?? null;
-        if (target !== null) putValues(one, ctx, holders, `row.${link.slice(0, -'_id'.length)}`, view.table(targetId), target, false, await ctx.blankOf(view.table(targetId), target));
+        if (target !== null) {
+          const theirs = await holders(view.table(targetId), target);
+          putValues(one, ctx, () => theirs, `row.${link.slice(0, -'_id'.length)}`, view.table(targetId), target, false, await ctx.blankOf(view.table(targetId), target));
+        }
       }
       for (const [name, join] of Object.entries(joins)) {
         one.vars[`row.${name}`] = (joined.get(name)?.get(String(key === undefined ? '' : record[key])) ?? []).join(join.separator ?? ', ');
@@ -1551,7 +1621,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     };
     const asked = { subject: text(cols.subjectOverride), body: text(cols.bodyOverride) };
     // A rehearsal's mail says it is a test in its subject, so it is never taken for a real customer's.
-    const override = rehearser === null ? asked : { ...asked, subject: `[TEST] ${asked.subject ?? String(template.subject ?? '')}` };
+    const override = rehearser === null ? asked : { ...asked, subject: `${TEST_MARK}${asked.subject ?? String(template.subject ?? '')}` };
     // A person's wording replaces the blocks; the template's own are sent only without it.
     if (override.body === undefined && (template.blocks as { block?: unknown }[]).some((block) => block.block === 'email.html')) {
       return { status: 'failed', error: 'The email has an HTML block, which cannot carry what a person typed' };
@@ -1566,7 +1636,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const labels = ctx.labels?.(template.locale);
     const columnKey = await columnKeyOf(box, producer);
     const blankOf = heldElsewhere(box, ctx, to, addressed, columnKey);
-    const { vars, withheld, read } = await variables(box, { ...ctx, forms, labels, blankOf }, row, addressed, holder);
+    const rehearsal = rehearser === null ? null : rehearsalMail(box, ctx, rehearser, rehearsing, to, override.subject);
+    const { vars, withheld, read } = await variables(box, { ...ctx, forms, labels, blankOf }, row, addressed, holder, rehearsal);
     vars['signInLink'] = '';
     if (reads.has('signInLink')) {
       const minted = await signInLink(box, ctx, row, to, addressed, producer);
@@ -1593,7 +1664,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     for (const block of sent.blocks) {
       if (block['block'] !== 'email.rows' || typeof block['id'] !== 'string') continue;
       const data = typeof block['data'] === 'object' && block['data'] !== null ? (block['data'] as Record<string, unknown>) : {};
-      const listed = await rowsFor(box, { ...ctx, forms, labels, blankOf }, row, data, holder);
+      const listed = await rowsFor(box, { ...ctx, forms, labels, blankOf }, row, data, holder, rehearsal);
       if (listed === null) return { status: 'failed', error: LIST_UNREADABLE };
       const names = [...requiredPlaceholders([data['row'], data['empty']])].filter((name) => name.startsWith('row.'));
       for (const one of listed) {
