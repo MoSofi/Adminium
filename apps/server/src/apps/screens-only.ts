@@ -14,7 +14,7 @@
  * signature and photos, a copy of one for another record), and a record's e-mail consent (the panel, and recording consent,
  * "Replied" and "They said no" on it), the add-ons connected to their apps, and the server's name and logo to head
  * their screens with, and the code of an add-on of their app that fills a place on those screens, and taking a payment
- * at their app's counter (its card readers, a charge, a pay link, a refund for whoever may give one). Forty-odd routes
+ * at their app's counter (its card readers, a charge, a pay link made or closed, a refund for whoever may give one). Forty-odd routes
  * check only that someone is signed in, so this
  * list — not those routes — is the boundary.
  */
@@ -131,10 +131,11 @@ const CONSENT_ROUTES: ReadonlySet<string> = new Set(['POST /consent/panel', 'POS
 /**
  * Taking a payment at their app's counter (a till's cashier): the card
  * readers to send an amount to, a charge started on one, followed and
- * cancelled; a record's pay link, read and made; what a record's payments
+ * cancelled; a record's pay link, read, made and closed (a QR code shown at
+ * the counter that should not be paid any more); what a record's payments
  * are; and a refund, asked and made. Each route asks the person's own
  * rights on the record — reading it, adding a payment to its payments table,
- * changing it for a pay link — which a screens-only person holds only where
+ * changing it for a pay link, made or closed — which a screens-only person holds only where
  * their app's role grants them, and a refund asks the refund right (the
  * install's, or their app's own `payments:@:refund`) besides. Pairing,
  * naming and removing readers, the pay address, the ways to pay and
@@ -147,6 +148,7 @@ const PAYMENT_ROUTES: ReadonlySet<string> = new Set([
   'POST /payments/terminal/charges/:id/cancel',
   'POST /payments/links',
   'POST /payments/links/current',
+  'POST /payments/links/:id/revoke',
   'POST /payments/panel',
   'POST /payments/panel/rows',
   'GET /payments/attempts/:id/refund',

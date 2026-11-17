@@ -11,13 +11,14 @@
  *    before, MySQL refused the payment and SQLite wrote a row with no key.
  *  - A screens-only cashier takes a payment at the counter: the card readers,
  *    a charge, a ticket's pay link (the same open link each time it is asked,
- *    with or without a chosen pay address) — each still asking the
+ *    with or without a chosen pay address, and closed when it should not be
+ *    paid any more) — each still asking the
  *    cashier's own rights on the ticket. A refund still asks the refund
  *    right; Payments' own settings stay the dashboard's.
  */
 import { readFileSync } from 'node:fs';
 
-import { jobsRepo, payableProfilesRepo, paymentAttemptsRepo, type PaymentAttempt } from '@adminium/meta';
+import { jobsRepo, payableProfilesRepo, paymentAttemptsRepo, paymentLinksRepo, type PaymentAttempt } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { createWriteService, type WriteContext, type WriteTarget } from '../src/crud/write-service.js';
@@ -223,6 +224,12 @@ for (const [dialect, available] of LEGS) {
         expect(said(current), current.body).toBe('ok');
         expect((current.json() as { data: { id: string; url: string } | null }).data).toMatchObject({ id: link.id, url: link.url });
       }
+      // The QR code shown at the counter, closed: the ticket has no open link after it, and a new one is made fresh.
+      const closed = await s.send('cara', 'POST', `/api/v1/payments/links/${link.id}/revoke`);
+      expect(closed.statusCode, closed.body).toBe(204);
+      expect((await paymentLinksRepo(s.meta).byId(link.id))?.revokedAt).not.toBeNull();
+      expect(((await s.send('cara', 'POST', '/api/v1/payments/links/current', payable)).json() as { data: unknown }).data).toBeNull();
+      expect(said(await s.send('cara', 'POST', '/api/v1/payments/links', payable))).toBe('ok');
       // What the ticket's payments are.
       expect(said(await s.send('cara', 'POST', '/api/v1/payments/panel', { connectionId: s.connectionId, table: s.t('tickets'), recordId: '3' }))).toBe('ok');
     });
@@ -234,6 +241,10 @@ for (const [dialect, available] of LEGS) {
       const charge = await s.send('rex', 'POST', '/api/v1/payments/terminal/charge', { connectionId: s.connectionId, table: s.t('tickets'), recordId: '3', readerId: 'prd_none' });
       expect(said(charge), charge.body).toBe('403 TABLE_FORBIDDEN');
       expect(said(await s.send('rex', 'POST', '/api/v1/payments/links', payable))).toBe('403 TABLE_FORBIDDEN');
+      // …nor closes the cashier's: closing a link asks what making one asks.
+      const open = (await paymentLinksRepo(s.meta).currentFor({ kind: 'profile', connectionId: s.connectionId, tableName: s.t('tickets'), rowKey: '3' }))!;
+      expect(said(await s.send('rex', 'POST', `/api/v1/payments/links/${open.id}/revoke`))).toBe('403 TABLE_FORBIDDEN');
+      expect((await paymentLinksRepo(s.meta).byId(open.id))?.revokedAt).toBeNull();
       // A refund: past the gate, refused for want of the refund right.
       const [paid] = await paymentAttemptsRepo(s.meta).forPayable({ kind: 'profile', connectionId: s.connectionId, tableName: s.t('tickets'), rowKey: '1' });
       const preview = await s.get('cara', `/api/v1/payments/attempts/${paid!.id}/refund`);
