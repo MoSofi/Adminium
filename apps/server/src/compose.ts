@@ -1423,6 +1423,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     },
     // An invoice's reminder carries the link to pay it (the payment parts are made further down).
     payLinkFor: async (entity) => (documentPayLink === null ? null : documentPayLink(entity)),
+    // A rehearsal's mail carries a test link instead, for a row of that rehearsal alone.
+    rehearsalPayLinkFor: async (entity, appKey, by) => (publicPayOf === null ? null : publicPayOf.rehearsalMailLink(entity, appKey, by)),
     // The change a sent message makes reaches the rules, the other producers and every screen.
     emit: (event) => emitRecordEvent(app, event),
     // So do the rows its move moved too.

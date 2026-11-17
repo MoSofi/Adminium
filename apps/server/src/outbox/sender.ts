@@ -242,6 +242,13 @@ export interface OutboxSenderDeps {
    * link to pay it. Null when the record cannot be paid online now.
    */
   payLinkFor?: ((entity: RecordRef) => Promise<string | null>) | undefined;
+  /**
+   * A rehearsal mail's test pay link (`{{pay_url}}`) for a row of that very
+   * rehearsal, made for the person rehearsing (`by`) on the app's own payable
+   * (`appKey`). A rehearsal mail never carries a live link, and no other mail
+   * a test one. Null when the row cannot be paid.
+   */
+  rehearsalPayLinkFor?: ((entity: RecordRef, appKey: string, by: string) => Promise<string | null>) | undefined;
   /** The host an app's staff side is served on, when the operator mapped one (`{{staff_url}}`). */
   staffHostFor?: ((appKey: string) => Promise<string | undefined>) | undefined;
   /** Tell the screens watching the log that a row changed. */
@@ -617,8 +624,8 @@ type BlankOf = (table: ResolvedTable, record: Row) => Promise<ReadonlySet<string
  * rehearsing made, addressed to them alone and marked TEST. `rows` says
  * whether a row is one of that very rehearsal's — noted as theirs when it was
  * made, and still one of the app's sample rows — whose codes the mail may
- * carry to them. Every other row's codes are held back as in any mail; a
- * real customer's row is never one.
+ * carry to them, and which may get a test pay link. Every other row's codes
+ * are held back as in any mail; a real customer's row is never one.
  */
 interface RehearsalMail {
   userId: string;
@@ -1086,16 +1093,20 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     vars['staff_url'] = (await staffBase(box.appKey, slug)) ?? '';
     // The link to pay what the message is about (an invoice's reminder): the first linked record that can be
     // paid online now. Always filled, empty when none can: the pay button is then left out, never sent dead.
+    // A rehearsal's mail carries a test link, and only for a row of that rehearsal: never a live one.
     vars['pay_url'] = '';
-    if (deps.payLinkFor !== undefined) {
-      for (const { table, record } of linked) {
-        const key = table.primaryKey.length === 1 ? table.primaryKey[0]! : null;
-        if (key === null || record[key] === null || record[key] === undefined) continue;
-        const link = await deps.payLinkFor({ connectionId: box.connectionId, table: table.id, pk: { [key]: record[key] }, label: '' }).catch(() => null);
-        if (link !== null) {
-          vars['pay_url'] = link;
-          break;
-        }
+    for (const { table, record } of linked) {
+      const key = table.primaryKey.length === 1 ? table.primaryKey[0]! : null;
+      if (key === null || record[key] === null || record[key] === undefined) continue;
+      const entity = { connectionId: box.connectionId, table: table.id, pk: { [key]: record[key] }, label: '' };
+      let link: string | null = null;
+      if (rehearsal === null) link = deps.payLinkFor === undefined ? null : await deps.payLinkFor(entity).catch(() => null);
+      else if (deps.rehearsalPayLinkFor !== undefined && (await rehearsal.rows(table, record))) {
+        link = await deps.rehearsalPayLinkFor(entity, box.appKey, rehearsal.userId).catch(() => null);
+      }
+      if (link !== null) {
+        vars['pay_url'] = link;
+        break;
       }
     }
     Object.assign(vars, await addOnVariables((await appFacts(box.row.manifestId)).requires, box.connectionId));
@@ -1199,8 +1210,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
   }
 
   /**
-   * A rehearsal's mail and its own rows. A row's codes go to the person
-   * rehearsing only when ALL of these hold: the message is a
+   * A rehearsal's mail and its own rows. A row's codes, and a test pay link,
+   * go to the person rehearsing only when ALL of these hold: the message is a
    * rehearsal's (noted as theirs when the app queued it), it goes to their own
    * address and nowhere else, its subject carries the TEST mark, and the row
    * itself was made in their rehearsal (noted as theirs when it was made) and

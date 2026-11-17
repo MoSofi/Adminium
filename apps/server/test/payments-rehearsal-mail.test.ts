@@ -4,14 +4,17 @@
  *
  * A payments manager rehearses a shop's checkout: the orders they make are
  * sample rows, and the shop's mail about them goes to them alone, marked
- * TEST. That mail may carry what a customer's would — the order's own link —
- * or the rehearsal shows nothing: the link is the order's code, sent to them
- * because the order is their rehearsal's own.
+ * TEST. That mail may carry what a customer's would — the order's own link
+ * and a pay link — or the rehearsal shows nothing: the link is the order's
+ * code, sent to them because the order is their rehearsal's own, and the pay
+ * link is a TEST link (a rehearsal never has a live one).
  *
  * Never anyone else's: the code of a real customer's row is never mailed to
  * the person rehearsing, whether the message is about a real order (a note
  * they made on it while rehearsing), queued by them by hand, or about a row
- * whose note outlived it; nor a row another person rehearsed.
+ * whose note outlived it; nor a row another person rehearsed. A real
+ * customer's mail never carries a test link: with no live payment service it
+ * has no pay button, as before.
  */
 import { paymentLinksRepo, settingsRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest';
@@ -143,6 +146,7 @@ function shop(): Record<string, unknown> {
 
 const ORIGIN = 'https://shop.crumbandco.de';
 const REHEARSER = 'rehearsal-owner@crumbandco.de';
+const PAY = /https:\/\/shop\.crumbandco\.de\/pay\/[A-Za-z0-9_-]{22}/;
 
 for (const [dialect, available] of LEGS) {
   describe.skipIf(!available)(`a rehearsal's mail [${dialect}]`, () => {
@@ -198,7 +202,7 @@ for (const [dialect, available] of LEGS) {
       expect(await paymentLinksRepo(s.meta).currentFor(ref(order))).toBeNull();
     });
 
-    it("mails the person rehearsing their rehearsal's order, marked TEST, with its own link", async () => {
+    it("mails the person rehearsing their rehearsal's order, marked TEST, with its own link and a TEST pay link", async () => {
       await rehearse(true);
       onTestFinished(() => rehearse(false));
       // A customer made in the rehearsal, and the order for them.
@@ -211,12 +215,23 @@ for (const [dialect, available] of LEGS) {
       ]);
       const placed = mail.find((one) => one.subject === '[TEST] Order R-1')!;
       expect(placed.text).toContain(`Your order: ${await tokenOf('orders', order, 'link_token')}`);
+      // The pay link is a test link the shop's own start would make: public, for an hour, the rehearsing person's.
+      const url = PAY.exec(placed.text)?.[0];
+      expect(url, placed.text).toBeDefined();
+      const link = (await paymentLinksRepo(s.meta).currentFor(ref(order), 'public'))!;
+      expect(link).toMatchObject({ mode: 'test', createdBy: ownerId, audience: 'public' });
+      expect(link.expiresAt - link.createdAt).toBe(60 * 60_000);
       // The customer the rehearsal made: their account's link goes too.
       expect(mail.find((one) => one.subject === '[TEST] Your account')!.text).toContain(`Sign in: ${await tokenOf('customers', customer, 'portal_token')}`);
       expect(await messages(order)).toEqual([
         { kind: 'order-placed', status: 'sent', to: REHEARSER, error: null },
         { kind: 'order-account', status: 'sent', to: REHEARSER, error: null },
       ]);
+
+      // Mailed again while that link still opens: the same link, so a pay page already open keeps working.
+      expect(said(await s.make('owner', 'messages', { kind: 'order-placed', order_id: order, to_address: REHEARSER }))).toBe('ok');
+      const again = (await sent()).find((one) => one.subject === '[TEST] Order R-1')!;
+      expect(PAY.exec(again.text)?.[0]).toBe(url);
     });
 
     it("never mails the person rehearsing a real customer's code, whatever their rehearsal makes", async () => {

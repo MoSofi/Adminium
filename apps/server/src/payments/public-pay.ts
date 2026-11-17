@@ -28,11 +28,12 @@
  * Only the app's own payables: a record of a table some other app or a person
  * made payable is not this key's to start a payment for.
  */
-import { payableProfilesRepo, paymentAttemptsRepo, type AttemptState, type MetaDb, type RecordRef } from '@adminium/meta';
+import { payableProfilesRepo, paymentAttemptsRepo, paymentLinksRepo, settingsRepo, type AttemptState, type MetaDb, type PayableRef, type RecordRef } from '@adminium/meta';
 
 import type { CardTesting } from './card-testing.js';
 import { createPublicLinkFor, type PayLinkForDeps } from './pay-link-for.js';
-import { linkSealFromSecret, mintLink, payAddress, payReachable, payUrl as payUrlOf } from './links.js';
+import { linkOpens, linkSealFromSecret, mintLink, payAddress, payReachable, payUrl as payUrlOf } from './links.js';
+import { normalizePublicOrigin } from '../security/public-origin.js';
 import { resolvePayable, type PayableSources } from './payables.js';
 
 export interface PublicPayDeps extends PayLinkForDeps {
@@ -105,6 +106,16 @@ export interface PublicPay {
    * or not. The caller has made sure the row is a sample row.
    */
   startTest(entity: RecordRef, appKey: string, origin: string, by: string): Promise<{ ok: true; payUrl: string } | { ok: false; reason: StartRefusal }>;
+  /**
+   * A rehearsal mail's `{{pay_url}}`: a test link for the app's own payable
+   * row, on the server's own address (where the person rehearsing is signed
+   * in, and a test link opens only for them). The row's open public test link
+   * while it opens — the one its start made, so a pay page they have open
+   * keeps working — else a new one that lasts as long as a start's. Null when
+   * the row cannot be paid, or the server has no address. The caller has made
+   * sure the row is that rehearsal's own.
+   */
+  rehearsalMailLink(entity: RecordRef, appKey: string, by: string): Promise<string | null>;
 }
 
 export function createPublicPay(deps: PublicPayDeps & { meta: MetaDb; sources: PayableSources }): PublicPay {
@@ -177,23 +188,46 @@ export function createPublicPay(deps: PublicPayDeps & { meta: MetaDb; sources: P
     },
 
     async startTest(entity, appKey, origin, by) {
-      const keys = Object.keys(entity.pk);
-      if (keys.length !== 1) return { ok: false, reason: 'not-payable' };
-      const found = await deps.sources.table(entity.connectionId, entity.table);
-      if (found === null) return { ok: false, reason: 'not-payable' };
-      const profile = await payableProfilesRepo(deps.meta).byTable(entity.connectionId, found.table.id);
-      if (profile === null || profile.ownerApp !== appKey || (profile.mapping === null && profile.shape === null)) return { ok: false, reason: 'not-payable' };
-      const ref = { kind: profile.shape !== null ? ('shape' as const) : ('profile' as const), connectionId: entity.connectionId, tableName: found.table.id, rowKey: String(entity.pk[keys[0]!]) };
-      // Read as every step of a test payment reads it: the app's switch is not asked (the shop is not live yet), everything else is.
-      const payable = await resolvePayable(deps.sources, ref, { mode: 'test' });
-      if (payable === null) return { ok: false, reason: 'not-payable' };
-      if (payable.refusal !== null) {
-        const code = payable.refusal.code;
-        return { ok: false, reason: code === 'NOTHING_DUE' ? 'nothing-due' : code === 'NOT_NOW' ? 'not-now' : 'not-payable' };
-      }
+      const payable = await testPayableOf(entity, appKey);
+      if ('reason' in payable) return { ok: false, reason: payable.reason };
       // A public start's own link (beside the shop's, never in its place), in test mode.
-      const minted = await mintLink(deps.meta, seal, { payable: ref, mode: 'test', createdBy: by, lifetimeMs: TEST_LINK_LIFETIME_MS, audience: 'public' }, (deps.now ?? Date.now)());
+      const minted = await mintLink(deps.meta, seal, { payable: payable.ref, mode: 'test', createdBy: by, lifetimeMs: TEST_LINK_LIFETIME_MS, audience: 'public' }, (deps.now ?? Date.now)());
       return { ok: true, payUrl: payUrlOf(origin, minted.token) };
     },
+
+    async rehearsalMailLink(entity, appKey, by) {
+      const stored = await settingsRepo(deps.meta).get('system.publicOrigin');
+      const origin = typeof stored === 'string' && stored !== '' ? normalizePublicOrigin(stored) : null;
+      if (origin === null) return null;
+      const payable = await testPayableOf(entity, appKey);
+      if ('reason' in payable) return null;
+      const at = (deps.now ?? Date.now)();
+      const current = await paymentLinksRepo(deps.meta).currentFor(payable.ref, 'public');
+      if (current !== null && current.mode === 'test' && linkOpens(current, at)) return payUrlOf(origin, seal.unseal(current.tokenSealed));
+      const minted = await mintLink(deps.meta, seal, { payable: payable.ref, mode: 'test', createdBy: by, lifetimeMs: TEST_LINK_LIFETIME_MS, audience: 'public' }, at);
+      return payUrlOf(origin, minted.token);
+    },
   };
+
+  /**
+   * The app's own payable row, read as every step of a test payment reads it:
+   * the app's switch is not asked (the shop is not live yet), everything else
+   * is. Or why it cannot be paid.
+   */
+  async function testPayableOf(entity: RecordRef, appKey: string): Promise<{ ref: PayableRef } | { reason: StartRefusal }> {
+    const keys = Object.keys(entity.pk);
+    if (keys.length !== 1) return { reason: 'not-payable' };
+    const found = await deps.sources.table(entity.connectionId, entity.table);
+    if (found === null) return { reason: 'not-payable' };
+    const profile = await payableProfilesRepo(deps.meta).byTable(entity.connectionId, found.table.id);
+    if (profile === null || profile.ownerApp !== appKey || (profile.mapping === null && profile.shape === null)) return { reason: 'not-payable' };
+    const ref: PayableRef = { kind: profile.shape !== null ? 'shape' : 'profile', connectionId: entity.connectionId, tableName: found.table.id, rowKey: String(entity.pk[keys[0]!]) };
+    const payable = await resolvePayable(deps.sources, ref, { mode: 'test' });
+    if (payable === null) return { reason: 'not-payable' };
+    if (payable.refusal !== null) {
+      const code = payable.refusal.code;
+      return { reason: code === 'NOTHING_DUE' ? 'nothing-due' : code === 'NOT_NOW' ? 'not-now' : 'not-payable' };
+    }
+    return { ref };
+  }
 }
