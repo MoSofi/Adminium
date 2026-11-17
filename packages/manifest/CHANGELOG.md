@@ -1,5 +1,16 @@
 # @adminium/manifest
 
+## 0.3.62
+
+### Patch Changes
+
+- 595dc1f: A move may be refused while a payment for its row is on its way: `requires.noPaymentInFlight: true` (Adminium 0.3.62 and later), on a payable table. "On its way" is the test a timed move's `waitsForPayment` waits on (processing, succeeded or being written down, younger than seven hours), now shared. Every writer is held to it — the public API, staff, the app's code, rules — except the payment's own move to paid. Refused as `409 PAYMENT_IN_FLIGHT`; through the public API `400 PUBLIC_WRITE_REFUSED` with `reason: "payment-in-flight"`.
+- 595dc1f: An outbox producer may be queued only while the app takes payments online for the row its message is about, or only while it does not: `producers[].payments: "on" | "off"` (Adminium 0.3.62 and later), judged when the message is queued, beside `gate`. Two producers of one event, one of each, send one mail whichever way the shop is set, each with its own template, subject and preheader; a mail that only makes sense with payments on is not sent while they are off. A row someone is rehearsing counts as on.
+- 487e61d: An outbox takes up to 32 producers, as many as an app may have templates (24 before). More than 24 needs Adminium 0.3.62 (`outbox.manyProducers`).
+- 595dc1f: A payable's paid move may write further columns of the record with fixed values, in the same write: `status.set: { "<column>": <value> }` (Adminium 0.3.62 and later), such as a ticket order's `paid_method: "online"`. Only a payment made on the pay page writes them — one recorded by hand, or taken on a card reader, writes none — and they are the move's own under the record's lock. At most four plain columns of the payable's own table: never the state column, the amount, the balance, the currency, a money column, a key or a link.
+- 595dc1f: A public entry may be open only while the app takes payments online for its table, or only while it does not: `publicAccess[].requirePayments: "on" | "off"` (Adminium 0.3.62 and later), judged as `GET /public/payments/available` answers it, beside `requireSetting`. A hotel that asks guests to pay as they book opens its paying entry with `"on"` and its unpaid one for "required" with `"off"`, so no caller books unpaid while paying is required and possible, and none is held to pay while it is not. Refused as a switched-off setting is (`403 PUBLIC_SWITCHED_OFF`). Only on a create of one of the app's payable tables; a left-out part that takes the payable away opens the `"off"` entries and drops the `"on"` ones. Save as app now also keeps a `requireSetting`'s `in`.
+- @adminium/add-on-contracts@0.3.62
+
 ## 0.3.61
 
 ### Patch Changes

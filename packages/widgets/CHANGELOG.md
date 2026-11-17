@@ -1,5 +1,15 @@
 # @adminium/widgets
 
+## 0.3.62
+
+### Patch Changes
+
+- Updated dependencies [6faba3d]
+  - @adminium/i18n@0.3.62
+  - @adminium/charts@0.3.62
+  - @adminium/tokens@0.3.62
+  - @adminium/ui@0.3.62
+
 ## 0.3.61
 
 ### Patch Changes

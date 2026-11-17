@@ -62,6 +62,23 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.62',
+    date: '2026-11-17',
+    title: 'Payments in apps: closer to how each app works',
+    summary:
+      'Apps that take payments can now hold back what needs a payment while payments are off, keep a booking from changing while money is on its way, send different mail when payments are on, and say when a refund was sent. A till’s cashier can use the card reader and pay links, and payments write their keys on every database.',
+    changes: [
+      { tag: 'New', text: 'A public entry can be open only while the app takes payments, or only while it does not, so a booking that must be paid cannot be made around the payment.' },
+      { tag: 'New', text: 'A status change can wait while a payment is on its way, and an app’s mail can be sent only while payments are on, or only while they are off.' },
+      { tag: 'New', text: 'A payment made on the pay page can set a column of the record it pays, and an app’s refund row announces when it is sent, so its mail can follow.' },
+      { tag: 'New', text: 'The Payment panel says who refunded a payment and why. A card reader charge says the card brand.' },
+      { tag: 'Improved', text: 'The add-ons that come with Adminium are now 1.0.29: a printed invoice says until when its pay link works.' },
+      { tag: 'Fixed', text: 'On SQLite and MySQL, a payment Adminium writes into an app table keyed by a uuid now gets its key.' },
+      { tag: 'Fixed', text: 'A till cashier with screens-only access can take a payment on a card reader or by a pay link.' },
+      { tag: 'Fixed', text: 'Payment services are named by their own marks everywhere, PayPal included.' },
+    ],
+  },
+  {
     version: '0.3.61',
     date: '2026-11-16',
     title: 'Card readers come with Adminium, and apps say how a payment stands',

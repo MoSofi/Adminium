@@ -1,5 +1,20 @@
 # @adminium/dashboard
 
+## 0.3.62
+
+### Patch Changes
+
+- fde4683: A payment service is named by its own mark everywhere Adminium writes it — a record's "recorded by", the payments table's service column, a receipt and a notice — from one list (Stripe, PayPal, Square), never built by changing a key's letter case. The Payment panel names a Square card reader's payments "Square".
+- 6faba3d: A refund in the Payment panel and in its list read (`/payments/panel`, `/payments/panel/rows`) says who asked for it and why — `by` (the person's name), `reason` and `note` — to someone who may see payments or refund that payment, and to nobody else. A refund made by itself, in the service's dashboard, by a lost dispute or from an app's own refund row names no one. The panel shows "By {person} · {reason}" under the refund (8 languages).
+- Updated dependencies [6faba3d]
+  - @adminium/i18n@0.3.62
+  - @adminium/widgets@0.3.62
+  - @adminium/charts@0.3.62
+  - @adminium/engine@0.3.62
+  - @adminium/add-on-contracts@0.3.62
+  - @adminium/tokens@0.3.62
+  - @adminium/ui@0.3.62
+
 ## 0.3.61
 
 ### Patch Changes

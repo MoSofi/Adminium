@@ -1,5 +1,39 @@
 # @adminium/server
 
+## 0.3.62
+
+### Patch Changes
+
+- 6faba3d: Adminium's marks on an app's own refund row (asked, on its way, done, not sent) are announced as a change of the row, as the paid move is: the audit row, the app's rules and its mail follow them, so a "Refund sent" mail on the mark turning `done` goes out once, however often the mark is written again. A refund row Adminium writes for an automatic refund is announced as it is made. Adminium's own writes of a refund row no longer queue it to be asked a second time.
+- c2c3f57: The add-ons that come with Adminium are now 1.0.29. Invoices now prints, under a printed invoice's pay link, the day that link stops working ("Works until Friday, Nov 20, 2026"), in the invoice's own language.
+- 595dc1f: A move may be refused while a payment for its row is on its way: `requires.noPaymentInFlight: true` (Adminium 0.3.62 and later), on a payable table. "On its way" is the test a timed move's `waitsForPayment` waits on (processing, succeeded or being written down, younger than seven hours), now shared. Every writer is held to it — the public API, staff, the app's code, rules — except the payment's own move to paid. Refused as `409 PAYMENT_IN_FLIGHT`; through the public API `400 PUBLIC_WRITE_REFUSED` with `reason: "payment-in-flight"`.
+- 595dc1f: An outbox producer may be queued only while the app takes payments online for the row its message is about, or only while it does not: `producers[].payments: "on" | "off"` (Adminium 0.3.62 and later), judged when the message is queued, beside `gate`. Two producers of one event, one of each, send one mail whichever way the shop is set, each with its own template, subject and preheader; a mail that only makes sense with payments on is not sent while they are off. A row someone is rehearsing counts as on.
+- 595dc1f: A payable's paid move may write further columns of the record with fixed values, in the same write: `status.set: { "<column>": <value> }` (Adminium 0.3.62 and later), such as a ticket order's `paid_method: "online"`. Only a payment made on the pay page writes them — one recorded by hand, or taken on a card reader, writes none — and they are the move's own under the record's lock. At most four plain columns of the payable's own table: never the state column, the amount, the balance, the currency, a money column, a key or a link.
+- fde4683: A payment service is named by its own mark everywhere Adminium writes it — a record's "recorded by", the payments table's service column, a receipt and a notice — from one list (Stripe, PayPal, Square), never built by changing a key's letter case. The Payment panel names a Square card reader's payments "Square".
+- ba74ef3: The manifest reference now says exactly what the payments table's guard holds: a row taken online is the payment's whole (nobody changes its service, approval code or last four), the reference and `refundedElsewhere` are Adminium's on any row, and a payment recorded by hand keeps its approval code and last four as its person wrote them. A test proves the online row's card details are refused to everyone and the hand payment's are its person's.
+- 175345e: The private-citations gate now also reads a bare id in brackets — a decision, question, ruling, fact, task or milestone tag at the end of a comment — as a citation a reader cannot open, with a self-test of the forms it must and must not read (a call such as `split(M1)`, a hex byte, an MP3's ID3 tag). Every such tag in the tree was dropped; the comments say what the code does. Those inside a meta migration's frozen `up` body stay, recorded in the baseline.
+- 595dc1f: A public entry may be open only while the app takes payments online for its table, or only while it does not: `publicAccess[].requirePayments: "on" | "off"` (Adminium 0.3.62 and later), judged as `GET /public/payments/available` answers it, beside `requireSetting`. A hotel that asks guests to pay as they book opens its paying entry with `"on"` and its unpaid one for "required" with `"off"`, so no caller books unpaid while paying is required and possible, and none is held to pay while it is not. Refused as a switched-off setting is (`403 PUBLIC_SWITCHED_OFF`). Only on a create of one of the app's payable tables; a left-out part that takes the payable away opens the `"off"` entries and drops the `"on"` ones. Save as app now also keeps a `requireSetting`'s `in`.
+- 6faba3d: A refund in the Payment panel and in its list read (`/payments/panel`, `/payments/panel/rows`) says who asked for it and why — `by` (the person's name), `reason` and `note` — to someone who may see payments or refund that payment, and to nobody else. A refund made by itself, in the service's dashboard, by a lost dispute or from an app's own refund row names no one. The panel shows "By {person} · {reason}" under the refund (8 languages).
+- 94e7d34: A screens-only role (a till's cashier) may take a payment at its app's counter: the card readers, a charge on one (start, follow, cancel), a record's pay link (made, and the current one), the record's payments panel, and a refund. Each route still asks the person's own rights on the record, and a refund the refund right besides; pairing readers, the pay address and the rest of Payments stay the dashboard's.
+- dc81ea3: A reader charge as the till reads it now says the card's brand once it is paid (`brand`), and tells `processing` apart from `on_reader`. `POST /payments/links/current` answers a record's open test link whether or not a pay address is chosen (a test link opens on the host the person is on), and a live one on the server's own address when none is chosen, instead of nothing — so asking again no longer makes a new link each time.
+- d040bfd: An app's key declared as a uuid is filled with a new uuid on every create that sends none, on SQLite and MySQL as on Postgres: the install records a fill rule for it, since SQLite keeps the key as text and MySQL as char(36), where nothing filled it. Before, a payment Adminium wrote into such a table (and a refund row, a mail in its outbox) was refused on MySQL and written with no key on SQLite. An app installed earlier gains the rule with its next update. Save as app reads the rule back as a uuid key.
+- Updated dependencies [595dc1f]
+- Updated dependencies [595dc1f]
+- Updated dependencies [487e61d]
+- Updated dependencies [595dc1f]
+- Updated dependencies [595dc1f]
+- Updated dependencies [6faba3d]
+  - @adminium/manifest@0.3.62
+  - @adminium/meta@0.3.62
+  - @adminium/i18n@0.3.62
+  - @adminium/engine@0.3.62
+  - @adminium/llm@0.3.62
+  - @adminium/adapter-mysql@0.3.62
+  - @adminium/adapter-postgres@0.3.62
+  - @adminium/adapter-sqlite@0.3.62
+  - @adminium/schema-import@0.3.62
+  - @adminium/add-on-contracts@0.3.62
+
 ## 0.3.61
 
 ### Patch Changes

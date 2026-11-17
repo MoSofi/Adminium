@@ -1,5 +1,12 @@
 # @adminium/meta
 
+## 0.3.62
+
+### Patch Changes
+
+- 595dc1f: A move may be refused while a payment for its row is on its way: `requires.noPaymentInFlight: true` (Adminium 0.3.62 and later), on a payable table. "On its way" is the test a timed move's `waitsForPayment` waits on (processing, succeeded or being written down, younger than seven hours), now shared. Every writer is held to it — the public API, staff, the app's code, rules — except the payment's own move to paid. Refused as `409 PAYMENT_IN_FLIGHT`; through the public API `400 PUBLIC_WRITE_REFUSED` with `reason: "payment-in-flight"`.
+- 595dc1f: A payable's paid move may write further columns of the record with fixed values, in the same write: `status.set: { "<column>": <value> }` (Adminium 0.3.62 and later), such as a ticket order's `paid_method: "online"`. Only a payment made on the pay page writes them — one recorded by hand, or taken on a card reader, writes none — and they are the move's own under the record's lock. At most four plain columns of the payable's own table: never the state column, the amount, the balance, the currency, a money column, a key or a link.
+
 ## 0.3.61
 
 ## 0.3.60
