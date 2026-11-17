@@ -1230,23 +1230,57 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
   ): RehearsalMail {
     const theirs = address !== null && plausibleAddress(address) && sameAddress(address.trim(), to) && subject !== undefined && subject.startsWith(TEST_MARK);
     const asked = new Map<string, Promise<boolean>>();
-    const judge = async (table: ResolvedTable, pk: Row): Promise<boolean> =>
-      (await rehearsalRowOwner(deps.meta, box.connectionId, table.id, pk)) === userId && (await isSampleRow(deps.meta, ctx.db, box, table, pk));
     return {
       userId,
       rows: async (table, record) => {
         if (!theirs || table.primaryKey.length === 0) return false;
-        const pk = Object.fromEntries(table.primaryKey.map((column) => [column, record[column]]));
-        if (Object.values(pk).some((value) => value === null || value === undefined)) return false;
-        const key = JSON.stringify([table.id, table.primaryKey.map((column) => String(pk[column]))]);
+        const key = JSON.stringify([table.id, table.primaryKey.map((column) => String(record[column]))]);
         let found = asked.get(key);
         if (found === undefined) {
-          found = judge(table, pk).catch(() => false);
+          found = rehearsedBy(box, ctx, table, record, userId);
           asked.set(key, found);
         }
         return found;
       },
     };
+  }
+
+  /** Whether a row was made in this person's rehearsal (noted as theirs when it was made) and is one of its app's sample rows still. */
+  async function rehearsedBy(box: LiveOutbox, ctx: { db: Kysely<SourceDatabase> }, table: ResolvedTable, record: Row, userId: string): Promise<boolean> {
+    if (table.primaryKey.length === 0) return false;
+    const pk = Object.fromEntries(table.primaryKey.map((column) => [column, record[column]]));
+    if (Object.values(pk).some((value) => value === null || value === undefined)) return false;
+    try {
+      return (await rehearsalRowOwner(deps.meta, box.connectionId, table.id, pk)) === userId && (await isSampleRow(deps.meta, ctx.db, box, table, pk));
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Whose rehearsal a message noted as a rehearsing person's is, by the row
+   * it is ABOUT (the one its producer's link names): only a row of their
+   * rehearsal makes it theirs, marked TEST. One the app queued for that row
+   * (never a sample row itself) stays theirs while its row is gone (a
+   * removal's message) and is a real message once its row is somebody's real
+   * one (the key used again). One they queued by hand while rehearsing (a
+   * sample row) is theirs only about a row of their rehearsal: about a real
+   * row it is that row's ordinary message, to its real recipient.
+   */
+  async function rehearsalOf(
+    box: LiveOutbox,
+    ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; outbox: ResolvedTable },
+    producer: OutboxProducer | undefined,
+    row: Row,
+    userId: string,
+    queuedByHand: boolean,
+  ): Promise<string | null> {
+    const link = producer?.link;
+    const value = link === undefined ? undefined : row[link];
+    const tableId = link === undefined ? undefined : referenced(ctx.view, ctx.outbox.id, link);
+    const about = value === null || value === undefined || tableId === undefined ? null : await rowOf(ctx.db, ctx.view, tableId, value);
+    if (about === null) return queuedByHand ? null : userId;
+    return (await rehearsedBy(box, ctx, ctx.view.table(tableId!), about, userId)) ? userId : null;
   }
 
   /**
@@ -1552,8 +1586,11 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // A message the app's sample brought in is sample data like the rest: never sent, whatever address it carries.
     const key = Object.fromEntries(ctx.outbox.primaryKey.map((column) => [column, row[column]]));
     // A message about a rehearsal's row goes to the rehearsing person alone, marked TEST; any other sample row's never goes.
-    const rehearser = await rehearsalRowOwner(deps.meta, box.connectionId, ctx.outbox.id, key);
-    if (rehearser === null && (await isSampleRow(deps.meta, ctx.db, box, ctx.outbox, key))) return { status: 'skipped', error: 'Sample data (never sent)' };
+    // One a rehearsing person queued by hand about a real row is that row's ordinary message.
+    const noted = await rehearsalRowOwner(deps.meta, box.connectionId, ctx.outbox.id, key);
+    const sample = await isSampleRow(deps.meta, ctx.db, box, ctx.outbox, key);
+    const rehearser = noted === null ? null : await rehearsalOf(box, ctx, producer, row, noted, sample);
+    if (noted === null && sample) return { status: 'skipped', error: 'Sample data (never sent)' };
     const rehearsing = rehearser === null ? null : ((await usersRepo(deps.meta).findById(rehearser))?.email ?? null);
     if (rehearser !== null && rehearsing === null) return { status: 'skipped', error: 'Sample data (never sent)' };
     const { addressed, to: addressedTo, lookedUp } = await addressOf(ctx, box, producer, row);

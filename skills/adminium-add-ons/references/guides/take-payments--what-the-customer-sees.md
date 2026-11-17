@@ -56,6 +56,9 @@ While it is on, for you alone:
   address on the order. They carry what a customer's would (Adminium 0.3.63): the order's own link,
   and a test pay link that opens for you on this server's address. The test link is the one your
   checkout already opened while it works, else a new one for an hour.
-- An email never carries the link of a row you did not make in your rehearsal. An email about a
-  real order that would carry its link (after a note you add to the order, or one you queue by
-  hand) is not sent, and says why. A real customer's email never carries a test link.
+- An email about a real row stays an ordinary email while you rehearse (Adminium 0.3.63). A note
+  you add to a real order, or a message you queue about one, goes to the real customer as it always
+  would, unmarked, with payments as they really are. Only a row you made in your rehearsal, and
+  still sample data, sends its email to you.
+- An email to you never carries the link of a row you did not make in your rehearsal, and a real
+  customer's email never carries a test link.

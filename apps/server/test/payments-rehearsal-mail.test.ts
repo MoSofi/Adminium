@@ -9,12 +9,17 @@
  * code, sent to them because the order is their rehearsal's own, and the pay
  * link is a TEST link (a rehearsal never has a live one).
  *
- * Never anyone else's: the code of a real customer's row is never mailed to
- * the person rehearsing, whether the message is about a real order (a note
- * they made on it while rehearsing), queued by them by hand, or about a row
- * whose note outlived it; nor a row another person rehearsed. A real
- * customer's mail never carries a test link: with no live payment service it
- * has no pay button, as before.
+ * A REAL row's mail stays ordinary while someone rehearses: a note made on a
+ * real order, or a message queued by hand about one, goes to the real
+ * customer, unmarked, judged with payments as they really are — never to the
+ * person rehearsing. Only a row of THEIR rehearsal (made in it, and a sample
+ * row still) makes a mail theirs.
+ *
+ * Never anyone else's code: the code of a real customer's row is never mailed
+ * to the person rehearsing, whether the message is addressed to them by hand,
+ * or is about a row whose note outlived it; nor a row another person
+ * rehearsed. A real customer's mail never carries a test link: with no live
+ * payment service it has no pay button, as before.
  */
 import { paymentLinksRepo, settingsRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest';
@@ -45,7 +50,7 @@ function shop(): Record<string, unknown> {
     license: 'AGPL-3.0-only',
     description: { key: 'mft.counter.desc', fallback: 'A counter.' },
     categories: ['commerce'],
-    compatibility: { minAdminiumVersion: '0.3.60', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: '0.3.62', engines: ['postgres', 'mysql', 'sqlite'] },
     navGroups: [{ key: 'counter', label: { 'en-US': 'Counter' }, order: 1 }],
     requiredSchema: {
       prefixed: true,
@@ -85,7 +90,7 @@ function shop(): Record<string, unknown> {
           ref: 'messages',
           columns: [
             id,
-            { ref: 'kind', type: 'enum', enum: ['order-placed', 'order-account', 'order-noted'] },
+            { ref: 'kind', type: 'enum', enum: ['order-placed', 'order-account', 'order-noted', 'order-noted-online'] },
             { ref: 'status', type: 'enum', enum: ['held', 'queued', 'sent', 'failed', 'skipped'], default: 'queued' },
             text('to_address', 254),
             { ref: 'order_id', type: 'fk', references: 'orders', nullable: true },
@@ -104,18 +109,21 @@ function shop(): Record<string, unknown> {
       links: { order: 'order_id' },
       recipient: { via: 'order_id', table: 'orders', email: 'email', name: 'number' },
       settings: { table: 'settings', name: 'name' },
-      kinds: { 'order-placed': 'counter-order-placed', 'order-account': 'counter-order-account', 'order-noted': 'counter-order-noted' },
-      classes: { 'order-placed': 'service', 'order-account': 'service', 'order-noted': 'service' },
+      kinds: { 'order-placed': 'counter-order-placed', 'order-account': 'counter-order-account', 'order-noted': 'counter-order-noted', 'order-noted-online': 'counter-order-noted-online' },
+      classes: { 'order-placed': 'service', 'order-account': 'service', 'order-noted': 'service', 'order-noted-online': 'service' },
       producers: [
         { kind: 'order-placed', link: 'order_id', onCreate: { table: 'orders' } },
         { kind: 'order-account', link: 'order_id', onCreate: { table: 'orders' } },
         { kind: 'order-noted', link: 'order_id', onCreate: { table: 'order_notes', via: 'order_id' } },
+        // Only while the shop takes payments online: off here, except for a rehearsal's row.
+        { kind: 'order-noted-online', link: 'order_id', onCreate: { table: 'order_notes', via: 'order_id' }, payments: 'on' },
       ],
     },
     emailTemplates: [
       template('counter-order-placed', 'Order {{order.number}}', ['Your order: {{order.link_token}}', 'Pay: {{pay_url}}']),
       template('counter-order-account', 'Your account', ['Sign in: {{customer.portal_token}}']),
       template('counter-order-noted', 'A note on {{order.number}}', ['Open {{order.link_token}}', 'Pay: {{pay_url}}']),
+      template('counter-order-noted-online', 'Pay {{order.number}} online', ['Pay: {{pay_url}}']),
     ],
     // Each link opens its own row: an order by its link, an account by its own.
     publicKeys: { door: {}, account: {} },
@@ -232,9 +240,19 @@ for (const [dialect, available] of LEGS) {
       expect(said(await s.make('owner', 'messages', { kind: 'order-placed', order_id: order, to_address: REHEARSER }))).toBe('ok');
       const again = (await sent()).find((one) => one.subject === '[TEST] Order R-1')!;
       expect(PAY.exec(again.text)?.[0]).toBe(url);
+
+      // A note on the rehearsal's order: its mail is theirs too, and reads payments as on.
+      await made('owner', 'order_notes', { order_id: order, body: 'Packed.' });
+      const noted = await sent();
+      expect(noted.map((one) => [one.to, one.subject]).sort()).toEqual([
+        [REHEARSER, '[TEST] A note on R-1'],
+        [REHEARSER, '[TEST] Pay R-1 online'],
+      ]);
+      expect(noted.find((one) => one.subject === '[TEST] A note on R-1')!.text).toContain(`Open ${await tokenOf('orders', order, 'link_token')}`);
+      expect(PAY.exec(noted.find((one) => one.subject === '[TEST] Pay R-1 online')!.text)?.[0]).toBe(url);
     });
 
-    it("never mails the person rehearsing a real customer's code, whatever their rehearsal makes", async () => {
+    it("keeps a real order's mail ordinary while rehearsing, and never mails the person rehearsing its code", async () => {
       await rehearse(true);
       onTestFinished(() => rehearse(false));
       const realOrder = Number((await s.rows(`SELECT id FROM ${real('orders')} WHERE number = 'C-1'`))[0]!['id']);
@@ -249,21 +267,39 @@ for (const [dialect, available] of LEGS) {
         { kind: 'order-account', status: 'failed', to: REHEARSER, error: codeWithheldSentence(['customer.portal_token']) },
       ]);
 
-      // A note they make on the real order while rehearsing is a sample row; its mail is theirs, but never the real order's link, nor a pay link.
+      // A note they make on the real order while rehearsing: the real order's ordinary mail, to its customer, unmarked,
+      // with its own link — and none of what payments on would send, since they are off for real.
       await made('owner', 'order_notes', { order_id: realOrder, body: 'Called the customer.' });
-      await sent();
-      expect((await messages(realOrder)).slice(before.length)).toEqual([{ kind: 'order-noted', status: 'failed', to: REHEARSER, error: withheld }]);
+      const noted = await sent();
+      expect(noted.map((one) => [one.to, one.subject])).toEqual([['ruth@okafor-studio.de', 'A note on C-1']]);
+      expect(noted[0]!.text).toContain(`Open ${await tokenOf('orders', realOrder, 'link_token')}`);
+      expect(noted[0]!.text).not.toContain('/pay/');
+      expect((await messages(realOrder)).slice(before.length)).toEqual([{ kind: 'order-noted', status: 'sent', to: 'ruth@okafor-studio.de', error: null }]);
 
-      // A message about the real order they queue by hand: the same.
+      // A message about the real order they queue by hand, to nobody in particular: to the real customer, as always.
+      expect(said(await s.make('owner', 'messages', { kind: 'order-placed', order_id: realOrder }))).toBe('ok');
+      const queued = await sent();
+      expect(queued.map((one) => [one.to, one.subject])).toEqual([['ruth@okafor-studio.de', 'Order C-1']]);
+      expect(queued[0]!.text).toContain(`Your order: ${await tokenOf('orders', realOrder, 'link_token')}`);
+      // …and to their own address by hand: an ordinary message to an address not on file, so its code is held back. Never TEST.
       expect(said(await s.make('owner', 'messages', { kind: 'order-placed', order_id: realOrder, to_address: REHEARSER }))).toBe('ok');
-      await sent();
-      expect((await messages(realOrder)).slice(before.length + 1)).toEqual([{ kind: 'order-placed', status: 'failed', to: REHEARSER, error: withheld }]);
+      expect(await sent()).toEqual([]);
+      expect((await messages(realOrder)).slice(before.length + 1)).toEqual([
+        { kind: 'order-placed', status: 'sent', to: 'ruth@okafor-studio.de', error: null },
+        { kind: 'order-placed', status: 'failed', to: REHEARSER, error: withheld },
+      ]);
 
       // A note that names the real order as theirs (one that outlived its sample row, its key used again): it is no sample row, so nothing.
       await noteRehearsalRow(s.meta, s.connectionId, s.t('orders'), { id: realOrder }, ownerId);
+      await s.rows(`INSERT INTO ${real('orders')} (id, number, email, customer_id, link_token, total, balance, status) VALUES (90, 'C-90', 'ruth@okafor-studio.de', 1, 'RUTHORDERCODE090', 3.00, 3.00, 'paying')`);
+      await noteRehearsalRow(s.meta, s.connectionId, s.t('orders'), { id: 90 }, ownerId);
+      await made('owner', 'order_notes', { order_id: 90, body: 'Called again.' });
+      const stale = await sent();
+      expect(stale.map((one) => [one.to, one.subject])).toEqual([['ruth@okafor-studio.de', 'A note on C-90']]);
+      expect(stale[0]!.text).toContain('Open RUTHORDERCODE090');
       expect(said(await s.make('owner', 'messages', { kind: 'order-placed', order_id: realOrder, to_address: REHEARSER }))).toBe('ok');
       await sent();
-      expect((await messages(realOrder)).slice(before.length + 2)).toEqual([{ kind: 'order-placed', status: 'failed', to: REHEARSER, error: withheld }]);
+      expect((await messages(realOrder)).at(-1)).toEqual({ kind: 'order-placed', status: 'failed', to: REHEARSER, error: withheld });
 
       // A rehearsal's order that is another person's rehearsal: never this person's to be mailed.
       const theirs = await made('owner', 'orders', { number: 'R-3', email: 'mo@crumbandco.de', total: '4.00', balance: '4.00' });

@@ -512,11 +512,17 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     // The rehearsing person whose row this message is about, when it is a rehearsal's (read inside the lock below).
     let rehearser: string | null = null;
     const written = await withNamedLocks({ db: opts.db ?? handle.db, dialect: handle.dialect }, lockName, async (db): Promise<Row | null> => {
-      // A rehearsal's row (a payments manager walking the app's checkout): its mail goes to them, marked TEST. Any other sample row sends none.
+      // A rehearsal's row (a payments manager walking the app's checkout): its mail goes to them, marked TEST — judged by
+      // the row the message is ABOUT, made in their rehearsal and a sample row still. A row of a rehearsal about a real
+      // row (a note made on a real order while rehearsing) makes the real row's ordinary mail, to its real recipient.
+      // Any other sample row sends none.
       const aboutKeyRow = Object.fromEntries(about.table.primaryKey.map((c) => [c, about.row[c]]));
-      rehearser = (await rehearsalRowOwner(deps.meta, box.connectionId, source.id, sourceKey)) ?? (about.row !== row ? await rehearsalRowOwner(deps.meta, box.connectionId, about.table.id, aboutKeyRow) : null);
-      if (rehearser === null && (await isSample(db, box, source, sourceKey))) return null;
-      if (rehearser === null && about.row !== row && (await isSample(db, box, about.table, aboutKeyRow))) return null;
+      const sourceOwner = await rehearsalRowOwner(deps.meta, box.connectionId, source.id, sourceKey);
+      const aboutOwner = about.row === row ? sourceOwner : await rehearsalRowOwner(deps.meta, box.connectionId, about.table.id, aboutKeyRow);
+      const aboutSample = await isSample(db, box, about.table, aboutKeyRow);
+      rehearser = aboutOwner !== null && aboutSample ? aboutOwner : null;
+      if (rehearser === null && aboutSample && aboutOwner === null) return null;
+      if (rehearser === null && about.row !== row && sourceOwner === null && (await isSample(db, box, source, sourceKey))) return null;
       // An email of a part of the app that is switched off is not queued.
       if (producer.module !== undefined && !(await appPartIsOn(deps.meta, box.appKey, producer.module, { installId: box.row.manifestId, connectionId: box.connectionId }))) return null;
       if (producer.gate !== undefined && !(await switchedOn(db, box, producer.gate))) return null;
