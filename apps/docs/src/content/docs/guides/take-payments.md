@@ -217,6 +217,10 @@ are told, and a person decides. Usually that means a refund.
 Every night Adminium checks the live payments of the last 30 days. If one's row is gone, voided, or
 for another amount, it is flagged in Activity. This check never writes anything.
 
+An app whose rows are keyed by a uuid gets a new key on every payment Adminium writes into it, on
+every database: SQLite and MySQL keep such a key as text, and Adminium fills it as Postgres does
+(Adminium 0.3.62; an app installed before that gains it with its next update).
+
 ## Refunds
 
 Someone with **Give refunds** opens **Refund…** from a payment on the Payment panel, or from

@@ -835,6 +835,18 @@ export async function writeManifestRules(input: {
       if (column.type === 'bool') {
         desired.push({ ref: table.ref, table: real.id, column: column.ref, op: 'column.yesNo', value: { yesNo: true } });
       }
+      /*
+       * A key the app says is a uuid, on an engine with no uuid type: SQLite
+       * keeps it as text and MySQL as char(36), so the snapshot reads a plain
+       * text key and nothing fills it — the app's own screens made one, but a
+       * row Adminium writes itself (a payment taken online, a refund, a mail
+       * in the outbox) went in with none: refused on MySQL, keyless on
+       * SQLite. Filled with a new uuid on every create that sends none, as
+       * Postgres's uuid key is.
+       */
+      if (column.type === 'uuid' && column.role === 'pk' && model.dialect !== 'postgres') {
+        desired.push({ ref: table.ref, table: real.id, column: column.ref, op: 'column.default', value: { kind: 'uuid' } });
+      }
       if (column.rules === undefined) continue;
       for (const rule of opsForRules(manifest.key, column.rules)) {
         const mapped = realRuleRefs(rule.op, rule.value, realId);

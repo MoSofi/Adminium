@@ -722,6 +722,8 @@ function columnRules(c: Context, saved: SavedTable, col: ColumnModel, out: Writa
   const fill = ov('column.default', col.name);
   if (fill !== undefined) {
     if (fill['kind'] === 'from' && fill['from'] !== undefined) put('column.default', 'default', { from: fill['from'] });
+    // A key filled with a new uuid (where the engine keeps it as text): a uuid key, which the install fills again.
+    else if (fill['kind'] === 'uuid' && out.role === 'pk') out.type = 'uuid';
     else if (fill['kind'] === 'now' && (out.type === 'timestamptz' || out.type === 'date') && out.role === undefined) {
       // Filled with the moment by Adminium: the column's role says so, and the install writes the fill back.
       out.role = fill['onUpdate'] === true ? 'updated_at' : 'created_at';
