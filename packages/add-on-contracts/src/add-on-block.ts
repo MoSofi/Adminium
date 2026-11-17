@@ -358,6 +358,22 @@ export const addOnBlockSchema = z
       })
       .optional(),
     /**
+     * Chat: which of the add-on's own tables hold the conversations, their
+     * messages, the answers staff wrote for automatic replies and the
+     * answerer's choices. The engine keeps the conversation for a stranger;
+     * no add-on code runs for one. Only the table refs are typed here: the
+     * columns each must have, and the settings table's, are the manifest's
+     * own vocabulary, so `@adminium/manifest` checks the whole of it.
+     */
+    chat: z
+      .looseObject({
+        conversations: z.string().regex(/^[a-z][a-z0-9_]*$/, 'a table ref'),
+        messages: z.string().regex(/^[a-z][a-z0-9_]*$/, 'a table ref'),
+        answers: z.string().regex(/^[a-z][a-z0-9_]*$/, 'a table ref'),
+        choices: z.string().regex(/^[a-z][a-z0-9_]*$/, 'a table ref'),
+      })
+      .optional(),
+    /**
      * Steps the add-on gives to Automations: each a named write of one row of
      * one of its own tables (see `steps.ts`). Which table and columns they are
      * is `@adminium/manifest`'s to check.
