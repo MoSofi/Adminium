@@ -191,6 +191,50 @@ describe.each(LEGS)('a sample row names a row the install seeded — %s', (diale
   });
 });
 
+/** The stock kit with two tables keyed by text Adminium makes (`id`), one pointing at the other, and sample rows that name no key. */
+function textKeyKit(): { manifest: Record<string, unknown>; files: Record<string, string> } {
+  const manifest = stockKitManifest() as Record<string, unknown> & { requiredSchema: { tables: unknown[] } };
+  const made = { ref: 'id', type: 'id', role: 'pk' };
+  manifest.requiredSchema.tables.push(
+    { ref: 'pins', columns: [made, { ref: 'body', type: 'text', maxLength: 80 }] },
+    { ref: 'pin_marks', columns: [made, { ref: 'pin_id', type: 'fk', references: 'pins' }, { ref: 'mark', type: 'text', maxLength: 20 }] },
+  );
+  manifest['sampleData'] = { file: 'seeds/stock.sample.json' };
+  const bundle = {
+    format: 'adminium.sample/1',
+    app: 'stock-kit',
+    tables: [
+      { ref: 'pins', rows: [{ '@label': 'pin:door', body: 'By the door' }, { body: 'Under the stairs' }] },
+      { ref: 'pin_marks', rows: [{ pin_id: { '@ref': 'pin:door' }, mark: 'red' }] },
+    ],
+  };
+  return { manifest, files: { 'seeds/stock.sample.json': JSON.stringify(bundle) } };
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+describe.each(LEGS)('an add-on sample row in a table keyed by text Adminium makes — %s', (dialect, available) => {
+  it.runIf(available)('is written with a new key, never none, and a row that names it points at it', async () => {
+    h = await addOnHarness(dialect, { unbuiltWords: {} });
+    const { manifest, files } = textKeyKit();
+    await h.stageAddOn(manifest, { files });
+    expect((await post(h, '/add-ons', { key: 'stock-kit', version: '1.0.0', attachTo: [] })).statusCode).toBe(200);
+    const added = await add(h);
+    expect(added.counts).toEqual({ pins: 2, pin_marks: 1 });
+    const pins = await h.rows('SELECT id, body FROM stock_kit_pins');
+    expect(pins).toHaveLength(2);
+    for (const pin of pins) expect(String(pin['id']), String(pin['body'])).toMatch(UUID);
+    expect(new Set(pins.map((pin) => pin['id'])).size).toBe(2);
+    const marks = await h.rows('SELECT id, pin_id FROM stock_kit_pin_marks');
+    expect(String(marks[0]!['id'])).toMatch(UUID);
+    expect(marks[0]!['pin_id']).toBe(pins.find((pin) => pin['body'] === 'By the door')!['id']);
+    // Listed by the keys it was given, so it comes out again whole.
+    const removed = await post(h, '/add-ons/stock-kit/sample-data/remove', { keepChanged: true });
+    expect(removed.json()).toMatchObject({ removed: 3, kept: 0 });
+    expect(await h.rows('SELECT id FROM stock_kit_pins')).toEqual([]);
+  });
+});
+
 describe('the job an add-on\'s sample is added by', () => {
   it('is queued as the add-on\'s, and the handler adds the add-on\'s rows — never an app\'s of the same key', async () => {
     h = await addOnHarness('sqlite', { unbuiltWords: {} });

@@ -4867,6 +4867,9 @@ export default {
         "checkAgain": "重新检查",
         "loadFailed": "无法检查访客能否访问此服务器。请重试。"
       }
+    },
+    "reach": {
+      "proxyUnchecked": "如果访客通过代理或负载均衡器访问此服务器，在服务器被设置为信任它之前，他们会看到“不可用”。你的托管服务商的指南会说明如何设置。"
     }
   },
   "marketingMail": {

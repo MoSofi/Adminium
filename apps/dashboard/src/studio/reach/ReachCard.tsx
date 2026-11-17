@@ -64,9 +64,10 @@ export const ORIGIN_MARK = '\u0001';
 /**
  * Reachable, in one line: what the privacy tabs show above their content
  * while nothing needs fixing. `sentence` holds {@link ORIGIN_MARK} where the
- * origin goes.
+ * origin goes. `note`, when given, is a quieter line under it, for what the
+ * check could not see.
  */
-export function ReachStrip({ heading, sentence, origin, badge, testId }: { heading: string; sentence: string; origin: string; badge: string; testId: string }): ReactNode {
+export function ReachStrip({ heading, sentence, origin, badge, testId, note }: { heading: string; sentence: string; origin: string; badge: string; testId: string; note?: ReactNode }): ReactNode {
   const at = sentence.indexOf(ORIGIN_MARK);
   const before = at < 0 ? sentence : sentence.slice(0, at);
   const after = at < 0 ? '' : sentence.slice(at + ORIGIN_MARK.length);
@@ -81,6 +82,11 @@ export function ReachStrip({ heading, sentence, origin, badge, testId }: { headi
         {after}
       </p>
       <Badge tone="pos">{badge}</Badge>
+      {note === undefined ? null : (
+        <p className="basis-full ps-[30px] text-[12.5px] leading-normal text-fg-muted" data-testid={`${testId}-note`}>
+          {note}
+        </p>
+      )}
     </section>
   );
 }

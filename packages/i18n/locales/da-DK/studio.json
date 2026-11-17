@@ -4857,6 +4857,9 @@
         "checkAgain": "Tjek igen",
         "loadFailed": "Det kunne ikke tjekkes, om besøgende kan nå denne server. Prøv igen."
       }
+    },
+    "reach": {
+      "proxyUnchecked": "Hvis besøgende når denne server gennem en proxy eller en load balancer, ser de “ikke tilgængelig”, indtil serveren får besked på at stole på den. Din udbyders vejledning forklarer hvordan."
     }
   },
   "marketingMail": {

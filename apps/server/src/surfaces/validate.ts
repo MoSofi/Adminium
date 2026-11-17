@@ -8,6 +8,7 @@ import { connectionTenantConfig, surfaceInstanceSlug, type MetaDb } from '@admin
 
 import type { HostedSurface, SurfaceSide } from '../cli/surfaces-root.js';
 import { normalizeHost } from '../security/csrf.js';
+import { normalizePublicOrigin } from '../security/public-origin.js';
 import { instancesOf, type DomainMapping, type SurfaceSettings } from './settings.js';
 
 export interface DomainIssue {
@@ -121,13 +122,27 @@ export function pagesHomeIssueFor(home: string): string | null {
 }
 
 /**
+ * The host (with its port, when not the default) of this server's public
+ * address (`system.publicOrigin`), normalised as a mapped host is; null while
+ * none is set or the stored value is not an origin.
+ */
+export function publicOriginHostOf(publicOrigin: string | null | undefined): string | null {
+  if (publicOrigin === null || publicOrigin === undefined) return null;
+  const origin = normalizePublicOrigin(publicOrigin);
+  return origin === null ? null : normalizeHost(new URL(origin).host);
+}
+
+/**
  * Validate host → add-on pages entries, normalising each host, against the
  * hosts the app entries of the same save already hold (`taken`, normalised):
- * a host is in one map or the other, never both.
+ * a host is in one map or the other, never both. Two hosts are never given to
+ * the pages: the one Studio is reached on (`requestHost`), and the host of the
+ * public address (`publicOriginHost`, from {@link publicOriginHostOf}), which
+ * the mail links, the pay page and staff's own pages on it all need.
  */
 export function validatePageHostEntries(
   entries: Readonly<Record<string, { home: string }>>,
-  ctx: { requestHost: string; taken: ReadonlySet<string> },
+  ctx: { requestHost: string; taken: ReadonlySet<string>; publicOriginHost?: string | null | undefined },
 ): { normalized: Record<string, { home: string }>; issues: DomainIssue[] } {
   const issues: DomainIssue[] = [];
   const normalized: Record<string, { home: string }> = {};
@@ -144,6 +159,14 @@ export function validatePageHostEntries(
     }
     if (ctx.requestHost !== '' && key === ctx.requestHost) {
       issues.push({ path: host, message: `"${host}" is the host you are using to reach Studio — mapping it would take this dashboard away from you.`, code: 'request_host' });
+      continue;
+    }
+    if (ctx.publicOriginHost !== null && ctx.publicOriginHost !== undefined && key === ctx.publicOriginHost) {
+      issues.push({
+        path: host,
+        message: `"${host}" is the host of this server's public address — mapping it would take the dashboard away there, and with it the links in its mail and the pay page.`,
+        code: 'public_origin_host',
+      });
       continue;
     }
     const homeIssue = pagesHomeIssueFor(target.home);

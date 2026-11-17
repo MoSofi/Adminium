@@ -6,7 +6,9 @@
  *
  * The server answers with the forms door's own check (`GET
  * /api/v1/privacy/reach`), so this never says reachable while a form is
- * refused. Reachable: one line. Otherwise the shared reach card, worded for
+ * refused. Reachable: one line, and under it, when the server trusts no
+ * proxy and this request came straight, that visitors coming through one
+ * would be refused. Otherwise the shared reach card, worded for
  * this page:
  *
  *  - a proxy that hides visitors' addresses: what to set, and who sets it;
@@ -41,6 +43,18 @@ function heading(): string {
   return t('studio:privacy.websites.reach.heading', 'Can visitors reach your public pages?');
 }
 
+/**
+ * Under "reachable" when the server trusts no proxy and the staff member came
+ * straight: visitors coming through a proxy would be refused. The setting's
+ * name is on the host's guide, never here.
+ */
+function proxyUncheckedLine(): string {
+  return t(
+    'studio:privacy.reach.proxyUnchecked',
+    "If visitors reach this server through a proxy or a load balancer, they will see “not available” until the server is told to trust it. Your host's guide says how.",
+  );
+}
+
 export function PublicReach(): ReactNode {
   const reach = useQuery(reachQuery());
   if (reach.isError) return <Alert tone="danger" title={t('studio:privacy.websites.reach.loadFailed', 'Whether visitors can reach this server could not be checked. Try again.')} />;
@@ -54,6 +68,8 @@ export function PublicReach(): ReactNode {
         sentence={t('studio:privacy.websites.reach.ok', 'Visitors can reach {origin}', { origin: ORIGIN_MARK })}
         origin={data.origin}
         badge={t('studio:privacy.websites.reach.badge.reachable', 'Reachable')}
+        // The check read the staff member's own request: whether visitors come through a proxy it cannot see.
+        note={data.proxyUnchecked ? proxyUncheckedLine() : undefined}
       />
     );
   }

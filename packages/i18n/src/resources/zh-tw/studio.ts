@@ -4867,6 +4867,9 @@ export default {
         "checkAgain": "重新檢查",
         "loadFailed": "無法檢查訪客能否連到此伺服器。請再試一次。"
       }
+    },
+    "reach": {
+      "proxyUnchecked": "如果訪客透過代理或負載平衡器連到這台伺服器，在伺服器被設定為信任它之前，他們會看到「無法使用」。你的主機服務商的指南會說明如何設定。"
     }
   },
   "marketingMail": {

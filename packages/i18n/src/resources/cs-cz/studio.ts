@@ -4867,6 +4867,9 @@ export default {
         "checkAgain": "Zkontrolovat znovu",
         "loadFailed": "Nepodařilo se ověřit, zda se návštěvníci dostanou na tento server. Zkuste to znovu."
       }
+    },
+    "reach": {
+      "proxyUnchecked": "Pokud návštěvníci přistupují k tomuto serveru přes proxy nebo nástroj pro vyrovnávání zátěže, uvidí „není k dispozici“, dokud serveru neřeknete, aby mu důvěřoval. Návod vašeho poskytovatele hostingu popisuje jak."
     }
   },
   "marketingMail": {

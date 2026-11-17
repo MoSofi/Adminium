@@ -63,7 +63,7 @@ import type { ConnectionManager } from '../../connections/manager.js';
 import type { RecordWriteEvent } from '../../crud/after-record-write.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import type { FileStore } from '../../files/store.js';
-import { formsReach, type FormsReachFacts } from '../../forms/reach.js';
+import { formsReach, proxyUncheckedOf, type FormsReachFacts } from '../../forms/reach.js';
 import { addWebsites, readWebsites, removeWebsite, type ListedWebsite } from '../../forms/websites.js';
 import { refuseUnlistedWebsites } from '../../trial/operator-hosts.js';
 import { businessName, privacyNoticeOf, senderPostalAddress } from '../../privacy/business.js';
@@ -250,7 +250,7 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
     // The forms door's own answer for this request, so the card never says reachable while the door refuses.
     app.get('/privacy/reach', { preHandler: privacy, schema: { response: { 200: reachReply } } }, async (request) => {
       const answer = await formsReach(meta, deps.reach, request);
-      return { data: { state: answer.state, origin: answer.origin, checkedAt: app.rbac.now() } };
+      return { data: { state: answer.state, origin: answer.origin, checkedAt: app.rbac.now(), proxyUnchecked: proxyUncheckedOf(deps.reach, request) } };
     });
 
     // ── "Your websites" ─────────────────────────────────────────────────────

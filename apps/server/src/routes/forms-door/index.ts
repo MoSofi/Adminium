@@ -35,7 +35,7 @@
  * - A stranger is never shown what an answer becomes, who is told, or the
  *   form's hourly cap (`forms/view.ts`).
  * - Every answer carries the page's own content policy ({@link xContentPolicy}),
- *   set in this plugin's `onSend`, after the global hooks: scripts, styles and
+ *   set by the `/x/` doors' shared `onSend` (`../x-door/headers.ts`), after the global hooks: scripts, styles and
  *   fonts from `/x/assets/` on this host only. A form drawn for a frame may be
  *   framed by the websites the owner listed ("Your websites"), and by nobody
  *   when none is listed; everything else by nobody. The dashboard's own
@@ -80,11 +80,12 @@ import { businessToday, formLanguageFor, strangerBusiness, strangerForm } from '
 import { loadOverrideMap } from '../../i18n/server-i18n.js';
 import { bcp47 } from '../../i18n/bcp47.js';
 import type { FileStore } from '../../files/store.js';
-import { negotiateLocale, X_PREFIX } from '../../plugins/surfaces.js';
+import { negotiateLocale } from '../../plugins/surfaces.js';
 import { issueChallenge, PROOF_DIFFICULTY, proofKey } from '../../public-api/proof.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../payments/ways.js';
 import { formsFileRoutes } from './files.js';
 import { tagRoutes } from '../../security/route-audience.js';
+import { framedPageOf, xContentPolicy, xDoorHeaders } from '../x-door/headers.js';
 
 export interface FormsDoorDeps {
   meta: MetaDb;
@@ -127,24 +128,10 @@ const ASSET_TYPES: Readonly<Record<string, string>> = {
 const LOGO_TYPES: ReadonlySet<string> = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
 /**
- * The policy every answer of the door carries, for the origin it was asked
- * on. `framers` are the origins that may frame this answer: none, unless it
- * is a form drawn for a frame and the owner listed websites.
+ * The policy every answer of the door carries, shared with every `/x/` door
+ * (`../x-door/headers.ts`).
  */
-export function xContentPolicy(origin: string, framers: readonly string[] = []): string {
-  const assets = `${origin}${X_PREFIX}/assets/`;
-  return [
-    "default-src 'none'",
-    `script-src ${assets}`,
-    `style-src ${assets}`,
-    `font-src ${assets}`,
-    "img-src 'self' data:",
-    "connect-src 'self'",
-    framers.length === 0 ? "frame-ancestors 'none'" : `frame-ancestors ${framers.join(' ')}`,
-    "base-uri 'none'",
-    "form-action 'none'",
-  ].join('; ');
-}
+export { xContentPolicy };
 
 const UNBUILT = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Form</title></head><body><p>This page isn’t available right now.</p></body></html>';
 
@@ -162,19 +149,12 @@ function asksPreview(request: FastifyRequest): boolean {
 /** A form as the door may serve it, with the invitation a named survey's link opened. */
 export type DoorLookup = { state: 'live'; live: LiveForm; invitation: OpenInvitation | null } | { state: 'closed' } | { state: 'unavailable' } | { state: 'already' } | { state: 'dead' };
 
-function originOf(request: FastifyRequest): string {
-  return `${request.protocol}://${request.host}`;
-}
-
 function escapeHtml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-/** Whether this answer is a form's page drawn for a website's frame. */
-function framedPage(request: FastifyRequest): boolean {
-  const [path = '', query = ''] = request.url.split('?');
-  return /^\/x\/forms\/[^/]+$/.test(path) && new URLSearchParams(query).get('frame') === '1';
-}
+/** The pages of this door a listed website may frame, with `?frame=1`: a form's page. */
+export const FORMS_FRAMED_PAGES: readonly RegExp[] = [/^\/x\/forms\/[^/]+$/];
 
 export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
   const { meta, catalog } = deps;
@@ -237,20 +217,8 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
       }
     }
 
-    // Last word on the headers of everything this plugin answers.
-    app.addHook('onSend', async (request, reply, payload) => {
-      // A preview is framed by the builder on this host, and by nobody else.
-      const framers = previewing.has(request) ? ["'self'"] : framedPage(request) ? await deps.websites() : [];
-      void reply.header('content-security-policy', xContentPolicy(originOf(request), framers));
-      void reply.header('referrer-policy', 'no-referrer');
-      void reply.header('x-content-type-options', 'nosniff');
-      // Kept when the server already said more (trial mode's `noindex, nofollow`, `trial/public-pages.ts`).
-      if (reply.getHeader('x-robots-tag') === undefined) void reply.header('x-robots-tag', 'noindex');
-      // The policy's frame-ancestors decides who may frame a form; the dashboard's own header would refuse every website.
-      reply.removeHeader('x-frame-options');
-      if (!request.url.startsWith(`${X_PREFIX}/assets/`) && !request.url.startsWith(`${X_PREFIX}/embed.js`)) void reply.header('cache-control', 'no-store');
-      return payload;
-    });
+    // Last word on the headers of everything this plugin answers (`../x-door/headers.ts`).
+    xDoorHeaders(app, { framed: framedPageOf(FORMS_FRAMED_PAGES), websites: deps.websites, previewing: (request) => previewing.has(request) });
 
     /** The language engine words are drawn in for a browser with no script: asked, else the browser's, else English. */
     function wordsLocale(request: FastifyRequest): LocaleId {

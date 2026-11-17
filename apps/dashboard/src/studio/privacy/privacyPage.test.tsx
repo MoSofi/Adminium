@@ -7,7 +7,8 @@
  *    state and no request for anyone's data;
  *  - the four tabs, each with its own address, and nothing else;
  *  - the reach card first on "Privacy notice" and "Your websites": one line
- *    while reachable, else the state's card ("Check again" reads again; "Set
+ *    while reachable (and a line under it while the check cannot tell
+ *    whether visitors come through a proxy), else the state's card ("Check again" reads again; "Set
  *    it" only for someone who may change the address);
  *  - Your websites: the list with who added each, every line of the add box
  *    checked as typed (the comp's sample shows its four refusals, "Add" off),
@@ -202,11 +203,11 @@ afterEach(() => {
   exportsList = [];
   eraseReply = { status: 200, body: { data: { counts: { 'people-crm-contacts': 1, consent: 4 }, left: [], filesFailed: 0 } } };
   previewHangs = false;
-  reach = { state: 'reachable', origin: 'https://crm.meridian.example', checkedAt: Date.now() };
+  reach = { state: 'reachable', origin: 'https://crm.meridian.example', checkedAt: Date.now(), proxyUnchecked: false };
   websites = [];
   addRefusal = null;
 });
-reach = { state: 'reachable', origin: 'https://crm.meridian.example', checkedAt: Date.now() };
+reach = { state: 'reachable', origin: 'https://crm.meridian.example', checkedAt: Date.now(), proxyUnchecked: false };
 websites = [];
 notice = { businessName: 'Meridian Workplace Ltd', noticeUrl: 'https://www.meridian.example/privacy', ready: true, shownName: 'Meridian Workplace Ltd' };
 exportsList = [];
@@ -474,9 +475,25 @@ describe('can visitors reach the public pages', () => {
     expect((await screen.findByTestId('privacy-reach')).getAttribute('data-state')).toBe('reachable');
   });
 
+  it('says under "reachable" that visitors through a proxy would be refused, only while the check cannot tell', async () => {
+    asSuperAdmin();
+    await renderAt('/studio/privacy');
+    expect(await screen.findByTestId('privacy-reach')).toBeDefined();
+    expect(screen.queryByTestId('privacy-reach-note')).toBeNull();
+    cleanup();
+    reach = { state: 'reachable', origin: 'https://crm.meridian.example', checkedAt: Date.now(), proxyUnchecked: true };
+    await renderAt('/studio/privacy?tab=websites');
+    const strip = await screen.findByTestId('privacy-reach');
+    expect(strip.getAttribute('data-state')).toBe('reachable');
+    const note = within(strip).getByTestId('privacy-reach-note');
+    expect(note.textContent).toBe("If visitors reach this server through a proxy or a load balancer, they will see “not available” until the server is told to trust it. Your host's guide says how.");
+    // The card names no setting: the host's guide does.
+    expect(strip.textContent).not.toContain('ADMINIUM_');
+  });
+
   it('names the proxy setting, and "Check again" reads the facts again', async () => {
     asSuperAdmin();
-    reach = { state: 'proxy-hidden', origin: 'https://crm.meridian.example', checkedAt: Date.now() };
+    reach = { state: 'proxy-hidden', origin: 'https://crm.meridian.example', checkedAt: Date.now(), proxyUnchecked: false };
     const { calls } = await renderAt('/studio/privacy');
     const card = await screen.findByTestId('privacy-reach');
     expect(card.getAttribute('data-state')).toBe('proxy-hidden');
@@ -485,7 +502,7 @@ describe('can visitors reach the public pages', () => {
     expect(within(card).getByText('Ask whoever runs this server to set it and restart.')).toBeDefined();
     expect(within(card).queryByTestId('privacy-reach-set')).toBeNull();
     const before = calls.filter((call) => call.url === '/api/v1/privacy/reach').length;
-    reach = { state: 'reachable', origin: 'https://crm.meridian.example', checkedAt: Date.now() };
+    reach = { state: 'reachable', origin: 'https://crm.meridian.example', checkedAt: Date.now(), proxyUnchecked: false };
     await userEvent.click(within(card).getByRole('button', { name: 'Check again' }));
     await waitFor(() => expect(screen.getByTestId('privacy-reach').getAttribute('data-state')).toBe('reachable'));
     expect(calls.filter((call) => call.url === '/api/v1/privacy/reach').length).toBe(before + 1);
@@ -493,7 +510,7 @@ describe('can visitors reach the public pages', () => {
 
   it('with no public https address, shows the address seen and "Set it" to the Senders card', async () => {
     asSuperAdmin();
-    reach = { state: 'not-set', origin: null, checkedAt: Date.now() };
+    reach = { state: 'not-set', origin: null, checkedAt: Date.now(), proxyUnchecked: false };
     await renderAt('/studio/privacy?tab=websites');
     const card = await screen.findByTestId('privacy-reach');
     expect(within(card).getByText('No address')).toBeDefined();
@@ -505,7 +522,7 @@ describe('can visitors reach the public pages', () => {
   it('shows the plain http address it saw, and no "Set it" to someone who may not change it', async () => {
     roles = ['dpo'];
     systemActions = ['privacy.manage'];
-    reach = { state: 'not-https', origin: 'http://crm.meridian.example', checkedAt: Date.now() };
+    reach = { state: 'not-https', origin: 'http://crm.meridian.example', checkedAt: Date.now(), proxyUnchecked: false };
     await renderAt('/studio/privacy');
     const card = await screen.findByTestId('privacy-reach');
     expect(within(card).getByTestId('privacy-reach-address').textContent).toBe('http://crm.meridian.example');
@@ -515,7 +532,7 @@ describe('can visitors reach the public pages', () => {
 
   it('words the network-off and desktop states as Payments does', async () => {
     asSuperAdmin();
-    reach = { state: 'desktop', origin: null, checkedAt: Date.now() };
+    reach = { state: 'desktop', origin: null, checkedAt: Date.now(), proxyUnchecked: false };
     await renderAt('/studio/privacy');
     const card = await screen.findByTestId('privacy-reach');
     expect(within(card).getByTestId('privacy-reach-problem').textContent).toBe('This server runs on this computer only. Customers cannot reach it.');

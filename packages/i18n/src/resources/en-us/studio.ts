@@ -4867,6 +4867,9 @@ export default {
         "checkAgain": "Check again",
         "loadFailed": "Whether visitors can reach this server could not be checked. Try again."
       }
+    },
+    "reach": {
+      "proxyUnchecked": "If visitors reach this server through a proxy or a load balancer, they will see “not available” until the server is told to trust it. Your host's guide says how."
     }
   },
   "marketingMail": {

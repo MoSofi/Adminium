@@ -225,6 +225,12 @@ export interface PublicReach {
   origin: string | null;
   /** When the facts were read (ms). */
   checkedAt: number;
+  /**
+   * True when the check cannot tell whether visitors come through a proxy:
+   * the server trusts none, and this request came straight. Worded under
+   * "reachable", since such visitors would be refused.
+   */
+  proxyUnchecked: boolean;
 }
 
 export const PRIVACY_REACH_QUERY_KEY = ['privacy', 'reach'] as const;

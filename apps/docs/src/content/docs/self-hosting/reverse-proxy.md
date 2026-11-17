@@ -21,6 +21,15 @@ With it, Adminium reads `X-Forwarded-For`, `X-Forwarded-Proto` and
 `X-Forwarded-Host` and gets the real client, but only on connections that come
 from your proxy.
 
+Your public pages (forms, and the pages your website shows in a frame) need it
+too. They count visitors by address, so while a request comes through a proxy
+Adminium does not trust, they answer "not available". The **Privacy & public
+pages** screen checks this from your own request. If you open the dashboard
+directly, not through the proxy, it cannot see the proxy your visitors use. It
+then shows "Reachable" with a line under it: visitors who come through a proxy
+or a load balancer see "not available" until the server is told to trust it.
+Setting `ADMINIUM_TRUST_PROXY=on` is how you tell it.
+
 :::caution[Only turn it on when a proxy you control is actually in front]
 `X-Forwarded-For` is a header. Anyone can send one. It is trustworthy only when
 something you control writes it on the way in.

@@ -4867,6 +4867,9 @@ export default {
         "checkAgain": "Vérifier à nouveau",
         "loadFailed": "Impossible de vérifier si les visiteurs peuvent atteindre ce serveur. Réessayez."
       }
+    },
+    "reach": {
+      "proxyUnchecked": "Si les visiteurs atteignent ce serveur par un proxy ou un répartiteur de charge, ils verront « non disponible » tant que le serveur n'a pas été configuré pour lui faire confiance. Le guide de votre hébergeur explique comment faire."
     }
   },
   "marketingMail": {

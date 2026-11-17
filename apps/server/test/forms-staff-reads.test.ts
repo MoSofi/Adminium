@@ -221,7 +221,10 @@ describe.each(LEGS)('what a forms builder reads for its staff — %s', (dialect,
     // The same answer the reach card is given, for the same request.
     const reach = await call('GET', '/api/v1/privacy/reach', 'boss');
     expect(reach.statusCode).toBe(200);
-    expect(data['reach']).toEqual({ state: (reach.json() as { data: Doc }).data['state'] });
+    expect(data['reach']).toEqual({ state: (reach.json() as { data: Doc }).data['state'], proxyUnchecked: true });
+    // Asked through a proxy the server does not trust, it can tell: the answer is `proxy-hidden`, not a doubt.
+    const forwarded = (await call('GET', '/api/v1/forms/status', 'marketer', { headers: { 'x-forwarded-for': '203.0.113.9' } })).json() as { data: Doc };
+    expect(forwarded.data['reach']).toEqual({ state: 'proxy-hidden', proxyUnchecked: false });
     // Nobody's address, no member of a role, nobody who added a website.
     for (const name of ['boss', 'marketer', 'writer', 'clerk']) expect(res.body).not.toContain(`${name}@forms.dev`);
     expect(Object.keys(data).sort()).toEqual(['mail', 'notice', 'publicOrigin', 'reach', 'roles', 'websites']);
