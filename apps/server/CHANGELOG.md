@@ -1,5 +1,24 @@
 # @adminium/server
 
+## 0.3.63
+
+### Patch Changes
+
+- 3d05155: A rehearsal's e-mail may now carry the rehearsed row's own link to the person rehearsing. Before, every app e-mail carrying an order's link (`{{order.link_token}}`) failed during a rehearsal with "is a code, and goes only to the address on file of the person it belongs to". A code goes to them only when the message is a rehearsal's, is addressed to them alone, is marked `[TEST]`, and the row was made in their own rehearsal and is still a sample row. A real customer's row is never one: a message addressed by hand to the person rehearsing about a real order, a row whose rehearsal note outlived it, or a row another person rehearsed never has its code mailed to them.
+- 28618da: A rehearsal's e-mail fills `{{pay_url}}` with a test pay link for a row of that rehearsal, on the server's own address: the row's open test link from the checkout while it works, else a new one that lasts an hour, as a rehearsal's start makes. A rehearsal's e-mail never carries a live link, and a real customer's e-mail never a test one: with only a test-mode service it still has no pay button.
+- 47e8795: While someone rehearses, a mail about a real row is an ordinary mail again. Before, a row a payments manager made while rehearsing diverted the mail it caused to them, marked `[TEST]`, even when the mail was about a real order (a note or a proof made on it), and a message they queued by hand about a real order went to them too: the real customer never got it. Now a mail goes to the person rehearsing only when the row it is about was made in their rehearsal and is still a sample row; every other mail goes to its real recipient, unmarked, with the payments gate read as payments really are, and is logged like any other.
+- a9b51b2: A screens-only role (a till's cashier) may close a record's pay link (`POST /api/v1/payments/links/:id/revoke`), such as a QR code shown at the counter that should not be paid any more. The route asks what making one asks: the person's own right to change that record, within their row limits.
+- @adminium/adapter-mysql@0.3.63
+  - @adminium/adapter-postgres@0.3.63
+  - @adminium/adapter-sqlite@0.3.63
+  - @adminium/add-on-contracts@0.3.63
+  - @adminium/engine@0.3.63
+  - @adminium/i18n@0.3.63
+  - @adminium/llm@0.3.63
+  - @adminium/manifest@0.3.63
+  - @adminium/meta@0.3.63
+  - @adminium/schema-import@0.3.63
+
 ## 0.3.62
 
 ### Patch Changes

@@ -62,6 +62,19 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.63',
+    date: '2026-11-17',
+    title: 'Trying an app as a customer sends its e-mails to you',
+    summary:
+      'When someone who manages payments tries an app as a customer, the app’s e-mails about that test order now reach them, marked [TEST], with the order’s own link and a test pay button. A real customer’s e-mail is never held back while someone is trying the app.',
+    changes: [
+      { tag: 'Fixed', text: 'A test order’s e-mails reach the person trying the app as a customer, with the order’s own link, where they were refused before.' },
+      { tag: 'Fixed', text: 'A test order’s e-mail gets a test pay button, which opens the same pay page as the checkout.' },
+      { tag: 'Fixed', text: 'While someone tries an app as a customer, e-mails about real orders still go to their real customers, as ordinary e-mails.' },
+      { tag: 'Fixed', text: 'A till cashier can close a pay link they made.' },
+    ],
+  },
+  {
     version: '0.3.62',
     date: '2026-11-17',
     title: 'Payments in apps: closer to how each app works',
