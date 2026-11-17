@@ -32,7 +32,7 @@ import { storedPublicOrigin } from '../../email/door-reach.js';
 import { ForbiddenError } from '../../errors.js';
 import { formsAddOnsOn, storedFormsAddOns } from '../../forms/installed.js';
 import { formsMailBlocked } from '../../forms/mail.js';
-import { formsReach, type FormsReachFacts } from '../../forms/reach.js';
+import { formsReach, proxyUncheckedOf, type FormsReachFacts } from '../../forms/reach.js';
 import { REACHABILITY_STATES } from '../../payments/reachability.js';
 import { readWebsites } from '../../forms/websites.js';
 import { sameLanguage } from '../../i18n/bcp47.js';
@@ -58,7 +58,11 @@ export const formsStatusReply = z.object({
   data: z.object({
     mail: mailAnswer,
     /** "Can visitors reach your public pages?": the forms door's own answer for this request, as `/privacy/reach` gives it. */
-    reach: z.object({ state: z.enum(REACHABILITY_STATES) }),
+    reach: z.object({
+      state: z.enum(REACHABILITY_STATES),
+      /** True when this request cannot tell whether strangers come through a proxy, as `/privacy/reach` gives it. */
+      proxyUnchecked: z.boolean(),
+    }),
     /** Whether the privacy notice is set (the business's name and the notice's address): a form is not served until it is. */
     notice: z.boolean(),
     /** This server's public address (`system.publicOrigin`): a form's link is `<publicOrigin>/x/forms/<slug>`; null while unset. */
@@ -124,7 +128,7 @@ export function formsStaffRoutes(deps: FormsStaffDeps): FastifyPluginAsyncZod {
         return {
           data: {
             mail: { sends: blocked === null, blocked },
-            reach: { state: answer.state },
+            reach: { state: answer.state, proxyUnchecked: proxyUncheckedOf(reach, request) },
             notice,
             publicOrigin,
             websites: websites.map((website) => website.origin),

@@ -176,5 +176,11 @@ export const reachReply = z.object({
     origin: z.string().nullable(),
     /** When the facts were read (ms). */
     checkedAt: z.number(),
+    /**
+     * True when this request cannot tell whether strangers come through a
+     * proxy: the server trusts none and this request came with no forwarding
+     * header. The card words the doubt under "reachable".
+     */
+    proxyUnchecked: z.boolean(),
   }),
 });

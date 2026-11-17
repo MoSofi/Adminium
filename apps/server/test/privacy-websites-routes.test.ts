@@ -10,7 +10,8 @@
  *  - a staff member without the action (the settings grant alone) is
  *    refused every one of these routes;
  *  - the reach card reads the forms door's own answer: no public address,
- *    an https one, and a proxy that is not trusted;
+ *    an https one, and a proxy that is not trusted; and says when a request
+ *    that came straight cannot tell whether strangers come through a proxy;
  *  - listing a website opens nothing to it: no `/api/v1/` route answers it
  *    with `Access-Control-Allow-Origin`, signed in or not.
  */
@@ -159,7 +160,8 @@ describe.each(META_ENGINES)('"Your websites" and the reach card — $name', (eng
 
   it.skipIf(!engine.available)('the reach card reads the forms door’s own answer', async () => {
     const settings = settingsRepo(handle.meta);
-    const reach = async (headers: Record<string, string> = {}) => (await call('pia', 'GET', '/api/v1/privacy/reach', undefined, headers)).json() as { data: { state: string; origin: string | null; checkedAt: number } };
+    const reach = async (headers: Record<string, string> = {}) =>
+      (await call('pia', 'GET', '/api/v1/privacy/reach', undefined, headers)).json() as { data: { state: string; origin: string | null; checkedAt: number; proxyUnchecked: boolean } };
     await settings.set('system.publicOrigin', null, { updatedBy: null });
     expect((await reach()).data).toMatchObject({ state: 'not-set', origin: null });
     await settings.set('system.publicOrigin', 'http://crm.meridian.example', { updatedBy: null });
@@ -168,8 +170,11 @@ describe.each(META_ENGINES)('"Your websites" and the reach card — $name', (eng
     const ok = (await reach()).data;
     expect(ok).toMatchObject({ state: 'reachable', origin: 'https://crm.meridian.example' });
     expect(ok.checkedAt).toBeGreaterThan(0);
-    // A proxy forwards the request and is not trusted: the forms door refuses, and the card says so.
-    expect((await reach({ 'x-forwarded-for': '203.0.113.9' })).data.state).toBe('proxy-hidden');
+    // Staff came straight and no proxy is trusted: whether strangers come through one is not known, and the answer says so.
+    expect(ok.proxyUnchecked).toBe(true);
+    // A proxy forwards the request and is not trusted: the forms door refuses, and the card says so; no doubt left.
+    expect((await reach({ 'x-forwarded-for': '203.0.113.9' })).data).toMatchObject({ state: 'proxy-hidden', proxyUnchecked: false });
+    expect((await reach({ forwarded: 'for=203.0.113.9' })).data).toMatchObject({ state: 'proxy-hidden', proxyUnchecked: false });
   });
 
   it.skipIf(!engine.available)('opens nothing to a listed website: no /api/v1/ route answers it with an allowed origin', async () => {
