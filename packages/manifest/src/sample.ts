@@ -337,8 +337,9 @@ export function sampleJsonRefs(value: unknown): { labels: string[]; deeper: bool
     if (found !== null) return;
     for (const item of Array.isArray(inner) ? inner : Object.values(inner as Record<string, unknown>)) walk(item, depth + 1);
   };
-  // The value itself is a column's value: a directive there is the column's own, not one inside json.
-  if (typeof value === 'object' && value !== null && sampleDirective(value) === null) {
+  // The value itself is a column's value, read from its items on: a directive there is the column's own (its
+  // fields are plain text), not one inside json.
+  if (typeof value === 'object' && value !== null) {
     for (const item of Array.isArray(value) ? value : Object.values(value as Record<string, unknown>)) walk(item, 1);
   }
   return { labels, deeper };
