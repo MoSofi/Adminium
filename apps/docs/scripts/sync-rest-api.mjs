@@ -128,6 +128,10 @@ const DESCRIPTIONS = {
   invoices:
     'Invoice templates and invoices — the documents, their language variations, the starters, ' +
     'duplicates, and building an invoice from a template',
+  landing:
+    'A landing pages add-on, for staff: a page drafted by Milo on the person’s own allowance (no rows, ' +
+    'every block marked, never published); the live forms a Form block may show and the live pages a ' +
+    'form may end on; and the name and steps of the rule a funnel names',
   ledgers:
     'The rules that hand rows to an add-on\'s ledger (stock, gift cards) — which tables post into it, ' +
     'whether each rule runs, how many rows hold something under it and how many saves wait to be ' +
