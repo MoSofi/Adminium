@@ -1994,6 +1994,15 @@ export interface WriteServiceOptions {
    */
   ownRecords?: ((connectionId: string, tableId: string) => Promise<boolean>) | undefined;
   /**
+   * Whether a table's rows are Adminium's own record that no person removes
+   * either (a chat add-on's conversations, messages and choices): a person's
+   * delete of one is refused whichever door it came through (a single
+   * delete, a bulk delete, a rule's step, an API key). Only Adminium's own
+   * paths remove them (the keeping sweep, a person's erasure), outside this
+   * service. Without it, no table is.
+   */
+  sealedRecords?: ((connectionId: string, tableId: string) => Promise<boolean>) | undefined;
+  /**
    * Whether a table is a payable's payments table, and which of its columns
    * name a payment taken online (`payments/payment-rows.ts`). A row that
    * carries the reference is the provider's record: no person, key, rule or
@@ -2290,7 +2299,15 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   const refuseOwnRecords = async (target: Pick<WriteTarget, 'connectionId' | 'table'>, context: WriteContext): Promise<void> => {
     if (opts.ownRecords === undefined || writtenByAdminium(context)) return;
     if (!(await opts.ownRecords(target.connectionId, target.table.id))) return;
-    throw new ForbiddenError('Only Adminium writes these rows. You can read and delete them.', 'TABLE_FORBIDDEN', { table: target.table.id, reason: 'adminium-writes' });
+    const sealed = (await opts.sealedRecords?.(target.connectionId, target.table.id)) === true;
+    throw new ForbiddenError(sealed ? 'Only Adminium writes these rows. You can read them.' : 'Only Adminium writes these rows. You can read and delete them.', 'TABLE_FORBIDDEN', { table: target.table.id, reason: 'adminium-writes' });
+  };
+
+  /** A person's delete of a table only Adminium removes rows from ({@link WriteServiceOptions.sealedRecords}): refused, by name. */
+  const refuseSealedDelete = async (target: Pick<WriteTarget, 'connectionId' | 'table'>, context: WriteContext): Promise<void> => {
+    if (opts.sealedRecords === undefined || writtenByAdminium(context)) return;
+    if (!(await opts.sealedRecords(target.connectionId, target.table.id))) return;
+    throw new ForbiddenError('Only Adminium writes and removes these rows. You can read them.', 'TABLE_FORBIDDEN', { table: target.table.id, reason: 'adminium-keeps' });
   };
 
   /**
@@ -4284,6 +4301,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (action !== 'delete') refuseUnbuiltTable(target);
       await refuseHeldWrite(target.db, action);
       if (action !== 'delete') await refuseOwnRecords(target, context);
+      else await refuseSealedDelete(target, context);
       await refusePaymentRows(action, target, context, rows.map((values, index) => ({ values, stored: async () => checkOpts?.stored?.[index] ?? (action === 'create' ? null : await fetchMatched(target, values)) })));
       if (action !== 'delete') await freshCodes(target);
       const rules = rulesOf(target);
@@ -5561,6 +5579,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const { context, pk } = input;
       const target = freshReads(input.target);
       const hooks = current();
+      await refuseSealedDelete(target, context);
       const before = input.before ?? (input.load === undefined ? null : await input.load());
       if (before === null && input.load !== undefined && input.skipIfNone === true) return 0;
       // A row the caller's read could not see is not looked at here: the DELETE below matches nothing.
@@ -5629,6 +5648,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (action !== 'delete') refuseUnbuiltTable(target);
       await refuseHeldWrite(target.db, action);
       if (action !== 'delete') await refuseOwnRecords(target, context);
+      else await refuseSealedDelete(target, context);
       await refusePaymentRows(
         action,
         target,

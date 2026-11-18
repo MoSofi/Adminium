@@ -1371,6 +1371,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // A forms add-on's answers and their files are written by Adminium alone: staff read and delete them, never write them.
     // …and a chat add-on's conversations, messages and choices: staff act through the chat's own routes (`routes/chat`).
     ownRecords: async (connectionId, tableId) => (await formsFiles.ownTable(connectionId, tableId)) || chatOwnTable(await addOnInstalls.fresh(), connectionId, tableId),
+    // …and those three chat tables are not a person's to delete either (a forms answer is): only the keeping sweep and an erasure remove them.
+    sealedRecords: async (connectionId, tableId) => chatOwnTable(await addOnInstalls.fresh(), connectionId, tableId),
     // A file column names only a file its writer uploaded and no record holds; a picture, one cleaned as it came in.
     // A page's file column too, when a person saves it: what it newly names is an upload of theirs.
     files: createFileColumnJudge({
