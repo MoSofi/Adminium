@@ -23,16 +23,21 @@
  *    person's upload no record took yet: a file they may not read and one that
  *    is not there get the same 404;
  *  - a page's picture and the status: who may read the add-on's pages.
+ *  - every route: a role held to some of the pages is refused, as a reader
+ *    of view counts is: a page is named here by its key.
  *
  * Only a signed-in person (or a staff key) asks. `?install=` names the
  * install when the add-on is on more than one database.
  */
 import { connectionTenantConfig, filesRepo, settingsRepo, type MetaDb, type StoredFile } from '@adminium/meta';
-import type { FastifyRequest } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
 import { audited } from '../../audit/coverage.js';
+import { isRowLimited } from '../../crud/row-limit.js';
+import { rowLimitContextOf } from '../../crud/row-limit-context.js';
+import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { storedPublicOrigin } from '../../email/door-reach.js';
 import { AppError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { FileNotFoundError } from '../../files/drivers/driver.js';
@@ -136,12 +141,25 @@ export function landingStaffRoutes(deps: LandingStaffDeps): FastifyPluginAsyncZo
   const now = deps.now ?? Date.now;
   const { canRead } = fileReadRule(deps);
 
-  /** The add-on a request names, for someone who holds `action` on its pages table: 404 when it is not installed, 403 without the grant. */
-  async function addOnFor(request: FastifyRequest, addOn: string, install: string | undefined, action: 'read' | 'update'): Promise<LandingAddOn> {
+  /**
+   * The add-on a request names, for someone who holds `action` on its pages
+   * table, whole: 404 when it is not installed, 403 without the grant, and 403
+   * for a role held to some of its pages (a page is named by its key here, so
+   * one it does not reach would be read or changed past the limit).
+   */
+  async function addOnFor(app: FastifyInstance, request: FastifyRequest, addOn: string, install: string | undefined, action: 'read' | 'update'): Promise<LandingAddOn> {
     const found = await catalog.forStaff(addOn, install);
     if (found === null) throw new NotFoundError(`"${addOn}" is not an installed landing pages add-on.`);
     if (!(await request.can(`table:${found.connectionId}:${found.pagesTable}:${action}`))) {
       throw new ForbiddenError(action === 'read' ? 'Only someone who may read the pages reads this.' : 'Only someone who may change the pages adds a picture to one.', 'TABLE_FORBIDDEN', { reason: `landing-pages-${action}` });
+    }
+    const set = await app.rbac.resolve(request);
+    if (set.superAdmin !== true) {
+      const view = await loadSnapshotView(meta, found.connectionId, { forOthers: true }).catch(() => null);
+      const context = view === null ? null : await rowLimitContextOf(meta, set, found.connectionId, view.model);
+      if (context !== null && isRowLimited(context, found.pagesTable, action)) {
+        throw new ForbiddenError('You may reach only some of the pages, so this is not shown.', 'TABLE_FORBIDDEN', { reason: 'row-limit' });
+      }
     }
     return found;
   }
@@ -202,7 +220,7 @@ export function landingStaffRoutes(deps: LandingStaffDeps): FastifyPluginAsyncZo
       },
       async (request, reply) => {
         const userId = requireUserId(request);
-        const addOn = await addOnFor(request, request.params.addOn, request.query.install, 'update');
+        const addOn = await addOnFor(app, request, request.params.addOn, request.query.install, 'update');
         const page = await pageOf(addOn, request.query.page);
         const body = request.body;
         let source: { bytes: Buffer; filename: string; from: string | null };
@@ -243,7 +261,7 @@ export function landingStaffRoutes(deps: LandingStaffDeps): FastifyPluginAsyncZo
         },
       },
       async (request, reply) => {
-        const addOn = await addOnFor(request, request.params.addOn, request.query.install, 'read');
+        const addOn = await addOnFor(app, request, request.params.addOn, request.query.install, 'read');
         const page = await pageOf(addOn, request.query.page);
         const file = await pagePictureOf(meta, { connectionId: addOn.connectionId, pagesTable: addOn.pagesTable, page: page.key }, request.params.file);
         if (file === null) throw new NotFoundError(`File ${request.params.file} not found.`);
@@ -275,7 +293,7 @@ export function landingStaffRoutes(deps: LandingStaffDeps): FastifyPluginAsyncZo
         },
       },
       async (request) => {
-        const addOn = await addOnFor(request, request.params.addOn, request.query.install, 'read');
+        const addOn = await addOnFor(app, request, request.params.addOn, request.query.install, 'read');
         const [answer, notice, publicOrigin, mapped, tenant, viewCountsMonths] = await Promise.all([
           formsReach(meta, deps.reach, request),
           privacyNoticeReady(meta),

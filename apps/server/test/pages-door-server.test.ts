@@ -195,6 +195,10 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
     await person('lib', [...t('read', 'update'), 'system:files:manage']);
     await person('ops', ['system:settings:manage', 'system:privacy:manage']);
     await person('sam', []);
+    // Lou reads only the pages in German (a row limit): a page named by its key is no way past it.
+    await person('lou', []);
+    const louRole = (await rolesRepo(h.meta).findBySlug('pages-lou'))!;
+    await permissionsRepo(h.meta).grant(louRole.id, 'table', matrixRowsFromGrants(t('read')).rows[0]!.resourceRef, { read: true, create: false, update: false, delete: false, export: false, import: false, rowLimit: { read: { reach: 'all', while: { column: 'language', in: ['de-DE'] } } } } as never);
 
     for (const slug of ['open-day', 'thanks', 'yawm', 'spring-draft', 'switched-off', 'broken', 'marked', 'login']) await draft(slug, slug === 'yawm' ? { language: 'ar-EG' } : {});
     // The pictures, kept as each page's own copies.
@@ -478,6 +482,11 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
     expect(((await as('rae', 'GET', '/api/v1/landing/landing-pages/status')).json() as Doc).data).toMatchObject({ installId, viewCountsMonths: 24, page: null });
     await settingsRepo(h.meta).set('privacy.viewCountsMonths', 13, { updatedBy: null });
     expect((await as('sam', 'GET', '/api/v1/landing/landing-pages/status')).statusCode).toBe(403);
+    // A role held to some of the pages reads none of them here.
+    const limited = await as('lou', 'GET', `/api/v1/landing/landing-pages/status?page=${String(keys['open-day'])}`);
+    expect(limited.statusCode, limited.body).toBe(403);
+    expect((limited.json() as Doc).error.details.reason).toBe('row-limit');
+    expect((await as('lou', 'GET', `/api/v1/landing/landing-pages/pictures/${files['hero']!}?page=${String(keys['open-day'])}`)).statusCode).toBe(403);
     expect((await as('rae', 'GET', '/api/v1/landing/nobody/status')).statusCode).toBe(404);
   });
 
