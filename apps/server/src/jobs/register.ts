@@ -109,6 +109,8 @@ export interface JobsAndRealtimeOptions {
         campaignSeams?: CampaignSeams | undefined;
         /** Marketing mail's checks, signature and carry (`email/marketing.ts`); made from `meta` and the secret when absent. */
         marketing?: MarketingMail | undefined;
+        /** Whether an address is a found person's not told yet (`leads/people.ts`): a campaign skips them. */
+        untold?: ((address: string) => Promise<boolean>) | undefined;
       }
     | undefined;
   /**
@@ -236,7 +238,7 @@ export async function registerJobsAndRealtime(
       secret: opts.email.secret,
       hub,
       // A run counts clicks only when its sender switched it on (kept on the run).
-      seams: withMarketingChecks(campaignMarketingChecks({ meta, marketing: marketing!, secret: opts.email.secret, trackClicks: (run) => run.trackClicks }), opts.email.campaignSeams),
+      seams: withMarketingChecks(campaignMarketingChecks({ meta, marketing: marketing!, secret: opts.email.secret, trackClicks: (run) => run.trackClicks, untold: opts.email.untold }), opts.email.campaignSeams),
     });
   }
   if (opts.documents !== undefined && !registry.has(DOCUMENT_RENDER_KIND)) {

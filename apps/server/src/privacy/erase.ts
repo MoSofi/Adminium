@@ -30,10 +30,14 @@
  *     their files) and the survey invitations sent to them lose the address
  *     and the name (`form-answers.ts`); their website chats are deleted with
  *     their messages and the answerer's choices (`chat-transcripts.ts`),
- *     found by the address and by the rows of theirs a chat became; an entry written about one of those
+ *     found by the address and by the rows of theirs a chat became; a person
+ *     a source found loses their found person's rows, their tell mails and
+ *     their fields' sources (`found-people.ts`), and only the days they were
+ *     told on are kept, in the audit entry below; an entry written about one of those
  *     rows while the erasure ran is emptied too;
- *  7. one audit entry of its own says what was done: counts, and the keyed
- *     hash of the address. Never the address, never the name.
+ *  7. one audit entry of its own says what was done: counts, the keyed
+ *     hash of the address, and the days a found person was told on. Never
+ *     the address, never the name.
  *
  * Done in that order so that one cut short can be run again: until step 6
  * their rows still hold the address, and the next run finds them and does
@@ -63,6 +67,7 @@ import { blankCampaignSends, campaignSendIds, copyFileIds, purgeRowFiles, rowFil
 import { findPersonRows, writePersonRows, type ErasedSource, type LeftColumn, type PersonRows } from './erase-rows.js';
 import { eraseFormRows, findFormRows, formImageTargets } from './form-answers.js';
 import { eraseChatRows, findChatRows, type TheirRow } from './chat-transcripts.js';
+import { eraseFoundPeopleRows, findFoundPeopleRows } from './found-people.js';
 import type { ChatForget } from '../chat/transcripts.js';
 import type { AnswerFilesRemover } from '../forms/answers.js';
 import { personHash, personHashes } from './export.js';
@@ -96,7 +101,7 @@ export interface EraseScope {
 }
 
 /** What goes, as the erase dialog counts it. */
-export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations';
+export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations' | 'found-people';
 
 export interface GoesItem {
   kind: GoesKind;
@@ -125,6 +130,12 @@ export interface EraseResult {
   filesFailed: number;
   /** The keyed hash the erasure's own audit entry keeps. */
   address: { hash: string; version: number };
+  /**
+   * The days a person a source found was told on (`YYYY-MM-DD`), one per
+   * found person erased who was told: all the erasure keeps of them, in its
+   * own audit entry beside the hash ("told on {date}").
+   */
+  told: string[];
 }
 
 /** Their copies' rows, with the columns of each that are theirs: what their files are read from (`copyFileIds`). */
@@ -211,6 +222,10 @@ export async function previewErasure(deps: EraseDeps, rawAddress: string, scope?
     const table = one.addOn.conversations;
     if (table !== null && one.conversations.length > 0) goes.push({ kind: 'chat-conversations', count: one.conversations.length, connectionId: one.connectionId, table: table.id, app: one.addOn.key, label: table.table.label ?? table.name });
   }
+  for (const one of whole ? await findFoundPeopleRows(deps, address, theirRows(rows)) : []) {
+    const table = one.addOn.foundPeople;
+    if (table !== null && one.found.length > 0) goes.push({ kind: 'found-people', count: one.found.length, connectionId: one.connectionId, table: table.id, app: one.addOn.key, label: table.table.label ?? table.name });
+  }
   const consent = await consentIds(deps.consent, address, people, whole);
   if (consent > 0) goes.push({ kind: 'consent', count: consent });
   const sends = (await campaignSendIds(deps.meta, address, people, whole)).length;
@@ -238,6 +253,8 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: E
   const forms = whole ? await findFormRows(deps, address) : [];
   // Found before their rows are emptied: a chat that became one of them is found by the row's key, which stays.
   const chats = whole ? await findChatRows(deps, address, theirRows(rows)) : [];
+  // …and so is a found person's row, which names their row by its key.
+  const foundPeople = whole ? await findFoundPeopleRows(deps, address, theirRows(rows)) : [];
   const people = peopleRefs(rows);
   const counts: Record<string, number> = {};
 
@@ -307,9 +324,12 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: E
   Object.assign(counts, await writePersonRows(rows));
   Object.assign(counts, await eraseFormRows(forms, erasedName, deps.answerFiles));
   Object.assign(counts, await eraseChatRows(chats, deps.chatForget));
+  // The people a source found: gone, but for the days they were told on.
+  const found = await eraseFoundPeopleRows(foundPeople);
+  Object.assign(counts, found.counts);
   // An entry written about one of their rows while this ran.
   audit += await scrubAuditImages(meta, targets, started);
   counts['audit'] = audit + swept.audit;
 
-  return { counts, left: rows.left, filesFailed, address: { hash: hash.hash, version: hash.version } };
+  return { counts, left: rows.left, filesFailed, address: { hash: hash.hash, version: hash.version }, told: found.told };
 }

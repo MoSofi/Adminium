@@ -68,9 +68,10 @@ import { addWebsites, readWebsites, removeWebsite, type ListedWebsite } from '..
 import { refuseUnlistedWebsites } from '../../trial/operator-hosts.js';
 import { businessName, privacyNoticeOf, senderPostalAddress } from '../../privacy/business.js';
 import { erasePerson, previewErasure } from '../../privacy/erase.js';
+import { peopleFoundNotice } from '../../leads/notice.js';
 import type { AnswerFilesRemover } from '../../forms/answers.js';
 import { countsOf, PRIVACY_EXPORT_KIND, personHash } from '../../privacy/export.js';
-import { chatTranscriptsKeeping, formAnswersKeeping, keepingRows } from '../../privacy/keeping.js';
+import { chatTranscriptsKeeping, foundPeopleKeeping, formAnswersKeeping, keepingRows } from '../../privacy/keeping.js';
 import type { ChatForget } from '../../chat/transcripts.js';
 import { privacyScopeOf, refuseStaffAddress, type PrivacyScope } from '../../privacy/scope.js';
 import { findPerson, searchAddress, type PersonFound } from '../../privacy/sources.js';
@@ -117,6 +118,9 @@ export interface PrivacyRoutesDeps {
   /** Makes the chat store forget an erased conversation (`chat/store.ts`). */
   chatForget?: ChatForget | undefined;
 }
+
+/** One plain e-mail address, as the DPO contact setting takes it. */
+const DPO_ADDRESS = /^[^\s@,;:<>"()[\]\\]+@[^\s@,;:<>"()[\]\\]+\.[^\s@,;:<>"()[\]\\]+$/;
 
 /** The signed-in person asking: never an API key. */
 function personOf(request: FastifyRequest): string {
@@ -179,7 +183,16 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
 
   async function noticeReply() {
     const notice = await privacyNoticeOf(meta);
-    return { data: { ...notice, ready: notice.businessName !== null && notice.noticeUrl !== null, shownName: await businessName(meta) } };
+    const dpo = await settings.get('privacy.dpoContact');
+    return {
+      data: {
+        ...notice,
+        ready: notice.businessName !== null && notice.noticeUrl !== null,
+        shownName: await businessName(meta),
+        dpoContact: typeof dpo === 'string' && dpo.trim() !== '' ? dpo.trim() : null,
+        peopleFound: await peopleFoundNotice({ meta, manager: deps.manager }),
+      },
+    };
   }
 
   /** The list as the page shows it: each website with the name of who listed it. */
@@ -234,11 +247,19 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
         const businessName = blankAsNull(request.body.businessName);
         const noticeUrl = blankAsNull(request.body.noticeUrl);
         if (noticeUrl !== null && !isHttpsPageUrl(noticeUrl)) throw new ValidationFailedError('Use an https:// address for the privacy notice, such as https://www.example.com/privacy.', { field: 'noticeUrl' });
+        const dpoContact = request.body.dpoContact === undefined ? undefined : blankAsNull(request.body.dpoContact);
+        if (dpoContact !== undefined && dpoContact !== null && !DPO_ADDRESS.test(dpoContact)) throw new ValidationFailedError('Use one plain e-mail address, such as privacy@example.com.', { field: 'dpoContact' });
         const before = await privacyNoticeOf(meta);
+        const dpoBefore = await settings.get('privacy.dpoContact');
         const at = app.rbac.now();
         if (before.businessName !== businessName) await settings.set('privacy.businessName', businessName, { updatedBy: actingUserId(request), at });
         if (before.noticeUrl !== noticeUrl) await settings.set('privacy.noticeUrl', noticeUrl, { updatedBy: actingUserId(request), at });
-        await app.rbac.audit(request, { category: 'settings', action: 'privacy.notice.update', changes: { before: { ...before }, after: { businessName, noticeUrl } } });
+        if (dpoContact !== undefined && dpoBefore !== dpoContact) await settings.set('privacy.dpoContact', dpoContact, { updatedBy: actingUserId(request), at });
+        await app.rbac.audit(request, {
+          category: 'settings',
+          action: 'privacy.notice.update',
+          changes: { before: { ...before, ...(dpoContact === undefined ? {} : { dpoContact: dpoBefore }) }, after: { businessName, noticeUrl, ...(dpoContact === undefined ? {} : { dpoContact }) } },
+        });
         return noticeReply();
       },
     );
@@ -340,7 +361,7 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
     );
 
     app.get('/privacy/keeping', { preHandler: privacy, schema: { response: { 200: keepingReply } } }, async () => ({
-      data: { rows: [...(await keepingRows((key) => settings.get(key))), ...(await formAnswersKeeping({ meta, manager: deps.manager })), ...(await chatTranscriptsKeeping({ meta, manager: deps.manager }))] },
+      data: { rows: [...(await keepingRows((key) => settings.get(key))), ...(await formAnswersKeeping({ meta, manager: deps.manager })), ...(await chatTranscriptsKeeping({ meta, manager: deps.manager })), ...(await foundPeopleKeeping({ meta, manager: deps.manager }))] },
     }));
 
     // ── "Download everything" ───────────────────────────────────────────────
@@ -418,7 +439,8 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
         await app.rbac.audit(request, {
           category: 'data',
           action: 'privacy.erase',
-          changes: { after: { address: result.address, counts: result.counts, left: result.left.length, filesFailed: result.filesFailed } },
+          // A person a source found leaves only the days they were told on ("told on {date}"), beside the hash.
+          changes: { after: { address: result.address, counts: result.counts, left: result.left.length, filesFailed: result.filesFailed, ...(result.told.length === 0 ? {} : { told: result.told }) } },
         });
         return { data: { counts: result.counts, left: result.left, filesFailed: result.filesFailed } };
       },

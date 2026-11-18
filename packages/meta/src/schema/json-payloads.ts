@@ -412,6 +412,8 @@ export const auditCategorySchema = z.enum([
   // refund, a flag resolved, the switch to live. Its own category because
   // "who touched where the money goes" is asked on its own.
   'payments',
+  // Finding companies and people: a search, a company added or filled in, people kept, a source's key, an objection.
+  'leads',
 ]);
 export type AuditCategory = z.infer<typeof auditCategorySchema>;
 

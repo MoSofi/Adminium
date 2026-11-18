@@ -199,6 +199,9 @@ import type { SignInLinkMinter } from './sign-in-link.js';
 import { producerOf, settingReader, skipSentence, sourceOf } from './timing.js';
 import { PAYMENT_HOLD_RETRY_MS, createPaymentHolds, paymentHoldSentence } from '../payments/reminder-hold.js';
 import { createMemoryHolds } from './memory-holds.js';
+import { OBJECT_LINK_VARIABLE } from '../leads/object-token.js';
+import { UNTOLD_SENTENCE } from '../leads/people.js';
+import type { TellMail } from '../leads/tell.js';
 import { yesNo } from '../automations/yes-no.js';
 
 /** The job that sends one app's queued rows now. */
@@ -282,6 +285,18 @@ export interface OutboxSenderDeps {
   marketing?: MarketingMail | undefined;
   /** Whether user mail goes out now (false once a trial has ended): while not, queued rows stay queued. */
   userMail?: (() => boolean) | undefined;
+  /**
+   * A found person's tell mail (`leads/tell.ts`): its template, its Object
+   * link, and their found person's row marked told or not. Absent: an add-on's
+   * `tell` kind is sent as any other.
+   */
+  tell?: TellMail | undefined;
+  /**
+   * Whether an address is a found person's who has not been told yet
+   * (`leads/people.ts`): every message to them but their tell mail is
+   * skipped. Absent: none is.
+   */
+  untold?: ((address: string) => Promise<boolean>) | undefined;
 }
 
 export interface OutboxSender {
@@ -1601,20 +1616,27 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     if (reservedAddress(found)) return { status: 'skipped', error: 'A reserved address (for examples and tests)' };
     const templateKey = box.definition.kinds[kind];
     if (templateKey === undefined) return { status: 'failed', error: sentence(`No email is set for "${kind}"`) };
+    // A found person's tell mail: its template made with the engine's sentences and its Object link (`leads/tell.ts`).
+    const tell = deps.tell === undefined ? null : await deps.tell.prepare({ box, db: ctx.db, view: ctx.view, row, to: found.trim(), zone: ctx.zone, now: ctx.now });
+    if (tell !== null && 'skip' in tell) return { status: 'failed', error: sentence(tell.skip) };
+    // A found person not told yet gets no other mail.
+    if (tell === null && deps.untold !== undefined && (await deps.untold(found.trim()))) return { status: 'skipped', error: UNTOLD_SENTENCE };
 
     const own = cols.language === undefined ? undefined : row[cols.language];
     // The row's own language first, when a message can be written in it; for a row addressed now, the one looked up with the address.
-    const language = usableLanguage(own) ?? addressed?.language ?? undefined;
+    const language = tell !== null ? tell.locale : (usableLanguage(own) ?? addressed?.language ?? undefined);
     const locale =
       (typeof language === 'string' && language !== '' ? negotiateLocale(language.replace(/_/g, '-')) : null) ?? (await recipientLocale(deps.meta, null));
-    const template = await resolveEmailTemplate(deps.meta, templateKey, locale);
+    // The tell mail goes while its template is switched off: it is locked on while people are kept.
+    const template = tell !== null ? tell.template : await resolveEmailTemplate(deps.meta, templateKey, locale);
     if (template === null) return { status: 'failed', error: 'The email is switched off, or has no text' };
 
     // Marketing or service (the app's `outbox.classes`; an app built for an older Adminium says neither, and its mail is
     // service). Marketing mail skips the do-not-email list and those with no basis, and is refused while the sender is not
     // ready: recorded as skipped, never tried again in a loop, and the people who manage e-mail are told once.
     const manifest = (await appFacts(box.row.manifestId)).manifest ?? {};
-    const mailClass = mailClassOf(manifest, { outboxKind: kind });
+    // The tell mail is service mail with no purpose, whatever the package says: it offers nothing, and it must reach them.
+    const mailClass = tell !== null ? 'service' : mailClassOf(manifest, { outboxKind: kind });
     // The sender it goes as: the workspace of the outbox's database (the first by position), or the one the template names.
     const sender = await resolveMailSender(deps.meta, { connectionId: box.connectionId, templateKey });
     // The consent purpose the kind is sent for (`outbox.purposes`): a marketing kind is judged for it instead of the
@@ -1622,7 +1644,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // invitation sent as service mail never reaches a person who said no to surveys), and the do-not-email list too:
     // a purpose marks the mail as an offer the person may refuse, and a stranger can type anyone's address into a
     // public form. A service kind with no purpose (a receipt) is never stopped by the list.
-    const purpose = mailPurposeOf(manifest, kind);
+    const purpose = tell !== null ? null : mailPurposeOf(manifest, kind);
     // A kind that prints a survey's link is about an invitation, whose person the consent log knows by their row too.
     const survey = printsSurveyLink(manifest, kind) ? await invitationOf(ctx, producer, row) : null;
     const surveyPerson = survey === null ? null : invitationPerson(box.connectionId, survey.row);
@@ -1667,7 +1689,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       const value = column === undefined ? undefined : row[column];
       return typeof value === 'string' && value.trim() !== '' ? onlyReads(value, personal) : undefined;
     };
-    const asked = { subject: text(cols.subjectOverride), body: text(cols.bodyOverride) };
+    // A tell mail is never sent in words a person typed over it: they could leave out what the law says it must hold.
+    const asked: { subject?: string | undefined; body?: string | undefined } = tell !== null ? {} : { subject: text(cols.subjectOverride), body: text(cols.bodyOverride) };
     // A rehearsal's mail says it is a test in its subject, so it is never taken for a real customer's.
     const override = rehearser === null ? asked : { ...asked, subject: `${TEST_MARK}${asked.subject ?? String(template.subject ?? '')}` };
     // A person's wording replaces the blocks; the template's own are sent only without it.
@@ -1686,6 +1709,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const blankOf = heldElsewhere(box, ctx, to, addressed, columnKey);
     const rehearsal = rehearser === null ? null : rehearsalMail(box, ctx, rehearser, rehearsing, to, override.subject);
     const { vars, withheld, read } = await variables(box, { ...ctx, forms, labels, blankOf }, row, addressed, holder, rehearsal);
+    // The Object link is the engine's alone, sealed: never a column's value of that name.
+    delete vars[OBJECT_LINK_VARIABLE];
+    if (tell !== null) Object.assign(vars, tell.vars);
     vars['signInLink'] = '';
     if (reads.has('signInLink')) {
       const minted = await signInLink(box, ctx, row, to, addressed, producer);
@@ -1897,6 +1923,11 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       'send',
     );
     const settled: Row[] = [];
+    /** A found person's tell mail that did not go: their row says so (`leads/tell.ts`); nothing else is told. */
+    const notTold = async (row: Row): Promise<void> => {
+      if (deps.tell === undefined) return;
+      await deps.tell.notTold({ box, target, view, row }).catch((error: unknown) => deps.logger?.warn({ err: error, appKey: box.appKey }, 'a found person could not be marked not told'));
+    };
     for (const row of rows) {
       const pk = { [key]: row[key] };
       try {
@@ -1946,7 +1977,10 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
           const values: Row = { [cols.status]: ready.status };
           if (cols.error !== undefined) values[cols.error] = ready.error;
           const done = await settle(box, target, pk, values, unchanged(row));
-          if (done !== null) settled.push(done);
+          if (done !== null) {
+            settled.push(done);
+            await notTold(row);
+          }
           continue;
         }
         // The claim: sent, now, only while nobody changed it since it was read.
@@ -2011,9 +2045,12 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
           if (cols.error !== undefined) values[cols.error] = why;
           if (cols.sentAt !== undefined) values[cols.sentAt] = null;
           settled.push((await settle(box, target, pk, values, sentAtWindow)) ?? claimed);
+          await notTold(row);
           continue;
         }
         settled.push(claimed);
+        // A found person's tell mail went: they are told, now.
+        if (deps.tell !== undefined) await deps.tell.told({ box, target, view, row }, now).catch((error: unknown) => deps.logger?.warn({ err: error, appKey: box.appKey }, 'a found person could not be marked told'));
         // The status is committed and the email queued: now the change it makes.
         await effectOf(box, view, claimed, now);
       } catch (error) {
@@ -2022,7 +2059,10 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         const values: Row = { [cols.status]: 'failed' };
         if (cols.error !== undefined) values[cols.error] = 'The email could not be prepared';
         const failed = await settle(box, target, pk, values, (q) => q.where(sql.ref(cols.status), '=', 'queued')).catch(() => null);
-        if (failed !== null) settled.push(failed);
+        if (failed !== null) {
+          settled.push(failed);
+          await notTold(row);
+        }
       }
     }
     for (const row of settled) deps.announce?.(box.connectionId, outbox, row);
@@ -2288,6 +2328,12 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       announce: async () => {},
     });
     if (result.count > 0 && result.after !== null) deps.announce?.(report.connectionId, outbox, result.after);
+    // A found person's tell mail refused for good after it went (a bounce): they were not told after all.
+    if (result.count > 0 && result.after !== null && deps.tell !== undefined) {
+      await deps.tell
+        .notTold({ box: { appKey: report.app, connectionId: report.connectionId, definition }, target: handle, view, row: result.after })
+        .catch((error: unknown) => deps.logger?.warn({ err: error, appKey: report.app }, 'a found person could not be marked not told'));
+    }
   }
 
   return { sendApp, sweep, markUndelivered, retryEffect };
