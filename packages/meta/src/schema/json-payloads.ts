@@ -1066,15 +1066,43 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
   /*
    * The owner's word on a table an app declares as people (its `people`
    * entry): whether campaigns may mail it, and which columns hold the address
-   * and the name, when the owner's differ from the app's. A key left out
+   * and the name, when the owner's differ from the app's. On a companies
+   * table, also which columns a company's details go in (`lead`: its number,
+   * website, phone, address, activity, about and owner). A key left out
    * keeps the app's.
    */
   z.object({
     op: z.literal('table.people'),
     value: z
-      .object({ canEmail: z.boolean().optional(), email: z.string().min(1).max(128).optional(), name: z.string().min(1).max(128).optional() })
+      .object({
+        canEmail: z.boolean().optional(),
+        email: z.string().min(1).max(128).optional(),
+        name: z.string().min(1).max(128).optional(),
+        lead: z
+          .object({
+            number: z.string().min(1).max(128).optional(),
+            website: z.string().min(1).max(128).optional(),
+            phone: z.string().min(1).max(128).optional(),
+            address: z
+              .object({
+                lines: z.string().min(1).max(128).optional(),
+                town: z.string().min(1).max(128).optional(),
+                region: z.string().min(1).max(128).optional(),
+                postalCode: z.string().min(1).max(128).optional(),
+                country: z.string().min(1).max(128).optional(),
+              })
+              .strict()
+              .optional(),
+            activity: z.string().min(1).max(128).optional(),
+            about: z.string().min(1).max(128).optional(),
+            owner: z.string().min(1).max(128).optional(),
+          })
+          .strict()
+          .refine((lead) => Object.keys(lead).length > 0, 'the owner\'s word on a company\'s details names at least one column')
+          .optional(),
+      })
       .strict()
-      .refine((value) => Object.keys(value).length > 0, 'the owner\'s word on a people table says canEmail, email or name'),
+      .refine((value) => Object.keys(value).length > 0, 'the owner\'s word on a people table says canEmail, email, name or lead'),
   }),
   /*
    * The owner's switch "Existing customers may get marketing mail without
