@@ -66,6 +66,8 @@ export function Tooltip({
             className={cn(
               'z-50 max-w-[280px] rounded-[8px] bg-fg px-2.5 py-1.5 text-[12px] font-medium leading-snug text-bg shadow-menu',
               'animate-[nb-pop_.15s_cubic-bezier(.2,.7,.3,1)]',
+              // Closed, it leaves at once: see `Combobox` (a lingering layer eats the next Escape).
+              'data-[state=closed]:animate-none',
               className,
             )}
           >

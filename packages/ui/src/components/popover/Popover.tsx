@@ -42,6 +42,8 @@ export function PopoverContent({ className, sideOffset = 6, align = 'center', re
         className={cn(
           'z-50 w-[280px] overscroll-contain rounded-lg border border-border bg-surface p-3.5 shadow-menu outline-none ',
           'animate-[nb-pop_.16s_cubic-bezier(.2,.7,.3,1)]',
+          // Closed, it leaves at once: see `Combobox` (a lingering panel eats the next Escape).
+          'data-[state=closed]:animate-none',
           className,
         )}
         {...props}

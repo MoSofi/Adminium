@@ -231,6 +231,10 @@ export function Combobox({
             className={cn(
               'z-50 w-[var(--radix-popper-anchor-width)] rounded-lg border border-border bg-surface p-1 shadow-menu ',
               'animate-[nb-pop_.16s_cubic-bezier(.2,.7,.3,1)]',
+              // Closed, it leaves at once. Radix keeps a closed panel mounted while it thinks an exit
+              // animation runs, and the popper hides `nb-pop` until placed, so the entrance can be taken
+              // for one: the closed list then stays the top layer and eats the next Escape (a sheet's).
+              'data-[state=closed]:animate-none',
             )}
           >
             <div role="listbox" id={listboxId} className="nb-scroll max-h-[260px] overflow-y-auto overscroll-contain">

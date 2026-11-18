@@ -39,6 +39,8 @@ export function DropdownMenuContent({ className, sideOffset = 6, ref, ...props }
         className={cn(
           'z-50 min-w-[190px] overscroll-contain rounded-lg border border-border bg-surface p-1 shadow-menu ',
           'animate-[nb-pop_.16s_cubic-bezier(.2,.7,.3,1)]',
+          // Closed, it leaves at once: see `Combobox` (a lingering panel eats the next Escape).
+          'data-[state=closed]:animate-none',
           className,
         )}
         {...props}
