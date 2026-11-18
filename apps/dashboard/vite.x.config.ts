@@ -11,27 +11,34 @@
  * dashboard file is reachable from the page.
  *
  * The website loader (`x/embed.js`, hand-written, no framework) is no chunk
- * of it: it is copied as it is to `dist/x/embed.js`, which the server serves
- * at `/x/embed.js`.
+ * of it: it is minified on its own (`websiteLoaderOf`) to `dist/x/embed.js`,
+ * which the server serves at `/x/embed.js`. Its source keeps its comments;
+ * what a website downloads is the small file.
  */
-import { copyFileSync, mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import react from '@vitejs/plugin-react';
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, transformWithEsbuild, type Plugin } from 'vite';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-/** Copies the loader beside the page, untouched. */
+/** The loader as it is served: minified, its licence line kept on top. */
+export async function websiteLoaderOf(source: string): Promise<string> {
+  const { code } = await transformWithEsbuild(source, 'embed.js', { minify: true, legalComments: 'none', target: 'es2017' });
+  return `/* SPDX-License-Identifier: AGPL-3.0-only */\n${code}`;
+}
+
+/** Writes the loader beside the page, minified. */
 function websiteLoader(): Plugin {
   return {
     name: 'adminium-x-loader',
     apply: 'build',
-    closeBundle() {
+    async closeBundle() {
       const out = join(here, 'dist', 'x');
       mkdirSync(out, { recursive: true });
-      copyFileSync(join(here, 'x', 'embed.js'), join(out, 'embed.js'));
+      writeFileSync(join(out, 'embed.js'), await websiteLoaderOf(readFileSync(join(here, 'x', 'embed.js'), 'utf8')));
     },
   };
 }

@@ -577,6 +577,11 @@ describe('the preview of a draft', () => {
     expect(routeOf('/x/forms/spring-draft', '?preview=1')).toMatchObject({ kind: 'form', slug: 'spring-draft', preview: true });
     expect(routeOf('/x/forms/spring-draft', '?preview=yes')).not.toHaveProperty('preview');
     expect(routeOf('/x/forms/spring-draft', '')).not.toHaveProperty('preview');
+    // A live chat's window: its add-on, in the website's frame or previewed; never its API.
+    expect(routeOf('/x/chat/live-chat', '?frame=1&lang=de-DE')).toEqual({ kind: 'chat', addOn: 'live-chat', frame: true, lang: 'de-DE' });
+    expect(routeOf('/x/chat/live-chat', '?preview=1')).toMatchObject({ kind: 'chat', addOn: 'live-chat', preview: true });
+    expect(routeOf('/x/chat/api', '').kind).toBe('none');
+    expect(routeOf('/x/chat/live-chat/more', '').kind).toBe('none');
   });
 
   it('asks for the draft with the staff member\'s own session, and a stranger\'s page with none', async () => {

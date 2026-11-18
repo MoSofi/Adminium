@@ -1,0 +1,747 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/*
+ * A live chat's window, on the design tokens (plain CSS, as the rest of
+ * `/x/`). Loaded with the window's own chunk, so a form's page never pays
+ * for it.
+ *
+ * The frame stays transparent over the owner's website: the document keeps
+ * the light colour scheme, and the window paints dark through the tokens
+ * alone (`data-theme="dark"` on the window, never on the document).
+ * Logical properties throughout; the window's side follows the host page's
+ * direction (`dir` on the layer), its words the visitor's language (`dir` on
+ * the panel).
+ */
+
+html:has(.xc),
+html:has(.xc) body,
+html:has(.xc) #x-root {
+  min-height: 0;
+  background: transparent;
+}
+
+.xc {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--fg);
+}
+
+.xc button {
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.xc button:disabled,
+.xc textarea:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.xc input::placeholder,
+.xc textarea::placeholder {
+  color: var(--fg-subtle);
+  opacity: 1;
+}
+
+@keyframes xc-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── Where it sits ───────────────────────────────────────────────────── */
+
+.xc-layer {
+  position: fixed;
+  inset-inline-end: 24px;
+  inset-block-end: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.xc[data-sheet] .xc-layer {
+  inset: 0;
+  align-items: stretch;
+  gap: 0;
+}
+
+/* ── The panel ───────────────────────────────────────────────────────── */
+
+.xc-panel {
+  width: 380px;
+  height: 560px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  background: var(--surface);
+  color: var(--fg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: xc-in 0.18s ease;
+}
+
+.xc[data-sheet] .xc-panel {
+  flex: 1;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.xc-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-block-end: 1px solid var(--border);
+}
+
+.xc-tile {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.xc-tile[data-monogram] {
+  background: var(--accent);
+  color: var(--accent-fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.xc-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+
+.xc-name {
+  font-size: 14px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.xc-hours {
+  font-size: 12.5px;
+  color: var(--fg-muted);
+}
+
+.xc-langs {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.xc-lang {
+  height: 40px;
+  padding-inline: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--fg-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.xc-menu {
+  position: absolute;
+  z-index: 5;
+  inset-block-start: calc(100% + 6px);
+  inset-inline-end: 0;
+  min-width: 184px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: xc-in 0.14s ease;
+}
+
+.xc-menu button {
+  width: 100%;
+  min-height: 40px;
+  padding-inline: 10px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.xc-menu button[aria-current="true"] {
+  background: var(--accent-soft);
+  font-weight: 700;
+}
+
+.xc-menu button:lang(ar) {
+  font-family: "IBM Plex Sans Arabic", sans-serif;
+}
+
+.xc-menu-name {
+  flex: 1;
+  text-align: start;
+}
+
+.xc-menu-tick {
+  display: inline-flex;
+  color: var(--accent);
+}
+
+.xc-square {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--fg-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.xc-lang:hover:not(:disabled),
+.xc-square:hover:not(:disabled),
+.xc-menu button:hover:not(:disabled),
+.xc-talk:hover:not(:disabled),
+.xc-change:hover:not(:disabled) {
+  background: var(--surface-3);
+}
+
+.xc-band {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--warn-soft-solid);
+  border-block-end: 1px solid var(--border);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.xc-band-icon {
+  display: inline-flex;
+  color: var(--warn);
+}
+
+/* ── The log ─────────────────────────────────────────────────────────── */
+
+.xc-log {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.xc-log > * {
+  flex-shrink: 0;
+}
+
+.xc-notice {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--fg-muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-wrap: pretty;
+}
+
+.xc-notice a {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.xc-link-icon {
+  display: inline-block;
+  vertical-align: -2px;
+  margin-inline-start: 3px;
+}
+
+.xc-sys,
+.xc-quiet {
+  margin: 0;
+  align-self: center;
+  text-align: center;
+  max-width: 92%;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.xc-sys {
+  font-size: 11.5px;
+  color: var(--fg-subtle);
+}
+
+.xc-quiet {
+  font-size: 12.5px;
+  color: var(--fg-muted);
+}
+
+.xc-time {
+  font-size: 10.5px;
+  color: var(--fg-subtle);
+}
+
+.xc-mine {
+  align-self: flex-end;
+  max-width: 82%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.xc-bubble {
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 8px 12px;
+  border-radius: 14px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.xc-mine .xc-bubble {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-end-end-radius: 6px;
+}
+
+.xc-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+
+.xc-status[data-bad] {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.xc-status-text {
+  white-space: normal;
+  text-align: end;
+}
+
+.xc-retry {
+  min-height: 32px;
+  padding-inline: 4px;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.xc-theirs {
+  align-self: flex-start;
+  max-width: 88%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.xc-auto-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.xc-auto .xc-bubble {
+  background: var(--surface-3);
+  color: var(--fg);
+  border-end-start-radius: 6px;
+}
+
+.xc-person .xc-bubble {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  color: var(--fg);
+  border-end-start-radius: 6px;
+}
+
+.xc-link {
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+
+.xc-after {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.xc-talk {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding-inline: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.xc-who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.xc-initials {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── The cards ───────────────────────────────────────────────────────── */
+
+.xc-card {
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--surface);
+}
+
+.xc-card-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 600;
+  text-wrap: pretty;
+}
+
+.xc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.xc-field label {
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.xc-field input,
+.xc-field textarea {
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--fg);
+  font-size: 16px;
+}
+
+.xc-field input {
+  height: 44px;
+  padding-inline: 12px;
+  text-align: start;
+}
+
+.xc-field textarea {
+  padding: 10px 12px;
+  line-height: 1.45;
+  resize: none;
+}
+
+.xc-helper {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--fg-muted);
+}
+
+.xc-error {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--danger);
+}
+
+.xc-primary {
+  align-self: flex-start;
+  height: 44px;
+  padding-inline: 18px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.xc-card-status {
+  align-self: flex-start;
+}
+
+.xc-done {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.xc-done-icon {
+  display: inline-flex;
+  color: var(--pos);
+  padding-block-start: 3px;
+}
+
+.xc-done-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.xc-done-text .x-mono {
+  font-size: 12.5px;
+}
+
+.xc-change {
+  align-self: flex-start;
+  min-height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding-inline: 4px;
+}
+
+/* ── The box ─────────────────────────────────────────────────────────── */
+
+.xc-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-block-start: 1px solid var(--border);
+}
+
+.xc-rate {
+  margin: 0;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--fg);
+}
+
+.xc-rate-icon {
+  display: inline-flex;
+  color: var(--warn);
+  padding-block-start: 2px;
+}
+
+.xc-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+/* One row tall (16 × 1.45 + 20 + 2 = 45.2 px, beside a 44 px Send), growing to 120 as the visitor writes. */
+.xc-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  max-height: 120px;
+  field-sizing: content;
+  resize: none;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--fg);
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.xc-input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.xc-send {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: var(--accent-fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Only the send arrow turns round in a right-to-left language. */
+[dir="rtl"] .xc-flip {
+  transform: scaleX(-1);
+}
+
+.xc-counter {
+  align-self: flex-end;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--danger);
+}
+
+.xc-new {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-block-start: 1px solid var(--border);
+}
+
+.xc-new-button {
+  width: 100%;
+  height: 44px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.xc-primary:hover:not(:disabled),
+.xc-send:hover:not(:disabled),
+.xc-new-button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+/* ── The launcher ────────────────────────────────────────────────────── */
+
+.xc-launcher {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--fg);
+}
+
+/* A button's line height as the comp's own buttons have it (the browser's), not the page's 1.5. */
+.xc-pill {
+  padding: 10px 14px;
+  border-radius: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: normal;
+}
+
+.xc-circle {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+}
+
+.xc-launcher:hover .xc-circle {
+  background: var(--accent-hover);
+}
+
+.xc-badge {
+  position: absolute;
+  inset-block-start: -4px;
+  inset-inline-end: -4px;
+  min-width: 22px;
+  height: 22px;
+  padding-inline: 5px;
+  border-radius: 20px;
+  background: var(--danger);
+  color: #ffffff;
+  border: 2px solid var(--surface);
+  font-size: 11.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* White on the dark theme's red is 2.78:1; the dark ink is 6.89:1. */
+.xc[data-theme="dark"] .xc-badge {
+  color: #0f0f14;
+}

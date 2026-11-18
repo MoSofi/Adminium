@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3791 entries. */
+/** `namespace:key` — 3803 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -3804,6 +3804,18 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'x:language.button',
   'x:language.menu',
   'x:stars.star',
+  'xChat:card.email',
+  'xChat:card.emailOptional',
+  'xChat:card.name',
+  'xChat:card.question',
+  'xChat:close',
+  'xChat:hide',
+  'xChat:language',
+  'xChat:languageOf',
+  'xChat:log',
+  'xChat:send',
+  'xChat:with',
+  'xChat:withNew',
 ]);
 
 /** Is blanking this key forbidden? `namespace` + dotted `key`. */
