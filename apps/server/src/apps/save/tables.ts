@@ -722,8 +722,13 @@ function columnRules(c: Context, saved: SavedTable, col: ColumnModel, out: Writa
   const fill = ov('column.default', col.name);
   if (fill !== undefined) {
     if (fill['kind'] === 'from' && fill['from'] !== undefined) put('column.default', 'default', { from: fill['from'] });
-    // A key filled with a new uuid (where the engine keeps it as text): a uuid key, which the install fills again.
-    else if (fill['kind'] === 'uuid' && out.role === 'pk') out.type = 'uuid';
+    // A key filled with a new uuid (where the engine keeps it as text): a key Adminium makes, which the install fills
+    // again. `varchar(36)` is how an `id` key is made on Postgres and MySQL (`install-ddl.ts`); a key kept any
+    // other way is a `uuid` key (text on SQLite, where the two read the same).
+    else if (fill['kind'] === 'uuid' && out.role === 'pk') {
+      out.type = /^(varchar|character varying)\(36\)$/i.test(col.dbType.trim()) ? 'id' : 'uuid';
+      delete out.maxLength;
+    }
     else if (fill['kind'] === 'now' && (out.type === 'timestamptz' || out.type === 'date') && out.role === undefined) {
       // Filled with the moment by Adminium: the column's role says so, and the install writes the fill back.
       out.role = fill['onUpdate'] === true ? 'updated_at' : 'created_at';

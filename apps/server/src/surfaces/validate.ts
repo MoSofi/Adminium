@@ -41,11 +41,16 @@ export function hostIssueFor(host: string): string | null {
 /**
  * Validate host → surface entries, normalising each host. `settings` names
  * the instances that exist; `requestHost` is the host Studio is reached on,
- * which must never be mapped away.
+ * which must never be mapped away. Nor is the host of the public address
+ * (`publicOriginHost`, from {@link publicOriginHostOf}): an app's side mapped
+ * there answers every path but the reserved few with the app, so the
+ * dashboard's own pages there, and the links its mail carries to them (a
+ * record's `/p/…`), would open the app instead, and a customer side refuses
+ * the sign-in page and the `/reset/…` an invitation or a reset links to.
  */
 export function validateDomainEntries(
   entries: Readonly<Record<string, { appKey: string; side: SurfaceSide; instance?: string | undefined }>>,
-  ctx: { requestHost: string; surfaces: readonly HostedSurface[]; settings: SurfaceSettings },
+  ctx: { requestHost: string; surfaces: readonly HostedSurface[]; settings: SurfaceSettings; publicOriginHost?: string | null | undefined },
 ): { normalized: Record<string, DomainMapping>; issues: DomainIssue[] } {
   const issues: DomainIssue[] = [];
   const normalized: Record<string, DomainMapping> = {};
@@ -70,6 +75,11 @@ export function validateDomainEntries(
         message: `"${host}" is the host you are using to reach Studio — mapping it would take this dashboard away from you.`,
         code: 'request_host',
       });
+      continue;
+    }
+    const publicHost = publicOriginIssue(host, key, ctx.publicOriginHost);
+    if (publicHost !== null) {
+      issues.push(publicHost);
       continue;
     }
     const exists = ctx.surfaces.some(
@@ -110,14 +120,25 @@ export function validateDomainEntries(
 }
 
 /**
+ * The doors under `/x/`, each serving its pages one name below it
+ * (`/x/forms/<form>`, `/x/chat/<add-on>`) and its own calls beside or below
+ * them (`/x/forms/api/…`, `/x/chat/<add-on>/messages`). A new door is added
+ * here, and its calls are never a pages home from then on.
+ */
+export const X_DOORS: readonly string[] = ['forms', 'chat'];
+
+/**
  * A home page a pages host sends `/` to: a page address under `/x/`, in lower
- * case, never the pages' own files (`/x/assets/…`), their API (`/x/api/…`,
- * `/x/forms/api/…`) or the loader. Null when it is fine, else what is wrong.
+ * case, never the pages' own files (`/x/assets/…`), their API (`/x/api/…`) or
+ * the loader. Under a door ({@link X_DOORS}) only a page one name below it is
+ * a home: not the door itself, not its `api`, nothing deeper (each door's
+ * calls). Null when it is fine, else what is wrong.
  */
 export function pagesHomeIssueFor(home: string): string | null {
   if (home.length > 200 || !/^\/x\/[a-z0-9-]+(?:\/[a-z0-9-]+)*$/.test(home)) return 'must be a page address under /x/, such as /x/forms/newsletter';
-  const [, , first, second] = home.split('/');
-  if (first === 'assets' || first === 'api' || (first === 'forms' && (second === undefined || second === 'api'))) return 'must be a page, not the pages’ own files or API';
+  const [, , first = '', ...below] = home.split('/');
+  const doorCall = X_DOORS.includes(first) && (below.length !== 1 || below[0] === 'api');
+  if (first === 'assets' || first === 'api' || doorCall) return 'must be a page, not the pages’ own files or API';
   return null;
 }
 
@@ -130,6 +151,20 @@ export function publicOriginHostOf(publicOrigin: string | null | undefined): str
   if (publicOrigin === null || publicOrigin === undefined) return null;
   const origin = normalizePublicOrigin(publicOrigin);
   return origin === null ? null : normalizeHost(new URL(origin).host);
+}
+
+/**
+ * The refusal of a host that is the public address's own (`key`, already
+ * normalised), worded the same for an app's side and for the add-on pages;
+ * null for any other host, and while no public address is set.
+ */
+function publicOriginIssue(host: string, key: string, publicOriginHost: string | null | undefined): DomainIssue | null {
+  if (publicOriginHost === null || publicOriginHost === undefined || key !== publicOriginHost) return null;
+  return {
+    path: host,
+    message: `"${host}" is the host of this server's public address — mapping it would take the dashboard away there, and with it the links in its mail and the pay page.`,
+    code: 'public_origin_host',
+  };
 }
 
 /**
@@ -161,12 +196,9 @@ export function validatePageHostEntries(
       issues.push({ path: host, message: `"${host}" is the host you are using to reach Studio — mapping it would take this dashboard away from you.`, code: 'request_host' });
       continue;
     }
-    if (ctx.publicOriginHost !== null && ctx.publicOriginHost !== undefined && key === ctx.publicOriginHost) {
-      issues.push({
-        path: host,
-        message: `"${host}" is the host of this server's public address — mapping it would take the dashboard away there, and with it the links in its mail and the pay page.`,
-        code: 'public_origin_host',
-      });
+    const publicHost = publicOriginIssue(host, key, ctx.publicOriginHost);
+    if (publicHost !== null) {
+      issues.push(publicHost);
       continue;
     }
     const homeIssue = pagesHomeIssueFor(target.home);

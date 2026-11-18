@@ -56,7 +56,7 @@
 import { createHash } from 'node:crypto';
 
 import { parseDatabaseModel, parseEnumCheck, type ColumnModel, type DatabaseModel } from '@adminium/engine';
-import { shareCodeColumns, type BookingRule, type ColumnRules, type Manifest, type States } from '@adminium/manifest';
+import { shareCodeColumns, type AppManifest, type BookingRule, type ColumnRules, type Manifest, type RequiredColumn, type States } from '@adminium/manifest';
 import {
   MetaValidationError,
   appTablesRepo,
@@ -71,6 +71,7 @@ import {
   type SchemaOverride,
 } from '@adminium/meta';
 
+import { isMintedKey } from '../add-ons/install-ddl.js';
 import { installedShapes } from '../documents/app-profiles.js';
 import { ownsBlocks } from './owns-blocks.js';
 import { canonicalJson } from './sample-data.js';
@@ -669,6 +670,28 @@ export function relationRules(
  * column rules against the latest snapshot. Run after the tables exist and
  * have been introspected, on install and on every update.
  */
+/**
+ * The fill of a key Adminium makes (`isMintedKey`: a primary key declared
+ * `id` or `uuid`), or null when the database or the snapshot fills it
+ * already. Nothing else fills one: the app's own screens make theirs, but a
+ * row Adminium writes itself (a person's create, a payment taken online, a
+ * refund, a mail in the outbox) went in with none: refused on MySQL and
+ * Postgres, keyless on SQLite. Filled with a new uuid on every create that
+ * sends none, the same `randomUUID()` text as a forms answer, a public
+ * `$generate: "uuid"` and a sample row's key.
+ */
+function mintedKeyRule(ref: string, column: RequiredColumn, real: { id: string; columns: readonly ColumnModel[] }, dialect: DatabaseModel['dialect']): DesiredRule | null {
+  if (!isMintedKey(column)) return null;
+  const rule: DesiredRule = { ref, table: real.id, column: column.ref, op: 'column.default', value: { kind: 'uuid' } };
+  // A `uuid` key: Postgres keeps its own uuid type, which the snapshot reads as one and every create fills
+  // (`implicitFillFor`); SQLite keeps it as text and MySQL as char(36), which read as plain text and need the rule.
+  if (column.type === 'uuid') return dialect === 'postgres' ? null : rule;
+  // An `id` key is text on every engine (`varchar(36)`), so it needs the rule on all three, unless the table
+  // already fills it itself: a table the install took as it found it, whose key has a default of the database's.
+  const live = real.columns.find((c) => c.name === column.ref);
+  return live !== undefined && live.default !== null ? null : rule;
+}
+
 export async function writeManifestRules(input: {
   meta: MetaDb;
   manifest: Manifest;
@@ -686,14 +709,23 @@ export async function writeManifestRules(input: {
    */
   refuse?: boolean;
 }): Promise<RulesResult> {
-  const { meta, manifest, connectionId } = input;
+  const { meta, connectionId } = input;
   const result: RulesResult = { written: 0, skipped: [], removed: 0, lists: [] };
   const refused: RuleSkip[] = [];
-  if (!ownsBlocks(manifest)) return result;
+  /*
+   * An add-on that does not install like an app (one released before the
+   * install floor, or one with tables and nothing more) is written one kind
+   * of rule only: the key Adminium makes for each of its tables. Its manifest
+   * is read for its tables alone; every other block is passed over while
+   * `blocks` is false.
+   */
+  const blocks = ownsBlocks(input.manifest);
+  const manifest = input.manifest as AppManifest;
+  if (!blocks && !(manifest.requiredSchema?.tables ?? []).some((table) => table.columns.some(isMintedKey))) return result;
 
   // ── option lists ──────────────────────────────────────────────────────
   const lists = optionListsRepo(meta);
-  for (const [name, list] of Object.entries(manifest.optionLists ?? {})) {
+  for (const [name, list] of Object.entries(blocks ? (manifest.optionLists ?? {}) : {})) {
     const key = listKeyFor(manifest.key, name);
     if ((await lists.findByKey(key)) !== null) continue;
     await lists.create({
@@ -749,6 +781,13 @@ export async function writeManifestRules(input: {
   for (const table of manifest.requiredSchema?.tables ?? []) {
     const real = realOf(table.ref);
     if (real === undefined) continue;
+    if (!blocks) {
+      for (const column of table.columns) {
+        const made = mintedKeyRule(table.ref, column, real, model.dialect);
+        if (made !== null) desired.push(made);
+      }
+      continue;
+    }
     if (table.label !== undefined) {
       const value = {
         label: storedLabel(table.label),
@@ -835,18 +874,8 @@ export async function writeManifestRules(input: {
       if (column.type === 'bool') {
         desired.push({ ref: table.ref, table: real.id, column: column.ref, op: 'column.yesNo', value: { yesNo: true } });
       }
-      /*
-       * A key the app says is a uuid, on an engine with no uuid type: SQLite
-       * keeps it as text and MySQL as char(36), so the snapshot reads a plain
-       * text key and nothing fills it — the app's own screens made one, but a
-       * row Adminium writes itself (a payment taken online, a refund, a mail
-       * in the outbox) went in with none: refused on MySQL, keyless on
-       * SQLite. Filled with a new uuid on every create that sends none, as
-       * Postgres's uuid key is.
-       */
-      if (column.type === 'uuid' && column.role === 'pk' && model.dialect !== 'postgres') {
-        desired.push({ ref: table.ref, table: real.id, column: column.ref, op: 'column.default', value: { kind: 'uuid' } });
-      }
+      const made = mintedKeyRule(table.ref, column, real, model.dialect);
+      if (made !== null) desired.push(made);
       if (column.rules === undefined) continue;
       for (const rule of opsForRules(manifest.key, column.rules)) {
         const mapped = realRuleRefs(rule.op, rule.value, realId);

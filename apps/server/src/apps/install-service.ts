@@ -132,7 +132,7 @@ import { PERMISSIONS } from '../rbac/permissions.js';
 import {
   type SampleDataDeps,
 } from './sample-data.js';
-import { rulesKeptBack, writeManifestRules, type RulesResult } from './manifest-rules.js';
+import { removeManifestRules, rulesKeptBack, writeManifestRules, type RulesResult } from './manifest-rules.js';
 import { pagePlanProblems } from './manifest-page-config.js';
 import {
   addOnGrantsOf,
@@ -4524,6 +4524,13 @@ export function createAppInstallService(deps: AppRoutesDeps) {
             createdBy: userId,
           })
         : undefined,
+    writeRules: async (manifest, connectionId, createdBy) => (await writeManifestRules({ meta: deps.meta, manifest, connectionId, createdBy, refuse: false })).written,
+    removeRules: async (key, connectionId) =>
+      removeManifestRules(
+        deps.meta,
+        (await appTablesRepo(deps.meta).forInstall(connectionId, key)).filter((record) => record.role === 'app'),
+        connectionId,
+      ),
     removals: { listOf: removals.listOf, checkDrop: removals.checkDrop, remove: removals.remove },
   };
 

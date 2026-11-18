@@ -169,6 +169,16 @@ export interface InstallCore<List extends CoreUninstallList = CoreUninstallList>
    * code is loaded: what it prints for its own rows can be made only then.
    */
   makeDocuments(manifest: Manifest, connectionId: string, userId: string | null): Promise<unknown>;
+  /**
+   * The rules of an add-on that does not install like an app: the key
+   * Adminium makes for each of its tables (an `id` or a `uuid`), filled on
+   * every create that sends none, and nothing else. Asked at its install and
+   * at every update, so one installed before such keys were filled gets them
+   * on its next update. Answers how many were written.
+   */
+  writeRules(manifest: Manifest, connectionId: string, createdBy: string | null): Promise<number>;
+  /** Its uninstall: the rules it wrote that are still as it wrote them are taken back. Answers how many. */
+  removeRules(key: string, connectionId: string): Promise<number>;
   removals: {
     listOf(row: InstalledManifest): Promise<List>;
     checkDrop(list: List, opts: CoreDropOptions): Promise<void>;

@@ -117,7 +117,7 @@ import { PERMISSIONS } from '../../rbac/permissions.js';
 import { refuseOwnCode, refuseOwnCodeHook } from '../../trial/own-code.js';
 import { pickLabel, sameLanguage } from '../../i18n/bcp47.js';
 import { forgetAppSurfaceSettings, instancesOf, NO_SURFACE_SETTINGS, sideOffOf } from '../../surfaces/settings.js';
-import { validateDomainEntries, validateInstanceEntries } from '../../surfaces/validate.js';
+import { publicOriginHostOf, validateDomainEntries, validateInstanceEntries } from '../../surfaces/validate.js';
 import { normalizeHost } from '../../security/csrf.js';
 import { settingValueIssues, settingValuesWithDefaults } from '../../apps/settings-values.js';
 import {
@@ -2305,7 +2305,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         const row = await installedRow(request, request.params.key);
         const key = row.row.manifestKey;
         const settings = settingsRepo(deps.meta);
-        const [apps, domains, pageHosts] = await Promise.all([settings.get('surfaces.apps'), settings.get('surfaces.domains'), settings.get('surfaces.pageHosts')]);
+        const [apps, domains, pageHosts, publicOrigin] = await Promise.all([settings.get('surfaces.apps'), settings.get('surfaces.domains'), settings.get('surfaces.pageHosts'), settings.get('system.publicOrigin')]);
         const others = Object.fromEntries(Object.entries(domains).filter(([, target]) => target.appKey !== key));
         const { normalized, issues } = validateDomainEntries(
           Object.fromEntries(Object.entries(request.body.domains).map(([host, target]) => [host, { ...target, appKey: key }])),
@@ -2313,6 +2313,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             requestHost: normalizeHost(request.host),
             surfaces: surfacesOfInstalled(files, { key, version: row.row.version }),
             settings: { apps, domains, statuses: {} },
+            // The public address's host stays the dashboard's: its pages and the links in its mail open there.
+            publicOriginHost: publicOriginHostOf(publicOrigin),
           },
         );
         for (const host of Object.keys(normalized)) {

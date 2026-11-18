@@ -667,6 +667,8 @@ export async function installAddOn(
       const made = created.includes(table.ref);
       await records.record({ appKey: key, manifestId: installed.row.id, connectionId, ref: table.ref, tableName: table.ref, owned: made, state: made ? 'created' : 'adopted', prefix: null });
     }
+    // The key Adminium makes for each of its tables, filled on every create that sends none.
+    await deps.core?.()?.writeRules(manifest, connectionId, input.actor.id);
   }
 
   await auditRepo(deps.meta).append({
@@ -1181,8 +1183,10 @@ export async function updateAddOn(deps: AddOnInstallerDeps, input: UpdateAddOnIn
   }
   if (!likeApp) {
     await manifests.setVersion(installed.row.id, { version: to, document: manifest });
-    // A version that keeps no tables has no public side: whatever an earlier one opened is taken back.
     const plain = deps.core?.() ?? null;
+    // The key Adminium makes for each of its tables: written again, so an install from before such keys were filled gets them now.
+    if (plain !== null && installed.row.connectionId !== null) await plain.writeRules(manifest, installed.row.connectionId, input.actor.id);
+    // A version that keeps no tables has no public side: whatever an earlier one opened is taken back.
     if (plain !== null && installed.row.connectionId !== null && ((installed.document as { publicAccess?: unknown[] } | null)?.publicAccess ?? []).length > 0) {
       await settleHosts(plain, { addOnKey: key, apps: attachedTo, connectionId: installed.row.connectionId, publicAccess: false, actor: input.actor, host: input.host, addOn: null });
       await plain.settleAddOnPublic({ manifest, connectionId: installed.row.connectionId, names: {}, actor: settler(input.actor) });

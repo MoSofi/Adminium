@@ -54,8 +54,8 @@ For nginx, set `proxy_set_header Host $host;` — the pass-through is the whole 
    app's own page: **Add a domain** beside them. The mapping takes effect within a few
    seconds. Adminium refuses the host you are using to reach Studio — mapping it would take the
    dashboard away from you. It also never gives the host of this server's public address (the
-   **Address in email links**) to the add-on pages: the links in its mail, the pay page and staff's
-   own screens need the dashboard there.
+   **Address in email links**) to an app's side or to the add-on pages: the links in its mail, the
+   pay page and staff's own screens need the dashboard there.
 
 3. **Point DNS at this server.** Add the record for the new host with the same type and target as
    the address you already use for the dashboard — if `admin.example.com` is an `A` record at your
