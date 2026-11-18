@@ -50443,281 +50443,9 @@
     "status": "mt",
     "srcHash": "ee410e432d9e"
   },
-  "x.chat.asked": {
-    "status": "mt",
-    "srcHash": "9cf38a6bdae9"
-  },
-  "x.chat.automatic": {
-    "status": "mt",
-    "srcHash": "a65af67794bc"
-  },
-  "x.chat.automaticIn": {
-    "status": "mt",
-    "srcHash": "7d3301f9b0d0"
-  },
-  "x.chat.away.again": {
-    "status": "mt",
-    "srcHash": "fd2a0dec794d"
-  },
-  "x.chat.away.later": {
-    "status": "mt",
-    "srcHash": "279e04865319"
-  },
-  "x.chat.away.leave": {
-    "status": "mt",
-    "srcHash": "d8feeb44d9b0"
-  },
-  "x.chat.away.now": {
-    "status": "mt",
-    "srcHash": "756262abb85e"
-  },
-  "x.chat.away.sent": {
-    "status": "mt",
-    "srcHash": "81c3164368c4"
-  },
-  "x.chat.away.sentNone": {
-    "status": "mt",
-    "srcHash": "cab727b03497"
-  },
-  "x.chat.away.until": {
-    "status": "mt",
-    "srcHash": "829fa47706f1"
-  },
-  "x.chat.card.badEmail": {
-    "status": "mt",
-    "srcHash": "3d59ea909b3f"
-  },
-  "x.chat.card.badName": {
-    "status": "mt",
-    "srcHash": "e3880420ce9b"
-  },
-  "x.chat.card.change": {
-    "status": "mt",
-    "srcHash": "64fbd995d3b6"
-  },
-  "x.chat.card.email": {
-    "status": "mt",
-    "srcHash": "f13aa90c24b5"
-  },
-  "x.chat.card.emailOptional": {
-    "status": "mt",
-    "srcHash": "6bad4c1f2845"
-  },
-  "x.chat.card.helper": {
-    "status": "mt",
-    "srcHash": "c34c324a4388"
-  },
-  "x.chat.card.name": {
-    "status": "mt",
-    "srcHash": "32861acdae2a"
-  },
-  "x.chat.card.needEmail": {
-    "status": "mt",
-    "srcHash": "2dbf9d99d0a6"
-  },
-  "x.chat.card.needOne": {
-    "status": "mt",
-    "srcHash": "92156bb01c9d"
-  },
-  "x.chat.card.needQuestion": {
-    "status": "mt",
-    "srcHash": "37ef67ac3125"
-  },
-  "x.chat.card.question": {
-    "status": "mt",
-    "srcHash": "0ba83cb8e8ae"
-  },
-  "x.chat.card.save": {
-    "status": "mt",
-    "srcHash": "efc007a393f6"
-  },
-  "x.chat.card.send": {
-    "status": "mt",
-    "srcHash": "9bc2575c3930"
-  },
-  "x.chat.close": {
-    "status": "mt",
-    "srcHash": "eb376184348e"
-  },
-  "x.chat.closed": {
-    "status": "mt",
-    "srcHash": "4d37d2388ea9"
-  },
-  "x.chat.closedBy": {
-    "status": "mt",
-    "srcHash": "4488f3000770"
-  },
-  "x.chat.done.leave": {
-    "status": "mt",
-    "srcHash": "4f0d91689f68"
-  },
-  "x.chat.done.named": {
-    "status": "mt",
-    "srcHash": "706fd2d732de"
-  },
-  "x.chat.done.stay": {
-    "status": "mt",
-    "srcHash": "309449940575"
-  },
-  "x.chat.done.thanks": {
-    "status": "mt",
-    "srcHash": "6099fe716243"
-  },
-  "x.chat.first.automatic": {
-    "status": "mt",
-    "srcHash": "0ec541f5e70a"
-  },
-  "x.chat.first.drafts": {
-    "status": "mt",
-    "srcHash": "5403b7a2d81d"
-  },
-  "x.chat.first.person": {
-    "status": "mt",
-    "srcHash": "6832293f01fd"
-  },
-  "x.chat.from": {
-    "status": "mt",
-    "srcHash": "8f05d7b2359f"
-  },
-  "x.chat.hand.info": {
-    "status": "mt",
-    "srcHash": "fd5ba910cdba"
-  },
-  "x.chat.hand.text": {
-    "status": "mt",
-    "srcHash": "3848c7b996e3"
-  },
-  "x.chat.hide": {
-    "status": "mt",
-    "srcHash": "904a0e4cec72"
-  },
-  "x.chat.hours.openUntil": {
-    "status": "mt",
-    "srcHash": "da32f01fe8b5"
-  },
-  "x.chat.hours.opens": {
-    "status": "mt",
-    "srcHash": "d021e9e67e03"
-  },
-  "x.chat.hoursEnded.next": {
-    "status": "mt",
-    "srcHash": "028fa20c6f47"
-  },
-  "x.chat.hoursEnded.none": {
-    "status": "mt",
-    "srcHash": "cea03541723f"
-  },
-  "x.chat.language": {
-    "status": "mt",
-    "srcHash": "89b86ab0e66f"
-  },
-  "x.chat.languageOf": {
-    "status": "mt",
-    "srcHash": "eaebc1bf76a7"
-  },
-  "x.chat.log": {
-    "status": "mt",
-    "srcHash": "f1702b468627"
-  },
-  "x.chat.lost": {
-    "status": "mt",
-    "srcHash": "cf0da0888bb9"
-  },
-  "x.chat.newChat": {
-    "status": "mt",
-    "srcHash": "7b5ea92a8686"
-  },
-  "x.chat.newMessages": {
-    "status": "mt",
-    "srcHash": "95502263dd73"
-  },
-  "x.chat.newTab": {
-    "status": "mt",
-    "srcHash": "bf5b990386c7"
-  },
   "x.chat.noScript": {
     "status": "mt",
     "srcHash": "2e0cd1025972"
-  },
-  "x.chat.offline": {
-    "status": "mt",
-    "srcHash": "c170f6bfc2e1"
-  },
-  "x.chat.privacy": {
-    "status": "mt",
-    "srcHash": "8845a6e922fa"
-  },
-  "x.chat.rate.chat": {
-    "status": "mt",
-    "srcHash": "212938e9ddfe"
-  },
-  "x.chat.rate.minute": {
-    "status": "mt",
-    "srcHash": "f307ad958dbe"
-  },
-  "x.chat.rate.wait": {
-    "status": "mt",
-    "srcHash": "3f676035cabb"
-  },
-  "x.chat.reopened": {
-    "status": "mt",
-    "srcHash": "29eefe4a067e"
-  },
-  "x.chat.reopenedBy": {
-    "status": "mt",
-    "srcHash": "163d65fa85ca"
-  },
-  "x.chat.resumed": {
-    "status": "mt",
-    "srcHash": "5c4e54934126"
-  },
-  "x.chat.send": {
-    "status": "mt",
-    "srcHash": "9bc2575c3930"
-  },
-  "x.chat.status.checking": {
-    "status": "mt",
-    "srcHash": "e3fc8ff4d057"
-  },
-  "x.chat.status.failed": {
-    "status": "mt",
-    "srcHash": "1d3afa08fb79"
-  },
-  "x.chat.status.notSent": {
-    "status": "mt",
-    "srcHash": "175e2e9afc88"
-  },
-  "x.chat.status.queued": {
-    "status": "mt",
-    "srcHash": "a250d651a837"
-  },
-  "x.chat.status.retry": {
-    "status": "mt",
-    "srcHash": "042c862e4467"
-  },
-  "x.chat.talk": {
-    "status": "mt",
-    "srcHash": "74c98447a888"
-  },
-  "x.chat.waiting": {
-    "status": "mt",
-    "srcHash": "672b42f11f7a"
-  },
-  "x.chat.waitingMail": {
-    "status": "mt",
-    "srcHash": "bcc9c39d61cb"
-  },
-  "x.chat.with": {
-    "status": "mt",
-    "srcHash": "0d66e993659b"
-  },
-  "x.chat.withNew": {
-    "status": "mt",
-    "srcHash": "e9b831fc6cc0"
-  },
-  "x.chat.write": {
-    "status": "mt",
-    "srcHash": "24bf2a34e6f4"
   },
   "x.ending.already": {
     "status": "mt",
@@ -51022,5 +50750,281 @@
   "x.surveyAbout": {
     "status": "mt",
     "srcHash": "4afff58abfb0"
+  },
+  "xChat.asked": {
+    "status": "mt",
+    "srcHash": "9cf38a6bdae9"
+  },
+  "xChat.automatic": {
+    "status": "mt",
+    "srcHash": "a65af67794bc"
+  },
+  "xChat.automaticIn": {
+    "status": "mt",
+    "srcHash": "7d3301f9b0d0"
+  },
+  "xChat.away.again": {
+    "status": "mt",
+    "srcHash": "fd2a0dec794d"
+  },
+  "xChat.away.later": {
+    "status": "mt",
+    "srcHash": "279e04865319"
+  },
+  "xChat.away.leave": {
+    "status": "mt",
+    "srcHash": "d8feeb44d9b0"
+  },
+  "xChat.away.now": {
+    "status": "mt",
+    "srcHash": "756262abb85e"
+  },
+  "xChat.away.opens": {
+    "status": "mt",
+    "srcHash": "e9f88f6d94c4"
+  },
+  "xChat.away.sent": {
+    "status": "mt",
+    "srcHash": "81c3164368c4"
+  },
+  "xChat.away.sentNone": {
+    "status": "mt",
+    "srcHash": "cab727b03497"
+  },
+  "xChat.away.until": {
+    "status": "mt",
+    "srcHash": "829fa47706f1"
+  },
+  "xChat.card.badEmail": {
+    "status": "mt",
+    "srcHash": "3d59ea909b3f"
+  },
+  "xChat.card.badName": {
+    "status": "mt",
+    "srcHash": "e3880420ce9b"
+  },
+  "xChat.card.change": {
+    "status": "mt",
+    "srcHash": "64fbd995d3b6"
+  },
+  "xChat.card.email": {
+    "status": "mt",
+    "srcHash": "f13aa90c24b5"
+  },
+  "xChat.card.emailOptional": {
+    "status": "mt",
+    "srcHash": "6bad4c1f2845"
+  },
+  "xChat.card.helper": {
+    "status": "mt",
+    "srcHash": "c34c324a4388"
+  },
+  "xChat.card.name": {
+    "status": "mt",
+    "srcHash": "32861acdae2a"
+  },
+  "xChat.card.needEmail": {
+    "status": "mt",
+    "srcHash": "2dbf9d99d0a6"
+  },
+  "xChat.card.needOne": {
+    "status": "mt",
+    "srcHash": "92156bb01c9d"
+  },
+  "xChat.card.needQuestion": {
+    "status": "mt",
+    "srcHash": "37ef67ac3125"
+  },
+  "xChat.card.question": {
+    "status": "mt",
+    "srcHash": "0ba83cb8e8ae"
+  },
+  "xChat.card.save": {
+    "status": "mt",
+    "srcHash": "efc007a393f6"
+  },
+  "xChat.card.send": {
+    "status": "mt",
+    "srcHash": "9bc2575c3930"
+  },
+  "xChat.close": {
+    "status": "mt",
+    "srcHash": "eb376184348e"
+  },
+  "xChat.closed": {
+    "status": "mt",
+    "srcHash": "4d37d2388ea9"
+  },
+  "xChat.closedBy": {
+    "status": "mt",
+    "srcHash": "4488f3000770"
+  },
+  "xChat.done.leave": {
+    "status": "mt",
+    "srcHash": "4f0d91689f68"
+  },
+  "xChat.done.named": {
+    "status": "mt",
+    "srcHash": "706fd2d732de"
+  },
+  "xChat.done.stay": {
+    "status": "mt",
+    "srcHash": "309449940575"
+  },
+  "xChat.done.thanks": {
+    "status": "mt",
+    "srcHash": "6099fe716243"
+  },
+  "xChat.first.automatic": {
+    "status": "mt",
+    "srcHash": "0ec541f5e70a"
+  },
+  "xChat.first.drafts": {
+    "status": "mt",
+    "srcHash": "5403b7a2d81d"
+  },
+  "xChat.first.person": {
+    "status": "mt",
+    "srcHash": "6832293f01fd"
+  },
+  "xChat.from": {
+    "status": "mt",
+    "srcHash": "8f05d7b2359f"
+  },
+  "xChat.hand.info": {
+    "status": "mt",
+    "srcHash": "fd5ba910cdba"
+  },
+  "xChat.hand.text": {
+    "status": "mt",
+    "srcHash": "3848c7b996e3"
+  },
+  "xChat.hide": {
+    "status": "mt",
+    "srcHash": "904a0e4cec72"
+  },
+  "xChat.hours.openUntil": {
+    "status": "mt",
+    "srcHash": "da32f01fe8b5"
+  },
+  "xChat.hours.opens": {
+    "status": "mt",
+    "srcHash": "d021e9e67e03"
+  },
+  "xChat.hoursEnded.next": {
+    "status": "mt",
+    "srcHash": "028fa20c6f47"
+  },
+  "xChat.hoursEnded.none": {
+    "status": "mt",
+    "srcHash": "cea03541723f"
+  },
+  "xChat.language": {
+    "status": "mt",
+    "srcHash": "89b86ab0e66f"
+  },
+  "xChat.languageOf": {
+    "status": "mt",
+    "srcHash": "eaebc1bf76a7"
+  },
+  "xChat.log": {
+    "status": "mt",
+    "srcHash": "f1702b468627"
+  },
+  "xChat.lost": {
+    "status": "mt",
+    "srcHash": "cf0da0888bb9"
+  },
+  "xChat.newChat": {
+    "status": "mt",
+    "srcHash": "7b5ea92a8686"
+  },
+  "xChat.newMessages": {
+    "status": "mt",
+    "srcHash": "95502263dd73"
+  },
+  "xChat.newTab": {
+    "status": "mt",
+    "srcHash": "bf5b990386c7"
+  },
+  "xChat.offline": {
+    "status": "mt",
+    "srcHash": "c170f6bfc2e1"
+  },
+  "xChat.privacy": {
+    "status": "mt",
+    "srcHash": "8845a6e922fa"
+  },
+  "xChat.rate.chat": {
+    "status": "mt",
+    "srcHash": "212938e9ddfe"
+  },
+  "xChat.rate.minute": {
+    "status": "mt",
+    "srcHash": "f307ad958dbe"
+  },
+  "xChat.rate.wait": {
+    "status": "mt",
+    "srcHash": "3f676035cabb"
+  },
+  "xChat.reopened": {
+    "status": "mt",
+    "srcHash": "29eefe4a067e"
+  },
+  "xChat.reopenedBy": {
+    "status": "mt",
+    "srcHash": "163d65fa85ca"
+  },
+  "xChat.resumed": {
+    "status": "mt",
+    "srcHash": "5c4e54934126"
+  },
+  "xChat.send": {
+    "status": "mt",
+    "srcHash": "9bc2575c3930"
+  },
+  "xChat.status.checking": {
+    "status": "mt",
+    "srcHash": "e3fc8ff4d057"
+  },
+  "xChat.status.failed": {
+    "status": "mt",
+    "srcHash": "1d3afa08fb79"
+  },
+  "xChat.status.notSent": {
+    "status": "mt",
+    "srcHash": "175e2e9afc88"
+  },
+  "xChat.status.queued": {
+    "status": "mt",
+    "srcHash": "a250d651a837"
+  },
+  "xChat.status.retry": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "xChat.talk": {
+    "status": "mt",
+    "srcHash": "74c98447a888"
+  },
+  "xChat.waiting": {
+    "status": "mt",
+    "srcHash": "672b42f11f7a"
+  },
+  "xChat.waitingMail": {
+    "status": "mt",
+    "srcHash": "bcc9c39d61cb"
+  },
+  "xChat.with": {
+    "status": "mt",
+    "srcHash": "0d66e993659b"
+  },
+  "xChat.withNew": {
+    "status": "mt",
+    "srcHash": "e9b831fc6cc0"
+  },
+  "xChat.write": {
+    "status": "mt",
+    "srcHash": "24bf2a34e6f4"
   }
 }

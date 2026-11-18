@@ -36,6 +36,7 @@ export const NAMESPACES = [
   'payments',
   'mailDoor',
   'x',
+  'xChat',
 ] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
@@ -212,6 +213,12 @@ export const DEFERRED_NAMESPACES = [
    * with no script. No dashboard screen reads an `x:` key.
    */
   'x',
+  /*
+   * A live chat's window on the owner's website: a chunk of the `/x/` page of
+   * its own, which adds these words itself when it loads. Kept out of `x` so a
+   * form's page, whose first load carries `x`, never carries the chat's words.
+   */
+  'xChat',
 ] as const;
 export type DeferredNamespace = (typeof DEFERRED_NAMESPACES)[number];
 
