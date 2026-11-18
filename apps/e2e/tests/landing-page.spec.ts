@@ -85,6 +85,21 @@ async function open(page: Page, slug: string): Promise<void> {
   await expect(page.locator('.lp, .x-status').first()).toBeVisible();
 }
 
+/**
+ * Opens the page on the install's own public host, as a stranger does: "Per
+ * visitor" asks only there. The browser's requests to that host are made to
+ * this server with the host named, through the context's own cookie jar.
+ */
+async function openOnPublicHost(page: Page, slug: string): Promise<void> {
+  await page.route(`http://${PUBLIC_HOST}/**`, async (route) => {
+    const url = new URL(route.request().url());
+    const response = await route.fetch({ url: `${SERVER}${url.pathname}${url.search}`, headers: { ...route.request().headers(), host: PUBLIC_HOST } });
+    await route.fulfill({ response });
+  });
+  await page.goto(`http://${PUBLIC_HOST}/x/pages/${slug}`);
+  await expect(page.locator('.lp, .x-status').first()).toBeVisible();
+}
+
 /** Everything a page stored: cookies, and both storages of its origin. */
 async function stored(context: BrowserContext, page: Page) {
   const storage = await page.evaluate(() => ({ local: Object.keys(window.localStorage), session: Object.keys(window.sessionStorage) }));
@@ -247,7 +262,7 @@ test.describe('counting on a landing page', () => {
     const context = await browser.newContext({ ...fresh, viewport: PHONE });
     const page = await context.newPage();
     const own = watchXPolicy(page);
-    await open(page, 'acoustic-booths');
+    await openOnPublicHost(page, 'acoustic-booths');
     await page.getByRole('heading', { level: 2, name: 'Book a showroom visit' }).scrollIntoViewIfNeeded();
     await expect(page.getByRole('region', { name: 'Can we remember your visit?' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Cookie choice' })).toHaveCount(0);
@@ -266,7 +281,7 @@ test.describe('counting on a landing page', () => {
       const context = await browser.newContext({ ...fresh, viewport: PHONE });
       const page = await context.newPage();
       const own = watchXPolicy(page);
-      await open(page, slug);
+      await openOnPublicHost(page, slug);
       const banner = page.getByRole('region', { name: title });
       await expect(banner).toBeVisible();
       await expect(page.locator('.x-page')).toHaveAttribute('data-docked', '');
@@ -283,7 +298,10 @@ test.describe('counting on a landing page', () => {
         await expect(page.getByText('Saved: yes. Change it any time under Cookie choice.')).toBeVisible();
         const after = await stored(context, page);
         expect(after.local).toEqual([]);
-        expect(after.cookies.map(({ name, path, httpOnly }) => ({ name, path, httpOnly }))).toEqual([{ name: 'adm_v', path: '/x/', httpOnly: true }]);
+        // The browser keeps the server's cookie on the page's host (the jar also holds the proxy's own copy for this server's address).
+        const kept = after.cookies.filter((cookie) => cookie.domain === PUBLIC_HOST).map(({ name, path, httpOnly }) => ({ name, path, httpOnly }));
+        expect(kept).toEqual([{ name: 'adm_v', path: '/x/', httpOnly: true }]);
+        expect(after.cookies.every((cookie) => cookie.name === 'adm_v')).toBe(true);
         await expect(page.getByRole('contentinfo').getByRole('button', { name: 'Cookie choice' })).toBeVisible();
       }
       expect(own.outside()).toEqual([]);
