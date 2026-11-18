@@ -107,6 +107,12 @@ export interface AddOnHttpClientOptions {
   policy?: (Pick<TrialPolicy, 'allows'> & Partial<Pick<TrialPolicy, 'strictNetwork'>>) | undefined;
   /** Test seam: the lookup of a declared host under a strict network. Default the system resolver's. */
   lookup?: HostLookup | undefined;
+  /**
+   * The caller's own stop (a person's Stop, the engine's deadline for one
+   * call): it ends a request as the timeout does. A request it ended is not
+   * a refusal, so nothing is audited for it.
+   */
+  signal?: AbortSignal | undefined;
 }
 
 export const DEFAULT_EGRESS_TIMEOUT_MS = 30_000;
@@ -202,12 +208,15 @@ export function createAddOnHttpClient(opts: AddOnHttpClientOptions): AddOnHttpCl
 
     let response: Response;
     try {
+      const timeout = AbortSignal.timeout(timeoutMs);
       response = await (pins === null ? doFetch() : (opts.fetchImpl ?? pinnedFetch(pins)))(url, {
         ...init,
         redirect: 'manual',
-        signal: AbortSignal.timeout(timeoutMs),
+        signal: opts.signal === undefined ? timeout : AbortSignal.any([timeout, opts.signal]),
       });
     } catch (error) {
+      // Stopped by the caller: not a refusal, and nothing an operator need see.
+      if (opts.signal?.aborted === true) throw new AddOnEgressError('REQUEST_FAILED', opts.key, url.host, `The request to ${url.host} was stopped.`);
       return refuse('REQUEST_FAILED', url.host, `Request to ${url.host} failed: ${String(error)}`);
     }
 
@@ -290,13 +299,21 @@ export function addOnHttpClientFor(
     capabilities?: readonly string[] | undefined;
     addOn: { network?: { allow: readonly string[] } | undefined };
   },
-  overrides: Pick<AddOnHttpClientOptions, 'fetchImpl' | 'timeoutMs' | 'maxResponseBytes' | 'policy'> = {},
+  overrides: Pick<AddOnHttpClientOptions, 'fetchImpl' | 'timeoutMs' | 'maxResponseBytes' | 'policy' | 'lookup' | 'signal'> & {
+    /**
+     * A narrower list for one call (one source of several, say): the hosts of
+     * it that the manifest also allows. Never wider than the manifest's.
+     */
+    narrowTo?: readonly string[] | undefined;
+  } = {},
 ): AddOnHttpClient {
+  const { narrowTo, ...rest } = overrides;
+  const declared = manifest.addOn.network?.allow ?? [];
   return createAddOnHttpClient({
     key: manifest.key,
-    allow: manifest.addOn.network?.allow ?? [],
+    allow: narrowTo === undefined ? declared : declared.filter((host) => narrowTo.includes(host)),
     hasOutboundHttp: manifest.capabilities?.includes('outbound-http') ?? false,
-    ...overrides,
+    ...rest,
     onRefusal: async (record) => {
       await auditRepo(meta).append({
         actorKind: 'system',
