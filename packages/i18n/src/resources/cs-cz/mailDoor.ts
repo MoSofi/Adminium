@@ -55,5 +55,15 @@ export default {
     "tooOldAgain": "Přihlaste se znovu na webu {business} a pošleme vám nový.",
     "deadWrite": "Pokud jste se chtěli přihlásit, napište na {email}.",
     "deadAsk": "Pokud jste se chtěli přihlásit, napište {business}."
+  },
+  "object": {
+    "title": "Vznést námitku proti tomu, že {business} uchovává vaše údaje?",
+    "line": "{business} smaže vaše údaje a zařadí tuto adresu na seznam adres, kterým se nepíše.",
+    "button": "Vznést námitku",
+    "done": "Hotovo. Vaše údaje jsme smazali a už vám nenapíšeme.",
+    "stays": "{business} si ponechává vlastní záznamy, ve kterých jste byli uvedeni, bez vašich údajů: {records}.",
+    "already": "Námitku jste už vznesli. {business} vaše údaje neuchovává.",
+    "dead": "Tento odkaz nefunguje. Napište na {email}.",
+    "deadAsk": "Tento odkaz nefunguje. Napište firmě {business}."
   }
 } as const;

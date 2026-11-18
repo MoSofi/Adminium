@@ -33,7 +33,7 @@ import { t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
-import { PRIVACY_NOTICE_QUERY_KEY, keepingQuery, privacyNoticeQuery, putPrivacyNotice, type KeepingRow } from './privacyApi.js';
+import { PRIVACY_NOTICE_QUERY_KEY, keepingQuery, privacyNoticeQuery, putPrivacyNotice, type KeepingRow, type PeopleFoundNotice as PeopleFoundNoticeItem } from './privacyApi.js';
 import { noticeUrlError } from './privacyWords.js';
 import { PublicReach } from './PublicReach.js';
 
@@ -146,35 +146,43 @@ function NoticeTab(): ReactNode {
       ) : notice.data === undefined ? (
         <Skeleton className="h-[220px] w-full" />
       ) : (
-        <NoticeForm name={notice.data.businessName ?? ''} url={notice.data.noticeUrl ?? ''} />
+        <>
+          <NoticeForm name={notice.data.businessName ?? ''} url={notice.data.noticeUrl ?? ''} dpo={notice.data.dpoContact ?? ''} />
+          {notice.data.peopleFound.length > 0 ? <PeopleFoundNotice items={notice.data.peopleFound} /> : null}
+        </>
       )}
     </div>
   );
 }
 
-function NoticeForm({ name: savedName, url: savedUrl }: { name: string; url: string }): ReactNode {
+function NoticeForm({ name: savedName, url: savedUrl, dpo: savedDpo }: { name: string; url: string; dpo: string }): ReactNode {
   const toasts = useAppToasts();
   const queryClient = useQueryClient();
   const [name, setName] = useState(savedName);
   const [url, setUrl] = useState(savedUrl);
+  const [dpo, setDpo] = useState(savedDpo);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [dpoError, setDpoError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => setServerError(null), [url]);
+  useEffect(() => setDpoError(null), [dpo]);
 
   const urlError = noticeUrlError(url) ?? serverError;
   const blank = name.trim() === '' || url.trim() === '';
-  const changed = name.trim() !== savedName || url.trim() !== savedUrl;
-  // As the comp: Save is off while either field is blank, and while the address is not https.
-  const canSave = !blank && urlError === null && changed && !busy;
+  const changed = name.trim() !== savedName || url.trim() !== savedUrl || dpo.trim() !== savedDpo;
+  // As the comp: Save is off while either field is blank, and while the address is not https. The DPO contact is optional.
+  const canSave = !blank && urlError === null && dpoError === null && changed && !busy;
 
   async function save(): Promise<void> {
     setBusy(true);
     try {
-      const next = await putPrivacyNotice({ businessName: name.trim(), noticeUrl: url.trim() });
+      const next = await putPrivacyNotice({ businessName: name.trim(), noticeUrl: url.trim(), dpoContact: dpo.trim() === '' ? null : dpo.trim() });
       queryClient.setQueryData(PRIVACY_NOTICE_QUERY_KEY, next);
       toasts.push({ variant: 'success', title: t('studio:privacy.notice.saved', 'Saved') });
     } catch (error) {
-      if (error instanceof ApiError && error.status === 422) setServerError(t('studio:privacy.notice.httpsOnly', 'Use an address that starts with https, such as https://www.example.com/privacy.'));
+      const field = error instanceof ApiError ? (error.details as { field?: unknown } | null | undefined)?.field : undefined;
+      if (error instanceof ApiError && error.status === 422 && field === 'dpoContact') setDpoError(t('studio:privacy.notice.dpoError', 'Use one e-mail address, such as privacy@example.com.'));
+      else if (error instanceof ApiError && error.status === 422) setServerError(t('studio:privacy.notice.httpsOnly', 'Use an address that starts with https, such as https://www.example.com/privacy.'));
       else toasts.push({ variant: 'error', title: t('studio:privacy.notice.saveFailed', 'The privacy notice was not saved. Try again.') });
     } finally {
       setBusy(false);
@@ -227,7 +235,25 @@ function NoticeForm({ name: savedName, url: savedUrl }: { name: string; url: str
                 data-testid="privacy-notice-url"
               />
             </FormField>
+            <FormField label={t('studio:privacy.notice.dpo', 'Data privacy contact (optional)')} error={dpoError ?? undefined}>
+              <Input
+                value={dpo}
+                maxLength={254}
+                dir="ltr"
+                mono
+                type="email"
+                inputMode="email"
+                placeholder={t('studio:privacy.notice.dpoPlaceholder', 'privacy@your-company.com')}
+                onChange={(event) => setDpo(event.target.value)}
+                className="bg-surface-2 text-[12.5px]"
+                aria-describedby="privacy-notice-dpo-help"
+                data-testid="privacy-notice-dpo"
+              />
+            </FormField>
           </div>
+          <p id="privacy-notice-dpo-help" className="px-[var(--card-pad)] text-caption text-fg-subtle">
+            {t('studio:privacy.notice.dpoHelp', 'Whom people write to about their details, such as your data privacy officer. Named in the mail that tells a found person where their details came from.')}
+          </p>
           <p id="privacy-notice-help" className="px-[var(--card-pad)] pb-[var(--card-pad)] text-caption text-fg-subtle">
             {t('studio:privacy.notice.help', 'Shown on every form, the chat and the cookie banner.')}
           </p>
@@ -239,6 +265,32 @@ function NoticeForm({ name: savedName, url: savedUrl }: { name: string; url: str
         </form>
       </Card>
     </div>
+  );
+}
+
+/** While an add-on keeps the people its sources find: what the owner's own privacy notice must name. */
+function PeopleFoundNotice({ items }: { items: readonly PeopleFoundNoticeItem[] }): ReactNode {
+  return (
+    <Card data-testid="privacy-people-found">
+      <h2 className="text-section text-fg">{t('studio:privacy.notice.peopleFoundHeading', 'Your privacy notice must also name')}</h2>
+      {items.map((item) => (
+        <div key={item.addOn.key} className="mt-3 flex flex-col gap-1.5">
+          <p className="text-body text-fg">
+            {t('studio:privacy.notice.peopleFoundSources', '{addOn} keeps people’s work details. Say where they come from:', { addOn: item.addOn.name })}
+          </p>
+          <ul className="flex list-disc flex-col gap-1 ps-5 text-body text-fg-muted">
+            {item.sources.map((source) => (
+              <li key={source.id}>{source.website ? t('studio:privacy.notice.peopleFoundWebsite', 'The company’s own website') : <bdi>{source.name}</bdi>}</li>
+            ))}
+          </ul>
+          {item.recipients.length > 0 ? (
+            <p className="text-caption text-fg-subtle">
+              {t('studio:privacy.notice.peopleFoundRecipients', 'And who receives what is searched: {hosts}', { hosts: item.recipients.join(', ') })}
+            </p>
+          ) : null}
+        </div>
+      ))}
+    </Card>
   );
 }
 
@@ -283,10 +335,26 @@ function chatWords(row: KeepingRow): { what: string; kept: string; why: string }
   };
 }
 
+/** The people an add-on's sources found: how many years its own settings keep them, worded for its row. */
+function foundPeopleWords(row: KeepingRow): { what: string; kept: string; why: string } {
+  const addOn = row.addOn?.name ?? '';
+  const years = typeof row.keptFor === 'number' ? Math.round(row.keptFor / 12) : 3;
+  return {
+    what: t('studio:privacy.keeping.foundPeople', 'People found — {addOn}', { addOn }),
+    kept: t('studio:privacy.keeping.foundPeopleYears', '{count, plural, one {Kept for # year} other {Kept for # years}}', { count: years }),
+    why: t(
+      'studio:privacy.keeping.foundPeopleWhy',
+      'Set in {addOn}’s settings, from when they were found or the last time they wrote. Anyone not told where their details came from by their tell-by day is deleted then.',
+      { addOn },
+    ),
+  };
+}
+
 /** The rows an add-on keeps, each worded by its own settings. */
 const ADD_ON_KEEPING: Readonly<Record<string, (row: KeepingRow) => { what: string; kept: string; why: string }>> = {
   'form-answers': answersWords,
   'chat-conversations': chatWords,
+  'found-people': foundPeopleWords,
 };
 
 function KeepingTab(): ReactNode {

@@ -120,9 +120,10 @@ function stub(): Call[] {
       if (url.startsWith('/api/v1/bootstrap')) return ok({ data: makeBootstrap({ roles, nav: { groups: [] }, systemActions }) });
       if (url === '/api/v1/privacy/notice' && method === 'GET') return ok({ data: notice });
       if (url === '/api/v1/privacy/notice' && method === 'PUT') {
-        const next = body as { businessName: string | null; noticeUrl: string | null };
+        const next = body as { businessName: string | null; noticeUrl: string | null; dpoContact?: string | null };
         if (next.noticeUrl !== null && !next.noticeUrl.startsWith('https://')) return ok({ error: { code: 'VALIDATION_FAILED', message: 'Use an https:// address.', details: { field: 'noticeUrl' } } }, 422);
-        notice = { ...next, ready: next.businessName !== null && next.noticeUrl !== null, shownName: next.businessName ?? 'Meridian' };
+        if (typeof next.dpoContact === 'string' && !next.dpoContact.includes('@')) return ok({ error: { code: 'VALIDATION_FAILED', message: 'Use one plain e-mail address.', details: { field: 'dpoContact' } } }, 422);
+        notice = { businessName: next.businessName, noticeUrl: next.noticeUrl, ready: next.businessName !== null && next.noticeUrl !== null, shownName: next.businessName ?? 'Meridian', dpoContact: next.dpoContact ?? null, peopleFound: notice.peopleFound };
         return ok({ data: notice });
       }
       if (url === '/api/v1/privacy/keeping') {
@@ -133,6 +134,7 @@ function stub(): Call[] {
               { key: 'do-not-email', fixed: true, keptFor: 'forever', options: [] },
               { key: 'form-answers', fixed: true, keptFor: 24, options: [], addOn: { key: 'forms', name: 'Forms & surveys' } },
               { key: 'form-answers', fixed: true, keptFor: 'until-removed', options: [], addOn: { key: 'polls', name: 'Polls' } },
+              { key: 'found-people', fixed: true, keptFor: 36, options: [], addOn: { key: 'company-finder', name: 'Company finder' } },
               // A row a later server adds, which this screen cannot word: left out.
               { key: 'chat-transcripts', fixed: false, keptFor: 12, options: [6, 12] },
             ],
@@ -199,7 +201,7 @@ afterAll(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
-  notice = { businessName: 'Meridian Workplace Ltd', noticeUrl: 'https://www.meridian.example/privacy', ready: true, shownName: 'Meridian Workplace Ltd' };
+  notice = { businessName: 'Meridian Workplace Ltd', noticeUrl: 'https://www.meridian.example/privacy', ready: true, shownName: 'Meridian Workplace Ltd', dpoContact: null, peopleFound: [] };
   exportsList = [];
   eraseReply = { status: 200, body: { data: { counts: { 'people-crm-contacts': 1, consent: 4 }, left: [], filesFailed: 0 } } };
   previewHangs = false;
@@ -209,7 +211,7 @@ afterEach(() => {
 });
 reach = { state: 'reachable', origin: 'https://crm.meridian.example', checkedAt: Date.now(), proxyUnchecked: false };
 websites = [];
-notice = { businessName: 'Meridian Workplace Ltd', noticeUrl: 'https://www.meridian.example/privacy', ready: true, shownName: 'Meridian Workplace Ltd' };
+notice = { businessName: 'Meridian Workplace Ltd', noticeUrl: 'https://www.meridian.example/privacy', ready: true, shownName: 'Meridian Workplace Ltd', dpoContact: null, peopleFound: [] };
 exportsList = [];
 eraseReply = { status: 200, body: { data: { counts: {}, left: [], filesFailed: 0 } } };
 
@@ -302,7 +304,7 @@ describe('who opens the privacy page', () => {
 describe('the privacy notice', () => {
   it('says what is missing while either field is blank, and Save stays off', async () => {
     asSuperAdmin();
-    notice = { businessName: null, noticeUrl: null, ready: false, shownName: 'Meridian' };
+    notice = { businessName: null, noticeUrl: null, ready: false, shownName: 'Meridian', dpoContact: null, peopleFound: [] };
     await renderAt('/studio/privacy');
     expect(await screen.findByTestId('privacy-notice-unset')).toBeDefined();
     expect(screen.getByText('Set both: they’re shown on every form, the chat and the cookie banner once they arrive.')).toBeDefined();
@@ -312,7 +314,7 @@ describe('the privacy notice', () => {
 
   it('refuses http:// in the field, then saves an https address', async () => {
     asSuperAdmin();
-    notice = { businessName: 'Meridian Workplace Ltd', noticeUrl: null, ready: false, shownName: 'Meridian Workplace Ltd' };
+    notice = { businessName: 'Meridian Workplace Ltd', noticeUrl: null, ready: false, shownName: 'Meridian Workplace Ltd', dpoContact: null, peopleFound: [] };
     const { calls } = await renderAt('/studio/privacy?tab=notice');
     const field = await screen.findByLabelText('Privacy notice address');
     await userEvent.type(field, 'http://www.meridian.example/privacy');
@@ -324,13 +326,50 @@ describe('the privacy notice', () => {
     expect(screen.queryByText('Use an address that starts with https, such as https://www.example.com/privacy.')).toBeNull();
     await userEvent.click(screen.getByTestId('privacy-notice-save'));
     await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
-    expect(calls.find((call) => call.method === 'PUT')!.body).toEqual({ businessName: 'Meridian Workplace Ltd', noticeUrl: 'https://www.meridian.example/privacy' });
+    expect(calls.find((call) => call.method === 'PUT')!.body).toEqual({ businessName: 'Meridian Workplace Ltd', noticeUrl: 'https://www.meridian.example/privacy', dpoContact: null });
     await waitFor(() => expect(screen.queryByTestId('privacy-notice-unset')).toBeNull());
+  });
+
+  it('saves an optional data privacy contact, and shows the server’s refusal of one that is no address', async () => {
+    asSuperAdmin();
+    const { calls } = await renderAt('/studio/privacy?tab=notice');
+    const field = await screen.findByLabelText('Data privacy contact (optional)');
+    await userEvent.type(field, 'privacy-desk');
+    await userEvent.click(screen.getByTestId('privacy-notice-save'));
+    expect(await screen.findByText('Use one e-mail address, such as privacy@example.com.')).toBeDefined();
+    await userEvent.clear(field);
+    await userEvent.type(field, 'privacy@meridian.example');
+    await userEvent.click(screen.getByTestId('privacy-notice-save'));
+    await waitFor(() => expect(calls.filter((call) => call.method === 'PUT').length).toBe(2));
+    expect(calls.filter((call) => call.method === 'PUT')[1]!.body).toEqual({ businessName: 'Meridian Workplace Ltd', noticeUrl: 'https://www.meridian.example/privacy', dpoContact: 'privacy@meridian.example' });
+  });
+
+  it('lists what the notice must also name while an add-on keeps the people its sources find', async () => {
+    asSuperAdmin();
+    notice = {
+      ...notice,
+      peopleFound: [
+        {
+          addOn: { key: 'company-finder', name: 'Company finder' },
+          sources: [
+            { id: 'hunter', name: 'Hunter (hunter.io)', hosts: ['api.hunter.io'], website: false },
+            { id: 'website', name: 'Website', hosts: [], website: true },
+          ],
+          recipients: ['api.hunter.io'],
+        },
+      ],
+    };
+    await renderAt('/studio/privacy?tab=notice');
+    const card = await screen.findByTestId('privacy-people-found');
+    expect(within(card).getByText('Your privacy notice must also name')).toBeDefined();
+    expect(within(card).getByText('Hunter (hunter.io)')).toBeDefined();
+    expect(within(card).getByText('The company’s own website')).toBeDefined();
+    expect(within(card).getByText('And who receives what is searched: api.hunter.io')).toBeDefined();
   });
 
   it('shows the server’s refusal of a non-https address on save', async () => {
     asSuperAdmin();
-    notice = { businessName: 'Meridian Workplace Ltd', noticeUrl: null, ready: false, shownName: 'Meridian Workplace Ltd' };
+    notice = { businessName: 'Meridian Workplace Ltd', noticeUrl: null, ready: false, shownName: 'Meridian Workplace Ltd', dpoContact: null, peopleFound: [] };
     await renderAt('/studio/privacy');
     const field = await screen.findByLabelText('Privacy notice address');
     // `https:` with no host passes no check here; the stub refuses what does not start with https://.
@@ -450,7 +489,7 @@ describe('how long we keep things', () => {
     await renderAt('/studio/privacy?tab=keeping');
     const table = await screen.findByTestId('privacy-keeping');
     const rows = within(table).getAllByRole('row').slice(1);
-    expect(rows.map((row) => within(row).getByRole('rowheader').textContent)).toEqual(['Consent history', 'Do-not-email list', 'Form answers — Forms & surveys', 'Form answers — Polls']);
+    expect(rows.map((row) => within(row).getByRole('rowheader').textContent)).toEqual(['Consent history', 'Do-not-email list', 'Form answers — Forms & surveys', 'Form answers — Polls', 'People found — Company finder']);
     expect(rows[0]!.textContent).toContain('Kept until the person is erased');
     expect(rows[0]!.textContent).toContain('Kept, because it proves what a person agreed to or asked');
     expect(rows[1]!.textContent).toContain('Kept for good');
@@ -458,6 +497,9 @@ describe('how long we keep things', () => {
     expect(rows[2]!.textContent).toContain('Kept for 24 months');
     expect(rows[2]!.textContent).toContain('Set in Forms & surveys’s settings. Older answers are deleted each night.');
     expect(rows[3]!.textContent).toContain('Kept until someone removes them');
+    // The people an add-on found: its keeping time in years, counted from when they were found.
+    expect(rows[4]!.textContent).toContain('Kept for 3 years');
+    expect(rows[4]!.textContent).toContain('from when they were found or the last time they wrote');
     expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
   });
 });

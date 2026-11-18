@@ -55,5 +55,15 @@ export default {
     "tooOldAgain": "Inscrivez-vous de nouveau sur le site de {business} et nous vous en enverrons un nouveau.",
     "deadWrite": "Écrivez à {email} si vous vouliez vous inscrire.",
     "deadAsk": "Écrivez à {business} si vous vouliez vous inscrire."
+  },
+  "object": {
+    "title": "Vous opposer à ce que {business} garde vos coordonnées ?",
+    "line": "{business} supprimera vos coordonnées et ajoutera cette adresse à sa liste des adresses à ne plus contacter par e-mail.",
+    "button": "Je m’oppose",
+    "done": "C’est fait. Nous avons supprimé vos coordonnées et ne vous écrirons plus.",
+    "stays": "{business} garde les dossiers à son nom qui vous citaient, sans vos coordonnées : {records}.",
+    "already": "Vous vous êtes déjà opposé. {business} ne garde pas vos coordonnées.",
+    "dead": "Ce lien ne fonctionne pas. Écrivez à {email}.",
+    "deadAsk": "Ce lien ne fonctionne pas. Écrivez à {business}."
   }
 } as const;

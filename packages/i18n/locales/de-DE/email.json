@@ -1003,5 +1003,20 @@
     "waitingTitle": "Ein Chat wartet: {chat}",
     "waitingBody": "Ein Besucher wartet auf eine Antwort von einer Person.",
     "waitingOutside": "Ein Besucher hat außerhalb Ihrer Zeiten eine Frage hinterlassen und wartet auf eine Antwort von einer Person."
+  },
+  "leadsTell": {
+    "subject": "Warum wir Ihre Daten haben",
+    "hello": "Hallo {name},",
+    "helloNoName": "Hallo,",
+    "source": "{source} hat Ihre geschäftliche E-Mail-Adresse am {date} gefunden.",
+    "why": "Warum wir sie aufbewahren: {purpose}",
+    "basis": "Wir stützen uns dabei auf unser berechtigtes Interesse (Art. 6 Abs. 1 lit. f DSGVO).",
+    "keep": "{years, plural, one {Wir bewahren Ihre Daten # Jahr ab dem {date} auf, oder ab dem Tag, an dem Sie uns zuletzt schreiben.} other {Wir bewahren Ihre Daten # Jahre ab dem {date} auf, oder ab dem Tag, an dem Sie uns zuletzt schreiben.}}",
+    "rights": "Sie können verlangen, Ihre Daten einzusehen, zu berichtigen oder zu löschen, einzuschränken, was wir damit tun, ihrer Aufbewahrung zu widersprechen oder eine Kopie davon zu erhalten. Sie können sich außerdem bei der Aufsichtsbehörde für Datenschutz an Ihrem Wohnort beschweren.",
+    "notice": "Unser Datenschutzhinweis: {url}",
+    "objectAsk": "Sollen wir Ihre Daten nicht aufbewahren?",
+    "object": "Widersprechen",
+    "questions": "Fragen? Schreiben Sie an {contact}. {who}.",
+    "keptBy": "Aufbewahrt von {who}."
   }
 }

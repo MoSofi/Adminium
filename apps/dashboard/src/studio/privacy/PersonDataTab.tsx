@@ -30,6 +30,7 @@ import {
   Copy,
   CreditCard,
   Download,
+  FileCheck2,
   FileText,
   ListChecks,
   Mail,
@@ -44,6 +45,7 @@ import {
   SearchX,
   Send,
   Trash2,
+  UserSearch,
   Workflow,
   type LucideIcon,
 } from 'lucide-react';
@@ -79,6 +81,9 @@ const ICONS: Record<SourceKind, LucideIcon> = {
   'chat-conversations': MessagesSquare,
   'chat-messages': MessageSquare,
   'chat-choices': ListChecks,
+  'found-people': UserSearch,
+  'found-people-mail': MailCheck,
+  'found-people-fields': FileCheck2,
 };
 
 /** What a source is called: an app table's own label (and its app), else Adminium's store by its kind. */
@@ -123,6 +128,9 @@ function sourceLabel(source: Pick<FoundSource, 'kind' | 'label' | 'app'>): strin
     case 'chat-conversations':
     case 'chat-messages':
     case 'chat-choices':
+    case 'found-people':
+    case 'found-people-mail':
+    case 'found-people-fields':
       return t('studio:privacy.person.kind.appRows', 'Rows in an app');
   }
 }

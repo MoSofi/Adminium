@@ -55,5 +55,15 @@ export default {
     "tooOldAgain": "请在 {business} 的网站重新订阅，我们会发送新的链接。",
     "deadWrite": "如果您想订阅，请写信至 {email}。",
     "deadAsk": "如果您想订阅，请联系 {business}。"
+  },
+  "object": {
+    "title": "反对 {business} 保留您的信息？",
+    "line": "{business} 将删除您的信息，并把此地址加入其不发送邮件的名单。",
+    "button": "提出反对",
+    "done": "已完成。我们已删除您的信息，不会再给您写信。",
+    "stays": "{business} 会保留其自身提到过您的记录，但已删去您的信息：{records}。",
+    "already": "您已经提出过反对。{business} 不保留您的信息。",
+    "dead": "此链接无效。请写信至 {email}。",
+    "deadAsk": "此链接无效。请写信给 {business}。"
   }
 } as const;

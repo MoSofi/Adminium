@@ -45,5 +45,15 @@
     "tooOldAgain": "Melden Sie sich auf der Website von {business} erneut an, dann senden wir einen neuen.",
     "deadWrite": "Schreiben Sie an {email}, wenn Sie sich anmelden wollten.",
     "deadAsk": "Schreiben Sie an {business}, wenn Sie sich anmelden wollten."
+  },
+  "object": {
+    "title": "Widersprechen, dass {business} Ihre Daten aufbewahrt?",
+    "line": "{business} löscht Ihre Daten und setzt diese Adresse auf die Liste der Adressen, die keine E-Mails erhalten.",
+    "button": "Widersprechen",
+    "done": "Erledigt. Wir haben Ihre Daten gelöscht und schreiben Ihnen nicht mehr.",
+    "stays": "{business} behält seine eigenen Unterlagen, in denen Sie genannt waren, ohne Ihre Daten: {records}.",
+    "already": "Sie haben bereits widersprochen. {business} bewahrt Ihre Daten nicht auf.",
+    "dead": "Dieser Link funktioniert nicht. Schreiben Sie an {email}.",
+    "deadAsk": "Dieser Link funktioniert nicht. Schreiben Sie an {business}."
   }
 }
