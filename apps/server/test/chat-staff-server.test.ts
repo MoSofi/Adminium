@@ -374,6 +374,8 @@ describe.each(LEGS)('a website chat for staff — %s', (dialect, available) => {
     }
     expect((await messages(chat.id)).filter((row) => row['kind'] === 'staff').map((row) => row['body'])).toEqual(['Yes, 10 to 4.', 'And Sunday 11 to 3.']);
     expect(await mails()).toEqual([]);
+    // A blocked reply spends none of the day's three.
+    expect(((await staff('avery', chat.id, 'presence')).json() as Doc).data.mail).toMatchObject({ ready: true, used: 0 });
   });
 
   it.skipIf(!available)('a question left outside hours is mailed whether or not the visitor is on the page', async () => {
@@ -395,6 +397,9 @@ describe.each(LEGS)('a website chat for staff — %s', (dialect, available) => {
     const gone = (await leftAgo(chat.id, 4))!;
     const read = ((await staff('vic', chat.id, 'presence')).json() as Doc).data;
     expect(read).toMatchObject({ presence: 'left', lastVisitorAt: new Date(gone.lastVisitorAt!).toISOString() });
+    await staff('vic', chat.id, 'presence');
+    // Even once the marks that hold two reads at the same moment are swept, the line stands for that heartbeat.
+    await h.meta.db.deleteFrom('adminium_form_marks').where('purpose', '=', 'chat-left').execute();
     await staff('vic', chat.id, 'presence');
     const lines = (await messages(chat.id)).filter((row) => row['event'] === 'left');
     expect(lines).toHaveLength(1);
