@@ -1453,7 +1453,8 @@ export default {
   },
   "chat": {
     "messageSent": "تم إرسال الرسالة",
-    "sendFailed": "تعذّر إرسال الرسالة."
+    "sendFailed": "تعذّر إرسال الرسالة.",
+    "budgetEvent": "توقفت الردود التلقائية لدردشة لهذا اليوم"
   },
   "templates": {
     "crud": {

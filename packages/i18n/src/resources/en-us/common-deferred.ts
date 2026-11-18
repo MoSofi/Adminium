@@ -1533,7 +1533,8 @@ export default {
   },
   "chat": {
     "messageSent": "Message sent",
-    "sendFailed": "The message could not be sent."
+    "sendFailed": "The message could not be sent.",
+    "budgetEvent": "A chat’s automatic answers stopped for the day"
   },
   "planning": {
     "drawer": {

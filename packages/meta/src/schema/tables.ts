@@ -2013,6 +2013,28 @@ export interface AdminiumPaymentReadersTable {
   updatedAt: Ts;
 }
 
+/** Wave 0094 — what a website chat's automatic answerer spent on one UTC day, per install and add-on. */
+export interface AdminiumChatAiDaysTable {
+  installId: string;
+  addOn: string;
+  /** `YYYY-MM-DD`, UTC. */
+  day: string;
+  tokensSpent: number;
+  /** What the calls running now hold, let go when each settles. */
+  tokensReserved: number;
+  changedAt: Ts;
+}
+
+/** Wave 0094 — one network address's (a keyed hash) conversation the answerer was asked for on one UTC day. */
+export interface AdminiumChatAiAddressesTable {
+  installId: string;
+  addOn: string;
+  day: string;
+  addressHash: string;
+  conversationId: number;
+  createdAt: Ts;
+}
+
 /** Wave 0089 — a whole number the server counts for its operator, by name (operator AI tokens, the start prompt run). */
 export interface AdminiumOperatorTalliesTable {
   name: string;
@@ -2304,6 +2326,8 @@ export interface MetaDB {
   adminium_operator_holds: AdminiumOperatorHoldsTable;
   adminium_operator_tallies: AdminiumOperatorTalliesTable;
   adminium_payment_readers: AdminiumPaymentReadersTable;
+  adminium_chat_ai_days: AdminiumChatAiDaysTable;
+  adminium_chat_ai_addresses: AdminiumChatAiAddressesTable;
 }
 
 /**
@@ -2413,4 +2437,6 @@ export const META_TABLE_NAMES = [
   'adminium_app_after_install_hidden',
   'adminium_operator_holds',
   'adminium_operator_tallies',
+  'adminium_chat_ai_days',
+  'adminium_chat_ai_addresses',
 ] as const satisfies readonly (keyof MetaDB)[];

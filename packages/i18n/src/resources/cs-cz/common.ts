@@ -1453,7 +1453,8 @@ export default {
   },
   "chat": {
     "messageSent": "Zpráva odeslána",
-    "sendFailed": "Zprávu se nepodařilo odeslat."
+    "sendFailed": "Zprávu se nepodařilo odeslat.",
+    "budgetEvent": "Automatické odpovědi chatu jsou pro dnešek zastavené"
   },
   "templates": {
     "crud": {

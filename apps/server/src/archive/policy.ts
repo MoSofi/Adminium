@@ -45,6 +45,9 @@ export const NEVER_ARCHIVED_TABLES: readonly string[] = [
   'adminium_operator_holds',
   // What the server counts for its operator (the AI budget's spend, the start prompt's run): never set back by a file.
   'adminium_operator_tallies',
+  // What a website chat's automatic answerer spent today, and which addresses asked it: never set back by a file.
+  'adminium_chat_ai_days',
+  'adminium_chat_ai_addresses',
 ];
 
 /** Staff API keys and the public API's keys. */

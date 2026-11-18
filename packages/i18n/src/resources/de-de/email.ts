@@ -998,5 +998,10 @@ export default {
   "trialRelay": {
     "footer": "Gesendet von der Installation unter {address}, über den Maildienst ihres Betreibers.",
     "report": "Diese E-Mail melden"
+  },
+  "chat": {
+    "budgetTitle": "Automatische Antworten in {chat} für heute beendet",
+    "budgetBody": "{chat} hat vor 18:00 UTC alle {tokens} Tokens verbraucht, die es heute ausgeben darf. Bis Mitternacht UTC antwortet deshalb ein Mensch jedem Besucher. So früh aufgebraucht, kann es jemand sein, der sehr viele Nachrichten schickt. Sehen Sie sich die heutigen Unterhaltungen an oder erhöhen Sie die Tokens pro Tag in den Einstellungen des Chats.",
+    "aiNotice": "Die Nachrichten der Besucher werden an {service} gesendet, um eine Antwort auszuwählen. Sonst wird nichts gesendet."
   }
 } as const;
