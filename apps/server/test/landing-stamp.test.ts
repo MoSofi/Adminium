@@ -41,7 +41,7 @@ describe.each(LEGS)('a stamp on a landing table — %s', (dialect, available) =>
   let h: Harness;
   let funnels = '';
   let pages = '';
-  const ctx: WriteContext = { origin: 'ui', hops: 0, actor: { kind: 'user', id: 'u1', label: 'pat' }, request: null };
+  const ctx: WriteContext = { origin: 'dashboard', hops: 0, actor: { kind: 'user', id: 'u1', label: 'pat' }, request: null };
   const targetOf = async (real: string): Promise<WriteTarget> => {
     const view = (await createPublicViews(h.meta).viewFor(h.connectionId))!;
     const handle = await h.manager.data(h.connectionId);
