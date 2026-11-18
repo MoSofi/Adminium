@@ -275,6 +275,26 @@ describe.each(LEGS)('visitor counting at the forms door — %s', (dialect, avail
     expect((await composed.app.inject({ method: 'GET', url: ranged })).statusCode).toBe(401);
   });
 
+  it.skipIf(!available)('the counting rows are kept for the months chosen, from the offered ones, and only the privacy action changes counting', async () => {
+    const put = (rows: unknown, cookie = owner) => composed.app.inject({ method: 'PUT', url: '/api/v1/privacy/keeping', headers: { cookie }, payload: { rows } });
+    const saved = await put([{ key: 'view-counts', months: 24 }, { key: 'visitor-pages', months: 3 }]);
+    expect(saved.statusCode, saved.body).toBe(200);
+    const rows = (saved.json() as Doc).data.rows as Doc[];
+    expect(rows.filter((row) => ['view-counts', 'visitor-pages'].includes(row.key as string))).toEqual([
+      { key: 'view-counts', fixed: false, keptFor: 24, options: [3, 6, 12, 13, 24, 36] },
+      { key: 'visitor-pages', fixed: false, keptFor: 3, options: [3, 6, 12, 13, 24, 36] },
+    ]);
+    expect((await put([{ key: 'view-counts', months: 7 }])).statusCode).toBe(422);
+    expect((await put([{ key: 'consent-history', months: 12 }])).statusCode).toBe(422);
+    expect((await put([{ key: 'view-counts', months: 13 }], builder)).statusCode).toBe(403);
+    expect((await composed.app.inject({ method: 'PUT', url: '/api/v1/privacy/counting', headers: { cookie: builder }, payload: { level: 'off' } })).statusCode).toBe(403);
+    expect((await composed.app.inject({ method: 'GET', url: '/api/v1/privacy/counting', headers: { cookie: answersOnly } })).statusCode).toBe(403);
+    expect(await put([{ key: 'view-counts', months: 13 }, { key: 'visitor-pages', months: 6 }])).toMatchObject({ statusCode: 200 });
+    const counting = (await composed.app.inject({ method: 'GET', url: '/api/v1/privacy/counting', headers: { cookie: owner } })).json() as Doc;
+    expect(counting.data).toMatchObject({ level: 'counts', viewCountsMonths: 13, visitsMonths: 6, noticeReady: true, kept: { visitors: 0, visits: 0 } });
+    expect(Object.keys(counting.data.defaults as Doc).sort()).toEqual(['ar-EG', 'cs-CZ', 'da-DK', 'de-DE', 'en-US', 'fr-FR', 'zh-CN', 'zh-TW']);
+  });
+
   it.skipIf(!available)('Off counts nothing; Per visitor is refused while the notice is not set', async () => {
     expect((await setLevel('off')).statusCode).toBe(200);
     await read('/x/forms/api/showroom-visit');
