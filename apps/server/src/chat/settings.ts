@@ -24,7 +24,7 @@ import { readDay } from '../crud/moments.js';
 import { jsonOf } from '../forms/catalog.js';
 import { weeklyHoursSchema, type WeeklyHours } from './hours.js';
 
-/** How many months conversations are kept when the settings row says nothing (D11). */
+/** How many months conversations are kept when the settings row says nothing. */
 export const TRANSCRIPTS_MONTHS_DEFAULT = 12;
 
 export type ChatTheme = (typeof CHAT_THEMES)[number];

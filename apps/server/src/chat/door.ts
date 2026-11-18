@@ -23,7 +23,7 @@
  * A body is cut to what a person typed: NFC, control characters but line
  * breaks and tabs removed, trimmed, then 1 to 2,000 characters (counted as
  * the visitor sees them, by code point). "Came from" is the page's origin and
- * path only: its query and fragment never reach the conversation (D42), and
+ * path only: its query and fragment never reach the conversation, and
  * it is cut to 2,048 characters. The network address is never kept with a
  * conversation: only its keyed hash counts against the caps, for 3 hours.
  */
@@ -54,7 +54,7 @@ import { chatTokenKey, chatTokenRefusal, makeChatToken, readChatToken, type Chat
 
 /** The longest "came from" kept: the conversations contract's width. */
 export const CAME_FROM_MAX = 2048;
-/** How often a poll writes the visitor's heartbeat: presence is read in minutes (D46). */
+/** How often a poll writes the visitor's heartbeat: presence is read in minutes. */
 export const HEARTBEAT_EVERY_MS = 60_000;
 /** The most messages one poll hands back; the window asks again from the last. */
 export const POLL_LIMIT = 200;
@@ -153,13 +153,12 @@ export interface DoorReply {
   body: Record<string, unknown>;
 }
 
-const UNAVAILABLE: DoorReply = { status: 404, body: { state: 'unavailable' } };
 /** A token that does not read, names a conversation gone, or lapsed: the window's earlier chat is lost. */
 const LOST: DoorReply = { status: 410, body: { state: 'lost' } };
 /** A write on a closed conversation: it may be read until it lapses, never written. */
 const CLOSED: DoorReply = { status: 409, body: { state: 'closed' } };
 
-/** A tripped cap as the window is told it: which, and how long to wait (F11). */
+/** A tripped cap as the window is told it: which, and how long to wait. */
 function tooMany(refused: Exclude<ChatCapRefusal, { cap: 'paused' }>): DoorReply {
   return { status: 429, body: { state: 'too-many', cap: refused.cap, retryAfter: refused.retryAfter } };
 }
@@ -195,6 +194,9 @@ export function createChatDoor(deps: ChatDoorDeps) {
 
   const installId = async (): Promise<string> => String((await settingsRepo(meta).get('system.instanceId')) ?? '');
 
+  /** "Not available", with who the business is, as every door says it. */
+  const notAvailable = async (): Promise<DoorReply> => ({ status: 404, body: { state: 'unavailable', ...(await strangerBusiness(meta)) } });
+
   /** The zone a chat's hours are in: its own, else the business's database's, else UTC. */
   async function zoneOf(chat: LiveChat): Promise<string> {
     if (chat.settings.timeZone !== null) return knownZone(chat.settings.timeZone);
@@ -212,7 +214,7 @@ export function createChatDoor(deps: ChatDoorDeps) {
     return chatLanguageOf(await settingsRepo(meta).get('locale.default'));
   }
 
-  /** Whether automatic answers run now: switched on, in hours, a day's tokens set, AI usable, and the day's not spent (F10). */
+  /** Whether automatic answers run now: switched on, in hours, a day's tokens set, AI usable, and the day's not spent. */
   async function automaticNow(chat: LiveChat, hours: HoursNow, at: number): Promise<{ automatic: boolean; ai: ChatAi }> {
     const ai = await deps.ai();
     const on = chat.settings.automatic && hours.open && chat.settings.dailyTokens > 0 && ai.usable && (deps.budgetLeft === undefined || (await deps.budgetLeft(chat, at).catch(() => false)));
@@ -347,7 +349,7 @@ export function createChatDoor(deps: ChatDoorDeps) {
     async config(chat: LiveChat, asked: { language?: unknown; frame?: boolean; websites?: () => Promise<readonly string[]>; preview?: boolean }): Promise<DoorReply> {
       const at = now();
       // The breaker: a new visitor finds the chat not available while it is paused; a visitor already chatting goes on.
-      if (asked.preview !== true && (await caps.pausedUntil(chat.addOn, at)) !== null) return UNAVAILABLE;
+      if (asked.preview !== true && (await caps.pausedUntil(chat.addOn, at)) !== null) return notAvailable();
       const shared = await strangerBusiness(meta);
       const hours = await hoursOf(chat, at);
       const { automatic, ai } = await automaticNow(chat, hours, at);
@@ -380,7 +382,7 @@ export function createChatDoor(deps: ChatDoorDeps) {
     },
 
     /** "Not available", with who the business is, as every door says it. */
-    unavailable: async (): Promise<DoorReply> => ({ status: 404, body: { state: 'unavailable', ...(await strangerBusiness(meta)) } }),
+    unavailable: notAvailable,
 
     /** A new conversation, with the visitor's first message (see the header). */
     async start(request: FastifyRequest, chat: LiveChat, sent: { language?: unknown; cameFrom?: unknown; body?: unknown; website?: unknown } | null): Promise<DoorReply> {
@@ -397,7 +399,7 @@ export function createChatDoor(deps: ChatDoorDeps) {
       const body = cleanBody(sent.body);
       if (body === null) return { status: 400, body: { state: 'refused', errors: { body: 'length' } } };
       const charged = await caps.chargeStart(chat.addOn, request.ip, at);
-      if (!charged.ok) return charged.cap === 'paused' ? UNAVAILABLE : tooMany(charged);
+      if (!charged.ok) return charged.cap === 'paused' ? notAvailable() : tooMany(charged);
       const { automatic } = await automaticNow(chat, hours, at);
       const state: ChatState = automatic ? 'bot' : 'waiting';
       let started: Awaited<ReturnType<ChatStore['start']>>;
@@ -438,7 +440,7 @@ export function createChatDoor(deps: ChatDoorDeps) {
       const body = cleanBody(sent?.body);
       if (body === null) return { status: 400, body: { state: 'refused', errors: { body: 'length' } } };
       const charged = await caps.chargeMessage(chat.addOn, conversation.id, await store.visitorCount(chat, conversation.id), at);
-      if (!charged.ok) return charged.cap === 'paused' ? UNAVAILABLE : tooMany(charged);
+      if (!charged.ok) return charged.cap === 'paused' ? notAvailable() : tooMany(charged);
       const added = await store.add(chat, conversation.id, { kind: 'visitor', body }, { lastVisitorAt: at }, { at });
       if (added === null) {
         await charged.release().catch(() => undefined);
@@ -529,7 +531,7 @@ export function createChatDoor(deps: ChatDoorDeps) {
       if (email === undefined || email === null) errors.email = 'email';
       if (Object.keys(errors).length > 0) return { status: 400, body: { state: 'refused', errors } };
       const charged = await caps.chargeStart(chat.addOn, request.ip, at);
-      if (!charged.ok) return charged.cap === 'paused' ? UNAVAILABLE : tooMany(charged);
+      if (!charged.ok) return charged.cap === 'paused' ? notAvailable() : tooMany(charged);
       const conversation = { state: 'waiting' as const, language, cameFrom: cameFromOf(sent.cameFrom), outsideHours: true, name: name ?? null, email: email!, first: { kind: 'visitor' as const, body: question! } };
       let started: Awaited<ReturnType<ChatStore['start']>> | null = null;
       try {
