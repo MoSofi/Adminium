@@ -231,6 +231,29 @@ describe('AddOnsPage', () => {
     expect(await screen.findByRole('tab', { name: 'Setup' })).toBeTruthy();
   });
 
+  it('sends an add-on with sources to its own Sources screen: no connect form, no Connected badge, no Disconnect', async () => {
+    await renderPage({
+      installed: [
+        makeAddOn({
+          key: 'company-finder',
+          name: 'Company finder',
+          connected: true,
+          connectKind: 'api-key',
+          provides: [{ contract: 'lead-source', version: 1 }],
+          networkAllow: ['api.company-information.service.gov.uk'],
+        }),
+        // One with no key saved yet: still no connect form.
+        makeAddOn({ key: 'people-finder', name: 'People finder', connected: false, connectKind: 'api-key', provides: [{ contract: 'lead-source', version: 1 }], settings: [{ key: 'hunter_key', type: 'string', secret: true }] as never }),
+      ],
+    });
+    expect((await screen.findByTestId('add-on-company-finder-sources-where')).textContent).toBe('Set up its sources on its own Sources screen.');
+    expect(screen.getByTestId('add-on-people-finder-sources-where')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Connect' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Disconnect' })).toBeNull();
+    expect(screen.queryByText('Connected')).toBeNull();
+    expect(screen.queryByText('Not connected')).toBeNull();
+  });
+
   it('says who sets a payment service up, to someone without a payments key', async () => {
     await renderPage({
       respond: (_method, url) => (url.startsWith('/api/v1/bootstrap') ? { status: 200, body: { data: makeBootstrap({ nav: { groups: [] }, roles: ['admin'], systemActions: ['manifests.manage'] }) } } : undefined),
