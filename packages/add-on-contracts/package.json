@@ -38,6 +38,15 @@
       "types": "./dist/forms/websites.d.ts",
       "default": "./dist/forms/websites.js"
     },
+    "./landing": {
+      "types": "./dist/landing/index.d.ts",
+      "default": "./dist/landing/index.js"
+    },
+    "./landing/render": {
+      "types": "./dist/landing/render.d.ts",
+      "default": "./dist/landing/render.js"
+    },
+    "./landing/landing.css": "./dist/landing/landing.css",
     "./runtime": {
       "types": "./dist/runtime/index.d.ts",
       "default": "./dist/runtime/index.js"
