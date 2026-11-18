@@ -19,7 +19,7 @@
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
-  DEFAULT_NOTIFICATION_CHANNELS,
+  defaultChannelsFor,
   notificationPrefsRepo,
   notificationsRepo,
   type MetaDb,
@@ -71,6 +71,13 @@ export const NOTIFICATION_EVENT_KEYS: readonly string[] = [
   'email.campaign.sent',
   // A website chat's automatic answers ran out of tokens early in the day (`chat/budget-alert.ts`).
   'chat.budget',
+  // A website chat waits for a person (`chat/waiting.ts`; the bell alone until a person switches e-mail on),
+  // and new chats were paused by the breaker (`chat/notices.ts`).
+  'chat.waiting',
+  'chat.paused',
+  // A form's new answer, and a form that hit its limit (`forms/mail.ts`).
+  'forms.answer',
+  'forms.limit',
 ];
 
 /**
@@ -151,8 +158,7 @@ export function notificationsRoutes(deps: NotificationsRoutesDeps): FastifyPlugi
     return {
       channels: await channelViews(meta),
       events: keys.map((key) => {
-        const channels: NotificationChannels =
-          byKey.get(key) ?? { ...DEFAULT_NOTIFICATION_CHANNELS };
+        const channels: NotificationChannels = byKey.get(key) ?? defaultChannelsFor(key);
         return { key, channels, custom: byKey.has(key) };
       }),
     };

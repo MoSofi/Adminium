@@ -153,6 +153,13 @@ export const BUILTIN_EMAIL_TEMPLATE_KEYS = [
    * reword it here; the only word the stranger typed is their first name.
    */
   'sign-up-confirm',
+  /*
+   * A staff member's reply in a website chat, mailed to the address the
+   * visitor left once they left the page. Service mail with the business's
+   * name and the reply alone: never a word the visitor typed, never the
+   * conversation, never a link back into it.
+   */
+  'chat-reply',
 ] as const;
 
 export type BuiltinEmailTemplateKey = (typeof BUILTIN_EMAIL_TEMPLATE_KEYS)[number];
@@ -209,6 +216,11 @@ export const BUILTIN_EMAIL_TEMPLATE_VARS: Readonly<
    * none. `postal` is the sender's postal address, else the business's name.
    */
   'sign-up-confirm': ['business', 'greeting', 'purposeLine', 'link', 'days', 'postal'],
+  /*
+   * `reply` is what the staff member wrote, as they wrote it; `postal` is the
+   * sender's postal address, else the business's name. Nothing of the visitor.
+   */
+  'chat-reply': ['business', 'reply', 'postal'],
 };
 
 /**
@@ -269,6 +281,7 @@ const VAR = {
   purposeLine: '{{purposeLine}}',
   days: '{{days}}',
   postal: '{{postal}}',
+  reply: '{{reply}}',
 } as const;
 
 function heading(text: string): EmailTemplateBlock {
@@ -857,6 +870,35 @@ function signUpConfirmTemplate(t: Translate): BuiltinEmailTemplate {
   };
 }
 
+/**
+ * A reply in a website chat, mailed because the visitor left the page (or
+ * left a question outside hours) and gave an address. It carries the
+ * business's name and the staff member's reply only: no quote of the
+ * visitor, no transcript, no link back, since anyone could have typed the
+ * address. Service mail: no unsubscribe line, the postal address in the footer.
+ */
+function chatReplyTemplate(t: Translate): BuiltinEmailTemplate {
+  return {
+    key: 'chat-reply',
+    name: t('email:chat.replyName', { defaultValue: 'Chat reply' }),
+    subject: t('email:chat.replySubject', { business: VAR.business, defaultValue: 'A reply from {business}' }),
+    preheader: t('email:chat.replyPreheader', { business: VAR.business, defaultValue: '{business} answered your chat.' }),
+    category: 'transactional',
+    blocks: [
+      heading(t('email:chat.replyHeading', { business: VAR.business, defaultValue: '{business} answered your chat' })),
+      paragraph('reply', VAR.reply),
+      paragraph(
+        'notice',
+        t('email:chat.replyNotice', {
+          business: VAR.business,
+          defaultValue: 'You get this e-mail because this address was left in a chat on {business}’s website. If that wasn’t you, you can ignore it.',
+        }),
+      ),
+    ],
+    footer: VAR.postal,
+  };
+}
+
 export function builtinEmailTemplates(t: Translate): BuiltinEmailTemplate[] {
   return [
     passwordResetTemplate(t),
@@ -871,6 +913,7 @@ export function builtinEmailTemplates(t: Translate): BuiltinEmailTemplate[] {
     paymentLinkTemplate(t),
     paymentReceiptTemplate(t),
     signUpConfirmTemplate(t),
+    chatReplyTemplate(t),
   ];
 }
 

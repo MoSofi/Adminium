@@ -155,7 +155,11 @@ export const SYSTEM_LINES: Readonly<Record<string, string>> = {
   closed: 'The chat was closed.',
   reopened: 'The chat was reopened.',
   left: 'The visitor left the page.',
+  enquiry: 'An enquiry was made from this chat.',
 };
+
+/** The system lines staff alone read: the visitor's window is never sent them. */
+export const STAFF_ONLY_EVENTS: ReadonlySet<string> = new Set(['left', 'enquiry']);
 
 /** Two keys compared as the numbers they are. */
 export function compareKeys(a: string, b: string): number {
@@ -264,14 +268,34 @@ export interface ChatStoreDeps {
   writes: Pick<RecordWriteService, 'check' | 'transaction'>;
   /** The realtime hub; null on a compose with none. */
   hub: () => RealtimeHub | null;
+  /**
+   * Told, once the write stands, that a conversation waits for a person: it
+   * was started waiting, it was handed over, or the visitor wrote while it
+   * waits (`waiting.ts` tells staff, once until someone opens it). Never
+   * awaited: the visitor is answered whatever it does.
+   */
+  waiting?: ((chat: LiveChat, conversation: ChatConversation) => void) | undefined;
   now?: () => number;
 }
+
+/** The chat a conversation's memory is kept under: its database and its conversations table. */
+export type ChatPlace = Pick<LiveChat, 'connectionId'> & { conversations: { table: Pick<ChatTable['table'], 'id'> } };
 
 export function createChatStore(deps: ChatStoreDeps) {
   const now = deps.now ?? Date.now;
   const latestKept = new Map<string, ChatLatest>();
 
-  const memoryKey = (chat: Pick<LiveChat, 'connectionId' | 'conversations'>, id: string): string => `${chat.connectionId}\u0000${chat.conversations.table.id}\u0000${id}`;
+  const memoryKey = (chat: ChatPlace, id: string): string => `${chat.connectionId}\u0000${chat.conversations.table.id}\u0000${id}`;
+
+  /** A conversation that waits for a person, told once its write stood. */
+  function toldWaiting(chat: LiveChat, conversation: ChatConversation): void {
+    if (conversation.state !== 'waiting' || deps.waiting === undefined) return;
+    try {
+      deps.waiting(chat, conversation);
+    } catch {
+      // A notice never fails the write it is about.
+    }
+  }
 
   function remember(chat: LiveChat, id: string, latest: ChatLatest): void {
     const key = memoryKey(chat, id);
@@ -419,6 +443,7 @@ export function createChatStore(deps: ChatStoreDeps) {
       if (opts.on === undefined) {
         publish(chat, chat.conversations, 'create', written.made);
         if (written.first !== null) publish(chat, chat.messages, 'create', written.first);
+        toldWaiting(chat, conversation);
       }
       return { conversation, messages };
     },
@@ -427,19 +452,23 @@ export function createChatStore(deps: ChatStoreDeps) {
     announceStart(chat: LiveChat, conversation: ChatConversation, messages: readonly ChatMessage[]): void {
       publish(chat, chat.conversations, 'create', { [chat.conversations.pk]: boundKey(conversation.id) });
       for (const message of messages) publish(chat, chat.messages, 'create', { [chat.messages.pk]: boundKey(message.id), conversation_id: boundKey(conversation.id) });
+      toldWaiting(chat, conversation);
     },
 
     /**
      * A message, and the conversation moved with it in the same transaction:
      * its last message, one more automatic answer for an automatic one, and
      * `patch` (a new state, a stamp). Null when the conversation is gone.
+     * `keepLast`: a line dated in the past (the visitor left at the time of
+     * their last heartbeat) leaves the conversation's last message as it is.
      */
-    async add(chat: LiveChat, conversationId: string, message: NewChatMessage, patch: ChatConversationPatch = {}, opts: { at?: number } = {}): Promise<{ message: ChatMessage; conversation: ChatConversation } | null> {
+    async add(chat: LiveChat, conversationId: string, message: NewChatMessage, patch: ChatConversationPatch = {}, opts: { at?: number; keepLast?: boolean } = {}): Promise<{ message: ChatMessage; conversation: ChatConversation } | null> {
       const at = opts.at ?? now();
+      const moves: Row = { ...patchColumns(patch), ...(opts.keepLast === true ? {} : { last_message_at: iso(at) }) };
       const written = await within(chat, undefined, async (db) => {
         if ((await readConversation(chat, conversationId, db)) === null) return null;
         const row = await insert(chat, chat.messages, db, messageValues(conversationId, message, at));
-        await updateConversation(chat, conversationId, { ...patchColumns(patch), last_message_at: iso(at) }, db);
+        await updateConversation(chat, conversationId, moves, db);
         if (message.kind === 'automatic') {
           const { table, pk } = chat.conversations;
           await db
@@ -455,12 +484,52 @@ export function createChatStore(deps: ChatStoreDeps) {
       const added = messageOf(written.row, chat.messages.pk);
       moved(chat, written.conversation, added.id);
       publish(chat, chat.messages, 'create', written.row);
-      publish(chat, chat.conversations, 'update', { [chat.conversations.pk]: boundKey(conversationId), ...patchColumns(patch), last_message_at: iso(at) });
+      if (Object.keys(moves).length > 0) publish(chat, chat.conversations, 'update', { [chat.conversations.pk]: boundKey(conversationId), ...moves });
+      // A visitor still waiting, or a conversation just handed to a person: staff are told (once until someone opens it).
+      if (message.kind === 'visitor' || message.event === 'asked' || message.event === 'handed-over') toldWaiting(chat, written.conversation);
       return { message: added, conversation: written.conversation };
     },
 
     /** A conversation, read now. */
     conversation: (chat: LiveChat, id: string) => readConversation(chat, id),
+
+    /** A message, read now; null when it is not one of this conversation's. */
+    async message(chat: LiveChat, conversationId: string, messageId: string): Promise<ChatMessage | null> {
+      const { table, pk } = chat.messages;
+      const row = (await chat.db
+        .selectFrom(table.id as never)
+        .selectAll()
+        .where(sql.ref(pk), '=', boundKey(messageId))
+        .where(sql.ref('conversation_id'), '=', boundKey(conversationId))
+        .executeTakeFirst()) as Row | undefined;
+      return row === undefined ? null : messageOf(row, pk);
+    },
+
+    /** The conversation's newest system line with this event, or null. */
+    async lastEvent(chat: LiveChat, conversationId: string, event: string): Promise<ChatMessage | null> {
+      const { table, pk } = chat.messages;
+      const row = (await chat.db
+        .selectFrom(table.id as never)
+        .selectAll()
+        .where(sql.ref('conversation_id'), '=', boundKey(conversationId))
+        .where(sql.ref('kind'), '=', 'system')
+        .where(sql.ref('event'), '=', event)
+        .orderBy(sql.ref(pk) as never, 'desc')
+        .limit(1)
+        .executeTakeFirst()) as Row | undefined;
+      return row === undefined ? null : messageOf(row, pk);
+    },
+
+    /** Stamps when a staff message was also mailed to the visitor (`mailed_at`). */
+    async markMailed(chat: LiveChat, messageId: string, at: number): Promise<void> {
+      const { table, pk } = chat.messages;
+      await chat.db
+        .updateTable(table.id as never)
+        .set(storedColumns(table, { mailed_at: iso(at) }, chat.dialect) as never)
+        .where(sql.ref(pk), '=', boundKey(messageId))
+        .execute();
+      publish(chat, chat.messages, 'update', { [pk]: boundKey(messageId), mailed_at: iso(at) });
+    },
 
     /** The conversation's messages after the key `after` ('0': from the first), oldest first, at most `limit`. */
     async since(chat: LiveChat, conversationId: string, after: string, limit = 200): Promise<ChatMessage[]> {
@@ -534,7 +603,7 @@ export function createChatStore(deps: ChatStoreDeps) {
     },
 
     /** Forgets what memory holds for one conversation (erased), or every one. */
-    forget(chat?: LiveChat, id?: string): void {
+    forget(chat?: ChatPlace, id?: string): void {
       if (chat === undefined || id === undefined) latestKept.clear();
       else latestKept.delete(memoryKey(chat, id));
     },

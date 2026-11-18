@@ -49,7 +49,7 @@ import type { ChatCatalog, LiveChat } from './catalog.js';
 import { hoursAt, knownZone, type HoursNow } from './hours.js';
 import { becomeRow, type ChatQuestionDeps, type QuestionField } from './question.js';
 import { chatLanguageOf, chatLanguages, visitorLanguage, wordsIn } from './settings.js';
-import { SYSTEM_LINES, compareKeys, type ChatConversation, type ChatMessage, type ChatState, type ChatStore } from './store.js';
+import { STAFF_ONLY_EVENTS, SYSTEM_LINES, compareKeys, type ChatConversation, type ChatMessage, type ChatState, type ChatStore } from './store.js';
 import { chatTokenKey, chatTokenRefusal, makeChatToken, readChatToken, type ChatClaim } from './token.js';
 
 /** The longest "came from" kept: the conversations contract's width. */
@@ -240,13 +240,13 @@ export function createChatDoor(deps: ChatDoorDeps) {
     return author;
   }
 
-  /** Messages as the window is sent them: each staff author's first name, each automatic answer's language; the staff-only `left` line left out. */
+  /** Messages as the window is sent them: each staff author's first name, each automatic answer's language; the staff-only lines (`left`, `enquiry`) left out. */
   async function wire(chat: LiveChat, conversation: Pick<ChatConversation, 'language'>, messages: readonly ChatMessage[], at: number): Promise<WireMessage[]> {
     const refs = [...new Set(messages.flatMap((message) => (message.kind === 'automatic' && message.answerRef !== null ? [message.answerRef] : [])))];
     const answers: ChatAnswer[] = refs.length === 0 ? [] : await readAnswers(chat, refs).catch(() => []);
     const out: WireMessage[] = [];
     for (const message of messages) {
-      if (message.kind === 'system' && message.event === 'left') continue;
+      if (message.kind === 'system' && message.event !== null && STAFF_ONLY_EVENTS.has(message.event)) continue;
       const one: WireMessage = { id: message.id, kind: message.kind, body: message.body, sentAt: new Date(message.sentAt).toISOString() };
       if (message.kind === 'system' && message.event !== null) {
         if (message.event === 'asked' || message.event === 'handed-over') {
