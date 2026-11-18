@@ -26,6 +26,18 @@
  * does both, with the contract's answer schemas, as it knows which call it
  * made.
  */
+import {
+  LEAD_SOURCE_CONTRACT,
+  LEAD_SOURCE_FACTORY,
+  LEAD_SOURCE_VERSION,
+  SOURCE_READS_WEBSITE,
+  isLeadSourceError,
+  type CreateLeadSource,
+  type LeadSource,
+  type LeadSourceContext,
+  type LeadSourceError,
+  type LeadSourceHttpClient,
+} from '@adminium/add-on-contracts';
 import { addOnManifestSchema, type AddOnManifest } from '@adminium/manifest';
 import type { CredentialEnvelope, InstalledManifest, MetaDb } from '@adminium/meta';
 
@@ -33,18 +45,7 @@ import { addOnHttpClientFor, type AddOnHttpClientOptions } from '../add-ons/egre
 import { providerByKey, type AddOnRuntimeState } from '../add-ons/runtime.js';
 import { reserveDay, retryAfterSeconds, sourceGate, type SourceGate, type SourceRefusal } from './caps.js';
 import { sourceKey } from './keys.js';
-import {
-  LEAD_SOURCE_CONTRACT,
-  LEAD_SOURCE_FACTORY,
-  LEAD_SOURCE_VERSION,
-  type CreateLeadSource,
-  type LeadSource,
-  type LeadSourceContext,
-  type LeadSourceEntry,
-  type LeadSourceError,
-  type LeadSourceHttpClient,
-} from './pending-types.js';
-import { needsKey, readSourcesState, sourceStateOf, sourcesOf } from './state.js';
+import { needsKey, readSourcesState, sourceStateOf, sourcesOf, type LeadSourceEntry } from './state.js';
 
 /** How long the engine waits for one call, whatever the source does with its stop signal. */
 export const CALL_DEADLINE_MS = 60_000;
@@ -97,11 +98,6 @@ function factoryOf(module: unknown): CreateLeadSource | null {
   return typeof candidate === 'function' ? (candidate as CreateLeadSource) : null;
 }
 
-/** An answer that is an error of the source's own, by its shape. */
-function isSourceError(value: unknown): value is LeadSourceError {
-  return typeof value === 'object' && value !== null && (value as { ok?: unknown }).ok === false && typeof (value as { code?: unknown }).code === 'string';
-}
-
 /** An install's add-on manifest, or null when it does not read as one. */
 export function installManifest(install: InstalledManifest): AddOnManifest | null {
   const parsed = addOnManifestSchema.safeParse(install.document);
@@ -127,7 +123,7 @@ export async function withLeadSource<T>(deps: LeadSourceDeps, call: LeadSourceCa
   if (!('entry' in found)) return found;
   const { manifest, entry } = found;
   // The website is read by the engine's own reader, never by add-on code.
-  if (entry.reads === 'website') return invalid(`"${source}" is the website, which Adminium reads itself.`);
+  if (entry.reads === SOURCE_READS_WEBSITE) return invalid(`"${source}" is the website, which Adminium reads itself.`);
   if (install.row.status !== 'installed') return refuse('SOURCE_OFF', `The add-on "${manifest.key}" is switched off.`);
 
   const state = sourceStateOf(await readSourcesState(deps.meta, install.row.id), entry);
@@ -172,7 +168,7 @@ export async function withLeadSource<T>(deps: LeadSourceDeps, call: LeadSourceCa
     try {
       made = true;
       const answer = await Promise.race([run(factory(context)), late]);
-      if (isSourceError(answer) && answer.code === 'RATE_LIMITED') gate.pause(install.row.id, source, answer.retryAfterSeconds);
+      if (isLeadSourceError(answer) && answer.code === 'RATE_LIMITED') gate.pause(install.row.id, source, answer.retryAfterSeconds);
       return answer;
     } catch (error) {
       deps.log?.('a lead source call threw', { addOn: manifest.key, source, error: error instanceof Error ? error.name : typeof error });

@@ -30,11 +30,10 @@
  * meta store once; `resolveDeclaredPeople` does the rest and is what the
  * tests drive.
  */
-import { FIRST_WORD_OF_NAME, LINK_PATH, isAddOnCopy, optOutMarkColumn, peopleSchema, type PeopleCopy, type PeopleEntry } from '@adminium/manifest';
+import { FIRST_WORD_OF_NAME, LINK_PATH, isAddOnCopy, optOutMarkColumn, peopleSchema, type PeopleCopy, type PeopleEntry, type PeopleLead } from '@adminium/manifest';
 import { appTablesRepo, manifestsRepo, overridesRepo, realTableOf, type AppTableRecord, type MetaDb, type SchemaOverride } from '@adminium/meta';
 
 import { tableIdModelOf, tableIdOrNull } from '../installs/table-id.js';
-import { leadOfEntry, type PeopleLead } from '../lead-sources/pending-types.js';
 
 /** A column on another table that holds a copy of the person's address or name. */
 export interface DeclaredCopy {
@@ -293,7 +292,7 @@ export function resolveDeclaredPeople(source: PeopleSource): DeclaredPeopleTable
       let name = column(entry.name ?? keyFields.get(entry.table));
       let switchedOff = false;
       // The app's word, checked against its own manifest when it was installed: a column the database no longer has reads as none.
-      let lead: DeclaredLead = entry.kind === 'companies' ? leadColumns(leadOfEntry(entry), {}, false) : {};
+      let lead: DeclaredLead = entry.kind === 'companies' ? leadColumns(entry.lead, {}, false) : {};
       // The owner's word, in the order it was written: a later row wins.
       for (const row of source.overrides) {
         if (row.status !== 'active' || row.op !== 'table.people' || row.connectionId !== connectionId || row.tableName !== table.id) continue;

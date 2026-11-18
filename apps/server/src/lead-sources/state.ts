@@ -25,15 +25,18 @@ import { z } from 'zod';
 
 import { withServiceLock } from '../payments/services.js';
 import { SOURCE_ID_RE } from './keys.js';
-import { LEAD_SOURCE_CONTRACT, sourcesOfDocument, type LeadSourceEntry } from './pending-types.js';
+import { LEAD_SOURCE_CONTRACT, SOURCE_READS_WEBSITE, type AddOnSource } from '@adminium/add-on-contracts';
+
+/** One `addOn.sources` entry, as the manifest declares it. */
+export type LeadSourceEntry = AddOnSource;
 
 /** An add-on's declared sources, in its manifest's order. */
-export function sourcesOf(manifest: { addOn: object }): LeadSourceEntry[] {
-  return sourcesOfDocument(manifest);
+export function sourcesOf(manifest: { addOn: { sources?: readonly AddOnSource[] | undefined } }): LeadSourceEntry[] {
+  return [...(manifest.addOn.sources ?? [])];
 }
 
 /** Whether an add-on speaks for sources: it declares some, or provides the lead source contract. */
-export function speaksForSources(manifest: { addOn: { provides?: readonly { contract: string }[] | undefined } }): boolean {
+export function speaksForSources(manifest: { addOn: { sources?: readonly AddOnSource[] | undefined; provides?: readonly { contract: string }[] | undefined } }): boolean {
   return sourcesOf(manifest).length > 0 || (manifest.addOn.provides ?? []).some((entry) => entry.contract === LEAD_SOURCE_CONTRACT);
 }
 
@@ -82,7 +85,7 @@ export function emptySourcesState(): SourcesState {
 
 /** Whether a source is called with a key of the owner's. The website reader and the open registers are not. */
 export function needsKey(entry: LeadSourceEntry): boolean {
-  return entry.reads !== 'website' && entry.key !== undefined;
+  return entry.reads !== SOURCE_READS_WEBSITE && entry.key !== undefined;
 }
 
 /** A source's state before anything was saved for it. */

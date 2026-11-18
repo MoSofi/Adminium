@@ -27,6 +27,7 @@
  * Saving and checking are refused while the operator has switched add-on
  * network calls off, and while this server is set to call nothing outside.
  */
+import { parseLeadSourceAnswer, type KeyChecked } from '@adminium/add-on-contracts';
 import type { InstalledManifest, ManifestsRepo, MetaDb } from '@adminium/meta';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -41,7 +42,6 @@ import { rememberInstall, rememberedInstall, resolveInstall, selectorOf } from '
 import { sourceGate, usedToday } from '../../lead-sources/caps.js';
 import { installManifest, sourceEntryOf, withLeadSource, type LeadSourceRefusal } from '../../lead-sources/call.js';
 import { SOURCE_KEY_MAX, lastFour, sourceKey, withSourceKey } from '../../lead-sources/keys.js';
-import { LEAD_SOURCE_ANSWER_SCHEMAS, leadSourceErrorSchema, type KeyChecked, type LeadSourceEntry } from '../../lead-sources/pending-types.js';
 import {
   MAX_DAILY_CAP,
   SOURCE_VERDICTS,
@@ -53,6 +53,7 @@ import {
   speaksForSources,
   withSourcesLock,
   writeSourceState,
+  type LeadSourceEntry,
   type SourceState,
   type SourceVerdict,
 } from '../../lead-sources/state.js';
@@ -237,14 +238,10 @@ export function registerSourceRoutes(app: FastifyInstance, deps: SourceRoutesDep
       { meta, manifests, runtime: deps.runtime, policy: deps.policy(), fetchImpl: deps.fetchImpl, log: (message, fields) => request.log.warn(fields, message) },
       { install, source: entry.id, spender, signal: controller.signal, purpose: 'check' },
       async (source) => {
-        const said: unknown = await source.checkKey();
         // Parsed before it is believed: an answer outside the contract is the source being unavailable.
-        const ok = LEAD_SOURCE_ANSWER_SCHEMAS.checkKey.safeParse(said);
-        if (ok.success) return ok.data;
-        const refused = leadSourceErrorSchema.safeParse(said);
-        if (refused.success) return refused.data;
-        request.log.warn({ addOn: install.row.manifestKey, source: entry.id }, 'a source answered its Check outside the contract');
-        return { ok: false as const, code: 'UNAVAILABLE' as const, message: `${entry.id} answered in a way Adminium does not understand.` };
+        const { answer, issues } = parseLeadSourceAnswer('checkKey', await source.checkKey());
+        if (issues.length > 0) request.log.warn({ addOn: install.row.manifestKey, source: entry.id, issues }, 'a source answered its Check outside the contract');
+        return answer;
       },
     );
     let found = verdictOf(answer);

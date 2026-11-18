@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { SOURCE_KEY_MAX, lastFour, sourceKey, sourceSecretSchema, withSourceKey } from '../src/lead-sources/keys.js';
-import type { LeadSourceEntry } from '../src/lead-sources/pending-types.js';
+import type { LeadSourceEntry } from '../src/lead-sources/state.js';
 import { DEFAULT_DAILY_CAP, DEFAULT_PERSON_SHARE, defaultSourceState, emptySourcesState, needsKey, sourceStateOf, sourcesDocName } from '../src/lead-sources/state.js';
 
 const envelope = (secret: unknown) => ({ kind: 'api-key' as const, secret: secret as Record<string, unknown>, expiresAt: null, scopes: null });
