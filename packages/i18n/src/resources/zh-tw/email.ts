@@ -1011,8 +1011,7 @@ export default {
     "replyHeading": "{business} 回覆了您的聊天",
     "replyNotice": "您收到這封郵件，是因為有人在 {business} 網站的聊天中留下了這個地址。如果不是您本人，請忽略。",
     "waitingTitle": "有聊天在等待：{chat}",
-    "waitingBody": "{name} 正在等待真人回覆。",
-    "waitingOutside": "{name} 在營業時間外留下了問題，正在等待真人回覆。",
-    "waitingSomeone": "一位訪客"
+    "waitingBody": "一位訪客正在等待真人回覆。",
+    "waitingOutside": "一位訪客在營業時間外留下了問題，正在等待真人回覆。"
   }
 } as const;

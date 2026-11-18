@@ -1011,8 +1011,7 @@ export default {
     "replyHeading": "ردّ {business} على دردشتك",
     "replyNotice": "وصلك هذا البريد لأن هذا العنوان كُتب في دردشة على موقع {business}. إن لم تكن أنت، يمكنك تجاهله.",
     "waitingTitle": "دردشة في الانتظار: {chat}",
-    "waitingBody": "{name} في انتظار أن يرد عليه شخص.",
-    "waitingOutside": "ترك {name} سؤالًا خارج ساعات العمل وينتظر أن يرد عليه شخص.",
-    "waitingSomeone": "زائر"
+    "waitingBody": "زائر في انتظار أن يرد عليه شخص.",
+    "waitingOutside": "ترك زائر سؤالًا خارج ساعات العمل وينتظر أن يرد عليه شخص."
   }
 } as const;

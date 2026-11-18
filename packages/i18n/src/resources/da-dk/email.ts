@@ -1011,8 +1011,7 @@ export default {
     "replyHeading": "{business} har svaret på din chat",
     "replyNotice": "Du får denne e-mail, fordi adressen blev skrevet i en chat på {business}s hjemmeside. Hvis det ikke var dig, kan du se bort fra den.",
     "waitingTitle": "En chat venter: {chat}",
-    "waitingBody": "{name} venter på svar fra en person.",
-    "waitingOutside": "{name} har stillet et spørgsmål uden for jeres åbningstid og venter på svar fra en person.",
-    "waitingSomeone": "En besøgende"
+    "waitingBody": "En besøgende venter på svar fra en person.",
+    "waitingOutside": "En besøgende har stillet et spørgsmål uden for jeres åbningstid og venter på svar fra en person."
   }
 } as const;

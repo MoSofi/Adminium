@@ -1011,8 +1011,7 @@ export default {
     "replyHeading": "{business} odpověděl na váš chat",
     "replyNotice": "Tento e-mail dostáváte, protože tato adresa byla zadána v chatu na webu {business}. Pokud jste to nebyli vy, můžete ho ignorovat.",
     "waitingTitle": "Chat čeká: {chat}",
-    "waitingBody": "{name} čeká na odpověď od člověka.",
-    "waitingOutside": "{name} zanechal(a) otázku mimo vaši pracovní dobu a čeká na odpověď od člověka.",
-    "waitingSomeone": "Návštěvník"
+    "waitingBody": "Návštěvník čeká na odpověď od člověka.",
+    "waitingOutside": "Návštěvník zanechal otázku mimo vaši pracovní dobu a čeká na odpověď od člověka."
   }
 } as const;
