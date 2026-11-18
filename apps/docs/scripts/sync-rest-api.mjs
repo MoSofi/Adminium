@@ -131,7 +131,9 @@ const DESCRIPTIONS = {
   landing:
     'A landing pages add-on, for staff: a page drafted by Milo on the person’s own allowance (no rows, ' +
     'every block marked, never published); the live forms a Form block may show and the live pages a ' +
-    'form may end on; and the name and steps of the rule a funnel names',
+    'form may end on; the name and steps of the rule a funnel names; a page’s own pictures; and what ' +
+    'the editor’s page settings say (reach, notice, the pages hosts and a page’s addresses). The ' +
+    'install is named as the add-on kit names it: the X-Adminium-Install header, else ?connectionId=',
   ledgers:
     'The rules that hand rows to an add-on\'s ledger (stock, gift cards) — which tables post into it, ' +
     'whether each rule runs, how many rows hold something under it and how many saves wait to be ' +
