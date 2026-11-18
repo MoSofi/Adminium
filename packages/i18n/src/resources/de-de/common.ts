@@ -1453,7 +1453,8 @@ export default {
   },
   "chat": {
     "messageSent": "Nachricht gesendet",
-    "sendFailed": "Die Nachricht konnte nicht gesendet werden."
+    "sendFailed": "Die Nachricht konnte nicht gesendet werden.",
+    "budgetEvent": "Die automatischen Antworten eines Chats sind für heute beendet"
   },
   "templates": {
     "crud": {

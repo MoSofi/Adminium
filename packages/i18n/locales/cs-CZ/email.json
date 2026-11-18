@@ -988,5 +988,10 @@
   "trialRelay": {
     "footer": "Odesláno z instalace na adrese {address} přes poštovní službu jejího provozovatele.",
     "report": "Nahlásit tento e-mail"
+  },
+  "chat": {
+    "budgetTitle": "Automatické odpovědi v {chat} jsou pro dnešek zastavené",
+    "budgetBody": "{chat} spotřeboval před 18:00 UTC všechny tokeny, které smí dnes utratit ({tokens}), takže do půlnoci UTC odpovídá každému návštěvníkovi člověk. Takhle brzké vyčerpání může znamenat, že někdo posílá velmi mnoho zpráv. Podívejte se na dnešní konverzace, nebo zvyšte denní počet tokenů v nastavení chatu.",
+    "aiNotice": "Zprávy návštěvníků se posílají do {service}, aby se vybrala odpověď. Nic jiného se neposílá."
   }
 }

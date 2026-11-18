@@ -998,5 +998,10 @@ export default {
   "trialRelay": {
     "footer": "Sendt fra installationen på {address} via operatørens mailtjeneste.",
     "report": "Anmeld denne e-mail"
+  },
+  "chat": {
+    "budgetTitle": "Automatiske svar i {chat} er stoppet for i dag",
+    "budgetBody": "{chat} har brugt alle {tokens} tokens, den må bruge i dag, før kl. 18:00 UTC, så en person svarer hver besøgende indtil midnat UTC. Når de er brugt så tidligt, kan det være nogen, der sender rigtig mange beskeder. Se dagens samtaler, eller hæv antallet af tokens pr. dag i chattens indstillinger.",
+    "aiNotice": "Besøgendes beskeder sendes til {service} for at vælge et svar. Intet andet sendes."
   }
 } as const;

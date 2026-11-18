@@ -988,5 +988,10 @@
   "trialRelay": {
     "footer": "Envoyé depuis l’installation à l’adresse {address}, par le service de messagerie de son opérateur.",
     "report": "Signaler cet e-mail"
+  },
+  "chat": {
+    "budgetTitle": "Les réponses automatiques de {chat} sont arrêtées pour aujourd’hui",
+    "budgetBody": "{chat} a utilisé avant 18:00 UTC les {tokens} jetons qu’il peut dépenser aujourd’hui : une personne répond donc à chaque visiteur jusqu’à minuit UTC. Épuisés si tôt, cela peut venir de quelqu’un qui envoie de très nombreux messages. Consultez les conversations du jour, ou augmentez les jetons par jour dans les réglages du chat.",
+    "aiNotice": "Les messages des visiteurs sont envoyés à {service} pour choisir une réponse. Rien d’autre n’est envoyé."
   }
 }

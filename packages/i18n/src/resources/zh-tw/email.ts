@@ -998,5 +998,10 @@ export default {
   "trialRelay": {
     "footer": "由位於 {address} 的安裝透過其營運方的郵件服務寄出。",
     "report": "檢舉此郵件"
+  },
+  "chat": {
+    "budgetTitle": "{chat} 的自動回答今天已停止",
+    "budgetBody": "{chat} 在 UTC 18:00 之前就用完了今天可用的全部 {tokens} 個 token，因此在 UTC 午夜之前，每位訪客都由真人回答。這麼早用完，可能是有人在傳送大量訊息。請查看今天的對話，或在聊天設定中提高每日 token 數。",
+    "aiNotice": "訪客的訊息會傳送到 {service}，用來選擇一個回答。不會傳送其他任何內容。"
   }
 } as const;
