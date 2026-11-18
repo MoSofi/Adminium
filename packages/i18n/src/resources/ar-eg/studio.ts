@@ -116,7 +116,8 @@ export default {
       "title": "Installed",
       "uninstall": "Uninstall",
       "setUpInPayments": "الإعداد في المدفوعات",
-      "paymentsWho": "يُعدّه في المدفوعات من لديه إذن «إعداد المدفوعات»."
+      "paymentsWho": "يُعدّه في المدفوعات من لديه إذن «إعداد المدفوعات».",
+      "sourcesWhere": "اضبط مصادرها في شاشة المصادر الخاصة بها."
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",

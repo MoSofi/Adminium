@@ -116,7 +116,8 @@ export default {
       "title": "Installed",
       "uninstall": "Uninstall",
       "setUpInPayments": "Set up in Payments",
-      "paymentsWho": "Someone with the “Set up payments” permission sets this up in Payments."
+      "paymentsWho": "Someone with the “Set up payments” permission sets this up in Payments.",
+      "sourcesWhere": "Set up its sources on its own Sources screen."
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",

@@ -116,7 +116,8 @@ export default {
       "title": "Installiert",
       "uninstall": "Deinstallieren",
       "setUpInPayments": "In Zahlungen einrichten",
-      "paymentsWho": "Eingerichtet wird das in Zahlungen, von jemandem mit der Berechtigung „Zahlungen einrichten“."
+      "paymentsWho": "Eingerichtet wird das in Zahlungen, von jemandem mit der Berechtigung „Zahlungen einrichten“.",
+      "sourcesWhere": "Richten Sie seine Quellen auf seinem eigenen Bildschirm „Quellen“ ein."
     },
     "job": {
       "body": "Wird geladen und geprüft. Installiert wird erst auf Ihr Wort.",

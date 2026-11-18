@@ -750,6 +750,11 @@ function isPaymentAddOn(addOn: { provides: { contract: string }[] }): boolean {
   return addOn.provides.some((entry) => entry.contract === 'payment-provider');
 }
 
+/** An add-on that speaks for several sources (`lead-source`): each source's key is set on its own Sources screen, never with the connect form. */
+function isSourcesAddOn(addOn: { provides: { contract: string }[] }): boolean {
+  return addOn.provides.some((entry) => entry.contract === 'lead-source');
+}
+
 export function AddOnsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -1156,7 +1161,7 @@ export function AddOnsPage() {
                         {t('studio:addOns.installed.missing', 'Missing')}
                       </Badge>
                     )}
-                    {addOn.connectKind !== 'none' && (
+                    {addOn.connectKind !== 'none' && !isSourcesAddOn(addOn) && (
                       <Badge tone={addOn.connected ? 'pos' : 'warn'}>
                         {addOn.connected
                           ? t('studio:addOns.installed.connected', 'Connected')
@@ -1224,7 +1229,15 @@ export function AddOnsPage() {
                     </p>
                   )}
 
-                  {!addOn.connected && !isPaymentAddOn(addOn) && (
+                  {/* A source add-on keeps one key per source, saved and checked one at a
+                      time on its own Sources screen. The generic form would refuse it. */}
+                  {isSourcesAddOn(addOn) && (
+                    <p className="text-[12.5px] text-fg-muted" data-testid={`add-on-${addOn.key}-sources-where`}>
+                      {t('studio:addOns.installed.sourcesWhere', 'Set up its sources on its own Sources screen.')}
+                    </p>
+                  )}
+
+                  {!addOn.connected && !isPaymentAddOn(addOn) && !isSourcesAddOn(addOn) && (
                     <ConnectForm
                       addOn={addOn}
                       busy={busy}
@@ -1246,7 +1259,7 @@ export function AddOnsPage() {
                   <SampleDataCard appKey={addOn.key} kind="add-on" connectionName={null} />
 
                   <div className="flex gap-2">
-                    {addOn.connected && (
+                    {addOn.connected && !isSourcesAddOn(addOn) && (
                       <Button
                         size="sm"
                         variant="ghost"

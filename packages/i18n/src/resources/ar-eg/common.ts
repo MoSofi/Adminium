@@ -1639,7 +1639,8 @@ export default {
       "system": "النظام",
       "addOn": "الإضافات",
       "app": "التطبيقات",
-      "payments": "المدفوعات"
+      "payments": "المدفوعات",
+      "leads": "البحث عن الشركات"
     },
     "column": {
       "action": "الإجراء",

@@ -116,7 +116,8 @@ export default {
       "title": "Installés",
       "uninstall": "Désinstaller",
       "setUpInPayments": "Configurer dans Paiements",
-      "paymentsWho": "Une personne ayant l’autorisation « Configurer les paiements » le configure dans Paiements."
+      "paymentsWho": "Une personne ayant l’autorisation « Configurer les paiements » le configure dans Paiements.",
+      "sourcesWhere": "Configurez ses sources sur son écran « Sources »."
     },
     "job": {
       "body": "Récupération et vérification. Rien n’est installé sans votre accord.",

@@ -1639,7 +1639,8 @@ export default {
       "system": "System",
       "addOn": "Add-ons",
       "app": "Apps",
-      "payments": "Zahlungen"
+      "payments": "Zahlungen",
+      "leads": "Firmensuche"
     },
     "column": {
       "action": "Aktion",

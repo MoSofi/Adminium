@@ -1009,7 +1009,8 @@ export default {
       "system": "System",
       "addOn": "Add-ons",
       "app": "Apps",
-      "payments": "Payments"
+      "payments": "Payments",
+      "leads": "Finding companies"
     },
     "column": {
       "action": "Action",

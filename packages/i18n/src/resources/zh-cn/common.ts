@@ -1639,7 +1639,8 @@ export default {
       "system": "系统",
       "addOn": "附加组件",
       "app": "应用",
-      "payments": "付款"
+      "payments": "付款",
+      "leads": "查找公司"
     },
     "column": {
       "action": "操作",

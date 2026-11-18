@@ -116,7 +116,8 @@ export default {
       "title": "Installed",
       "uninstall": "Uninstall",
       "setUpInPayments": "在“付款”中设置",
-      "paymentsWho": "由拥有“设置付款”权限的人在“付款”中设置。"
+      "paymentsWho": "由拥有“设置付款”权限的人在“付款”中设置。",
+      "sourcesWhere": "请在它自己的“来源”页面上设置它的来源。"
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",
