@@ -26,6 +26,10 @@
       "types": "./dist/testing/index.d.ts",
       "default": "./dist/testing/index.js"
     },
+    "./testing/lead-source": {
+      "types": "./dist/testing/lead-source.d.ts",
+      "default": "./dist/testing/lead-source.js"
+    },
     "./forms": {
       "types": "./dist/forms/index.d.ts",
       "default": "./dist/forms/index.js"

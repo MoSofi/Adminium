@@ -872,3 +872,13 @@ export {
 } from './payment-provider.js';
 
 export { cardTerminalConformance, type CardTerminalConformanceDriver, type CardTerminalConformanceOptions } from './card-terminal.js';
+
+export {
+  DEMO_LEAD_COMPANIES,
+  DEMO_LEAD_PEOPLE,
+  DEMO_LEAD_SOURCE_REFUSED_KEY,
+  createDemoLeadSource,
+  leadSourceConformance,
+  type LeadSourceConformanceReport,
+  type LeadSourceFixtures,
+} from './lead-source.js';

@@ -71,6 +71,7 @@ export {
   formsEntriesOf,
   chatOf,
   chatEntriesOf,
+  leadsOf,
   decidedColumnsOf,
   type FormsEntry,
   type ChatEntry,
@@ -177,6 +178,9 @@ export {
   KEPT_BY_LAW_REASONS,
   PEOPLE_KINDS,
   keepSchema,
+  leadSchema,
+  leadTextColumns,
+  type PeopleLead,
   optOutMarkColumn,
   peopleEntrySchema,
   peopleIssues,
@@ -380,6 +384,26 @@ export {
   type ChatColumn,
   type ChatPart,
 } from './chat.js';
+export {
+  FIELD_SOURCE_KEY,
+  FOUND_PERSON_PAGES_MAX,
+  FOUND_PERSON_PURPOSE_MAX,
+  FOUND_PERSON_STATES,
+  LEADS_CATEGORY,
+  LEADS_COLUMNS,
+  LEADS_KEEP_YEARS_DEFAULT,
+  LEADS_KEEP_YEARS_MAX,
+  LEADS_KEEP_YEARS_MIN,
+  LEADS_PARTS,
+  LEADS_SETTINGS_COLUMNS,
+  addOnLeadsSchema,
+  leadsBlockIssues,
+  type AddOnLeads,
+  type LeadsAddOnShape,
+  type LeadsColumn,
+  type LeadsPart,
+  type LeadsTableShape,
+} from './leads.js';
 export { CUSTOMER_KEY, claimKind, claimSchema, codeSchemaOf, codeWhereSchema, hiddenFromStaff, ownLinksOfPerson, personalColumn, publicKeySchema, shareCodeColumns, type Claim, type CodeSchema, type PersonOwnLink, type PublicKey } from './public-access.js';
 export { resendAddressOf, type ResendAddress, type ResendColumns, type ResendOutbox } from './public-access.js';
 export { PLAIN_TEXT_DIGITS_MOST, PLAIN_TEXT_LONGEST, PLAIN_TEXT_MAX, plainTextMax, plainTextRef, type PlainTextColumnRef } from './public-access.js';

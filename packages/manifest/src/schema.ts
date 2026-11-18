@@ -76,6 +76,7 @@ import { checkIssues, checkSchema, checkerIssues, checkerSchema, type Checker, t
 import { ledgerIssues, ledgersSchema, postingIssues, postingsSchema, receiptTableIssues, wordsIssues, wordsListSchema, type Ledger, type LedgerScopeTable, type LedgerTableShape, type StockWords } from './ledgers.js';
 import { addOnFormsSchema, formsBlockIssues, type AddOnForms, type FormsTableShape } from './forms.js';
 import { addOnChatSchema, chatBlockIssues, type AddOnChat } from './chat.js';
+import { addOnLeadsSchema, leadsBlockIssues, type AddOnLeads, type LeadsTableShape } from './leads.js';
 
 export { compareSemver };
 
@@ -4211,7 +4212,7 @@ const ADD_ON_BLOCKS = ['pages', 'roles', 'seeds', 'navGroups', 'optionLists', 'p
 export function installsLikeAnApp(m: Manifest): boolean {
   if (m.kind !== 'add-on') return false;
   if (ADD_ON_BLOCKS.some((block) => m[block] !== undefined)) return true;
-  if (m.requiredSchema?.prefixed === true || m.addOn.settingsTable !== undefined || m.addOn.ledgers !== undefined || m.addOn.adjuster !== undefined || m.addOn.checker !== undefined || m.addOn.words !== undefined || m.addOn.recordTabs !== undefined || m.addOn.steps !== undefined || m.addOn.assistant !== undefined || m.addOn.forms !== undefined || m.addOn.chat !== undefined) return true;
+  if (m.requiredSchema?.prefixed === true || m.addOn.settingsTable !== undefined || m.addOn.ledgers !== undefined || m.addOn.adjuster !== undefined || m.addOn.checker !== undefined || m.addOn.words !== undefined || m.addOn.recordTabs !== undefined || m.addOn.steps !== undefined || m.addOn.assistant !== undefined || m.addOn.forms !== undefined || m.addOn.chat !== undefined || m.addOn.leads !== undefined) return true;
   return (m.requiredSchema?.tables ?? []).some(
     (table) =>
       table.states !== undefined ||
@@ -4370,6 +4371,13 @@ export function formsOf(m: Manifest): AddOnForms | null {
 export function chatOf(m: Manifest): AddOnChat | null {
   if (m.kind !== 'add-on' || m.addOn.chat === undefined) return null;
   const parsed = addOnChatSchema.safeParse(m.addOn.chat);
+  return parsed.success ? parsed.data : null;
+}
+
+/** An add-on's leads block (the tables Adminium keeps what its sources found in), typed; null for an app, and for an add-on that declares none. */
+export function leadsOf(m: Manifest): AddOnLeads | null {
+  if (m.kind !== 'add-on' || m.addOn.leads === undefined) return null;
+  const parsed = addOnLeadsSchema.safeParse(m.addOn.leads);
   return parsed.success ? parsed.data : null;
 }
 
@@ -4557,6 +4565,26 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
           decided: (table, column) => decidedByRules(byRef.get(table)?.columns.find((candidate) => candidate.ref === column)?.rules),
           settingsTable: m.addOn.settingsTable,
           forms: m.addOn.forms !== undefined,
+        }),
+      );
+    }
+  }
+
+  // Leads: typed loosely in the contracts package; its tables, their columns, its settings and who may write them are checked here.
+  if (m.addOn.leads !== undefined) {
+    const parsed = addOnLeadsSchema.safeParse(m.addOn.leads);
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) out.push({ path: ['addOn', 'leads', ...issue.path.map((part) => (typeof part === 'symbol' ? String(part) : part))], message: issue.message });
+    } else {
+      out.push(
+        ...leadsBlockIssues(parsed.data, {
+          categories: m.categories,
+          tables: tables as unknown as readonly LeadsTableShape[],
+          roles: m.roles,
+          publicAccess: m.publicAccess,
+          steps: m.addOn.steps,
+          decided: (table, column) => decidedByRules(byRef.get(table)?.columns.find((candidate) => candidate.ref === column)?.rules),
+          settingsTable: m.addOn.settingsTable,
         }),
       );
     }
@@ -4894,6 +4922,23 @@ export function addOnIssues(
       out.push({ code: 'PAYMENT_PROVIDER_RULES', path: 'categories', message: 'a payment provider is filed under the "payments" category' });
     }
   }
+
+  // SOURCE_RULES — a source's key is a secret setting of the add-on's own, and a source that
+  // reaches hosts does so through outbound-http (the block itself holds the hosts to network.allow).
+  const settingsByKey = new Map((m.settings ?? []).map((setting) => [setting.key, setting]));
+  (block.sources ?? []).forEach((source, i) => {
+    if (source.key !== undefined) {
+      const setting = settingsByKey.get(source.key);
+      if (setting === undefined) {
+        out.push({ code: 'SOURCE_RULES', path: `addOn.sources.${String(i)}.key`, message: `"${source.key}" is not one of this add-on's settings: a source's key is a secret setting` });
+      } else if (setting.secret !== true) {
+        out.push({ code: 'SOURCE_RULES', path: `addOn.sources.${String(i)}.key`, message: `"${source.key}" is not marked secret: a source's key is a secret setting, never shown or sent to a browser` });
+      }
+    }
+    if ((source.hosts ?? []).length > 0 && !wantsHttp) {
+      out.push({ code: 'SOURCE_RULES', path: 'capabilities', message: `the source "${source.id}" reaches its hosts through outbound-http: declare the capability` });
+    }
+  });
 
   // CAPABILITY_CONFLICT — an oauth2 connect needs the capability that runs it.
   if (block.connect.kind === 'oauth2' && !(m.capabilities?.includes('oauth-connect') ?? false)) {

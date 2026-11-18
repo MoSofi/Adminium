@@ -56,7 +56,14 @@ export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [];
  * to {@link MANIFEST_WORDS_RUN}: every word the manifest package can name is
  * in one of the two, and a test says so.
  */
-export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {};
+export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {
+  // Finding companies and people: an add-on's sources, the contract they answer by, its tables for what was found, and
+  // where a company's details go. Read by the manifest now; each moves to the words run in the change that builds it.
+  'addOn.sources': '0.3.65',
+  'provides.lead-source': '0.3.65',
+  'addOn.leads': '0.3.65',
+  'people.lead': '0.3.65',
+};
 
 /** The newer words of a manifest this server runs: nothing is refused for using one. */
 export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [

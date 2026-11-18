@@ -19,6 +19,7 @@ import { slotIdSchema } from './slots.js';
 import { addOnAssistantSchema } from './assistant-block.js';
 import { addOnStepsSchema } from './steps.js';
 import { BUILTIN_NAV_GROUP_KEYS, type BuiltinNavGroupKey } from './nav-groups.js';
+import { LEAD_SOURCE_CONTRACT, LEAD_SOURCE_GIVES } from './lead-source.js';
 
 /**
  * Add-ons get their OWN closed category vocabulary, because an add-on is
@@ -120,6 +121,69 @@ export const addOnNetworkSchema = z
     allow: z.array(z.string().regex(HOSTNAME, 'must be an exact https hostname')),
   })
   .strict();
+
+// ── sources ──────────────────────────────────────────────────────────────────
+
+/** The most sources one add-on declares. */
+export const ADD_ON_SOURCES_MAX = 8;
+/** What `reads` may say: the engine's own website reader, which an add-on only names. */
+export const SOURCE_READS_WEBSITE = 'website';
+/**
+ * Ids no source may take: `sources` is the version field of the envelope the
+ * engine keeps every source's key in (`{ sources: 1, <id>: { key } }`).
+ */
+export const RESERVED_SOURCE_IDS: readonly string[] = ['sources'];
+
+/**
+ * One place an add-on finds companies or people (`addOn.sources[]`): a
+ * register, a search service, or the engine's own website reader
+ * (`reads: "website"`). Each keyed source has its own key, a secret setting
+ * no other source uses, and its own hosts, a part of `network.allow`: the
+ * engine hands the add-on's code, per call, only that key and a client that
+ * reaches only those hosts. The cross-checks with the rest of the block are
+ * the block's own refines; that `key` is a secret setting is the manifest's
+ * check, where the settings are seen.
+ */
+export const addOnSourceSchema = z
+  .object({
+    id: z
+      .string()
+      .regex(/^[a-z][a-z0-9-]{1,31}$/, 'a source id is kebab-case, 2 to 32 characters')
+      .refine((id) => !RESERVED_SOURCE_IDS.includes(id), { message: 'a source id may not be "sources": the engine keeps its keys under that name' }),
+    /** The hosts this source's code may reach: a part of `network.allow`. */
+    hosts: z.array(z.string().regex(HOSTNAME, 'must be an exact https hostname')).min(1).max(8).optional(),
+    /** `website`: the engine reads the company's website, and the add-on picks facts from what it read. */
+    reads: z.literal(SOURCE_READS_WEBSITE).optional(),
+    /** The secret setting that holds this source's key; absent for a source that needs none. */
+    key: z.string().regex(/^[a-z][a-z0-9_]*$/, 'a setting key').optional(),
+    gives: z.array(z.enum(LEAD_SOURCE_GIVES)).min(1).max(LEAD_SOURCE_GIVES.length),
+    /** The source's own rate window: at most `calls` calls in `seconds`. */
+    window: z.object({ calls: z.number().int().min(1).max(100_000), seconds: z.number().int().min(1).max(86_400) }).strict().optional(),
+    /** Each call costs the owner money: it counts against the owner's daily cap. */
+    paid: z.boolean().optional(),
+  })
+  .strict()
+  .superRefine((source, ctx) => {
+    if (new Set(source.gives).size !== source.gives.length) ctx.addIssue({ code: 'custom', path: ['gives'], message: 'a source names each thing it gives once' });
+    if (source.reads === SOURCE_READS_WEBSITE) {
+      // The engine reads the website itself: the add-on's code reaches no host for it and holds no key.
+      if (source.hosts !== undefined) ctx.addIssue({ code: 'custom', path: ['hosts'], message: 'the website reader is the engine\'s: it names no hosts' });
+      if (source.key !== undefined) ctx.addIssue({ code: 'custom', path: ['key'], message: 'the website reader needs no key' });
+      if (source.gives.length !== 1 || source.gives[0] !== 'fill') ctx.addIssue({ code: 'custom', path: ['gives'], message: 'the website reader gives "fill" only' });
+      if (source.paid === true) ctx.addIssue({ code: 'custom', path: ['paid'], message: 'the website reader costs nothing' });
+    } else if (source.hosts === undefined) {
+      ctx.addIssue({ code: 'custom', path: ['hosts'], message: 'a source names the hosts its code reaches' });
+    }
+  });
+export type AddOnSource = z.infer<typeof addOnSourceSchema>;
+
+/**
+ * What the install's consent says of each source: the hosts it reaches, or
+ * that the engine reads company websites for it. In the manifest's order.
+ */
+export function sourceConsentLines(block: { sources?: readonly AddOnSource[] | undefined }): { source: string; hosts: string[]; readsWebsites: boolean }[] {
+  return (block.sources ?? []).map((source) => ({ source: source.id, hosts: [...(source.hosts ?? [])], readsWebsites: source.reads === SOURCE_READS_WEBSITE }));
+}
 
 // ── pages and navigation ─────────────────────────────────────────────────────
 
@@ -262,6 +326,24 @@ export const addOnBlockSchema = z
     /** Grants over host + own tables, checked against SCOPE_OUT_OF_RANGE. */
     scopes: z.array(z.string().min(1)).optional(),
     network: addOnNetworkSchema.optional(),
+    /**
+     * The places the add-on finds companies and people (see
+     * {@link addOnSourceSchema}). A package with sources provides
+     * `lead-source`, and a `lead-source` provider declares its sources.
+     */
+    sources: z.array(addOnSourceSchema).min(1).optional(),
+    /**
+     * The add-on's own tables for what its sources found: the people found
+     * and where each filled field came from. Only the table refs are typed
+     * here: the columns each must have are the manifest's own vocabulary, so
+     * `@adminium/manifest` checks the whole of it.
+     */
+    leads: z
+      .looseObject({
+        foundPeople: z.string().regex(/^[a-z][a-z0-9_]*$/, 'a table ref'),
+        fieldSources: z.string().regex(/^[a-z][a-z0-9_]*$/, 'a table ref'),
+      })
+      .optional(),
     /** The only settings the client bundle may read. */
     publicSettings: z.array(z.string().min(1)).optional(),
     /** Required to ship a demo that makes no real third-party call. */
@@ -458,6 +540,57 @@ export const addOnBlockSchema = z
   .refine((b) => (b.consumes ?? []).every((c) => hasContractVersion(c.contract, c.version)), {
     message: 'CONTRACT_UNKNOWN: a consumed contract is not in the registry at that version',
     path: ['consumes'],
+  })
+  // Sources: at most eight, each id once, the website reader at most once, and each key held by one source alone.
+  .refine((b) => (b.sources ?? []).length <= ADD_ON_SOURCES_MAX, {
+    message: `an add-on declares at most ${String(ADD_ON_SOURCES_MAX)} sources`,
+    path: ['sources'],
+  })
+  .refine((b) => new Set((b.sources ?? []).map((source) => source.id)).size === (b.sources ?? []).length, {
+    message: 'duplicate source id',
+    path: ['sources'],
+  })
+  .refine((b) => (b.sources ?? []).filter((source) => source.reads === SOURCE_READS_WEBSITE).length <= 1, {
+    message: 'the website reader is one source: declare it once',
+    path: ['sources'],
+  })
+  .refine(
+    (b) => {
+      const keys = (b.sources ?? []).flatMap((source) => (source.key === undefined ? [] : [source.key]));
+      return new Set(keys).size === keys.length;
+    },
+    { message: 'each source has a key of its own: two sources name the same setting', path: ['sources'] },
+  )
+  // A source's code reaches its own hosts only, and those are hosts the add-on declares it may contact at all.
+  .superRefine((b, ctx) => {
+    const allow = new Set(b.network?.allow ?? []);
+    (b.sources ?? []).forEach((source, s) => {
+      (source.hosts ?? []).forEach((host, h) => {
+        if (!allow.has(host)) ctx.addIssue({ code: 'custom', path: ['sources', s, 'hosts', h], message: `"${host}" is not in network.allow: a source reaches only hosts the add-on declares` });
+      });
+    });
+  })
+  // The engine calls a package's sources through the one contract they answer by, and that contract only for sources.
+  .refine((b) => b.sources === undefined || (b.provides ?? []).some((p) => p.contract === LEAD_SOURCE_CONTRACT), {
+    message: `an add-on with sources provides the contract "${LEAD_SOURCE_CONTRACT}"`,
+    path: ['provides'],
+  })
+  .refine((b) => !(b.provides ?? []).some((p) => p.contract === LEAD_SOURCE_CONTRACT) || b.sources !== undefined, {
+    message: `an add-on that provides "${LEAD_SOURCE_CONTRACT}" declares its sources (addOn.sources)`,
+    path: ['sources'],
+  })
+  .refine((b) => (b.provides ?? []).filter((p) => p.contract === LEAD_SOURCE_CONTRACT).length <= 1, {
+    message: `an add-on provides "${LEAD_SOURCE_CONTRACT}" once: the engine calls it per source`,
+    path: ['provides'],
+  })
+  // What sources find is kept in the add-on's own two tables, which the engine writes.
+  .refine((b) => b.sources === undefined || b.leads !== undefined, {
+    message: 'an add-on with sources names the tables the engine keeps what they found in (addOn.leads)',
+    path: ['leads'],
+  })
+  .refine((b) => b.leads === undefined || b.sources !== undefined, {
+    message: 'addOn.leads keeps what an add-on\'s sources found: it declares its sources (addOn.sources)',
+    path: ['sources'],
   })
   // An oauth2 connect must name where it authorizes.
   .refine(
