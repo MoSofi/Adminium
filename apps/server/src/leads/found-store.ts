@@ -6,8 +6,10 @@
  * One row per person a source found and Adminium stored in a people table:
  * which row they are, the company they were found at, the source, when, the
  * purpose they are kept for, the day they must be told by, when they were,
- * the outbox row of the mail that told them, where that stands, and the
- * pages the source saw their address on (one https address per line).
+ * the outbox row of the mail that told them, where that stands, the pages
+ * the source saw their address on (one https address per line), and their
+ * address as found (`email`: where the tell mail goes; personal, so it is
+ * found, downloaded and erased with the row).
  *
  * Written here only, as the system (never through a person's save: the
  * table refuses those, `compose.ts`): made when a person is kept, marked
@@ -21,7 +23,7 @@
  * 20 August. Worked out once, when they are kept, and stored as that date;
  * the sweep compares it with today on the same clock.
  */
-import { FOUND_PERSON_PAGES_MAX, FOUND_PERSON_PURPOSE_MAX, type FOUND_PERSON_STATES } from '@adminium/manifest';
+import { FOUND_PERSON_EMAIL_MAX, FOUND_PERSON_PAGES_MAX, FOUND_PERSON_PURPOSE_MAX, type FOUND_PERSON_STATES } from '@adminium/manifest';
 import { connectionTenantConfig, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 
@@ -88,6 +90,8 @@ export interface FoundRow {
   state: FoundPersonState;
   /** One https address per line, as kept. */
   pages: string[];
+  /** Their address as found, normalised; null on a row that has none. */
+  email: string | null;
 }
 
 const text = (value: unknown): string | null => (typeof value === 'string' ? value : typeof value === 'number' || typeof value === 'bigint' ? String(value) : null);
@@ -117,6 +121,7 @@ export function foundRowOf(table: Pick<ResolvedTable, 'primaryKey'>, row: Row): 
     outboxId: text(row['outbox_id']),
     state: state as FoundPersonState,
     pages: pages === null ? [] : pages.split('\n').filter((line) => line !== ''),
+    email: text(row['email'])?.trim().toLowerCase() || null,
   };
 }
 
@@ -146,6 +151,8 @@ export interface NewFoundRow {
   purpose: string;
   tellBy: string;
   pages: readonly string[];
+  /** Their address as found: where the tell mail goes. */
+  email: string;
 }
 
 /** The place a found person's row is written: its database and table. */
@@ -170,6 +177,7 @@ export async function insertFound(place: FoundPlace, row: NewFoundRow): Promise<
     outbox_id: null,
     state: 'waiting',
     source_pages: pagesText(row.pages),
+    email: row.email.length <= FOUND_PERSON_EMAIL_MAX ? row.email : null,
   };
   const verdict = await place.writes.check('create', place.target, place.context, [values], { capacity: 'unchecked' });
   const good = verdict.rows[0];

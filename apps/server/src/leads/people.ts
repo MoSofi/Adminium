@@ -268,6 +268,8 @@ export async function untoldAddresses(deps: Pick<LeadsPeopleDeps, 'meta' | 'mana
       if (addOn.foundPeople === null) continue;
       const rows = await untoldRows(db, addOn.foundPeople);
       if (rows.length === 0) continue;
+      // The address they were found with (where their tell mail goes), and the one their row holds now.
+      for (const row of rows) if (row.email !== null) out.add(row.email);
       index ??= await tableRefIndex(deps.meta, connectionId, view.model);
       declared ??= await peopleTablesOf(deps.meta).all(connectionId, view.model);
       const byTable = new Map<string, string[]>();
@@ -469,6 +471,7 @@ export async function keepFoundPeople(deps: KeepFoundPeopleDeps, input: KeepFoun
           purpose,
           tellBy: tellByOf(foundAt, zone),
           pages: person.sources,
+          email: address,
         },
       );
       const outboxId = await queueTell(deps, addOn, view, foundId, address, languages[0]!);

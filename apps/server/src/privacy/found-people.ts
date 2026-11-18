@@ -6,6 +6,7 @@
  * (`form-answers.ts`).
  *
  * Their found person's rows are theirs when:
+ *  - a row keeps their address (`email`, as found); or
  *  - a row names one of their people rows (its `person_table` and
  *    `person_key`, by any name the table is known by); or
  *  - a tell mail went to their address (the outbox's `to`), and names the
@@ -131,6 +132,8 @@ export async function findFoundPeopleRows(deps: FoundPeopleDeps, address: string
       const people = addOn.foundPeople;
       if (people === null) continue;
       const found: Row[] = [];
+      // By the address they were found with.
+      if (people.columns.has('email') && address !== '') newRows(people, found, (await db.selectFrom(people.id as never).selectAll().where(addressIs('email', address)).execute()) as Row[]);
       for (const one of linked) {
         const rows = (await db
           .selectFrom(people.id as never)
@@ -194,6 +197,7 @@ function foundExport(addOn: LeadsAddOnTables, row: Row, fields: readonly Row[]):
     toldAt: parsed.toldAt === null ? null : new Date(parsed.toldAt),
     state: parsed.state,
     sourcePages: parsed.pages,
+    email: parsed.email,
     table: parsed.personTable,
     row: parsed.personKey,
     // Each field a source gave, with the source and when: their name and work address from the one that found them.

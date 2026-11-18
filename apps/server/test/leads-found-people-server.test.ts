@@ -78,6 +78,8 @@ const DAY = 86_400_000;
 const NO_FILES = { remove: async () => undefined, driverFor: async () => ({ remove: async () => undefined }) } as unknown as FileStore;
 const pk = { ref: 'id', type: 'int', role: 'pk' };
 const text = (ref: string, maxLength: number, more: Record<string, unknown> = {}) => ({ ref, type: 'text', maxLength, ...more });
+/** An address as wide as a found person's row keeps one: 320 characters. */
+const WIDE_ADDRESS = `${'x'.repeat(303)}@kestrel-yard.dev`;
 const PURPOSE = { 'en-US': 'To offer your studio drawing boards and plan chests.', 'fr-FR': 'Pour proposer à votre agence des tables à dessin.' };
 
 /** A CRM whose contacts are people (with "may be e-mailed"), whose companies say their country, with deals and a mail of its own. */
@@ -155,8 +157,8 @@ function finder(): Doc {
     table: 'tell_mails',
     columns: { kind: 'kind', status: 'status', to: 'to_address', language: 'language', error: 'error', sentAt: 'sent_at' },
     links: { found_person: 'found_person_id' },
-    // The engine writes each tell mail's address itself: the recipient is never read for it.
-    recipient: { via: 'found_person_id', table: 'found_people', email: 'person_key' },
+    // The address they were found with, on their found person's row.
+    recipient: { via: 'found_person_id', table: 'found_people', email: 'email' },
     kinds: { tell: 'company-finder-tell' },
     classes: { tell: 'service' },
   };
@@ -165,8 +167,22 @@ function finder(): Doc {
       key: 'company-finder-tell',
       name: 'Why we have your details',
       locales: {
-        'en-US': { subject: 'Why we have your details', blocks: [{ block: 'email.heading', data: { text: 'Why we have your details' } }, { block: 'email.text', data: { text: 'Hello {{first_name}}, we are {{business}}.' } }] },
-        'fr-FR': { subject: 'Pourquoi nous avons vos coordonnées', blocks: [{ block: 'email.text', data: { text: 'Bonjour {{first_name}}, nous sommes {{business}}.' } }] },
+        // The opening only: the engine adds everything else, so nothing is said twice.
+        'en-US': {
+          subject: 'Why we have your details',
+          blocks: [
+            { block: 'email.heading', data: { text: 'Why we have your details' } },
+            { block: 'email.text', data: { text: 'Hello {{first_name}},' } },
+            { block: 'email.text', data: { text: 'We keep your name, your role and your work e-mail address, as someone at {{company}}.' } },
+          ],
+        },
+        'fr-FR': {
+          subject: 'Pourquoi nous avons vos coordonnées',
+          blocks: [
+            { block: 'email.text', data: { text: 'Bonjour {{first_name}},' } },
+            { block: 'email.text', data: { text: 'Nous gardons votre nom, votre rôle et votre adresse e-mail de travail, en tant que membre de {{company}}.' } },
+          ],
+        },
       },
     },
   ];
@@ -376,7 +392,7 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     expect(contact).toMatchObject({ name: 'Camille Roux', company_id: 2 });
     expect([0, false, '0']).toContain(contact!['may_email']);
     const row = (await foundRows()).find((one) => String(one['person_key']) === String(contact!['id']))!;
-    expect(row).toMatchObject({ person_table: 'crm:contacts', company_table: 'crm:companies', company_key: '2', source: 'hunter', state: 'waiting' });
+    expect(row).toMatchObject({ person_table: 'crm:contacts', company_table: 'crm:companies', company_key: '2', source: 'hunter', state: 'waiting', email: 'camille.roux@saone-clair.dev' });
     expect(row['told_at']).toBeNull();
     // Only the https page is kept.
     expect(row['source_pages']).toBe('https://www.kestrel-yard.example/team');
@@ -388,7 +404,8 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     const [mail] = await mails();
     expect(mail!.to).toBe('camille.roux@saone-clair.dev');
     expect(mail!.subject).toBe('Pourquoi nous avons vos coordonnées');
-    expect(mail!.text).toContain('Bonjour Camille, nous sommes Meridian');
+    expect(mail!.text).toContain('Bonjour Camille,');
+    expect(mail!.text).toContain('en tant que membre de Atelier Saône Clair.');
     expect(mail!.text).toContain('Hunter (hunter.io) a trouvé votre adresse e-mail de travail le');
     expect(mail!.text).toContain(`Pourquoi nous les gardons : ${PURPOSE['fr-FR']}`);
     expect(mail!.text).toContain('RGPD, article 6, paragraphe 1, point f');
@@ -594,6 +611,14 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     expect((exported['fields'] as Doc[]).map((one) => one['column'])).toEqual(['name', 'email']);
     expect(of('found-people-mail')).toMatchObject({ count: 1 });
 
+    // Found by the address they were found with, though their contact's address has changed since.
+    const contact = (await contactOf(address))!;
+    const { db } = await h.manager.data(conn);
+    await db.updateTable(table('crm', 'contacts') as never).set({ email: 'elif.s@another-desk.dev' } as never).where('id' as never, '=', contact['id'] as never).execute();
+    expect((await findPerson(eraseDeps(), address)).sources.find((one) => one.kind === 'found-people')).toMatchObject({ count: 1 });
+    expect((await findPerson(eraseDeps(), address)).sources.find((one) => one.kind === 'found-people')!.rows[0]).toMatchObject({ email: address });
+    await db.updateTable(table('crm', 'contacts') as never).set({ email: address } as never).where('id' as never, '=', contact['id'] as never).execute();
+
     const result = await erasePerson(eraseDeps(), address);
     expect(result.told).toHaveLength(1);
     expect(result.told[0]).toMatch(/^\d{4}-\d{2}-\d{2}$/);
@@ -640,7 +665,7 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     const pages = Array.from({ length: 80 }, (_, n) => `${page}${String(n).padStart(2, '0')}`);
     const id = await insertFound(
       { target: { connectionId: conn, view, table: view.table(table('company-finder', 'found_people')), db, dialect: engine }, writes: composed.leads.deps.writes, context: leadsWriteContext('Company finder') },
-      { personTable: 'c'.repeat(64), personKey: 'k'.repeat(200), companyTable: 'd'.repeat(64), companyKey: 'e'.repeat(200), source: 's'.repeat(32), foundAt: at, purpose: 'ü'.repeat(500), tellBy: tellByOf(at, 'UTC'), pages },
+      { personTable: 'c'.repeat(64), personKey: 'k'.repeat(200), companyTable: 'd'.repeat(64), companyKey: 'e'.repeat(200), source: 's'.repeat(32), foundAt: at, purpose: 'ü'.repeat(500), tellBy: tellByOf(at, 'UTC'), pages, email: WIDE_ADDRESS },
     );
     const row = (await rows(`SELECT * FROM ${table('company-finder', 'found_people')} WHERE id = ${id}`))[0]!;
     expect(row['person_table']).toBe('c'.repeat(64));
@@ -648,6 +673,7 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     expect(row['company_key']).toBe('e'.repeat(200));
     expect(row['source']).toBe('s'.repeat(32));
     expect(row['purpose']).toBe('ü'.repeat(500));
+    expect(row['email']).toBe(WIDE_ADDRESS);
     // Found on 31 January: told by 27 February (one month on, clamped to the 28th, less a day).
     expect(String(row['tell_by']).slice(0, 10) === '2026-02-27' || (row['tell_by'] instanceof Date && (row['tell_by'] as Date).getDate() === 27)).toBe(true);
     const kept = String(row['source_pages']);
