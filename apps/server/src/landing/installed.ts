@@ -12,6 +12,7 @@
  * nothing is written.
  */
 import { landingOf, type AddOnLanding, type AddOnManifest } from '@adminium/manifest';
+import type { MetaDb } from '@adminium/meta';
 
 import type { AddOnInstalls } from '../apps/table-ref.js';
 
@@ -56,4 +57,20 @@ export function landingAddOnOn(installs: AddOnInstalls, connectionId: string, ke
     funnels: installs.tableOf(connectionId, key, block.funnels),
     funnelsKey: primaryKeyOf(installed.manifest, block.funnels),
   };
+}
+
+/** Every installed landing pages add-on, with its install's id, oldest install first. */
+export async function landingAddOns(meta: MetaDb, installs: AddOnInstalls): Promise<(LandingAddOn & { installId: string })[]> {
+  const rows = await meta.db
+    .selectFrom('adminium_manifests')
+    .select(['id', 'manifestKey', 'connectionId'])
+    .where('kind', '=', 'add-on')
+    .where('status', '=', 'installed')
+    .orderBy('installedAt')
+    .orderBy('manifestKey')
+    .execute();
+  return rows.flatMap((row) => {
+    const found = row.connectionId === null ? null : landingAddOnOn(installs, row.connectionId, row.manifestKey);
+    return found === null ? [] : [{ ...found, installId: row.id }];
+  });
 }

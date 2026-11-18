@@ -127,6 +127,8 @@ describe.each(LEGS)('a landing pages add-on\'s staff reads — %s', (dialect, av
     keys['open-day'] = await page('open-day', 'live', CLEAN);
     keys['old-offer'] = await page('old-offer', 'off', CLEAN);
     keys['spring'] = await page('spring', 'draft', CLEAN);
+    // Live, but with a published copy that still carries the assistant's mark (put there by hand, past the seal): never a page to send anyone to.
+    keys['marked'] = await page('marked-live', 'live', { ...CLEAN, blocks: [{ ...CLEAN.blocks[0], milo: true }] });
     // Forms: live, a draft, a closed one, one that no longer parses, and two that end on a landing page.
     keys['showroom'] = await form('frm_showroom', 'showroom-visit', 'live', SHOWROOM);
     await form('frm_draft', 'spring-draft', 'draft', SHOWROOM);
@@ -318,8 +320,10 @@ describe.each(LEGS)('a landing pages add-on\'s staff reads — %s', (dialect, av
     expect(res.statusCode, res.body).toBe(200);
     const forms = (res.json() as Doc).data.forms as Doc[];
     expect(forms.map((one) => one.slug).sort()).toEqual(['showroom-visit', 'to-old-offer', 'to-open-day']);
+    const install = await h.meta.db.selectFrom('adminium_manifests').select('id').where('manifestKey', '=', 'forms').executeTakeFirstOrThrow();
     expect(forms.find((one) => one.slug === 'showroom-visit')).toEqual({
       addOn: 'forms',
+      installId: install.id,
       key: keys['showroom'],
       name: 'Book a showroom visit',
       slug: 'showroom-visit',
@@ -331,6 +335,19 @@ describe.each(LEGS)('a landing pages add-on\'s staff reads — %s', (dialect, av
     // Rex reads the pages and no form: none listed. Nik reads forms, not pages: refused.
     expect(((await as('rex', 'GET', '/api/v1/landing/landing-pages/forms')).json() as Doc).data.forms).toEqual([]);
     expect((await as('nik', 'GET', '/api/v1/landing/landing-pages/forms')).statusCode).toBe(403);
+  });
+
+  it.skipIf(!available)('lists the live pages of every landing pages add-on whose pages the person may read', async () => {
+    const res = await as('mara', 'GET', '/api/v1/landing/live-pages');
+    expect(res.statusCode, res.body).toBe(200);
+    const pages = (res.json() as Doc).data.pages as Doc[];
+    const install = await h.meta.db.selectFrom('adminium_manifests').select('id').where('manifestKey', '=', 'landing-pages').executeTakeFirstOrThrow();
+    expect(pages).toContainEqual({ addOn: 'landing-pages', installId: install.id, key: keys['open-day'], name: 'Page open-day', slug: 'open-day', language: 'en-US' });
+    // Never an off page, a draft, or a live one still marked; never a page's content.
+    for (const slug of ['old-offer', 'spring', 'marked-live']) expect(pages.map((one) => one.slug)).not.toContain(slug);
+    expect(res.body).not.toContain('Thursday 18 September');
+    // Nik may read no add-on's pages: none listed.
+    expect(((await as('nik', 'GET', '/api/v1/landing/live-pages')).json() as Doc).data.pages).toEqual([]);
   });
 
   it.skipIf(!available)('reads a funnel\'s rule as its name and chips; only a rule manager may open it', async () => {

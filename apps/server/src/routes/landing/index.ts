@@ -7,6 +7,9 @@
  *   GET  /landing/:addOn/forms                the live forms a Form block may name
  *   GET  /landing/:addOn/funnels/:key/rule    a funnel's rule: its name and its
  *                                             steps as chips ("What happens after")
+ *   GET  /landing/live-pages                  the live pages of every landing pages
+ *                                             add-on, for the forms builder's
+ *                                             "Go to a landing page" ending
  *
  * `:addOn` is the pages add-on's key; the install is the one the request names
  * (the `X-Adminium-Install` header the add-on's page client sends, or
@@ -22,6 +25,10 @@
  *   names only its own tables), by someone who may read the add-on's pages:
  *   only forms they may read themselves, only live ones, with their languages
  *   and their ending (a `landing` ending says whether its page is live).
+ * - **The live pages** are read across every landing pages add-on, by someone
+ *   who may read that add-on's pages (an add-on whose pages they may not read
+ *   is left out): each live page by its add-on, key, name, address and
+ *   language, never its content.
  * - **A funnel's rule** is read by the funnel's readers, who may hold no
  *   system permission: the rule's name and chips only (`landing/rule.ts`),
  *   and `canOpen` for a person who may manage rules. A rule that is gone says
@@ -43,8 +50,8 @@ import { strangerBusiness } from '../../forms/view.js';
 import { installReachOf } from '../../installs/reach.js';
 import { installsOf, resolveInstall, selectorOf } from '../../installs/resolve.js';
 import { draftLandingPage, LANDING_DESCRIPTION_MAX, type DraftForm } from '../../landing/draft.js';
-import type { LandingEndings } from '../../landing/ending.js';
-import { landingAddOnOn, type LandingAddOn } from '../../landing/installed.js';
+import { livePageSlug, type LandingEndings } from '../../landing/ending.js';
+import { landingAddOnOn, landingAddOns, type LandingAddOn } from '../../landing/installed.js';
 import { ruleChips } from '../../landing/rule.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 
@@ -109,12 +116,31 @@ export const landingFormsReply = z.object({
       z.object({
         /** The forms add-on that holds it, and its row key: what a Form block names. */
         addOn: z.string(),
+        /** The forms add-on's install (`adminium_manifests.id`): what the views read takes. */
+        installId: z.string(),
         key: z.string(),
         name: z.string(),
         slug: z.string(),
         /** The languages it is written in, in the product's order. */
         languages: z.array(z.string()),
         ending: staffEnding,
+      }),
+    ),
+  }),
+});
+
+export const landingLivePagesReply = z.object({
+  data: z.object({
+    pages: z.array(
+      z.object({
+        /** The landing pages add-on that holds it, its install, and the page's row key: what a form's `landing` ending names. */
+        addOn: z.string(),
+        installId: z.string(),
+        key: z.string(),
+        /** Staff's own name for the page. */
+        name: z.string(),
+        slug: z.string(),
+        language: z.string(),
       }),
     ),
   }),
@@ -171,7 +197,7 @@ export function landingStaffRoutes(deps: LandingStaffDeps): FastifyPluginAsyncZo
       if (!(await grant(request, live.connectionId, live.formsTable, 'read'))) continue;
       const { definition } = live.form;
       const listed = new Set<string>(definition.languages);
-      out.push({ addOn: live.addOn, key: live.id, name: live.name, slug: live.slug, languages: FORM_LANGUAGES.filter((one) => listed.has(one)), ending: await endingOf(definition.ending, live.connectionId) });
+      out.push({ addOn: live.addOn, installId: live.installId, key: live.id, name: live.name, slug: live.slug, languages: FORM_LANGUAGES.filter((one) => listed.has(one)), ending: await endingOf(definition.ending, live.connectionId) });
     }
     return out;
   }
@@ -267,6 +293,46 @@ export function landingStaffRoutes(deps: LandingStaffDeps): FastifyPluginAsyncZo
           throw new ForbiddenError('Only someone who may read these pages reads this.', 'TABLE_FORBIDDEN', { reason: 'landing-pages-read' });
         }
         return { data: { forms: await formsFor(request) } };
+      },
+    );
+
+    app.get(
+      '/landing/live-pages',
+      {
+        preHandler: [app.requireAuth],
+        config: { audit: auditExempt('read-only list of live landing pages') },
+        schema: {
+          tags,
+          summary: 'The live landing pages a form may end on',
+          description:
+            'Every live page of every landing pages add-on whose pages the person may read: its add-on, install, key, name, address and language, never its content. For the forms builder\'s "Go to a landing page" ending.',
+          response: { 200: landingLivePagesReply },
+        },
+      },
+      async (request) => {
+        const out: z.infer<typeof landingLivePagesReply>['data']['pages'] = [];
+        for (const landing of await landingAddOns(meta, await deps.installs())) {
+          const { pages, pagesKey } = landing;
+          if (!landing.on || pages === null || pagesKey === null || !(await grant(request, landing.connectionId, pages, 'read'))) continue;
+          let rows: Record<string, unknown>[];
+          try {
+            const { db } = await deps.data(landing.connectionId);
+            rows = (await db
+              .selectFrom(pages)
+              .select([db.dynamic.ref(pagesKey), db.dynamic.ref('name'), db.dynamic.ref('slug'), db.dynamic.ref('state'), db.dynamic.ref('language'), db.dynamic.ref('published')] as never)
+              .where(db.dynamic.ref('state'), '=', 'live')
+              .execute()) as Record<string, unknown>[];
+          } catch {
+            continue;
+          }
+          for (const row of rows) {
+            const slug = livePageSlug(row);
+            if (slug === null) continue;
+            out.push({ addOn: landing.key, installId: landing.installId, key: String(row[pagesKey]), name: typeof row['name'] === 'string' ? row['name'] : slug, slug, language: typeof row['language'] === 'string' ? row['language'] : '' });
+          }
+        }
+        out.sort((a, b) => a.addOn.localeCompare(b.addOn) || a.name.localeCompare(b.name) || a.key.localeCompare(b.key));
+        return { data: { pages: out } };
       },
     );
 

@@ -58,6 +58,8 @@ export interface LiveForm {
 /** A live form, as a staff screen that picks one is told of it (`liveForms`). */
 export interface StaffLiveForm {
   addOn: string;
+  /** The forms add-on's install (`adminium_manifests.id`): what the views read takes. */
+  installId: string;
   connectionId: string;
   /** The id of the forms table that holds it: what a reader's grant is asked on. */
   formsTable: string;
@@ -114,22 +116,22 @@ export function createFormsCatalog(deps: FormsCatalogDeps) {
   const cache = new Map<string, { at: number; lookup: Promise<FormLookup> }>();
 
   /** Every installed add-on that declares forms, with its connection: oldest install first. */
-  async function formsAddOns(): Promise<{ key: string; connectionId: string; manifest: AddOnManifest; version: string; on: boolean }[]> {
+  async function formsAddOns(): Promise<{ installId: string; key: string; connectionId: string; manifest: AddOnManifest; version: string; on: boolean }[]> {
     const rows = await deps.meta.db
       .selectFrom('adminium_manifests')
-      .select(['manifestKey', 'connectionId'])
+      .select(['id', 'manifestKey', 'connectionId'])
       .where('kind', '=', 'add-on')
       .where('status', '=', 'installed')
       .orderBy('installedAt')
       .orderBy('manifestKey')
       .execute();
     const installs = await deps.installs();
-    const out: { key: string; connectionId: string; manifest: AddOnManifest; version: string; on: boolean }[] = [];
+    const out: { installId: string; key: string; connectionId: string; manifest: AddOnManifest; version: string; on: boolean }[] = [];
     for (const row of rows) {
       if (row.connectionId === null) continue;
       const installed = installs.installed(row.connectionId, row.manifestKey);
       if (installed === null || installed.status !== 'installed' || formsOf(installed.manifest) === null) continue;
-      out.push({ key: row.manifestKey, connectionId: row.connectionId, manifest: installed.manifest, version: installed.version, on: [...installed.hosts.values()].some(Boolean) });
+      out.push({ installId: row.id, key: row.manifestKey, connectionId: row.connectionId, manifest: installed.manifest, version: installed.version, on: [...installed.hosts.values()].some(Boolean) });
     }
     return out;
   }
@@ -280,7 +282,7 @@ export function createFormsCatalog(deps: FormsCatalogDeps) {
         const own = typeof row['name'] === 'string' ? row['name'].trim() : '';
         const definition = parsed.form.definition;
         const name = [...(own !== '' ? own : (definition.title[definition.defaultLanguage] ?? Object.values(definition.title)[0] ?? row['slug']))].slice(0, 200).join('');
-        out.push({ addOn: addOn.key, connectionId: addOn.connectionId, formsTable: tableId, id: String(id), slug: row['slug'], name, form: parsed.form });
+        out.push({ addOn: addOn.key, installId: addOn.installId, connectionId: addOn.connectionId, formsTable: tableId, id: String(id), slug: row['slug'], name, form: parsed.form });
       }
     }
     return out;

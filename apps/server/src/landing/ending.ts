@@ -42,6 +42,17 @@ export type ServedEnding = Exclude<FormEnding, { kind: 'landing' }>;
 /** The most lookups kept at once. */
 const CACHE_MAX = 500;
 
+/**
+ * Whether a pages row is a live page a stranger can be sent to: `live`, at an
+ * address the landing slug rule takes, with a published copy that parses
+ * whole and carries no assistant's mark. Its slug, or null.
+ */
+export function livePageSlug(row: Readonly<Record<string, unknown>>): string | null {
+  if (row['state'] !== 'live' || !isLandingSlug(row['slug'])) return null;
+  const parsed = parseLandingPage(jsonOf(row['published']));
+  return parsed.ok && !hasMiloMarks(parsed.page) ? (row['slug'] as string) : null;
+}
+
 /** A live landing page's address on a host: the pages door's own path. */
 export function landingPageAddress(origin: string, slug: string): string {
   return `${origin}/x/pages/${slug}`;
@@ -98,10 +109,8 @@ export function createLandingEndings(deps: LandingEndingsDeps) {
     }
     // The row the key names, and no other: a database that reads `12abc` as 12 is not taken at its word.
     if (row === undefined || String(row[found.pagesKey]) !== page) return broken;
-    if (row['state'] !== 'live' || !isLandingSlug(row['slug'])) return broken;
-    const parsed = parseLandingPage(jsonOf(row['published']));
-    if (!parsed.ok || hasMiloMarks(parsed.page)) return broken;
-    return { state: 'live', slug: row['slug'] as string };
+    const slug = livePageSlug(row);
+    return slug === null ? broken : { state: 'live', slug };
   }
 
   /** Where a landing ending leads now, its page looked up from the form's own database `near` (kept a few seconds). */

@@ -175777,6 +175777,9 @@
                               "addOn": {
                                 "type": "string"
                               },
+                              "installId": {
+                                "type": "string"
+                              },
                               "key": {
                                 "type": "string"
                               },
@@ -175870,6 +175873,7 @@
                             },
                             "required": [
                               "addOn",
+                              "installId",
                               "key",
                               "name",
                               "slug",
@@ -175882,6 +175886,77 @@
                       },
                       "required": [
                         "forms"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/landing/live-pages": {
+      "get": {
+        "summary": "The live landing pages a form may end on",
+        "tags": [
+          "landing"
+        ],
+        "description": "Every live page of every landing pages add-on whose pages the person may read: its add-on, install, key, name, address and language, never its content. For the forms builder's \"Go to a landing page\" ending.",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "pages": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "addOn": {
+                                "type": "string"
+                              },
+                              "installId": {
+                                "type": "string"
+                              },
+                              "key": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "slug": {
+                                "type": "string"
+                              },
+                              "language": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "addOn",
+                              "installId",
+                              "key",
+                              "name",
+                              "slug",
+                              "language"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "pages"
                       ],
                       "additionalProperties": false
                     }
