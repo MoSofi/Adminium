@@ -126,6 +126,8 @@ beforeEach(async () => {
     } as never,
     storeFor: (kind) => (kind === 'add-on' ? store : null),
     log: (level, message) => logs.push({ level, message }),
+    // Trust is its own suite's subject (`door-restore-trust.test.ts`): here nothing is trusted.
+    trust: { kept: async () => undefined, original: async () => false, record: async () => undefined },
   });
 });
 

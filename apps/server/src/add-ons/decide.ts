@@ -264,6 +264,8 @@ export interface TrustSources {
   devKeys?: string | undefined;
   /** `NODE_ENV`: the developer's list is ignored in production. */
   nodeEnv?: string | undefined;
+  /** The kept copies of packages whose own bytes were trusted when the copy was packed, by `<key>@<version>`. */
+  kept?: Readonly<Record<string, string>> | undefined;
 }
 
 /** The keys of the developer's list; none in production. */
@@ -278,11 +280,13 @@ export function devTrustedKeys(devKeys: string | undefined, nodeEnv: string | un
 /**
  * Whether a package's deciding code may run here: its tarball is the one this
  * build bundles, or the one the catalogue named when it was downloaded, or
- * its key is on a developer's list outside production.
+ * the copy kept of one of those (put back after a redeploy emptied the disk),
+ * or its key is on a developer's list outside production.
  */
 export function deciderTrusted(pkg: TrustedPackage, sources: TrustSources): boolean {
   if (sources.bundled.some((pin) => pin.key === pkg.key && pin.version === pkg.version && pin.integrity === pkg.integrity)) return true;
   if (sources.recorded[`${pkg.key}@${pkg.version}`] === pkg.integrity) return true;
+  if (sources.kept?.[`${pkg.key}@${pkg.version}`] === pkg.integrity) return true;
   return devTrustedKeys(sources.devKeys, sources.nodeEnv).includes(pkg.key);
 }
 

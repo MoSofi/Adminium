@@ -11,7 +11,8 @@
  *   one-time codes and proofs, and what the server's operator holds back
  *   ({@link NEVER_ARCHIVED_TABLES}), and the events queued for that operator
  *   ({@link NEVER_ARCHIVED_JOB_KINDS});
- * - `addOns.deciderTrust` (which add-on code may decide), the Designer's live
+ * - `addOns.deciderTrust` and `addOns.keptCopyTrust` (which add-on code may
+ *   decide, and which kept copies of it may), the Designer's live
  *   switch and live id, and "Allow databases on this server"
  *   (`connections.allowLocalDatabases`: whether this server's own loopback is
  *   reachable is decided on that server, by its super admin), and which
@@ -63,7 +64,7 @@ const EXPORT_SKIPPED_TABLES: readonly string[] = ['adminium_jobs'];
  */
 export const NEVER_ARCHIVED_JOB_KINDS: readonly string[] = ['operator.event'];
 
-export const NEVER_ARCHIVED_SETTINGS: readonly string[] = ['addOns.deciderTrust', 'designer.live', 'designer.liveId', 'connections.allowLocalDatabases', 'email.builtinsSeededFor'];
+export const NEVER_ARCHIVED_SETTINGS: readonly string[] = ['addOns.deciderTrust', 'designer.live', 'designer.liveId', 'connections.allowLocalDatabases', 'email.builtinsSeededFor', 'addOns.keptCopyTrust'];
 
 /**
  * This instance's own identity: an export does not clone it onto another server. Nor does it say who a
