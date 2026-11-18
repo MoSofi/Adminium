@@ -18,7 +18,7 @@ const MANIFEST = {
   publisher: { id: 'adminium', name: 'Adminium' },
   license: 'AGPL-3.0-only',
   description: { key: 'd', fallback: 'A studio.' },
-  categories: ['marketing'],
+  categories: ['crm'],
   compatibility: { minAdminiumVersion: '0.1.0' },
   requiredSchema: {
     tables: [
@@ -27,6 +27,8 @@ const MANIFEST = {
       { ref: 'funnels', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'name', type: 'text' }, { ref: 'steps', type: 'json' }] },
     ],
   },
+  pages: [{ ref: 'studio-funnels', template: 'page-crud', title: { key: 't', fallback: 'Funnels' }, nav: { group: 'library', icon: 'list', order: 1 }, bindings: { rows: 'funnels' } }],
+  frontends: [{ side: 'staff', kind: 'spa', entry: 'index.html' }],
 };
 
 function manifest(): Manifest {
