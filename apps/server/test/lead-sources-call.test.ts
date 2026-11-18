@@ -169,6 +169,41 @@ describe.each(META_ENGINES)('one call to one source — $name', (engine) => {
     expect(await call('france', async () => ({ ok: true as const }))).toMatchObject({ ok: false, code: 'PAUSED', retryAfterSeconds: 5 });
   });
 
+  it.skipIf(!engine.available)('keeps a key that travels in the query string out of the audit rows, the log and the reply', async () => {
+    // A key a URL must encode, as a service that takes its key in the query is handed it.
+    const KEYED = 'test key/companies+7';
+    await manifests.setCredential(install.row.id, { kind: 'api-key', secret: withSourceKey(await manifests.getCredential(install.row.id), 'companies-house', KEYED) });
+    const logs: string[] = [];
+    deps.log = (message, fields) => logs.push(JSON.stringify([message, fields]));
+    deps.fetchImpl = (async (input: string | URL) => {
+      throw new Error(`connect ECONNREFUSED for ${String(input)}`);
+    }) as typeof fetch;
+    const query = (host: string) => `https://${host}/search?q=kestrel&api_token=${encodeURIComponent(seen.at(-1)!.key!)}`;
+    const quoted = async (host: string) =>
+      call('companies-house', async () => {
+        try {
+          await seen.at(-1)!.http(query(host));
+          return { ok: true as const };
+        } catch (error) {
+          // A careless adapter hands back what it was told, and the URL it asked, as its refusal.
+          return { ok: false as const, code: 'UNAVAILABLE' as const, message: `${(error as Error).message} asking ${query(host)} with ${seen.at(-1)!.key!}, token ${encodeURIComponent(seen.at(-1)!.key!)}` };
+        }
+      });
+    // A host this source may not reach, and a call to its own host that fails.
+    const refused = await quoted('api.hunter.io');
+    const failed = await quoted(REGISTER_HOST);
+    const thrown = await call('companies-house', async () => {
+      throw new Error(`boom ${query(REGISTER_HOST)}`);
+    });
+    expect(refused).toMatchObject({ ok: false, code: 'UNAVAILABLE' });
+    expect(failed).toMatchObject({ ok: false, code: 'UNAVAILABLE' });
+    expect(thrown).toMatchObject({ ok: false, code: 'UNAVAILABLE' });
+    const rows = (await auditRepo(handle.meta).list({ category: 'add-on' })).filter((entry) => entry.action === 'add-on.egress-refused');
+    expect(rows.map((row) => (row.changes as { after: { reason: string } }).after.reason).sort()).toEqual(['HOST_NOT_ALLOWED', 'REQUEST_FAILED']);
+    const everywhere = JSON.stringify({ refused, failed, thrown, rows, logs });
+    for (const form of [KEYED, encodeURIComponent(KEYED), 'api_token=']) expect(everywhere).not.toContain(form);
+  });
+
   it.skipIf(!engine.available)("stops a source's request with the caller's Stop", async () => {
     const mine = new AbortController();
     deps.fetchImpl = ((_input: string | URL, init?: RequestInit) =>

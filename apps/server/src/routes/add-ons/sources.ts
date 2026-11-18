@@ -41,7 +41,7 @@ import { installReachOf } from '../../installs/reach.js';
 import { rememberInstall, rememberedInstall, resolveInstall, selectorOf } from '../../installs/resolve.js';
 import { sourceGate, usedToday } from '../../lead-sources/caps.js';
 import { installManifest, sourceEntryOf, withLeadSource, type LeadSourceRefusal } from '../../lead-sources/call.js';
-import { SOURCE_KEY_MAX, lastFour, sourceKey, withSourceKey } from '../../lead-sources/keys.js';
+import { SOURCE_KEY_MAX, lastFour, sourceKey, withSourceKey, withoutKey } from '../../lead-sources/keys.js';
 import {
   MAX_DAILY_CAP,
   SOURCE_VERDICTS,
@@ -245,9 +245,9 @@ export function registerSourceRoutes(app: FastifyInstance, deps: SourceRoutesDep
       },
     );
     let found = verdictOf(answer);
-    // The source's own words are kept only after the saved key is taken out of them.
+    // The source's own words are kept only after the saved key (as saved, and as a URL carries it) is taken out of them.
     const key = sourceKey(await manifests.getCredential(install.row.id), entry.id);
-    if (found.message !== null && key !== null && key.length >= 6) found = { ...found, message: found.message.split(key).join('[the saved key]') };
+    if (found.message !== null) found = { ...found, message: withoutKey(found.message, key) };
     const at = app.rbac.now();
     const state = await mutateSourceState(meta, install.row.id, entry, (current) => ({ ...current, verdict: found.verdict, checkedAt: at }), at);
     await app.rbac.audit(request, {

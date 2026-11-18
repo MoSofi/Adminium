@@ -19,6 +19,8 @@
 import type { CredentialEnvelope } from '@adminium/meta';
 import { z } from 'zod';
 
+import { withoutQueries } from '../add-ons/egress.js';
+
 export { lastFour } from '../payments/credentials.js';
 
 /** A source's id, as the manifest word allows it. */
@@ -55,6 +57,19 @@ function keysOf(envelope: CredentialEnvelope | null): Map<string, string> {
     if (one.success) out.set(id, one.data.key);
   }
   return out;
+}
+
+/**
+ * A source's or the engine's words with the key taken out: as it was saved,
+ * and as it reads inside a URL (some services take their key in the query
+ * string), and every query string with it.
+ */
+export function withoutKey(text: string, key: string | null): string {
+  let out = text;
+  if (key !== null && key.length >= 4) {
+    for (const form of new Set([key, encodeURIComponent(key), encodeURI(key), encodeURIComponent(key).replace(/%20/g, '+')])) out = out.split(form).join('[the saved key]');
+  }
+  return withoutQueries(out);
 }
 
 /** One source's key, or null when none is saved. */

@@ -44,7 +44,7 @@ import type { CredentialEnvelope, InstalledManifest, MetaDb } from '@adminium/me
 import { addOnHttpClientFor, type AddOnHttpClientOptions } from '../add-ons/egress.js';
 import { providerByKey, type AddOnRuntimeState } from '../add-ons/runtime.js';
 import { reserveDay, retryAfterSeconds, sourceGate, type SourceGate, type SourceRefusal } from './caps.js';
-import { sourceKey } from './keys.js';
+import { sourceKey, withoutKey } from './keys.js';
 import { needsKey, readSourcesState, sourceStateOf, sourcesOf, type LeadSourceEntry } from './state.js';
 
 /** How long the engine waits for one call, whatever the source does with its stop signal. */
@@ -168,8 +168,10 @@ export async function withLeadSource<T>(deps: LeadSourceDeps, call: LeadSourceCa
     try {
       made = true;
       const answer = await Promise.race([run(factory(context)), late]);
-      if (isLeadSourceError(answer) && answer.code === 'RATE_LIMITED') gate.pause(install.row.id, source, answer.retryAfterSeconds);
-      return answer;
+      if (!isLeadSourceError(answer)) return answer;
+      if (answer.code === 'RATE_LIMITED') gate.pause(install.row.id, source, answer.retryAfterSeconds);
+      // A refusal's words go to a screen and a log: never with the key, nor a URL's query string, in them.
+      return { ...answer, message: withoutKey(answer.message, key) };
     } catch (error) {
       deps.log?.('a lead source call threw', { addOn: manifest.key, source, error: error instanceof Error ? error.name : typeof error });
       return unavailable(`${source} could not be reached.`);
