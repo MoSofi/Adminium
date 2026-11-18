@@ -56,6 +56,7 @@ import type { ListedWebsites } from '../../forms/websites.js';
 import { issueChallenge, proofKey } from '../../public-api/proof.js';
 import { tagRoutes } from '../../security/route-audience.js';
 import { framedPageOf, xDoorHeaders } from '../x-door/headers.js';
+import { strangerDoor } from '../x-door/stranger.js';
 import { xPages, type XPageWords } from '../x-door/page.js';
 
 export interface ChatDoorDeps {
@@ -136,6 +137,8 @@ export function chatDoorRoutes(deps: ChatDoorDeps): FastifyPluginAsyncZod {
   return async (app) => {
     // Doors anybody may open: hidden with the other public pages (`security/route-audience.ts`).
     tagRoutes(app, 'public');
+    // A stranger's door: a signed-in person's session or key is let go, a preview's read aside (`../x-door/stranger.ts`).
+    strangerDoor(app);
     // Last word on the headers of everything this plugin answers (`../x-door/headers.ts`).
     xDoorHeaders(app, { framed: framedPageOf(CHAT_FRAMED_PAGES), websites: deps.websites, previewing: (request) => previewing.has(request) });
     const { page } = xPages(app, meta, CHAT_PAGE_WORDS);
