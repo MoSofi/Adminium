@@ -106,5 +106,8 @@ export default {
   },
   "chat": {
     "noScript": "Cette discussion a besoin de JavaScript."
+  },
+  "pages": {
+    "noScript": "Cette page a besoin de JavaScript."
   }
 } as const;

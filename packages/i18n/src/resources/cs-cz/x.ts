@@ -106,5 +106,8 @@ export default {
   },
   "chat": {
     "noScript": "Tento chat potřebuje JavaScript."
+  },
+  "pages": {
+    "noScript": "Tato stránka potřebuje JavaScript."
   }
 } as const;

@@ -679,9 +679,10 @@ export default {
       "title": "Domæner",
       "pages": "Formularer og sider",
       "homeLabel": "Startside",
-      "homeNone": "Ingen offentliggjort formular endnu",
-      "homeMissing": "Offentliggør først en formular: denne vært skal have en offentliggjort formular som startside.",
-      "invalidHome": "Startsiden for {host} skal være siden for en offentliggjort formular under /x/."
+      "homeNone": "Ingen offentliggjort formular eller side endnu",
+      "homeOff": "Denne side er ikke længere offentliggjort: besøgende på {host} finder intet der.",
+      "homeMissing": "Offentliggør først en formular eller en side: denne vært skal have en offentliggjort startside.",
+      "invalidHome": "Startsiden for {host} skal være adressen på en offentliggjort formular eller side under /x/."
     },
     "emptyBody": "Peg ADMINIUM_SURFACES_DIR på en mappe med byggede flader — én mappe pr. app og side, hver med sin index.html — og genstart. De serveres derefter under /apps/ og vises her.",
     "emptyTitle": "Der serveres ingen app-flader",

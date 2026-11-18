@@ -43,6 +43,7 @@ const FORMS: Record<string, FormLookup> = {
 
 const catalog: FormsCatalog = {
   find: async (slug) => FORMS[slug] ?? { state: 'unavailable' },
+  byKey: async () => ({ state: 'unavailable' }),
   draft: async () => null,
   liveSlugs: async () => [],
   forget: () => true,

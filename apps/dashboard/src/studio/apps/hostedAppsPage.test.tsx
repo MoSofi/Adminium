@@ -408,7 +408,7 @@ describe('HostedAppsPage', () => {
     expect(await screen.findByText(/is not a valid hostname/)).toBeTruthy();
     expect(screen.getByText(/mapping it would take this dashboard away/)).toBeTruthy();
     // A home page refused is worded here, in the page's own language, not in the server's English.
-    expect(screen.getByText('The home page of go.example.com must be a live form’s page under /x/.')).toBeTruthy();
+    expect(screen.getByText('The home page of go.example.com must be a live form’s or page’s address under /x/.')).toBeTruthy();
     expect(screen.queryByText(/must be a page address under \/x\//)).toBeNull();
   });
 
@@ -562,7 +562,7 @@ describe('HostedAppsPage', () => {
 
     const home = screen.getByLabelText(/^Home page/) as HTMLSelectElement;
     expect(home.value).toBe('');
-    const reason = screen.getByText('Publish a form first: this host needs a live form as its home page.');
+    const reason = screen.getByText('Publish a form or a page first: this host needs a live one as its home page.');
     // The reason is the home picker's own caption, and the one Save names as its description.
     expect(home.getAttribute('aria-describedby')).toBe(reason.id);
     expect(home.getAttribute('aria-invalid')).toBe('true');
@@ -573,18 +573,30 @@ describe('HostedAppsPage', () => {
 
     // Back to an app's side: the row needs no home, and Save comes back.
     await userEvent.selectOptions(pickers[pickers.length - 1] as HTMLSelectElement, 'clients/staff');
-    expect(screen.queryByText('Publish a form first: this host needs a live form as its home page.')).toBeNull();
+    expect(screen.queryByText('Publish a form or a page first: this host needs a live one as its home page.')).toBeNull();
     expect(save.disabled).toBe(false);
     expect(save.getAttribute('aria-describedby')).toBeNull();
   });
 
-  it('offers the domains card with no app surface when a form is live, and keeps a saved home no longer live', async () => {
+  it('offers the domains card with no app surface when a form is live, and keeps a saved home no longer live, saying it is off', async () => {
     await renderPage({ reply: { surfaces: [], instances: {}, domains: { 'go.example.com': { kind: 'pages', home: '/x/forms/old-offer' } }, pageHomes: ['/x/forms/newsletter'] } });
     await screen.findByRole('heading', { name: 'Domains' });
     const home = screen.getByLabelText(/^Home page/) as HTMLSelectElement;
     expect(home.value).toBe('/x/forms/old-offer');
     expect([...home.options].map((option) => option.value)).toEqual(['/x/forms/old-offer', '/x/forms/newsletter']);
     expect((screen.getByLabelText(/^Surface/) as HTMLSelectElement).value).toBe('pages');
+    // The home row says its page is off: the host's `/` lands on "not available".
+    const off = screen.getByText('This page isn’t live any more: visitors to go.example.com find nothing there.');
+    expect(home.getAttribute('aria-describedby')).toContain(off.id);
+  });
+
+  it('lists live landing pages beside the forms as homes, and says nothing of a home that is live', async () => {
+    await renderPage({ reply: { surfaces: [], instances: {}, domains: { 'go.example.com': { kind: 'pages', home: '/x/pages/open-day' } }, pageHomes: ['/x/forms/newsletter', '/x/pages/open-day'] } });
+    await screen.findByRole('heading', { name: 'Domains' });
+    const home = screen.getByLabelText(/^Home page/) as HTMLSelectElement;
+    expect(home.value).toBe('/x/pages/open-day');
+    expect([...home.options].map((option) => option.value)).toEqual(['/x/forms/newsletter', '/x/pages/open-day']);
+    expect(screen.queryByText(/isn’t live any more/)).toBeNull();
   });
 
   it('renders the pointed empty state when nothing is served', async () => {

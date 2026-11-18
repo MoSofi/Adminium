@@ -109,11 +109,9 @@ describe('a manifest that uses a word this server does not run yet', () => {
     expect(unbuiltInManifest({ ...ADD_ON, addOn: { ledgers: [{ id: 'cards', actions: { pay: { decides: [{ input: 'amount' }] } } }] } })).toEqual([]);
   });
 
-  it('refuses an add-on\'s landing pages until the door that serves them is built, with the release that runs it', () => {
-    expect(unbuiltInManifest({ ...ADD_ON, addOn: { landing: { pages: 'pages', funnels: 'funnels' } } })).toEqual([{ word: 'addOn.landing', path: 'addOn.landing', release: '0.3.65' }]);
-    expect(() => refuseUnbuiltManifest({ ...ADD_ON, addOn: { landing: { pages: 'pages', funnels: 'funnels' } } }, '"landing-pages"', '0.3.64')).toThrowError(
-      '"landing-pages" uses "addOn.landing", which Adminium 0.3.65 runs and this Adminium 0.3.64 does not. Take it out, or move to Adminium 0.3.65.',
-    );
+  it('runs an add-on\'s landing pages: the door that serves them is built', () => {
+    expect(unbuiltInManifest({ ...ADD_ON, addOn: { landing: { pages: 'pages', funnels: 'funnels' } } })).toEqual([]);
+    expect(() => refuseUnbuiltManifest({ ...ADD_ON, addOn: { landing: { pages: 'pages', funnels: 'funnels' } } }, '"landing-pages"', '0.3.64')).not.toThrow();
   });
 
   /** A word of a release after this one, as the list would hold it: every word there is today is run. */
@@ -121,8 +119,8 @@ describe('a manifest that uses a word this server does not run yet', () => {
 
   it('an app\'s own pages, roles, prefix, its link into an add-on and the last four of a code are no such word', () => {
     expect(unbuiltInManifest(APP)).toEqual([]);
-    // Every word there is today is run, but landing pages: their door is not built yet.
-    expect(UNBUILT_MANIFEST_WORDS).toEqual({ 'addOn.landing': '0.3.65' });
+    // Every word there is today is run.
+    expect(UNBUILT_MANIFEST_WORDS).toEqual({});
     // A word the list holds is found where it is written, with the release that runs it.
     expect(unbuiltInManifest(APP, LATER)).toEqual([{ word: 'column.codeLast4', path: 'requiredSchema.tables.0.columns.1.rules.codeLast4', release: '0.3.21' }]);
     expect(unbuiltInManifest({ ...APP, requiredSchema: { tables: [] }, publicAccess: [] }, LATER)).toEqual([]);

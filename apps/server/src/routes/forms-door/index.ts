@@ -81,6 +81,7 @@ import { PAY_PAGE_DOC, payPageSchema } from '../payments/ways.js';
 import { formsFileRoutes } from './files.js';
 import { tagRoutes } from '../../security/route-audience.js';
 import { framedPageOf, xContentPolicy, xDoorHeaders } from '../x-door/headers.js';
+import { directionOf, type XHead } from '../x-door/head.js';
 import { xPages, type XPageWords } from '../x-door/page.js';
 
 export interface FormsDoorDeps {
@@ -150,6 +151,18 @@ const FORMS_PAGE_WORDS: XPageWords = {
   unavailable: { key: 'x:ending.unavailable', fallback: 'This page isn’t available.' },
 };
 
+/**
+ * The head of a live form's page (`../x-door/head.ts`): its language and
+ * direction, and its title in that language when it is one line; undefined
+ * (the bundle's own head) for a form with no such title.
+ */
+function formHead(live: LiveForm, asked: unknown, acceptLanguage: string | undefined): XHead | undefined {
+  const language = formLanguageFor(live.form.definition, asked, acceptLanguage);
+  const title = live.form.definition.title[language];
+  if (title === undefined || /[\r\n]/.test(title) || title.trim() === '') return undefined;
+  return { lang: language, dir: directionOf(language), title, indexable: false };
+}
+
 /** The pages of this door a listed website may frame, with `?frame=1`: a form's page. */
 export const FORMS_FRAMED_PAGES: readonly RegExp[] = [/^\/x\/forms\/[^/]+$/];
 
@@ -217,6 +230,8 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
     app.get('/x/forms/:slug', { config: { rateLimitBucket: 'forms-door' }, schema: { hide: true, params: slugParams, querystring: pageQuery } }, async (request, reply) => {
       if (request.query.preview !== undefined) return page(request, reply, request.query.preview === '1' && (await previewOf(request, request.params.slug)) !== null ? 'live' : 'unavailable');
       const found = await lookUp(request, request.params.slug, request.query.t);
+      // A live form's page is titled with the form's own title, in the language it is drawn in; never indexed.
+      if (found.state === 'live') return page(request, reply, 'live', formHead(found.live, request.query.lang, request.headers['accept-language']));
       // A survey answered already is a page the script draws its card on; a link that does not work is a page that is not there.
       return page(request, reply, found.state === 'already' ? 'live' : found.state === 'dead' ? 'unavailable' : found.state);
     });

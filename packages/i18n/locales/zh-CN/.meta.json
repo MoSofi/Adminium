@@ -29443,6 +29443,10 @@
     "status": "mt",
     "srcHash": "da1f6bd38c42"
   },
+  "studio.hostedApps.domains.homeOff": {
+    "status": "mt",
+    "srcHash": "f2fa95bf4bfe"
+  },
   "studio.hostedApps.domains.hostLabel": {
     "status": "mt",
     "srcHash": "3960ec4ca5fb"
@@ -50794,6 +50798,10 @@
   "x.optional": {
     "status": "mt",
     "srcHash": "0c6c4102d4df"
+  },
+  "x.pages.noScript": {
+    "status": "mt",
+    "srcHash": "c4e19473db74"
   },
   "x.preview": {
     "status": "mt",
