@@ -10,8 +10,9 @@
     "e2e:server": "node scripts/e2e-server.mjs",
     "e2e:desktop": "playwright test --config playwright.desktop.config.ts",
     "e2e:chat": "playwright test --config playwright.chat.config.ts",
+    "e2e:chat-staff": "playwright test --config playwright.chat-staff.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint tests tests-desktop playwright.config.ts playwright.desktop.config.ts playwright.chat.config.ts"
+    "lint": "eslint tests tests-desktop playwright.config.ts playwright.desktop.config.ts playwright.chat.config.ts playwright.chat-staff.config.ts"
   },
   "devDependencies": {
     "@adminium/adapter-mysql": "workspace:*",
