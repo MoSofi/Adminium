@@ -30,6 +30,7 @@ import type { MetaDb } from '@adminium/meta';
 
 import type { AddOnInstalls } from '../apps/table-ref.js';
 import type { DataHandle } from '../connections/manager.js';
+import { installsOf } from '../installs/resolve.js';
 import { FORM_CACHE_MS, jsonOf } from '../forms/catalog.js';
 import { landingAddOnOn } from './installed.js';
 
@@ -81,10 +82,10 @@ export function createLandingEndings(deps: LandingEndingsDeps) {
   const vouched = deps.vouched ?? (() => true);
   const cache = new Map<string, { at: number; target: Promise<LandingEndingTarget> }>();
 
-  /** The databases the add-on `key` is installed on. */
+  /** The databases the add-on `key` is installed on: each of its installs, read through the repo's per-install list. */
   async function databasesOf(key: string): Promise<string[]> {
-    const rows = await deps.meta.db.selectFrom('adminium_manifests').select('connectionId').where('kind', '=', 'add-on').where('manifestKey', '=', key).where('status', '=', 'installed').execute();
-    return rows.flatMap((row) => (row.connectionId === null ? [] : [row.connectionId])).sort();
+    const installs = await installsOf(deps.meta).listByKey(key);
+    return installs.flatMap((install) => (install.row.kind === 'add-on' && install.row.status === 'installed' && install.row.connectionId !== null ? [install.row.connectionId] : [])).sort();
   }
 
   async function lookUp(addOnKey: string, page: string, near: string): Promise<LandingEndingTarget> {

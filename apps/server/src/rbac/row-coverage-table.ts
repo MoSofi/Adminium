@@ -376,6 +376,11 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/jobs': noRows('Jobs and their results, which hold ids and counts and no row; a file a job made is its requester\'s.'),
   'GET /api/v1/jobs/:id': noRows('Jobs and their results, which hold ids and counts and no row; a file a job made is its requester\'s.'),
   'POST /api/v1/jobs/:id/cancel': noRows('Jobs and their results, which hold ids and counts and no row; a file a job made is its requester\'s.'),
+  // --- /landing
+  'POST /api/v1/landing/:addOn/draft': rows('all', 'Sends the model no row. It is told the live forms the person may read every row of, by name and key, and a link to a page is kept only for a person who reads every page; a person held to some rows is told of none.'),
+  'GET /api/v1/landing/:addOn/forms': rows('all', 'Lists the live forms of each forms table the person reads every row of; a table they are held to some rows of is left out.'),
+  'GET /api/v1/landing/:addOn/funnels/:key/rule': rows('all', 'Reads one funnel row as the system, refused to a person held to some funnels; the rule is meta, not a source row.'),
+  'GET /api/v1/landing/live-pages': rows('all', 'Lists the live pages of each pages table the person reads every row of; a table they are held to some rows of is left out.'),
   // --- /ledgers
   'POST /api/v1/ledgers/:addOn/:ledger/catch-up': rows(['system', 'whole'], 'A ledger is kept by the system under the schema grant, and a ledger\'s answer is whole; a private table is refused.'),
   'POST /api/v1/ledgers/:addOn/:ledger/make-items': rows(['system', 'whole'], 'A ledger is kept by the system under the schema grant, and a ledger\'s answer is whole; a private table is refused.'),

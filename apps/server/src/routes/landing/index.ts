@@ -47,6 +47,7 @@ import type { DataHandle } from '../../connections/manager.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError } from '../../errors.js';
 import type { FormsCatalog } from '../../forms/catalog.js';
 import { strangerBusiness } from '../../forms/view.js';
+import { requestReadsWhole } from '../../crud/row-reach-request.js';
 import { installReachOf } from '../../installs/reach.js';
 import { installsOf, resolveInstall, selectorOf } from '../../installs/resolve.js';
 import { draftLandingPage, LANDING_DESCRIPTION_MAX, type DraftForm } from '../../landing/draft.js';
@@ -189,12 +190,19 @@ export function landingStaffRoutes(deps: LandingStaffDeps): FastifyPluginAsyncZo
   }
 
   const grant = (request: FastifyRequest, connectionId: string, tableId: string, action: 'read' | 'update') => request.can(`table:${connectionId}:${tableId}:${action}`);
+  /**
+   * Whether the person may read every row of a table: these reads list a
+   * table's rows (or say whether one is there) as the system, so a person
+   * held to some rows of it is told of none (`rbac/row-coverage-table.ts`).
+   */
+  const readsAll = async (request: FastifyRequest, connectionId: string, tableId: string): Promise<boolean> =>
+    (await grant(request, connectionId, tableId, 'read')) && (await requestReadsWhole(meta, request, connectionId, tableId));
 
   /** The live forms this person may read, with their endings as a staff screen shows them. */
   async function formsFor(request: FastifyRequest): Promise<z.infer<typeof landingFormsReply>['data']['forms']> {
     const out: z.infer<typeof landingFormsReply>['data']['forms'] = [];
     for (const live of await deps.catalog.liveForms()) {
-      if (!(await grant(request, live.connectionId, live.formsTable, 'read'))) continue;
+      if (!(await readsAll(request, live.connectionId, live.formsTable))) continue;
       const { definition } = live.form;
       const listed = new Set<string>(definition.languages);
       out.push({ addOn: live.addOn, installId: live.installId, key: live.id, name: live.name, slug: live.slug, languages: FORM_LANGUAGES.filter((one) => listed.has(one)), ending: await endingOf(definition.ending, live.connectionId) });
@@ -246,7 +254,7 @@ export function landingStaffRoutes(deps: LandingStaffDeps): FastifyPluginAsyncZo
           self: request.body.pageKey ?? null,
           // Which pages a link names the add-on holds: the keys alone are read, never a page's content.
           pagesHeld: async (keys) => {
-            if (keys.length === 0) return new Set();
+            if (keys.length === 0 || !(await readsAll(request, landing.connectionId, landing.pages))) return new Set();
             try {
               const rows = (await db.selectFrom(landing.pages).select(db.dynamic.ref(landing.pagesKey) as never).where(db.dynamic.ref(landing.pagesKey), 'in', [...keys]).execute()) as Record<string, unknown>[];
               const held = new Set(rows.map((row) => String(row[landing.pagesKey])));
@@ -313,7 +321,7 @@ export function landingStaffRoutes(deps: LandingStaffDeps): FastifyPluginAsyncZo
         const out: z.infer<typeof landingLivePagesReply>['data']['pages'] = [];
         for (const landing of await landingAddOns(meta, await deps.installs())) {
           const { pages, pagesKey } = landing;
-          if (!landing.on || pages === null || pagesKey === null || !(await grant(request, landing.connectionId, pages, 'read'))) continue;
+          if (!landing.on || pages === null || pagesKey === null || !(await readsAll(request, landing.connectionId, pages))) continue;
           let rows: Record<string, unknown>[];
           try {
             const { db } = await deps.data(landing.connectionId);
@@ -358,6 +366,10 @@ export function landingStaffRoutes(deps: LandingStaffDeps): FastifyPluginAsyncZo
         const funnelsKey = landing.funnelsKey;
         if (!(await grant(request, landing.connectionId, funnels, 'read'))) {
           throw new ForbiddenError('Only someone who may read these funnels reads this.', 'TABLE_FORBIDDEN', { reason: 'landing-funnels-read' });
+        }
+        // The funnel's row is read as the system: a person held to some funnels reads no funnel's rule here.
+        if (!(await requestReadsWhole(meta, request, landing.connectionId, funnels))) {
+          throw new ForbiddenError('Only someone who may read every funnel reads this.', 'TABLE_FORBIDDEN', { reason: 'landing-funnels-rows' });
         }
         const { db } = await deps.data(landing.connectionId);
         let row: Record<string, unknown> | undefined;

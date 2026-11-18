@@ -195,6 +195,13 @@ describe.each(LEGS)('a landing pages add-on\'s staff reads — %s', (dialect, av
     await person('ada', [...t('landing-pages:funnels', 'read'), 'system:automations:manage']);
     // The admin.
     await person('root', [], true);
+    // Lena reads the pages, and only the live forms and the funnels named "Open day" (row limits): told of no form and no funnel's rule here.
+    await person('lena', t('landing-pages:pages', 'read'));
+    const lenaRole = (await rolesRepo(h.meta).findBySlug('lp-lena'))!;
+    const limited = (ref: string, column: string, values: string[]) =>
+      permissionsRepo(h.meta).grant(lenaRole.id, 'table', matrixRowsFromGrants(t(ref, 'read')).rows[0]!.resourceRef, { read: true, create: false, update: false, delete: false, export: false, import: false, rowLimit: { read: { reach: 'all', while: { column, in: values } } } } as never);
+    await limited('forms:forms', 'state', ['live']);
+    await limited('landing-pages:funnels', 'name', ['Open day']);
   }, 300_000);
 
   afterAll(async () => {
@@ -335,6 +342,8 @@ describe.each(LEGS)('a landing pages add-on\'s staff reads — %s', (dialect, av
     // Rex reads the pages and no form: none listed. Nik reads forms, not pages: refused.
     expect(((await as('rex', 'GET', '/api/v1/landing/landing-pages/forms')).json() as Doc).data.forms).toEqual([]);
     expect((await as('nik', 'GET', '/api/v1/landing/landing-pages/forms')).statusCode).toBe(403);
+    // Lena is held to some forms: she is told of none.
+    expect(((await as('lena', 'GET', '/api/v1/landing/landing-pages/forms')).json() as Doc).data.forms).toEqual([]);
   });
 
   it.skipIf(!available)('lists the live pages of every landing pages add-on whose pages the person may read', async () => {
@@ -379,6 +388,10 @@ describe.each(LEGS)('a landing pages add-on\'s staff reads — %s', (dialect, av
     expect((await as('mara', 'GET', url('424242'))).statusCode).toBe(404);
     expect((await as('mara', 'GET', url(`${keys['linked']!}abc`))).statusCode).toBe(404);
     expect((await as('nik', 'GET', url(keys['linked']!))).statusCode).toBe(403);
+    // Lena is held to some funnels: refused, even for one she reaches.
+    const held = await as('lena', 'GET', url(keys['linked']!));
+    expect(held.statusCode).toBe(403);
+    expect(reason(held)).toBe('landing-funnels-rows');
   });
 
   it.skipIf(!available)('serves a landing ending as its live page\'s address on the host asked, else the default thanks', async () => {
