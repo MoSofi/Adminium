@@ -25,7 +25,7 @@ describe('the newer words of a manifest', () => {
   });
 
   it('a refused word names a release', () => {
-    for (const [word, release] of Object.entries(UNBUILT_MANIFEST_WORDS)) expect(release, word).toMatch(/^0\.3\.(28|64)$/);
+    for (const [word, release] of Object.entries(UNBUILT_MANIFEST_WORDS)) expect(release, word).toMatch(/^0\.3\.(28|64|65)$/);
   });
 });
 

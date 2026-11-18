@@ -197,6 +197,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'addOn.chat',
   // A table an app opens to a chat's question left outside hours, through an entry under the reserved key `chat`.
   'publicAccess.chat',
+  // An add-on's landing pages: the tables that hold its pages and its funnels.
+  'addOn.landing',
   // An add-on step's person input and its fields, a record input named by a unique column and held to some rows, a
   // choice's help line, and the rule record's own table and key as tokens.
   'step.person',
@@ -526,6 +528,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   // An add-on's live chat, which the engine keeps for a stranger, and a table an app opens to a question left outside hours.
   'addOn.chat': '0.3.64',
   'publicAccess.chat': '0.3.64',
+  // An add-on's landing pages, which the engine draws for a stranger and whose publish it seals, and its funnels.
+  'addOn.landing': '0.3.65',
   // A step about a person (the rule record, or one link of it): their address, name, language, company, table and key.
   'step.person': '0.3.41',
   // A record input that names its row by a unique column (a survey by its slug), and the rows it may pick (only live ones).
@@ -691,6 +695,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (block['assistant'] !== undefined) out.push({ word: 'addOn.assistant', path: 'addOn.assistant' });
     if (block['forms'] !== undefined) out.push({ word: 'addOn.forms', path: 'addOn.forms' });
     if (block['chat'] !== undefined) out.push({ word: 'addOn.chat', path: 'addOn.chat' });
+    if (block['landing'] !== undefined) out.push({ word: 'addOn.landing', path: 'addOn.landing' });
     if (block['scope'] !== undefined) out.push({ word: 'addOn.scope', path: 'addOn.scope' });
     // A step's person, its record named by a column and filtered, a choice's help line, and the record's own table and key.
     list(block['steps']).forEach((step, s) => {

@@ -38,6 +38,15 @@
       "types": "./dist/forms/websites.d.ts",
       "default": "./dist/forms/websites.js"
     },
+    "./landing": {
+      "types": "./dist/landing/index.d.ts",
+      "default": "./dist/landing/index.js"
+    },
+    "./landing/render": {
+      "types": "./dist/landing/render.d.ts",
+      "default": "./dist/landing/render.js"
+    },
+    "./landing/landing.css": "./dist/landing/landing.css",
     "./runtime": {
       "types": "./dist/runtime/index.d.ts",
       "default": "./dist/runtime/index.js"
@@ -84,7 +93,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && node ../../scripts/stamp-dist-spdx.mjs",
+    "build": "tsc -p tsconfig.json && node -e \"require('node:fs').cpSync('src/landing/landing.css', 'dist/landing/landing.css')\" && node ../../scripts/stamp-dist-spdx.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
     "test": "vitest run --coverage"
@@ -93,17 +102,25 @@
     "zod": "catalog:"
   },
   "peerDependencies": {
+    "react": "^19.1.0",
     "vitest": "catalog:"
   },
   "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
     "vitest": {
       "optional": true
     }
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.18",
     "eslint": "catalog:",
+    "happy-dom": "^18.0.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },

@@ -94,5 +94,12 @@
     "design-too-large": "Dieses Design ist zu groß, um geprüft zu werden.",
     "check-unavailable": "Designs können gerade nicht geprüft werden, daher kann dies nicht gespeichert werden.",
     "check-failed": "Das Add-on, das Designs prüft, hat nicht wie erwartet geantwortet. Es wurde nichts gespeichert."
+  },
+  "landing": {
+    "unparsable": "Diese Seite kann nicht veröffentlicht werden: Ihre veröffentlichte Fassung ist keine Seite, die Adminium darstellen kann.",
+    "marked": "Diese Seite kann nicht veröffentlicht werden, solange ein Abschnitt noch Milos Markierung trägt. Sehen Sie sich zuerst jeden an.",
+    "slug": "Diese Seite kann unter dieser Adresse nicht veröffentlicht werden. Verwenden Sie Kleinbuchstaben, Ziffern und Bindestriche und kein Wort, das die Adressen selbst verwenden.",
+    "slugTaken": "Eine andere Seite hat bereits diese Adresse.",
+    "assistant": "Milo kann den Entwurf einer Seite schreiben, sie aber nie veröffentlichen oder ändern, ob sie online ist."
   }
 }

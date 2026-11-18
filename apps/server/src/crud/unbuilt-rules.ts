@@ -56,7 +56,11 @@ export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [];
  * to {@link MANIFEST_WORDS_RUN}: every word the manifest package can name is
  * in one of the two, and a test says so.
  */
-export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {};
+export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {
+  // An add-on's landing pages: their vocabulary and publish seal are built, the door that serves them to strangers is not,
+  // so a landing add-on cannot install and serve nothing. The change that builds the door moves it to MANIFEST_WORDS_RUN.
+  'addOn.landing': '0.3.65',
+};
 
 /** The newer words of a manifest this server runs: nothing is refused for using one. */
 export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [

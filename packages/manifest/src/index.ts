@@ -71,6 +71,7 @@ export {
   formsEntriesOf,
   chatOf,
   chatEntriesOf,
+  landingOf,
   decidedColumnsOf,
   type FormsEntry,
   type ChatEntry,
@@ -359,6 +360,7 @@ export {
   type FormsPart,
   type FormsTableShape,
   contractColumns,
+  contractColumnIssues,
   describeContractColumn,
   type ContractColumn,
 } from './forms.js';
@@ -380,6 +382,20 @@ export {
   type ChatColumn,
   type ChatPart,
 } from './chat.js';
+export {
+  LANDING_CATEGORY,
+  LANDING_COLUMNS,
+  LANDING_FUNNEL_STEPS_MAX,
+  LANDING_PARTS,
+  LANDING_SLUG_MAX,
+  LANDING_STATES,
+  addOnLandingSchema,
+  landingBlockIssues,
+  type AddOnLanding,
+  type LandingAddOnShape,
+  type LandingColumn,
+  type LandingPart,
+} from './landing.js';
 export { CUSTOMER_KEY, claimKind, claimSchema, codeSchemaOf, codeWhereSchema, hiddenFromStaff, ownLinksOfPerson, personalColumn, publicKeySchema, shareCodeColumns, type Claim, type CodeSchema, type PersonOwnLink, type PublicKey } from './public-access.js';
 export { resendAddressOf, type ResendAddress, type ResendColumns, type ResendOutbox } from './public-access.js';
 export { PLAIN_TEXT_DIGITS_MOST, PLAIN_TEXT_LONGEST, PLAIN_TEXT_MAX, plainTextMax, plainTextRef, type PlainTextColumnRef } from './public-access.js';

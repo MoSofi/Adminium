@@ -76,6 +76,7 @@ import { checkIssues, checkSchema, checkerIssues, checkerSchema, type Checker, t
 import { ledgerIssues, ledgersSchema, postingIssues, postingsSchema, receiptTableIssues, wordsIssues, wordsListSchema, type Ledger, type LedgerScopeTable, type LedgerTableShape, type StockWords } from './ledgers.js';
 import { addOnFormsSchema, formsBlockIssues, type AddOnForms, type FormsTableShape } from './forms.js';
 import { addOnChatSchema, chatBlockIssues, type AddOnChat } from './chat.js';
+import { addOnLandingSchema, landingBlockIssues, type AddOnLanding } from './landing.js';
 
 export { compareSemver };
 
@@ -4211,7 +4212,7 @@ const ADD_ON_BLOCKS = ['pages', 'roles', 'seeds', 'navGroups', 'optionLists', 'p
 export function installsLikeAnApp(m: Manifest): boolean {
   if (m.kind !== 'add-on') return false;
   if (ADD_ON_BLOCKS.some((block) => m[block] !== undefined)) return true;
-  if (m.requiredSchema?.prefixed === true || m.addOn.settingsTable !== undefined || m.addOn.ledgers !== undefined || m.addOn.adjuster !== undefined || m.addOn.checker !== undefined || m.addOn.words !== undefined || m.addOn.recordTabs !== undefined || m.addOn.steps !== undefined || m.addOn.assistant !== undefined || m.addOn.forms !== undefined || m.addOn.chat !== undefined) return true;
+  if (m.requiredSchema?.prefixed === true || m.addOn.settingsTable !== undefined || m.addOn.ledgers !== undefined || m.addOn.adjuster !== undefined || m.addOn.checker !== undefined || m.addOn.words !== undefined || m.addOn.recordTabs !== undefined || m.addOn.steps !== undefined || m.addOn.assistant !== undefined || m.addOn.forms !== undefined || m.addOn.chat !== undefined || m.addOn.landing !== undefined) return true;
   return (m.requiredSchema?.tables ?? []).some(
     (table) =>
       table.states !== undefined ||
@@ -4370,6 +4371,13 @@ export function formsOf(m: Manifest): AddOnForms | null {
 export function chatOf(m: Manifest): AddOnChat | null {
   if (m.kind !== 'add-on' || m.addOn.chat === undefined) return null;
   const parsed = addOnChatSchema.safeParse(m.addOn.chat);
+  return parsed.success ? parsed.data : null;
+}
+
+/** An add-on's landing block, typed; null for an app, and for an add-on that declares none. */
+export function landingOf(m: Manifest): AddOnLanding | null {
+  if (m.kind !== 'add-on' || m.addOn.landing === undefined) return null;
+  const parsed = addOnLandingSchema.safeParse(m.addOn.landing);
   return parsed.success ? parsed.data : null;
 }
 
@@ -4557,6 +4565,27 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
           decided: (table, column) => decidedByRules(byRef.get(table)?.columns.find((candidate) => candidate.ref === column)?.rules),
           settingsTable: m.addOn.settingsTable,
           forms: m.addOn.forms !== undefined,
+        }),
+      );
+    }
+  }
+
+  // Landing pages: typed loosely in the contracts package; its tables, their columns and its entries are checked here.
+  if (m.addOn.landing !== undefined) {
+    const parsed = addOnLandingSchema.safeParse(m.addOn.landing);
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) out.push({ path: ['addOn', 'landing', ...issue.path.map((part) => (typeof part === 'symbol' ? String(part) : part))], message: issue.message });
+    } else {
+      out.push(
+        ...landingBlockIssues(parsed.data, {
+          categories: m.categories,
+          tables: tables as unknown as readonly FormsTableShape[],
+          roles: m.roles,
+          publicAccess: m.publicAccess,
+          steps: m.addOn.steps,
+          decided: (table, column) => decidedByRules(byRef.get(table)?.columns.find((candidate) => candidate.ref === column)?.rules),
+          forms: m.addOn.forms !== undefined,
+          chat: m.addOn.chat !== undefined,
         }),
       );
     }

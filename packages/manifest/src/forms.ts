@@ -311,6 +311,50 @@ function onlyAdminiumWrites(ref: string, t: number, part: FormsPart, m: FormsAdd
   return out;
 }
 
+/**
+ * Each column a contract names, on one table: there, of its kind, its values,
+ * its width, its emptiness either way and its link. Strict both ways: a column
+ * the engine always fills may not be nullable either. `linkOf` names the table
+ * a part of the block is, for a column that links to it. Chat's and landing
+ * pages' words read their tables with it.
+ */
+export function contractColumnIssues<Part extends string>(
+  table: FormsTableShape,
+  t: number,
+  holds: string,
+  contract: Readonly<Record<string, ContractColumn<Part>>>,
+  linkOf: (part: Part) => string | undefined,
+): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  const ref = table.ref;
+  for (const [name, want] of Object.entries(contract)) {
+    const c = table.columns.findIndex((column) => column.ref === name);
+    const column = table.columns[c];
+    if (column === undefined) {
+      out.push({ path: ['requiredSchema', 'tables', t, 'columns'], message: `"${ref}" holds ${holds}, so it has a column "${name}" (${describeContractColumn(want)})` });
+      continue;
+    }
+    const say = (message: string, ...rest: (string | number)[]) => out.push({ path: ['requiredSchema', 'tables', t, 'columns', c, ...rest], message: `"${ref}.${name}" ${message}` });
+    if (!want.types.includes(column.type)) {
+      say(`is read and written by Adminium as ${describeContractColumn(want)}, not ${column.type}`, 'type');
+      continue;
+    }
+    if (want.nullable === true && column.nullable !== true) say('is written empty until there is something to put in it: make it nullable', 'nullable');
+    if (want.nullable !== true && column.nullable === true) say('always holds a value, which Adminium reads: make it not nullable', 'nullable');
+    if (want.unique === true && column.unique !== true) say('names one row: make it unique', 'unique');
+    if (want.atLeast !== undefined && column.maxLength !== undefined && column.maxLength < want.atLeast) say(`takes up to ${String(want.atLeast)} characters: leave out maxLength, or make it at least that`, 'maxLength');
+    if (want.values !== undefined) {
+      const values = new Set(column.enum ?? []);
+      if (values.size !== want.values.length || !want.values.every((value) => values.has(value))) say(`takes exactly ${want.values.map((value) => `"${value}"`).join(', ')}`, 'enum');
+    }
+    if (want.links !== undefined) {
+      const target = linkOf(want.links);
+      if (column.references !== target) say(`links to the ${want.links} ("${String(target)}")`, 'references');
+    }
+  }
+  return out;
+}
+
 /** A column's contract in words, for a refusal. */
 export function describeContractColumn(want: ContractColumn): string {
   const kind = want.links !== undefined ? `a link to the ${want.links}` : want.values !== undefined ? `an enum of ${want.values.join(', ')}` : want.types.join(' or ');

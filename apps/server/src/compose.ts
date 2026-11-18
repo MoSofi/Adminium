@@ -144,6 +144,7 @@ import { createChatStore, type ChatStore } from './chat/store.js';
 import { createChatStaff, type ChatStaff } from './chat/staff.js';
 import { createChatWaiting, type ChatWaiting } from './chat/waiting.js';
 import { chatOwnTable, sweepChatTranscripts } from './chat/transcripts.js';
+import { landingPagesTable } from './landing/seal.js';
 import { chatStaffRoutes } from './routes/chat/index.js';
 import { createLedgerRuntime } from './ledgers/registry.js';
 import { announcePostings, tellPostings, type PostingsTold } from './ledgers/announce.js';
@@ -1379,6 +1380,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     ownRecords: async (connectionId, tableId) => (await formsFiles.ownTable(connectionId, tableId)) || chatOwnTable(await addOnInstalls.fresh(), connectionId, tableId),
     // …and those three chat tables are not a person's to delete either (a forms answer is): only the keeping sweep and an erasure remove them.
     sealedRecords: async (connectionId, tableId) => chatOwnTable(await addOnInstalls.fresh(), connectionId, tableId),
+    // A landing pages add-on's pages: a page goes live, or its published copy is written, only whole, unmarked and at an address no other page holds.
+    landingPages: async (connectionId, tableId) => landingPagesTable(await addOnInstalls.fresh(), connectionId, tableId),
     // A file column names only a file its writer uploaded and no record holds; a picture, one cleaned as it came in.
     // A page's file column too, when a person saves it: what it newly names is an upload of theirs.
     files: createFileColumnJudge({

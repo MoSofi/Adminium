@@ -104,5 +104,12 @@ export default {
     "design-too-large": "This design is too large to be checked.",
     "check-unavailable": "Designs cannot be checked right now, so this cannot be saved.",
     "check-failed": "The add-on that checks designs did not answer as it should, so nothing was saved."
+  },
+  "landing": {
+    "unparsable": "This page can’t be published: its published copy isn’t a page Adminium can draw.",
+    "marked": "This page can’t be published while a section still carries Milo’s mark. Look at each one first.",
+    "slug": "This page can’t be published at that address. Use lower-case letters, digits and dashes, and not a word the addresses use.",
+    "slugTaken": "Another page already has this address.",
+    "assistant": "Milo can write a page’s draft, but never publish it or change whether it’s live."
   }
 } as const;
