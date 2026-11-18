@@ -133,6 +133,12 @@ describe('an add-on\'s leads tables', () => {
     expect(one((d) => (tableOf(d, 'field_sources').columns[0]!['type'] = 'text'))).toContain('"field_sources" holds the fields\' sources, so its rows are numbered');
   });
 
+  it('keep a found person\'s address, where their tell mail goes: there, nullable, at least 320 wide', () => {
+    expect(one((d) => (tableOf(d, 'found_people').columns = tableOf(d, 'found_people').columns.filter((column) => column['ref'] !== 'email')))).toContain('"found_people" holds the people found, so it has a column "email"');
+    expect(one((d) => (columnOf(d, 'found_people', 'email')['maxLength'] = 254))).toContain('"found_people.email" takes up to 320 characters');
+    expect(one((d) => (columnOf(d, 'found_people', 'email')['nullable'] = false))).toContain('"found_people.email" is written empty until there is something to put in it');
+  });
+
   it('name each field once', () => {
     expect(one((d) => delete tableOf(d, 'field_sources')['unique'])).toContain('"field_sources" names each field once: make "table_ref", "row_key", "column_name" a unique set');
   });
@@ -168,7 +174,7 @@ describe('an add-on\'s leads tables', () => {
   });
 
   it('say every column the engine reads', () => {
-    expect(Object.keys(LEADS_COLUMNS.foundPeople)).toEqual(['person_table', 'person_key', 'company_table', 'company_key', 'source', 'found_at', 'purpose', 'tell_by', 'told_at', 'outbox_id', 'state', 'source_pages']);
+    expect(Object.keys(LEADS_COLUMNS.foundPeople)).toEqual(['person_table', 'person_key', 'company_table', 'company_key', 'source', 'found_at', 'purpose', 'tell_by', 'told_at', 'outbox_id', 'state', 'source_pages', 'email']);
     expect(Object.keys(LEADS_COLUMNS.fieldSources)).toEqual(['table_ref', 'row_key', 'column_name', 'source', 'found_at', 'value_hash']);
     expect(Object.keys(LEADS_SETTINGS_COLUMNS)).toEqual(['people_on', 'purpose', 'keep_years']);
   });

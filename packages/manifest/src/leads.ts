@@ -26,7 +26,8 @@
  * settings row ({@link LEADS_SETTINGS_COLUMNS}), which the engine reads.
  *
  * No column here is JSON but the purpose's words: a found person's pages are
- * one https address per line.
+ * one https address per line. A found person's address is kept on their row
+ * (`email`): the add-on's tell mail reads its recipient from it.
  *
  * Pure: no I/O, and nothing imported from the manifest's own schema file, so
  * that file may import this one.
@@ -59,6 +60,8 @@ export type LeadsColumn = ContractColumn<LeadsPart>;
 export const FOUND_PERSON_STATES = ['waiting', 'told', 'failed', 'objected'] as const;
 /** The longest list of a found person's pages, one https address per line. */
 export const FOUND_PERSON_PAGES_MAX = 4000;
+/** The longest address a found person is kept with. */
+export const FOUND_PERSON_EMAIL_MAX = 320;
 /** The longest purpose a found person is kept for, as copied when they are stored. */
 export const FOUND_PERSON_PURPOSE_MAX = 500;
 /** The years a found person is kept by default, and the range the owner may set. */
@@ -97,6 +100,12 @@ export const LEADS_COLUMNS: Readonly<Record<LeadsPart, Readonly<Record<string, L
     state: choice(FOUND_PERSON_STATES),
     /** The pages a source saw their address on, one https address per line. */
     source_pages: text(FOUND_PERSON_PAGES_MAX, true),
+    /**
+     * Their address as found: where the tell mail goes (the add-on's outbox
+     * reads its recipient from here). Personal, so it is found, downloaded
+     * and erased with the row.
+     */
+    email: text(FOUND_PERSON_EMAIL_MAX, true),
   },
   fieldSources: {
     /** The record's table (`<app>:<table>`), its key, and the column filled. */
