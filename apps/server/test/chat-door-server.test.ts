@@ -78,7 +78,7 @@ function crm(): Record<string, unknown> {
             pk,
             text('person', 80, { nullable: true }),
             text('email', 254, { nullable: true }),
-            text('message', 2000, { nullable: true }),
+            { ref: 'message', type: 'text', nullable: true },
             { ref: 'state', type: 'enum', enum: ['open', 'claimed', 'closed'], default: 'open' },
             { ref: 'source', type: 'enum', enum: ['form', 'phone', 'show', 'chat'], nullable: true },
           ],

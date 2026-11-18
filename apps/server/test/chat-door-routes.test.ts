@@ -225,7 +225,7 @@ describe('the chat door routes', () => {
 
   it('every route is public, in the chat buckets, and the registry takes both', async () => {
     await start();
-    const mine = routes.filter((route) => String(route.url).startsWith('/x/chat'));
+    const mine = routes.filter((route) => String(route.url).startsWith('/x/chat') && route.method !== 'HEAD');
     expect(mine).toHaveLength(ROUTES.length);
     for (const route of mine) {
       const config = route.config as { rateLimitBucket?: string; audience?: string } | undefined;

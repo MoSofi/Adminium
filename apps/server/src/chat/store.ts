@@ -40,6 +40,7 @@ import type { SourceDatabase } from '../connections/manager.js';
 import type { Row } from '../crud/mask.js';
 import { readInstant } from '../crud/moments.js';
 import { instantFor } from '../crud/instants.js';
+import { normalizeWriteValue } from '../crud/write-values.js';
 import { insertRow, storableValues, type RecordWriteService, type WriteContext, type WriteTarget } from '../crud/write-service.js';
 import { publishPublicWrite } from '../public-api/publish.js';
 import type { RealtimeHub } from '../realtime/hub.js';
@@ -242,6 +243,20 @@ function patchColumns(patch: ChatConversationPatch): Row {
   return out;
 }
 
+/**
+ * Values for a statement of the store's own (an update), as the write path
+ * would store them: a naive timestamp as the server's wall time (`normalizeWriteValue`),
+ * then each engine's own spelling (`storableValues`: MySQL's instants, SQLite's booleans).
+ */
+function storedColumns(table: ChatTable['table'], columns: Row, dialect: WriteTarget['dialect']): Row {
+  const out: Row = {};
+  for (const [name, value] of Object.entries(columns)) {
+    const column = table.columns.get(name);
+    out[name] = column === undefined || value === null || value === undefined ? value : normalizeWriteValue(column, value);
+  }
+  return storableValues(table, out, dialect);
+}
+
 /** The most conversations whose latest message is kept in memory: past this the oldest go, and are read again. */
 const LATEST_MAX = 10_000;
 
@@ -301,7 +316,7 @@ export function createChatStore(deps: ChatStoreDeps) {
     const { table, pk } = chat.conversations;
     await db
       .updateTable(table.id as never)
-      .set(storableValues(table, columns, chat.dialect) as never)
+      .set(storedColumns(table, columns, chat.dialect) as never)
       .where(sql.ref(pk), '=', boundKey(id))
       .execute();
   }

@@ -36,7 +36,7 @@ import type { FastifyRequest } from 'fastify';
 
 import { looksLikeAddress } from '../consent/service.js';
 import { formsMailBlocked } from '../forms/mail.js';
-import { strangerBusiness, type StrangerBusiness } from '../forms/view.js';
+import { strangerBusiness } from '../forms/view.js';
 import { HOUR_MS } from '../public-api/anonymous-caps.js';
 import { normaliseAddress } from '../public-api/claim-code.js';
 import { rateAddress } from '../public-api/limiter.js';

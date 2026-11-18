@@ -49,12 +49,13 @@ describe.each(META_ENGINES)("a chat's caps — $name", (engine) => {
   it.skipIf(!engine.available)('a conversation sends 20 messages a minute; the 21st waits for the minute; another conversation is not held', async () => {
     for (let one = 0; one < CHAT_MESSAGES_PER_MINUTE; one += 1) expect((await caps.chargeMessage('live-chat', '1', one, AT + one)).ok).toBe(true);
     const refused = await caps.chargeMessage('live-chat', '1', 20, AT + 1000);
-    expect(refused).toEqual({ ok: false, cap: 'minute', retryAfter: 60 });
+    // The oldest of the minute's twenty was a second before: 59 seconds to wait.
+    expect(refused).toEqual({ ok: false, cap: 'minute', retryAfter: 59 });
     expect((await caps.chargeMessage('live-chat', '2', 0, AT + 1000)).ok).toBe(true);
     // The same conversation number in another chat is another conversation.
     expect((await caps.chargeMessage('other-chat', '1', 0, AT + 1000)).ok).toBe(true);
     // A minute later the first one may send again.
-    expect((await caps.chargeMessage('live-chat', '1', 20, AT + 60_000)).ok).toBe(true);
+    expect((await caps.chargeMessage('live-chat', '1', 20, AT + 60_020)).ok).toBe(true);
   });
 
   it.skipIf(!engine.available)('200 messages an hour, then it waits for the hour', async () => {

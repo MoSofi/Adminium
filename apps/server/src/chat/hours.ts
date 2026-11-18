@@ -155,10 +155,8 @@ function spansOn(input: HoursInput, date: { year: number; month: number; day: nu
   return out.sort((a, b) => a.start - b.start);
 }
 
-/** How many days ahead the next opening is looked for, past "closed until". */
+/** How many days ahead the next opening is looked for, from "closed until" or today. */
 const LOOK_AHEAD_DAYS = 8;
-/** The furthest "closed until" is read: a year and a little more. */
-const LOOK_AHEAD_MAX = 400;
 
 /** Whether the chat is in hours at `now`, and when that changes. */
 export function hoursAt(input: HoursInput, now: number): HoursNow {
@@ -179,11 +177,10 @@ export function hoursAt(input: HoursInput, now: number): HoursNow {
     return { open: true, closesAt: new Date(end).toISOString(), nextOpen: null };
   }
 
-  // Closed: the first span that starts after now, looked for past "closed until".
+  // Closed: the first span that starts after now, looked for from "closed until" (or today) a week and a day on.
   const until = input.closedUntil !== null && input.closedUntil > todayText ? input.closedUntil : todayText;
-  const untilDays = Math.round((Date.parse(`${until}T00:00:00Z`) - Date.UTC(today.year, today.month - 1, today.day)) / 86_400_000);
-  const horizon = Math.min(LOOK_AHEAD_MAX, untilDays + LOOK_AHEAD_DAYS);
-  for (let ahead = 0; ahead <= horizon; ahead += 1) {
+  const from = Math.round((Date.parse(`${until}T00:00:00Z`) - Date.UTC(today.year, today.month - 1, today.day)) / 86_400_000);
+  for (let ahead = from; ahead <= from + LOOK_AHEAD_DAYS; ahead += 1) {
     const next = spansOn(input, shiftDay(today, ahead)).find((one) => one.start > now);
     if (next === undefined) continue;
     const opens = wallAt(next.start, zone);
