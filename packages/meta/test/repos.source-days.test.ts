@@ -52,6 +52,9 @@ for (const dialect of TEST_DIALECTS) {
       for (let n = 0; n < 5; n += 1) expect(await days.reserve(TOTAL, null, T0 + n)).toBe(true);
       for (let n = 0; n < 5; n += 1) await days.settle(TOTAL, 1, T0 + 10 + n);
       expect(await days.day(TOTAL)).toMatchObject({ calls: 5, held: 0 });
+      // A settle with nothing held counts, and never holds less than nothing.
+      await days.settle(TOTAL, 1, T0 + 16);
+      expect(await days.day(TOTAL)).toMatchObject({ calls: 6, held: 0 });
       expect(await days.day({ ...TOTAL, spender: 'usr_someone' })).toBeNull();
       expect(await days.day({ ...TOTAL, source: 'companies-house' })).toBeNull();
       expect(await days.day({ ...TOTAL, installId: 'mft_two' })).toBeNull();

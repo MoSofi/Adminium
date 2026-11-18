@@ -231,8 +231,8 @@ export function registerSourceRoutes(app: FastifyInstance, deps: SourceRoutesDep
 
   /** Asks the source whether it takes its key, and records what it said on the latest document. */
   async function check(request: FastifyRequest, install: InstalledManifest, entry: LeadSourceEntry, spender: string): Promise<{ state: SourceState; found: ReturnType<typeof verdictOf> }> {
+    // A Check is short and asks nothing costly: the engine's own deadline for a call bounds it.
     const controller = new AbortController();
-    request.raw.once('close', () => controller.abort());
     const answer = await withLeadSource(
       { meta, manifests, runtime: deps.runtime, policy: deps.policy(), fetchImpl: deps.fetchImpl, log: (message, fields) => request.log.warn(fields, message) },
       { install, source: entry.id, spender, signal: controller.signal, purpose: 'check' },
