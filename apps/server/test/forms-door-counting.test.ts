@@ -4,11 +4,12 @@
  * add-on, its tables on each engine.
  *
  * COUNTS
- * - A form's data read counts one `form-page` view, its form block's read
- *   with `?on=<page key>` one `form-opened` on that page; a made-up place, a
- *   form that is not live, an unknown slug, a preview, a bot, a link preview
- *   and a prefetch write nothing; a link scanner fetching only the page's
- *   HTML counts nothing; a second view from the same /64 counts once.
+ * - A form's data read counts one `form-page` view; `?on=` that names no
+ *   live landing page holding the form is no place (the form's own page's
+ *   view, `pages-door-server.test.ts` proves a real one); a form that is not
+ *   live, an unknown slug, a preview, a bot, a link preview and a prefetch
+ *   write nothing; a link scanner fetching only the page's HTML counts
+ *   nothing; a second view from the same /64 counts once.
  * - A kept answer counts `form-sent`; a trap and a refused answer do not; an
  *   erasure of the person leaves the count.
  * - Off counts nothing.
@@ -22,10 +23,14 @@
  * - At Counts only the read sets no cookie and says nothing of a visitor.
  * - At Per visitor a form's own page is told the banner's words (the owner's
  *   over the default), a frame and a form block are told nothing; nothing is
- *   set before "yes"; "yes" from another site is refused; "yes" sets the
- *   cookie (HttpOnly, Lax, `Path=/x/`, six months at most) and a visitor
- *   with the proof; the next read says "yes" and keeps a visit; a framed read
- *   keeps none.
+ *   set before "yes"; "yes" from another site, a script or a bot is refused;
+ *   "yes" sets the signed cookie (HttpOnly, Lax, six months at most) and
+ *   writes nothing; the next read says "yes", and its counted view makes the
+ *   visitor with the proof and keeps a visit; a framed read keeps none.
+ * - A flood of "yes"es from a script leaves no row; one /64 is one counter,
+ *   a /56 has three times its "yes"es; a cookie this server did not sign
+ *   names nobody; "Yes" works for the owner signed in on the same host.
+ * - The preview refuses a role held to some of the forms.
  * - An answer sent with the cookie joins the address: "Pages they saw" is
  *   found, downloaded and erased by the address, and the erase preview
  *   counts the visits.
@@ -225,15 +230,15 @@ describe.each(LEGS)('visitor counting at the forms door — %s', (dialect, avail
     await read('/x/forms/api/old-offer');
     await read('/x/forms/api/next-offer');
     await read('/x/forms/api/showroom-visit?preview=1');
-    await read('/x/forms/api/showroom-visit?on=not-a-key');
-    // The form block on landing page 7, as it nears the screen.
+    // A place no live landing page holds (no landing add-on here): the form's own page, from this address once.
     await read('/x/forms/api/showroom-visit?on=7', { ip });
+    await read('/x/forms/api/showroom-visit?on=12345', { ip });
+    await read('/x/forms/api/showroom-visit?on=not-a-key', { ip });
     await flush();
     expect(await total('form-page', '41')).toBe(1);
-    expect(await total('form-opened', '41', '7')).toBe(1);
-    expect(await total('form-opened', '41')).toBe(1);
+    expect(await total('form-opened', '41')).toBe(0);
     const rows = await h.meta.db.selectFrom('adminium_view_days').selectAll().execute();
-    expect(rows.map((row) => `${row.kind}:${row.thing}:${row.place}`).sort()).toEqual(['form-opened:41:7', 'form-page:41:']);
+    expect(rows.map((row) => `${row.kind}:${row.thing}:${row.place}`).sort()).toEqual(['form-page:41:']);
   });
 
   it.skipIf(!available)('counts a sent form after the answer is kept, never a trap or a refusal, and an erasure leaves the count', async () => {
@@ -245,7 +250,9 @@ describe.each(LEGS)('visitor counting at the forms door — %s', (dialect, avail
     expect((await send('showroom-visit', { qname: 'Ines Vaughan' })).statusCode).toBe(400);
     await flush();
     expect(await total('form-sent', '41')).toBe(before + 1);
-    expect(await total('form-sent', '41', '7')).toBe(1);
+    // Page 7 holds no form here: the answer counts with no place.
+    expect(await total('form-sent', '41', '7')).toBe(0);
+    expect(await total('form-sent', '41', '')).toBe(before + 1);
     const erased = await composed.app.inject({ method: 'POST', url: '/api/v1/privacy/erase', headers: { cookie: owner }, payload: { address: 'ines@juno.example', confirm: 'ines@juno.example' } });
     expect(erased.statusCode, erased.body).toBe(200);
     expect(await total('form-sent', '41')).toBe(before + 1);
@@ -319,7 +326,7 @@ describe.each(LEGS)('visitor counting at the forms door — %s', (dialect, avail
     expect(res.headers['set-cookie']).toBeUndefined();
     expect((res.json() as Doc).visitor).toBeUndefined();
     // A "yes" at Counts only is not asked for, and sets nothing.
-    const yes = await composed.app.inject({ method: 'POST', url: '/x/consent/visit', headers: { host: HOST, origin: `http://${HOST}` }, payload: {} });
+    const yes = await composed.app.inject({ method: 'POST', url: '/x/consent/visit', headers: { host: HOST, origin: `http://${HOST}`, 'user-agent': CHROME }, payload: {} });
     expect(yes.statusCode).toBe(404);
     expect(yes.headers['set-cookie']).toBeUndefined();
   });
@@ -337,34 +344,43 @@ describe.each(LEGS)('visitor counting at the forms door — %s', (dialect, avail
     expect((await read('/x/forms/api/showroom-visit?on=7')).json()).not.toHaveProperty('visitor');
     expect((await composed.app.inject({ method: 'GET', url: '/x/forms/api/showroom-visit', remoteAddress: nextIp(), headers: { host: 'shop.meridian.example', 'user-agent': CHROME } })).json()).not.toHaveProperty('visitor');
 
-    // "Yes" from another site, or a script with no browser's marks: refused, nothing written.
-    for (const headers of [{ origin: 'https://evil.example' }, {}, { origin: `http://${HOST}`, 'sec-fetch-site': 'cross-site' }]) {
+    // "Yes" from another site, with no browser's marks, from a script or a bot, or a prefetch: refused, nothing written.
+    for (const headers of [
+      { origin: 'https://evil.example', 'user-agent': CHROME },
+      { 'user-agent': CHROME },
+      { origin: `http://${HOST}`, 'sec-fetch-site': 'cross-site', 'user-agent': CHROME },
+      { origin: `http://${HOST}`, 'user-agent': 'curl/8.7.1' },
+      { origin: `http://${HOST}`, 'user-agent': 'python-requests/2.32.3' },
+      { origin: `http://${HOST}`, 'user-agent': CHROME, 'sec-purpose': 'prefetch' },
+    ]) {
       const refused = await composed.app.inject({ method: 'POST', url: '/x/consent/visit', headers: { host: HOST, ...headers }, payload: {} });
-      expect(refused.statusCode).toBe(403);
+      expect(refused.statusCode, JSON.stringify(headers)).toBe(403);
       expect(refused.headers['set-cookie']).toBeUndefined();
     }
     // Nor on a host that is not the install's own.
-    const elsewhere = await composed.app.inject({ method: 'POST', url: '/x/consent/visit', headers: { host: 'shop.meridian.example', origin: 'http://shop.meridian.example' }, payload: {} });
+    const elsewhere = await composed.app.inject({ method: 'POST', url: '/x/consent/visit', headers: { host: 'shop.meridian.example', origin: 'http://shop.meridian.example', 'user-agent': CHROME }, payload: {} });
     expect([elsewhere.statusCode, elsewhere.headers['set-cookie']]).toEqual([404, undefined]);
     expect((await visitorsRepo(h.meta).counts()).visitors).toBe(0);
 
-    const yes = await composed.app.inject({ method: 'POST', url: '/x/consent/visit', headers: { host: HOST, origin: `http://${HOST}`, 'sec-fetch-site': 'same-origin' }, payload: { language: 'en-US' } });
+    const yes = await composed.app.inject({ method: 'POST', url: '/x/consent/visit', headers: { host: HOST, origin: `http://${HOST}`, 'sec-fetch-site': 'same-origin', 'user-agent': CHROME }, payload: { language: 'en-US' } });
     expect(yes.statusCode, yes.body).toBe(200);
     const set = String(yes.headers['set-cookie']);
-    // On this plain-http test address the cookie carries no __Secure- prefix; everything else is the same.
-    expect(set).toMatch(/^adm_v=[A-Za-z0-9_-]{22}; Path=\/x\/; Max-Age=15552000; HttpOnly; SameSite=Lax$/);
+    // On this plain-http test address the cookie is `adm_v` on `/x/`, without Secure; over https it is `__Host-adm_v` on `/`.
+    expect(set).toMatch(/^adm_v=[A-Za-z0-9_-]{67}; Path=\/x\/; Max-Age=15552000; HttpOnly; SameSite=Lax$/);
     const cookie = set.split(';')[0]!;
-    const kept = (await h.meta.db.selectFrom('adminium_visitors').selectAll().execute())[0]!;
-    expect(kept).toMatchObject({ host: HOST, wordingVersion: visitor.banner.version, addressHash: null });
-    // The cookie's value is never stored.
-    expect(JSON.stringify(kept)).not.toContain(cookie.split('=')[1]!);
+    // A "yes" alone writes nothing: the cookie carries it.
+    expect((await visitorsRepo(h.meta).counts()).visitors).toBe(0);
 
-    // The next read says "yes" and keeps a visit; a framed read keeps none.
+    // The next read says "yes", and its counted view makes the visitor and keeps a visit; a framed read keeps none.
     const again = await read('/x/forms/api/showroom-visit', { cookie });
     expect((again.json() as Doc).visitor.said).toBe('yes');
     await read('/x/forms/api/showroom-visit?frame=1', { cookie });
     await flush();
-    expect((await visitorsRepo(h.meta).counts()).visits).toBe(1);
+    expect(await visitorsRepo(h.meta).counts()).toEqual({ visitors: 1, visits: 1 });
+    const kept = (await h.meta.db.selectFrom('adminium_visitors').selectAll().execute())[0]!;
+    expect(kept).toMatchObject({ host: HOST, wordingVersion: visitor.banner.version, addressHash: null });
+    // The cookie's value is never stored.
+    expect(JSON.stringify(kept)).not.toContain(cookie.split('=')[1]!);
 
     // A form sent from a frame joins nothing, cookie or not.
     expect((await send('showroom-visit', { qname: 'Tessa Marlow', qemail: 'tessa@meridian.example' }, { cookie, from: 'https://shop.meridian.example' })).statusCode).toBe(200);
@@ -387,7 +403,7 @@ describe.each(LEGS)('visitor counting at the forms door — %s', (dialect, avail
 
   it.skipIf(!available)('going down from Per visitor deletes every visitor and visit at once with one audit entry; Cookie choice withdraws', async () => {
     const yes = async () => {
-      const res = await composed.app.inject({ method: 'POST', url: '/x/consent/visit', remoteAddress: nextIp(), headers: { host: HOST, origin: `http://${HOST}` }, payload: {} });
+      const res = await composed.app.inject({ method: 'POST', url: '/x/consent/visit', remoteAddress: nextIp(), headers: { host: HOST, origin: `http://${HOST}`, 'user-agent': CHROME }, payload: {} });
       return String(res.headers['set-cookie']).split(';')[0]!;
     };
     const one = await yes();
@@ -398,7 +414,7 @@ describe.each(LEGS)('visitor counting at the forms door — %s', (dialect, avail
     expect(await visitorsRepo(h.meta).counts()).toEqual({ visitors: 2, visits: 2 });
 
     // Cookie choice: the row and its visits go, the cookie is cleared.
-    const withdrawn = await composed.app.inject({ method: 'DELETE', url: '/x/consent/visit', headers: { host: HOST, origin: `http://${HOST}`, cookie: one } });
+    const withdrawn = await composed.app.inject({ method: 'DELETE', url: '/x/consent/visit', headers: { host: HOST, origin: `http://${HOST}`, cookie: one, 'user-agent': CHROME } });
     expect(withdrawn.statusCode).toBe(200);
     expect(String(withdrawn.headers['set-cookie'])).toMatch(/^adm_v=; Path=\/x\/; Max-Age=0;/);
     expect(await visitorsRepo(h.meta).counts()).toEqual({ visitors: 1, visits: 1 });
@@ -415,5 +431,68 @@ describe.each(LEGS)('visitor counting at the forms door — %s', (dialect, avail
     // Counts only, never an id or a host.
     // The cookie left in the browser names nobody now.
     expect((await read('/x/forms/api/showroom-visit', { cookie: two })).json()).not.toHaveProperty('visitor');
+  });
+  it.skipIf(!available)('a flood of "yes" from one network writes nothing and stops at its caps; a cookie this server did not sign names nobody', async () => {
+    expect((await setLevel('visitor')).statusCode).toBe(200);
+    try {
+      const yes = (ip: string) => composed.app.inject({ method: 'POST', url: '/x/consent/visit', remoteAddress: ip, headers: { host: HOST, origin: `http://${HOST}`, 'user-agent': CHROME }, payload: {} });
+      // Thirty from one /64, each from another address in it: then refused, the /64 being one counter.
+      for (let n = 1; n <= 30; n += 1) expect((await yes(`2001:db8:7:2::${n.toString(16)}`)).statusCode, String(n)).toBe(200);
+      const past = await yes('2001:db8:7:2::ffff');
+      expect(past.statusCode).toBe(429);
+      expect(past.headers['set-cookie']).toBeUndefined();
+      // Ninety from one /56, spread over its /64s: then refused, the /56 having three times a /64's.
+      for (let n = 0; n < 90; n += 1) expect((await yes(`2001:db8:8:a${(n % 9).toString(16)}::${(n + 1).toString(16)}`)).statusCode, String(n)).toBe(200);
+      expect((await yes('2001:db8:8:af::1')).statusCode).toBe(429);
+      // A hundred and twenty "yes"es, and not one row: the cookies carry them, and nothing read a page with one.
+      expect(await visitorsRepo(h.meta).counts()).toEqual({ visitors: 0, visits: 0 });
+
+      // A cookie this server did not sign (the old shape, a made-up value of the right length) names nobody, and makes nobody.
+      for (const value of ['Qm9vdGhzQW5kRGVza3NMZWVkcw', 'A'.repeat(67)]) {
+        const read = await composed.app.inject({ method: 'GET', url: '/x/forms/api/showroom-visit', remoteAddress: nextIp(), headers: { host: HOST, 'user-agent': CHROME, cookie: `adm_v=${value}` } });
+        expect((read.json() as Doc).visitor.said, value).toBeNull();
+      }
+      await flush();
+      expect(await visitorsRepo(h.meta).counts()).toEqual({ visitors: 0, visits: 0 });
+    } finally {
+      expect((await setLevel('counts')).statusCode).toBe(200);
+    }
+  });
+
+  it.skipIf(!available)('"Yes" and "Cookie choice" work for the owner signed in on the same host: the door reads no session', async () => {
+    expect((await setLevel('visitor')).statusCode).toBe(200);
+    try {
+      const headers = { host: HOST, origin: `http://${HOST}`, 'user-agent': CHROME, 'sec-fetch-site': 'same-origin', cookie: owner };
+      const yes = await composed.app.inject({ method: 'POST', url: '/x/consent/visit', remoteAddress: nextIp(), headers, payload: {} });
+      expect(yes.statusCode, yes.body).toBe(200);
+      expect(String(yes.headers['set-cookie'])).toMatch(/^adm_v=/);
+      const no = await composed.app.inject({ method: 'DELETE', url: '/x/consent/visit', remoteAddress: nextIp(), headers });
+      expect(no.statusCode, no.body).toBe(200);
+      expect(String(no.headers['set-cookie'])).toMatch(/^adm_v=; Path=\/x\/; Max-Age=0;/);
+    } finally {
+      expect((await setLevel('counts')).statusCode).toBe(200);
+    }
+  });
+
+  it.skipIf(!available)('draws a form\'s preview for whoever reads its forms table whole, never for a role held to some of its forms', async () => {
+    const limitedRole = await rolesRepo(h.meta).create({ slug: 'forms-limited', name: 'Some forms' });
+    const ref = matrixRowsFromGrants([`table:${h.connectionId}:${ids['forms']!}:read`]).rows[0]!.resourceRef;
+    await permissionsRepo(h.meta).grant(limitedRole.id, 'table', ref, { read: true, create: false, update: false, delete: false, export: false, import: false, rowLimit: { read: { reach: 'all', while: { column: 'state', in: ['live'] } } } } as never);
+    const user = await usersRepo(h.meta).create({ email: 'limited@meridian.example', name: 'limited', passwordHash: await adminPasswordHash() });
+    await rolesRepo(h.meta).assignToUser(user.id, limitedRole.id);
+    const limited = await signIn('limited@meridian.example');
+    // A draft with something to draw.
+    const view = (await createPublicViews(h.meta).viewFor(h.connectionId))!;
+    const formsTable = view.table(names['forms']!);
+    const { db } = await h.manager.data(h.connectionId);
+    const bind = (column: string, value: unknown) => bindWriteValue(formsTable.columns.get(column)!, value, dialect);
+    await db.updateTable(formsTable.id as never).set({ definition: bind('definition', JSON.stringify(SHOWROOM)), settings: bind('settings', JSON.stringify(KEEP)) } as never).where('id' as never, '=', bind('id', '43') as never).execute();
+    const preview = (cookie: string) => composed.app.inject({ method: 'GET', url: '/x/forms/api/next-offer?preview=1', remoteAddress: nextIp(), headers: { host: HOST, 'user-agent': CHROME, cookie } });
+    const whole = await preview(builder);
+    expect(whole.statusCode, whole.body).toBe(200);
+    expect((whole.json() as Doc).preview).toBe(true);
+    const refused = await preview(limited);
+    expect(refused.statusCode, refused.body).toBe(404);
+    expect((refused.json() as Doc).state).toBe('unavailable');
   });
 });

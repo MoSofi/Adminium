@@ -18,6 +18,11 @@
  *  - A picture is served only while the live page that owns it names it.
  *  - The staff routes: a picture kept as the page's cleaned copy, the
  *    refusals in words; the status read; the home picker lists live pages.
+ *  - A form block's `?on=` counts a place only for a live page that holds the
+ *    form, and answers by the block's add-on and key; a preview refuses a
+ *    role held to some pages and its picture goes out uncached; a live
+ *    page's data is kept and read again after a write; one slug serves one
+ *    page, however many rows or installs hold it.
  */
 import { filesRepo, permissionsRepo, rolesRepo, settingsRepo, usersRepo, viewDaysRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -40,6 +45,7 @@ import { paymentSettingsRepo } from '@adminium/meta';
 import { addOnHarness, type Harness } from './app-add-ons.helpers.js';
 import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
 import { ANONYMOUS, FIT_OUT, NAMED, published, SHOWROOM, SHOWROOM_SETTINGS } from './forms-door.helpers.js';
+import { solveProof } from '../src/public-api/proof.js';
 import { makeEnv, TEST_SECRET } from './helpers.js';
 import { LEGS } from './invoicing-install.helpers.js';
 import { png } from './picture-images.js';
@@ -80,6 +86,8 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
   const keys: Record<string, number> = {};
   const files: Record<string, string> = {};
   const cookies: Record<string, string> = {};
+  /** Every add-on table's name, by `<add-on>:<ref>`. */
+  const tables: Record<string, string> = {};
   let signIns = 0;
 
   let seq = 0;
@@ -139,14 +147,18 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
     await h.stageAddOn(landingAddOn(), { bundled: true });
     // A second landing add-on uploaded by hand: installed, never vouched for.
     await h.stageAddOn({ ...landingAddOn(), key: 'hand-pages', name: 'Hand pages' }, { bundled: true });
-    for (const key of ['forms', 'landing-pages', 'hand-pages']) {
+    // A second forms add-on and a third landing add-on, both vouched for, installed after the first ones.
+    await h.stageAddOn({ ...formsAddOn(), key: 'forms-two', name: 'Forms two' }, { bundled: true });
+    await h.stageAddOn({ ...landingAddOn(), key: 'more-pages', name: 'More pages' }, { bundled: true });
+    for (const key of ['forms', 'landing-pages', 'hand-pages', 'forms-two', 'more-pages']) {
       const added = await h.inject({ method: 'POST', url: '/add-ons', payload: { key, version: '1.0.0', attachTo: ['dashboard'] } });
       expect(added.statusCode, added.body).toBe(200);
     }
-    for (const key of ['forms', 'landing-pages']) await recordDeciderTrust(h.meta, { key, version: '1.0.0', integrity: (await h.addOnStore.verifyTree(key, '1.0.0')).integrity });
+    for (const key of ['forms', 'landing-pages', 'forms-two', 'more-pages']) await recordDeciderTrust(h.meta, { key, version: '1.0.0', integrity: (await h.addOnStore.verifyTree(key, '1.0.0')).integrity });
     for (const record of await h.meta.db.selectFrom('adminium_app_tables').select(['appKey', 'ref', 'tableName']).execute()) {
       if (record.appKey === 'landing-pages' && record.ref === 'pages') pagesTable = record.tableName;
       if (record.appKey === 'forms' && record.ref === 'forms') formsTable = record.tableName;
+      tables[`${record.appKey}:${record.ref}`] = record.tableName;
     }
     const { db } = await h.manager.data(h.connectionId);
     for (const [id, slug, kind, definition, settings] of [
@@ -533,5 +545,135 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
     // It was a host's home: the status read says so, and the picker no longer offers it.
     expect(((await as('rae', 'GET', `/api/v1/landing/landing-pages/status?page=${String(keys['open-day'])}`)).json() as Doc).data.page).toMatchObject({ state: 'off', homeOf: [PAGES] });
     expect(((await as('ops', 'GET', '/api/v1/surfaces')).json() as Doc).pageHomes).not.toContain('/x/pages/open-day');
+  });
+
+  // --- the gate review's fixes -------------------------------------------------------
+
+  /** The views of a form, by kind and place, once what was counted is written. */
+  const formViews = async (kind: string, thing: string, place?: string): Promise<number> => {
+    await composed.jobs.scheduler.trigger(VIEW_COUNTS_FLUSH_NAME);
+    const forms = (await h.meta.db.selectFrom('adminium_manifests').select(['id']).where('manifestKey', '=', 'forms').executeTakeFirstOrThrow()).id;
+    return (await viewDaysRepo(h.meta).read({ installId: forms, kind, things: [thing], from: '2000-01-01', to: '2099-12-31', ...(place === undefined ? {} : { place }) })).reduce((sum, row) => sum + row.views, 0);
+  };
+
+  it.skipIf(!available)('counts a form block opened only on a live page that holds that form, and as the form\'s own page otherwise', async () => {
+    await draft('spring-offer');
+    await publish('spring-offer', { ...doc('Spring offer'), blocks: [{ id: 'book', kind: 'form', form: 'frm_showroom', addOn: 'forms' }] });
+    const ip = '203.0.113.77';
+    const read = (on: string, from = ip) => composed.app.inject({ method: 'GET', url: `/x/forms/api/showroom-visit?on=${on}`, remoteAddress: from, headers: { host: PUBLIC, 'user-agent': CHROME } });
+    const opened = String(keys['spring-offer']);
+    const arabic = String(keys['yawm']);
+    expect((await read(opened)).statusCode).toBe(200);
+    // The same address on another page that holds the form: counted there too (the place is in the repeat check); again on the first: not.
+    await read(arabic);
+    await read(opened);
+    // Forged places: a live page with no Form block, a draft, a page switched off, a made-up key, a forms page's key.
+    const ownBefore = await formViews('form-page', 'frm_showroom', '');
+    let n = 0;
+    for (const on of [String(keys['thanks']), String(keys['spring-draft']), String(keys['switched-off']), '99999', String(keys['marked'])]) {
+      n += 1;
+      expect((await read(on, `203.0.113.${String(100 + n)}`)).statusCode, on).toBe(200);
+    }
+    expect(await formViews('form-opened', 'frm_showroom', opened)).toBe(1);
+    expect(await formViews('form-opened', 'frm_showroom', arabic)).toBe(1);
+    expect(await formViews('form-opened', 'frm_showroom')).toBe(2);
+    // Each forged read is the form's own page's view, with no place: no row names the made-up places.
+    expect(await formViews('form-page', 'frm_showroom', '')).toBe(ownBefore + 5);
+    const places = (await h.meta.db.selectFrom('adminium_view_days').select('place').where('kind', '=', 'form-opened').execute()).map((row) => row.place).sort();
+    expect(places).toEqual([opened, arabic].sort());
+  });
+
+  it.skipIf(!available)('answers a page\'s form block by its add-on and key, never by a slug another forms install holds', async () => {
+    const { db } = await h.manager.data(h.connectionId);
+    const twoForms = tables['forms-two:forms']!;
+    const twoAnswers = tables['forms-two:answers']!;
+    const firstAnswers = tables['forms:answers']!;
+    // The second forms install holds a form at the same slug as the first install's live one.
+    const theirs = { ...SHOWROOM, title: { ...SHOWROOM.title, 'en-US': 'Book a fit-out visit' } };
+    await db.insertInto(twoForms).values({ id: 'frm_two', title: 'two', slug: 'showroom-visit', kind: 'form', state: 'live', definition: '{}', settings: '{}', published: published(theirs, { limits: { perHour: 500, harder: false }, tell: [] }) } as never).execute();
+    await draft('fit-out-day');
+    await publish('fit-out-day', { ...doc('Fit-out day'), blocks: [{ id: 'book', kind: 'form', form: 'frm_two', addOn: 'forms-two' }] });
+    const on = String(keys['fit-out-day']);
+    // The page's data names the second install's form; its read with `on` serves it, without `on` the first install's.
+    const data = (await get('/x/pages/api/fit-out-day')).json() as Doc;
+    expect(data.forms['forms-two'].frm_two).toMatchObject({ slug: 'showroom-visit', form: { definition: { title: { 'en-US': 'Book a fit-out visit' } } } });
+    expect(((await get(`/x/forms/api/showroom-visit?on=${on}`)).json() as Doc).form.definition.title).toEqual({ 'en-US': 'Book a fit-out visit' });
+    expect(((await get('/x/forms/api/showroom-visit')).json() as Doc).form.definition.title).toEqual({ 'en-US': 'Book a showroom visit' });
+    // Its human check and its answer go to the block's form too.
+    const count = async (table: string) => Number((await db.selectFrom(table).select((eb) => eb.fn.countAll().as('n')).executeTakeFirstOrThrow() as Doc).n);
+    const [mine, others] = [await count(twoAnswers), await count(firstAnswers)];
+    const ip = '203.0.113.150';
+    const challenge = (await composed.app.inject({ method: 'GET', url: `/x/forms/api/showroom-visit/challenge?on=${on}`, remoteAddress: ip, headers: { host: PUBLIC } })).json() as Doc;
+    const proof = `${challenge.id as string}.${solveProof(challenge.salt as string, challenge.difficulty as number)}`;
+    const sent = await composed.app.inject({
+      method: 'POST',
+      url: `/x/forms/api/showroom-visit/answers?on=${on}`,
+      remoteAddress: ip,
+      headers: { host: PUBLIC, origin: `https://${PUBLIC}`, 'x-adminium-proof': proof, 'user-agent': CHROME },
+      payload: { language: 'en-US', values: { qname: 'Ines Vaughan', qemail: 'ines@juno.example' }, query: {}, website: '' },
+    });
+    expect(sent.statusCode, sent.body).toBe(200);
+    expect(await count(twoAnswers)).toBe(mine + 1);
+    expect(await count(firstAnswers)).toBe(others);
+  });
+
+  it.skipIf(!available)('never shows a draft or its pictures to a role held to some of the pages, and keeps a draft\'s picture out of every cache', async () => {
+    // Lou may read only the pages in German: no preview of any page, picture included.
+    expect((await as('lou', 'GET', '/x/pages/api/spring-draft?preview=1')).statusCode).toBe(404);
+    expect((await as('lou', 'GET', '/x/pages/spring-draft?preview=1')).body).toContain('This page isn’t available.');
+    await data('pat', 'PATCH', keys['thanks']!, { draft: doc('Thanks, with a picture', { picture: { file: files['thanks'], alt: 'Our showroom' } }) });
+    const url = `/x/pages/api/thanks/pictures/${files['thanks']!}?preview=1&page=${String(keys['thanks'])}`;
+    expect((await as('lou', 'GET', url)).statusCode).toBe(404);
+    // Whoever reads the pages whole sees it, kept by no cache and read by no other site.
+    const drawn = await as('rae', 'GET', url);
+    expect(drawn.statusCode).toBe(200);
+    expect(drawn.headers['cache-control']).toBe('private, no-store');
+    expect(drawn.headers['access-control-allow-origin']).toBeUndefined();
+    expect(drawn.headers['cross-origin-resource-policy']).toBe('same-origin');
+    const again = await as('rae', 'GET', url, undefined, { 'if-none-match': String(drawn.headers.etag) });
+    expect(again.statusCode).toBe(304);
+    expect(again.headers['cache-control']).toBe('private, no-store');
+    expect(again.headers['access-control-allow-origin']).toBeUndefined();
+    // The live page's own picture stays the public one.
+    const live = await get(`/x/pages/api/thanks/pictures/${files['thanks']!}`);
+    expect(live.headers['cache-control']).toBe('public, max-age=300, must-revalidate');
+  });
+
+  it.skipIf(!available)('keeps a live page\'s data for its time, and reads it again at once after a write to the pages', async () => {
+    const title = async () => (((await get('/x/pages/api/thanks')).json() as Doc).page as Doc).title as string;
+    expect(await title()).toBe('Thank you');
+    // Changed past every door (no write announced): the kept data stands, past the lookup's own few seconds.
+    await byHand(keys['thanks']!, { published: JSON.stringify(doc('Thanks, by hand')) });
+    await new Promise((resolve) => setTimeout(resolve, PAGE_CACHE_MS + 200));
+    expect(await title()).toBe('Thank you');
+    // Any write to the pages table through a door: read again at once.
+    expect((await data('pat', 'PATCH', keys['thanks']!, { name: 'Thanks page' })).statusCode).toBe(200);
+    expect(await title()).toBe('Thanks, by hand');
+  });
+
+  it.skipIf(!available)('serves one slug the same page always: the live one published first, and a newer install\'s live page past an older one\'s draft', async () => {
+    // Two rows of one table live at one slug (by hand, past the seal): the one published first answers, every time.
+    const first = await draft('twin-first');
+    const second = await draft('twin-second');
+    await byHand(second, { slug: 'twin', state: 'live', published: JSON.stringify(doc('Published second')), published_at: '2026-11-18 10:00:00' });
+    await byHand(first, { slug: 'twin', state: 'live', published: JSON.stringify(doc('Published first')), published_at: '2026-11-18 08:00:00' });
+    for (let n = 0; n < 3; n += 1) expect((((await get('/x/pages/api/twin')).json() as Doc).page as Doc).title).toBe('Published first');
+    // Twenty-one drafts at a live page's slug never push it out.
+    for (let n = 0; n < 21; n += 1) {
+      const key = await draft(`crowd-${String(n)}`);
+      await byHand(key, { slug: 'twin' });
+    }
+    await new Promise((resolve) => setTimeout(resolve, PAGE_CACHE_MS + 200));
+    expect((await get('/x/pages/api/twin')).statusCode).toBe(200);
+    // `spring-draft` is a draft of the older install: the newer install's live page at that slug answers.
+    const { db } = await h.manager.data(h.connectionId);
+    await db
+      .insertInto(tables['more-pages:pages']!)
+      .values({ id: 1, name: 'More', slug: 'spring-draft', state: 'live', language: 'en-US', draft: JSON.stringify(doc('More spring')), published: JSON.stringify(doc('More spring')), updated_at: '2026-11-18 09:00:00', published_at: '2026-11-18 09:00:00' } as never)
+      .execute();
+    await new Promise((resolve) => setTimeout(resolve, PAGE_CACHE_MS + 200));
+    const served = await get('/x/pages/api/spring-draft');
+    expect(served.statusCode, served.body).toBe(200);
+    expect(((served.json() as Doc).page as Doc).title).toBe('More spring');
   });
 });

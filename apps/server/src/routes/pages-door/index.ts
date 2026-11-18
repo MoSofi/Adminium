@@ -42,7 +42,14 @@
  * names the file, and the file is one of that page's own copies: a file id of
  * Files, of another page, or of a page switched off answers 404. It carries
  * the public picture's headers (`public-api/picture.ts`): kept five minutes,
- * then asked again by its tag, so a page taken down stops showing it.
+ * then asked again by its tag, so a page taken down stops showing it. A
+ * preview's picture is a draft's: `private, no-store`, no
+ * `Access-Control-Allow-Origin`, and readable by this site alone, so no
+ * shared cache in front of the server keeps it for the next asker.
+ *
+ * A live page's data (its forms, its links' addresses, the business day) is
+ * kept {@link PAGE_DATA_MS} per page and dropped on any write to a pages or
+ * forms table; the counter and the banner's block are per request.
  *
  * ─── COUNTING ───────────────────────────────────────────────────────────────
  * A live page's data read counts one `page` view (`views/counter.ts`: bots
@@ -55,7 +62,9 @@
  * `?preview=1` (and the row's `page` key, where two rows share a slug) on the
  * page, its data and its pictures draws the page's DRAFT, whatever its state,
  * Milo's marks allowed: only for a signed-in person (the dashboard's own
- * session, on this host) who may read the add-on's pages table. It is not
+ * session, on this host) who may read the add-on's pages table whole (a role
+ * held to some of its rows is refused). Every other request is a stranger's,
+ * whatever cookie it carries (`../x-door/stranger.ts`). It is not
  * held to whether the outside can reach the server, it may be framed by this
  * host alone, it is always `noindex`, and it writes and counts nothing.
  */
@@ -81,6 +90,8 @@ import type { ViewCounter } from '../../views/counter.js';
 import type { VisitorDoor } from '../../views/visitor.js';
 import { jsonOf } from '../../forms/catalog.js';
 import { framedPageOf, xDoorHeaders } from '../x-door/headers.js';
+import { mayPreview } from '../x-door/preview-reader.js';
+import { strangerDoor } from '../x-door/stranger.js';
 import { directionOf, ogLocaleOf, type XHead } from '../x-door/head.js';
 import { xPages, type XPageWords } from '../x-door/page.js';
 
@@ -109,6 +120,11 @@ const PAGES_PAGE_WORDS: XPageWords = {
   closed: { key: 'x:ending.unavailable', fallback: 'This page isn’t available.' },
   unavailable: { key: 'x:ending.unavailable', fallback: 'This page isn’t available.' },
 };
+
+/** How long a live page's data is kept, per page: dropped sooner on any write to a pages or forms table. */
+export const PAGE_DATA_MS = 30_000;
+/** The most pages whose data is kept at once. */
+const PAGE_DATA_MAX = 500;
 
 /** No landing page is drawn in a website's frame. */
 const PAGES_FRAMED: readonly RegExp[] = [];
@@ -168,11 +184,16 @@ export function pagesDoorRoutes(deps: PagesDoorDeps): FastifyPluginAsyncZod {
   /** The requests answered with a picture: its own policy and cache time. */
   const pictures = new WeakSet<FastifyRequest>();
 
-  /** A page's draft for its preview: only for a signed-in person who may read its pages table; null for everyone else, and for a draft that does not parse. */
+  /**
+   * A page's draft for its preview: only for a signed-in person who may read
+   * its pages table whole (a role held to some pages is refused,
+   * `../x-door/preview-reader.ts`); null for everyone else, and for a draft
+   * that does not parse.
+   */
   async function previewOf(request: FastifyRequest, slug: string, key: string | undefined): Promise<{ addOn: LandingAddOn; row: PageRow; page: LandingPage; language: string } | null> {
     if (request.user === null || request.user === undefined || request.session === null || request.session === undefined) return null;
     const found = await catalog.draft(slug, key);
-    if (found === null || !(await request.can(`table:${found.addOn.connectionId}:${found.addOn.pagesTable}:read`))) return null;
+    if (found === null || !(await mayPreview(meta, request, found.addOn.connectionId, found.addOn.pagesTable))) return null;
     const parsed = parseLandingPage(jsonOf(found.row.draft) ?? null);
     const language = pageLanguageOf(found.row.language);
     if (!parsed.ok || language === null) return null;
@@ -220,11 +241,12 @@ export function pagesDoorRoutes(deps: PagesDoorDeps): FastifyPluginAsyncZod {
     return out;
   }
 
-  /** The addresses of the pages its links name: a live page of the same add-on, else null. */
+  /** The addresses of the pages its links name: a live page of the same add-on, else null. Only the rows it names are read. */
   async function linksOf(page: LandingPage, addOn: Pick<LandingAddOn, 'connectionId' | 'pagesTable' | 'pk'>): Promise<PageData['links']> {
     const keys = [...new Set(pageLinks(page).flatMap(({ link }) => (link.kind === 'page' ? [link.key] : [])))];
     if (keys.length === 0) return {};
-    const live = new Map((await catalog.livePagesOf(addOn)).map((one) => [one.key, one.slug]));
+    const live = new Map<string, string>();
+    for (const one of await catalog.livePagesOf(addOn, keys)) if (!live.has(one.key)) live.set(one.key, one.slug);
     return Object.fromEntries(keys.map((key) => [key, live.has(key) ? `/x/pages/${encodeURIComponent(live.get(key)!)}` : null]));
   }
 
@@ -244,9 +266,37 @@ export function pagesDoorRoutes(deps: PagesDoorDeps): FastifyPluginAsyncZod {
     };
   }
 
+  /**
+   * A live page's data, kept {@link PAGE_DATA_MS} per slug: a flood of
+   * strangers reading one page reads its forms, its links and its business
+   * day once in that time, not once a request. Dropped at once when the
+   * catalog says the pages changed (any write to a landing pages table or a
+   * forms table, `catalog.changes`). The counter and the banner's block stay
+   * per request.
+   */
+  const dataCache = new Map<string, { at: number; generation: number; data: Promise<PageData> }>();
+  function liveData(live: LivePage): Promise<PageData> {
+    const at = now();
+    const generation = catalog.changes();
+    const id = JSON.stringify([live.installId, live.key, live.slug]);
+    const kept = dataCache.get(id);
+    if (kept !== undefined && kept.generation === generation && at - kept.at < PAGE_DATA_MS) return kept.data;
+    if (dataCache.size >= PAGE_DATA_MAX) {
+      for (const [one, entry] of dataCache) if (entry.generation !== generation || at - entry.at >= PAGE_DATA_MS) dataCache.delete(one);
+      if (dataCache.size >= PAGE_DATA_MAX) dataCache.clear();
+    }
+    const data = dataOf({ slug: live.slug, key: live.key, language: live.language, page: live.page, addOn: { connectionId: live.connectionId, pagesTable: live.pagesTable, pk: live.pk }, preview: false });
+    dataCache.set(id, { at, generation, data });
+    // A read that failed is not kept.
+    data.catch(() => dataCache.delete(id));
+    return data;
+  }
+
   return async (app) => {
     // Doors anybody may open: hidden with the other public pages (`security/route-audience.ts`).
     tagRoutes(app, 'public');
+    // A stranger's door: a signed-in person's session or key is let go, a preview's read aside (`../x-door/stranger.ts`).
+    strangerDoor(app);
     // Last word on the headers of everything this plugin answers (`../x-door/headers.ts`).
     xDoorHeaders(app, {
       framed: framedPageOf(PAGES_FRAMED),
@@ -289,7 +339,7 @@ export function pagesDoorRoutes(deps: PagesDoorDeps): FastifyPluginAsyncZod {
       }
       const live = await liveFor(request, slug);
       if (live === null) return unavailable(reply);
-      const data = await dataOf({ slug, key: live.key, language: live.language, page: live.page, addOn: { connectionId: live.connectionId, pagesTable: live.pagesTable, pk: live.pk }, preview: false });
+      const data = await liveData(live);
       // Counted here, where only a browser running the page asks: never the page's HTML, which a link preview fetches.
       deps.views?.count({ installId: live.installId, kind: 'page', thing: live.key, request });
       // The banner, at "Per visitor": a landing page is always the install's own page, never in a frame.
@@ -300,14 +350,14 @@ export function pagesDoorRoutes(deps: PagesDoorDeps): FastifyPluginAsyncZod {
     app.get('/x/pages/api/:slug/pictures/:file', { config: door, schema: { hide: true, params: pictureParams, querystring: pageQuery } }, async (request, reply) => {
       const { slug, file: fileId } = request.params;
       const none = () => reply.status(404).send();
-      let owner: { connectionId: string; pagesTable: string; page: string } | null = null;
+      let owner: { connectionId: string; pagesTable: string; page: string; preview: boolean } | null = null;
       if (request.query.preview !== undefined) {
         const draft = request.query.preview === '1' ? await previewOf(request, slug, request.query.page) : null;
-        if (draft !== null && pagePictures(draft.page).includes(fileId)) owner = { connectionId: draft.addOn.connectionId, pagesTable: draft.addOn.pagesTable, page: draft.row.key };
+        if (draft !== null && pagePictures(draft.page).includes(fileId)) owner = { connectionId: draft.addOn.connectionId, pagesTable: draft.addOn.pagesTable, page: draft.row.key, preview: true };
       } else {
         const live = await liveFor(request, slug);
         // Only a file the live page's published document names: never one because its id was asked.
-        if (live !== null && pagePictures(live.page).includes(fileId)) owner = { connectionId: live.connectionId, pagesTable: live.pagesTable, page: live.key };
+        if (live !== null && pagePictures(live.page).includes(fileId)) owner = { connectionId: live.connectionId, pagesTable: live.pagesTable, page: live.key, preview: false };
       }
       if (owner === null) return none();
       const file = await pagePictureOf(meta, owner, fileId);
@@ -315,8 +365,16 @@ export function pagesDoorRoutes(deps: PagesDoorDeps): FastifyPluginAsyncZod {
       pictures.add(request);
       // The bytes are the cleaned copy (`landing/pictures.ts`): its tag is the pipeline's and its hash, as a cleaned public picture's.
       const picture = { mime: file.mime as PictureMime, etag: `"${PICTURE_PIPELINE}-${file.sha256}"` };
+      const preview = owner.preview;
+      // A draft's picture is the editor's own read: kept by no cache (a shared one would hand it to anyone), read by no other site.
+      const headersOf = (bytes?: number) => {
+        const headers = pictureHeaders(picture, 'picture', bytes);
+        if (!preview) return headers;
+        const { 'access-control-allow-origin': _anyone, ...own } = headers;
+        return { ...own, 'cache-control': 'private, no-store', 'cross-origin-resource-policy': 'same-origin' };
+      };
       if (matchesTag(request.headers['if-none-match'], picture.etag)) {
-        reply.headers(pictureHeaders(picture, 'picture'));
+        reply.headers(headersOf());
         return reply.code(304).send();
       }
       let bytes: Buffer;
@@ -326,7 +384,7 @@ export function pagesDoorRoutes(deps: PagesDoorDeps): FastifyPluginAsyncZod {
         pictures.delete(request);
         return none();
       }
-      reply.headers(pictureHeaders(picture, 'picture', bytes.length));
+      reply.headers(headersOf(bytes.length));
       return reply.send(bytes);
     });
   };

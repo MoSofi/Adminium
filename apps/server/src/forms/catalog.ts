@@ -23,6 +23,12 @@
  * definition that no longer parses, answers one same "not available", so the
  * answer never tells which forms exist.
  *
+ * One stable order everywhere: installs by when they were installed, then
+ * their key, then their id; rows by their key. So a slug two forms installs
+ * hold answers by the same one on every read, its human check and its
+ * answer alike (a landing page's form block asks by its add-on and key
+ * instead: `routes/forms-door`).
+ *
  * A lookup is kept for at most {@link FORM_CACHE_MS}: a page and its API ask
  * for the same form within moments, and a flood of requests for one form
  * reads its row once every few seconds, not once a request. A change by staff
@@ -110,6 +116,7 @@ export function createFormsCatalog(deps: FormsCatalogDeps) {
       .where('status', '=', 'installed')
       .orderBy('installedAt')
       .orderBy('manifestKey')
+      .orderBy('id')
       .execute();
     const installs = await deps.installs();
     const out: { key: string; installId: string; connectionId: string; manifest: AddOnManifest; version: string; on: boolean }[] = [];
@@ -156,6 +163,9 @@ export function createFormsCatalog(deps: FormsCatalogDeps) {
         .selectFrom(tableId)
         .select([db.dynamic.ref(pk), db.dynamic.ref('slug'), db.dynamic.ref('state'), db.dynamic.ref('published')] as never)
         .where(db.dynamic.ref(by === 'slug' ? 'slug' : pk), '=', value)
+        // One order on every engine: the lowest key, should a slug ever repeat.
+        .orderBy(db.dynamic.ref(pk) as never)
+        .limit(1)
         .executeTakeFirst()) as Record<string, unknown> | undefined;
       return row === undefined ? undefined : { pk, row };
     } catch {
@@ -238,6 +248,8 @@ export function createFormsCatalog(deps: FormsCatalogDeps) {
           .selectFrom(tableId)
           .select([db.dynamic.ref('definition'), db.dynamic.ref('settings')] as never)
           .where(db.dynamic.ref('slug'), '=', slug)
+          .orderBy(db.dynamic.ref(primaryKeyOf(addOn.manifest, block.forms) ?? 'slug') as never)
+          .limit(1)
           .executeTakeFirst()) as Record<string, unknown> | undefined;
       } catch {
         continue;

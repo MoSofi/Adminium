@@ -7128,8 +7128,13 @@ length takes at least that many characters, or has no `maxLength`. A column mark
 | `rule_id` | `text` 64, empty | The rule picked as what happens after the funnel. |
 
 **A slug** is lower-case letters, digits and dashes, 1 to 80 characters, with no dash at either
-end. It is never `api`, `assets`, `login`, `signin`, `sign-in`, `account`, `password` or `reset`.
-A page is published only at a slug no other page of its table holds.
+end. It is never one of the addresses' own words (`api`, `assets`) nor a word a sign-in, a code, the
+staff side or a bill is known by: `login`, `log-in`, `logon`, `signin`, `sign-in`, `account`,
+`password`, `reset`, `verify`, `verification`, `auth`, `oauth`, `sso`, `2fa`, `admin`, `wp-admin`,
+`billing`, `payment`, `payments`, `invoice`, `support` or `security`. A page is published only at a
+slug no other page of its table holds (judged again under a lock as the row is written, so two
+publishes at one moment cannot both take it). When two installs serve the same slug, the oldest
+install with a live page at it answers.
 
 **Publishing.** Adminium seals the columns that publish a page, whoever writes the row and through
 whatever door. A write that sets `state` to `live`, writes `published` or `published_at`, or moves a
@@ -7140,7 +7145,9 @@ The refusal is a `422` whose `details.reason` is `landing-unparsable`, `landing-
 `landing-slug`. Adminium writes `published_at` itself whenever `published` changes, and ignores a
 value the client sends. Switching a page `off`, or back to a `draft`, is always allowed. Milo never
 publishes: a change it proposes may write a page's `draft`, and never its `state`, `published` or
-`published_at`, whatever the person's own rights (`403`, reason `landing-assistant`).
+`published_at`, whatever the person's own rights (`403`, reason `landing-assistant`). Every block
+Milo adds or changes in a `draft` is marked (`"milo": true`) as it is written, so a person looks at
+each before the page can be published.
 
 **The page document**, in `draft` and `published`, is read by `@adminium/add-on-contracts/landing`
 on both sides:
@@ -7209,8 +7216,10 @@ its `published` copy is a whole page document with no Milo mark, its add-on is s
 vouched for, the privacy notice is set, and visitors can reach the server (the forms door's own
 check). Anything else, a draft, a page switched off, a slug nobody has, a copy that no longer reads,
 answers one same "This page isn't available." `?preview=1` draws the page's `draft`, marks and
-all, for a signed-in person who may read the pages table; it sends nothing, counts nothing and is
-never indexed. A host's home page may be a live page: `/x/pages/<slug>`, never the door's `api`.
+all, for a signed-in person who may read the whole pages table (a role held to some of its rows is
+refused); it sends nothing, counts nothing, is never indexed, and its pictures are never cached.
+Every other request to the door is a stranger's, whatever cookie it carries: a signed-in person's
+session is not read there. A host's home page may be a live page: `/x/pages/<slug>`, never the door's `api`.
 
 **The head.** Adminium writes the page's head on the server, so a link preview, which runs no
 script, sees the page: `<html lang dir>` from the page's language, `<title>` from `title`, the
