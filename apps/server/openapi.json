@@ -128313,13 +128313,87 @@
                         },
                         "shownName": {
                           "type": "string"
+                        },
+                        "dpoContact": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "peopleFound": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "addOn": {
+                                "type": "object",
+                                "properties": {
+                                  "key": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "name"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "sources": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "hosts": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "website": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name",
+                                    "hosts",
+                                    "website"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "recipients": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "addOn",
+                              "sources",
+                              "recipients"
+                            ],
+                            "additionalProperties": false
+                          }
                         }
                       },
                       "required": [
                         "businessName",
                         "noticeUrl",
                         "ready",
-                        "shownName"
+                        "shownName",
+                        "dpoContact",
+                        "peopleFound"
                       ],
                       "additionalProperties": false
                     }
@@ -128363,6 +128437,17 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "dpoContact": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 254
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "required": [
@@ -128401,13 +128486,87 @@
                         },
                         "shownName": {
                           "type": "string"
+                        },
+                        "dpoContact": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "peopleFound": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "addOn": {
+                                "type": "object",
+                                "properties": {
+                                  "key": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "name"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "sources": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "hosts": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "website": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name",
+                                    "hosts",
+                                    "website"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "recipients": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "addOn",
+                              "sources",
+                              "recipients"
+                            ],
+                            "additionalProperties": false
+                          }
                         }
                       },
                       "required": [
                         "businessName",
                         "noticeUrl",
                         "ready",
-                        "shownName"
+                        "shownName",
+                        "dpoContact",
+                        "peopleFound"
                       ],
                       "additionalProperties": false
                     }
@@ -128997,7 +129156,10 @@
                                   "form-files",
                                   "chat-conversations",
                                   "chat-messages",
-                                  "chat-choices"
+                                  "chat-choices",
+                                  "found-people",
+                                  "found-people-mail",
+                                  "found-people-fields"
                                 ]
                               },
                               "group": {
@@ -129673,7 +129835,8 @@
                                   "form-answers",
                                   "form-invitations",
                                   "form-files",
-                                  "chat-conversations"
+                                  "chat-conversations",
+                                  "found-people"
                                 ]
                               },
                               "count": {
@@ -167622,7 +167785,8 @@
                 "system",
                 "add-on",
                 "app",
-                "payments"
+                "payments",
+                "leads"
               ]
             },
             "in": "query",
@@ -167759,7 +167923,8 @@
                               "system",
                               "add-on",
                               "app",
-                              "payments"
+                              "payments",
+                              "leads"
                             ]
                           },
                           "action": {
@@ -167914,7 +168079,8 @@
                         "system",
                         "add-on",
                         "app",
-                        "payments"
+                        "payments",
+                        "leads"
                       ]
                     },
                     "action": {
@@ -173877,7 +174043,8 @@
                                     "no-mail-server",
                                     "cap",
                                     "no-email",
-                                    "sample"
+                                    "sample",
+                                    "not-told"
                                   ]
                                 },
                                 {
@@ -174485,7 +174652,8 @@
                                 "no-mail-server",
                                 "cap",
                                 "no-email",
-                                "sample"
+                                "sample",
+                                "not-told"
                               ]
                             },
                             {
