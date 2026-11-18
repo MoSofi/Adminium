@@ -94,6 +94,7 @@ import type { SourceDatabase } from '../connections/manager.js';
 import { columnGranted, refuseUngrantedColumns } from '../connections/privileges.js';
 import { getPrincipal } from '../rbac/principal.js';
 import { negotiateLocale } from '../plugins/surfaces.js';
+import { sealLandingWrite } from '../landing/seal.js';
 import { capacityLockNames, touchesCapacity } from './capacity/judge.js';
 import { batchNeedsGuard, judgeRows, withLimitLocks } from './capacity/door.js';
 import { bookingColumn, bookingCounts, bookingDay, bookingLockName, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
@@ -102,6 +103,7 @@ import { judgeChangeGuards } from './change-guards.js';
 import { renewedColumns, withRenewRetry } from './code-renew.js';
 import { isLookupIssue, lookupIssue, reservedIssue, type LookupMiss } from './code-lookup.js';
 import { isWriteConflict } from './db-errors.js';
+import { renderNow } from './instants.js';
 import {
   attachRequiredGuards,
   checkRow,
@@ -2003,6 +2005,15 @@ export interface WriteServiceOptions {
    */
   sealedRecords?: ((connectionId: string, tableId: string) => Promise<boolean>) | undefined;
   /**
+   * Whether a table is a landing pages add-on's pages table, whose publish
+   * the engine seals (`landing/seal.ts`): a write that makes a page live or
+   * writes its published copy leaves a copy that parses whole, carries no
+   * mark of the assistant's and sits at an allowed address no other page holds; the engine
+   * says when it was published; the assistant publishes nothing. Without it,
+   * no table is sealed.
+   */
+  landingPages?: ((connectionId: string, tableId: string) => Promise<boolean>) | undefined;
+  /**
    * Whether a table is a payable's payments table, and which of its columns
    * name a payment taken online (`payments/payment-rows.ts`). A row that
    * carries the reference is the provider's record: no person, key, rule or
@@ -2308,6 +2319,36 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     if (opts.sealedRecords === undefined || writtenByAdminium(context)) return;
     if (!(await opts.sealedRecords(target.connectionId, target.table.id))) return;
     throw new ForbiddenError('Only Adminium writes and removes these rows. You can read them.', 'TABLE_FORBIDDEN', { table: target.table.id, reason: 'adminium-keeps' });
+  };
+
+  /**
+   * A write of a landing page, sealed ({@link WriteServiceOptions.landingPages}):
+   * the values it may write, with when the page was published set by the
+   * engine, or its refusal. Whatever door the write came through; the
+   * assistant's door is told apart by the request it carries.
+   */
+  const sealLanding = async (action: WriteAction, target: Pick<WriteTarget, 'connectionId' | 'table' | 'db'>, context: WriteContext, values: Row, stored: () => Promise<Row | null>): Promise<Row> => {
+    if (action === 'delete' || opts.landingPages === undefined) return values;
+    if (!(await opts.landingPages(target.connectionId, target.table.id))) return values;
+    const column = target.table.columns.get('published_at');
+    return sealLandingWrite({
+      action,
+      table: target.table.id,
+      values,
+      stored,
+      assistant: context.request?.assistantVia != null,
+      now: () => (column === undefined ? new Date().toISOString() : renderNow(column, new Date())),
+      slugTaken: async (slug, own) => {
+        const keys = target.table.primaryKey;
+        const holders = (await target.db
+          .selectFrom(target.table.id)
+          .select(keys.map((key) => target.db.dynamic.ref(key)))
+          .where((eb) => eb(target.db.dynamic.ref('slug'), '=', slug))
+          .limit(2)
+          .execute()) as Row[];
+        return holders.some((holder) => own === null || !keys.every((key) => String(holder[key]) === String(own[key])));
+      },
+    });
   };
 
   /**
@@ -3778,13 +3819,14 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     await refuseHeldWrite(target.db, 'create');
     await refuseOwnRecords(target, context);
     await refusePaymentRows('create', target, context, [{ values: input.values, stored: async () => null }]);
-    refuseEarly(target, 'create', input.values, mapError);
+    const given = await sealLanding('create', target, context, input.values, async () => null);
+    refuseEarly(target, 'create', given, mapError);
     const hooks = current();
     await freshCodes(target);
     const rules = rulesOf(target);
     const zone = await zoneFor(rules, target);
     // A link the settings fill is filled first: what is copied through it is copied in this save.
-    const filled = await fillLinksFromElsewhere(rules, 'create', target, localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, input.values), clock.startedAt), zone), settingsReaderOn(opts.settings, target.connectionId));
+    const filled = await fillLinksFromElsewhere(rules, 'create', target, localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, given), clock.startedAt), zone), settingsReaderOn(opts.settings, target.connectionId));
     const resolved = await fillFromElsewhere(
       rules,
       'create',
@@ -3801,7 +3843,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         ? withoutReadOnly(rules, await runBefore(hooks, 'create', target, context, decided, null), context.origin)
         : decided;
     const values = await daysAfterFormulas(rules, 'create', target, context, await formulate(rules, 'create', target, hooked, null, context.origin), null, clock, zone);
-    if (values !== input.values && input.recheck !== undefined) await input.recheck(values);
+    if (values !== given && input.recheck !== undefined) await input.recheck(values);
     const judged = await checkAllOrThrow(rules, 'create', target, context, values, null, mapError);
     // The listing rule, for a writer no person door judged: the new row as its rules filled it.
     if (opts.listings !== undefined && LISTING_ORIGINS.has(context.origin)) await guardedValue(() => opts.listings!(target, judged, null), mapError);
@@ -4297,12 +4339,15 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
 
     mirrors: (target) => mirrored(target),
 
-    async check(action, target, context, rows, checkOpts) {
+    async check(action, target, context, given, checkOpts) {
       if (action !== 'delete') refuseUnbuiltTable(target);
       await refuseHeldWrite(target.db, action);
       if (action !== 'delete') await refuseOwnRecords(target, context);
       else await refuseSealedDelete(target, context);
-      await refusePaymentRows(action, target, context, rows.map((values, index) => ({ values, stored: async () => checkOpts?.stored?.[index] ?? (action === 'create' ? null : await fetchMatched(target, values)) })));
+      const heldOf = (values: Row, index: number) => async () => checkOpts?.stored?.[index] ?? (action === 'create' ? null : await fetchMatched(target, values));
+      await refusePaymentRows(action, target, context, given.map((values, index) => ({ values, stored: heldOf(values, index) })));
+      const rows: Row[] = [];
+      for (const [index, values] of given.entries()) rows.push(await sealLanding(action, target, context, values, heldOf(values, index)));
       if (action !== 'delete') await freshCodes(target);
       const rules = rulesOf(target);
       refuseGuardedBatch(rules, action, target, rows, checkOpts?.capacity);
@@ -5091,7 +5136,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       await refusePaymentRows('update', target, context, [
         { values: input.values, stored: async () => (input.before !== undefined ? input.before : input.load !== undefined ? await input.load() : ((await fetchByPk(target.db, target.table, pk)) ?? null)) },
       ]);
-      refuseEarly(target, 'update', input.values, input.mapError);
+      const given = await sealLanding('update', target, context, input.values, async () => (input.before !== undefined ? input.before : input.load !== undefined ? await input.load() : ((await fetchByPk(target.db, target.table, pk)) ?? null)));
+      refuseEarly(target, 'update', given, input.mapError);
       await freshCodes(target);
       const hooks = current();
       const rules = rulesOf(target);
@@ -5108,7 +5154,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const clock = writeClock(context);
       // A code a person typed is found against the row as stored (its show), read inside the caller's scope.
       const storedRow = async () => (input.before !== undefined ? input.before : input.load !== undefined ? await input.load() : ((await fetchByPk(target.db, target.table, pk)) ?? null));
-      let values = await guardedValue(() => prepareValues(rules, 'update', target, context, input.values, clock.startedAt, undefined, storedRow), input.mapError);
+      let values = await guardedValue(() => prepareValues(rules, 'update', target, context, given, clock.startedAt, undefined, storedRow), input.mapError);
       // A quote runs no hook: it says so (`exact`), as a quote of a create does.
       const wantsBefore = input.mode !== 'dry' && (await hooks.wants('before', 'update', target, context));
       const wantsAfter = await hooks.wants('after', 'update', target, context);
@@ -5145,7 +5191,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       // PRICE and FORMULA, over the stored row: a change of `qty` alone still has the `rate` it multiplies.
       values = await formulate(rules, 'update', target, values, before, context.origin, repricing ? true : undefined);
       if (stored) values = await guardedValue(async () => daysAfterFormulas(rules, 'update', target, context, values, before, clock, zone), input.mapError);
-      if (values !== input.values && input.recheck !== undefined) await input.recheck(values);
+      if (values !== given && input.recheck !== undefined) await input.recheck(values);
       // CHECK, and what the statement judges this write by: a document's states, and the fingerprints it seals.
       const carried = await carry(rules, 'update', target, context, await checkAllOrThrow(rules, 'update', target, context, values, before, input.mapError), before, clock);
       // The listing rule, for a writer no person door judged: the change as its rules filled it, against the row as stored.
@@ -5643,18 +5689,21 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       return null;
     },
 
-    async beforeEach(action, givenTarget, context, rows, beforeOpts) {
+    async beforeEach(action, givenTarget, context, givenRows, beforeOpts) {
       const target = action === 'delete' ? givenTarget : await withRights(givenTarget);
       if (action !== 'delete') refuseUnbuiltTable(target);
       await refuseHeldWrite(target.db, action);
       if (action !== 'delete') await refuseOwnRecords(target, context);
       else await refuseSealedDelete(target, context);
+      const heldOf = (row: (typeof givenRows)[number]) => async () => (row.record !== undefined ? row.record : row.match === undefined ? null : ((await fetchByPk(target.db, target.table, row.match)) ?? null));
       await refusePaymentRows(
         action,
         target,
         context,
-        rows.map((row) => ({ values: row.values, stored: async () => (row.record !== undefined ? row.record : row.match === undefined ? null : ((await fetchByPk(target.db, target.table, row.match)) ?? null)) })),
+        givenRows.map((row) => ({ values: row.values, stored: heldOf(row) })),
       );
+      const rows: typeof givenRows = [];
+      for (const row of givenRows) rows.push({ ...row, values: await sealLanding(action, target, context, row.values, heldOf(row)) });
       if (action !== 'delete') await freshCodes(target);
       const hooks = current();
       const withRules = beforeOpts?.rules !== false;

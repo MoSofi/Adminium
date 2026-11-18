@@ -9,7 +9,7 @@
  * is refused is a control character, and any value that would become an
  * attribute (a link's address, a picture's file) outside its typed shape.
  *
- *  - LINKS are typed, never free text: an absolute `https:` address (parsed,
+ *  - LINKS are typed, never loose text: an absolute `https:` address (parsed,
  *    with no user or password), another page of this add-on by its key, or
  *    the form block on this page. `http:`, `javascript:` and `data:` are
  *    refused, whatever their case or spacing.

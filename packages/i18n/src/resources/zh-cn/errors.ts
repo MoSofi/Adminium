@@ -104,5 +104,12 @@ export default {
     "design-too-large": "此设计太大，无法检查。",
     "check-unavailable": "目前无法检查设计，因此无法保存。",
     "check-failed": "检查设计的附加组件未按要求应答，因此未保存任何内容。"
+  },
+  "landing": {
+    "unparsable": "无法发布此页面：其发布版本不是 Adminium 能显示的页面。",
+    "marked": "只要还有版块带着 Milo 的标记，就无法发布此页面。请先逐一查看。",
+    "slug": "无法在此地址发布此页面。请使用小写字母、数字和连字符，且不要使用地址本身占用的词。",
+    "slugTaken": "已有其他页面使用此地址。",
+    "assistant": "Milo 可以撰写页面草稿，但绝不会发布页面或更改页面是否上线。"
   }
 } as const;
