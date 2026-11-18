@@ -11,7 +11,7 @@
  * compiler in `./index.ts`.
  */
 import { keepPreviousData, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { isDeletePreview, type CrudFilter, type CrudListParams } from '@adminium/widgets';
 import type {
   DataError,
@@ -30,6 +30,7 @@ import type {
   UseExportResult,
   UseFormSummaryResult,
   UseFormTablesResult,
+  UseLiveTableResult,
   UseLookUpResult,
   UseReadResult,
   UseRecordResult,
@@ -46,6 +47,8 @@ import type {
 } from '@adminium/add-on-contracts/runtime';
 
 import { createCrudApi } from '../../api/crud.js';
+import { BARE_CHANGE_WAIT_MS } from '../../api/streamTransport.js';
+import { appStreamTransport } from '../../pages/lmc/stream.js';
 import { api, ApiError, installOptions } from '../../app/api.js';
 import { deleteFile, uploadFile } from '../../files/api.js';
 import { addOnKitQuery, resolveOwnTable, resolveTable, useKit, type Kit } from './resolve.js';
@@ -614,4 +617,63 @@ export function useUpload(table: string, column: string): UseUploadResult {
     }),
     [at.connectionId, at.id, table, column, run, saving, error],
   );
+}
+
+/** How long a burst of a table's frames is gathered into one read: the transport's own wait. */
+export const LIVE_TABLE_WAIT_MS = BARE_CHANGE_WAIT_MS;
+
+/**
+ * Follows one of the add-on's own tables live (the contract's words). It
+ * listens on `widget-data:<connection>:<table>`, the channel every write of a
+ * row publishes on (a staff save, a stranger's chat message or form answer),
+ * which the server lets a reader join only while their role reads the table.
+ * A frame says "this table changed", and nothing is taken from the row it may
+ * carry: the lists and rows of the table under `['data', connection, table]`
+ * are read again through the data routes, with the reader's own limits. A
+ * burst of frames is read once. A live line that comes back after a drop
+ * reads them again too, since what was published while it was down is never
+ * sent again.
+ */
+export function useLiveTable(table: string, options: { enabled?: boolean } = {}): UseLiveTableResult {
+  const kit = useKit();
+  const client = useQueryClient();
+  const at = resolveTable(kit, table);
+  // A table the reader may not read is never joined: the server would refuse the channel anyway.
+  const enabled = options.enabled !== false && (at.own === null || at.own.can.read);
+  const [connected, setConnected] = useState(false);
+  useEffect(() => {
+    if (!enabled) return;
+    const key = ['data', at.connectionId, at.id] as const;
+    let wait: ReturnType<typeof setTimeout> | null = null;
+    /** Whether the line has been up once: the first "up" is the join, not a return. */
+    let wasUp = false;
+    let down = false;
+    const readAgain = (): void => {
+      if (wait !== null) return;
+      wait = setTimeout(() => {
+        wait = null;
+        void client.invalidateQueries({ queryKey: key });
+      }, LIVE_TABLE_WAIT_MS);
+    };
+    const leave = appStreamTransport().subscribe(
+      `widget-data:${at.connectionId}:${at.id}`,
+      () => readAgain(),
+      (up) => {
+        setConnected(up);
+        if (!up) {
+          down = wasUp || down;
+          return;
+        }
+        // Back after a drop: whatever was written meanwhile was told to nobody.
+        if (wasUp && down) readAgain();
+        wasUp = true;
+        down = false;
+      },
+    );
+    return () => {
+      leave();
+      if (wait !== null) clearTimeout(wait);
+    };
+  }, [enabled, at.connectionId, at.id, client]);
+  return { connected: enabled && connected };
 }

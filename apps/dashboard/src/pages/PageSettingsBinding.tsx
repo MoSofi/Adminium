@@ -37,6 +37,10 @@ const EVENT_LABELS: Record<string, { key: string; en: string }> = {
   'automation.notice': { key: 'notifications.event.ruleNotice', en: 'A notice from a rule' },
   mention: { key: 'notifications.event.mention', en: 'Somebody mentioned me' },
   'chat.budget': { key: 'chat.budgetEvent', en: 'A chat’s automatic answers stopped for the day' },
+  'chat.waiting': { key: 'chat.waitingEvent', en: 'A website chat is waiting for a person' },
+  'chat.paused': { key: 'chat.pausedEvent', en: 'New website chats were paused' },
+  'forms.answer': { key: 'notifications.event.formsAnswer', en: 'A form has a new answer' },
+  'forms.limit': { key: 'notifications.event.formsLimit', en: 'A form hit its limit' },
 };
 
 export function eventLabel(eventKey: string): string {
