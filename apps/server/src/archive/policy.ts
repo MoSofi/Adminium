@@ -48,6 +48,8 @@ export const NEVER_ARCHIVED_TABLES: readonly string[] = [
   // What a website chat's automatic answerer spent today, and which addresses asked it: never set back by a file.
   'adminium_chat_ai_days',
   'adminium_chat_ai_addresses',
+  // What each source of a lead source add-on was asked today: never set back by a file.
+  'adminium_source_days',
 ];
 
 /** Staff API keys and the public API's keys. */

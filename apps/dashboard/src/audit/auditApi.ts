@@ -36,6 +36,7 @@ export const AUDIT_CATEGORIES = [
   'add-on',
   'app',
   'payments',
+  'leads',
 ] as const;
 export type AuditCategory = (typeof AUDIT_CATEGORIES)[number];
 

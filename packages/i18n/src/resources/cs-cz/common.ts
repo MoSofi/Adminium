@@ -1639,7 +1639,8 @@ export default {
       "system": "Systém",
       "addOn": "Doplňky",
       "app": "Aplikace",
-      "payments": "Platby"
+      "payments": "Platby",
+      "leads": "Hledání firem"
     },
     "column": {
       "action": "Akce",

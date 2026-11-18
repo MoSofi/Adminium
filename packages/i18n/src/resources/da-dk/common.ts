@@ -1639,7 +1639,8 @@ export default {
       "system": "System",
       "addOn": "Tilføjelser",
       "app": "Apps",
-      "payments": "Betalinger"
+      "payments": "Betalinger",
+      "leads": "Virksomhedssøgning"
     },
     "column": {
       "action": "Handling",

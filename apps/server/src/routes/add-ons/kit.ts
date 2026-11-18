@@ -20,6 +20,13 @@
  * table the reader may open (where an answer's "Became" links its row). Read
  * only: the page lists them in its builder, and reads no row of them.
  *
+ * A lead source add-on is also told which tables of its database hold
+ * companies (`via: 'companies'`): each table an app declares as companies,
+ * its label, the columns a company's details go in (the `lead` word, with the
+ * owner's word on it applied), and the generated page of the table the
+ * reader may open. Read only, and nothing else: a found company is added and
+ * filled in by the engine's own routes.
+ *
  * It grants nothing. Every answer here is asked again by the data routes on
  * the read or the write itself; the page only stops offering what would be
  * refused.
@@ -38,6 +45,8 @@ import { tableOfReal } from '../../installs/table-id.js';
 import type { SnapshotView } from '../../crud/identifiers.js';
 import { readViewFor } from '../../crud/read-view.js';
 import { NotFoundError } from '../../errors.js';
+import { speaksForSources } from '../../lead-sources/state.js';
+import { peopleTablesOf } from '../../people/tables-of.js';
 import { pagePartOff } from '../../rbac/app-parts.js';
 import { factsViewFor } from '../pages/column-facts.js';
 import { movesFor, rolesOf, stateActionFacts } from '../pages/state-actions.js';
@@ -83,6 +92,17 @@ const formsColumn = z.object({
   maxLength: z.number().optional(),
 });
 
+/** A companies table's `lead` word: each detail's column. */
+const companiesLead = z.object({
+  number: z.string().optional(),
+  website: z.string().optional(),
+  phone: z.string().optional(),
+  address: z.object({ lines: z.string().optional(), town: z.string().optional(), region: z.string().optional(), postalCode: z.string().optional(), country: z.string().optional() }).optional(),
+  activity: z.string().optional(),
+  about: z.string().optional(),
+  owner: z.string().optional(),
+});
+
 export const addOnKitReply = z.object({
   connectionId: z.string(),
   /** The add-on's own tables, by the short names of its manifest; one not made yet is left out. */
@@ -93,8 +113,8 @@ export const addOnKitReply = z.object({
       tableRef: z.string(),
       id: z.string(),
       label: z.string(),
-      /** Posts into a ledger, carries a price rule, links its rows to the add-on's own (`link`), or is opened to its forms. */
-      via: z.enum(['posting', 'adjust', 'link', 'forms']),
+      /** Posts into a ledger, carries a price rule, links its rows to the add-on's own (`link`), is opened to its forms, or holds companies a lead source finds. */
+      via: z.enum(['posting', 'adjust', 'link', 'forms', 'companies']),
       /** A table opened to forms: the name of the app that opens it. */
       app: z.string().optional(),
       /** A table opened to forms: the columns an answer may fill. */
@@ -103,6 +123,8 @@ export const addOnKitReply = z.object({
       page: z.string().optional(),
       /** A table opened to forms: the column a form's fixed "Source" value goes into, as the app's entry names it. */
       sourceColumn: z.string().optional(),
+      /** A companies table: the columns a company's details go in, by the `lead` word's names. */
+      lead: companiesLead.optional(),
     }),
   ),
   /** What the reader holds of the permissions a page asks about by name. */
@@ -120,6 +142,51 @@ const NO_SECRETS = {
   },
 };
 
+/** A finder of the generated page of a table this reader may open, its app's part on. */
+async function readablePageOf(meta: MetaDb, connectionId: string, can: (permission: string) => Promise<boolean>): Promise<(tableId: string) => Promise<string | null>> {
+  const pages = (await pagesRepo(meta).listForConnection(connectionId)).filter((page) => page.isEnabled).sort((a, b) => a.slug.localeCompare(b.slug));
+  return async (tableId) => {
+    for (const page of pages) {
+      const source = (page.config as { source?: { table?: unknown } } | null)?.source;
+      if (source?.table !== tableId) continue;
+      if (await pagePartOff(meta, page)) continue;
+      if (await can(`page:${page.id}:view`)) return page.slug;
+    }
+    return null;
+  };
+}
+
+/** The tables the apps on this database declare as companies, with the columns a company's details go in (see the header). */
+async function companiesHosts(
+  meta: MetaDb,
+  connectionId: string,
+  view: SnapshotView,
+  index: TableRefIndex,
+  can: (permission: string) => Promise<boolean>,
+): Promise<z.infer<typeof addOnKitReply>['hosts']> {
+  const pageOf = await readablePageOf(meta, connectionId, can);
+  const out: z.infer<typeof addOnKitReply>['hosts'] = [];
+  const declared = (await peopleTablesOf(meta).all(connectionId, view.model)).filter((one) => one.kind === 'companies' && one.appStatus === 'installed');
+  for (const one of declared.sort((a, b) => a.table.localeCompare(b.table))) {
+    let table;
+    try {
+      table = view.table(one.table);
+    } catch {
+      continue;
+    }
+    const page = await pageOf(table.id);
+    out.push({
+      tableRef: storedTableRef(index, table.id),
+      id: table.id,
+      label: table.table?.label ?? table.name,
+      via: 'companies',
+      lead: one.lead ?? {},
+      ...(page === null ? {} : { page }),
+    });
+  }
+  return out;
+}
+
 /** The tables the apps on this database open to forms, with the columns an answer may fill (see the header). */
 async function formsHosts(
   meta: MetaDb,
@@ -130,17 +197,8 @@ async function formsHosts(
   can: (permission: string) => Promise<boolean>,
 ): Promise<z.infer<typeof addOnKitReply>['hosts']> {
   const out: z.infer<typeof addOnKitReply>['hosts'] = [];
-  const pages = (await pagesRepo(meta).listForConnection(connectionId)).filter((page) => page.isEnabled).sort((a, b) => a.slug.localeCompare(b.slug));
   /** A generated page of the table this reader may open, its app's part on: where "Became" links a row to. */
-  async function pageOf(tableId: string): Promise<string | null> {
-    for (const page of pages) {
-      const source = (page.config as { source?: { table?: unknown } } | null)?.source;
-      if (source?.table !== tableId) continue;
-      if (await pagePartOff(meta, page)) continue;
-      if (await can(`page:${page.id}:view`)) return page.slug;
-    }
-    return null;
-  }
+  const pageOf = await readablePageOf(meta, connectionId, can);
   const apps = (await manifestsRepo(meta, NO_SECRETS).list('app')).filter((entry) => entry.row.connectionId === connectionId && entry.row.status === 'installed');
   for (const entry of apps.sort((a, b) => a.row.manifestKey.localeCompare(b.row.manifestKey))) {
     const read = validateManifest(entry.document);
@@ -262,6 +320,8 @@ export function addOnKitRoutes(deps: AddOnKitDeps): FastifyPluginAsyncZod {
 
         // A forms add-on: the tables its forms may become a row of (see the header).
         if (formsOf(manifest) !== null) hosts.push(...(await formsHosts(deps.meta, connectionId, view, index, own, can)));
+        // A lead source add-on: the tables that hold companies, and where a company's details go (see the header).
+        if (speaksForSources(manifest)) hosts.push(...(await companiesHosts(deps.meta, connectionId, view, index, can)));
 
         const has: Record<string, boolean> = { [SCHEMA_REMAP]: await can(SCHEMA_REMAP) };
         // A forms add-on's "Send by e-mail" starts a campaign, which needs the e-mail screens' grant: the page says who may.

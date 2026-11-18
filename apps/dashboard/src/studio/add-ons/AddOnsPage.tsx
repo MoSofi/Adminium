@@ -750,6 +750,40 @@ function isPaymentAddOn(addOn: { provides: { contract: string }[] }): boolean {
   return addOn.provides.some((entry) => entry.contract === 'payment-provider');
 }
 
+/**
+ * What an add-on may contact. An add-on with sources lists the hosts per
+ * source (each source's calls reach only its own), and the website reader,
+ * which Adminium runs itself; any other declared host is listed after them.
+ */
+function EgressLines({ addOn }: { addOn: AddOnDto }) {
+  const sources = addOn.sources ?? [];
+  const bySource = new Set(sources.flatMap((one) => one.hosts));
+  const rest = addOn.networkAllow.filter((host) => !bySource.has(host));
+  return (
+    <>
+      {sources.map((one) => (
+        <p key={one.source} className="text-xs text-fg-muted" data-testid={`add-on-${addOn.key}-source-${one.source}-egress`}>
+          <ShieldCheck className="inline size-3" />{' '}
+          {one.readsWebsites
+            ? t('studio:addOns.installed.sourceWebsite', '{source}: Adminium reads each company’s own website itself', { source: one.source })
+            : t('studio:addOns.installed.sourceEgress', '{source} may contact: {hosts}', { source: one.source, hosts: one.hosts.join(', ') })}
+        </p>
+      ))}
+      {rest.length > 0 && (
+        <p className="text-xs text-fg-muted">
+          <ShieldCheck className="inline size-3" />{' '}
+          {t('studio:addOns.installed.egress', 'May contact: {hosts}', { hosts: rest.join(', ') })}
+        </p>
+      )}
+    </>
+  );
+}
+
+/** An add-on that speaks for several sources (`lead-source`): each source's key is set on its own Sources screen, never with the connect form. */
+function isSourcesAddOn(addOn: { provides: { contract: string }[] }): boolean {
+  return addOn.provides.some((entry) => entry.contract === 'lead-source');
+}
+
 export function AddOnsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -1156,7 +1190,7 @@ export function AddOnsPage() {
                         {t('studio:addOns.installed.missing', 'Missing')}
                       </Badge>
                     )}
-                    {addOn.connectKind !== 'none' && (
+                    {addOn.connectKind !== 'none' && !isSourcesAddOn(addOn) && (
                       <Badge tone={addOn.connected ? 'pos' : 'warn'}>
                         {addOn.connected
                           ? t('studio:addOns.installed.connected', 'Connected')
@@ -1174,14 +1208,7 @@ export function AddOnsPage() {
                     </p>
                   )}
 
-                  {addOn.networkAllow.length > 0 && (
-                    <p className="text-xs text-fg-muted">
-                      <ShieldCheck className="inline size-3" />{' '}
-                      {t('studio:addOns.installed.egress', 'May contact: {hosts}', {
-                        hosts: addOn.networkAllow.join(', '),
-                      })}
-                    </p>
-                  )}
+                  <EgressLines addOn={addOn} />
 
                   {(addOn.usedBy ?? []).length === 0 ? null : <UsedByLine uses={addOn.usedBy ?? []} />}
 
@@ -1224,7 +1251,15 @@ export function AddOnsPage() {
                     </p>
                   )}
 
-                  {!addOn.connected && !isPaymentAddOn(addOn) && (
+                  {/* A source add-on keeps one key per source, saved and checked one at a
+                      time on its own Sources screen. The generic form would refuse it. */}
+                  {isSourcesAddOn(addOn) && (
+                    <p className="text-[12.5px] text-fg-muted" data-testid={`add-on-${addOn.key}-sources-where`}>
+                      {t('studio:addOns.installed.sourcesWhere', 'Set up its sources on its own Sources screen.')}
+                    </p>
+                  )}
+
+                  {!addOn.connected && !isPaymentAddOn(addOn) && !isSourcesAddOn(addOn) && (
                     <ConnectForm
                       addOn={addOn}
                       busy={busy}
@@ -1246,7 +1281,7 @@ export function AddOnsPage() {
                   <SampleDataCard appKey={addOn.key} kind="add-on" connectionName={null} />
 
                   <div className="flex gap-2">
-                    {addOn.connected && (
+                    {addOn.connected && !isSourcesAddOn(addOn) && (
                       <Button
                         size="sm"
                         variant="ghost"

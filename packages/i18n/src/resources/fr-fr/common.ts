@@ -1639,7 +1639,8 @@ export default {
       "system": "Système",
       "addOn": "Modules",
       "app": "Applications",
-      "payments": "Paiements"
+      "payments": "Paiements",
+      "leads": "Recherche d'entreprises"
     },
     "column": {
       "action": "Action",

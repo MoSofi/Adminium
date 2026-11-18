@@ -34,7 +34,7 @@ function asPeopleModel(model: EffectiveModel): PeopleModel {
       id: table.id,
       name: table.name,
       ...(typeof table.schema === 'string' ? { schema: table.schema } : {}),
-      columns: table.columns.map((column) => ({ name: column.name, logicalType: column.logicalType })),
+      columns: table.columns.map((column) => ({ name: column.name, logicalType: column.logicalType, maxLength: column.maxLength })),
     })),
     defaultSchema: model.defaultSchema,
   };

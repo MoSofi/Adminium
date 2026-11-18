@@ -113,6 +113,7 @@ import { up as up0091 } from './0091_app_refund_rows.js';
 import { up as up0092 } from './0092_card_readers.js';
 import { up as up0094 } from './0094_chat_ai_tally.js';
 import { up as up0095 } from './0095_chat_ai_addresses.js';
+import { up as up0099 } from './0099_source_days.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -213,4 +214,5 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0092_card_readers', up: up0092 },
   { name: '0094_chat_ai_tally', up: up0094 },
   { name: '0095_chat_ai_addresses', up: up0095 },
+  { name: '0099_source_days', up: up0099 },
 ];

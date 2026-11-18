@@ -231,6 +231,39 @@ describe('AddOnsPage', () => {
     expect(await screen.findByRole('tab', { name: 'Setup' })).toBeTruthy();
   });
 
+  it('sends an add-on with sources to its own Sources screen: no connect form, no Connected badge, no Disconnect', async () => {
+    await renderPage({
+      installed: [
+        makeAddOn({
+          key: 'company-finder',
+          name: 'Company finder',
+          connected: true,
+          connectKind: 'api-key',
+          provides: [{ contract: 'lead-source', version: 1 }],
+          networkAllow: ['api.company-information.service.gov.uk', 'api.hunter.io', 'status.example'],
+          sources: [
+            { source: 'companies-house', hosts: ['api.company-information.service.gov.uk'], readsWebsites: false },
+            { source: 'hunter', hosts: ['api.hunter.io'], readsWebsites: false },
+            { source: 'website', hosts: [], readsWebsites: true },
+          ],
+        }),
+        // One with no key saved yet: still no connect form.
+        makeAddOn({ key: 'people-finder', name: 'People finder', connected: false, connectKind: 'api-key', provides: [{ contract: 'lead-source', version: 1 }], settings: [{ key: 'hunter_key', type: 'string', secret: true }] as never }),
+      ],
+    });
+    expect((await screen.findByTestId('add-on-company-finder-sources-where')).textContent).toBe('Set up its sources on its own Sources screen.');
+    expect(screen.getByTestId('add-on-people-finder-sources-where')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Connect' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Disconnect' })).toBeNull();
+    expect(screen.queryByText('Connected')).toBeNull();
+    expect(screen.queryByText('Not connected')).toBeNull();
+    // Each source's hosts on a line of their own; a host no source names, after them.
+    expect(screen.getByTestId('add-on-company-finder-source-companies-house-egress').textContent).toContain('companies-house may contact: api.company-information.service.gov.uk');
+    expect(screen.getByTestId('add-on-company-finder-source-hunter-egress').textContent).toContain('hunter may contact: api.hunter.io');
+    expect(screen.getByTestId('add-on-company-finder-source-website-egress').textContent).toContain('website: Adminium reads each company’s own website itself');
+    expect(screen.getByText(/May contact: status\.example$/)).toBeTruthy();
+  });
+
   it('says who sets a payment service up, to someone without a payments key', async () => {
     await renderPage({
       respond: (_method, url) => (url.startsWith('/api/v1/bootstrap') ? { status: 200, body: { data: makeBootstrap({ nav: { groups: [] }, roles: ['admin'], systemActions: ['manifests.manage'] }) } } : undefined),

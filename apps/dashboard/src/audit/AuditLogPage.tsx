@@ -92,6 +92,8 @@ function categoryLabel(category: AuditCategory): string {
       return t('audit.category.app', 'Apps');
     case 'payments':
       return t('audit.category.payments', 'Payments');
+    case 'leads':
+      return t('audit.category.leads', 'Finding companies');
   }
 }
 

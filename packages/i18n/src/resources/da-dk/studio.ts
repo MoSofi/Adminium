@@ -116,7 +116,10 @@ export default {
       "title": "Installed",
       "uninstall": "Uninstall",
       "setUpInPayments": "Opsæt under Betalinger",
-      "paymentsWho": "En med tilladelsen »Opsæt betalinger« sætter det op under Betalinger."
+      "paymentsWho": "En med tilladelsen »Opsæt betalinger« sætter det op under Betalinger.",
+      "sourcesWhere": "Opsæt dens kilder på dens egen skærm Kilder.",
+      "sourceEgress": "{source} må kontakte: {hosts}",
+      "sourceWebsite": "{source}: Adminium læser selv hver virksomheds hjemmeside"
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",

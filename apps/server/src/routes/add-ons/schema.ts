@@ -141,6 +141,8 @@ export const addOnDto = z.object({
   provides: z.array(z.object({ contract: z.string(), version: z.number() })),
   /** Exact-hostname egress the manifest declares. */
   networkAllow: z.array(z.string()),
+  /** An add-on with sources: each source and the hosts it may contact (none for the website, which Adminium reads itself). */
+  sources: z.array(z.object({ source: z.string(), hosts: z.array(z.string()), readsWebsites: z.boolean() })).optional(),
   /**
    * Every client bundle this add-on ships, with the URL to fetch it from and
    * the SRI value to pin it to.

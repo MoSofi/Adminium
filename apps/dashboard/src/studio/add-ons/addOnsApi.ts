@@ -75,6 +75,8 @@ export interface AddOnDto {
   slots: { slot: string; client: string; order: number }[];
   provides: { contract: string; version: number }[];
   networkAllow: string[];
+  /** An add-on with sources: each source and the hosts it may contact. Absent for one with none (and from an older server). */
+  sources?: { source: string; hosts: string[]; readsWebsites: boolean }[];
   /**
    * The manifest's own `settings[]`, so the panel can GENERATE its form
    * instead of hard-coding one. That hard-coded form was a single `api_key`

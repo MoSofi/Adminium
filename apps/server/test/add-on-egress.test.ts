@@ -225,6 +225,25 @@ describe('the client an add-on is handed', () => {
     });
   });
 
+  it('never keeps a query string, where a key may travel, in a refusal it audits or throws', async () => {
+    const seen: EgressRefusalRecord[] = [];
+    const thrown: unknown[] = [];
+    const onRefusal = (record: EgressRefusalRecord) => {
+      seen.push(record);
+    };
+    const tries = [
+      client({ hasOutboundHttp: false, onRefusal })('https://express.api.dhl.com/track?api_token=test-key-query-5'),
+      client({ onRefusal })('not a url?api_token=test-key-query-5'),
+      client({ onRefusal, fetchImpl: (() => Promise.reject(new Error('refused https://express.api.dhl.com/track?api_token=test-key-query-5'))) as unknown as typeof globalThis.fetch })('https://express.api.dhl.com/track?api_token=test-key-query-5'),
+    ];
+    for (const one of tries) await one.catch((error: unknown) => thrown.push(error));
+    expect(seen.map((record) => record.reason)).toEqual(['NO_OUTBOUND_CAPABILITY', 'MALFORMED_URL', 'REQUEST_FAILED']);
+    expect(thrown).toHaveLength(3);
+    const written = JSON.stringify({ seen, thrown: thrown.map((error) => ({ message: (error as Error).message, target: (error as AddOnEgressError).target })) });
+    expect(written).not.toContain('test-key-query-5');
+    expect(written).not.toContain('api_token');
+  });
+
   it('reports a transport failure as a typed refusal, not a raw throw', async () => {
     const onRefusal = vi.fn();
     const call = client({
