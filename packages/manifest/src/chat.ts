@@ -28,7 +28,7 @@
  */
 import { z } from 'zod';
 
-import { FORMS_BECAME_TABLE_MAX, contractColumns, describeContractColumn, type ContractColumn, type FormsAddOnShape } from './forms.js';
+import { FORMS_BECAME_TABLE_MAX, contractColumnIssues, contractColumns, type ContractColumn, type FormsAddOnShape } from './forms.js';
 import { refSchema, type ReferenceIssue } from './refs.js';
 
 /** The block: the add-on's own tables, by ref. All four are required. */
@@ -218,7 +218,7 @@ export function chatBlockIssues(block: AddOnChat, m: ChatAddOnShape): ReferenceI
     }
     const { table, t } = found;
     const contract = CHAT_COLUMNS[part];
-    out.push(...columnIssues(table, t, `the ${part}`, contract, block));
+    out.push(...contractColumnIssues(table, t, `the ${part}`, contract, (to) => block[to]));
 
     // A numbered key: the engine's own increment, which the messages' cursor reads.
     const k = table.columns.findIndex((column) => column.role === 'pk');
@@ -246,39 +246,7 @@ export function chatBlockIssues(block: AddOnChat, m: ChatAddOnShape): ReferenceI
   if (m.settingsTable === undefined) {
     out.push({ path: ['addOn', 'settingsTable'], message: 'an add-on that declares chat keeps its hours, words and answerer in a one-row settings table: name it in addOn.settingsTable' });
   } else if (settings !== undefined) {
-    out.push(...columnIssues(settings.table, settings.t, "the chat's settings", CHAT_SETTINGS_COLUMNS, block));
-  }
-  return out;
-}
-
-/** Each column a contract names, on one table: there, of its kind, its values, its width, its emptiness and its link. */
-function columnIssues(table: FormsAddOnShape['tables'][number], t: number, holds: string, contract: Readonly<Record<string, ChatColumn>>, block: AddOnChat): ReferenceIssue[] {
-  const out: ReferenceIssue[] = [];
-  const ref = table.ref;
-  for (const [name, want] of Object.entries(contract)) {
-    const c = table.columns.findIndex((column) => column.ref === name);
-    const column = table.columns[c];
-    if (column === undefined) {
-      out.push({ path: ['requiredSchema', 'tables', t, 'columns'], message: `"${ref}" holds ${holds}, so it has a column "${name}" (${describeContractColumn(want)})` });
-      continue;
-    }
-    const say = (message: string, ...rest: (string | number)[]) => out.push({ path: ['requiredSchema', 'tables', t, 'columns', c, ...rest], message: `"${ref}.${name}" ${message}` });
-    if (!want.types.includes(column.type)) {
-      say(`is read and written by Adminium as ${describeContractColumn(want)}, not ${column.type}`, 'type');
-      continue;
-    }
-    if (want.nullable === true && column.nullable !== true) say('is written empty until there is something to put in it: make it nullable', 'nullable');
-    if (want.nullable !== true && column.nullable === true) say('always holds a value, which Adminium reads: make it not nullable', 'nullable');
-    if (want.unique === true && column.unique !== true) say('names one row: make it unique', 'unique');
-    if (want.atLeast !== undefined && column.maxLength !== undefined && column.maxLength < want.atLeast) say(`takes up to ${String(want.atLeast)} characters: leave out maxLength, or make it at least that`, 'maxLength');
-    if (want.values !== undefined) {
-      const values = new Set(column.enum ?? []);
-      if (values.size !== want.values.length || !want.values.every((value) => values.has(value))) say(`takes exactly ${want.values.map((value) => `"${value}"`).join(', ')}`, 'enum');
-    }
-    if (want.links !== undefined) {
-      const target = block[want.links];
-      if (column.references !== target) say(`links to the ${want.links} ("${target}")`, 'references');
-    }
+    out.push(...contractColumnIssues(settings.table, settings.t, "the chat's settings", CHAT_SETTINGS_COLUMNS, (to) => block[to]));
   }
   return out;
 }
