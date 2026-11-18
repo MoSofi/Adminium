@@ -1454,7 +1454,9 @@ export default {
   "chat": {
     "messageSent": "消息已发送",
     "sendFailed": "消息发送失败。",
-    "budgetEvent": "聊天的自动回答今天已停止"
+    "budgetEvent": "聊天的自动回答今天已停止",
+    "waitingEvent": "网站聊天正在等待人工",
+    "pausedEvent": "新的网站聊天已暂停"
   },
   "templates": {
     "crud": {
@@ -1605,7 +1607,9 @@ export default {
       "reportFailed": "定时报告失败",
       "backupCompleted": "备份完成",
       "ruleNotice": "规则发出的通知",
-      "mention": "有人提到了我"
+      "mention": "有人提到了我",
+      "formsAnswer": "表单有新回答",
+      "formsLimit": "表单已达到上限"
     }
   },
   "theme": {

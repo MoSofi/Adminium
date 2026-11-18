@@ -4731,7 +4731,9 @@ export default {
       "erase": "Löschen…",
       "answers": "{count, plural, one {# Antwort} other {# Antworten}}",
       "invitations": "{count, plural, one {# Einladung} other {# Einladungen}}",
-      "files": "{count, plural, one {# Datei} other {# Dateien}}"
+      "files": "{count, plural, one {# Datei} other {# Dateien}}",
+      "chats": "{count, plural, one {# Unterhaltung} other {# Unterhaltungen}}",
+      "chatMessages": "{count, plural, one {# Nachricht} other {# Nachrichten}}"
     },
     "erase": {
       "goes": {
@@ -4743,7 +4745,8 @@ export default {
         "files": "{count, plural, one {# Datei} other {# Dateien}}",
         "answers": "{count, plural, one {# Formularantwort} other {# Formularantworten}} in {label}",
         "invitations": "{count, plural, one {# Umfrageeinladung} other {# Umfrageeinladungen}} in {label}, ohne ihre Adresse aufbewahrt",
-        "answerFiles": "{count, plural, one {# Datei} other {# Dateien}} aus Formularantworten in {label}"
+        "answerFiles": "{count, plural, one {# Datei} other {# Dateien}} aus Formularantworten in {label}",
+        "chats": "{count, plural, one {# Chat-Unterhaltung} other {# Chat-Unterhaltungen}} in {label}, mit ihren Nachrichten"
       },
       "stays": {
         "forGood": "Dauerhaft aufbewahrt.",
@@ -4798,7 +4801,11 @@ export default {
       "answers": "Formularantworten — {addOn}",
       "answersMonths": "{count, plural, one {# Monat aufbewahrt} other {# Monate aufbewahrt}}",
       "answersUntilRemoved": "Aufbewahrt, bis jemand sie entfernt",
-      "answersWhy": "Festgelegt in den Einstellungen von {addOn}. Ältere Antworten werden jede Nacht gelöscht."
+      "answersWhy": "Festgelegt in den Einstellungen von {addOn}. Ältere Antworten werden jede Nacht gelöscht.",
+      "chatConversations": "Chat-Unterhaltungen — {addOn}",
+      "chatMonths": "{count, plural, one {# Monat aufbewahrt} other {# Monate aufbewahrt}}",
+      "chatUntilRemoved": "Aufbewahrt, bis jemand sie entfernt",
+      "chatWhy": "Festgelegt in den Einstellungen von {addOn}. Ältere Unterhaltungen werden jede Nacht mit ihren Nachrichten gelöscht."
     },
     "downloads": {
       "processing": "Wird erstellt…",

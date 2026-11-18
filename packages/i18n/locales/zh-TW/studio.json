@@ -4721,7 +4721,9 @@
       "erase": "刪除…",
       "answers": "{count, plural, other {# 筆回覆}}",
       "invitations": "{count, plural, other {# 份邀請}}",
-      "files": "{count, plural, other {# 個檔案}}"
+      "files": "{count, plural, other {# 個檔案}}",
+      "chats": "{count, plural, other {# 個對話}}",
+      "chatMessages": "{count, plural, other {# 則訊息}}"
     },
     "erase": {
       "goes": {
@@ -4733,7 +4735,8 @@
         "files": "{count, plural, other {# 個檔案}}",
         "answers": "{label} 中的 {count, plural, other {# 筆表單回覆}}",
         "invitations": "{label} 中的 {count, plural, other {# 份問卷邀請}}，保留但不含地址",
-        "answerFiles": "{label} 中隨表單回覆傳送的 {count, plural, other {# 個檔案}}"
+        "answerFiles": "{label} 中隨表單回覆傳送的 {count, plural, other {# 個檔案}}",
+        "chats": "{label} 中的 {count, plural, other {# 個聊天對話}}，連同其訊息"
       },
       "stays": {
         "forGood": "永久保留。",
@@ -4788,7 +4791,11 @@
       "answers": "表單回覆 — {addOn}",
       "answersMonths": "{count, plural, other {保留 # 個月}}",
       "answersUntilRemoved": "保留到有人刪除為止",
-      "answersWhy": "在 {addOn} 的設定中設定。較舊的回覆每晚刪除。"
+      "answersWhy": "在 {addOn} 的設定中設定。較舊的回覆每晚刪除。",
+      "chatConversations": "聊天對話 — {addOn}",
+      "chatMonths": "{count, plural, other {保留 # 個月}}",
+      "chatUntilRemoved": "保留到有人刪除為止",
+      "chatWhy": "在 {addOn} 的設定中設定。較舊的對話連同訊息每晚刪除。"
     },
     "downloads": {
       "processing": "正在產生…",

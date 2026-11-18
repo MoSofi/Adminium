@@ -1444,7 +1444,9 @@
   "chat": {
     "messageSent": "訊息已傳送",
     "sendFailed": "訊息無法傳送。",
-    "budgetEvent": "聊天的自動回答今天已停止"
+    "budgetEvent": "聊天的自動回答今天已停止",
+    "waitingEvent": "網站聊天正在等待真人",
+    "pausedEvent": "新的網站聊天已暫停"
   },
   "templates": {
     "crud": {
@@ -1595,7 +1597,9 @@
       "reportFailed": "排程報表失敗",
       "backupCompleted": "備份完成",
       "ruleNotice": "規則發出的通知",
-      "mention": "有人提到了我"
+      "mention": "有人提到了我",
+      "formsAnswer": "表單有新回覆",
+      "formsLimit": "表單已達到上限"
     }
   },
   "theme": {

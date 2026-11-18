@@ -4731,7 +4731,9 @@ export default {
       "erase": "Effacer…",
       "answers": "{count, plural, one {# réponse} other {# réponses}}",
       "invitations": "{count, plural, one {# invitation} other {# invitations}}",
-      "files": "{count, plural, one {# fichier} other {# fichiers}}"
+      "files": "{count, plural, one {# fichier} other {# fichiers}}",
+      "chats": "{count, plural, one {# conversation} other {# conversations}}",
+      "chatMessages": "{count, plural, one {# message} other {# messages}}"
     },
     "erase": {
       "goes": {
@@ -4743,7 +4745,8 @@ export default {
         "files": "{count, plural, one {# fichier} other {# fichiers}}",
         "answers": "{count, plural, one {# réponse à un formulaire} other {# réponses à des formulaires}} dans {label}",
         "invitations": "{count, plural, one {# invitation à une enquête} other {# invitations à des enquêtes}} dans {label}, conservées sans l’adresse",
-        "answerFiles": "{count, plural, one {# fichier envoyé} other {# fichiers envoyés}} avec des réponses à des formulaires dans {label}"
+        "answerFiles": "{count, plural, one {# fichier envoyé} other {# fichiers envoyés}} avec des réponses à des formulaires dans {label}",
+        "chats": "{count, plural, one {# conversation de chat} other {# conversations de chat}} dans {label}, avec leurs messages"
       },
       "stays": {
         "forGood": "Conservé pour toujours.",
@@ -4798,7 +4801,11 @@ export default {
       "answers": "Réponses aux formulaires — {addOn}",
       "answersMonths": "{count, plural, one {Conservées # mois} other {Conservées # mois}}",
       "answersUntilRemoved": "Conservées jusqu’à ce que quelqu’un les supprime",
-      "answersWhy": "Réglé dans les paramètres de {addOn}. Les réponses plus anciennes sont supprimées chaque nuit."
+      "answersWhy": "Réglé dans les paramètres de {addOn}. Les réponses plus anciennes sont supprimées chaque nuit.",
+      "chatConversations": "Conversations du chat — {addOn}",
+      "chatMonths": "{count, plural, one {Conservées # mois} other {Conservées # mois}}",
+      "chatUntilRemoved": "Conservées jusqu’à ce que quelqu’un les supprime",
+      "chatWhy": "Réglé dans les paramètres de {addOn}. Les conversations plus anciennes sont supprimées chaque nuit, avec leurs messages."
     },
     "downloads": {
       "processing": "En préparation…",

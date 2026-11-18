@@ -1454,7 +1454,9 @@ export default {
   "chat": {
     "messageSent": "Message envoyé",
     "sendFailed": "Le message n’a pas pu être envoyé.",
-    "budgetEvent": "Les réponses automatiques d’un chat sont arrêtées pour la journée"
+    "budgetEvent": "Les réponses automatiques d’un chat sont arrêtées pour la journée",
+    "waitingEvent": "Un chat du site attend une personne",
+    "pausedEvent": "Les nouveaux chats du site ont été mis en pause"
   },
   "templates": {
     "crud": {
@@ -1605,7 +1607,9 @@ export default {
       "reportFailed": "Échec du rapport planifié",
       "backupCompleted": "Sauvegarde terminée",
       "ruleNotice": "Une notification d’une règle",
-      "mention": "Quelqu’un m’a mentionné"
+      "mention": "Quelqu’un m’a mentionné",
+      "formsAnswer": "Un formulaire a une nouvelle réponse",
+      "formsLimit": "Un formulaire a atteint sa limite"
     }
   },
   "theme": {

@@ -4731,7 +4731,9 @@ export default {
       "erase": "删除…",
       "answers": "{count, plural, other {# 条回答}}",
       "invitations": "{count, plural, other {# 份邀请}}",
-      "files": "{count, plural, other {# 个文件}}"
+      "files": "{count, plural, other {# 个文件}}",
+      "chats": "{count, plural, other {# 个对话}}",
+      "chatMessages": "{count, plural, other {# 条消息}}"
     },
     "erase": {
       "goes": {
@@ -4743,7 +4745,8 @@ export default {
         "files": "{count, plural, other {# 个文件}}",
         "answers": "{label} 中的 {count, plural, other {# 条表单回答}}",
         "invitations": "{label} 中的 {count, plural, other {# 份调查邀请}}，保留但不含地址",
-        "answerFiles": "{label} 中随表单回答发送的 {count, plural, other {# 个文件}}"
+        "answerFiles": "{label} 中随表单回答发送的 {count, plural, other {# 个文件}}",
+        "chats": "{label} 中的 {count, plural, other {# 个聊天对话}}，连同其消息"
       },
       "stays": {
         "forGood": "永久保留。",
@@ -4798,7 +4801,11 @@ export default {
       "answers": "表单回答 — {addOn}",
       "answersMonths": "{count, plural, other {保留 # 个月}}",
       "answersUntilRemoved": "保留到有人删除为止",
-      "answersWhy": "在 {addOn} 的设置中设定。较早的回答每晚删除。"
+      "answersWhy": "在 {addOn} 的设置中设定。较早的回答每晚删除。",
+      "chatConversations": "聊天对话 — {addOn}",
+      "chatMonths": "{count, plural, other {保留 # 个月}}",
+      "chatUntilRemoved": "保留到有人删除为止",
+      "chatWhy": "在 {addOn} 的设置中设定。较早的对话连同消息每晚删除。"
     },
     "downloads": {
       "processing": "正在生成…",

@@ -657,7 +657,9 @@ export default {
       "reportFailed": "Scheduled report failed",
       "backupCompleted": "Backup completed",
       "ruleNotice": "A notice from a rule",
-      "mention": "Somebody mentioned me"
+      "mention": "Somebody mentioned me",
+      "formsAnswer": "A form has a new answer",
+      "formsLimit": "A form hit its limit"
     }
   },
   "theme": {
