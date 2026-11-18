@@ -10,6 +10,8 @@
  *   POST /chat/:addOn/conversations/:id/reopen    open again, theirs, and the visitor may write again
  *   POST /chat/:addOn/conversations/:id/enquiry   "Make an enquiry": a row in the table an app opens to the chat
  *   POST /chat/:addOn/conversations/:id/draft     "Draft with Milo": a reply to read, never sent
+ *   GET  /chat/:addOn/status                      what the settings page shows: reach, notice, address,
+ *                                                 websites, mail, roles, languages, business name, time zone
  *   GET  /chat/:addOn/pause                       until when new chats are paused by the breaker
  *   POST /chat/:addOn/resume                      new chats open again before the pause is over
  *
@@ -23,7 +25,9 @@
  *  - an enquiry: also the person's own create on the table it goes into, and
  *    the row is made by the dashboard's own create route as them;
  *  - a draft: also `system:assistant:use`, while the chat's Milo drafting is on;
- *  - the pause and resume: who may read, and who may change, the chat's settings.
+ *  - the status, the pause and resume: who may read, and who may change, the
+ *    chat's settings. The status asks for nothing more: a settings manager
+ *    with no Forms or privacy rights still sees the snippet and the cards.
  *
  * Only a signed-in person acts in a chat: a line says who wrote it. A chat
  * that is not installed is 404; `?install=` names the install when the
@@ -41,18 +45,21 @@ import type { ChatAnswererDeps } from '../../chat/answerer.js';
 import { readAnswers } from '../../chat/answering.js';
 import type { ChatCaps } from '../../chat/caps.js';
 import type { ChatCatalog, LiveChat } from '../../chat/catalog.js';
-import { cleanBody } from '../../chat/door.js';
+import { chatZoneOf, cleanBody } from '../../chat/door.js';
 import { draftChatReply } from '../../chat/draft.js';
 import { planEnquiry } from '../../chat/enquiry.js';
-import { chatLanguageOf } from '../../chat/settings.js';
+import { chatLanguageOf, chatLanguages } from '../../chat/settings.js';
 import type { ChatActor, ChatStaff, ChatStaffRefusal } from '../../chat/staff.js';
 import { boundKey, SYSTEM_LINES, type ChatConversation, type ChatStore } from '../../chat/store.js';
 import { fetchVisible, rowLimitFor } from '../../crud/row-limit.js';
 import { rowLimitContextOf } from '../../crud/row-limit-context.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import type { FormsReachFacts } from '../../forms/reach.js';
 import type { FormsScopes } from '../../forms/scope.js';
 import { strangerBusiness } from '../../forms/view.js';
+import { businessName } from '../../privacy/business.js';
 import { getPrincipal } from '../../rbac/principal.js';
+import { doorStatusData, readDoorStatus } from '../forms/index.js';
 
 export interface ChatStaffRoutesDeps {
   meta: MetaDb;
@@ -65,6 +72,10 @@ export interface ChatStaffRoutesDeps {
   installs: () => Promise<AddOnInstalls>;
   /** The AI service a draft is written on: the one the window's first line names. */
   ai: Pick<ChatAnswererDeps, 'connections' | 'offHere'>;
+  /** The server's secret, which opens the stored mail settings: whether mail goes. */
+  secret: string;
+  /** The facts the reach answer reads (the doors' own); absent, the status read is not served. */
+  reach?: FormsReachFacts | undefined;
   now?: () => number;
 }
 
@@ -141,6 +152,19 @@ export const chatEnquiryReply = z.object({
 });
 
 export const chatDraftReply = z.object({ data: z.object({ draft: z.string(), tokens: z.number().int() }) });
+
+export const chatStatusReply = z.object({
+  data: doorStatusData.extend({
+    /** The languages the window speaks: the workspace's default and each the owner wrote words in. */
+    languages: z.array(z.string()),
+    /** The workspace's default language, as a chat names languages. */
+    defaultLanguage: z.string(),
+    /** The business's name, as the window shows it. */
+    businessName: z.string(),
+    /** The zone the chat's hours are in: its own, else its database's, else UTC. */
+    timeZone: z.string(),
+  }),
+});
 
 export const chatPauseReply = z.object({ data: z.object({ pausedUntil: z.string().nullable() }) });
 export const chatResumeReply = z.object({ data: z.object({ resumed: z.boolean() }) });
@@ -460,6 +484,42 @@ export function chatStaffRoutes(deps: ChatStaffRoutesDeps): FastifyPluginAsyncZo
         return { data: { draft: drafted.draft, tokens: drafted.tokens } };
       },
     );
+
+    const reach = deps.reach;
+    if (reach !== undefined) {
+      app.get(
+        '/chat/:addOn/status',
+        {
+          preHandler: [app.requireAuth],
+          schema: {
+            tags,
+            summary: 'What a website chat\'s settings page shows',
+            description:
+              'Whether strangers can reach the chat, whether the privacy notice is set, the public address, the listed websites, whether mail goes (and why not), the roles a chat may tell, the chat\'s languages and the workspace default, the business\'s name and the time zone of the hours. For someone who may read the chat\'s settings.',
+            params,
+            querystring: query,
+            response: { 200: chatStatusReply },
+          },
+        },
+        async (request) => {
+          const chat = await chatOf(request.params.addOn, request.query.install);
+          if (!(await request.can(`table:${chat.connectionId}:${chat.settingsTable.table.id}:read`))) {
+            throw new ForbiddenError('Only someone who may read the chat’s settings reads this.', 'TABLE_FORBIDDEN', { reason: 'chat-settings-read' });
+          }
+          const [status, defaultLanguage, timeZone] = await Promise.all([readDoorStatus(meta, deps.secret, reach, request), settingsRepo(meta).get('locale.default'), chatZoneOf(meta, chat)]);
+          const language = chatLanguageOf(defaultLanguage);
+          return {
+            data: {
+              ...status,
+              languages: chatLanguages(chat.settings, language),
+              defaultLanguage: language,
+              businessName: await businessName(meta, { origin: status.publicOrigin }),
+              timeZone,
+            },
+          };
+        },
+      );
+    }
 
     app.get(
       '/chat/:addOn/pause',

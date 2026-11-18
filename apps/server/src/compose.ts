@@ -3791,7 +3791,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           },
         }),
       );
-      // Staff: take, reply (and the reply by mail), close, reopen, an enquiry, a draft, presence, the breaker (`routes/chat`).
+      // Staff: take, reply (and the reply by mail), close, reopen, an enquiry, a draft, presence, the settings page's status, the breaker (`routes/chat`).
       await api.register(
         chatStaffRoutes({
           meta,
@@ -3802,6 +3802,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           scopes: chatScopes,
           installs: () => addOnInstalls.fresh(),
           ai: { connections: opts.chatSeams?.drafts ?? aiConnections, offHere: chatAnswererBase.offHere },
+          secret: env.ADMINIUM_SECRET,
+          // The status read's reach answer is the doors' own, as the forms status reads it.
+          reach: { networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY },
         }),
       );
     },
