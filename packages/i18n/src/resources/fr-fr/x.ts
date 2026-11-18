@@ -108,7 +108,11 @@ export default {
     "noScript": "Cette discussion a besoin de JavaScript."
   },
   "pages": {
-    "noScript": "Cette page a besoin de JavaScript."
+    "noScript": "Cette page a besoin de JavaScript.",
+    "loading": "Chargement de la page…",
+    "tooManyTitle": "Trop d’envois depuis cet appareil.",
+    "tooManyWrite": "Réessayez {when} ou écrivez à {email}.",
+    "tooManyLater": "Réessayez {when}."
   },
   "banner": {
     "title": "Pouvons-nous nous souvenir de votre visite ?",

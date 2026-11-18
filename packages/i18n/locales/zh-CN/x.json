@@ -98,7 +98,11 @@
     "noScript": "此对话需要 JavaScript。"
   },
   "pages": {
-    "noScript": "此页面需要 JavaScript。"
+    "noScript": "此页面需要 JavaScript。",
+    "loading": "正在加载页面…",
+    "tooManyTitle": "此处发送次数过多。",
+    "tooManyWrite": "请{when}再试，或写信至 {email}。",
+    "tooManyLater": "请{when}再试。"
   },
   "banner": {
     "title": "我们可以记住您的访问吗？",
