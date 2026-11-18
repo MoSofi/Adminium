@@ -17,11 +17,11 @@
  */
 import { randomBytes } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import BetterSqlite3 from 'better-sqlite3';
 import { composeServer, loadCliEnv, openRuntime, type ComposedServer } from '@adminium/server';
 import { createFirstSuperAdmin, firstRun, settingsRepo, usersRepo } from '@adminium/meta';
 
@@ -163,6 +163,13 @@ export interface ChatWorld {
   close(): Promise<void>;
 }
 
+/** The slice of the SQLite driver used here (it ships no types). */
+interface SqliteDb {
+  prepare(sql: string): { get(...args: unknown[]): unknown; run(...args: unknown[]): unknown };
+  close(): void;
+}
+type SqliteModule = new (file: string) => SqliteDb;
+
 const distUrl = (rel: string): string => pathToFileURL(join(repoRoot, 'apps', 'server', 'dist', rel)).href;
 
 export async function startChatWorld(): Promise<ChatWorld> {
@@ -170,6 +177,7 @@ export async function startChatWorld(): Promise<ChatWorld> {
   process.env['ADMINIUM_ADD_ON_DEV_TRUST'] = KEY;
   const dir = mkdtempSync(join(tmpdir(), 'adminium-chat-e2e-'));
   const sourceFile = join(dir, 'source.db');
+  const BetterSqlite3 = createRequire(import.meta.url)('better-sqlite3') as SqliteModule;
   new BetterSqlite3(sourceFile).close();
   const env = loadCliEnv({ ADMINIUM_SECRET: randomBytes(32).toString('hex') }, { port: CHAT_PORT, host: '127.0.0.1', dataDir: dir });
   const runtime = await openRuntime(env, { blockLoopback: false });
