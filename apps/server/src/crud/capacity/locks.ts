@@ -48,7 +48,7 @@ import { AppError, ConflictError } from '../../errors.js';
 type Db = Kysely<SourceDatabase>;
 
 /** What a writer is told when another held the lock for longer than a writer waits. */
-export type LockBusy = 'CAPACITY_BUSY' | 'BOOKING_BUSY' | 'NUMBER_BUSY';
+export type LockBusy = 'CAPACITY_BUSY' | 'BOOKING_BUSY' | 'NUMBER_BUSY' | 'WRITE_CONFLICT';
 
 /** One lock by name, and the refusal a writer hears when it cannot get it. */
 export interface NamedLock {
@@ -157,6 +157,8 @@ const lockTimedOut = (error: unknown): boolean => (error as { code?: unknown } |
 /** The refusal a writer hears when a name stays held by another. */
 function busyError(busy: LockBusy): AppError {
   if (busy === 'NUMBER_BUSY') return new AppError(409, busy, 'Another record is taking the next number. Try again in a moment.');
+  // A name held for a write's own reason (a landing page's address): the change another made at the same moment.
+  if (busy === 'WRITE_CONFLICT') return new ConflictError('Someone else changed this at the same moment. Try again.', busy, { retry: true });
   return new ConflictError('That time is busy. Try again in a moment.', busy);
 }
 

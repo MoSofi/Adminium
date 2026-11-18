@@ -94,7 +94,7 @@ import type { SourceDatabase } from '../connections/manager.js';
 import { columnGranted, refuseUngrantedColumns } from '../connections/privileges.js';
 import { getPrincipal } from '../rbac/principal.js';
 import { negotiateLocale } from '../plugins/surfaces.js';
-import { sealLandingWrite } from '../landing/seal.js';
+import { landingSlugLockName, sealLandingWrite, slugTakenRefusal } from '../landing/seal.js';
 import { capacityLockNames, touchesCapacity } from './capacity/judge.js';
 import { batchNeedsGuard, judgeRows, withLimitLocks } from './capacity/door.js';
 import { bookingColumn, bookingCounts, bookingDay, bookingLockName, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
@@ -2331,7 +2331,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     if (action === 'delete' || opts.landingPages === undefined) return values;
     if (!(await opts.landingPages(target.connectionId, target.table.id))) return values;
     const column = target.table.columns.get('published_at');
-    return sealLandingWrite({
+    let judged: { slug: string; own: Row | null } | null = null;
+    const sealed = await sealLandingWrite({
       action,
       table: target.table.id,
       values,
@@ -2339,16 +2340,52 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       assistant: context.request?.assistantVia != null,
       now: () => (column === undefined ? new Date().toISOString() : renderNow(column, new Date())),
       slugTaken: async (slug, own) => {
-        const keys = target.table.primaryKey;
-        const holders = (await target.db
-          .selectFrom(target.table.id)
-          .select(keys.map((key) => target.db.dynamic.ref(key)))
-          .where((eb) => eb(target.db.dynamic.ref('slug'), '=', slug))
-          .limit(2)
-          .execute()) as Row[];
-        return holders.some((holder) => own === null || !keys.every((key) => String(holder[key]) === String(own[key])));
+        judged = { slug, own };
+        return landingSlugHeld(target.db, target.table, slug, own);
       },
     });
+    // Judged again with the write, under the address's lock ({@link slugLocked}).
+    if (judged !== null) judgedSlugs.set(sealed, judged);
+    return sealed;
+  };
+
+  /** Whether a row of the table other than `own` holds the slug, read through `db`. */
+  const landingSlugHeld = async (db: Db, table: WriteTarget['table'], slug: string, own: Row | null): Promise<boolean> => {
+    const keys = table.primaryKey;
+    const holders = (await db
+      .selectFrom(table.id)
+      .select(keys.map((key) => db.dynamic.ref(key)))
+      .where((eb) => eb(db.dynamic.ref('slug'), '=', slug))
+      .limit(2)
+      .execute()) as Row[];
+    return holders.some((holder) => own === null || !keys.every((key) => String(holder[key]) === String(own[key])));
+  };
+
+  /** The address a sealed page write judged free, by the values the seal handed back. */
+  const judgedSlugs = new WeakMap<Row, { slug: string; own: Row | null }>();
+
+  /**
+   * A single row's write of a page that publishes at an address: run inside a
+   * transaction holding the address's named lock (`landing/seal.ts`), the
+   * address judged once more there, before the row is written. Two publishes
+   * of one address at one moment then go one after the other, and the second
+   * is refused. Any other write is run as it is. Inside a transaction already
+   * open on MySQL the name cannot be held until it commits: there it is
+   * judged again without it.
+   */
+  const slugLocked = <T>(target: Pick<WriteTarget, 'connectionId' | 'table' | 'dialect' | 'committedReads'>, given: Row, write: (db: Db) => Promise<T>): ((db: Db) => Promise<T>) => {
+    const judged = judgedSlugs.get(given);
+    if (judged === undefined) return write;
+    return (db) =>
+      withNamedLocks(
+        { db, dialect: target.dialect, ...(target.committedReads === true ? { committedReads: true as const } : {}) },
+        [{ name: landingSlugLockName(target.connectionId, target.table.id, judged.slug), busy: 'WRITE_CONFLICT' }],
+        async (trx) => {
+          if (await landingSlugHeld(trx, target.table, judged.slug, judged.own)) slugTakenRefusal(target.table.id);
+          return write(trx);
+        },
+        { openTransaction: 'run' },
+      );
   };
 
   /**
@@ -3792,6 +3829,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     checked: CheckedRow;
     /** The codes generated here, and left alone by the hooks: made again when one collides. */
     codes: ColumnCode[];
+    /** The values as the landing seal handed them back: a page published at an address is written under its lock. */
+    given: Row;
   }
 
   /**
@@ -3855,7 +3894,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     if (input.grants === true) refuseUngrantedColumns(target.rights, target.table, 'create', Object.keys(checked));
     // Only the codes generated here, and left alone by the hooks, are made again.
     const codes = generatedCodes(rules, filled, context.origin === 'undo').filter((code) => values[code.column] === resolved[code.column]);
-    return { rules, zone, values, checked, codes };
+    return { rules, zone, values, checked, codes, given };
   }
 
   /**
@@ -4445,7 +4484,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const hooks = current();
       // One clock for the write: its start for what is prepared here, its locked instant for what is judged under the locks.
       const clock = writeClock(context);
-      const { rules, zone, checked, codes } = await prepareOne({
+      const { rules, zone, checked, codes, given } = await prepareOne({
         target,
         values: input.values,
         context,
@@ -4483,7 +4522,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       /** Whether the look was taken again, from a row this save stored and took back (`StalePeek`). */
       let lookedAgain = false;
       let posted: PostedOutcome[] = [];
-      const write = async (db: Db) => {
+      const writeRow = async (db: Db) => {
         // A try that is run again starts from nothing: what an undone try posted was undone with it.
         posted = [];
         const peeked = posting;
@@ -4550,6 +4589,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         // …or as the price left it.
         return keepsOwnTotals(rules) || posted.some((call) => call.decided.length > 0) || adjusted.length > 0 ? { ...out, row: await readAgain(db, target.table, out.row) } : out;
       };
+      // A page published at an address: written under that address's lock, judged again there (`landing/seal.ts`).
+      const write = slugLocked(target, given, writeRow);
       let day: string | null = null;
       if (booking !== undefined && need !== null) {
         day = bookingDay(booking, checked, zone ?? 'UTC');
@@ -5261,7 +5302,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       /** What the change hands to a ledger, from the look each attempt takes before its locks. */
       let posting: Awaited<ReturnType<typeof ledgerWriter.peek>> = null;
       let posted: PostedOutcome[] = [];
-      const write = async (db: Db) => {
+      const writeRow = async (db: Db) => {
         // A try that is run again starts from nothing: what an undone try posted was undone with it.
         posted = [];
         // (An attempt that is made again starts with nothing priced: what an earlier one asked was rolled back with it.)
@@ -5441,6 +5482,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         }
         return changed;
       };
+      // A page published at an address: written under that address's lock, judged again there (`landing/seal.ts`).
+      const write = slugLocked(target, given, writeRow);
       let count: number;
       try {
         count = await conflicted(async () => {
