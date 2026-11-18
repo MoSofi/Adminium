@@ -17,6 +17,9 @@
  * the loader when it opens, closes, and how many replies came while closed.
  * On its own page (a preview, or the address opened directly) it measures
  * its own window instead.
+ *
+ * ITS WORDS are a namespace of their own (`words.ts`), added before the
+ * first render and before every language switch.
  */
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { switchLocale } from '@adminium/i18n/page';
@@ -27,6 +30,7 @@ import { languageOfTag, X_LANGUAGES } from '../words.js';
 import { chatDoor, type ChatConfig, type ChatDoorClient } from './api.js';
 import { ChatWindow } from './ChatWindow.js';
 import { readKept } from './keep.js';
+import { addChatWords } from './words.js';
 import { linkChatToLoader, type ChatLink, type HostView } from './link.js';
 import { useChatSession } from './session.js';
 import './chat.css';
@@ -60,6 +64,8 @@ export function ChatApp({ route, door: given }: { route: ChatRoute; door?: ChatD
 
   async function words(next: string): Promise<void> {
     const language = languageOfTag(next);
+    // The chat's own words in that language first, so the switch draws them at once.
+    await addChatWords(i18n, language.tag);
     await switchLocale(i18n, language.id);
     applyDirection(language);
     setTag(language.tag);
@@ -82,11 +88,20 @@ export function ChatApp({ route, door: given }: { route: ChatRoute; door?: ChatD
   useEffect(() => {
     // The language the visitor picked on an earlier page, else the website's.
     const kept = route.preview === true ? null : readKept(route.addOn)?.language;
-    void load(kept ?? route.lang ?? tag).then(setConfig);
+    void addChatWords(i18n, tag)
+      .then(() => load(kept ?? route.lang ?? tag))
+      .then(setConfig);
   }, []);
 
+  /** Another language, picked in the window: its words, then the business's own words (welcome, away) in it. */
+  async function choose(next: string): Promise<void> {
+    await words(next);
+    const read = await load(next);
+    if (read !== null) setConfig(read);
+  }
+
   if (config === null) return null;
-  return <ChatLive route={route} door={door} config={config} tag={tag} onWords={words} onReload={async () => (await load(tag)) ?? config} />;
+  return <ChatLive route={route} door={door} config={config} tag={tag} onWords={choose} onReload={async () => (await load(tag)) ?? config} />;
 }
 
 function ChatLive(props: { route: ChatRoute; door: ChatDoorClient; config: ChatConfig; tag: string; onWords: (tag: string) => Promise<void>; onReload: () => Promise<ChatConfig> }): ReactNode {

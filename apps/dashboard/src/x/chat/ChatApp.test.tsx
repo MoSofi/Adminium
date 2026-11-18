@@ -136,8 +136,10 @@ class FakeDoor implements ChatDoorClient {
     return message;
   }
 
-  async config() {
+  async config(opts: { lang: string | null }) {
     this.calls.push('config');
+    // As the door does: the language asked, when the chat offers it.
+    if (this.reply !== null && opts.lang !== null && this.reply.languages.includes(opts.lang)) return { ...this.reply, language: opts.lang };
     return this.reply;
   }
 
@@ -679,6 +681,43 @@ describe('outside hours', () => {
     const panel = await openPanel();
     expect(panel.querySelector('.xc-hours')).toHaveTextContent('Opens on 3 August at 9:00');
     expect(await line(panel, 'We’re away until 3 August at 9:00. Leave your question and your e-mail, and we’ll reply by e-mail.')).toBeInTheDocument();
+  });
+});
+
+describe('the business’s own words', () => {
+  it('its welcome line stands under its name in place of the hours; without one, the hours', async () => {
+    door.reply = config({ welcome: 'We usually answer within an hour' });
+    await show();
+    const panel = await openPanel();
+    expect(await line(panel, 'We usually answer within an hour')).toHaveClass('xc-hours');
+    expect(panel.textContent).not.toContain('Open today until');
+  });
+
+  it('its away sentence replaces the stock one, {opens} filled with the next opening; the e-mail sentence still follows the mail state', async () => {
+    door.reply = config({ ...CLOSED, automatic: false, outsideWords: 'Our team is back {opens}.' });
+    await show();
+    let panel = await openPanel();
+    expect(await line(panel, 'Our team is back 9:00 tomorrow. Leave your question and your e-mail, and we’ll reply by e-mail.')).toBeInTheDocument();
+    cleanup();
+    door = new FakeDoor();
+    door.reply = config({ ...CLOSED, automatic: false, mail: false, outsideWords: 'Our team is back {opens}.' });
+    await show();
+    panel = await openPanel();
+    expect(await line(panel, 'Our team is back 9:00 tomorrow. Write to us again then.')).toBeInTheDocument();
+  });
+
+  it('with no next opening to name, the stock sentence; without the token, the words as written, as plain text', async () => {
+    door.reply = config({ ...CLOSED, automatic: false, nextOpen: null, outsideWords: 'Back {opens}.' });
+    await show();
+    let panel = await openPanel();
+    expect(await line(panel, 'We’re away for now. Leave your question and your e-mail, and we’ll reply by e-mail.')).toBeInTheDocument();
+    cleanup();
+    door = new FakeDoor();
+    door.reply = config({ ...CLOSED, automatic: false, outsideWords: 'Closed for <b>holidays</b>.' });
+    await show();
+    panel = await openPanel();
+    expect(await line(panel, 'Closed for <b>holidays</b>. Leave your question and your e-mail, and we’ll reply by e-mail.')).toBeInTheDocument();
+    expect(panel.querySelector('b')).toBeNull();
   });
 });
 

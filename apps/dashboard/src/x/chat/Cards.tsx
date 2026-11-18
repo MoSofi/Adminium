@@ -58,7 +58,7 @@ export function HandCard(props: {
     return (
       <div className="xc-card">
         <p className="xc-card-text">
-          <Said text={t('x:chat.hand.info', 'A person will answer here. Keep this page open to see the reply.')} newTab={props.newTab} />
+          <Said text={t('xChat:hand.info', 'A person will answer here. Keep this page open to see the reply.')} newTab={props.newTab} />
         </p>
       </div>
     );
@@ -69,21 +69,21 @@ export function HandCard(props: {
     if (busy) return;
     const n = name.trim();
     const e = email.trim();
-    if (n === '' && e === '') return setError(t('x:chat.card.needOne', 'Add your name or e-mail first.'));
-    if (e !== '' && !looksLikeEmail(e)) return setError(t('x:chat.card.badEmail', 'Enter an e-mail like name@company.example'));
+    if (n === '' && e === '') return setError(t('xChat:card.needOne', 'Add your name or e-mail first.'));
+    if (e !== '' && !looksLikeEmail(e)) return setError(t('xChat:card.badEmail', 'Enter an e-mail like name@company.example'));
     setBusy(true);
     const result = await props.onSave(n, e);
     setBusy(false);
     if (result === 'saved') setError('');
-    else if (typeof result === 'object') setError(result.field === 'email' ? t('x:chat.card.badEmail', 'Enter an e-mail like name@company.example') : t('x:chat.card.badName', 'Write your name without a web address.'));
-    else setError(t('x:chat.status.notSent', 'Not sent.'));
+    else if (typeof result === 'object') setError(result.field === 'email' ? t('xChat:card.badEmail', 'Enter an e-mail like name@company.example') : t('xChat:card.badName', 'Write your name without a web address.'));
+    else setError(t('xChat:status.notSent', 'Not sent.'));
   }
 
   const saved = props.saved;
   const savedName = props.name.trim();
   const savedEmail = props.email.trim();
-  const done = `${savedName === '' ? t('x:chat.done.thanks', 'Thanks.') : t('x:chat.done.named', 'Thanks, {name}.', { name: savedName })} ${
-    savedEmail === '' ? t('x:chat.done.stay', 'Keep this page open to see the reply.') : t('x:chat.done.leave', 'If you leave, we’ll reply to {email}.', { email: savedEmail })
+  const done = `${savedName === '' ? t('xChat:done.thanks', 'Thanks.') : t('xChat:done.named', 'Thanks, {name}.', { name: savedName })} ${
+    savedEmail === '' ? t('xChat:done.stay', 'Keep this page open to see the reply.') : t('xChat:done.leave', 'If you leave, we’ll reply to {email}.', { email: savedEmail })
   }`;
   const helper = `${id}-helper`;
   const errorId = `${id}-error`;
@@ -91,7 +91,7 @@ export function HandCard(props: {
     <form className="xc-card" onSubmit={(event) => void save(event)} noValidate>
       {props.showText ? (
         <p className="xc-card-text">
-          <Said text={t('x:chat.hand.text', 'A person will answer here.')} newTab={props.newTab} />
+          <Said text={t('xChat:hand.text', 'A person will answer here.')} newTab={props.newTab} />
         </p>
       ) : null}
       {saved ? (
@@ -113,12 +113,12 @@ export function HandCard(props: {
               props.onChange();
             }}
           >
-            {t('x:chat.card.change', 'Change')}
+            {t('xChat:card.change', 'Change')}
           </button>
         </>
       ) : (
         <>
-          <Field id={`${id}-name`} label={t('x:chat.card.name', 'Your name (optional)')}>
+          <Field id={`${id}-name`} label={t('xChat:card.name', 'Your name (optional)')}>
             <input
               id={`${id}-name`}
               autoComplete="name"
@@ -129,7 +129,7 @@ export function HandCard(props: {
               }}
             />
           </Field>
-          <Field id={`${id}-email`} label={t('x:chat.card.emailOptional', 'Your e-mail (optional)')}>
+          <Field id={`${id}-email`} label={t('xChat:card.emailOptional', 'Your e-mail (optional)')}>
             <input
               id={`${id}-email`}
               type="email"
@@ -145,7 +145,7 @@ export function HandCard(props: {
               }}
             />
             <p id={helper} className="xc-helper">
-              {t('x:chat.card.helper', 'So we can reply if you close this page.')}
+              {t('xChat:card.helper', 'So we can reply if you close this page.')}
             </p>
           </Field>
           {error === '' ? null : (
@@ -154,7 +154,7 @@ export function HandCard(props: {
             </p>
           )}
           <button type="submit" className="xc-primary" disabled={busy}>
-            {t('x:chat.card.save', 'Save')}
+            {t('xChat:card.save', 'Save')}
           </button>
         </>
       )}
@@ -201,9 +201,9 @@ export function AwayCard(props: {
     if (status === 'checking') return;
     const q = question.trim();
     const e = email.trim();
-    if (q === '') return setError(t('x:chat.card.needQuestion', 'Write your question first.'));
-    if (e === '') return setError(t('x:chat.card.needEmail', 'Enter your e-mail so we can reply.'));
-    if (!looksLikeEmail(e)) return setError(t('x:chat.card.badEmail', 'Enter an e-mail like name@company.example'));
+    if (q === '') return setError(t('xChat:card.needQuestion', 'Write your question first.'));
+    if (e === '') return setError(t('xChat:card.needEmail', 'Enter your e-mail so we can reply.'));
+    if (!looksLikeEmail(e)) return setError(t('xChat:card.badEmail', 'Enter an e-mail like name@company.example'));
     setError('');
     setStatus('checking');
     const result = await props.onSend({ question: q, name: name.trim(), email: e });
@@ -220,10 +220,10 @@ export function AwayCard(props: {
       setStatus(null);
       setError(
         result.field === 'question'
-          ? t('x:chat.card.needQuestion', 'Write your question first.')
+          ? t('xChat:card.needQuestion', 'Write your question first.')
           : result.field === 'email'
-            ? t('x:chat.card.badEmail', 'Enter an e-mail like name@company.example')
-            : t('x:chat.card.badName', 'Write your name without a web address.'),
+            ? t('xChat:card.badEmail', 'Enter an e-mail like name@company.example')
+            : t('xChat:card.badName', 'Write your name without a web address.'),
       );
     }
   }
@@ -248,7 +248,7 @@ export function AwayCard(props: {
   return (
     <form className="xc-card" onSubmit={(event) => void send(event)} noValidate>
       {text}
-      <Field id={`${id}-q`} label={t('x:chat.card.question', 'Your question')}>
+      <Field id={`${id}-q`} label={t('xChat:card.question', 'Your question')}>
         <textarea
           id={`${id}-q`}
           rows={3}
@@ -260,7 +260,7 @@ export function AwayCard(props: {
           }}
         />
       </Field>
-      <Field id={`${id}-name`} label={t('x:chat.card.name', 'Your name (optional)')}>
+      <Field id={`${id}-name`} label={t('xChat:card.name', 'Your name (optional)')}>
         <input
           id={`${id}-name`}
           autoComplete="name"
@@ -271,7 +271,7 @@ export function AwayCard(props: {
           }}
         />
       </Field>
-      <Field id={`${id}-email`} label={t('x:chat.card.email', 'Your e-mail')}>
+      <Field id={`${id}-email`} label={t('xChat:card.email', 'Your e-mail')}>
         <input
           id={`${id}-email`}
           type="email"
@@ -293,19 +293,19 @@ export function AwayCard(props: {
         </p>
       )}
       <button type="submit" className="xc-primary" disabled={status === 'checking'}>
-        {t('x:chat.card.send', 'Send')}
+        {t('xChat:card.send', 'Send')}
       </button>
       {status === 'checking' ? (
         <span role="status" className="xc-status xc-card-status">
           <LoaderCircle className="x-spin" size={13} strokeWidth={2} aria-hidden="true" />
-          <span>{t('x:chat.status.checking', 'Checking you’re a person…')}</span>
+          <span>{t('xChat:status.checking', 'Checking you’re a person…')}</span>
         </span>
       ) : status === 'fail' || status === 'notSent' ? (
         <span role="alert" className="xc-status xc-card-status" data-bad="">
           {status === 'fail' ? <CircleAlert size={14} strokeWidth={2} aria-hidden="true" /> : <TriangleAlert size={14} strokeWidth={2} aria-hidden="true" />}
-          <span className="xc-status-text">{status === 'fail' ? t('x:chat.status.failed', 'We couldn’t check that you’re a person.') : t('x:chat.status.notSent', 'Not sent.')}</span>
+          <span className="xc-status-text">{status === 'fail' ? t('xChat:status.failed', 'We couldn’t check that you’re a person.') : t('xChat:status.notSent', 'Not sent.')}</span>
           <button type="button" className="xc-retry" onClick={() => void send()}>
-            {t('x:chat.status.retry', 'Try again')}
+            {t('xChat:status.retry', 'Try again')}
           </button>
         </span>
       ) : null}

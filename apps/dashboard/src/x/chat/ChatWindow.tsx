@@ -9,7 +9,8 @@
  * it turns to a chevron that hides the window. On a phone the window is a
  * sheet over the whole page, closed from its own header, with no launcher.
  *
- * THE PANEL. The business's logo (or its initials), name and today's hours;
+ * THE PANEL. The business's logo (or its initials), name, and under it the
+ * business's welcome line, else today's hours;
  * the language button when the chat speaks more than one; the log; the box.
  * The log starts with the first line, which says who answers here and
  * whether an AI service reads the messages, as it really is now (automatic
@@ -38,6 +39,8 @@ import type { Pending, useChatSession } from './session.js';
 
 /** The longest message the door takes, in code points. */
 export const MESSAGE_MAX = 2000;
+/** Where the business's own away words name the next opening. */
+export const OPENS_TOKEN = '{opens}';
 /** How long a person may be wanted before the window says it is still waiting. */
 export const WAITING_LONG_MS = 5 * 60_000;
 
@@ -75,7 +78,7 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
   const { config, chat, tag, sheet } = props;
   const { session } = chat;
   const business = config.business.name;
-  const newTab = t('x:chat.newTab', '(opens in a new tab)');
+  const newTab = t('xChat:newTab', '(opens in a new tab)');
   // Counts in Latin digits, as every number the product shows.
   const numbers = new Intl.NumberFormat(tag, { numberingSystem: 'latn' });
   const [menuOpen, setMenuOpen] = useState(false);
@@ -152,14 +155,18 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
   // ── The header ────────────────────────────────────────────────────────
   let hoursLine: string | null = null;
   if (hoursOpen && session.hours.closesAt !== null) {
-    hoursLine = t('x:chat.hours.openUntil', 'Open today until {time}', { time: closingOf(session.hours.closesAt, config.timeZone) });
+    hoursLine = t('xChat:hours.openUntil', 'Open today until {time}', { time: closingOf(session.hours.closesAt, config.timeZone) });
   } else if (!hoursOpen && session.hours.nextOpen !== null) {
     hoursLine = t(
-      'x:chat.hours.opens',
+      'xChat:hours.opens',
       '{day, select, today {Opens today at {time}} tomorrow {Opens tomorrow at {time}} date {Opens on {date} at {time}} other {Opens {weekday} at {time}}}',
       opensWords(session.hours.nextOpen, tag),
     );
   }
+
+  // The line under the name: the business's own welcome when it wrote one (in this language, else its default), else the hours.
+  const welcome = config.welcome?.trim() ?? '';
+  const headerLine = welcome === '' ? hoursLine : welcome;
 
   const offered = X_LANGUAGES.filter((one) => config.languages.includes(one.tag));
   const current = offered.find((one) => one.tag === tag) ?? X_LANGUAGES.find((one) => one.tag === tag) ?? X_LANGUAGES[0]!;
@@ -175,9 +182,9 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
       )}
       <div className="xc-title">
         <bdi className="xc-name">{business}</bdi>
-        {hoursLine === null ? null : (
+        {headerLine === null ? null : (
           <span className="xc-hours">
-            <Said text={hoursLine} newTab={newTab} />
+            <Said text={headerLine} newTab={newTab} />
           </span>
         )}
       </div>
@@ -187,7 +194,7 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
             ref={langRef}
             type="button"
             className="xc-lang"
-            aria-label={t('x:chat.languageOf', 'Language: {name}', { name: current.name })}
+            aria-label={t('xChat:languageOf', 'Language: {name}', { name: current.name })}
             aria-haspopup="true"
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((was) => !was)}
@@ -198,7 +205,7 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
             </span>
           </button>
           {menuOpen ? (
-            <ul className="xc-menu" aria-label={t('x:chat.language', 'Language')}>
+            <ul className="xc-menu" aria-label={t('xChat:language', 'Language')}>
               {offered.map((one) => (
                 <li key={one.tag}>
                   <button
@@ -225,7 +232,7 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
           ) : null}
         </div>
       )}
-      <button type="button" className="xc-square" aria-label={sheet ? t('x:chat.close', 'Close chat') : t('x:chat.hide', 'Hide chat')} onClick={close}>
+      <button type="button" className="xc-square" aria-label={sheet ? t('xChat:close', 'Close chat') : t('xChat:hide', 'Hide chat')} onClick={close}>
         {sheet ? <X size={18} strokeWidth={2} aria-hidden="true" /> : <ChevronDown size={18} strokeWidth={2} aria-hidden="true" />}
       </button>
     </header>
@@ -236,10 +243,10 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
   const service = config.aiService ?? '';
   const lineText =
     line === 'automatic'
-      ? t('x:chat.first.automatic', 'Some answers here are automatic, picked from answers {business} wrote. A person can take over at any time. Your messages are read by an AI service ({service}).', { business, service })
+      ? t('xChat:first.automatic', 'Some answers here are automatic, picked from answers {business} wrote. A person can take over at any time. Your messages are read by an AI service ({service}).', { business, service })
       : line === 'drafts'
-        ? t('x:chat.first.drafts', 'A person answers here. Staff may use an AI service ({service}) to help write replies.', { service })
-        : t('x:chat.first.person', 'A person answers here.');
+        ? t('xChat:first.drafts', 'A person answers here. Staff may use an AI service ({service}) to help write replies.', { service })
+        : t('xChat:first.person', 'A person answers here.');
   // Outside hours, with nothing asked of the visitor and no chat going on, there is nothing to say a first line about.
   const noticeShown = conversation || hoursOpen || config.mail || session.pending.length > 0;
   const notice = noticeShown ? (
@@ -247,7 +254,7 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
       <Said text={lineText} newTab={newTab} />{' '}
       {config.business.privacyNotice === null ? null : (
         <a href={config.business.privacyNotice} target="_blank" rel="noopener noreferrer">
-          {t('x:chat.privacy', 'Privacy notice.')}
+          {t('xChat:privacy', 'Privacy notice.')}
           <ExternalLink className="xc-link-icon" size={12} strokeWidth={2} aria-hidden="true" />
           <span className="x-sr">{newTab}</span>
         </a>
@@ -260,12 +267,12 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
 
   function systemLine(message: ChatMessage): string | null {
     const time = clockOf(message.sentAt, tag);
-    if (message.event === 'handed-over') return message.by === 'visitor' ? t('x:chat.asked', 'You asked for a person.') : null;
+    if (message.event === 'handed-over') return message.by === 'visitor' ? t('xChat:asked', 'You asked for a person.') : null;
     if (message.event === 'closed') {
-      return message.author === undefined ? t('x:chat.closed', 'This chat was closed · {time}', { time }) : t('x:chat.closedBy', '{name} closed this chat · {time}', { name: message.author.firstName, time });
+      return message.author === undefined ? t('xChat:closed', 'This chat was closed · {time}', { time }) : t('xChat:closedBy', '{name} closed this chat · {time}', { name: message.author.firstName, time });
     }
     if (message.event === 'reopened') {
-      return message.author === undefined ? t('x:chat.reopened', 'This chat was reopened · {time}', { time }) : t('x:chat.reopenedBy', '{name} reopened this chat · {time}', { name: message.author.firstName, time });
+      return message.author === undefined ? t('xChat:reopened', 'This chat was reopened · {time}', { time }) : t('xChat:reopenedBy', '{name} reopened this chat · {time}', { name: message.author.firstName, time });
     }
     // Any other line (a person taking the chat) is for the staff's side only.
     return null;
@@ -277,9 +284,9 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
     const closing = ended.closing === null ? '' : closingOf(ended.closing, config.timeZone);
     const text =
       ended.nextOpen === null
-        ? t('x:chat.hoursEnded.none', '{business}’s hours ended at {closing}. A person may still answer.', { business, closing })
+        ? t('xChat:hoursEnded.none', '{business}’s hours ended at {closing}. A person may still answer.', { business, closing })
         : t(
-            'x:chat.hoursEnded.next',
+            'xChat:hoursEnded.next',
             '{day, select, today {{business}’s hours ended at {closing}. A person may still answer; if not, we’ll reply after {time} today.} tomorrow {{business}’s hours ended at {closing}. A person may still answer; if not, we’ll reply after {time} tomorrow.} date {{business}’s hours ended at {closing}. A person may still answer; if not, we’ll reply on {date} after {time}.} other {{business}’s hours ended at {closing}. A person may still answer; if not, we’ll reply on {weekday} after {time}.}}',
             { business, closing, ...opensWords(ended.nextOpen, tag) },
           );
@@ -317,7 +324,7 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
         <div key={one.id} className="xc-theirs xc-auto">
           <span className="xc-auto-label">
             <BookOpen size={12} strokeWidth={2} aria-hidden="true" />
-            {other ? t('x:chat.automaticIn', 'Automatic answer · in {language}', { language: languageName(language, tag) }) : t('x:chat.automatic', 'Automatic answer')}
+            {other ? t('xChat:automaticIn', 'Automatic answer · in {language}', { language: languageName(language, tag) }) : t('xChat:automatic', 'Automatic answer')}
           </span>
           <div className="xc-bubble" dir="auto" lang={language}>
             <Said text={one.body} links newTab={newTab} />
@@ -334,7 +341,7 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
                 }}
               >
                 <UserRound size={14} strokeWidth={2} aria-hidden="true" />
-                {t('x:chat.talk', 'Talk to a person')}
+                {t('xChat:talk', 'Talk to a person')}
               </button>
             ) : null}
             <span className="xc-time x-mono">{time}</span>
@@ -349,7 +356,7 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
           <span className="xc-initials" aria-hidden="true">
             {author.initials}
           </span>
-          <bdi>{one.author === undefined ? business : t('x:chat.from', '{name} from {business}', { name: author.firstName, business })}</bdi>
+          <bdi>{one.author === undefined ? business : t('xChat:from', '{name} from {business}', { name: author.firstName, business })}</bdi>
         </span>
         <div className="xc-bubble" dir="auto">
           <Said text={one.body} links newTab={newTab} />
@@ -369,14 +376,14 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
         {one.status === 'checking' || one.status === 'queued' ? (
           <span role="status" className="xc-status">
             {one.status === 'checking' ? <LoaderCircle className="x-spin" size={13} strokeWidth={2} aria-hidden="true" /> : <Clock size={13} strokeWidth={2} aria-hidden="true" />}
-            <span>{one.status === 'checking' ? t('x:chat.status.checking', 'Checking you’re a person…') : t('x:chat.status.queued', 'Waiting to send')}</span>
+            <span>{one.status === 'checking' ? t('xChat:status.checking', 'Checking you’re a person…') : t('xChat:status.queued', 'Waiting to send')}</span>
           </span>
         ) : bad ? (
           <span role="alert" className="xc-status" data-bad="">
             {one.status === 'fail' ? <CircleAlert size={14} strokeWidth={2} aria-hidden="true" /> : <TriangleAlert size={14} strokeWidth={2} aria-hidden="true" />}
-            <span className="xc-status-text">{one.status === 'fail' ? t('x:chat.status.failed', 'We couldn’t check that you’re a person.') : t('x:chat.status.notSent', 'Not sent.')}</span>
+            <span className="xc-status-text">{one.status === 'fail' ? t('xChat:status.failed', 'We couldn’t check that you’re a person.') : t('xChat:status.notSent', 'Not sent.')}</span>
             <button type="button" className="xc-retry" onClick={() => chat.retry(one.key)}>
-              {t('x:chat.status.retry', 'Try again')}
+              {t('xChat:status.retry', 'Try again')}
             </button>
           </span>
         ) : null}
@@ -392,28 +399,39 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
   function waitWords(retryAfter: number | null): string {
     const minutes = Math.max(1, Math.ceil((retryAfter ?? 60) / 60));
     return minutes <= 1
-      ? t('x:chat.rate.minute', 'You’ve sent a lot of messages. Wait a minute, then try again.')
-      : t('x:chat.rate.wait', 'You’ve sent a lot of messages. Wait {minutes, plural, one {{n} minute} other {{n} minutes}}, then try again.', { minutes, n: numbers.format(minutes) });
+      ? t('xChat:rate.minute', 'You’ve sent a lot of messages. Wait a minute, then try again.')
+      : t('xChat:rate.wait', 'You’ve sent a lot of messages. Wait {minutes, plural, one {{n} minute} other {{n} minutes}}, then try again.', { minutes, n: numbers.format(minutes) });
   }
 
   const away: AwayWords = (() => {
     const next = session.hours.nextOpen;
     const when = next === null ? null : opensWords(next, tag);
-    const until =
+    const stockUntil =
       when === null
-        ? t('x:chat.away.now', 'We’re away for now.')
-        : t('x:chat.away.until', '{day, select, today {We’re away until {time} today.} tomorrow {We’re away until {time} tomorrow.} date {We’re away until {date} at {time}.} other {We’re away until {weekday} at {time}.}}', when);
+        ? t('xChat:away.now', 'We’re away for now.')
+        : t('xChat:away.until', '{day, select, today {We’re away until {time} today.} tomorrow {We’re away until {time} tomorrow.} date {We’re away until {date} at {time}.} other {We’re away until {weekday} at {time}.}}', when);
+    // The business's own away sentence, when it wrote one: plain text, its `{opens}` filled with the next opening
+    // ("9:00 tomorrow"); with no next opening to name, the stock sentence says it truly.
+    const own = config.outsideWords?.trim() ?? '';
+    const until =
+      own === ''
+        ? stockUntil
+        : !own.includes(OPENS_TOKEN)
+          ? own
+          : when === null
+            ? t('xChat:away.now', 'We’re away for now.')
+            : own.split(OPENS_TOKEN).join(t('xChat:away.opens', '{day, select, today {{time} today} tomorrow {{time} tomorrow} date {{date} at {time}} other {{weekday} at {time}}}', when));
     const tail = config.mail
-      ? t('x:chat.away.leave', 'Leave your question and your e-mail, and we’ll reply by e-mail.')
+      ? t('xChat:away.leave', 'Leave your question and your e-mail, and we’ll reply by e-mail.')
       : when === null
-        ? t('x:chat.away.later', 'Write to us again later.')
-        : t('x:chat.away.again', 'Write to us again then.');
+        ? t('xChat:away.later', 'Write to us again later.')
+        : t('xChat:away.again', 'Write to us again then.');
     return {
       text: `${until} ${tail}`,
       sent: (email: string) =>
         when === null
-          ? t('x:chat.away.sentNone', 'Thanks. We’ll reply to {email}.', { email })
-          : t('x:chat.away.sent', '{day, select, today {Thanks. We’ll reply to {email} after {time}.} tomorrow {Thanks. We’ll reply to {email} after {time}.} date {Thanks. We’ll reply to {email} on {date} after {time}.} other {Thanks. We’ll reply to {email} on {weekday} after {time}.}}', { ...when, email }),
+          ? t('xChat:away.sentNone', 'Thanks. We’ll reply to {email}.', { email })
+          : t('xChat:away.sent', '{day, select, today {Thanks. We’ll reply to {email} after {time}.} tomorrow {Thanks. We’ll reply to {email} after {time}.} date {Thanks. We’ll reply to {email} on {date} after {time}.} other {Thanks. We’ll reply to {email} on {weekday} after {time}.}}', { ...when, email }),
     };
   })();
 
@@ -421,14 +439,14 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
   if (session.lost) {
     log.push(
       <p key="lost" className="xc-quiet">
-        {t('x:chat.lost', 'We couldn’t find your earlier chat. Start a new one below.')}
+        {t('xChat:lost', 'We couldn’t find your earlier chat. Start a new one below.')}
       </p>,
     );
   }
   if (session.resumedAt !== null) {
     log.push(
       <p key="resumed" className="xc-sys">
-        <Said text={t('x:chat.resumed', 'Your chat from {time}', { time: clockOf(session.resumedAt, tag) })} newTab={newTab} />
+        <Said text={t('xChat:resumed', 'Your chat from {time}', { time: clockOf(session.resumedAt, tag) })} newTab={newTab} />
       </p>,
     );
   }
@@ -445,8 +463,8 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
           <Said
             text={
               quietMail
-                ? t('x:chat.waitingMail', 'Still waiting for someone at {business}. You can leave your e-mail and close this page.', { business })
-                : t('x:chat.waiting', 'Still waiting for someone at {business}.', { business })
+                ? t('xChat:waitingMail', 'Still waiting for someone at {business}. You can leave your e-mail and close this page.', { business })
+                : t('xChat:waiting', 'Still waiting for someone at {business}.', { business })
             }
             newTab={newTab}
           />
@@ -488,9 +506,9 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
     rate === null
       ? null
       : chatFull
-        ? t('x:chat.rate.chat', 'You’ve sent a lot of messages in this chat.')
+        ? t('xChat:rate.chat', 'You’ve sent a lot of messages in this chat.')
         : rate.cap === 'minute'
-          ? t('x:chat.rate.minute', 'You’ve sent a lot of messages. Wait a minute, then try again.')
+          ? t('xChat:rate.minute', 'You’ve sent a lot of messages. Wait a minute, then try again.')
           : waitWords(rate.until === null ? null : (rate.until - Date.now()) / 1000);
   const rateNode =
     rateLine === null ? null : (
@@ -509,7 +527,7 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
     props.setDraft('');
   }
 
-  const write = t('x:chat.write', 'Write a message…');
+  const write = t('xChat:write', 'Write a message…');
   const footer = ended ? (
     <div className="xc-new">
       {chatFull ? rateNode : null}
@@ -522,7 +540,7 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
         }}
       >
         <MessageCirclePlus size={17} strokeWidth={2} aria-hidden="true" />
-        {t('x:chat.newChat', 'Start a new chat')}
+        {t('xChat:newChat', 'Start a new chat')}
       </button>
     </div>
   ) : composerShown ? (
@@ -549,7 +567,7 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
             }
           }}
         />
-        <button type="submit" className="xc-send" aria-label={t('x:chat.send', 'Send')} disabled={limited || over}>
+        <button type="submit" className="xc-send" aria-label={t('xChat:send', 'Send')} disabled={limited || over}>
           <span className="xc-flip">
             <Send size={17} strokeWidth={2} aria-hidden="true" />
           </span>
@@ -563,7 +581,7 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
     </form>
   ) : null;
 
-  const panelLabel = t('x:chat.with', 'Chat with {business}', { business });
+  const panelLabel = t('xChat:with', 'Chat with {business}', { business });
   const panel = open ? (
     <section
       ref={panelRef}
@@ -582,10 +600,10 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
           <span className="xc-band-icon">
             <WifiOff size={14} strokeWidth={2} aria-hidden="true" />
           </span>
-          <span>{t('x:chat.offline', 'Can’t reach {business}. Trying again…', { business })}</span>
+          <span>{t('xChat:offline', 'Can’t reach {business}. Trying again…', { business })}</span>
         </div>
       ) : null}
-      <div ref={logRef} className="xc-log" role="log" aria-live="polite" aria-label={t('x:chat.log', 'Messages')}>
+      <div ref={logRef} className="xc-log" role="log" aria-live="polite" aria-label={t('xChat:log', 'Messages')}>
         {log}
       </div>
       {footer}
@@ -602,16 +620,16 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
       aria-expanded={open}
       aria-label={
         open
-          ? t('x:chat.hide', 'Hide chat')
+          ? t('xChat:hide', 'Hide chat')
           : unread > 0
-            ? t('x:chat.withNew', 'Chat with {business}, {count, plural, one {{n} new message} other {{n} new messages}}', { business, count: unread, n: numbers.format(unread) })
+            ? t('xChat:withNew', 'Chat with {business}, {count, plural, one {{n} new message} other {{n} new messages}}', { business, count: unread, n: numbers.format(unread) })
             : panelLabel
       }
       onClick={() => props.onToggle(!open)}
     >
       {open ? null : (
         <span className="xc-pill" lang={tag} dir={current.dir}>
-          {unread > 0 ? t('x:chat.newMessages', '{count, plural, one {{n} new message from {business}} other {{n} new messages from {business}}}', { business, count: unread, n: numbers.format(unread) }) : panelLabel}
+          {unread > 0 ? t('xChat:newMessages', '{count, plural, one {{n} new message from {business}} other {{n} new messages from {business}}}', { business, count: unread, n: numbers.format(unread) }) : panelLabel}
         </span>
       )}
       <span className="xc-circle">

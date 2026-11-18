@@ -175,6 +175,8 @@ test('on an Arabic website the launcher sits on the left and the window reads ri
     await launcher.click();
     const panel = chat.getByRole('dialog', { name: 'محادثة مع Meridian' });
     await expect(panel).toHaveAttribute('dir', 'rtl');
+    // The business's own welcome, in Arabic, under its name.
+    await expect(panel.locator('.xc-hours')).toHaveText('مرحبًا');
     await expect(panel.getByText(/^بعض الإجابات هنا تلقائية/)).toBeVisible();
     await expect(panel.getByRole('button', { name: 'اللغة: العربية' })).toContainText('AR');
     await expect(chat.locator('.xc')).toHaveAttribute('data-theme', 'dark');
