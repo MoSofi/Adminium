@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The host of this server's public address (`system.publicOrigin`) is never
- * given to the add-on pages, on every engine: the mail links, the pay page and
- * staff's own pages on it need the dashboard there. Another host is kept, and
+ * given to the add-on pages, on every engine: the mail links and staff's own
+ * pages on it need the dashboard there. Another host is kept, and
  * with no public address set nothing extra is refused.
  */
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';

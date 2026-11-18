@@ -162,7 +162,7 @@ function publicOriginIssue(host: string, key: string, publicOriginHost: string |
   if (publicOriginHost === null || publicOriginHost === undefined || key !== publicOriginHost) return null;
   return {
     path: host,
-    message: `"${host}" is the host of this server's public address — mapping it would take the dashboard away there, and with it the links in its mail and the pay page.`,
+    message: `"${host}" is the host of this server's public address — mapping it would take the dashboard away there, and with it the links in its mail.`,
     code: 'public_origin_host',
   };
 }
@@ -173,7 +173,7 @@ function publicOriginIssue(host: string, key: string, publicOriginHost: string |
  * a host is in one map or the other, never both. Two hosts are never given to
  * the pages: the one Studio is reached on (`requestHost`), and the host of the
  * public address (`publicOriginHost`, from {@link publicOriginHostOf}), which
- * the mail links, the pay page and staff's own pages on it all need.
+ * the mail links and staff's own pages on it both need.
  */
 export function validatePageHostEntries(
   entries: Readonly<Record<string, { home: string }>>,

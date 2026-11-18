@@ -88,7 +88,7 @@ describe('an app’s side on the public address’s host', () => {
       ['admin.example.test', 'request_host'],
     ]);
     expect(issues[0]?.message).toBe(
-      `"Go.Meridian.Example:443" is the host of this server's public address — mapping it would take the dashboard away there, and with it the links in its mail and the pay page.`,
+      `"Go.Meridian.Example:443" is the host of this server's public address — mapping it would take the dashboard away there, and with it the links in its mail.`,
     );
     expect(normalized).toEqual({ 'shop.meridian.example': { appKey: 'clients', side: 'customer' } });
     // A staff side the same way; with no public address, nothing extra.
