@@ -155,9 +155,9 @@ export const chatDraftReply = z.object({ data: z.object({ draft: z.string(), tok
 
 export const chatStatusReply = z.object({
   data: doorStatusData.extend({
-    /** The languages the window speaks: the workspace's default and each the owner wrote words in. */
+    /** The languages the window speaks: the server's default and each the owner wrote words in. */
     languages: z.array(z.string()),
-    /** The workspace's default language, as a chat names languages. */
+    /** The server's default language (`locale.default`), as a chat names languages. */
     defaultLanguage: z.string(),
     /** The business's name, as the window shows it. */
     businessName: z.string(),
@@ -495,7 +495,7 @@ export function chatStaffRoutes(deps: ChatStaffRoutesDeps): FastifyPluginAsyncZo
             tags,
             summary: 'What a website chat\'s settings page shows',
             description:
-              'Whether strangers can reach the chat, whether the privacy notice is set, the public address, the listed websites, whether mail goes (and why not), the roles a chat may tell, the chat\'s languages and the workspace default, the business\'s name and the time zone of the hours. For someone who may read the chat\'s settings.',
+              'Whether strangers can reach the chat, whether the privacy notice is set, the public address, the listed websites, whether mail goes (and why not), the roles a chat may tell, the chat\'s languages and the default one, the business\'s name and the time zone of the hours. For someone who may read the chat\'s settings.',
             params,
             querystring: query,
             response: { 200: chatStatusReply },

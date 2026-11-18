@@ -201,8 +201,8 @@ describe.each(LEGS)('a website chat’s settings page — %s', (dialect, availab
     expect(JSON.stringify(row)).not.toContain('sk-not-for-anyone');
     // The answerer's choices, whose tokens the usage card adds up.
     const choices = live.view.table(tables['live-chat:choices']!);
-    expect(choices.columns.find((column) => column.name === 'tokens_in')?.semantics?.flags.secret ?? false).toBe(false);
-    expect(choices.columns.find((column) => column.name === 'tokens_out')?.semantics?.flags.secret ?? false).toBe(false);
+    expect(choices.columns.get('tokens_in')?.secret).toBe(false);
+    expect(choices.columns.get('tokens_out')?.secret).toBe(false);
 
     // An add-on that says its day's tokens are a secret keeps them one.
     await settle('quiet-chat', { daily_tokens: 7000 });
