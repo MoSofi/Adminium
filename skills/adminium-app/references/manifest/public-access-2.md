@@ -7,7 +7,7 @@
 | `table` | yes | One of the app's table refs. |
 | `methods` | yes | At least one of `GET`, `POST`, `PATCH`. `PATCH` needs a `claim`, a `claimedBy` that is not `optional`, or a `visibleWith`. A self-made app may also use `PUT` (replace a row), `DELETE` (remove one) and `BATCH` (write many at a time), each only with a claim, as `PATCH`; anywhere else `DELETE` is only an add-on's own link's. Needs Adminium 0.3.49. |
 | `kind` | no | `records` (the default) or `availability`. |
-| `key` | no | The browser key that serves the entry: `customer` (the default) or a name in [`publicKeys`](https://docs.adminium.dev/reference/manifest/#publickeys). |
+| `key` | no | The browser key that serves the entry: `customer` (the default) or a name in [`publicKeys`](https://docs.adminium.dev/reference/manifest/#publickeys). Two names are reserved and never a browser key: `forms`, a table a form's answers may become a row of, and `chat`, a table a question left in a live chat outside hours becomes a row of (see [A table opened to a chat](https://docs.adminium.dev/reference/manifest/#a-table-opened-to-a-chat)). The public API never serves either. |
 | `module` | no | The [part](https://docs.adminium.dev/reference/manifest/#parts) of the app the entry belongs to: while that part is off the entry answers as one that is not there. Needs Adminium 0.3.28. |
 | `select` | no | The columns a response carries. Default: every column the app declares for the table. An entry with `claimedBy` must list them. |
 | `writable` | no | The columns a create or change may set. Never a column whose value Adminium decides. |
@@ -39,5 +39,3 @@
 | `dryRun` | no | `true`: the create or change may be tried without writing, to see every figure Adminium would work out. See [Dry runs, price checks and retries](https://docs.adminium.dev/reference/manifest/#dry-runs-price-checks-and-retries). |
 | `expect` | no | A money column Adminium works out, which the write may send its expected value for; a different figure writes nothing. |
 | `clientKey` | no | A column holding a key the browser mints, so a retried create lands on the same row. |
-| `identity` | no | On a create, the person it is made for, found or made by the address typed. See [A person found by address](https://docs.adminium.dev/reference/manifest/#a-person-found-by-address). |
-| `shareLink` | no | A share-code column: a create answers, once, the new row's own link. See [A row's own link](https://docs.adminium.dev/reference/manifest/#a-rows-own-link). |

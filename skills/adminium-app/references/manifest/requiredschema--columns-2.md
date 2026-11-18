@@ -4,7 +4,7 @@
 
 | Type | Created as |
 |---|---|
-| `id` | A string key (`varchar`). |
+| `id` | A string key (`varchar(36)`, text on SQLite). With `role: "pk"`, Adminium makes it: every create that sends no key gets a new uuid, on every engine. |
 | `int`, `bigint` | Integer. With `role: "pk"`, the key numbers itself (an identity or auto-increment column); an explicit value is still accepted. |
 | `text` | `text`, or `varchar(maxLength)`. A column with a `code` rule is exactly as wide as its codes. |
 | `decimal`, `money` | Decimal. |
@@ -15,7 +15,7 @@
 | `date` | Date. |
 | `time` | A time of day: `time` on Postgres and MySQL, text on SQLite. Needs Adminium 0.3.49. |
 | `timestamptz` | Timestamp with time zone. |
-| `uuid` | UUID. |
+| `uuid` | UUID (text on SQLite, `char(36)` on MySQL). With `role: "pk"`, every create that sends no key gets a new uuid. |
 | `fk` | A foreign key, typed like its target's primary key. |
 | `blob` | Binary. |
 

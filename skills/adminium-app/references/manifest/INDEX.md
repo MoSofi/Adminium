@@ -15,7 +15,7 @@
 | `references/manifest/requiredschema--what-the-plan-does-with-each-table.md` | requiredSchema — What the plan does with each table | 3104 |
 | `references/manifest/requiredschema--tables.md` | requiredSchema — Tables | 4982 |
 | `references/manifest/requiredschema--columns.md` | requiredSchema — Columns | 7389 |
-| `references/manifest/requiredschema--columns-2.md` | requiredSchema — Columns (part 2) | 3750 |
+| `references/manifest/requiredschema--columns-2.md` | requiredSchema — Columns (part 2) | 3978 |
 | `references/manifest/requiredschema--column-rules.md` | requiredSchema — Column rules | 7394 |
 | `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 7581 |
 | `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 6348 |
@@ -88,8 +88,8 @@
 | `references/manifest/people-2.md` | People (part 2) | 7722 |
 | `references/manifest/people-3.md` | People (part 3) | 308 |
 | `references/manifest/public-access.md` | Public access | 2014 |
-| `references/manifest/public-access-2.md` | Public access (part 2) | 7606 |
-| `references/manifest/public-access-3.md` | Public access (part 3) | 7296 |
+| `references/manifest/public-access-2.md` | Public access (part 2) | 7550 |
+| `references/manifest/public-access-3.md` | Public access (part 3) | 7679 |
 | `references/manifest/public-access--filters.md` | Public access — Filters | 835 |
 | `references/manifest/public-access--windows-on-a-moment.md` | Public access — Windows on a moment | 2049 |
 

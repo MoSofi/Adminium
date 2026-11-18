@@ -25,7 +25,7 @@
 | `references/guides/add-ons-with-tables--one-database.md` | One database | 515 |
 | `references/guides/add-ons-with-tables--the-check-before-anything-is-made.md` | The check, before anything is made | 719 |
 | `references/guides/add-ons-with-tables--its-pages-are-a-screen-not-a-wall.md` | Its pages are a screen, not a wall | 1283 |
-| `references/guides/add-ons-with-tables--the-data-kit.md` | The data kit | 4710 |
+| `references/guides/add-ons-with-tables--the-data-kit.md` | The data kit | 5355 |
 | `references/guides/add-ons-with-tables--the-data-kit--printing-from-a-page.md` | The data kit — Printing from a page | 886 |
 | `references/guides/add-ons-with-tables--the-data-kit--files-in-its-own-columns.md` | The data kit — Files in its own columns | 1902 |
 | `references/guides/add-ons-with-tables--the-data-kit--reading-an-app-s-prices.md` | The data kit — Reading an app's prices | 1845 |

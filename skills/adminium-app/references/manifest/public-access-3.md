@@ -4,6 +4,8 @@
 
 | Field | Required | Rule |
 |---|---|---|
+| `identity` | no | On a create, the person it is made for, found or made by the address typed. See [A person found by address](https://docs.adminium.dev/reference/manifest/#a-person-found-by-address). |
+| `shareLink` | no | A share-code column: a create answers, once, the new row's own link. See [A row's own link](https://docs.adminium.dev/reference/manifest/#a-rows-own-link). |
 | `newLink` | no | `{ "column", "kind", "when"? }`: "Make a new link" for a signed-in person's row, or "Send it again" through a row's own link. See [A row's own link](https://docs.adminium.dev/reference/manifest/#a-rows-own-link). |
 | `forget` | no | On an identity entry: what "delete my details" empties. See [Delete my details](https://docs.adminium.dev/reference/manifest/#delete-my-details). |
 | `withhold` | no | Columns left out of a row for some readers. See [Withheld columns](https://docs.adminium.dev/reference/manifest/#withheld-columns). |

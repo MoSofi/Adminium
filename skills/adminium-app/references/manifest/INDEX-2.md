@@ -52,7 +52,7 @@
 | `references/manifest/a-self-made-app--instance.md` | A self-made app — `instance` | 2327 |
 | `references/manifest/a-self-made-app--reports-invoicelayouts-and-scheduledreports.md` | A self-made app — `reports`, `invoiceLayouts` and `scheduledReports` | 1310 |
 | `references/manifest/a-self-made-app--payments.md` | A self-made app — `payments` | 6915 |
-| `references/manifest/add-on-manifests.md` | Add-on manifests | 5370 |
+| `references/manifest/add-on-manifests.md` | Add-on manifests | 5579 |
 | `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own.md` | Add-on manifests — An add-on with tables of its own | 7800 |
 | `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own-2.md` | Add-on manifests — An add-on with tables of its own (part 2) | 2439 |
 | `references/manifest/add-on-manifests--what-an-app-s-role-may-hold-of-an-add-on-s-table.md` | Add-on manifests — What an app's role may hold of an add-on's table | 4079 |
@@ -67,4 +67,6 @@
 | `references/manifest/add-on-manifests--a-panel-on-another-table-s-record.md` | Add-on manifests — A panel on another table's record | 2611 |
 | `references/manifest/add-on-manifests--an-add-on-that-works-with-another.md` | Add-on manifests — An add-on that works with another | 743 |
 | `references/manifest/add-on-manifests--what-a-typed-code-may-find.md` | Add-on manifests — What a typed code may find | 1966 |
+| `references/manifest/add-on-manifests--live-chat.md` | Add-on manifests — Live chat | 7102 |
+| `references/manifest/add-on-manifests--live-chat-2.md` | Add-on manifests — Live chat (part 2) | 1486 |
 | `references/manifest/validation.md` | Validation | 3648 |
