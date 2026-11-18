@@ -5972,7 +5972,7 @@ A value is plain JSON, or one of these directives:
 
 | Directive | Value |
 |---|---|
-| `{ "@ref": "<label>" }` | The key of an earlier row with that label. In an add-on's sample it may also be the label of one of the add-on's `seeds` rows (a unit the install wrote). |
+| `{ "@ref": "<label>" }` | The key of an earlier row with that label. In an add-on's sample it may also be the label of one of the add-on's `seeds` rows (a unit the install wrote). In a column, and anywhere inside a json value (a funnel's step, a page's link) down to 16 levels, where it is the key as text (`"7"`, not `7`): a json document names a row by a text key. A row whose key has several columns cannot be named inside json. |
 | `{ "@person": "<key>" }` | One of the manifest's [sample people](#sample-people): the staff member made for that key. In a [staff column](#whose-a-row-is) or another text column that holds a staff member's id, and anywhere inside a json value (a saved filter that names a rep). Only in the app's own sample file, not in its rows for an add-on. |
 | `{ "@ago": "PT19M" }` | An ISO 8601 duration before now. |
 | `{ "@in": "PT20M", "@grid": 15 }` | An ISO 8601 duration after now. With `@grid`, rounded up to the next step of that many minutes on the venue's own clock, counted from its midnight (never past the next midnight): the first pickup slot at least 20 minutes away. |
@@ -7100,7 +7100,13 @@ add-on's own staff screens.)
 Both are required, each a table of its own, and each has a numbered key: an `int` or `bigint`
 column with `"role": "pk"`. A funnel's step and a link to another page name a page by it. Staff
 write both tables: a role or an app's grant may create, update and delete them. No public entry of
-the add-on opens either table. A further column is nullable or has a default.
+the add-on opens either table. A further column is nullable, has a default, is decided by a rule
+(a `stamp`, a `code`), or is a time or a date with `"role": "updated_at"` or `"role": "created_at"`,
+which Adminium stamps on every write:
+
+```json
+{ "ref": "updated_at", "type": "timestamptz", "role": "updated_at" }
+```
 
 Each table has these columns, by these names. A table may add its own. A `text` column given here a
 length takes at least that many characters, or has no `maxLength`. A column marked "empty" is
