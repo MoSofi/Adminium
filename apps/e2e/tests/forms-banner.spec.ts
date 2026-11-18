@@ -9,7 +9,8 @@
  *    answer goes as it always did; no banner, no "Cookie choice";
  *  - at Per visitor nothing is stored before an answer; "No" sets no cookie
  *    and keeps only the choice in this browser; "Yes" leaves the server's
- *    cookie (host-only, `Path=/x/`, HttpOnly, Lax) and nothing in storage;
+ *    cookie (`__Host-`: host-only, `Path=/`, Secure, HttpOnly, Lax) and
+ *    nothing in storage;
  *  - the banner is docked under the page, never over it, at desktop and
  *    phone width, in English and right to left in Arabic, light and dark,
  *    and passes axe (WCAG 2.2 AA and best practice) asking and after a
@@ -95,11 +96,11 @@ async function serve(page: Page, world: World): Promise<void> {
       // The server's cookie, as `views/visitor.ts` sets it (a fulfilled route's Set-Cookie is not applied, so the jar is told directly).
       if (request.method() === 'POST') {
         world.said = true;
-        await page.context().addCookies([{ name: '__Secure-adm_v', value: 'Qm9vdGhzQW5kRGVza3NMZWVkcw', domain: 'forms.meridian.example', path: '/x/', expires: Math.floor(Date.now() / 1000) + 15_552_000, httpOnly: true, secure: true, sameSite: 'Lax' }]);
+        await page.context().addCookies([{ name: '__Host-adm_v', value: 'Qm9vdGhzQW5kRGVza3NMZWVkcw', url: `${ORIGIN}/`, expires: Math.floor(Date.now() / 1000) + 15_552_000, httpOnly: true, secure: true, sameSite: 'Lax' }]);
         return route.fulfill({ status: 200, json: { state: 'yes' } });
       }
       world.said = false;
-      await page.context().clearCookies({ name: '__Secure-adm_v' });
+      await page.context().clearCookies({ name: '__Host-adm_v' });
       return route.fulfill({ status: 200, json: { state: 'withdrawn' } });
     }
     if (path.endsWith('/challenge')) return route.fulfill({ status: 200, json: { id: 'eyJ2IjoxfQ~sig', salt: 'salt', difficulty: 1, expiresAt: Date.now() + 60_000 } });
@@ -188,7 +189,7 @@ test.describe('the visitor banner on a stranger’s form page', () => {
     expect(after.local).toEqual([]);
     expect(after.session).toEqual([]);
     expect(after.cookies.map(({ name, path, httpOnly, secure, sameSite, domain }) => ({ name, path, httpOnly, secure, sameSite, domain }))).toEqual([
-      { name: '__Secure-adm_v', path: '/x/', httpOnly: true, secure: true, sameSite: 'Lax', domain: 'forms.meridian.example' },
+      { name: '__Host-adm_v', path: '/', httpOnly: true, secure: true, sameSite: 'Lax', domain: 'forms.meridian.example' },
     ]);
     expect(after.cookies[0]!.expires * 1000).toBeLessThanOrEqual(Date.now() + 183 * 24 * 60 * 60 * 1000);
     // The answer goes with the cookie, so the server can join the visitor.
@@ -196,7 +197,7 @@ test.describe('the visitor banner on a stranger’s form page', () => {
     await page.locator('#x-q-qemail').fill('marta.kovac@cobaltlegal.example');
     await page.getByRole('button', { name: 'Send', exact: true }).click();
     await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
-    expect(world.answers.at(-1)?.cookie).toContain('__Secure-adm_v=');
+    expect(world.answers.at(-1)?.cookie).toContain('__Host-adm_v=');
     await context.close();
   });
 

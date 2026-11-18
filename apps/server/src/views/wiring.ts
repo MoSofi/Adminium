@@ -58,14 +58,28 @@ export async function createCounting(deps: { meta: MetaDb; secret: string; log: 
   let visitors: VisitorDoor | null = null;
   const counter = createViewCounter({
     add: (count) => views.add(count),
-    addVisits: (list) => kept.addVisits(list),
+    // The rows of the "yes"es whose first counted view this is, then the visits (a visit of nobody kept is dropped).
+    addVisits: async (list, newcomers) => {
+      if (visitors !== null) await visitors.admit(newcomers);
+      return kept.addVisits(list);
+    },
+    // Going down from "Per visitor", once more at this process's next flush.
+    dropVisitors: () => kept.deleteAll(),
     zoneOf: zoneOfInstall(meta, now),
     readLevel: () => settings.get('privacy.tracking'),
-    visitorOf: (request) => (visitors === null || request.protocol === undefined ? null : visitors.idOf({ headers: request.headers as never, protocol: request.protocol })),
+    visitorOf: (request) => (visitors === null || request.protocol === undefined ? null : visitors.proofOf({ headers: request.headers as never, protocol: request.protocol })),
     now,
     onError: (error) => deps.log.warn({ err: error }, 'view counts could not be written; this minute is dropped'),
   });
-  visitors = createVisitorDoor({ meta, secret: deps.secret, level: () => counter.level(), hashForWrite: (address) => ring.hashForWrite(address) });
+  visitors = createVisitorDoor({
+    meta,
+    secret: deps.secret,
+    level: () => counter.level(),
+    levelNow: () => counter.levelNow(),
+    hashForWrite: (address) => ring.hashForWrite(address),
+    hashesOf: (address) => ring.hashesOf(address),
+    now,
+  });
   await startCounting(meta, now()).catch((error: unknown) => deps.log.warn({ err: error }, 'when counting started could not be written'));
   await counter.refresh().catch(() => counter.level());
   return { counter, visitors };
