@@ -4721,7 +4721,9 @@
       "erase": "Erase…",
       "answers": "{count, plural, one {# answer} other {# answers}}",
       "invitations": "{count, plural, one {# invitation} other {# invitations}}",
-      "files": "{count, plural, one {# file} other {# files}}"
+      "files": "{count, plural, one {# file} other {# files}}",
+      "chats": "{count, plural, one {# conversation} other {# conversations}}",
+      "chatMessages": "{count, plural, one {# message} other {# messages}}"
     },
     "erase": {
       "goes": {
@@ -4733,7 +4735,8 @@
         "files": "{count, plural, one {# file} other {# files}}",
         "answers": "{count, plural, one {# form answer} other {# form answers}} in {label}",
         "invitations": "{count, plural, one {# survey invitation} other {# survey invitations}} in {label}, kept without their address",
-        "answerFiles": "{count, plural, one {# file} other {# files}} sent with form answers in {label}"
+        "answerFiles": "{count, plural, one {# file} other {# files}} sent with form answers in {label}",
+        "chats": "{count, plural, one {# chat conversation} other {# chat conversations}} in {label}, with their messages"
       },
       "stays": {
         "forGood": "Kept for good.",
@@ -4788,7 +4791,11 @@
       "answers": "Form answers — {addOn}",
       "answersMonths": "{count, plural, one {Kept for # month} other {Kept for # months}}",
       "answersUntilRemoved": "Kept until someone removes them",
-      "answersWhy": "Set in {addOn}’s settings. Older answers are deleted each night."
+      "answersWhy": "Set in {addOn}’s settings. Older answers are deleted each night.",
+      "chatConversations": "Chat conversations — {addOn}",
+      "chatMonths": "{count, plural, one {Kept for # month} other {Kept for # months}}",
+      "chatUntilRemoved": "Kept until someone removes them",
+      "chatWhy": "Set in {addOn}’s settings. Older conversations are deleted each night, with their messages."
     },
     "downloads": {
       "processing": "Being made…",

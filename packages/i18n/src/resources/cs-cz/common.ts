@@ -1453,8 +1453,7 @@ export default {
   },
   "chat": {
     "messageSent": "Zpráva odeslána",
-    "sendFailed": "Zprávu se nepodařilo odeslat.",
-    "budgetEvent": "Automatické odpovědi chatu jsou pro dnešek zastavené"
+    "sendFailed": "Zprávu se nepodařilo odeslat."
   },
   "templates": {
     "crud": {
@@ -1605,7 +1604,12 @@ export default {
       "reportFailed": "Naplánovaná sestava selhala",
       "backupCompleted": "Záloha dokončena",
       "ruleNotice": "Upozornění z pravidla",
-      "mention": "Někdo mě zmínil"
+      "mention": "Někdo mě zmínil",
+      "formsAnswer": "Formulář má novou odpověď",
+      "formsLimit": "Formulář dosáhl svého limitu",
+      "chatBudget": "Automatické odpovědi chatu jsou pro dnešek zastavené",
+      "chatWaiting": "Chat na webu čeká na člověka",
+      "chatPaused": "Nové chaty na webu byly pozastaveny"
     }
   },
   "theme": {

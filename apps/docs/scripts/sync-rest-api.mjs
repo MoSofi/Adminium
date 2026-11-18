@@ -41,6 +41,11 @@ const check = process.argv.includes('--check');
  */
 const DESCRIPTIONS = {
   about: 'Build version, edition, and the update check',
+  chat:
+    'A website chat, for staff: whether its automatic answers can call an AI service and a question tried ' +
+    'on them; the visitor on the page or gone; taking, replying (also mailed to a visitor who left an ' +
+    'address and the page), closing and reopening a conversation; an enquiry made from it under the ' +
+    'person’s own create; a reply drafted by Milo; and the breaker’s pause on new chats',
   forms:
     'Whether mail a stranger causes through a form (a sign-up’s confirmation, staff notices by ' +
     'e-mail) goes now, and why not: no public address, or no mail server, for anybody signed in; what a ' +

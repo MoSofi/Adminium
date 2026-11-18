@@ -994,6 +994,15 @@
     "budgetBody": "{chat} spotřeboval před 18:00 UTC všechny tokeny, které smí dnes utratit ({tokens}), takže do půlnoci UTC odpovídá každému návštěvníkovi člověk. Takhle brzké vyčerpání může znamenat, že někdo posílá velmi mnoho zpráv. Podívejte se na dnešní konverzace, nebo zvyšte denní počet tokenů v nastavení chatu.",
     "aiNotice": "Zprávy návštěvníků se posílají do {service}, aby se vybrala odpověď. Nic jiného se neposílá.",
     "pausedTitle": "Nové chaty jsou pozastavené: {chat}",
-    "pausedBody": "Během hodiny začalo tolik nových chatů, že to vypadá na skript. Noví návštěvníci nemohou začít chat až do {time}; probíhající chaty pokračují. Nové chaty můžete obnovit dříve v nastavení chatu."
+    "pausedBody": "Během hodiny začalo tolik nových chatů, že to vypadá na skript. Noví návštěvníci nemohou začít chat až do {time}; probíhající chaty pokračují. Nové chaty můžete obnovit dříve v nastavení chatu.",
+    "replyName": "Odpověď v chatu",
+    "replySubject": "Odpověď od {business}",
+    "replyPreheader": "{business} odpověděl na váš chat.",
+    "replyHeading": "{business} odpověděl na váš chat",
+    "replyNotice": "Tento e-mail dostáváte, protože tato adresa byla zadána v chatu na webu {business}. Pokud jste to nebyli vy, můžete ho ignorovat.",
+    "waitingTitle": "Chat čeká: {chat}",
+    "waitingBody": "{name} čeká na odpověď od člověka.",
+    "waitingOutside": "{name} zanechal(a) otázku mimo vaši pracovní dobu a čeká na odpověď od člověka.",
+    "waitingSomeone": "Návštěvník"
   }
 }

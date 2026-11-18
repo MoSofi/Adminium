@@ -95,7 +95,7 @@ export const erasePreviewReply = z.object({
     /** What goes: their rows, copies of them, their mail, consent entries, campaign sends, files on their rows. */
     goes: z.array(
       z.object({
-        kind: z.enum(['people', 'copy', 'outbox', 'consent', 'campaign-mail', 'files', 'form-answers', 'form-invitations', 'form-files']),
+        kind: z.enum(['people', 'copy', 'outbox', 'consent', 'campaign-mail', 'files', 'form-answers', 'form-invitations', 'form-files', 'chat-conversations']),
         count: z.number(),
         connectionId: z.string().optional(),
         table: z.string().optional(),
@@ -126,7 +126,7 @@ export const keepingReply = z.object({
         fixed: z.boolean(),
         keptFor: z.union([z.literal('forever'), z.literal('until-erased'), z.literal('until-removed'), z.number()]),
         options: z.array(z.number()),
-        /** A row an add-on keeps (its form answers): the add-on, whose own settings say how long. */
+        /** A row an add-on keeps (its form answers, its chat conversations): the add-on, whose own settings say how long. */
         addOn: z.object({ key: z.string(), name: z.string() }).optional(),
       }),
     ),

@@ -994,6 +994,15 @@
     "budgetBody": "{chat} 在 UTC 18:00 之前就用完了今天可用的全部 {tokens} 個 token，因此在 UTC 午夜之前，每位訪客都由真人回答。這麼早用完，可能是有人在傳送大量訊息。請查看今天的對話，或在聊天設定中提高每日 token 數。",
     "aiNotice": "訪客的訊息會傳送到 {service}，用來選擇一個回答。不會傳送其他任何內容。",
     "pausedTitle": "新對話已暫停：{chat}",
-    "pausedBody": "一小時內開始的新對話太多，看起來像是腳本所為。在 {time} 之前，新訪客無法開始對話；進行中的對話不受影響。你可以在對話設定中提前恢復新對話。"
+    "pausedBody": "一小時內開始的新對話太多，看起來像是腳本所為。在 {time} 之前，新訪客無法開始對話；進行中的對話不受影響。你可以在對話設定中提前恢復新對話。",
+    "replyName": "聊天回覆",
+    "replySubject": "來自 {business} 的回覆",
+    "replyPreheader": "{business} 回覆了您的聊天。",
+    "replyHeading": "{business} 回覆了您的聊天",
+    "replyNotice": "您收到這封郵件，是因為有人在 {business} 網站的聊天中留下了這個地址。如果不是您本人，請忽略。",
+    "waitingTitle": "有聊天在等待：{chat}",
+    "waitingBody": "{name} 正在等待真人回覆。",
+    "waitingOutside": "{name} 在營業時間外留下了問題，正在等待真人回覆。",
+    "waitingSomeone": "一位訪客"
   }
 }

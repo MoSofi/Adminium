@@ -59,6 +59,7 @@ export const INSTANCE_SYSTEM_EMAIL_KEYS = [
   'payment-link',
   'payment-receipt',
   'sign-up-confirm',
+  'chat-reply',
 ] as const;
 
 /**

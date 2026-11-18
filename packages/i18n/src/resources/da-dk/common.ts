@@ -1453,8 +1453,7 @@ export default {
   },
   "chat": {
     "messageSent": "Besked sendt",
-    "sendFailed": "Beskeden kunne ikke sendes.",
-    "budgetEvent": "En chats automatiske svar er stoppet for i dag"
+    "sendFailed": "Beskeden kunne ikke sendes."
   },
   "templates": {
     "crud": {
@@ -1605,7 +1604,12 @@ export default {
       "reportFailed": "Planlagt rapport mislykkedes",
       "backupCompleted": "Backup fuldført",
       "ruleNotice": "En besked fra en regel",
-      "mention": "Nogen har nævnt mig"
+      "mention": "Nogen har nævnt mig",
+      "formsAnswer": "En formular har fået et nyt svar",
+      "formsLimit": "En formular har nået sin grænse",
+      "chatBudget": "En chats automatiske svar er stoppet for i dag",
+      "chatWaiting": "En chat på hjemmesiden venter på en person",
+      "chatPaused": "Nye chats på hjemmesiden blev sat på pause"
     }
   },
   "theme": {

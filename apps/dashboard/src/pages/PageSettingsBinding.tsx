@@ -27,6 +27,7 @@ import { t } from '../i18n/t.js';
 import type { PageTemplateProps } from './template-types.js';
 
 /** Known event keys → human labels (new producers add a line + i18n key). */
+// Under `notifications.event`, which every first load carries: `chat` is a group of words deferred to the chat page's chunk.
 const EVENT_LABELS: Record<string, { key: string; en: string }> = {
   'report.ready': { key: 'notifications.event.reportReady', en: 'Scheduled report ready' },
   'report.failed': { key: 'notifications.event.reportFailed', en: 'Scheduled report failed' },
@@ -36,7 +37,11 @@ const EVENT_LABELS: Record<string, { key: string; en: string }> = {
   },
   'automation.notice': { key: 'notifications.event.ruleNotice', en: 'A notice from a rule' },
   mention: { key: 'notifications.event.mention', en: 'Somebody mentioned me' },
-  'chat.budget': { key: 'chat.budgetEvent', en: 'A chat’s automatic answers stopped for the day' },
+  'chat.budget': { key: 'notifications.event.chatBudget', en: 'A chat’s automatic answers stopped for the day' },
+  'chat.waiting': { key: 'notifications.event.chatWaiting', en: 'A website chat is waiting for a person' },
+  'chat.paused': { key: 'notifications.event.chatPaused', en: 'New website chats were paused' },
+  'forms.answer': { key: 'notifications.event.formsAnswer', en: 'A form has a new answer' },
+  'forms.limit': { key: 'notifications.event.formsLimit', en: 'A form hit its limit' },
 };
 
 export function eventLabel(eventKey: string): string {

@@ -22,6 +22,20 @@ export const DEFAULT_NOTIFICATION_CHANNELS: NotificationChannels = {
   push: false,
 };
 
+/**
+ * Kinds that come often enough that mailing them by default would flood an
+ * inbox: the bell alone until the person switches e-mail on themselves. A
+ * website chat waiting for a person is one (a busy site has many a day).
+ */
+export const NOTIFICATION_KIND_DEFAULTS: Readonly<Record<string, NotificationChannels>> = {
+  'chat.waiting': { inApp: true, email: false, push: false },
+};
+
+/** The channels an event has for a person who never changed them. */
+export function defaultChannelsFor(eventKey: string): NotificationChannels {
+  return { ...(NOTIFICATION_KIND_DEFAULTS[eventKey] ?? DEFAULT_NOTIFICATION_CHANNELS) };
+}
+
 export interface NotificationPref {
   userId: string;
   eventKey: string;
@@ -53,7 +67,7 @@ export function notificationPrefsRepo(meta: MetaDb) {
 
     /** Stored channels for one event, defaults when no row exists. */
     async channelsFor(userId: string, eventKey: string): Promise<NotificationChannels> {
-      return (await get(userId, eventKey))?.channels ?? { ...DEFAULT_NOTIFICATION_CHANNELS };
+      return (await get(userId, eventKey))?.channels ?? defaultChannelsFor(eventKey);
     },
 
     async listForUser(userId: string): Promise<NotificationPref[]> {

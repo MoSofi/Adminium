@@ -209,6 +209,14 @@ export function createChatCaps(deps: ChatCapsDeps) {
 
     once,
 
+    /** How many marks of `purpose` for `subject` were made in the `window` before `at`: what {@link once} has counted. */
+    used: (subject: string, purpose: string, window: number, at: number): Promise<number> => marks.sentSince(subject, at - window, purpose),
+
+    /** Takes back every mark of `purpose` for `subject`: what {@link once} counted starts again from nothing. */
+    async clearOnce(subject: string, purpose: string): Promise<void> {
+      await meta.db.deleteFrom('adminium_form_marks').where('subject', '=', subject).where('purpose', '=', purpose).execute();
+    },
+
     /** The sweep of the addresses' hashes past their keeping time. Answers how many went. */
     prune: (at: number) => pruneAddresses(at, true),
   };
