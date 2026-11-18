@@ -107,7 +107,9 @@
       "uninstall": "Désinstaller",
       "setUpInPayments": "Configurer dans Paiements",
       "paymentsWho": "Une personne ayant l’autorisation « Configurer les paiements » le configure dans Paiements.",
-      "sourcesWhere": "Configurez ses sources sur son écran « Sources »."
+      "sourcesWhere": "Configurez ses sources sur son écran « Sources ».",
+      "sourceEgress": "{source} peut contacter : {hosts}",
+      "sourceWebsite": "{source} : Adminium lit lui-même le site de chaque entreprise"
     },
     "job": {
       "body": "Récupération et vérification. Rien n’est installé sans votre accord.",

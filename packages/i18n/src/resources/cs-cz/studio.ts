@@ -117,7 +117,9 @@ export default {
       "uninstall": "Uninstall",
       "setUpInPayments": "Nastavit v Platbách",
       "paymentsWho": "Nastaví ho v Platbách někdo s oprávněním „Nastavit platby“.",
-      "sourcesWhere": "Zdroje nastavte na jeho obrazovce Zdroje."
+      "sourcesWhere": "Zdroje nastavte na jeho obrazovce Zdroje.",
+      "sourceEgress": "{source} smí kontaktovat: {hosts}",
+      "sourceWebsite": "{source}: Adminium čte web každé firmy samo"
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",

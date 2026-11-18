@@ -117,7 +117,9 @@ export default {
       "uninstall": "Uninstall",
       "setUpInPayments": "الإعداد في المدفوعات",
       "paymentsWho": "يُعدّه في المدفوعات من لديه إذن «إعداد المدفوعات».",
-      "sourcesWhere": "اضبط مصادرها في شاشة المصادر الخاصة بها."
+      "sourcesWhere": "اضبط مصادرها في شاشة المصادر الخاصة بها.",
+      "sourceEgress": "يمكن لـ {source} الاتصال بـ: {hosts}",
+      "sourceWebsite": "{source}: يقرأ Adminium موقع كل شركة بنفسه"
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",

@@ -117,7 +117,9 @@ export default {
       "uninstall": "Deinstallieren",
       "setUpInPayments": "In Zahlungen einrichten",
       "paymentsWho": "Eingerichtet wird das in Zahlungen, von jemandem mit der Berechtigung „Zahlungen einrichten“.",
-      "sourcesWhere": "Richten Sie seine Quellen auf seinem eigenen Bildschirm „Quellen“ ein."
+      "sourcesWhere": "Richten Sie seine Quellen auf seinem eigenen Bildschirm „Quellen“ ein.",
+      "sourceEgress": "{source} darf Folgendes kontaktieren: {hosts}",
+      "sourceWebsite": "{source}: Adminium liest die Website jeder Firma selbst"
     },
     "job": {
       "body": "Wird geladen und geprüft. Installiert wird erst auf Ihr Wort.",

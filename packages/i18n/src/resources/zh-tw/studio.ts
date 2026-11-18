@@ -117,7 +117,9 @@ export default {
       "uninstall": "Uninstall",
       "setUpInPayments": "在「付款」中設定",
       "paymentsWho": "由擁有「設定付款」權限的人在「付款」中設定。",
-      "sourcesWhere": "請在它自己的「來源」頁面上設定它的來源。"
+      "sourcesWhere": "請在它自己的「來源」頁面上設定它的來源。",
+      "sourceEgress": "{source} 可以聯絡：{hosts}",
+      "sourceWebsite": "{source}：Adminium 自行讀取每家公司的網站"
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",

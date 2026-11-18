@@ -24787,6 +24787,14 @@
     "status": "mt",
     "srcHash": "8c6f3aa1aa0d"
   },
+  "studio.addOns.installed.sourceEgress": {
+    "status": "mt",
+    "srcHash": "d9eed47d89a1"
+  },
+  "studio.addOns.installed.sourceWebsite": {
+    "status": "mt",
+    "srcHash": "37a51c826129"
+  },
   "studio.addOns.installed.sourcesWhere": {
     "status": "mt",
     "srcHash": "6900adb2f5f4"

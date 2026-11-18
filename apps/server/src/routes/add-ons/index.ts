@@ -62,7 +62,7 @@
  * build behind, and only `openapi-check` catches it.
  */
 
-import { PAYMENT_PROVIDER_CONTRACT, SLOT_REGISTRY } from '@adminium/add-on-contracts';
+import { PAYMENT_PROVIDER_CONTRACT, SLOT_REGISTRY, sourceConsentLines } from '@adminium/add-on-contracts';
 import {
   compareSemver,
   installsLikeAnApp,
@@ -759,6 +759,8 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       })),
       provides: (block.provides ?? []).map((p) => ({ contract: p.contract, version: p.version })),
       networkAllow: block.network?.allow ?? [],
+      // An add-on with sources: the hosts each source may contact, as the install consent lists them.
+      ...((block.sources ?? []).length === 0 ? {} : { sources: sourceConsentLines(block) }),
       /*
        * The manifest's declaration, flattened for a form that has to render
        * every variant with one component. `enum`'s options come across because
