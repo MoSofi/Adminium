@@ -564,8 +564,28 @@ export function createChatStore(deps: ChatStoreDeps) {
      */
     update,
 
-    /** Links the row of an app's table a conversation became (`<app>:<table>` and its key). */
-    link: (chat: LiveChat, id: string, became: { table: string; key: string }, opts: { on?: Kysely<SourceDatabase> } = {}) => update(chat, id, { becameTable: became.table, becameKey: became.key }, opts),
+    /**
+     * Links the row of an app's table a conversation became (`<app>:<table>`
+     * and its key), only while it became none: one conditional statement, so
+     * of two links at the same moment exactly one wins (`linked`), and the
+     * other finds the first's row on the conversation.
+     */
+    async link(chat: LiveChat, id: string, became: { table: string; key: string }, opts: { on?: Kysely<SourceDatabase> } = {}): Promise<{ linked: boolean; conversation: ChatConversation | null }> {
+      const db = opts.on ?? chat.db;
+      const { table, pk } = chat.conversations;
+      const columns = patchColumns({ becameTable: became.table, becameKey: became.key });
+      const result = await db
+        .updateTable(table.id as never)
+        .set(storedColumns(table, columns, chat.dialect) as never)
+        .where(sql.ref(pk), '=', boundKey(id))
+        .where(sql.ref('became_key'), 'is', null)
+        .executeTakeFirst();
+      const linked = Number(result.numUpdatedRows) > 0;
+      const conversation = await readConversation(chat, id, db);
+      if (conversation !== null) moved(chat, conversation, null);
+      if (linked && opts.on === undefined) publish(chat, chat.conversations, 'update', { [pk]: boundKey(id), ...columns });
+      return { linked, conversation };
+    },
 
     /** One choice the answerer made, in the choices table. */
     async logChoice(chat: LiveChat, choice: ChatChoiceRow): Promise<void> {
