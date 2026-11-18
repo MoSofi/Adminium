@@ -100,7 +100,7 @@ describe('the chat door routes', () => {
     // A signed-in person, as the session plugin makes one: `x-test-reader` may read the conversations, `x-test-staff` may not.
     app.decorateRequest('user', null);
     app.decorateRequest('session', null);
-    app.decorateRequest('can', null);
+    app.decorateRequest('can', null as never);
     app.addHook('onRequest', async (request, reply) => {
       void reply.header('x-frame-options', 'SAMEORIGIN');
       const reader = request.headers['x-test-reader'] !== undefined;

@@ -52,6 +52,8 @@ export interface ChatTable {
 /** A chat as the engine serves and writes it. */
 export interface LiveChat {
   addOn: string;
+  /** The add-on's install (`adminium_manifests.id`): what the answerer's daily tally is kept by. */
+  installId: string;
   /** Its name, as its manifest gives it. */
   name: string;
   version: string;
@@ -116,16 +118,16 @@ export function createChatCatalog(deps: ChatCatalogDeps) {
    * vouched or set: null when no such add-on is installed with its tables.
    * `on`: switched on for at least one place it is attached to.
    */
-  async function resolve(addOn: string): Promise<{ chat: LiveChat; on: boolean } | null> {
+  async function resolve(addOn: string, installId?: string): Promise<{ chat: LiveChat; on: boolean } | null> {
     if (!ADD_ON_KEY.test(addOn)) return null;
-    const rows = await deps.meta.db
+    let query = deps.meta.db
       .selectFrom('adminium_manifests')
-      .select(['manifestKey', 'connectionId'])
+      .select(['id', 'manifestKey', 'connectionId'])
       .where('kind', '=', 'add-on')
       .where('status', '=', 'installed')
-      .where('manifestKey', '=', addOn)
-      .orderBy('installedAt')
-      .execute();
+      .where('manifestKey', '=', addOn);
+    if (installId !== undefined) query = query.where('id', '=', installId);
+    const rows = await query.orderBy('installedAt').execute();
     const installs = await deps.installs();
     for (const row of rows) {
       if (row.connectionId === null) continue;
@@ -151,6 +153,7 @@ export function createChatCatalog(deps: ChatCatalogDeps) {
       return {
         chat: {
           addOn,
+          installId: row.id,
           name,
           version: installed.version,
           connectionId: row.connectionId,
@@ -199,11 +202,11 @@ export function createChatCatalog(deps: ChatCatalogDeps) {
   /**
    * The chat an add-on key names, for staff (the preview, the staff routes):
    * installed with its tables, whether or not it is switched on, vouched for
-   * or its privacy notice set. Never cached: staff ask rarely, and a change
-   * they just made shows at once.
+   * or its privacy notice set; on the install `installId` names, when given.
+   * Never cached: staff ask rarely, and a change they just made shows at once.
    */
-  async function forStaff(addOn: string): Promise<LiveChat | null> {
-    return (await resolve(addOn))?.chat ?? null;
+  async function forStaff(addOn: string, installId?: string): Promise<LiveChat | null> {
+    return (await resolve(addOn, installId))?.chat ?? null;
   }
 
   return { find, forStaff, forget: (addOn?: string) => (addOn === undefined ? cache.clear() : cache.delete(addOn)) };

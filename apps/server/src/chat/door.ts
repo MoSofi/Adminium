@@ -31,7 +31,7 @@ import { createHash, createHmac } from 'node:crypto';
 
 import type { FormLanguage } from '@adminium/add-on-contracts/forms';
 import { CHAT_MESSAGE_MAX } from '@adminium/manifest';
-import { connectionTenantConfig, publicProofsRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
+import { chatAiDayOf, chatAiTallyRepo, connectionTenantConfig, publicProofsRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 
 import { looksLikeAddress } from '../consent/service.js';
@@ -175,7 +175,7 @@ export interface ChatDoorDeps {
   answerer?: () => ChatAnswerer;
   /** Whether AI is usable now, and its service's name. */
   ai: () => Promise<ChatAi>;
-  /** Whether the chat's day of automatic answers still has tokens left; yes until the answerer's tally says. */
+  /** Whether the chat's day of automatic answers still has tokens left; the answerer's tally by default. */
   budgetLeft?: (chat: LiveChat, at: number) => Promise<boolean>;
   now?: () => number;
 }
@@ -188,11 +188,19 @@ export function createChatDoor(deps: ChatDoorDeps) {
   const tokenSecret = chatTokenKey(deps.secret);
   const addressSecret = chatCapKey(deps.secret);
   const answerer = deps.answerer ?? (() => HAND_OVER_ANSWERER);
+  /** Today's tokens not all spent, as the answerer's tally counts them (`chat_ai_days`, by UTC day). */
+  const budgetLeft =
+    deps.budgetLeft ??
+    (async (chat: LiveChat, at: number): Promise<boolean> => {
+      const day = await chatAiTallyRepo(meta).day({ installId: chat.installId, addOn: chat.addOn, day: chatAiDayOf(at) });
+      return day === null || day.spent < chat.settings.dailyTokens;
+    });
   /** The answerer's work still running, so a test (and a shutdown) can wait for it. */
   const running = new Set<Promise<void>>();
   const authors = new Map<string, { at: number; author: ChatAuthor | null }>();
 
-  const installId = async (): Promise<string> => String((await settingsRepo(meta).get('system.instanceId')) ?? '');
+  /** This server's own install (`system.instanceId`): what a token is bound to. */
+  const thisInstall = async (): Promise<string> => String((await settingsRepo(meta).get('system.instanceId')) ?? '');
 
   /** "Not available", with who the business is, as every door says it. */
   const notAvailable = async (): Promise<DoorReply> => ({ status: 404, body: { state: 'unavailable', ...(await strangerBusiness(meta)) } });
@@ -217,7 +225,7 @@ export function createChatDoor(deps: ChatDoorDeps) {
   /** Whether automatic answers run now: switched on, in hours, a day's tokens set, AI usable, and the day's not spent. */
   async function automaticNow(chat: LiveChat, hours: HoursNow, at: number): Promise<{ automatic: boolean; ai: ChatAi }> {
     const ai = await deps.ai();
-    const on = chat.settings.automatic && hours.open && chat.settings.dailyTokens > 0 && ai.usable && (deps.budgetLeft === undefined || (await deps.budgetLeft(chat, at).catch(() => false)));
+    const on = chat.settings.automatic && hours.open && chat.settings.dailyTokens > 0 && ai.usable && (await budgetLeft(chat, at).catch(() => false));
     return { automatic: on, ai };
   }
 
@@ -266,7 +274,7 @@ export function createChatDoor(deps: ChatDoorDeps) {
 
   /** A token for a conversation, made now. */
   async function tokenFor(chat: LiveChat, conversationId: string, at: number): Promise<string> {
-    return makeChatToken(tokenSecret, await installId(), { addOn: chat.addOn, conversation: conversationId, issuedAt: at });
+    return makeChatToken(tokenSecret, await thisInstall(), { addOn: chat.addOn, conversation: conversationId, issuedAt: at });
   }
 
   /** The keyed hash of a request's address, as the answerer counts it: never the address. */
@@ -274,7 +282,7 @@ export function createChatDoor(deps: ChatDoorDeps) {
 
   /** A token read and held to its conversation; the conversation (written: never closed) or a refusal. */
   async function heldToken(chat: LiveChat, raw: unknown, write: boolean, at: number): Promise<{ claim: ChatClaim; conversation: ChatConversation } | DoorReply> {
-    const claim = readChatToken(tokenSecret, await installId(), raw);
+    const claim = readChatToken(tokenSecret, await thisInstall(), raw);
     if (claim === null || claim.addOn !== chat.addOn) return LOST;
     const conversation = await store.conversation(chat, claim.conversation);
     const refusal = chatTokenRefusal(claim, conversation, { now: at, write });
@@ -307,7 +315,7 @@ export function createChatDoor(deps: ChatDoorDeps) {
         answers = await readAnswers(chat);
         const recent = (await store.since(chat, conversation.id, '0', POLL_LIMIT)).filter((one) => one.kind === 'visitor').slice(-ANSWERER_MESSAGES);
         choice = await answerer().pick({
-          installId: await installId(),
+          installId: chat.installId,
           addOn: chat.addOn,
           conversationId: Number(conversation.id),
           messageId: Number(message.id),
@@ -459,7 +467,7 @@ export function createChatDoor(deps: ChatDoorDeps) {
     async poll(chat: LiveChat, token: unknown, after: unknown): Promise<DoorReply> {
       const at = now();
       const cursor = typeof after === 'string' && /^\d{1,20}$/.test(after) ? after : '0';
-      const claim = readChatToken(tokenSecret, await installId(), token);
+      const claim = readChatToken(tokenSecret, await thisInstall(), token);
       if (claim === null || claim.addOn !== chat.addOn) return LOST;
       const latest = await store.latest(chat, claim.conversation);
       // A closed conversation is still read (the window shows who closed it), until it lapses.

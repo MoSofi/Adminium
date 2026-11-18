@@ -321,7 +321,7 @@ describe.each(LEGS)('the chat door — %s', (dialect, available) => {
     // Every statement on the chat's database, counted from here.
     let statements = 0;
     const real = h.manager.data.bind(h.manager);
-    const spy = vi.spyOn(h.manager, 'data').mockImplementation(async (connectionId: string) => {
+    const spy = vi.spyOn(h.manager, 'data').mockImplementation((async (connectionId: string) => {
       const handle = await real(connectionId);
       const db = new Proxy(handle.db, {
         get(target, property, receiver) {
@@ -331,7 +331,7 @@ describe.each(LEGS)('the chat door — %s', (dialect, available) => {
         },
       });
       return { ...handle, db } as typeof handle;
-    });
+    }) as never);
     try {
       composed.chat.catalog.forget();
       // The first poll reads the chat (and its settings, kept a few seconds) and writes the heartbeat.

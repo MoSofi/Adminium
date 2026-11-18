@@ -111,7 +111,9 @@ import { addOnStateOn, installOfRecord, resolveInstall } from './installs/resolv
 import type { LooseTableIdModel } from './installs/table-id.js';
 import { keepAddOnInstalls } from './apps/table-ref.js';
 import { createAnswerDoor } from './forms/answer.js';
+import { createFormCaps } from './forms/caps.js';
 import { createFormsCatalog } from './forms/catalog.js';
+import { formsMailBlocked } from './forms/mail.js';
 import { createFormsConfirm } from './forms/confirm.js';
 import { createFormsScopes } from './forms/scope.js';
 import { formsPackageVouched } from './forms/vouched.js';
@@ -125,12 +127,17 @@ import { listedWebsitesOf } from './forms/websites.js';
 import { framingWebsites } from './trial/operator-hosts.js';
 import { formsDoorRoutes } from './routes/forms-door/index.js';
 import { chatDoorRoutes } from './routes/chat-door/index.js';
+import { capKey } from './public-api/anonymous-caps.js';
 import { chatAiFrom, type ChatAi } from './chat/ai.js';
-import type { ChatAnswerer } from './chat/answering.js';
+import { chatAiOffHere, createChatAnswerer } from './chat/answerer.js';
+import { answererAnswers, readAnswers, type ChatAnswerer } from './chat/answering.js';
+import { chatBudgetPeople } from './chat/budget-alert.js';
+import { chatLanguageOf } from './chat/settings.js';
+import { chatAiRoutes } from './routes/chat-ai/index.js';
 import { createChatCaps, type ChatCaps } from './chat/caps.js';
 import { createChatCatalog, type ChatCatalog } from './chat/catalog.js';
 import { createChatDoor, type ChatDoor } from './chat/door.js';
-import { tellChatPaused } from './chat/notices.js';
+import { chatSettingsLink, tellChatPaused } from './chat/notices.js';
 import { createChatStore, type ChatStore } from './chat/store.js';
 import { createLedgerRuntime } from './ledgers/registry.js';
 import { announcePostings, tellPostings, type PostingsTold } from './ledgers/announce.js';
@@ -3659,6 +3666,37 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       if (chat !== null) await tellChatPaused({ meta, secret: env.ADMINIUM_SECRET, hub: app.hasDecorator('realtime') ? app.realtime : undefined, chat, until, at });
     },
   });
+  /*
+   * The automatic answerer (`chat/answerer.ts`): off in a trial and on the
+   * operator's AI kept to dashboards; every choice it makes goes into the
+   * chat's own choices table through the store.
+   */
+  const chatAnswererBase = {
+    meta,
+    connections: aiConnections,
+    offHere: chatAiOffHere(() => app.trialPolicy.profile === 'trial', env.ADMINIUM_AI_OPERATOR_SCOPE ?? null, (connectionId) => aiConnections.isOperator(connectionId)),
+    once: createFormCaps(meta, capKey(env.ADMINIUM_SECRET)).once,
+    budgetFacts: async (installId: string, addOn: string) => {
+      const chat = await chatCatalog.forStaff(addOn, installId);
+      if (chat === null) return null;
+      return {
+        people: await chatBudgetPeople(meta, chat.settings.tell, `table:${chat.connectionId}:${chat.settingsTable.table.id}:update`),
+        name: chat.name,
+        dailyTokens: chat.settings.dailyTokens,
+        actionUrl: chatSettingsLink(addOn),
+        mail: (await formsMailBlocked(meta, env.ADMINIUM_SECRET)) === null,
+      };
+    },
+    hub: app.hasDecorator('realtime') ? app.realtime : undefined,
+    logger: app.log,
+  };
+  const chatAnswerer = createChatAnswerer({
+    ...chatAnswererBase,
+    logChoice: async (row) => {
+      const chat = await chatCatalog.forStaff(row.addOn, row.installId);
+      if (chat !== null) await chatStore.logChoice(chat, row);
+    },
+  });
   const chatDoor = createChatDoor({
     meta,
     secret: env.ADMINIUM_SECRET,
@@ -3676,8 +3714,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       writes: recordWrites,
       switches: publicSwitches,
     },
-    ai: opts.chatSeams?.ai ?? chatAiFrom(aiConnections),
-    ...(opts.chatSeams?.answerer === undefined ? {} : { answerer: () => opts.chatSeams!.answerer! }),
+    ai: opts.chatSeams?.ai ?? chatAiFrom({ connections: aiConnections, offHere: chatAnswererBase.offHere }),
+    answerer: () => opts.chatSeams?.answerer ?? chatAnswerer,
   });
   await app.register(
     chatDoorRoutes({
@@ -3690,6 +3728,32 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       desktop: env.ADMINIUM_RUNTIME === 'desktop',
       trustProxy: env.ADMINIUM_TRUST_PROXY,
     }),
+  );
+  // Staff: what a chat's automatic answers can do here, and "Try a question" (`routes/chat-ai`).
+  await app.register(
+    async (api) => {
+      await api.register(
+        chatAiRoutes({
+          meta,
+          answerer: chatAnswererBase,
+          install: async (addOn, installId) => {
+            const chat = await chatCatalog.forStaff(addOn, installId);
+            if (chat === null) return null;
+            const defaultLanguage = chatLanguageOf(await settingsRepo(meta).get('locale.default'));
+            return {
+              installId: chat.installId,
+              connectionId: chat.connectionId,
+              settingsTable: chat.settingsTable.table.id,
+              answersTable: chat.answers.table.id,
+              dailyTokens: chat.settings.dailyTokens,
+              defaultLanguage,
+              answers: answererAnswers(await readAnswers(chat), defaultLanguage),
+            };
+          },
+        }),
+      );
+    },
+    { prefix: API_PREFIX },
   );
 
   const publicBlocked = publicApiRegistrationBlocked(env);

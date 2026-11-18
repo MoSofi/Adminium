@@ -4,10 +4,9 @@
  *
  * The answerer (`answerer.ts`, its own piece) picks one of the owner's
  * answers for the visitor's last message, or hands the conversation to a
- * person; it logs every choice itself through the store's `logChoice`. The
- * door calls it through exactly this interface. Until it is wired, the door
- * holds {@link HAND_OVER_ANSWERER}, which hands every conversation to a
- * person without calling anything.
+ * person; it logs every choice itself through the store's `logChoice`.
+ * Without one, the door holds {@link HAND_OVER_ANSWERER}, which hands every
+ * conversation to a person without calling anything.
  *
  * What the door does with a choice:
  *  - an answer: an automatic message with the answer's text in the visitor's
@@ -22,37 +21,13 @@ import { z } from 'zod';
 
 import type { Row } from '../crud/mask.js';
 import { jsonOf } from '../forms/catalog.js';
+import type { ChatAnswerer, ChatAnswererInput } from './answerer.js';
 import type { LiveChat } from './catalog.js';
 import { yes } from './settings.js';
 
-/** What the answerer is asked (the answerer's own interface, kept name for name). */
-export interface ChatAnswererInput {
-  installId: string;
-  addOn: string;
-  conversationId: number;
-  messageId: number;
-  /** The visitor's language. */
-  language: string;
-  defaultLanguage: string;
-  /** Default-language versions, active answers only. */
-  answers: { ref: string; title: string; text: string; examples: string[] }[];
-  /** Newest last, at most the last 6. */
-  visitorMessages: string[];
-  /** Automatic answers already given in this conversation. */
-  automaticCount: number;
-  /** The keyed hash of the visitor's address, never the address. */
-  addressHash: string;
-  /** The chat's setting; 0 = no automatic answers. */
-  dailyTokens: number;
-}
-
-export type ChatChoice = { kind: 'answer'; ref: string } | { kind: 'hand-over'; outcome: 'hand-over' | 'error' | 'budget' | 'cap' | 'off' };
-
-export interface ChatAnswerer {
-  pick(input: ChatAnswererInput): Promise<ChatChoice>;
-}
-
-/** The answerer until the real one is wired: every conversation goes to a person, and nothing is called. */
+/** The answerer's own interface (`answerer.ts`). */
+export type { ChatAnswerer, ChatAnswererInput, ChatChoice } from './answerer.js';
+/** The answerer when none is given (a server built without one): every conversation goes to a person, and nothing is called. */
 export const HAND_OVER_ANSWERER: ChatAnswerer = { pick: async () => ({ kind: 'hand-over', outcome: 'off' }) };
 
 /** How many of the visitor's messages the answerer reads. */
