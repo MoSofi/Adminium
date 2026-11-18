@@ -144,20 +144,15 @@ export async function setPeopleTableWord(
   if (declared.canEmail === input.canEmail && declared.email === input.email && declared.name === name) return false;
 
   const overrides = overridesRepo(meta);
-  const earlier = await meta.db
-    .selectFrom('adminium_schema_overrides')
-    .select('id')
-    .where('connectionId', '=', declared.connectionId)
-    .where('op', '=', PEOPLE_WORD_OP)
-    .where('tableName', '=', access.wholeTable.id)
-    .where('status', '=', 'active')
-    .execute();
+  const earlier = await overrides.listForConnection(declared.connectionId, { status: 'active' }).then((rows) => rows.filter((row) => row.op === PEOPLE_WORD_OP && row.tableName === access.wholeTable.id));
+  // The owner's word on a company's details is kept: this sheet changes the address and the name only.
+  const lead = earlier.map((row) => (row.value as { lead?: unknown } | null)?.lead).filter((one) => typeof one === 'object' && one !== null).at(-1);
   await overrides.create(
     {
       connectionId: declared.connectionId,
       op: PEOPLE_WORD_OP,
       tableName: access.wholeTable.id,
-      value: { canEmail: input.canEmail, email: input.email, ...(name === null ? {} : { name }) },
+      value: { canEmail: input.canEmail, email: input.email, ...(name === null ? {} : { name }), ...(lead === undefined ? {} : { lead }) },
       origin: 'user',
       createdBy: input.by,
     },

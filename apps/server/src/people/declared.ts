@@ -19,7 +19,12 @@
  *  - the owner's word last: a `table.people` override (the table's e-mail
  *    sheet) switches campaigns off for the table, or names another column
  *    for the address or the name. An override that names a column the table
- *    does not have, or one that holds no text, is not taken.
+ *    does not have, or one that holds no text, is not taken;
+ *  - a companies table's `lead` word (the columns a company's number,
+ *    website, phone, address, activity, about and owner go in), with the
+ *    owner's word on it the same way: a text field taken only on a text
+ *    column, the country only on a column exactly two wide, the owner only on
+ *    a column the app declares as a staff member's.
  *
  * A pure read: nothing is written, nothing is served. The loader reads the
  * meta store once; `resolveDeclaredPeople` does the rest and is what the
@@ -29,6 +34,7 @@ import { FIRST_WORD_OF_NAME, LINK_PATH, isAddOnCopy, optOutMarkColumn, peopleSch
 import { appTablesRepo, manifestsRepo, overridesRepo, realTableOf, type AppTableRecord, type MetaDb, type SchemaOverride } from '@adminium/meta';
 
 import { tableIdModelOf, tableIdOrNull } from '../installs/table-id.js';
+import { leadOfEntry, type PeopleLead } from '../lead-sources/pending-types.js';
 
 /** A column on another table that holds a copy of the person's address or name. */
 export interface DeclaredCopy {
@@ -101,11 +107,23 @@ export interface DeclaredPeopleTable {
   optOutMarkFrom: { table: string; ref: string; column: string } | null;
   /** Whether campaigns may mail the table: it has an address, and the owner has not switched it off. */
   canEmail: boolean;
+  /** A companies table: the columns a company's details go in, each a real column of it. Absent when it names none. */
+  lead?: DeclaredLead;
 }
+
+/** A companies table's `lead` word, resolved: only the keys whose column the table has. */
+export type DeclaredLead = PeopleLead;
+
+/** The text fields of a `lead` word (everything but the address and the owner). */
+const LEAD_TEXT = ['number', 'website', 'phone', 'activity', 'about'] as const;
+/** The address fields of a `lead` word. */
+const LEAD_ADDRESS = ['lines', 'town', 'region', 'postalCode', 'country'] as const;
+/** The only width a country column may have: ISO 3166-1 alpha-2. */
+const COUNTRY_WIDTH = 2;
 
 /** What the resolver reads of a database's snapshot. */
 export interface PeopleModel {
-  tables: readonly { id: string; name: string; schema?: string | undefined; columns: readonly { name: string; logicalType?: string | undefined }[] }[];
+  tables: readonly { id: string; name: string; schema?: string | undefined; columns: readonly { name: string; logicalType?: string | undefined; maxLength?: number | null | undefined }[] }[];
   /** The schema a table recorded with none is in (`public` when not said). */
   defaultSchema?: string | undefined;
 }
@@ -150,6 +168,7 @@ function peopleOf(document: unknown): {
   links: Map<string, { column: string; to: string }[]>;
   addOnLinks: Map<string, Map<string, { addOn: string; table: string }>>;
   requires: Set<string>;
+  declaredColumns: Map<string, Map<string, { staff: boolean; maxLength: number | null }>>;
 } {
   const doc = typeof document === 'object' && document !== null ? (document as { people?: unknown; requiredSchema?: { tables?: unknown }; addOns?: { requires?: unknown } }) : {};
   const parsed = peopleSchema.safeParse(doc.people);
@@ -183,7 +202,19 @@ function peopleOf(document: unknown): {
     }
   }
   const requires = new Set(Array.isArray(doc.addOns?.requires) ? (doc.addOns.requires as { key?: unknown }[]).flatMap((one) => (typeof one.key === 'string' ? [one.key] : [])) : []);
-  return { entries: parsed.success ? parsed.data : [], keyFields, links, addOnLinks, requires };
+  // Each table's columns as the app declares them: which hold a staff member, and each text's width.
+  const declaredColumns = new Map<string, Map<string, { staff: boolean; maxLength: number | null }>>();
+  for (const table of tables) {
+    const one = table as { ref?: unknown; columns?: unknown } | null;
+    if (typeof one?.ref !== 'string' || !Array.isArray(one.columns)) continue;
+    const byColumn = new Map<string, { staff: boolean; maxLength: number | null }>();
+    for (const column of one.columns as { ref?: unknown; maxLength?: unknown; rules?: { staff?: unknown } }[]) {
+      if (typeof column?.ref !== 'string') continue;
+      byColumn.set(column.ref, { staff: column.rules?.staff === true, maxLength: typeof column.maxLength === 'number' ? column.maxLength : null });
+    }
+    declaredColumns.set(one.ref, byColumn);
+  }
+  return { entries: parsed.success ? parsed.data : [], keyFields, links, addOnLinks, requires, declaredColumns };
 }
 
 /** Every people table of the install, resolved against its database and the owner's word. */
@@ -201,7 +232,7 @@ export function resolveDeclaredPeople(source: PeopleSource): DeclaredPeopleTable
     const model = source.models.get(connectionId);
     if (model === undefined) continue;
     const named = tableIdModelOf(model);
-    const { entries, keyFields, links, addOnLinks, requires } = peopleOf(app.document);
+    const { entries, keyFields, links, addOnLinks, requires, declaredColumns } = peopleOf(app.document);
     const appJson = jsonColumnsOf(app.document);
     /** Whether a copy's column keeps JSON: its manifest says so, or the database does. */
     const keepsJson = (declared: Map<string, Set<string>> | undefined, ref: string, column: string, real: PeopleModel['tables'][number]): boolean =>
@@ -227,16 +258,50 @@ export function resolveDeclaredPeople(source: PeopleSource): DeclaredPeopleTable
         return held !== undefined && (held.logicalType === undefined || TEXT_TYPES.has(held.logicalType)) ? name : null;
       };
 
+      /** A column the app declares as holding a staff member. */
+      const staffColumn = (name: unknown): string | null => (typeof name === 'string' && declaredColumns.get(entry.table)?.get(name)?.staff === true ? column(name) : null);
+      /** A text column exactly two wide, as the database says or (where it keeps no width) as the app declares it. */
+      const countryColumn = (name: unknown): string | null => {
+        const held = textColumn(name);
+        if (held === null) return null;
+        const width = table.columns.find((candidate) => candidate.name === held)?.maxLength ?? declaredColumns.get(entry.table)?.get(held)?.maxLength ?? null;
+        return width === COUNTRY_WIDTH ? held : null;
+      };
+      /** A `lead` word's columns, each taken only where it fits (see the header). */
+      const leadColumns = (given: unknown, current: DeclaredLead, check: boolean): DeclaredLead => {
+        if (typeof given !== 'object' || given === null) return current;
+        const word = given as Record<string, unknown> & { address?: unknown };
+        const next: DeclaredLead = { ...current, ...(current.address === undefined ? {} : { address: { ...current.address } }) };
+        for (const field of LEAD_TEXT) {
+          const held = check ? textColumn(word[field]) : typeof word[field] === 'string' ? column(word[field]) : null;
+          if (held !== null) next[field] = held;
+        }
+        const owner = check ? staffColumn(word['owner']) : typeof word['owner'] === 'string' ? column(word['owner']) : null;
+        if (owner !== null) next.owner = owner;
+        if (typeof word.address === 'object' && word.address !== null) {
+          const address = word.address as Record<string, unknown>;
+          for (const field of LEAD_ADDRESS) {
+            const value = address[field];
+            const held = check ? (field === 'country' ? countryColumn(value) : textColumn(value)) : typeof value === 'string' ? column(value) : null;
+            if (held !== null) next.address = { ...(next.address ?? {}), [field]: held };
+          }
+        }
+        return next;
+      };
+
       let email = column(entry.email);
       let name = column(entry.name ?? keyFields.get(entry.table));
       let switchedOff = false;
+      // The app's word, checked against its own manifest when it was installed: a column the database no longer has reads as none.
+      let lead: DeclaredLead = entry.kind === 'companies' ? leadColumns(leadOfEntry(entry), {}, false) : {};
       // The owner's word, in the order it was written: a later row wins.
       for (const row of source.overrides) {
         if (row.status !== 'active' || row.op !== 'table.people' || row.connectionId !== connectionId || row.tableName !== table.id) continue;
-        const value = row.value as { canEmail?: unknown; email?: unknown; name?: unknown };
+        const value = row.value as { canEmail?: unknown; email?: unknown; name?: unknown; lead?: unknown };
         if (typeof value.canEmail === 'boolean') switchedOff = !value.canEmail;
         email = textColumn(value.email) ?? email;
         name = textColumn(value.name) ?? name;
+        if (entry.kind === 'companies') lead = leadColumns(value.lead, lead, true);
       }
 
       /** The app's tables that reach the person: their own, and each copy table of the app's own. */
@@ -296,6 +361,7 @@ export function resolveDeclaredPeople(source: PeopleSource): DeclaredPeopleTable
         optOutMark: column(optOutMarkColumn(entry)),
         optOutMarkFrom: markFrom,
         canEmail: email !== null && !switchedOff,
+        ...(Object.keys(lead).length === 0 ? {} : { lead }),
       };
 
       // One declaration a real table: the app that made it says it, else the first app by key.

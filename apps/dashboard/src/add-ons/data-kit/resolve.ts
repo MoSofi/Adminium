@@ -26,17 +26,28 @@ export interface KitReply {
    * The tables of the owner's database that hand rows to the add-on (an
    * app's table whose rows link to the add-on's own is `via: 'link'`), and
    * (for a forms add-on, `via: 'forms'`) the tables its forms may become a row
-   * of, which a page lists and never reads.
+   * of, which a page lists and never reads; and (for a lead source add-on,
+   * `via: 'companies'`) the tables that hold companies.
    */
   hosts: {
     tableRef: string;
     id: string;
     label: string;
-    via: 'posting' | 'adjust' | 'link' | 'forms';
+    via: 'posting' | 'adjust' | 'link' | 'forms' | 'companies';
     app?: string;
     columns?: { name: string; label: string; kind: string; required: boolean; link: boolean; values?: string[]; maxLength?: number }[];
     page?: string;
     sourceColumn?: string;
+    /** A companies table (`via: 'companies'`, for a lead source add-on): the column each of a company's details goes in. */
+    lead?: {
+      number?: string;
+      website?: string;
+      phone?: string;
+      address?: { lines?: string; town?: string; region?: string; postalCode?: string; country?: string };
+      activity?: string;
+      about?: string;
+      owner?: string;
+    };
   }[];
   has: Record<string, boolean>;
   /** Absent from a server older than this dashboard. */
