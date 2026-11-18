@@ -2069,7 +2069,7 @@ function bundledDemoSeedScript(): string {
 }
 
 /**
- * `resources/add-ons-bundle/` — the pre-verified bundled add-on set: six
+ * `resources/add-ons-bundle/` — the pre-verified bundled add-on set: the
  * first-party tarballs + `.integrity` sidecars the desktop-release workflow
  * fetches against the exact pins in `scripts/release/add-ons-bundle.json`.
  *
