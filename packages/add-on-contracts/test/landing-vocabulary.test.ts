@@ -181,7 +181,16 @@ describe('a landing page\'s slug', () => {
   it('is a form slug\'s shape and no reserved word', () => {
     for (const slug of ['open-day', 'a', '2026-spring', 'x'.repeat(80)]) expect(isLandingSlug(slug), slug).toBe(true);
     for (const slug of ['', 'Open-Day', '-open', 'open-', 'open_day', 'open day', 'x'.repeat(81), 'é', null, 7]) expect(isLandingSlug(slug), String(slug)).toBe(false);
-    expect(LANDING_SLUGS_RESERVED).toEqual(['api', 'assets', 'login', 'signin', 'sign-in', 'account', 'password', 'reset']);
+    expect(LANDING_SLUGS_RESERVED.slice(0, 2)).toEqual(['api', 'assets']);
     for (const slug of LANDING_SLUGS_RESERVED) expect(isLandingSlug(slug), slug).toBe(false);
+  });
+
+  it('refuses the words a phishing page would take: signing in, codes, the staff side, money, help', () => {
+    for (const slug of ['login', 'log-in', 'logon', 'signin', 'sign-in', 'account', 'password', 'reset', 'verify', 'verification', 'auth', 'oauth', 'sso', '2fa', 'admin', 'wp-admin', 'billing', 'payment', 'payments', 'invoice', 'support', 'security']) {
+      expect(LANDING_SLUGS_RESERVED, slug).toContain(slug);
+      expect(isLandingSlug(slug), slug).toBe(false);
+    }
+    // A page about them, under a slug of its own, is still a page.
+    for (const slug of ['billing-help', 'support-hours', 'verify-your-tickets', 'admin-course']) expect(isLandingSlug(slug), slug).toBe(true);
   });
 });

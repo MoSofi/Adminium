@@ -10,8 +10,9 @@
  *  - a form's slug's shape: lower-case letters, digits and dashes, 1 to 80
  *    characters, with no dash at either end;
  *  - never one of the words the addresses themselves use (`api`, `assets`),
- *    nor a word a sign-in page is known by, so a page can never pass for the
- *    install's own sign-in on its own address.
+ *    nor a word a sign-in, verification, staff or billing page is known by
+ *    ({@link LANDING_SLUGS_RESERVED}), so a page can never pass for the
+ *    install's own sign-in, its staff side or a bill on its own address.
  *
  * A slug names one page of an install: the seal refuses a second page with
  * the same one.
@@ -24,8 +25,43 @@ export const LANDING_SLUG = FORM_SLUG;
 /** The longest a slug is. */
 export const LANDING_SLUG_MAX = FORM_SLUG_MAX;
 
-/** The slugs no page may have: the addresses' own words, and the words of signing in. */
-export const LANDING_SLUGS_RESERVED: readonly string[] = ['api', 'assets', 'login', 'signin', 'sign-in', 'account', 'password', 'reset'];
+/**
+ * The slugs no page may have: the addresses' own words, and the words a page
+ * asking for a password, a code, a payment or an account would use, so a
+ * page can never pass for the install's own sign-in, its staff side or a
+ * bill on its own address.
+ */
+export const LANDING_SLUGS_RESERVED: readonly string[] = [
+  // The addresses' own words.
+  'api',
+  'assets',
+  // Signing in and its codes.
+  'login',
+  'log-in',
+  'logon',
+  'signin',
+  'sign-in',
+  'account',
+  'password',
+  'reset',
+  'verify',
+  'verification',
+  'auth',
+  'oauth',
+  'sso',
+  '2fa',
+  // The staff side.
+  'admin',
+  'wp-admin',
+  // Money.
+  'billing',
+  'payment',
+  'payments',
+  'invoice',
+  // Help and safety.
+  'support',
+  'security',
+];
 
 /** Whether a page may have this slug: it keeps the rule, and is no reserved word. */
 export function isLandingSlug(slug: unknown): slug is string {
