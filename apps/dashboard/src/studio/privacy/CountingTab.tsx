@@ -335,7 +335,7 @@ function CountingForm({ saved }: { saved: CountingState }): ReactNode {
                   data-testid="privacy-counting-preview"
                 >
                   <span className="absolute start-3 top-2.5 rounded-md bg-surface px-1.5 py-0.5 font-mono text-[11px] text-fg-subtle">{t('studio:privacy.counting.previewTag', 'form page')}</span>
-                  <div lang={editing} dir={facts.dir} className="flex flex-col gap-2.5 rounded-[10px] border border-border bg-surface px-3.5 py-3 shadow-raised">
+                  <div lang={editing} dir={facts.dir} className="flex flex-col gap-2.5 rounded-[10px] border border-border bg-surface px-3.5 py-3 shadow-menu">
                     <p className="text-body font-bold text-fg">{shown('title')}</p>
                     <p className="text-body-sm leading-[1.5] text-fg">{shown('text')}</p>
                     <div className="grid grid-cols-2 gap-2">
