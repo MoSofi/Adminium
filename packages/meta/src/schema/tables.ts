@@ -2025,6 +2025,19 @@ export interface AdminiumChatAiDaysTable {
   changedAt: Ts;
 }
 
+/** Wave 0099 — the calls one source of a lead source add-on was asked on one UTC day, per spender (a staff id, `step`, or `*` for the day's total). */
+export interface AdminiumSourceDaysTable {
+  installId: string;
+  source: string;
+  /** `YYYY-MM-DD`, UTC. */
+  day: string;
+  spender: string;
+  calls: number;
+  /** The calls running now, let go when each settles. */
+  held: number;
+  changedAt: Ts;
+}
+
 /**
  * Wave 0095 (made again over 0094's) — one model call the chat answerer made
  * for a network address (a keyed hash, never the address), with no
@@ -2335,6 +2348,7 @@ export interface MetaDB {
   adminium_payment_readers: AdminiumPaymentReadersTable;
   adminium_chat_ai_days: AdminiumChatAiDaysTable;
   adminium_chat_ai_addresses: AdminiumChatAiAddressesTable;
+  adminium_source_days: AdminiumSourceDaysTable;
 }
 
 /**
@@ -2446,4 +2460,5 @@ export const META_TABLE_NAMES = [
   'adminium_operator_tallies',
   'adminium_chat_ai_days',
   'adminium_chat_ai_addresses',
+  'adminium_source_days',
 ] as const satisfies readonly (keyof MetaDB)[];
