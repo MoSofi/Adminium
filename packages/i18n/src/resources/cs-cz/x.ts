@@ -108,7 +108,11 @@ export default {
     "noScript": "Tento chat potřebuje JavaScript."
   },
   "pages": {
-    "noScript": "Tato stránka potřebuje JavaScript."
+    "noScript": "Tato stránka potřebuje JavaScript.",
+    "loading": "Stránka se načítá…",
+    "tooManyTitle": "Odsud bylo odesláno příliš mnoho formulářů.",
+    "tooManyWrite": "Zkuste to znovu {when}, nebo napište na {email}.",
+    "tooManyLater": "Zkuste to znovu {when}."
   },
   "banner": {
     "title": "Můžeme si zapamatovat vaši návštěvu?",

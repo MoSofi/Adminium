@@ -1,0 +1,158 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/*
+ * A landing page's host, around the renderer's own styles (`landing.css`):
+ * loaded with the landing page's chunk only. Plain CSS on the tokens the
+ * `/x/` stylesheet carries, classes prefixed `xp-`, logical properties only.
+ *
+ * Comp `Landing Pages States.dc.html` boards 1a–1i: the page's own part on
+ * the surface between the shell's header and footer; while it loads, three
+ * quiet blocks (1c); a Form block's endings inside the page (1e-1…1e-4).
+ */
+
+.xp-main {
+  flex: 1;
+  background: var(--surface);
+}
+
+/* ── Loading (1c) ────────────────────────────────────────────────────── */
+
+.xp-loading {
+  flex: 1;
+  position: relative;
+  inline-size: 100%;
+  background: var(--surface);
+  padding-block: 28px;
+  padding-inline: max(16px, 4cqi);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.xp-quiet {
+  inline-size: 100%;
+  max-inline-size: 928px;
+  margin-inline: auto;
+  border-radius: 14px;
+  background: var(--surface-3);
+  block-size: 132px;
+}
+
+.xp-quiet[data-size="l"] {
+  block-size: 220px;
+}
+
+.xp-quiet[data-size="m"] {
+  block-size: 168px;
+}
+
+/* ── A Form block ────────────────────────────────────────────────────── */
+
+/* The form as on its own page: the page's base size, not the landing page's larger text. */
+.xp-form-block {
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: start;
+}
+
+/* An ending, in the block (1e): a tile in its tone, a heading, a line or two. */
+.xp-ending {
+  /* The form's height, measured as it went (`FormBlock.tsx`): the card keeps it as its least. */
+  min-block-size: var(--xp-form-height, auto);
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.xp-ending[data-tone="positive"] {
+  --tone: var(--pos);
+  --tone-bg: var(--pos-soft);
+}
+
+.xp-ending[data-tone="neutral"] {
+  --tone: var(--fg-muted);
+  --tone-bg: var(--surface-3);
+}
+
+.xp-ending[data-tone="warning"] {
+  --tone: var(--warn);
+  --tone-bg: var(--warn-soft);
+}
+
+.xp-ending[data-tone="danger"] {
+  --tone: var(--danger);
+  --tone-bg: var(--danger-soft);
+}
+
+.xp-ending-tile {
+  inline-size: 40px;
+  block-size: 40px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tone-bg);
+  color: var(--tone);
+}
+
+.xp-ending-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-inline-size: 0;
+  padding-block-start: 6px;
+}
+
+.xp-ending-title {
+  margin: 0;
+  border-radius: 6px;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+  text-wrap: pretty;
+}
+
+/* "Sent" takes focus after the visitor's own press: its ring shows where it went. */
+.xp-ending-title:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.xp-ending-text p {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 15px;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.xp-mail {
+  font-weight: 700;
+}
+
+.xp-retry {
+  margin-block-start: 6px;
+  min-block-size: 44px;
+  padding-block: 0;
+  padding-inline: 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--fg);
+  font-size: 15px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.xp-retry:hover {
+  border-color: var(--fg-subtle);
+}
+
+.lp:lang(ar) .xp-ending-title {
+  font-weight: 700;
+}

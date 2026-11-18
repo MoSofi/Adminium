@@ -103,6 +103,10 @@
   padding-block: 12px 4px;
 }
 
+.lp-text {
+  padding-block: 8px;
+}
+
 .lp-lead,
 .lp-body {
   margin: 0;
@@ -135,7 +139,19 @@
   gap: 14px;
 }
 
+.lp-hero .lp-display {
+  line-height: 1.15;
+}
+
+.lp-hero .lp-lead {
+  line-height: 1.6;
+}
+
 /* ── Pictures ────────────────────────────────────────────────────────── */
+
+.lp-picture-block {
+  padding-block: 16px;
+}
 
 .lp-picture {
   inline-size: 100%;
@@ -170,6 +186,14 @@
   font-size: 14px;
   line-height: 1.5;
   text-align: center;
+}
+
+.lp-picture-empty > span {
+  max-inline-size: 36ch;
+}
+
+.lp-picture[data-shape="card"] .lp-picture-empty > span {
+  max-inline-size: 30ch;
 }
 
 /* ── Buttons ─────────────────────────────────────────────────────────── */
@@ -283,30 +307,67 @@
 
 /* ── Quote ───────────────────────────────────────────────────────────── */
 
+/* Centred under an accent quote mark, the words in the page's own quotation marks, then "— who". */
 .lp-quote {
   margin: 0;
-  padding-block: 8px;
-  padding-inline: 20px 0;
-  border-inline-start: 3px solid var(--accent);
+  padding-block: max(28px, 3.5cqi);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+/* The mark is drawn, not said: its alternative text is empty. */
+.lp-quote::before {
+  content: "\201C" / "";
+  display: block;
+  block-size: 26px;
+  color: var(--accent);
+  font-size: 56px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.lp[dir="rtl"] .lp-quote::before {
+  transform: scaleX(-1);
 }
 
 .lp-quote-text {
   margin: 0;
+  max-inline-size: 560px;
+  quotes: auto;
 }
 
 .lp-quote-line {
   margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 1.5;
+  font-size: clamp(18px, 2.6cqi, 22px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
   white-space: pre-line;
-  text-wrap: pretty;
+  text-wrap: balance;
+}
+
+.lp-quote-line + .lp-quote-line {
+  margin-block-start: 10px;
+}
+
+.lp-quote-line:first-child::before {
+  content: open-quote;
+}
+
+.lp-quote-line:last-child::after {
+  content: close-quote;
 }
 
 .lp-quote-who {
-  margin-block-start: 10px;
   color: var(--fg-muted);
-  font-size: 14px;
+  font-size: 13px;
+}
+
+.lp-quote-who::before {
+  content: "\2014\00a0" / "";
 }
 
 /* ── Questions and answers ───────────────────────────────────────────── */
@@ -390,7 +451,7 @@
 }
 
 .lp-form-card {
-  max-inline-size: 600px;
+  max-inline-size: 560px;
   margin-inline: auto;
 }
 

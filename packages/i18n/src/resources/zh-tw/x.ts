@@ -108,7 +108,11 @@ export default {
     "noScript": "此對話需要 JavaScript。"
   },
   "pages": {
-    "noScript": "此頁面需要 JavaScript。"
+    "noScript": "此頁面需要 JavaScript。",
+    "loading": "正在載入頁面…",
+    "tooManyTitle": "此處傳送次數過多。",
+    "tooManyWrite": "請{when}再試，或寫信至 {email}。",
+    "tooManyLater": "請{when}再試。"
   },
   "banner": {
     "title": "我們可以記住您的造訪嗎？",

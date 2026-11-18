@@ -98,7 +98,11 @@
     "noScript": "Dieser Chat braucht JavaScript."
   },
   "pages": {
-    "noScript": "Diese Seite braucht JavaScript."
+    "noScript": "Diese Seite braucht JavaScript.",
+    "loading": "Die Seite wird geladen…",
+    "tooManyTitle": "Zu viele Sendungen von hier.",
+    "tooManyWrite": "Bitte versuchen Sie es {when} erneut oder schreiben Sie an {email}.",
+    "tooManyLater": "Bitte versuchen Sie es {when} erneut."
   },
   "banner": {
     "title": "Dürfen wir uns an Ihren Besuch erinnern?",
