@@ -105,6 +105,92 @@ export default {
     "continue": "Fortsæt"
   },
   "chat": {
-    "noScript": "Denne chat kræver JavaScript."
+    "noScript": "Denne chat kræver JavaScript.",
+    "asked": "Du bad om at tale med en person.",
+    "automatic": "Automatisk svar",
+    "automaticIn": "Automatisk svar · på {language}",
+    "away": {
+      "again": "Skriv til os igen til den tid.",
+      "later": "Skriv til os igen senere.",
+      "leave": "Skriv dit spørgsmål og din mailadresse, så svarer vi på mail.",
+      "now": "Vi er ikke til stede lige nu.",
+      "sent": "{day, select, today {Tak. Vi svarer til {email} efter kl. {time}.} tomorrow {Tak. Vi svarer til {email} efter kl. {time}.} date {Tak. Vi svarer til {email} den {date} efter kl. {time}.} other {Tak. Vi svarer til {email} på {weekday} efter kl. {time}.}}",
+      "sentNone": "Tak. Vi svarer til {email}.",
+      "until": "{day, select, today {Vi er tilbage i dag kl. {time}.} tomorrow {Vi er tilbage i morgen kl. {time}.} date {Vi er tilbage den {date} kl. {time}.} other {Vi er tilbage på {weekday} kl. {time}.}}"
+    },
+    "card": {
+      "badEmail": "Skriv en mailadresse som name@company.example",
+      "badName": "Skriv dit navn uden en webadresse.",
+      "change": "Ret",
+      "email": "Din mailadresse",
+      "emailOptional": "Din mailadresse (valgfri)",
+      "helper": "Så vi kan svare, hvis du lukker siden.",
+      "name": "Dit navn (valgfrit)",
+      "needEmail": "Skriv din mailadresse, så vi kan svare.",
+      "needOne": "Skriv dit navn eller din mailadresse først.",
+      "needQuestion": "Skriv dit spørgsmål først.",
+      "question": "Dit spørgsmål",
+      "save": "Gem",
+      "send": "Send"
+    },
+    "close": "Luk chat",
+    "closed": "Denne chat blev lukket · {time}",
+    "closedBy": "{name} lukkede denne chat · {time}",
+    "done": {
+      "leave": "Hvis du går, svarer vi til {email}.",
+      "named": "Tak, {name}.",
+      "stay": "Hold siden åben for at se svaret.",
+      "thanks": "Tak."
+    },
+    "first": {
+      "automatic": "Nogle svar her er automatiske, valgt blandt svar, som {business} har skrevet. En person kan tage over når som helst. Dine beskeder læses af en AI-tjeneste ({service}).",
+      "drafts": "En person svarer her. Medarbejderne kan bruge en AI-tjeneste ({service}) til at skrive svar.",
+      "person": "En person svarer her."
+    },
+    "from": "{name} fra {business}",
+    "hand": {
+      "info": "En person svarer dig her. Hold siden åben for at se svaret.",
+      "text": "En person svarer dig her."
+    },
+    "hide": "Skjul chat",
+    "hours": {
+      "openUntil": "Åbent i dag til kl. {time}",
+      "opens": "{day, select, today {Åbner i dag kl. {time}} tomorrow {Åbner i morgen kl. {time}} date {Åbner den {date} kl. {time}} other {Åbner {weekday} kl. {time}}}"
+    },
+    "hoursEnded": {
+      "next": "{day, select, today {Åbningstiden hos {business} sluttede kl. {closing}. En person svarer måske stadig; ellers svarer vi i dag efter kl. {time}.} tomorrow {Åbningstiden hos {business} sluttede kl. {closing}. En person svarer måske stadig; ellers svarer vi i morgen efter kl. {time}.} date {Åbningstiden hos {business} sluttede kl. {closing}. En person svarer måske stadig; ellers svarer vi den {date} efter kl. {time}.} other {Åbningstiden hos {business} sluttede kl. {closing}. En person svarer måske stadig; ellers svarer vi på {weekday} efter kl. {time}.}}",
+      "none": "Åbningstiden hos {business} sluttede kl. {closing}. En person svarer måske stadig."
+    },
+    "language": "Sprog",
+    "languageOf": "Sprog: {name}",
+    "log": "Beskeder",
+    "lost": "Vi kunne ikke finde din tidligere chat. Start en ny herunder.",
+    "newChat": "Start en ny chat",
+    "newMessages": "{count, plural, one {{n} ny besked fra {business}} other {{n} nye beskeder fra {business}}}",
+    "newTab": "(åbner i en ny fane)",
+    "offline": "Kan ikke få forbindelse til {business}. Prøver igen…",
+    "privacy": "Privatlivserklæring.",
+    "rate": {
+      "chat": "Du har sendt mange beskeder i denne chat.",
+      "minute": "Du har sendt mange beskeder. Vent et minut, og prøv så igen.",
+      "wait": "Du har sendt mange beskeder. Vent {minutes, plural, one {{n} minut} other {{n} minutter}}, og prøv så igen."
+    },
+    "reopened": "Denne chat blev åbnet igen · {time}",
+    "reopenedBy": "{name} åbnede denne chat igen · {time}",
+    "resumed": "Din chat fra {time}",
+    "send": "Send",
+    "status": {
+      "checking": "Tjekker, at du er et menneske…",
+      "failed": "Vi kunne ikke tjekke, at du er et menneske.",
+      "notSent": "Ikke sendt.",
+      "queued": "Venter på at blive sendt",
+      "retry": "Prøv igen"
+    },
+    "talk": "Tal med en person",
+    "waiting": "Venter stadig på en person fra {business}.",
+    "waitingMail": "Venter stadig på en person fra {business}. Du kan skrive din mailadresse og lukke siden.",
+    "with": "Chat med {business}",
+    "withNew": "Chat med {business}, {count, plural, one {{n} ny besked} other {{n} nye beskeder}}",
+    "write": "Skriv en besked…"
   }
 } as const;
