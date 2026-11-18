@@ -96,5 +96,15 @@
   },
   "chat": {
     "noScript": "Cette discussion a besoin de JavaScript."
+  },
+  "banner": {
+    "title": "Pouvons-nous nous souvenir de votre visite ?",
+    "text": "Si vous dites oui, nous retenons les pages de notre site que vous consultez, et si vous nous envoyez ensuite un formulaire, nous le gardons avec votre message pour mieux vous répondre. Si vous dites non, rien de votre visite n’est retenu.",
+    "yes": "Oui",
+    "no": "Non",
+    "savedYes": "Enregistré : oui. Vous pouvez le changer à tout moment dans « Choix des cookies ».",
+    "savedNo": "Enregistré : non. Vous pouvez le changer à tout moment dans « Choix des cookies ».",
+    "cookieChoice": "Choix des cookies",
+    "failed": "Votre choix n’a pas pu être enregistré. Réessayez."
   }
 }
