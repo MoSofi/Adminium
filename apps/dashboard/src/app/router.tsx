@@ -51,6 +51,7 @@ import { StatePage, SystemStateScreen } from '../states/StatePage.js';
 import { pageQuery } from '../api/pages.js';
 import { StudioGuard } from '../studio/StudioGuard.js';
 import { studioRoutes } from '../studio/routes.js';
+import { sampleBannerOwner, sampleDataQuery } from '../studio/apps/sampleDataStatus.js';
 import { widgetRuntimeEnv } from '../lib/widget-runtime.js';
 import { bootLocale } from '../i18n/setup.js';
 import { api, ApiError } from './api.js';
@@ -539,7 +540,16 @@ async function loadPageDocument(
   if (item === null) return; // PageRenderer renders the branded 404.
   // The templates' loaders arrive with the page document, not after it.
   void preloadPageTemplates().catch(() => undefined);
-  await queryClient.ensureQueryData(pageQuery(item.pageId));
+  // Whether the app's sample data is loaded, asked beside the page document
+  // and waited for with it: known before the template draws, its banner is
+  // in place above the cards from the start rather than pushing them down
+  // when it arrives. Only for whoever is shown the banner; a failed read is
+  // never the page's failure (prefetchQuery swallows it).
+  const sampleOwner = sampleBannerOwner(bootstrap, item);
+  await Promise.all([
+    queryClient.ensureQueryData(pageQuery(item.pageId)),
+    sampleOwner === null ? undefined : queryClient.prefetchQuery(sampleDataQuery(sampleOwner.key, sampleOwner.kind)),
+  ]);
 }
 
 /** Page-scoped failure: system state inside the outlet — shell stays usable. */
