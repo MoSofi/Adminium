@@ -25,7 +25,7 @@
  * link, and a try has none. It is in the audit log instead (who, the outcome
  * and the tokens; never the question).
  */
-import { userPrefsRepo, chatAiDayOf, chatAiTallyRepo, type MetaDb } from '@adminium/meta';
+import { chatAiDayOf, chatAiTallyRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
