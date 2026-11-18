@@ -1000,6 +1000,9 @@ export default {
     "report": "Diese E-Mail melden"
   },
   "chat": {
+    "budgetTitle": "Automatische Antworten in {chat} für heute beendet",
+    "budgetBody": "{chat} hat vor 18:00 UTC alle {tokens} Tokens verbraucht, die es heute ausgeben darf. Bis Mitternacht UTC antwortet deshalb ein Mensch jedem Besucher. So früh aufgebraucht, kann es jemand sein, der sehr viele Nachrichten schickt. Sehen Sie sich die heutigen Unterhaltungen an oder erhöhen Sie die Tokens pro Tag in den Einstellungen des Chats.",
+    "aiNotice": "Die Nachrichten der Besucher werden an {service} gesendet, um eine Antwort auszuwählen. Sonst wird nichts gesendet.",
     "pausedTitle": "Neue Chats sind pausiert: {chat}",
     "pausedBody": "Innerhalb einer Stunde wurden so viele neue Chats begonnen, dass es nach einem Skript aussieht. Neue Besucher können bis {time} keinen Chat beginnen; laufende Chats gehen weiter. In den Einstellungen des Chats können Sie neue Chats früher wieder zulassen."
   }

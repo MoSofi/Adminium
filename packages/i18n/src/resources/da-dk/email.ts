@@ -1000,6 +1000,9 @@ export default {
     "report": "Anmeld denne e-mail"
   },
   "chat": {
+    "budgetTitle": "Automatiske svar i {chat} er stoppet for i dag",
+    "budgetBody": "{chat} har brugt alle {tokens} tokens, den må bruge i dag, før kl. 18:00 UTC, så en person svarer hver besøgende indtil midnat UTC. Når de er brugt så tidligt, kan det være nogen, der sender rigtig mange beskeder. Se dagens samtaler, eller hæv antallet af tokens pr. dag i chattens indstillinger.",
+    "aiNotice": "Besøgendes beskeder sendes til {service} for at vælge et svar. Intet andet sendes.",
     "pausedTitle": "Nye chats er sat på pause: {chat}",
     "pausedBody": "Der blev startet så mange nye chats inden for en time, at det ligner et script. Nye besøgende kan ikke starte en chat før {time}; igangværende chats fortsætter. Du kan genoptage nye chats tidligere i chattens indstillinger."
   }

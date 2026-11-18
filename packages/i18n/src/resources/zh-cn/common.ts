@@ -1453,7 +1453,8 @@ export default {
   },
   "chat": {
     "messageSent": "消息已发送",
-    "sendFailed": "消息发送失败。"
+    "sendFailed": "消息发送失败。",
+    "budgetEvent": "聊天的自动回答今天已停止"
   },
   "templates": {
     "crud": {

@@ -69,6 +69,8 @@ export const NOTIFICATION_EVENT_KEYS: readonly string[] = [
   // creator's notice when a run finishes.
   'email.campaign',
   'email.campaign.sent',
+  // A website chat's automatic answers ran out of tokens early in the day (`chat/budget-alert.ts`).
+  'chat.budget',
 ];
 
 /**

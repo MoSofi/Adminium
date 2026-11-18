@@ -1000,6 +1000,9 @@ export default {
     "report": "Report this email"
   },
   "chat": {
+    "budgetTitle": "Automatic answers in {chat} stopped for today",
+    "budgetBody": "{chat} used all {tokens} tokens it may spend today before 18:00 UTC, so a person answers every visitor until midnight UTC. Used up this early, it may be someone sending many messages. Look at today’s conversations, or raise the daily tokens in the chat’s settings.",
+    "aiNotice": "Visitors’ messages are sent to {service} to pick an answer. Nothing else is sent.",
     "pausedTitle": "New chats are paused: {chat}",
     "pausedBody": "So many new chats started within an hour that it looks like a script. New visitors cannot start a chat until {time}; visitors already chatting go on. You can resume new chats sooner in the chat’s settings."
   }

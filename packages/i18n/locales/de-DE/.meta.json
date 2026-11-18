@@ -5415,6 +5415,10 @@
     "srcHash": "164b3d4809f9",
     "status": "mt"
   },
+  "common.chat.budgetEvent": {
+    "status": "mt",
+    "srcHash": "abeadeac0183"
+  },
   "common.chat.messageSent": {
     "srcHash": "9cf1b68c1b0e",
     "status": "mt"
@@ -17742,6 +17746,18 @@
   "email.category.transactional": {
     "status": "mt",
     "srcHash": "09f7e4f1cf49"
+  },
+  "email.chat.aiNotice": {
+    "status": "mt",
+    "srcHash": "d1a541c9b492"
+  },
+  "email.chat.budgetBody": {
+    "status": "mt",
+    "srcHash": "42b1774b01d8"
+  },
+  "email.chat.budgetTitle": {
+    "status": "mt",
+    "srcHash": "df8cece17a21"
   },
   "email.chat.pausedBody": {
     "status": "mt",

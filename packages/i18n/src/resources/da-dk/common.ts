@@ -1453,7 +1453,8 @@ export default {
   },
   "chat": {
     "messageSent": "Besked sendt",
-    "sendFailed": "Beskeden kunne ikke sendes."
+    "sendFailed": "Beskeden kunne ikke sendes.",
+    "budgetEvent": "En chats automatiske svar er stoppet for i dag"
   },
   "templates": {
     "crud": {
