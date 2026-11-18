@@ -6,6 +6,7 @@
  * endings inside the page), a form left out, a picture that does not load,
  * right to left, loading and "not available", the banner as on a form's page.
  */
+import { StrictMode } from 'react';
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -127,7 +128,7 @@ function stubFetch(): void {
   );
 }
 
-async function show(address: string, tag = 'en-US'): Promise<void> {
+async function show(address: string, tag = 'en-US', strict = false): Promise<void> {
   const [path = '', search = ''] = address.split('?');
   const route = routeOf(path, search === '' ? '' : `?${search}`);
   if (route.kind !== 'page') throw new Error(`${address} is not a landing page`);
@@ -135,11 +136,12 @@ async function show(address: string, tag = 'en-US'): Promise<void> {
   applyDirection(language);
   const i18n = await initXWords(language.id);
   await act(async () => {
-    render(
+    const app = (
       <I18nProvider i18n={i18n}>
         <LandingApp route={route} />
-      </I18nProvider>,
+      </I18nProvider>
     );
+    render(strict ? <StrictMode>{app}</StrictMode> : app);
   });
 }
 
@@ -288,6 +290,14 @@ describe('a Form block', () => {
     expect(formCalls().map((call) => call.url)).toEqual(['/x/forms/api/showroom-visit?lang=en-US&on=5']);
     // The page's own host: its cookies go (Per visitor), as on a form's own page.
     expect(formCalls()[0]!.credentials).toBe('same-origin');
+  });
+
+  it('a browser with no way to watch the screen asks at once, and still once, however often the block is drawn', async () => {
+    vi.stubGlobal('IntersectionObserver', undefined);
+    await show('/x/pages/acoustic-booths', 'en-US', true);
+    await screen.findAllByRole('heading', { name: 'Book a showroom visit', level: 2 });
+    await waitFor(() => expect(formCalls()).toHaveLength(1));
+    expect(formCalls()[0]!.url).toBe('/x/forms/api/showroom-visit?lang=en-US&on=5');
   });
 
   it('sends with the page key, and says Sent inside the page, focused, as tall as the form was', async () => {
