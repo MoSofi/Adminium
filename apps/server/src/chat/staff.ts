@@ -34,7 +34,7 @@ import { DAY_MS } from '../public-api/claim-code.js';
 import type { ChatCaps } from './caps.js';
 import type { LiveChat } from './catalog.js';
 import { authorOf } from './door.js';
-import { CHAT_REPLY_MAILS_PER_DAY, mailChatReply, replyMailsUsed, type ChatReplyMailRefusal } from './reply-mail.js';
+import { CHAT_REPLY_MAILS_PER_DAY, CHAT_REPLY_MAILS_PER_RECIPIENT_DAY, mailChatReply, replyMailsUsed, replyRecipientMailsUsed, type ChatReplyMailRefusal } from './reply-mail.js';
 import { boundKey, SYSTEM_LINES, type ChatConversation, type ChatMessage, type ChatStore } from './store.js';
 import type { ChatWaiting } from './waiting.js';
 
@@ -197,6 +197,8 @@ export function createChatStaff(deps: ChatStaffDeps) {
     if (blocked !== null) return { ...base, ready: false, reason: blocked };
     if (await sample(chat, conversation.id)) return { ...base, ready: false, reason: 'sample' };
     if (used >= CHAT_REPLY_MAILS_PER_DAY) return { ...base, ready: false, reason: 'cap' };
+    // The address had its day's mails from this install's other chats already.
+    if ((await replyRecipientMailsUsed(deps.caps, deps.secret, chat.installId, conversation.email, at)) >= CHAT_REPLY_MAILS_PER_RECIPIENT_DAY) return { ...base, ready: false, reason: 'cap' };
     return { ...base, ready: true, reason: null };
   }
 
