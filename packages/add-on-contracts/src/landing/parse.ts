@@ -91,15 +91,5 @@ export function formBlocksOf(page: LandingPage): LandingBlockOf<'form'>[] {
   return page.blocks.filter((block): block is LandingBlockOf<'form'> => block.kind === 'form');
 }
 
-/**
- * The page's one main heading: the first Hero's, else the first Heading's,
- * else the page's title, drawn for people who cannot see the page only
- * (`block` is then null). Every other heading on the page is a section's.
- */
-export function mainHeadingOf(page: LandingPage): { block: string | null; text: string } {
-  const hero = page.blocks.find((block): block is LandingBlockOf<'hero'> => block.kind === 'hero');
-  if (hero !== undefined) return { block: hero.id, text: hero.heading };
-  const heading = page.blocks.find((block): block is LandingBlockOf<'heading'> => block.kind === 'heading');
-  if (heading !== undefined) return { block: heading.id, text: heading.text };
-  return { block: null, text: page.title };
-}
+// The main heading is read by the renderer too, which must not load the schemas: it lives on its own.
+export { mainHeadingOf } from './headings.js';

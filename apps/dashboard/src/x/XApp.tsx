@@ -31,80 +31,32 @@
  * control they used, focus goes to the new card's heading. Nothing moves
  * focus on load.
  */
-import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { switchLocale } from '@adminium/i18n/page';
 import { useI18n, useT } from '@adminium/i18n/react';
-import { Ban, Check, ChevronDown, CircleCheck, EyeOff, Globe, Link2Off, LoaderCircle, Mail, RotateCcw, SearchX, TriangleAlert, type LucideIcon } from 'lucide-react';
-import type { FormDefinition, FormQuestion, FormQuestionOf, FormTickPurpose } from '@adminium/add-on-contracts/forms';
+import { Ban, Check, ChevronDown, CircleCheck, Globe, Link2Off, RotateCcw, SearchX, TriangleAlert, type LucideIcon } from 'lucide-react';
 
-import { answerValues, checkBeforeSend, formOf, hiddenQuery, shownQuestions, WHOLE_ANSWER, type Held } from './answers.js';
-import { fetchChallenge, fetchForm, postAnswer, type XBusiness, type XPage } from './api.js';
-import type { FileRow } from './Files.js';
-import { linkToParent, type FrameLink } from './frame.js';
-import { controlId, Question, textOf } from './Questions.js';
+import { fetchForm, type XBusiness, type XPage } from './api.js';
+import { FormBody, Icon, MailLink, sentWords, type Ending } from './FormBody.js';
+import type { FrameLink } from './frame.js';
 import type { XRoute } from './route.js';
+import { XFooter, XHeader } from './Shell.js';
 import { languageOfTag, X_LANGUAGES, type XLanguage } from './words.js';
+
+export { monogram } from './Shell.js';
 
 /** The visitor banner: its own chunk, fetched only where "Per visitor" asks on this page (`banner/VisitorBanner.tsx`). */
 const VisitorBanner = lazy(() => import('./banner/VisitorBanner.js'));
 
 /** The accents an install may have: anything else is the default. */
-const ACCENTS = new Set(['indigo', 'blue', 'teal', 'violet', 'rose', 'red', 'orange', 'black']);
+export const ACCENTS = new Set(['indigo', 'blue', 'teal', 'violet', 'rose', 'red', 'orange', 'black']);
 
 type Tone = 'positive' | 'warning' | 'neutral';
-
-/** What the page shows instead of the form. */
-type Ending =
-  | { kind: 'sent'; name: string | null; confirm: FormTickPurpose | null }
-  | { kind: 'closed' }
-  | { kind: 'unavailable' }
-  | { kind: 'already' }
-  | { kind: 'dead' }
-  | { kind: 'offline' };
 
 /** The page's language and direction, on the document itself. */
 export function applyDirection(language: XLanguage): void {
   document.documentElement.lang = language.tag;
   document.documentElement.dir = language.dir;
-}
-
-/** The tile that stands in for a business with no logo: the first mark of its first two words. */
-export function monogram(name: string): string {
-  const words = name.trim().split(/\s+/).filter((word) => /[\p{L}\p{N}&]/u.test(word));
-  return words
-    .slice(0, 2)
-    .map((word) => [...word].find((char) => /[\p{L}\p{N}&]/u.test(char)) ?? '')
-    .join('');
-}
-
-function Icon({ of: Of, size = 18 }: { of: LucideIcon | 'spinner'; size?: number }): ReactNode {
-  if (Of === 'spinner') return <LoaderCircle className="x-icon x-spin" size={size} strokeWidth={2} aria-hidden="true" />;
-  return <Of className="x-icon" size={size} strokeWidth={2} aria-hidden="true" />;
-}
-
-function MailLink({ email, icon = false }: { email: string; icon?: boolean }): ReactNode {
-  return (
-    <a href={`mailto:${email}`} className={icon ? 'x-contact' : undefined}>
-      {icon ? <Icon of={Mail} size={16} /> : null}
-      <bdi dir="ltr">{email}</bdi>
-    </a>
-  );
-}
-
-/** The first word of a typed name, for "Thanks, {name}.". */
-function firstName(value: Held): string | null {
-  if (typeof value !== 'string') return null;
-  const first = value.trim().split(/\s+/)[0] ?? '';
-  return first === '' ? null : [...first].slice(0, 40).join('');
-}
-
-/** A wait in seconds, said as the page's language says "in an hour". */
-function waitWords(seconds: number | null, tag: string, day = false): string {
-  const rtf = new Intl.RelativeTimeFormat(tag, { numeric: 'auto' });
-  // A day's cap opens again tomorrow, whatever the hours.
-  if (day) return rtf.format(1, 'day');
-  const s = seconds === null || seconds <= 0 ? 3600 : seconds;
-  return s >= 3600 ? rtf.format(Math.ceil(s / 3600), 'hour') : rtf.format(Math.max(1, Math.ceil(s / 60)), 'minute');
 }
 
 export function XApp({ route }: { route: XRoute }): ReactNode {
@@ -115,18 +67,6 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
   const preview = route.kind === 'form' && route.preview === true;
   const [page, setPage] = useState<XPage | null>(null);
   const [language, setLanguage] = useState<XLanguage>(() => languageOfTag(document.documentElement.lang || 'en-US'));
-  const [values, setValues] = useState<Record<string, Held>>({});
-  // Each file question's rows, kept in a ref as well: a Send waits for the files on their way, then reads them.
-  const [fileRows, setFileRows] = useState<Record<string, FileRow[]>>({});
-  const rowsRef = useRef<Record<string, FileRow[]>>({});
-  const sendingFiles = useRef(new Set<Promise<void>>());
-  const rowSeq = useRef(0);
-  const [trap, setTrap] = useState('');
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [checked, setChecked] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [tooMany, setTooMany] = useState<number | null | undefined>(undefined);
-  const [tooManyDay, setTooManyDay] = useState(false);
   const [ending, setEnding] = useState<Ending | null>(null);
   const [live, setLive] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -141,12 +81,8 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
   const link = useRef<FrameLink | null>(null);
 
   const form = page?.state === 'live' ? page.form : null;
-  const invitation = page?.state === 'live' ? page.invitation : undefined;
   // Never in a frame or a preview: the server says nothing of it there, and the page asks nothing either.
-  const visitor = page?.state === 'live' && !frame && !(route.kind === 'form' && route.preview === true) ? page.visitor : undefined;
-  const about = invitation?.about ?? null;
-  const definition: FormDefinition | null = form?.definition ?? null;
-  const vocabularyForm = useMemo(() => (definition === null ? null : formOf(definition)), [definition]);
+  const visitor = page?.state === 'live' && !frame && !preview ? page.visitor : undefined;
   const business: XBusiness = page?.business ?? { name: '', legalName: null, email: null, privacyNotice: null, hasLogo: false };
   const tag = language.tag;
 
@@ -177,7 +113,10 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
   useEffect(() => {
     if (!frame || page === null || link.current !== null) return;
     const allowed = page.state === 'live' ? (page.frameOrigins ?? []) : [];
-    link.current = linkToParent(window, allowed, () => postHeight());
+    // Only a frame talks to its website: the handshake is loaded there alone, off every page's first load.
+    void import('./frame.js').then(({ linkToParent }) => {
+      if (link.current === null) link.current = linkToParent(window, allowed, () => postHeight());
+    });
   }, [page]);
 
   function postHeight(): void {
@@ -233,229 +172,13 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
     void chooseWords(next).then(() => (form === null ? undefined : load(next.tag)));
   }
 
-  // ── Words for a refusal ────────────────────────────────────────────────
-  const numbers = useMemo(() => new Intl.NumberFormat(tag, { numberingSystem: 'latn', maximumFractionDigits: 6 }), [tag]);
-  function refusal(question: FormQuestion | undefined, code: string): string {
-    const n = (value: number | undefined): string => (value === undefined ? '' : numbers.format(value));
-    switch (code) {
-      case 'required':
-      case 'text':
-        if (question?.kind === 'short' && question.role === 'name') return t('x:error.name', 'Enter your name');
-        if (question?.kind === 'short' && question.check === 'email') return t('x:error.email', 'Enter an e-mail address like name@company.com');
-        return t('x:error.required', 'Answer this question.');
-      case 'too-long':
-        return t('x:error.tooLong', 'Keep this to {max, plural, one {# character} other {# characters}}.', { max: question !== undefined && 'maxLength' in question ? question.maxLength : 0 });
-      case 'email':
-        return t('x:error.email', 'Enter an e-mail address like name@company.com');
-      case 'phone':
-        return t('x:error.phone', 'Enter a phone number with 6 to 15 digits.');
-      case 'choice':
-        return t('x:error.choice', 'Pick one of the choices.');
-      case 'too-few':
-        return t('x:error.tooFew', 'Pick at least {min}.', { min: n(question?.kind === 'several' ? question.min : undefined) });
-      case 'too-many':
-        return t('x:error.tooMany', 'Pick at most {max}.', { max: n(question?.kind === 'several' ? question.max : undefined) });
-      case 'date':
-        return t('x:error.date', 'Enter a day.');
-      case 'too-early':
-        return question?.kind === 'date' && question.from === 'today' ? t('x:error.fromToday', 'Pick a day from today on') : t('x:error.fromTomorrow', 'Pick a day from tomorrow on');
-      case 'number':
-        return t('x:error.number', 'Enter a number.');
-      case 'whole':
-        return t('x:error.whole', 'Enter a whole number.');
-      case 'too-small':
-        return t('x:error.tooSmall', 'Enter {min} or more.', { min: n(question?.kind === 'number' ? question.min : undefined) });
-      case 'too-large':
-        return t('x:error.tooLarge', 'Enter {max} or less.', { max: n(question?.kind === 'number' ? question.max : undefined) });
-      case 'score':
-        return t('x:error.score', 'Pick a score from 0 to 10.');
-      case 'stars':
-        return t('x:error.stars', 'Pick from 1 to 5 stars.');
-      case 'file':
-        return t('x:error.file', 'This file can’t be taken.');
-      case 'tick':
-        return t('x:error.tick', 'Tick the box, or leave it empty.');
-      default:
-        return t('x:error.answer', 'Something in the answers was not taken. Check them and send again.');
-    }
-  }
-
-  // ── Files ──────────────────────────────────────────────────────────────
-  /** The values with each file question's taken files, by the ids the file door gave. */
-  function withFiles(own: Record<string, Held>, rows: Record<string, FileRow[]>): Record<string, Held> {
-    const out = { ...own };
-    for (const [id, list] of Object.entries(rows)) {
-      const ids = list.flatMap((row) => (row.state === 'taken' && row.id !== undefined ? [row.id] : []));
-      out[id] = ids.length === 0 ? undefined : ids;
-    }
-    return out;
-  }
-
-  function updateRows(id: string, update: (rows: FileRow[]) => FileRow[]): void {
-    rowsRef.current = { ...rowsRef.current, [id]: update(rowsRef.current[id] ?? []) };
-    setFileRows(rowsRef.current);
-  }
-
-  /** Files picked for a question: refused at once when too large or of no kind it takes, else each sent now. */
-  async function pickFiles(question: FormQuestionOf<'file'>, files: File[]): Promise<void> {
-    // A preview sends nothing, a file included.
-    if (route.kind !== 'form' || route.preview) return;
-    const slug = route.slug;
-    // Loaded with the file control itself, never in the page's first load.
-    const { FILES_MAX, refusalBeforeSending, sendFile } = await import('./Files.js');
-    const many = question.many === true;
-    let room = many ? FILES_MAX - (rowsRef.current[question.id] ?? []).filter((row) => row.state !== 'refused').length : 1;
-    const fresh: FileRow[] = [];
-    const toSend: [FileRow, File][] = [];
-    for (const file of many ? files : files.slice(0, 1)) {
-      rowSeq.current += 1;
-      const row: FileRow = { key: `f${String(rowSeq.current)}`, name: file.name, size: file.size, state: 'sending' };
-      const early = refusalBeforeSending(file, question);
-      if (early !== null || room <= 0) {
-        fresh.push({ ...row, state: 'refused', code: early ?? 'count' });
-        continue;
-      }
-      room -= 1;
-      fresh.push(row);
-      toSend.push([row, file]);
-    }
-    // A question that takes one file: the new pick takes the place of the old.
-    updateRows(question.id, (rows) => [...(many ? rows : []), ...fresh]);
-    if (toSend.length === 0) setLive(t('x:files.refused', '{file} was not added.', { file: fresh[0]?.name ?? '' }));
-    for (const [row, file] of toSend) {
-      const job = sendFile(slug, question.id, file, route.token).then((reply) => {
-        updateRows(question.id, (rows) => rows.map((one) => (one.key !== row.key ? one : reply.state === 'taken' ? { ...one, state: 'taken', id: reply.id, size: reply.size } : { ...one, state: 'refused', code: reply.code })));
-        setLive(reply.state === 'taken' ? t('x:files.added', '{file} added.', { file: row.name }) : t('x:files.refused', '{file} was not added.', { file: row.name }));
-      });
-      sendingFiles.current.add(job);
-      void job.finally(() => sendingFiles.current.delete(job));
-    }
-  }
-
-  function removeFile(id: string, key: string): void {
-    const row = (rowsRef.current[id] ?? []).find((one) => one.key === key);
-    updateRows(id, (rows) => rows.filter((one) => one.key !== key));
-    if (row !== undefined) setLive(t('x:files.removed', '{file} removed.', { file: row.name }));
-  }
-
-  const held = useMemo(() => withFiles(values, fileRows), [values, fileRows]);
-
-  // After a Send, a question's mark follows its files as they arrive or go.
-  useEffect(() => {
-    if (checked) setErrors(check(held));
-  }, [fileRows]);
-
-  // ── Sending ────────────────────────────────────────────────────────────
-  const shown = vocabularyForm === null ? [] : shownQuestions(vocabularyForm, held);
-  const query = definition === null ? {} : hiddenQuery(definition, route.kind === 'form' ? route.query : null);
-
-  function check(next: Record<string, Held>): Record<string, string> {
-    if (vocabularyForm === null || page?.state !== 'live') return {};
-    return checkBeforeSend(vocabularyForm, next, { language: form!.language, today: page.today, query });
-  }
-
-  function change(id: string, value: Held): void {
-    const next = { ...values, [id]: value };
-    setValues(next);
-    // After a Send, each answer's mark follows what is typed.
-    if (checked) setErrors(check(withFiles(next, rowsRef.current)));
-  }
-
-  /** The first question to fix, in the order they are drawn. */
-  function firstWrong(found: Record<string, string>): string | null {
-    const question = shown.find((one) => found[one.id] !== undefined);
-    return question === undefined ? null : controlId(question.id);
-  }
-
-  async function send(event: FormEvent): Promise<void> {
-    event.preventDefault();
-    if (sending || route.kind !== 'form' || route.preview || vocabularyForm === null || form === null || page?.state !== 'live') return;
-    setChecked(true);
-    setTooMany(undefined);
-    // Files still on their way are waited for: the answer names the ones taken.
-    if (sendingFiles.current.size > 0) {
-      setSending(true);
-      setLive(t('x:sending', 'Sending…'));
-      await Promise.allSettled([...sendingFiles.current]);
-      setSending(false);
-    }
-    const now = withFiles(values, rowsRef.current);
-    const found = check(now);
-    setErrors(found);
-    if (Object.keys(found).length > 0) {
-      moveFocus.current = firstWrong(found);
-      setLive(t('x:summary', 'Check the answers marked below.'));
-      return;
-    }
-    setSending(true);
-    setLive(t('x:sending', 'Sending…'));
-    try {
-      const parent = frame ? (link.current?.parentOrigin() ?? null) : null;
-      const answer = { language: form.language, values: answerValues(vocabularyForm, now), query, website: trap, ...(parent === null ? {} : { from: parent }), ...(route.token === null ? {} : { t: route.token }) };
-      let reply: Awaited<ReturnType<typeof postAnswer>> = { state: 'proof' };
-      // The human check's solver is fetched at the first Send, off the page's first load: no page needs it before.
-      const { solve } = await import('../pay/proof.js');
-      // One silent retry: a challenge can expire while a slow phone solves it.
-      for (let round = 0; round < 2 && reply.state === 'proof'; round += 1) {
-        const challenge = await fetchChallenge(route.slug, route.token);
-        reply = await postAnswer(route.slug, answer, `${challenge.id}.${solve(challenge.salt, challenge.difficulty)}`, { frame });
-      }
-      if (reply.state === 'proof') {
-        setLive(t('x:proofFailed', 'The check that you are a person did not pass. Try again.'));
-        setErrors({ [WHOLE_ANSWER]: 'proof' });
-        return;
-      }
-      if (reply.state === 'refused') {
-        setErrors(reply.errors);
-        moveFocus.current = firstWrong(reply.errors);
-        setLive(t('x:summary', 'Check the answers marked below.'));
-        return;
-      }
-      if (reply.state === 'too-many') {
-        setTooManyDay(reply.day === true);
-        setTooMany(reply.retryAfter);
-        return;
-      }
-      if (reply.state === 'sent') {
-        if (definition!.ending.kind === 'page' && !frame) {
-          window.location.assign(definition!.ending.url);
-          return;
-        }
-        const nameQuestion = definition!.questions.find((question) => question.kind === 'short' && question.role === 'name');
-        const tick = definition!.questions.find((question): question is Extract<FormQuestion, { kind: 'tick' }> => question.kind === 'tick' && question.confirm && values[question.id] === true);
-        moveFocus.current = 'heading';
-        // A named survey greets the person it was sent to; anything else, the name typed (never on an anonymous survey).
-        const name = invitation?.firstName ?? (form.anonymous || nameQuestion === undefined ? null : firstName(values[nameQuestion.id]));
-        setEnding({ kind: 'sent', name, confirm: tick?.purpose ?? null });
-        return;
-      }
-      moveFocus.current = 'heading';
-      setEnding({ kind: reply.state });
-    } catch {
-      moveFocus.current = 'heading';
-      setEnding({ kind: 'offline' });
-    } finally {
-      setSending(false);
-    }
-  }
-
   // ── What an ending says ────────────────────────────────────────────────
   function endingCard(current: Ending): { tone: Tone; icon: LucideIcon; title: string; paras: ReactNode[]; contact: boolean; action?: ReactNode } {
     const write = business.email === null ? [] : [t('x:ending.write', 'Write to {email}.', { email: business.email })];
     switch (current.kind) {
       case 'sent': {
-        const survey = form?.kind === 'survey';
-        const title = survey
-          ? current.name === null
-            ? t('x:ending.thanks', 'Thank you.')
-            : t('x:ending.surveyThanksName', 'Thank you, {name}.', { name: current.name })
-          : current.name === null
-            ? t('x:ending.thanks', 'Thank you.')
-            : t('x:ending.thanksName', 'Thanks, {name}.', { name: current.name });
-        const own = definition?.ending.kind === 'words' ? textOf(definition.ending.words, form!.language) : '';
-        const paras: ReactNode[] = [...(survey ? [t('x:ending.surveyHelps', 'Your answers help us.')] : []), ...(own === '' ? [] : [own])];
-        if (current.confirm === 'newsletter') paras.push(t('x:ending.confirmNewsletter', 'One more step for the newsletter: check your e-mail and press Confirm.'));
-        if (current.confirm === 'surveys') paras.push(t('x:ending.confirmSurveys', 'One more step for the surveys: check your e-mail and press Confirm.'));
+        const definition = form?.definition;
+        const { title, paras } = sentWords(t, current, form);
         const onwards =
           definition?.ending.kind === 'page' ? (
             <a className="x-button-secondary" href={definition.ending.url} target="_top" rel="noreferrer">
@@ -547,14 +270,6 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
       </>
     );
 
-  // ── Drawing ────────────────────────────────────────────────────────────
-  const sectionTitle = new Map((definition?.sections ?? []).map((section) => [section.id, textOf(section.title, tag)]));
-  const drawn = new Set<string>();
-  const wholeError = errors[WHOLE_ANSWER];
-  const anyError = Object.keys(errors).length > 0;
-  const survey = form?.kind === 'survey';
-  const formLanguage = form?.language ?? tag;
-
   const body =
     card !== null ? (
       <section className="x-card x-status" data-tone={card.tone} aria-labelledby="x-status-title">
@@ -574,86 +289,28 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
         {card.action ?? null}
         {card.contact && business.email !== null ? <MailLink email={business.email} icon /> : null}
       </section>
-    ) : definition !== null && form !== null ? (
-      <form className="x-card x-form" noValidate onSubmit={(event) => void send(event)} lang={formLanguage}>
-        <div className="x-title">
-          <h1 className="x-h1">{textOf(definition.title, formLanguage)}</h1>
-          {/* What a named survey is about, from its invitation; otherwise the form's own intro. */}
-          {about !== null ? (
-            <p className="x-intro">{t('x:surveyAbout', 'About {record}.', { record: about })}</p>
-          ) : definition.intro === undefined ? null : (
-            <p className="x-intro">{textOf(definition.intro, formLanguage)}</p>
-          )}
-        </div>
-        {form.anonymous ? (
-          <p className="x-note">
-            <Icon of={EyeOff} size={16} />
-            <span>{t('x:anonymous', 'Your answers are not linked to your name.')}</span>
-          </p>
-        ) : null}
-        {shown.map((question) => {
-          const heading = question.section !== undefined && !drawn.has(question.section) ? sectionTitle.get(question.section) : undefined;
-          if (question.section !== undefined) drawn.add(question.section);
-          const code = errors[question.id];
-          return (
-            <div key={question.id} className="x-question">
-              {heading === undefined ? null : <h2 className="x-section">{heading}</h2>}
-              <Question
-                question={question}
-                value={values[question.id]}
-                error={code === undefined ? null : refusal(question, code)}
-                tag={formLanguage}
-                rtl={language.dir === 'rtl'}
-                today={page?.state === 'live' ? page.today : ''}
-                onChange={(value) => change(question.id, value)}
-                files={
-                  question.kind === 'file'
-                    ? { rows: fileRows[question.id] ?? [], onPick: (files) => void pickFiles(question, files), onRemove: (key) => removeFile(question.id, key) }
-                    : undefined
-                }
-              />
-            </div>
-          );
-        })}
-        {/* A trap for scripts that fill every field: no person sees it, and no screen reader reads it. */}
-        <div className="x-trap" aria-hidden="true">
-          <label htmlFor="x-website">{t('x:honeypot', 'Leave this field empty')}</label>
-          <input id="x-website" name="website" type="text" tabIndex={-1} autoComplete="off" value={trap} onChange={(event) => setTrap(event.target.value)} />
-        </div>
-        {tooMany === undefined ? null : (
-          <p className="x-alert" data-tone="warning" role="alert">
-            <Icon of={TriangleAlert} size={16} />
-            <span>
-              {business.email === null
-                ? t('x:ending.tooManyPlain', 'Too many sends from here. Please try again {when}.', { when: waitWords(tooMany, tag, tooManyDay) })
-                : t('x:ending.tooMany', 'Too many sends from here. Please try again {when}, or write to {email}.', { when: waitWords(tooMany, tag, tooManyDay), email: business.email })}
-            </span>
-          </p>
-        )}
-        {anyError ? (
-          <p className="x-alert" data-tone="danger">
-            <Icon of={TriangleAlert} size={16} />
-            <span>{wholeError === 'proof' ? t('x:proofFailed', 'The check that you are a person did not pass. Try again.') : wholeError !== undefined ? refusal(undefined, wholeError) : t('x:summary', 'Check the answers marked below.')}</span>
-          </p>
-        ) : null}
-        <button type="submit" className="x-button" aria-disabled={sending || preview || undefined} aria-describedby={preview ? 'x-preview' : undefined}>
-          {sending ? <Icon of="spinner" size={16} /> : null}
-          <span>{sending ? t('x:sending', 'Sending…') : survey ? t('x:sendAnswers', 'Send answers') : t('x:send', 'Send')}</span>
-        </button>
-        {preview ? (
-          <p className="x-note" id="x-preview">
-            {t('x:preview', 'Nothing is sent from here.')}
-          </p>
-        ) : null}
-        <p className="x-privacy">
-          {business.name === '' ? null : <span>{t('x:keeps', '{business} keeps what you send to answer you.', { business: business.name })} </span>}
-          {business.privacyNotice === null ? null : (
-            <a href={business.privacyNotice} target="_blank" rel="noreferrer">
-              {t('x:footer.privacyNotice', 'Privacy notice')}
-            </a>
-          )}
-        </p>
-      </form>
+    ) : form !== null && page?.state === 'live' && route.kind === 'form' ? (
+      <FormBody
+        slug={route.slug}
+        token={route.token}
+        query={route.query}
+        preview={preview}
+        frame={frame}
+        parentOrigin={() => link.current?.parentOrigin() ?? null}
+        form={form}
+        today={page.today}
+        business={business}
+        invitation={page.invitation}
+        tag={tag}
+        rtl={language.dir === 'rtl'}
+        heading="h1"
+        say={setLive}
+        onEnding={(next) => {
+          moveFocus.current = 'heading';
+          setEnding(next);
+        }}
+        onDrawn={frame ? postHeight : undefined}
+      />
     ) : null;
 
   return (
@@ -661,21 +318,7 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
       <div role="status" aria-live="polite" className="x-sr">
         {live}
       </div>
-      {frame ? null : (
-        <header className="x-header">
-          <div className="x-header-inner">
-            {business.hasLogo ? (
-              <img className="x-logo" src="/x/api/logo" alt="" />
-            ) : monogram(business.name) === '' ? null : (
-              <span className="x-monogram" aria-hidden="true" dir="ltr">
-                {monogram(business.name)}
-              </span>
-            )}
-            <bdi className="x-business">{business.name}</bdi>
-            {menu}
-          </div>
-        </header>
-      )}
+      {frame ? null : <XHeader business={business}>{menu}</XHeader>}
       {visitor === undefined ? null : (
         <Suspense fallback={null}>
           <VisitorBanner visitor={visitor} privacyNotice={business.privacyNotice} reopen={reopen} onDocked={setDocked} />
@@ -683,28 +326,7 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
       )}
       <div className="x-scroll">
         <main className="x-main">{body}</main>
-        {frame ? null : (
-          <footer className="x-footer">
-            <div className="x-footer-inner">
-              {business.name === '' ? null : <bdi>{business.legalName ?? business.name}</bdi>}
-              {business.email === null ? null : (
-                <span>
-                  {t('x:footer.questions', 'Questions? Write to')} <MailLink email={business.email} />
-                </span>
-              )}
-              {business.privacyNotice === null ? null : (
-                <a href={business.privacyNotice} target="_blank" rel="noreferrer">
-                  {t('x:footer.privacyNotice', 'Privacy notice')}
-                </a>
-              )}
-              {visitor === undefined ? null : (
-                <button type="button" className="x-cookie-choice" onClick={() => setReopen((n) => n + 1)}>
-                  {t('x:banner.cookieChoice', 'Cookie choice')}
-                </button>
-              )}
-            </div>
-          </footer>
-        )}
+        {frame ? null : <XFooter business={business} onCookieChoice={visitor === undefined ? undefined : () => setReopen((n) => n + 1)} />}
       </div>
     </div>
   );

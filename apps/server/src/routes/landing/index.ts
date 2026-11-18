@@ -26,8 +26,12 @@
  *  - every route: a role held to some of the pages is refused, as a reader
  *    of view counts is: a page is named here by its key.
  *
- * Only a signed-in person (or a staff key) asks. `?install=` names the
- * install when the add-on is on more than one database.
+ * Only a signed-in person (or a staff key) asks. The install is named as the
+ * add-on kit names it (`landing/install-of.ts`): the `X-Adminium-Install`
+ * header, else `?connectionId=`, else the key's only install.
+ *
+ * Milo's draft and the staff reads of forms, pages and a funnel's rule are
+ * their own plugin (`draft-and-reads.ts`), under the same install rule.
  */
 import { connectionTenantConfig, filesRepo, settingsRepo, type MetaDb, type StoredFile } from '@adminium/meta';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
@@ -46,6 +50,7 @@ import type { FileStore } from '../../files/store.js';
 import { formsReach, proxyUncheckedOf, type FormsReachFacts } from '../../forms/reach.js';
 import type { LandingAddOn, LandingCatalog, PageRow } from '../../landing/catalog.js';
 import { canonicalAddress, pageAddresses, pagesHostsByName } from '../../landing/hosts.js';
+import { landingInstallOf } from '../../landing/install-of.js';
 import { keepPagePicture, LANDING_PICTURE_KIND, pagePictureOf, PagePictureRefused, PICTURE_REFUSED_WORDS } from '../../landing/pictures.js';
 import { REACHABILITY_STATES } from '../../payments/reachability.js';
 import { privacyNoticeReady } from '../../privacy/business.js';
@@ -70,8 +75,8 @@ const PICTURE_BODY_LIMIT = PICTURE_MAX_BYTES + 2 * 1024 * 1024;
 
 const params = z.object({ addOn: z.string().min(1).max(80) });
 const pictureParams = params.extend({ file: z.string().min(1).max(64) });
-const pageQuery = z.object({ page: z.string().min(1).max(64), install: z.string().min(1).max(64).optional(), filename: z.string().trim().min(1).max(200).optional() });
-const statusQuery = z.object({ page: z.string().min(1).max(64).optional(), install: z.string().min(1).max(64).optional() });
+const pageQuery = z.object({ page: z.string().min(1).max(64), connectionId: z.string().max(64).optional(), filename: z.string().trim().min(1).max(200).optional() });
+const statusQuery = z.object({ page: z.string().min(1).max(64).optional(), connectionId: z.string().max(64).optional() });
 
 export const landingPictureReply = z.object({
   data: z.object({
@@ -147,8 +152,10 @@ export function landingStaffRoutes(deps: LandingStaffDeps): FastifyPluginAsyncZo
    * for a role held to some of its pages (a page is named by its key here, so
    * one it does not reach would be read or changed past the limit).
    */
-  async function addOnFor(app: FastifyInstance, request: FastifyRequest, addOn: string, install: string | undefined, action: 'read' | 'update'): Promise<LandingAddOn> {
-    const found = await catalog.forStaff(addOn, install);
+  async function addOnFor(app: FastifyInstance, request: FastifyRequest, addOn: string, action: 'read' | 'update'): Promise<LandingAddOn> {
+    // The install the request names (`landing/install-of.ts`); then that install, and no other.
+    const install = await landingInstallOf(meta, request, addOn);
+    const found = install === null ? null : await catalog.forStaff(addOn, install.row.id);
     if (found === null) throw new NotFoundError(`"${addOn}" is not an installed landing pages add-on.`);
     if (!(await request.can(`table:${found.connectionId}:${found.pagesTable}:${action}`))) {
       throw new ForbiddenError(action === 'read' ? 'Only someone who may read the pages reads this.' : 'Only someone who may change the pages adds a picture to one.', 'TABLE_FORBIDDEN', { reason: `landing-pages-${action}` });
@@ -220,7 +227,7 @@ export function landingStaffRoutes(deps: LandingStaffDeps): FastifyPluginAsyncZo
       },
       async (request, reply) => {
         const userId = requireUserId(request);
-        const addOn = await addOnFor(app, request, request.params.addOn, request.query.install, 'update');
+        const addOn = await addOnFor(app, request, request.params.addOn, 'update');
         const page = await pageOf(addOn, request.query.page);
         const body = request.body;
         let source: { bytes: Buffer; filename: string; from: string | null };
@@ -261,7 +268,7 @@ export function landingStaffRoutes(deps: LandingStaffDeps): FastifyPluginAsyncZo
         },
       },
       async (request, reply) => {
-        const addOn = await addOnFor(app, request, request.params.addOn, request.query.install, 'read');
+        const addOn = await addOnFor(app, request, request.params.addOn, 'read');
         const page = await pageOf(addOn, request.query.page);
         const file = await pagePictureOf(meta, { connectionId: addOn.connectionId, pagesTable: addOn.pagesTable, page: page.key }, request.params.file);
         if (file === null) throw new NotFoundError(`File ${request.params.file} not found.`);
@@ -293,7 +300,7 @@ export function landingStaffRoutes(deps: LandingStaffDeps): FastifyPluginAsyncZo
         },
       },
       async (request) => {
-        const addOn = await addOnFor(app, request, request.params.addOn, request.query.install, 'read');
+        const addOn = await addOnFor(app, request, request.params.addOn, 'read');
         const [answer, notice, publicOrigin, mapped, tenant, viewCountsMonths] = await Promise.all([
           formsReach(meta, deps.reach, request),
           privacyNoticeReady(meta),

@@ -46,6 +46,7 @@ const catalog: FormsCatalog = {
   byKey: async () => ({ state: 'unavailable' }),
   draft: async () => null,
   liveSlugs: async () => [],
+  liveForms: async () => [],
   forget: () => true,
 };
 

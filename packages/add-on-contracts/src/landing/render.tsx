@@ -20,7 +20,10 @@
  *    `h3`.
  *  - SLOTS: what the renderer cannot draw on its own is the host's: the form
  *    a Form block shows, a picture's file, the cookie banner, a feature's
- *    icon (from the closed list) and the address of another page.
+ *    icon (from the closed list) and the address of another page. For a
+ *    stranger, a Form block whose slot draws nothing is left out, and so is a
+ *    button whose link goes nowhere (a page that is not live, no form on the
+ *    page).
  *  - THE CANVAS (`mode: 'canvas'`): each block is a group, marked with
  *    `data-block-id`, holding one "Edit {kind}" button; the host draws the
  *    selection around it. Links carry no address there, so nothing in the
@@ -29,7 +32,7 @@
 import type { ReactNode } from 'react';
 
 import type { LandingBlock, LandingBlockKind, LandingBlockOf, LandingFeatureIcon, LandingLink, LandingPage, PictureRef } from './document.js';
-import { mainHeadingOf } from './parse.js';
+import { mainHeadingOf } from './headings.js';
 
 /** What the host draws for the renderer. */
 export interface LandingRenderSlots {
@@ -105,7 +108,13 @@ function hrefOf(link: LandingLink, ctx: Context): string | undefined {
   return ctx.props.slots?.pageHref?.(link.key) ?? undefined;
 }
 
+/** Whether a link goes nowhere for a stranger (a page not live, no form on the page): its button is left out. */
+function goesNowhere(link: LandingLink, ctx: Context): boolean {
+  return ctx.props.mode === 'stranger' && hrefOf(link, ctx) === undefined;
+}
+
 function LinkButton({ label, link, ctx }: { label: string; link: LandingLink; ctx: Context }) {
+  if (goesNowhere(link, ctx)) return null;
   return (
     <a className="lp-button" href={hrefOf(link, ctx)}>
       {label}
@@ -200,7 +209,8 @@ function Questions({ block }: { block: LandingBlockOf<'questions'> }) {
   );
 }
 
-function Block({ block, ctx }: { block: LandingBlock; ctx: Context }): ReactNode {
+/** A block, drawn: no hooks, so a block that draws nothing (null) is known before its frame is. */
+function blockOf(block: LandingBlock, ctx: Context): ReactNode {
   switch (block.kind) {
     case 'hero':
       return <Hero block={block} ctx={ctx} />;
@@ -221,11 +231,12 @@ function Block({ block, ctx }: { block: LandingBlock; ctx: Context }): ReactNode
       );
     case 'picture':
       return (
-        <div className="lp-section">
+        <div className="lp-section lp-picture-block">
           <Picture picture={block.picture} shape="wide" ctx={ctx} />
         </div>
       );
     case 'button':
+      if (goesNowhere(block.link, ctx)) return null;
       return (
         <div className="lp-section lp-actions">
           <LinkButton label={block.label} link={block.link} ctx={ctx} />
@@ -250,13 +261,27 @@ function Block({ block, ctx }: { block: LandingBlock; ctx: Context }): ReactNode
       return <Questions block={block} />;
     case 'spacer':
       return <div className="lp-spacer" data-size={block.size} aria-hidden="true" />;
-    case 'form':
+    case 'form': {
+      const form = ctx.props.slots?.form?.(block) ?? null;
+      // A form the host leaves out (not live, not in the page's language) leaves no empty band for a stranger.
+      if (form === null && ctx.props.mode === 'stranger') return null;
       return (
         <section className="lp-band lp-form" id={landingFormAnchor(block.id)}>
-          <div className="lp-form-card">{ctx.props.slots?.form?.(block) ?? null}</div>
+          <div className="lp-form-card">{form}</div>
         </section>
       );
+    }
   }
+}
+
+/** A block for a stranger, in its frame; a block left out (a button to nowhere, a form not drawn) leaves no frame either. */
+function StrangerBlock({ block, ctx }: { block: LandingBlock; ctx: Context }): ReactNode {
+  const drawn = blockOf(block, ctx);
+  return drawn === null ? null : (
+    <div className="lp-block" data-kind={block.kind}>
+      {drawn}
+    </div>
+  );
 }
 
 /** A landing page, drawn from its document. */
@@ -277,12 +302,10 @@ export function LandingPageView(props: LandingPageViewProps) {
               <button type="button" className="lp-edit" onClick={() => onEdit?.(block.id)}>
                 {words?.edit(block.kind) ?? block.kind}
               </button>
-              <Block block={block} ctx={ctx} />
+              {blockOf(block, ctx)}
             </div>
           ) : (
-            <div key={block.id} className="lp-block" data-kind={block.kind}>
-              <Block block={block} ctx={ctx} />
-            </div>
+            <StrangerBlock key={block.id} block={block} ctx={ctx} />
           ),
         )}
       </div>

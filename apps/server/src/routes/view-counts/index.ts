@@ -4,6 +4,9 @@
  * add-on install, per day (`views/counter.ts` counts them).
  *
  *   ?installId=<adminium_manifests id>&kind=page|form-page|form-opened|form-sent
+ *     (the install may instead be named as the add-on kit names it, by the
+ *     `X-Adminium-Install` header; `?installId=` wins, since a funnel reads
+ *     a forms install's counts from the pages add-on's page)
  *   &things=<key>,<key>…      (at most 50)
  *   &from=YYYY-MM-DD&to=YYYY-MM-DD   (both included, at most 400 days)
  *   [&place=<page key>]       (a form's counts on one page only)
@@ -30,6 +33,7 @@ import { isRowLimited } from '../../crud/row-limit.js';
 import { rowLimitContextOf } from '../../crud/row-limit-context.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { INSTALL_HEADER } from '../../installs/resolve.js';
 import { VIEW_KINDS, type ViewKind } from '../../views/counter.js';
 
 export interface ViewCountsRouteDeps {
@@ -44,7 +48,7 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const DAY_MS = 86_400_000;
 
 const viewsQuery = z.object({
-  installId: z.string().min(1).max(64),
+  installId: z.string().min(1).max(64).optional(),
   kind: z.enum(VIEW_KINDS),
   things: z.string().min(1).max(VIEWS_THINGS_MAX * 65),
   from: z.string().regex(DAY),
@@ -84,7 +88,10 @@ export function viewCountsRoutes(deps: ViewCountsRouteDeps): FastifyPluginAsyncZ
   const { meta } = deps;
   return async (app) => {
     app.get('/views', { preHandler: [app.requireAuth], schema: { querystring: viewsQuery, response: { 200: viewCountsReply } } }, async (request) => {
-      const { installId, kind, from, to, place } = request.query;
+      const { kind, from, to, place } = request.query;
+      const header = request.headers[INSTALL_HEADER];
+      const installId = request.query.installId ?? (typeof header === 'string' && header.length > 0 && header.length <= 64 ? header : undefined);
+      if (installId === undefined) throw new ValidationFailedError('Name the install the counts are of (`installId`, or the X-Adminium-Install header).', { field: 'installId' });
       const things = [...new Set(request.query.things.split(',').map((one) => one.trim()).filter((one) => one !== ''))];
       if (things.length === 0 || things.length > VIEWS_THINGS_MAX || things.some((one) => one.length > 64)) throw new ValidationFailedError(`Name from 1 to ${String(VIEWS_THINGS_MAX)} things, each a row key.`, { field: 'things' });
       const span = (dayNumber(to) - dayNumber(from)) / DAY_MS;

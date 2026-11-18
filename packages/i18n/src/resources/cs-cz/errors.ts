@@ -110,6 +110,7 @@ export default {
     "marked": "Tuto stránku nelze zveřejnit, dokud některá část nese Milovu značku. Nejdřív si každou prohlédněte.",
     "slug": "Tuto stránku nelze zveřejnit na této adrese. Použijte malá písmena, číslice a pomlčky, a ne slovo, které používají samotné adresy.",
     "slugTaken": "Tuto adresu už má jiná stránka.",
-    "assistant": "Milo může napsat koncept stránky, ale nikdy ji nezveřejní ani nezmění, zda je na webu."
+    "assistant": "Milo může napsat koncept stránky, ale nikdy ji nezveřejní ani nezmění, zda je na webu.",
+    "draftFailed": "Milo z toho nedokázal napsat stránku. Zkuste to znovu nebo stránku popište jinými slovy."
   }
 } as const;

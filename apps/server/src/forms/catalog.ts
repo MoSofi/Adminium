@@ -63,6 +63,22 @@ export interface LiveForm {
   installId?: string | undefined;
 }
 
+/** A live form, as a staff screen that picks one is told of it (`liveForms`). */
+export interface StaffLiveForm {
+  addOn: string;
+  /** The forms add-on's install (`adminium_manifests.id`): what the views read takes. */
+  installId: string;
+  connectionId: string;
+  /** The id of the forms table that holds it: what a reader's grant is asked on. */
+  formsTable: string;
+  /** The row's key, as text. */
+  id: string;
+  slug: string;
+  /** The name staff gave it, else its title in its default language. */
+  name: string;
+  form: Form;
+}
+
 export type FormLookup = { state: 'live'; live: LiveForm } | { state: 'closed' } | { state: 'unavailable' };
 
 /** What a vouching decision is asked about. */
@@ -285,7 +301,47 @@ export function createFormsCatalog(deps: FormsCatalogDeps) {
     return out;
   }
 
-  return { find, byKey, draft, liveSlugs, forget: (slug?: string) => (slug === undefined ? cache.clear() : cache.delete(slug)) };
+  /**
+   * Every live form of every forms add-on that is switched on, whose
+   * published copy parses whole: its row key, slug, the table that holds it
+   * (what a reader's grant is asked on) and the name staff gave it (the row's
+   * `name` when the table has one, else the form's title in its default
+   * language). For staff screens that pick a form (no cache: staff ask
+   * rarely); a reader's grant is the caller's to ask.
+   */
+  async function liveForms(): Promise<StaffLiveForm[]> {
+    const installs = await deps.installs();
+    const out: StaffLiveForm[] = [];
+    for (const addOn of await formsAddOns()) {
+      if (!addOn.on) continue;
+      const block = formsOf(addOn.manifest)!;
+      const tableId = installs.tableOf(addOn.connectionId, addOn.key, block.forms);
+      const pk = primaryKeyOf(addOn.manifest, block.forms);
+      if (tableId === null || pk === null) continue;
+      let rows: Record<string, unknown>[];
+      try {
+        const { db } = await deps.data(addOn.connectionId);
+        rows = (await db.selectFrom(tableId).selectAll().where(db.dynamic.ref('state'), '=', 'live').execute()) as Record<string, unknown>[];
+      } catch {
+        continue;
+      }
+      for (const row of rows) {
+        const id = row[pk];
+        if ((typeof id !== 'string' && typeof id !== 'number' && typeof id !== 'bigint') || !isFormSlug(row['slug'])) continue;
+        const published = jsonOf(row['published']);
+        if (published === null || typeof published !== 'object' || Array.isArray(published)) continue;
+        const parsed = parseForm((published as { definition?: unknown }).definition, (published as { settings?: unknown }).settings);
+        if (!parsed.ok) continue;
+        const own = typeof row['name'] === 'string' ? row['name'].trim() : '';
+        const definition = parsed.form.definition;
+        const name = [...(own !== '' ? own : (definition.title[definition.defaultLanguage] ?? Object.values(definition.title)[0] ?? row['slug']))].slice(0, 200).join('');
+        out.push({ addOn: addOn.key, installId: addOn.installId, connectionId: addOn.connectionId, formsTable: tableId, id: String(id), slug: row['slug'], name, form: parsed.form });
+      }
+    }
+    return out;
+  }
+
+  return { find, byKey, draft, liveSlugs, liveForms, forget: (slug?: string) => (slug === undefined ? cache.clear() : cache.delete(slug)) };
 }
 
 export type FormsCatalog = ReturnType<typeof createFormsCatalog>;

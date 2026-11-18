@@ -98,7 +98,11 @@
     "noScript": "تحتاج هذه المحادثة إلى JavaScript."
   },
   "pages": {
-    "noScript": "تحتاج هذه الصفحة إلى JavaScript."
+    "noScript": "تحتاج هذه الصفحة إلى JavaScript.",
+    "loading": "جارٍ تحميل الصفحة…",
+    "tooManyTitle": "محاولات إرسال كثيرة جدًا من هنا.",
+    "tooManyWrite": "حاول مرة أخرى {when}، أو اكتب إلى {email}.",
+    "tooManyLater": "حاول مرة أخرى {when}."
   },
   "banner": {
     "title": "هل نتذكر زيارتك؟",

@@ -108,7 +108,11 @@ export default {
     "noScript": "Denne chat kræver JavaScript."
   },
   "pages": {
-    "noScript": "Denne side kræver JavaScript."
+    "noScript": "Denne side kræver JavaScript.",
+    "loading": "Siden indlæses…",
+    "tooManyTitle": "For mange afsendelser herfra.",
+    "tooManyWrite": "Prøv igen {when}, eller skriv til {email}.",
+    "tooManyLater": "Prøv igen {when}."
   },
   "banner": {
     "title": "Må vi huske dit besøg?",
