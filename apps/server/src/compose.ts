@@ -128,6 +128,9 @@ import { formsFilesRoutes } from './routes/forms-files/index.js';
 import { listedWebsitesOf } from './forms/websites.js';
 import { framingWebsites } from './trial/operator-hosts.js';
 import { formsDoorRoutes } from './routes/forms-door/index.js';
+import { xConsentRoutes } from './routes/x-consent/index.js';
+import { viewCountsRoutes } from './routes/view-counts/index.js';
+import { createCounting, registerCountingSchedules } from './views/wiring.js';
 import { chatDoorRoutes } from './routes/chat-door/index.js';
 import { capKey } from './public-api/anonymous-caps.js';
 import { chatAiFrom, type ChatAi } from './chat/ai.js';
@@ -2264,6 +2267,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       app.log.warn({ err: error }, 'public API request counts could not be written; this minute is dropped');
     },
   });
+  /*
+   * Visitor counting: views of landing pages and forms per day, and at "Per
+   * visitor" the pages one visitor saw. Counted in memory by the doors,
+   * flushed every minute and on shutdown (`views/counter.ts`).
+   */
+  const counting = await createCounting({ meta, secret: env.ADMINIUM_SECRET, log: app.log });
   const publicGate = createPublicApiGate({
     read: async () => {
       await watchPublicRevision();
@@ -2654,6 +2663,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           answerFiles: formsFiles.removeAnswerFiles,
           // …and makes the chat store forget their conversations, so a visitor's poll on one is told it is lost.
           chatForget: (place, id) => chatStore.forget(place, id),
+          // A new counting level is used by this process's counter at once.
+          counting: counting.counter,
         }),
       );
       // What the forms builder shows: whether mail a stranger causes goes, and its status read (reach, notice, address, websites, roles).
@@ -2689,6 +2700,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       );
       await api.register(i18nRoutes({ meta }));
       await api.register(viewsRoutes({ meta }));
+      // Strangers' views per day, for whoever may read what was counted (`views/counter.ts`).
+      await api.register(viewCountsRoutes({ meta }));
       await api.register(meViewsRoutes({ meta }));
       await api.register(onboardingRoutes({ meta }));
       // Managing the public surface. Always registered, even when the public
@@ -3665,6 +3678,20 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
       desktop: env.ADMINIUM_RUNTIME === 'desktop',
       trustProxy: env.ADMINIUM_TRUST_PROXY,
+      // A live form's views and sends are counted; at "Per visitor" its own page asks first.
+      views: counting.counter,
+      visitors: counting.visitors,
+    }),
+  );
+  // The visitor banner's "Yes" and "Cookie choice" (`/x/consent/visit`).
+  await app.register(
+    xConsentRoutes({
+      meta,
+      key: counting.visitors.key,
+      level: () => counting.counter.level(),
+      networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+      desktop: env.ADMINIUM_RUNTIME === 'desktop',
+      trustProxy: env.ADMINIUM_TRUST_PROXY,
     }),
   );
 
@@ -4346,6 +4373,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // The last minute's counts, before the meta store closes.
   app.addHook('onClose', async () => {
     await publicStats.flush();
+  });
+  // Strangers' views and visits: written every minute and on shutdown, swept daily past their months.
+  registerCountingSchedules(jobs.scheduler, { meta, counting, log: app.log });
+  app.addHook('onClose', async () => {
+    await counting.counter.flush();
   });
   // What has the project's folder, for whoever is about to stop this server (the desktop app asks before it does).
   if (!app.hasDecorator('designerBusy')) app.decorate('designerBusy', () => designer?.runner.busy() ?? null);

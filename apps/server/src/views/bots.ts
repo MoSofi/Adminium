@@ -146,7 +146,8 @@ export const BOT_MARKERS: readonly string[] = [
 
 /** Whether a request's user agent is a known bot, crawler, preview, monitor, headless browser or script, or missing. */
 export function isKnownBot(userAgent: string | readonly string[] | undefined): boolean {
-  const agent = (Array.isArray(userAgent) ? userAgent.join(' ') : (userAgent ?? '')).trim().toLowerCase();
+  const text = typeof userAgent === 'string' ? userAgent : userAgent === undefined ? '' : userAgent.join(' ');
+  const agent = text.trim().toLowerCase();
   if (agent === '') return true;
   return BOT_MARKERS.some((marker) => agent.includes(marker));
 }

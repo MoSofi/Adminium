@@ -53,6 +53,8 @@ export interface LiveForm {
   addOn: string;
   connectionId: string;
   form: Form;
+  /** The add-on install that holds it (its `adminium_manifests` id): what its views are counted under. */
+  installId?: string | undefined;
 }
 
 export type FormLookup = { state: 'live'; live: LiveForm } | { state: 'closed' } | { state: 'unavailable' };
@@ -100,22 +102,22 @@ export function createFormsCatalog(deps: FormsCatalogDeps) {
   const cache = new Map<string, { at: number; lookup: Promise<FormLookup> }>();
 
   /** Every installed add-on that declares forms, with its connection: oldest install first. */
-  async function formsAddOns(): Promise<{ key: string; connectionId: string; manifest: AddOnManifest; version: string; on: boolean }[]> {
+  async function formsAddOns(): Promise<{ key: string; installId: string; connectionId: string; manifest: AddOnManifest; version: string; on: boolean }[]> {
     const rows = await deps.meta.db
       .selectFrom('adminium_manifests')
-      .select(['manifestKey', 'connectionId'])
+      .select(['id', 'manifestKey', 'connectionId'])
       .where('kind', '=', 'add-on')
       .where('status', '=', 'installed')
       .orderBy('installedAt')
       .orderBy('manifestKey')
       .execute();
     const installs = await deps.installs();
-    const out: { key: string; connectionId: string; manifest: AddOnManifest; version: string; on: boolean }[] = [];
+    const out: { key: string; installId: string; connectionId: string; manifest: AddOnManifest; version: string; on: boolean }[] = [];
     for (const row of rows) {
       if (row.connectionId === null) continue;
       const installed = installs.installed(row.connectionId, row.manifestKey);
       if (installed === null || installed.status !== 'installed' || formsOf(installed.manifest) === null) continue;
-      out.push({ key: row.manifestKey, connectionId: row.connectionId, manifest: installed.manifest, version: installed.version, on: [...installed.hosts.values()].some(Boolean) });
+      out.push({ key: row.manifestKey, installId: row.id, connectionId: row.connectionId, manifest: installed.manifest, version: installed.version, on: [...installed.hosts.values()].some(Boolean) });
     }
     return out;
   }
@@ -155,7 +157,7 @@ export function createFormsCatalog(deps: FormsCatalogDeps) {
       if (!parsed.ok) return unavailable;
       const id = row[pk];
       if (typeof id !== 'string' && typeof id !== 'number' && typeof id !== 'bigint') return unavailable;
-      return { state: 'live', live: { id: String(id), slug, addOn: addOn.key, connectionId: addOn.connectionId, form: parsed.form } };
+      return { state: 'live', live: { id: String(id), slug, addOn: addOn.key, connectionId: addOn.connectionId, form: parsed.form, installId: addOn.installId } };
     }
     return unavailable;
   }

@@ -30,6 +30,8 @@ export const SOURCE_KINDS = [
   'chat-conversations',
   'chat-messages',
   'chat-choices',
+  // "Pages they saw": the pages a visitor who said yes to "Per visitor" saw, joined to the address of a form they sent.
+  'page-visits',
 ] as const;
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 

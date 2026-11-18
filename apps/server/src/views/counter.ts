@@ -77,6 +77,8 @@ const QUARTER_MS = 15 * 60_000;
 export interface CountedRequest {
   ip: string;
   headers: Readonly<Record<string, string | readonly string[] | undefined>>;
+  /** How it came in, as the server sees it: the visitor's cookie is named for it. */
+  protocol?: 'http' | 'https' | undefined;
 }
 
 /** One count, as a door asks for it. */

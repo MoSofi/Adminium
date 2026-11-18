@@ -48,6 +48,10 @@ export const NEVER_ARCHIVED_TABLES: readonly string[] = [
   // What a website chat's automatic answerer spent today, and which addresses asked it: never set back by a file.
   'adminium_chat_ai_days',
   'adminium_chat_ai_addresses',
+  // The visitors who said yes to "Per visitor" and the pages they saw: an archive would keep them past an
+  // erasure and past their months. A restore starts with none (the view counts, business figures, are archived).
+  'adminium_visitors',
+  'adminium_visits',
 ];
 
 /** Staff API keys and the public API's keys. */
