@@ -38,8 +38,8 @@
  * at each flush, so a server switched to Off writes nothing after it, in
  * every process. At most {@link PENDING_MAX} keys wait for one flush.
  *
- * At "Per visitor" a counted view of a visitor who said yes (their cookie is
- * present, and not in a frame) also waits as a visit, written in the same
+ * At "Per visitor" a counted view (never a send) of a visitor who said yes
+ * (their cookie is present, and not in a frame) also waits as a visit, written in the same
  * flush, many in one insert; a visit whose visitor is gone by then is
  * dropped by the store.
  */
@@ -202,8 +202,9 @@ export function createViewCounter(deps: ViewCounterDeps): ViewCounter {
       full = true;
       report(new Error('The view counter is full until its next write: new counts this minute are dropped.'));
     }
-    // A visitor's visit: only at "Per visitor", only on the install's own pages, only with their cookie.
-    if (current === 'visitor' && input.framed !== true && deps.visitorOf !== undefined && visits.length < VISITS_MAX) {
+    // A visitor's visit: a view (never a send, which the answer's own join records), only at "Per visitor",
+    // only on the install's own pages, only with their cookie.
+    if (kind !== 'form-sent' && current === 'visitor' && input.framed !== true && deps.visitorOf !== undefined && visits.length < VISITS_MAX) {
       const visitorId = deps.visitorOf(input.request);
       if (visitorId !== null) visits.push({ visitorId, installId, kind, thing, at });
     }
