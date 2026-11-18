@@ -11,9 +11,13 @@
  * hand, a few times, and each step is resolved and checked again.
  *
  * https only, port 443 only, no credentials in the address, the body read
- * uncompressed up to a limit and no further.
+ * uncompressed up to a limit and no further. A caller may ask for a little
+ * more through its own options (the website reader: plain http on port 80 as
+ * a fallback, redirects handed back to it, only some content types); nothing
+ * changes for a caller that does not ask.
  */
 import { lookup as dnsLookup } from 'node:dns/promises';
+import { request as httpRequest } from 'node:http';
 import { request } from 'node:https';
 import { isIP } from 'node:net';
 
@@ -22,7 +26,7 @@ import { addressKind } from '../llm/outbound.js';
 export class SafeFetchError extends Error {
   override readonly name = 'SafeFetchError';
   constructor(
-    readonly reason: 'address' | 'blocked' | 'unresolved' | 'redirects' | 'too-large' | 'timeout' | 'status' | 'network',
+    readonly reason: 'address' | 'blocked' | 'unresolved' | 'redirects' | 'too-large' | 'timeout' | 'status' | 'network' | 'type',
     message: string,
     readonly status?: number,
     /** For a status: the answer's headers, names in lower case (a 429's `retry-after`). */
@@ -40,6 +44,17 @@ export interface SafeFetchOptions {
   headers?: Record<string, string>;
   signal?: AbortSignal;
   maxRedirects?: number;
+  /**
+   * Plain http on port 80 is reached too (never any other port), and a redirect from https to http is still refused.
+   * For a caller that reads a site somebody named and sends nothing of its own over it: no key, no cookie.
+   */
+  allowHttp?: boolean;
+  /** `return`: a redirect is handed back as it is (its `location` among the headers, no body), not followed. */
+  redirect?: 'follow' | 'return';
+  /** The user agent sent on every step, redirects included (the default names Adminium). */
+  userAgent?: string;
+  /** The media types taken (`text/html`), checked before any of the body is read; another is a `type` error. */
+  contentTypes?: readonly string[];
   /** Test seams. */
   resolve?: (host: string) => Promise<{ address: string; family: 4 | 6 }[]>;
   connect?: (target: PinnedTarget, opts: { headers: Record<string, string>; signal: AbortSignal }) => Promise<RawResponse>;
@@ -101,15 +116,16 @@ const defaultResolve = async (host: string): Promise<{ address: string; family: 
   (await dnsLookup(host, { all: true })).map((entry) => ({ address: entry.address, family: entry.family === 6 ? 6 : 4 }));
 
 /** The address a URL is to be reached at, checked; throws when it may not be reached at all. */
-export async function pin(rawUrl: string | URL, resolve: SafeFetchOptions['resolve'] = defaultResolve): Promise<PinnedTarget> {
+export async function pin(rawUrl: string | URL, resolve: SafeFetchOptions['resolve'] = defaultResolve, opts: Pick<SafeFetchOptions, 'allowHttp'> = {}): Promise<PinnedTarget> {
   let url: URL;
   try {
     url = new URL(rawUrl);
   } catch {
     throw new SafeFetchError('address', 'That is not an address.');
   }
-  if (url.protocol !== 'https:') throw new SafeFetchError('address', 'Only https addresses are fetched.');
-  if (url.port !== '' && url.port !== '443') throw new SafeFetchError('address', 'Only the standard https port is fetched.');
+  const plain = url.protocol === 'http:' && opts.allowHttp === true;
+  if (url.protocol !== 'https:' && !plain) throw new SafeFetchError('address', 'Only https addresses are fetched.');
+  if (url.port !== '' && url.port !== (plain ? '80' : '443')) throw new SafeFetchError('address', 'Only the standard port is fetched.');
   if (url.username !== '' || url.password !== '') throw new SafeFetchError('address', 'An address with a name or password in it is not fetched.');
   const host = url.hostname.replace(/^\[|\]$/g, '');
   let found: { address: string; family: 4 | 6 }[];
@@ -132,12 +148,14 @@ export async function pin(rawUrl: string | URL, resolve: SafeFetchOptions['resol
 const defaultConnect: NonNullable<SafeFetchOptions['connect']> = (target, opts) =>
   new Promise<RawResponse>((resolve, reject) => {
     const host = target.url.hostname.replace(/^\[|\]$/g, '');
-    const req = request(
+    // Plain http only when the caller allowed it (`pin` refused it otherwise), and then on port 80 only.
+    const plain = target.url.protocol === 'http:';
+    const req = (plain ? httpRequest : request)(
       {
-        protocol: 'https:',
+        protocol: plain ? 'http:' : 'https:',
         host,
-        servername: isIP(host) === 0 ? host : undefined,
-        port: 443,
+        ...(plain ? {} : { servername: isIP(host) === 0 ? host : undefined }),
+        port: plain ? 80 : 443,
         path: `${target.url.pathname}${target.url.search}`,
         method: 'GET',
         headers: opts.headers,
@@ -172,19 +190,23 @@ export async function safeFetch(rawUrl: string, opts: SafeFetchOptions): Promise
   const firstOrigin = new URL(rawUrl).origin;
   try {
     for (let hop = 0; ; hop += 1) {
-      const target = await pin(next, opts.resolve);
+      const target = await pin(next, opts.resolve, opts);
       // The caller's own headers (a key) go only to the origin the caller named: a redirect to another host carries none of them.
       const own = new URL(next).origin === firstOrigin ? (opts.headers ?? {}) : {};
       const response = await connect(target, {
         // Uncompressed: the limit is on what is read, and a small body that unpacks to a large one is not read at all.
-        headers: { accept: '*/*', 'user-agent': 'Adminium (https://adminium.dev)', ...own, 'accept-encoding': 'identity' },
+        headers: { accept: '*/*', 'user-agent': opts.userAgent ?? 'Adminium (https://adminium.dev)', ...own, 'accept-encoding': 'identity' },
         signal,
       });
       if ([301, 302, 303, 307, 308].includes(response.status)) {
         response.destroy();
+        // The caller follows (or does not) by its own rules: it gets the redirect as it came.
+        if (opts.redirect === 'return') return { status: response.status, url: target.url.toString(), contentType: '', body: Buffer.alloc(0), headers: lowerHeaders(response.headers) };
         const location = response.headers['location'];
         if (typeof location !== 'string' || hop >= maxRedirects) throw new SafeFetchError('redirects', 'The address redirects too many times, or nowhere.');
         next = new URL(location, target.url).toString();
+        // Once on https, never back to plain http, whatever the caller allowed.
+        if (target.url.protocol === 'https:' && new URL(next).protocol !== 'https:') throw new SafeFetchError('address', 'A redirect from https to plain http is not followed.');
         continue;
       }
       if (response.status < 200 || response.status >= 300) {
@@ -199,6 +221,10 @@ export async function safeFetch(rawUrl: string, opts: SafeFetchOptions): Promise
       if (typeof response.headers['content-encoding'] === 'string' && response.headers['content-encoding'] !== 'identity') {
         response.destroy();
         throw new SafeFetchError('too-large', 'The answer came compressed, which was not asked for.');
+      }
+      if (opts.contentTypes !== undefined && !opts.contentTypes.includes(mediaTypeOf(response.headers['content-type']))) {
+        response.destroy();
+        throw new SafeFetchError('type', 'The answer is not of a type that is taken.');
       }
       const parts: Buffer[] = [];
       let size = 0;
@@ -219,6 +245,12 @@ export async function safeFetch(rawUrl: string, opts: SafeFetchOptions): Promise
     if (timeout.aborted) throw new SafeFetchError('timeout', 'The address took too long to answer.');
     throw new SafeFetchError('network', error instanceof Error ? error.message : String(error));
   }
+}
+
+/** A content type's media type alone, in lower case: `text/html; charset=utf-8` is `text/html`. */
+export function mediaTypeOf(header: string | string[] | undefined): string {
+  const value = Array.isArray(header) ? header[0] : header;
+  return (value ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
 }
 
 /** What a picture's first bytes say it is; null when it is none this server takes. */

@@ -168,10 +168,14 @@ describe('an add-on\'s deciding file, at load', () => {
     expect(deciderFor(runtime, 'kit', 'rows')).toBeNull();
   });
 
-  it('leaves every other add-on\'s server code loading as it always did', async () => {
+  it('imports every other add-on\'s server code as a module, never as deciding code, under the same vouching', async () => {
     const { installed } = await stage('plain', { 'dist/server.js': 'export const render = 1;' }, [{ contract: 'document-render', version: 1, server: 'dist/server.js' }]);
     const imported: string[] = [];
-    const runtime = await buildAddOnRuntime({ store, installed, importModule: async (path) => (imported.push(path), { render: 1 }) });
+    // Unvouched, a provider's code is left out too (see `add-on-vouched-contracts.test.ts`): not compiled, not imported.
+    const refused = await buildAddOnRuntime({ store, installed, importModule: async (path) => (imported.push(path), { render: 1 }) });
+    expect(refused.problems.map((problem) => problem.reason)).toEqual(['UNTRUSTED_PROVIDER']);
+    expect(imported).toEqual([]);
+    const runtime = await buildAddOnRuntime({ store, installed, trust: { ...NOBODY, devKeys: 'plain', nodeEnv: 'test' }, importModule: async (path) => (imported.push(path), { render: 1 }) });
     expect(runtime.problems).toEqual([]);
     expect(imported).toHaveLength(1);
     expect(runtime.deciders.size).toBe(0);

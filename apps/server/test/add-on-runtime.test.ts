@@ -18,6 +18,7 @@ import { gzipSync } from 'fflate';
 import { addOnManifestSchema, type AddOnManifest } from '@adminium/manifest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { TrustSources } from '../src/add-ons/decide.js';
 import {
   buildAddOnRuntime,
   importServerHalf,
@@ -99,6 +100,13 @@ function manifestFor(
   return parsed.data;
 }
 
+/**
+ * Every contract these packages provide loads only from a package Adminium
+ * vouches for. They are staged here by hand, so a developer's own list
+ * vouches for them, as it does on a developer's server.
+ */
+const TRUSTED: TrustSources = { bundled: [], recorded: {}, devKeys: 'shipping-dhl,import-canva,design-studio', nodeEnv: 'test' };
+
 let dataDir: string;
 let store: AddOnStore;
 
@@ -143,6 +151,7 @@ describe('Loading a server half', () => {
     const seen: string[] = [];
     const state = await buildAddOnRuntime({
       store,
+      trust: TRUSTED,
       installed: [
         installed(
           manifestFor('shipping-dhl', {
@@ -173,6 +182,7 @@ describe('Loading a server half', () => {
     const seen: string[] = [];
     const state = await buildAddOnRuntime({
       store,
+      trust: TRUSTED,
       installed: [
         installed(
           manifestFor('shipping-dhl', {
@@ -195,6 +205,7 @@ describe('Loading a server half', () => {
     await stage('shipping-dhl');
     const state = await buildAddOnRuntime({
       store,
+      trust: TRUSTED,
       installed: [
         installed(
           manifestFor('shipping-dhl', {
@@ -219,6 +230,7 @@ describe('Loading a server half', () => {
 
     const state = await buildAddOnRuntime({
       store,
+      trust: TRUSTED,
       installed: [
         installed(
           manifestFor('shipping-dhl', {
@@ -244,6 +256,7 @@ describe('Loading a server half', () => {
     await stage('shipping-dhl');
     const state = await buildAddOnRuntime({
       store,
+      trust: TRUSTED,
       installed: [
         installed(
           manifestFor('shipping-dhl', {
@@ -284,6 +297,7 @@ describe('The provider registry', () => {
     await stage('design-studio');
     const state = await buildAddOnRuntime({
       store,
+      trust: TRUSTED,
       installed: [
         installed(
           manifestFor('import-canva', {
@@ -317,6 +331,7 @@ describe('The provider registry', () => {
     ];
     const state = await buildAddOnRuntime({
       store,
+      trust: TRUSTED,
       installed: [installed(manifest)],
       importModule: stubImport([]),
     });
@@ -325,7 +340,7 @@ describe('The provider registry', () => {
   });
 
   it('returns null for a contract nobody provides', async () => {
-    const state = await buildAddOnRuntime({ store, installed: [], importModule: stubImport([]) });
+    const state = await buildAddOnRuntime({ store, trust: TRUSTED, installed: [], importModule: stubImport([]) });
     expect(resolveProvider(state, 'shipping-carrier', 1)).toBeNull();
   });
 });
@@ -336,6 +351,7 @@ describe('Slot fills and SLOT_CONFLICT', () => {
     await stage('b-thing');
     const state = await buildAddOnRuntime({
       store,
+      trust: TRUSTED,
       installed: [
         installed(
           manifestFor('b-thing', {
@@ -365,6 +381,7 @@ describe('Slot fills and SLOT_CONFLICT', () => {
     await stage('b-thing');
     const state = await buildAddOnRuntime({
       store,
+      trust: TRUSTED,
       installed: [
         installed(
           manifestFor('a-thing', {
@@ -394,6 +411,7 @@ describe('Slot fills and SLOT_CONFLICT', () => {
     await stage('b-thing');
     const state = await buildAddOnRuntime({
       store,
+      trust: TRUSTED,
       installed: [
         installed(
           manifestFor('a-thing', {
@@ -421,6 +439,7 @@ describe('Slot fills and SLOT_CONFLICT', () => {
     await stage('a-thing');
     const state = await buildAddOnRuntime({
       store,
+      trust: TRUSTED,
       installed: [
         installed(
           manifestFor('a-thing', {

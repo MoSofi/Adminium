@@ -44,7 +44,7 @@
  * expect, with nothing anywhere saying why.
  */
 
-import { SLOT_REGISTRY, hasContractVersion } from '@adminium/add-on-contracts';
+import { CONTRACT_IDS, SLOT_REGISTRY, hasContractVersion } from '@adminium/add-on-contracts';
 import type { AddOnManifest } from '@adminium/manifest';
 
 import { DECIDER_CONTRACTS, deciderTrusted, loadDecider, type DeciderKind, type InstalledDecider, type TrustSources } from './decide.js';
@@ -60,18 +60,21 @@ export type LoadRefusal =
   | 'CONTRACT_UNKNOWN'
   // Code that decides inside a save, in a package whose bytes nobody vouches for.
   | 'UNTRUSTED_DECIDER'
-  // Code that moves money, in a package whose bytes nobody vouches for.
+  // A provider's code (it may be handed keys), in a package whose bytes nobody vouches for.
   | 'UNTRUSTED_PROVIDER';
 
 /**
  * Contracts imported as ordinary modules, but ONLY from a package Adminium can
  * vouch for — the same sources the deciding contracts use (a bundled pin, a
- * catalogue download, a dev key outside production). A payment provider
- * handles a shop's money and its keys, and a card terminal is handed the
- * shop's reader keys and takes payments in person, so a sideloaded look-alike
- * of either must never load, whatever its manifest says.
+ * catalogue download, a dev key outside production). Every registered
+ * contract with a server half is one: an add-on's server code runs in this
+ * process with no sandbox, and is handed keys (a shop's payment and reader
+ * keys, an owner's source keys), so a sideloaded look-alike must never load,
+ * whatever its manifest says. Derived from the registry, so a new contract is
+ * vouched the day it is registered; the deciding contracts are not in it
+ * because they have a gate of their own (they are compiled, never imported).
  */
-export const VOUCHED_CONTRACTS: ReadonlySet<string> = new Set(['payment-provider', 'card-terminal']);
+export const VOUCHED_CONTRACTS: ReadonlySet<string> = new Set(CONTRACT_IDS.filter((id) => DECIDER_CONTRACTS[id] === undefined));
 
 export interface LoadProblem {
   addOnKey: string;

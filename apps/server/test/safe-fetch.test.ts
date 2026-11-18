@@ -159,6 +159,57 @@ describe('fetching', () => {
   });
 });
 
+describe('what a caller may ask for besides', () => {
+  it('plain http only when asked, on port 80 only, and never from https to http', async () => {
+    const resolve = one('8.8.8.8');
+    const ok = async (): Promise<RawResponse> => reply(200, { 'content-type': 'text/html' }, Buffer.from('ok'));
+    expect(await reason(safeFetch('http://a.example/', { maxBytes: 10, resolve, connect: ok }))).toBe('address');
+    expect((await safeFetch('http://a.example/', { maxBytes: 10, resolve, connect: ok, allowHttp: true })).body.toString()).toBe('ok');
+    expect(await reason(safeFetch('http://a.example:8080/', { maxBytes: 10, resolve, connect: ok, allowHttp: true }))).toBe('address');
+    expect(await reason(safeFetch('http://a.example:443/', { maxBytes: 10, resolve, connect: ok, allowHttp: true }))).toBe('address');
+    expect(await reason(safeFetch('https://a.example:80/', { maxBytes: 10, resolve, connect: ok, allowHttp: true }))).toBe('address');
+    const down = async (target: PinnedTarget): Promise<RawResponse> => (target.url.protocol === 'https:' ? reply(302, { location: 'http://a.example/' }) : ok());
+    expect(await reason(safeFetch('https://a.example/', { maxBytes: 10, resolve, connect: down, allowHttp: true }))).toBe('address');
+  });
+
+  it('a redirect handed back as it came, its own user agent on every step, and only the content types it takes', async () => {
+    const resolve = one('8.8.8.8');
+    const agents: string[] = [];
+    const moved = await safeFetch('https://a.example/', {
+      maxBytes: 10,
+      resolve,
+      redirect: 'return',
+      userAgent: 'Reader/1',
+      connect: async (_target, opts) => {
+        agents.push(opts.headers['user-agent'] ?? '');
+        return reply(301, { location: 'https://b.example/' });
+      },
+    });
+    expect(moved).toMatchObject({ status: 301, url: 'https://a.example/', headers: { location: 'https://b.example/' } });
+    expect(moved.body.length).toBe(0);
+    await safeFetch('https://a.example/', {
+      maxBytes: 10,
+      resolve,
+      userAgent: 'Reader/1',
+      connect: async (target, opts) => {
+        agents.push(opts.headers['user-agent'] ?? '');
+        return target.url.host === 'a.example' ? reply(302, { location: 'https://b.example/' }) : reply(200, {}, Buffer.from('ok'));
+      },
+    });
+    expect(agents).toEqual(['Reader/1', 'Reader/1', 'Reader/1']);
+    let read = false;
+    const body = async function* (): AsyncIterable<Buffer> {
+      read = true;
+      yield Buffer.from('%PDF');
+    };
+    const pdf = async (): Promise<RawResponse> => ({ status: 200, headers: { 'content-type': 'application/pdf' }, body: body(), destroy: () => undefined });
+    expect(await reason(safeFetch('https://a.example/', { maxBytes: 10, resolve, connect: pdf, contentTypes: ['text/html'] }))).toBe('type');
+    expect(read).toBe(false);
+    const page = async (): Promise<RawResponse> => reply(200, { 'content-type': 'Text/HTML; charset=utf-8' }, Buffer.from('ok'));
+    expect((await safeFetch('https://a.example/', { maxBytes: 10, resolve, connect: page, contentTypes: ['text/html'] })).body.toString()).toBe('ok');
+  });
+});
+
 describe('a picture’s first bytes', () => {
   it('say what it is, whatever its name or its declared type said', () => {
     expect(pictureTypeOf(Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0]))).toEqual({ ext: 'jpg', mime: 'image/jpeg' });
