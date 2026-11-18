@@ -14,6 +14,11 @@
  * never decides), the summary over Send and focus to the first question to
  * fix, a trap field no person sees, and Send solving the human check first.
  *
+ * PER VISITOR. Where the server says "Per visitor" asks on this page (its
+ * own page, never a frame), the visitor banner's chunk is loaded and docked
+ * under the page (`banner/VisitorBanner.tsx`), and the footer gains "Cookie
+ * choice", which opens it again.
+ *
  * A NAMED SURVEY is drawn for its invitation's link (`?t=`), which every call
  * carries: greeted by the invitee's first name once sent, with what it is
  * about under its title, when the server says so.
@@ -26,7 +31,7 @@
  * control they used, focus goes to the new card's heading. Nothing moves
  * focus on load.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { switchLocale } from '@adminium/i18n/page';
 import { useI18n, useT } from '@adminium/i18n/react';
 import { Ban, Check, ChevronDown, CircleCheck, EyeOff, Globe, Link2Off, LoaderCircle, Mail, RotateCcw, SearchX, TriangleAlert, type LucideIcon } from 'lucide-react';
@@ -39,6 +44,9 @@ import { linkToParent, type FrameLink } from './frame.js';
 import { controlId, Question, textOf } from './Questions.js';
 import type { XRoute } from './route.js';
 import { languageOfTag, X_LANGUAGES, type XLanguage } from './words.js';
+
+/** The visitor banner: its own chunk, fetched only where "Per visitor" asks on this page (`banner/VisitorBanner.tsx`). */
+const VisitorBanner = lazy(() => import('./banner/VisitorBanner.js'));
 
 /** The accents an install may have: anything else is the default. */
 const ACCENTS = new Set(['indigo', 'blue', 'teal', 'violet', 'rose', 'red', 'orange', 'black']);
@@ -122,6 +130,9 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
   const [ending, setEnding] = useState<Ending | null>(null);
   const [live, setLive] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  // "Per visitor": the banner's band docks the page above it; "Cookie choice" opens it again.
+  const [docked, setDocked] = useState(false);
+  const [reopen, setReopen] = useState(0);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   const languageButton = useRef<HTMLButtonElement | null>(null);
@@ -131,6 +142,8 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
 
   const form = page?.state === 'live' ? page.form : null;
   const invitation = page?.state === 'live' ? page.invitation : undefined;
+  // Never in a frame or a preview: the server says nothing of it there, and the page asks nothing either.
+  const visitor = page?.state === 'live' && !frame && !(route.kind === 'form' && route.preview === true) ? page.visitor : undefined;
   const about = invitation?.about ?? null;
   const definition: FormDefinition | null = form?.definition ?? null;
   const vocabularyForm = useMemo(() => (definition === null ? null : formOf(definition)), [definition]);
@@ -385,7 +398,7 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
       // One silent retry: a challenge can expire while a slow phone solves it.
       for (let round = 0; round < 2 && reply.state === 'proof'; round += 1) {
         const challenge = await fetchChallenge(route.slug, route.token);
-        reply = await postAnswer(route.slug, answer, `${challenge.id}.${solve(challenge.salt, challenge.difficulty)}`);
+        reply = await postAnswer(route.slug, answer, `${challenge.id}.${solve(challenge.salt, challenge.difficulty)}`, { frame });
       }
       if (reply.state === 'proof') {
         setLive(t('x:proofFailed', 'The check that you are a person did not pass. Try again.'));
@@ -644,7 +657,7 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
     ) : null;
 
   return (
-    <div className="x-page" data-frame={frame ? '' : undefined} ref={rootRef} aria-busy={page === null && ending === null ? true : undefined}>
+    <div className="x-page" data-frame={frame ? '' : undefined} data-docked={docked ? '' : undefined} ref={rootRef} aria-busy={page === null && ending === null ? true : undefined}>
       <div role="status" aria-live="polite" className="x-sr">
         {live}
       </div>
@@ -663,24 +676,36 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
           </div>
         </header>
       )}
-      <main className="x-main">{body}</main>
-      {frame ? null : (
-        <footer className="x-footer">
-          <div className="x-footer-inner">
-            {business.name === '' ? null : <bdi>{business.legalName ?? business.name}</bdi>}
-            {business.email === null ? null : (
-              <span>
-                {t('x:footer.questions', 'Questions? Write to')} <MailLink email={business.email} />
-              </span>
-            )}
-            {business.privacyNotice === null ? null : (
-              <a href={business.privacyNotice} target="_blank" rel="noreferrer">
-                {t('x:footer.privacyNotice', 'Privacy notice')}
-              </a>
-            )}
-          </div>
-        </footer>
+      {visitor === undefined ? null : (
+        <Suspense fallback={null}>
+          <VisitorBanner visitor={visitor} privacyNotice={business.privacyNotice} reopen={reopen} onDocked={setDocked} />
+        </Suspense>
       )}
+      <div className="x-scroll">
+        <main className="x-main">{body}</main>
+        {frame ? null : (
+          <footer className="x-footer">
+            <div className="x-footer-inner">
+              {business.name === '' ? null : <bdi>{business.legalName ?? business.name}</bdi>}
+              {business.email === null ? null : (
+                <span>
+                  {t('x:footer.questions', 'Questions? Write to')} <MailLink email={business.email} />
+                </span>
+              )}
+              {business.privacyNotice === null ? null : (
+                <a href={business.privacyNotice} target="_blank" rel="noreferrer">
+                  {t('x:footer.privacyNotice', 'Privacy notice')}
+                </a>
+              )}
+              {visitor === undefined ? null : (
+                <button type="button" className="x-cookie-choice" onClick={() => setReopen((n) => n + 1)}>
+                  {t('x:banner.cookieChoice', 'Cookie choice')}
+                </button>
+              )}
+            </div>
+          </footer>
+        )}
+      </div>
     </div>
   );
 }

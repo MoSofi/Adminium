@@ -98,6 +98,8 @@ let answerReply: { status: number; body: unknown; headers?: Record<string, strin
 /** What the file door answers, by the file's name; a promise holds a reply back until the test lets it go. */
 let fileReplies: Record<string, { status: number; body: unknown } | Promise<{ status: number; body: unknown }>>;
 let calls: Call[];
+/** What the visitor banner's answers get. */
+let consentStatus = 200;
 
 function stubFetch(): void {
   vi.stubGlobal(
@@ -107,6 +109,7 @@ function stubFetch(): void {
       const method = init.method ?? 'GET';
       calls.push({ url, method, body: typeof init.body === 'string' ? JSON.parse(init.body) : undefined, headers: (init.headers ?? {}) as Record<string, string> });
       const path = url.split('?')[0]!;
+      if (path === '/x/consent/visit') return new Response(JSON.stringify({ state: method === 'POST' ? 'yes' : 'withdrawn' }), { status: consentStatus });
       if (path.endsWith('/challenge')) return new Response(JSON.stringify({ id: 'eyJ2IjoxfQ~sig', salt: 'salt', difficulty: 1, expiresAt: Date.now() + 60_000 }), { status: 200 });
       if (path.endsWith('/answers') && method === 'POST') return new Response(JSON.stringify(answerReply.body), { status: answerReply.status, headers: answerReply.headers ?? {} });
       if (path.endsWith('/files') && method === 'POST') {
@@ -140,6 +143,8 @@ async function show(address: string, tag = 'en-US'): Promise<void> {
 beforeEach(() => {
   pages = {};
   calls = [];
+  consentStatus = 200;
+  window.localStorage.clear();
   answerReply = { status: 200, body: { state: 'sent' } };
   fileReplies = {};
   stubFetch();
@@ -584,7 +589,7 @@ describe('the preview of a draft', () => {
     expect(routeOf('/x/chat/live-chat/more', '').kind).toBe('none');
   });
 
-  it('asks for the draft with the staff member\'s own session, and a stranger\'s page with none', async () => {
+  it('asks for the draft with the staff member\'s own session, a stranger\'s own page with this host\'s cookies, and a frame with none', async () => {
     pages['spring-draft'] = live(SHOWROOM, { preview: true, skipped: [] } as never);
     await show('/x/forms/spring-draft?preview=1');
     await screen.findByRole('heading', { level: 1 });
@@ -598,8 +603,16 @@ describe('the preview of a draft', () => {
     pages['showroom-visit'] = live(SHOWROOM);
     await show('/x/forms/showroom-visit');
     await screen.findByRole('heading', { level: 1 });
-    expect(vi.mocked(fetch).mock.calls[0]![1]?.credentials).toBe('omit');
+    // The install's own page: its cookies go (a visitor who said yes to "Per visitor" is seen by them).
+    expect(vi.mocked(fetch).mock.calls[0]![1]?.credentials).toBe('same-origin');
     expect(new URL(String(vi.mocked(fetch).mock.calls[0]![0]), 'https://forms.example').searchParams.has('preview')).toBe(false);
+    cleanup();
+    calls = [];
+    vi.mocked(fetch).mockClear();
+    // In a website's frame: never a cookie.
+    await show('/x/forms/showroom-visit?frame=1');
+    await screen.findByRole('heading', { level: 1 });
+    expect(vi.mocked(fetch).mock.calls[0]![1]?.credentials).toBe('omit');
   });
 
   it('draws the whole form with Send off and says nothing is sent; Send sends nothing, and a file is never uploaded', async () => {
@@ -628,3 +641,120 @@ describe('the preview of a draft', () => {
     expect(await screen.findByText('لا يُرسَل أي شيء من هنا.')).toBeDefined();
   });
 });
+
+describe('the visitor banner (Per visitor)', () => {
+  const VISITOR = {
+    banner: {
+      language: 'en-US',
+      title: 'Can we remember your visit?',
+      text: 'If you say yes, we remember which of our pages you look at, and if you then send us a form, we keep that with your message so we can answer you better. Nothing about your visit is remembered if you say no.',
+      yes: 'Yes',
+      no: 'No',
+      version: 'w-0123456789abcdef01234567',
+    },
+    said: null,
+  } as const;
+  const consentCalls = () => calls.filter((call) => call.url === '/x/consent/visit');
+
+  it('is drawn after the header, asks with two equal buttons and its title, and stores nothing before an answer', async () => {
+    pages['showroom-visit'] = live(SHOWROOM, { visitor: VISITOR });
+    await show('/x/forms/showroom-visit');
+    const region = await screen.findByRole('region', { name: 'Can we remember your visit?' });
+    expect(region.textContent).toContain('if you then send us a form');
+    const yes = within(region).getByRole('button', { name: 'Yes' });
+    const no = within(region).getByRole('button', { name: 'No' });
+    expect(yes.className).toBe(no.className);
+    expect(within(region).getByRole('link', { name: 'Privacy notice' }).getAttribute('href')).toBe(BUSINESS.privacyNotice);
+    // After the header, before the form, in the document; the page docks above it.
+    const header = document.querySelector('header')!;
+    const main = document.querySelector('main')!;
+    expect(header.compareDocumentPosition(region) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(region.compareDocumentPosition(main) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(document.querySelector('.x-page')!.hasAttribute('data-docked')).toBe(true);
+    // Nothing moved focus, nothing was stored, nothing was asked.
+    expect(document.activeElement).toBe(document.body);
+    expect(window.localStorage.length).toBe(0);
+    expect(consentCalls()).toEqual([]);
+    expect(screen.getByRole('button', { name: 'Cookie choice' })).toBeDefined();
+  });
+
+  it('"Yes" asks the server with this host\'s cookies and keeps nothing in the browser; the saved line stays', async () => {
+    pages['showroom-visit'] = live(SHOWROOM, { visitor: VISITOR });
+    await show('/x/forms/showroom-visit');
+    await userEvent.click(await screen.findByRole('button', { name: 'Yes' }));
+    expect(await screen.findByText('Saved: yes. Change it any time under Cookie choice.')).toBeDefined();
+    expect(consentCalls().map((call) => [call.method, call.body])).toEqual([['POST', { language: 'en-US' }]]);
+    expect(vi.mocked(fetch).mock.calls.find(([url]) => url === '/x/consent/visit')![1]?.credentials).toBe('same-origin');
+    expect(window.localStorage.length).toBe(0);
+    expect(screen.queryByRole('region', { name: 'Can we remember your visit?' })).toBeNull();
+  });
+
+  it('"No" is kept in this browser alone, and asks nothing of the server', async () => {
+    pages['showroom-visit'] = live(SHOWROOM, { visitor: VISITOR });
+    await show('/x/forms/showroom-visit');
+    await userEvent.click(await screen.findByRole('button', { name: 'No' }));
+    expect(await screen.findByText('Saved: no. Change it any time under Cookie choice.')).toBeDefined();
+    expect(consentCalls()).toEqual([]);
+    expect(window.localStorage.getItem('adm.x.choice')).toMatch(/^no:\d+$/);
+    // The next page asks nothing: the choice is kept.
+    cleanup();
+    await show('/x/forms/showroom-visit');
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByRole('region', { name: 'Can we remember your visit?' })).toBeNull();
+  });
+
+  it('asks again after six months of a "no"', async () => {
+    window.localStorage.setItem('adm.x.choice', `no:${String(Date.now() - 181 * 24 * 60 * 60 * 1000)}`);
+    pages['showroom-visit'] = live(SHOWROOM, { visitor: VISITOR });
+    await show('/x/forms/showroom-visit');
+    expect(await screen.findByRole('region', { name: 'Can we remember your visit?' })).toBeDefined();
+  });
+
+  it('after a "yes" shows nothing; "Cookie choice" opens it with focus on its title, and "No" takes the yes back', async () => {
+    pages['showroom-visit'] = live(SHOWROOM, { visitor: { ...VISITOR, said: 'yes' } });
+    await show('/x/forms/showroom-visit');
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByRole('region', { name: 'Can we remember your visit?' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Cookie choice' }));
+    const region = await screen.findByRole('region', { name: 'Can we remember your visit?' });
+    await waitFor(() => expect(document.activeElement).toBe(within(region).getByRole('heading', { name: 'Can we remember your visit?' })));
+    await userEvent.click(within(region).getByRole('button', { name: 'No' }));
+    expect(await screen.findByText('Saved: no. Change it any time under Cookie choice.')).toBeDefined();
+    expect(consentCalls().map((call) => call.method)).toEqual(['DELETE']);
+    expect(window.localStorage.getItem('adm.x.choice')).toMatch(/^no:/);
+  });
+
+  it('says so when a choice could not be saved, and keeps asking', async () => {
+    consentStatus = 500;
+    pages['showroom-visit'] = live(SHOWROOM, { visitor: VISITOR });
+    await show('/x/forms/showroom-visit');
+    await userEvent.click(await screen.findByRole('button', { name: 'Yes' }));
+    expect((await screen.findByRole('alert')).textContent).toBe('Your choice could not be saved. Try again.');
+    expect(screen.getByRole('region', { name: 'Can we remember your visit?' })).toBeDefined();
+  });
+
+  it('is never drawn in a frame, nor without Per visitor, and the footer has no Cookie choice then', async () => {
+    pages['showroom-visit'] = live(SHOWROOM, { visitor: VISITOR });
+    await show('/x/forms/showroom-visit?frame=1');
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByRole('region', { name: 'Can we remember your visit?' })).toBeNull();
+    cleanup();
+    pages['showroom-visit'] = live(SHOWROOM);
+    await show('/x/forms/showroom-visit');
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByRole('region')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Cookie choice' })).toBeNull();
+    expect(document.querySelector('.x-page')!.hasAttribute('data-docked')).toBe(false);
+    expect(window.localStorage.length).toBe(0);
+  });
+
+  it('is drawn in the page\'s language, right to left in Arabic', async () => {
+    pages['showroom-visit'] = live(SHOWROOM, { visitor: { said: null, banner: { ...VISITOR.banner, language: 'ar-EG', title: 'هل نتذكر زيارتك؟', yes: 'نعم', no: 'لا' } } });
+    await show('/x/forms/showroom-visit', 'ar-EG');
+    const region = await screen.findByRole('region', { name: 'هل نتذكر زيارتك؟' });
+    const band = region.closest('[lang]')!;
+    expect([band.getAttribute('lang'), band.getAttribute('dir')]).toEqual(['ar-EG', 'rtl']);
+    expect(within(region).getByRole('button', { name: 'نعم' })).toBeDefined();
+  });
+});
+
