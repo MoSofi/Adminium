@@ -349,6 +349,12 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'outbox.manyProducers',
   // Further plain columns an online payment's move to paid writes (a ticket order's paid_method).
   'payments.statusSet',
+  // Where an add-on finds companies and people: its sources, each with its hosts and its key; the contract they answer
+  // by; the add-on's tables for what they found; and where a company's details go on an app's companies table.
+  'addOn.sources',
+  'provides.lead-source',
+  'addOn.leads',
+  'people.lead',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -652,6 +658,11 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'outbox.producerPayments': '0.3.62',
   'outbox.manyProducers': '0.3.62',
   'payments.statusSet': '0.3.62',
+  // A release before refuses the keys, and the contract as one it does not know (CONTRACT_UNKNOWN).
+  'addOn.sources': '0.3.65',
+  'provides.lead-source': '0.3.65',
+  'addOn.leads': '0.3.65',
+  'people.lead': '0.3.65',
 };
 
 /** The kinds of file a column takes from the release that cleans SVG and reads models and fonts whole (`ASSET_FILE_KINDS`). */
@@ -692,6 +703,12 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (block['forms'] !== undefined) out.push({ word: 'addOn.forms', path: 'addOn.forms' });
     if (block['chat'] !== undefined) out.push({ word: 'addOn.chat', path: 'addOn.chat' });
     if (block['scope'] !== undefined) out.push({ word: 'addOn.scope', path: 'addOn.scope' });
+    if (block['sources'] !== undefined) out.push({ word: 'addOn.sources', path: 'addOn.sources' });
+    if (block['leads'] !== undefined) out.push({ word: 'addOn.leads', path: 'addOn.leads' });
+    // A contract named after the release that knows it: an older one would call it unknown, not name the release.
+    list(block['provides']).forEach((entry, p) => {
+      if (isDoc(entry) && entry['contract'] === 'lead-source') out.push({ word: 'provides.lead-source', path: `addOn.provides.${String(p)}.contract` });
+    });
     // A step's person, its record named by a column and filtered, a choice's help line, and the record's own table and key.
     list(block['steps']).forEach((step, s) => {
       if (!isDoc(step)) return;
@@ -790,6 +807,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
         if (isDoc(copy) && copy['holds'] === 'details') out.push({ word: 'people.copyDetails', path: `people.${String(e)}.copies.${String(c)}.holds` });
         if (isDoc(copy) && copy['from'] !== undefined) out.push({ word: 'people.addOnCopyFrom', path: `people.${String(e)}.copies.${String(c)}.from` });
       });
+      if (isDoc(entry) && entry['lead'] !== undefined) out.push({ word: 'people.lead', path: `people.${String(e)}.lead` });
     });
   }
 
