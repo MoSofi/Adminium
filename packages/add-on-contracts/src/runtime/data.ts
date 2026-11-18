@@ -66,5 +66,7 @@ export const useFormTables = data['useFormTables'] as never;
 export const useUpload = data['useUpload'] as never;
 /** Undefined on a host older than 0.3.64: a page asks `host.data.useLiveTable` before it follows a table. */
 export const useLiveTable = data['useLiveTable'] as never;
+/** Undefined on a host older than 0.3.64: a page asks `host.data.openAssistant` before it offers "Ask Milo". */
+export const openAssistant = data['openAssistant'] as never;
 
 export default data;

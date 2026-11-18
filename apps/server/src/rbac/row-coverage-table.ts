@@ -108,6 +108,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/chat/:addOn/conversations/:id/reopen': rows('visible', 'One conversation as the person reaches it under their row limits on the conversations table; one out of reach answers as one not there.'),
   'POST /api/v1/chat/:addOn/conversations/:id/enquiry': rows(['visible', 'link'], 'One conversation as the person reaches it under their row limits on the conversations table; one out of reach answers as one not there. The enquiry is made through the data routes as the person.'),
   'POST /api/v1/chat/:addOn/conversations/:id/draft': rows('visible', 'One conversation as the person reaches it under their row limits on the conversations table; one out of reach answers as one not there. The draft reads that conversation and the chat\'s answers (public text), never another row.'),
+  'GET /api/v1/chat/:addOn/status': rows('safe', 'Reads a chat\'s one settings row as the system, for a reader of its settings table: only its languages and time zone go out, beside server settings any visitor of the chat meets.'),
   'GET /api/v1/chat/:addOn/pause': noRows('Until when a chat\'s new conversations are paused: a time, no row.'),
   'POST /api/v1/chat/:addOn/resume': noRows('New conversations open again: a mark in the meta store, no row.'),
   // Export everything: the file copies each local SQLite source whole. Only a Super Admin, who is held to no rows, may ask.

@@ -56,7 +56,7 @@
 import { createHash } from 'node:crypto';
 
 import { parseDatabaseModel, parseEnumCheck, type ColumnModel, type DatabaseModel } from '@adminium/engine';
-import { shareCodeColumns, type AppManifest, type BookingRule, type ColumnRules, type Manifest, type RequiredColumn, type States } from '@adminium/manifest';
+import { CHAT_COLUMNS, CHAT_PARTS, CHAT_SETTINGS_COLUMNS, chatOf, shareCodeColumns, type AppManifest, type BookingRule, type ColumnRules, type Manifest, type RequiredColumn, type States } from '@adminium/manifest';
 import {
   MetaValidationError,
   appTablesRepo,
@@ -532,6 +532,24 @@ export function secretsShownBy(
   return secretsLost(model, rule.table, active, [...active.filter((row) => row !== rule.held), written]);
 }
 
+/**
+ * The columns a door's contract names on one of an add-on's tables: what the
+ * engine reads and writes there by name, and what the add-on's own pages
+ * show. The name guess reads `daily_tokens` or `tokens_in` as a secret, and a
+ * secret reaches no reader, so each is said not to be one, unless the add-on
+ * says otherwise of its own column (`rules.secret`), or the operator does.
+ *
+ * Only the chat's: of the forms contract, the guess catches `token_hash`
+ * alone, which is the hash of an invitation's secret code and stays one.
+ */
+export function doorContractColumns(manifest: Manifest, ref: string): readonly string[] {
+  const chat = chatOf(manifest);
+  if (chat === null) return [];
+  const out = CHAT_PARTS.filter((part) => chat[part] === ref).flatMap((part) => Object.keys(CHAT_COLUMNS[part]));
+  if (manifest.kind === 'add-on' && manifest.addOn.settingsTable === ref) out.push(...Object.keys(CHAT_SETTINGS_COLUMNS));
+  return out;
+}
+
 /** Why a rule that would show a secret (or a masked column) of a table the app did not make is not written. */
 function notOursToShow(tableName: string, columns: readonly string[]): string {
   const named = columns.map((column) => `"${tableName}.${column}"`).join(', ');
@@ -893,6 +911,12 @@ export async function writeManifestRules(input: {
     }
     // The code a shared link opens a row with: the desk's to hand over, on a table the app made (checked below).
     for (const ref of shareCodeColumns(manifest.publicAccess ?? [], table.ref)) {
+      const declared = table.columns.find((column) => column.ref === ref);
+      if (declared === undefined || declared.rules?.secret !== undefined) continue;
+      desired.push({ ref: table.ref, table: real.id, column: ref, op: 'column.secret', value: { secret: false }, ownTableOnly: true });
+    }
+    // A column a door's contract names is the engine's own to read and write: never a secret by its name alone.
+    for (const ref of doorContractColumns(input.manifest, table.ref)) {
       const declared = table.columns.find((column) => column.ref === ref);
       if (declared === undefined || declared.rules?.secret !== undefined) continue;
       desired.push({ ref: table.ref, table: real.id, column: ref, op: 'column.secret', value: { secret: false }, ownTableOnly: true });

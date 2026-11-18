@@ -7071,7 +7071,9 @@ The entry says the words a forms entry may: `table`, `methods` (only `["POST"]`)
 entry lets anyone read that table's rows. A table may carry both a `forms` and a `chat` entry. The
 app's key and the table's ref, as `<app>:<table>`, fit in 64 characters. No browser key is named
 `chat`, and the public API never serves the entry. A manifest that uses it sets
-`compatibility.minAdminiumVersion` to `0.3.64` or later.
+`compatibility.minAdminiumVersion` to `0.3.64` or later. Under an older floor `chat` is not
+reserved: an app written for an earlier Adminium that named one of its own keys `chat` keeps it as
+an ordinary key.
 
 A chat entry has no map of its own: the row's columns are found by name among `writable`. The
 question goes into the first of `message`, `text`, `question` or `body`; the visitor's name into

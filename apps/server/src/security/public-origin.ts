@@ -68,7 +68,7 @@ import { auditRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import { ValidationFailedError } from '../errors.js';
 import { PERMISSIONS } from '../rbac/permissions.js';
 import { permissionSetAllows, resolvePermissionSet } from '../rbac/resolver.js';
-import { classifyOrigin, type OriginProbe } from './csrf.js';
+import { classifyOrigin, normalizeHost, type OriginProbe } from './csrf.js';
 
 /** The registry key (packages/meta settings-registry.ts). */
 export const PUBLIC_ORIGIN_SETTING = 'system.publicOrigin';
@@ -199,6 +199,34 @@ export function notePublicOrigin(meta: MetaDb, value: string | null): void {
   else known.set(meta, true);
 }
 
+/** The mapping that already holds an origin's host: an app's side, or the add-on pages. */
+export type OriginHostMapping = { kind: 'app'; host: string; appKey: string; side: string } | { kind: 'pages'; host: string };
+
+/**
+ * Which mapping already holds the host of `origin` (`surfaces.domains`, then
+ * `surfaces.pageHosts`), or null when none does. Such a host answers with an
+ * app or the add-on pages, so it is never the address links in mail point
+ * at: a record's link, an invitation or a reset there would open the app.
+ */
+export async function mappingOfOriginHost(meta: MetaDb, origin: string): Promise<OriginHostMapping | null> {
+  const host = normalizeHost(new URL(origin).host);
+  const settings = settingsRepo(meta);
+  const [domains, pageHosts] = await Promise.all([settings.get('surfaces.domains'), settings.get('surfaces.pageHosts')]);
+  for (const [mapped, target] of Object.entries(domains)) {
+    if (normalizeHost(mapped) === host) return { kind: 'app', host, appKey: target.appKey, side: target.side };
+  }
+  for (const mapped of Object.keys(pageHosts)) {
+    if (normalizeHost(mapped) === host) return { kind: 'pages', host };
+  }
+  return null;
+}
+
+/** Why an origin whose host is mapped is not the address in email links, naming the mapping that holds it. */
+export function mappedOriginMessage(mapping: OriginHostMapping): string {
+  const opens = mapping.kind === 'app' ? `the ${mapping.side} side of "${mapping.appKey}"` : 'the add-on pages';
+  return `"${mapping.host}" opens ${opens} (Surfaces, Domains): links in email there would open that instead of the dashboard. Use the dashboard's own address, or unmap "${mapping.host}" first.`;
+}
+
 /** Structured logger — satisfied by `request.log`. */
 export interface OriginLogger {
   info(obj: Record<string, unknown>, msg?: string): void;
@@ -250,6 +278,8 @@ export async function capturePublicOrigin(
     known.set(ctx.meta, true);
     return null;
   }
+  // A host an app's side or the add-on pages answer on is never where mail links go: the next request from the dashboard's own address is.
+  if ((await mappingOfOriginHost(ctx.meta, origin)) !== null) return null;
   const permissions = await resolvePermissionSet(ctx.meta, {
     kind: 'user',
     id: ctx.user.id,

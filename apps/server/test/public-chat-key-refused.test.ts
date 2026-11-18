@@ -52,20 +52,56 @@ function shopWithChat(): Record<string, unknown> {
 describe('the entries the public API serves', () => {
   it('leave out every entry under the key chat, as under forms', () => {
     const entries = [{ table: 'products', methods: ['GET'] }, FORMS_ENTRY, CHAT_ENTRY, { table: 'products', methods: ['GET'], key: 'partner' }] as unknown as PublicAccessEntry[];
-    expect(servedPublicEntries(entries).map((entry) => entry.key ?? 'customer')).toEqual(['customer', 'partner']);
+    expect(servedPublicEntries({ publicAccess: entries, compatibility: { minAdminiumVersion: '0.3.64' } }).map((entry) => entry.key ?? 'customer')).toEqual(['customer', 'partner']);
+  });
+
+  it('keep an app’s own key named chat when the app was written for an older Adminium', () => {
+    const link = { table: 'products', methods: ['GET'], key: 'chat', claim: { by: 'token', column: 'link_token' } };
+    const entries = [{ table: 'products', methods: ['GET'] }, FORMS_ENTRY, link] as unknown as PublicAccessEntry[];
+    expect(servedPublicEntries({ publicAccess: entries, compatibility: { minAdminiumVersion: '0.3.63' } }).map((entry) => entry.key ?? 'customer')).toEqual(['customer', 'chat']);
+    expect(servedPublicEntries({ publicAccess: entries, compatibility: { minAdminiumVersion: '0.3.64' } }).map((entry) => entry.key ?? 'customer')).toEqual(['customer']);
   });
 
   it('let nobody read a table opened to chat, through any key', () => {
     const reader = { table: 'messages', methods: ['GET'], select: ['id'], key: 'partner' };
     expect(anonymousAddAndRead([CHAT_ENTRY, reader] as unknown as PublicAccessEntry[])).toEqual([1]);
     expect(anonymousAddAndRead([{ ...CHAT_ENTRY, table: 'other' }, reader] as unknown as PublicAccessEntry[])).toEqual([]);
+    // Under an older floor the entry is an ordinary key's: no door holds the table.
+    expect(anonymousAddAndRead([{ ...CHAT_ENTRY, anonymous: undefined, claim: { by: 'token', column: 'x' } }, reader] as unknown as PublicAccessEntry[], ['forms'])).toEqual([]);
   });
 });
+
+/** A shop written for 0.3.63, whose products open by a link under a key of its own it named `chat`. */
+function olderShopWithChatKey(): Record<string, unknown> {
+  const base = shopManifest();
+  const schema = base['requiredSchema'] as { prefixed: true; tables: { ref: string; columns: unknown[] }[] };
+  return {
+    ...base,
+    compatibility: { minAdminiumVersion: '0.3.63', engines: ['postgres', 'mysql', 'sqlite'] },
+    requiredSchema: {
+      ...schema,
+      tables: schema.tables.map((table) => (table.ref === 'products' ? { ...table, columns: [...table.columns, { ref: 'link_token', type: 'text', maxLength: 24, nullable: true, rules: { code: { length: 16 } } }] } : table)),
+    },
+    publicKeys: { chat: {} },
+    publicAccess: [{ table: 'products', methods: ['GET'], select: ['id', 'name', 'price'] }, { table: 'products', key: 'chat', methods: ['GET'], select: ['id', 'name'], claim: { by: 'token', column: 'link_token' } }],
+  };
+}
 
 describe.each(LEGS)('a table opened to chat, asked for through the public API — %s', (dialect, available) => {
   let h: Harness;
   afterEach(async () => {
     if (available) await h.close();
+  });
+
+  it.skipIf(!available)('an app written for an older Adminium keeps its own key named chat: its endpoint and its key are made', async () => {
+    h = await addOnHarness(dialect);
+    await h.stageApp(olderShopWithChatKey());
+    const installed = await h.install('shop', '1.0.0');
+    expect(installed.statusCode, installed.body).toBe(200);
+    const endpoints = await publicEndpointsRepo(h.meta).listByConnection(h.connectionId);
+    expect(endpoints).toHaveLength(2);
+    const purposes = (await publicKeysRepo(h.meta).listManagedBy('shop')).map((key) => key.purpose).sort();
+    expect(purposes).toEqual(['chat', 'customer']);
   });
 
   it.skipIf(!available)('gets no endpoint and no key, and answers a stranger as a table nobody opened', async () => {

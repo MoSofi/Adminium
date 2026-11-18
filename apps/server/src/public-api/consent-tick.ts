@@ -66,7 +66,7 @@ export function createConsentTicks(meta: MetaDb, now: () => number = Date.now): 
     if (row === null || row.row.kind !== 'app' || row.row.connectionId !== connectionId) return null;
     const checked = validateManifest(row.document, { allowLocalPublisher: true });
     if (!checked.ok || checked.manifest.kind !== 'app') return null;
-    const entries = servedPublicEntries(checked.manifest.publicAccess ?? []);
+    const entries = servedPublicEntries(checked.manifest);
     if (!entries.some((entry) => entry.consent !== undefined)) return null;
     const names = await appTablesRepo(meta).realNames(connectionId, appKey);
     const refs = publicEntryRefs(entries, names);

@@ -24,6 +24,7 @@
  * nobody who added a website. Everyone else is refused (403).
  */
 import { rolesRepo, roleNameFor, userPrefsRepo, type MetaDb } from '@adminium/meta';
+import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
@@ -54,25 +55,53 @@ const mailAnswer = z.object({
 
 export const formsMailReply = z.object({ data: mailAnswer });
 
-export const formsStatusReply = z.object({
-  data: z.object({
-    mail: mailAnswer,
-    /** "Can visitors reach your public pages?": the forms door's own answer for this request, as `/privacy/reach` gives it. */
-    reach: z.object({
-      state: z.enum(REACHABILITY_STATES),
-      /** True when this request cannot tell whether strangers come through a proxy, as `/privacy/reach` gives it. */
-      proxyUnchecked: z.boolean(),
-    }),
-    /** Whether the privacy notice is set (the business's name and the notice's address): a form is not served until it is. */
-    notice: z.boolean(),
-    /** This server's public address (`system.publicOrigin`): a form's link is `<publicOrigin>/x/forms/<slug>`; null while unset. */
-    publicOrigin: z.string().nullable(),
-    /** The websites a form may be shown on in a frame ("Your websites"), as origins. */
-    websites: z.array(z.string()),
-    /** Every role, by its name in the reader's language: whom a form may tell. No member of any. */
-    roles: z.array(z.object({ id: z.string(), name: z.string() })),
+/** What a door's settings page shows of the server (the forms builder's, a chat's): one read, for both. */
+export const doorStatusData = z.object({
+  mail: mailAnswer,
+  /** "Can visitors reach your public pages?": the forms door's own answer for this request, as `/privacy/reach` gives it. */
+  reach: z.object({
+    state: z.enum(REACHABILITY_STATES),
+    /** True when this request cannot tell whether strangers come through a proxy, as `/privacy/reach` gives it. */
+    proxyUnchecked: z.boolean(),
   }),
+  /** Whether the privacy notice is set (the business's name and the notice's address): a form is not served until it is. */
+  notice: z.boolean(),
+  /** This server's public address (`system.publicOrigin`): a form's link is `<publicOrigin>/x/forms/<slug>`; null while unset. */
+  publicOrigin: z.string().nullable(),
+  /** The websites a form may be shown on in a frame ("Your websites"), as origins. */
+  websites: z.array(z.string()),
+  /** Every role, by its name in the reader's language: whom a form may tell. No member of any. */
+  roles: z.array(z.object({ id: z.string(), name: z.string() })),
 });
+
+export const formsStatusReply = z.object({ data: doorStatusData });
+
+/**
+ * Everything a door's settings page shows of the server, for the person
+ * behind `request`: the mail answer, the reach answer as this request meets
+ * it, the notice, the address, the websites, and the roles by their names in
+ * the reader's language. The forms status and the chat status both read it,
+ * so the two pages never disagree.
+ */
+export async function readDoorStatus(meta: MetaDb, secret: string, reach: FormsReachFacts, request: FastifyRequest): Promise<z.infer<typeof doorStatusData>> {
+  const [blocked, answer, notice, publicOrigin, websites, roles] = await Promise.all([
+    formsMailBlocked(meta, secret),
+    formsReach(meta, reach, request),
+    privacyNoticeReady(meta),
+    storedPublicOrigin(meta),
+    readWebsites(meta),
+    rolesRepo(meta).list(),
+  ]);
+  const locale = request.user === null ? undefined : (await userPrefsRepo(meta).resolve(request.user.id)).locale;
+  return {
+    mail: { sends: blocked === null, blocked },
+    reach: { state: answer.state, proxyUnchecked: proxyUncheckedOf(reach, request) },
+    notice,
+    publicOrigin,
+    websites: websites.map((website) => website.origin),
+    roles: roles.map((role) => ({ id: role.id, name: locale === undefined ? role.name : roleNameFor(role, (names) => sameLanguage(names, locale)) })),
+  };
+}
 
 export function formsStaffRoutes(deps: FormsStaffDeps): FastifyPluginAsyncZod {
   const { meta } = deps;
@@ -116,25 +145,7 @@ export function formsStaffRoutes(deps: FormsStaffDeps): FastifyPluginAsyncZod {
         if (!(await readsSomeForms((permission) => request.can(permission)))) {
           throw new ForbiddenError('Only someone who may read a forms add-on’s forms reads its status.', 'FORBIDDEN', { reason: 'forms-read' });
         }
-        const [blocked, answer, notice, publicOrigin, websites, roles] = await Promise.all([
-          formsMailBlocked(meta, deps.secret),
-          formsReach(meta, reach, request),
-          privacyNoticeReady(meta),
-          storedPublicOrigin(meta),
-          readWebsites(meta),
-          rolesRepo(meta).list(),
-        ]);
-        const locale = request.user === null ? undefined : (await userPrefsRepo(meta).resolve(request.user.id)).locale;
-        return {
-          data: {
-            mail: { sends: blocked === null, blocked },
-            reach: { state: answer.state, proxyUnchecked: proxyUncheckedOf(reach, request) },
-            notice,
-            publicOrigin,
-            websites: websites.map((website) => website.origin),
-            roles: roles.map((role) => ({ id: role.id, name: locale === undefined ? role.name : roleNameFor(role, (names) => sameLanguage(names, locale)) })),
-          },
-        };
+        return { data: await readDoorStatus(meta, deps.secret, reach, request) };
       },
     );
   };

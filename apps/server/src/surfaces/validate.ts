@@ -50,7 +50,19 @@ export function hostIssueFor(host: string): string | null {
  */
 export function validateDomainEntries(
   entries: Readonly<Record<string, { appKey: string; side: SurfaceSide; instance?: string | undefined }>>,
-  ctx: { requestHost: string; surfaces: readonly HostedSurface[]; settings: SurfaceSettings; publicOriginHost?: string | null | undefined },
+  ctx: {
+    requestHost: string;
+    surfaces: readonly HostedSurface[];
+    settings: SurfaceSettings;
+    publicOriginHost?: string | null | undefined;
+    /**
+     * The app hosts stored now. One mapped to the public address's host
+     * before that was refused (or before the address was set) is kept as it
+     * is: refusing it would refuse every later save of the map. Only a new
+     * mapping of that host, or one pointed somewhere else, is refused.
+     */
+    stored?: Readonly<Record<string, DomainMapping>> | undefined;
+  },
 ): { normalized: Record<string, DomainMapping>; issues: DomainIssue[] } {
   const issues: DomainIssue[] = [];
   const normalized: Record<string, DomainMapping> = {};
@@ -78,7 +90,7 @@ export function validateDomainEntries(
       continue;
     }
     const publicHost = publicOriginIssue(host, key, ctx.publicOriginHost);
-    if (publicHost !== null) {
+    if (publicHost !== null && !sameStoredApp(ctx.stored, key, target)) {
       issues.push(publicHost);
       continue;
     }
@@ -153,6 +165,13 @@ export function publicOriginHostOf(publicOrigin: string | null | undefined): str
   return origin === null ? null : normalizeHost(new URL(origin).host);
 }
 
+/** Whether `key` (normalised) is stored already, opening this same side of this same app and instance. */
+function sameStoredApp(stored: Readonly<Record<string, DomainMapping>> | undefined, key: string, target: { appKey: string; side: SurfaceSide; instance?: string | undefined }): boolean {
+  return Object.entries(stored ?? {}).some(
+    ([mapped, held]) => normalizeHost(mapped) === key && held.appKey === target.appKey && held.side === target.side && (held.instance ?? null) === (target.instance ?? null),
+  );
+}
+
 /**
  * The refusal of a host that is the public address's own (`key`, already
  * normalised), worded the same for an app's side and for the add-on pages;
@@ -162,7 +181,7 @@ function publicOriginIssue(host: string, key: string, publicOriginHost: string |
   if (publicOriginHost === null || publicOriginHost === undefined || key !== publicOriginHost) return null;
   return {
     path: host,
-    message: `"${host}" is the host of this server's public address — mapping it would take the dashboard away there, and with it the links in its mail.`,
+    message: `"${host}" is the host of this server's public address — mapping it would take the dashboard away there, and with it the links in its mail. Map another host, or change Address in email links first.`,
     code: 'public_origin_host',
   };
 }
@@ -177,7 +196,13 @@ function publicOriginIssue(host: string, key: string, publicOriginHost: string |
  */
 export function validatePageHostEntries(
   entries: Readonly<Record<string, { home: string }>>,
-  ctx: { requestHost: string; taken: ReadonlySet<string>; publicOriginHost?: string | null | undefined },
+  ctx: {
+    requestHost: string;
+    taken: ReadonlySet<string>;
+    publicOriginHost?: string | null | undefined;
+    /** The pages hosts stored now: one already mapped to the public address's host, with the same home, is kept. */
+    stored?: Readonly<Record<string, { home: string }>> | undefined;
+  },
 ): { normalized: Record<string, { home: string }>; issues: DomainIssue[] } {
   const issues: DomainIssue[] = [];
   const normalized: Record<string, { home: string }> = {};
@@ -197,7 +222,7 @@ export function validatePageHostEntries(
       continue;
     }
     const publicHost = publicOriginIssue(host, key, ctx.publicOriginHost);
-    if (publicHost !== null) {
+    if (publicHost !== null && !Object.entries(ctx.stored ?? {}).some(([mapped, stored]) => normalizeHost(mapped) === key && stored.home === target.home)) {
       issues.push(publicHost);
       continue;
     }

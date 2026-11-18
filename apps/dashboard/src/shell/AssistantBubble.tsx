@@ -11,7 +11,7 @@ import { Sparkles } from 'lucide-react';
 import { Suspense, lazy, useEffect, useState } from 'react';
 
 import { assistantAllowed, assistantName, type BootstrapData } from '../app/bootstrap.js';
-import { initDock, setDockOpen, useDockOpen, useDockSignal, type DockSignal } from '../assistant/dock/dockStore.js';
+import { initDock, setDockAvailable, setDockOpen, useDockOpen, useDockSignal, type DockSignal } from '../assistant/dock/dockStore.js';
 import { t } from '../i18n/t.js';
 import { useShortcut } from './ShortcutsProvider.js';
 
@@ -24,6 +24,8 @@ export function AssistantBubble({ bootstrap }: { bootstrap: BootstrapData }) {
   const allowed = assistantAllowed(bootstrap);
   const userId = bootstrap.user.id;
   useEffect(() => {
+    // Only someone who may use the assistant has a panel an add-on page may open.
+    setDockAvailable(allowed);
     if (allowed) initDock(userId);
   }, [allowed, userId]);
   const open = useDockOpen();

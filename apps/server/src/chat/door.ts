@@ -193,6 +193,12 @@ export interface ChatDoorDeps {
   now?: () => number;
 }
 
+/** The zone a chat's hours are in: its own, else the business's database's, else UTC. */
+export async function chatZoneOf(meta: MetaDb, chat: Pick<LiveChat, 'settings' | 'connectionId'>): Promise<string> {
+  if (chat.settings.timeZone !== null) return knownZone(chat.settings.timeZone);
+  return knownZone((await connectionTenantConfig(meta, chat.connectionId).catch(() => null))?.timezone ?? null);
+}
+
 export function createChatDoor(deps: ChatDoorDeps) {
   const { meta, store, caps } = deps;
   const now = deps.now ?? Date.now;
@@ -220,11 +226,7 @@ export function createChatDoor(deps: ChatDoorDeps) {
   /** "Not available", with who the business is, as every door says it. */
   const notAvailable = async (): Promise<DoorReply> => ({ status: 404, body: { state: 'unavailable', ...(await strangerBusiness(meta)) } });
 
-  /** The zone a chat's hours are in: its own, else the business's database's, else UTC. */
-  async function zoneOf(chat: LiveChat): Promise<string> {
-    if (chat.settings.timeZone !== null) return knownZone(chat.settings.timeZone);
-    return knownZone((await connectionTenantConfig(meta, chat.connectionId).catch(() => null))?.timezone ?? null);
-  }
+  const zoneOf = (chat: LiveChat): Promise<string> => chatZoneOf(meta, chat);
 
   async function hoursOf(chat: LiveChat, at: number): Promise<HoursNow> {
     return hoursAt({ hours: chat.settings.hours, closedUntil: chat.settings.closedUntil, timeZone: await zoneOf(chat) }, at);

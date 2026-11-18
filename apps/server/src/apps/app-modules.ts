@@ -73,7 +73,7 @@ export function modulesFor(manifest: Manifest, prior: AppModules | null, picks?:
     if (value !== undefined) on[def.id] = value;
   }
   // Its public entries by the ref each is served under, in the manifest's order.
-  const entries = servedPublicEntries(manifest.publicAccess ?? []);
+  const entries = servedPublicEntries(manifest);
   const planned = entries.some((entry) => entry.module !== undefined) ? planPublicEndpoints(manifest, names, null, { tablesMadeLater: true }) : [];
   const doors = Object.fromEntries(planned.length === entries.length ? entries.flatMap((entry, index) => (entry.module === undefined ? [] : [[planned[index]!.ref, entry.module] as const])) : []);
   const leftOut = LEFT_OUT.get(manifest);

@@ -132762,7 +132762,8 @@
                 "pay",
                 "payments",
                 "mailDoor",
-                "x"
+                "x",
+                "xChat"
               ]
             },
             "in": "path",
@@ -132903,7 +132904,8 @@
                 "pay",
                 "payments",
                 "mailDoor",
-                "x"
+                "x",
+                "xChat"
               ]
             },
             "in": "query",
@@ -133103,7 +133105,8 @@
                       "pay",
                       "payments",
                       "mailDoor",
-                      "x"
+                      "x",
+                      "xChat"
                     ]
                   },
                   "key": {
@@ -133251,7 +133254,8 @@
                 "pay",
                 "payments",
                 "mailDoor",
-                "x"
+                "x",
+                "xChat"
               ]
             },
             "in": "query",
@@ -133403,7 +133407,8 @@
                             "pay",
                             "payments",
                             "mailDoor",
-                            "x"
+                            "x",
+                            "xChat"
                           ]
                         },
                         "key": {
@@ -175185,6 +175190,177 @@
                       "required": [
                         "draft",
                         "tokens"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/{addOn}/status": {
+      "get": {
+        "summary": "What a website chat's settings page shows",
+        "tags": [
+          "chat"
+        ],
+        "description": "Whether strangers can reach the chat, whether the privacy notice is set, the public address, the listed websites, whether mail goes (and why not), the roles a chat may tell, the chat's languages and the default one, the business's name and the time zone of the hours. For someone who may read the chat's settings.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "install",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "path",
+            "name": "addOn",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "mail": {
+                          "type": "object",
+                          "properties": {
+                            "sends": {
+                              "type": "boolean"
+                            },
+                            "blocked": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "no-public-origin",
+                                    "no-mail-server"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "sends",
+                            "blocked"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "reach": {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "operator-off",
+                                "network-off",
+                                "desktop",
+                                "not-set",
+                                "this-computer",
+                                "private-network",
+                                "dot-local",
+                                "not-https",
+                                "proxy-hidden",
+                                "reachable"
+                              ]
+                            },
+                            "proxyUnchecked": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "proxyUnchecked"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "notice": {
+                          "type": "boolean"
+                        },
+                        "publicOrigin": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "websites": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "roles": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "languages": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "defaultLanguage": {
+                          "type": "string"
+                        },
+                        "businessName": {
+                          "type": "string"
+                        },
+                        "timeZone": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "mail",
+                        "reach",
+                        "notice",
+                        "publicOrigin",
+                        "websites",
+                        "roles",
+                        "languages",
+                        "defaultLanguage",
+                        "businessName",
+                        "timeZone"
                       ],
                       "additionalProperties": false
                     }

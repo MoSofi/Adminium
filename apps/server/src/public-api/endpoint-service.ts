@@ -303,6 +303,12 @@ export interface CreateKeyInput {
   installId?: string | null;
   /** Which of the app's browser keys (default `customer`). */
   purpose?: string;
+  /**
+   * The app's manifest was written for an Adminium older than the release
+   * that reserved `chat` (`chatKeyReserved` is false), so a key it names
+   * `chat` is an ordinary key of its own. Said only by the install's settling.
+   */
+  chatOrdinary?: boolean;
   /** Bound to a signed-in staff member holding this app role. */
   requiresStaff?: KeyStaffBinding | null;
   /** Switched off by a yes/no in the app's settings row. */
@@ -705,8 +711,9 @@ export function createEndpointService(deps: EndpointServiceDeps) {
   async function createKey(input: CreateKeyInput): Promise<{ key: PublicKey; document: PublicScopeDocument }> {
     // `forms` names the entries forms write through, which the public API never serves: no key is ever made under it.
     if (input.purpose === FORMS_KEY) throw new KeyCreateRefused([{ code: 'KEY_PURPOSE_RESERVED', message: `"${FORMS_KEY}" is the name of the entries forms write through, and no key is made under it` }]);
-    // `chat` likewise: the entries a chat's left questions write through, read by the chat door alone.
-    if (input.purpose === CHAT_KEY) throw new KeyCreateRefused([{ code: 'KEY_PURPOSE_RESERVED', message: `"${CHAT_KEY}" is the name of the entries a chat's left questions write through, and no key is made under it` }]);
+    // `chat` likewise: the entries a chat's left questions write through, read by the chat door alone. An app written
+    // for an older Adminium may name its own key `chat` (`doorKeysOf`): only its install makes that key, saying so.
+    if (input.purpose === CHAT_KEY && input.chatOrdinary !== true) throw new KeyCreateRefused([{ code: 'KEY_PURPOSE_RESERVED', message: `"${CHAT_KEY}" is the name of the entries a chat's left questions write through, and no key is made under it` }]);
     const { connectionId } = input;
     const kind: PublicKeyKind = input.kind ?? 'browser';
     await state.ensure(now());

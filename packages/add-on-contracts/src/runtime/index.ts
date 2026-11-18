@@ -473,6 +473,8 @@ export const ADD_ON_DATA_EXPORTS = [
   'useFormTables',
   'useUpload',
   'useLiveTable',
+  // Calls
+  'openAssistant',
 ] as const;
 export type AddOnDataExport = (typeof ADD_ON_DATA_EXPORTS)[number];
 

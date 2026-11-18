@@ -19,6 +19,13 @@ export type DockSignal = 'idle' | 'working' | 'unread' | 'proposal';
 let open = false;
 let signal: DockSignal = 'idle';
 let person: string | null = null;
+/** Whether the signed-in person may use the assistant here: the shell says so once it knows. */
+let available = false;
+/** Words an add-on page asked to put in the panel's box, waiting for the panel to take them. */
+let prompt: string | null = null;
+
+/** The longest prompt the box is given, as long as a message the assistant takes. */
+export const DOCK_PROMPT_MAX = 4000;
 const listeners = new Set<() => void>();
 
 const KEY = 'adminium.assistant.open:';
@@ -58,6 +65,38 @@ export function setDockOpen(next: boolean): void {
   emit();
 }
 
+/** Whether the person may use the assistant here (the shell's word); nothing opens the panel for someone who may not. */
+export function setDockAvailable(next: boolean): void {
+  available = next;
+  if (!next) prompt = null;
+}
+
+/**
+ * The panel opened from a page (an add-on's "Ask Milo"), with words in its
+ * box the person reads, changes and sends themselves: nothing is sent here.
+ * False, and nothing happens, for someone who may not use the assistant.
+ */
+export function openDockWith(words?: string): boolean {
+  if (!available) return false;
+  const trimmed = typeof words === 'string' ? words.trim().slice(0, DOCK_PROMPT_MAX) : '';
+  if (trimmed !== '') prompt = trimmed;
+  if (open) emit();
+  else setDockOpen(true);
+  return true;
+}
+
+/** The words waiting for the box, taken once: the next open finds none. */
+export function takeDockPrompt(): string | null {
+  const words = prompt;
+  prompt = null;
+  return words;
+}
+
+/** Whether words are waiting for the box (read on each change, so an open panel takes them too). */
+export function useDockPromptWaiting(): boolean {
+  return useSyncExternalStore(subscribe, () => prompt !== null, () => false);
+}
+
 export function setDockSignal(next: DockSignal): void {
   if (signal === next) return;
   signal = next;
@@ -82,5 +121,7 @@ export function resetDock(): void {
   open = false;
   signal = 'idle';
   person = null;
+  available = false;
+  prompt = null;
   emit();
 }

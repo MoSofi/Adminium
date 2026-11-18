@@ -29,11 +29,12 @@ export const openToAnyone = (entry: PublicAccessEntry): boolean =>
  * (`POST` in one, `GET` in the next), through which every row a stranger
  * added (an order, with its name and address) is read by anyone.
  */
-export function anonymousAddAndRead(entries: readonly PublicAccessEntry[]): number[] {
+export function anonymousAddAndRead(entries: readonly PublicAccessEntry[], doorKeys: readonly string[] = DOOR_KEYS): number[] {
   const keyOf = (entry: PublicAccessEntry): string => `${entry.key ?? CUSTOMER_KEY_PURPOSE}\n${entry.table}`;
   const added = new Set(entries.filter((entry) => openToAnyone(entry) && entry.methods.includes('POST')).map(keyOf));
   // A stranger's form answer or left question adds a row whichever key would read it: a table opened to either is read by no key at all.
-  const formed = new Set(entries.filter((entry) => entry.key !== undefined && DOOR_KEYS.includes(entry.key)).map((entry) => entry.table));
+  // `doorKeys`: the manifest's own (`doorKeysOf`), since `chat` is an ordinary key under an older floor.
+  const formed = new Set(entries.filter((entry) => entry.key !== undefined && doorKeys.includes(entry.key)).map((entry) => entry.table));
   return entries.flatMap((entry, index) =>
     openToAnyone(entry) && entry.methods.includes('GET') && !entry.methods.includes('POST') && (added.has(keyOf(entry)) || formed.has(entry.table)) ? [index] : [],
   );
