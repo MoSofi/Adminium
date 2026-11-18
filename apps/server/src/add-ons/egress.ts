@@ -116,6 +116,15 @@ export interface AddOnHttpClientOptions {
 }
 
 export const DEFAULT_EGRESS_TIMEOUT_MS = 30_000;
+
+/**
+ * Text that may name a URL, with every query string and fragment taken out.
+ * Some services take their key in the query (`?api_token=…`), so no target,
+ * message or log line built here keeps one.
+ */
+export function withoutQueries(text: string): string {
+  return text.replace(/[?#][^\s"'<>()]*/g, '?…');
+}
 export const DEFAULT_MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
 
 /** The fetch-shaped function an add-on's server half receives. */
@@ -137,8 +146,10 @@ export function createAddOnHttpClient(opts: AddOnHttpClientOptions): AddOnHttpCl
   const doFetch = (): typeof globalThis.fetch => opts.fetchImpl ?? globalThis.fetch;
 
   async function refuse(reason: EgressRefusal, target: string, message: string): Promise<never> {
-    await opts.onRefusal?.({ addOnKey: opts.key, reason, target, allow: opts.allow });
-    throw new AddOnEgressError(reason, opts.key, target, message);
+    // A target or a message never keeps a query string: a key may travel in one.
+    const where = withoutQueries(target);
+    await opts.onRefusal?.({ addOnKey: opts.key, reason, target: where, allow: opts.allow });
+    throw new AddOnEgressError(reason, opts.key, where, withoutQueries(message));
   }
 
   return async (input, init) => {
@@ -217,7 +228,9 @@ export function createAddOnHttpClient(opts: AddOnHttpClientOptions): AddOnHttpCl
     } catch (error) {
       // Stopped by the caller: not a refusal, and nothing an operator need see.
       if (opts.signal?.aborted === true) throw new AddOnEgressError('REQUEST_FAILED', opts.key, url.host, `The request to ${url.host} was stopped.`);
-      return refuse('REQUEST_FAILED', url.host, `Request to ${url.host} failed: ${String(error)}`);
+      // The failure's own words may quote the URL it was asked for, query and all: never more than its name and code.
+      const code = (error as { cause?: { code?: unknown } } | null)?.cause?.code;
+      return refuse('REQUEST_FAILED', url.host, `Request to ${url.host} failed: ${error instanceof Error ? error.name : 'error'}${typeof code === 'string' ? ` (${code})` : ''}.`);
     }
 
     // See the header: a redirect is the way out of an allow-list.
