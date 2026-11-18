@@ -110,6 +110,7 @@ export default {
     "marked": "Diese Seite kann nicht veröffentlicht werden, solange ein Abschnitt noch Milos Markierung trägt. Sehen Sie sich zuerst jeden an.",
     "slug": "Diese Seite kann unter dieser Adresse nicht veröffentlicht werden. Verwenden Sie Kleinbuchstaben, Ziffern und Bindestriche und kein Wort, das die Adressen selbst verwenden.",
     "slugTaken": "Eine andere Seite hat bereits diese Adresse.",
-    "assistant": "Milo kann den Entwurf einer Seite schreiben, sie aber nie veröffentlichen oder ändern, ob sie online ist."
+    "assistant": "Milo kann den Entwurf einer Seite schreiben, sie aber nie veröffentlichen oder ändern, ob sie online ist.",
+    "draftFailed": "Milo konnte daraus keine Seite schreiben. Versuchen Sie es noch einmal oder beschreiben Sie die Seite mit anderen Worten."
   }
 } as const;

@@ -264,11 +264,31 @@ export function isHttpsAddress(text: string): boolean {
   return url.protocol === 'https:' && url.hostname !== '' && url.username === '' && url.password === '';
 }
 
-/** What a visitor sees after sending: the owner's words, or another page. */
+/** The kinds of ending a form may have, in the order the builder offers them. */
+export const FORM_ENDING_KINDS = ['words', 'page', 'landing'] as const;
+export type FormEndingKind = (typeof FORM_ENDING_KINDS)[number];
+
+/** A row's key, as a landing ending names its page: letters, digits, `_` and `-` (the landing vocabulary's own rule). */
+export const ENDING_PAGE_KEY = /^[A-Za-z0-9_-]{1,64}$/;
+/** An add-on's key, as a landing ending names the pages add-on: the manifest's key rule. */
+export const ENDING_ADD_ON_KEY = /^[a-z][a-z0-9-]{1,79}$/;
+
+/**
+ * What a visitor sees after sending:
+ *  - `words`: the owner's words;
+ *  - `page`: another page, by its absolute https address;
+ *  - `landing`: one of the business's own landing pages, by its row key in
+ *    the pages add-on named (`addOn`). The engine turns it into the page's
+ *    address on the host the form is served on, each time it serves the form,
+ *    so a page's new address or host never breaks it; a page that is not
+ *    live is met by the form's default thanks instead.
+ */
 export const formEndingSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('words'), words: wordsSchema(FORM_WORDS_MAX.ending) }).strict(),
   z.object({ kind: z.literal('page'), url: z.string().min(1).max(2048) }).strict(),
+  z.object({ kind: z.literal('landing'), page: z.string().regex(ENDING_PAGE_KEY, 'a page key'), addOn: z.string().regex(ENDING_ADD_ON_KEY, 'an add-on key') }).strict(),
 ]);
+export type FormEnding = z.infer<typeof formEndingSchema>;
 
 const definitionShape = z
   .object({

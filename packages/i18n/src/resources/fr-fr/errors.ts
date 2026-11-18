@@ -110,6 +110,7 @@ export default {
     "marked": "Cette page ne peut pas être publiée tant qu’une section porte encore la marque de Milo. Relisez-les d’abord une par une.",
     "slug": "Cette page ne peut pas être publiée à cette adresse. Utilisez des minuscules, des chiffres et des tirets, et pas un mot que les adresses utilisent déjà.",
     "slugTaken": "Une autre page a déjà cette adresse.",
-    "assistant": "Milo peut rédiger le brouillon d’une page, mais jamais la publier ni changer si elle est en ligne."
+    "assistant": "Milo peut rédiger le brouillon d’une page, mais jamais la publier ni changer si elle est en ligne.",
+    "draftFailed": "Milo n’a pas pu écrire de page à partir de cela. Réessayez, ou décrivez la page autrement."
   }
 } as const;

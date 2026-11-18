@@ -110,6 +110,7 @@ export default {
     "marked": "Siden kan ikke udgives, så længe et afsnit stadig har Milos mærke. Se hvert af dem igennem først.",
     "slug": "Siden kan ikke udgives på den adresse. Brug små bogstaver, tal og bindestreger og ikke et ord, som adresserne selv bruger.",
     "slugTaken": "En anden side har allerede denne adresse.",
-    "assistant": "Milo kan skrive en sides kladde, men aldrig udgive den eller ændre, om den er online."
+    "assistant": "Milo kan skrive en sides kladde, men aldrig udgive den eller ændre, om den er online.",
+    "draftFailed": "Milo kunne ikke skrive en side ud fra det. Prøv igen, eller beskriv siden med andre ord."
   }
 } as const;

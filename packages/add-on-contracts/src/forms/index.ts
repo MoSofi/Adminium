@@ -11,10 +11,13 @@
 export { FORM_LANGUAGES, FORM_WORDS_MAX, formLanguageSchema, wordsSchema, type FormLanguage, type Words } from './words.js';
 
 export {
+  ENDING_ADD_ON_KEY,
+  ENDING_PAGE_KEY,
   FORMS_VOCABULARY_VERSION,
   FORM_CHOICES_MAX,
   FORM_CHOICES_MIN,
   FORM_DEFINITION_CODES,
+  FORM_ENDING_KINDS,
   FORM_FILES_MAX,
   FORM_FILE_KINDS,
   FORM_QUESTIONS_MAX,
@@ -48,6 +51,8 @@ export {
   type FormDefinition,
   type FormDefinitionCode,
   type FormDefinitionInput,
+  type FormEnding,
+  type FormEndingKind,
   type FormFileKind,
   type FormQuestion,
   type FormQuestionKind,

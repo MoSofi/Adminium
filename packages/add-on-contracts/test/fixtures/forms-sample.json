@@ -1,0 +1,204 @@
+{
+ "source": "add-ons packages/forms/seeds/forms.sample.json at 39d55d1 (v1.0.30): the forms rows, definition and settings as stored",
+ "forms": [
+  {
+   "slug": "newsletter-sign-up",
+   "definition": {
+    "v": 1,
+    "kind": "form",
+    "languages": [
+     "en-US",
+     "de-DE",
+     "fr-FR",
+     "cs-CZ",
+     "da-DK",
+     "ar-EG",
+     "zh-CN",
+     "zh-TW"
+    ],
+    "defaultLanguage": "en-US",
+    "title": {
+     "en-US": "Newsletter sign-up",
+     "de-DE": "Newsletter abonnieren",
+     "fr-FR": "Inscription à la lettre d’information",
+     "cs-CZ": "Přihlášení k odběru novinek",
+     "da-DK": "Tilmelding til nyhedsbrev",
+     "ar-EG": "الاشتراك في النشرة الإخبارية",
+     "zh-CN": "订阅新闻简报",
+     "zh-TW": "訂閱電子報"
+    },
+    "intro": {
+     "en-US": "Get our news by e-mail, about once a month.",
+     "de-DE": "Erhalten Sie unsere Neuigkeiten per E-Mail, etwa einmal im Monat.",
+     "fr-FR": "Recevez nos nouvelles par e-mail, environ une fois par mois.",
+     "cs-CZ": "Dostávejte naše novinky e-mailem, zhruba jednou za měsíc.",
+     "da-DK": "Få vores nyheder på e-mail, cirka en gang om måneden.",
+     "ar-EG": "تصلك أخبارنا بالبريد الإلكتروني، مرة في الشهر تقريبًا.",
+     "zh-CN": "通过电子邮件接收我们的新闻，大约每月一次。",
+     "zh-TW": "透過電子郵件接收我們的消息，大約每月一次。"
+    },
+    "questions": [
+     {
+      "id": "qname",
+      "kind": "short",
+      "role": "name",
+      "required": true,
+      "label": {
+       "en-US": "Your name",
+       "de-DE": "Ihr Name",
+       "fr-FR": "Votre nom",
+       "cs-CZ": "Vaše jméno",
+       "da-DK": "Dit navn",
+       "ar-EG": "اسمك",
+       "zh-CN": "您的姓名",
+       "zh-TW": "您的姓名"
+      }
+     },
+     {
+      "id": "qemail",
+      "kind": "short",
+      "check": "email",
+      "role": "email",
+      "required": true,
+      "maxLength": 320,
+      "label": {
+       "en-US": "Your e-mail",
+       "de-DE": "Ihre E-Mail-Adresse",
+       "fr-FR": "Votre e-mail",
+       "cs-CZ": "Váš e-mail",
+       "da-DK": "Din e-mail",
+       "ar-EG": "بريدك الإلكتروني",
+       "zh-CN": "您的电子邮件",
+       "zh-TW": "您的電子郵件"
+      }
+     },
+     {
+      "id": "qnews",
+      "kind": "tick",
+      "purpose": "newsletter",
+      "confirm": true,
+      "wordingVersion": 1,
+      "wordingChangedAt": "2026-11-01",
+      "label": {
+       "en-US": "Yes, send me the newsletter by e-mail. I can stop it at any time with the link in each mail.",
+       "de-DE": "Ja, senden Sie mir den Newsletter per E-Mail. Ich kann ihn jederzeit über den Link in jeder E-Mail abbestellen.",
+       "fr-FR": "Oui, envoyez-moi la lettre d’information par e-mail. Je peux l’arrêter à tout moment avec le lien de chaque e-mail.",
+       "cs-CZ": "Ano, posílejte mi novinky e-mailem. Odběr mohu kdykoli zrušit odkazem v každém e-mailu.",
+       "da-DK": "Ja, send mig nyhedsbrevet på e-mail. Jeg kan stoppe det når som helst med linket i hver mail.",
+       "ar-EG": "نعم، أرسلوا لي النشرة الإخبارية بالبريد الإلكتروني. يمكنني إيقافها في أي وقت عبر الرابط في كل رسالة.",
+       "zh-CN": "是的，请通过电子邮件向我发送新闻简报。我可以随时通过每封邮件中的链接停止订阅。",
+       "zh-TW": "是的，請透過電子郵件寄送電子報給我。我可以隨時透過每封郵件中的連結停止訂閱。"
+      }
+     }
+    ],
+    "ending": {
+     "kind": "words",
+     "words": {
+      "en-US": "Thank you. Please check your inbox and confirm with the link we sent.",
+      "de-DE": "Vielen Dank. Bitte sehen Sie in Ihrem Postfach nach und bestätigen Sie über den Link, den wir gesendet haben.",
+      "fr-FR": "Merci. Consultez votre boîte de réception et confirmez avec le lien que nous avons envoyé.",
+      "cs-CZ": "Děkujeme. Podívejte se prosím do schránky a potvrďte odběr odkazem, který jsme poslali.",
+      "da-DK": "Tak. Se i din indbakke, og bekræft med linket, vi har sendt.",
+      "ar-EG": "شكرًا لك. يُرجى التحقق من بريدك الوارد والتأكيد عبر الرابط الذي أرسلناه.",
+      "zh-CN": "谢谢。请查看您的收件箱，并通过我们发送的链接确认。",
+      "zh-TW": "謝謝。請查看您的收件匣，並透過我們寄出的連結確認。"
+     }
+    }
+   },
+   "settings": {
+    "becomes": null,
+    "tell": [],
+    "limits": {
+     "perHour": 200,
+     "harder": false
+    }
+   }
+  },
+  {
+   "slug": "quick-feedback",
+   "definition": {
+    "v": 1,
+    "kind": "survey",
+    "languages": [
+     "en-US",
+     "de-DE",
+     "fr-FR",
+     "cs-CZ",
+     "da-DK",
+     "ar-EG",
+     "zh-CN",
+     "zh-TW"
+    ],
+    "defaultLanguage": "en-US",
+    "title": {
+     "en-US": "Quick feedback",
+     "de-DE": "Kurzes Feedback",
+     "fr-FR": "Avis rapide",
+     "cs-CZ": "Rychlá zpětná vazba",
+     "da-DK": "Hurtig feedback",
+     "ar-EG": "رأي سريع",
+     "zh-CN": "快速反馈",
+     "zh-TW": "快速意見回饋"
+    },
+    "questions": [
+     {
+      "id": "qscore",
+      "kind": "score",
+      "recommend": true,
+      "required": true,
+      "label": {
+       "en-US": "How likely are you to recommend us to a friend?",
+       "de-DE": "Wie wahrscheinlich ist es, dass Sie uns einem Freund empfehlen?",
+       "fr-FR": "Quelle est la probabilité que vous nous recommandiez à un ami ?",
+       "cs-CZ": "Jak pravděpodobné je, že nás doporučíte příteli?",
+       "da-DK": "Hvor sandsynligt er det, at du vil anbefale os til en ven?",
+       "ar-EG": "ما مدى احتمال أن توصي بنا لصديق؟",
+       "zh-CN": "您向朋友推荐我们的可能性有多大？",
+       "zh-TW": "您向朋友推薦我們的可能性有多大？"
+      }
+     },
+     {
+      "id": "qmore",
+      "kind": "long",
+      "label": {
+       "en-US": "Anything we could do better?",
+       "de-DE": "Was könnten wir besser machen?",
+       "fr-FR": "Que pourrions-nous mieux faire ?",
+       "cs-CZ": "Co bychom mohli dělat lépe?",
+       "da-DK": "Er der noget, vi kunne gøre bedre?",
+       "ar-EG": "هل هناك ما يمكننا تحسينه؟",
+       "zh-CN": "我们有哪些地方可以做得更好？",
+       "zh-TW": "我們有哪些地方可以做得更好？"
+      }
+     }
+    ],
+    "ending": {
+     "kind": "words",
+     "words": {
+      "en-US": "Thank you. Your answers help us.",
+      "de-DE": "Vielen Dank. Ihre Antworten helfen uns.",
+      "fr-FR": "Merci. Vos réponses nous aident.",
+      "cs-CZ": "Děkujeme. Vaše odpovědi nám pomáhají.",
+      "da-DK": "Tak. Dine svar hjælper os.",
+      "ar-EG": "شكرًا لك. إجاباتك تساعدنا.",
+      "zh-CN": "谢谢，您的回答对我们很有帮助。",
+      "zh-TW": "謝謝，您的回答對我們很有幫助。"
+     }
+    }
+   },
+   "settings": {
+    "becomes": null,
+    "tell": [],
+    "limits": {
+     "perHour": 200,
+     "harder": false
+    },
+    "survey": {
+     "mode": "anonymous",
+     "linkNames": false,
+     "stopAfterDays": 30
+    }
+   }
+  }
+ ]
+}
