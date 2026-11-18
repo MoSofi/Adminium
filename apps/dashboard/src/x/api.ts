@@ -107,7 +107,7 @@ export async function fetchForm(slug: string, opts: { lang: string | null; frame
   // A landing page's form block, asking as it nears the screen: the page's key (counted as "opened" there).
   if (opts.on !== undefined && opts.on !== null) query.set('on', opts.on);
   const search = query.toString();
-  const response = await fetch(`${base(slug)}${search === '' ? '' : `?${search}`}`, { credentials: opts.frame ? 'omit' : 'same-origin', headers: HEADERS });
+  const response = await fetch(`${base(slug)}${search === '' ? '' : `?${search}`}`, { credentials: opts.preview === true || !opts.frame ? 'same-origin' : 'omit', headers: HEADERS });
   if (!response.ok && response.status !== 404) throw new XApiError(response.status);
   return (await response.json()) as XPage;
 }

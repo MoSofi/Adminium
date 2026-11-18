@@ -332,9 +332,10 @@ describe.each(LEGS)('visitor counting at the forms door — %s', (dialect, avail
     const visitor = (page.json() as Doc).visitor;
     expect(visitor).toMatchObject({ said: null, banner: { language: 'en-US', title: 'May we remember your visit?', yes: 'Yes', no: 'No', version: expect.stringMatching(/^w-[0-9a-f]{24}$/) } });
     expect(visitor.banner.text).toContain('if you then send us a form');
-    // A frame and a landing page's form block are told nothing.
+    // A frame and a landing page's form block are told nothing; nor is a host that is not the install's own.
     expect((await read('/x/forms/api/showroom-visit?frame=1')).json()).not.toHaveProperty('visitor');
     expect((await read('/x/forms/api/showroom-visit?on=7')).json()).not.toHaveProperty('visitor');
+    expect((await composed.app.inject({ method: 'GET', url: '/x/forms/api/showroom-visit', remoteAddress: nextIp(), headers: { host: 'shop.meridian.example', 'user-agent': CHROME } })).json()).not.toHaveProperty('visitor');
 
     // "Yes" from another site, or a script with no browser's marks: refused, nothing written.
     for (const headers of [{ origin: 'https://evil.example' }, {}, { origin: `http://${HOST}`, 'sec-fetch-site': 'cross-site' }]) {
@@ -342,6 +343,9 @@ describe.each(LEGS)('visitor counting at the forms door — %s', (dialect, avail
       expect(refused.statusCode).toBe(403);
       expect(refused.headers['set-cookie']).toBeUndefined();
     }
+    // Nor on a host that is not the install's own.
+    const elsewhere = await composed.app.inject({ method: 'POST', url: '/x/consent/visit', headers: { host: 'shop.meridian.example', origin: 'http://shop.meridian.example' }, payload: {} });
+    expect([elsewhere.statusCode, elsewhere.headers['set-cookie']]).toEqual([404, undefined]);
     expect((await visitorsRepo(h.meta).counts()).visitors).toBe(0);
 
     const yes = await composed.app.inject({ method: 'POST', url: '/x/consent/visit', headers: { host: HOST, origin: `http://${HOST}`, 'sec-fetch-site': 'same-origin' }, payload: { language: 'en-US' } });
@@ -362,6 +366,9 @@ describe.each(LEGS)('visitor counting at the forms door — %s', (dialect, avail
     await flush();
     expect((await visitorsRepo(h.meta).counts()).visits).toBe(1);
 
+    // A form sent from a frame joins nothing, cookie or not.
+    expect((await send('showroom-visit', { qname: 'Tessa Marlow', qemail: 'tessa@meridian.example' }, { cookie, from: 'https://shop.meridian.example' })).statusCode).toBe(200);
+    expect((await h.meta.db.selectFrom('adminium_visitors').select('addressHash').executeTakeFirstOrThrow()).addressHash).toBeNull();
     // A form sent with the cookie joins the address: "Pages they saw" by it.
     expect((await send('showroom-visit', { qname: 'Tessa Marlow', qemail: 'Tessa@Meridian.example' }, { cookie })).statusCode).toBe(200);
     await flush();

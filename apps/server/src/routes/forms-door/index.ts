@@ -277,8 +277,8 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
       if (request.query.on === undefined || place !== null) {
         deps.views?.count({ installId: live.installId, kind: place === null ? 'form-page' : 'form-opened', thing: live.id, place: place ?? '', request, framed: frame });
       }
-      // The banner on a form's own page only: never in a frame, never for a form block a landing page draws.
-      const visitor = deps.visitors === undefined || frame || request.query.on !== undefined ? {} : await deps.visitors.block(request, { language, framed: frame });
+      // The banner on a form's own page only: never in a frame (the block says nothing there), never for a form block a landing page draws.
+      const visitor = deps.visitors === undefined || request.query.on !== undefined ? {} : await deps.visitors.block(request, { language, framed: frame });
       return {
         state: 'live',
         ...shared,
