@@ -213,6 +213,8 @@ export const PAYMENT_LINK_TEMPLATE_KEY = 'payment-link';
 export const PAYMENT_RECEIPT_TEMPLATE_KEY = 'payment-receipt';
 /** A stranger's sign-up on a form, waiting for its click (`forms/mail.ts`). */
 export const SIGN_UP_CONFIRM_TEMPLATE_KEY = 'sign-up-confirm';
+/** A staff member's reply in a website chat, to the address the visitor left (`chat/reply-mail.ts`). */
+export const CHAT_REPLY_TEMPLATE_KEY = 'chat-reply';
 
 /**
  * The templates of the server's own mail to its staff: getting in and keeping

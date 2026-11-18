@@ -61,6 +61,8 @@ const ALLOWED: Record<string, string> = {
     "a named survey's invitation marked answered by the answer sent with its token, in that answer's own transaction and only while still unanswered, so two sends with one token spend it once: Adminium's own record of a link it made, never a person's save",
   'chat/store.ts':
     "a live chat's conversation moved with its messages (its last message, its automatic count, its state, the visitor's heartbeat, the details they typed, the row it became), in a chat add-on's own conversations table, which Adminium alone writes (the manifest refuses any role, grant, step or public entry that would): the inserts go through the write service's check, and each change publishes the table's live frame itself",
+  'chat/transcripts.ts':
+    "a chat add-on's conversations removed with their messages and the answerer's choices, by key, as the system: by a person's erasure under the privacy action, and by the daily keeping sweep the add-on's own setting asks for, as form answers are (forms/answers.ts) — rows no person writes, so no rule, hook or live frame is owed for them",
   'forms/files.ts':
     "a form answer's files in the forms add-on's own files table, which Adminium alone writes (the manifest refuses any role, grant, step or public entry that would): written with the answer they belong to and removed with it, as a ledger's receipts are — no rule, hook or live frame is owed for rows no person writes",
 };

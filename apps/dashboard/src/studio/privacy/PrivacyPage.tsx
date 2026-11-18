@@ -270,12 +270,31 @@ function answersWords(row: KeepingRow): { what: string; kept: string; why: strin
   };
 }
 
+/** A chat add-on's conversations: how long its own settings keep them, worded for its row. */
+function chatWords(row: KeepingRow): { what: string; kept: string; why: string } {
+  const addOn = row.addOn?.name ?? '';
+  return {
+    what: t('studio:privacy.keeping.chatConversations', 'Chat conversations — {addOn}', { addOn }),
+    kept:
+      typeof row.keptFor === 'number'
+        ? t('studio:privacy.keeping.chatMonths', '{count, plural, one {Kept for # month} other {Kept for # months}}', { count: row.keptFor })
+        : t('studio:privacy.keeping.chatUntilRemoved', 'Kept until someone removes them'),
+    why: t('studio:privacy.keeping.chatWhy', 'Set in {addOn}’s settings. Older conversations are deleted each night, with their messages.', { addOn }),
+  };
+}
+
+/** The rows an add-on keeps, each worded by its own settings. */
+const ADD_ON_KEEPING: Readonly<Record<string, (row: KeepingRow) => { what: string; kept: string; why: string }>> = {
+  'form-answers': answersWords,
+  'chat-conversations': chatWords,
+};
+
 function KeepingTab(): ReactNode {
   const keeping = useQuery(keepingQuery());
   if (keeping.isError) return <Alert tone="danger" title={t('studio:privacy.keeping.loadFailed', 'How long things are kept could not be loaded. Try again.')} />;
   if (keeping.data === undefined) return <Skeleton className="h-[180px] w-full" />;
   // Only the rows this screen knows how to word: a later server's new row waits for a later screen.
-  const rows = keeping.data.filter((row) => KEEPING_WORDS[row.key] !== undefined || row.key === 'form-answers');
+  const rows = keeping.data.filter((row) => KEEPING_WORDS[row.key] !== undefined || ADD_ON_KEEPING[row.key] !== undefined);
   const cell = 'border-b border-border px-[var(--card-pad)] py-[var(--row-py,13px)] text-start align-top';
   return (
     <Card padded={false} className="overflow-hidden">
@@ -296,8 +315,9 @@ function KeepingTab(): ReactNode {
         </thead>
         <tbody>
           {rows.map((row) => {
-            const answers = row.key === 'form-answers';
-            const words = answers ? answersWords(row) : KEEPING_WORDS[row.key]!();
+            const byAddOn = ADD_ON_KEEPING[row.key];
+            const answers = byAddOn !== undefined;
+            const words = byAddOn !== undefined ? byAddOn(row) : KEEPING_WORDS[row.key]!();
             return (
               <tr key={answers ? `${row.key}:${row.addOn?.key ?? ''}` : row.key}>
                 <th scope="row" className={`${cell} font-semibold`}>

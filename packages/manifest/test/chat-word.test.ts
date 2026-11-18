@@ -140,7 +140,10 @@ describe('an add-on\'s chat', () => {
 
   it('lets Adminium alone write the conversations, the messages and the choices', () => {
     const grants = (extra: string[]) => issuesOf(changed((d) => role(d).permissions.push(...extra))).join('\n');
-    expect(grants(['table:@conversations:update'])).toContain('"agent" may update "conversations", and the conversations are written by Adminium alone');
+    // Update on the conversations is who may answer them, through the chat's own routes: allowed.
+    expect(grants(['table:@conversations:update'])).toBe('');
+    expect(grants(['table:@conversations:create'])).toContain('"agent" may create "conversations", and the conversations are written by Adminium alone');
+    expect(grants(['table:@messages:update'])).toContain('"agent" may update "messages", and the messages are written by Adminium alone');
     expect(grants(['table:@messages:create'])).toContain('"agent" may create "messages", and the messages are written by Adminium alone');
     expect(grants(['table:@choices:import'])).toContain('"agent" may import "choices", and the choices are written by Adminium alone');
     expect(grants(['table:@*:create'])).toContain('"agent" may create "conversations"');
@@ -157,8 +160,13 @@ describe('an add-on\'s chat', () => {
     ).toContain('"helper" may update "messages"');
     // An app's grant reads them, and does no more.
     expect(one((d) => (tableOf(d, 'conversations')['appGrants'] = { actions: ['read'] }))).not.toContain('Adminium alone');
-    expect(one((d) => (tableOf(d, 'conversations')['appGrants'] = { actions: ['read', 'update'], writable: ['name'] }))).toContain(
-      "the conversations are written by Adminium alone: an app's role may only read \"conversations\"",
+    // …and answers them (update), when the add-on says so.
+    expect(one((d) => (tableOf(d, 'conversations')['appGrants'] = { actions: ['read', 'update'], writable: ['name'] }))).not.toContain('Adminium alone');
+    expect(one((d) => (tableOf(d, 'conversations')['appGrants'] = { actions: ['read', 'create'] }))).toContain(
+      "the conversations are written by Adminium alone: an app's role may only read \"conversations\", and answer them (update)",
+    );
+    expect(one((d) => (tableOf(d, 'messages')['appGrants'] = { actions: ['read', 'update'], writable: ['body'] }))).toContain(
+      "the messages are written by Adminium alone: an app's role may only read \"messages\"",
     );
   });
 

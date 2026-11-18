@@ -4721,7 +4721,9 @@
       "erase": "Slet…",
       "answers": "{count, plural, one {# svar} other {# svar}}",
       "invitations": "{count, plural, one {# invitation} other {# invitationer}}",
-      "files": "{count, plural, one {# fil} other {# filer}}"
+      "files": "{count, plural, one {# fil} other {# filer}}",
+      "chats": "{count, plural, one {# samtale} other {# samtaler}}",
+      "chatMessages": "{count, plural, one {# besked} other {# beskeder}}"
     },
     "erase": {
       "goes": {
@@ -4733,7 +4735,8 @@
         "files": "{count, plural, one {# fil} other {# filer}}",
         "answers": "{count, plural, one {# formularsvar} other {# formularsvar}} i {label}",
         "invitations": "{count, plural, one {# invitation til en undersøgelse} other {# invitationer til undersøgelser}} i {label}, gemt uden adressen",
-        "answerFiles": "{count, plural, one {# fil} other {# filer}} sendt med formularsvar i {label}"
+        "answerFiles": "{count, plural, one {# fil} other {# filer}} sendt med formularsvar i {label}",
+        "chats": "{count, plural, one {# chatsamtale} other {# chatsamtaler}} i {label}, med deres beskeder"
       },
       "stays": {
         "forGood": "Gemmes for altid.",
@@ -4788,7 +4791,11 @@
       "answers": "Formularsvar — {addOn}",
       "answersMonths": "{count, plural, one {Gemmes i # måned} other {Gemmes i # måneder}}",
       "answersUntilRemoved": "Gemmes, indtil nogen fjerner dem",
-      "answersWhy": "Indstilles under indstillingerne for {addOn}. Ældre svar slettes hver nat."
+      "answersWhy": "Indstilles under indstillingerne for {addOn}. Ældre svar slettes hver nat.",
+      "chatConversations": "Chatsamtaler — {addOn}",
+      "chatMonths": "{count, plural, one {Gemmes i # måned} other {Gemmes i # måneder}}",
+      "chatUntilRemoved": "Gemmes, indtil nogen fjerner dem",
+      "chatWhy": "Indstilles under indstillingerne for {addOn}. Ældre samtaler slettes hver nat sammen med deres beskeder."
     },
     "downloads": {
       "processing": "Bliver lavet…",

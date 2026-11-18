@@ -38,6 +38,8 @@ import { isAddOnManifest, validateManifest } from '@adminium/manifest';
 import {
   documentProfilesRepo,
   addOnSettingsRepo,
+  CHAT_AI_ADDRESS_KEEP_MS,
+  chatAiTallyRepo,
   connectionTenantConfig,
   auditRepo,
   automationRunsRepo,
@@ -139,6 +141,10 @@ import { createChatCatalog, type ChatCatalog } from './chat/catalog.js';
 import { createChatDoor, type ChatDoor } from './chat/door.js';
 import { chatSettingsLink, tellChatPaused } from './chat/notices.js';
 import { createChatStore, type ChatStore } from './chat/store.js';
+import { createChatStaff, type ChatStaff } from './chat/staff.js';
+import { createChatWaiting, type ChatWaiting } from './chat/waiting.js';
+import { chatOwnTable, sweepChatTranscripts } from './chat/transcripts.js';
+import { chatStaffRoutes } from './routes/chat/index.js';
 import { createLedgerRuntime } from './ledgers/registry.js';
 import { announcePostings, tellPostings, type PostingsTold } from './ledgers/announce.js';
 import { createDocumentPipeline } from './documents/compose.js';
@@ -277,7 +283,7 @@ import { AI_ENV_NAMES, createAiEnv } from './llm/ai-env.js';
 import { trialPolicy } from './trial/policy.js';
 import { projectDotEnvValue } from './trial/project-env.js';
 import { createSizeCap, useStorageHold } from './trial/size-cap.js';
-import { createAiConnections, ProviderNotConfiguredError } from './llm/connections.js';
+import { createAiConnections, ProviderNotConfiguredError, type AiConnections } from './llm/connections.js';
 import { createOperatorAiMeter, operatorAiRules } from './llm/operator-ai.js';
 import { createProviderResolver } from './llm/provider-resolver.js';
 import { assistantRoutes } from './routes/assistant/index.js';
@@ -562,6 +568,14 @@ export const PRIVACY_EXPORTS_SWEEP_CRON = '30 3 * * *';
 export const FORM_ANSWERS_SWEEP_NAME = 'form-answers-sweep';
 export const FORM_ANSWERS_SWEEP_CRON = '45 3 * * *';
 
+/** Daily: a chat add-on's conversations whose last message is older than its keeping time, with their messages and choices (`chat/transcripts.ts`). */
+export const CHAT_TRANSCRIPTS_SWEEP_NAME = 'chat-transcripts-sweep';
+export const CHAT_TRANSCRIPTS_SWEEP_CRON = '50 3 * * *';
+
+/** Hourly: the keyed hashes of visitors' network addresses a chat counted, once past their three hours (`chat/caps.ts`, the answerer's notes). */
+export const CHAT_ADDRESS_SWEEP_NAME = 'chat-address-sweep';
+export const CHAT_ADDRESS_SWEEP_CRON = '17 * * * *';
+
 /** Every quarter hour: a stranger's unattached file is kept two hours, and gone within a quarter after. */
 export const PUBLIC_UPLOADS_SWEEP_NAME = 'public-uploads-sweep';
 export const PUBLIC_UPLOADS_SWEEP_CRON = '*/15 * * * *';
@@ -675,7 +689,7 @@ export interface ComposeServerOptions {
    * For tests only: the live chat's automatic answerer and its view of AI, given in place of the real ones
    * (`chat/door.ts`). There is no setting for this.
    */
-  chatSeams?: { answerer?: ChatAnswerer | undefined; ai?: (() => Promise<ChatAi>) | undefined } | undefined;
+  chatSeams?: { answerer?: ChatAnswerer | undefined; ai?: (() => Promise<ChatAi>) | undefined; drafts?: Pick<AiConnections, 'default' | 'refusal' | 'client'> | undefined } | undefined;
 }
 
 export interface ComposedServer {
@@ -685,7 +699,7 @@ export interface ComposedServer {
    * conversations and messages, its caps and its door (`chat/`). The staff
    * routes write through the same store, so a visitor's poll hears them.
    */
-  chat: { catalog: ChatCatalog; store: ChatStore; caps: ChatCaps; door: ChatDoor };
+  chat: { catalog: ChatCatalog; store: ChatStore; caps: ChatCaps; door: ChatDoor; staff: ChatStaff; waiting: ChatWaiting };
   /**
    * Settles once the apps and add-ons that came with this server are in their
    * stores. A caller that installs something straight after composing waits
@@ -1361,7 +1375,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // …and an answer's files never stop the answer: they lose the link and go after it (`forms/files.ts`).
     releases: async (connectionId, tableId) => [...(await outboxProducers.releasing(connectionId, tableId)), ...(await formsFiles.releasing(connectionId, tableId))],
     // A forms add-on's answers and their files are written by Adminium alone: staff read and delete them, never write them.
-    ownRecords: (connectionId, tableId) => formsFiles.ownTable(connectionId, tableId),
+    // …and a chat add-on's conversations, messages and choices: staff act through the chat's own routes (`routes/chat`).
+    ownRecords: async (connectionId, tableId) => (await formsFiles.ownTable(connectionId, tableId)) || chatOwnTable(await addOnInstalls.fresh(), connectionId, tableId),
+    // …and those three chat tables are not a person's to delete either (a forms answer is): only the keeping sweep and an erasure remove them.
+    sealedRecords: async (connectionId, tableId) => chatOwnTable(await addOnInstalls.fresh(), connectionId, tableId),
     // A file column names only a file its writer uploaded and no record holds; a picture, one cleaned as it came in.
     // A page's file column too, when a person saves it: what it newly names is an upload of theirs.
     files: createFileColumnJudge({
@@ -2635,6 +2652,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           reach: { networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY },
           // An erasure takes their form answers' files out of the strangers' file store too.
           answerFiles: formsFiles.removeAnswerFiles,
+          // …and makes the chat store forget their conversations, so a visitor's poll on one is told it is lost.
+          chatForget: (place, id) => chatStore.forget(place, id),
         }),
       );
       // What the forms builder shows: whether mail a stranger causes goes, and its status read (reach, notice, address, websites, roles).
@@ -3616,6 +3635,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // The files a file question names: attached in the answer's own transaction.
     files: formsFiles,
     hub: () => (app.hasDecorator('realtime') ? app.realtime : undefined),
+    realtime: () => (app.hasDecorator('realtime') ? app.realtime : null),
   });
   // A sign-up waiting for its click lets go after thirty days; the forms' counts older than any cap reads go too.
   jobs.scheduler.registerSchedule(FORMS_SWEEP_NAME, FORMS_SWEEP_CRON, async () => {
@@ -3656,7 +3676,6 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * through it too); the caps count in the forms door's marks.
    */
   const chatCatalog = createChatCatalog({ meta, installs: () => addOnInstalls.fresh(), data: formsData, viewFor: formsViews, vouched: doorVouched });
-  const chatStore = createChatStore({ writes: recordWrites, hub: () => (app.hasDecorator('realtime') ? app.realtime : null) });
   const chatCaps = createChatCaps({
     meta,
     secret: env.ADMINIUM_SECRET,
@@ -3666,6 +3685,24 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       if (chat !== null) await tellChatPaused({ meta, secret: env.ADMINIUM_SECRET, hub: app.hasDecorator('realtime') ? app.realtime : undefined, chat, until, at });
     },
   });
+  // "A chat is waiting": once per conversation until someone opens it (`chat/waiting.ts`).
+  const chatWaiting = createChatWaiting({ meta, secret: env.ADMINIUM_SECRET, caps: chatCaps, hub: () => (app.hasDecorator('realtime') ? app.realtime : undefined), logger: app.log });
+  const chatStore = createChatStore({ writes: recordWrites, hub: () => (app.hasDecorator('realtime') ? app.realtime : null), waiting: (chat, conversation) => chatWaiting.heard(chat, conversation) });
+  // A chat add-on's conversations past the time its settings keep them: removed by the engine with their messages and choices.
+  jobs.scheduler.registerSchedule(CHAT_TRANSCRIPTS_SWEEP_NAME, CHAT_TRANSCRIPTS_SWEEP_CRON, async () => {
+    const swept = await sweepChatTranscripts({ meta, manager, forget: (place, id) => chatStore.forget(place, id) });
+    if (Object.keys(swept).length > 0) app.log.info({ swept }, 'chat transcripts sweep');
+  });
+  // A visitor's address hash is read for three hours and kept no longer: swept every hour, the caps' marks and the answerer's notes.
+  jobs.scheduler.registerSchedule(CHAT_ADDRESS_SWEEP_NAME, CHAT_ADDRESS_SWEEP_CRON, async () => {
+    const at = Date.now();
+    const swept = (await chatCaps.prune(at)) + (await chatAiTallyRepo(meta).pruneAddresses(at - CHAT_AI_ADDRESS_KEEP_MS));
+    if (swept > 0) app.log.info({ swept }, 'chat address sweep');
+  });
+  // What staff do in a chat (`chat/staff.ts`): every write through the store.
+  const chatStaff = createChatStaff({ meta, secret: env.ADMINIUM_SECRET, store: chatStore, caps: chatCaps, waiting: chatWaiting, logger: app.log });
+  // The tables apps open to a chat: where a question left outside hours, and an enquiry made in hours, become a row.
+  const chatScopes = createFormsScopes({ meta, modelOf: async (connectionId) => ((await snapshotsRepo(meta).latest(connectionId))?.schema as LooseTableIdModel | undefined) ?? null, door: 'chat' });
   /*
    * The automatic answerer (`chat/answerer.ts`): off in a trial and on the
    * operator's AI kept to dashboards; every choice it makes goes into the
@@ -3707,7 +3744,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     questions: {
       meta,
       secret: env.ADMINIUM_SECRET,
-      scopes: createFormsScopes({ meta, modelOf: async (connectionId) => ((await snapshotsRepo(meta).latest(connectionId))?.schema as LooseTableIdModel | undefined) ?? null, door: 'chat' }),
+      scopes: chatScopes,
       installs: () => addOnInstalls.fresh(),
       data: formsData,
       viewFor: formsViews,
@@ -3716,6 +3753,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     },
     ai: opts.chatSeams?.ai ?? chatAiFrom({ connections: aiConnections, offHere: chatAnswererBase.offHere }),
     answerer: () => opts.chatSeams?.answerer ?? chatAnswerer,
+    // "Came from" keeps a page's path only on one of the business's own listed websites.
+    websites: formsWebsites,
   });
   await app.register(
     chatDoorRoutes({
@@ -3750,6 +3789,19 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
               answers: answererAnswers(await readAnswers(chat), defaultLanguage),
             };
           },
+        }),
+      );
+      // Staff: take, reply (and the reply by mail), close, reopen, an enquiry, a draft, presence, the breaker (`routes/chat`).
+      await api.register(
+        chatStaffRoutes({
+          meta,
+          catalog: chatCatalog,
+          store: chatStore,
+          staff: chatStaff,
+          caps: chatCaps,
+          scopes: chatScopes,
+          installs: () => addOnInstalls.fresh(),
+          ai: { connections: opts.chatSeams?.drafts ?? aiConnections, offHere: chatAnswererBase.offHere },
         }),
       );
     },
@@ -4536,6 +4588,6 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     bridgePairingCode: bridge?.pairingCode ?? null,
     packagesSeeded: Promise.all([appSeed, addOnSeed]).then(() => undefined),
     addOnsLoaded,
-    chat: { catalog: chatCatalog, store: chatStore, caps: chatCaps, door: chatDoor },
+    chat: { catalog: chatCatalog, store: chatStore, caps: chatCaps, door: chatDoor, staff: chatStaff, waiting: chatWaiting },
   };
 }

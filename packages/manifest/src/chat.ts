@@ -176,6 +176,15 @@ const ADMINIUM_WRITES: readonly ChatPart[] = ['conversations', 'messages', 'choi
 /** The actions on a table no grant gives on a table only Adminium writes. */
 const WRITES = ['create', 'update', 'import'] as const;
 
+/**
+ * What a grant may still give on one of those tables: `update` on the
+ * conversations is who may ANSWER them (take, reply, close, reopen, make an
+ * enquiry) through the chat's own staff routes, which write through
+ * Adminium. Nobody's change of a row goes through any other door: the engine
+ * refuses a person's create or change of all three tables.
+ */
+const ACTS: Readonly<Partial<Record<ChatPart, readonly (typeof WRITES)[number][]>>> = { conversations: ['update'] };
+
 /** What the checks read of the add-on beside its chat block. */
 export interface ChatAddOnShape extends FormsAddOnShape {
   /** Whether the add-on declares forms too. */
@@ -287,13 +296,16 @@ function onlyAdminiumWrites(ref: string, t: number, part: ChatPart, m: ChatAddOn
     const from = role.cloneFrom === undefined ? undefined : roles.find((other) => other.key === role.cloneFrom);
     const grants = new Set([...(from?.permissions ?? []), ...(role.permissions ?? [])]);
     for (const action of WRITES) {
+      if (ACTS[part]?.includes(action) === true) continue;
       if (grants.has(`table:@${ref}:${action}`) || grants.has(`table:@*:${action}`)) {
         out.push({ path: ['roles', r, 'permissions'], message: `"${role.key}" may ${action} "${ref}", and ${why}: a role reads and deletes them` });
       }
     }
   });
   (m.tables[t]?.appGrants?.actions ?? []).forEach((action, a) => {
-    if (action !== 'read') out.push({ path: ['requiredSchema', 'tables', t, 'appGrants', 'actions', a], message: `${why}: an app's role may only read "${ref}"` });
+    if (action !== 'read' && ACTS[part]?.includes(action as (typeof WRITES)[number]) !== true) {
+      out.push({ path: ['requiredSchema', 'tables', t, 'appGrants', 'actions', a], message: `${why}: an app's role may only read "${ref}"${part === 'conversations' ? ', and answer them (update)' : ''}` });
+    }
   });
   (m.steps ?? []).forEach((step, s) => {
     if (step.writes.table === ref) out.push({ path: ['addOn', 'steps', s, 'writes', 'table'], message: `${why}: the step "${step.key}" may not write a row of "${ref}"` });

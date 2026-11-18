@@ -4721,7 +4721,9 @@
       "erase": "Vymazat…",
       "answers": "{count, plural, one {# odpověď} few {# odpovědi} many {# odpovědi} other {# odpovědí}}",
       "invitations": "{count, plural, one {# pozvánka} few {# pozvánky} many {# pozvánky} other {# pozvánek}}",
-      "files": "{count, plural, one {# soubor} few {# soubory} many {# souboru} other {# souborů}}"
+      "files": "{count, plural, one {# soubor} few {# soubory} many {# souboru} other {# souborů}}",
+      "chats": "{count, plural, one {# konverzace} few {# konverzace} many {# konverzace} other {# konverzací}}",
+      "chatMessages": "{count, plural, one {# zpráva} few {# zprávy} many {# zprávy} other {# zpráv}}"
     },
     "erase": {
       "goes": {
@@ -4733,7 +4735,8 @@
         "files": "{count, plural, one {# soubor} few {# soubory} many {# souboru} other {# souborů}}",
         "answers": "{count, plural, one {# odpověď z formuláře} few {# odpovědi z formulářů} many {# odpovědi z formulářů} other {# odpovědí z formulářů}} v {label}",
         "invitations": "{count, plural, one {# pozvánka do průzkumu} few {# pozvánky do průzkumu} many {# pozvánky do průzkumu} other {# pozvánek do průzkumu}} v {label}, uchováno bez adresy",
-        "answerFiles": "{count, plural, one {# soubor} few {# soubory} many {# souboru} other {# souborů}} z odpovědí na formuláře v {label}"
+        "answerFiles": "{count, plural, one {# soubor} few {# soubory} many {# souboru} other {# souborů}} z odpovědí na formuláře v {label}",
+        "chats": "{count, plural, one {# konverzace v chatu} few {# konverzace v chatu} many {# konverzace v chatu} other {# konverzací v chatu}} v {label}, i se zprávami"
       },
       "stays": {
         "forGood": "Uchováno natrvalo.",
@@ -4788,7 +4791,11 @@
       "answers": "Odpovědi z formulářů — {addOn}",
       "answersMonths": "{count, plural, one {Uchováno # měsíc} few {Uchováno # měsíce} many {Uchováno # měsíce} other {Uchováno # měsíců}}",
       "answersUntilRemoved": "Uchováno, dokud je někdo neodstraní",
-      "answersWhy": "Nastaveno v nastavení doplňku {addOn}. Starší odpovědi se mažou každou noc."
+      "answersWhy": "Nastaveno v nastavení doplňku {addOn}. Starší odpovědi se mažou každou noc.",
+      "chatConversations": "Konverzace v chatu — {addOn}",
+      "chatMonths": "{count, plural, one {Uchováno # měsíc} few {Uchováno # měsíce} many {Uchováno # měsíce} other {Uchováno # měsíců}}",
+      "chatUntilRemoved": "Uchováno, dokud je někdo neodstraní",
+      "chatWhy": "Nastaveno v nastavení doplňku {addOn}. Starší konverzace se mažou každou noc i se zprávami."
     },
     "downloads": {
       "processing": "Připravuje se…",

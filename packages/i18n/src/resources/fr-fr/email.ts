@@ -1004,6 +1004,14 @@ export default {
     "budgetBody": "{chat} a utilisé avant 18:00 UTC les {tokens} jetons qu’il peut dépenser aujourd’hui : une personne répond donc à chaque visiteur jusqu’à minuit UTC. Épuisés si tôt, cela peut venir de quelqu’un qui envoie de très nombreux messages. Consultez les conversations du jour, ou augmentez les jetons par jour dans les réglages du chat.",
     "aiNotice": "Les messages des visiteurs sont envoyés à {service} pour choisir une réponse. Rien d’autre n’est envoyé.",
     "pausedTitle": "Les nouvelles discussions sont en pause : {chat}",
-    "pausedBody": "Tant de nouvelles discussions ont commencé en une heure que cela ressemble à un script. Les nouveaux visiteurs ne peuvent pas ouvrir de discussion avant {time} ; les discussions en cours continuent. Vous pouvez les rouvrir plus tôt dans les réglages de la discussion."
+    "pausedBody": "Tant de nouvelles discussions ont commencé en une heure que cela ressemble à un script. Les nouveaux visiteurs ne peuvent pas ouvrir de discussion avant {time} ; les discussions en cours continuent. Vous pouvez les rouvrir plus tôt dans les réglages de la discussion.",
+    "replyName": "Réponse au chat",
+    "replySubject": "Une réponse de {business}",
+    "replyPreheader": "{business} a répondu à votre chat.",
+    "replyHeading": "{business} a répondu à votre chat",
+    "replyNotice": "Vous recevez cet e-mail parce que cette adresse a été laissée dans un chat sur le site de {business}. Si ce n’était pas vous, vous pouvez l’ignorer.",
+    "waitingTitle": "Un chat attend : {chat}",
+    "waitingBody": "Un visiteur attend la réponse d’une personne.",
+    "waitingOutside": "Un visiteur a laissé une question en dehors de vos horaires et attend la réponse d’une personne."
   }
 } as const;

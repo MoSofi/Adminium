@@ -71,7 +71,10 @@ export type SourceKind =
   | 'files'
   | 'form-answers'
   | 'form-invitations'
-  | 'form-files';
+  | 'form-files'
+  | 'chat-conversations'
+  | 'chat-messages'
+  | 'chat-choices';
 
 export type KeptByLawReason = 'tax' | 'health' | 'contract' | 'safety';
 
@@ -126,7 +129,7 @@ export interface StaysItem {
   label?: string | undefined;
 }
 
-export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files';
+export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations';
 
 export interface GoesItem {
   kind: GoesKind;

@@ -140,7 +140,11 @@ export interface ChatChoiceRow {
 export interface ChatLatest {
   /** The newest message's key ('0': none). */
   lastId: string;
+  /** When the conversation started: what a token is held to, so a key number handed out again is not the same conversation. */
+  startedAt: number;
   lastMessageAt: number;
+  /** The visitor's own last write or heartbeat: what a token lapses from. */
+  lastVisitorAt: number | null;
   state: ChatState;
   takenBy: string | null;
   /** When this process last wrote the visitor's heartbeat (`last_visitor_at`). */
@@ -155,7 +159,11 @@ export const SYSTEM_LINES: Readonly<Record<string, string>> = {
   closed: 'The chat was closed.',
   reopened: 'The chat was reopened.',
   left: 'The visitor left the page.',
+  enquiry: 'An enquiry was made from this chat.',
 };
+
+/** The system lines staff alone read: the visitor's window is never sent them. */
+export const STAFF_ONLY_EVENTS: ReadonlySet<string> = new Set(['left', 'enquiry']);
 
 /** Two keys compared as the numbers they are. */
 export function compareKeys(a: string, b: string): number {
@@ -264,14 +272,34 @@ export interface ChatStoreDeps {
   writes: Pick<RecordWriteService, 'check' | 'transaction'>;
   /** The realtime hub; null on a compose with none. */
   hub: () => RealtimeHub | null;
+  /**
+   * Told, once the write stands, that a conversation waits for a person: it
+   * was started waiting, it was handed over, or the visitor wrote while it
+   * waits (`waiting.ts` tells staff, once until someone opens it). Never
+   * awaited: the visitor is answered whatever it does.
+   */
+  waiting?: ((chat: LiveChat, conversation: ChatConversation) => void) | undefined;
   now?: () => number;
 }
+
+/** The chat a conversation's memory is kept under: its database and its conversations table. */
+export type ChatPlace = Pick<LiveChat, 'connectionId'> & { conversations: { table: Pick<ChatTable['table'], 'id'> } };
 
 export function createChatStore(deps: ChatStoreDeps) {
   const now = deps.now ?? Date.now;
   const latestKept = new Map<string, ChatLatest>();
 
-  const memoryKey = (chat: Pick<LiveChat, 'connectionId' | 'conversations'>, id: string): string => `${chat.connectionId}\u0000${chat.conversations.table.id}\u0000${id}`;
+  const memoryKey = (chat: ChatPlace, id: string): string => `${chat.connectionId}\u0000${chat.conversations.table.id}\u0000${id}`;
+
+  /** A conversation that waits for a person, told once its write stood. */
+  function toldWaiting(chat: LiveChat, conversation: ChatConversation): void {
+    if (conversation.state !== 'waiting' || deps.waiting === undefined) return;
+    try {
+      deps.waiting(chat, conversation);
+    } catch {
+      // A notice never fails the write it is about.
+    }
+  }
 
   function remember(chat: LiveChat, id: string, latest: ChatLatest): void {
     const key = memoryKey(chat, id);
@@ -285,7 +313,9 @@ export function createChatStore(deps: ChatStoreDeps) {
     const kept = latestKept.get(memoryKey(chat, conversation.id));
     remember(chat, conversation.id, {
       lastId: lastId ?? kept?.lastId ?? '0',
+      startedAt: conversation.startedAt,
       lastMessageAt: conversation.lastMessageAt,
+      lastVisitorAt: conversation.lastVisitorAt,
       state: conversation.state,
       takenBy: conversation.takenBy,
       heartbeatAt: kept?.heartbeatAt ?? 0,
@@ -358,7 +388,15 @@ export function createChatStore(deps: ChatStoreDeps) {
       .executeTakeFirst()) as { last?: unknown } | undefined;
     const last = newest?.last === null || newest?.last === undefined ? '0' : keyText(newest.last);
     const kept = latestKept.get(memoryKey(chat, id));
-    const latest: ChatLatest = { lastId: last, lastMessageAt: conversation.lastMessageAt, state: conversation.state, takenBy: conversation.takenBy, heartbeatAt: kept?.heartbeatAt ?? 0 };
+    const latest: ChatLatest = {
+      lastId: last,
+      startedAt: conversation.startedAt,
+      lastMessageAt: conversation.lastMessageAt,
+      lastVisitorAt: conversation.lastVisitorAt,
+      state: conversation.state,
+      takenBy: conversation.takenBy,
+      heartbeatAt: kept?.heartbeatAt ?? 0,
+    };
     remember(chat, id, latest);
     return latest;
   }
@@ -377,6 +415,51 @@ export function createChatStore(deps: ChatStoreDeps) {
     moved(chat, conversation, null);
     if (opts.on === undefined && Object.keys(columns).length > 0) publish(chat, chat.conversations, 'update', { [chat.conversations.pk]: boundKey(id), ...columns });
     return conversation;
+  }
+
+  /**
+   * A message, and the conversation moved with it in the same transaction
+   * (see `add`). An automatic one counts one more automatic answer: given a
+   * `cap`, only while fewer were given (`'cap'` when not, and nothing is
+   * written).
+   */
+  async function addMessage(
+    chat: LiveChat,
+    conversationId: string,
+    message: NewChatMessage,
+    patch: ChatConversationPatch,
+    opts: { at?: number; keepLast?: boolean },
+    cap: number | null,
+  ): Promise<{ message: ChatMessage; conversation: ChatConversation } | null | 'cap'> {
+    const at = opts.at ?? now();
+    const moves: Row = { ...patchColumns(patch), ...(opts.keepLast === true ? {} : { last_message_at: iso(at) }) };
+    const written = await within(chat, undefined, async (db) => {
+      if ((await readConversation(chat, conversationId, db)) === null) return null;
+      if (message.kind === 'automatic') {
+        const { table, pk } = chat.conversations;
+        let counting = db
+          .updateTable(table.id as never)
+          .set({ automatic_count: sql`${sql.ref('automatic_count')} + 1` } as never)
+          .where(sql.ref(pk), '=', boundKey(conversationId));
+        if (cap !== null) counting = counting.where(sql.ref('automatic_count'), '<', cap);
+        const counted = await counting.executeTakeFirst();
+        if (cap !== null && Number(counted.numUpdatedRows) === 0) return 'cap' as const;
+      }
+      // The conversation is moved BEFORE the message goes in: its row is locked first, so two messages at once queue on it
+      // rather than each holding the link's shared lock and waiting on the other's (MySQL's deadlock).
+      await updateConversation(chat, conversationId, moves, db);
+      const row = await insert(chat, chat.messages, db, messageValues(conversationId, message, at));
+      const conversation = await readConversation(chat, conversationId, db);
+      return conversation === null ? null : { row, conversation };
+    });
+    if (written === null || written === 'cap') return written;
+    const added = messageOf(written.row, chat.messages.pk);
+    moved(chat, written.conversation, added.id);
+    publish(chat, chat.messages, 'create', written.row);
+    if (Object.keys(moves).length > 0) publish(chat, chat.conversations, 'update', { [chat.conversations.pk]: boundKey(conversationId), ...moves });
+    // A visitor still waiting, or a conversation just handed to a person: staff are told (once until someone opens it).
+    if (message.kind === 'visitor' || message.event === 'asked' || message.event === 'handed-over') toldWaiting(chat, written.conversation);
+    return { message: added, conversation: written.conversation };
   }
 
   return {
@@ -419,6 +502,7 @@ export function createChatStore(deps: ChatStoreDeps) {
       if (opts.on === undefined) {
         publish(chat, chat.conversations, 'create', written.made);
         if (written.first !== null) publish(chat, chat.messages, 'create', written.first);
+        toldWaiting(chat, conversation);
       }
       return { conversation, messages };
     },
@@ -427,40 +511,69 @@ export function createChatStore(deps: ChatStoreDeps) {
     announceStart(chat: LiveChat, conversation: ChatConversation, messages: readonly ChatMessage[]): void {
       publish(chat, chat.conversations, 'create', { [chat.conversations.pk]: boundKey(conversation.id) });
       for (const message of messages) publish(chat, chat.messages, 'create', { [chat.messages.pk]: boundKey(message.id), conversation_id: boundKey(conversation.id) });
+      toldWaiting(chat, conversation);
     },
 
     /**
      * A message, and the conversation moved with it in the same transaction:
      * its last message, one more automatic answer for an automatic one, and
      * `patch` (a new state, a stamp). Null when the conversation is gone.
+     * `keepLast`: a line dated in the past (the visitor left at the time of
+     * their last heartbeat) leaves the conversation's last message as it is.
      */
-    async add(chat: LiveChat, conversationId: string, message: NewChatMessage, patch: ChatConversationPatch = {}, opts: { at?: number } = {}): Promise<{ message: ChatMessage; conversation: ChatConversation } | null> {
-      const at = opts.at ?? now();
-      const written = await within(chat, undefined, async (db) => {
-        if ((await readConversation(chat, conversationId, db)) === null) return null;
-        const row = await insert(chat, chat.messages, db, messageValues(conversationId, message, at));
-        await updateConversation(chat, conversationId, { ...patchColumns(patch), last_message_at: iso(at) }, db);
-        if (message.kind === 'automatic') {
-          const { table, pk } = chat.conversations;
-          await db
-            .updateTable(table.id as never)
-            .set({ automatic_count: sql`${sql.ref('automatic_count')} + 1` } as never)
-            .where(sql.ref(pk), '=', boundKey(conversationId))
-            .execute();
-        }
-        const conversation = await readConversation(chat, conversationId, db);
-        return conversation === null ? null : { row, conversation };
-      });
-      if (written === null) return null;
-      const added = messageOf(written.row, chat.messages.pk);
-      moved(chat, written.conversation, added.id);
-      publish(chat, chat.messages, 'create', written.row);
-      publish(chat, chat.conversations, 'update', { [chat.conversations.pk]: boundKey(conversationId), ...patchColumns(patch), last_message_at: iso(at) });
-      return { message: added, conversation: written.conversation };
-    },
+    add: (chat: LiveChat, conversationId: string, message: NewChatMessage, patch: ChatConversationPatch = {}, opts: { at?: number; keepLast?: boolean } = {}) =>
+      addMessage(chat, conversationId, message, patch, opts, null).then((added) => (added === 'cap' ? null : added)),
+
+    /**
+     * An automatic answer, only while the conversation has had fewer than
+     * `cap`: its count goes up by one in ONE conditional statement first, so
+     * messages answered at the same moment never pass the cap together.
+     * `'cap'` when it had them all already (nothing written); null when the
+     * conversation is gone.
+     */
+    addAutomatic: (chat: LiveChat, conversationId: string, answer: { body: string; answerRef: string }, cap: number, opts: { at?: number } = {}) =>
+      addMessage(chat, conversationId, { kind: 'automatic', body: answer.body, answerRef: answer.answerRef }, {}, opts, cap),
 
     /** A conversation, read now. */
     conversation: (chat: LiveChat, id: string) => readConversation(chat, id),
+
+    /** A message, read now; null when it is not one of this conversation's. */
+    async message(chat: LiveChat, conversationId: string, messageId: string): Promise<ChatMessage | null> {
+      const { table, pk } = chat.messages;
+      const row = (await chat.db
+        .selectFrom(table.id as never)
+        .selectAll()
+        .where(sql.ref(pk), '=', boundKey(messageId))
+        .where(sql.ref('conversation_id'), '=', boundKey(conversationId))
+        .executeTakeFirst()) as Row | undefined;
+      return row === undefined ? null : messageOf(row, pk);
+    },
+
+    /** The conversation's newest system line with this event, or null. */
+    async lastEvent(chat: LiveChat, conversationId: string, event: string): Promise<ChatMessage | null> {
+      const { table, pk } = chat.messages;
+      const row = (await chat.db
+        .selectFrom(table.id as never)
+        .selectAll()
+        .where(sql.ref('conversation_id'), '=', boundKey(conversationId))
+        .where(sql.ref('kind'), '=', 'system')
+        .where(sql.ref('event'), '=', event)
+        .orderBy(sql.ref(pk) as never, 'desc')
+        .limit(1)
+        .executeTakeFirst()) as Row | undefined;
+      return row === undefined ? null : messageOf(row, pk);
+    },
+
+    /** Stamps when a staff message was also mailed to the visitor (`mailed_at`). */
+    async markMailed(chat: LiveChat, messageId: string, at: number): Promise<void> {
+      const { table, pk } = chat.messages;
+      await chat.db
+        .updateTable(table.id as never)
+        .set(storedColumns(table, { mailed_at: iso(at) }, chat.dialect) as never)
+        .where(sql.ref(pk), '=', boundKey(messageId))
+        .execute();
+      publish(chat, chat.messages, 'update', { [pk]: boundKey(messageId), mailed_at: iso(at) });
+    },
 
     /** The conversation's messages after the key `after` ('0': from the first), oldest first, at most `limit`. */
     async since(chat: LiveChat, conversationId: string, after: string, limit = 200): Promise<ChatMessage[]> {
@@ -495,8 +608,28 @@ export function createChatStore(deps: ChatStoreDeps) {
      */
     update,
 
-    /** Links the row of an app's table a conversation became (`<app>:<table>` and its key). */
-    link: (chat: LiveChat, id: string, became: { table: string; key: string }, opts: { on?: Kysely<SourceDatabase> } = {}) => update(chat, id, { becameTable: became.table, becameKey: became.key }, opts),
+    /**
+     * Links the row of an app's table a conversation became (`<app>:<table>`
+     * and its key), only while it became none: one conditional statement, so
+     * of two links at the same moment exactly one wins (`linked`), and the
+     * other finds the first's row on the conversation.
+     */
+    async link(chat: LiveChat, id: string, became: { table: string; key: string }, opts: { on?: Kysely<SourceDatabase> } = {}): Promise<{ linked: boolean; conversation: ChatConversation | null }> {
+      const db = opts.on ?? chat.db;
+      const { table, pk } = chat.conversations;
+      const columns = patchColumns({ becameTable: became.table, becameKey: became.key });
+      const result = await db
+        .updateTable(table.id as never)
+        .set(storedColumns(table, columns, chat.dialect) as never)
+        .where(sql.ref(pk), '=', boundKey(id))
+        .where(sql.ref('became_key'), 'is', null)
+        .executeTakeFirst();
+      const linked = Number(result.numUpdatedRows) > 0;
+      const conversation = await readConversation(chat, id, db);
+      if (conversation !== null) moved(chat, conversation, null);
+      if (linked && opts.on === undefined) publish(chat, chat.conversations, 'update', { [pk]: boundKey(id), ...columns });
+      return { linked, conversation };
+    },
 
     /** One choice the answerer made, in the choices table. */
     async logChoice(chat: LiveChat, choice: ChatChoiceRow): Promise<void> {
@@ -531,10 +664,11 @@ export function createChatStore(deps: ChatStoreDeps) {
       if (kept !== undefined && at - kept.heartbeatAt < every) return;
       if (kept !== undefined) kept.heartbeatAt = at;
       await updateConversation(chat, id, { last_visitor_at: iso(at) }, chat.db);
+      if (kept !== undefined) kept.lastVisitorAt = at;
     },
 
     /** Forgets what memory holds for one conversation (erased), or every one. */
-    forget(chat?: LiveChat, id?: string): void {
+    forget(chat?: ChatPlace, id?: string): void {
       if (chat === undefined || id === undefined) latestKept.clear();
       else latestKept.delete(memoryKey(chat, id));
     },

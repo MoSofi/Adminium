@@ -1453,8 +1453,7 @@ export default {
   },
   "chat": {
     "messageSent": "تم إرسال الرسالة",
-    "sendFailed": "تعذّر إرسال الرسالة.",
-    "budgetEvent": "توقفت الردود التلقائية لدردشة لهذا اليوم"
+    "sendFailed": "تعذّر إرسال الرسالة."
   },
   "templates": {
     "crud": {
@@ -1605,7 +1604,12 @@ export default {
       "reportFailed": "فشل التقرير المجدول",
       "backupCompleted": "اكتمل النسخ الاحتياطي",
       "ruleNotice": "إشعار من قاعدة",
-      "mention": "ذكرني أحدهم"
+      "mention": "ذكرني أحدهم",
+      "formsAnswer": "وصلت إجابة جديدة على نموذج",
+      "formsLimit": "بلغ نموذج حدّه",
+      "chatBudget": "توقفت الردود التلقائية لدردشة لهذا اليوم",
+      "chatWaiting": "دردشة على الموقع تنتظر شخصًا",
+      "chatPaused": "تم إيقاف دردشات الموقع الجديدة مؤقتًا"
     }
   },
   "theme": {

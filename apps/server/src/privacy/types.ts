@@ -26,6 +26,10 @@ export const SOURCE_KINDS = [
   'form-invitations',
   // The files a form's answers came with (a file question).
   'form-files',
+  // A website chat's conversations (by the address typed, or the row of theirs it became), its messages, and the automatic answerer's choices.
+  'chat-conversations',
+  'chat-messages',
+  'chat-choices',
 ] as const;
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 

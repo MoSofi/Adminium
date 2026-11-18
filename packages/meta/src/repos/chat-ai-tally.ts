@@ -1,21 +1,46 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * chatAiTallyRepo — adminium_chat_ai_days and adminium_chat_ai_addresses
- * (0094): what a website chat's automatic answerer spent on a UTC day, and
- * which conversations each network address (a keyed hash) asked it about.
+ * chatAiTallyRepo — adminium_chat_ai_days (0094) and adminium_chat_ai_addresses
+ * (0095): what a website chat's automatic answerer spent on a UTC day, and
+ * what it did for each network address (a keyed hash) in the last three hours.
  *
  * Written only by the server's answerer. No settings route, config import,
  * export or archive touches them, so nobody sets a day's spend back.
  *
  * Every change that a limit guards is ONE statement, so two calls at once
  * cannot both pass the limit: a reservation adds to what is held only where
- * what was spent and what is held still leave room for it.
+ * what was spent and what is held still leave room for it. An address's
+ * notes are counted the way the forms door's marks are: a note made first,
+ * then the window counted, so two calls at once cannot both slip under a cap.
+ *
+ * An address note holds no conversation: only whether its call was the
+ * first of a new conversation, and its tokens. It is read for
+ * {@link CHAT_AI_ADDRESS_KEEP_MS} and no longer; each new note first deletes
+ * every note older than that, and the server sweeps them hourly too.
  */
 import type { MetaDb } from '../connect.js';
 import { CHAT_AI_ADDRESS_WIDTH, CHAT_AI_ADD_ON_WIDTH, CHAT_AI_DAY_WIDTH, CHAT_AI_INSTALL_WIDTH } from '../migrations/0094_chat_ai_tally.js';
+import { newId } from '../ids.js';
 import { affected, isDuplicateKeyError } from './util.js';
 
 export { CHAT_AI_ADDRESS_WIDTH, CHAT_AI_ADD_ON_WIDTH, CHAT_AI_DAY_WIDTH, CHAT_AI_INSTALL_WIDTH };
+
+/** How long an address note is read, and kept: three hours. */
+export const CHAT_AI_ADDRESS_KEEP_MS = 3 * 60 * 60_000;
+
+/** One chat install: what an address's notes are counted within. */
+export interface ChatAiChatKey {
+  installId: string;
+  addOn: string;
+}
+
+/** What an address did on one chat in the last three hours. */
+export interface ChatAiAddressUse {
+  /** New conversations it had automatic answers asked for. */
+  conversations: number;
+  /** Tokens its calls held or spent. */
+  tokens: number;
+}
 
 /** One chat's day: the install, the add-on, and the UTC day as `YYYY-MM-DD`. */
 export interface ChatAiDayKey {
@@ -46,6 +71,11 @@ function checkKey(key: ChatAiDayKey): void {
   if (key.installId.length === 0 || key.installId.length > CHAT_AI_INSTALL_WIDTH) throw new Error('A chat tally install id is empty or longer than its column.');
   if (key.addOn.length === 0 || key.addOn.length > CHAT_AI_ADD_ON_WIDTH) throw new Error('A chat tally add-on key is empty or longer than its column.');
   if (key.day.length !== CHAT_AI_DAY_WIDTH || !DAY_RE.test(key.day)) throw new Error('A chat tally day is written YYYY-MM-DD.');
+}
+
+function checkChat(key: ChatAiChatKey): void {
+  if (key.installId.length === 0 || key.installId.length > CHAT_AI_INSTALL_WIDTH) throw new Error('A chat tally install id is empty or longer than its column.');
+  if (key.addOn.length === 0 || key.addOn.length > CHAT_AI_ADD_ON_WIDTH) throw new Error('A chat tally add-on key is empty or longer than its column.');
 }
 
 function checkAddress(hash: string): void {
@@ -148,53 +178,49 @@ export function chatAiTallyRepo(meta: MetaDb) {
     },
 
     /**
-     * Note that `addressHash` asked about `conversationId` on the day: true
-     * when this made the note, false when it was already there.
+     * Note one model call for `addressHash` on a chat: whether it is the
+     * first of a new conversation, and the tokens it holds. Every note older
+     * than {@link CHAT_AI_ADDRESS_KEEP_MS} goes first. Answers the note's id,
+     * to settle or take back.
      */
-    async markAddress(key: ChatAiDayKey, addressHash: string, conversationId: number, at: number): Promise<boolean> {
-      checkKey(key);
+    async markAddress(key: ChatAiChatKey, addressHash: string, note: { first: boolean; tokens: number }, at: number): Promise<string> {
+      checkChat(key);
       checkAddress(addressHash);
-      whole(conversationId, 'conversation id');
-      try {
-        await db.insertInto(addresses).values({ installId: key.installId, addOn: key.addOn, day: key.day, addressHash, conversationId, createdAt: at }).execute();
-        return true;
-      } catch (error) {
-        if (isDuplicateKeyError(error)) return false;
-        throw error;
-      }
+      whole(note.tokens, 'reservation');
+      await db.deleteFrom(addresses).where('createdAt', '<', at - CHAT_AI_ADDRESS_KEEP_MS).execute();
+      const id = newId('cai');
+      await db.insertInto(addresses).values({ id, installId: key.installId, addOn: key.addOn, addressHash, first: note.first ? 1 : 0, tokens: note.tokens, createdAt: at }).execute();
+      return id;
+    },
+
+    /** A call ended: its note counts what it spent, in place of what it held. */
+    async settleAddress(id: string, spent: number): Promise<void> {
+      whole(spent, 'spend');
+      await db.updateTable(addresses).set({ tokens: spent }).where('id', '=', id).execute();
     },
 
     /** Take a note back: the call it was made for was never made. */
-    async unmarkAddress(key: ChatAiDayKey, addressHash: string, conversationId: number): Promise<void> {
-      checkKey(key);
-      await db
-        .deleteFrom(addresses)
-        .where('installId', '=', key.installId)
-        .where('addOn', '=', key.addOn)
-        .where('day', '=', key.day)
-        .where('addressHash', '=', addressHash)
-        .where('conversationId', '=', conversationId)
-        .execute();
+    async unmarkAddress(id: string): Promise<void> {
+      await db.deleteFrom(addresses).where('id', '=', id).execute();
     },
 
-    /** How many conversations `addressHash` asked the answerer about on the day. */
-    async addressConversations(key: ChatAiDayKey, addressHash: string): Promise<number> {
-      checkKey(key);
+    /** What `addressHash` did on a chat in the three hours before `at`: never a note older. */
+    async addressUse(key: ChatAiChatKey, addressHash: string, at: number): Promise<ChatAiAddressUse> {
+      checkChat(key);
       const row = await db
         .selectFrom(addresses)
-        .select((eb) => eb.fn.countAll().as('n'))
+        .select((eb) => [eb.fn.sum<number | string | bigint | null>('first').as('firsts'), eb.fn.sum<number | string | bigint | null>('tokens').as('tokens')])
+        .where('addressHash', '=', addressHash)
         .where('installId', '=', key.installId)
         .where('addOn', '=', key.addOn)
-        .where('day', '=', key.day)
-        .where('addressHash', '=', addressHash)
+        .where('createdAt', '>', at - CHAT_AI_ADDRESS_KEEP_MS)
         .executeTakeFirst();
-      return Number(row?.n ?? 0);
+      return { conversations: Number(row?.firsts ?? 0), tokens: Number(row?.tokens ?? 0) };
     },
 
-    /** The sweep: every address note of a day before `day` (`YYYY-MM-DD`). Answers how many went. */
-    async pruneAddresses(day: string): Promise<number> {
-      if (!DAY_RE.test(day)) throw new Error('A chat tally day is written YYYY-MM-DD.');
-      const deleted = await db.deleteFrom(addresses).where('day', '<', day).executeTakeFirst();
+    /** The sweep: every address note made before `before` (epoch ms). Answers how many went. */
+    async pruneAddresses(before: number): Promise<number> {
+      const deleted = await db.deleteFrom(addresses).where('createdAt', '<', before).executeTakeFirst();
       return affected(deleted.numDeletedRows);
     },
   };

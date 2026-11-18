@@ -4731,7 +4731,9 @@ export default {
       "erase": "مسح…",
       "answers": "{count, plural, zero {لا إجابات} one {إجابة واحدة} two {إجابتان} few {# إجابات} many {# إجابة} other {# إجابة}}",
       "invitations": "{count, plural, zero {لا دعوات} one {دعوة واحدة} two {دعوتان} few {# دعوات} many {# دعوة} other {# دعوة}}",
-      "files": "{count, plural, zero {لا ملفات} one {ملف واحد} two {ملفان} few {# ملفات} many {# ملفًا} other {# ملف}}"
+      "files": "{count, plural, zero {لا ملفات} one {ملف واحد} two {ملفان} few {# ملفات} many {# ملفًا} other {# ملف}}",
+      "chats": "{count, plural, zero {لا محادثات} one {محادثة واحدة} two {محادثتان} few {# محادثات} many {# محادثة} other {# محادثة}}",
+      "chatMessages": "{count, plural, zero {لا رسائل} one {رسالة واحدة} two {رسالتان} few {# رسائل} many {# رسالة} other {# رسالة}}"
     },
     "erase": {
       "goes": {
@@ -4743,7 +4745,8 @@ export default {
         "files": "{count, plural, zero {لا ملفات} one {ملف واحد} two {ملفان} few {# ملفات} many {# ملفًا} other {# ملف}}",
         "answers": "{count, plural, zero {لا إجابات نماذج} one {إجابة نموذج واحدة} two {إجابتا نموذج} few {# إجابات نماذج} many {# إجابة نموذج} other {# إجابة نموذج}} في {label}",
         "invitations": "{count, plural, zero {لا دعوات استبيان} one {دعوة استبيان واحدة} two {دعوتا استبيان} few {# دعوات استبيان} many {# دعوة استبيان} other {# دعوة استبيان}} في {label}، تُحفظ دون عنوانها",
-        "answerFiles": "{count, plural, zero {لا ملفات} one {ملف واحد} two {ملفان} few {# ملفات} many {# ملفًا} other {# ملف}} أُرسلت مع إجابات النماذج في {label}"
+        "answerFiles": "{count, plural, zero {لا ملفات} one {ملف واحد} two {ملفان} few {# ملفات} many {# ملفًا} other {# ملف}} أُرسلت مع إجابات النماذج في {label}",
+        "chats": "{count, plural, zero {لا محادثات دردشة} one {محادثة دردشة واحدة} two {محادثتا دردشة} few {# محادثات دردشة} many {# محادثة دردشة} other {# محادثة دردشة}} في {label}، مع رسائلها"
       },
       "stays": {
         "forGood": "يُحتفظ به إلى الأبد.",
@@ -4798,7 +4801,11 @@ export default {
       "answers": "إجابات النماذج — {addOn}",
       "answersMonths": "{count, plural, zero {لا يُحتفظ بها} one {يُحتفظ بها شهرًا واحدًا} two {يُحتفظ بها شهرين} few {يُحتفظ بها # أشهر} many {يُحتفظ بها # شهرًا} other {يُحتفظ بها # شهر}}",
       "answersUntilRemoved": "يُحتفظ بها حتى يحذفها أحد",
-      "answersWhy": "يُضبط في إعدادات {addOn}. تُحذف الإجابات الأقدم كل ليلة."
+      "answersWhy": "يُضبط في إعدادات {addOn}. تُحذف الإجابات الأقدم كل ليلة.",
+      "chatConversations": "محادثات الدردشة — {addOn}",
+      "chatMonths": "{count, plural, zero {لا يُحتفظ بها} one {يُحتفظ بها شهرًا واحدًا} two {يُحتفظ بها شهرين} few {يُحتفظ بها # أشهر} many {يُحتفظ بها # شهرًا} other {يُحتفظ بها # شهر}}",
+      "chatUntilRemoved": "يُحتفظ بها حتى يحذفها أحد",
+      "chatWhy": "يُضبط في إعدادات {addOn}. تُحذف المحادثات الأقدم كل ليلة مع رسائلها."
     },
     "downloads": {
       "processing": "قيد الإعداد…",

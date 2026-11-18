@@ -5415,10 +5415,6 @@
     "srcHash": "164b3d4809f9",
     "status": "mt"
   },
-  "common.chat.budgetEvent": {
-    "status": "mt",
-    "srcHash": "abeadeac0183"
-  },
   "common.chat.messageSent": {
     "srcHash": "9cf1b68c1b0e",
     "status": "mt"
@@ -6574,6 +6570,26 @@
   "common.notifications.event.backupCompleted": {
     "srcHash": "6df17c3ac00b",
     "status": "mt"
+  },
+  "common.notifications.event.chatBudget": {
+    "status": "mt",
+    "srcHash": "abeadeac0183"
+  },
+  "common.notifications.event.chatPaused": {
+    "status": "mt",
+    "srcHash": "80a9e2045865"
+  },
+  "common.notifications.event.chatWaiting": {
+    "status": "mt",
+    "srcHash": "b7e54201390f"
+  },
+  "common.notifications.event.formsAnswer": {
+    "status": "mt",
+    "srcHash": "c8db13a7d8ac"
+  },
+  "common.notifications.event.formsLimit": {
+    "status": "mt",
+    "srcHash": "7ad18d61f74b"
   },
   "common.notifications.event.mention": {
     "status": "mt",
@@ -17766,6 +17782,38 @@
   "email.chat.pausedTitle": {
     "status": "mt",
     "srcHash": "e4b9e2dbbdc5"
+  },
+  "email.chat.replyHeading": {
+    "status": "mt",
+    "srcHash": "de00fbfae45d"
+  },
+  "email.chat.replyName": {
+    "status": "mt",
+    "srcHash": "6cca9a29d0d8"
+  },
+  "email.chat.replyNotice": {
+    "status": "mt",
+    "srcHash": "47665cf5105c"
+  },
+  "email.chat.replyPreheader": {
+    "status": "mt",
+    "srcHash": "83aab78407d1"
+  },
+  "email.chat.replySubject": {
+    "status": "mt",
+    "srcHash": "0c91a5958b29"
+  },
+  "email.chat.waitingBody": {
+    "status": "mt",
+    "srcHash": "9c56e3b6b241"
+  },
+  "email.chat.waitingOutside": {
+    "status": "mt",
+    "srcHash": "7e0b4590d61a"
+  },
+  "email.chat.waitingTitle": {
+    "status": "mt",
+    "srcHash": "26cd776257f8"
   },
   "email.copySuffix": {
     "status": "mt",
@@ -36971,6 +37019,10 @@
     "status": "mt",
     "srcHash": "958bcd5a9eca"
   },
+  "studio.privacy.erase.goes.chats": {
+    "status": "mt",
+    "srcHash": "550f6a781691"
+  },
   "studio.privacy.erase.goes.consent": {
     "status": "mt",
     "srcHash": "cab7d21542cb"
@@ -37127,6 +37179,22 @@
     "status": "mt",
     "srcHash": "f092cb0ce512"
   },
+  "studio.privacy.keeping.chatConversations": {
+    "status": "mt",
+    "srcHash": "fb53daac64cf"
+  },
+  "studio.privacy.keeping.chatMonths": {
+    "status": "mt",
+    "srcHash": "f26edd2c0b59"
+  },
+  "studio.privacy.keeping.chatUntilRemoved": {
+    "status": "mt",
+    "srcHash": "09f8de058624"
+  },
+  "studio.privacy.keeping.chatWhy": {
+    "status": "mt",
+    "srcHash": "69d0153aaafe"
+  },
   "studio.privacy.keeping.consentHistory": {
     "status": "mt",
     "srcHash": "9f998ba2b5f8"
@@ -37222,6 +37290,14 @@
   "studio.privacy.person.audit": {
     "status": "mt",
     "srcHash": "a35e162cd1ac"
+  },
+  "studio.privacy.person.chatMessages": {
+    "status": "mt",
+    "srcHash": "7a1e71005a81"
+  },
+  "studio.privacy.person.chats": {
+    "status": "mt",
+    "srcHash": "f8ccbcb1f23a"
   },
   "studio.privacy.person.copyOf": {
     "status": "mt",

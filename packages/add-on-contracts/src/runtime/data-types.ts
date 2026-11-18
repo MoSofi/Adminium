@@ -315,6 +315,15 @@ export interface UseUploadResult {
   error: DataError | null;
 }
 
+/**
+ * A table followed live: what the page is told while it follows one.
+ * `connected` is false while the live line is down (the lists still read on
+ * their own; they are read again as soon as it is back).
+ */
+export interface UseLiveTableResult {
+  connected: boolean;
+}
+
 /** The data kit's hooks, by name. */
 export interface AddOnDataHooks {
   useRecords: (table: string, options?: UseRecordsOptions) => UseRecordsResult;
@@ -334,6 +343,16 @@ export interface AddOnDataHooks {
   useFormTables: () => UseFormTablesResult;
   /** Files into a file column of one of the add-on's own tables (from Adminium 0.3.43; absent before). */
   useUpload: (table: string, column: string) => UseUploadResult;
+  /**
+   * Follows one of the add-on's own tables live (from Adminium 0.3.64; absent
+   * before): whenever a row of it is written, by anybody, through any door
+   * (a stranger's chat message or form answer too), the page's lists and rows
+   * of that table are read again, and once more each time the live line comes
+   * back after a drop, since a change made while it was down is never sent
+   * again. Only while the reader may read the table; nothing of the row
+   * itself is handed to the page.
+   */
+  useLiveTable: (table: string, options?: { enabled?: boolean }) => UseLiveTableResult;
 }
 
 /**

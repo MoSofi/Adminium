@@ -2025,13 +2025,20 @@ export interface AdminiumChatAiDaysTable {
   changedAt: Ts;
 }
 
-/** Wave 0094 — one network address's (a keyed hash) conversation the answerer was asked for on one UTC day. */
+/**
+ * Wave 0095 (made again over 0094's) — one model call the chat answerer made
+ * for a network address (a keyed hash, never the address), with no
+ * conversation id: read for three hours, then swept.
+ */
 export interface AdminiumChatAiAddressesTable {
+  id: Id;
   installId: string;
   addOn: string;
-  day: string;
   addressHash: string;
-  conversationId: number;
+  /** 1 when the call was the first of a new conversation for this address, else 0. */
+  first: number;
+  /** The tokens the call held, then what it spent. */
+  tokens: number;
   createdAt: Ts;
 }
 

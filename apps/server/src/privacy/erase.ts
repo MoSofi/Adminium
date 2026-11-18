@@ -28,7 +28,9 @@
  *  6. their rows in the apps' databases are emptied (`erase-rows.ts`), in
  *     one transaction per database; their form answers are deleted (with
  *     their files) and the survey invitations sent to them lose the address
- *     and the name (`form-answers.ts`); an entry written about one of those
+ *     and the name (`form-answers.ts`); their website chats are deleted with
+ *     their messages and the answerer's choices (`chat-transcripts.ts`),
+ *     found by the address and by the rows of theirs a chat became; an entry written about one of those
  *     rows while the erasure ran is emptied too;
  *  7. one audit entry of its own says what was done: counts, and the keyed
  *     hash of the address. Never the address, never the name.
@@ -60,6 +62,8 @@ import type { FileStore } from '../files/store.js';
 import { blankCampaignSends, campaignSendIds, copyFileIds, purgeRowFiles, rowFileIds, scrubAuditImages, scrubRemovedRows, sweepAddress, sweepMailAddress, type CopyLink, type CopyRowFiles, type ImageTarget, type PersonRowRef } from './erase-meta.js';
 import { findPersonRows, writePersonRows, type ErasedSource, type LeftColumn, type PersonRows } from './erase-rows.js';
 import { eraseFormRows, findFormRows, formImageTargets } from './form-answers.js';
+import { eraseChatRows, findChatRows, type TheirRow } from './chat-transcripts.js';
+import type { ChatForget } from '../chat/transcripts.js';
 import type { AnswerFilesRemover } from '../forms/answers.js';
 import { personHash, personHashes } from './export.js';
 import type { AppScope } from './scope.js';
@@ -74,6 +78,8 @@ export interface EraseDeps {
   secret: string;
   /** The strangers' file store's remover: their form answers' files leave the store with the answers. */
   answerFiles?: AnswerFilesRemover | undefined;
+  /** Makes the chat store forget an erased conversation, so a visitor's poll on it is told it is lost. */
+  chatForget?: ChatForget | undefined;
   /**
    * Told of each of their rows as if it were gone: the public door's address
    * watch ends the sessions it opened and takes back open sign-in links to
@@ -90,7 +96,7 @@ export interface EraseScope {
 }
 
 /** What goes, as the erase dialog counts it. */
-export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files';
+export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations';
 
 export interface GoesItem {
   kind: GoesKind;
@@ -164,6 +170,13 @@ function copyLinks(rows: PersonRows): CopyLink[] {
   return out;
 }
 
+/** Their own rows and their copies: what a chat that became one of them is found by. */
+function theirRows(rows: PersonRows): TheirRow[] {
+  return rows.databases.flatMap((database) =>
+    database.sources.filter((source) => source.kind === 'people' || source.kind === 'copy').flatMap((source) => source.rows.map((row) => ({ connectionId: source.connectionId, table: source.table.id, key: row.key }))),
+  );
+}
+
 /** Their consent rows: by the address, and by each of their rows. */
 async function consentIds(consent: ConsentService, address: string, people: readonly PersonRowRef[], byAddress: boolean): Promise<number> {
   const ids = new Set<string>();
@@ -194,6 +207,10 @@ export async function previewErasure(deps: EraseDeps, rawAddress: string, scope?
       goes.push({ kind: 'form-invitations', count: one.invitations.length, connectionId: one.connectionId, table: one.addOn.invitations.id, app: one.addOn.key, label: one.addOn.invitations.table.label ?? one.addOn.invitations.name });
     }
   }
+  for (const one of whole ? await findChatRows(deps, address, theirRows(rows)) : []) {
+    const table = one.addOn.conversations;
+    if (table !== null && one.conversations.length > 0) goes.push({ kind: 'chat-conversations', count: one.conversations.length, connectionId: one.connectionId, table: table.id, app: one.addOn.key, label: table.table.label ?? table.name });
+  }
   const consent = await consentIds(deps.consent, address, people, whole);
   if (consent > 0) goes.push({ kind: 'consent', count: consent });
   const sends = (await campaignSendIds(deps.meta, address, people, whole)).length;
@@ -219,6 +236,8 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: E
   const erasedName = await erasedNameOf(meta);
   const rows = await findPersonRows({ meta, manager: deps.manager, erasedName, now }, address, apps);
   const forms = whole ? await findFormRows(deps, address) : [];
+  // Found before their rows are emptied: a chat that became one of them is found by the row's key, which stays.
+  const chats = whole ? await findChatRows(deps, address, theirRows(rows)) : [];
   const people = peopleRefs(rows);
   const counts: Record<string, number> = {};
 
@@ -287,6 +306,7 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: E
   // 6. Their rows.
   Object.assign(counts, await writePersonRows(rows));
   Object.assign(counts, await eraseFormRows(forms, erasedName, deps.answerFiles));
+  Object.assign(counts, await eraseChatRows(chats, deps.chatForget));
   // An entry written about one of their rows while this ran.
   audit += await scrubAuditImages(meta, targets, started);
   counts['audit'] = audit + swept.audit;

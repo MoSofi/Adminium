@@ -194,8 +194,10 @@ describe('the modules that read a deferred group of common', () => {
   });
 
   it('name only keys the catalogue has', () => {
-    // `audit.read` is spelled like a key of the `audit` group and is a permission's name (the router, the sidebar).
-    const missing = sourceFiles(SRC).flatMap((file) => keysIn(file).filter((key) => key !== 'audit.read' && catalogued(key) === undefined).map((key) => `${relative(SRC, file)}: ${key}`));
+    // `audit.read` is spelled like a key of the `audit` group and is a permission's name (the router, the sidebar);
+    // `chat.budget`, `chat.waiting` and `chat.paused` are notification kinds (the notification settings' labels).
+    const notWords = new Set(['audit.read', 'chat.budget', 'chat.waiting', 'chat.paused']);
+    const missing = sourceFiles(SRC).flatMap((file) => keysIn(file).filter((key) => !notWords.has(key) && catalogued(key) === undefined).map((key) => `${relative(SRC, file)}: ${key}`));
     expect(missing).toEqual([]);
   });
 

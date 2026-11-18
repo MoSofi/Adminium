@@ -64,5 +64,7 @@ export const useFormSummary = data['useFormSummary'] as never;
 export const useFormTables = data['useFormTables'] as never;
 /** Undefined on a host older than 0.3.43: a page asks `host.data.useUpload` before it offers an upload. */
 export const useUpload = data['useUpload'] as never;
+/** Undefined on a host older than 0.3.64: a page asks `host.data.useLiveTable` before it follows a table. */
+export const useLiveTable = data['useLiveTable'] as never;
 
 export default data;

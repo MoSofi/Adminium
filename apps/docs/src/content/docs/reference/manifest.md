@@ -6968,7 +6968,10 @@ All four are required, each a table of its own. Each has a numbered key: an `int
 column with `"role": "pk"`, which Adminium numbers. A message's key is the point a visitor's window
 asks for messages after. Adminium alone writes the conversations, the messages and the choices. No
 role may create, update or import them, an app's grant only reads them, and no step writes them;
-staff read and delete them. Staff write the answers and the settings row. No public entry of the
+staff read and delete them. One grant is the exception: `update` on the conversations, for a role or
+an app's grant, says who may answer them (take, reply, close, reopen, make an enquiry) through
+Adminium's own chat routes. Even then nobody changes a row of the three tables by any other door.
+Staff write the answers and the settings row. No public entry of the
 add-on opens any of the four tables. A further column of a table Adminium alone writes is nullable
 or has a default.
 

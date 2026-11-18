@@ -1443,8 +1443,7 @@
   },
   "chat": {
     "messageSent": "Message sent",
-    "sendFailed": "The message could not be sent.",
-    "budgetEvent": "A chat’s automatic answers stopped for the day"
+    "sendFailed": "The message could not be sent."
   },
   "templates": {
     "crud": {
@@ -1595,7 +1594,12 @@
       "reportFailed": "Scheduled report failed",
       "backupCompleted": "Backup completed",
       "ruleNotice": "A notice from a rule",
-      "mention": "Somebody mentioned me"
+      "mention": "Somebody mentioned me",
+      "formsAnswer": "A form has a new answer",
+      "formsLimit": "A form hit its limit",
+      "chatBudget": "A chat’s automatic answers stopped for the day",
+      "chatWaiting": "A website chat is waiting for a person",
+      "chatPaused": "New website chats were paused"
     }
   },
   "theme": {

@@ -43,6 +43,8 @@ export const ENDED_TRIAL_SCHEDULES: ReadonlySet<string> = new Set([
   'privacy-exports-sweep',
   'public-uploads-sweep',
   'form-answers-sweep',
+  'chat-transcripts-sweep',
+  'chat-address-sweep',
   'forms-sweep',
   'retention-gc',
   'add-on-expire-sweep',
