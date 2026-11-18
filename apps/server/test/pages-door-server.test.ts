@@ -203,6 +203,12 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
       expect(kept.statusCode, kept.body).toBe(201);
       files[name] = (kept.json() as Doc).data.id;
     }
+    // Files that hang on the page's own row, with bytes that read, but are no copy of its own: a person's upload, and an SVG.
+    const onOpenDay = { connectionId: h.connectionId, table: pagesId, pk: { id: keys['open-day'] }, label: String(keys['open-day']) };
+    const spare = (await filesRepo(h.meta).findById(files['spare']!))!;
+    const bytesOf = { sizeBytes: spare.sizeBytes, sha256: spare.sha256, storageKey: spare.storageKey, storage: spare.storage, destinationId: spare.destinationId, entity: onOpenDay, attachedAt: Date.now() };
+    files['upload'] = (await filesRepo(h.meta).create({ filename: 'scan.png', mime: 'image/png', kind: 'upload', ...bytesOf })).id;
+    files['svg'] = (await filesRepo(h.meta).create({ filename: 'x.svg', mime: 'image/svg+xml', kind: 'landing', ...bytesOf })).id;
     await publish('thanks', doc('Thank you', { picture: { file: files['thanks'], alt: 'Our showroom' } }));
     await publish('open-day', {
       ...doc('Open day at our Leeds showroom'),
@@ -211,6 +217,8 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
         { id: 'hero', kind: 'hero', heading: 'Open day', text: 'Thursday 18 September.', picture: { file: files['hero'], alt: 'The showroom' }, button: { label: 'Book', link: { kind: 'form' } } },
         // Another page's own picture, named here: never served for this page.
         { id: 'other', kind: 'picture', picture: { file: files['thanks'], alt: 'Theirs' } },
+        { id: 'upload', kind: 'picture', picture: { file: files['upload'], alt: 'A scan' } },
+        { id: 'svg', kind: 'picture', picture: { file: files['svg'], decorative: true } },
         { id: 'book', kind: 'form', form: 'frm_showroom', addOn: 'forms' },
         { id: 'survey', kind: 'form', form: 'frm_named', addOn: 'forms' },
         { id: 'next', kind: 'button', label: 'After', link: { kind: 'page', key: String(keys['thanks']) } },
@@ -294,6 +302,8 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
       [files['share']!]: `/x/pages/api/open-day/pictures/${files['share']!}`,
       [files['hero']!]: `/x/pages/api/open-day/pictures/${files['hero']!}`,
       [files['thanks']!]: `/x/pages/api/open-day/pictures/${files['thanks']!}`,
+      [files['upload']!]: `/x/pages/api/open-day/pictures/${files['upload']!}`,
+      [files['svg']!]: `/x/pages/api/open-day/pictures/${files['svg']!}`,
     });
     expect(body.links).toEqual({ [String(keys['thanks'])]: '/x/pages/thanks', [String(keys['spring-draft'])]: null });
     expect(await viewsOf('open-day')).toBe(before + 1);
@@ -385,8 +395,8 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
     // The page's own file its document does not name; another page's file it names; a file of Files; an SVG; a `data:` address.
     const upload = await as('lib', 'POST', `/api/v1/files?filename=plan.png&connectionId=${h.connectionId}`, png().bytes, { 'content-type': 'image/png' });
     expect(upload.statusCode, upload.body).toBe(201);
-    const svg = await filesRepo(h.meta).create({ filename: 'x.svg', mime: 'image/svg+xml', sizeBytes: 10, sha256: 'a'.repeat(64), kind: 'landing', entity: { connectionId: h.connectionId, table: pagesId, pk: { id: keys['open-day'] }, label: String(keys['open-day']) }, attachedAt: Date.now() });
-    for (const file of [files['spare']!, files['thanks']!, (upload.json() as Doc).data.id as string, svg.id, 'data:image/png;base64,AAAA', 'file_00000000000000000000000000']) {
+    // Named by the page, and hanging on its row, but no copy of its own: a person's upload, and an SVG.
+    for (const file of [files['spare']!, files['thanks']!, (upload.json() as Doc).data.id as string, files['upload']!, files['svg']!, 'data:image/png;base64,AAAA', 'file_00000000000000000000000000']) {
       expect((await get(`/x/pages/api/open-day/pictures/${encodeURIComponent(file)}`)).statusCode, file).toBe(404);
     }
     // Its own page serves the other page's picture; a draft, or a page switched off, serves none.
