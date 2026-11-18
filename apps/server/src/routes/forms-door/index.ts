@@ -61,8 +61,6 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
 
 import { keepsNames } from '@adminium/add-on-contracts/forms';
-import { localeFromTag, type LocaleId } from '@adminium/i18n';
-import { createServerI18n } from '@adminium/i18n/server';
 import { filesRepo, paymentSettingsRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -77,15 +75,13 @@ import { formsReach } from '../../forms/reach.js';
 import type { ListedWebsites } from '../../forms/websites.js';
 import { previewForm, type PreviewForm } from '../../forms/preview.js';
 import { businessToday, formLanguageFor, strangerBusiness, strangerForm } from '../../forms/view.js';
-import { loadOverrideMap } from '../../i18n/server-i18n.js';
-import { bcp47 } from '../../i18n/bcp47.js';
 import type { FileStore } from '../../files/store.js';
-import { negotiateLocale } from '../../plugins/surfaces.js';
 import { issueChallenge, PROOF_DIFFICULTY, proofKey } from '../../public-api/proof.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../payments/ways.js';
 import { formsFileRoutes } from './files.js';
 import { tagRoutes } from '../../security/route-audience.js';
 import { framedPageOf, xContentPolicy, xDoorHeaders } from '../x-door/headers.js';
+import { xPages, type XPageWords } from '../x-door/page.js';
 
 export interface FormsDoorDeps {
   meta: MetaDb;
@@ -133,8 +129,6 @@ const LOGO_TYPES: ReadonlySet<string> = new Set(['image/png', 'image/jpeg', 'ima
  */
 export { xContentPolicy };
 
-const UNBUILT = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Form</title></head><body><p>This page isn’t available right now.</p></body></html>';
-
 const slugParams = z.object({ slug: z.string().min(1).max(120) });
 /** A named survey's token, as its link carries it: anything that is not one opens nothing (`forms/invitation.ts`). */
 const tokenField = z.string().max(2000).optional();
@@ -149,9 +143,12 @@ function asksPreview(request: FastifyRequest): boolean {
 /** A form as the door may serve it, with the invitation a named survey's link opened. */
 export type DoorLookup = { state: 'live'; live: LiveForm; invitation: OpenInvitation | null } | { state: 'closed' } | { state: 'unavailable' } | { state: 'already' } | { state: 'dead' };
 
-function escapeHtml(value: string): string {
-  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
+/** What a browser with no script reads on a form's page, by its state. */
+const FORMS_PAGE_WORDS: XPageWords = {
+  live: { key: 'x:ending.noScript', fallback: 'This form needs JavaScript.' },
+  closed: { key: 'x:ending.closed', fallback: 'This form is closed.' },
+  unavailable: { key: 'x:ending.unavailable', fallback: 'This page isn’t available.' },
+};
 
 /** The pages of this door a listed website may frame, with `?frame=1`: a form's page. */
 export const FORMS_FRAMED_PAGES: readonly RegExp[] = [/^\/x\/forms\/[^/]+$/];
@@ -206,59 +203,11 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
   return async (app) => {
     // Doors anybody may open: hidden with the other public pages (`security/route-audience.ts`).
     tagRoutes(app, 'public');
-    async function xRoot(): Promise<string | null> {
-      const spa = (app as unknown as { spaRoot: string | null }).spaRoot;
-      if (spa === null || spa === undefined) return null;
-      const root = join(spa, 'x');
-      try {
-        return (await stat(join(root, 'index.html'))).isFile() ? root : null;
-      } catch {
-        return null;
-      }
-    }
-
     // Last word on the headers of everything this plugin answers (`../x-door/headers.ts`).
     xDoorHeaders(app, { framed: framedPageOf(FORMS_FRAMED_PAGES), websites: deps.websites, previewing: (request) => previewing.has(request) });
 
-    /** The language engine words are drawn in for a browser with no script: asked, else the browser's, else English. */
-    function wordsLocale(request: FastifyRequest): LocaleId {
-      const asked = (request.query as { lang?: unknown } | undefined)?.lang;
-      if (typeof asked === 'string' && /^[a-z]{2}-[A-Z]{2}$/.test(asked)) {
-        const found = localeFromTag(asked);
-        if (bcp47(found) === asked) return found;
-      }
-      return negotiateLocale(request.headers['accept-language']) ?? 'en_US';
-    }
-
-    /** What a browser with JavaScript off reads instead of the page: the page's state, and where to write. */
-    async function noscriptFor(request: FastifyRequest, state: 'live' | 'closed' | 'unavailable'): Promise<string> {
-      const locale = wordsLocale(request);
-      const i18n = await createServerI18n({ locale, overrides: await loadOverrideMap(meta, locale) });
-      const t = (k: string, fallback: string, args: Record<string, string> = {}) => i18n.t(k, { defaultValue: fallback, ...args });
-      const { business } = await strangerBusiness(meta);
-      const title =
-        state === 'live' ? t('x:ending.noScript', 'This form needs JavaScript.') : state === 'closed' ? t('x:ending.closed', 'This form is closed.') : t('x:ending.unavailable', 'This page isn’t available.');
-      const write = business.email === null ? '' : `<p>${escapeHtml(t('x:ending.noScriptWrite', 'You can also write to {email}.', { email: business.email }))}</p>`;
-      return `<p><strong>${escapeHtml(title)}</strong></p>${write}`;
-    }
-
-    /** The bundle's page, with the state's own words for a browser with no script. */
-    async function page(request: FastifyRequest, reply: FastifyReply, state: 'live' | 'closed' | 'unavailable'): Promise<FastifyReply> {
-      const root = await xRoot();
-      if (root === null) return reply.status(503).type('text/html; charset=utf-8').send(UNBUILT);
-      const html = await readFile(join(root, 'index.html'), 'utf8');
-      let noscript: string | null = null;
-      try {
-        noscript = await noscriptFor(request, state);
-      } catch {
-        // The built sentence stays: the page itself still works.
-      }
-      const body = noscript === null ? html : html.replace(/<noscript>[\s\S]*?<\/noscript>/, () => `<noscript>${noscript}</noscript>`);
-      return reply
-        .status(state === 'unavailable' ? 404 : 200)
-        .type('text/html; charset=utf-8')
-        .send(body);
-    }
+    // The bundle's page, with a form's own words for a browser with no script (`../x-door/page.ts`).
+    const { xRoot, page } = xPages(app, meta, FORMS_PAGE_WORDS);
 
     /** "Not available", as an API call is answered: one body, whatever the reason. */
     async function unavailable(reply: FastifyReply): Promise<FastifyReply> {
