@@ -18,6 +18,11 @@
  * changed on the add-on's settings screen and read here; the engine's sweep
  * deletes the answers past it (`forms/answers.ts`). Empty: kept until
  * somebody removes them (or the person is erased).
+ *
+ * A chat add-on's conversations are a row each ({@link chatTranscriptsKeeping}),
+ * the same way: its settings' `transcripts_months` (12 until the settings row
+ * is made; empty: kept until removed), swept daily by the engine with their
+ * messages and choices (`chat/transcripts.ts`).
  */
 import type { MetaDb, SettingKey } from '@adminium/meta';
 
@@ -26,6 +31,7 @@ import type { SnapshotView } from '../crud/identifiers.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { answersMonths } from '../forms/answers.js';
 import { formsAddOnsOn, storedFormsAddOns } from '../forms/installed.js';
+import { chatAddOnsOn, storedChatAddOns, transcriptsMonths } from '../chat/transcripts.js';
 
 /** How long a fixed row is kept. */
 export type FixedKeep = 'forever' | 'until-erased' | 'until-removed';
@@ -81,6 +87,34 @@ export async function formAnswersKeeping(deps: { meta: MetaDb; manager: Pick<Con
         // A database that cannot be read now: said as kept until removed, which is what its sweep does while it cannot run.
       }
       out.push({ key: FORM_ANSWERS_KEEPING, fixed: true, keptFor: months ?? 'until-removed', options: [], addOn: { key: addOn.key, name: addOn.name } });
+    }
+  }
+  return out;
+}
+
+/** The key of a chat add-on's conversations row. */
+export const CHAT_TRANSCRIPTS_KEEPING = 'chat-conversations';
+
+/** One row per installed chat add-on with a conversations table: how long it keeps its conversations. */
+export async function chatTranscriptsKeeping(deps: { meta: MetaDb; manager: Pick<ConnectionManager, 'data'> }): Promise<KeepingRow[]> {
+  const stored = await storedChatAddOns(deps.meta);
+  const out: KeepingRow[] = [];
+  for (const connectionId of [...new Set(stored.map((one) => one.connectionId))].sort()) {
+    let view: SnapshotView;
+    try {
+      view = await loadSnapshotView(deps.meta, connectionId, { forOthers: true });
+    } catch {
+      continue;
+    }
+    for (const addOn of await chatAddOnsOn(deps.meta, connectionId, view, stored)) {
+      if (addOn.conversations === null) continue;
+      let months: number | null = null;
+      try {
+        months = await transcriptsMonths((await deps.manager.data(connectionId)).db, addOn);
+      } catch {
+        // A database that cannot be read now: said as kept until removed, which is what its sweep does while it cannot run.
+      }
+      out.push({ key: CHAT_TRANSCRIPTS_KEEPING, fixed: true, keptFor: months ?? 'until-removed', options: [], addOn: { key: addOn.key, name: addOn.name } });
     }
   }
   return out;

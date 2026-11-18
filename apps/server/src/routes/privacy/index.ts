@@ -70,7 +70,8 @@ import { businessName, privacyNoticeOf, senderPostalAddress } from '../../privac
 import { erasePerson, previewErasure } from '../../privacy/erase.js';
 import type { AnswerFilesRemover } from '../../forms/answers.js';
 import { countsOf, PRIVACY_EXPORT_KIND, personHash } from '../../privacy/export.js';
-import { formAnswersKeeping, keepingRows } from '../../privacy/keeping.js';
+import { chatTranscriptsKeeping, formAnswersKeeping, keepingRows } from '../../privacy/keeping.js';
+import type { ChatForget } from '../../chat/transcripts.js';
 import { privacyScopeOf, refuseStaffAddress, type PrivacyScope } from '../../privacy/scope.js';
 import { findPerson, searchAddress, type PersonFound } from '../../privacy/sources.js';
 import { normaliseAddress } from '../../public-api/claim-code.js';
@@ -113,6 +114,8 @@ export interface PrivacyRoutesDeps {
   reach: FormsReachFacts;
   /** The strangers' file store's remover: an erasure takes their form answers' files from it. */
   answerFiles?: AnswerFilesRemover | undefined;
+  /** Makes the chat store forget an erased conversation (`chat/store.ts`). */
+  chatForget?: ChatForget | undefined;
 }
 
 /** The signed-in person asking: never an API key. */
@@ -136,7 +139,7 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
   const { meta, secret } = deps;
   const settings = settingsRepo(meta);
   const exports = privacyExportsRepo(meta);
-  const eraseDeps = { meta, manager: deps.manager, consent: deps.consent, storage: deps.storage, secret, signIns: deps.signIns, answerFiles: deps.answerFiles };
+  const eraseDeps = { meta, manager: deps.manager, consent: deps.consent, storage: deps.storage, secret, signIns: deps.signIns, answerFiles: deps.answerFiles, chatForget: deps.chatForget };
 
   /** Locked keys refused rather than read as "nothing found" (or, for an erasure, half done). */
   async function unlocked<T>(work: () => Promise<T>): Promise<T> {
@@ -337,7 +340,7 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
     );
 
     app.get('/privacy/keeping', { preHandler: privacy, schema: { response: { 200: keepingReply } } }, async () => ({
-      data: { rows: [...(await keepingRows((key) => settings.get(key))), ...(await formAnswersKeeping({ meta, manager: deps.manager }))] },
+      data: { rows: [...(await keepingRows((key) => settings.get(key))), ...(await formAnswersKeeping({ meta, manager: deps.manager })), ...(await chatTranscriptsKeeping({ meta, manager: deps.manager }))] },
     }));
 
     // ── "Download everything" ───────────────────────────────────────────────

@@ -25,14 +25,17 @@
  * A private table is not read: its rows are the people's they belong to.
  * Secret columns (a password's hash, a key) are never read out.
  *
- * Only the sources this release has are searched: no chats or page visits
- * exist yet.
+ *   - every installed chat add-on's conversations with the address typed in
+ *     them, or that became one of their rows or copies, with their messages
+ *     and the answerer's choices (`chat-transcripts.ts`);
+ *
+ * Only the sources this release has are searched: no page visits exist yet.
  *
  * A request narrowed to some apps (`scope.ts`: a shop owner's
  * `privacy.people`) reads only those apps' people tables, copies and
  * outboxes, the consent rows and Adminium's own rows about the rows found
- * there; never a store matched by the address alone, the do-not-email list
- * or a forms add-on's answers.
+ * there; never a store matched by the address alone, the do-not-email list,
+ * a forms add-on's answers or a chat's conversations.
  *
  * The address is compared as `normaliseAddress` spells it, trimmed and in
  * lower case on both sides; nothing else is folded.
@@ -55,8 +58,10 @@ import { normaliseAddress } from '../public-api/claim-code.js';
 import { theirCopyRows } from './copy-rows.js';
 import { copyFileIds, type CopyRowFiles } from './erase-meta.js';
 import { erasedColumns, parsedJson } from './erase-values.js';
+import { chatSources, findChatRows, type TheirRow } from './chat-transcripts.js';
 import { findFormRows, formSources } from './form-answers.js';
 import { findInMeta, ROWS_MAX, type FoundRow } from './meta-sources.js';
+import type { ChatForget } from '../chat/transcripts.js';
 import { inScope, type AppScope } from './scope.js';
 import type { FoundSource } from './types.js';
 import { plainRow, plainValue } from './values.js';
@@ -87,6 +92,8 @@ export interface PrivacyFindDeps {
   meta: MetaDb;
   manager: Pick<ConnectionManager, 'data'>;
   consent: ConsentService;
+  /** Makes the chat store forget an erased conversation (`chat/store.ts`). */
+  chatForget?: ChatForget | undefined;
 }
 
 /** A manifest reader that never touches a credential (finding and erasing read stored manifests only). */
@@ -402,6 +409,15 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string, apps
   if (person === null) {
     // Nobody's row names them: the name an answer of theirs gave, when one did.
     const named = forms.filter((one) => one.kind === 'form-answers').flatMap((one) => one.rows).map((row) => row['name']).find((name): name is string => typeof name === 'string' && name.trim() !== '');
+    if (named !== undefined) person = { name: named.trim(), company: null };
+  }
+
+  // ── the chat add-ons: by the address typed, and by the rows of theirs a chat became ──
+  const theirs: TheirRow[] = sources.filter((source) => (source.kind === 'people' || source.kind === 'copy') && source.connectionId !== null && source.table !== null).flatMap((source) => source.keys.map((key) => ({ connectionId: source.connectionId!, table: source.table!, key })));
+  const chats = whole ? chatSources(await findChatRows(deps, address, theirs, ROWS_MAX)) : [];
+  sources.push(...chats);
+  if (person === null) {
+    const named = chats.filter((one) => one.kind === 'chat-conversations').flatMap((one) => one.rows).map((row) => row['name']).find((name): name is string => typeof name === 'string' && name.trim() !== '');
     if (named !== undefined) person = { name: named.trim(), company: null };
   }
 
