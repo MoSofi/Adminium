@@ -35,7 +35,7 @@
  */
 import { CHAT_MESSAGE_MAX } from '@adminium/manifest';
 import { settingsRepo, type MetaDb } from '@adminium/meta';
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
@@ -51,6 +51,7 @@ import { planEnquiry } from '../../chat/enquiry.js';
 import { chatLanguageOf, chatLanguages } from '../../chat/settings.js';
 import type { ChatActor, ChatStaff, ChatStaffRefusal } from '../../chat/staff.js';
 import { boundKey, SYSTEM_LINES, type ChatConversation, type ChatStore } from '../../chat/store.js';
+import { createAsPerson } from '../../crud/as-person.js';
 import { fetchVisible, rowLimitFor } from '../../crud/row-limit.js';
 import { rowLimitContextOf } from '../../crud/row-limit-context.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
@@ -188,9 +189,6 @@ function conflict(why: ChatStaffRefusal): never {
       throw new ConflictError('Automatic answers have this chat. Take it over first.', 'CONFLICT', { reason: 'automatic' });
   }
 }
-
-/** Headers an act passes on when it asks another route of this server as the same person. */
-const FORWARDED = ['cookie', 'authorization', 'user-agent', 'accept-language'] as const;
 
 export function chatStaffRoutes(deps: ChatStaffRoutesDeps): FastifyPluginAsyncZod {
   const { meta, store, staff } = deps;
@@ -428,7 +426,7 @@ export function chatStaffRoutes(deps: ChatStaffRoutesDeps): FastifyPluginAsyncZo
       if (!(await request.can(`table:${opened.connectionId}:${opened.tableId}:create`))) {
         throw new ForbiddenError('Only someone who may add rows to that table makes an enquiry.', 'TABLE_FORBIDDEN', { reason: 'enquiry-create', table: opened.tableId });
       }
-      const made = await createAsPerson(app, request, opened.connectionId, opened.tableId, plan.values);
+      const made = await createAsPerson(app, request, opened.connectionId, opened.tableId, plan.values, { code: 'ENQUIRY_REFUSED', message: 'The enquiry was refused.' });
       const view = chat.view.table(opened.tableId);
       const key = view.primaryKey.length === 1 ? String(made[view.primaryKey[0]!]) : JSON.stringify(view.primaryKey.map((column) => made[column] ?? null));
       const table = (await deps.installs()).refOf(opened.connectionId, opened.tableId);
@@ -565,33 +563,3 @@ export function chatStaffRoutes(deps: ChatStaffRoutesDeps): FastifyPluginAsyncZo
   };
 }
 
-/**
- * A row made by the dashboard's own create route, as the person behind
- * `request`: the same session (or key), so every grant, column limit, rule,
- * audit and live update of an ordinary create applies, and its refusal is
- * passed on in its own words. Browser-only headers are not passed: the outer
- * request already passed the cross-site check.
- */
-async function createAsPerson(app: FastifyInstance, request: FastifyRequest, connectionId: string, tableId: string, values: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const headers: Record<string, string> = {};
-  for (const name of FORWARDED) {
-    const value = request.headers[name];
-    if (typeof value === 'string' && value !== '') headers[name] = value;
-  }
-  if (typeof request.host === 'string' && request.host !== '') headers['host'] = request.host;
-  const res = await app.inject({
-    method: 'POST',
-    url: `/api/v1/data/${encodeURIComponent(connectionId)}/${encodeURIComponent(tableId)}`,
-    headers,
-    remoteAddress: request.ip,
-    payload: { values },
-  });
-  let body: { data?: Record<string, unknown>; error?: { code?: string; message?: string; details?: unknown } } = {};
-  try {
-    body = JSON.parse(res.body) as typeof body;
-  } catch {
-    body = {};
-  }
-  if (res.statusCode === 201 || res.statusCode === 200) return body.data ?? {};
-  throw new AppError(res.statusCode, body.error?.code ?? 'ENQUIRY_REFUSED', body.error?.message ?? 'The enquiry was refused.', body.error?.details);
-}
