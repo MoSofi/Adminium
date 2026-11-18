@@ -229,6 +229,8 @@ describe('the view counter', () => {
     // Past them, the next view asks again in the background, and the one after counts nothing.
     at = T0 + LEVEL_FRESH_MS + 1;
     views.count({ installId: INSTALL, kind: 'page', thing: '7', request: req('198.51.100.1') });
+    // Asked by the view itself, before anything else asks.
+    expect(reads).toBe(2);
     await views.levelNow();
     expect(reads).toBe(2);
     expect(views.level()).toBe('off');

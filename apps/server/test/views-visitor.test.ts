@@ -82,6 +82,12 @@ describe('the visitor\'s cookie and banner', () => {
       const swapped = `${made.value.slice(0, at)}${made.value[at] === 'A' ? 'B' : 'A'}${made.value.slice(at + 1)}`;
       expect(read(swapped), String(at)).toBeNull();
     }
+    // The same bytes spelled another way (the last character's spare bits set): another id for the same "yes", so nobody.
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    const last = alphabet.indexOf(made.value.at(-1)!);
+    const respelled = `${made.value.slice(0, -1)}${alphabet[last ^ 1]!}`;
+    expect(Buffer.from(respelled, 'base64url').equals(Buffer.from(made.value, 'base64url'))).toBe(true);
+    expect(read(respelled)).toBeNull();
     // A "yes" moved to another moment or other words is a change too.
     const bytes = Buffer.from(made.value, 'base64url');
     bytes.writeUIntBE(T0 + 1, 16, 6);

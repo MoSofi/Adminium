@@ -655,8 +655,9 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
     // Two rows of one table live at one slug (by hand, past the seal): the one published first answers, every time.
     const first = await draft('twin-first');
     const second = await draft('twin-second');
-    await byHand(second, { slug: 'twin', state: 'live', published: JSON.stringify(doc('Published second')), published_at: '2026-11-18 10:00:00' });
-    await byHand(first, { slug: 'twin', state: 'live', published: JSON.stringify(doc('Published first')), published_at: '2026-11-18 08:00:00' });
+    // The row with the higher key was published first: the order is by when, not by key.
+    await byHand(first, { slug: 'twin', state: 'live', published: JSON.stringify(doc('Published second')), published_at: '2026-11-18 10:00:00' });
+    await byHand(second, { slug: 'twin', state: 'live', published: JSON.stringify(doc('Published first')), published_at: '2026-11-18 08:00:00' });
     for (let n = 0; n < 3; n += 1) expect((((await get('/x/pages/api/twin')).json() as Doc).page as Doc).title).toBe('Published first');
     // Twenty-one drafts at a live page's slug never push it out.
     for (let n = 0; n < 21; n += 1) {
