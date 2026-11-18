@@ -37,7 +37,6 @@ import {
   LEAD_SOURCE_CONTRACT,
   LEAD_SOURCE_FACTORY,
   LEAD_SOURCE_VERSION,
-  sourcesOfDocument,
   type CreateLeadSource,
   type LeadSource,
   type LeadSourceContext,
@@ -45,7 +44,7 @@ import {
   type LeadSourceError,
   type LeadSourceHttpClient,
 } from './pending-types.js';
-import { needsKey, readSourcesState, sourceStateOf } from './state.js';
+import { needsKey, readSourcesState, sourceStateOf, sourcesOf } from './state.js';
 
 /** How long the engine waits for one call, whatever the source does with its stop signal. */
 export const CALL_DEADLINE_MS = 60_000;
@@ -103,13 +102,19 @@ function isSourceError(value: unknown): value is LeadSourceError {
   return typeof value === 'object' && value !== null && (value as { ok?: unknown }).ok === false && typeof (value as { code?: unknown }).code === 'string';
 }
 
+/** An install's add-on manifest, or null when it does not read as one. */
+export function installManifest(install: InstalledManifest): AddOnManifest | null {
+  const parsed = addOnManifestSchema.safeParse(install.document);
+  return parsed.success ? parsed.data : null;
+}
+
 /** The manifest entry of one source of an install, with the manifest; or why there is none. */
 export function sourceEntryOf(install: InstalledManifest, source: string): { manifest: AddOnManifest; entry: LeadSourceEntry } | LeadSourceError {
-  const parsed = addOnManifestSchema.safeParse(install.document);
-  if (!parsed.success) return unavailable(`The add-on "${install.row.manifestKey}" has a manifest this server cannot read.`);
-  const entry = sourcesOfDocument(parsed.data).find((one) => one.id === source);
+  const manifest = installManifest(install);
+  if (manifest === null) return unavailable(`The add-on "${install.row.manifestKey}" has a manifest this server cannot read.`);
+  const entry = sourcesOf(manifest).find((one) => one.id === source);
   if (entry === undefined) return invalid(`The add-on "${install.row.manifestKey}" has no source "${source}".`);
-  return { manifest: parsed.data, entry };
+  return { manifest, entry };
 }
 
 export async function withLeadSource<T>(deps: LeadSourceDeps, call: LeadSourceCall, run: (source: LeadSource) => Promise<T | LeadSourceError>): Promise<T | LeadSourceRefusal> {

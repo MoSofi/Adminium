@@ -25,7 +25,17 @@ import { z } from 'zod';
 
 import { withServiceLock } from '../payments/services.js';
 import { SOURCE_ID_RE } from './keys.js';
-import type { LeadSourceEntry } from './pending-types.js';
+import { LEAD_SOURCE_CONTRACT, sourcesOfDocument, type LeadSourceEntry } from './pending-types.js';
+
+/** An add-on's declared sources, in its manifest's order. */
+export function sourcesOf(manifest: { addOn: object }): LeadSourceEntry[] {
+  return sourcesOfDocument(manifest);
+}
+
+/** Whether an add-on speaks for sources: it declares some, or provides the lead source contract. */
+export function speaksForSources(manifest: { addOn: { provides?: readonly { contract: string }[] | undefined } }): boolean {
+  return sourcesOf(manifest).length > 0 || (manifest.addOn.provides ?? []).some((entry) => entry.contract === LEAD_SOURCE_CONTRACT);
+}
 
 /** The document's name for one install. */
 export function sourcesDocName(installId: string): string {

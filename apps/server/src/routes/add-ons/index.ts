@@ -156,6 +156,8 @@ import { refuseOwnCode, refuseOwnCodeHook } from '../../trial/own-code.js';
 import { getPrincipal } from '../../rbac/principal.js';
 import { APP_VERSION } from '../../version.js';
 import { isRetiredAddOn } from '../../add-ons/retired.js';
+import { speaksForSources } from '../../lead-sources/state.js';
+import { registerSourceRoutes } from './sources.js';
 import {
   addOnBundleParams,
   addOnBundleQuery,
@@ -2019,6 +2021,11 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
             reason: 'payments',
           });
         }
+        // A lead source add-on keeps one key per source, each saved, removed
+        // and checked on its own; this form saves every secret in one call.
+        if (speaksForSources(manifest)) {
+          throw new ValidationFailedError(`"${key}" keeps a key for each of its sources. Set up its sources on its own Sources screen.`, { reason: 'sources' });
+        }
 
         if (kind === 'none') {
           // Not an error the caller can fix by sending different values, so it
@@ -2195,6 +2202,9 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         const provides = read.ok && isAddOnManifest(read.manifest) ? (read.manifest.addOn.provides ?? []) : [];
         if (provides.some((entry) => entry.contract === PAYMENT_PROVIDER_CONTRACT)) {
           throw new ValidationFailedError(`"${key}" is a payment service. Remove its keys in Studio → Payments.`, { reason: 'payments' });
+        }
+        if (read.ok && isAddOnManifest(read.manifest) && speaksForSources(read.manifest)) {
+          throw new ValidationFailedError(`"${key}" keeps a key for each of its sources. Remove them on its own Sources screen.`, { reason: 'sources' });
         }
 
         // And the whole of it: ONE delete, against a table that holds only
@@ -2426,6 +2436,17 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         return { key, values: saved.values, updatedAt: saved.updatedAt };
       },
     );
+
+    // A lead source add-on's Sources: each source's key, switch and caps, behind the same settings guard (`./sources.ts`).
+    registerSourceRoutes(app, {
+      meta: deps.meta,
+      manifests,
+      runtime: deps.runtime ?? (() => null),
+      settingsGuard,
+      connectionNames,
+      policy: () => policyOf(app),
+      networkFeatures: () => deps.catalog?.networkFeaturesAllowed() ?? true,
+    });
 
     /*
      * AN ADD-ON'S OWN SAMPLE DATA: the four routes an app has, for an add-on

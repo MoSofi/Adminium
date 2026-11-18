@@ -28,12 +28,12 @@ export interface LeadSourceError {
   ok: false;
   code: LeadSourceErrorCode;
   message: string;
-  retryAfterSeconds?: number;
+  retryAfterSeconds?: number | undefined;
 }
 
 export interface KeyChecked {
   ok: true;
-  account?: string;
+  account?: string | undefined;
 }
 
 export interface LeadSource {
