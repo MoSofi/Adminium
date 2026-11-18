@@ -1,5 +1,0 @@
----
-'@adminium/server': patch
----
-
-The live chat's staff routes, under `/api/v1/chat/<add-on>/`, each for a signed-in person with rights on the chat's own tables: a conversation's presence, take, reply (mailed to a visitor who left the page and gave an address, at most three a day), close, reopen, "Make an enquiry" (a row the person creates in the table an app opens to the chat) and "Draft with Milo"; the breaker's pause and resume; the answerer's day and "Try a question"; and `GET /api/v1/chat/<add-on>/status`, everything the chat's settings page shows (whether visitors can reach it, the privacy notice, the public address, the listed websites, whether mail goes, the roles it may tell, its languages, the business's name and the time zone), for anyone who may read the chat's settings, without Forms or privacy rights. Only Adminium writes a chat's conversations, messages and choices: no role, grant or data route creates, changes or deletes them. The columns the chat's contract names (`daily_tokens`, `tokens_in`, `tokens_out`) are never taken for secrets by their names.

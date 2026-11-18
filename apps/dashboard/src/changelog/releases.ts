@@ -62,6 +62,22 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.64',
+    date: '2026-11-18',
+    title: 'A live chat for your website',
+    summary:
+      'Add-ons can now carry a live chat that a website shows with one line. Visitors write to your team, or get the automatic answers you write; outside your hours they leave a question that becomes a row in an app. Your team answers from the dashboard.',
+    changes: [
+      { tag: 'New', text: 'A website shows an add-on’s live chat with one script line. Visitors see your hours, your welcome line and who is answering, in their own language.' },
+      { tag: 'New', text: 'Staff take a chat, reply, close and reopen it from the dashboard. A reply can follow by e-mail once the visitor has left, and “Make an enquiry” turns a chat into a row of an app.' },
+      { tag: 'New', text: 'Automatic answers use the AI service you choose, within a daily token limit you set. A visitor’s e-mail addresses and phone numbers are masked before the text leaves, and new chats pause for an hour after too many start at once.' },
+      { tag: 'New', text: 'An add-on’s pages can follow a table as it changes, and open the assistant with words ready in its box.' },
+      { tag: 'Improved', text: '“Can visitors reach your public pages?” now says when it cannot tell whether visitors come through a proxy.' },
+      { tag: 'Fixed', text: 'The host of the address in email links can no longer be mapped to an app or the add-on pages, and a host already mapped is never taken as that address.' },
+      { tag: 'Fixed', text: 'A table keyed by text that Adminium makes now gets a key on every create, sample rows included.' },
+    ],
+  },
+  {
     version: '0.3.63',
     date: '2026-11-17',
     title: 'Trying an app as a customer sends its e-mails to you',

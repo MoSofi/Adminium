@@ -1,5 +1,21 @@
 # @adminium/dashboard
 
+## 0.3.64
+
+### Patch Changes
+
+- 1e18914: Two additions to the data kit an add-on's pages use (`host.data`), each absent on an older Adminium, so a page checks for it first. `useLiveTable(table, { enabled? })` follows one of the add-on's own tables: whenever a row of it is written, by anybody and through any door, the page's lists and rows of that table are read again. Forms answers are now published on the live channel too, so a forms add-on's answers list can follow new answers. `openAssistant({ prompt? })` opens the assistant's panel beside the page, with the prompt in its box for the person to send; it returns false, and opens nothing, for someone who may not use the assistant.
+- 1e18914: The live chat's visitor side. A website shows the chat with one line, `<script src="<public address>/x/embed.js" data-adminium-chat="<add-on>" async></script>`: the loader draws a button and opens the chat window (`/x/chat/<add-on>`) in a frame, only on the websites listed under "Your websites". The window's calls are under `/x/chat/api/<add-on>/` (its words, a human check, start, messages, details, the poll), held to per-address and per-hour caps, a breaker that pauses new chats past 500 an hour, and a token that lapses after a day without a message. Outside hours a visitor may leave a question with an e-mail address, which becomes a row of the table an app opens to the chat. Automatic answers come from the owner's own answers only, within a daily token limit.
+- 1352513: "Can visitors reach your public pages?" now says when it cannot tell whether visitors come through a proxy. `GET /api/v1/privacy/reach` and `GET /api/v1/forms/status` add `proxyUnchecked`: true while no proxy is trusted and the request came with no forwarding header. Staff who open the dashboard directly saw "Reachable" while visitors coming through a proxy the server does not trust were told "not available". The Privacy page now shows a line under "Reachable" in that case, and the reverse-proxy guide says what to set.
+- Updated dependencies [1e18914]
+  - @adminium/add-on-contracts@0.3.64
+  - @adminium/widgets@0.3.64
+  - @adminium/charts@0.3.64
+  - @adminium/engine@0.3.64
+  - @adminium/i18n@0.3.64
+  - @adminium/tokens@0.3.64
+  - @adminium/ui@0.3.64
+
 ## 0.3.63
 
 ### Patch Changes
