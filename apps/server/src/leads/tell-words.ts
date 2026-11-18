@@ -90,8 +90,8 @@ export interface TellFacts {
   firstName: string | null;
 }
 
-/** A translator for one language (`email:` keys, with defaults). */
-export type TellTranslate = (key: string, fallback: string, args?: Record<string, unknown>) => string;
+/** A translator for one language (`email:` keys, each with its English words as the default). */
+export type TellTranslate = (key: string, options: { defaultValue: string } & Record<string, unknown>) => string;
 
 /** A day as a reader of `language` writes it: "28 Jul 2026". */
 export function tellDate(at: number, language: string, zone: string): string {
@@ -112,28 +112,25 @@ export function tellBlocks(t: TellTranslate, language: string, n: number, facts:
   };
   const date = tellDate(facts.foundAt, language, facts.zone);
   const paras = [
-    put('source', t('email:leadsTell.source', '{source} found your work address on {date}.', { source: facts.source, date })),
-    put('why', t('email:leadsTell.why', 'Why we keep them: {purpose}', { purpose: facts.purpose })),
-    put('basis', t('email:leadsTell.basis', 'We rely on our legitimate interest in this (GDPR Article 6(1)(f)).')),
-    put('keep', t('email:leadsTell.keep', '{years, plural, one {We keep your details for # year from {date}, or from the last time you write to us.} other {We keep your details for # years from {date}, or from the last time you write to us.}}', { years: facts.keepYears, date })),
+    put('source', t('email:leadsTell.source', { defaultValue: '{source} found your work address on {date}.', source: facts.source, date })),
+    put('why', t('email:leadsTell.why', { defaultValue: 'Why we keep them: {purpose}', purpose: facts.purpose })),
+    put('basis', t('email:leadsTell.basis', { defaultValue: 'We rely on our legitimate interest in this (GDPR Article 6(1)(f)).' })),
+    put('keep', t('email:leadsTell.keep', { defaultValue: '{years, plural, one {We keep your details for # year from {date}, or from the last time you write to us.} other {We keep your details for # years from {date}, or from the last time you write to us.}}', years: facts.keepYears, date })),
     put(
       'rights',
-      t(
-        'email:leadsTell.rights',
-        'You can ask to see, correct or delete your details, to limit what we do with them, to object to our keeping them, or to get a copy of them. You can also complain to the authority for data privacy where you live.',
-      ),
+      t('email:leadsTell.rights', { defaultValue: 'You can ask to see, correct or delete your details, to limit what we do with them, to object to our keeping them, or to get a copy of them. You can also complain to the authority for data privacy where you live.' }),
     ),
   ];
-  if (facts.noticeUrl !== null) paras.push(put('notice', t('email:leadsTell.notice', 'Our privacy notice: {url}', { url: facts.noticeUrl })));
+  if (facts.noticeUrl !== null) paras.push(put('notice', t('email:leadsTell.notice', { defaultValue: 'Our privacy notice: {url}', url: facts.noticeUrl })));
   const who = facts.postal === null ? facts.business : `${facts.business}, ${facts.postal}`;
   const footer =
-    facts.contact === null ? t('email:leadsTell.keptBy', 'Kept by {who}.', { who }) : t('email:leadsTell.questions', 'Questions? Write to {contact}. {who}.', { contact: facts.contact, who });
+    facts.contact === null ? t('email:leadsTell.keptBy', { defaultValue: 'Kept by {who}.', who }) : t('email:leadsTell.questions', { defaultValue: 'Questions? Write to {contact}. {who}.', contact: facts.contact, who });
   const blocks: Record<string, unknown>[] = [
     { block: 'email.text', id: name('words'), data: { paras } },
     // The Object block, set apart from everything above it: a rule, its question, one button.
     { block: 'email.divider', id: name('apart'), data: { height: 8 } },
-    { block: 'email.heading', id: name('object-ask'), data: { level: 2, text: put('ask', t('email:leadsTell.objectAsk', 'Don’t want us to keep your details?')) } },
-    { block: 'email.button', id: name('object'), data: { label: put('object', t('email:leadsTell.object', 'Object')), url: '{{object_link}}' } },
+    { block: 'email.heading', id: name('object-ask'), data: { level: 2, text: put('ask', t('email:leadsTell.objectAsk', { defaultValue: 'Don’t want us to keep your details?' })) } },
+    { block: 'email.button', id: name('object'), data: { label: put('object', t('email:leadsTell.object', { defaultValue: 'Object' })), url: '{{object_link}}' } },
     { block: 'email.text', id: name('footer'), data: { paras: [put('footer', footer)] } },
   ];
   return { blocks, vars };
@@ -149,8 +146,8 @@ export function tellOpening(t: TellTranslate, n: number, firstName: string | nul
       { block: 'email.text', id: hello, data: { paras: [`{{${hello}}}`] } },
     ],
     vars: {
-      [heading]: t('email:leadsTell.subject', 'Why we have your details'),
-      [hello]: firstName === null ? t('email:leadsTell.helloNoName', 'Hello,') : t('email:leadsTell.hello', 'Hello {name},', { name: firstName }),
+      [heading]: t('email:leadsTell.subject', { defaultValue: 'Why we have your details' }),
+      [hello]: firstName === null ? t('email:leadsTell.helloNoName', { defaultValue: 'Hello,' }) : t('email:leadsTell.hello', { defaultValue: 'Hello {name},', name: firstName }),
     },
   };
 }

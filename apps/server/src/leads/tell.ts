@@ -48,7 +48,7 @@ import { LEADS_TELL_KIND, leadsAddOnsOn, readLeadsSettings, storedLeadsAddOns, t
 import { OBJECT_LINK_VARIABLE, makeObjectToken, objectLinkKeys, objectUrl } from './object-token.js';
 import { companyCountryColumn } from './pending-p3.js';
 import { installLanguage } from './people.js';
-import { sourceName, tellBlocks, tellLanguages, tellOpening, type TellLanguage } from './tell-words.js';
+import { sourceName, tellBlocks, tellLanguages, tellOpening, type TellLanguage, type TellTranslate } from './tell-words.js';
 
 /** Why a tell mail did not go: its outbox row's sentence. */
 export const TELL_SKIPS = {
@@ -207,7 +207,7 @@ export function createTellMail(deps: TellMailDeps): TellMail {
     for (const [n, language] of languages.entries()) {
       const locale = language.replace('-', '_');
       const i18n = await translatorForLocale(meta, locale);
-      const t = (k: string, fallback: string, args?: Record<string, unknown>) => i18n.t(k, { defaultValue: fallback, ...args });
+      const t: TellTranslate = (k, options) => i18n.t(k, options);
       const own = rows.find((one) => one.locale === locale);
       if (n > 0) blocks.push({ block: 'email.divider', id: `tell_${String(n)}_between`, data: { height: 16 } });
       if (own !== undefined) {
@@ -218,7 +218,7 @@ export function createTellMail(deps: TellMailDeps): TellMail {
         const opening = tellOpening(t, n, firstName);
         blocks.push(...opening.blocks);
         Object.assign(vars, opening.vars);
-        subjects.push(t('email:leadsTell.subject', 'Why we have your details'));
+        subjects.push(t('email:leadsTell.subject', { defaultValue: 'Why we have your details' }));
       }
       const engine = tellBlocks(t, language, n, { ...facts, purpose: purpose[language] ?? found.purpose });
       blocks.push(...engine.blocks);

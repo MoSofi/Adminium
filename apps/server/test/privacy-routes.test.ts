@@ -299,7 +299,7 @@ for (const [dialect, reachable] of LEGS) {
       expect(said(await s.send('pia', 'PUT', '/api/v1/privacy/notice', { businessName: 'Meridian Workplace Ltd', noticeUrl: 'javascript:alert(1)' }))).toBe('422 VALIDATION_FAILED');
       const saved = await s.send('pia', 'PUT', '/api/v1/privacy/notice', { businessName: '  Meridian Workplace Ltd ', noticeUrl: 'https://www.meridian.example/privacy' });
       expect(saved.statusCode, saved.body).toBe(200);
-      expect(dataOf(saved)).toEqual({ businessName: 'Meridian Workplace Ltd', noticeUrl: 'https://www.meridian.example/privacy', ready: true, shownName: 'Meridian Workplace Ltd' });
+      expect(dataOf(saved)).toEqual({ businessName: 'Meridian Workplace Ltd', noticeUrl: 'https://www.meridian.example/privacy', ready: true, shownName: 'Meridian Workplace Ltd', dpoContact: null, peopleFound: [] });
       const open = await s.app.inject({ method: 'GET', url: '/api/v1/privacy/notice/public' });
       expect(open.statusCode).toBe(200);
       expect(dataOf(open)).toEqual({ businessName: 'Meridian Workplace Ltd', noticeUrl: 'https://www.meridian.example/privacy' });
