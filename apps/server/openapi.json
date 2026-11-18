@@ -155464,6 +155464,32 @@
                             "type": "string"
                           }
                         },
+                        "sources": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "source": {
+                                "type": "string"
+                              },
+                              "hosts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "readsWebsites": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "source",
+                              "hosts",
+                              "readsWebsites"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
                         "settings": {
                           "type": "array",
                           "items": {
@@ -156313,6 +156339,32 @@
                             "type": "string"
                           }
                         },
+                        "sources": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "source": {
+                                "type": "string"
+                              },
+                              "hosts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "readsWebsites": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "source",
+                              "hosts",
+                              "readsWebsites"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
                         "settings": {
                           "type": "array",
                           "items": {
@@ -156746,6 +156798,32 @@
                               "type": "string"
                             }
                           },
+                          "sources": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "source": {
+                                  "type": "string"
+                                },
+                                "hosts": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "readsWebsites": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "source",
+                                "hosts",
+                                "readsWebsites"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
                           "settings": {
                             "type": "array",
                             "items": {
@@ -157167,6 +157245,32 @@
                           "type": "array",
                           "items": {
                             "type": "string"
+                          }
+                        },
+                        "sources": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "source": {
+                                "type": "string"
+                              },
+                              "hosts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "readsWebsites": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "source",
+                              "hosts",
+                              "readsWebsites"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "settings": {
@@ -158495,6 +158599,32 @@
                             "type": "string"
                           }
                         },
+                        "sources": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "source": {
+                                "type": "string"
+                              },
+                              "hosts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "readsWebsites": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "source",
+                              "hosts",
+                              "readsWebsites"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
                         "settings": {
                           "type": "array",
                           "items": {
@@ -159137,6 +159267,32 @@
                             "type": "string"
                           }
                         },
+                        "sources": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "source": {
+                                "type": "string"
+                              },
+                              "hosts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "readsWebsites": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "source",
+                              "hosts",
+                              "readsWebsites"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
                         "settings": {
                           "type": "array",
                           "items": {
@@ -159667,6 +159823,32 @@
                             "type": "string"
                           }
                         },
+                        "sources": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "source": {
+                                "type": "string"
+                              },
+                              "hosts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "readsWebsites": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "source",
+                              "hosts",
+                              "readsWebsites"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
                         "settings": {
                           "type": "array",
                           "items": {
@@ -160080,6 +160262,32 @@
                           "type": "array",
                           "items": {
                             "type": "string"
+                          }
+                        },
+                        "sources": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "source": {
+                                "type": "string"
+                              },
+                              "hosts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "readsWebsites": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "source",
+                              "hosts",
+                              "readsWebsites"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "settings": {
