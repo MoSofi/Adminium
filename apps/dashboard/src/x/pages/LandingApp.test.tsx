@@ -183,19 +183,19 @@ describe('a live landing page', () => {
     // Block titles, feature items (no block title) and the form's title are h2.
     expect(screen.getAllByRole('heading', { level: 2 }).map((one) => one.textContent)).toEqual(['What fits where', 'Quiet inside', 'Air that moves', 'Questions and answers', 'Book a showroom visit']);
     expect(screen.getAllByText(/Our booths cut the noise|Each one seats two/)).toHaveLength(2);
-    expect(screen.getByRole('img', { name: 'Two grey acoustic booths in an open office' })).toHaveAttribute('src', '/x/pages/api/acoustic-booths/pictures/booths');
+    expect(screen.getByRole('img', { name: 'Two grey acoustic booths in an open office' }).getAttribute('src')).toBe('/x/pages/api/acoustic-booths/pictures/booths');
     // A decorative picture is drawn with no words.
-    expect(document.querySelector('img[src$="/sketch"]')).toHaveAttribute('alt', '');
-    expect(screen.getByRole('link', { name: 'See them at our open day' })).toHaveAttribute('href', '/x/pages/open-day');
+    expect(document.querySelector('img[src$="/sketch"]')!.getAttribute('alt')).toBe('');
+    expect(screen.getByRole('link', { name: 'See them at our open day' }).getAttribute('href')).toBe('/x/pages/open-day');
     // A page that is not live: its button goes nowhere, so it is left out.
     expect(screen.queryByText('Our spring offer')).toBeNull();
-    expect(screen.getByRole('link', { name: 'Book a visit' })).toHaveAttribute('href', '#lp-form-form');
+    expect(screen.getByRole('link', { name: 'Book a visit' }).getAttribute('href')).toBe('#lp-form-form');
     expect(screen.getByText('We hear ourselves think again.').closest('blockquote')).not.toBeNull();
     expect(screen.getByText('How long does fitting take?').closest('details')).not.toBeNull();
     expect(document.querySelectorAll('.lp-feature-icon svg')).toHaveLength(2);
     // The shell: the business, the footer with the privacy notice; no language menu, no Cookie choice at Counts only.
     expect(screen.getByRole('banner').textContent).toContain('Meridian');
-    expect(within(screen.getByRole('contentinfo')).getByRole('link', { name: 'Privacy notice' })).toHaveAttribute('href', BUSINESS.privacyNotice);
+    expect(within(screen.getByRole('contentinfo')).getByRole('link', { name: 'Privacy notice' }).getAttribute('href')).toBe(BUSINESS.privacyNotice);
     expect(screen.queryByRole('button', { name: /Language/ })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Cookie choice' })).toBeNull();
     expect(document.title).toBe('Acoustic booths for open offices');
@@ -211,8 +211,8 @@ describe('a live landing page', () => {
     const real = globalThis.fetch;
     vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => (await held, real(input, init))));
     await show('/x/pages/acoustic-booths');
-    expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'true');
-    expect(screen.getByText('Loading the page…')).toHaveAttribute('role', 'status');
+    expect(screen.getByRole('main').getAttribute('aria-busy')).toBe('true');
+    expect(screen.getByText('Loading the page…').getAttribute('role')).toBe('status');
     expect(screen.getByRole('banner')).toBeTruthy();
     expect(screen.getByRole('contentinfo')).toBeTruthy();
     await act(async () => release());
@@ -223,7 +223,7 @@ describe('a live landing page', () => {
   it('a page that is not there is not available, with where to write', async () => {
     await show('/x/pages/nothing-here');
     expect(await screen.findByRole('heading', { level: 1, name: 'This page isn’t available.' })).toBeTruthy();
-    expect(screen.getByRole('link', { name: /hello@meridian.example/ })).toBeTruthy();
+    expect(within(screen.getByRole('main')).getByRole('link', { name: /hello@meridian.example/ }).getAttribute('href')).toBe('mailto:hello@meridian.example');
     expect(document.querySelector('.lp')).toBeNull();
   });
 
@@ -246,7 +246,7 @@ describe('a live landing page', () => {
     });
     const box = screen.getByRole('img', { name: 'Two grey acoustic booths in an open office' });
     expect(box.tagName).toBe('DIV');
-    expect(box).toHaveClass('lp-picture-empty');
+    expect(box.classList.contains('lp-picture-empty')).toBe(true);
     expect(box.textContent).toBe('Two grey acoustic booths in an open office');
     // A decorative one that fails is a box with no words, hidden from screen readers.
     await act(async () => {
@@ -299,7 +299,7 @@ describe('a Form block', () => {
     await user.type(screen.getByLabelText(/Work e-mail/), 'marta@cobalt.example');
     await user.click(screen.getByRole('button', { name: 'Send' }));
     const sent = await screen.findByRole('heading', { level: 2, name: 'Thanks, Marta.' });
-    await waitFor(() => expect(sent).toHaveFocus());
+    await waitFor(() => expect(document.activeElement).toBe(sent));
     expect(screen.getByText("We'll confirm your time within one working day.")).toBeTruthy();
     expect((sent.closest('.xp-ending') as HTMLElement).style.getPropertyValue('--xp-form-height')).toBe('480px');
     // Still one page: its h1, and the rest of it, stay.
@@ -316,7 +316,7 @@ describe('a Form block', () => {
     await screen.findByRole('heading', { name: 'Book a showroom visit', level: 2 });
     await near();
     expect(await screen.findByRole('heading', { level: 2, name: 'This form is closed.' })).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 2, name: 'This form is closed.' })).not.toHaveFocus();
+    expect(document.activeElement).not.toBe(screen.getByRole('heading', { level: 2, name: 'This form is closed.' }));
   });
 
   it('a form gone meanwhile leaves the page', async () => {
@@ -337,7 +337,7 @@ describe('a Form block', () => {
     const title = await screen.findByRole('heading', { level: 2, name: 'Too many sends from here.' });
     const card = title.closest('.xp-ending') as HTMLElement;
     expect(card.textContent).toContain('Please try again in 1 hour, or write to hello@meridian.example.');
-    expect(within(card).getByRole('link', { name: 'hello@meridian.example' })).toHaveAttribute('href', 'mailto:hello@meridian.example');
+    expect(within(card).getByRole('link', { name: 'hello@meridian.example' }).getAttribute('href')).toBe('mailto:hello@meridian.example');
     expect(document.querySelector('[role="status"][aria-live="polite"]')!.textContent).toContain('Too many sends from here.');
   });
 
@@ -350,7 +350,7 @@ describe('a Form block', () => {
     await user.click(screen.getByRole('button', { name: 'Send' }));
     expect(await screen.findByRole('heading', { level: 2, name: 'This page could not be reached.' })).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(screen.getByLabelText(/Your name/)).toHaveValue('Marta');
+    expect((screen.getByLabelText(/Your name/) as HTMLInputElement).value).toBe('Marta');
     answerReply = { status: 200, body: { state: 'sent' } };
     await user.click(screen.getByRole('button', { name: 'Send' }));
     expect(await screen.findByRole('heading', { level: 2, name: 'Thanks, Marta.' })).toBeTruthy();
@@ -384,12 +384,13 @@ describe('the visitor banner on a landing page', () => {
     await show('/x/pages/acoustic-booths');
     const banner = await screen.findByRole('region', { name: 'Can we remember your visit?' });
     expect(banner).toBeTruthy();
-    await waitFor(() => expect(document.querySelector('.x-page')).toHaveAttribute('data-docked'));
+    await waitFor(() => expect(document.querySelector('.x-page')!.hasAttribute('data-docked')).toBe(true));
     expect(window.localStorage.length).toBe(0);
     await userEvent.setup().click(within(banner).getByRole('button', { name: 'No' }));
     expect(await screen.findByText('Saved: no. Change it any time under Cookie choice.')).toBeTruthy();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Cookie choice' }));
-    expect(await screen.findByRole('heading', { name: 'Can we remember your visit?' })).toHaveFocus();
+    const title = await screen.findByRole('heading', { name: 'Can we remember your visit?' });
+    await waitFor(() => expect(document.activeElement).toBe(title));
   });
 
   it('never in a preview, even when told', async () => {

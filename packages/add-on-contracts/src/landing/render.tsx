@@ -209,7 +209,8 @@ function Questions({ block }: { block: LandingBlockOf<'questions'> }) {
   );
 }
 
-function Block({ block, ctx }: { block: LandingBlock; ctx: Context }): ReactNode {
+/** A block, drawn: no hooks, so a block that draws nothing (null) is known before its frame is. */
+function blockOf(block: LandingBlock, ctx: Context): ReactNode {
   switch (block.kind) {
     case 'hero':
       return <Hero block={block} ctx={ctx} />;
@@ -273,6 +274,16 @@ function Block({ block, ctx }: { block: LandingBlock; ctx: Context }): ReactNode
   }
 }
 
+/** A block for a stranger, in its frame; a block left out (a button to nowhere, a form not drawn) leaves no frame either. */
+function StrangerBlock({ block, ctx }: { block: LandingBlock; ctx: Context }): ReactNode {
+  const drawn = blockOf(block, ctx);
+  return drawn === null ? null : (
+    <div className="lp-block" data-kind={block.kind}>
+      {drawn}
+    </div>
+  );
+}
+
 /** A landing page, drawn from its document. */
 export function LandingPageView(props: LandingPageViewProps) {
   const { page, language, dir, mode, slots, words, onEdit } = props;
@@ -291,12 +302,10 @@ export function LandingPageView(props: LandingPageViewProps) {
               <button type="button" className="lp-edit" onClick={() => onEdit?.(block.id)}>
                 {words?.edit(block.kind) ?? block.kind}
               </button>
-              <Block block={block} ctx={ctx} />
+              {blockOf(block, ctx)}
             </div>
           ) : (
-            <div key={block.id} className="lp-block" data-kind={block.kind}>
-              <Block block={block} ctx={ctx} />
-            </div>
+            <StrangerBlock key={block.id} block={block} ctx={ctx} />
           ),
         )}
       </div>

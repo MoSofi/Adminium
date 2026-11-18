@@ -111,13 +111,14 @@ describe('every block, for a stranger', () => {
     // A page with no address, and a form link on a page with no form: no dead button, and no empty row for one.
     expect(container.querySelector('.lp-button')).toBeNull();
     expect(container.querySelector('.lp-actions')).toBeNull();
-    expect(container.querySelectorAll('.lp-block')).toHaveLength(4);
+    expect([...container.querySelectorAll('.lp-block')].map((one) => one.getAttribute('data-kind'))).toEqual(['picture', 'hero']);
   });
 
   it('leaves out a Form block whose form the host does not draw, band and all', () => {
     const { container } = draw([hero('h', 'Open day'), { id: 'form', kind: 'form', form: '7', addOn: 'forms' }], { slots: { form: () => null } });
     expect(container.querySelector('.lp-form')).toBeNull();
     expect(container.querySelector(`#${landingFormAnchor('form')}`)).toBeNull();
+    expect(container.querySelectorAll('.lp-block')).toHaveLength(1);
   });
 
   it('keeps every button and Form block on the canvas, where nothing leaves the editor', () => {
