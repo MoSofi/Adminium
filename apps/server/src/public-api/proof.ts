@@ -29,9 +29,12 @@ import { createHash, createHmac, hkdfSync, randomBytes, timingSafeEqual } from '
  * link's id. `form`: sending a form; the key a form proof is bound to is the
  * form's id, so a proof made for one form sends no other. `upload`: one file
  * a guest uploads for an app's column (`POST /public/uploads`), bound to the
- * key it is sent through: one proof per file.
+ * key it is sent through: one proof per file. `chat`: starting a live chat
+ * conversation, or leaving a question outside hours; bound to the chat
+ * (`chat:<add-on>`), and spent once: the conversation's token carries every
+ * message after it (`chat/token.ts`).
  */
-export const PROOF_PURPOSES = ['write', 'claim', 'pay', 'form', 'upload', 'pay-start'] as const;
+export const PROOF_PURPOSES = ['write', 'claim', 'pay', 'form', 'upload', 'pay-start', 'chat'] as const;
 export type ProofPurpose = (typeof PROOF_PURPOSES)[number];
 
 /** Leading zero bits a proof needs: about a second on a low-end phone. */

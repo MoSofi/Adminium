@@ -381,6 +381,16 @@ export const RATE_BUCKETS = {
   // "Connect Supabase": each return calls the operator once and may dial a database. A person connects a project
   // or two; 60 an hour per person stops a script spending the operator's codes or this server's connections.
   'connect-handoff': { max: 60, timeWindowMs: 3_600_000, keyBy: 'principal' },
+  // The live chat's door (`/x/chat/`), by network address, apart from the
+  // forms door's so a chat's polling never spends what a form's visitors need.
+  // Sized for 30 visitors chatting behind one address (an office, a phone
+  // network). Polls: every 4 s while waiting for a reply is 15 a minute, so
+  // 30 x 15 = 450, plus each window's config (30) and room for a reload or
+  // two: 600. Writes: a conversation sends at most 20 messages a minute (its
+  // own cap, `chat/caps.ts`), so 30 x 20 = 600, plus a challenge and a start
+  // each (60): 660. Each conversation's own caps are the real gate.
+  'chat-poll': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
+  'chat-write': { max: 660, timeWindowMs: 60_000, keyBy: 'ip' },
 } as const satisfies Readonly<Record<string, RateBucket>>;
 
 /**

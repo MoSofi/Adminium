@@ -124,6 +124,14 @@ import { formsFilesRoutes } from './routes/forms-files/index.js';
 import { listedWebsitesOf } from './forms/websites.js';
 import { framingWebsites } from './trial/operator-hosts.js';
 import { formsDoorRoutes } from './routes/forms-door/index.js';
+import { chatDoorRoutes } from './routes/chat-door/index.js';
+import { chatAiFrom, type ChatAi } from './chat/ai.js';
+import type { ChatAnswerer } from './chat/answering.js';
+import { createChatCaps, type ChatCaps } from './chat/caps.js';
+import { createChatCatalog, type ChatCatalog } from './chat/catalog.js';
+import { createChatDoor, type ChatDoor } from './chat/door.js';
+import { tellChatPaused } from './chat/notices.js';
+import { createChatStore, type ChatStore } from './chat/store.js';
 import { createLedgerRuntime } from './ledgers/registry.js';
 import { announcePostings, tellPostings, type PostingsTold } from './ledgers/announce.js';
 import { createDocumentPipeline } from './documents/compose.js';
@@ -656,10 +664,21 @@ export interface ComposeServerOptions {
   marketingSeams?: MarketingSeams | undefined;
   /** The public API's limiter; a fresh one otherwise. Tests pass one to watch what it holds. */
   publicLimiter?: PublicRateLimiter | undefined;
+  /**
+   * For tests only: the live chat's automatic answerer and its view of AI, given in place of the real ones
+   * (`chat/door.ts`). There is no setting for this.
+   */
+  chatSeams?: { answerer?: ChatAnswerer | undefined; ai?: (() => Promise<ChatAi>) | undefined } | undefined;
 }
 
 export interface ComposedServer {
   app: AdminiumServer;
+  /**
+   * The live chat's engine: what finds a chat, the one writer of its
+   * conversations and messages, its caps and its door (`chat/`). The staff
+   * routes write through the same store, so a visitor's poll hears them.
+   */
+  chat: { catalog: ChatCatalog; store: ChatStore; caps: ChatCaps; door: ChatDoor };
   /**
    * Settles once the apps and add-ons that came with this server are in their
    * stores. A caller that installs something straight after composing waits
@@ -1257,18 +1276,20 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * serves nothing. Its tree is hashed once a minute at most.
    */
   const vouchedForms = new Map<string, { at: number; vouched: boolean }>();
+  // The same judgement for a package that declares a live chat (`forms/vouched.ts`), kept the same minute.
+  const doorVouched = async (pkg: { key: string; version: string }): Promise<boolean> => {
+    const id = `${pkg.key}@${pkg.version}`;
+    const kept = vouchedForms.get(id);
+    if (kept !== undefined && Date.now() - kept.at < 60_000) return kept.vouched;
+    const vouched = await formsPackageVouched(addOnStore, meta, pkg);
+    vouchedForms.set(id, { at: Date.now(), vouched });
+    return vouched;
+  };
   const formsCatalog = createFormsCatalog({
     meta,
     installs: () => addOnInstalls.fresh(),
     data: (connectionId) => manager.data(connectionId),
-    vouched: async (pkg) => {
-      const id = `${pkg.key}@${pkg.version}`;
-      const kept = vouchedForms.get(id);
-      if (kept !== undefined && Date.now() - kept.at < 60_000) return kept.vouched;
-      const vouched = await formsPackageVouched(addOnStore, meta, pkg);
-      vouchedForms.set(id, { at: Date.now(), vouched });
-      return vouched;
-    },
+    vouched: doorVouched,
   });
   /*
    * Files strangers send (a form's file question): taken by the forms door,
@@ -3592,7 +3613,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // A sign-up waiting for its click lets go after thirty days; the forms' counts older than any cap reads go too.
   jobs.scheduler.registerSchedule(FORMS_SWEEP_NAME, FORMS_SWEEP_CRON, async () => {
     const expired = await formsConfirm.expirePending();
-    const pruned = await formMarksRepo(meta).prune(Date.now() - 2 * DAY_MS);
+    const pruned = (await formMarksRepo(meta).prune(Date.now() - 2 * DAY_MS)) + (await chatCaps.prune(Date.now()));
     if (expired > 0 || pruned > 0) app.log.info({ expired, pruned }, 'forms sweep');
   });
 
@@ -3614,6 +3635,57 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       answers: answerDoor,
       invitations: surveyInvitations,
       uploads: publicUploads,
+      networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+      desktop: env.ADMINIUM_RUNTIME === 'desktop',
+      trustProxy: env.ADMINIUM_TRUST_PROXY,
+    }),
+  );
+
+  /*
+   * THE LIVE CHAT'S DOOR (`/x/chat/`): a visitor's conversation, kept by the
+   * engine in a chat add-on's own tables. Always registered, like the forms
+   * door, and gated per request by the same reach. The store is the only
+   * writer of conversations, messages and choices (the staff routes write
+   * through it too); the caps count in the forms door's marks.
+   */
+  const chatCatalog = createChatCatalog({ meta, installs: () => addOnInstalls.fresh(), data: formsData, viewFor: formsViews, vouched: doorVouched });
+  const chatStore = createChatStore({ writes: recordWrites, hub: () => (app.hasDecorator('realtime') ? app.realtime : null) });
+  const chatCaps = createChatCaps({
+    meta,
+    secret: env.ADMINIUM_SECRET,
+    // The breaker tripped: the people the chat tells learn it once.
+    paused: async (addOn, until, at) => {
+      const chat = await chatCatalog.forStaff(addOn);
+      if (chat !== null) await tellChatPaused({ meta, secret: env.ADMINIUM_SECRET, hub: app.hasDecorator('realtime') ? app.realtime : undefined, chat, until, at });
+    },
+  });
+  const chatDoor = createChatDoor({
+    meta,
+    secret: env.ADMINIUM_SECRET,
+    catalog: chatCatalog,
+    store: chatStore,
+    caps: chatCaps,
+    // A question left outside hours becomes a row through an app's `chat` entry, under the forms door's rules.
+    questions: {
+      meta,
+      secret: env.ADMINIUM_SECRET,
+      scopes: createFormsScopes({ meta, modelOf: async (connectionId) => ((await snapshotsRepo(meta).latest(connectionId))?.schema as LooseTableIdModel | undefined) ?? null, door: 'chat' }),
+      installs: () => addOnInstalls.fresh(),
+      data: formsData,
+      viewFor: formsViews,
+      writes: recordWrites,
+      switches: publicSwitches,
+    },
+    ai: opts.chatSeams?.ai ?? chatAiFrom(aiConnections),
+    ...(opts.chatSeams?.answerer === undefined ? {} : { answerer: () => opts.chatSeams!.answerer! }),
+  });
+  await app.register(
+    chatDoorRoutes({
+      meta,
+      catalog: chatCatalog,
+      door: chatDoor,
+      secret: env.ADMINIUM_SECRET,
+      websites: formsWebsites,
       networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
       desktop: env.ADMINIUM_RUNTIME === 'desktop',
       trustProxy: env.ADMINIUM_TRUST_PROXY,
@@ -4400,5 +4472,6 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     bridgePairingCode: bridge?.pairingCode ?? null,
     packagesSeeded: Promise.all([appSeed, addOnSeed]).then(() => undefined),
     addOnsLoaded,
+    chat: { catalog: chatCatalog, store: chatStore, caps: chatCaps, door: chatDoor },
   };
 }

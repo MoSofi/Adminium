@@ -18,8 +18,12 @@
  * attached, switched, recorded or read moves (`addOnInstallsStamp`, the
  * stamp every add-on save reads), so an app installed, updated or removed
  * changes the scope at the next answer.
+ *
+ * The live chat's door reads the tables an app opens to a question left
+ * outside hours (the entries under the reserved key `chat`) through the same
+ * scope, compiled the same way (`door: 'chat'`).
  */
-import { formsEntriesOf, validateManifest, type FormsEntry } from '@adminium/manifest';
+import { chatEntriesOf, formsEntriesOf, validateManifest, type FormsEntry, type Manifest } from '@adminium/manifest';
 import { appTablesRepo, manifestsRepo, type MetaDb } from '@adminium/meta';
 
 import { addOnInstallsStamp } from '../apps/add-on-tables.js';
@@ -73,6 +77,12 @@ export interface FormsScopesDeps {
   modelOf: (connectionId: string) => Promise<LooseTableIdModel | null>;
   /** The stamp that moves whenever something installed moves; the store's own by default. */
   stamp?: () => Promise<string>;
+  /**
+   * Which door the scope is for: `forms` (the default) reads the entries under
+   * the reserved key `forms`; `chat` those under `chat` (a question a visitor
+   * leaves outside hours), compiled the same way.
+   */
+  door?: 'forms' | 'chat';
 }
 
 /** The resource an entry under the key `forms` compiles to: a create, and nothing else. */
@@ -122,6 +132,8 @@ export function formsResource(entry: FormsEntry, tableId: string, ref: string): 
 /** The forms scope of every database a forms add-on is on, kept until something installed moves. */
 export function createFormsScopes(deps: FormsScopesDeps) {
   const stamp = deps.stamp ?? (() => addOnInstallsStamp(deps.meta));
+  const door = deps.door ?? 'forms';
+  const entriesOf: (manifest: Manifest) => FormsEntry[] = door === 'chat' ? chatEntriesOf : formsEntriesOf;
   let kept: { stamp: string; scopes: Map<string, Promise<FormsScope>> } | null = null;
 
   /** The tables of one database the apps the add-on serves have opened to forms. */
@@ -139,14 +151,14 @@ export function createFormsScopes(deps: FormsScopesDeps) {
       if (one.row.kind !== 'app' || one.row.status !== 'installed' || one.row.connectionId !== connectionId || !on.has(one.row.manifestKey)) continue;
       const read = validateManifest(one.document, { allowLocalPublisher: true });
       if (!read.ok || read.manifest.kind !== 'app') continue;
-      const opened = formsEntriesOf(read.manifest);
+      const opened = entriesOf(read.manifest);
       if (opened.length === 0) continue;
       const names = await appTablesRepo(deps.meta).realNames(connectionId, one.row.manifestKey);
       for (const entry of opened) {
         const real = names[entry.table];
         const table = real === undefined ? undefined : tableOfReal(snapshot, real);
         if (table === undefined) continue;
-        const ref = `forms:${one.row.manifestKey}:${entry.table}`;
+        const ref = `${door}:${one.row.manifestKey}:${entry.table}`;
         const opened: FormsTable = { appKey: one.row.manifestKey, installId: one.row.id, ref: entry.table, connectionId, tableId: table.id, entry, resource: formsResource(entry, table.id, ref) };
         tables.set(table.id, opened);
         byRef.set(`${one.row.manifestKey}:${entry.table}`, opened);
