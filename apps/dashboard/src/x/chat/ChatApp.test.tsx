@@ -743,6 +743,9 @@ describe('languages, direction, theme and the phone sheet', () => {
     expect(time.tagName).toBe('BDI');
     expect(time).toHaveAttribute('dir', 'ltr');
     expect(time).toHaveClass('x-mono');
+    // Empty, the box reads right to left like its placeholder; with text, each message takes its own direction.
+    expect(screen.getByRole('textbox', { name: 'اكتب رسالة…' })).toHaveAttribute('dir', 'rtl');
+    await userEvent.type(screen.getByRole('textbox', { name: 'اكتب رسالة…' }), 'hello');
     expect(screen.getByRole('textbox', { name: 'اكتب رسالة…' })).toHaveAttribute('dir', 'auto');
     // Only the send arrow turns round.
     expect(screen.getByRole('button', { name: 'إرسال' }).querySelector('.xc-flip')).not.toBeNull();

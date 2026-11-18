@@ -100,12 +100,17 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
     return () => clearInterval(tick);
   }, [session.state]);
 
-  // The log keeps its end in view as it grows.
-  const items = session.messages.length + session.pending.length;
+  // The log keeps its end in view whenever what it holds, or the room it has, changes (a status under a
+  // message, a card, the band over it).
+  const logSize = useRef('');
   useLayoutEffect(() => {
     const log = logRef.current;
-    if (log !== null) log.scrollTop = log.scrollHeight;
-  }, [items, session.state, open]);
+    if (log === null) return;
+    const size = `${String(log.scrollHeight)}:${String(log.clientHeight)}`;
+    if (size === logSize.current) return;
+    logSize.current = size;
+    log.scrollTop = log.scrollHeight;
+  });
 
   // Focus goes into the panel when the visitor opens it, and back to the launcher when they close it.
   useEffect(() => {
@@ -528,7 +533,8 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
           ref={inputRef}
           className="xc-input"
           rows={1}
-          dir="auto"
+          // What the visitor writes takes its own direction; empty, the placeholder reads in the window's.
+          dir={props.draft === '' ? current.dir : 'auto'}
           aria-label={write}
           placeholder={write}
           value={props.draft}
