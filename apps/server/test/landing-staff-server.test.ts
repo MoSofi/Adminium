@@ -21,14 +21,18 @@
  *  - The forms door serves a `landing` ending as its live page's address on
  *    the host asked, and the default thanks for a page that is off.
  */
+import { join } from 'node:path';
+
 import { automationsRepo, auditRepo, permissionsRepo, rolesRepo, settingsRepo, usersRepo, paymentSettingsRepo } from '@adminium/meta';
 import type { ProviderClient } from '@adminium/llm';
+import BetterSqlite3 from 'better-sqlite3';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { formsAddOn } from '../../../packages/manifest/test/forms-fixture.js';
 import { landingAddOn } from '../../../packages/manifest/test/landing-fixture.js';
 import { recordDeciderTrust } from '../src/add-ons/decider-trust.js';
 import { composeServer, type ComposedServer } from '../src/compose.js';
+import { runIntrospection } from '../src/connections/introspect.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import { createPublicViews } from '../src/public-api/runtime.js';
@@ -405,5 +409,42 @@ describe.each(LEGS)('a landing pages add-on\'s staff reads — %s', (dialect, av
     expect(await read('to-old-offer', ORIGIN_HOST)).toEqual({ kind: 'words', words: {} });
     // A form with an ending of its own words is served as it always was.
     expect(await read('showroom-visit', ORIGIN_HOST)).toEqual({ kind: 'words', words: { 'en-US': "We'll confirm your visit within one working day." } });
+  });
+
+  // Last: a second install makes every request that names none ambiguous.
+  it.skipIf(!available)('names the install one way on every landing route and the views read, with the add-on on two databases', async () => {
+    const first = (await h.meta.db.selectFrom('adminium_manifests').select('id').where('manifestKey', '=', 'landing-pages').executeTakeFirstOrThrow()).id;
+    const file = join(h.dataDir, 'second-pages.db');
+    new BetterSqlite3(file).close();
+    const other = (await h.manager.connections.create({ name: 'Second shop', engine: 'sqlite', introspectDsn: `sqlite:${file}`, dataDsn: `sqlite:${file}` })).id;
+    await runIntrospection({ manager: h.manager, meta: h.meta, connectionId: other });
+    const added = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: 'landing-pages', version: '1.0.0', attachTo: [], connectionId: other } });
+    expect(added.statusCode, added.body).toBe(200);
+    const second = (await h.meta.db.selectFrom('adminium_manifests').select('id').where('manifestKey', '=', 'landing-pages').where('connectionId', '=', other).executeTakeFirstOrThrow()).id;
+    expect(second).not.toBe(first);
+
+    const get = (url: string, install?: string) => composed.app.inject({ method: 'GET', url, headers: { cookie: cookies['root']!, ...(install === undefined ? {} : { 'x-adminium-install': install }) } });
+    const funnel = `/api/v1/landing/landing-pages/funnels/${keys['linked']!}/rule`;
+    // Named by nobody: ambiguous on every route, never the first install found.
+    for (const url of ['/api/v1/landing/landing-pages/forms', funnel, '/api/v1/landing/landing-pages/status']) {
+      const res = await get(url);
+      expect(res.statusCode, `${url} ${res.body}`).toBe(409);
+      expect((res.json() as Doc).error.code).toBe('APP_INSTALL_AMBIGUOUS');
+    }
+    const draftRes = await composed.app.inject({ method: 'POST', url: '/api/v1/landing/landing-pages/draft', headers: { cookie: cookies['root']! }, payload: { description: 'x', language: 'en-US' } });
+    expect(draftRes.statusCode).toBe(409);
+    // Named by the header the add-on's page client sends: that install, on its own database.
+    expect((await get('/api/v1/landing/landing-pages/forms', first)).statusCode).toBe(200);
+    expect(((await get(funnel, first)).json() as Doc).data).toMatchObject({ state: 'linked', name: 'Brochure follow-up' });
+    expect((await get(funnel, second)).statusCode).toBe(404);
+    expect(((await get('/api/v1/landing/landing-pages/status', first)).json() as Doc).data.installId).toBe(first);
+    expect(((await get('/api/v1/landing/landing-pages/status', second)).json() as Doc).data.installId).toBe(second);
+    // …or by its database.
+    expect(((await get(`/api/v1/landing/landing-pages/status?connectionId=${h.connectionId}`)).json() as Doc).data.installId).toBe(first);
+    // The views read takes the same header, and `?installId=` before it (a funnel reads a forms install's counts).
+    const views = `/api/v1/views?kind=page&things=${keys['open-day']!}&from=2026-11-01&to=2026-11-18`;
+    expect(((await get(views, second)).statusCode)).toBe(200);
+    expect((await get(views)).statusCode).toBe(422);
+    expect((await get(`${views}&installId=${first}`, second)).statusCode).toBe(200);
   });
 });

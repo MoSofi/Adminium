@@ -32,6 +32,7 @@ import type { AddOnInstalls } from '../apps/table-ref.js';
 import type { DataHandle } from '../connections/manager.js';
 import { installsOf } from '../installs/resolve.js';
 import { FORM_CACHE_MS, jsonOf } from '../forms/catalog.js';
+import { pagePath } from './hosts.js';
 import { landingAddOnOn } from './installed.js';
 
 /** Where a landing ending leads now: a live page's slug, or nowhere. */
@@ -54,9 +55,16 @@ export function livePageSlug(row: Readonly<Record<string, unknown>>): string | n
   return parsed.ok && !hasMiloMarks(parsed.page) ? (row['slug'] as string) : null;
 }
 
-/** A live landing page's address on a host: the pages door's own path. */
+/**
+ * A live landing page's address on the host the form was served on: the
+ * pages door's own path (`landing/hosts.ts`), which every host that serves
+ * the door answers. Not the page's canonical address (`canonicalAddress`,
+ * for search engines and shared links): a visitor who sent a form on
+ * one host stays on it, and an install served over plain http in development
+ * keeps working. The page itself names its canonical address in its head.
+ */
 export function landingPageAddress(origin: string, slug: string): string {
-  return `${origin}/x/pages/${slug}`;
+  return `${origin}${pagePath(slug)}`;
 }
 
 /** The ending a broken landing ending is served as: the form's default thanks, with none of the owner's words. */

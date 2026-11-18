@@ -29,7 +29,10 @@
  *     them, or that became one of their rows or copies, with their messages
  *     and the answerer's choices (`chat-transcripts.ts`);
  *
- * Only the sources this release has are searched: no page visits exist yet.
+ *   - "Pages they saw": at "Per visitor", the visitors who said yes and sent
+ *     a form with the address, and the pages each saw (`page-visits.ts`).
+ *
+ * Only the sources this release has are searched.
  *
  * A request narrowed to some apps (`scope.ts`: a shop owner's
  * `privacy.people`) reads only those apps' people tables, copies and
@@ -61,6 +64,7 @@ import { erasedColumns, parsedJson } from './erase-values.js';
 import { chatSources, findChatRows, type TheirRow } from './chat-transcripts.js';
 import { findFormRows, formSources } from './form-answers.js';
 import { findInMeta, ROWS_MAX, type FoundRow } from './meta-sources.js';
+import { findPageVisits, pageVisitSources } from './page-visits.js';
 import type { ChatForget } from '../chat/transcripts.js';
 import { inScope, type AppScope } from './scope.js';
 import type { FoundSource } from './types.js';
@@ -94,6 +98,8 @@ export interface PrivacyFindDeps {
   consent: ConsentService;
   /** Makes the chat store forget an erased conversation (`chat/store.ts`). */
   chatForget?: ChatForget | undefined;
+  /** `ADMINIUM_SECRET`: "Pages they saw" is found by the address's keyed hash; absent, it is not searched. */
+  secret?: string | undefined;
 }
 
 /** A manifest reader that never touches a credential (finding and erasing read stored manifests only). */
@@ -420,6 +426,9 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string, apps
     const named = chats.filter((one) => one.kind === 'chat-conversations').flatMap((one) => one.rows).map((row) => row['name']).find((name): name is string => typeof name === 'string' && name.trim() !== '');
     if (named !== undefined) person = { name: named.trim(), company: null };
   }
+
+  // ── "Pages they saw": the visitors joined to their address, and the pages each saw ──
+  if (whole && deps.secret !== undefined) sources.push(...pageVisitSources(await findPageVisits(meta, deps.secret, address, ROWS_MAX)));
 
   // ── what Adminium keeps itself ────────────────────────────────────────────
   sources.push(...(await findInMeta(meta, address, appRows, { byAddress: whole, copyFiles: await copyFileIds(meta, copyRows) })));

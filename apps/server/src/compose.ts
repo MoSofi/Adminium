@@ -128,6 +128,9 @@ import { formsFilesRoutes } from './routes/forms-files/index.js';
 import { listedWebsitesOf } from './forms/websites.js';
 import { framingWebsites } from './trial/operator-hosts.js';
 import { formsDoorRoutes } from './routes/forms-door/index.js';
+import { xConsentRoutes } from './routes/x-consent/index.js';
+import { viewCountsRoutes } from './routes/view-counts/index.js';
+import { createCounting, registerCountingSchedules } from './views/wiring.js';
 import { chatDoorRoutes } from './routes/chat-door/index.js';
 import { capKey } from './public-api/anonymous-caps.js';
 import { chatAiFrom, type ChatAi } from './chat/ai.js';
@@ -146,8 +149,11 @@ import { createChatWaiting, type ChatWaiting } from './chat/waiting.js';
 import { chatOwnTable, sweepChatTranscripts } from './chat/transcripts.js';
 import { landingPagesTable } from './landing/seal.js';
 import { createLandingEndings } from './landing/ending.js';
-import { chatStaffRoutes } from './routes/chat/index.js';
+import { createLandingCatalog } from './landing/catalog.js';
+import { pagesDoorRoutes } from './routes/pages-door/index.js';
 import { landingStaffRoutes } from './routes/landing/index.js';
+import { chatStaffRoutes } from './routes/chat/index.js';
+import { landingDraftAndReadsRoutes } from './routes/landing/draft-and-reads.js';
 import { createLedgerRuntime } from './ledgers/registry.js';
 import { announcePostings, tellPostings, type PostingsTold } from './ledgers/announce.js';
 import { createDocumentPipeline } from './documents/compose.js';
@@ -162,7 +168,7 @@ import {
   type AddOnStore,
 } from './add-ons/store.js';
 import { bindDeciderGates, installRejectionGuard } from './add-ons/decide.js';
-import { recordDeciderTrust, trustSources } from './add-ons/decider-trust.js';
+import { keptCopyTrust, recordDeciderTrust, trustSources } from './add-ons/decider-trust.js';
 import { createPackageCopies } from './add-ons/package-copies.js';
 import { createAppFiles } from './apps/app-files.js';
 import { createInstalledApps } from './apps/installed.js';
@@ -1317,6 +1323,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     data: (connectionId) => manager.data(connectionId),
     vouched: doorVouched,
   });
+  // The landing pages add-ons' published pages, as strangers are served them (the pages door), vouched for as forms are.
+  const landingCatalog = createLandingCatalog({
+    meta,
+    installs: () => addOnInstalls.fresh(),
+    data: (connectionId) => manager.data(connectionId),
+    vouched: doorVouched,
+  });
   // A form's `landing` ending: its page looked up as the form is served, under the same vouch as a door (`landing/ending.ts`).
   const landingEndings = createLandingEndings({ meta, installs: () => addOnInstalls.fresh(), data: (connectionId) => manager.data(connectionId), vouched: doorVouched });
   /*
@@ -2273,6 +2286,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       app.log.warn({ err: error }, 'public API request counts could not be written; this minute is dropped');
     },
   });
+  /*
+   * Visitor counting: views of landing pages and forms per day, and at "Per
+   * visitor" the pages one visitor saw. Counted in memory by the doors,
+   * flushed every minute and on shutdown (`views/counter.ts`).
+   */
+  const counting = await createCounting({ meta, secret: env.ADMINIUM_SECRET, log: app.log });
   const publicGate = createPublicApiGate({
     read: async () => {
       await watchPublicRevision();
@@ -2663,6 +2682,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           answerFiles: formsFiles.removeAnswerFiles,
           // …and makes the chat store forget their conversations, so a visitor's poll on one is told it is lost.
           chatForget: (place, id) => chatStore.forget(place, id),
+          // A new counting level is used by this process's counter at once.
+          counting: counting.counter,
         }),
       );
       // What the forms builder shows: whether mail a stranger causes goes, and its status read (reach, notice, address, websites, roles).
@@ -2698,6 +2719,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       );
       await api.register(i18nRoutes({ meta }));
       await api.register(viewsRoutes({ meta }));
+      // Strangers' views per day, for whoever may read what was counted (`views/counter.ts`).
+      await api.register(viewCountsRoutes({ meta }));
       await api.register(meViewsRoutes({ meta }));
       await api.register(onboardingRoutes({ meta }));
       // Managing the public surface. Always registered, even when the public
@@ -2744,7 +2767,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         }),
       );
       // The host editor's home picker lists the live forms' addresses.
-      await api.register(surfacesAdminRoutes({ meta, liveForms: () => formsCatalog.liveSlugs() }));
+      await api.register(surfacesAdminRoutes({ meta, liveForms: () => formsCatalog.liveSlugs(), livePages: () => landingCatalog.liveSlugs() }));
       // A file a stranger sent with a form, opened by staff who read its answer.
       await api.register(formsFilesRoutes({ uploads: publicUploads, storage, forms: formsFiles, reachesRecord: fileRecordCheck(meta, manager) }));
       // Installing an app. Registered on the same
@@ -3675,7 +3698,62 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
       desktop: env.ADMINIUM_RUNTIME === 'desktop',
       trustProxy: env.ADMINIUM_TRUST_PROXY,
+      // A live form's views and sends are counted; at "Per visitor" its own page asks first.
+      views: counting.counter,
+      visitors: counting.visitors,
     }),
+  );
+  // The visitor banner's "Yes" and "Cookie choice" (`/x/consent/visit`).
+  await app.register(
+    xConsentRoutes({
+      meta,
+      key: counting.visitors.key,
+      level: () => counting.counter.level(),
+      networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+      desktop: env.ADMINIUM_RUNTIME === 'desktop',
+      trustProxy: env.ADMINIUM_TRUST_PROXY,
+    }),
+  );
+
+  /*
+   * THE PAGES DOOR (`/x/pages/`): a landing page, drawn by the engine from a
+   * landing pages add-on's own table, its head written by the server. Always
+   * registered, like the forms door, and gated per request by the same reach.
+   */
+  const pageHosts = async (): Promise<Readonly<Record<string, { home: string }>>> => (app.surfaceSettings === null ? ((await settingsRepo(meta).get('surfaces.pageHosts')) ?? {}) : ((await app.surfaceSettings.read()).pages ?? {}));
+  await app.register(
+    pagesDoorRoutes({
+      meta,
+      catalog: landingCatalog,
+      forms: formsCatalog,
+      storage,
+      pageHosts,
+      // A live page's views are counted, and at "Per visitor" its data says what the banner reads.
+      views: counting.counter,
+      visitors: counting.visitors,
+      networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+      desktop: env.ADMINIUM_RUNTIME === 'desktop',
+      trustProxy: env.ADMINIUM_TRUST_PROXY,
+    }),
+  );
+  // Staff: a page's pictures, and where its pages answer (`routes/landing`).
+  await app.register(
+    async (api) => {
+      await api.register(
+        landingStaffRoutes({
+          meta,
+          catalog: landingCatalog,
+          storage,
+          pageHosts,
+          // Who may read a file of Files: the files routes' own rule.
+          hiddenFile: hiddenFileCheck(meta, manager),
+          reachesRecord: fileRecordCheck(meta, manager),
+          privateFile: privateFileCheck(meta, manager),
+          reach: { networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY },
+        }),
+      );
+    },
+    { prefix: API_PREFIX },
   );
 
   /*
@@ -3824,7 +3902,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
        * operator's AI kept to dashboards does not).
        */
       await api.register(
-        landingStaffRoutes({
+        landingDraftAndReadsRoutes({
           meta,
           installs: () => addOnInstalls.fresh(),
           data: formsData,
@@ -4127,6 +4205,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         log: (level, message, data) => {
           app.log[level](data ?? {}, message);
         },
+        trust: keptCopyTrust(meta),
       });
 
       let restoredApp = false;
@@ -4373,6 +4452,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   app.addHook('onClose', async () => {
     await publicStats.flush();
   });
+  // Strangers' views and visits: written every minute and on shutdown, swept daily past their months.
+  registerCountingSchedules(jobs.scheduler, { meta, counting, log: app.log });
+  app.addHook('onClose', async () => {
+    await counting.counter.flush();
+  });
   // What has the project's folder, for whoever is about to stop this server (the desktop app asks before it does).
   if (!app.hasDecorator('designerBusy')) app.decorate('designerBusy', () => designer?.runner.busy() ?? null);
   // A Designer turn that runs is stopped, and its end written, before the store closes.
@@ -4553,6 +4637,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         log: (level, message, data) => {
           app.log[level](data ?? {}, message);
         },
+        trust: keptCopyTrust(meta),
       }).keep(installed),
     log: (message, data) => app.log.warn(data, message),
   });

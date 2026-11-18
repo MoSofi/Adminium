@@ -364,6 +364,12 @@ export const RATE_BUCKETS = {
   // and a busy office or a phone network puts many visitors behind one
   // address. Generous; each form's own caps on what is sent are the gate.
   'forms-door': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
+  // The pages door (`/x/pages/`): whoever opens a landing page, by network
+  // address. A page load is its HTML, its files, its data and its pictures;
+  // a campaign link puts many visitors behind one phone network's address.
+  // Generous, as the forms door's, and a bucket of its own so a page's
+  // traffic never spends the budget a form's sender needs.
+  'pages-door': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
   // A mail service's notices: a few addresses, bursts after a send. The service's own proof is the gate.
   'mail-notice': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
   // A person's data, by address: each search reads every people table whole,
@@ -391,6 +397,11 @@ export const RATE_BUCKETS = {
   // each (60): 660. Each conversation's own caps are the real gate.
   'chat-poll': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
   'chat-write': { max: 660, timeWindowMs: 60_000, keyBy: 'ip' },
+  // The visitor banner's "Yes" and "Cookie choice" (`/x/consent/visit`), by
+  // network address. A visitor answers once, maybe changes their mind; 30 a
+  // minute leaves room for an office behind one address and stops a script
+  // making visitors.
+  'x-consent': { max: 30, timeWindowMs: 60_000, keyBy: 'ip' },
 } as const satisfies Readonly<Record<string, RateBucket>>;
 
 /**

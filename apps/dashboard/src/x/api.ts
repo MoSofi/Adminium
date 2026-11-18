@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The calls a stranger's page makes to its own host (`/x/forms/api/*`).
- * Never a cookie: a form answers nobody's session.
+ * On the install's own page (never in a frame) the reads and the answer go
+ * with this host's cookies, so "Per visitor" can see a visitor who said yes
+ * (`__Secure-adm_v`, `Path=/x/`); in a frame, never a cookie.
  *
  * WHAT IS ASKED.
  *   GET  /x/forms/api/<slug>?lang=…[&frame=1][&t=…]   the form, in one of its languages, and who the business is;
@@ -44,8 +46,14 @@ export interface XInvitation {
   about: string | null;
 }
 
+/** "Per visitor", as the install's own page is told it: the banner's words in the page's language, and whether this browser said yes. */
+export interface XVisitor {
+  banner: { language: string; title: string; text: string; yes: string; no: string; version: string };
+  said: 'yes' | null;
+}
+
 export type XPage =
-  | { state: 'live'; business: XBusiness; accent: string; form: XForm; today: string; frameOrigins?: string[]; invitation?: XInvitation }
+  | { state: 'live'; business: XBusiness; accent: string; form: XForm; today: string; frameOrigins?: string[]; invitation?: XInvitation; visitor?: XVisitor }
   | { state: 'closed' | 'unavailable' | 'already' | 'dead'; business: XBusiness; accent: string };
 
 export interface XChallenge {
@@ -90,14 +98,16 @@ const base = (slug: string): string => `/x/forms/api/${encodeURIComponent(slug)}
  * too (404). A preview is the builder's look at the draft: the one read that
  * carries the staff member's own session, on this host.
  */
-export async function fetchForm(slug: string, opts: { lang: string | null; frame: boolean; token: string | null; preview?: boolean | undefined }): Promise<XPage> {
+export async function fetchForm(slug: string, opts: { lang: string | null; frame: boolean; token: string | null; preview?: boolean | undefined; on?: string | null | undefined }): Promise<XPage> {
   const query = new URLSearchParams();
   if (opts.lang !== null) query.set('lang', opts.lang);
   if (opts.frame) query.set('frame', '1');
   if (opts.token !== null) query.set('t', opts.token);
   if (opts.preview === true) query.set('preview', '1');
+  // A landing page's form block, asking as it nears the screen: the page's key (counted as "opened" there).
+  if (opts.on !== undefined && opts.on !== null) query.set('on', opts.on);
   const search = query.toString();
-  const response = await fetch(`${base(slug)}${search === '' ? '' : `?${search}`}`, { credentials: opts.preview === true ? 'same-origin' : 'omit', headers: HEADERS });
+  const response = await fetch(`${base(slug)}${search === '' ? '' : `?${search}`}`, { credentials: opts.preview === true || !opts.frame ? 'same-origin' : 'omit', headers: HEADERS });
   if (!response.ok && response.status !== 404) throw new XApiError(response.status);
   return (await response.json()) as XPage;
 }
@@ -111,10 +121,10 @@ export async function fetchChallenge(slug: string, token: string | null): Promis
 const STATES = new Set(['sent', 'refused', 'too-many', 'closed', 'already', 'dead', 'unavailable']);
 
 /** Sends an answer with a solved check; every reply the door gives is read into one of the page's states. */
-export async function postAnswer(slug: string, answer: XAnswer, proof: string): Promise<XSendReply> {
-  const response = await fetch(`${base(slug)}/answers`, {
+export async function postAnswer(slug: string, answer: XAnswer, proof: string, opts: { frame?: boolean; on?: string | null } = {}): Promise<XSendReply> {
+  const response = await fetch(`${base(slug)}/answers${opts.on === undefined || opts.on === null ? '' : `?on=${encodeURIComponent(opts.on)}`}`, {
     method: 'POST',
-    credentials: 'omit',
+    credentials: opts.frame === true ? 'omit' : 'same-origin',
     headers: { ...HEADERS, 'content-type': 'application/json', 'x-adminium-proof': proof },
     body: JSON.stringify(answer),
   });

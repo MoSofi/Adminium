@@ -80,6 +80,8 @@ export interface SurfacesAdminRoutesDeps {
   meta: MetaDb;
   /** The live forms, by the add-on that holds them: the home picker of a pages host lists their addresses. */
   liveForms?: (() => Promise<readonly { addOn: string; slug: string }[]>) | undefined;
+  /** The live landing pages, by the add-on that holds them: listed beside the forms. */
+  livePages?: (() => Promise<readonly { addOn: string; slug: string }[]>) | undefined;
 }
 
 /** The domains editor's map: the app hosts, and the add-on pages hosts beside them. */
@@ -184,11 +186,13 @@ export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPlugi
           const list = instancesOf(current, surface.appKey);
           if (list.length > 0) instances[surface.appKey] = list;
         }
-        // Each live form's address, once, in order: a stranger's page a host's `/` may send to.
+        // Each live form's and live landing page's address, once, in order: a stranger's page a host's `/` may send to.
         // A slug is the add-on's free text, so only an address the save would take is offered:
         // the same rule a saved home passes, which keeps the redirect to a plain `/x/` path.
         const liveForms = deps.liveForms === undefined ? [] : await deps.liveForms().catch(() => []);
-        const pageHomes = [...new Set(liveForms.map((form) => `/x/forms/${form.slug}`))].filter((home) => pagesHomeIssueFor(home) === null).sort();
+        const livePages = deps.livePages === undefined ? [] : await deps.livePages().catch(() => []);
+        const homes = [...liveForms.map((form) => `/x/forms/${form.slug}`), ...livePages.map((page) => `/x/pages/${page.slug}`)];
+        const pageHomes = [...new Set(homes)].filter((home) => pagesHomeIssueFor(home) === null).sort();
         return { surfaces, domains: editorMap(current), instances, pageHomes };
       },
     );

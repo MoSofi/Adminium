@@ -1,395 +1,343 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * What a landing pages add-on's own screens ask the engine, for staff.
+ * A LANDING PAGES ADD-ON, FOR STAFF: what its editor asks the engine about
+ * its pages, under the person's own grants on the add-on's pages table.
  *
- *   POST /landing/:addOn/draft                "Draft it with Milo": a page's draft
- *                                             document (`landing/draft.ts`)
- *   GET  /landing/:addOn/forms                the live forms a Form block may name
- *   GET  /landing/:addOn/funnels/:key/rule    a funnel's rule: its name and its
- *                                             steps as chips ("What happens after")
- *   GET  /landing/live-pages                  the live pages of every landing pages
- *                                             add-on, for the forms builder's
- *                                             "Go to a landing page" ending
+ *   POST /landing/:addOn/pictures?page=          a picture for a page: a file of Files (`{ "file": <id> }`)
+ *                                                or the picture's bytes as the body; kept as the page's own
+ *                                                cleaned copy (`landing/pictures.ts`), answered with its id
+ *   GET  /landing/:addOn/pictures/:file?page=    one of a page's own pictures, for the editor's canvas
+ *   GET  /landing/:addOn/status?page=            what the editor's blocked cards and its page settings say:
+ *                                                the install, the zone view days are counted in and how
+ *                                                long counts are kept, reach, notice, the public address,
+ *                                                the pages hosts and,
+ *                                                for a page, its address on each and whether it is that
+ *                                                host's home
  *
- * `:addOn` is the pages add-on's key; the install is the one the request names
- * (the `X-Adminium-Install` header the add-on's page client sends, or
- * `?connectionId=`), else the key's only one, as the add-on's kit finds it.
+ * Who may:
+ *  - a picture for a page: who may change the add-on's pages
+ *    (`table:<conn>:<pages>:update`), and only for a page of that table. A
+ *    file of Files only when the person may read it by the files routes' own
+ *    rule (`files/read-rule.ts`), on the page's own database, never one a
+ *    record keeps in a secret or a personal column, and never another
+ *    person's upload no record took yet: a file they may not read and one that
+ *    is not there get the same 404;
+ *  - a page's picture and the status: who may read the add-on's pages.
+ *  - every route: a role held to some of the pages is refused, as a reader
+ *    of view counts is: a page is named here by its key.
  *
- * - **The draft** is for someone who may use Milo (`system:assistant:use`) AND
- *   change the add-on's pages; it spends their own allowance, sends no row and
- *   no tool, and answers a draft document with every block marked. It never
- *   publishes: the add-on writes it into the page's `draft`, and the publish
- *   seal refuses a marked page (`landing/seal.ts`). Audited `landing.draft`
- *   (`llm`): the outcome, the model and the tokens, never the description.
- * - **The live forms** are read across every forms add-on (the add-on's kit
- *   names only its own tables), by someone who may read the add-on's pages:
- *   only forms they may read themselves, only live ones, with their languages
- *   and their ending (a `landing` ending says whether its page is live).
- * - **The live pages** are read across every landing pages add-on, by someone
- *   who may read that add-on's pages (an add-on whose pages they may not read
- *   is left out): each live page by its add-on, key, name, address and
- *   language, never its content.
- * - **A funnel's rule** is read by the funnel's readers, who may hold no
- *   system permission: the rule's name and chips only (`landing/rule.ts`),
- *   and `canOpen` for a person who may manage rules. A rule that is gone says
- *   `removed`; a funnel with none says `none`.
+ * Only a signed-in person (or a staff key) asks. The install is named as the
+ * add-on kit names it (`landing/install-of.ts`): the `X-Adminium-Install`
+ * header, else `?connectionId=`, else the key's only install.
+ *
+ * Milo's draft and the staff reads of forms, pages and a funnel's rule are
+ * their own plugin (`draft-and-reads.ts`), under the same install rule.
  */
-import { FORM_LANGUAGES, type FormEnding } from '@adminium/add-on-contracts/forms';
-import { automationsRepo, type MetaDb } from '@adminium/meta';
-import type { FastifyRequest } from 'fastify';
+import { connectionTenantConfig, filesRepo, settingsRepo, type MetaDb, type StoredFile } from '@adminium/meta';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
-import { audited, auditExempt } from '../../audit/coverage.js';
-import type { AddOnInstalls } from '../../apps/table-ref.js';
-import type { ChatAnswererDeps } from '../../chat/answerer.js';
-import type { DataHandle } from '../../connections/manager.js';
-import { AppError, ConflictError, ForbiddenError, NotFoundError } from '../../errors.js';
-import type { FormsCatalog } from '../../forms/catalog.js';
-import { strangerBusiness } from '../../forms/view.js';
-import { requestReadsWhole } from '../../crud/row-reach-request.js';
-import { installReachOf } from '../../installs/reach.js';
-import { installsOf, resolveInstall, selectorOf } from '../../installs/resolve.js';
-import { draftLandingPage, LANDING_DESCRIPTION_MAX, type DraftForm } from '../../landing/draft.js';
-import { livePageSlug, type LandingEndings } from '../../landing/ending.js';
-import { landingAddOnOn, landingAddOns, type LandingAddOn } from '../../landing/installed.js';
-import { ruleChips } from '../../landing/rule.js';
-import { PERMISSIONS } from '../../rbac/permissions.js';
+import { audited } from '../../audit/coverage.js';
+import { isRowLimited } from '../../crud/row-limit.js';
+import { rowLimitContextOf } from '../../crud/row-limit-context.js';
+import { loadSnapshotView } from '../../data-io/snapshot-view.js';
+import { storedPublicOrigin } from '../../email/door-reach.js';
+import { AppError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { FileNotFoundError } from '../../files/drivers/driver.js';
+import { fileReadRule, type FileReadRuleDeps } from '../../files/read-rule.js';
+import type { FileStore } from '../../files/store.js';
+import { formsReach, proxyUncheckedOf, type FormsReachFacts } from '../../forms/reach.js';
+import type { LandingAddOn, LandingCatalog, PageRow } from '../../landing/catalog.js';
+import { canonicalAddress, pageAddresses, pagesHostsByName } from '../../landing/hosts.js';
+import { landingInstallOf } from '../../landing/install-of.js';
+import { keepPagePicture, LANDING_PICTURE_KIND, pagePictureOf, PagePictureRefused, PICTURE_REFUSED_WORDS } from '../../landing/pictures.js';
+import { REACHABILITY_STATES } from '../../payments/reachability.js';
+import { privacyNoticeReady } from '../../privacy/business.js';
+import { isLandingSlug } from '@adminium/add-on-contracts/landing';
+import { pictureHeaders, PICTURE_MAX_BYTES, PICTURE_PIPELINE, readCapped, type PictureMime } from '../../public-api/picture.js';
 
-export interface LandingStaffDeps {
+export interface LandingStaffDeps extends FileReadRuleDeps {
   meta: MetaDb;
-  installs: () => Promise<AddOnInstalls>;
-  data: (connectionId: string) => Promise<Pick<DataHandle, 'db'>>;
-  catalog: Pick<FormsCatalog, 'liveForms'>;
-  endings: Pick<LandingEndings, 'target'>;
-  /** The AI service a draft is written with, and where this server switches it off. */
-  ai: Pick<ChatAnswererDeps, 'connections' | 'offHere'>;
+  catalog: LandingCatalog;
+  storage: Pick<FileStore, 'read' | 'write'>;
+  /** The hosts mapped to the add-on pages, each with its home (`surfaces.pageHosts`). */
+  pageHosts: () => Promise<Readonly<Record<string, { home: string }>>>;
+  /** Whether a record keeps a file in a secret or a personal column (`files/read-limited.ts`). Absent: none does. */
+  privateFile?: ((file: StoredFile) => Promise<'secret' | 'personal' | null>) | undefined;
+  /** The facts the reach answer reads (the doors' own). */
+  reach: FormsReachFacts;
   now?: () => number;
 }
 
-const tags = ['landing'];
+/** The largest body taken: a picture past the public limit is read far enough to be refused in words, not cut off by the parser. */
+const PICTURE_BODY_LIMIT = PICTURE_MAX_BYTES + 2 * 1024 * 1024;
+
 const params = z.object({ addOn: z.string().min(1).max(80) });
-/** A row's key, as a funnel or a page is named: letters, digits, `_` and `-`. */
-const rowKey = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
-const funnelParams = params.extend({ key: rowKey });
-const query = z.object({ connectionId: z.string().max(64).optional() });
+const pictureParams = params.extend({ file: z.string().min(1).max(64) });
+const pageQuery = z.object({ page: z.string().min(1).max(64), connectionId: z.string().max(64).optional(), filename: z.string().trim().min(1).max(200).optional() });
+const statusQuery = z.object({ page: z.string().min(1).max(64).optional(), connectionId: z.string().max(64).optional() });
 
-export const landingDraftBody = z
-  .object({
-    /** What the page is for, in the person's words: data the model reads, never kept. */
-    description: z.string().trim().min(1).max(LANDING_DESCRIPTION_MAX),
-    /** The page's one language (a BCP 47 tag). */
-    language: z.string().regex(/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$/).max(10),
-    /** The page being drafted, when it is saved already: never linked to from itself. */
-    pageKey: rowKey.optional(),
-  })
-  .strict();
-
-const leftOut = z.discriminatedUnion('what', [
-  z.object({ what: z.literal('quote'), block: z.string() }),
-  z.object({ what: z.literal('picture'), block: z.string() }),
-  z.object({ what: z.literal('link'), block: z.string(), label: z.string() }),
-  z.object({ what: z.literal('form'), block: z.string() }),
-  z.object({ what: z.literal('page-link'), block: z.string(), label: z.string() }),
-]);
-
-export const landingDraftReply = z.object({
+export const landingPictureReply = z.object({
   data: z.object({
-    /** The page's draft document: every block carries `milo: true`. Never a state or a published copy. */
-    page: z.record(z.string(), z.unknown()),
-    /** What Milo wrote that was left out, for the person to put back by hand. */
-    left: z.array(leftOut),
-    tokens: z.number(),
+    /** The page's own copy: what its document's `picture.file` names. */
+    id: z.string(),
+    mime: z.string(),
+    sizeBytes: z.number().int(),
   }),
 });
 
-/** A form's ending as a staff screen shows it. */
-const staffEnding = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('words'), words: z.record(z.string(), z.string()) }),
-  z.object({ kind: z.literal('page'), url: z.string() }),
-  /** One of the business's landing pages; `broken` while it is not live (strangers then see the default thanks). */
-  z.object({ kind: z.literal('landing'), addOn: z.string(), page: z.string(), broken: z.boolean() }),
-]);
+/** One host a page answers on, and its address there. */
+const pageAddress = z.object({
+  host: z.string(),
+  /** The page's address on that host (`https://<host>/x/pages/<slug>`). */
+  url: z.string(),
+  /** Whether that host's `/` goes to this page. */
+  home: z.boolean(),
+});
 
-export const landingFormsReply = z.object({
+export const landingStatusReply = z.object({
   data: z.object({
-    forms: z.array(
-      z.object({
-        /** The forms add-on that holds it, and its row key: what a Form block names. */
-        addOn: z.string(),
-        /** The forms add-on's install (`adminium_manifests.id`): what the views read takes. */
-        installId: z.string(),
+    /** The add-on's install (`adminium_manifests.id`): what its pages' views are counted under (`GET /api/v1/views?installId=`). */
+    installId: z.string(),
+    /** The business's time zone the view days are counted in: its database's, else UTC. */
+    timeZone: z.string(),
+    /** How many months view counts are kept (`privacy.viewCountsMonths`). */
+    viewCountsMonths: z.number().int(),
+    /** "Can visitors reach your public pages?": the doors' own answer for this request; `state` is the reach words' code. */
+    reach: z.object({ state: z.enum(REACHABILITY_STATES), proxyUnchecked: z.boolean() }),
+    /** Whether the privacy notice is set: a page is not served until it is. */
+    notice: z.boolean(),
+    /** This server's public address (`system.publicOrigin`); null while unset. */
+    publicOrigin: z.string().nullable(),
+    /** The hosts mapped to the add-on pages, by name, each with its home page. */
+    hosts: z.array(z.object({ host: z.string(), home: z.string() })),
+    /** For `?page=`: its slug, its state, its address on each pages host and on the public address, and its canonical address. */
+    page: z
+      .object({
         key: z.string(),
-        name: z.string(),
-        slug: z.string(),
-        /** The languages it is written in, in the product's order. */
-        languages: z.array(z.string()),
-        ending: staffEnding,
-      }),
-    ),
+        slug: z.string().nullable(),
+        state: z.string().nullable(),
+        /** Each pages host, then the public address's (never a home). Empty while the slug is not a page address. */
+        addresses: z.array(pageAddress),
+        /** Where search engines and shared links are sent: the host it is home of, else the first pages host, else the public address. */
+        canonical: z.string().nullable(),
+        /** The hosts whose home it is: switching it off leaves their `/` on "not available". */
+        homeOf: z.array(z.string()),
+      })
+      .nullable(),
   }),
 });
 
-export const landingLivePagesReply = z.object({
-  data: z.object({
-    pages: z.array(
-      z.object({
-        /** The landing pages add-on that holds it, its install, and the page's row key: what a form's `landing` ending names. */
-        addOn: z.string(),
-        installId: z.string(),
-        key: z.string(),
-        /** Staff's own name for the page. */
-        name: z.string(),
-        slug: z.string(),
-        language: z.string(),
-      }),
-    ),
-  }),
-});
+const libraryBody = z.object({ file: z.string().min(1).max(64) }).strict();
 
-const ruleChip = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('trigger'), title: z.string(), on: z.enum(['record', 'schedule']), event: z.enum(['created', 'updated', 'deleted']).optional() }),
-  z.object({ kind: z.literal('action'), title: z.string(), action: z.string() }),
-  z.object({ kind: z.literal('condition'), title: z.string() }),
-  z.object({ kind: z.literal('wait'), title: z.string(), amount: z.number(), unit: z.string() }),
-  z.object({ kind: z.literal('branch'), title: z.string() }),
-  z.object({ kind: z.literal('stop'), title: z.string() }),
-]);
+function requireUserId(request: FastifyRequest): string {
+  const id = request.user?.id;
+  if (id === undefined) throw new AppError(401, 'UNAUTHORIZED', 'Sign in to continue.');
+  return id;
+}
 
-export const landingRuleReply = z.object({
-  data: z.discriminatedUnion('state', [
-    /** The funnel names no rule. */
-    z.object({ state: z.literal('none') }),
-    /** The rule it names is gone. */
-    z.object({ state: z.literal('removed') }),
-    z.object({
-      state: z.literal('linked'),
-      name: z.string(),
-      enabled: z.boolean(),
-      chips: z.array(ruleChip),
-      /** Whether this person may open the rule itself (they manage rules). */
-      canOpen: z.boolean(),
-      /** The rule's id, to open it by: only for someone who may. */
-      ruleId: z.string().optional(),
-    }),
-  ]),
-});
+function refused(why: PagePictureRefused['why']): never {
+  throw new ValidationFailedError(PICTURE_REFUSED_WORDS, { reason: 'picture-refused', why, maxBytes: PICTURE_MAX_BYTES });
+}
 
 export function landingStaffRoutes(deps: LandingStaffDeps): FastifyPluginAsyncZod {
-  const { meta } = deps;
+  const { meta, catalog } = deps;
   const now = deps.now ?? Date.now;
-  const connectionNames = async (): Promise<Map<string, string>> => new Map((await meta.db.selectFrom('adminium_connections').select(['id', 'name']).execute()).map((row) => [row.id, row.name]));
+  const { canRead } = fileReadRule(deps);
 
-  /** The pages add-on the request names, installed and with its tables; 404 for anything else. */
-  async function landingOf(request: FastifyRequest, key: string): Promise<LandingAddOn & { pages: string; pagesKey: string }> {
-    const found = await resolveInstall(installsOf(meta), key, selectorOf(request), { kind: 'add-on', connectionNames, reaches: installReachOf(meta, request) });
-    const connectionId = found?.row.connectionId ?? null;
-    const landing = found === null || connectionId === null ? null : landingAddOnOn(await deps.installs(), connectionId, key);
-    if (landing === null || landing.pages === null || landing.pagesKey === null) throw new NotFoundError('This add-on has no landing pages here.', { addOn: key });
-    return { ...landing, pages: landing.pages, pagesKey: landing.pagesKey };
-  }
-
-  const grant = (request: FastifyRequest, connectionId: string, tableId: string, action: 'read' | 'update') => request.can(`table:${connectionId}:${tableId}:${action}`);
   /**
-   * Whether the person may read every row of a table: these reads list a
-   * table's rows (or say whether one is there) as the system, so a person
-   * held to some rows of it is told of none (`rbac/row-coverage-table.ts`).
+   * The add-on a request names, for someone who holds `action` on its pages
+   * table, whole: 404 when it is not installed, 403 without the grant, and 403
+   * for a role held to some of its pages (a page is named by its key here, so
+   * one it does not reach would be read or changed past the limit).
    */
-  const readsAll = async (request: FastifyRequest, connectionId: string, tableId: string): Promise<boolean> =>
-    (await grant(request, connectionId, tableId, 'read')) && (await requestReadsWhole(meta, request, connectionId, tableId));
-
-  /** The live forms this person may read, with their endings as a staff screen shows them. */
-  async function formsFor(request: FastifyRequest): Promise<z.infer<typeof landingFormsReply>['data']['forms']> {
-    const out: z.infer<typeof landingFormsReply>['data']['forms'] = [];
-    for (const live of await deps.catalog.liveForms()) {
-      if (!(await readsAll(request, live.connectionId, live.formsTable))) continue;
-      const { definition } = live.form;
-      const listed = new Set<string>(definition.languages);
-      out.push({ addOn: live.addOn, installId: live.installId, key: live.id, name: live.name, slug: live.slug, languages: FORM_LANGUAGES.filter((one) => listed.has(one)), ending: await endingOf(definition.ending, live.connectionId) });
+  async function addOnFor(app: FastifyInstance, request: FastifyRequest, addOn: string, action: 'read' | 'update'): Promise<LandingAddOn> {
+    // The install the request names (`landing/install-of.ts`); then that install, and no other.
+    const install = await landingInstallOf(meta, request, addOn);
+    const found = install === null ? null : await catalog.forStaff(addOn, install.row.id);
+    if (found === null) throw new NotFoundError(`"${addOn}" is not an installed landing pages add-on.`);
+    if (!(await request.can(`table:${found.connectionId}:${found.pagesTable}:${action}`))) {
+      throw new ForbiddenError(action === 'read' ? 'Only someone who may read the pages reads this.' : 'Only someone who may change the pages adds a picture to one.', 'TABLE_FORBIDDEN', { reason: `landing-pages-${action}` });
     }
-    return out;
+    const set = await app.rbac.resolve(request);
+    if (set.superAdmin !== true) {
+      const view = await loadSnapshotView(meta, found.connectionId, { forOthers: true }).catch(() => null);
+      const context = view === null ? null : await rowLimitContextOf(meta, set, found.connectionId, view.model);
+      if (context !== null && isRowLimited(context, found.pagesTable, action)) {
+        throw new ForbiddenError('You may reach only some of the pages, so this is not shown.', 'TABLE_FORBIDDEN', { reason: 'row-limit' });
+      }
+    }
+    return found;
   }
 
-  async function endingOf(ending: FormEnding, near: string): Promise<z.infer<typeof staffEnding>> {
-    if (ending.kind !== 'landing') return ending.kind === 'words' ? { kind: 'words', words: { ...ending.words } as Record<string, string> } : ending;
-    return { ...ending, broken: (await deps.endings.target(ending, near)).state !== 'live' };
+  /** One page of the add-on by its key: 404 when there is none. */
+  async function pageOf(addOn: LandingAddOn, key: string): Promise<PageRow> {
+    const row = await catalog.pageByKey(addOn, key);
+    if (row === null) throw new NotFoundError(`There is no page ${key}.`);
+    return row;
+  }
+
+  /** A file of Files, read by the files routes' rule, as the bytes of a page's picture; 404 for one the person may not read, alike. */
+  async function libraryBytes(request: FastifyRequest, userId: string, addOn: LandingAddOn, fileId: string): Promise<{ bytes: Buffer; filename: string; from: string }> {
+    const missing = (): NotFoundError => new NotFoundError(`File ${fileId} not found.`);
+    const source = await filesRepo(meta).findById(fileId);
+    // A person's upload, or another page's own picture (its pages table is then the record it hangs on).
+    if (source === null || (source.kind !== 'upload' && source.kind !== LANDING_PICTURE_KIND) || source.deletedAt !== null) throw missing();
+    // On the page's own database: a file of another one, or of none, is not copied across.
+    if (source.entityConnectionId !== addOn.connectionId) throw missing();
+    if (!(await canRead(request, source))) throw missing();
+    // An upload no record took yet is its uploader's alone.
+    if (source.attachedAt === null && source.uploadedBy !== userId) throw missing();
+    // A secret column's file is copied by nobody, and a personal one never onto a page anybody reads.
+    const kept = (await deps.privateFile?.(source)) ?? null;
+    if (kept !== null) throw missing();
+    if (source.sizeBytes > PICTURE_MAX_BYTES) refused('size');
+    try {
+      return { bytes: await readCapped(await deps.storage.read(source), PICTURE_MAX_BYTES), filename: source.filename, from: source.id };
+    } catch (error) {
+      if (error instanceof FileNotFoundError) throw missing();
+      // Grown past the limit since it was written down: refused in words.
+      refused('size');
+    }
   }
 
   return async (app) => {
+    // The bytes of a picture, whatever type the browser says: read here, judged by what they are.
+    app.addContentTypeParser('*', { parseAs: 'buffer', bodyLimit: PICTURE_BODY_LIMIT }, (_request, body, done) => {
+      done(null, body);
+    });
+
     app.post(
-      '/landing/:addOn/draft',
+      '/landing/:addOn/pictures',
       {
         preHandler: [app.requireAuth],
-        config: { audit: audited('rbac') },
+        bodyLimit: PICTURE_BODY_LIMIT,
+        // A copy writes bytes as an upload does, so it spends the uploads' budget.
+        config: { rateLimitBucket: 'upload', audit: audited('rbac') },
         schema: {
-          tags,
-          summary: 'Draft a landing page with Milo',
+          tags: ['landing'],
+          summary: 'Keep a picture for a landing page',
           description:
-            'One call to the AI service (and one more when the first answer is not a page), on the person\'s own daily Milo allowance, with the description, the page\'s language, the business\'s name and contact address and the live forms the person may read: no rows, no tools. It answers a draft document with every block marked, quotes, pictures and links to other websites left out; it never publishes. For someone who may use Milo and change the add-on\'s pages.',
+            'A picture for one page of a landing pages add-on: a file of Files (`{ "file": <id> }`, one the person may read) or the picture as the body. Kept as the page’s own cleaned copy (PNG, JPEG, WebP or GIF, at most 5 MB; never SVG), and answered with its id. For someone who may change the add-on’s pages.',
           params,
-          querystring: query,
-          body: landingDraftBody,
-          response: { 200: landingDraftReply },
+          querystring: pageQuery,
+          response: { 201: landingPictureReply },
         },
       },
-      async (request) => {
-        // A person, on their own allowance: never an API key.
-        const user = request.user;
-        if (user === null || user === undefined || !(await request.can(PERMISSIONS.assistantUse))) throw new ForbiddenError('Only someone who may use Milo drafts with it.', 'FORBIDDEN', { reason: 'assistant-use' });
-        const landing = await landingOf(request, request.params.addOn);
-        if (!(await grant(request, landing.connectionId, landing.pages, 'update'))) {
-          throw new ForbiddenError('Only someone who may change these pages drafts one.', 'TABLE_FORBIDDEN', { reason: 'landing-pages-update' });
+      async (request, reply) => {
+        const userId = requireUserId(request);
+        const addOn = await addOnFor(app, request, request.params.addOn, 'update');
+        const page = await pageOf(addOn, request.query.page);
+        const body = request.body;
+        let source: { bytes: Buffer; filename: string; from: string | null };
+        if (Buffer.isBuffer(body)) {
+          source = { bytes: body, filename: request.query.filename ?? 'picture', from: null };
+        } else {
+          const asked = libraryBody.safeParse(body);
+          if (!asked.success) throw new ValidationFailedError('Send a picture, or name a file of Files as `file`.', { reason: 'picture-missing' });
+          source = await libraryBytes(request, userId, addOn, asked.data.file);
         }
-        const { business } = await strangerBusiness(meta);
-        const forms: DraftForm[] = (await formsFor(request)).map((form) => ({ addOn: form.addOn, key: form.key, name: form.name, languages: form.languages }));
-        const { db } = await deps.data(landing.connectionId);
-        const drafted = await draftLandingPage({
-          meta,
-          ai: deps.ai,
-          userId: user.id,
-          description: request.body.description,
-          language: request.body.language,
-          business: { name: business.name, email: business.email },
-          forms,
-          self: request.body.pageKey ?? null,
-          // Which pages a link names the add-on holds: the keys alone are read, never a page's content.
-          pagesHeld: async (keys) => {
-            if (keys.length === 0 || !(await readsAll(request, landing.connectionId, landing.pages))) return new Set();
-            try {
-              const rows = (await db.selectFrom(landing.pages).select(db.dynamic.ref(landing.pagesKey) as never).where(db.dynamic.ref(landing.pagesKey), 'in', [...keys]).execute()) as Record<string, unknown>[];
-              const held = new Set(rows.map((row) => String(row[landing.pagesKey])));
-              return new Set(keys.filter((key) => held.has(key)));
-            } catch {
-              return new Set();
-            }
-          },
-          at: now(),
-        });
-        const audit = (outcome: string) =>
-          app.rbac.audit(request, { category: 'llm', action: 'landing.draft', connectionId: landing.connectionId, changes: { after: { addOn: landing.key, outcome, model: drafted.model, tokens: drafted.tokens } } });
-        if (!drafted.ok) {
-          // A refusal before any call costs nothing and is not a model's outcome: only a call made is audited.
-          if (drafted.tokens > 0 || drafted.refused === 'failed' || drafted.refused === 'draft-failed') await audit(drafted.refused);
-          if (drafted.refused === 'allowance') throw new AppError(429, 'RATE_LIMITED', 'Your Milo allowance for today is used.', { reason: 'allowance', resetsAt: new Date(drafted.resetsAt).toISOString() });
-          if (drafted.refused === 'draft-failed') throw new AppError(502, 'LANDING_DRAFT_FAILED', 'Milo could not write a page from that. Try again, or describe the page in other words.', { reason: 'draft-failed' });
-          if (drafted.refused === 'failed') throw new AppError(502, 'LANDING_DRAFT_FAILED', 'Milo could not write a draft. Try again.', { reason: 'failed' });
-          throw new ConflictError('No AI service can be used here.', 'CONFLICT', { reason: drafted.refused });
-        }
-        await audit('drafted');
-        return { data: { page: drafted.page as unknown as Record<string, unknown>, left: drafted.left, tokens: drafted.tokens } };
-      },
-    );
-
-    app.get(
-      '/landing/:addOn/forms',
-      {
-        preHandler: [app.requireAuth],
-        config: { audit: auditExempt('read-only list of live forms') },
-        schema: {
-          tags,
-          summary: 'The live forms a landing page may show',
-          description:
-            'Every live form of every forms add-on that the person may read, with its languages and its ending (a landing page ending says whether its page is live). For someone who may read the add-on\'s pages.',
-          params,
-          querystring: query,
-          response: { 200: landingFormsReply },
-        },
-      },
-      async (request) => {
-        const landing = await landingOf(request, request.params.addOn);
-        if (!(await grant(request, landing.connectionId, landing.pages, 'read'))) {
-          throw new ForbiddenError('Only someone who may read these pages reads this.', 'TABLE_FORBIDDEN', { reason: 'landing-pages-read' });
-        }
-        return { data: { forms: await formsFor(request) } };
-      },
-    );
-
-    app.get(
-      '/landing/live-pages',
-      {
-        preHandler: [app.requireAuth],
-        config: { audit: auditExempt('read-only list of live landing pages') },
-        schema: {
-          tags,
-          summary: 'The live landing pages a form may end on',
-          description:
-            'Every live page of every landing pages add-on whose pages the person may read: its add-on, install, key, name, address and language, never its content. For the forms builder\'s "Go to a landing page" ending.',
-          response: { 200: landingLivePagesReply },
-        },
-      },
-      async (request) => {
-        const out: z.infer<typeof landingLivePagesReply>['data']['pages'] = [];
-        for (const landing of await landingAddOns(meta, await deps.installs())) {
-          const { pages, pagesKey } = landing;
-          if (!landing.on || pages === null || pagesKey === null || !(await readsAll(request, landing.connectionId, pages))) continue;
-          let rows: Record<string, unknown>[];
-          try {
-            const { db } = await deps.data(landing.connectionId);
-            rows = (await db
-              .selectFrom(pages)
-              .select([db.dynamic.ref(pagesKey), db.dynamic.ref('name'), db.dynamic.ref('slug'), db.dynamic.ref('state'), db.dynamic.ref('language'), db.dynamic.ref('published')] as never)
-              .where(db.dynamic.ref('state'), '=', 'live')
-              .execute()) as Record<string, unknown>[];
-          } catch {
-            continue;
-          }
-          for (const row of rows) {
-            const slug = livePageSlug(row);
-            if (slug === null) continue;
-            out.push({ addOn: landing.key, installId: landing.installId, key: String(row[pagesKey]), name: typeof row['name'] === 'string' ? row['name'] : slug, slug, language: typeof row['language'] === 'string' ? row['language'] : '' });
-          }
-        }
-        out.sort((a, b) => a.addOn.localeCompare(b.addOn) || a.name.localeCompare(b.name) || a.key.localeCompare(b.key));
-        return { data: { pages: out } };
-      },
-    );
-
-    app.get(
-      '/landing/:addOn/funnels/:key/rule',
-      {
-        preHandler: [app.requireAuth],
-        config: { audit: auditExempt('read-only: a rule\'s name and steps') },
-        schema: {
-          tags,
-          summary: 'What happens after a funnel',
-          description:
-            'The rule a funnel names: its name, whether it is on, and its steps as chips (the trigger and each step by its kind and title), never the rule itself; whether the person may open it. For someone who may read the add-on\'s funnels.',
-          params: funnelParams,
-          querystring: query,
-          response: { 200: landingRuleReply },
-        },
-      },
-      async (request) => {
-        const landing = await landingOf(request, request.params.addOn);
-        if (landing.funnels === null || landing.funnelsKey === null) throw new NotFoundError('This add-on has no funnels here.', { addOn: landing.key });
-        const funnels = landing.funnels;
-        const funnelsKey = landing.funnelsKey;
-        if (!(await grant(request, landing.connectionId, funnels, 'read'))) {
-          throw new ForbiddenError('Only someone who may read these funnels reads this.', 'TABLE_FORBIDDEN', { reason: 'landing-funnels-read' });
-        }
-        // The funnel's row is read as the system: a person held to some funnels reads no funnel's rule here.
-        if (!(await requestReadsWhole(meta, request, landing.connectionId, funnels))) {
-          throw new ForbiddenError('Only someone who may read every funnel reads this.', 'TABLE_FORBIDDEN', { reason: 'landing-funnels-rows' });
-        }
-        const { db } = await deps.data(landing.connectionId);
-        let row: Record<string, unknown> | undefined;
+        let kept: StoredFile;
         try {
-          row = (await db.selectFrom(funnels).select([db.dynamic.ref(funnelsKey), db.dynamic.ref('rule_id')] as never).where(db.dynamic.ref(funnelsKey), '=', request.params.key).executeTakeFirst()) as Record<string, unknown> | undefined;
-        } catch {
-          row = undefined;
+          kept = await keepPagePicture({ meta, storage: deps.storage }, { bytes: source.bytes, filename: source.filename, owner: { connectionId: addOn.connectionId, pagesTable: addOn.pagesTable, page: page.key, pk: addOn.pk }, uploadedBy: userId, at: now() });
+        } catch (error) {
+          if (error instanceof PagePictureRefused) refused(error.why);
+          throw error;
         }
-        // The row the key names, and no other: a database that reads `12abc` as 12 is not taken at its word.
-        if (row === undefined || String(row[funnelsKey]) !== request.params.key) throw new NotFoundError('No such funnel.', { addOn: landing.key });
-        const ruleId = typeof row['rule_id'] === 'string' ? row['rule_id'].trim() : '';
-        if (ruleId === '') return { data: { state: 'none' as const } };
-        const rule = await automationsRepo(meta)
-          .findById(ruleId)
-          .catch(() => null);
-        if (rule === null) return { data: { state: 'removed' as const } };
-        const canOpen = await request.can(PERMISSIONS.automationsManage);
-        return { data: { state: 'linked' as const, name: rule.name, enabled: rule.enabled, chips: ruleChips(rule), canOpen, ...(canOpen ? { ruleId: rule.id } : {}) } };
+        await app.rbac.audit(request, {
+          category: 'data',
+          action: 'landing.picture',
+          connectionId: addOn.connectionId,
+          changes: { after: { addOn: addOn.addOn, page: page.key, file: kept.id, ...(source.from === null ? {} : { from: source.from }), sizeBytes: kept.sizeBytes } },
+        });
+        return reply.status(201).send({ data: { id: kept.id, mime: kept.mime, sizeBytes: kept.sizeBytes } });
+      },
+    );
+
+    app.get(
+      '/landing/:addOn/pictures/:file',
+      {
+        preHandler: [app.requireAuth],
+        schema: {
+          tags: ['landing'],
+          summary: 'One picture of a landing page, for its editor',
+          description: 'The bytes of one of a page’s own pictures, as strangers are served them once the page is live. For someone who may read the add-on’s pages.',
+          params: pictureParams,
+          querystring: pageQuery.omit({ filename: true }),
+        },
+      },
+      async (request, reply) => {
+        const addOn = await addOnFor(app, request, request.params.addOn, 'read');
+        const page = await pageOf(addOn, request.query.page);
+        const file = await pagePictureOf(meta, { connectionId: addOn.connectionId, pagesTable: addOn.pagesTable, page: page.key }, request.params.file);
+        if (file === null) throw new NotFoundError(`File ${request.params.file} not found.`);
+        let bytes: Buffer;
+        try {
+          bytes = await readCapped(await deps.storage.read(file), PICTURE_MAX_BYTES);
+        } catch {
+          throw new NotFoundError(`File ${request.params.file} not found.`);
+        }
+        const headers = pictureHeaders({ mime: file.mime as PictureMime, etag: `"${PICTURE_PIPELINE}-${file.sha256}"` }, 'picture', bytes.length);
+        // The person's own read: kept by their browser alone, and by no other site.
+        const { 'access-control-allow-origin': _anyone, 'cross-origin-resource-policy': _anywhere, ...own } = headers;
+        return reply.headers({ ...own, 'cache-control': 'private, max-age=60' }).send(bytes);
+      },
+    );
+
+    app.get(
+      '/landing/:addOn/status',
+      {
+        preHandler: [app.requireAuth],
+        schema: {
+          tags: ['landing'],
+          summary: 'What a landing pages editor shows about where its pages answer',
+          description:
+            'Whether strangers can reach the pages, whether the privacy notice is set, the public address, the hosts mapped to the add-on pages and, for a page, its address on each and whether it is that host’s home. For someone who may read the add-on’s pages.',
+          params,
+          querystring: statusQuery,
+          response: { 200: landingStatusReply },
+        },
+      },
+      async (request) => {
+        const addOn = await addOnFor(app, request, request.params.addOn, 'read');
+        const [answer, notice, publicOrigin, mapped, tenant, viewCountsMonths] = await Promise.all([
+          formsReach(meta, deps.reach, request),
+          privacyNoticeReady(meta),
+          storedPublicOrigin(meta),
+          deps.pageHosts().catch(() => ({})),
+          connectionTenantConfig(meta, addOn.connectionId),
+          settingsRepo(meta).get('privacy.viewCountsMonths'),
+        ]);
+        const hosts = pagesHostsByName(mapped);
+        let page: z.infer<typeof landingStatusReply>['data']['page'] = null;
+        if (request.query.page !== undefined) {
+          const row = await pageOf(addOn, request.query.page);
+          const slug = isLandingSlug(row.slug) ? row.slug : null;
+          const addresses = slug === null ? [] : pageAddresses(hosts, publicOrigin, slug);
+          page = {
+            key: row.key,
+            slug,
+            state: typeof row.state === 'string' ? row.state : null,
+            addresses,
+            canonical: canonicalAddress(addresses)?.url ?? null,
+            homeOf: addresses.filter((one) => one.home).map((one) => one.host),
+          };
+        }
+        return {
+          data: {
+            installId: addOn.installId,
+            // The zone the counter counts days in (`views/wiring.ts` `zoneOfInstall`).
+            timeZone: tenant?.timezone ?? 'UTC',
+            viewCountsMonths,
+            reach: { state: answer.state, proxyUnchecked: proxyUncheckedOf(deps.reach, request) },
+            notice,
+            publicOrigin,
+            hosts,
+            page,
+          },
+        };
       },
     );
   };
 }
-

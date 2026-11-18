@@ -54,6 +54,7 @@ import { LOCAL_DESTINATION_ID } from '../../files/destinations.js';
 import { widgetDataChannel } from '../../realtime/hub.js';
 import { linkOrigin } from '../../security/public-origin.js';
 import { FileNotFoundError } from '../../files/drivers/driver.js';
+import { FILES_MANAGE_PERMISSION, fileReadRule } from '../../files/read-rule.js';
 import { DEFAULT_REF_SHAPE, formatRef, parseRef, type RefShape } from '../../files/refs.js';
 import { SpoolTooLargeError } from '../../files/spool.js';
 import { UnsupportedFileTypeError, type FileStore } from '../../files/store.js';
@@ -81,7 +82,7 @@ import {
 import { tagRoutes } from '../../security/route-audience.js';
 
 /** See-everyone's-files. Not what authorises an upload — see the header. */
-export const FILES_MANAGE_PERMISSION = 'system:files:manage';
+export { FILES_MANAGE_PERMISSION };
 
 /** The kinds this route group serves. Everything else keeps its own door. */
 const SERVED_KINDS: ReadonlySet<string> = new Set<FileKind>(['upload']);
@@ -277,32 +278,12 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
     };
   }
 
-  /** The grant a file's ENTITY implies, or null when it has none. */
-  function entityPermission(file: StoredFile, action: 'read' | 'update'): string | null {
-    if (file.entityConnectionId === null || file.entityTable === null) return null;
-    return `table:${file.entityConnectionId}:${file.entityTable}:${action}`;
-  }
-
   /**
-   * May this caller see this file at all? Attached ⇒ the entity table's `read`.
-   * Unattached ⇒ the uploader, or `files.manage`. See the header.
+   * May this caller see this file at all, the grant its record implies, and
+   * whether they reach that record: the one rule (`files/read-rule.ts`). See
+   * the header.
    */
-  async function canRead(request: FastifyRequest, file: StoredFile): Promise<boolean> {
-    const permission = entityPermission(file, 'read');
-    if (permission !== null) return (await request.can(permission)) && !((await deps.hiddenFile?.(request, file)) ?? false) && (await reaches(request, file, 'read'));
-    if (file.uploadedBy !== null && file.uploadedBy === request.user?.id) return true;
-    return request.can(FILES_MANAGE_PERMISSION);
-  }
-
-  /**
-   * Whether the caller reaches the record this file hangs on. A file of a
-   * table whose rows the caller reads only in part is read and changed with
-   * its record — by its uploader and by a holder of `files.manage` too.
-   */
-  async function reaches(request: FastifyRequest, file: StoredFile, action: 'read' | 'update'): Promise<boolean> {
-    if (deps.reachesRecord === undefined || file.entityConnectionId === null || file.entityTable === null) return true;
-    return deps.reachesRecord(request, { connectionId: file.entityConnectionId, table: file.entityTable, recordId: file.entityId, uploadedBy: file.uploadedBy }, action);
-  }
+  const { entityPermission, canRead, reaches } = fileReadRule(deps);
 
   /** May this caller change or remove it? `update` on the entity, else the uploader — and, of a record, one their update reaches. */
   async function canWrite(request: FastifyRequest, file: StoredFile): Promise<boolean> {

@@ -159,7 +159,12 @@ export type AnswerBody = z.infer<typeof answerBodySchema>;
 
 /** The door's answer, as the route sends it. */
 export type AnswerReply =
-  | { status: 200; body: { state: 'sent'; ending: 'sent' | 'sent-confirm'; url?: string } }
+  | {
+      status: 200;
+      body: { state: 'sent'; ending: 'sent' | 'sent-confirm'; url?: string };
+      /** Set only when the answer was kept (never for a trap): what the door counts and joins after the write stood. */
+      kept?: { email: string | null };
+    }
   | { status: 400; body: { state: 'refused'; errors: Record<string, string> } }
   | { status: 403; body: { state: 'proof' } }
   | { status: 404; body: { state: 'unavailable' } }
@@ -598,7 +603,7 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
         logger: request.log,
       });
     }
-    return { status: 200, body: endingOf(form, checked.values) };
+    return { status: 200, body: endingOf(form, checked.values), kept: { email: checked.email } };
   }
 
   type Became =

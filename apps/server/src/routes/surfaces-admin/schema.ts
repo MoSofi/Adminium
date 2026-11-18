@@ -104,7 +104,7 @@ export const surfacesListReply = z.object({
   domains: z.record(z.string(), surfaceDomainTarget),
   /** Per app, its extra instances — what the instances editor round-trips. */
   instances: z.record(z.string(), z.array(surfaceInstance)),
-  /** The live forms' addresses (`/x/forms/<slug>`): what a pages host's home may be picked from. */
+  /** The live forms' and landing pages' addresses (`/x/forms/<slug>`, `/x/pages/<slug>`): what a pages host's home may be picked from. */
   pageHomes: z.array(z.string()),
 });
 

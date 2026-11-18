@@ -109701,7 +109701,8 @@
                             "archive",
                             "document",
                             "package",
-                            "stranger"
+                            "stranger",
+                            "landing"
                           ]
                         },
                         "destinationId": {
@@ -109842,7 +109843,8 @@
                 "archive",
                 "document",
                 "package",
-                "stranger"
+                "stranger",
+                "landing"
               ]
             },
             "in": "query",
@@ -110032,7 +110034,8 @@
                               "archive",
                               "document",
                               "package",
-                              "stranger"
+                              "stranger",
+                              "landing"
                             ]
                           },
                           "destinationId": {
@@ -110221,7 +110224,8 @@
                             "archive",
                             "document",
                             "package",
-                            "stranger"
+                            "stranger",
+                            "landing"
                           ]
                         },
                         "destinationId": {
@@ -110439,7 +110443,8 @@
                             "archive",
                             "document",
                             "package",
-                            "stranger"
+                            "stranger",
+                            "landing"
                           ]
                         },
                         "destinationId": {
@@ -110607,7 +110612,8 @@
                             "archive",
                             "document",
                             "package",
-                            "stranger"
+                            "stranger",
+                            "landing"
                           ]
                         },
                         "destinationId": {
@@ -110755,7 +110761,8 @@
                             "archive",
                             "document",
                             "package",
-                            "stranger"
+                            "stranger",
+                            "landing"
                           ]
                         },
                         "destinationId": {
@@ -110925,7 +110932,8 @@
                                   "archive",
                                   "document",
                                   "package",
-                                  "stranger"
+                                  "stranger",
+                                  "landing"
                                 ]
                               },
                               "destinationId": {
@@ -111140,7 +111148,8 @@
                             "archive",
                             "document",
                             "package",
-                            "stranger"
+                            "stranger",
+                            "landing"
                           ]
                         },
                         "destinationId": {
@@ -111290,7 +111299,8 @@
                             "archive",
                             "document",
                             "package",
-                            "stranger"
+                            "stranger",
+                            "landing"
                           ]
                         },
                         "destinationId": {
@@ -111440,7 +111450,8 @@
                             "archive",
                             "document",
                             "package",
-                            "stranger"
+                            "stranger",
+                            "landing"
                           ]
                         },
                         "destinationId": {
@@ -128997,7 +129008,8 @@
                                   "form-files",
                                   "chat-conversations",
                                   "chat-messages",
-                                  "chat-choices"
+                                  "chat-choices",
+                                  "page-visits"
                                 ]
                               },
                               "group": {
@@ -129307,6 +129319,590 @@
                       },
                       "required": [
                         "rows"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "rows": {
+                    "minItems": 1,
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64
+                        },
+                        "months": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "months"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "rows"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "fixed": {
+                                "type": "boolean"
+                              },
+                              "keptFor": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "forever"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "until-erased"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "until-removed"
+                                    ]
+                                  },
+                                  {
+                                    "type": "number"
+                                  }
+                                ]
+                              },
+                              "options": {
+                                "type": "array",
+                                "items": {
+                                  "type": "number"
+                                }
+                              },
+                              "addOn": {
+                                "type": "object",
+                                "properties": {
+                                  "key": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "name"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "fixed",
+                              "keptFor",
+                              "options"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "rows"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/privacy/counting": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "level": {
+                          "type": "string",
+                          "enum": [
+                            "off",
+                            "counts",
+                            "visitor"
+                          ]
+                        },
+                        "countingSince": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "viewCountsMonths": {
+                          "type": "number"
+                        },
+                        "visitsMonths": {
+                          "type": "number"
+                        },
+                        "banner": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string",
+                                "enum": [
+                                  "en-US",
+                                  "de-DE",
+                                  "fr-FR",
+                                  "cs-CZ",
+                                  "da-DK",
+                                  "ar-EG",
+                                  "zh-CN",
+                                  "zh-TW"
+                                ]
+                              },
+                              "additionalProperties": {
+                                "type": "object",
+                                "properties": {
+                                  "title": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 80
+                                  },
+                                  "text": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 500
+                                  },
+                                  "yes": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 30
+                                  },
+                                  "no": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 30
+                                  }
+                                },
+                                "additionalProperties": false
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "defaults": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string",
+                            "enum": [
+                              "en-US",
+                              "de-DE",
+                              "fr-FR",
+                              "cs-CZ",
+                              "da-DK",
+                              "ar-EG",
+                              "zh-CN",
+                              "zh-TW"
+                            ]
+                          },
+                          "additionalProperties": {
+                            "type": "object",
+                            "properties": {
+                              "title": {
+                                "type": "string"
+                              },
+                              "text": {
+                                "type": "string"
+                              },
+                              "yes": {
+                                "type": "string"
+                              },
+                              "no": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "title",
+                              "text",
+                              "yes",
+                              "no"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "noticeReady": {
+                          "type": "boolean"
+                        },
+                        "kept": {
+                          "type": "object",
+                          "properties": {
+                            "visitors": {
+                              "type": "number"
+                            },
+                            "visits": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "visitors",
+                            "visits"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "deleted": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "visitors": {
+                                  "type": "number"
+                                },
+                                "visits": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "visitors",
+                                "visits"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "level",
+                        "countingSince",
+                        "viewCountsMonths",
+                        "visitsMonths",
+                        "banner",
+                        "defaults",
+                        "noticeReady",
+                        "kept"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "level": {
+                    "type": "string",
+                    "enum": [
+                      "off",
+                      "counts",
+                      "visitor"
+                    ]
+                  },
+                  "banner": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string",
+                          "enum": [
+                            "en-US",
+                            "de-DE",
+                            "fr-FR",
+                            "cs-CZ",
+                            "da-DK",
+                            "ar-EG",
+                            "zh-CN",
+                            "zh-TW"
+                          ]
+                        },
+                        "additionalProperties": {
+                          "type": "object",
+                          "properties": {
+                            "title": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "text": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 500
+                            },
+                            "yes": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 30
+                            },
+                            "no": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 30
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "level"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "level": {
+                          "type": "string",
+                          "enum": [
+                            "off",
+                            "counts",
+                            "visitor"
+                          ]
+                        },
+                        "countingSince": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "viewCountsMonths": {
+                          "type": "number"
+                        },
+                        "visitsMonths": {
+                          "type": "number"
+                        },
+                        "banner": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string",
+                                "enum": [
+                                  "en-US",
+                                  "de-DE",
+                                  "fr-FR",
+                                  "cs-CZ",
+                                  "da-DK",
+                                  "ar-EG",
+                                  "zh-CN",
+                                  "zh-TW"
+                                ]
+                              },
+                              "additionalProperties": {
+                                "type": "object",
+                                "properties": {
+                                  "title": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 80
+                                  },
+                                  "text": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 500
+                                  },
+                                  "yes": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 30
+                                  },
+                                  "no": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 30
+                                  }
+                                },
+                                "additionalProperties": false
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "defaults": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string",
+                            "enum": [
+                              "en-US",
+                              "de-DE",
+                              "fr-FR",
+                              "cs-CZ",
+                              "da-DK",
+                              "ar-EG",
+                              "zh-CN",
+                              "zh-TW"
+                            ]
+                          },
+                          "additionalProperties": {
+                            "type": "object",
+                            "properties": {
+                              "title": {
+                                "type": "string"
+                              },
+                              "text": {
+                                "type": "string"
+                              },
+                              "yes": {
+                                "type": "string"
+                              },
+                              "no": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "title",
+                              "text",
+                              "yes",
+                              "no"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "noticeReady": {
+                          "type": "boolean"
+                        },
+                        "kept": {
+                          "type": "object",
+                          "properties": {
+                            "visitors": {
+                              "type": "number"
+                            },
+                            "visits": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "visitors",
+                            "visits"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "deleted": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "visitors": {
+                                  "type": "number"
+                                },
+                                "visits": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "visitors",
+                                "visits"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "level",
+                        "countingSince",
+                        "viewCountsMonths",
+                        "visitsMonths",
+                        "banner",
+                        "defaults",
+                        "noticeReady",
+                        "kept"
                       ],
                       "additionalProperties": false
                     }
@@ -129673,7 +130269,8 @@
                                   "form-answers",
                                   "form-invitations",
                                   "form-files",
-                                  "chat-conversations"
+                                  "chat-conversations",
+                                  "page-visits"
                                 ]
                               },
                               "count": {
@@ -134707,6 +135304,155 @@
                       },
                       "required": [
                         "ok"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/views": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "installId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "page",
+                "form-page",
+                "form-opened",
+                "form-sent"
+              ]
+            },
+            "in": "query",
+            "name": "kind",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 3250
+            },
+            "in": "query",
+            "name": "things",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "from",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "to",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "place",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "level": {
+                          "type": "string",
+                          "enum": [
+                            "off",
+                            "counts",
+                            "visitor"
+                          ]
+                        },
+                        "countingSince": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "things": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "thing": {
+                                "type": "string"
+                              },
+                              "days": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "day": {
+                                      "type": "string"
+                                    },
+                                    "place": {
+                                      "type": "string"
+                                    },
+                                    "views": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "day",
+                                    "place",
+                                    "views"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "thing",
+                              "days"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "level",
+                        "countingSince",
+                        "things"
                       ],
                       "additionalProperties": false
                     }
@@ -173541,6 +174287,363 @@
                   "required": [
                     "overrides",
                     "pages"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/landing/{addOn}/pictures": {
+      "post": {
+        "summary": "Keep a picture for a landing page",
+        "tags": [
+          "landing"
+        ],
+        "description": "A picture for one page of a landing pages add-on: a file of Files (`{ \"file\": <id> }`, one the person may read) or the picture as the body. Kept as the page’s own cleaned copy (PNG, JPEG, WebP or GIF, at most 5 MB; never SVG), and answered with its id. For someone who may change the add-on’s pages.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "page",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "connectionId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "filename",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "path",
+            "name": "addOn",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "mime": {
+                          "type": "string"
+                        },
+                        "sizeBytes": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "mime",
+                        "sizeBytes"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/landing/{addOn}/pictures/{file}": {
+      "get": {
+        "summary": "One picture of a landing page, for its editor",
+        "tags": [
+          "landing"
+        ],
+        "description": "The bytes of one of a page’s own pictures, as strangers are served them once the page is live. For someone who may read the add-on’s pages.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "page",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "connectionId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "path",
+            "name": "addOn",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "file",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/landing/{addOn}/status": {
+      "get": {
+        "summary": "What a landing pages editor shows about where its pages answer",
+        "tags": [
+          "landing"
+        ],
+        "description": "Whether strangers can reach the pages, whether the privacy notice is set, the public address, the hosts mapped to the add-on pages and, for a page, its address on each and whether it is that host’s home. For someone who may read the add-on’s pages.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "connectionId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "path",
+            "name": "addOn",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "installId": {
+                          "type": "string"
+                        },
+                        "timeZone": {
+                          "type": "string"
+                        },
+                        "viewCountsMonths": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "reach": {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "operator-off",
+                                "network-off",
+                                "desktop",
+                                "not-set",
+                                "this-computer",
+                                "private-network",
+                                "dot-local",
+                                "not-https",
+                                "proxy-hidden",
+                                "reachable"
+                              ]
+                            },
+                            "proxyUnchecked": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "proxyUnchecked"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "notice": {
+                          "type": "boolean"
+                        },
+                        "publicOrigin": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "hosts": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "host": {
+                                "type": "string"
+                              },
+                              "home": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "host",
+                              "home"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "page": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string"
+                                },
+                                "slug": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "state": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "addresses": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "host": {
+                                        "type": "string"
+                                      },
+                                      "url": {
+                                        "type": "string"
+                                      },
+                                      "home": {
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": [
+                                      "host",
+                                      "url",
+                                      "home"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "canonical": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "homeOf": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "required": [
+                                "key",
+                                "slug",
+                                "state",
+                                "addresses",
+                                "canonical",
+                                "homeOf"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "installId",
+                        "timeZone",
+                        "viewCountsMonths",
+                        "reach",
+                        "notice",
+                        "publicOrigin",
+                        "hosts",
+                        "page"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
                   ],
                   "additionalProperties": false
                 }

@@ -47,8 +47,9 @@ import { newId } from '@adminium/meta';
 import type { FilesRepo, InstalledManifest, ManifestsRepo } from '@adminium/meta';
 
 import type { FileStore } from '../files/store.js';
-import { packStagedTree } from './pack.js';
-import { sha512Integrity, type AddOnStore } from './store.js';
+import type { KeptCopyTrust } from './decider-trust.js';
+import { packStagedTree, type PackedTree } from './pack.js';
+import { sha512Integrity, type AddOnStore, type TreeManifest } from './store.js';
 
 /** What a copy is called in the file library, for an operator reading it. */
 function filenameFor(key: string, version: string): string {
@@ -89,6 +90,18 @@ export interface PackageCopiesDeps {
   /** Apps and add-ons have separate store roots; the row's `kind` picks one. */
   storeFor: (kind: string) => AddOnStore | null;
   log: (level: 'info' | 'warn' | 'error', message: string, data?: Record<string, unknown>) => void;
+  /**
+   * Whether the tree a copy is packed from is trusted, and where the copy's
+   * hash is recorded when it is (`decider-trust.ts`): a package put back from
+   * its copy is then trusted exactly as its original was.
+   */
+  trust: KeptCopyTrust;
+}
+
+/** Whether two path -> sha256 lists name the same files with the same bytes. */
+function sameFiles(a: Readonly<Record<string, string>>, b: Readonly<Record<string, string>>): boolean {
+  const paths = Object.keys(a);
+  return paths.length === Object.keys(b).length && paths.every((path) => b[path] === a[path]);
 }
 
 /** Read a stream to the end. Copies are bounded by the archive limits already. */
@@ -99,11 +112,57 @@ async function drain(stream: NodeJS.ReadableStream): Promise<Buffer> {
 }
 
 export function createPackageCopies(deps: PackageCopiesDeps): PackageCopies {
+  /*
+   * THE COPY OF A TRUSTED TREE IS TRUSTED, AND NOTHING ELSE IS.
+   *
+   * Recorded only when the tree verified against its pin before the pack, its
+   * own hash is trusted by its bytes (the bundle, the catalogue's record, or a
+   * copy kept of one of those), and the files packed are exactly the files
+   * that verified: a file changed between the check and the pack would
+   * otherwise come back trusted after the next redeploy. Add-ons only: trust
+   * is a judgement of an add-on's bytes, and an app's tree is not checked for
+   * it on every boot.
+   */
+  async function carryTrust(key: string, version: string, tree: TreeManifest | null, packed: PackedTree, integrity: string): Promise<boolean> {
+    if (tree === null || !sameFiles(tree.files, packed.files)) return false;
+    if (!(await deps.trust.original({ key, version, integrity: tree.integrity }))) return false;
+    await deps.trust.record({ key, version, integrity });
+    return true;
+  }
+
+  /*
+   * A copy kept before its trust was recorded (an instance older than the
+   * record, or a crash between the copy and the record): packed again from the
+   * same tree, a stable packing gives the same hash, and only then is the
+   * held copy's trust recorded. Skipped at once when it already is.
+   */
+  async function trustHeldCopy(installed: InstalledManifest, held: string): Promise<void> {
+    const { row } = installed;
+    if (row.kind !== 'add-on' || (await deps.trust.kept(row.manifestKey, row.version)) === held) return;
+    const store = deps.storeFor(row.kind);
+    if (store === null) return;
+    const tree = await store.verifyTree(row.manifestKey, row.version).catch(() => null);
+    if (tree === null || !(await deps.trust.original({ key: row.manifestKey, version: row.version, integrity: tree.integrity }))) return;
+    const packed = await packStagedTree(store.dirFor(row.manifestKey, row.version));
+    if (sha512Integrity(packed.tarball) !== held) return;
+    await carryTrust(row.manifestKey, row.version, tree, packed, held);
+  }
+
   return {
     async keep(installed) {
       const { row } = installed;
       const ref = { key: row.manifestKey, version: row.version, kind: row.kind };
-      if (row.packageIntegrity !== null && row.packageFileId !== null) return null;
+      if (row.packageIntegrity !== null && row.packageFileId !== null) {
+        try {
+          await trustHeldCopy(installed, row.packageIntegrity);
+        } catch (error) {
+          deps.log('warn', 'could not record the trust of a kept copy', {
+            ...ref,
+            reason: error instanceof Error ? error.message : String(error),
+          });
+        }
+        return null;
+      }
 
       const store = deps.storeFor(row.kind);
       if (store === null) return null;
@@ -119,6 +178,11 @@ export function createPackageCopies(deps: PackageCopiesDeps): PackageCopies {
       } catch {
         return null;
       }
+
+      // The tree as installed, checked against its pin BEFORE the pack: only a
+      // tree that verifies passes its trust on to the copy. One that does not
+      // is still kept, as it always was, just not as trusted.
+      const tree = row.kind === 'add-on' ? await store.verifyTree(row.manifestKey, row.version).catch(() => null) : null;
 
       let packed;
       try {
@@ -183,12 +247,25 @@ export function createPackageCopies(deps: PackageCopiesDeps): PackageCopies {
         return null;
       }
 
+      // After the copy is recorded: a crash in between leaves a held copy whose
+      // trust the next boot's keep records (`trustHeldCopy`).
+      let trusted = false;
+      try {
+        trusted = await carryTrust(row.manifestKey, row.version, tree, packed, integrity);
+      } catch (error) {
+        deps.log('warn', 'could not record the trust of a kept copy', {
+          ...ref,
+          reason: error instanceof Error ? error.message : String(error),
+        });
+      }
+
       deps.log('info', 'kept a copy of an installed package', {
         ...ref,
         fileId,
         destinationId,
         sizeBytes: packed.tarball.byteLength,
         fileCount: packed.fileCount,
+        trusted,
       });
       return {
         fileId,

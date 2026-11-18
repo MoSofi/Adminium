@@ -43,6 +43,7 @@ const FORMS: Record<string, FormLookup> = {
 
 const catalog: FormsCatalog = {
   find: async (slug) => FORMS[slug] ?? { state: 'unavailable' },
+  byKey: async () => ({ state: 'unavailable' }),
   draft: async () => null,
   liveSlugs: async () => [],
   liveForms: async () => [],
@@ -104,18 +105,20 @@ describe('the forms door routes', () => {
     rmSync(spa, { recursive: true, force: true });
   });
 
-  it('allows scripts, styles and fonts from the door’s own files only, no form, base or outside call, and no frame', () => {
+  it('allows scripts, styles and fonts from the door’s own files only, calls under /x/ only, no markup written by a script, no form, base or outside call, and no frame', () => {
     expect(xContentPolicy('https://forms.meridian.example')).toBe(
       [
         "default-src 'none'",
         'script-src https://forms.meridian.example/x/assets/',
         'style-src https://forms.meridian.example/x/assets/',
         'font-src https://forms.meridian.example/x/assets/',
-        "img-src 'self' data:",
-        "connect-src 'self'",
+        "img-src 'self'",
+        'connect-src https://forms.meridian.example/x/',
         "frame-ancestors 'none'",
         "base-uri 'none'",
         "form-action 'none'",
+        "require-trusted-types-for 'script'",
+        "trusted-types 'none'",
       ].join('; '),
     );
     expect(xContentPolicy('https://forms.meridian.example', ['https://shop.example', 'https://www.meridian.example'])).toBe(
@@ -124,11 +127,13 @@ describe('the forms door routes', () => {
         'script-src https://forms.meridian.example/x/assets/',
         'style-src https://forms.meridian.example/x/assets/',
         'font-src https://forms.meridian.example/x/assets/',
-        "img-src 'self' data:",
-        "connect-src 'self'",
+        "img-src 'self'",
+        'connect-src https://forms.meridian.example/x/',
         'frame-ancestors https://shop.example https://www.meridian.example',
         "base-uri 'none'",
         "form-action 'none'",
+        "require-trusted-types-for 'script'",
+        "trusted-types 'none'",
       ].join('; '),
     );
   });

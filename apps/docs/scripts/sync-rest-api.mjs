@@ -195,8 +195,12 @@ const DESCRIPTIONS = {
   privacy:
     'A person’s data by their e-mail address — finding everything kept about them, downloading it as a .zip of ' +
     'JSON and CSV, erasing them in place (with a preview of what goes and what stays), and how long things are kept — plus the privacy notice ' +
-    '(business name, notice address) and the sender’s postal address. Needs privacy.manage (only the Super Admin ' +
+    '(business name, notice address), the sender’s postal address and visitor counting (Off, Counts only or Per ' +
+    'visitor, and the visitor banner’s words). Needs privacy.manage (only the Super Admin ' +
     'holds it unless granted) and a signed-in person; the postal address needs settings.manage.',
+  views:
+    'How many times strangers saw a landing page or a form, per day (views, known bots left out; opened and sent ' +
+    'for a form on a page), with when counting started. For whoever may read the table the counted rows are in.',
   'widget-data': 'The queries widgets run, singly and in batches',
   words:
     'What staff are told of the rows a screen shows, in an add-on\'s stock words — in, low or out for ' +

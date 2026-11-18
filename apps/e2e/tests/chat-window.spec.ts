@@ -20,10 +20,22 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Frame, type FrameLocator, type Page } from '@playwright/test';
 
 import { ALL_DAY, ANSWER, KEY, NINE_ONLY, SERVER, SITE, startChatWorld, type ChatWorld } from './chatWorld.js';
+import { watchXPolicy, type XPolicyWatch } from './xPolicy.js';
 
 let world: ChatWorld;
+let watch: XPolicyWatch;
 
 test.describe.configure({ mode: 'serial' });
+
+// Every call of the chat's window stays under /x/, and its policy (Trusted Types, calls to /x/ only) refuses nothing.
+test.beforeEach(({ page }) => {
+  watch = watchXPolicy(page);
+});
+
+test.afterEach(() => {
+  expect(watch.outside()).toEqual([]);
+  expect(watch.refused()).toEqual([]);
+});
 
 test.beforeAll(async () => {
   world = await startChatWorld();

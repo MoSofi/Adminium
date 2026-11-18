@@ -35,6 +35,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { BASE_URL, SINK_URL, type SinkMessage } from './constants.js';
 import { PDF_BYTES } from './formsFiles.js';
 import { as, needsForms, PUBLIC_ORIGIN, setUp, strangerPath, tearDown, type FormsWorld } from './formsWorld.js';
+import { watchXPolicy } from './xPolicy.js';
 
 let world: FormsWorld | undefined;
 let formSlug = '';
@@ -152,6 +153,8 @@ test.describe('Forms, as its manager and its reader', () => {
     test.setTimeout(180_000);
     const context = await browser.newContext({ baseURL: BASE_URL, storageState: { cookies: [], origins: [] } });
     const page = await context.newPage();
+    // Every call of the form's page stays under /x/, and its policy (Trusted Types, calls to /x/ only) refuses nothing.
+    const watch = watchXPolicy(page);
     try {
       await page.goto(strangerPath(`${PUBLIC_ORIGIN}/x/forms/${formSlug}`));
       await expect(page.getByRole('heading', { name: 'Book a showroom visit' })).toBeVisible({ timeout: 30_000 });
@@ -162,6 +165,8 @@ test.describe('Forms, as its manager and its reader', () => {
       await expect(page.getByText('plan.pdf').first()).toBeVisible({ timeout: 30_000 });
       await page.getByRole('button', { name: /Send/ }).click();
       await expect(page.getByText('Thank you. We have your answers.', { exact: true })).toBeVisible({ timeout: 60_000 });
+      expect(watch.outside()).toEqual([]);
+      expect(watch.refused()).toEqual([]);
     } finally {
       await context.close();
     }
@@ -263,12 +268,15 @@ test.describe('Forms, as its manager and its reader', () => {
 
       const context = await browser.newContext({ baseURL: BASE_URL, storageState: { cookies: [], origins: [] } });
       const stranger = await context.newPage();
+      const watch = watchXPolicy(stranger);
       await stranger.goto(strangerPath(link![0]));
       await expect(stranger.getByRole('heading', { name: 'How did your job go' })).toBeVisible({ timeout: 30_000 });
       await stranger.getByRole('radio', { name: /4/ }).first().click();
       await stranger.getByRole('textbox').first().fill('Tidy work, on time.');
       await stranger.getByRole('button', { name: /Send/ }).click();
       await expect(stranger.getByText('Thank you. Your answers help us.', { exact: true })).toBeVisible({ timeout: 60_000 });
+      expect(watch.outside()).toEqual([]);
+      expect(watch.refused()).toEqual([]);
       await context.close();
 
       const feedback = (await (await admin.request.get(`/api/v1/data/${world!.connectionId}/${encodeURIComponent(world!.tables['feedback']!)}`)).json()) as { data: Record<string, unknown>[] };

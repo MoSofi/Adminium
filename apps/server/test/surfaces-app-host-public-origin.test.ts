@@ -115,11 +115,13 @@ describe('a mapping of the public address’s host stored before it was refused 
 
 describe('a pages host’s home, by the /x/ doors', () => {
   it('names each door the engine serves', () => {
-    expect(X_DOORS).toEqual(['forms', 'chat']);
+    expect(X_DOORS).toEqual(['forms', 'chat', 'pages']);
   });
 
   it('is a page one name below a door, never the door, its api or a call below a page', () => {
-    for (const home of ['/x/forms/newsletter', '/x/chat/support', '/x/chat/support-desk']) expect(pagesHomeIssueFor(home), home).toBeNull();
+    for (const home of ['/x/forms/newsletter', '/x/chat/support', '/x/chat/support-desk', '/x/pages/open-day']) expect(pagesHomeIssueFor(home), home).toBeNull();
+    // The pages door is a door: its API and anything below a page are never a home.
+    for (const home of ['/x/pages', '/x/pages/api', '/x/pages/api/open-day', '/x/pages/open-day/pictures']) expect(pagesHomeIssueFor(home), home).toBe('must be a page, not the pages’ own files or API');
     for (const door of X_DOORS) {
       for (const home of [`/x/${door}`, `/x/${door}/api`, `/x/${door}/api/newsletter`, `/x/${door}/api/support/messages`, `/x/${door}/support/messages`, `/x/${door}/support/config`]) {
         expect(pagesHomeIssueFor(home), home).toBe('must be a page, not the pages’ own files or API');
