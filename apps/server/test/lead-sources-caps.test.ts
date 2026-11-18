@@ -85,8 +85,9 @@ describe('the in-memory gate of each source', () => {
     expect(personCap({ dailyCap: 3, personShare: 10 })).toBe(1);
     expect(personCap({ dailyCap: null, personShare: 50 })).toBeNull();
     expect(personCap({ dailyCap: 100, personShare: null })).toBeNull();
-    expect(stepCap({ dailyCap: 100 })).toBe(20);
-    expect(stepCap({ dailyCap: null })).toBe(100);
+    expect(stepCap({ dailyCap: 100 })).toBe(50);
+    expect(stepCap({ dailyCap: 20 })).toBe(20);
+    expect(stepCap({ dailyCap: null })).toBe(50);
   });
 });
 
@@ -144,12 +145,12 @@ describe.each(META_ENGINES)('the day caps of a paid source — $name', (engine) 
   });
 
   it.skipIf(!engine.available)('counts the automation step apart, on a budget of its own', async () => {
-    const shared = { dailyCap: 10, personShare: 50 };
-    await spend('usr_mara', 5, shared);
-    // A fifth of the day's cap: two calls.
-    await spend(SOURCE_DAY_STEP, 2, shared);
-    expect(await reserveDay(handle.meta, { ...base, spender: SOURCE_DAY_STEP, state: shared })).toMatchObject({ ok: false, code: 'PERSON_SHARE', cap: 2 });
-    expect(await sourceDaysRepo(handle.meta).day({ installId: 'mft_one', source: 'hunter', day: sourceDayOf(AT), spender: SOURCE_DAY_STEP })).toMatchObject({ calls: 2, held: 0 });
+    const shared = { dailyCap: 200, personShare: 25 };
+    await spend('usr_mara', 50, shared);
+    // Up to 50 look-ups a day for rules.
+    await spend(SOURCE_DAY_STEP, 50, shared);
+    expect(await reserveDay(handle.meta, { ...base, spender: SOURCE_DAY_STEP, state: shared })).toMatchObject({ ok: false, code: 'PERSON_SHARE', cap: 50 });
+    expect(await sourceDaysRepo(handle.meta).day({ installId: 'mft_one', source: 'hunter', day: sourceDayOf(AT), spender: SOURCE_DAY_STEP })).toMatchObject({ calls: 50, held: 0 });
     // A person's count is not the step's.
     expect((await reserveDay(handle.meta, { ...base, spender: 'usr_tom', state: shared })).ok).toBe(true);
   });

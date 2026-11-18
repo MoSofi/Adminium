@@ -17,7 +17,8 @@
  *    unless the owner set another);
  *  - each staff member's own count, against their share of the cap (half,
  *    unless the owner set another), so one person cannot spend the day;
- *  - the automation step's own count, against a smaller budget of its own.
+ *  - the automation step's own count, against a budget of its own (50 calls
+ *    a day per source, never more than a capped source's day).
  * A call reserves on both before it is made and settles after, so calls at
  * once never pass a cap together; every page of a search is a call.
  *
@@ -35,10 +36,8 @@ export const MAX_IN_FLIGHT = 2;
 export const DEFAULT_PAUSE_SECONDS = 60;
 /** The longest pause a source may ask for. */
 export const MAX_PAUSE_SECONDS = 3600;
-/** The automation step's daily calls on a source with no daily cap. */
-export const STEP_DAILY_CALLS = 100;
-/** The automation step's share of a capped source's day, in per cent: smaller than a person's. */
-export const STEP_SHARE = 20;
+/** The automation step's daily calls on one source ("Up to 50 look-ups a day for rules"). */
+export const STEP_DAILY_CALLS = 50;
 
 /** The spender that is the automation step. */
 export const STEP_SPENDER = SOURCE_DAY_STEP;
@@ -162,9 +161,9 @@ export function personCap(state: Pick<SourceState, 'dailyCap' | 'personShare'>):
   return Math.max(1, Math.floor((state.dailyCap * state.personShare) / 100));
 }
 
-/** The automation step's own budget for a day: a fifth of a capped source's day, else its own small number. */
+/** The automation step's own budget for a day: its 50 calls, never more than a capped source's day. */
 export function stepCap(state: Pick<SourceState, 'dailyCap'>): number {
-  return state.dailyCap === null ? STEP_DAILY_CALLS : Math.max(1, Math.floor((state.dailyCap * STEP_SHARE) / 100));
+  return state.dailyCap === null ? STEP_DAILY_CALLS : Math.min(STEP_DAILY_CALLS, state.dailyCap);
 }
 
 /** What the call is counted against: who asked, on which day. */
