@@ -5415,25 +5415,13 @@
     "srcHash": "164b3d4809f9",
     "status": "mt"
   },
-  "common.chat.budgetEvent": {
-    "status": "mt",
-    "srcHash": "abeadeac0183"
-  },
   "common.chat.messageSent": {
     "srcHash": "9cf1b68c1b0e",
     "status": "mt"
   },
-  "common.chat.pausedEvent": {
-    "status": "mt",
-    "srcHash": "80a9e2045865"
-  },
   "common.chat.sendFailed": {
     "srcHash": "50147ccd1276",
     "status": "mt"
-  },
-  "common.chat.waitingEvent": {
-    "status": "mt",
-    "srcHash": "b7e54201390f"
   },
   "common.common.back": {
     "srcHash": "b52b36b7269f",
@@ -6582,6 +6570,18 @@
   "common.notifications.event.backupCompleted": {
     "srcHash": "6df17c3ac00b",
     "status": "mt"
+  },
+  "common.notifications.event.chatBudget": {
+    "status": "mt",
+    "srcHash": "abeadeac0183"
+  },
+  "common.notifications.event.chatPaused": {
+    "status": "mt",
+    "srcHash": "80a9e2045865"
+  },
+  "common.notifications.event.chatWaiting": {
+    "status": "mt",
+    "srcHash": "b7e54201390f"
   },
   "common.notifications.event.formsAnswer": {
     "status": "mt",

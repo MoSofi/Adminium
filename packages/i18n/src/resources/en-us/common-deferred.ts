@@ -1533,10 +1533,7 @@ export default {
   },
   "chat": {
     "messageSent": "Message sent",
-    "sendFailed": "The message could not be sent.",
-    "budgetEvent": "A chat’s automatic answers stopped for the day",
-    "waitingEvent": "A website chat is waiting for a person",
-    "pausedEvent": "New website chats were paused"
+    "sendFailed": "The message could not be sent."
   },
   "planning": {
     "drawer": {

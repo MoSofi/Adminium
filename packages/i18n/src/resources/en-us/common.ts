@@ -659,7 +659,10 @@ export default {
       "ruleNotice": "A notice from a rule",
       "mention": "Somebody mentioned me",
       "formsAnswer": "A form has a new answer",
-      "formsLimit": "A form hit its limit"
+      "formsLimit": "A form hit its limit",
+      "chatBudget": "A chat’s automatic answers stopped for the day",
+      "chatWaiting": "A website chat is waiting for a person",
+      "chatPaused": "New website chats were paused"
     }
   },
   "theme": {

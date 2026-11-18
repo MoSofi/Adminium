@@ -1453,10 +1453,7 @@ export default {
   },
   "chat": {
     "messageSent": "Nachricht gesendet",
-    "sendFailed": "Die Nachricht konnte nicht gesendet werden.",
-    "budgetEvent": "Die automatischen Antworten eines Chats sind für heute beendet",
-    "waitingEvent": "Ein Website-Chat wartet auf eine Person",
-    "pausedEvent": "Neue Website-Chats wurden pausiert"
+    "sendFailed": "Die Nachricht konnte nicht gesendet werden."
   },
   "templates": {
     "crud": {
@@ -1609,7 +1606,10 @@ export default {
       "ruleNotice": "Eine Meldung einer Regel",
       "mention": "Jemand hat mich erwähnt",
       "formsAnswer": "Ein Formular hat eine neue Antwort",
-      "formsLimit": "Ein Formular hat sein Limit erreicht"
+      "formsLimit": "Ein Formular hat sein Limit erreicht",
+      "chatBudget": "Die automatischen Antworten eines Chats sind für heute beendet",
+      "chatWaiting": "Ein Website-Chat wartet auf eine Person",
+      "chatPaused": "Neue Website-Chats wurden pausiert"
     }
   },
   "theme": {

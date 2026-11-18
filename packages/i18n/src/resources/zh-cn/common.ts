@@ -1453,10 +1453,7 @@ export default {
   },
   "chat": {
     "messageSent": "消息已发送",
-    "sendFailed": "消息发送失败。",
-    "budgetEvent": "聊天的自动回答今天已停止",
-    "waitingEvent": "网站聊天正在等待人工",
-    "pausedEvent": "新的网站聊天已暂停"
+    "sendFailed": "消息发送失败。"
   },
   "templates": {
     "crud": {
@@ -1609,7 +1606,10 @@ export default {
       "ruleNotice": "规则发出的通知",
       "mention": "有人提到了我",
       "formsAnswer": "表单有新回答",
-      "formsLimit": "表单已达到上限"
+      "formsLimit": "表单已达到上限",
+      "chatBudget": "聊天的自动回答今天已停止",
+      "chatWaiting": "网站聊天正在等待人工",
+      "chatPaused": "新的网站聊天已暂停"
     }
   },
   "theme": {
