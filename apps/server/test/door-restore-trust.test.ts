@@ -338,6 +338,14 @@ describe.each(META_ENGINES)('a door package across a redeploy — $name', (engin
       expect(await vouched(installed)).toBe(false);
     });
 
+    it.skipIf(!engine.available)('is not served when its pin is left but its files are gone: that is drift too', async () => {
+      const installed = await installFromCatalogue(formsAddOn(), '1.0.0');
+      await copies.keep(installed);
+      await rm(store.dirFor('forms', '1.0.0'), { recursive: true, force: true });
+      expect(await store.versions('forms')).toEqual([]);
+      expect(await vouched(installed)).toBe(false);
+    });
+
     it.skipIf(!engine.available)('is not served when a file inside its tree is missing', async () => {
       const installed = await installFromCatalogue(formsAddOn(), '1.0.0');
       await copies.keep(installed);
