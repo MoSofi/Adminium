@@ -225,6 +225,10 @@ describe('the website loader: a chat', () => {
     message({ type: 'adminium:close' }, ORIGIN, win);
     expect(document.documentElement.style.overflow).toBe('auto');
     expect(document.activeElement).toBe(frame);
+    // Focus already in the frame stays where the chat put it: the frame is not focused again.
+    const focus = vi.spyOn(frame, 'focus');
+    message({ type: 'adminium:close' }, ORIGIN, win);
+    expect(focus).not.toHaveBeenCalled();
   });
 
   it('lets the site open and close its chat, and keeps how many replies came while it was closed', () => {

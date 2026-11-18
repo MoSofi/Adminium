@@ -152,7 +152,8 @@
       } else if (data.type === 'adminium:open') hold(data.sheet === true);
       else if (data.type === 'adminium:close') {
         hold(false);
-        frame.focus();
+        // Back to the frame, unless it holds focus already (the chat then gave it to its launcher).
+        if (d.activeElement !== frame) frame.focus();
       } else if (data.type === 'adminium:unread' && typeof data.n === 'number') api.chat.unread = data.n;
     });
     w.addEventListener('resize', function () {
