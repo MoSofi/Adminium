@@ -116,10 +116,10 @@ function sourceLabel(source: Pick<FoundSource, 'kind' | 'label' | 'app'>): strin
       return t('studio:privacy.person.kind.invitations', 'Survey invitations');
     case 'form-files':
       return t('studio:privacy.person.kind.answerFiles', 'Files sent with form answers');
+    // A chat's tables always come with their own label: their words here are a floor, never met.
     case 'people':
     case 'copy':
     case 'outbox':
-    // A chat's tables always come with their own label: these words are a floor, never met.
     case 'chat-conversations':
     case 'chat-messages':
     case 'chat-choices':

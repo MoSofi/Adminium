@@ -128994,7 +128994,10 @@
                                   "files",
                                   "form-answers",
                                   "form-invitations",
-                                  "form-files"
+                                  "form-files",
+                                  "chat-conversations",
+                                  "chat-messages",
+                                  "chat-choices"
                                 ]
                               },
                               "group": {
@@ -129669,7 +129672,8 @@
                                   "files",
                                   "form-answers",
                                   "form-invitations",
-                                  "form-files"
+                                  "form-files",
+                                  "chat-conversations"
                                 ]
                               },
                               "count": {
@@ -173532,6 +173536,1805 @@
                   "required": [
                     "overrides",
                     "pages"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/{addOn}/ai": {
+      "get": {
+        "summary": "What a website chat's automatic answers can do here",
+        "tags": [
+          "chat"
+        ],
+        "description": "Whether the automatic answerer can call an AI service on this server, the service's name and the sentence shown beside the switch, and today's spent and reserved tokens. For a signed-in person who may read the chat's settings.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "install",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "path",
+            "name": "addOn",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "usable": {
+                          "type": "boolean"
+                        },
+                        "refusal": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "no-provider",
+                                "network-disabled",
+                                "off-here"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "service": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "provider": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "provider",
+                                "name"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "notice": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "today": {
+                          "type": "object",
+                          "properties": {
+                            "day": {
+                              "type": "string"
+                            },
+                            "spent": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "reserved": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "limit": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "day",
+                            "spent",
+                            "reserved",
+                            "limit"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "usable",
+                        "refusal",
+                        "service",
+                        "notice",
+                        "today"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/{addOn}/ai/try": {
+      "post": {
+        "summary": "Try a question on a website chat's automatic answers",
+        "tags": [
+          "chat"
+        ],
+        "description": "Runs the real automatic answerer on one typed question, counted against the chat's tokens for today, and says which answer a visitor would get, or that the chat would go to a person. For a signed-in person who may change the chat's answers or settings.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "question": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "question"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "install",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "path",
+            "name": "addOn",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "answerRef": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "outcome": {
+                          "type": "string",
+                          "enum": [
+                            "answered",
+                            "hand-over",
+                            "error",
+                            "budget",
+                            "cap",
+                            "off"
+                          ]
+                        },
+                        "tokensIn": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "tokensOut": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "answerRef",
+                        "outcome",
+                        "tokensIn",
+                        "tokensOut"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/{addOn}/conversations/{id}/presence": {
+      "get": {
+        "summary": "Whether a website chat's visitor is on the page",
+        "tags": [
+          "chat"
+        ],
+        "description": "On the page (a heartbeat in the last 3 minutes) or left, the last heartbeat, and whether a reply would also be mailed once the visitor is gone, with the reason when not. A staff read: the conversation counts as opened, and a visitor gone 3 minutes gets their \"left\" line, dated at their last heartbeat.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "install",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "path",
+            "name": "addOn",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,20}$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "presence": {
+                          "type": "string",
+                          "enum": [
+                            "on-page",
+                            "left"
+                          ]
+                        },
+                        "lastVisitorAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "outsideHours": {
+                          "type": "boolean"
+                        },
+                        "mail": {
+                          "type": "object",
+                          "properties": {
+                            "ready": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "no-public-origin",
+                                    "no-mail-server",
+                                    "cap",
+                                    "no-email",
+                                    "sample"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "used": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "max": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "ready",
+                            "reason",
+                            "used",
+                            "max"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "conversation": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "bot",
+                                "waiting",
+                                "open",
+                                "closed"
+                              ]
+                            },
+                            "outsideHours": {
+                              "type": "boolean"
+                            },
+                            "takenBy": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "firstName": {
+                                      "type": "string"
+                                    },
+                                    "initials": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name",
+                                    "firstName",
+                                    "initials"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "takenAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "lastVisitorAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "lastStaffAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "closedAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "became": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "table": {
+                                      "type": "string"
+                                    },
+                                    "key": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "table",
+                                    "key"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "state",
+                            "outsideHours",
+                            "takenBy",
+                            "takenAt",
+                            "lastVisitorAt",
+                            "lastStaffAt",
+                            "closedAt",
+                            "became"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "presence",
+                        "lastVisitorAt",
+                        "outsideHours",
+                        "mail",
+                        "conversation"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/{addOn}/conversations/{id}/take": {
+      "post": {
+        "summary": "Take a website chat",
+        "tags": [
+          "chat"
+        ],
+        "description": "The chat is the signed-in person's to answer, with a line the visitor sees. Someone else answering it is a 409 naming them, unless `force`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "force": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "install",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "path",
+            "name": "addOn",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,20}$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "bot",
+                            "waiting",
+                            "open",
+                            "closed"
+                          ]
+                        },
+                        "outsideHours": {
+                          "type": "boolean"
+                        },
+                        "takenBy": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "firstName": {
+                                  "type": "string"
+                                },
+                                "initials": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "firstName",
+                                "initials"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "takenAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "lastVisitorAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "lastStaffAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "closedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "became": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "table": {
+                                  "type": "string"
+                                },
+                                "key": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "table",
+                                "key"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "state",
+                        "outsideHours",
+                        "takenBy",
+                        "takenAt",
+                        "lastVisitorAt",
+                        "lastStaffAt",
+                        "closedAt",
+                        "became"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/{addOn}/conversations/{id}/reply": {
+      "post": {
+        "summary": "Reply in a website chat",
+        "tags": [
+          "chat"
+        ],
+        "description": "A staff reply (1 to 2,000 characters). A waiting chat is taken first. When the visitor left the page or the chat came outside hours, and they gave an e-mail address, the reply is also mailed: the business's name and the reply only. The answer says whether, and why not.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 8000
+                  },
+                  "drafted": {
+                    "type": "boolean"
+                  },
+                  "force": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "body"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "install",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "path",
+            "name": "addOn",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,20}$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "visitor",
+                                "staff",
+                                "automatic",
+                                "system"
+                              ]
+                            },
+                            "body": {
+                              "type": "string"
+                            },
+                            "event": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "authorId": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "drafted": {
+                              "type": "boolean"
+                            },
+                            "sentAt": {
+                              "type": "string"
+                            },
+                            "mailedAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "kind",
+                            "body",
+                            "event",
+                            "authorId",
+                            "drafted",
+                            "sentAt",
+                            "mailedAt"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "conversation": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "bot",
+                                "waiting",
+                                "open",
+                                "closed"
+                              ]
+                            },
+                            "outsideHours": {
+                              "type": "boolean"
+                            },
+                            "takenBy": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "firstName": {
+                                      "type": "string"
+                                    },
+                                    "initials": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name",
+                                    "firstName",
+                                    "initials"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "takenAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "lastVisitorAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "lastStaffAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "closedAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "became": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "table": {
+                                      "type": "string"
+                                    },
+                                    "key": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "table",
+                                    "key"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "state",
+                            "outsideHours",
+                            "takenBy",
+                            "takenAt",
+                            "lastVisitorAt",
+                            "lastStaffAt",
+                            "closedAt",
+                            "became"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "presence": {
+                          "type": "string",
+                          "enum": [
+                            "on-page",
+                            "left"
+                          ]
+                        },
+                        "mailed": {
+                          "type": "boolean"
+                        },
+                        "reason": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "no-public-origin",
+                                "no-mail-server",
+                                "cap",
+                                "no-email",
+                                "sample"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "message",
+                        "conversation",
+                        "presence",
+                        "mailed",
+                        "reason"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/{addOn}/conversations/{id}/close": {
+      "post": {
+        "summary": "Close a website chat",
+        "tags": [
+          "chat"
+        ],
+        "description": "Closed, with a line naming who closed it. The visitor reads it, and writes no more.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {}
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "install",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "path",
+            "name": "addOn",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,20}$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "bot",
+                            "waiting",
+                            "open",
+                            "closed"
+                          ]
+                        },
+                        "outsideHours": {
+                          "type": "boolean"
+                        },
+                        "takenBy": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "firstName": {
+                                  "type": "string"
+                                },
+                                "initials": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "firstName",
+                                "initials"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "takenAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "lastVisitorAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "lastStaffAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "closedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "became": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "table": {
+                                  "type": "string"
+                                },
+                                "key": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "table",
+                                "key"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "state",
+                        "outsideHours",
+                        "takenBy",
+                        "takenAt",
+                        "lastVisitorAt",
+                        "lastStaffAt",
+                        "closedAt",
+                        "became"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/{addOn}/conversations/{id}/reopen": {
+      "post": {
+        "summary": "Reopen a website chat",
+        "tags": [
+          "chat"
+        ],
+        "description": "A closed chat open again, the reopener's to answer, with a line naming them. The visitor's window may write again.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {}
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "install",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "path",
+            "name": "addOn",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,20}$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "bot",
+                            "waiting",
+                            "open",
+                            "closed"
+                          ]
+                        },
+                        "outsideHours": {
+                          "type": "boolean"
+                        },
+                        "takenBy": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "firstName": {
+                                  "type": "string"
+                                },
+                                "initials": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "firstName",
+                                "initials"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "takenAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "lastVisitorAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "lastStaffAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "closedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "became": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "table": {
+                                  "type": "string"
+                                },
+                                "key": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "table",
+                                "key"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "state",
+                        "outsideHours",
+                        "takenBy",
+                        "takenAt",
+                        "lastVisitorAt",
+                        "lastStaffAt",
+                        "closedAt",
+                        "became"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/{addOn}/conversations/{id}/enquiry": {
+      "post": {
+        "summary": "Make an enquiry from a website chat",
+        "tags": [
+          "chat"
+        ],
+        "description": "A new row in the table an app opens to the chat, made by the dashboard's own create as the signed-in person (their own create right and every rule of the table), filled with the chat's name, e-mail and first message and the entry's own defaults, never a consent. The chat is linked to it. 409 when no app opens a table to the chat, or the chat became a row already.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {}
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "install",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "path",
+            "name": "addOn",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,20}$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "became": {
+                          "type": "object",
+                          "properties": {
+                            "connectionId": {
+                              "type": "string"
+                            },
+                            "tableId": {
+                              "type": "string"
+                            },
+                            "table": {
+                              "type": "string"
+                            },
+                            "key": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "connectionId",
+                            "tableId",
+                            "table",
+                            "key"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "conversation": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "bot",
+                                "waiting",
+                                "open",
+                                "closed"
+                              ]
+                            },
+                            "outsideHours": {
+                              "type": "boolean"
+                            },
+                            "takenBy": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "firstName": {
+                                      "type": "string"
+                                    },
+                                    "initials": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name",
+                                    "firstName",
+                                    "initials"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "takenAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "lastVisitorAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "lastStaffAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "closedAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "became": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "table": {
+                                      "type": "string"
+                                    },
+                                    "key": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "table",
+                                    "key"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "state",
+                            "outsideHours",
+                            "takenBy",
+                            "takenAt",
+                            "lastVisitorAt",
+                            "lastStaffAt",
+                            "closedAt",
+                            "became"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "became",
+                        "conversation"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/{addOn}/conversations/{id}/draft": {
+      "post": {
+        "summary": "Draft a reply in a website chat with Milo",
+        "tags": [
+          "chat"
+        ],
+        "description": "One call to the AI service the chat's first line names, on the person's own daily Milo allowance, with the conversation and the active answers only: no tools, no rows. It answers a draft to read and change; it never sends. While the chat's Milo drafting is on, for someone who may use Milo.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {}
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "install",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "path",
+            "name": "addOn",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,20}$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "draft": {
+                          "type": "string"
+                        },
+                        "tokens": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "draft",
+                        "tokens"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/{addOn}/pause": {
+      "get": {
+        "summary": "Whether new website chats are paused",
+        "tags": [
+          "chat"
+        ],
+        "description": "Until when the breaker holds new chats back (null: they are open). For someone who may read the chat's settings.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "install",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "path",
+            "name": "addOn",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "pausedUntil": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "pausedUntil"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/{addOn}/resume": {
+      "post": {
+        "summary": "Resume new website chats",
+        "tags": [
+          "chat"
+        ],
+        "description": "New visitors may start chats again before the breaker's pause is over. For someone who may change the chat's settings. `resumed` is false when nothing was paused.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {}
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "install",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "path",
+            "name": "addOn",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "resumed": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "resumed"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
                   ],
                   "additionalProperties": false
                 }
