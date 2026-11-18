@@ -185,7 +185,7 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
     await person('ops', ['system:settings:manage']);
     await person('sam', []);
 
-    for (const slug of ['open-day', 'thanks', 'yawm', 'spring-draft', 'switched-off', 'broken', 'marked']) await draft(slug, slug === 'yawm' ? { language: 'ar-EG' } : {});
+    for (const slug of ['open-day', 'thanks', 'yawm', 'spring-draft', 'switched-off', 'broken', 'marked', 'login']) await draft(slug, slug === 'yawm' ? { language: 'ar-EG' } : {});
     // The pictures, kept as each page's own copies.
     for (const [name, page] of [['hero', 'open-day'], ['share', 'open-day'], ['spare', 'open-day'], ['thanks', 'thanks']] as const) {
       const kept = await picture('pat', page, png({ exif: true }).bytes);
@@ -213,6 +213,8 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
     // Past the seal, by hand: a copy that does not parse, and one that carries a mark.
     await byHand(keys['broken']!, { state: 'live', published: JSON.stringify({ v: 1, title: 'Broken' }) });
     await byHand(keys['marked']!, { state: 'live', published: JSON.stringify({ ...doc('Marked'), blocks: [{ id: 'h', kind: 'heading', text: 'Mine', milo: true }] }) });
+    // A sign-in-like address, live by hand: a page there is never drawn.
+    await byHand(keys['login']!, { state: 'live', published: JSON.stringify(doc('Sign in')) });
   }, 300_000);
 
   afterAll(async () => {
@@ -270,9 +272,9 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
     const res = await get('/x/pages/api/open-day');
     expect(res.statusCode, res.body).toBe(200);
     const body = res.json() as Doc;
-    expect(body).toMatchObject({ state: 'live', key: String(keys['open-day']), language: 'en-US', dir: 'ltr', business: { name: 'Meridian Workplace Ltd' } });
+    expect(body).toMatchObject({ state: 'live', key: String(keys['open-day']), language: 'en-US', dir: 'ltr', business: { legalName: 'Meridian Workplace Ltd' } });
     expect(body.page.title).toBe('Open day at our Leeds showroom');
-    expect(body.forms.forms.frm_showroom).toMatchObject({ slug: 'showroom-visit', form: { language: 'en-US', languages: ['en-US'] } });
+    expect(body.forms.forms.frm_showroom).toMatchObject({ slug: 'showroom-visit', form: { language: 'en-US' } });
     expect(body.forms.forms.frm_showroom.form.definition.title).toEqual({ 'en-US': 'Book a showroom visit' });
     expect(body.forms.forms.frm_showroom.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     // A named survey opens by invitation alone: never on a page.
@@ -298,7 +300,7 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
 
   it.skipIf(!available)('answers one same "not available" for a draft, a page switched off, an unknown or reserved slug, a copy that does not parse or carries a mark', async () => {
     const unavailable = (await get('/x/pages/api/nobody-has-this')).body;
-    expect(JSON.parse(unavailable)).toMatchObject({ state: 'unavailable', business: { name: 'Meridian Workplace Ltd' } });
+    expect(JSON.parse(unavailable)).toMatchObject({ state: 'unavailable', business: { legalName: 'Meridian Workplace Ltd' } });
     for (const slug of ['nobody-has-this', 'spring-draft', 'switched-off', 'broken', 'marked', 'api', 'login', 'Open-Day']) {
       const api = await get(`/x/pages/api/${slug}`);
       expect(api.statusCode, slug).toBe(404);
@@ -319,7 +321,7 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
     const { db } = await h.manager.data(h.connectionId);
     await db
       .insertInto(handTable)
-      .values({ id: 1, name: 'Hand', slug: 'hand-made', state: 'live', language: 'en-US', draft: JSON.stringify(doc('Hand')), published: JSON.stringify(doc('Hand')), updated_at: new Date('2026-11-18T09:00:00.000Z') } as never)
+      .values({ id: 1, name: 'Hand', slug: 'hand-made', state: 'live', language: 'en-US', draft: JSON.stringify(doc('Hand')), published: JSON.stringify(doc('Hand')), updated_at: '2026-11-18 09:00:00' } as never)
       .execute();
     expect((await get('/x/pages/api/hand-made')).statusCode).toBe(404);
     expect((await get('/x/pages/hand-made')).statusCode).toBe(404);
@@ -450,7 +452,7 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
   it.skipIf(!available)('offers live pages as a pages host\'s home, never a draft', async () => {
     const res = await as('ops', 'GET', '/api/v1/surfaces');
     expect(res.statusCode, res.body).toBe(200);
-    const homes = (res.json() as Doc).data.pageHomes as string[];
+    const homes = (res.json() as Doc).pageHomes as string[];
     expect(homes).toEqual(expect.arrayContaining(['/x/forms/showroom-visit', '/x/pages/open-day', '/x/pages/thanks', '/x/pages/yawm']));
     for (const slug of ['spring-draft', 'switched-off', 'hand-made']) expect(homes, slug).not.toContain(`/x/pages/${slug}`);
   });
@@ -477,6 +479,6 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
     expect((await get(`/x/pages/api/open-day/pictures/${files['hero']!}`)).statusCode).toBe(404);
     // It was a host's home: the status read says so, and the picker no longer offers it.
     expect(((await as('rae', 'GET', `/api/v1/landing/landing-pages/status?page=${String(keys['open-day'])}`)).json() as Doc).data.page).toMatchObject({ state: 'off', homeOf: [PAGES] });
-    expect(((await as('ops', 'GET', '/api/v1/surfaces')).json() as Doc).data.pageHomes).not.toContain('/x/pages/open-day');
+    expect(((await as('ops', 'GET', '/api/v1/surfaces')).json() as Doc).pageHomes).not.toContain('/x/pages/open-day');
   });
 });

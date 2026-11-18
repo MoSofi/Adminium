@@ -245,11 +245,12 @@ export function createLandingCatalog(deps: LandingCatalogDeps) {
     return null;
   }
 
-  /** The live pages, for a screen that lists their addresses (no cache: staff ask rarely). */
+  /** The live pages a stranger is served, for a screen that lists their addresses (no cache: staff ask rarely). */
   async function liveSlugs(): Promise<{ addOn: string; slug: string; key: string }[]> {
     const out: { addOn: string; slug: string; key: string }[] = [];
     for (const addOn of await landingAddOns()) {
-      if (!addOn.on) continue;
+      // A page of an add-on switched off, or of a package nobody vouches for, is served to nobody: no host's home either.
+      if (!addOn.on || !(await deps.vouched({ key: addOn.addOn, version: addOn.version, manifest: addOn.manifest }))) continue;
       for (const page of await livePagesOf(addOn)) out.push({ addOn: addOn.addOn, ...page });
     }
     return out;

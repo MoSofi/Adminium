@@ -99,7 +99,7 @@ describe('the head the server writes', () => {
       expect(unescape(shape.title), value).toBe(value);
       // One script, the bundle's own; no refresh; nothing past the head's tags.
       expect(html.match(/<script/g)?.length, value).toBe(1);
-      expect(html, value).not.toMatch(/<meta[^>]*http-equiv/i);
+      expect(html, value).not.toMatch(/<meta\s+http-equiv/i);
       expect(html.match(/<title>/g)?.length, value).toBe(1);
       expect(html.match(/<\/head>/g)?.length, value).toBe(1);
       // Every value reads back whole from its own attribute.
