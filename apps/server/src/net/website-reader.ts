@@ -27,42 +27,14 @@
 import { isIP } from 'node:net';
 
 import type { TrialPolicy } from '../trial/policy.js';
-import { decodePage, extractPage } from './extract.js';
+import { decodePage, extractPage, type WebsitePage } from './extract.js';
 import { createRobotsCache, parseRobots, robotsAllows, ROBOTS_MAX_BYTES, type RobotsCache, type RobotsRules } from './robots.js';
 import { pin, safeFetch, SafeFetchError, type SafeFetchOptions, type SafeResponse } from './safe-fetch.js';
 
-// ── the facts it gives (the shapes of the `lead-source@1` contract's `CompanyFacts` and `WebsitePage`) ──────────
+// ── the facts it gives ──────────────────────────────────────────────────────
 
-/** What a source knows of a company, every field optional. */
-export interface CompanyFacts {
-  name?: string;
-  number?: string;
-  website?: string;
-  phone?: string;
-  address?: { lines?: string; town?: string; region?: string; postalCode?: string; country?: string };
-  activity?: { code?: string; label?: string };
-  about?: string;
-  /** https only. */
-  sourceUrl?: string;
-}
-
-/** One page of a company's site, as facts. */
-export interface WebsitePage {
-  /** The address read first. */
-  url: string;
-  /** The address the page came from, after redirects within the site. */
-  finalUrl: string;
-  name?: string;
-  /** The site's own meta description, never the page's prose. */
-  about?: string;
-  /** JSON-LD `Organization` / `LocalBusiness` blocks, mapped; at most 5. */
-  jsonLd: CompanyFacts[];
-  /** Generic addresses only (`info@`, `contact@` …). */
-  emails: string[];
-  /** Switchboard numbers only, never a mobile; at most 2. */
-  phones: string[];
-  address?: CompanyFacts['address'];
-}
+// The shapes of the `lead-source@1` contract's `CompanyFacts` and `WebsitePage`, kept beside the extraction that fills them.
+export type { CompanyFacts, WebsitePage } from './extract.js';
 
 export type WebsiteReadOutcome =
   | { outcome: 'read'; page: WebsitePage }

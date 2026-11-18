@@ -22,7 +22,39 @@ import { parse } from 'parse5';
 
 import { plainWords } from '../designer/untrusted.js';
 import { attrOf, HTML_NS, isElement, type Element, type Node } from '../designer/site/dom.js';
-import type { CompanyFacts, WebsitePage } from './website-reader.js';
+
+// ── the facts it gives (the shapes of the `lead-source@1` contract's `CompanyFacts` and `WebsitePage`) ──────
+
+/** What a source knows of a company, every field optional. */
+export interface CompanyFacts {
+  name?: string;
+  number?: string;
+  website?: string;
+  phone?: string;
+  address?: { lines?: string; town?: string; region?: string; postalCode?: string; country?: string };
+  activity?: { code?: string; label?: string };
+  about?: string;
+  /** https only. */
+  sourceUrl?: string;
+}
+
+/** One page of a company's site, as facts. */
+export interface WebsitePage {
+  /** The address read first. */
+  url: string;
+  /** The address the page came from, after redirects within the site. */
+  finalUrl: string;
+  name?: string;
+  /** The site's own meta description, never the page's prose. */
+  about?: string;
+  /** JSON-LD `Organization` / `LocalBusiness` blocks, mapped; at most 5. */
+  jsonLd: CompanyFacts[];
+  /** Generic addresses only (`info@`, `contact@` …). */
+  emails: string[];
+  /** Switchboard numbers only, never a mobile; at most 2. */
+  phones: string[];
+  address?: CompanyFacts['address'];
+}
 
 /** The local parts kept: an address for a company's front desk, never a person's. Compared in lower case. */
 export const GENERIC_LOCAL_PARTS: readonly string[] = [
