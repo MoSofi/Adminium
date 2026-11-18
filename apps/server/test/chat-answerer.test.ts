@@ -13,9 +13,13 @@
  *    read);
  *  - budget 0, no AI service, a refused one, an answerer switched off here
  *    and a chat with no answer make no call (`off`); the sixth automatic
- *    answer still answers and the seventh is `cap`; the 21st conversation
- *    from one address in a day is `cap`; the reservation that would pass the
- *    day's limit is `budget`, with no call;
+ *    answer still answers and the seventh is `cap`; the 21st new
+ *    conversation from one address in three hours is `cap`, and three hours
+ *    on it is not; an address past a fifth of the day's tokens is `budget`
+ *    for that address alone; the reservation that would pass the day's
+ *    limit is `budget`, with no call;
+ *  - an address note holds no conversation, and nothing older than three
+ *    hours is counted or kept past the next note;
  *  - the day's tally counts what the provider said was spent, and nothing for
  *    a call that never reached a model;
  *  - the budget alert goes once a day, and only before 18:00 UTC;
@@ -28,7 +32,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   CHAT_ANSWER_MAX_TOKENS,
-  CHAT_PER_ADDRESS_DAY,
+  CHAT_ADDRESS_SHARE,
+  CHAT_PER_ADDRESS,
   chatAiOffHere,
   createChatAnswerer,
   readChatReply,
@@ -290,19 +295,50 @@ describe.each(META_ENGINES.map((engine) => [engine.name, engine] as const))('the
     expect(t.rows.map((row) => row.outcome)).toEqual(['answered', 'cap']);
   });
 
-  it.skipIf(!engine.available)('the 21st conversation from one address in a day is cap; its first 20 go on answering', async () => {
+  it.skipIf(!engine.available)('the 21st new conversation from one address in three hours is cap; its first 20 go on answering; three hours on it is not', async () => {
     const t = setup(() => '{"answer":"delivery"}');
-    for (let c = 1; c <= CHAT_PER_ADDRESS_DAY; c += 1) expect(await t.answerer.pick(t.input({ conversationId: c }))).toEqual({ kind: 'answer', ref: 'delivery' });
-    expect(await t.answerer.pick(t.input({ conversationId: CHAT_PER_ADDRESS_DAY + 1 }))).toEqual({ kind: 'hand-over', outcome: 'cap' });
-    expect(t.requests).toHaveLength(CHAT_PER_ADDRESS_DAY);
-    // One of the 20 asks again: still answered. Another address: answered.
+    for (let c = 1; c <= CHAT_PER_ADDRESS; c += 1) expect(await t.answerer.pick(t.input({ conversationId: c }))).toEqual({ kind: 'answer', ref: 'delivery' });
+    expect(await t.answerer.pick(t.input({ conversationId: CHAT_PER_ADDRESS + 1 }))).toEqual({ kind: 'hand-over', outcome: 'cap' });
+    expect(t.requests).toHaveLength(CHAT_PER_ADDRESS);
+    // One of the 20 asks again, with or without an automatic answer yet: still answered. Another address: answered.
     expect(await t.answerer.pick(t.input({ conversationId: 3 }))).toEqual({ kind: 'answer', ref: 'delivery' });
-    expect(await t.answerer.pick(t.input({ conversationId: CHAT_PER_ADDRESS_DAY + 1, addressHash: 'chat-ip:bbbb' }))).toEqual({ kind: 'answer', ref: 'delivery' });
+    expect(await t.answerer.pick(t.input({ conversationId: 4, automaticCount: 1 }))).toEqual({ kind: 'answer', ref: 'delivery' });
+    expect(await t.answerer.pick(t.input({ conversationId: CHAT_PER_ADDRESS + 1, addressHash: 'chat-ip:bbbb' }))).toEqual({ kind: 'answer', ref: 'delivery' });
     // The refused conversation was not noted: it is still the 21st, still cap.
-    expect(await t.answerer.pick(t.input({ conversationId: CHAT_PER_ADDRESS_DAY + 2 }))).toEqual({ kind: 'hand-over', outcome: 'cap' });
-    // The next UTC day starts again.
-    t.setNow(MORNING + 86_400_000);
-    expect(await t.answerer.pick(t.input({ conversationId: CHAT_PER_ADDRESS_DAY + 2 }))).toEqual({ kind: 'answer', ref: 'delivery' });
+    expect(await t.answerer.pick(t.input({ conversationId: CHAT_PER_ADDRESS + 2 }))).toEqual({ kind: 'hand-over', outcome: 'cap' });
+    // Three hours on, the notes before are never counted.
+    t.setNow(MORNING + 3 * 3_600_000 + 1);
+    expect(await t.answerer.pick(t.input({ conversationId: CHAT_PER_ADDRESS + 2 }))).toEqual({ kind: 'answer', ref: 'delivery' });
+  });
+
+  it.skipIf(!engine.available)('an address note holds no conversation and no address; a note past three hours goes with the next one', async () => {
+    const t = setup(() => '{"answer":"delivery"}');
+    const hash = `chat-ai:${String(n)}`;
+    await t.answerer.pick(t.input({ conversationId: 41, addressHash: hash }));
+    const notes = await meta.db.selectFrom('adminium_chat_ai_addresses').selectAll().where('addressHash', '=', hash).execute();
+    expect(notes).toHaveLength(1);
+    expect(Object.keys(notes[0]!).sort()).toEqual(['addOn', 'addressHash', 'createdAt', 'first', 'id', 'installId', 'tokens']);
+    // Three hours and more on, another address's call deletes it.
+    t.setNow(MORNING + 3 * 3_600_000 + 1);
+    await t.answerer.pick(t.input({ conversationId: 42, addressHash: `${hash}:other` }));
+    expect(await meta.db.selectFrom('adminium_chat_ai_addresses').selectAll().where('addressHash', '=', hash).execute()).toEqual([]);
+  });
+
+  it.skipIf(!engine.available)('an address past a fifth of the day’s tokens is budget for that address alone, and nobody is alerted', async () => {
+    const t = setup(() => ({ text: '{"answer":"delivery"}', usage: { inputTokens: 1500, outputTokens: 5 } }));
+    const daily = 10_000;
+    expect(Math.floor(daily * CHAT_ADDRESS_SHARE)).toBe(2000);
+    // Two calls: the first leaves 1,505 spent (under a fifth), the second passes it.
+    expect(await t.answerer.pick(t.input({ dailyTokens: daily, conversationId: 1 }))).toEqual({ kind: 'answer', ref: 'delivery' });
+    expect(await t.answerer.pick(t.input({ dailyTokens: daily, conversationId: 1, automaticCount: 1 }))).toEqual({ kind: 'answer', ref: 'delivery' });
+    // Past its share: handed over as budget, with no call; the day still has tokens for everyone else.
+    expect(await t.answerer.pick(t.input({ dailyTokens: daily, conversationId: 2 }))).toEqual({ kind: 'hand-over', outcome: 'budget' });
+    expect(t.requests).toHaveLength(2);
+    expect(await t.answerer.pick(t.input({ dailyTokens: daily, conversationId: 3, addressHash: 'chat-ip:cccc' }))).toEqual({ kind: 'answer', ref: 'delivery' });
+    expect(await t.day()).toMatchObject({ spent: 3 * 1505, reserved: 0 });
+    // Three hours on, the address's share starts again.
+    t.setNow(MORNING + 3 * 3_600_000 + 1);
+    expect(await t.answerer.pick(t.input({ dailyTokens: daily, conversationId: 4 }))).toEqual({ kind: 'answer', ref: 'delivery' });
   });
 
   it.skipIf(!engine.available)('the reservation that would pass the day\'s limit is budget, with no call', async () => {
@@ -317,7 +353,7 @@ describe.each(META_ENGINES.map((engine) => [engine.name, engine] as const))('the
     expect(t.rows.map((row) => row.outcome)).toEqual(['budget', 'answered', 'budget']);
     expect(await t.day()).toMatchObject({ spent: 305, reserved: 0 });
     // A conversation refused for the budget was not counted against its address.
-    expect(await chatAiTallyRepo(meta).addressConversations({ installId: t.installId, addOn: 'live-chat', day: '2026-11-18' }, 'chat-ip:aaaa')).toBe(1);
+    expect((await chatAiTallyRepo(meta).addressUse({ installId: t.installId, addOn: 'live-chat' }, 'chat-ip:aaaa', MORNING)).conversations).toBe(1);
   });
 
   it.skipIf(!engine.available)('the budget alert goes once a day, and only before 18:00 UTC', async () => {

@@ -38,6 +38,8 @@ import { isAddOnManifest, validateManifest } from '@adminium/manifest';
 import {
   documentProfilesRepo,
   addOnSettingsRepo,
+  CHAT_AI_ADDRESS_KEEP_MS,
+  chatAiTallyRepo,
   connectionTenantConfig,
   auditRepo,
   automationRunsRepo,
@@ -569,6 +571,10 @@ export const FORM_ANSWERS_SWEEP_CRON = '45 3 * * *';
 /** Daily: a chat add-on's conversations whose last message is older than its keeping time, with their messages and choices (`chat/transcripts.ts`). */
 export const CHAT_TRANSCRIPTS_SWEEP_NAME = 'chat-transcripts-sweep';
 export const CHAT_TRANSCRIPTS_SWEEP_CRON = '50 3 * * *';
+
+/** Hourly: the keyed hashes of visitors' network addresses a chat counted, once past their three hours (`chat/caps.ts`, the answerer's notes). */
+export const CHAT_ADDRESS_SWEEP_NAME = 'chat-address-sweep';
+export const CHAT_ADDRESS_SWEEP_CRON = '17 * * * *';
 
 /** Every quarter hour: a stranger's unattached file is kept two hours, and gone within a quarter after. */
 export const PUBLIC_UPLOADS_SWEEP_NAME = 'public-uploads-sweep';
@@ -3687,6 +3693,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     const swept = await sweepChatTranscripts({ meta, manager, forget: (place, id) => chatStore.forget(place, id) });
     if (Object.keys(swept).length > 0) app.log.info({ swept }, 'chat transcripts sweep');
   });
+  // A visitor's address hash is read for three hours and kept no longer: swept every hour, the caps' marks and the answerer's notes.
+  jobs.scheduler.registerSchedule(CHAT_ADDRESS_SWEEP_NAME, CHAT_ADDRESS_SWEEP_CRON, async () => {
+    const at = Date.now();
+    const swept = (await chatCaps.prune(at)) + (await chatAiTallyRepo(meta).pruneAddresses(at - CHAT_AI_ADDRESS_KEEP_MS));
+    if (swept > 0) app.log.info({ swept }, 'chat address sweep');
+  });
   // What staff do in a chat (`chat/staff.ts`): every write through the store.
   const chatStaff = createChatStaff({ meta, secret: env.ADMINIUM_SECRET, store: chatStore, caps: chatCaps, waiting: chatWaiting, logger: app.log });
   // The tables apps open to a chat: where a question left outside hours, and an enquiry made in hours, become a row.
@@ -3741,6 +3753,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     },
     ai: opts.chatSeams?.ai ?? chatAiFrom({ connections: aiConnections, offHere: chatAnswererBase.offHere }),
     answerer: () => opts.chatSeams?.answerer ?? chatAnswerer,
+    // "Came from" keeps a page's path only on one of the business's own listed websites.
+    websites: formsWebsites,
   });
   await app.register(
     chatDoorRoutes({

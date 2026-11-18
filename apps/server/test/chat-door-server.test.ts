@@ -9,9 +9,11 @@
  *   is now; a package nobody vouches for serves no chat; the breaker's pause
  *   hides the chat from a new visitor only.
  * - start: one proof, bound to the chat, spent once; the trap writes nothing;
- *   "came from" keeps the origin and path only.
- * - the token: another install's, a changed one and a lapsed one are refused;
- *   a closed conversation is read, not written; reopened, it writes again.
+ *   "came from" keeps the origin, and the path only on a listed website.
+ * - the token: another server's, another install's, a changed one and a
+ *   lapsed one are refused; a key number handed out again opens nothing; a
+ *   staff reopen does not bring a lapsed token back; a closed conversation
+ *   is read, not written; reopened, it writes again.
  * - polls: only after the cursor, never another conversation's; one with
  *   nothing new reads none of the add-on's tables; the hours ride along.
  * - messages: each staff author's first name and initials, an automatic
@@ -29,21 +31,23 @@ import { join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { formMarksRepo, paymentSettingsRepo, settingsRepo, usersRepo } from '@adminium/meta';
+import { chatAiTallyRepo, formMarksRepo, paymentSettingsRepo, settingsRepo, usersRepo } from '@adminium/meta';
 
 import { chatAddOn } from '../../../packages/manifest/test/chat-fixture.js';
 import { recordDeciderTrust } from '../src/add-ons/decider-trust.js';
 import type { ChatAi } from '../src/chat/ai.js';
 import type { ChatAnswerer, ChatAnswererInput, ChatChoice } from '../src/chat/answering.js';
-import { chatSubject } from '../src/chat/caps.js';
+import { CHAT_ADDRESS_KEEP_MS, chatSubject } from '../src/chat/caps.js';
 import type { LiveChat } from '../src/chat/catalog.js';
 import { chatTokenKey, makeChatToken } from '../src/chat/token.js';
-import { composeServer, type ComposedServer } from '../src/compose.js';
+import { CHAT_ADDRESS_SWEEP_CRON, CHAT_ADDRESS_SWEEP_NAME, composeServer, type ComposedServer } from '../src/compose.js';
+import { readInstant } from '../src/crud/moments.js';
+import { addWebsites } from '../src/forms/websites.js';
 import { encryptSecret } from '../src/config/secrets.js';
 import { emailSecretKey } from '../src/email/config.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
-import { solveProof } from '../src/public-api/proof.js';
+import { PROOF_DIFFICULTY, solveProof } from '../src/public-api/proof.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../src/routes/payments/ways.js';
 import { addOnHarness, type Harness } from './app-add-ons.helpers.js';
 import { makeEnv, TEST_SECRET } from './helpers.js';
@@ -180,6 +184,8 @@ describe.each(LEGS)('the chat door — %s', (dialect, available) => {
     await settings.set('privacy.businessName', 'Meridian Workplace Ltd', { updatedBy: null });
     await settings.set('privacy.noticeUrl', 'https://www.meridian.example/privacy', { updatedBy: null });
     await settings.set('appearance.accent', 'teal', { updatedBy: null });
+    // The business's own website: a "came from" keeps its path only there.
+    expect((await addWebsites(h.meta, ['https://www.meridian.example'], { userId: null, at: Date.now() })).ok).toBe(true);
     await settings.set('email.smtp', { host: '127.0.0.1', port: 9, user: 'postmaster', passEncrypted: encryptSecret('not-a-real-password', emailSecretKey(TEST_SECRET)), from: 'Desk <no-reply@desk.test>', secure: false }, { updatedBy: null });
     await paymentSettingsRepo(h.meta).set(PAY_PAGE_DOC, payPageSchema, { shopName: 'Meridian', logoFileId: null, contactEmail: 'hello@meridian.example', contactPhone: null, shopCountry: 'GB', showLines: false });
     dana = (await usersRepo(h.meta).create({ email: 'dana.whitfield@meridian.example', name: 'Dana Whitfield' })).id;
@@ -289,10 +295,12 @@ describe.each(LEGS)('the chat door — %s', (dialect, available) => {
     expect((await poll((trapped.json() as Doc).token as string)).statusCode).toBe(410);
   });
 
-  it.skipIf(!available)('"came from" keeps the origin and path only; the body is kept as typed, cut to what a person typed', async () => {
+  it.skipIf(!available)('"came from" keeps the origin and path on a listed website, the origin alone elsewhere; the body is kept as typed, cut to what a person typed', async () => {
     const begun = await started('  Two booths?\u0007 ', { cameFrom: 'https://www.meridian.example/showroom?utm_source=mail&email=marta@cobalt.example#top' });
     const row = await conversationRow(String((await rows(`SELECT MAX(id) AS id FROM ${table('live-chat', 'conversations')}`))[0]!['id']));
     expect(row['came_from']).toBe('https://www.meridian.example/showroom');
+    await started('From elsewhere', { cameFrom: 'https://shop.example/account/reset/9f2c4e7a1b?x=1#y' });
+    expect((await conversationRow(String((await rows(`SELECT MAX(id) AS id FROM ${table('live-chat', 'conversations')}`))[0]!['id'])))['came_from']).toBe('https://shop.example');
     expect((begun.messages as Doc[])[0]!.body).toBe('Two booths?');
     expect(JSON.stringify(row)).not.toContain('203.0.113');
     // Too long: refused, nothing written.
@@ -391,22 +399,87 @@ describe.each(LEGS)('the chat door — %s', (dialect, available) => {
     expect(((await poll(a.token as string, read.cursor as string)).json() as Doc).messages.map((one: Doc) => one.event ?? one.body)).toEqual(['reopened', 'Hello again']);
   });
 
-  it.skipIf(!available)('a token from another install, a changed token and a lapsed one are refused', async () => {
+  /** A moment as the conversations table's moment columns take it. */
+  const stamp = (at: number) => {
+    const iso = new Date(at).toISOString();
+    return dialect === 'mysql' ? iso.slice(0, 19).replace('T', ' ') : iso;
+  };
+  const newestId = async () => String((await rows(`SELECT MAX(id) AS id FROM ${table('live-chat', 'conversations')}`))[0]!['id']);
+  /** A token for a conversation as this server would make it, at `issuedAt`, for `installId`. */
+  const tokenOf = async (id: string, issuedAt: number, installId?: string) => {
+    const chat = await chatOf();
+    const conversation = (await composed.chat.store.conversation(chat, id))!;
+    const instance = String((await settingsRepo(h.meta).get('system.instanceId')) ?? '');
+    return makeChatToken(chatTokenKey(TEST_SECRET), instance, { installId: installId ?? chat.installId, addOn: 'live-chat', conversation: id, startedAt: conversation.startedAt, issuedAt });
+  };
+
+  it.skipIf(!available)('a token from another server, a changed token and a lapsed one are refused', async () => {
     const a = await started('Token test');
-    const id = String((await rows(`SELECT MAX(id) AS id FROM ${table('live-chat', 'conversations')}`))[0]!['id']);
-    const elsewhere = makeChatToken(chatTokenKey(TEST_SECRET), 'another-install', { addOn: 'live-chat', conversation: id, issuedAt: Date.now() });
+    const id = await newestId();
+    const conversation = (await composed.chat.store.conversation(await chatOf(), id))!;
+    const elsewhere = makeChatToken(chatTokenKey(TEST_SECRET), 'another-install', { installId: (await chatOf()).installId, addOn: 'live-chat', conversation: id, startedAt: conversation.startedAt, issuedAt: Date.now() });
     expect((await poll(elsewhere)).statusCode).toBe(410);
     expect((await post(elsewhere, { body: 'x' })).statusCode).toBe(410);
     const token = a.token as string;
     const changed = `${token.slice(0, 10)}${token[10] === 'A' ? 'B' : 'A'}${token.slice(11)}`;
     expect((await poll(changed)).statusCode).toBe(410);
-    // A day and more since the last message.
+    // A day and more since the visitor last wrote or polled, and the token made then.
     const { db } = await h.manager.data(h.connectionId);
-    const old = new Date(Date.now() - 25 * 60 * 60_000).toISOString();
-    await db.updateTable(table('live-chat', 'conversations')).set({ last_message_at: dialect === 'mysql' ? old.slice(0, 19).replace('T', ' ') : old } as never).where('id' as never, '=', Number(id) as never).execute();
-    expect((await post(token, { body: 'Still there?' })).statusCode).toBe(410);
+    const old = Date.now() - 25 * 60 * 60_000;
+    await db.updateTable(table('live-chat', 'conversations')).set({ last_message_at: stamp(old), last_visitor_at: stamp(old) } as never).where('id' as never, '=', Number(id) as never).execute();
     composed.chat.store.forget();
-    expect((await poll(token)).statusCode).toBe(410);
+    const lapsed = await tokenOf(id, old);
+    expect((await post(lapsed, { body: 'Still there?' })).statusCode).toBe(410);
+    composed.chat.store.forget();
+    expect((await poll(lapsed)).statusCode).toBe(410);
+  });
+
+  it.skipIf(!available)('a staff reopen does not bring a lapsed token back: the lapse counts from the visitor, never from staff', async () => {
+    await started('Will you answer one day?');
+    const id = await newestId();
+    const chat = await chatOf();
+    const { db } = await h.manager.data(h.connectionId);
+    const old = Date.now() - 25 * 60 * 60_000;
+    await db.updateTable(table('live-chat', 'conversations')).set({ last_visitor_at: stamp(old) } as never).where('id' as never, '=', Number(id) as never).execute();
+    composed.chat.store.forget();
+    const lapsed = await tokenOf(id, old);
+    await composed.chat.store.add(chat, id, { kind: 'system', body: 'The chat was closed.', event: 'closed', authorId: dana }, { state: 'closed', closedAt: Date.now() });
+    await composed.chat.store.add(chat, id, { kind: 'system', body: 'The chat was reopened.', event: 'reopened', authorId: dana }, { state: 'open', takenBy: dana, closedAt: null });
+    await composed.chat.store.add(chat, id, { kind: 'staff', body: 'Sorry for the wait!', authorId: dana });
+    expect((await poll(lapsed)).statusCode).toBe(410);
+    expect((await post(lapsed, { body: 'Thanks!' })).statusCode).toBe(410);
+    expect((await call('POST', '/x/chat/api/live-chat/details', { payload: { token: lapsed, email: 'marta@cobalt.example' } })).statusCode).toBe(410);
+    expect((await conversationRow(id))['email']).toBeNull();
+  });
+
+  it.skipIf(!available)('a token names one conversation: a key number handed out again after a delete opens nothing', async () => {
+    const a = await started('Mine alone');
+    const id = await newestId();
+    const { db } = await h.manager.data(h.connectionId);
+    for (const ref of ['choices', 'messages']) await db.deleteFrom(table('live-chat', ref) as never).where('conversation_id' as never, '=', Number(id) as never).execute();
+    await db.deleteFrom(table('live-chat', 'conversations') as never).where('id' as never, '=', Number(id) as never).execute();
+    composed.chat.store.forget();
+    const b = await started('Someone else’s chat');
+    // SQLite hands the freed number out again; the other engines never do, and A's token is lost on them all the same.
+    if (dialect === 'sqlite') expect(await newestId()).toBe(id);
+    expect((await poll(a.token as string)).statusCode).toBe(410);
+    expect((await post(a.token as string, { body: 'Is this mine?' })).statusCode).toBe(410);
+    expect((await call('POST', '/x/chat/api/live-chat/details', { payload: { token: a.token, email: 'thief@elsewhere.example' } })).statusCode).toBe(410);
+    const theirs = (await poll(b.token as string)).json() as Doc;
+    expect(theirs.messages.map((one: Doc) => one.body)).toEqual(['Someone else’s chat']);
+    expect((await conversationRow(await newestId()))['email']).toBeNull();
+  });
+
+  it.skipIf(!available)('a token for another install of the same add-on is lost here: never read against this install’s rows', async () => {
+    await started('Which install?');
+    const id = await newestId();
+    const other = await tokenOf(id, Date.now(), 'mfs_another_install');
+    expect((await poll(other)).statusCode).toBe(410);
+    expect((await post(other, { body: 'Hello from elsewhere' })).statusCode).toBe(410);
+    expect((await call('POST', '/x/chat/api/live-chat/close', { payload: { token: other } })).statusCode).toBe(410);
+    expect((await conversationRow(id))['state']).not.toBe('closed');
+    // The same token for this install's own conversation reads.
+    expect((await poll(await tokenOf(id, Date.now()))).statusCode).toBe(200);
   });
 
   it.skipIf(!available)('automatic answers: in the visitor’s language when written, else the default language’s, marked; who handed over', async () => {
@@ -469,6 +542,110 @@ describe.each(LEGS)('the chat door — %s', (dialect, available) => {
     expect(saved.statusCode, saved.body).toBe(200);
     expect((saved.json() as Doc).conversation).toMatchObject({ language: 'de-DE' });
     expect(await conversationRow(id)).toMatchObject({ name: 'Marta Kovac', email: 'marta@cobalt.example', language: 'de-DE' });
+  });
+
+  it.skipIf(!available)('details change ten times an hour, then 429 details; a value that changes nothing writes nothing and is not counted', async () => {
+    const a = await started('Details cap');
+    const id = await newestId();
+    const details = (payload: Doc) => call('POST', '/x/chat/api/live-chat/details', { payload: { token: a.token, ...payload } });
+    for (let one = 0; one < 10; one += 1) expect((await details({ email: `marta${String(one)}@cobalt.example` })).statusCode).toBe(200);
+    const refused = await details({ email: 'victim@elsewhere.example' });
+    expect(refused.statusCode).toBe(429);
+    expect(refused.json()).toMatchObject({ state: 'too-many', cap: 'details' });
+    expect(Number(refused.headers['retry-after'])).toBeGreaterThan(0);
+    expect((await conversationRow(id))['email']).toBe('marta9@cobalt.example');
+    // The same address again: nothing to write, so nothing is refused, written or told.
+    const { db } = await h.manager.data(h.connectionId);
+    const old = Date.now() - 10 * 60_000;
+    await db.updateTable(table('live-chat', 'conversations')).set({ last_visitor_at: stamp(old) } as never).where('id' as never, '=', Number(id) as never).execute();
+    const published = vi.spyOn(composed.app.realtime, 'publish');
+    try {
+      const same = await details({ email: 'Marta9@cobalt.example ', language: 'en-US' });
+      expect(same.statusCode, same.body).toBe(200);
+      expect(published).not.toHaveBeenCalled();
+    } finally {
+      published.mockRestore();
+    }
+    expect(readInstant((await conversationRow(id))['last_visitor_at'])!.getTime()).toBeLessThan(Date.now() - 5 * 60_000);
+  });
+
+  it.skipIf(!available)('six automatic answers at most, even for messages sent at once: the rest hand over as cap', async () => {
+    const { db } = await h.manager.data(h.connectionId);
+    const answers = table('live-chat', 'answers');
+    if ((await count(answers, "ref = 'hours'")) === 0) {
+      await db.insertInto(answers).values({ ref: 'hours', versions: JSON.stringify({ 'en-US': { title: 'Hours', text: 'We are open 9 to 5.', examples: [] } }), active: dialect === 'postgres' ? true : 1, position: 1 } as never).execute();
+    }
+    await settle('live-chat', { hours: ALL_DAY, automatic: true, daily_tokens: 5000 });
+    ai = { usable: true, service: 'Anthropic' };
+    try {
+      // An answerer that always answers, whatever the count it was given: the store alone holds the six.
+      pick = () => ({ kind: 'answer', ref: 'hours' });
+      const a = (await start('live-chat', { language: 'en-US', body: 'When are you open?' })).json() as Doc;
+      expect(a.conversation).toMatchObject({ state: 'bot' });
+      const sent = await Promise.all(Array.from({ length: 12 }, (_, n) => post(a.token as string, { body: `Open on day ${String(n)}?` })));
+      for (const one of sent) expect(one.statusCode, one.body).toBe(200);
+      await composed.chat.door.settled();
+      const id = await newestId();
+      expect(await count(table('live-chat', 'messages'), `conversation_id = ${id} AND kind = 'automatic'`)).toBe(6);
+      const row = await conversationRow(id);
+      expect(Number(row['automatic_count'])).toBe(6);
+      expect(row['state']).toBe('waiting');
+      expect(await count(table('live-chat', 'choices'), `conversation_id = ${id} AND outcome = 'cap'`)).toBeGreaterThan(0);
+      expect(await count(table('live-chat', 'messages'), `conversation_id = ${id} AND event = 'handed-over'`)).toBeGreaterThan(0);
+    } finally {
+      ai = { usable: false, service: null };
+      pick = () => ({ kind: 'hand-over', outcome: 'hand-over' });
+      await settle('live-chat', { hours: null, automatic: false, daily_tokens: 0 });
+    }
+  });
+
+  it.skipIf(!available)('a bare start is not counted by the breaker; a second message or the details count it, once', async () => {
+    const counted = async () => Number((await h.meta.db.selectFrom('adminium_form_marks').select((eb) => eb.fn.countAll<number>().as('n')).where('subject', '=', chatSubject('live-chat')).where('purpose', '=', 'chat-start').executeTakeFirst())?.n ?? 0);
+    const before = await counted();
+    const bare = await started('Just one line');
+    expect(await counted()).toBe(before);
+    expect((await post(bare.token as string, { body: 'And a second' })).statusCode).toBe(200);
+    expect(await counted()).toBe(before + 1);
+    expect((await post(bare.token as string, { body: 'And a third' })).statusCode).toBe(200);
+    expect(await call('POST', '/x/chat/api/live-chat/details', { payload: { token: bare.token, name: 'Marta' } }).then((one) => one.statusCode)).toBe(200);
+    expect(await counted()).toBe(before + 1);
+    const named = await started('Another one');
+    expect((await call('POST', '/x/chat/api/live-chat/details', { payload: { token: named.token, email: 'ola@cobalt.example' } })).statusCode).toBe(200);
+    expect(await counted()).toBe(before + 2);
+  });
+
+  it.skipIf(!available)('the challenge asks for more work past half the hour’s starts, and a proof made easier is refused', async () => {
+    const early = await proof('live-chat');
+    const mark = (n: number) => formMarksRepo(h.meta).mark({ subject: chatSubject('live-chat'), purpose: 'chat-begun' }, Date.now() - 1000 - n);
+    const begun = await Promise.all(Array.from({ length: 251 }, (_, n) => mark(n)));
+    try {
+      expect(((await call('POST', '/x/chat/api/live-chat/challenge', { payload: {} })).json() as Doc).difficulty).toBe(PROOF_DIFFICULTY + 2);
+      begun.push(...(await Promise.all(Array.from({ length: 125 }, (_, n) => mark(251 + n)))));
+      expect(((await call('POST', '/x/chat/api/live-chat/challenge', { payload: {} })).json() as Doc).difficulty).toBe(PROOF_DIFFICULTY + 4);
+      // A proof solved at the usual work before the hour filled is two steps short now: refused, nothing written.
+      const conversations = await count(table('live-chat', 'conversations'));
+      expect((await start('live-chat', { body: 'Too easy?' }, { proof: early })).statusCode).toBe(403);
+      expect(await count(table('live-chat', 'conversations'))).toBe(conversations);
+    } finally {
+      await formMarksRepo(h.meta).unmark(begun);
+    }
+    expect(((await call('POST', '/x/chat/api/live-chat/challenge', { payload: {} })).json() as Doc).difficulty).toBe(PROOF_DIFFICULTY);
+  });
+
+  it.skipIf(!available)('the address sweep runs every hour and takes the caps’ marks and the answerer’s notes once past three hours', async () => {
+    expect(composed.jobs.scheduler.names()).toContain(CHAT_ADDRESS_SWEEP_NAME);
+    expect(CHAT_ADDRESS_SWEEP_CRON).toMatch(/^\d{1,2} \* \* \* \*$/);
+    const tally = chatAiTallyRepo(h.meta);
+    const chat = { installId: 'inst-sweep', addOn: 'live-chat' };
+    const old = Date.now() - CHAT_ADDRESS_KEEP_MS - 60_000;
+    await tally.markAddress(chat, 'sweep-fresh', { first: true, tokens: 1 }, Date.now());
+    await tally.markAddress(chat, 'sweep-old', { first: true, tokens: 1 }, old);
+    const mark = await formMarksRepo(h.meta).mark({ subject: 'chat-ip:sweep-old', purpose: 'chat-new' }, old);
+    await composed.jobs.scheduler.trigger(CHAT_ADDRESS_SWEEP_NAME);
+    while ((await composed.jobs.worker.runOnce()) > 0);
+    expect(await h.meta.db.selectFrom('adminium_form_marks').select('id').where('id', '=', mark).execute()).toEqual([]);
+    expect((await tally.addressUse(chat, 'sweep-old', old)).conversations).toBe(0);
+    expect((await tally.addressUse(chat, 'sweep-fresh', Date.now())).conversations).toBe(1);
   });
 
   it.skipIf(!available)('a conversation’s minute trips at 21; another visitor’s messages go on', async () => {

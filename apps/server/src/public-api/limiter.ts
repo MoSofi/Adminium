@@ -439,6 +439,22 @@ export function rateAddress(ip: string): string {
     .join(':')}::/64`;
 }
 
+/**
+ * The wider IPv6 network a client's address sits in, a /56 or a /48, for a
+ * cap that also counts by them (one free tunnel hands out a whole /48, so
+ * counting by the /64 alone lets one person look like 65,536). Null for an
+ * IPv4 client (an IPv4-mapped one included) and anything that is not an
+ * address.
+ */
+export function ipv6Network(ip: string, bits: 48 | 56): string | null {
+  const bare = ip.split('%', 1)[0] as string;
+  if (!isIPv6(bare)) return null;
+  const groups = ipv6Groups(bare);
+  if (groups.slice(0, 5).every((g) => g === 0) && groups[5] === 0xffff) return null;
+  const kept = bits === 48 ? groups.slice(0, 3) : [...groups.slice(0, 3), (groups[3] as number) & 0xff00];
+  return `${kept.map((g) => g.toString(16)).join(':')}::/${String(bits)}`;
+}
+
 /** The eight groups of an address `isIPv6` has already accepted. */
 function ipv6Groups(address: string): number[] {
   let text = address.toLowerCase();

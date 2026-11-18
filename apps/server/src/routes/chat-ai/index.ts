@@ -27,7 +27,6 @@
  */
 import { chatAiDayOf, chatAiTallyRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { createHash } from 'node:crypto';
 import { z } from 'zod';
 
 import { audited } from '../../audit/coverage.js';
@@ -172,7 +171,6 @@ export function chatAiRoutes(deps: ChatAiRoutesDeps): FastifyPluginAsyncZod {
             row = choice;
           },
         });
-        const userId = request.user?.id ?? '';
         await answerer.pick({
           installId: install.installId,
           addOn,
@@ -183,8 +181,8 @@ export function chatAiRoutes(deps: ChatAiRoutesDeps): FastifyPluginAsyncZod {
           answers: install.answers,
           visitorMessages: [request.body.question],
           automaticCount: 0,
-          // A person's tries are one "address": they share one conversation, so they never meet the address cap.
-          addressHash: `chat-try:${createHash('sha256').update(userId).digest('hex')}`,
+          // A signed-in person's try has no network address to count: no address cap or share holds it (the day's tokens do).
+          addressHash: null,
           dailyTokens: install.dailyTokens,
         });
         const made = row as ChatChoiceRow | null;
