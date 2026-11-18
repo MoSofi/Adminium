@@ -481,12 +481,13 @@ export function ChatWindow(props: ChatWindowProps): ReactNode {
           email={session.email}
           saved={session.saved}
           newTab={newTab}
+          waitWords={waitWords}
           onSave={chat.saveDetails}
           onChange={chat.changeDetails}
         />,
       );
     } else if (!waitingLong) {
-      log.push(<HandCard key="hand" mode="info" showText name="" email="" saved={false} newTab={newTab} onSave={chat.saveDetails} onChange={chat.changeDetails} />);
+      log.push(<HandCard key="hand" mode="info" showText name="" email="" saved={false} newTab={newTab} waitWords={waitWords} onSave={chat.saveDetails} onChange={chat.changeDetails} />);
     }
   }
   const awayShown = !conversation && !hoursOpen && session.pending.length === 0;

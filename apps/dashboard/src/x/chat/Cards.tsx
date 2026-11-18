@@ -44,6 +44,8 @@ export function HandCard(props: {
   email: string;
   saved: boolean;
   newTab: string;
+  /** What the door's "too many" asks the visitor to wait, in words. */
+  waitWords: (retryAfter: number | null) => string;
   onSave: (name: string, email: string) => Promise<DetailsResult>;
   onChange: () => void;
 }): ReactNode {
@@ -75,6 +77,7 @@ export function HandCard(props: {
     const result = await props.onSave(n, e);
     setBusy(false);
     if (result === 'saved') setError('');
+    else if (typeof result === 'object' && 'tooMany' in result) setError(props.waitWords(result.tooMany));
     else if (typeof result === 'object') setError(result.field === 'email' ? t('xChat:card.badEmail', 'Enter an e-mail like name@company.example') : t('xChat:card.badName', 'Write your name without a web address.'));
     else setError(t('xChat:status.notSent', 'Not sent.'));
   }

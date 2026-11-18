@@ -495,6 +495,17 @@ describe('the conversation', () => {
     expect(within(panel).getByLabelText('Your name (optional)')).toHaveValue('Marta');
   });
 
+  it('details changed too often in an hour: the card says the wait, as the hour cap does', async () => {
+    const panel = await startChat();
+    door.state = 'waiting';
+    door.add('system', 'x', { event: 'handed-over', by: 'visitor' });
+    await pollNow();
+    door.details = async () => ({ state: 'too-many', cap: 'details', retryAfter: 25 * 60 });
+    await userEvent.type(await within(panel).findByLabelText('Your name (optional)'), 'Marta');
+    await userEvent.click(within(panel).getByRole('button', { name: 'Save' }));
+    expect(await within(panel).findByRole('alert')).toHaveTextContent('You’ve sent a lot of messages. Wait 25 minutes, then try again.');
+  });
+
   it('with e-mail not set up, the card asks for nothing', async () => {
     door.reply = config({ mail: false });
     const panel = await startChat();

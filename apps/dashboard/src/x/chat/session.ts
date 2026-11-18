@@ -83,7 +83,7 @@ export interface Session {
 export type QuestionResult = 'sent' | 'proof' | 'offline' | 'in-hours' | { tooMany: number | null } | { field: 'question' | 'email' | 'name' };
 
 /** What saving the name and e-mail came to. */
-export type DetailsResult = 'saved' | 'offline' | 'failed' | { field: 'email' | 'name' };
+export type DetailsResult = 'saved' | 'offline' | 'failed' | { field: 'email' | 'name' } | { tooMany: number | null };
 
 export interface SessionDeps {
   addOn: string;
@@ -448,6 +448,8 @@ export function useChatSession(deps: SessionDeps) {
           return 'saved';
         }
         if (reply.state === 'refused') return { field: reply.errors['email'] !== undefined ? 'email' : 'name' };
+        // Changed too often in an hour: the wait, said as the hour cap says it.
+        if (reply.state === 'too-many') return { tooMany: reply.retryAfter };
         if (reply.state === 'lost') lose();
         return 'failed';
       } catch (error) {

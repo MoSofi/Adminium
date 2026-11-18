@@ -29,6 +29,8 @@ describe('the chat door, as the window reads it', () => {
     expect(await chatDoor('live-chat').post('tok', { body: 'x' })).toEqual({ state: 'too-many', cap: 'hour', retryAfter: 2400 });
     answer(429, { state: 'too-many', cap: 'conversation', retryAfter: null });
     expect(await chatDoor('live-chat').post('tok', { body: 'x' })).toEqual({ state: 'too-many', cap: 'conversation', retryAfter: null });
+    answer(429, { state: 'too-many', cap: 'details', retryAfter: 1500 });
+    expect(await chatDoor('live-chat').details('tok', { name: 'Marta' })).toEqual({ state: 'too-many', cap: 'details', retryAfter: 1500 });
     answer(410, { state: 'lost' });
     expect(await chatDoor('live-chat').poll('tok', '0')).toEqual({ state: 'lost' });
   });

@@ -23,7 +23,7 @@ import type { XBusiness } from '../api.js';
 
 export type ChatState = 'bot' | 'waiting' | 'open' | 'closed';
 export type ChatTheme = 'light' | 'dark' | 'visitor';
-export type ChatCap = 'minute' | 'hour' | 'conversation' | 'new-conversations';
+export type ChatCap = 'minute' | 'hour' | 'conversation' | 'new-conversations' | 'details';
 
 /** How the door names the day a chat opens next. */
 export type OpensDay = 'today' | 'tomorrow' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun' | 'date';
@@ -130,7 +130,7 @@ export class ChatApiError extends Error {
 }
 
 const HEADERS = { accept: 'application/json' };
-const CAPS = new Set<ChatCap>(['minute', 'hour', 'conversation', 'new-conversations']);
+const CAPS = new Set<ChatCap>(['minute', 'hour', 'conversation', 'new-conversations', 'details']);
 
 const base = (addOn: string): string => `/x/chat/api/${encodeURIComponent(addOn)}`;
 
