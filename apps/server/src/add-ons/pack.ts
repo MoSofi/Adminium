@@ -44,6 +44,7 @@
  * instead of silent churn.
  */
 
+import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -154,6 +155,12 @@ export interface PackedTree {
   tarball: Uint8Array;
   /** How many files went in, for the log line that records a copy. */
   fileCount: number;
+  /**
+   * Relative path -> sha256 hex of what went in, the shape of a tree pin's
+   * `files`: what keeping a copy compares with the tree it verified, so a file
+   * changed between the check and the pack is never recorded as trusted.
+   */
+  files: Record<string, string>;
 }
 
 /**
@@ -174,7 +181,9 @@ export async function packStagedTree(
   }
 
   const parts: Uint8Array[] = [];
+  const hashes: Record<string, string> = {};
   for (const [path, bytes] of files) {
+    hashes[path] = createHash('sha256').update(bytes).digest('hex');
     if (bytes.byteLength > maxFileBytes) {
       throw new PackError('FILE_TOO_LARGE', `"${path}" is ${bytes.byteLength} bytes`);
     }
@@ -196,5 +205,5 @@ export async function packStagedTree(
   // `mtime: 0` for the same reason the headers carry one: a stable packing.
   // fflate stamps the current second otherwise, so a tree packed twice would
   // hash apart and a re-upload would look like a change.
-  return { tarball: gzipSync(tar, { mtime: 0 }), fileCount: files.length };
+  return { tarball: gzipSync(tar, { mtime: 0 }), fileCount: files.length, files: hashes };
 }

@@ -163,7 +163,7 @@ import {
   type AddOnStore,
 } from './add-ons/store.js';
 import { bindDeciderGates, installRejectionGuard } from './add-ons/decide.js';
-import { recordDeciderTrust, trustSources } from './add-ons/decider-trust.js';
+import { keptCopyTrust, recordDeciderTrust, trustSources } from './add-ons/decider-trust.js';
 import { createPackageCopies } from './add-ons/package-copies.js';
 import { createAppFiles } from './apps/app-files.js';
 import { createInstalledApps } from './apps/installed.js';
@@ -4131,6 +4131,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         log: (level, message, data) => {
           app.log[level](data ?? {}, message);
         },
+        trust: keptCopyTrust(meta),
       });
 
       let restoredApp = false;
@@ -4562,6 +4563,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         log: (level, message, data) => {
           app.log[level](data ?? {}, message);
         },
+        trust: keptCopyTrust(meta),
       }).keep(installed),
     log: (message, data) => app.log.warn(data, message),
   });

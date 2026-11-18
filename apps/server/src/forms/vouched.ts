@@ -13,22 +13,23 @@
  * chat or landing page of it answers "not available".
  *
  * A tree that no longer verifies on disk (changed after it was installed) is
- * not vouched for either.
+ * not vouched for either. A tree missing altogether (a redeploy emptied the
+ * disk) is judged by the install's kept copy (`vouchedWithoutFiles`).
  */
 import { chatOf, formsOf, landingOf, type AddOnManifest } from '@adminium/manifest';
 import type { MetaDb } from '@adminium/meta';
 
-import { trustSources } from '../add-ons/decider-trust.js';
+import { trustSources, vouchedWithoutFiles } from '../add-ons/decider-trust.js';
 import { deciderTrusted } from '../add-ons/decide.js';
 import type { AddOnStore } from '../add-ons/store.js';
 
 /** Whether a package that declares a stranger's door (forms, chat, landing pages) serves it here. */
-export async function doorPackageVouched(store: Pick<AddOnStore, 'verifyTree'>, meta: MetaDb, pkg: { key: string; version: string }): Promise<boolean> {
+export async function doorPackageVouched(store: Pick<AddOnStore, 'verifyTree' | 'versions'>, meta: MetaDb, pkg: { key: string; version: string }): Promise<boolean> {
   let integrity: string;
   try {
     integrity = (await store.verifyTree(pkg.key, pkg.version)).integrity;
-  } catch {
-    return false;
+  } catch (failure) {
+    return vouchedWithoutFiles(store, meta, pkg, failure);
   }
   return deciderTrusted({ key: pkg.key, version: pkg.version, integrity }, await trustSources(meta));
 }

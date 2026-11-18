@@ -940,6 +940,20 @@ export const SETTINGS_REGISTRY = {
     'The owner\'s words for the visitor banner, per language',
     P,
   ),
+  /*
+   * The kept copies (`adminium_manifests.package_integrity`) of add-on
+   * packages whose own bytes were trusted when the copy was packed:
+   * `<key>@<version>` → the hash of the copy. A copy is a repack, so its hash
+   * is never the one `addOns.deciderTrust` or the bundle holds; this is what
+   * lets a package put back from its copy be trusted as its original was. A
+   * copy of a package uploaded by hand is never written here. Not portable,
+   * and never archived, for the same reasons as `addOns.deciderTrust`.
+   */
+  'addOns.keptCopyTrust': def<Record<string, string>>(
+    z.record(z.string().regex(/^[a-z][a-z0-9-]{1,79}@[0-9A-Za-z.+-]{1,64}$/), z.string().regex(/^sha512-[A-Za-z0-9+/=]{20,120}$/)),
+    {},
+    'Kept copies of trusted add-on packages: key@version → the copy\'s hash',
+  ),
 } as const;
 
 export type SettingsRegistry = typeof SETTINGS_REGISTRY;
