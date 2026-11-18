@@ -110,6 +110,7 @@ export default {
     "marked": "This page can’t be published while a section still carries Milo’s mark. Look at each one first.",
     "slug": "This page can’t be published at that address. Use lower-case letters, digits and dashes, and not a word the addresses use.",
     "slugTaken": "Another page already has this address.",
-    "assistant": "Milo can write a page’s draft, but never publish it or change whether it’s live."
+    "assistant": "Milo can write a page’s draft, but never publish it or change whether it’s live.",
+    "draftFailed": "Milo couldn’t write a page from that. Try again, or describe the page in other words."
   }
 } as const;
