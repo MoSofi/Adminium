@@ -60,7 +60,7 @@ const CHAT_MANIFEST: Doc = {
   license: 'MIT',
   description: { key: 'live-chat.description', fallback: 'Live chat on your website.' },
   categories: ['marketing'],
-  compatibility: { minAdminiumVersion: '0.3.63' },
+  compatibility: { minAdminiumVersion: '0.3.64' },
   addOn: {
     attaches: [{ app: '*', range: '*' }],
     connect: { kind: 'none' },
@@ -179,6 +179,14 @@ export async function startChatWorld(): Promise<ChatWorld> {
   await createFirstSuperAdmin(meta, { email: ADMIN.email, name: 'Chat Admin', passwordHash: await hashPassword(ADMIN.password) });
   for (const name of ['addOns.catalogEnabled', 'apps.catalogEnabled'] as const) await settingsRepo(meta).set(name, false, { updatedBy: null, at: Date.now() });
 
+  // The package is put in the add-on store as a verified download would be: it needs 0.3.64's chat words,
+  // which an upload to this server, still numbered 0.3.63 until its release, would refuse.
+  const { createAddOnStore } = (await import(distUrl('add-ons/store.js'))) as {
+    createAddOnStore: (opts: { dataDir: string }) => { stage(pkg: { key: string; version: string; tarball: Uint8Array; expectedIntegrity: string }): Promise<unknown> };
+  };
+  const bundle = bundleOf({ 'package.json': JSON.stringify({ name: `@adminiumjs/add-on-${KEY}` }), 'manifest.json': JSON.stringify(CHAT_MANIFEST), 'dist/client.js': 'export const register = () => {};' });
+  await createAddOnStore({ dataDir: env.ADMINIUM_DATA_DIR }).stage({ key: KEY, version: '1.0.0', tarball: bundle.buffer, expectedIntegrity: bundle.integrity });
+
   const composed = await composeServer({
     env,
     metaStore: runtime.metaStore,
@@ -210,8 +218,6 @@ export async function startChatWorld(): Promise<ChatWorld> {
 
   const connection = await inject('POST', '/api/v1/connections', cookie, { name: 'Website', engine: 'sqlite', dsn: `sqlite:${sourceFile}` });
   const connectionId = String(connection['id']);
-  const bundle = bundleOf({ 'package.json': JSON.stringify({ name: `@adminium-add-ons/${KEY}`, version: '1.0.0' }), 'manifest.json': JSON.stringify(CHAT_MANIFEST) });
-  await inject('POST', `/api/v1/add-ons/upload?expectedSha512=${encodeURIComponent(bundle.integrity)}`, cookie, bundle.buffer, { 'content-type': 'application/octet-stream' });
   await inject('POST', '/api/v1/add-ons', cookie, { key: KEY, version: '1.0.0', attachTo: ['dashboard'], connectionId });
   await inject('PUT', '/api/v1/settings/email', cookie, { smtp: { host: '127.0.0.1', port: 9, user: '', from: 'Meridian <hello@meridian.example>', secure: false } });
 

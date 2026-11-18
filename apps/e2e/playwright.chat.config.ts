@@ -21,5 +21,15 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'off',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        // The owner's website is an https page the browser's router serves, and the chat's server is on
+        // this machine: Chrome's local-network check would refuse the loader from a public page.
+        launchOptions: { args: ['--disable-features=LocalNetworkAccessChecks,BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessRespectPreflightResults'] },
+      },
+    },
+  ],
 });
