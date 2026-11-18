@@ -2446,6 +2446,8 @@ export function appReferenceIssues(
     kind?: string | undefined;
     /** An add-on's code page refs (`addOn.pages`), which a state action's link may open. */
     codePages?: readonly string[] | undefined;
+    /** The manifest's floor: `chat` is the reserved key only from 0.3.64 on (`chatKeyReserved`). */
+    compatibility?: { minAdminiumVersion?: string | undefined } | undefined;
   },
   /**
    * When the tables are an add-on's shape rather than an app's: the add-on's
