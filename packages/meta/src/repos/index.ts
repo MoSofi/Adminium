@@ -75,3 +75,5 @@ export * from './public-uploads.js';
 export * from './workspaces.js';
 export * from './app-saves.js';
 export * from './chat-ai-tally.js';
+export * from './view-days.js';
+export * from './visitors.js';

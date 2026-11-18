@@ -60,6 +60,27 @@ function def<T>(
 /** Shorthand for the common case: operator-authored config that a bundle carries. */
 const P: DefOptions = { portable: true };
 
+/** The months a keeping row may be set to (Privacy → How long we keep things). */
+export const KEEPING_MONTHS: readonly number[] = [3, 6, 12, 13, 24, 36];
+
+/** The languages the visitor banner is written in: the `/x/` pages' eight. */
+export const BANNER_LOCALES = ['en-US', 'de-DE', 'fr-FR', 'cs-CZ', 'da-DK', 'ar-EG', 'zh-CN', 'zh-TW'] as const;
+export type BannerLocale = (typeof BANNER_LOCALES)[number];
+
+/** The longest words of the banner the owner may write. */
+export const BANNER_WIDTHS = { title: 80, text: 500, yes: 30, no: 30 } as const;
+
+/** The owner's banner in one language: each field set replaces the engine's default; a field left out keeps it. */
+export const bannerWordsSchema = z
+  .object({
+    title: z.string().trim().min(1).max(BANNER_WIDTHS.title).optional(),
+    text: z.string().trim().min(1).max(BANNER_WIDTHS.text).optional(),
+    yes: z.string().trim().min(1).max(BANNER_WIDTHS.yes).optional(),
+    no: z.string().trim().min(1).max(BANNER_WIDTHS.no).optional(),
+  })
+  .strict();
+export type BannerWords = z.infer<typeof bannerWordsSchema>;
+
 /**
  * An app-instance slug: the URL segment naming ONE tenant of a hosted app.
  *
@@ -882,6 +903,42 @@ export const SETTINGS_REGISTRY = {
       .refine((list) => new Set(list.map((site) => site.origin)).size === list.length, { message: 'each website once' }),
     [],
     'Websites that may show a form in a frame (Privacy → Your websites)',
+  ),
+  // ── visitor counting (Privacy → Visitor counting) ──────────────────────────
+  //
+  // How strangers' views of landing pages and forms are counted: `off`
+  // (nothing), `counts` (views per day, no cookie, no banner; the default) or
+  // `visitor` (after a "yes" on the banner, the pages one visitor saw, joined
+  // to them if they send a form). Per server, one banner and one notice for
+  // all: portable, configuration the owner chose. "Per visitor" is refused
+  // while the privacy notice is not set (the routes say so).
+  'privacy.tracking': def<'off' | 'counts' | 'visitor'>(z.enum(['off', 'counts', 'visitor']), 'counts', 'How visitors are counted: off, counts only, or per visitor', P),
+  // When counting last started: set the first time counting is on (on boot,
+  // when unset) and each time it goes up from Off. What "Counting started on"
+  // reads, since a day with no views has no row. Instance state: not portable.
+  'privacy.countingSince': def<number | null>(z.number().int().nonnegative().nullable(), null, 'When counting last started (epoch ms)'),
+  // How long the counts and one visitor's pages are kept, in months, from the
+  // keeping table's choices; the daily sweep reads the same keys.
+  'privacy.viewCountsMonths': def<number>(
+    z.number().int().refine((months) => KEEPING_MONTHS.includes(months), 'must be one of 3, 6, 12, 13, 24 or 36 months'),
+    13,
+    'How long view counts are kept, in months',
+    P,
+  ),
+  'privacy.visitsMonths': def<number>(
+    z.number().int().refine((months) => KEEPING_MONTHS.includes(months), 'must be one of 3, 6, 12, 13, 24 or 36 months'),
+    6,
+    'How long the pages one visitor saw are kept, in months',
+    P,
+  ),
+  // The owner's own words for the "Per visitor" banner, per language (the
+  // `/x/` pages' eight); a language or a field not set reads the engine's
+  // default words. Null: the defaults everywhere.
+  'privacy.banner': def<Partial<Record<BannerLocale, BannerWords>> | null>(
+    z.partialRecord(z.enum(BANNER_LOCALES), bannerWordsSchema).nullable(),
+    null,
+    'The owner\'s words for the visitor banner, per language',
+    P,
   ),
 } as const;
 
