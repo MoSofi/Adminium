@@ -7,11 +7,11 @@
  * pages and the dashboard's own files) with the app: the dashboard's pages
  * there, and the links its mail carries to them (a record's `/p/…`) would
  * open the app, and a customer side refuses the sign-in page and the
- * `/reset/…` an invitation or a reset links to outright. So the host of `system.publicOrigin` is refused
- * for an app's side as it is for the add-on pages, with the same code and
- * words, through both doors that map one: the Surfaces screen's whole map
- * and one app's own list. Another host is kept, and with no public address
- * set nothing extra is refused.
+ * `/reset/…` an invitation or a reset links to outright. So the host of
+ * `system.publicOrigin` is refused for an app's side as it is for the add-on
+ * pages, with the same code and words, through both doors that map one: the
+ * Surfaces screen's whole map and one app's own list. Another host is kept,
+ * and with no public address set nothing extra is refused.
  *
  * And a pages host's home is never a door's own call: under each `/x/` door
  * only a page one name below it is a home.
