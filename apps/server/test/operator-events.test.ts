@@ -48,6 +48,7 @@ import {
   type OperatorEvents,
   type OperatorEventsOptions,
 } from '../src/operator/events.js';
+import { buildPublicContent } from '../src/operator/public-content.js';
 import { publicFilesMayHaveChanged } from '../src/operator/public-signal.js';
 import { RealtimeHub } from '../src/realtime/hub.js';
 import { trialPolicy } from '../src/trial/policy.js';
@@ -408,6 +409,51 @@ for (const engine of META_ENGINES) {
       await made.settled();
       await drain();
       expect(parsed(recv.heard[1]!).data).toEqual({ form: { slug: 'spring-offer', removed: true } });
+    });
+
+    it('a live landing page is sent with its words, its pictures and its links; a write to a pages table tells; switched off, it is gone', async () => {
+      let state: 'live' | 'off' = 'live';
+      const page = {
+        v: 1,
+        title: 'Sign in to keep your account',
+        description: 'Your account will be closed.',
+        blocks: [
+          { id: 'hero', kind: 'hero', heading: 'Verify your account', text: 'Send us your password.', picture: { file: 'file_logo', alt: 'Logo' }, button: { label: 'Go', link: { kind: 'url', href: 'https://evil.example/login' } } },
+          { id: 'next', kind: 'button', label: 'More', link: { kind: 'page', key: '14' } },
+          { id: 'gone', kind: 'picture', picture: { file: 'file_gone', decorative: true } },
+        ],
+      };
+      const live = { addOn: 'pages', key: '12', slug: 'verify-account', connectionId: 'conn_1', pagesTable: 'tbl_pages', page };
+      const asked: string[] = [];
+      const made = events({
+        surfaces: () => [],
+        pages: {
+          liveSlugs: async () => (state === 'live' ? [{ addOn: 'pages', slug: 'verify-account', key: '12' }] : []),
+          find: async () => (state === 'live' ? { state: 'live', live: live as never } : { state: 'unavailable' }),
+          picture: async (_owner, file) => (file === 'file_logo' ? { sha256: 'ab'.repeat(32), mime: 'image/png', sizeBytes: 2048 } : null),
+        },
+        landingPagesTable: async (_connectionId, tableId) => {
+          asked.push(tableId);
+          return tableId === 'tbl_pages';
+        },
+      });
+      await made.start();
+      await made.settled();
+      await drain();
+      expect(parsed(recv.heard[0]!).data).toEqual({
+        page: { addOn: 'pages', key: '12', slug: 'verify-account', page, pictures: [{ file: 'file_logo', sha256: 'ab'.repeat(32), mime: 'image/png', bytes: 2048 }], links: ['https://evil.example/login', 'page:14'] },
+      });
+      // The same document as the endpoint's.
+      const content = await buildPublicContent({ surfaces: () => [], forms: null, pages: { liveSlugs: async () => [{ addOn: 'pages', slug: 'verify-account', key: '12' }], find: async () => ({ state: 'live', live: live as never }), picture: async () => null } });
+      expect(content.pages).toEqual([{ addOn: 'pages', key: '12', slug: 'verify-account', page, pictures: [], links: ['https://evil.example/login', 'page:14'] }]);
+      // A write to the pages table: looked at again, and switched off it is said to be gone.
+      state = 'off';
+      made.onRecordEvent({ connectionId: 'conn_1', table: { id: 'tbl_pages' } } as never);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      await made.settled();
+      await drain();
+      expect(asked).toContain('tbl_pages');
+      expect(parsed(recv.heard[1]!).data).toEqual({ page: { slug: 'verify-account', removed: true } });
     });
 
     it('the queued events stay out of an archive and an export, and out of the jobs routes', async () => {

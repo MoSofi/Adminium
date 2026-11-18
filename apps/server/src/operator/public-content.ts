@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * What this instance serves to anybody: the files of every app's customer
- * side, and the fields of every live form, read from the source rather than
- * from a crawl a page could cloak.
+ * side, the fields of every live form, and every live landing page (its
+ * published words, the pictures it shows and the links it carries), read
+ * from the source rather than from a crawl a page could cloak.
  *
  * The operator endpoint answers it (`GET /api/v1/operator/public-content`);
  * an event that says a public page changed carries the same document, so it
@@ -12,6 +13,8 @@
 import { createHash } from 'node:crypto';
 import { lstat, readdir, readFile } from 'node:fs/promises';
 import { extname, join, relative, sep } from 'node:path';
+
+import { pageLinks, pagePictures, type LandingPage } from '@adminium/add-on-contracts/landing';
 
 import type { HostedSurface } from '../cli/surfaces-root.js';
 
@@ -53,10 +56,43 @@ export interface PublicForm {
   form: unknown;
 }
 
+/** A picture a landing page shows: its own copy's file id, hash, type and size. */
+export interface PublicPagePicture {
+  file: string;
+  sha256: string;
+  mime: string;
+  bytes: number;
+}
+
+export interface PublicPage {
+  /** The landing pages add-on that holds it, and its row's key. */
+  addOn: string;
+  key: string;
+  /** Where it is served: `/x/pages/<slug>`. */
+  slug: string;
+  /** Its published document: every word a stranger reads. */
+  page: unknown;
+  /** The pictures it shows. A picture whose file is gone is left out. */
+  pictures: PublicPagePicture[];
+  /** Where its buttons lead: an `https:` address, `page:<key>` (another of its add-on's pages) or `form` (its own form block). */
+  links: string[];
+}
+
 export interface PublicContent {
   at: number;
   sides: PublicSide[];
   forms: PublicForm[];
+  pages: PublicPage[];
+}
+
+/** The live landing pages, as the pages door serves them (`landing/catalog.ts`). */
+export interface PublicPagesSource {
+  liveSlugs(): Promise<{ addOn: string; slug: string; key: string }[]>;
+  find(slug: string): Promise<{ state: string; live?: { addOn: string; key: string; slug: string; connectionId: string; pagesTable: string; page: LandingPage } }>;
+  /** A picture's own copy, while the page owns it (`landing/pictures.ts` `pagePictureOf`). */
+  picture(owner: { connectionId: string; pagesTable: string; page: string }, file: string): Promise<{ sha256: string; mime: string; sizeBytes: number } | null>;
+  /** Drop what is kept of a page (all, without a slug), so it is read as it is now. */
+  forget?(slug?: string): void;
 }
 
 export interface PublicContentDeps {
@@ -67,7 +103,23 @@ export interface PublicContentDeps {
     liveSlugs(): Promise<{ addOn: string; slug: string }[]>;
     find(slug: string): Promise<{ state: string; live?: { addOn: string; form: unknown } }>;
   } | null;
+  /** The landing pages strangers can open now; absent or null, none. */
+  pages?: PublicPagesSource | null | undefined;
   now?: () => number;
+}
+
+/** One live page as strangers get it now, or null when its slug serves no page. */
+export async function publicPageOf(source: PublicPagesSource, slug: string): Promise<PublicPage | null> {
+  const found = await source.find(slug);
+  const live = found.state === 'live' ? found.live : undefined;
+  if (live === undefined) return null;
+  const pictures: PublicPagePicture[] = [];
+  for (const file of pagePictures(live.page)) {
+    const stored = await source.picture({ connectionId: live.connectionId, pagesTable: live.pagesTable, page: live.key }, file).catch(() => null);
+    if (stored !== null) pictures.push({ file, sha256: stored.sha256, mime: stored.mime, bytes: stored.sizeBytes });
+  }
+  const links = [...new Set(pageLinks(live.page).map(({ link }) => (link.kind === 'url' ? link.href : link.kind === 'page' ? `page:${link.key}` : 'form')))];
+  return { addOn: live.addOn, key: live.key, slug: live.slug, page: live.page, pictures, links };
 }
 
 /** An HTML page: its text is read before any other file's. */
@@ -139,5 +191,12 @@ export async function buildPublicContent(deps: PublicContentDeps): Promise<Publi
     const found = await deps.forms!.find(slug);
     if (found.state === 'live' && found.live !== undefined) forms.push({ slug, addOn: found.live.addOn, form: found.live.form });
   }
-  return { at, sides, forms };
+  // Each slug once: the page it serves (one slug always serves the same page).
+  const pages: PublicPage[] = [];
+  const slugs = deps.pages == null ? [] : [...new Set((await deps.pages.liveSlugs()).map((one) => one.slug))].sort();
+  for (const slug of slugs) {
+    const page = await publicPageOf(deps.pages!, slug);
+    if (page !== null) pages.push(page);
+  }
+  return { at, sides, forms, pages };
 }

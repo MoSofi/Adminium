@@ -7,7 +7,7 @@
  * container answers nothing, and asking wakes it. So an awake instance also
  * says, on its own, what the operator's control service must know:
  *
- *   public-page.changed     a customer side or a live form, as strangers get it now
+ *   public-page.changed     a customer side, a live form or a live landing page, as strangers get it now
  *   super-admin.signed-in   when, and from which address
  *   email.cap-reached       a cap of the operator's mail relay held mail back
  *   storage.over-80         the data folder, or a database, crossed 80% of its cap
@@ -67,7 +67,7 @@ import { checkHost, type HostLookup } from '../net/address-guard.js';
 import { pinnedFetch } from '../net/pinned-fetch.js';
 import { SUPER_ADMIN_SLUG } from '../rbac/resolver.js';
 import type { SizeCapEvent } from '../trial/size-cap.js';
-import { buildPublicContent, type PublicSide } from './public-content.js';
+import { buildPublicContent, publicPageOf, type PublicPage, type PublicPagesSource, type PublicSide } from './public-content.js';
 import { onPublicFilesChanged } from './public-signal.js';
 
 /** The queue's kind for an event. */
@@ -110,6 +110,7 @@ export type OperatorEventType = 'public-page.changed' | 'super-admin.signed-in' 
 const publicItem = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('side'), appKey: z.string().min(1).max(200) }),
   z.object({ kind: z.literal('form'), slug: z.string().min(1).max(200) }),
+  z.object({ kind: z.literal('page'), slug: z.string().min(1).max(200) }),
 ]);
 type PublicItem = z.infer<typeof publicItem>;
 
@@ -172,8 +173,12 @@ export interface OperatorEventsOptions {
   /** Every app side this server serves now. */
   surfaces: () => readonly HostedSurface[];
   forms: PublicFormsSource | null;
+  /** The live landing pages, as the pages door serves them; absent or null, none. */
+  pages?: PublicPagesSource | null | undefined;
   /** Whether a table is a forms add-on's forms table: a write to it may publish or change a form. */
   formsTable?: ((connectionId: string, tableId: string) => Promise<boolean>) | undefined;
+  /** Whether a table is a landing pages add-on's pages table: a write to it may publish, change or take down a page. */
+  landingPagesTable?: ((connectionId: string, tableId: string) => Promise<boolean>) | undefined;
   log?: { warn(fields: object, message: string): void } | undefined;
   now?: (() => number) | undefined;
   /** Test seam: the lookup the address is checked with. */
@@ -201,11 +206,22 @@ async function formNow(opts: OperatorEventsOptions, slug: string): Promise<{ slu
   return found.state === 'live' && found.live !== undefined ? { slug, addOn: found.live.addOn, form: found.live.form } : { slug, removed: true };
 }
 
+/** A landing page as strangers get it now, or that it is gone. */
+async function pageNow(opts: OperatorEventsOptions, slug: string): Promise<PublicPage | { slug: string; removed: true }> {
+  if (opts.pages == null) return { slug, removed: true };
+  opts.pages.forget?.(slug);
+  return (await publicPageOf(opts.pages, slug)) ?? { slug, removed: true };
+}
+
 /** The body's `data`: what the event names, read now where it is a page. */
 async function eventData(opts: OperatorEventsOptions, payload: OperatorEventPayload): Promise<Record<string, unknown>> {
   switch (payload.type) {
     case 'public-page.changed':
-      return payload.item.kind === 'side' ? { side: await sideNow(opts, payload.item.appKey) } : { form: await formNow(opts, payload.item.slug) };
+      return payload.item.kind === 'side'
+        ? { side: await sideNow(opts, payload.item.appKey) }
+        : payload.item.kind === 'form'
+          ? { form: await formNow(opts, payload.item.slug) }
+          : { page: await pageNow(opts, payload.item.slug) };
     case 'super-admin.signed-in':
       return { ip: payload.ip };
     case 'email.cap-reached':
@@ -326,7 +342,7 @@ interface Told {
   fingerprint: string | null;
 }
 
-const itemKey = (item: PublicItem): string => (item.kind === 'side' ? `side:${item.appKey}` : `form:${item.slug}`);
+const itemKey = (item: PublicItem): string => (item.kind === 'side' ? `side:${item.appKey}` : `${item.kind}:${item.slug}`);
 const digest = (value: unknown): string => createHash('sha256').update(JSON.stringify(value), 'utf8').digest('hex');
 const storageKey = (event: SizeCapEvent): string => (event.kind === 'storage' ? 'files' : `database:${event.connectionId}`);
 
@@ -414,7 +430,8 @@ export function createOperatorEvents(opts: OperatorEventsOptions): OperatorEvent
   /** Every public item and how it looks now. */
   async function lookNow(): Promise<Map<string, Told>> {
     opts.forms?.forget?.();
-    const content = await buildPublicContent({ surfaces: opts.surfaces, forms: opts.forms, now });
+    opts.pages?.forget?.();
+    const content = await buildPublicContent({ surfaces: opts.surfaces, forms: opts.forms, pages: opts.pages ?? null, now });
     const seen = new Map<string, Told>();
     for (const side of content.sides) {
       const item: PublicItem = { kind: 'side', appKey: side.appKey };
@@ -424,6 +441,10 @@ export function createOperatorEvents(opts: OperatorEventsOptions): OperatorEvent
     for (const form of content.forms) {
       const item: PublicItem = { kind: 'form', slug: form.slug };
       seen.set(itemKey(item), { item, fingerprint: digest({ addOn: form.addOn, form: form.form }) });
+    }
+    for (const page of content.pages) {
+      const item: PublicItem = { kind: 'page', slug: page.slug };
+      seen.set(itemKey(item), { item, fingerprint: digest({ addOn: page.addOn, key: page.key, page: page.page, pictures: page.pictures, links: page.links }) });
     }
     return seen;
   }
@@ -515,12 +536,15 @@ export function createOperatorEvents(opts: OperatorEventsOptions): OperatorEvent
       });
     },
     onRecordEvent(event) {
-      if (stopped || opts.formsTable === undefined) return;
-      void opts.formsTable(event.connectionId, event.table.id).then(
-        (isForms) => {
-          if (isForms) publicMayHaveChanged();
+      if (stopped) return;
+      // A forms table or a landing pages table: a public page may have changed.
+      const asks = [opts.formsTable, opts.landingPagesTable].filter((one) => one !== undefined);
+      if (asks.length === 0) return;
+      void Promise.all(asks.map((ask) => ask(event.connectionId, event.table.id))).then(
+        (answers) => {
+          if (answers.some(Boolean)) publicMayHaveChanged();
         },
-        (error: unknown) => warn(error, 'whether a table holds forms could not be read'),
+        (error: unknown) => warn(error, 'whether a table holds forms or pages could not be read'),
       );
     },
     publicMayHaveChanged,
