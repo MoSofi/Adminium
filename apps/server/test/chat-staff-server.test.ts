@@ -31,7 +31,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import type { ProviderClient } from '@adminium/llm';
-import { formMarksRepo, paymentSettingsRepo, permissionsRepo, rolesRepo, settingsRepo, usersRepo } from '@adminium/meta';
+import { apiKeysRepo, formMarksRepo, paymentSettingsRepo, permissionsRepo, rolesRepo, settingsRepo, usersRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { chatAddOn } from '../../../packages/manifest/test/chat-fixture.js';
@@ -50,6 +50,7 @@ import type { AiConnection } from '../src/llm/connections.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import { solveProof } from '../src/public-api/proof.js';
+import { generateApiKey } from '../src/rbac/api-keys.js';
 import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../src/routes/payments/ways.js';
 import { addOnHarness, type Harness } from './app-add-ons.helpers.js';
@@ -121,6 +122,7 @@ describe.each(LEGS)('a website chat for staff — %s', (dialect, available) => {
   const cookies: Record<string, string> = {};
   let seq = 0;
   let signIns = 0;
+  let removerKey = '';
   const ai: ChatAi = { usable: true, service: 'Anthropic' };
   const answerer: ChatAnswerer = { pick: async () => ({ kind: 'hand-over', outcome: 'hand-over' }) };
   const asked: Parameters<ProviderClient['complete']>[0][] = [];
@@ -144,7 +146,7 @@ describe.each(LEGS)('a website chat for staff — %s', (dialect, available) => {
   const door = (method: 'GET' | 'POST', url: string, opts: { payload?: unknown; headers?: Record<string, string>; ip?: string } = {}) =>
     composed.app.inject({ method, url, remoteAddress: opts.ip ?? '203.0.113.50', headers: { host: HOST, origin: ORIGIN, ...(opts.headers ?? {}) }, ...(opts.payload === undefined ? {} : { payload: opts.payload as Doc }) });
   /** A signed-in person's request. */
-  const as = (who: string, method: 'GET' | 'POST' | 'PATCH', url: string, payload?: unknown) =>
+  const as = (who: string, method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string, payload?: unknown) =>
     composed.app.inject({ method, url, headers: { cookie: cookies[who]! }, ...(payload === undefined ? {} : { payload: payload as Doc }) });
   const staff = (who: string, id: string, act: string, payload: unknown = {}, addOn = 'live-chat') => as(who, act === 'presence' ? 'GET' : 'POST', `/api/v1/chat/${addOn}/conversations/${id}/${act}`, act === 'presence' ? undefined : payload);
   const proof = async (): Promise<string> => {
@@ -256,6 +258,19 @@ describe.each(LEGS)('a website chat for staff — %s', (dialect, available) => {
     await person('vic', 'Vic Reader', [...t('live-chat', 'conversations', 'read'), ...t('live-chat', 'messages', 'read'), ...t('live-chat', 'chat_settings', 'read'), ...t('crm', 'enquiries', 'read', 'create'), 'system:assistant:use']);
     await person('nora', 'Nora Field', [...t('live-chat', 'conversations', 'read', 'update'), ...t('live-chat', 'messages', 'read'), ...t('crm', 'enquiries', 'read')]);
     await person('seth', 'Seth Admin', [...t('live-chat', 'chat_settings', 'read', 'update')]);
+    // Lena reads only the German conversations (a row limit): she hears of no other.
+    await person('lena', 'Lena Vogel', [...t('live-chat', 'messages', 'read')]);
+    const lenaRole = (await rolesRepo(h.meta).findBySlug('chat-lena'))!;
+    const conversationsRef = matrixRowsFromGrants(t('live-chat', 'conversations', 'read')).rows[0]!.resourceRef;
+    await permissionsRepo(h.meta).grant(lenaRole.id, 'table', conversationsRef, { read: true, create: false, update: false, delete: false, export: false, import: false, rowLimit: { read: { reach: 'all', while: { column: 'language', in: ['de-DE'] } } } } as never);
+    // Dora may delete every row of the three tables Adminium alone writes, and so may an API key: the tables refuse it themselves.
+    const remover = [...t('live-chat', 'conversations', 'read', 'delete'), ...t('live-chat', 'messages', 'read', 'delete'), ...t('live-chat', 'choices', 'read', 'delete')];
+    await person('dora', 'Dora Remover', remover);
+    const token = generateApiKey();
+    const keyRole = await rolesRepo(h.meta).create({ slug: 'chat-remover-key', name: 'Chat remover key' });
+    for (const row of matrixRowsFromGrants(remover).rows) await permissionsRepo(h.meta).grant(keyRole.id, row.resourceKind, row.resourceRef, row.actions as never);
+    await apiKeysRepo(h.meta).create({ name: 'remover', tokenHash: token.tokenHash, prefix: token.prefix, roleId: keyRole.id, createdBy: ids['seth']! });
+    removerKey = token.key;
   }, 300_000);
 
   afterAll(async () => {
@@ -552,5 +567,98 @@ describe.each(LEGS)('a website chat for staff — %s', (dialect, available) => {
     expect(changed.statusCode).toBe(403);
     expect((changed.json() as Doc).error.details).toMatchObject({ reason: 'adminium-writes' });
     expect((await conversation(chat.id))['state']).toBe('waiting');
+  });
+  it.skipIf(!available)('a person’s delete of a conversation, a message or a choice is refused, one, in bulk or by an API key: only the sweep and an erasure remove them', async () => {
+    const chat = await started('Delete me?');
+    const live = await chatOf();
+    await composed.chat.store.logChoice(live, { conversationId: chat.id, messageId: chat.cursor, answerRef: null, outcome: 'hand-over', model: null, tokensIn: 0, tokensOut: 0, at: Date.now() });
+    const messageId = String((await messages(chat.id))[0]!['id']);
+    const choiceId = String((await rows(`SELECT id FROM ${table('live-chat', 'choices')} WHERE conversation_id = ${chat.id}`))[0]!['id']);
+    const keyed = (method: 'DELETE' | 'POST', url: string, payload?: unknown) =>
+      composed.app.inject({ method, url, headers: { authorization: `Bearer ${removerKey}` }, ...(payload === undefined ? {} : { payload: payload as Doc }) });
+    for (const [one, id] of [
+      [live.conversations, chat.id],
+      [live.messages, messageId],
+      [live.choices, choiceId],
+    ] as const) {
+      const url = `/api/v1/data/${h.connectionId}/${encodeURIComponent(one.table.id)}`;
+      // `confirm`: past the question of the rows that link to it, as someone set on removing it would ask.
+      for (const refused of [await as('dora', 'DELETE', `${url}/${id}?confirm=true`), await keyed('DELETE', `${url}/${id}?confirm=true`)]) {
+        expect(refused.statusCode, refused.body).toBe(403);
+        expect((refused.json() as Doc).error.details).toMatchObject({ reason: 'adminium-keeps' });
+      }
+      for (const bulk of [await as('dora', 'POST', `${url}/bulk`, { action: 'delete', ids: [id] }), await keyed('POST', `${url}/bulk`, { action: 'delete', ids: [id] })]) {
+        expect(bulk.statusCode, bulk.body).toBe(403);
+        expect((bulk.json() as Doc).error.details).toMatchObject({ reason: 'adminium-keeps' });
+      }
+    }
+    expect(await conversation(chat.id)).toMatchObject({ state: 'waiting' });
+    expect(await messages(chat.id)).toHaveLength(1);
+    expect(await rows(`SELECT id FROM ${table('live-chat', 'choices')} WHERE conversation_id = ${chat.id}`)).toHaveLength(1);
+  });
+  it.skipIf(!available)('a chat is waiting holds no word the visitor typed, and goes only to the readers whose row limits reach that conversation', async () => {
+    const live = await chatOf();
+    const ofUser = async (who: string, id: string) =>
+      (await h.meta.db.selectFrom('adminium_notifications').selectAll().where('userId', '=', ids[who]!).where('kind', '=', 'chat.waiting').execute()).filter((row) => String(row.actionUrl).endsWith(`conversation=${id}`));
+    const english = await composed.chat.store.start(live, { state: 'waiting', language: 'en-US', cameFrom: null, outsideHours: false, name: 'Marta Kovac', email: 'marta@cobalt.example', first: { kind: 'visitor', body: VISITOR_WORDS } });
+    const german = await composed.chat.store.start(live, { state: 'waiting', language: 'de-DE', cameFrom: null, outsideHours: true, name: 'Jan Hafen', email: 'jan@hafen.example', first: { kind: 'visitor', body: 'Habt ihr Kabinen?' } });
+    await composed.chat.waiting.settled();
+    const [told] = await ofUser('avery', english.conversation.id);
+    expect(told).toMatchObject({ title: 'A chat is waiting: Live chat', body: 'A visitor is waiting for a person to answer.' });
+    const [outside] = await ofUser('avery', german.conversation.id);
+    expect(outside!.body).toBe('A visitor left a question outside your hours and waits for a person to answer.');
+    for (const note of [told!, outside!]) {
+      const stored = JSON.stringify(note);
+      for (const typed of ['Marta', 'Kovac', 'marta@', 'budget', '0151', 'Jan', 'Hafen', 'Kabinen']) expect(stored).not.toContain(typed);
+    }
+    // Lena reaches only the German conversation: she is told of it alone.
+    expect(await ofUser('lena', english.conversation.id)).toEqual([]);
+    expect(await ofUser('lena', german.conversation.id)).toHaveLength(1);
+  });
+
+  it.skipIf(!available)('the reply by mail: at most five a day to one address, across every chat of the install', async () => {
+    const live = await chatOf();
+    await mails();
+    const reasons: (string | null)[] = [];
+    const ids6: string[] = [];
+    for (let n = 0; n < 6; n += 1) {
+      const one = await composed.chat.store.start(live, { state: 'waiting', language: 'en-US', cameFrom: null, outsideHours: true, email: n % 2 === 0 ? 'victim@elsewhere.example' : 'Victim@Elsewhere.example', first: { kind: 'visitor', body: `Do you ship to Spain? ${String(n)}` } });
+      ids6.push(one.conversation.id);
+      const replied = ((await staff('avery', one.conversation.id, 'reply', { body: `Yes, we do (${String(n)}).` })).json() as Doc).data;
+      reasons.push(replied.mailed === true ? null : (replied.reason as string));
+    }
+    expect(reasons).toEqual([null, null, null, null, null, 'cap']);
+    expect((await mails()).filter((mail) => mail.templateKey === 'chat-reply')).toHaveLength(5);
+    // The sixth chat's own day is untouched, but the address had its five: its presence says so.
+    expect(((await staff('avery', ids6[5]!, 'presence')).json() as Doc).data.mail).toMatchObject({ ready: false, reason: 'cap', used: 0 });
+    // The count is a keyed hash, never the address.
+    const marks = await h.meta.db.selectFrom('adminium_form_marks').select(['subject']).where('purpose', '=', 'chat-reply-to').execute();
+    expect(marks.length).toBeGreaterThanOrEqual(5);
+    for (const mark of marks) expect(mark.subject).not.toContain('elsewhere');
+    // Another address goes on.
+    const other = await composed.chat.store.start(live, { state: 'waiting', language: 'en-US', cameFrom: null, outsideHours: true, email: 'pat@harbour.example', first: { kind: 'visitor', body: 'Hello' } });
+    expect(((await staff('avery', other.conversation.id, 'reply', { body: 'Hi Pat' })).json() as Doc).data.mailed).toBe(true);
+    await mails();
+  });
+
+  it.skipIf(!available)('Make an enquiry twice at once: one row, one link; the second is told of the first', async () => {
+    const chat = await started('Two clicks, one enquiry please.');
+    const enquiries = table('crm', 'enquiries');
+    const before = Number((await rows(`SELECT COUNT(*) AS n FROM ${enquiries}`))[0]!['n']);
+    const [a, b] = await Promise.all([staff('avery', chat.id, 'enquiry'), staff('avery', chat.id, 'enquiry')]);
+    const answers = [a!, b!].sort((x, y) => x.statusCode - y.statusCode);
+    expect(answers.map((one) => one.statusCode)).toEqual([200, 409]);
+    const became = (answers[0]!.json() as Doc).data.became as Doc;
+    expect((answers[1]!.json() as Doc).error.details).toMatchObject({ reason: 'already', became: { table: 'crm:enquiries', key: became.key } });
+    expect(Number((await rows(`SELECT COUNT(*) AS n FROM ${enquiries}`))[0]!['n'])).toBe(before + 1);
+    expect(await conversation(chat.id)).toMatchObject({ became_key: became.key });
+    expect((await messages(chat.id)).filter((one) => one['event'] === 'enquiry')).toHaveLength(1);
+    // Two links at once (two server processes, say): exactly one wins, and the conversation names its row.
+    const other = await started('Linked twice?');
+    const live = await chatOf();
+    const links = await Promise.all(['901', '902'].map((key) => composed.chat.store.link(live, other.id, { table: 'crm:enquiries', key })));
+    const won = links.filter((one) => one.linked);
+    expect(won).toHaveLength(1);
+    expect((await conversation(other.id))['became_key']).toBe(won[0]!.conversation!.becameKey);
   });
 });

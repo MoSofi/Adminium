@@ -24,6 +24,7 @@ import { createSqliteMetaDb, firstRun, settingsRepo, type MetaDb } from '@admini
 
 import type { ChatCatalog, LiveChat } from '../src/chat/catalog.js';
 import type { ChatDoor, DoorReply } from '../src/chat/door.js';
+import { PROOF_DIFFICULTY } from '../src/public-api/proof.js';
 import { RATE_BUCKETS } from '../src/plugins/core.js';
 import { chatDoorRoutes } from '../src/routes/chat-door/index.js';
 import { xContentPolicy } from '../src/routes/x-door/headers.js';
@@ -74,6 +75,7 @@ describe('the chat door routes', () => {
     question: ok('question'),
     close: ok('close'),
     settled: async () => undefined,
+    difficulty: async () => PROOF_DIFFICULTY,
   } as unknown as ChatDoor;
   const catalog: ChatCatalog = {
     find: async (addOn) => {

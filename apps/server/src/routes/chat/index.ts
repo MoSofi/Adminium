@@ -171,6 +171,8 @@ const FORWARDED = ['cookie', 'authorization', 'user-agent', 'accept-language'] a
 export function chatStaffRoutes(deps: ChatStaffRoutesDeps): FastifyPluginAsyncZod {
   const { meta, store, staff } = deps;
   const now = deps.now ?? Date.now;
+  /** "Make an enquiry" while its row is being made, by install and conversation: a second click waits for the first. */
+  const enquiring = new Map<string, Promise<unknown>>();
 
   return async (app) => {
     /** The chat an add-on key names; 404 when none is installed. */
@@ -360,33 +362,59 @@ export function chatStaffRoutes(deps: ChatStaffRoutesDeps): FastifyPluginAsyncZo
       async (request) => {
         const chat = await chatOf(request.params.addOn, request.query.install);
         const actor = actorOf(request);
-        const conversation = await conversationFor(request, chat, request.params.id, 'update');
-        if (conversation.becameTable !== null && conversation.becameKey !== null) {
-          throw new ConflictError('This chat became a row already.', 'CONFLICT', { reason: 'already', became: { table: conversation.becameTable, key: conversation.becameKey } });
+        let conversation = await conversationFor(request, chat, request.params.id, 'update');
+        // A second click while the first is still making its row waits for it, and is told of the first's row: one enquiry, never two.
+        const making = `${chat.installId}\u0000${conversation.id}`;
+        const earlier = enquiring.get(making);
+        if (earlier !== undefined) {
+          await earlier.catch(() => undefined);
+          conversation = (await store.conversation(chat, conversation.id)) ?? conversation;
         }
-        const first = (await store.since(chat, conversation.id, '0', 200)).find((message) => message.kind === 'visitor')?.body ?? null;
-        const plan = await planEnquiry(deps.scopes, chat, conversation, first);
-        if (!plan.ok) {
-          throw new ConflictError(
-            plan.missing === 'no-table' ? 'No app this chat is attached to takes an enquiry from a chat.' : 'The table an app opens to this chat has no column for the question.',
-            'CONFLICT',
-            { reason: plan.missing },
-          );
+        const already = (became: Pick<ChatConversation, 'becameTable' | 'becameKey'>): ConflictError =>
+          new ConflictError('This chat became a row already.', 'CONFLICT', { reason: 'already', became: { table: became.becameTable, key: became.becameKey } });
+        if (conversation.becameTable !== null && conversation.becameKey !== null) throw already(conversation);
+        const work = makeEnquiry(request, chat, actor, conversation, already);
+        enquiring.set(making, work);
+        try {
+          return await work;
+        } finally {
+          if (enquiring.get(making) === work) enquiring.delete(making);
         }
-        const { opened } = plan;
-        if (!(await request.can(`table:${opened.connectionId}:${opened.tableId}:create`))) {
-          throw new ForbiddenError('Only someone who may add rows to that table makes an enquiry.', 'TABLE_FORBIDDEN', { reason: 'enquiry-create', table: opened.tableId });
-        }
-        const made = await createAsPerson(app, request, opened.connectionId, opened.tableId, plan.values);
-        const view = chat.view.table(opened.tableId);
-        const key = view.primaryKey.length === 1 ? String(made[view.primaryKey[0]!]) : JSON.stringify(view.primaryKey.map((column) => made[column] ?? null));
-        const table = (await deps.installs()).refOf(opened.connectionId, opened.tableId);
-        await store.link(chat, conversation.id, { table, key });
-        const added = await store.add(chat, conversation.id, { kind: 'system', body: SYSTEM_LINES['enquiry']!, event: 'enquiry', authorId: actor.id }, {}, { at: now() });
-        await audit(request, chat, 'chat.enquiry', conversation.id, { table, key });
-        return { data: { became: { connectionId: opened.connectionId, tableId: opened.tableId, table, key }, conversation: await staff.view(added?.conversation ?? conversation) } };
       },
     );
+
+    /** "Make an enquiry"'s work, once the conversation is judged (see the route). */
+    async function makeEnquiry(
+      request: FastifyRequest,
+      chat: LiveChat,
+      actor: ChatActor,
+      conversation: ChatConversation,
+      already: (became: Pick<ChatConversation, 'becameTable' | 'becameKey'>) => ConflictError,
+    ): Promise<{ data: z.infer<typeof chatEnquiryReply>['data'] }> {
+      const first = (await store.since(chat, conversation.id, '0', 200)).find((message) => message.kind === 'visitor')?.body ?? null;
+      const plan = await planEnquiry(deps.scopes, chat, conversation, first);
+      if (!plan.ok) {
+        throw new ConflictError(
+          plan.missing === 'no-table' ? 'No app this chat is attached to takes an enquiry from a chat.' : 'The table an app opens to this chat has no column for the question.',
+          'CONFLICT',
+          { reason: plan.missing },
+        );
+      }
+      const { opened } = plan;
+      if (!(await request.can(`table:${opened.connectionId}:${opened.tableId}:create`))) {
+        throw new ForbiddenError('Only someone who may add rows to that table makes an enquiry.', 'TABLE_FORBIDDEN', { reason: 'enquiry-create', table: opened.tableId });
+      }
+      const made = await createAsPerson(app, request, opened.connectionId, opened.tableId, plan.values);
+      const view = chat.view.table(opened.tableId);
+      const key = view.primaryKey.length === 1 ? String(made[view.primaryKey[0]!]) : JSON.stringify(view.primaryKey.map((column) => made[column] ?? null));
+      const table = (await deps.installs()).refOf(opened.connectionId, opened.tableId);
+      // The link decides: of two enquiries at once (another server process, say), the first linked wins; the other's row stays, unlinked, and it is told of the first.
+      const link = await store.link(chat, conversation.id, { table, key });
+      if (!link.linked) throw already(link.conversation ?? conversation);
+      const added = await store.add(chat, conversation.id, { kind: 'system', body: SYSTEM_LINES['enquiry']!, event: 'enquiry', authorId: actor.id }, {}, { at: now() });
+      await audit(request, chat, 'chat.enquiry', conversation.id, { table, key });
+      return { data: { became: { connectionId: opened.connectionId, tableId: opened.tableId, table, key }, conversation: await staff.view(added?.conversation ?? conversation) } };
+    }
 
     app.post(
       '/chat/:addOn/conversations/:id/draft',

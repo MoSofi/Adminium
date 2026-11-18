@@ -16,7 +16,11 @@
  *    waiting that long tells once more when the visitor writes again;
  *  - whom: the readers of the conversations among the people the chat's
  *    `tell` names; with no `tell`, every reader. A grant taken away since the
- *    chat named someone counts: they are not told;
+ *    chat named someone counts: they are not told, and nor is a reader whose
+ *    row limits keep this conversation from them;
+ *  - what: "A visitor is waiting", the chat's name and a link to the
+ *    conversation. Never a word the visitor typed (no name, no message), so
+ *    a notice holds nothing a person's erasure would have to find;
  *  - how: a bell, and an e-mail only for a person who switched it on for
  *    `chat.waiting` (its default is the bell alone: one waiting chat never
  *    mails the whole staff), in each person's own language.
@@ -33,10 +37,12 @@ import { formsMailBlocked, holdersOf, toldBy } from '../forms/mail.js';
 import { translatorFor } from '../i18n/server-i18n.js';
 import { notify, type NotificationPublisher } from '../notifications/notify.js';
 import { DAY_MS } from '../public-api/claim-code.js';
+import { fetchVisible, rowLimitFor } from '../crud/row-limit.js';
+import { rowLimitContextForUser } from '../crud/row-limit-context.js';
 import { permissionSetAllows, resolvePermissionSet } from '../rbac/resolver.js';
 import type { ChatCaps } from './caps.js';
 import type { LiveChat } from './catalog.js';
-import type { ChatConversation } from './store.js';
+import { boundKey, type ChatConversation } from './store.js';
 
 /** The notice's kind (what a person's notification settings switch). */
 export const CHAT_WAITING_NOTICE = 'chat.waiting';
@@ -69,6 +75,24 @@ async function readers(meta: MetaDb, people: readonly string[], permission: stri
   return out;
 }
 
+/** The parts of a chat a notice needs: whom to tell, and the row limits to judge them by. */
+export type WaitingChat = Pick<LiveChat, 'addOn' | 'name' | 'connectionId' | 'conversations' | 'settings' | 'view' | 'db'>;
+
+/** Of `people`, those whose row limits let them read this conversation (as its page would find it for them). */
+async function reaching(meta: MetaDb, chat: WaitingChat, conversationId: string, people: readonly string[]): Promise<string[]> {
+  const { table, pk } = chat.conversations;
+  const out: string[] = [];
+  for (const userId of people) {
+    try {
+      const rows = await rowLimitContextForUser(meta, userId, chat.connectionId, chat.view.model);
+      if (rows === null || rowLimitFor(rows, table.id, 'read') === null || (await fetchVisible(rows, chat.db as never, table, { [pk]: boundKey(conversationId) }, 'read')) !== undefined) out.push(userId);
+    } catch {
+      // A person whose limits cannot be judged is not told.
+    }
+  }
+  return out;
+}
+
 export interface ChatWaitingDeps {
   meta: MetaDb;
   secret: string;
@@ -85,29 +109,29 @@ export function createChatWaiting(deps: ChatWaitingDeps) {
   const running = new Set<Promise<number>>();
 
   /** Tells the people the chat tells that this conversation waits; answers how many were told (0: told already). */
-  async function tell(chat: Pick<LiveChat, 'addOn' | 'name' | 'connectionId' | 'conversations' | 'settings'>, conversation: Pick<ChatConversation, 'id' | 'state' | 'name' | 'outsideHours'>): Promise<number> {
+  async function tell(chat: WaitingChat, conversation: Pick<ChatConversation, 'id' | 'state' | 'outsideHours'>): Promise<number> {
     if (conversation.state !== 'waiting') return 0;
     const at = now();
     if (!(await deps.caps.once(waitingSubject(chat.addOn, conversation.id), PURPOSE, 1, CHAT_WAITING_HOLD_MS, at))) return 0;
     const permission = `table:${chat.connectionId}:${chat.conversations.table.id}:read`;
     const named = chat.settings.tell === null ? [] : await toldBy(meta, chat.settings.tell);
-    const people = named.length > 0 ? await readers(meta, named, permission) : await holdersOf(meta, permission);
+    const people = await reaching(meta, chat, conversation.id, named.length > 0 ? await readers(meta, named, permission) : await holdersOf(meta, permission));
     const mail = (await formsMailBlocked(meta, deps.secret)) === null;
     const hub = deps.hub?.();
     let told = 0;
     for (const userId of people) {
       try {
         const i18n = await translatorFor(meta, userId);
-        const who = conversation.name ?? i18n.t('email:chat.waitingSomeone', { defaultValue: 'A visitor' });
         await notify(
           meta,
           {
             userId,
             kind: CHAT_WAITING_NOTICE,
             title: i18n.t('email:chat.waitingTitle', { chat: chat.name, defaultValue: 'A chat is waiting: {chat}' }),
+            // Never the name or a word the visitor typed: "A visitor".
             body: conversation.outsideHours
-              ? i18n.t('email:chat.waitingOutside', { name: who, defaultValue: '{name} left a question outside your hours and waits for a person to answer.' })
-              : i18n.t('email:chat.waitingBody', { name: who, defaultValue: '{name} is waiting for a person to answer.' }),
+              ? i18n.t('email:chat.waitingOutside', { defaultValue: 'A visitor left a question outside your hours and waits for a person to answer.' })
+              : i18n.t('email:chat.waitingBody', { defaultValue: 'A visitor is waiting for a person to answer.' }),
             actionUrl: chatConversationLink(chat.addOn, conversation.id),
           },
           { at, email: mail, ...(hub === undefined ? {} : { hub }), ...(deps.logger === undefined ? {} : { logger: deps.logger }) },

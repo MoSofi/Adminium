@@ -1011,8 +1011,7 @@ export default {
     "replyHeading": "{business} hat auf Ihren Chat geantwortet",
     "replyNotice": "Sie erhalten diese E-Mail, weil diese Adresse in einem Chat auf der Website von {business} angegeben wurde. Wenn Sie das nicht waren, können Sie sie ignorieren.",
     "waitingTitle": "Ein Chat wartet: {chat}",
-    "waitingBody": "{name} wartet auf eine Antwort von einer Person.",
-    "waitingOutside": "{name} hat außerhalb Ihrer Zeiten eine Frage hinterlassen und wartet auf eine Antwort von einer Person.",
-    "waitingSomeone": "Ein Besucher"
+    "waitingBody": "Ein Besucher wartet auf eine Antwort von einer Person.",
+    "waitingOutside": "Ein Besucher hat außerhalb Ihrer Zeiten eine Frage hinterlassen und wartet auf eine Antwort von einer Person."
   }
 } as const;

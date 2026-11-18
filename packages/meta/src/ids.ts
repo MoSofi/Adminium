@@ -179,6 +179,8 @@ export const ID_PREFIXES = {
   apt: 'adminium_app_parts',
   // wave 0079 — a value an app's deployment-wide part replaced.
   aiu: 'adminium_app_instance_undo',
+  // wave 0095 — one model call the chat answerer made for a network address (a keyed hash), kept three hours.
+  cai: 'adminium_chat_ai_addresses',
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;

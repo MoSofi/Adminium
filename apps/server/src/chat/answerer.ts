@@ -15,8 +15,17 @@
  *      the answerer off here (a trial), or the chat has no active answer;
  *    - `cap`: the conversation already had {@link CHAT_PER_CONVERSATION}
  *      automatic answers, or the visitor's network address (a keyed hash)
- *      already asked in {@link CHAT_PER_ADDRESS_DAY} conversations today;
- *    - `budget`: today's tokens cannot hold this call.
+ *      already asked in {@link CHAT_PER_ADDRESS} new conversations in the
+ *      last three hours;
+ *    - `budget`: today's tokens cannot hold this call, or this address
+ *      already spent {@link CHAT_ADDRESS_SHARE} of them in the last three
+ *      hours (that address alone is handed over; every other visitor still
+ *      gets automatic answers, and nobody is alerted).
+ *  - **The address:** its keyed hash is noted per call, with whether the
+ *    call began a new conversation and its tokens, and never with the
+ *    conversation (`adminium_chat_ai_addresses`). A note is read for three
+ *    hours and no longer, deleted on the next note and by an hourly sweep, so
+ *    a person's erasure has nothing of theirs to find there.
  *  - **What is sent:** the answers (ref, title, example questions and text, in
  *    the chat's default language) and the visitor's last 6 messages, with
  *    e-mail addresses and phone numbers masked (`mask.ts`). Never a name the
@@ -51,8 +60,12 @@ import { maskVisitorText } from './mask.js';
 
 /** The most automatic answers one conversation gets. */
 export const CHAT_PER_CONVERSATION = 6;
-/** The most conversations one network address gets automatic answers in, a UTC day, per chat. */
-export const CHAT_PER_ADDRESS_DAY = 20;
+/** The most new conversations one network address gets automatic answers in, in a rolling three hours, per chat. */
+export const CHAT_PER_ADDRESS = 20;
+/** The most of a chat's daily tokens one network address may spend in a rolling three hours. */
+export const CHAT_ADDRESS_SHARE = 0.2;
+/** The conversations whose first call was noted, kept in memory at most: past this they are forgotten and could count once more. */
+const NOTED_MAX = 10_000;
 /** The visitor's messages the answerer reads: the last ones. */
 export const CHAT_MESSAGES_READ = 6;
 /** The most tokens the model may answer with: one short JSON object. */
@@ -80,8 +93,8 @@ export interface ChatAnswererInput {
   visitorMessages: string[];
   /** Automatic answers already given in this conversation. */
   automaticCount: number;
-  /** The keyed hash of the visitor's network address, never the address. */
-  addressHash: string;
+  /** The keyed hash of the visitor's network address, never the address; null for a signed-in person's "Try a question", which no address cap holds. */
+  addressHash: string | null;
   /** The chat's setting; 0 = no automatic answers. */
   dailyTokens: number;
 }
@@ -228,8 +241,12 @@ export function createChatAnswerer(deps: ChatAnswererDeps): ChatAnswerer {
   const now = deps.now ?? Date.now;
   const timeoutMs = deps.timeoutMs ?? CHAT_ANSWER_TIMEOUT_MS;
   const tally = chatAiTallyRepo(deps.meta);
-  /** The last UTC day the address notes were swept on, in this process. */
-  let sweptOn = '';
+  /**
+   * The conversations this process already counted as new against their
+   * address: a second call that also sees no automatic answer yet (two
+   * messages at once) does not count it twice. Only keys, never an address.
+   */
+  const noted = new Set<string>();
 
   async function log(input: ChatAnswererInput, at: number, outcome: ChatOutcome, rest: Partial<Pick<ChatChoiceRow, 'answerRef' | 'model' | 'tokensIn' | 'tokensOut'>> = {}): Promise<void> {
     try {
@@ -256,13 +273,6 @@ export function createChatAnswerer(deps: ChatAnswererDeps): ChatAnswerer {
     return { kind: 'hand-over', outcome };
   }
 
-  async function sweep(day: string, at: number): Promise<void> {
-    if (sweptOn === day) return;
-    sweptOn = day;
-    // The address notes of the days before yesterday: no cap reads them.
-    await tally.pruneAddresses(chatAiDayOf(at - 86_400_000)).catch(() => undefined);
-  }
-
   async function choose(input: ChatAnswererInput, at: number): Promise<ChatChoice> {
     const key: ChatAiDayKey = { installId: input.installId, addOn: input.addOn, day: chatAiDayOf(at) };
 
@@ -272,14 +282,8 @@ export function createChatAnswerer(deps: ChatAnswererDeps): ChatAnswerer {
     if (service === null || service.refusal !== null || service.connection === null) return handOver(input, at, 'off');
     if (input.answers.length === 0) return handOver(input, at, 'off');
 
-    // The conversation's own cap, then the address's: a new conversation is noted first, then counted.
+    // The conversation's own cap first.
     if (input.automaticCount >= CHAT_PER_CONVERSATION) return handOver(input, at, 'cap');
-    await sweep(key.day, at);
-    const noted = await tally.markAddress(key, input.addressHash, input.conversationId, at);
-    if (noted && (await tally.addressConversations(key, input.addressHash)) > CHAT_PER_ADDRESS_DAY) {
-      await tally.unmarkAddress(key, input.addressHash, input.conversationId);
-      return handOver(input, at, 'cap');
-    }
 
     const refs = input.answers.map((answer) => answer.ref);
     const system = chatAnswererSystem(refs, input.defaultLanguage);
@@ -287,9 +291,40 @@ export function createChatAnswerer(deps: ChatAnswererDeps): ChatAnswerer {
     const estimate = estimateTokens(system) + estimateTokens(message);
     const held = estimate + CHAT_ANSWER_MAX_TOKENS;
 
+    /*
+     * Then the address's: this call is noted first (whether it begins a new
+     * conversation, and what it holds), then the last three hours counted, so
+     * two calls at once cannot both slip under. A new conversation is one
+     * with no automatic answer yet, counted once per conversation here.
+     */
+    const chat = { installId: input.installId, addOn: input.addOn };
+    const seen = `${input.installId}\u0000${input.addOn}\u0000${String(input.conversationId)}`;
+    const first = input.addressHash !== null && input.automaticCount === 0 && !noted.has(seen);
+    if (first) {
+      if (noted.size >= NOTED_MAX) noted.clear();
+      noted.add(seen);
+    }
+    const note = input.addressHash === null ? null : await tally.markAddress(chat, input.addressHash, { first, tokens: held }, at);
+    const takeBack = async (): Promise<void> => {
+      if (first) noted.delete(seen);
+      if (note !== null) await tally.unmarkAddress(note);
+    };
+    if (input.addressHash !== null) {
+      const use = await tally.addressUse(chat, input.addressHash, at);
+      if (first && use.conversations > CHAT_PER_ADDRESS) {
+        await takeBack();
+        return handOver(input, at, 'cap');
+      }
+      // What this address spent or holds BEFORE this call: past its share of the day, it alone is handed over.
+      if (use.tokens - held >= Math.floor(input.dailyTokens * CHAT_ADDRESS_SHARE)) {
+        await takeBack();
+        return handOver(input, at, 'budget');
+      }
+    }
+
     // The day's tokens: held before the call, or the chat is handed over (and its people told, early in the day).
     if (!(await tally.reserve(key, held, input.dailyTokens, at))) {
-      if (noted) await tally.unmarkAddress(key, input.addressHash, input.conversationId);
+      await takeBack();
       if (deps.once !== undefined && deps.budgetFacts !== undefined) {
         const facts = deps.budgetFacts;
         await alertChatBudget({ meta: deps.meta, once: deps.once, hub: deps.hub, logger: deps.logger, installId: input.installId, addOn: input.addOn, at, facts: () => facts(input.installId, input.addOn) });
@@ -310,6 +345,7 @@ export function createChatAnswerer(deps: ChatAnswererDeps): ChatAnswerer {
       // A call that never reached a model costs nothing; one that did, or ran out of time, costs all it held.
       const spent = error instanceof ProviderError && NOT_RUN.has(error.code) ? 0 : held;
       await tally.settle(key, held, spent, now());
+      if (note !== null) await tally.settleAddress(note, spent);
       deps.logger?.warn({ err: error instanceof TimedOut ? error.message : error, addOn: input.addOn }, 'the chat answerer handed over: the model call failed');
       return handOver(input, at, 'error', { model, tokensIn: spent === 0 ? 0 : estimate, tokensOut: 0 });
     }
@@ -317,6 +353,7 @@ export function createChatAnswerer(deps: ChatAnswererDeps): ChatAnswerer {
     const tokensIn = whole(reply.usage?.inputTokens ?? estimate);
     const tokensOut = whole(reply.usage?.outputTokens ?? estimateTokens(reply.text));
     await tally.settle(key, held, tokensIn + tokensOut, now());
+    if (note !== null) await tally.settleAddress(note, tokensIn + tokensOut);
 
     const read = readChatReply(reply.text, new Set(refs));
     if (read === null) return handOver(input, at, 'error', { model, tokensIn, tokensOut });

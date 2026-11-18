@@ -17805,15 +17805,11 @@
   },
   "email.chat.waitingBody": {
     "status": "mt",
-    "srcHash": "985d0a2823b8"
+    "srcHash": "9c56e3b6b241"
   },
   "email.chat.waitingOutside": {
     "status": "mt",
-    "srcHash": "bc4837f549f0"
-  },
-  "email.chat.waitingSomeone": {
-    "status": "mt",
-    "srcHash": "444c98c6d5c9"
+    "srcHash": "7e0b4590d61a"
   },
   "email.chat.waitingTitle": {
     "status": "mt",

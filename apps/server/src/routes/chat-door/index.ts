@@ -53,7 +53,7 @@ import type { ChatCatalog, LiveChat } from '../../chat/catalog.js';
 import { chatProofKeyId, type ChatDoor, type DoorReply } from '../../chat/door.js';
 import { formsReach } from '../../forms/reach.js';
 import type { ListedWebsites } from '../../forms/websites.js';
-import { issueChallenge, PROOF_DIFFICULTY, proofKey } from '../../public-api/proof.js';
+import { issueChallenge, proofKey } from '../../public-api/proof.js';
 import { tagRoutes } from '../../security/route-audience.js';
 import { framedPageOf, xDoorHeaders } from '../x-door/headers.js';
 import { xPages, type XPageWords } from '../x-door/page.js';
@@ -170,7 +170,8 @@ export function chatDoorRoutes(deps: ChatDoorDeps): FastifyPluginAsyncZod {
       if (asksPreview(request)) return unavailable(reply);
       const chat = await chatFor(request, request.params.addOn);
       if (chat === null) return unavailable(reply);
-      return issueChallenge(key, chatProofKeyId(chat.addOn), 'chat', now(), PROOF_DIFFICULTY);
+      // More work as the hour's starts pass half the chat's limit (`caps.difficulty`).
+      return issueChallenge(key, chatProofKeyId(chat.addOn), 'chat', now(), await door.difficulty(chat));
     });
 
     app.post('/x/chat/api/:addOn/start', { bodyLimit: BODY_LIMIT, config: posted, schema: { hide: true, params: addOnParams, querystring: anyQuery, body: postedBody } }, async (request, reply) => {
