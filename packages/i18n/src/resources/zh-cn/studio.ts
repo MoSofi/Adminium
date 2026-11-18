@@ -4683,7 +4683,15 @@ export default {
       "namePlaceholder": "你公司的法定名称",
       "url": "隐私声明地址",
       "help": "显示在每个表单、聊天和 Cookie 横幅中。",
-      "save": "保存"
+      "save": "保存",
+      "dpo": "数据隐私联系人（可选）",
+      "dpoPlaceholder": "privacy@your-company.com",
+      "dpoHelp": "人们就其信息写信联系的人，例如您的数据隐私负责人。会写在告知被找到的人其信息来源的邮件中。",
+      "dpoError": "请使用一个邮箱地址，例如 privacy@example.com。",
+      "peopleFoundHeading": "您的隐私声明还必须写明",
+      "peopleFoundSources": "{addOn} 保留人们的工作信息。请说明信息来自何处：",
+      "peopleFoundWebsite": "公司自己的网站",
+      "peopleFoundRecipients": "以及谁会收到所搜索的内容：{hosts}"
     },
     "person": {
       "locked": "此服务器无法读取其地址密钥（其密钥已更改），因此无法查找或删除任何人。请联系运行此服务器的人。",
@@ -4749,7 +4757,8 @@ export default {
         "answers": "{label} 中的 {count, plural, other {# 条表单回答}}",
         "invitations": "{label} 中的 {count, plural, other {# 份调查邀请}}，保留但不含地址",
         "answerFiles": "{label} 中随表单回答发送的 {count, plural, other {# 个文件}}",
-        "chats": "{label} 中的 {count, plural, other {# 个聊天对话}}，连同其消息"
+        "chats": "{label} 中的 {count, plural, other {# 个聊天对话}}，连同其消息",
+        "foundPeople": "{label} 中关于其被找到之处的 {count, plural, other {# 条记录}}，以及告知其本人的邮件"
       },
       "stays": {
         "forGood": "永久保留。",
@@ -4808,7 +4817,10 @@ export default {
       "chatConversations": "聊天对话 — {addOn}",
       "chatMonths": "{count, plural, other {保留 # 个月}}",
       "chatUntilRemoved": "保留到有人删除为止",
-      "chatWhy": "在 {addOn} 的设置中设定。较早的对话连同消息每晚删除。"
+      "chatWhy": "在 {addOn} 的设置中设定。较早的对话连同消息每晚删除。",
+      "foundPeople": "找到的人 — {addOn}",
+      "foundPeopleYears": "{count, plural, other {保留 # 年}}",
+      "foundPeopleWhy": "在 {addOn} 的设置中设定，自找到之时或其最后一次来信时起算。到期前仍未被告知信息来源的人，届时会被删除。"
     },
     "downloads": {
       "processing": "正在生成…",

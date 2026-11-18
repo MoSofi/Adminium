@@ -85,7 +85,7 @@ const conversationParams = z.object({ addOn: z.string().min(1).max(80), id: z.st
 const query = z.object({ install: z.string().min(1).max(64).optional() });
 
 const person = z.object({ id: z.string(), name: z.string(), firstName: z.string(), initials: z.string() });
-const MAIL_REASONS = ['no-public-origin', 'no-mail-server', 'cap', 'no-email', 'sample'] as const;
+const MAIL_REASONS = ['no-public-origin', 'no-mail-server', 'cap', 'no-email', 'sample', 'not-told'] as const;
 
 /** A conversation as an act answers it: its state and stamps, never what the visitor typed (the page reads the row). */
 export const chatConversationView = z.object({

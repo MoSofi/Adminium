@@ -61,6 +61,12 @@ const ALLOWED: Record<string, string> = {
     "a named survey's invitation marked answered by the answer sent with its token, in that answer's own transaction and only while still unanswered, so two sends with one token spend it once: Adminium's own record of a link it made, never a person's save",
   'chat/store.ts':
     "a live chat's conversation moved with its messages (its last message, its automatic count, its state, the visitor's heartbeat, the details they typed, the row it became), in a chat add-on's own conversations table, which Adminium alone writes (the manifest refuses any role, grant, step or public entry that would): the inserts go through the write service's check, and each change publishes the table's live frame itself",
+  'leads/found-store.ts':
+    "a found person's row, which only Adminium writes: marked told or not when their tell mail goes or fails, and given its outbox row — a row no person writes, so no rule, hook or live frame is owed for it (`compose.ts` refuses a person's own write)",
+  'privacy/found-people.ts':
+    "a found person's rows, tell mails and fields' sources deleted by key, as the system, by a person's erasure under the privacy action and the keeping sweep, as a chat's conversations are (chat/transcripts.ts)",
+  'routes/mail-door/object.ts':
+    "a found person's own people row deleted once they objected and were erased in place, and only when no other row links to it: the person asked for it, through their mail's signed link, with nothing of theirs left in it to tell a rule or a screen",
   'chat/transcripts.ts':
     "a chat add-on's conversations removed with their messages and the answerer's choices, by key, as the system: by a person's erasure under the privacy action, and by the daily keeping sweep the add-on's own setting asks for, as form answers are (forms/answers.ts) — rows no person writes, so no rule, hook or live frame is owed for them",
   'forms/files.ts':

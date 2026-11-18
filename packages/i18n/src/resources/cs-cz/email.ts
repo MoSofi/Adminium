@@ -1013,5 +1013,20 @@ export default {
     "waitingTitle": "Chat čeká: {chat}",
     "waitingBody": "Návštěvník čeká na odpověď od člověka.",
     "waitingOutside": "Návštěvník zanechal otázku mimo vaši pracovní dobu a čeká na odpověď od člověka."
+  },
+  "leadsTell": {
+    "subject": "Proč máme vaše údaje",
+    "hello": "Dobrý den, {name},",
+    "helloNoName": "Dobrý den,",
+    "source": "{source} našel vaši pracovní e-mailovou adresu dne {date}.",
+    "why": "Proč je uchováváme: {purpose}",
+    "basis": "Opíráme se o náš oprávněný zájem (čl. 6 odst. 1 písm. f) GDPR).",
+    "keep": "{years, plural, one {Vaše údaje uchováváme # rok od {date}, nebo od chvíle, kdy nám naposledy napíšete.} few {Vaše údaje uchováváme # roky od {date}, nebo od chvíle, kdy nám naposledy napíšete.} many {Vaše údaje uchováváme # roku od {date}, nebo od chvíle, kdy nám naposledy napíšete.} other {Vaše údaje uchováváme # let od {date}, nebo od chvíle, kdy nám naposledy napíšete.}}",
+    "rights": "Můžete požádat o přístup ke svým údajům, o jejich opravu nebo výmaz, o omezení toho, co s nimi děláme, vznést námitku proti jejich uchovávání nebo požádat o jejich kopii. Stížnost můžete podat také u úřadu, který dohlíží na soukromí osobních údajů v místě, kde žijete.",
+    "notice": "Naše zásady ochrany osobních údajů: {url}",
+    "objectAsk": "Nechcete, abychom vaše údaje uchovávali?",
+    "object": "Vznést námitku",
+    "questions": "Máte otázky? Napište na {contact}. {who}.",
+    "keptBy": "Uchovává {who}."
   }
 } as const;

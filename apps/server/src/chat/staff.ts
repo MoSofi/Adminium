@@ -130,6 +130,8 @@ export interface ChatStaffDeps {
   caps: Pick<ChatCaps, 'once' | 'used'>;
   waiting: Pick<ChatWaiting, 'opened'>;
   logger?: EmailLogger | undefined;
+  /** Whether an address is a found person's not told yet (`leads/people.ts`): a reply is not mailed to them. */
+  untold?: ((address: string) => Promise<boolean>) | undefined;
   now?: () => number;
 }
 
@@ -256,6 +258,7 @@ export function createChatStaff(deps: ChatStaffDeps) {
           sample: await sample(chat, conversation.id),
           at,
           logger: deps.logger,
+          untold: deps.untold,
         });
         if (outcome.mailed) {
           mailed = true;

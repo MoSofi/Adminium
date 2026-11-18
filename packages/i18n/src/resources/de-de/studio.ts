@@ -4683,7 +4683,15 @@ export default {
       "namePlaceholder": "Der rechtliche Name Ihres Unternehmens",
       "url": "Adresse des Datenschutzhinweises",
       "help": "Wird auf jedem Formular, im Chat und im Cookie-Banner angezeigt.",
-      "save": "Speichern"
+      "save": "Speichern",
+      "dpo": "Kontakt für Datenschutz (optional)",
+      "dpoPlaceholder": "datenschutz@ihre-firma.de",
+      "dpoHelp": "An wen sich Personen wegen ihrer Daten wenden, etwa Ihre Datenschutzbeauftragte oder Ihr Datenschutzbeauftragter. Genannt in der E-Mail, die einer gefundenen Person sagt, woher ihre Daten stammen.",
+      "dpoError": "Verwenden Sie eine E-Mail-Adresse, etwa privacy@example.com.",
+      "peopleFoundHeading": "Ihr Datenschutzhinweis muss außerdem nennen",
+      "peopleFoundSources": "{addOn} bewahrt geschäftliche Daten von Personen auf. Nennen Sie, woher sie stammen:",
+      "peopleFoundWebsite": "Die eigene Website des Unternehmens",
+      "peopleFoundRecipients": "Und wer erhält, wonach gesucht wird: {hosts}"
     },
     "person": {
       "locked": "Dieser Server kann seine Adressschlüssel nicht lesen (sein Geheimnis wurde geändert), daher kann niemand gefunden oder gelöscht werden. Fragen Sie die Person, die diesen Server betreibt.",
@@ -4749,7 +4757,8 @@ export default {
         "answers": "{count, plural, one {# Formularantwort} other {# Formularantworten}} in {label}",
         "invitations": "{count, plural, one {# Umfrageeinladung} other {# Umfrageeinladungen}} in {label}, ohne ihre Adresse aufbewahrt",
         "answerFiles": "{count, plural, one {# Datei} other {# Dateien}} aus Formularantworten in {label}",
-        "chats": "{count, plural, one {# Chat-Unterhaltung} other {# Chat-Unterhaltungen}} in {label}, mit ihren Nachrichten"
+        "chats": "{count, plural, one {# Chat-Unterhaltung} other {# Chat-Unterhaltungen}} in {label}, mit ihren Nachrichten",
+        "foundPeople": "{count, plural, one {# Eintrag} other {# Einträge}} darüber, wo die Person gefunden wurde, in {label}, mit den E-Mails, die es ihr sagten"
       },
       "stays": {
         "forGood": "Dauerhaft aufbewahrt.",
@@ -4808,7 +4817,10 @@ export default {
       "chatConversations": "Chat-Unterhaltungen — {addOn}",
       "chatMonths": "{count, plural, one {# Monat aufbewahrt} other {# Monate aufbewahrt}}",
       "chatUntilRemoved": "Aufbewahrt, bis jemand sie entfernt",
-      "chatWhy": "Festgelegt in den Einstellungen von {addOn}. Ältere Unterhaltungen werden jede Nacht mit ihren Nachrichten gelöscht."
+      "chatWhy": "Festgelegt in den Einstellungen von {addOn}. Ältere Unterhaltungen werden jede Nacht mit ihren Nachrichten gelöscht.",
+      "foundPeople": "Gefundene Personen — {addOn}",
+      "foundPeopleYears": "{count, plural, one {# Jahr aufbewahrt} other {# Jahre aufbewahrt}}",
+      "foundPeopleWhy": "Festgelegt in den Einstellungen von {addOn}, ab dem Fund oder ab dem Tag, an dem die Person zuletzt geschrieben hat. Wer bis zu seinem Stichtag nicht erfahren hat, woher seine Daten stammen, wird dann gelöscht."
     },
     "downloads": {
       "processing": "Wird erstellt…",

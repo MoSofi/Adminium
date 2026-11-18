@@ -144,6 +144,13 @@ import { createChatStore, type ChatStore } from './chat/store.js';
 import { createChatStaff, type ChatStaff } from './chat/staff.js';
 import { createChatWaiting, type ChatWaiting } from './chat/waiting.js';
 import { chatOwnTable, sweepChatTranscripts } from './chat/transcripts.js';
+import { leadsOwnTable } from './leads/installs.js';
+import { withLeadsGuard } from './leads/guard.js';
+import { isFoundPerson, keepFoundPeople, untoldAddress, type KeepFoundPeopleDeps, type KeepFoundPeopleInput, type KeptPeople } from './leads/people.js';
+import { FOUND_PEOPLE_SWEEP_CRON, FOUND_PEOPLE_SWEEP_NAME, sweepFoundPeople, type SweepDone } from './leads/sweep.js';
+import { createTellMail } from './leads/tell.js';
+import { erasePerson } from './privacy/erase.js';
+import { objectDoorRoutes } from './routes/mail-door/object.js';
 import { chatStaffRoutes } from './routes/chat/index.js';
 import { createLedgerRuntime } from './ledgers/registry.js';
 import { announcePostings, tellPostings, type PostingsTold } from './ledgers/announce.js';
@@ -701,6 +708,12 @@ export interface ComposedServer {
    * routes write through the same store, so a visitor's poll hears them.
    */
   chat: { catalog: ChatCatalog; store: ChatStore; caps: ChatCaps; door: ChatDoor; staff: ChatStaff; waiting: ChatWaiting };
+  /**
+   * The people an add-on's sources found (`leads/people.ts`): keeping them
+   * (what the lead door calls, with the staff member's request), what keeping
+   * them needs, and the nightly keeping sweep (`leads/sweep.ts`).
+   */
+  leads: { deps: KeepFoundPeopleDeps; keep: (input: KeepFoundPeopleInput) => Promise<KeptPeople>; sweep: () => Promise<SweepDone> };
   /**
    * Settles once the apps and add-ons that came with this server are in their
    * stores. A caller that installs something straight after composing waits
@@ -1361,7 +1374,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const recordWrites = createWriteService({
     ledgers,
     // An app's outbox table takes only the moves a person may make: a sent message is never queued again.
-    hooks: () => withOutboxMoves(hookRunner ?? NO_RECORD_HOOKS, { meta, outboxes: () => outboxProducers.all() }),
+    // …and a save that switches found people on before they could be told, or ticks "may be e-mailed" on one, is refused (`leads/guard.ts`).
+    hooks: () =>
+      withLeadsGuard(withOutboxMoves(hookRunner ?? NO_RECORD_HOOKS, { meta, outboxes: () => outboxProducers.all() }), {
+        meta,
+        manager,
+        secret: env.ADMINIUM_SECRET,
+        reach: { networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY },
+        installs: () => addOnInstalls.fresh(),
+      }),
     // A running number counts in the meta store; a venue's clock is its connection's.
     ...writeStores(meta),
     // A consent column changed by a write, or a public tick, told to the consent log in the same write (made below, with the log).
@@ -1377,9 +1398,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     releases: async (connectionId, tableId) => [...(await outboxProducers.releasing(connectionId, tableId)), ...(await formsFiles.releasing(connectionId, tableId))],
     // A forms add-on's answers and their files are written by Adminium alone: staff read and delete them, never write them.
     // …and a chat add-on's conversations, messages and choices: staff act through the chat's own routes (`routes/chat`).
-    ownRecords: async (connectionId, tableId) => (await formsFiles.ownTable(connectionId, tableId)) || chatOwnTable(await addOnInstalls.fresh(), connectionId, tableId),
-    // …and those three chat tables are not a person's to delete either (a forms answer is): only the keeping sweep and an erasure remove them.
-    sealedRecords: async (connectionId, tableId) => chatOwnTable(await addOnInstalls.fresh(), connectionId, tableId),
+    // …and an add-on's people found and its fields' sources: the engine writes them as a person is kept, told and erased (`leads/`).
+    ownRecords: async (connectionId, tableId) =>
+      (await formsFiles.ownTable(connectionId, tableId)) || chatOwnTable(await addOnInstalls.fresh(), connectionId, tableId) || leadsOwnTable(await addOnInstalls.fresh(), connectionId, tableId),
+    // …and those chat and found people tables are not a person's to delete either (a forms answer is): only the keeping sweeps and an erasure remove them.
+    sealedRecords: async (connectionId, tableId) => chatOwnTable(await addOnInstalls.fresh(), connectionId, tableId) || leadsOwnTable(await addOnInstalls.fresh(), connectionId, tableId),
     // A file column names only a file its writer uploaded and no record holds; a picture, one cleaned as it came in.
     // A page's file column too, when a person saves it: what it newly names is an upload of theirs.
     files: createFileColumnJudge({
@@ -1487,6 +1510,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       publishChildWrite(app, { connectionId, table, action: 'update', pk: Object.fromEntries(table.primaryKey.map((c) => [c, row[c]])), row });
     },
     secret: env.ADMINIUM_SECRET,
+    // A found person's tell mail: the engine's sentences, its sealed Object link, and their row marked told (`leads/tell.ts`).
+    tell: createTellMail({ meta, secret: env.ADMINIUM_SECRET }),
+    // …and no other message reaches them until it has gone.
+    untold: (address) => untoldAddress({ meta, manager, viewFor: (connectionId) => publicViews.viewFor(connectionId) }, address),
   });
   app.decorate('outboxSender', outboxSender);
   const projectActions =
@@ -1717,6 +1744,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       onGiveUp: (report, error) => outboxSender.markUndelivered(report, error),
       marketing: marketingMail,
       campaignSeams: tableAudienceSeams({ meta, manager, consent: marketingMail.consent }),
+      // A campaign skips a found person who has not been told yet.
+      untold: (address) => untoldAddress({ meta, manager, viewFor: (connectionId) => publicViews.viewFor(connectionId) }, address),
     },
     ...(llm === null ? {} : { llm: { resolve: llm.resolve } }),
     // The assistant's turn runner. The GUARDED resolver, not the enrichment
@@ -2636,6 +2665,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           // The address the app declares for the table's people; the one e-mail column where it declares none.
           addressColumnOf: async (connectionId, table) => (await consentMirror.addressColumnOf(connectionId, table)) ?? emailColumnOf(table),
           mirror: (event) => consentMirror.mirrorEvent(event),
+          // A person a source found agreed somehow: their consent needs a note of how.
+          foundPerson: (person) => isFoundPerson({ meta, manager, viewFor: (connectionId) => publicViews.viewFor(connectionId) }, person),
         }),
       );
       // A person's data by address, the privacy notice and the sender's postal address: the privacy action's.
@@ -3650,6 +3681,62 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   await app.register(
     mailDoorRoutes({ meta, secret: env.ADMINIUM_SECRET, consent, mirror: (event, address) => consentMirror.mirrorEvent(event, address), networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY, confirm: formsConfirm }),
   );
+  /*
+   * A PERSON'S ONE ERASURE, for the engine's own callers: the Object page and
+   * the found people's keeping sweep erase by address exactly as the privacy
+   * page does (their sessions ended, their answers' files and chats gone).
+   */
+  const eraseAsEngine = (address: string) =>
+    erasePerson(
+      {
+        meta,
+        manager,
+        consent,
+        storage,
+        secret: env.ADMINIUM_SECRET,
+        signIns: (event) => app.publicIdentities.onRecordEvent(event),
+        answerFiles: formsFiles.removeAnswerFiles,
+        chatForget: (place, id) => chatStore.forget(place, id),
+      },
+      address,
+    );
+  // The Object page (`/m/o/`): a found person objects, and is erased. Beside the unsubscribe page, by the door's rules.
+  await app.register(
+    objectDoorRoutes({
+      meta,
+      manager,
+      secret: env.ADMINIUM_SECRET,
+      consent,
+      networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+      desktop: env.ADMINIUM_RUNTIME === 'desktop',
+      trustProxy: env.ADMINIUM_TRUST_PROXY,
+      erase: eraseAsEngine,
+    }),
+  );
+  /*
+   * THE PEOPLE A SOURCE FOUND (`leads/`): kept by the lead door as the staff
+   * member, told at once, and erased by the keeping sweep at their "tell by"
+   * day when they could not be told, or once their keeping time is over.
+   */
+  const leadsPeopleDeps: KeepFoundPeopleDeps = {
+    app,
+    meta,
+    manager,
+    consent,
+    writes: recordWrites,
+    secret: env.ADMINIUM_SECRET,
+    reach: { networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY },
+    viewFor: (connectionId) => publicViews.viewFor(connectionId),
+    onQueued: (addOnKey) => {
+      void jobs.enqueue({ kind: OUTBOX_SEND_JOB_KIND, payload: { app: addOnKey }, dedupeKey: `${OUTBOX_SEND_JOB_KIND}:${addOnKey}` }).catch((error: unknown) => {
+        app.log.warn({ err: error, addOnKey }, 'the tell mail send job could not be queued; the sweep will send it');
+      });
+    },
+  };
+  const sweepLeads = () => sweepFoundPeople({ meta, manager, consent, erase: eraseAsEngine, log: app.log });
+  jobs.scheduler.registerSchedule(FOUND_PEOPLE_SWEEP_NAME, FOUND_PEOPLE_SWEEP_CRON, async () => {
+    await sweepLeads();
+  });
 
   // The pages a stranger sees (`/x/`): forms, drawn by the engine from the
   // forms add-ons' tables. Always registered, like the pay page: a form needs
@@ -3703,7 +3790,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     if (swept > 0) app.log.info({ swept }, 'chat address sweep');
   });
   // What staff do in a chat (`chat/staff.ts`): every write through the store.
-  const chatStaff = createChatStaff({ meta, secret: env.ADMINIUM_SECRET, store: chatStore, caps: chatCaps, waiting: chatWaiting, logger: app.log });
+  const chatStaff = createChatStaff({
+    meta,
+    secret: env.ADMINIUM_SECRET,
+    store: chatStore,
+    caps: chatCaps,
+    waiting: chatWaiting,
+    logger: app.log,
+    // A reply is not mailed to a found person who has not been told yet.
+    untold: (address) => untoldAddress({ meta, manager, viewFor: (connectionId) => publicViews.viewFor(connectionId) }, address),
+  });
   // The tables apps open to a chat: where a question left outside hours, and an enquiry made in hours, become a row.
   const chatScopes = createFormsScopes({ meta, modelOf: async (connectionId) => ((await snapshotsRepo(meta).latest(connectionId))?.schema as LooseTableIdModel | undefined) ?? null, door: 'chat' });
   /*
@@ -4595,5 +4691,6 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     packagesSeeded: Promise.all([appSeed, addOnSeed]).then(() => undefined),
     addOnsLoaded,
     chat: { catalog: chatCatalog, store: chatStore, caps: chatCaps, door: chatDoor, staff: chatStaff, waiting: chatWaiting },
+    leads: { deps: leadsPeopleDeps, keep: (input) => keepFoundPeople(leadsPeopleDeps, input), sweep: sweepLeads },
   };
 }

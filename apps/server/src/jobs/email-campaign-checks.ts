@@ -43,6 +43,8 @@ import type { CampaignSeams } from './email-campaign-run.js';
 export const CAMPAIGN_SKIP_DO_NOT_EMAIL = 'do-not-email';
 export const CAMPAIGN_SKIP_NOT_AGREED = 'not-agreed';
 export const CAMPAIGN_SKIP_NOT_AN_ADDRESS = 'not-an-address';
+/** A person a source found, who has not been told where their details came from yet: no mail reaches them but that one. */
+export const CAMPAIGN_SKIP_NOT_TOLD = 'not-told';
 
 /** The purpose a run is sent for: its audience's, when the audience names one. */
 export function runPurpose(run: Pick<EmailRun, 'audience'>): ConsentPurpose {
@@ -57,6 +59,11 @@ export interface CampaignChecksOptions {
   secret: string;
   /** Whether the run counts clicks (signed links); off unless its own switch says so. */
   trackClicks?: ((run: EmailRun) => boolean) | undefined;
+  /**
+   * Whether an address is a found person's who has not been told yet
+   * (`leads/people.ts`): a run to contacts, of either class, skips them.
+   */
+  untold?: ((address: string) => Promise<boolean>) | undefined;
 }
 
 /** The three seams the marketing checks fill, each there. */
@@ -96,6 +103,8 @@ export function campaignMarketingChecks(options: CampaignChecksOptions): Marketi
     },
 
     async checkRow(row, run) {
+      // A found person not told yet gets no campaign of either class: only the mail that tells them.
+      if (run.mailClass !== null && options.untold !== undefined && (await options.untold(row.address))) return { skip: 'skipped-consent', reason: CAMPAIGN_SKIP_NOT_TOLD };
       if (run.mailClass !== 'marketing') return 'send';
       const verdict = await verdictOf(row, run);
       if ('skip' in verdict) {

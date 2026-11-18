@@ -1013,5 +1013,20 @@ export default {
     "waitingTitle": "En chat venter: {chat}",
     "waitingBody": "En besøgende venter på svar fra en person.",
     "waitingOutside": "En besøgende har stillet et spørgsmål uden for jeres åbningstid og venter på svar fra en person."
+  },
+  "leadsTell": {
+    "subject": "Derfor har vi dine oplysninger",
+    "hello": "Hej {name}",
+    "helloNoName": "Hej",
+    "source": "{source} fandt din arbejdsadresse den {date}.",
+    "why": "Derfor gemmer vi dem: {purpose}",
+    "basis": "Vi bygger på vores legitime interesse i dette (GDPR artikel 6, stk. 1, litra f).",
+    "keep": "{years, plural, one {Vi gemmer dine oplysninger i # år fra {date}, eller fra sidste gang du skriver til os.} other {Vi gemmer dine oplysninger i # år fra {date}, eller fra sidste gang du skriver til os.}}",
+    "rights": "Du kan bede om at se, rette eller slette dine oplysninger, begrænse hvad vi gør med dem, gøre indsigelse mod at vi gemmer dem, eller få en kopi af dem. Du kan også klage til myndigheden for databeskyttelse der, hvor du bor.",
+    "notice": "Vores privatlivserklæring: {url}",
+    "objectAsk": "Vil du ikke have, at vi gemmer dine oplysninger?",
+    "object": "Gør indsigelse",
+    "questions": "Spørgsmål? Skriv til {contact}. {who}.",
+    "keptBy": "Gemt af {who}."
   }
 } as const;

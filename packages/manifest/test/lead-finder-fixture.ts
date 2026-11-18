@@ -68,6 +68,7 @@ export function leadFinder(): Doc {
             text('outbox_id', 64, nullable),
             { ref: 'state', type: 'enum', enum: ['waiting', 'told', 'failed', 'objected'] },
             text('source_pages', undefined, nullable),
+            text('email', 320, { nullable: true, rules: { personal: true } }),
           ],
         },
         {

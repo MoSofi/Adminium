@@ -4673,7 +4673,15 @@
       "namePlaceholder": "你公司的法定名稱",
       "url": "隱私聲明網址",
       "help": "顯示在每個表單、聊天和 Cookie 橫幅中。",
-      "save": "儲存"
+      "save": "儲存",
+      "dpo": "資料隱私聯絡人（選填）",
+      "dpoPlaceholder": "privacy@your-company.com",
+      "dpoHelp": "人們就其資料寫信聯絡的人，例如您的資料隱私負責人。會寫在告知被找到的人其資料來源的電子郵件中。",
+      "dpoError": "請使用一個電子郵件地址，例如 privacy@example.com。",
+      "peopleFoundHeading": "您的隱私聲明還必須寫明",
+      "peopleFoundSources": "{addOn} 保留人們的工作資料。請說明資料來自何處：",
+      "peopleFoundWebsite": "公司自己的網站",
+      "peopleFoundRecipients": "以及誰會收到所搜尋的內容：{hosts}"
     },
     "person": {
       "locked": "此伺服器無法讀取其地址金鑰（其密鑰已變更），因此無法尋找或刪除任何人。請聯絡執行此伺服器的人。",
@@ -4739,7 +4747,8 @@
         "answers": "{label} 中的 {count, plural, other {# 筆表單回覆}}",
         "invitations": "{label} 中的 {count, plural, other {# 份問卷邀請}}，保留但不含地址",
         "answerFiles": "{label} 中隨表單回覆傳送的 {count, plural, other {# 個檔案}}",
-        "chats": "{label} 中的 {count, plural, other {# 個聊天對話}}，連同其訊息"
+        "chats": "{label} 中的 {count, plural, other {# 個聊天對話}}，連同其訊息",
+        "foundPeople": "{label} 中關於其被找到之處的 {count, plural, other {# 筆紀錄}}，以及告知其本人的電子郵件"
       },
       "stays": {
         "forGood": "永久保留。",
@@ -4798,7 +4807,10 @@
       "chatConversations": "聊天對話 — {addOn}",
       "chatMonths": "{count, plural, other {保留 # 個月}}",
       "chatUntilRemoved": "保留到有人刪除為止",
-      "chatWhy": "在 {addOn} 的設定中設定。較舊的對話連同訊息每晚刪除。"
+      "chatWhy": "在 {addOn} 的設定中設定。較舊的對話連同訊息每晚刪除。",
+      "foundPeople": "找到的人 — {addOn}",
+      "foundPeopleYears": "{count, plural, other {保留 # 年}}",
+      "foundPeopleWhy": "在 {addOn} 的設定中設定，自找到之時或其最後一次來信時起算。到期前仍未被告知資料來源的人，屆時會被刪除。"
     },
     "downloads": {
       "processing": "正在產生…",

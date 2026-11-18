@@ -18631,6 +18631,58 @@
     "status": "mt",
     "srcHash": "a1fffaaafb7c"
   },
+  "email.leadsTell.basis": {
+    "status": "mt",
+    "srcHash": "91cd8e99a6ce"
+  },
+  "email.leadsTell.hello": {
+    "status": "mt",
+    "srcHash": "e22cc4fa8916"
+  },
+  "email.leadsTell.helloNoName": {
+    "status": "mt",
+    "srcHash": "65611e9520e7"
+  },
+  "email.leadsTell.keep": {
+    "status": "mt",
+    "srcHash": "efd84ff5a8b0"
+  },
+  "email.leadsTell.keptBy": {
+    "status": "mt",
+    "srcHash": "e7f64b54736a"
+  },
+  "email.leadsTell.notice": {
+    "status": "mt",
+    "srcHash": "8d81b1f0a515"
+  },
+  "email.leadsTell.object": {
+    "status": "mt",
+    "srcHash": "2883f191bc5e"
+  },
+  "email.leadsTell.objectAsk": {
+    "status": "mt",
+    "srcHash": "a9b838972fac"
+  },
+  "email.leadsTell.questions": {
+    "status": "mt",
+    "srcHash": "1e08e13cf0f2"
+  },
+  "email.leadsTell.rights": {
+    "status": "mt",
+    "srcHash": "5b47f288bcd8"
+  },
+  "email.leadsTell.source": {
+    "status": "mt",
+    "srcHash": "b0915a06dc4c"
+  },
+  "email.leadsTell.subject": {
+    "status": "mt",
+    "srcHash": "021bc26f3e12"
+  },
+  "email.leadsTell.why": {
+    "status": "mt",
+    "srcHash": "d7fa8cef3416"
+  },
   "email.linkFallback": {
     "status": "mt",
     "srcHash": "458547886527"
@@ -20870,6 +20922,38 @@
   "mailDoor.language": {
     "status": "mt",
     "srcHash": "89b86ab0e66f"
+  },
+  "mailDoor.object.already": {
+    "status": "mt",
+    "srcHash": "4bcbbb5dba1a"
+  },
+  "mailDoor.object.button": {
+    "status": "mt",
+    "srcHash": "2883f191bc5e"
+  },
+  "mailDoor.object.dead": {
+    "status": "mt",
+    "srcHash": "3831ce45a75f"
+  },
+  "mailDoor.object.deadAsk": {
+    "status": "mt",
+    "srcHash": "72a3682e7a75"
+  },
+  "mailDoor.object.done": {
+    "status": "mt",
+    "srcHash": "e8c2f32b3399"
+  },
+  "mailDoor.object.line": {
+    "status": "mt",
+    "srcHash": "5e1d046fa76a"
+  },
+  "mailDoor.object.stays": {
+    "status": "mt",
+    "srcHash": "4f4371ef1bd9"
+  },
+  "mailDoor.object.title": {
+    "status": "mt",
+    "srcHash": "095561a94967"
   },
   "mailDoor.optional": {
     "status": "mt",
@@ -37051,6 +37135,10 @@
     "status": "mt",
     "srcHash": "8a657041aa6b"
   },
+  "studio.privacy.erase.goes.foundPeople": {
+    "status": "mt",
+    "srcHash": "685f413356d1"
+  },
   "studio.privacy.erase.goes.invitations": {
     "status": "mt",
     "srcHash": "0d89298149f1"
@@ -37231,6 +37319,18 @@
     "status": "mt",
     "srcHash": "1f6d72591f61"
   },
+  "studio.privacy.keeping.foundPeople": {
+    "status": "mt",
+    "srcHash": "25a5d8594c91"
+  },
+  "studio.privacy.keeping.foundPeopleWhy": {
+    "status": "mt",
+    "srcHash": "f854667e5bab"
+  },
+  "studio.privacy.keeping.foundPeopleYears": {
+    "status": "mt",
+    "srcHash": "8c982c19125c"
+  },
   "studio.privacy.keeping.heading": {
     "status": "mt",
     "srcHash": "aa413501810c"
@@ -37255,6 +37355,22 @@
     "status": "mt",
     "srcHash": "97211a888812"
   },
+  "studio.privacy.notice.dpo": {
+    "status": "mt",
+    "srcHash": "55903b2b0458"
+  },
+  "studio.privacy.notice.dpoError": {
+    "status": "mt",
+    "srcHash": "c390dcad0245"
+  },
+  "studio.privacy.notice.dpoHelp": {
+    "status": "mt",
+    "srcHash": "978d745ae2c4"
+  },
+  "studio.privacy.notice.dpoPlaceholder": {
+    "status": "mt",
+    "srcHash": "06efa05cffc1"
+  },
   "studio.privacy.notice.heading": {
     "status": "mt",
     "srcHash": "ec7c829b3908"
@@ -37278,6 +37394,22 @@
   "studio.privacy.notice.namePlaceholder": {
     "status": "mt",
     "srcHash": "00c687083259"
+  },
+  "studio.privacy.notice.peopleFoundHeading": {
+    "status": "mt",
+    "srcHash": "481db2ea4bc0"
+  },
+  "studio.privacy.notice.peopleFoundRecipients": {
+    "status": "mt",
+    "srcHash": "48cccf0ccf3a"
+  },
+  "studio.privacy.notice.peopleFoundSources": {
+    "status": "mt",
+    "srcHash": "b57bc1fd1bd1"
+  },
+  "studio.privacy.notice.peopleFoundWebsite": {
+    "status": "mt",
+    "srcHash": "46a250c85bda"
   },
   "studio.privacy.notice.save": {
     "status": "mt",

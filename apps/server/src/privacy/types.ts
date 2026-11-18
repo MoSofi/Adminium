@@ -30,6 +30,10 @@ export const SOURCE_KINDS = [
   'chat-conversations',
   'chat-messages',
   'chat-choices',
+  // A person a source found (`addOn.leads`): who found them and when, the tell mails sent to them, and the sources of their fields.
+  'found-people',
+  'found-people-mail',
+  'found-people-fields',
 ] as const;
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 

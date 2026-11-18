@@ -19,6 +19,8 @@ export const privacyAddressBody = z.object({ address: addressField });
 export const privacyNoticeBody = z.object({
   businessName: z.string().trim().max(120).nullable(),
   noticeUrl: z.string().trim().max(500).nullable(),
+  /** Whom a person writes to about their details (a data privacy officer): one plain e-mail address. Left out: unchanged. */
+  dpoContact: z.string().trim().max(254).nullable().optional(),
 });
 
 export const privacyNoticeReply = z.object({
@@ -29,6 +31,20 @@ export const privacyNoticeReply = z.object({
     ready: z.boolean(),
     /** The name every page a stranger sees uses now (the pay page's, then this, then the workspace's). */
     shownName: z.string(),
+    /** Whom a person writes to about their details; null while not set. */
+    dpoContact: z.string().nullable(),
+    /**
+     * What the notice must also name while an add-on keeps the people its
+     * sources find: each such add-on, the sources a person's details may
+     * come from, and the services it asks (who receives what is searched).
+     */
+    peopleFound: z.array(
+      z.object({
+        addOn: z.object({ key: z.string(), name: z.string() }),
+        sources: z.array(z.object({ id: z.string(), name: z.string(), hosts: z.array(z.string()), website: z.boolean() })),
+        recipients: z.array(z.string()),
+      }),
+    ),
   }),
 });
 
@@ -95,7 +111,7 @@ export const erasePreviewReply = z.object({
     /** What goes: their rows, copies of them, their mail, consent entries, campaign sends, files on their rows. */
     goes: z.array(
       z.object({
-        kind: z.enum(['people', 'copy', 'outbox', 'consent', 'campaign-mail', 'files', 'form-answers', 'form-invitations', 'form-files', 'chat-conversations']),
+        kind: z.enum(['people', 'copy', 'outbox', 'consent', 'campaign-mail', 'files', 'form-answers', 'form-invitations', 'form-files', 'chat-conversations', 'found-people']),
         count: z.number(),
         connectionId: z.string().optional(),
         table: z.string().optional(),

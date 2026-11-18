@@ -23,8 +23,17 @@
  * the same way: its settings' `transcripts_months` (12 until the settings row
  * is made; empty: kept until removed), swept daily by the engine with their
  * messages and choices (`chat/transcripts.ts`).
+ *
+ * An add-on that finds people keeps a row each while it keeps people
+ * ({@link foundPeopleKeeping}): how many years is its settings'
+ * `keep_years` (1 to 10, 3 by default), counted from the day a person was
+ * found or the last time they wrote, and never renewed by finding them
+ * again; the engine's sweep erases them past it, and erases one who was not
+ * told by their "tell by" day (`leads/sweep.ts`). The row is there, and
+ * required, while people are on.
  */
 import type { MetaDb, SettingKey } from '@adminium/meta';
+import { sql } from 'kysely';
 
 import type { ConnectionManager } from '../connections/manager.js';
 import type { SnapshotView } from '../crud/identifiers.js';
@@ -32,6 +41,7 @@ import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { answersMonths } from '../forms/answers.js';
 import { formsAddOnsOn, storedFormsAddOns } from '../forms/installed.js';
 import { chatAddOnsOn, storedChatAddOns, transcriptsMonths } from '../chat/transcripts.js';
+import { leadsAddOnsOn, readLeadsSettings, storedLeadsAddOns } from '../leads/installs.js';
 
 /** How long a fixed row is kept. */
 export type FixedKeep = 'forever' | 'until-erased' | 'until-removed';
@@ -130,6 +140,41 @@ export async function keepingRows(read: (key: SettingKey) => Promise<unknown>): 
     }
     const months = await read(row.setting);
     out.push({ key: row.key, fixed: false, keptFor: typeof months === 'number' ? months : 'forever', options: [...(row.options ?? [])] });
+  }
+  return out;
+}
+
+/** The key of the row for the people an add-on found. */
+export const FOUND_PEOPLE_KEEPING = 'found-people';
+
+/** One row per installed add-on that keeps the people it finds: how long it keeps them, in months (see the header). */
+export async function foundPeopleKeeping(deps: { meta: MetaDb; manager: Pick<ConnectionManager, 'data'> }): Promise<KeepingRow[]> {
+  const stored = await storedLeadsAddOns(deps.meta);
+  const out: KeepingRow[] = [];
+  for (const connectionId of [...new Set(stored.map((one) => one.connectionId))].sort()) {
+    let view: SnapshotView;
+    try {
+      view = await loadSnapshotView(deps.meta, connectionId, { forOthers: true });
+    } catch {
+      continue;
+    }
+    for (const addOn of await leadsAddOnsOn(deps.meta, connectionId, view, stored)) {
+      if (addOn.foundPeople === null) continue;
+      const table = addOn.foundPeople;
+      let settings;
+      let any = false;
+      try {
+        const { db } = await deps.manager.data(connectionId);
+        settings = await readLeadsSettings(db, addOn);
+        // People switched off again: the ones found before are still kept, for as long as the row says.
+        if (!settings.peopleOn) any = (await db.selectFrom(table.id as never).select(sql<number>`1`.as('one') as never).limit(1).executeTakeFirst()) !== undefined;
+      } catch {
+        // A database that cannot be read now: nothing is said of it until it can be.
+        continue;
+      }
+      if (!settings.peopleOn && !any) continue;
+      out.push({ key: FOUND_PEOPLE_KEEPING, fixed: true, keptFor: settings.keepYears * 12, options: [], addOn: { key: addOn.key, name: addOn.name } });
+    }
   }
   return out;
 }

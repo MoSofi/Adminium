@@ -1013,5 +1013,20 @@ export default {
     "waitingTitle": "有聊天在等待：{chat}",
     "waitingBody": "一位訪客正在等待真人回覆。",
     "waitingOutside": "一位訪客在營業時間外留下了問題，正在等待真人回覆。"
+  },
+  "leadsTell": {
+    "subject": "我們為何持有您的資料",
+    "hello": "{name}，您好：",
+    "helloNoName": "您好：",
+    "source": "{source} 於 {date} 找到了您的工作電子郵件地址。",
+    "why": "我們保留這些資料的原因：{purpose}",
+    "basis": "我們依據的是我們在此方面的正當利益（GDPR 第 6 條第 1 項第 f 款）。",
+    "keep": "{years, plural, other {我們自 {date} 起保留您的資料 # 年，或自您最後一次寫信給我們時起算。}}",
+    "rights": "您可以要求查看、更正或刪除您的資料，限制我們對其的使用，反對我們保留這些資料，或取得一份副本。您也可以向您居住地負責資料隱私的機關投訴。",
+    "notice": "我們的隱私聲明：{url}",
+    "objectAsk": "不希望我們保留您的資料？",
+    "object": "提出反對",
+    "questions": "有疑問？請寫信至 {contact}。{who}。",
+    "keptBy": "由 {who} 保留。"
   }
 } as const;

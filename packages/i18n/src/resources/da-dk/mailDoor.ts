@@ -55,5 +55,15 @@ export default {
     "tooOldAgain": "Tilmeld dig igen på {business}s hjemmeside, så sender vi et nyt.",
     "deadWrite": "Skriv til {email}, hvis du ville tilmelde dig.",
     "deadAsk": "Skriv til {business}, hvis du ville tilmelde dig."
+  },
+  "object": {
+    "title": "Gør indsigelse mod, at {business} gemmer dine oplysninger?",
+    "line": "{business} sletter dine oplysninger og sætter denne adresse på sin liste over adresser, der ikke må få e-mails.",
+    "button": "Gør indsigelse",
+    "done": "Færdig. Vi har slettet dine oplysninger og skriver ikke til dig igen.",
+    "stays": "{business} beholder sine egne poster, der nævnte dig, uden dine oplysninger: {records}.",
+    "already": "Du har allerede gjort indsigelse. {business} gemmer ikke dine oplysninger.",
+    "dead": "Dette link virker ikke. Skriv til {email}.",
+    "deadAsk": "Dette link virker ikke. Skriv til {business}."
   }
 } as const;

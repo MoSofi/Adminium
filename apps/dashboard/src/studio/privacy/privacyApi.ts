@@ -24,6 +24,17 @@ export interface PrivacyNotice {
   ready: boolean;
   /** The name every page a stranger sees uses now. */
   shownName: string;
+  /** Whom a person writes to about their details (a data privacy officer); null while not set. */
+  dpoContact: string | null;
+  /** While an add-on keeps the people its sources find: where their details may come from, and whom it asks. */
+  peopleFound: PeopleFoundNotice[];
+}
+
+/** What the privacy notice must also name for one add-on that keeps the people its sources find. */
+export interface PeopleFoundNotice {
+  addOn: { key: string; name: string };
+  sources: { id: string; name: string; hosts: string[]; website: boolean }[];
+  recipients: string[];
 }
 
 export const PRIVACY_NOTICE_QUERY_KEY = ['privacy', 'notice'] as const;
@@ -35,7 +46,7 @@ export function privacyNoticeQuery() {
   });
 }
 
-export async function putPrivacyNotice(body: { businessName: string | null; noticeUrl: string | null }): Promise<PrivacyNotice> {
+export async function putPrivacyNotice(body: { businessName: string | null; noticeUrl: string | null; dpoContact?: string | null }): Promise<PrivacyNotice> {
   return (await api.put<{ data: PrivacyNotice }>('/api/v1/privacy/notice', body)).data;
 }
 
@@ -74,7 +85,10 @@ export type SourceKind =
   | 'form-files'
   | 'chat-conversations'
   | 'chat-messages'
-  | 'chat-choices';
+  | 'chat-choices'
+  | 'found-people'
+  | 'found-people-mail'
+  | 'found-people-fields';
 
 export type KeptByLawReason = 'tax' | 'health' | 'contract' | 'safety';
 
@@ -129,7 +143,7 @@ export interface StaysItem {
   label?: string | undefined;
 }
 
-export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations';
+export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations' | 'found-people';
 
 export interface GoesItem {
   kind: GoesKind;

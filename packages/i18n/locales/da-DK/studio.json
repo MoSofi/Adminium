@@ -4673,7 +4673,15 @@
       "namePlaceholder": "Din virksomheds juridiske navn",
       "url": "Adresse på privatlivserklæringen",
       "help": "Vises på hver formular, i chatten og i cookiebanneret.",
-      "save": "Gem"
+      "save": "Gem",
+      "dpo": "Kontakt om databeskyttelse (valgfrit)",
+      "dpoPlaceholder": "privatliv@dit-firma.dk",
+      "dpoHelp": "Hvem folk skriver til om deres oplysninger, fx jeres databeskyttelsesrådgiver. Nævnt i den e-mail, der fortæller en fundet person, hvor oplysningerne kom fra.",
+      "dpoError": "Brug én e-mailadresse, fx privacy@example.com.",
+      "peopleFoundHeading": "Jeres privatlivserklæring skal også nævne",
+      "peopleFoundSources": "{addOn} gemmer folks arbejdsoplysninger. Sig, hvor de kommer fra:",
+      "peopleFoundWebsite": "Virksomhedens egen hjemmeside",
+      "peopleFoundRecipients": "Og hvem der modtager det, der søges efter: {hosts}"
     },
     "person": {
       "locked": "Denne server kan ikke læse sine adressenøgler (dens hemmelighed er ændret), så ingen kan findes eller slettes. Spørg den, der driver serveren.",
@@ -4739,7 +4747,8 @@
         "answers": "{count, plural, one {# formularsvar} other {# formularsvar}} i {label}",
         "invitations": "{count, plural, one {# invitation til en undersøgelse} other {# invitationer til undersøgelser}} i {label}, gemt uden adressen",
         "answerFiles": "{count, plural, one {# fil} other {# filer}} sendt med formularsvar i {label}",
-        "chats": "{count, plural, one {# chatsamtale} other {# chatsamtaler}} i {label}, med deres beskeder"
+        "chats": "{count, plural, one {# chatsamtale} other {# chatsamtaler}} i {label}, med deres beskeder",
+        "foundPeople": "{count, plural, one {# post} other {# poster}} om, hvor de blev fundet, i {label}, med de e-mails, der fortalte dem det"
       },
       "stays": {
         "forGood": "Gemmes for altid.",
@@ -4798,7 +4807,10 @@
       "chatConversations": "Chatsamtaler — {addOn}",
       "chatMonths": "{count, plural, one {Gemmes i # måned} other {Gemmes i # måneder}}",
       "chatUntilRemoved": "Gemmes, indtil nogen fjerner dem",
-      "chatWhy": "Indstilles under indstillingerne for {addOn}. Ældre samtaler slettes hver nat sammen med deres beskeder."
+      "chatWhy": "Indstilles under indstillingerne for {addOn}. Ældre samtaler slettes hver nat sammen med deres beskeder.",
+      "foundPeople": "Fundne personer — {addOn}",
+      "foundPeopleYears": "{count, plural, one {Gemmes i # år} other {Gemmes i # år}}",
+      "foundPeopleWhy": "Indstillet i {addOn}s indstillinger, fra de blev fundet eller sidste gang de skrev. Den, der ikke har fået at vide, hvor oplysningerne kom fra, inden fristen, slettes da."
     },
     "downloads": {
       "processing": "Bliver lavet…",

@@ -28,6 +28,9 @@
  *   - every installed chat add-on's conversations with the address typed in
  *     them, or that became one of their rows or copies, with their messages
  *     and the answerer's choices (`chat-transcripts.ts`);
+ *   - every installed add-on that finds people: the found person's rows that
+ *     name one of their rows or that a tell mail to the address names, those
+ *     mails, and the sources of their fields (`found-people.ts`);
  *
  * Only the sources this release has are searched: no page visits exist yet.
  *
@@ -60,6 +63,7 @@ import { copyFileIds, type CopyRowFiles } from './erase-meta.js';
 import { erasedColumns, parsedJson } from './erase-values.js';
 import { chatSources, findChatRows, type TheirRow } from './chat-transcripts.js';
 import { findFormRows, formSources } from './form-answers.js';
+import { findFoundPeopleRows, foundPeopleSources } from './found-people.js';
 import { findInMeta, ROWS_MAX, type FoundRow } from './meta-sources.js';
 import type { ChatForget } from '../chat/transcripts.js';
 import { inScope, type AppScope } from './scope.js';
@@ -420,6 +424,9 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string, apps
     const named = chats.filter((one) => one.kind === 'chat-conversations').flatMap((one) => one.rows).map((row) => row['name']).find((name): name is string => typeof name === 'string' && name.trim() !== '');
     if (named !== undefined) person = { name: named.trim(), company: null };
   }
+
+  // ── the people a source found: by the rows of theirs, and by the address their tell mails went to ──
+  if (whole) sources.push(...foundPeopleSources(await findFoundPeopleRows(deps, address, theirs, ROWS_MAX)));
 
   // ── what Adminium keeps itself ────────────────────────────────────────────
   sources.push(...(await findInMeta(meta, address, appRows, { byAddress: whole, copyFiles: await copyFileIds(meta, copyRows) })));

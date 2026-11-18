@@ -57,9 +57,8 @@ export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [];
  * in one of the two, and a test says so.
  */
 export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {
-  // Finding companies and people: an add-on's tables for what was found, and where a company's details go. Read by
-  // the manifest now; each moves to the words run in the change that builds it.
-  'addOn.leads': '0.3.65',
+  // Finding companies and people: where a company's details go. Read by the manifest now; it moves to the words run
+  // in the change that builds it.
   'people.lead': '0.3.65',
 };
 
@@ -466,6 +465,9 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // source with its own key and hosts (lead-sources/, routes/add-ons/sources.ts).
   'addOn.sources',
   'provides.lead-source',
+  // An add-on's tables for the people its sources found and its fields' sources: Adminium alone writes them, keeps a
+  // found person in a person's data, tells them at once, and erases them on objection or at the end of their keeping time.
+  'addOn.leads',
 ];
 
 /**

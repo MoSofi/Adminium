@@ -22,7 +22,10 @@
  *    into many chats); that address is counted by a keyed hash, never
  *    kept. The reply is kept either way, and the staff member is told which
  *    it was;
- *  - a sample conversation ("Add sample data") sends nothing.
+ *  - a sample conversation ("Add sample data") sends nothing;
+ *  - nothing goes to a person a source found who has not been told yet
+ *    where their details came from (`leads/people.ts`): only that mail
+ *    reaches them first.
  */
 import { createHash, createHmac } from 'node:crypto';
 
@@ -47,8 +50,8 @@ export const CHAT_REPLY_MAILS_PER_RECIPIENT_DAY = 5;
 const PURPOSE = 'chat-reply-mail';
 const TO_PURPOSE = 'chat-reply-to';
 
-/** Why a reply was not mailed: the mail block, the day's three used, no address given, or a sample conversation. */
-export type ChatReplyMailRefusal = FormsMailBlock | 'cap' | 'no-email' | 'sample';
+/** Why a reply was not mailed: the mail block, the day's three used, no address given, a sample conversation, or a found person not told yet. */
+export type ChatReplyMailRefusal = FormsMailBlock | 'cap' | 'no-email' | 'sample' | 'not-told';
 
 export type ChatReplyMailOutcome = { mailed: true } | { mailed: false; reason: ChatReplyMailRefusal };
 
@@ -84,6 +87,8 @@ export interface ChatReplyMailInput {
   sample: boolean;
   at: number;
   logger?: EmailLogger | undefined;
+  /** Whether an address is a found person's not told yet (`leads/people.ts`): nothing is mailed to them. */
+  untold?: ((address: string) => Promise<boolean>) | undefined;
 }
 
 /** Mails a reply (see the header); answers whether it was queued, and why not. */
@@ -95,6 +100,7 @@ export async function mailChatReply(input: ChatReplyMailInput): Promise<ChatRepl
   const origin = await storedPublicOrigin(meta);
   if (origin === null) return { mailed: false, reason: 'no-public-origin' };
   if (conversation.email === null) return { mailed: false, reason: 'no-email' };
+  if (input.untold !== undefined && (await input.untold(conversation.email))) return { mailed: false, reason: 'not-told' };
   // Counted before it is queued: two replies at the same moment cannot both slip past the day's three.
   // The address's own day, across every conversation of the install: read first, so a refused one uses none of the conversation's three…
   const recipient = replyRecipientSubject(input.secret, input.chat.installId, conversation.email);

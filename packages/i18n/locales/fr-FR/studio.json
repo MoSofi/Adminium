@@ -4673,7 +4673,15 @@
       "namePlaceholder": "La raison sociale de votre entreprise",
       "url": "Adresse de l’avis de confidentialité",
       "help": "Affiché sur chaque formulaire, dans le chat et dans la bannière de cookies.",
-      "save": "Enregistrer"
+      "save": "Enregistrer",
+      "dpo": "Contact pour la confidentialité des données (facultatif)",
+      "dpoPlaceholder": "confidentialite@votre-entreprise.fr",
+      "dpoHelp": "À qui les personnes écrivent au sujet de leurs coordonnées, comme votre délégué à la confidentialité des données. Indiqué dans l’e-mail qui dit à une personne trouvée d’où viennent ses coordonnées.",
+      "dpoError": "Utilisez une seule adresse e-mail, comme privacy@example.com.",
+      "peopleFoundHeading": "Votre avis de confidentialité doit aussi indiquer",
+      "peopleFoundSources": "{addOn} garde les coordonnées de travail de personnes. Dites d’où elles viennent :",
+      "peopleFoundWebsite": "Le site web de l’entreprise elle-même",
+      "peopleFoundRecipients": "Et qui reçoit ce qui est recherché : {hosts}"
     },
     "person": {
       "locked": "Ce serveur ne peut pas lire ses clés d’adresse (son secret a été changé) : personne ne peut être trouvé ni effacé. Demandez à la personne qui gère ce serveur.",
@@ -4739,7 +4747,8 @@
         "answers": "{count, plural, one {# réponse à un formulaire} other {# réponses à des formulaires}} dans {label}",
         "invitations": "{count, plural, one {# invitation à une enquête} other {# invitations à des enquêtes}} dans {label}, conservées sans l’adresse",
         "answerFiles": "{count, plural, one {# fichier envoyé} other {# fichiers envoyés}} avec des réponses à des formulaires dans {label}",
-        "chats": "{count, plural, one {# conversation de chat} other {# conversations de chat}} dans {label}, avec leurs messages"
+        "chats": "{count, plural, one {# conversation de chat} other {# conversations de chat}} dans {label}, avec leurs messages",
+        "foundPeople": "{count, plural, one {# fiche} other {# fiches}} indiquant où la personne a été trouvée dans {label}, avec les e-mails qui l’en ont informée"
       },
       "stays": {
         "forGood": "Conservé pour toujours.",
@@ -4798,7 +4807,10 @@
       "chatConversations": "Conversations du chat — {addOn}",
       "chatMonths": "{count, plural, one {Conservées # mois} other {Conservées # mois}}",
       "chatUntilRemoved": "Conservées jusqu’à ce que quelqu’un les supprime",
-      "chatWhy": "Réglé dans les paramètres de {addOn}. Les conversations plus anciennes sont supprimées chaque nuit, avec leurs messages."
+      "chatWhy": "Réglé dans les paramètres de {addOn}. Les conversations plus anciennes sont supprimées chaque nuit, avec leurs messages.",
+      "foundPeople": "Personnes trouvées — {addOn}",
+      "foundPeopleYears": "{count, plural, one {Conservées # an} other {Conservées # ans}}",
+      "foundPeopleWhy": "Réglé dans les paramètres de {addOn}, à partir du moment où elles ont été trouvées ou de leur dernier message. Une personne qui n’a pas été informée de l’origine de ses coordonnées à sa date limite est alors supprimée."
     },
     "downloads": {
       "processing": "En préparation…",

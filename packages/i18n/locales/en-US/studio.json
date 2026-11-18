@@ -4673,7 +4673,15 @@
       "namePlaceholder": "Your company’s legal name",
       "url": "Privacy notice address",
       "help": "Shown on every form, the chat and the cookie banner.",
-      "save": "Save"
+      "save": "Save",
+      "dpo": "Data privacy contact (optional)",
+      "dpoPlaceholder": "privacy@your-company.com",
+      "dpoHelp": "Whom people write to about their details, such as your data privacy officer. Named in the mail that tells a found person where their details came from.",
+      "dpoError": "Use one e-mail address, such as privacy@example.com.",
+      "peopleFoundHeading": "Your privacy notice must also name",
+      "peopleFoundSources": "{addOn} keeps people’s work details. Say where they come from:",
+      "peopleFoundWebsite": "The company’s own website",
+      "peopleFoundRecipients": "And who receives what is searched: {hosts}"
     },
     "person": {
       "locked": "This server can’t read its address keys (its secret was changed), so nobody can be found or erased. Ask whoever runs this server.",
@@ -4739,7 +4747,8 @@
         "answers": "{count, plural, one {# form answer} other {# form answers}} in {label}",
         "invitations": "{count, plural, one {# survey invitation} other {# survey invitations}} in {label}, kept without their address",
         "answerFiles": "{count, plural, one {# file} other {# files}} sent with form answers in {label}",
-        "chats": "{count, plural, one {# chat conversation} other {# chat conversations}} in {label}, with their messages"
+        "chats": "{count, plural, one {# chat conversation} other {# chat conversations}} in {label}, with their messages",
+        "foundPeople": "{count, plural, one {# record} other {# records}} of where they were found in {label}, with the mails that told them"
       },
       "stays": {
         "forGood": "Kept for good.",
@@ -4798,7 +4807,10 @@
       "chatConversations": "Chat conversations — {addOn}",
       "chatMonths": "{count, plural, one {Kept for # month} other {Kept for # months}}",
       "chatUntilRemoved": "Kept until someone removes them",
-      "chatWhy": "Set in {addOn}’s settings. Older conversations are deleted each night, with their messages."
+      "chatWhy": "Set in {addOn}’s settings. Older conversations are deleted each night, with their messages.",
+      "foundPeople": "People found — {addOn}",
+      "foundPeopleYears": "{count, plural, one {Kept for # year} other {Kept for # years}}",
+      "foundPeopleWhy": "Set in {addOn}’s settings, from when they were found or the last time they wrote. Anyone not told where their details came from by their tell-by day is deleted then."
     },
     "downloads": {
       "processing": "Being made…",
