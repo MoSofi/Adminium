@@ -861,6 +861,14 @@ export const SETTINGS_REGISTRY = {
     'Where replies to marketing mail go (its Reply-To)',
     P,
   ),
+  // Whom a person writes to about their details (a data privacy officer, or the business's privacy address): named in
+  // the mail that tells a found person where their details came from, and on the page they object on. Optional.
+  'privacy.dpoContact': def<string | null>(
+    z.string().trim().min(3).max(254).regex(/^[^\s@,;:<>"()[\]\\]+@[^\s@,;:<>"()[\]\\]+\.[^\s@,;:<>"()[\]\\]+$/, 'must be one plain e-mail address').nullable(),
+    null,
+    'Whom a person writes to about their details (a data privacy officer), as one plain e-mail address',
+    P,
+  ),
   // ── "Your websites": the sites that may show a form in a frame ────────────
   //
   // Each an origin (`https://shop.example`: lower case, no path, no default

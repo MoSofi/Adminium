@@ -95,6 +95,7 @@ import { listedAt } from '../listed-recipients.js';
 import { staffAt, staffReplyTo } from '../staff-recipient.js';
 import { AUTOMATION_NOTICE_KIND } from './notice-kind.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
+import { UNTOLD_SENTENCE, untoldAddress } from '../../leads/people.js';
 
 type EmailAction = Extract<AutomationAction, { kind: 'email' }>;
 
@@ -348,6 +349,11 @@ async function queueThroughTrialRelay(action: EmailAction, ctx: ActionContext, t
   const mailClass = action.to?.kind === 'field' ? (action.class ?? 'service') : undefined;
   const replies: string[] = [];
   for (const to of recipients) {
+    // A found person not told yet gets no mail from a rule: only the one that tells them.
+    if (await untoldAddress({ meta: ctx.meta, manager: ctx.manager }, to)) {
+      replies.push(ctx.text.emailSkipped(UNTOLD_SENTENCE, to));
+      continue;
+    }
     const rendered = renderEmail({ ...prepared.render, locale: template.locale, vars, dir: isLocaleId(template.locale) ? dirForLocale(template.locale) : 'ltr' });
     const job = await enqueueRenderedEmail(
       { meta: ctx.meta, secret: ctx.secret },
@@ -406,6 +412,11 @@ export async function runEmailAction(
   const replies: string[] = [];
   let senderChecked = false;
   for (const to of recipients) {
+    // A found person not told yet gets no mail from a rule: only the one that tells them.
+    if (await untoldAddress({ meta: ctx.meta, manager: ctx.manager }, to)) {
+      replies.push(ctx.text.emailSkipped(UNTOLD_SENTENCE, to));
+      continue;
+    }
     let carry: Awaited<ReturnType<MarketingMail['carry']>> | null = null;
     let signed: Awaited<ReturnType<MarketingMail['signing']>> | null = null;
     if (mailClass === 'marketing' && kit !== null) {

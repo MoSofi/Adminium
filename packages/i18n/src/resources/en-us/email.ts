@@ -1013,5 +1013,20 @@ export default {
     "waitingTitle": "A chat is waiting: {chat}",
     "waitingBody": "A visitor is waiting for a person to answer.",
     "waitingOutside": "A visitor left a question outside your hours and waits for a person to answer."
+  },
+  "leadsTell": {
+    "subject": "Why we have your details",
+    "hello": "Hello {name},",
+    "helloNoName": "Hello,",
+    "source": "{source} found your work address on {date}.",
+    "why": "Why we keep them: {purpose}",
+    "basis": "We rely on our legitimate interest in this (GDPR Article 6(1)(f)).",
+    "keep": "{years, plural, one {We keep your details for # year from {date}, or from the last time you write to us.} other {We keep your details for # years from {date}, or from the last time you write to us.}}",
+    "rights": "You can ask to see, correct or delete your details, to limit what we do with them, to object to our keeping them, or to get a copy of them. You can also complain to the authority for data privacy where you live.",
+    "notice": "Our privacy notice: {url}",
+    "objectAsk": "Don’t want us to keep your details?",
+    "object": "Object",
+    "questions": "Questions? Write to {contact}. {who}.",
+    "keptBy": "Kept by {who}."
   }
 } as const;

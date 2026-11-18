@@ -45,5 +45,15 @@
     "tooOldAgain": "Sign up again on {business}’s website and we’ll send a new one.",
     "deadWrite": "Write to {email} if you meant to sign up.",
     "deadAsk": "Write to {business} if you meant to sign up."
+  },
+  "object": {
+    "title": "Object to {business} keeping your details?",
+    "line": "{business} will delete your details and put this address on its do-not-email list.",
+    "button": "Object",
+    "done": "Done. We have deleted your details and won’t write to you again.",
+    "stays": "{business} keeps its own records that named you, with your details taken out: {records}.",
+    "already": "You’ve already objected. {business} doesn’t keep your details.",
+    "dead": "This link doesn’t work. Write to {email}.",
+    "deadAsk": "This link doesn’t work. Write to {business}."
   }
 }

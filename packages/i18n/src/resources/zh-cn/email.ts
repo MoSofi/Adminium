@@ -1013,5 +1013,20 @@ export default {
     "waitingTitle": "有聊天在等待：{chat}",
     "waitingBody": "一位访客正在等待人工回复。",
     "waitingOutside": "一位访客在非营业时间留下了问题，正在等待人工回复。"
+  },
+  "leadsTell": {
+    "subject": "我们为何持有您的信息",
+    "hello": "{name}，您好：",
+    "helloNoName": "您好：",
+    "source": "{source} 于 {date} 找到了您的工作邮箱地址。",
+    "why": "我们保留这些信息的原因：{purpose}",
+    "basis": "我们依据的是我们在此方面的合法利益（GDPR 第 6 条第 1 款第 f 项）。",
+    "keep": "{years, plural, other {我们自 {date} 起保留您的信息 # 年，或自您最后一次给我们写信时起算。}}",
+    "rights": "您可以要求查看、更正或删除您的信息，限制我们对其的使用，反对我们保留这些信息，或获取一份副本。您也可以向您居住地负责数据隐私的机构投诉。",
+    "notice": "我们的隐私声明：{url}",
+    "objectAsk": "不希望我们保留您的信息？",
+    "object": "提出反对",
+    "questions": "有疑问？请写信至 {contact}。{who}。",
+    "keptBy": "由 {who} 保留。"
   }
 } as const;

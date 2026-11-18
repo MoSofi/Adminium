@@ -1003,5 +1003,20 @@
     "waitingTitle": "Un chat attend : {chat}",
     "waitingBody": "Un visiteur attend la réponse d’une personne.",
     "waitingOutside": "Un visiteur a laissé une question en dehors de vos horaires et attend la réponse d’une personne."
+  },
+  "leadsTell": {
+    "subject": "Pourquoi nous avons vos coordonnées",
+    "hello": "Bonjour {name},",
+    "helloNoName": "Bonjour,",
+    "source": "{source} a trouvé votre adresse e-mail de travail le {date}.",
+    "why": "Pourquoi nous les gardons : {purpose}",
+    "basis": "Nous nous fondons pour cela sur notre intérêt légitime (RGPD, article 6, paragraphe 1, point f).",
+    "keep": "{years, plural, one {Nous gardons vos coordonnées # an à partir du {date}, ou de la dernière fois que vous nous écrivez.} other {Nous gardons vos coordonnées # ans à partir du {date}, ou de la dernière fois que vous nous écrivez.}}",
+    "rights": "Vous pouvez demander à voir, corriger ou supprimer vos coordonnées, à limiter ce que nous en faisons, à vous opposer à leur conservation ou à en recevoir une copie. Vous pouvez aussi vous plaindre auprès de l’autorité chargée de la confidentialité des données là où vous vivez.",
+    "notice": "Notre avis de confidentialité : {url}",
+    "objectAsk": "Vous ne voulez pas que nous gardions vos coordonnées ?",
+    "object": "Je m’oppose",
+    "questions": "Des questions ? Écrivez à {contact}. {who}.",
+    "keptBy": "Conservées par {who}."
   }
 }

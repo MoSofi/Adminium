@@ -4680,7 +4680,15 @@ export default {
       "namePlaceholder": "Oficiální název vaší firmy",
       "url": "Adresa zásad ochrany osobních údajů",
       "help": "Zobrazuje se u každého formuláře, v chatu a v cookie liště.",
-      "save": "Uložit"
+      "save": "Uložit",
+      "dpo": "Kontakt ve věcech soukromí údajů (nepovinné)",
+      "dpoPlaceholder": "soukromi@vase-firma.cz",
+      "dpoHelp": "Komu lidé píší ohledně svých údajů, například váš pověřenec. Uveden v e-mailu, který nalezené osobě říká, odkud její údaje pocházejí.",
+      "dpoError": "Použijte jednu e-mailovou adresu, například privacy@example.com.",
+      "peopleFoundHeading": "Vaše zásady ochrany osobních údajů musí uvádět také",
+      "peopleFoundSources": "{addOn} uchovává pracovní údaje lidí. Uveďte, odkud pocházejí:",
+      "peopleFoundWebsite": "Vlastní web firmy",
+      "peopleFoundRecipients": "A kdo dostává to, co se hledá: {hosts}"
     },
     "person": {
       "locked": "Tento server nemůže přečíst své klíče adres (jeho tajný klíč byl změněn), takže nikoho nelze najít ani vymazat. Obraťte se na toho, kdo server spravuje.",
@@ -4746,7 +4754,8 @@ export default {
         "answers": "{count, plural, one {# odpověď z formuláře} few {# odpovědi z formulářů} many {# odpovědi z formulářů} other {# odpovědí z formulářů}} v {label}",
         "invitations": "{count, plural, one {# pozvánka do průzkumu} few {# pozvánky do průzkumu} many {# pozvánky do průzkumu} other {# pozvánek do průzkumu}} v {label}, uchováno bez adresy",
         "answerFiles": "{count, plural, one {# soubor} few {# soubory} many {# souboru} other {# souborů}} z odpovědí na formuláře v {label}",
-        "chats": "{count, plural, one {# konverzace v chatu} few {# konverzace v chatu} many {# konverzace v chatu} other {# konverzací v chatu}} v {label}, i se zprávami"
+        "chats": "{count, plural, one {# konverzace v chatu} few {# konverzace v chatu} many {# konverzace v chatu} other {# konverzací v chatu}} v {label}, i se zprávami",
+        "foundPeople": "{count, plural, one {# záznam} few {# záznamy} many {# záznamu} other {# záznamů}} o tom, kde byli nalezeni, v {label}, s e-maily, které jim to sdělily"
       },
       "stays": {
         "forGood": "Uchováno natrvalo.",
@@ -4805,7 +4814,10 @@ export default {
       "chatConversations": "Konverzace v chatu — {addOn}",
       "chatMonths": "{count, plural, one {Uchováno # měsíc} few {Uchováno # měsíce} many {Uchováno # měsíce} other {Uchováno # měsíců}}",
       "chatUntilRemoved": "Uchováno, dokud je někdo neodstraní",
-      "chatWhy": "Nastaveno v nastavení doplňku {addOn}. Starší konverzace se mažou každou noc i se zprávami."
+      "chatWhy": "Nastaveno v nastavení doplňku {addOn}. Starší konverzace se mažou každou noc i se zprávami.",
+      "foundPeople": "Nalezení lidé — {addOn}",
+      "foundPeopleYears": "{count, plural, one {Uchováno # rok} few {Uchováno # roky} many {Uchováno # roku} other {Uchováno # let}}",
+      "foundPeopleWhy": "Nastaveno v nastavení doplňku {addOn}, od chvíle nalezení nebo od chvíle, kdy naposledy napsali. Kdo se do svého termínu nedozvěděl, odkud jeho údaje pocházejí, je pak smazán."
     },
     "downloads": {
       "processing": "Připravuje se…",

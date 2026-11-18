@@ -34,6 +34,15 @@
  * (their address stays on the do-not-email list as a hash, which their row
  * no longer leads to) and nothing more can be recorded about them.
  *
+ * ─── A person a source found ───────────────────────────────────────────────
+ * Found people are written to on consent only, and a tick is no record of
+ * how they agreed: on a row a found person's row links (`leads/people.ts`),
+ * "Record consent" needs how they agreed AND a note of what they said and
+ * when (at most {@link FOUND_NOTE_MAX} characters), kept on the log row with
+ * who recorded it and when; it is refused without one. With it, they are an
+ * ordinary consenting contact for that purpose. A save that ticks the
+ * consent column itself is refused for them (`leads/guard.ts`).
+ *
  * ─── What is never sent back ───────────────────────────────────────────────
  * An event of another row's or another table's person that shares the
  * address: the panel's history is the row's own events and those the
@@ -99,7 +108,12 @@ export interface ConsentRoutesDeps {
   mirror?: ((event: ConsentEvent) => Promise<unknown>) | undefined;
   /** The people tables the installed apps declare; the meta store's own reader when left out. */
   people?: PeopleTables | undefined;
+  /** Whether a record is a person a source found (`leads/people.ts`): their consent needs a note of how they agreed. */
+  foundPerson?: ((person: ConsentPerson) => Promise<boolean>) | undefined;
 }
+
+/** The longest note of how a found person agreed. */
+export const FOUND_NOTE_MAX = 200;
 
 /** Whether a value is an address the erasure wrote: one on its reserved domain, which no mail is ever sent to. */
 export function erasedAddress(value: unknown): boolean {
@@ -312,6 +326,13 @@ export function consentRoutes(deps: ConsentRoutesDeps): FastifyPluginAsyncZod {
         const body = request.body;
         const { table, person, address, erased, grant } = await reach(request, body, 'update');
         refuseErased(erased);
+        // A found person agreed somehow, and the log says how: a note is required, and short.
+        if (deps.foundPerson !== undefined && (await deps.foundPerson(person))) {
+          const note = body.note?.trim() ?? '';
+          if (note === '' || [...note].length > FOUND_NOTE_MAX) {
+            throw new ValidationFailedError(`This person was found by Lead finder: say how they agreed, in a note of up to ${String(FOUND_NOTE_MAX)} characters.`, { reason: 'HOW_THEY_AGREED', field: 'note' });
+          }
+        }
         const event = await service.record({ person, address, purpose: body.purpose, state: 'yes', source: 'staff', how: body.how, note: body.note, staff });
         // The record's declared column follows the log: ticked, by this staff member.
         await deps.mirror?.(event);

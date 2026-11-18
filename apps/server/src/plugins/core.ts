@@ -391,6 +391,9 @@ export const RATE_BUCKETS = {
   // each (60): 660. Each conversation's own caps are the real gate.
   'chat-poll': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
   'chat-write': { max: 660, timeWindowMs: 60_000, keyBy: 'ip' },
+  // The Object page (`/m/o/`): a found person's link, by network address. Its own budget, so a campaign's burst of
+  // unsubscribes never spends it; the signed link is the gate, and a press twice changes nothing.
+  'object-page': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
 } as const satisfies Readonly<Record<string, RateBucket>>;
 
 /**

@@ -101,7 +101,9 @@ export type MailDoorView =
   | { kind: 'confirmDead' }
   | { kind: 'already' }
   | { kind: 'dead' }
-  | { kind: 'unavailable' };
+  | { kind: 'unavailable' }
+  /** A page another door of the mail door draws (the Object page, `object.ts`): its main column, made with this page's own parts. */
+  | { kind: 'own'; main: string };
 
 export interface MailDoorPageInput {
   view: MailDoorView;
@@ -115,7 +117,7 @@ export interface MailDoorPageInput {
   t: Translate;
 }
 
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
 }
 
@@ -150,7 +152,7 @@ const SLOT = '';
  * address as an isolated left-to-right run, an e-mail link): the sentence is
  * translated around a stand-in, escaped, and the stand-in replaced.
  */
-function withSlot(t: Translate, key: string, fallback: string, args: Record<string, unknown>, slotName: string, markup: string): string {
+export function withSlot(t: Translate, key: string, fallback: string, args: Record<string, unknown>, slotName: string, markup: string): string {
   const text = t(key, fallback, { ...args, [slotName]: SLOT });
   return escapeHtml(text).split(SLOT).join(markup);
 }
@@ -247,11 +249,11 @@ function languageMenu(input: MailDoorPageInput): string {
   return `<details class="lang"><summary aria-label="${escapeHtml(`${label}: ${current.name}`)}">${icon('globe', 16)}<span>${escapeHtml(current.name)}</span>${icon('chevronDown', 14)}</summary><ul class="menu" aria-label="${escapeHtml(label)}">${items}</ul></details>`;
 }
 
-function mailLink(email: string, withIcon: boolean): string {
+export function mailLink(email: string, withIcon: boolean): string {
   return `<a href="mailto:${escapeHtml(email)}">${withIcon ? icon('mail', 16) : ''}<bdi dir="ltr">${escapeHtml(email)}</bdi></a>`;
 }
 
-function statusCard(tone: 'positive' | 'neutral' | 'warning', iconName: keyof typeof ICONS, title: string, paras: string[], small: string | null, contact: string | null): string {
+export function statusCard(tone: 'positive' | 'neutral' | 'warning', iconName: keyof typeof ICONS, title: string, paras: string[], small: string | null, contact: string | null): string {
   return `<section class="card status ${tone}"><div class="row"><span class="tile">${icon(iconName, 18)}</span><div class="words"><h1 class="status-title">${escapeHtml(title)}</h1>${paras.map((p) => `<p class="para">${p}</p>`).join('')}${small === null ? '' : `<p class="small">${escapeHtml(small)}</p>`}</div></div>${contact === null ? '' : `<div class="contact">${mailLink(contact, true)}</div>`}</section>`;
 }
 
@@ -347,6 +349,8 @@ function mainOf(input: MailDoorPageInput): string {
       const title = t('mailDoor:unavailable.title', 'This page isn’t available.');
       return statusCard('neutral', 'searchX', title, [], null, business.email);
     }
+    case 'own':
+      return view.main;
   }
 }
 
