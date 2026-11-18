@@ -348,13 +348,13 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     let reply = await switchOn();
     expect(reply.statusCode, reply.body).toBe(422);
     expect(reply.body).toContain(PEOPLE_SWITCH_REFUSED);
-    expect(reply.body).toContain('E-mail isn’t set up: Workspace settings → Email.');
+    expect(reply.body).toContain('E-mail isn’t set up: Settings → Email.');
     await settings().set('email.smtp', smtp(), { updatedBy: null });
     // No public address.
     await settings().set('system.publicOrigin', null, { updatedBy: null });
     reply = await switchOn();
     expect(reply.statusCode).toBe(422);
-    expect(reply.body).toContain('Set the address in e-mail links: Workspace settings → Senders.');
+    expect(reply.body).toContain('Set the address in e-mail links: Settings → Senders.');
     expect(reply.body).not.toContain('E-mail isn’t set up');
     await settings().set('system.publicOrigin', ORIGIN, { updatedBy: null });
     // No English purpose.

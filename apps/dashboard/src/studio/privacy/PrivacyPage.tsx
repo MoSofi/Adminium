@@ -241,8 +241,8 @@ function NoticeForm({ name: savedName, url: savedUrl, dpo: savedDpo }: { name: s
                 maxLength={254}
                 dir="ltr"
                 mono
-                type="email"
                 inputMode="email"
+                autoComplete="email"
                 placeholder={t('studio:privacy.notice.dpoPlaceholder', 'privacy@your-company.com')}
                 onChange={(event) => setDpo(event.target.value)}
                 className="bg-surface-2 text-[12.5px]"

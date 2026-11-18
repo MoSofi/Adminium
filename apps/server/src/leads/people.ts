@@ -216,9 +216,9 @@ export async function peopleSwitchProblems(deps: LeadsPeopleDeps, install: { ins
     }
   }
   if (read.keepYearsSet === null) out.push({ code: 'keep-years', message: 'Choose how long found people are kept: 1 to 10 years.' });
-  if (!(await isEmailConfigured(deps.meta, deps.secret))) out.push({ code: 'mail-server', message: 'E-mail isn’t set up: Workspace settings → Email.' });
+  if (!(await isEmailConfigured(deps.meta, deps.secret))) out.push({ code: 'mail-server', message: 'E-mail isn’t set up: Settings → Email.' });
   const door = await mailDoorReach(deps.meta, deps.reach);
-  if (door.origin === null) out.push({ code: 'public-origin', message: 'Set the address in e-mail links: Workspace settings → Senders.' });
+  if (door.origin === null) out.push({ code: 'public-origin', message: 'Set the address in e-mail links: Settings → Senders.' });
   else if (!door.open) out.push({ code: 'mail-door', message: 'The page a person objects on can’t be reached from outside: check this server’s public address.' });
   if (!(await privacyNoticeReady(deps.meta))) out.push({ code: 'privacy-notice', message: 'Set the business name and the privacy notice’s address: Studio → Privacy.' });
   return out;

@@ -30,7 +30,7 @@
  * languages: the mail's, else the one picked on the page, else the
  * browser's, else the install's.
  */
-import { auditRepo, settingsRepo, type MetaDb } from '@adminium/meta';
+import { auditRepo, settingsRepo } from '@adminium/meta';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { sql } from 'kysely';
