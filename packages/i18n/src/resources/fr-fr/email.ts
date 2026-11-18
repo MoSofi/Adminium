@@ -998,5 +998,9 @@ export default {
   "trialRelay": {
     "footer": "Envoyé depuis l’installation à l’adresse {address}, par le service de messagerie de son opérateur.",
     "report": "Signaler cet e-mail"
+  },
+  "chat": {
+    "pausedTitle": "Les nouvelles discussions sont en pause : {chat}",
+    "pausedBody": "Tant de nouvelles discussions ont commencé en une heure que cela ressemble à un script. Les nouveaux visiteurs ne peuvent pas ouvrir de discussion avant {time} ; les discussions en cours continuent. Vous pouvez les rouvrir plus tôt dans les réglages de la discussion."
   }
 } as const;

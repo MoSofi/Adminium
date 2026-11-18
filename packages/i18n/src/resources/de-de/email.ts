@@ -998,5 +998,9 @@ export default {
   "trialRelay": {
     "footer": "Gesendet von der Installation unter {address}, über den Maildienst ihres Betreibers.",
     "report": "Diese E-Mail melden"
+  },
+  "chat": {
+    "pausedTitle": "Neue Chats sind pausiert: {chat}",
+    "pausedBody": "Innerhalb einer Stunde wurden so viele neue Chats begonnen, dass es nach einem Skript aussieht. Neue Besucher können bis {time} keinen Chat beginnen; laufende Chats gehen weiter. In den Einstellungen des Chats können Sie neue Chats früher wieder zulassen."
   }
 } as const;

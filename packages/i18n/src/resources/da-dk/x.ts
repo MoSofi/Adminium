@@ -103,5 +103,8 @@ export default {
     "offlineBody": "Tjek din forbindelse, og prøv igen.",
     "retry": "Prøv igen",
     "continue": "Fortsæt"
+  },
+  "chat": {
+    "noScript": "Denne chat kræver JavaScript."
   }
 } as const;

@@ -17743,6 +17743,14 @@
     "status": "mt",
     "srcHash": "09f7e4f1cf49"
   },
+  "email.chat.pausedBody": {
+    "status": "mt",
+    "srcHash": "12f86ba2f18c"
+  },
+  "email.chat.pausedTitle": {
+    "status": "mt",
+    "srcHash": "e4b9e2dbbdc5"
+  },
   "email.copySuffix": {
     "status": "mt",
     "srcHash": "7e4c743b8f09"
@@ -50418,6 +50426,10 @@
   "x.anonymous": {
     "status": "mt",
     "srcHash": "ee410e432d9e"
+  },
+  "x.chat.noScript": {
+    "status": "mt",
+    "srcHash": "2e0cd1025972"
   },
   "x.ending.already": {
     "status": "mt",

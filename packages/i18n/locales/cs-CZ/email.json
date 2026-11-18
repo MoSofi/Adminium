@@ -988,5 +988,9 @@
   "trialRelay": {
     "footer": "Odesláno z instalace na adrese {address} přes poštovní službu jejího provozovatele.",
     "report": "Nahlásit tento e-mail"
+  },
+  "chat": {
+    "pausedTitle": "Nové chaty jsou pozastavené: {chat}",
+    "pausedBody": "Během hodiny začalo tolik nových chatů, že to vypadá na skript. Noví návštěvníci nemohou začít chat až do {time}; probíhající chaty pokračují. Nové chaty můžete obnovit dříve v nastavení chatu."
   }
 }

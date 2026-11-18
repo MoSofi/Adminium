@@ -988,5 +988,9 @@
   "trialRelay": {
     "footer": "Sendt fra installationen på {address} via operatørens mailtjeneste.",
     "report": "Anmeld denne e-mail"
+  },
+  "chat": {
+    "pausedTitle": "Nye chats er sat på pause: {chat}",
+    "pausedBody": "Der blev startet så mange nye chats inden for en time, at det ligner et script. Nye besøgende kan ikke starte en chat før {time}; igangværende chats fortsætter. Du kan genoptage nye chats tidligere i chattens indstillinger."
   }
 }

@@ -998,5 +998,9 @@ export default {
   "trialRelay": {
     "footer": "由位於 {address} 的安裝透過其營運方的郵件服務寄出。",
     "report": "檢舉此郵件"
+  },
+  "chat": {
+    "pausedTitle": "新對話已暫停：{chat}",
+    "pausedBody": "一小時內開始的新對話太多，看起來像是腳本所為。在 {time} 之前，新訪客無法開始對話；進行中的對話不受影響。你可以在對話設定中提前恢復新對話。"
   }
 } as const;

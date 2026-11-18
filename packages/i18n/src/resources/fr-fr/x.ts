@@ -103,5 +103,8 @@ export default {
     "offlineBody": "Vérifiez votre connexion et réessayez.",
     "retry": "Réessayer",
     "continue": "Continuer"
+  },
+  "chat": {
+    "noScript": "Cette discussion a besoin de JavaScript."
   }
 } as const;

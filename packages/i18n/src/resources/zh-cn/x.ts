@@ -103,5 +103,8 @@ export default {
     "offlineBody": "请检查网络连接后重试。",
     "retry": "重试",
     "continue": "继续"
+  },
+  "chat": {
+    "noScript": "此对话需要 JavaScript。"
   }
 } as const;
