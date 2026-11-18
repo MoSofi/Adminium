@@ -36,7 +36,7 @@ export interface RobotsRules {
   rules: RobotsRule[];
 }
 
-/** The leading product token of a `user-agent` value: letters, `_` and `-` (RFC 9309 §2.2.1). */
+/** The leading product token of a `user-agent` value: letters, `_` and `-` (the product token rule of RFC 9309). */
 const tokenOf = (value: string): string => /^[A-Za-z_-]*/.exec(value.trim())?.[0]?.toLowerCase() ?? '';
 
 /** Percent-escapes in one case, and any character outside ASCII escaped, so a rule and a path compare alike. */
