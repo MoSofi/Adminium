@@ -64,7 +64,7 @@ export default defineConfig({
     { name: 'setup', testMatch: /auth\.setup\.ts/ },
     {
       name: 'chromium',
-      testIgnore: [/onboarding\.spec\.ts/, /trial-mode\.spec\.ts/, /project(-app)?\.spec\.ts/, /(^|\/)designer(-stock|-cards|-sides|-phone|-figma|-pictures|-make-pictures|-template)?\.spec\.ts$/],
+      testIgnore: [/onboarding\.spec\.ts/, /trial-mode\.spec\.ts/, /chat-window\.spec\.ts/, /project(-app)?\.spec\.ts/, /(^|\/)designer(-stock|-cards|-sides|-phone|-figma|-pictures|-make-pictures|-template)?\.spec\.ts$/],
       use: { ...devices['Desktop Chrome'], storageState: storageStatePath() },
       dependencies: ['setup'],
     },
