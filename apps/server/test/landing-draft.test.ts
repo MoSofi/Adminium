@@ -35,7 +35,7 @@ const ANSWER = {
   published: { v: 1, title: 'x', description: 'y', blocks: [] },
   picture: { file: 'f1', alt: 'The showroom' },
   blocks: [
-    { id: 'hero', kind: 'hero', heading: 'Open day', text: 'Thursday.', button: { label: 'See our shop', link: { kind: 'url', href: 'https://evil.example/' } }, picture: { file: 'f2', decorative: true } },
+    { id: 'hero', kind: 'hero', heading: 'Open day', text: 'Thursday.', button: { label: 'See our shop', link: { kind: 'url', href: 'javascript:alert(1)' } }, picture: { file: 'f2', decorative: true } },
     { id: 'said', kind: 'quote', text: 'Best booths ever.', who: 'A customer' },
     { id: 'pic', kind: 'picture', picture: { file: 'f3', alt: 'A booth' } },
     { id: 'cols', kind: 'columns', columns: [{ text: 'One', picture: { file: 'f4', alt: 'x' } }, { text: 'Two' }] },
