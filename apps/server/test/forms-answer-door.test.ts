@@ -339,6 +339,23 @@ describe.each(LEGS)('the answer door — %s', (dialect, available) => {
     expect((await h.rows(`SELECT body FROM ${t('notes')}`)).map((row) => row['body'])).toEqual(['Rule saw Marta Kovac']);
   });
 
+  it.skipIf(!available)('a kept answer is told on its table’s live channel, so an open answers list reads it again', async () => {
+    const heard: { channel: string; type: string }[] = [];
+    const real = composed.app.realtime.publish.bind(composed.app.realtime);
+    composed.app.realtime.publish = ((channel: string, type: string, ...rest: unknown[]) => {
+      heard.push({ channel, type });
+      return (real as (...args: unknown[]) => unknown)(channel, type, ...rest);
+    }) as typeof composed.app.realtime.publish;
+    try {
+      const sent = await send('showroom', { qname: 'Lena Live', qemail: 'lena@live.example', qnote: 'Live?', qsee: ['booths'] });
+      expect(sent.statusCode, sent.body).toBe(200);
+    } finally {
+      composed.app.realtime.publish = real;
+    }
+    // By the table's id in the snapshot (schema-qualified on Postgres).
+    expect(heard.some((one) => one.type === 'record.create' && one.channel.startsWith(`widget-data:${h.connectionId}:`) && one.channel.endsWith(answersTable))).toBe(true);
+  });
+
   it.skipIf(!available)('a forged body cannot write state, claimed_by_id or a link: the map cannot name them, and a form whose map does serves nothing', async () => {
     const before = await count(enquiries);
     // A body naming the columns is no answer: they are not questions.

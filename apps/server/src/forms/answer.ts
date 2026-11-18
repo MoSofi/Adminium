@@ -68,6 +68,8 @@ import { insertRow, type RecordWriteService, type WriteContext, type WriteTarget
 import type { SourceDatabase } from '../connections/manager.js';
 import { ValidationFailedError } from '../errors.js';
 import type { NotificationPublisher } from '../notifications/notify.js';
+import { publishPublicWrite } from '../public-api/publish.js';
+import type { RealtimeHub } from '../realtime/hub.js';
 import { peopleTablesOf } from '../people/tables-of.js';
 import { appPartIsOn } from '../rbac/app-parts.js';
 import { capKey } from '../public-api/anonymous-caps.js';
@@ -185,6 +187,8 @@ export interface AnswerDoorDeps {
   /** The strangers' files a file question names: attached to the answer in its transaction. */
   files?: Pick<FormsFiles, 'attachToAnswer' | 'detachAnswer'> | undefined;
   hub?: () => NotificationPublisher | undefined;
+  /** The realtime hub: a kept answer is told on its table's live channel, so an open answers list reads it again. */
+  realtime?: () => RealtimeHub | null;
   now?: () => number;
 }
 
@@ -523,6 +527,9 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
       }
       became = made;
     }
+
+    // The answer stands: an open answers list hears it (`widget-data:<conn>:<answers>`), its row masked for each reader.
+    publishPublicWrite(deps.realtime?.() ?? null, { connectionId: live.connectionId, table: answers.target.table, action: 'create', pk: { [answers.pk]: answerId }, row: { [answers.pk]: answerId, form_id: live.id } });
 
     // 7. The agreement.
     const hub = deps.hub?.();
