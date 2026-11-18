@@ -13,7 +13,10 @@ import { Suspense, lazy } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';
 
-import { bootstrapQuery, findPageBySlug, holdsSystemAction } from '../app/bootstrap.js';
+import { bootstrapQuery, findPageBySlug } from '../app/bootstrap.js';
+import { useInstallId } from '../studio/apps/installScope.js';
+import { SAMPLE_BANNER_FRAME } from '../studio/apps/sampleBannerFrame.js';
+import { sampleBannerOwner, sampleDataQuery, type SampleOwnerKind } from '../studio/apps/sampleDataStatus.js';
 import { SizeCapPageNotice } from './sizeCapNotice.js';
 import type { PageTemplateComponent, PageTemplateProps } from './template-types.js';
 
@@ -27,16 +30,34 @@ function AppPageNotice() {
   const params = useParams({ strict: false });
   const slug = typeof params.slug === 'string' ? params.slug : '';
   const { data: bootstrap } = useQuery(bootstrapQuery());
-  const item = bootstrap === undefined ? null : findPageBySlug(bootstrap, slug);
-  // Whose page it is: an add-on's generated page names its add-on (and no app); an app's page names its app.
-  const owner = item?.addOnKey != null ? ({ kind: 'add-on', key: item.addOnKey } as const) : item?.appKey != null ? ({ kind: 'app', key: item.appKey } as const) : null;
-  if (bootstrap === undefined || owner === null || !holdsSystemAction(bootstrap, 'manifests.manage')) {
-    return null;
-  }
+  const owner = bootstrap === undefined ? null : sampleBannerOwner(bootstrap, findPageBySlug(bootstrap, slug));
+  return owner === null ? null : <SampleNotice appKey={owner.key} kind={owner.kind} />;
+}
+
+/**
+ * The banner, when the sample data is loaded. The page route's loader has
+ * asked already (`app/router.tsx`), so the answer is here on the first render,
+ * before the template under it draws. The banner's code and the Studio's words
+ * may still be on their way: until they are, a slot of the banner's own box
+ * keeps its place, so the cards under it never move.
+ */
+function SampleNotice({ appKey, kind }: { appKey: string; kind: SampleOwnerKind }) {
+  const install = useInstallId();
+  const status = useQuery(sampleDataQuery(appKey, kind, install));
+  if (status.data?.loaded !== true) return null;
   return (
-    <Suspense fallback={null}>
-      <SampleDataBanner appKey={owner.key} kind={owner.kind} />
+    <Suspense fallback={<SampleBannerSlot />}>
+      <SampleDataBanner appKey={appKey} kind={kind} />
     </Suspense>
+  );
+}
+
+/** The banner's box, empty: one line of the banner's text high. */
+function SampleBannerSlot() {
+  return (
+    <div aria-hidden data-testid="app-sample-banner-slot" className={SAMPLE_BANNER_FRAME}>
+      <span className="text-[12.5px]">{'\u00a0'}</span>
+    </div>
   );
 }
 
