@@ -353,6 +353,15 @@ export interface AddOnDataHooks {
    * itself is handed to the page.
    */
   useLiveTable: (table: string, options?: { enabled?: boolean }) => UseLiveTableResult;
+  /**
+   * Opens the assistant's panel (Milo) beside the page (from Adminium 0.3.64;
+   * absent before), with `prompt`, when given, in its box: the person reads
+   * it, changes it if they like, and sends it themselves. Nothing is sent by
+   * the call. A prompt is cut to 4,000 characters. False, and nothing opens,
+   * for someone who may not use the assistant. A plain call, not a hook: call
+   * it from a button's press.
+   */
+  openAssistant: (options?: { prompt?: string }) => boolean;
 }
 
 /**

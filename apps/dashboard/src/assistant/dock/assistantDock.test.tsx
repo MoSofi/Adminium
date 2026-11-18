@@ -25,6 +25,7 @@ import { userEvent } from '@testing-library/user-event';
 import { useState, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { openAssistantPanel } from '../../add-ons/data-kit/assistant.js';
 import { bootstrapQuery } from '../../app/bootstrap.js';
 import { createQueryClient } from '../../app/query.js';
 import { PageActions, PageActionsProvider } from '../../shell/PageActionsProvider.js';
@@ -32,7 +33,7 @@ import { chooseGroup } from '../../shell/workspaces/current.js';
 import { chooseTabWorkspace, KILN, resetTabWorkspace, workspacesBootstrap } from '../../test/workspaceLists.js';
 import { AssistantDock } from './AssistantDock.js';
 import type { DockLayout } from './dockLayout.js';
-import { resetDock, setDockOpen, useDockOpen, useDockSignal } from './dockStore.js';
+import { DOCK_PROMPT_MAX, resetDock, setDockAvailable, setDockOpen, useDockOpen, useDockSignal } from './dockStore.js';
 
 // How it stands is decided from measurements a DOM without layout cannot give: said by the test.
 let layout: DockLayout = 'docked';
@@ -441,6 +442,43 @@ describe('how it stands', () => {
     mount();
     await userEvent.setup().click(await screen.findByTestId('assistant-close'));
     await waitFor(() => expect(screen.getByTestId('signals').textContent).toBe('false|idle'));
+  });
+});
+
+describe('opened by an add-on page (`host.data.openAssistant`)', () => {
+  it('opens the panel with the page’s words in the box, for the person to send; nothing for someone who may not use it', async () => {
+    mount(undefined, 'store');
+    // The shell has not said this person may use the assistant: nothing opens.
+    expect(openAssistantPanel({ prompt: 'Draft a reply' })).toBe(false);
+    expect(screen.getByTestId('signals').textContent).toBe('false|idle');
+
+    setDockAvailable(true);
+    let opened = false;
+    act(() => {
+      opened = openAssistantPanel({ prompt: '  Draft a reply to Marta about the booths  ' });
+    });
+    expect(opened).toBe(true);
+    await waitFor(() => expect(screen.getByTestId('signals').textContent).toBe('true|idle'));
+    const field = (await screen.findByTestId('assistant-input')) as HTMLInputElement;
+    await waitFor(() => expect(field.value).toBe('Draft a reply to Marta about the booths'));
+    // In the box, not asked: no conversation is made and no question goes.
+    expect(calls.filter((call) => call.method === 'POST' && !call.url.endsWith('/facts'))).toEqual([]);
+
+    // Open already: the next words replace what was waiting there.
+    act(() => {
+      openAssistantPanel({ prompt: 'Summarise this chat' });
+    });
+    await waitFor(() => expect(field.value).toBe('Summarise this chat'));
+    // No words: it opens and leaves the box as it is; a prompt is cut to what a question may be.
+    act(() => {
+      openAssistantPanel();
+    });
+    expect(field.value).toBe('Summarise this chat');
+    act(() => {
+      openAssistantPanel({ prompt: 'x'.repeat(DOCK_PROMPT_MAX + 50) });
+    });
+    await waitFor(() => expect(field.value).toHaveLength(DOCK_PROMPT_MAX));
+    expect(calls.filter((call) => call.method === 'POST' && !call.url.endsWith('/facts'))).toEqual([]);
   });
 });
 

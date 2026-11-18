@@ -44,7 +44,7 @@ import { UnavailableBar } from '../parts/UnavailableBar.js';
 import { TurnView } from '../TurnView.js';
 import type { ThreadTurn } from '../thread.js';
 import { dockLayout, type DockLayout } from './dockLayout.js';
-import { clearDockSignal, setDockOpen, setDockSignal } from './dockStore.js';
+import { clearDockSignal, setDockOpen, setDockSignal, takeDockPrompt, useDockPromptWaiting } from './dockStore.js';
 import { LiveDraft } from './LiveDraft.js';
 import { LiveProposal } from './LiveProposal.js';
 import { PanelView, type ScopeChip } from './PanelView.js';
@@ -400,6 +400,19 @@ export function AssistantDock({ visible, pages, layout: fixedLayout }: Assistant
       }, 0);
     }
   }, [visible]);
+  // Words a page put in the box ("Ask Milo" on an add-on's page): they wait there, selected, for the person to send.
+  const promptWaiting = useDockPromptWaiting();
+  useEffect(() => {
+    if (!visible || !promptWaiting) return;
+    const words = takeDockPrompt();
+    if (words === null) return;
+    setInput(words);
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    });
+  }, [visible, promptWaiting]);
+
   // The field is closed while a question is answered, and a closed field drops focus: when the
   // answer is in and nothing else has taken focus, the person is put back where they were typing.
   const answering = useRef(false);

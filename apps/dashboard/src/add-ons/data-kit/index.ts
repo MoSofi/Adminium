@@ -35,13 +35,14 @@ import { Stat } from '../../project/kit/data.js';
 import { Link } from '../../project/kit/hooks.js';
 import { Input, Select, Switch } from '../../project/kit/inputs.js';
 import { Card, Stack } from '../../project/kit/layout.js';
+import { openAssistantPanel } from './assistant.js';
 import { Field, NumberInput, ToggleChip } from './fields.js';
 import { useAccess, useDocument, useExport, useFormSummary, useFormTables, useLiveTable, useLookUp, useRead, useRecord, useRecords, useStateMove, useTreeWrite, useUpload, useWords, useWrite } from './hooks.js';
 import { Grid, Sheet, StickyBar } from './layout.js';
 import { Menu, MenuItem } from './menu.js';
 import { DataTable } from './table.js';
 
-const hooks = { useRecords, useRecord, useRead, useWrite, useTreeWrite, useStateMove, useAccess, useLookUp, useWords, useDocument, useExport, useFormSummary, useFormTables, useUpload, useLiveTable } satisfies AddOnDataHooks;
+const hooks = { useRecords, useRecord, useRead, useWrite, useTreeWrite, useStateMove, useAccess, useLookUp, useWords, useDocument, useExport, useFormSummary, useFormTables, useUpload, useLiveTable, openAssistant: openAssistantPanel } satisfies AddOnDataHooks;
 
 export const dataKit = Object.freeze({
   version: DATA_KIT_VERSION,
