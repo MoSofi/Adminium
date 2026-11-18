@@ -90,6 +90,7 @@ export function sourceDaysRepo(meta: MetaDb) {
       checkKey(key);
       if (limit !== null) whole(limit, 'limit');
       if (limit !== null && limit < 1) return false;
+      // Two rounds: a first call of the day makes the row, and a call that met it there a moment later asks again.
       for (let attempt = 0; attempt < 2; attempt += 1) {
         let update = db
           .updateTable(table)
@@ -101,16 +102,7 @@ export function sourceDaysRepo(meta: MetaDb) {
         if (limit !== null) update = update.where((eb) => eb(eb('calls', '+', eb.ref('held')), '<=', limit - 1));
         const updated = await update.executeTakeFirst();
         if (affected(updated.numUpdatedRows) > 0) return true;
-        const there = await db
-          .selectFrom(table)
-          .select('day')
-          .where('installId', '=', key.installId)
-          .where('source', '=', key.source)
-          .where('day', '=', key.day)
-          .where('spender', '=', key.spender)
-          .executeTakeFirst();
-        if (there !== undefined) return false;
-        // A day with no row starts with this hold (made at most once: two first calls at once meet the key).
+        // No room, or no row yet: a day with no row starts with this hold (made at most once: two first calls at once meet the key).
         if (await insert(key, 0, 1, at)) return true;
       }
       return false;

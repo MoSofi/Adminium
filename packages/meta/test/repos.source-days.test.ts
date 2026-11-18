@@ -42,6 +42,9 @@ for (const dialect of TEST_DIALECTS) {
       expect(await days.day(TOTAL)).toEqual({ calls: 1, held: 1, changedAt: T0 + 21 });
       expect(await days.reserve(TOTAL, 3, T0 + 22)).toBe(true);
       expect(await days.reserve(TOTAL, 3, T0 + 23)).toBe(false);
+      // The first calls of a day, at once, all held while there is room: one makes the row, the rest meet it and ask again.
+      const first = await Promise.all(Array.from({ length: 5 }, (_, n) => days.reserve({ ...TOTAL, spender: 'usr_new' }, 10, T0 + n)));
+      expect(first).toEqual([true, true, true, true, true]);
       // A cap of 0 holds nothing, on a day with no row too.
       expect(await days.reserve({ ...TOTAL, day: '2026-11-19' }, 0, T0)).toBe(false);
       expect(await days.day({ ...TOTAL, day: '2026-11-19' })).toBeNull();
