@@ -449,6 +449,10 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
     const res = await as('rae', 'GET', `/api/v1/landing/landing-pages/status?page=${String(keys['open-day'])}`);
     expect(res.statusCode, res.body).toBe(200);
     expect((res.json() as Doc).data).toEqual({
+      installId,
+      // The zone of the add-on's database (the harness sets Berlin): the one the counter counts days in.
+      timeZone: 'Europe/Berlin',
+      viewCountsMonths: 13,
       reach: { state: 'reachable', proxyUnchecked: true },
       notice: true,
       publicOrigin: `https://${PUBLIC}`,
@@ -469,7 +473,10 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
         homeOf: [PAGES],
       },
     });
-    expect(((await as('rae', 'GET', '/api/v1/landing/landing-pages/status')).json() as Doc).data.page).toBeNull();
+    // The keeping the owner set, as it stands.
+    await settingsRepo(h.meta).set('privacy.viewCountsMonths', 24, { updatedBy: null });
+    expect(((await as('rae', 'GET', '/api/v1/landing/landing-pages/status')).json() as Doc).data).toMatchObject({ installId, viewCountsMonths: 24, page: null });
+    await settingsRepo(h.meta).set('privacy.viewCountsMonths', 13, { updatedBy: null });
     expect((await as('sam', 'GET', '/api/v1/landing/landing-pages/status')).statusCode).toBe(403);
     expect((await as('rae', 'GET', '/api/v1/landing/nobody/status')).statusCode).toBe(404);
   });

@@ -31,6 +31,7 @@ switched off stops showing it. The add-on's editor makes the copy through
 `POST /api/v1/landing/<add-on>/pictures?page=<page key>` (the picture as the body, or
 `{ "file": "<file id>" }` for a file of Files the person may read), for someone who may change the
 pages; a picture refused answers `422`, reason `picture-refused`. `GET /api/v1/landing/<add-on>/status`
-says whether visitors can reach the pages, whether the privacy notice is set, the public address,
+names the add-on's install (what its pages' view counts are read under), the time zone the counts'
+days are in and how many months they are kept, and says whether visitors can reach the pages, whether the privacy notice is set, the public address,
 the mapped pages hosts and, with `?page=<page key>`, the page's address on each and which host it
 is home of.

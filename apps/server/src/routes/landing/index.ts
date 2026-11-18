@@ -8,7 +8,9 @@
  *                                                cleaned copy (`landing/pictures.ts`), answered with its id
  *   GET  /landing/:addOn/pictures/:file?page=    one of a page's own pictures, for the editor's canvas
  *   GET  /landing/:addOn/status?page=            what the editor's blocked cards and its page settings say:
- *                                                reach, notice, the public address, the pages hosts and,
+ *                                                the install, the zone view days are counted in and how
+ *                                                long counts are kept, reach, notice, the public address,
+ *                                                the pages hosts and,
  *                                                for a page, its address on each and whether it is that
  *                                                host's home
  *
@@ -25,7 +27,7 @@
  * Only a signed-in person (or a staff key) asks. `?install=` names the
  * install when the add-on is on more than one database.
  */
-import { filesRepo, type MetaDb, type StoredFile } from '@adminium/meta';
+import { connectionTenantConfig, filesRepo, settingsRepo, type MetaDb, type StoredFile } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -86,6 +88,12 @@ const pageAddress = z.object({
 
 export const landingStatusReply = z.object({
   data: z.object({
+    /** The add-on's install (`adminium_manifests.id`): what its pages' views are counted under (`GET /api/v1/views?installId=`). */
+    installId: z.string(),
+    /** The business's time zone the view days are counted in: its database's, else UTC. */
+    timeZone: z.string(),
+    /** How many months view counts are kept (`privacy.viewCountsMonths`). */
+    viewCountsMonths: z.number().int(),
     /** "Can visitors reach your public pages?": the doors' own answer for this request; `state` is the reach words' code. */
     reach: z.object({ state: z.enum(REACHABILITY_STATES), proxyUnchecked: z.boolean() }),
     /** Whether the privacy notice is set: a page is not served until it is. */
@@ -268,7 +276,14 @@ export function landingStaffRoutes(deps: LandingStaffDeps): FastifyPluginAsyncZo
       },
       async (request) => {
         const addOn = await addOnFor(request, request.params.addOn, request.query.install, 'read');
-        const [answer, notice, publicOrigin, mapped] = await Promise.all([formsReach(meta, deps.reach, request), privacyNoticeReady(meta), storedPublicOrigin(meta), deps.pageHosts().catch(() => ({}))]);
+        const [answer, notice, publicOrigin, mapped, tenant, viewCountsMonths] = await Promise.all([
+          formsReach(meta, deps.reach, request),
+          privacyNoticeReady(meta),
+          storedPublicOrigin(meta),
+          deps.pageHosts().catch(() => ({})),
+          connectionTenantConfig(meta, addOn.connectionId),
+          settingsRepo(meta).get('privacy.viewCountsMonths'),
+        ]);
         const hosts = pagesHostsByName(mapped);
         let page: z.infer<typeof landingStatusReply>['data']['page'] = null;
         if (request.query.page !== undefined) {
@@ -286,6 +301,10 @@ export function landingStaffRoutes(deps: LandingStaffDeps): FastifyPluginAsyncZo
         }
         return {
           data: {
+            installId: addOn.installId,
+            // The zone the counter counts days in (`views/wiring.ts` `zoneOfInstall`).
+            timeZone: tenant?.timezone ?? 'UTC',
+            viewCountsMonths,
             reach: { state: answer.state, proxyUnchecked: proxyUncheckedOf(deps.reach, request) },
             notice,
             publicOrigin,
