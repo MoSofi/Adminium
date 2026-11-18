@@ -100,10 +100,39 @@ describe('every block, for a stranger', () => {
     expect(container.querySelector('[data-block-id]')).toBeNull();
   });
 
-  it('draws a picture with no file yet as its description, and a page with no address as no link', () => {
-    const { container } = draw([{ id: 'p', kind: 'picture', picture: { file: 'file_floor', alt: 'A floor sketch' } }, { id: 'b', kind: 'button', label: 'The open day', link: { kind: 'page', key: '99' } }]);
+  it('draws a picture with no file yet as its description, and leaves out a button that goes nowhere', () => {
+    const { container } = draw([
+      { id: 'p', kind: 'picture', picture: { file: 'file_floor', alt: 'A floor sketch' } },
+      { id: 'b', kind: 'button', label: 'The open day', link: { kind: 'page', key: '99' } },
+      { id: 'b2', kind: 'button', label: 'Book a visit', link: { kind: 'form' } },
+      hero('h', 'Open day'),
+    ]);
     expect(screen.getByRole('img', { name: 'A floor sketch' }).textContent).toBe('A floor sketch');
+    // A page with no address, and a form link on a page with no form: no dead button, and no empty row for one.
+    expect(container.querySelector('.lp-button')).toBeNull();
+    expect(container.querySelector('.lp-actions')).toBeNull();
+    expect(container.querySelectorAll('.lp-block')).toHaveLength(4);
+  });
+
+  it('leaves out a Form block whose form the host does not draw, band and all', () => {
+    const { container } = draw([hero('h', 'Open day'), { id: 'form', kind: 'form', form: '7', addOn: 'forms' }], { slots: { form: () => null } });
+    expect(container.querySelector('.lp-form')).toBeNull();
+    expect(container.querySelector(`#${landingFormAnchor('form')}`)).toBeNull();
+  });
+
+  it('keeps every button and Form block on the canvas, where nothing leaves the editor', () => {
+    const { container } = render(
+      <LandingPageView
+        page={page([{ id: 'b', kind: 'button', label: 'The open day', link: { kind: 'page', key: '99' } }, { id: 'form', kind: 'form', form: '7', addOn: 'forms' }])}
+        language="en-US"
+        dir="ltr"
+        mode="canvas"
+        words={{ edit: (kind) => `Edit ${kind}` }}
+        slots={{ form: () => null }}
+      />,
+    );
     expect(container.querySelector('.lp-button')!.hasAttribute('href')).toBe(false);
+    expect(container.querySelector('.lp-form')).not.toBeNull();
   });
 
   it('draws markup typed into a text as the characters it is', () => {
@@ -154,6 +183,21 @@ describe('the module', () => {
 
   it('sets no markup from a string anywhere', () => {
     expect(source).not.toMatch(/dangerouslySetInnerHTML|innerHTML|outerHTML|insertAdjacentHTML|createContextualFragment/);
+  });
+
+  it('reaches no schema and no zod: a stranger\'s page carries none of their weight', () => {
+    const seen = new Set<string>();
+    const follow = (file: string): void => {
+      if (seen.has(file)) return;
+      seen.add(file);
+      for (const found of read(`src/landing/${file}`).matchAll(/^import (?!type )[^;]*? from '([^']+)';/gm)) {
+        const target = found[1]!;
+        if (target.startsWith('./')) follow(target.slice(2).replace(/\.js$/, '.ts'));
+        else seen.add(target);
+      }
+    };
+    follow('render.tsx');
+    expect([...seen].sort()).toEqual(['headings.ts', 'render.tsx']);
   });
 
   it('imports only React and the vocabulary beside it', () => {
