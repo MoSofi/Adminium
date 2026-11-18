@@ -150,11 +150,19 @@ export const BANNER_DEFAULT = {
   no: 'No',
 } as const;
 
+/** Each banner word's key in the `x` namespace. */
+const BANNER_KEYS: Readonly<Record<keyof typeof BANNER_DEFAULT, string>> = {
+  title: 'x:banner.title',
+  text: 'x:banner.text',
+  yes: 'x:banner.yes',
+  no: 'x:banner.no',
+};
+
 /** The engine's default banner words in a language (the install's own translations of them included). */
 export async function defaultBannerWords(meta: MetaDb, language: BannerLocale): Promise<{ title: string; text: string; yes: string; no: string }> {
   const locale = localeFromTag(language);
   const i18n = await createServerI18n({ locale, overrides: await loadOverrideMap(meta, locale) });
-  const t = (key: keyof typeof BANNER_DEFAULT): string => i18n.t(`x:banner.${key}`, { defaultValue: BANNER_DEFAULT[key] });
+  const t = (key: keyof typeof BANNER_DEFAULT): string => i18n.t(BANNER_KEYS[key], { defaultValue: BANNER_DEFAULT[key] });
   return { title: t('title'), text: t('text'), yes: t('yes'), no: t('no') };
 }
 
