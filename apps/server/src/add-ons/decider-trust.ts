@@ -99,6 +99,9 @@ export async function vouchedWithoutFiles(store: Pick<AddOnStore, 'versions'>, m
   const kept = await settingsRepo(meta).get('addOns.keptCopyTrust');
   const trusted = kept[`${pkg.key}@${pkg.version}`];
   if (trusted === undefined) return false;
+  // One tree of a key@version serves every install of it, and each install's copy is packed from
+  // that one tree, so every install's copy must be the trusted one: an install with no copy, or
+  // another copy, names a tree this server cannot vouch for. A key-wide read, on purpose.
   const rows = await meta.db
     .selectFrom('adminium_manifests')
     .select('packageIntegrity')
@@ -106,5 +109,5 @@ export async function vouchedWithoutFiles(store: Pick<AddOnStore, 'versions'>, m
     .where('manifestKey', '=', pkg.key)
     .where('version', '=', pkg.version)
     .execute();
-  return rows.some((row) => row.packageIntegrity === trusted);
+  return rows.length > 0 && rows.every((row) => row.packageIntegrity === trusted);
 }

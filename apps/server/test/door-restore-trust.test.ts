@@ -330,6 +330,28 @@ describe.each(META_ENGINES)('a door package across a redeploy — $name', (engin
       expect(await vouched(installed)).toBe(false);
     });
 
+    it.skipIf(!engine.available)('is not served once no install of it is left, whatever trust was recorded', async () => {
+      const installed = await installFromCatalogue(formsAddOn(), '1.0.0');
+      await copies.keep(installed);
+      await repo().uninstall(installed.row.id);
+      await redeploy();
+      expect(await vouched(installed)).toBe(false);
+    });
+
+    it.skipIf(!engine.available)('is not served when another install of the same version names another copy, or none', async () => {
+      const doc = formsAddOn();
+      const installed = await installFromCatalogue(doc, '1.0.0');
+      await copies.keep(installed);
+      const second = await repo().install({ manifestKey: 'forms', version: '1.0.0', kind: 'add-on', source: 'marketplace', document: { ...doc, version: '1.0.0' }, scopeKey: 'second-database', instanceSlug: 'second' });
+      await redeploy();
+      expect(await vouched(installed)).toBe(false);
+      await repo().setPackageCopy(second.row.id, { fileId: 'file_other', integrity: `sha512-${'G'.repeat(86)}==` });
+      expect(await vouched(installed)).toBe(false);
+      const held = await reread(installed);
+      await repo().setPackageCopy(second.row.id, { fileId: held.row.packageFileId as string, integrity: held.row.packageIntegrity as string });
+      expect(await vouched(installed)).toBe(true);
+    });
+
     it.skipIf(!engine.available)('is not served when only part of it is missing: a directory without its pin is drift', async () => {
       const installed = await installFromCatalogue(formsAddOn(), '1.0.0');
       await copies.keep(installed);
