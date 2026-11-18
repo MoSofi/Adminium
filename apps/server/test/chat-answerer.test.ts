@@ -398,6 +398,39 @@ describe('masking a visitor\'s words', () => {
     expect(maskVisitorText('Room 123456 costs 49.99 in 2026')).toBe('Room 123456 costs 49.99 in 2026');
     expect(maskVisitorText('When are you open?')).toBe('When are you open?');
   });
+
+  it('reads a full-width or look-alike at sign as one (NFKC first)', () => {
+    expect(maskVisitorText('anna＠mail.example.com')).toBe('[email]');
+    expect(maskVisitorText('Mail anna﹫mail.example.com today')).toBe('Mail [email] today');
+    expect(maskVisitorText('ａｎｎａ＠ｍａｉｌ．ｅｘａｍｐｌｅ．ｃｏｍ')).toBe('[email]');
+  });
+
+  it('masks an address spelled out, in English and the dashboard’s languages', () => {
+    expect(maskVisitorText('anna at mail dot example dot com')).toBe('[email]');
+    expect(maskVisitorText('Write anna AT mail DOT example DOT com please')).toBe('Write [email] please');
+    expect(maskVisitorText('anna [at] mail [dot] co [dot] uk')).toBe('[email]');
+    expect(maskVisitorText('anna (at) mail.example.com')).toBe('[email]');
+    expect(maskVisitorText('anna at mail.example.com')).toBe('[email]');
+    expect(maskVisitorText('anna ät gmx punkt de')).toBe('[email]');
+    expect(maskVisitorText('anna arobase orange point fr')).toBe('[email]');
+    expect(maskVisitorText('anna zavináč seznam tečka cz')).toBe('[email]');
+    expect(maskVisitorText('anna snabel-a mail punktum dk')).toBe('[email]');
+    expect(maskVisitorText('anna آت mail نقطة com')).toBe('[email]');
+    expect(maskVisitorText('anna艾特mail点com')).toBe('[email]');
+    expect(maskVisitorText('anna艾特mail點com')).toBe('[email]');
+  });
+
+  it('leaves a plain "at", "dot" or "point" in prose', () => {
+    for (const prose of ['meet at noon', 'See you at 5.30 tomorrow.', 'We are at home. Call me', 'Can we meet at the point of sale?', 'Wir treffen uns at punkt zwölf', 'Is the dot at the end?']) {
+      expect(maskVisitorText(prose)).toBe(prose);
+    }
+  });
+
+  it('masks a phone number split by slashes', () => {
+    expect(maskVisitorText('0301 / 234 / 567')).toBe('[phone]');
+    expect(maskVisitorText('Call 0301/234/567 now')).toBe('Call [phone] now');
+    expect(maskVisitorText('+49 (0) 30 / 1234 567')).toBe('[phone]');
+  });
 });
 
 describe('where the answerer is off, and what no file sets back', () => {
