@@ -145,7 +145,9 @@ import { createChatStaff, type ChatStaff } from './chat/staff.js';
 import { createChatWaiting, type ChatWaiting } from './chat/waiting.js';
 import { chatOwnTable, sweepChatTranscripts } from './chat/transcripts.js';
 import { landingPagesTable } from './landing/seal.js';
+import { createLandingEndings } from './landing/ending.js';
 import { chatStaffRoutes } from './routes/chat/index.js';
+import { landingStaffRoutes } from './routes/landing/index.js';
 import { createLedgerRuntime } from './ledgers/registry.js';
 import { announcePostings, tellPostings, type PostingsTold } from './ledgers/announce.js';
 import { createDocumentPipeline } from './documents/compose.js';
@@ -691,6 +693,8 @@ export interface ComposeServerOptions {
    * (`chat/door.ts`). There is no setting for this.
    */
   chatSeams?: { answerer?: ChatAnswerer | undefined; ai?: (() => Promise<ChatAi>) | undefined; drafts?: Pick<AiConnections, 'default' | 'refusal' | 'client'> | undefined } | undefined;
+  /** For tests only: the AI connections a landing page's draft is written with (`routes/landing`). There is no setting for this. */
+  landingSeams?: { drafts?: Pick<AiConnections, 'default' | 'refusal' | 'client'> | undefined } | undefined;
 }
 
 export interface ComposedServer {
@@ -1313,6 +1317,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     data: (connectionId) => manager.data(connectionId),
     vouched: doorVouched,
   });
+  // A form's `landing` ending: its page looked up as the form is served, under the same vouch as a door (`landing/ending.ts`).
+  const landingEndings = createLandingEndings({ meta, installs: () => addOnInstalls.fresh(), data: (connectionId) => manager.data(connectionId), vouched: doorVouched });
   /*
    * Files strangers send (a form's file question): taken by the forms door,
    * attached by the answer that names them, removed with it. The owner is
@@ -3665,6 +3671,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       answers: answerDoor,
       invitations: surveyInvitations,
       uploads: publicUploads,
+      endings: landingEndings,
       networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
       desktop: env.ADMINIUM_RUNTIME === 'desktop',
       trustProxy: env.ADMINIUM_TRUST_PROXY,
@@ -3808,6 +3815,22 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           secret: env.ADMINIUM_SECRET,
           // The status read's reach answer is the doors' own, as the forms status reads it.
           reach: { networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY },
+        }),
+      );
+      /*
+       * Staff of a landing pages add-on: Milo's draft of a page, the live forms
+       * a Form block may name, a funnel's rule (`routes/landing`). A draft is a
+       * person's own work on their own key, so a trial lets it run (the
+       * operator's AI kept to dashboards does not).
+       */
+      await api.register(
+        landingStaffRoutes({
+          meta,
+          installs: () => addOnInstalls.fresh(),
+          data: formsData,
+          catalog: formsCatalog,
+          endings: landingEndings,
+          ai: { connections: opts.landingSeams?.drafts ?? aiConnections, offHere: chatAiOffHere(() => false, env.ADMINIUM_AI_OPERATOR_SCOPE ?? null, (connectionId) => aiConnections.isOperator(connectionId)) },
         }),
       );
     },

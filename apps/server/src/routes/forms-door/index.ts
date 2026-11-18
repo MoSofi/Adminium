@@ -34,6 +34,10 @@
  *   that is sent with it does (`forms/answer.ts`).
  * - A stranger is never shown what an answer becomes, who is told, or the
  *   form's hourly cap (`forms/view.ts`).
+ * - A form that ends on one of the business's landing pages (`landing`) is
+ *   served with that page's address on the host asked, while the page is
+ *   live, and with the default thanks otherwise (`landing/ending.ts`); a sent
+ *   answer's `url` says the same.
  * - Every answer carries the page's own content policy ({@link xContentPolicy}),
  *   set by the `/x/` doors' shared `onSend` (`../x-door/headers.ts`), after the global hooks: scripts, styles and
  *   fonts from `/x/assets/` on this host only. A form drawn for a frame may be
@@ -74,7 +78,9 @@ import type { PublicUploads } from '../../public-uploads/store.js';
 import { formsReach } from '../../forms/reach.js';
 import type { ListedWebsites } from '../../forms/websites.js';
 import { previewForm, type PreviewForm } from '../../forms/preview.js';
-import { businessToday, formLanguageFor, strangerBusiness, strangerForm } from '../../forms/view.js';
+import { businessToday, formLanguageFor, strangerBusiness, strangerForm, type StrangerForm } from '../../forms/view.js';
+import { servedEnding, type LandingEndings } from '../../landing/ending.js';
+import { requestHostOrigin } from '../../security/public-origin.js';
 import type { FileStore } from '../../files/store.js';
 import { issueChallenge, PROOF_DIFFICULTY, proofKey } from '../../public-api/proof.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../payments/ways.js';
@@ -101,6 +107,8 @@ export interface FormsDoorDeps {
   trustProxy: boolean;
   /** The store strangers' files go to: the file door is open with it, and "not available" without. */
   uploads?: PublicUploads | undefined;
+  /** A form's `landing` ending, looked up as it is served (`landing/ending.ts`); absent, such an ending is the default thanks. */
+  endings?: LandingEndings | undefined;
   now?: () => number;
 }
 
@@ -182,6 +190,27 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
     return invited.state === 'open' ? { state: 'live', live: found.live, invitation: invited.invitation } : invited;
   }
 
+  /** The origin a request is served on (the host the form is drawn on), or null for a Host no address can be written for. */
+  function servedOrigin(request: FastifyRequest): string | null {
+    try {
+      return requestHostOrigin(request);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * A form as a stranger is served it on this request's host: a `landing`
+   * ending becomes its live page's address there, or the default thanks
+   * (`landing/ending.ts`). Every other ending goes out as it is.
+   */
+  async function withEnding(request: FastifyRequest, form: StrangerForm, connectionId: string): Promise<StrangerForm> {
+    const { definition } = form;
+    if (definition.ending.kind !== 'landing') return form;
+    if (deps.endings === undefined) return { ...form, definition: { ...definition, ending: servedEnding(definition.ending, null, null) } };
+    return { ...form, definition: await deps.endings.serve(definition, connectionId, servedOrigin(request)) };
+  }
+
   /** The requests answered with a preview: framed by this host alone. */
   const previewing = new WeakSet<FastifyRequest>();
 
@@ -229,7 +258,7 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
         return {
           state: 'live',
           ...(await strangerBusiness(meta)),
-          form: strangerForm(draft.form, language),
+          form: await withEnding(request, strangerForm(draft.form, language), draft.connectionId),
           today: await businessToday(meta, draft.connectionId, now()),
           // The page sends nothing, and says so; the questions the draft could not draw are named for the builder.
           preview: true,
@@ -246,7 +275,7 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
       return {
         state: 'live',
         ...shared,
-        form: strangerForm(live.form, language),
+        form: await withEnding(request, strangerForm(live.form, language), live.connectionId),
         today: await businessToday(meta, live.connectionId, now()),
         // Only a frame asks which websites it may answer: the loader's first message must come from one.
         ...(frame ? { frameOrigins: [...(await deps.websites())] } : {}),
@@ -281,6 +310,12 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
       const parsed = answerBodySchema.safeParse(request.body);
       const answered = await deps.answers.takeAnswer(request, found.live, parsed.success ? parsed.data : null);
       if (answered.status === 404) return unavailable(reply);
+      // A sent answer of a form that ends on a landing page: that page's address on this host, while it is live.
+      const { ending } = found.live.form.definition;
+      if (answered.status === 200 && answered.body.state === 'sent' && ending.kind === 'landing') {
+        const served = servedEnding(ending, deps.endings === undefined ? null : await deps.endings.target(ending, found.live.connectionId), servedOrigin(request));
+        return reply.status(200).send(served.kind === 'page' ? { ...answered.body, url: served.url } : answered.body);
+      }
       return reply.status(answered.status).send(answered.body);
     });
 
