@@ -364,6 +364,12 @@ export const RATE_BUCKETS = {
   // and a busy office or a phone network puts many visitors behind one
   // address. Generous; each form's own caps on what is sent are the gate.
   'forms-door': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
+  // The pages door (`/x/pages/`): whoever opens a landing page, by network
+  // address. A page load is its HTML, its files, its data and its pictures;
+  // a campaign link puts many visitors behind one phone network's address.
+  // Generous, as the forms door's, and a bucket of its own so a page's
+  // traffic never spends the budget a form's sender needs.
+  'pages-door': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
   // A mail service's notices: a few addresses, bursts after a send. The service's own proof is the gate.
   'mail-notice': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
   // A person's data, by address: each search reads every people table whole,

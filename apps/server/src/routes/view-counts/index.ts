@@ -21,7 +21,7 @@
  * there, or that declares no such table, is not found (404). A signed-in
  * person or a staff key (`requireAuth`); staff only.
  */
-import { formsOf, isAddOnManifest, validateManifest, type AddOnManifest } from '@adminium/manifest';
+import { formsOf, isAddOnManifest, landingOf, validateManifest, type AddOnManifest } from '@adminium/manifest';
 import { appTablesRepo, manifestsRepo, realTableOf, settingsRepo, viewDaysRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -71,11 +71,8 @@ const NO_SECRETS = {
 
 /** The ref of the table a kind's things are rows of, as an add-on's manifest names it; null when it names none. */
 export function countedTableRef(manifest: AddOnManifest, kind: ViewKind): string | null {
-  if (kind === 'page') {
-    // The landing word (`addOn.landing.pages`), read loosely: the counter needs only its pages table's ref.
-    const landing = (manifest.addOn as { landing?: { pages?: unknown } } | undefined)?.landing;
-    return typeof landing?.pages === 'string' ? landing.pages : null;
-  }
+  // A page is a row of the landing word's pages table (`addOn.landing.pages`), read as the pages door reads it.
+  if (kind === 'page') return landingOf(manifest)?.pages ?? null;
   return formsOf(manifest)?.forms ?? null;
 }
 

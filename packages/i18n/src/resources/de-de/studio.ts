@@ -679,9 +679,10 @@ export default {
       "title": "Domains",
       "pages": "Formulare und Seiten",
       "homeLabel": "Startseite",
-      "homeNone": "Noch kein veröffentlichtes Formular",
-      "homeMissing": "Veröffentlichen Sie zuerst ein Formular: Dieser Host braucht ein veröffentlichtes Formular als Startseite.",
-      "invalidHome": "Die Startseite von {host} muss die Seite eines veröffentlichten Formulars unter /x/ sein."
+      "homeNone": "Noch kein veröffentlichtes Formular und keine veröffentlichte Seite",
+      "homeOff": "Diese Seite ist nicht mehr veröffentlicht: Besucher von {host} finden dort nichts.",
+      "homeMissing": "Veröffentlichen Sie zuerst ein Formular oder eine Seite: Dieser Host braucht eine veröffentlichte Startseite.",
+      "invalidHome": "Die Startseite von {host} muss die Adresse eines veröffentlichten Formulars oder einer veröffentlichten Seite unter /x/ sein."
     },
     "emptyBody": "Setzen Sie ADMINIUM_SURFACES_DIR auf ein Verzeichnis gebauter Oberflächen — ein Ordner je App und Seite, jeweils mit index.html — und starten Sie neu. Sie werden dann unter /apps/ ausgeliefert und erscheinen hier.",
     "emptyTitle": "Es werden keine App-Oberflächen ausgeliefert",

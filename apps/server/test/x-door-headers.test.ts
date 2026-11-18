@@ -25,6 +25,7 @@ const ORIGIN = `http://${HOST}`;
 
 const catalog: FormsCatalog = {
   find: async () => ({ state: 'unavailable' }),
+  byKey: async () => ({ state: 'unavailable' }),
   draft: async () => null,
   liveSlugs: async () => [],
   forget: () => true,
@@ -59,6 +60,19 @@ describe('the /x/ doors’ shared headers', () => {
     door.get('/x/chat/api/:addOn/broken', async (_request, reply) => reply.code(404).send({ error: 'not available' }));
   };
 
+  /** A third door, as the pages door is: an answer it says may be indexed, and a file with headers of its own. */
+  const indexingDoor: FastifyPluginAsync = async (door) => {
+    xDoorHeaders(door, {
+      framed: framedPageOf([]),
+      websites: async () => websites,
+      previewing: () => false,
+      indexable: (request) => request.url === '/x/pages/live',
+      ownHeaders: (request) => request.url.startsWith('/x/pages/api/live/pictures/'),
+    });
+    door.get('/x/pages/:slug', async () => 'page');
+    door.get('/x/pages/api/live/pictures/:file', async (_request, reply) => reply.headers({ 'content-security-policy': "default-src 'none'; sandbox", 'cache-control': 'public, max-age=300, must-revalidate' }).send('png'));
+  };
+
   async function start(opts: { trial?: boolean } = {}): Promise<void> {
     app = Fastify({ logger: false });
     app.setValidatorCompiler(validatorCompiler);
@@ -82,6 +96,7 @@ describe('the /x/ doors’ shared headers', () => {
       }),
     );
     await app.register(otherDoor);
+    await app.register(indexingDoor);
     // A dashboard route outside every door.
     app.get('/api/v1/elsewhere', async () => ({ ok: true }));
     await app.ready();
@@ -133,6 +148,39 @@ describe('the /x/ doors’ shared headers', () => {
   it('keeps a trial’s stronger robots word on a second door', async () => {
     await start({ trial: true });
     expect((await get('/x/chat/sales')).headers['x-robots-tag']).toBe('noindex, nofollow');
+  });
+
+  it('holds every door to Trusted Types with no policy, calls under /x/ only, and its own browsing group', async () => {
+    await start();
+    const policy = new Map(xContentPolicy(ORIGIN).split('; ').map((directive) => [directive.split(' ')[0], directive]));
+    expect(policy.get('require-trusted-types-for')).toBe("require-trusted-types-for 'script'");
+    expect(policy.get('trusted-types')).toBe("trusted-types 'none'");
+    expect(policy.get('connect-src')).toBe(`connect-src ${ORIGIN}/x/`);
+    expect(policy.get('script-src')).toBe(`script-src ${ORIGIN}/x/assets/`);
+    expect(policy.get('img-src')).toBe("img-src 'self'");
+    for (const url of ['/x/forms/api/nothing', '/x/chat/sales', '/x/pages/open-day']) {
+      const res = await get(url);
+      expect(res.headers['cross-origin-opener-policy'], url).toBe('same-origin');
+      expect(res.headers['content-security-policy'], url).toBe(xContentPolicy(ORIGIN));
+    }
+  });
+
+  it('leaves out noindex only for an answer its door says may be indexed, and a trial’s word wins over that', async () => {
+    await start();
+    expect((await get('/x/pages/live')).headers['x-robots-tag']).toBeUndefined();
+    for (const url of ['/x/pages/elsewhere', '/x/forms/api/nothing', '/x/chat/sales']) expect((await get(url)).headers['x-robots-tag'], url).toBe('noindex');
+    await app!.close();
+    await start({ trial: true });
+    expect((await get('/x/pages/live')).headers['x-robots-tag']).toBe('noindex, nofollow');
+  });
+
+  it('keeps the policy and cache time of a file a door serves with its own', async () => {
+    await start();
+    const picture = await get('/x/pages/api/live/pictures/f1');
+    expect(picture.headers['content-security-policy']).toBe("default-src 'none'; sandbox");
+    expect(picture.headers['cache-control']).toBe('public, max-age=300, must-revalidate');
+    expect(picture.headers['x-content-type-options']).toBe('nosniff');
+    expect(picture.headers['x-robots-tag']).toBe('noindex');
   });
 
   it('leaves a route outside the doors alone', async () => {

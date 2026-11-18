@@ -107,6 +107,9 @@ export default {
   "chat": {
     "noScript": "This chat needs JavaScript."
   },
+  "pages": {
+    "noScript": "This page needs JavaScript."
+  },
   "banner": {
     "title": "Can we remember your visit?",
     "text": "If you say yes, we remember which of our pages you look at, and if you then send us a form, we keep that with your message so we can answer you better. Nothing about your visit is remembered if you say no.",

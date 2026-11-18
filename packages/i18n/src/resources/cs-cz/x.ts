@@ -107,6 +107,9 @@ export default {
   "chat": {
     "noScript": "Tento chat potřebuje JavaScript."
   },
+  "pages": {
+    "noScript": "Tato stránka potřebuje JavaScript."
+  },
   "banner": {
     "title": "Můžeme si zapamatovat vaši návštěvu?",
     "text": "Pokud řeknete ano, zapamatujeme si, které naše stránky navštívíte, a pokud nám potom pošlete formulář, uložíme si to s vaší zprávou, abychom vám mohli lépe odpovědět. Pokud řeknete ne, nic si o vaší návštěvě nezapamatujeme.",

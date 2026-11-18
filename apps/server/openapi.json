@@ -109701,7 +109701,8 @@
                             "archive",
                             "document",
                             "package",
-                            "stranger"
+                            "stranger",
+                            "landing"
                           ]
                         },
                         "destinationId": {
@@ -109842,7 +109843,8 @@
                 "archive",
                 "document",
                 "package",
-                "stranger"
+                "stranger",
+                "landing"
               ]
             },
             "in": "query",
@@ -110032,7 +110034,8 @@
                               "archive",
                               "document",
                               "package",
-                              "stranger"
+                              "stranger",
+                              "landing"
                             ]
                           },
                           "destinationId": {
@@ -110221,7 +110224,8 @@
                             "archive",
                             "document",
                             "package",
-                            "stranger"
+                            "stranger",
+                            "landing"
                           ]
                         },
                         "destinationId": {
@@ -110439,7 +110443,8 @@
                             "archive",
                             "document",
                             "package",
-                            "stranger"
+                            "stranger",
+                            "landing"
                           ]
                         },
                         "destinationId": {
@@ -110607,7 +110612,8 @@
                             "archive",
                             "document",
                             "package",
-                            "stranger"
+                            "stranger",
+                            "landing"
                           ]
                         },
                         "destinationId": {
@@ -110755,7 +110761,8 @@
                             "archive",
                             "document",
                             "package",
-                            "stranger"
+                            "stranger",
+                            "landing"
                           ]
                         },
                         "destinationId": {
@@ -110925,7 +110932,8 @@
                                   "archive",
                                   "document",
                                   "package",
-                                  "stranger"
+                                  "stranger",
+                                  "landing"
                                 ]
                               },
                               "destinationId": {
@@ -111140,7 +111148,8 @@
                             "archive",
                             "document",
                             "package",
-                            "stranger"
+                            "stranger",
+                            "landing"
                           ]
                         },
                         "destinationId": {
@@ -111290,7 +111299,8 @@
                             "archive",
                             "document",
                             "package",
-                            "stranger"
+                            "stranger",
+                            "landing"
                           ]
                         },
                         "destinationId": {
@@ -111440,7 +111450,8 @@
                             "archive",
                             "document",
                             "package",
-                            "stranger"
+                            "stranger",
+                            "landing"
                           ]
                         },
                         "destinationId": {
@@ -174276,6 +174287,366 @@
                   "required": [
                     "overrides",
                     "pages"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/landing/{addOn}/pictures": {
+      "post": {
+        "summary": "Keep a picture for a landing page",
+        "tags": [
+          "landing"
+        ],
+        "description": "A picture for one page of a landing pages add-on: a file of Files (`{ \"file\": <id> }`, one the person may read) or the picture as the body. Kept as the page’s own cleaned copy (PNG, JPEG, WebP or GIF, at most 5 MB; never SVG), and answered with its id. For someone who may change the add-on’s pages.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "page",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "install",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "filename",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "path",
+            "name": "addOn",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "mime": {
+                          "type": "string"
+                        },
+                        "sizeBytes": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "mime",
+                        "sizeBytes"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/landing/{addOn}/pictures/{file}": {
+      "get": {
+        "summary": "One picture of a landing page, for its editor",
+        "tags": [
+          "landing"
+        ],
+        "description": "The bytes of one of a page’s own pictures, as strangers are served them once the page is live. For someone who may read the add-on’s pages.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "page",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "install",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "path",
+            "name": "addOn",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "file",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/landing/{addOn}/status": {
+      "get": {
+        "summary": "What a landing pages editor shows about where its pages answer",
+        "tags": [
+          "landing"
+        ],
+        "description": "Whether strangers can reach the pages, whether the privacy notice is set, the public address, the hosts mapped to the add-on pages and, for a page, its address on each and whether it is that host’s home. For someone who may read the add-on’s pages.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "install",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "path",
+            "name": "addOn",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "installId": {
+                          "type": "string"
+                        },
+                        "timeZone": {
+                          "type": "string"
+                        },
+                        "viewCountsMonths": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "reach": {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "operator-off",
+                                "network-off",
+                                "desktop",
+                                "not-set",
+                                "this-computer",
+                                "private-network",
+                                "dot-local",
+                                "not-https",
+                                "proxy-hidden",
+                                "reachable"
+                              ]
+                            },
+                            "proxyUnchecked": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "proxyUnchecked"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "notice": {
+                          "type": "boolean"
+                        },
+                        "publicOrigin": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "hosts": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "host": {
+                                "type": "string"
+                              },
+                              "home": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "host",
+                              "home"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "page": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string"
+                                },
+                                "slug": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "state": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "addresses": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "host": {
+                                        "type": "string"
+                                      },
+                                      "url": {
+                                        "type": "string"
+                                      },
+                                      "home": {
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": [
+                                      "host",
+                                      "url",
+                                      "home"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "canonical": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "homeOf": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "required": [
+                                "key",
+                                "slug",
+                                "state",
+                                "addresses",
+                                "canonical",
+                                "homeOf"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "installId",
+                        "timeZone",
+                        "viewCountsMonths",
+                        "reach",
+                        "notice",
+                        "publicOrigin",
+                        "hosts",
+                        "page"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
                   ],
                   "additionalProperties": false
                 }

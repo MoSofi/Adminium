@@ -119,3 +119,5 @@ block is under that section.
 
 A package that declares landing pages serves them only when Adminium can vouch for its bytes, as
 forms and chat are.
+
+#### The pages door

@@ -107,6 +107,9 @@ export default {
   "chat": {
     "noScript": "Dieser Chat braucht JavaScript."
   },
+  "pages": {
+    "noScript": "Diese Seite braucht JavaScript."
+  },
   "banner": {
     "title": "Dürfen wir uns an Ihren Besuch erinnern?",
     "text": "Wenn Sie Ja sagen, merken wir uns, welche unserer Seiten Sie ansehen, und wenn Sie uns danach ein Formular senden, bewahren wir das mit Ihrer Nachricht auf, damit wir Ihnen besser antworten können. Wenn Sie Nein sagen, merken wir uns nichts über Ihren Besuch.",

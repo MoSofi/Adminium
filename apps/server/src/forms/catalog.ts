@@ -122,44 +122,89 @@ export function createFormsCatalog(deps: FormsCatalogDeps) {
     return out;
   }
 
-  async function lookUp(slug: string): Promise<FormLookup> {
+  type FormsAddOn = Awaited<ReturnType<typeof formsAddOns>>[number];
+
+  /** Whether a form row an add-on holds is served to strangers now, and as what (see the header). */
+  async function judge(addOn: FormsAddOn, pk: string, row: Record<string, unknown>): Promise<FormLookup> {
     const unavailable: FormLookup = { state: 'unavailable' };
-    // A slug the rule refuses, a reserved word among them, is never a form: the builder refuses it too.
+    if (!addOn.on || !(await vouched({ key: addOn.key, version: addOn.version, manifest: addOn.manifest }))) return unavailable;
+    if (!(await privacyNoticeReady(deps.meta))) return unavailable;
+    if (row['state'] === 'closed') return { state: 'closed' };
+    if (row['state'] !== 'live') return unavailable;
+    const slug = row['slug'];
     if (!isFormSlug(slug)) return unavailable;
+    const published = jsonOf(row['published']);
+    if (published === null || typeof published !== 'object' || Array.isArray(published)) return unavailable;
+    const { definition, settings } = published as { definition?: unknown; settings?: unknown };
+    const parsed = parseForm(definition, settings);
+    if (!parsed.ok) return unavailable;
+    const id = row[pk];
+    if (typeof id !== 'string' && typeof id !== 'number' && typeof id !== 'bigint') return unavailable;
+    return { state: 'live', live: { id: String(id), slug, addOn: addOn.key, connectionId: addOn.connectionId, form: parsed.form, installId: addOn.installId } };
+  }
+
+  /** The row of an add-on's forms table one column names, with what judging it reads; undefined when none, or it cannot be read. */
+  async function formRow(addOn: FormsAddOn, by: 'slug' | 'key', value: string): Promise<{ pk: string; row: Record<string, unknown> } | undefined> {
     const installs = await deps.installs();
-    for (const addOn of await formsAddOns()) {
-      const block = formsOf(addOn.manifest)!;
-      const tableId = installs.tableOf(addOn.connectionId, addOn.key, block.forms);
-      const pk = primaryKeyOf(addOn.manifest, block.forms);
-      if (tableId === null || pk === null) continue;
-      let row: Record<string, unknown> | undefined;
-      try {
-        const { db } = await deps.data(addOn.connectionId);
-        row = (await db
-          .selectFrom(tableId)
-          .select([db.dynamic.ref(pk), db.dynamic.ref('state'), db.dynamic.ref('published')] as never)
-          .where(db.dynamic.ref('slug'), '=', slug)
-          .executeTakeFirst()) as Record<string, unknown> | undefined;
-      } catch {
-        // A connection switched off or a table that cannot be read: as a form that is not there.
-        continue;
-      }
-      if (row === undefined) continue;
-      // The first add-on that holds the slug answers for it, whatever its row says.
-      if (!addOn.on || !(await vouched({ key: addOn.key, version: addOn.version, manifest: addOn.manifest }))) return unavailable;
-      if (!(await privacyNoticeReady(deps.meta))) return unavailable;
-      if (row['state'] === 'closed') return { state: 'closed' };
-      if (row['state'] !== 'live') return unavailable;
-      const published = jsonOf(row['published']);
-      if (published === null || typeof published !== 'object' || Array.isArray(published)) return unavailable;
-      const { definition, settings } = published as { definition?: unknown; settings?: unknown };
-      const parsed = parseForm(definition, settings);
-      if (!parsed.ok) return unavailable;
-      const id = row[pk];
-      if (typeof id !== 'string' && typeof id !== 'number' && typeof id !== 'bigint') return unavailable;
-      return { state: 'live', live: { id: String(id), slug, addOn: addOn.key, connectionId: addOn.connectionId, form: parsed.form, installId: addOn.installId } };
+    const block = formsOf(addOn.manifest)!;
+    const tableId = installs.tableOf(addOn.connectionId, addOn.key, block.forms);
+    const pk = primaryKeyOf(addOn.manifest, block.forms);
+    if (tableId === null || pk === null) return undefined;
+    try {
+      const { db } = await deps.data(addOn.connectionId);
+      const row = (await db
+        .selectFrom(tableId)
+        .select([db.dynamic.ref(pk), db.dynamic.ref('slug'), db.dynamic.ref('state'), db.dynamic.ref('published')] as never)
+        .where(db.dynamic.ref(by === 'slug' ? 'slug' : pk), '=', value)
+        .executeTakeFirst()) as Record<string, unknown> | undefined;
+      return row === undefined ? undefined : { pk, row };
+    } catch {
+      // A connection switched off, a table that cannot be read, a key of the wrong type: as a form that is not there.
+      return undefined;
     }
-    return unavailable;
+  }
+
+  async function lookUp(slug: string): Promise<FormLookup> {
+    // A slug the rule refuses, a reserved word among them, is never a form: the builder refuses it too.
+    if (!isFormSlug(slug)) return { state: 'unavailable' };
+    for (const addOn of await formsAddOns()) {
+      const found = await formRow(addOn, 'slug', slug);
+      // The first add-on that holds the slug answers for it, whatever its row says.
+      if (found !== undefined) return judge(addOn, found.pk, found.row);
+    }
+    return { state: 'unavailable' };
+  }
+
+  /**
+   * A form by its add-on and its row's key, as strangers are served it now:
+   * what a landing page's Form block names (kept a few seconds, as a slug's
+   * lookup). The same judgement as by its slug, of the oldest install of
+   * that add-on.
+   */
+  async function byKey(addOnKey: string, key: string): Promise<FormLookup> {
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(key)) return { state: 'unavailable' };
+    const cacheKey = `key:${addOnKey}:${key}`;
+    const at = now();
+    const kept = cache.get(cacheKey);
+    if (kept !== undefined && at - kept.at < FORM_CACHE_MS) return kept.lookup;
+    const lookup = (async (): Promise<FormLookup> => {
+      const addOn = (await formsAddOns()).find((one) => one.key === addOnKey);
+      const found = addOn === undefined ? undefined : await formRow(addOn, 'key', key);
+      return addOn === undefined || found === undefined ? { state: 'unavailable' } : judge(addOn, found.pk, found.row);
+    })();
+    remember(cacheKey, at, lookup);
+    return lookup;
+  }
+
+  /** Keep a lookup, the cache bounded. */
+  function remember(cacheKey: string, at: number, lookup: Promise<FormLookup>): void {
+    if (cache.size >= CACHE_MAX) {
+      for (const [one, entry] of cache) if (at - entry.at >= FORM_CACHE_MS) cache.delete(one);
+      if (cache.size >= CACHE_MAX) cache.clear();
+    }
+    cache.set(cacheKey, { at, lookup });
+    // A read that failed is not kept: the next request asks again.
+    lookup.catch(() => cache.delete(cacheKey));
   }
 
   /** The form a slug names, as strangers are served it now (kept a few seconds). */
@@ -167,14 +212,8 @@ export function createFormsCatalog(deps: FormsCatalogDeps) {
     const at = now();
     const kept = cache.get(slug);
     if (kept !== undefined && at - kept.at < FORM_CACHE_MS) return kept.lookup;
-    if (cache.size >= CACHE_MAX) {
-      for (const [key, entry] of cache) if (at - entry.at >= FORM_CACHE_MS) cache.delete(key);
-      if (cache.size >= CACHE_MAX) cache.clear();
-    }
     const lookup = lookUp(slug);
-    cache.set(slug, { at, lookup });
-    // A read that failed is not kept: the next request asks again.
-    lookup.catch(() => cache.delete(slug));
+    remember(slug, at, lookup);
     return lookup;
   }
 
@@ -234,7 +273,7 @@ export function createFormsCatalog(deps: FormsCatalogDeps) {
     return out;
   }
 
-  return { find, draft, liveSlugs, forget: (slug?: string) => (slug === undefined ? cache.clear() : cache.delete(slug)) };
+  return { find, byKey, draft, liveSlugs, forget: (slug?: string) => (slug === undefined ? cache.clear() : cache.delete(slug)) };
 }
 
 export type FormsCatalog = ReturnType<typeof createFormsCatalog>;

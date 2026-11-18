@@ -148,6 +148,9 @@ import { createChatStaff, type ChatStaff } from './chat/staff.js';
 import { createChatWaiting, type ChatWaiting } from './chat/waiting.js';
 import { chatOwnTable, sweepChatTranscripts } from './chat/transcripts.js';
 import { landingPagesTable } from './landing/seal.js';
+import { createLandingCatalog } from './landing/catalog.js';
+import { pagesDoorRoutes } from './routes/pages-door/index.js';
+import { landingStaffRoutes } from './routes/landing/index.js';
 import { chatStaffRoutes } from './routes/chat/index.js';
 import { createLedgerRuntime } from './ledgers/registry.js';
 import { announcePostings, tellPostings, type PostingsTold } from './ledgers/announce.js';
@@ -1311,6 +1314,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     return vouched;
   };
   const formsCatalog = createFormsCatalog({
+    meta,
+    installs: () => addOnInstalls.fresh(),
+    data: (connectionId) => manager.data(connectionId),
+    vouched: doorVouched,
+  });
+  // The landing pages add-ons' published pages, as strangers are served them (the pages door), vouched for as forms are.
+  const landingCatalog = createLandingCatalog({
     meta,
     installs: () => addOnInstalls.fresh(),
     data: (connectionId) => manager.data(connectionId),
@@ -2751,7 +2761,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         }),
       );
       // The host editor's home picker lists the live forms' addresses.
-      await api.register(surfacesAdminRoutes({ meta, liveForms: () => formsCatalog.liveSlugs() }));
+      await api.register(surfacesAdminRoutes({ meta, liveForms: () => formsCatalog.liveSlugs(), livePages: () => landingCatalog.liveSlugs() }));
       // A file a stranger sent with a form, opened by staff who read its answer.
       await api.register(formsFilesRoutes({ uploads: publicUploads, storage, forms: formsFiles, reachesRecord: fileRecordCheck(meta, manager) }));
       // Installing an app. Registered on the same
@@ -3696,6 +3706,47 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       desktop: env.ADMINIUM_RUNTIME === 'desktop',
       trustProxy: env.ADMINIUM_TRUST_PROXY,
     }),
+  );
+
+  /*
+   * THE PAGES DOOR (`/x/pages/`): a landing page, drawn by the engine from a
+   * landing pages add-on's own table, its head written by the server. Always
+   * registered, like the forms door, and gated per request by the same reach.
+   */
+  const pageHosts = async (): Promise<Readonly<Record<string, { home: string }>>> => (app.surfaceSettings === null ? ((await settingsRepo(meta).get('surfaces.pageHosts')) ?? {}) : ((await app.surfaceSettings.read()).pages ?? {}));
+  await app.register(
+    pagesDoorRoutes({
+      meta,
+      catalog: landingCatalog,
+      forms: formsCatalog,
+      storage,
+      pageHosts,
+      // A live page's views are counted, and at "Per visitor" its data says what the banner reads.
+      views: counting.counter,
+      visitors: counting.visitors,
+      networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+      desktop: env.ADMINIUM_RUNTIME === 'desktop',
+      trustProxy: env.ADMINIUM_TRUST_PROXY,
+    }),
+  );
+  // Staff: a page's pictures, and where its pages answer (`routes/landing`).
+  await app.register(
+    async (api) => {
+      await api.register(
+        landingStaffRoutes({
+          meta,
+          catalog: landingCatalog,
+          storage,
+          pageHosts,
+          // Who may read a file of Files: the files routes' own rule.
+          hiddenFile: hiddenFileCheck(meta, manager),
+          reachesRecord: fileRecordCheck(meta, manager),
+          privateFile: privateFileCheck(meta, manager),
+          reach: { networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY },
+        }),
+      );
+    },
+    { prefix: API_PREFIX },
   );
 
   /*
