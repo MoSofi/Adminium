@@ -8,7 +8,10 @@
  *
  *   `{"@ref": "<label>"}`      the key of an earlier row with that `@label`
  *                               (or of a labelled starting row of the manifest's
- *                               own `seeds`: see `seedLabelsOf`)
+ *                               own `seeds`: see `seedLabelsOf`). In a column,
+ *                               and anywhere inside a json value (a funnel's
+ *                               step, a page's link), where it is the key as
+ *                               text: a json document names a row by a text key
  *   `{"@ago": "PT19M"}`        an ISO-8601 duration before now
  *   `{"@in": "PT20M", "@grid": 15}`   an ISO-8601 duration after now; with
  *                               `@grid`, rounded up to the next time on that
@@ -303,6 +306,42 @@ export function samplePeopleIn(value: unknown): string[] {
   if (Array.isArray(value)) return value.flatMap(samplePeopleIn);
   if (typeof value === 'object' && value !== null) return Object.values(value as Record<string, unknown>).flatMap(samplePeopleIn);
   return [];
+}
+
+/**
+ * How deep inside a json value a `@ref` or a `@person` is resolved: a page
+ * document names another page five levels down (its blocks, a block, its
+ * button, the link, the key), so sixteen is room to spare, and the loader
+ * never walks a value nested without end. One deeper is refused by the check.
+ */
+export const SAMPLE_JSON_DEPTH = 16;
+
+/**
+ * Every row a json value names inside it (`{"@ref": label}` in an object or a
+ * list that is no directive of its own), within {@link SAMPLE_JSON_DEPTH}
+ * levels; `deeper` when a `@ref` or a `@person` sits past them, where the
+ * loader would leave it as written.
+ */
+export function sampleJsonRefs(value: unknown): { labels: string[]; deeper: boolean } {
+  const labels: string[] = [];
+  let deeper = false;
+  const walk = (inner: unknown, depth: number): void => {
+    if (typeof inner !== 'object' || inner === null) return;
+    if (depth > SAMPLE_JSON_DEPTH) {
+      // Past the depth the loader reads: what is there stays as written.
+      if (/"@(ref|person)"/.test(JSON.stringify(inner))) deeper = true;
+      return;
+    }
+    const found = sampleDirective(inner);
+    if (found?.kind === 'ref') labels.push(found.label);
+    if (found !== null) return;
+    for (const item of Array.isArray(inner) ? inner : Object.values(inner as Record<string, unknown>)) walk(item, depth + 1);
+  };
+  // The value itself is a column's value: a directive there is the column's own, not one inside json.
+  if (typeof value === 'object' && value !== null && sampleDirective(value) === null) {
+    for (const item of Array.isArray(value) ? value : Object.values(value as Record<string, unknown>)) walk(item, 1);
+  }
+  return { labels, deeper };
 }
 
 /** An ISO-8601 duration in milliseconds. */
@@ -891,6 +930,15 @@ function rowIssues(
           });
         } else if (found?.kind === 'ref' && mayBeLeftOut.has(found.label)) {
           issues.push({ path: `${at}.${column}`, message: `"${found.label}" is in a table only for an empty table, so it may not be written: nothing points at it.` });
+        }
+        // A row named inside a json value (a funnel's steps): the same rules as a column's `@ref`.
+        const inside = sampleJsonRefs(value);
+        for (const named of inside.labels) {
+          if (!seen.has(named) && !opts.otherLabels) issues.push({ path: `${at}.${column}`, message: `"${named}" is not an earlier row: a referenced row must come first.` });
+          else if (mayBeLeftOut.has(named)) issues.push({ path: `${at}.${column}`, message: `"${named}" is in a table only for an empty table, so it may not be written: nothing points at it.` });
+        }
+        if (inside.deeper) {
+          issues.push({ path: `${at}.${column}`, message: `A "@ref" or "@person" inside "${column}" is more than ${String(SAMPLE_JSON_DEPTH)} levels down, where it is not read: move it up.` });
         }
         if (found?.kind === 'asset' && bundle.assets[found.label] === undefined) {
           issues.push({ path: `${at}.${column}`, message: `"${found.label}" is not one of the bundle’s assets.` });

@@ -56,6 +56,7 @@ import {
   isoDurationMs,
   prefixFor,
   ROW_DIRECTIVES,
+  SAMPLE_JSON_DEPTH,
   sampleBundleIssues,
   sampleBundleSchema,
   sampleDirective,
@@ -563,8 +564,8 @@ function resolveValues(row: Readonly<Record<string, unknown>>, ctx: ResolveConte
     if (ROW_DIRECTIVES.has(column)) continue;
     const found = sampleDirective(value);
     if (found === null) {
-      // A json value may name a sample person anywhere inside it (a saved filter's rep).
-      out[column] = typeof value === 'object' && value !== null ? withPeople(value, ctx) : value;
+      // A json value may name a sample person (a saved filter's rep) or a row (a funnel's step) anywhere inside it.
+      out[column] = typeof value === 'object' && value !== null ? withinJson(value, ctx, 0) : value;
       continue;
     }
     switch (found.kind) {
@@ -637,13 +638,32 @@ function personOf(key: string, ctx: ResolveContext): string {
   return id;
 }
 
-/** A json value with every `{"@person": "<key>"}` inside it replaced by that person's id. */
-function withPeople(value: unknown, ctx: ResolveContext): unknown {
+/**
+ * The key of an earlier row, as a json value names it: as text, for a json
+ * document names a row by a text key (a page's link, a funnel's step), and
+ * Postgres and MySQL hand some keys back as numbers and some as text.
+ */
+function keyTextOf(label: string, ctx: ResolveContext): string {
+  if (!ctx.labels.has(label)) throw new ValidationFailedError(`The sample row "${label}" was not written.`);
+  const key = ctx.labels.get(label);
+  if (typeof key === 'string' || typeof key === 'number' || typeof key === 'bigint') return String(key);
+  throw new ValidationFailedError(`The sample row "${label}" has a key of several columns, so a json value cannot name it.`);
+}
+
+/**
+ * A json value with every `{"@person": "<key>"}` inside it replaced by that
+ * person's id and every `{"@ref": "<label>"}` by that row's key as text, down
+ * to {@link SAMPLE_JSON_DEPTH} levels (the bundle's check refuses one deeper;
+ * past them, the value stays as written). Any other directive inside json is
+ * left as it is.
+ */
+function withinJson(value: unknown, ctx: ResolveContext, depth: number): unknown {
   const found = sampleDirective(value);
   if (found?.kind === 'person') return personOf(found.key, ctx);
-  if (found !== null) return value;
-  if (Array.isArray(value)) return value.map((item) => withPeople(item, ctx));
-  if (typeof value === 'object' && value !== null) return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, withPeople(item, ctx)]));
+  if (found?.kind === 'ref') return keyTextOf(found.label, ctx);
+  if (found !== null || depth >= SAMPLE_JSON_DEPTH) return value;
+  if (Array.isArray(value)) return value.map((item) => withinJson(item, ctx, depth + 1));
+  if (typeof value === 'object' && value !== null) return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, withinJson(item, ctx, depth + 1)]));
   return value;
 }
 
