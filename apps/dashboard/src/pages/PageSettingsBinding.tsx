@@ -36,6 +36,7 @@ const EVENT_LABELS: Record<string, { key: string; en: string }> = {
   },
   'automation.notice': { key: 'notifications.event.ruleNotice', en: 'A notice from a rule' },
   mention: { key: 'notifications.event.mention', en: 'Somebody mentioned me' },
+  'chat.budget': { key: 'chat.budgetEvent', en: 'A chat’s automatic answers stopped for the day' },
 };
 
 export function eventLabel(eventKey: string): string {
