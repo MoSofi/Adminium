@@ -118,7 +118,6 @@ export type LandingDocumentCode = (typeof LANDING_DOCUMENT_CODES)[number];
 // C0 and C1 controls and DEL; a line break is let into a text of several lines by its own rule.
 // eslint-disable-next-line no-control-regex
 const CONTROL = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/;
-// eslint-disable-next-line no-control-regex
 const LINE_BREAK = /[\n\r\t]/;
 
 /** A plain text: at most `max` characters, a visible one among them, no control character; line breaks only when `lines`. */

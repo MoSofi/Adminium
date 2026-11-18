@@ -39,6 +39,8 @@ import { coverage, workers } from '@adminium/config/vitest';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  // The landing renderer is React: its tests draw it in a browser's document (`@vitest-environment happy-dom`).
+  esbuild: { jsx: 'automatic' },
   test: {
     ...workers(),
     coverage: coverage({ statements: 99, branches: 88 }),
