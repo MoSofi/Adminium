@@ -128,6 +128,11 @@ export const addOnNetworkSchema = z
 export const ADD_ON_SOURCES_MAX = 8;
 /** What `reads` may say: the engine's own website reader, which an add-on only names. */
 export const SOURCE_READS_WEBSITE = 'website';
+/**
+ * Ids no source may take: `sources` is the version field of the envelope the
+ * engine keeps every source's key in (`{ sources: 1, <id>: { key } }`).
+ */
+export const RESERVED_SOURCE_IDS: readonly string[] = ['sources'];
 
 /**
  * One place an add-on finds companies or people (`addOn.sources[]`): a
@@ -141,7 +146,10 @@ export const SOURCE_READS_WEBSITE = 'website';
  */
 export const addOnSourceSchema = z
   .object({
-    id: z.string().regex(/^[a-z][a-z0-9-]{1,31}$/, 'a source id is kebab-case, 2 to 32 characters'),
+    id: z
+      .string()
+      .regex(/^[a-z][a-z0-9-]{1,31}$/, 'a source id is kebab-case, 2 to 32 characters')
+      .refine((id) => !RESERVED_SOURCE_IDS.includes(id), { message: 'a source id may not be "sources": the engine keeps its keys under that name' }),
     /** The hosts this source's code may reach: a part of `network.allow`. */
     hosts: z.array(z.string().regex(HOSTNAME, 'must be an exact https hostname')).min(1).max(8).optional(),
     /** `website`: the engine reads the company's website, and the add-on picks facts from what it read. */

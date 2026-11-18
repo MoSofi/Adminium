@@ -57,6 +57,8 @@ describe('an add-on block\'s sources', () => {
       for (let n = 0; sources(b).length < 8; n += 1) sources(b).push({ id: `more-${String(n)}`, hosts: ['api.hunter.io'], gives: ['fill'] });
     })).toEqual([]);
     expect(issues((b) => (sources(b)[1]!['id'] = 'companies-house'))).toEqual(['sources: duplicate source id']);
+    // `sources` names the version of the envelope the keys are kept in, never a source.
+    expect(issues((b) => (sources(b)[1]!['id'] = 'sources'))).toEqual(['sources.1.id: a source id may not be "sources": the engine keeps its keys under that name']);
     expect(issues((b) => sources(b).push({ id: 'pages', reads: 'website', gives: ['fill'] }))).toEqual(['sources: the website reader is one source: declare it once']);
     expect(issues((b) => (sources(b)[1]!['key'] = 'companies_house_key'))).toEqual(['sources: each source has a key of its own: two sources name the same setting']);
   });

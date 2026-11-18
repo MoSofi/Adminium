@@ -51,6 +51,7 @@ export {
   addOnNavGroupSchema,
   addOnNetworkSchema,
   ADD_ON_SOURCES_MAX,
+  RESERVED_SOURCE_IDS,
   SOURCE_READS_WEBSITE,
   addOnSourceSchema,
   sourceConsentLines,
