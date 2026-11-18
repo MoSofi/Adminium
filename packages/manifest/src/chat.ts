@@ -56,8 +56,12 @@ export type ChatColumn = ContractColumn<ChatPart>;
 export const CHAT_STATES = ['bot', 'waiting', 'open', 'closed'] as const;
 /** Who wrote a message: the visitor, a staff member, the automatic answerer, or Adminium (a line that says what happened). */
 export const CHAT_MESSAGE_KINDS = ['visitor', 'staff', 'automatic', 'system'] as const;
-/** The words a system line's `event` holds. */
-export const CHAT_EVENTS = ['taken', 'handed-over', 'closed', 'reopened', 'left'] as const;
+/**
+ * The words a system line's `event` holds. `asked` is the visitor asking for a
+ * person ("Talk to a person"); `handed-over` is the automatic answerer handing
+ * the conversation to a person by itself.
+ */
+export const CHAT_EVENTS = ['taken', 'asked', 'handed-over', 'closed', 'reopened', 'left'] as const;
 /** What the answerer did with one visitor message. */
 export const CHAT_OUTCOMES = ['answered', 'hand-over', 'error', 'budget', 'cap', 'off'] as const;
 /** How the visitor's window is drawn: light, dark, or as the visitor's own device is set. */

@@ -1002,6 +1002,8 @@ export default {
   "chat": {
     "budgetTitle": "Automatické odpovědi v {chat} jsou pro dnešek zastavené",
     "budgetBody": "{chat} spotřeboval před 18:00 UTC všechny tokeny, které smí dnes utratit ({tokens}), takže do půlnoci UTC odpovídá každému návštěvníkovi člověk. Takhle brzké vyčerpání může znamenat, že někdo posílá velmi mnoho zpráv. Podívejte se na dnešní konverzace, nebo zvyšte denní počet tokenů v nastavení chatu.",
-    "aiNotice": "Zprávy návštěvníků se posílají do {service}, aby se vybrala odpověď. Nic jiného se neposílá."
+    "aiNotice": "Zprávy návštěvníků se posílají do {service}, aby se vybrala odpověď. Nic jiného se neposílá.",
+    "pausedTitle": "Nové chaty jsou pozastavené: {chat}",
+    "pausedBody": "Během hodiny začalo tolik nových chatů, že to vypadá na skript. Noví návštěvníci nemohou začít chat až do {time}; probíhající chaty pokračují. Nové chaty můžete obnovit dříve v nastavení chatu."
   }
 } as const;

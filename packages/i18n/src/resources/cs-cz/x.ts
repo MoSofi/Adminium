@@ -103,5 +103,8 @@ export default {
     "offlineBody": "Zkontrolujte připojení a zkuste to znovu.",
     "retry": "Zkusit znovu",
     "continue": "Pokračovat"
+  },
+  "chat": {
+    "noScript": "Tento chat potřebuje JavaScript."
   }
 } as const;

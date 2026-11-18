@@ -163,7 +163,7 @@ describe('a renamed column', () => {
 describe('the four words', () => {
   it('are all run: a staff column, the ways, a role\'s rows and a private table', () => {
     for (const word of ['column.staff', 'table.belongs', 'roles.rows', 'table.private'] as const) expect(MANIFEST_WORDS_RUN).toContain(word);
-    // None of the four is refused (only a live chat's word waits for its door).
+    // None of the four is refused.
     for (const word of ['column.staff', 'table.belongs', 'roles.rows', 'table.private'] as const) expect(UNBUILT_MANIFEST_WORDS[word]).toBeUndefined();
     const app = {
       kind: 'app',

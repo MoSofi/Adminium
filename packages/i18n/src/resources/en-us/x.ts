@@ -103,5 +103,8 @@ export default {
     "offlineBody": "Check your connection and try again.",
     "retry": "Try again",
     "continue": "Continue"
+  },
+  "chat": {
+    "noScript": "This chat needs JavaScript."
   }
 } as const;

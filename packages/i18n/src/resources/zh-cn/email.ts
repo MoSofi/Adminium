@@ -1002,6 +1002,8 @@ export default {
   "chat": {
     "budgetTitle": "{chat} 的自动回答今天已停止",
     "budgetBody": "{chat} 在 UTC 18:00 之前就用完了今天可用的全部 {tokens} 个 token，因此在 UTC 午夜之前，每位访客都由人工回答。这么早用完，可能是有人在发送大量消息。请查看今天的对话，或在聊天设置中提高每日 token 数。",
-    "aiNotice": "访客的消息会发送到 {service}，用于选择一个回答。不会发送其他任何内容。"
+    "aiNotice": "访客的消息会发送到 {service}，用于选择一个回答。不会发送其他任何内容。",
+    "pausedTitle": "新对话已暂停：{chat}",
+    "pausedBody": "一小时内开始的新对话太多，看起来像是脚本所为。在 {time} 之前，新访客无法开始对话；进行中的对话不受影响。你可以在对话设置中提前恢复新对话。"
   }
 } as const;
