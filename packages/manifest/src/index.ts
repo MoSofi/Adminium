@@ -343,7 +343,7 @@ export {
   tableSchemaIssue,
 } from './table-names.js';
 
-export { CHAT_ENTRY_WORDS, CHAT_KEY, DOOR_KEYS, FORMS_ENTRY_WORDS, FORMS_KEY, SELF_UNLOCK_MIN_LENGTH } from './public-access.js';
+export { CHAT_ENTRY_WORDS, CHAT_KEY, CHAT_KEY_FLOOR, chatKeyReserved, DOOR_KEYS, doorKeysOf, FORMS_ENTRY_WORDS, FORMS_KEY, SELF_UNLOCK_MIN_LENGTH } from './public-access.js';
 export {
   ANSWER_INVITATION_COLUMN,
   FORMS_ANSWERS_MONTHS_COLUMN,

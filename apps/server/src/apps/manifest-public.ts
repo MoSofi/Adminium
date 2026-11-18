@@ -24,7 +24,7 @@
  * stop the key working — the public API off, no `self` in the origin list,
  * a database with no time zone — before anything is written.
  */
-import { DOOR_KEYS, hasPhoneSide, LOCAL_PUBLISHER_ID, ownLinksOfPerson, type Manifest } from '@adminium/manifest';
+import { CHAT_KEY, chatKeyReserved, doorKeysOf, hasPhoneSide, LOCAL_PUBLISHER_ID, ownLinksOfPerson, type Manifest } from '@adminium/manifest';
 import {
   CUSTOMER_KEY_PURPOSE,
   connectionTenantConfig,
@@ -65,9 +65,13 @@ export type PublicAccessEntry = NonNullable<Extract<Manifest, { kind: 'app' }>['
  * endpoint is planned for one and no key is made for it, so a request that
  * would reach one is answered as for a table nobody opened. Every reader that
  * numbers the entries into endpoints numbers these.
+ *
+ * `chat` is reserved only from the manifest's floor on (`doorKeysOf`): an app
+ * written for an older Adminium that named a key `chat` keeps its entries.
  */
-export function servedPublicEntries(entries: readonly PublicAccessEntry[]): PublicAccessEntry[] {
-  return entries.filter((entry) => entry.key === undefined || !DOOR_KEYS.includes(entry.key));
+export function servedPublicEntries(manifest: { publicAccess?: readonly PublicAccessEntry[] | undefined; compatibility?: { minAdminiumVersion?: string | undefined } | undefined }): PublicAccessEntry[] {
+  const doors = doorKeysOf(manifest);
+  return (manifest.publicAccess ?? []).filter((entry) => entry.key === undefined || !doors.includes(entry.key));
 }
 
 /** The one key an add-on may declare: a link that opens one row and only reads. Undefined for an app, or an add-on with none. */
@@ -512,7 +516,7 @@ export function planPublicEndpoints(
    */
   opts: { tablesMadeLater?: boolean; columnsMadeLater?: ReadonlyMap<string, ReadonlySet<string>> } = {},
 ): PlannedPublicEndpoint[] {
-  const entries = servedPublicEntries(manifest.publicAccess ?? []);
+  const entries = servedPublicEntries(manifest);
   // Refs first: a person's own rows are opened through their key's identity, by its ref.
   const refs = publicEntryRefs(entries, names);
   const identityRefOf = (entry: PublicAccessEntry): string | undefined => {
@@ -652,7 +656,7 @@ export function planPublicEndpoints(
     return { ...planned, select: definition.select, issues, definition };
   });
   // Across entries: anyone adds through one, anyone reads through another.
-  const split = new Set(anonymousAddAndRead(entries));
+  const split = new Set(anonymousAddAndRead(entries, doorKeysOf(manifest)));
   return split.size === 0 ? plan : plan.map((planned, index) => (split.has(index) ? { ...planned, issues: [...planned.issues, addAndReadRefusal(planned.table)] } : planned));
 }
 
@@ -965,7 +969,7 @@ export async function installPublicAccess(input: {
   const mine = (entry: PlannedPublicEndpoint) => entry.owner === manifest.key;
   // A key is made for what the manifest itself declares: an app's key is never made for an add-on's entries alone.
   const purposes = [...new Set(planned.filter(mine).map((entry) => entry.key))].filter(
-    (purpose) => !DOOR_KEYS.includes(purpose) && (manifest.kind === 'app' || (purpose === ownLink && opensByToken(manifest, purpose))),
+    (purpose) => !doorKeysOf(manifest).includes(purpose) && (manifest.kind === 'app' || (purpose === ownLink && opensByToken(manifest, purpose))),
   );
   /*
    * The app's live keys, given what this version adds once the operator
@@ -1048,6 +1052,8 @@ export async function installPublicAccess(input: {
         actorId: input.actorId,
         managedBy: manifest.key,
         installId: input.install.id,
+        // A key the app itself names `chat`, under a floor where that is an ordinary name.
+        ...(purpose === CHAT_KEY && !chatKeyReserved(manifest) ? { chatOrdinary: true } : {}),
         purpose,
         ...(binding === null ? {} : binding),
       });

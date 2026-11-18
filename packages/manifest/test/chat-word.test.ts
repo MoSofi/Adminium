@@ -9,8 +9,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { CHAT_COLUMNS, CHAT_PARTS, CHAT_SETTINGS_COLUMNS, chatEntriesOf, chatOf, formsEntriesOf, installFloorWords, installsLikeAnApp, validateManifest, WORD_FLOORS } from '../src/index.js';
+import { CHAT_COLUMNS, CHAT_KEY_FLOOR, CHAT_PARTS, CHAT_SETTINGS_COLUMNS, chatEntriesOf, chatKeyReserved, chatOf, doorKeysOf, formsEntriesOf, installFloorWords, installsLikeAnApp, validateManifest, WORD_FLOORS } from '../src/index.js';
 import { chatAddOn } from './chat-fixture.js';
+import { guestHouse } from './orders-stays-fixture.js';
 
 type Doc = Record<string, unknown>;
 
@@ -263,9 +264,39 @@ describe('a table an app opens to a chat\'s left question', () => {
     expect(installFloorWords(crm()).map((word) => word.word)).toEqual(expect.arrayContaining(['publicAccess.forms', 'publicAccess.chat']));
   });
 
-  it('needs its floor, 0.3.64', () => {
+  it('needs its floor, 0.3.64: under an older one "chat" is a key like any other, which the app must declare', () => {
     expect(WORD_FLOORS['publicAccess.chat']).toBe('0.3.64');
-    expect(issuesOf({ ...crm([chatEntry()]), compatibility: { minAdminiumVersion: '0.3.63' } }).join('\n')).toContain('"publicAccess.chat" is read by Adminium 0.3.64 and later');
+    expect(CHAT_KEY_FLOOR).toBe('0.3.64');
+    const older = issuesOf({ ...crm([chatEntry()]), compatibility: { minAdminiumVersion: '0.3.63' } }).join('\n');
+    expect(older).toContain('publicAccess.0.key: "chat" is not one of the app\'s publicKeys (a chat\'s left questions are opened under "chat" from Adminium 0.3.64: set compatibility.minAdminiumVersion to it or later)');
+    expect(older).not.toContain('a chat entry');
+  });
+
+  it('is reserved only from its floor on: an app written for an older Adminium keeps its own key named "chat"', () => {
+    // A guest house whose guests open their own stay by a link, its key named "chat" rather than "link".
+    const app = (floor: string): Doc => {
+      const doc = guestHouse();
+      doc['publicKeys'] = { chat: {} };
+      doc['publicAccess'] = (doc['publicAccess'] as Doc[]).map((entry) => (entry['key'] === 'link' ? { ...entry, key: 'chat' } : entry));
+      doc['compatibility'] = { minAdminiumVersion: floor };
+      return doc;
+    };
+    const linked = (app('0.3.63')['publicAccess'] as Doc[]).filter((entry) => entry['key'] === 'chat');
+    expect(linked.length).toBeGreaterThan(0);
+    expect(issuesOf(guestHouse())).toEqual([]);
+    for (const floor of ['0.3.0', '0.3.63']) {
+      expect(issuesOf(app(floor)), floor).toEqual([]);
+      const result = validateManifest(app(floor));
+      expect(result.ok && chatEntriesOf(result.manifest), floor).toEqual([]);
+      expect(result.ok && chatKeyReserved(result.manifest), floor).toBe(false);
+      expect(result.ok && doorKeysOf(result.manifest), floor).toEqual(['forms']);
+    }
+    // From 0.3.64 it is the chat's: no browser key of that name, and its entries are held to a chat entry's rules.
+    const reserved = issuesOf(app('0.3.64')).join('\n');
+    expect(reserved).toContain('publicKeys.chat: "chat" is the name of the entries a chat\'s left questions write through, and no browser key');
+    expect(reserved).toContain('a chat entry adds a row and does nothing else: its methods are ["POST"]');
+    expect(doorKeysOf({ compatibility: { minAdminiumVersion: '0.3.64' } })).toEqual(['forms', 'chat']);
+    expect(doorKeysOf({ compatibility: { minAdminiumVersion: '0.4.0' } })).toEqual(['forms', 'chat']);
   });
 
   it('hands the chat door its table, columns, defaults and limits, and the forms door only its own', () => {

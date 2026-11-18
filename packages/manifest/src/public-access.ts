@@ -42,6 +42,7 @@ import {
   type TableIndex,
 } from './refs.js';
 import { FORMS_BECAME_TABLE_MAX } from './forms.js';
+import { compareSemver } from './semver.js';
 import { momentIssues, momentOffsetSchema, plainMomentSchema, wallTimeSchema, type Moment } from './refs.js';
 import { conditionIssues, linkedConditionSchema, reachedOnlyByUndo, stateConditionSchema, type StateMove } from './states.js';
 
@@ -84,6 +85,25 @@ export const CHAT_ENTRY_WORDS = FORMS_ENTRY_WORDS.filter((word): word is Exclude
 
 /** The reserved keys whose entries a door of Adminium's own writes through, and the public API never serves. */
 export const DOOR_KEYS: readonly string[] = [FORMS_KEY, CHAT_KEY];
+
+/**
+ * The release that reserved `chat`. A manifest whose floor
+ * (`compatibility.minAdminiumVersion`) is older was written when `chat` was
+ * an ordinary key name: it keeps that meaning, so an app that named a key
+ * `chat` before still validates and its entries are still served.
+ */
+export const CHAT_KEY_FLOOR = '0.3.64';
+
+/** Whether a manifest's `chat` is the reserved key: its floor is {@link CHAT_KEY_FLOOR} or later. */
+export function chatKeyReserved(m: { compatibility?: { minAdminiumVersion?: string | undefined } | undefined }): boolean {
+  const floor = m.compatibility?.minAdminiumVersion;
+  return floor !== undefined && compareSemver(floor, CHAT_KEY_FLOOR) >= 0;
+}
+
+/** The reserved door keys of one manifest: `forms` always, `chat` from its floor on. */
+export function doorKeysOf(m: { compatibility?: { minAdminiumVersion?: string | undefined } | undefined }): readonly string[] {
+  return chatKeyReserved(m) ? DOOR_KEYS : [FORMS_KEY];
+}
 
 /** The longest a plain-text value may be unless its column says longer: a name. */
 export const PLAIN_TEXT_MAX = 80;
@@ -882,10 +902,8 @@ export const publicKeysSchema = z
   })
   .refine((keys) => !(FORMS_KEY in keys), {
     message: '"forms" is the name of the entries forms write through, and no browser key: name the key otherwise',
-  })
-  .refine((keys) => !(CHAT_KEY in keys), {
-    message: '"chat" is the name of the entries a chat\'s left questions write through, and no browser key: name the key otherwise',
   });
+// `chat` is refused as a browser key's name from its floor on (`publicAccessIssues`), where the manifest's floor is known.
 export type PublicKey = z.infer<typeof publicKeySchema>;
 
 interface PublicAccessContext {
@@ -913,6 +931,8 @@ interface PublicAccessContext {
   /** The table's limits, as it declares them (absent: the caller does not say). */
   capacityOf?: (table: string) => Capacity | undefined;
   publicKeys: Readonly<Record<string, PublicKey>> | undefined;
+  /** Whether `chat` is the reserved key ({@link chatKeyReserved}); absent: it is. */
+  chatReserved?: boolean | undefined;
   roles: readonly {
     key: string;
     screensOnly?: boolean | undefined;
@@ -1136,6 +1156,10 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
   const has = index.has;
   out.push(...appColumnIssues(entries, index));
 
+  const doorKeys = ctx.chatReserved === false ? [FORMS_KEY] : DOOR_KEYS;
+  if (doorKeys.includes(CHAT_KEY) && ctx.publicKeys?.[CHAT_KEY] !== undefined) {
+    out.push({ path: ['publicKeys', CHAT_KEY], message: '"chat" is the name of the entries a chat\'s left questions write through, and no browser key: name the key otherwise' });
+  }
   for (const [name, key] of Object.entries(ctx.publicKeys ?? {})) {
     const at = ['publicKeys', name];
     // The app's own key, named only for its peak: nothing more to check.
@@ -1253,11 +1277,13 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     }
     const column = (ref: string) => index.column(entry.table, ref);
     const key = entry.key ?? CUSTOMER_KEY;
-    if (key !== CUSTOMER_KEY && !DOOR_KEYS.includes(key) && ctx.publicKeys?.[key] === undefined) {
-      out.push({ path: at('key'), message: `"${key}" is not one of the app's publicKeys` });
+    if (key !== CUSTOMER_KEY && !doorKeys.includes(key) && ctx.publicKeys?.[key] === undefined) {
+      // Under an older floor `chat` is a key like any other: say so, for whoever meant a chat's left questions.
+      const chat = key === CHAT_KEY ? ` (a chat's left questions are opened under "chat" from Adminium ${CHAT_KEY_FLOOR}: set compatibility.minAdminiumVersion to it or later)` : '';
+      out.push({ path: at('key'), message: `"${key}" is not one of the app's publicKeys${chat}` });
     }
     if (key === FORMS_KEY) out.push(...formsEntryIssues(entry, i, entries, ctx.appKey, index));
-    else if (key === CHAT_KEY) out.push(...chatEntryIssues(entry, i, entries, ctx.appKey));
+    else if (key === CHAT_KEY && doorKeys.includes(CHAT_KEY)) out.push(...chatEntryIssues(entry, i, entries, ctx.appKey));
     else if (entry.source !== undefined) out.push({ path: at('source'), message: 'a source is said only on a forms entry (key "forms"): the column a form\'s fixed "Source" value goes into' });
 
     for (const list of ['select', 'writable'] as const) {
@@ -1269,7 +1295,7 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     const sessionOnly = entry.level !== undefined && entry.claim === undefined && entry.claimedBy === undefined && entry.visibleWith === undefined;
     const anyone = entry.claim === undefined && entry.visibleWith === undefined && (entry.claimedBy === undefined || entry.claimedBy.optional === true) && !sessionOnly;
     // An availability entry shows no row, whatever it names; nor does a forms or a chat entry, which answers nobody with the row.
-    if (anyone && entry.kind !== 'availability' && !DOOR_KEYS.includes(key)) {
+    if (anyone && entry.kind !== 'availability' && !doorKeys.includes(key)) {
       // No select shows every column but a code Adminium makes and a secret, as the install reads it.
       const shown =
         entry.select ??

@@ -14,6 +14,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
+  doorKeysOf,
   isAddOnManifest,
   locateIssue,
   namedAddOns,
@@ -437,7 +438,7 @@ export function checkApp(root: string, key: string, opts: { version: string; add
    * it is a rule about the key the install makes, not about the manifest's shape.
    */
   // The same hole written as two entries: POST in one, GET in the next.
-  for (const index of anonymousAddAndRead(manifest.publicAccess ?? [])) {
+  for (const index of anonymousAddAndRead(manifest.publicAccess ?? [], doorKeysOf(manifest))) {
     const where = at(`publicAccess.${String(index)}.methods`);
     findings.push(error(where.file, where.path, addAndReadRefusal((manifest.publicAccess ?? [])[index]?.table ?? '')));
   }
