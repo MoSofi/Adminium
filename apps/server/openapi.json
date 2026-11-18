@@ -12811,7 +12811,8 @@
                               "posting",
                               "adjust",
                               "link",
-                              "forms"
+                              "forms",
+                              "companies"
                             ]
                           },
                           "app": {
@@ -12862,6 +12863,51 @@
                           },
                           "sourceColumn": {
                             "type": "string"
+                          },
+                          "lead": {
+                            "type": "object",
+                            "properties": {
+                              "number": {
+                                "type": "string"
+                              },
+                              "website": {
+                                "type": "string"
+                              },
+                              "phone": {
+                                "type": "string"
+                              },
+                              "address": {
+                                "type": "object",
+                                "properties": {
+                                  "lines": {
+                                    "type": "string"
+                                  },
+                                  "town": {
+                                    "type": "string"
+                                  },
+                                  "region": {
+                                    "type": "string"
+                                  },
+                                  "postalCode": {
+                                    "type": "string"
+                                  },
+                                  "country": {
+                                    "type": "string"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              "activity": {
+                                "type": "string"
+                              },
+                              "about": {
+                                "type": "string"
+                              },
+                              "owner": {
+                                "type": "string"
+                              }
+                            },
+                            "additionalProperties": false
                           }
                         },
                         "required": [
@@ -160729,6 +160775,991 @@
         }
       }
     },
+    "/api/v1/add-ons/{key}/sources": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "canManage": {
+                      "type": "boolean"
+                    },
+                    "sources": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "hosts": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "gives": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "find",
+                                "fill",
+                                "people"
+                              ]
+                            }
+                          },
+                          "website": {
+                            "type": "boolean"
+                          },
+                          "needsKey": {
+                            "type": "boolean"
+                          },
+                          "paid": {
+                            "type": "boolean"
+                          },
+                          "lastFour": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "savedAt": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "verdict": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "accepted",
+                                  "refused",
+                                  "unreachable"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "checkedAt": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "on": {
+                            "type": "boolean"
+                          },
+                          "dailyCap": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "personShare": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "usedToday": {
+                            "type": "number"
+                          },
+                          "pausedFor": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "hosts",
+                          "gives",
+                          "website",
+                          "needsKey",
+                          "paid",
+                          "lastFour",
+                          "savedAt",
+                          "verdict",
+                          "checkedAt",
+                          "on",
+                          "dailyCap",
+                          "personShare",
+                          "usedToday",
+                          "pausedFor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "canManage",
+                    "sources"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/sources/{source}/key": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  }
+                },
+                "required": [
+                  "value"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,31}$"
+            },
+            "in": "path",
+            "name": "source",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "hosts": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "gives": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "find",
+                              "fill",
+                              "people"
+                            ]
+                          }
+                        },
+                        "website": {
+                          "type": "boolean"
+                        },
+                        "needsKey": {
+                          "type": "boolean"
+                        },
+                        "paid": {
+                          "type": "boolean"
+                        },
+                        "lastFour": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "savedAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "verdict": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "accepted",
+                                "refused",
+                                "unreachable"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "checkedAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "on": {
+                          "type": "boolean"
+                        },
+                        "dailyCap": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "personShare": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "usedToday": {
+                          "type": "number"
+                        },
+                        "pausedFor": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "hosts",
+                        "gives",
+                        "website",
+                        "needsKey",
+                        "paid",
+                        "lastFour",
+                        "savedAt",
+                        "verdict",
+                        "checkedAt",
+                        "on",
+                        "dailyCap",
+                        "personShare",
+                        "usedToday",
+                        "pausedFor"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "check": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "verdict": {
+                              "type": "string",
+                              "enum": [
+                                "accepted",
+                                "refused",
+                                "unreachable"
+                              ]
+                            },
+                            "code": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "message": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "account": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "verdict",
+                            "code",
+                            "message",
+                            "account"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "source",
+                    "check"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,31}$"
+            },
+            "in": "path",
+            "name": "source",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "hosts": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "gives": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "find",
+                              "fill",
+                              "people"
+                            ]
+                          }
+                        },
+                        "website": {
+                          "type": "boolean"
+                        },
+                        "needsKey": {
+                          "type": "boolean"
+                        },
+                        "paid": {
+                          "type": "boolean"
+                        },
+                        "lastFour": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "savedAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "verdict": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "accepted",
+                                "refused",
+                                "unreachable"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "checkedAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "on": {
+                          "type": "boolean"
+                        },
+                        "dailyCap": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "personShare": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "usedToday": {
+                          "type": "number"
+                        },
+                        "pausedFor": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "hosts",
+                        "gives",
+                        "website",
+                        "needsKey",
+                        "paid",
+                        "lastFour",
+                        "savedAt",
+                        "verdict",
+                        "checkedAt",
+                        "on",
+                        "dailyCap",
+                        "personShare",
+                        "usedToday",
+                        "pausedFor"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "check": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "verdict": {
+                              "type": "string",
+                              "enum": [
+                                "accepted",
+                                "refused",
+                                "unreachable"
+                              ]
+                            },
+                            "code": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "message": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "account": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "verdict",
+                            "code",
+                            "message",
+                            "account"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "source",
+                    "check"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/sources/{source}/check": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,31}$"
+            },
+            "in": "path",
+            "name": "source",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "hosts": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "gives": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "find",
+                              "fill",
+                              "people"
+                            ]
+                          }
+                        },
+                        "website": {
+                          "type": "boolean"
+                        },
+                        "needsKey": {
+                          "type": "boolean"
+                        },
+                        "paid": {
+                          "type": "boolean"
+                        },
+                        "lastFour": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "savedAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "verdict": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "accepted",
+                                "refused",
+                                "unreachable"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "checkedAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "on": {
+                          "type": "boolean"
+                        },
+                        "dailyCap": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "personShare": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "usedToday": {
+                          "type": "number"
+                        },
+                        "pausedFor": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "hosts",
+                        "gives",
+                        "website",
+                        "needsKey",
+                        "paid",
+                        "lastFour",
+                        "savedAt",
+                        "verdict",
+                        "checkedAt",
+                        "on",
+                        "dailyCap",
+                        "personShare",
+                        "usedToday",
+                        "pausedFor"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "check": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "verdict": {
+                              "type": "string",
+                              "enum": [
+                                "accepted",
+                                "refused",
+                                "unreachable"
+                              ]
+                            },
+                            "code": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "message": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "account": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "verdict",
+                            "code",
+                            "message",
+                            "account"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "source",
+                    "check"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/sources/{source}": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "on": {
+                    "type": "boolean"
+                  },
+                  "dailyCap": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 100000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "personShare": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 100
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,31}$"
+            },
+            "in": "path",
+            "name": "source",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "hosts": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "gives": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "find",
+                              "fill",
+                              "people"
+                            ]
+                          }
+                        },
+                        "website": {
+                          "type": "boolean"
+                        },
+                        "needsKey": {
+                          "type": "boolean"
+                        },
+                        "paid": {
+                          "type": "boolean"
+                        },
+                        "lastFour": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "savedAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "verdict": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "accepted",
+                                "refused",
+                                "unreachable"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "checkedAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "on": {
+                          "type": "boolean"
+                        },
+                        "dailyCap": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "personShare": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "usedToday": {
+                          "type": "number"
+                        },
+                        "pausedFor": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "hosts",
+                        "gives",
+                        "website",
+                        "needsKey",
+                        "paid",
+                        "lastFour",
+                        "savedAt",
+                        "verdict",
+                        "checkedAt",
+                        "on",
+                        "dailyCap",
+                        "personShare",
+                        "usedToday",
+                        "pausedFor"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "check": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "verdict": {
+                              "type": "string",
+                              "enum": [
+                                "accepted",
+                                "refused",
+                                "unreachable"
+                              ]
+                            },
+                            "code": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "message": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "account": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "verdict",
+                            "code",
+                            "message",
+                            "account"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "source",
+                    "check"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/add-ons/{key}/sample-data": {
       "get": {
         "parameters": [
@@ -167622,7 +168653,8 @@
                 "system",
                 "add-on",
                 "app",
-                "payments"
+                "payments",
+                "leads"
               ]
             },
             "in": "query",
@@ -167759,7 +168791,8 @@
                               "system",
                               "add-on",
                               "app",
-                              "payments"
+                              "payments",
+                              "leads"
                             ]
                           },
                           "action": {
@@ -167914,7 +168947,8 @@
                         "system",
                         "add-on",
                         "app",
-                        "payments"
+                        "payments",
+                        "leads"
                       ]
                     },
                     "action": {
