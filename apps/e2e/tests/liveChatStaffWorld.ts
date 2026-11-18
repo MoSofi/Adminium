@@ -20,18 +20,25 @@
  */
 import { createHash, randomBytes } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import BetterSqlite3 from 'better-sqlite3';
 import { composeServer, loadCliEnv, openRuntime, type ComposedServer } from '@adminium/server';
 import { createFirstSuperAdmin, firstRun, settingsRepo } from '@adminium/meta';
 
 import { bundleOf } from './appBundle.js';
 
 type Doc = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any -- a reply read freely
+
+/** The slice of the SQLite driver used here (it ships no types). */
+interface SqliteDb {
+  prepare(sql: string): { get(...args: unknown[]): unknown; all(...args: unknown[]): unknown[]; run(...args: unknown[]): unknown };
+  close(): void;
+}
+const BetterSqlite3 = createRequire(import.meta.url)('better-sqlite3') as new (file: string) => SqliteDb;
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..');

@@ -450,7 +450,7 @@ describe('opened by an add-on page (`host.data.openAssistant`)', () => {
     mount(undefined, 'store');
     // The shell has not said this person may use the assistant: nothing opens.
     expect(openAssistantPanel({ prompt: 'Draft a reply' })).toBe(false);
-    expect(screen.getByTestId('signals').textContent).toBe('false|idle');
+    await waitFor(() => expect(screen.getByTestId('signals').textContent).toBe('false|idle'));
 
     setDockAvailable(true);
     let opened = false;

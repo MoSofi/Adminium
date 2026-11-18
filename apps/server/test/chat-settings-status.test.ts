@@ -44,7 +44,7 @@ function liveChat(): Doc {
 
 /** A second chat whose package keeps its day's tokens hidden: the owner's word wins. */
 function hiddenTokensChat(): Doc {
-  const doc = { ...chatAddOn(), key: 'quiet-chat', name: 'Quiet chat' };
+  const doc: Doc = { ...chatAddOn(), key: 'quiet-chat', name: 'Quiet chat' };
   const settings = (doc['requiredSchema'] as { tables: { ref: string; columns: Doc[] }[] }).tables.find((table) => table.ref === 'chat_settings')!;
   const column = settings.columns.find((one) => one['ref'] === 'daily_tokens')!;
   column['rules'] = { secret: true };
