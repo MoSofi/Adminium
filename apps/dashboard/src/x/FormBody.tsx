@@ -27,6 +27,7 @@ import { answerValues, checkBeforeSend, formOf, hiddenQuery, shownQuestions, WHO
 import { fetchChallenge, postAnswer, type XBusiness, type XForm, type XInvitation } from './api.js';
 import type { FileRow } from './Files.js';
 import { controlId, Question, textOf } from './Questions.js';
+import type { refusalWords as RefusalWords } from './refusals.js';
 
 /** What the page shows instead of the form, once the door has answered. */
 export type Ending =
@@ -153,52 +154,15 @@ export function FormBody(props: FormBodyProps): ReactNode {
     document.getElementById(target)?.focus();
   });
 
-  // ── Words for a refusal ────────────────────────────────────────────────
-  const numbers = useMemo(() => new Intl.NumberFormat(tag, { numberingSystem: 'latn', maximumFractionDigits: 6 }), [tag]);
-  function refusal(question: FormQuestion | undefined, code: string): string {
-    const n = (value: number | undefined): string => (value === undefined ? '' : numbers.format(value));
-    switch (code) {
-      case 'required':
-      case 'text':
-        if (question?.kind === 'short' && question.role === 'name') return t('x:error.name', 'Enter your name');
-        if (question?.kind === 'short' && question.check === 'email') return t('x:error.email', 'Enter an e-mail address like name@company.com');
-        return t('x:error.required', 'Answer this question.');
-      case 'too-long':
-        return t('x:error.tooLong', 'Keep this to {max, plural, one {# character} other {# characters}}.', { max: question !== undefined && 'maxLength' in question ? question.maxLength : 0 });
-      case 'email':
-        return t('x:error.email', 'Enter an e-mail address like name@company.com');
-      case 'phone':
-        return t('x:error.phone', 'Enter a phone number with 6 to 15 digits.');
-      case 'choice':
-        return t('x:error.choice', 'Pick one of the choices.');
-      case 'too-few':
-        return t('x:error.tooFew', 'Pick at least {min}.', { min: n(question?.kind === 'several' ? question.min : undefined) });
-      case 'too-many':
-        return t('x:error.tooMany', 'Pick at most {max}.', { max: n(question?.kind === 'several' ? question.max : undefined) });
-      case 'date':
-        return t('x:error.date', 'Enter a day.');
-      case 'too-early':
-        return question?.kind === 'date' && question.from === 'today' ? t('x:error.fromToday', 'Pick a day from today on') : t('x:error.fromTomorrow', 'Pick a day from tomorrow on');
-      case 'number':
-        return t('x:error.number', 'Enter a number.');
-      case 'whole':
-        return t('x:error.whole', 'Enter a whole number.');
-      case 'too-small':
-        return t('x:error.tooSmall', 'Enter {min} or more.', { min: n(question?.kind === 'number' ? question.min : undefined) });
-      case 'too-large':
-        return t('x:error.tooLarge', 'Enter {max} or less.', { max: n(question?.kind === 'number' ? question.max : undefined) });
-      case 'score':
-        return t('x:error.score', 'Pick a score from 0 to 10.');
-      case 'stars':
-        return t('x:error.stars', 'Pick from 1 to 5 stars.');
-      case 'file':
-        return t('x:error.file', 'This file can’t be taken.');
-      case 'tick':
-        return t('x:error.tick', 'Tick the box, or leave it empty.');
-      default:
-        return t('x:error.answer', 'Something in the answers was not taken. Check them and send again.');
-    }
+  // ── Words for a refusal: loaded at the first Send, off the page's first load (`refusals.ts`) ─
+  const words = useRef<typeof RefusalWords | null>(null);
+  const [, setWordsReady] = useState(false);
+  async function loadWords(): Promise<void> {
+    if (words.current !== null) return;
+    words.current = (await import('./refusals.js')).refusalWords;
+    setWordsReady(true);
   }
+  const refusal = (question: FormQuestion | undefined, code: string): string => words.current?.(t, tag, question, code) ?? '';
 
   // ── Files ──────────────────────────────────────────────────────────────
   /** The values with each file question's taken files, by the ids the file door gave. */
@@ -288,6 +252,7 @@ export function FormBody(props: FormBodyProps): ReactNode {
   async function send(event: FormEvent): Promise<void> {
     event.preventDefault();
     if (sending || preview) return;
+    await loadWords();
     setChecked(true);
     setTooMany(undefined);
     // Files still on their way are waited for: the answer names the ones taken.

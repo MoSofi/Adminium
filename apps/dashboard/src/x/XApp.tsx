@@ -38,7 +38,7 @@ import { Ban, Check, ChevronDown, CircleCheck, Globe, Link2Off, RotateCcw, Searc
 
 import { fetchForm, type XBusiness, type XPage } from './api.js';
 import { FormBody, Icon, MailLink, sentWords, type Ending } from './FormBody.js';
-import { linkToParent, type FrameLink } from './frame.js';
+import type { FrameLink } from './frame.js';
 import type { XRoute } from './route.js';
 import { XFooter, XHeader } from './Shell.js';
 import { languageOfTag, X_LANGUAGES, type XLanguage } from './words.js';
@@ -113,7 +113,10 @@ export function XApp({ route }: { route: XRoute }): ReactNode {
   useEffect(() => {
     if (!frame || page === null || link.current !== null) return;
     const allowed = page.state === 'live' ? (page.frameOrigins ?? []) : [];
-    link.current = linkToParent(window, allowed, () => postHeight());
+    // Only a frame talks to its website: the handshake is loaded there alone, off every page's first load.
+    void import('./frame.js').then(({ linkToParent }) => {
+      if (link.current === null) link.current = linkToParent(window, allowed, () => postHeight());
+    });
   }, [page]);
 
   function postHeight(): void {
