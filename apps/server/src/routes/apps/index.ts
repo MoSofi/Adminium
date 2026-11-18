@@ -1598,7 +1598,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
        * over pages that open and can do nothing.
        */
       // An entry that opens a table to forms (the key `forms`) is never served by the public API: a forms-only app asks nothing of it.
-      const asks = document !== null && document.kind === 'app' && servedPublicEntries(document.publicAccess ?? []).length > 0;
+      const asks = document !== null && document.kind === 'app' && servedPublicEntries(document).length > 0;
       const publicAccess = !asks
         ? undefined
         : {
@@ -2315,6 +2315,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             settings: { apps, domains, statuses: {} },
             // The public address's host stays the dashboard's: its pages and the links in its mail open there.
             publicOriginHost: publicOriginHostOf(publicOrigin),
+            // A host this app held there before is kept as it is: only a new mapping of it is refused.
+            stored: domains,
           },
         );
         for (const host of Object.keys(normalized)) {

@@ -33,7 +33,7 @@ import { customerHostAllows, isHostReservedPath } from '../src/plugins/surfaces.
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { appRoutes } from '../src/routes/apps/index.js';
 import { surfacesAdminRoutes } from '../src/routes/surfaces-admin/index.js';
-import { pagesHomeIssueFor, validateDomainEntries, X_DOORS } from '../src/surfaces/validate.js';
+import { pagesHomeIssueFor, validateDomainEntries, validatePageHostEntries, X_DOORS } from '../src/surfaces/validate.js';
 import { packageTarball } from './app-bundle-helpers.js';
 import { adminPasswordHash } from './auth-helpers.js';
 import { makeEnv } from './helpers.js';
@@ -88,12 +88,28 @@ describe('an app’s side on the public address’s host', () => {
       ['admin.example.test', 'request_host'],
     ]);
     expect(issues[0]?.message).toBe(
-      `"Go.Meridian.Example:443" is the host of this server's public address — mapping it would take the dashboard away there, and with it the links in its mail.`,
+      `"Go.Meridian.Example:443" is the host of this server's public address — mapping it would take the dashboard away there, and with it the links in its mail. Map another host, or change Address in email links first.`,
     );
     expect(normalized).toEqual({ 'shop.meridian.example': { appKey: 'clients', side: 'customer' } });
     // A staff side the same way; with no public address, nothing extra.
     expect(validateDomainEntries({ [PUBLIC]: { appKey: 'clients', side: 'staff' } }, { requestHost: '', surfaces, settings, publicOriginHost: PUBLIC }).issues.map((issue) => issue.code)).toEqual(['public_origin_host']);
     expect(validateDomainEntries({ [PUBLIC]: { appKey: 'clients', side: 'staff' } }, { requestHost: '', surfaces, settings, publicOriginHost: null }).issues).toEqual([]);
+  });
+});
+
+describe('a mapping of the public address’s host stored before it was refused (an upgrade)', () => {
+  it('is kept as it is stored, for an app’s side and the pages alike; pointed anywhere else it is refused', () => {
+    const settings = { apps: {}, domains: {}, statuses: {} };
+    const stored = { [PUBLIC]: { appKey: 'clients', side: 'staff' as const } };
+    const again = validateDomainEntries({ 'Go.Meridian.Example': { appKey: 'clients', side: 'staff' }, 'shop.meridian.example': { appKey: 'clients', side: 'customer' } }, { requestHost: '', surfaces, settings, publicOriginHost: PUBLIC, stored });
+    expect(again.issues).toEqual([]);
+    expect(Object.keys(again.normalized).sort()).toEqual([PUBLIC, 'shop.meridian.example']);
+    // Another side of the same app is a new mapping of the host: refused.
+    expect(validateDomainEntries({ [PUBLIC]: { appKey: 'clients', side: 'customer' } }, { requestHost: '', surfaces, settings, publicOriginHost: PUBLIC, stored }).issues.map((issue) => issue.code)).toEqual(['public_origin_host']);
+    // The pages: the same home is kept, another home is refused.
+    const pages = { [PUBLIC]: { home: '/x/forms/newsletter' } };
+    expect(validatePageHostEntries({ [PUBLIC]: { home: '/x/forms/newsletter' } }, { requestHost: '', taken: new Set(), publicOriginHost: PUBLIC, stored: pages }).issues).toEqual([]);
+    expect(validatePageHostEntries({ [PUBLIC]: { home: '/x/chat/support' } }, { requestHost: '', taken: new Set(), publicOriginHost: PUBLIC, stored: pages }).issues.map((issue) => issue.code)).toEqual(['public_origin_host']);
   });
 });
 
@@ -175,6 +191,37 @@ describe.each(META_ENGINES)('PUT /api/v1/surfaces/domains, an app’s side and t
     const kept = await put({ 'shop.meridian.example': { appKey: 'clients', side: 'customer' } });
     expect(kept.statusCode, kept.body).toBe(200);
     expect(await settingsRepo(meta).get('surfaces.domains')).toEqual({ 'shop.meridian.example': { appKey: 'clients', side: 'customer' } });
+  });
+
+  it.runIf(engine.available)('after an upgrade, keeps a host mapped there before, so an unrelated save still goes; a new mapping of it is refused with the way out', async () => {
+    // Mapped while the address was elsewhere (or under 0.3.63), then the address is that host.
+    const settings = settingsRepo(meta);
+    await settings.set('surfaces.domains', { [PUBLIC]: { appKey: 'clients', side: 'staff' } }, { updatedBy: null });
+    await settings.set('surfaces.pageHosts', { 'pages.meridian.example': { home: '/x/forms/newsletter' } }, { updatedBy: null });
+    await settings.set('system.publicOrigin', `https://${PUBLIC}`, { updatedBy: null });
+
+    // The whole map again, with a new host beside the stored ones: saved.
+    const saved = await put({ [PUBLIC]: { appKey: 'clients', side: 'staff' }, 'shop.meridian.example': { appKey: 'clients', side: 'customer' }, 'pages.meridian.example': { kind: 'pages', home: '/x/forms/newsletter' } });
+    expect(saved.statusCode, saved.body).toBe(200);
+    expect(await settings.get('surfaces.domains')).toEqual({ [PUBLIC]: { appKey: 'clients', side: 'staff' }, 'shop.meridian.example': { appKey: 'clients', side: 'customer' } });
+
+    // Pointed somewhere else, it is a new mapping of the public host: refused, and the words say the way out.
+    const moved = await put({ [PUBLIC]: { appKey: 'clients', side: 'customer' }, 'shop.meridian.example': { appKey: 'clients', side: 'customer' } });
+    expect(moved.statusCode).toBe(422);
+    const issues = (moved.json().error.details?.issues ?? []) as { path: string; code: string; message: string }[];
+    expect(issues.map((issue) => [issue.path, issue.code])).toEqual([[PUBLIC, 'public_origin_host']]);
+    expect(issues[0]?.message).toContain('or change Address in email links');
+
+    // The add-on pages on that host the same way: the same home is kept, another is refused.
+    await settings.set('surfaces.domains', {}, { updatedBy: null });
+    await settings.set('surfaces.pageHosts', { [PUBLIC]: { home: '/x/chat/support' } }, { updatedBy: null });
+    const pages = await put({ [PUBLIC]: { kind: 'pages', home: '/x/chat/support' }, 'shop.meridian.example': { appKey: 'clients', side: 'customer' } });
+    expect(pages.statusCode, pages.body).toBe(200);
+    const home = await put({ [PUBLIC]: { kind: 'pages', home: '/x/forms/newsletter' } });
+    expect(home.statusCode).toBe(422);
+    // Unmapping it is always a save.
+    expect((await put({})).statusCode).toBe(200);
+    expect(await settings.get('surfaces.pageHosts')).toEqual({});
   });
 });
 
@@ -277,5 +324,19 @@ describe.each(META_ENGINES)('PUT /apps/:key/domains and the public address — $
     const kept = await put({ 'shop.meridian.example': { side: 'customer' } });
     expect(kept.statusCode, kept.body).toBe(200);
     expect(await settingsRepo(meta).get('surfaces.domains')).toEqual({ 'shop.meridian.example': { appKey: 'desk', side: 'customer' } });
+  });
+
+  it.runIf(engine.available)('after an upgrade, keeps the app’s host mapped there before, so a new host is still added; moving it to the other side is refused', async () => {
+    await settingsRepo(meta).set('surfaces.domains', { [PUBLIC]: { appKey: 'desk', side: 'staff' } }, { updatedBy: null });
+    await settingsRepo(meta).set('system.publicOrigin', `https://${PUBLIC}`, { updatedBy: null });
+    const added = await put({ [PUBLIC]: { side: 'staff' }, 'shop.meridian.example': { side: 'customer' } });
+    expect(added.statusCode, added.body).toBe(200);
+    expect(await settingsRepo(meta).get('surfaces.domains')).toEqual({ [PUBLIC]: { appKey: 'desk', side: 'staff' }, 'shop.meridian.example': { appKey: 'desk', side: 'customer' } });
+    const moved = await put({ [PUBLIC]: { side: 'customer' }, 'shop.meridian.example': { side: 'customer' } });
+    expect(moved.statusCode).toBe(422);
+    const issues = (moved.json().error.details?.issues ?? []) as { path: string; code: string; message: string }[];
+    expect(issues.map((issue) => [issue.path, issue.code])).toEqual([[PUBLIC, 'public_origin_host']]);
+    expect(issues[0]?.message).toContain('or change Address in email links');
+    expect((await put({})).statusCode).toBe(200);
   });
 });

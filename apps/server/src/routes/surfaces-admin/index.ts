@@ -444,8 +444,10 @@ export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPlugi
         const requestHost = normalizeHost(request.host);
         // The public address's host stays the dashboard's, for an app's side and the pages alike: the mail links, the pay page and staff's pages need it.
         const publicOriginHost = publicOriginHostOf(await settings.get('system.publicOrigin'));
-        const apps = validateDomainEntries(appEntries, { requestHost, surfaces: app.surfaces, settings: declared, publicOriginHost });
-        const pages = validatePageHostEntries(pageEntries, { requestHost, taken: new Set(Object.keys(apps.normalized)), publicOriginHost });
+        // A host mapped there before is kept as it is: only a new mapping of it is refused.
+        const [storedDomains, storedPages] = await Promise.all([settings.get('surfaces.domains'), settings.get('surfaces.pageHosts')]);
+        const apps = validateDomainEntries(appEntries, { requestHost, surfaces: app.surfaces, settings: declared, publicOriginHost, stored: storedDomains });
+        const pages = validatePageHostEntries(pageEntries, { requestHost, taken: new Set(Object.keys(apps.normalized)), publicOriginHost, stored: storedPages });
         const issues = [...apps.issues, ...pages.issues];
 
         if (issues.length > 0) {

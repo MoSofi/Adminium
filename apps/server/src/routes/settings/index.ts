@@ -32,6 +32,8 @@ import { ORDINARY_POLICY, type TrialPolicy } from '../../trial/policy.js';
 import {
   PUBLIC_ORIGIN_SETTING,
   heldOperatorOrigin,
+  mappedOriginMessage,
+  mappingOfOriginHost,
   normalizePublicOrigin,
   notePublicOrigin,
 } from '../../security/public-origin.js';
@@ -629,6 +631,10 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
           const lock = publicOriginLock();
           const next = request.body.publicOrigin === null ? null : normalizePublicOrigin(request.body.publicOrigin);
           if (!lock.allowed && next !== heldOperatorOrigin(meta)) throw new SetByOperatorError('system.publicOrigin', lock.reason ?? 'not-allowed');
+          // A new address on a host an app's side or the add-on pages answer on: its links would open them, not the dashboard.
+          // The address already stored is not judged again, so a save of the other fields still goes.
+          const mapping = next === null || next === (await settings.get(PUBLIC_ORIGIN_SETTING)) ? null : await mappingOfOriginHost(meta, next);
+          if (mapping !== null) throw new ValidationFailedError(mappedOriginMessage(mapping), { field: 'publicOrigin', code: 'public_origin_mapped' });
         }
         // The user's own mail server is the operator's to decide on a trial: a save that names one is refused.
         if (request.body.smtp !== undefined) refuseLockedChange(policy, 'email.smtp', request.body.smtp);
