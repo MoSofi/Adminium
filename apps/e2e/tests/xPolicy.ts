@@ -51,7 +51,7 @@ export function watchXPolicy(page: Page): XPolicyWatch {
     if (!underX(url) || new URL(url).origin !== new URL(from).origin) outside.push(`${request.method()} ${url} (from ${from})`);
   });
   page.on('console', (message) => {
-    if (/Content Security Policy|Trusted ?Type|Refused to|require-trusted-types/i.test(message.text())) refused.push(message.text());
+    if (/Content Security Policy|Trusted ?Types?|TrustedHTML|TrustedScript|Refused to|require-trusted-types/i.test(message.text())) refused.push(message.text());
   });
   page.on('pageerror', (error) => {
     if (/Trusted|TrustedHTML|TrustedScript/i.test(error.message)) refused.push(error.message);
