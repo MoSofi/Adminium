@@ -7070,6 +7070,13 @@ app's key and the table's ref, as `<app>:<table>`, fit in 64 characters. No brow
 `chat`, and the public API never serves the entry. A manifest that uses it sets
 `compatibility.minAdminiumVersion` to `0.3.64` or later.
 
+A chat entry has no map of its own: the row's columns are found by name among `writable`. The
+question goes into the first of `message`, `text`, `question` or `body`; the visitor's name into
+`name` or `person`; their e-mail into `email`. The entry's `defaults` are written over whatever the
+visitor typed, so `"source": "chat"` marks the row. An entry that opens none of the question's
+columns takes no question: the question is kept as a conversation in the chat alone. Adminium never
+mails the address a visitor types, and records no consent for it.
+
 ## Validation
 
 Adminium validates a manifest when a package is uploaded or downloaded from the catalogue, and
