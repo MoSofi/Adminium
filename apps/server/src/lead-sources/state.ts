@@ -20,7 +20,7 @@
  * a time, always over the latest document, so a slow Check never writes back
  * a switch somebody turned off meanwhile.
  */
-import { paymentSettingsRepo, type MetaDb } from '@adminium/meta';
+import { paymentSettingsRepo, sourceDaysRepo, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
 
 import { withServiceLock } from '../payments/services.js';
@@ -143,7 +143,8 @@ export async function writeSourceState(
   return next;
 }
 
-/** An install is gone: its document goes with it. */
-export async function forgetSourcesState(meta: MetaDb, installId: string): Promise<void> {
+/** An install is gone: its document and its daily counts go with it. */
+export async function forgetSources(meta: MetaDb, installId: string): Promise<void> {
   await withSourcesLock(installId, () => paymentSettingsRepo(meta).remove(sourcesDocName(installId)));
+  await sourceDaysRepo(meta).forgetInstall(installId);
 }

@@ -18,7 +18,7 @@ import { SOURCE_DAY_STEP, SOURCE_DAY_TOTAL, sourceDayOf, sourceDaysRepo } from '
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { MAX_IN_FLIGHT, SourceGate, personCap, reserveDay, retryAfterSeconds, stepCap, usedToday } from '../src/lead-sources/caps.js';
-import type { SourceState } from '../src/lead-sources/state.js';
+import { forgetSources, mutateSourceState, readSourcesState, type SourceState } from '../src/lead-sources/state.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 
 const AT = Date.UTC(2026, 10, 18, 9, 0, 0);
@@ -152,6 +152,17 @@ describe.each(META_ENGINES)('the day caps of a paid source — $name', (engine) 
     expect(await sourceDaysRepo(handle.meta).day({ installId: 'mft_one', source: 'hunter', day: sourceDayOf(AT), spender: SOURCE_DAY_STEP })).toMatchObject({ calls: 2, held: 0 });
     // A person's count is not the step's.
     expect((await reserveDay(handle.meta, { ...base, spender: 'usr_tom', state: shared })).ok).toBe(true);
+  });
+
+  it.skipIf(!engine.available)("forgets an install's sources when it goes: its document and its counts, never another install's", async () => {
+    const entry = { id: 'hunter', hosts: ['api.hunter.io'], key: 'hunter_key', gives: ['people' as const], paid: true };
+    await spend('usr_mara', 2);
+    await mutateSourceState(handle.meta, 'mft_one', entry, (state) => ({ ...state, on: true }));
+    await mutateSourceState(handle.meta, 'mft_two', entry, (state) => ({ ...state, on: true }));
+    await forgetSources(handle.meta, 'mft_one');
+    expect(await usedToday(handle.meta, 'mft_one', 'hunter', AT)).toBe(0);
+    expect((await readSourcesState(handle.meta, 'mft_one')).sources).toEqual({});
+    expect((await readSourcesState(handle.meta, 'mft_two')).sources['hunter']?.on).toBe(true);
   });
 
   it.skipIf(!engine.available)('counts nothing for a call that was never made, and still counts a free source with no cap', async () => {

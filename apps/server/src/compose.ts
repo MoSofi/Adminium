@@ -442,6 +442,7 @@ import { createRequestStats } from './public-api/stats.js';
 import { removeCleanedPicture } from './public-api/picture-store.js';
 import type { OnMetaRelocated } from './meta/relocate.js';
 import { sqlitePathFromUrl, type MetaStoreHandle } from './meta/store.js';
+import { forgetSources } from './lead-sources/state.js';
 
 /**
  * Daily, at 04:00 UTC, with an hour of jitter (below). Telemetry is the least
@@ -3489,6 +3490,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             // Logs, for an add-on that is gone.
             await syncTriggersForAddOn(meta, which, false);
             await addOnSettingsRepo(meta).clearForInstall(install.row.id);
+            // A lead source add-on's sources: what was kept of each (last four, switch, caps) and its daily counts.
+            await forgetSources(meta, install.row.id);
           },
           credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
           schemaTarget: addOnInstaller.schemaTarget,
