@@ -106,5 +106,15 @@ export default {
   },
   "chat": {
     "noScript": "Tento chat potřebuje JavaScript."
+  },
+  "banner": {
+    "title": "Můžeme si zapamatovat vaši návštěvu?",
+    "text": "Pokud řeknete ano, zapamatujeme si, které naše stránky navštívíte, a pokud nám potom pošlete formulář, uložíme si to s vaší zprávou, abychom vám mohli lépe odpovědět. Pokud řeknete ne, nic si o vaší návštěvě nezapamatujeme.",
+    "yes": "Ano",
+    "no": "Ne",
+    "savedYes": "Uloženo: ano. Změnit to můžete kdykoli v části Volba cookies.",
+    "savedNo": "Uloženo: ne. Změnit to můžete kdykoli v části Volba cookies.",
+    "cookieChoice": "Volba cookies",
+    "failed": "Vaši volbu se nepodařilo uložit. Zkuste to znovu."
   }
 } as const;

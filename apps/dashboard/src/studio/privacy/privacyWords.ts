@@ -62,6 +62,8 @@ export function goesWords(item: GoesItem): string {
       return t('studio:privacy.erase.goes.chats', '{count, plural, one {# chat conversation} other {# chat conversations}} in {label}, with their messages', { count, label });
     case 'form-invitations':
       return t('studio:privacy.erase.goes.invitations', '{count, plural, one {# survey invitation} other {# survey invitations}} in {label}, kept without their address', { count, label });
+    case 'page-visits':
+      return t('studio:privacy.sources.visitsGoes', '{count, plural, one {# page visit} other {# page visits}}', { count });
   }
 }
 

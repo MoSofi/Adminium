@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3803 entries. */
+/** `namespace:key` — 3821 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -2749,11 +2749,28 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:payments.webhook.addressTest',
   'studio:payments.webhook.copyAddress',
   'studio:payments.webhook.copyEvent',
+  'studio:privacy.counting.cancel',
+  'studio:privacy.counting.countsTitle',
+  'studio:privacy.counting.downBody',
+  'studio:privacy.counting.downTitle',
+  'studio:privacy.counting.fieldMessage',
+  'studio:privacy.counting.fieldNo',
+  'studio:privacy.counting.fieldTitle',
+  'studio:privacy.counting.fieldYes',
+  'studio:privacy.counting.languageButton',
+  'studio:privacy.counting.languages',
+  'studio:privacy.counting.loadFailed',
+  'studio:privacy.counting.offTitle',
+  'studio:privacy.counting.previewLabel',
+  'studio:privacy.counting.visitorTitle',
   'studio:privacy.downloads.getLabel',
   'studio:privacy.erase.cancel',
   'studio:privacy.erase.previewFailed',
   'studio:privacy.erase.title',
   'studio:privacy.keeping.loadFailed',
+  'studio:privacy.keeping.viewsKeptFor',
+  'studio:privacy.keeping.viewsSaveFailed',
+  'studio:privacy.keeping.viewsSaved',
   'studio:privacy.notice.loadFailed',
   'studio:privacy.notice.name',
   'studio:privacy.notice.namePlaceholder',
@@ -2780,6 +2797,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:privacy.person.kind.payments',
   'studio:privacy.person.kind.stopList',
   'studio:privacy.person.openLabel',
+  'studio:privacy.sources.visits',
   'studio:privacy.title',
   'studio:privacy.websites.addFailed',
   'studio:privacy.websites.added',

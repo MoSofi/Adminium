@@ -106,5 +106,15 @@ export default {
   },
   "chat": {
     "noScript": "Dieser Chat braucht JavaScript."
+  },
+  "banner": {
+    "title": "Dürfen wir uns an Ihren Besuch erinnern?",
+    "text": "Wenn Sie Ja sagen, merken wir uns, welche unserer Seiten Sie ansehen, und wenn Sie uns danach ein Formular senden, bewahren wir das mit Ihrer Nachricht auf, damit wir Ihnen besser antworten können. Wenn Sie Nein sagen, merken wir uns nichts über Ihren Besuch.",
+    "yes": "Ja",
+    "no": "Nein",
+    "savedYes": "Gespeichert: Ja. Sie können das jederzeit unter „Cookie-Auswahl“ ändern.",
+    "savedNo": "Gespeichert: Nein. Sie können das jederzeit unter „Cookie-Auswahl“ ändern.",
+    "cookieChoice": "Cookie-Auswahl",
+    "failed": "Ihre Auswahl konnte nicht gespeichert werden. Versuchen Sie es erneut."
   }
 } as const;

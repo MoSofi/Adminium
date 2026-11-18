@@ -391,6 +391,11 @@ export const RATE_BUCKETS = {
   // each (60): 660. Each conversation's own caps are the real gate.
   'chat-poll': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
   'chat-write': { max: 660, timeWindowMs: 60_000, keyBy: 'ip' },
+  // The visitor banner's "Yes" and "Cookie choice" (`/x/consent/visit`), by
+  // network address. A visitor answers once, maybe changes their mind; 30 a
+  // minute leaves room for an office behind one address and stops a script
+  // making visitors.
+  'x-consent': { max: 30, timeWindowMs: 60_000, keyBy: 'ip' },
 } as const satisfies Readonly<Record<string, RateBucket>>;
 
 /**

@@ -106,5 +106,15 @@ export default {
   },
   "chat": {
     "noScript": "此對話需要 JavaScript。"
+  },
+  "banner": {
+    "title": "我們可以記住您的造訪嗎？",
+    "text": "如果您選擇「是」，我們會記住您瀏覽了我們的哪些頁面；如果您之後傳送表單給我們，我們會將這些資訊與您的留言一併保存，以便更好地回覆您。如果您選擇「否」，我們不會記住您造訪的任何資訊。",
+    "yes": "是",
+    "no": "否",
+    "savedYes": "已儲存：是。您可以隨時在「Cookie 選擇」中變更。",
+    "savedNo": "已儲存：否。您可以隨時在「Cookie 選擇」中變更。",
+    "cookieChoice": "Cookie 選擇",
+    "failed": "無法儲存您的選擇。請再試一次。"
   }
 } as const;

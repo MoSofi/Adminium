@@ -106,5 +106,15 @@ export default {
   },
   "chat": {
     "noScript": "This chat needs JavaScript."
+  },
+  "banner": {
+    "title": "Can we remember your visit?",
+    "text": "If you say yes, we remember which of our pages you look at, and if you then send us a form, we keep that with your message so we can answer you better. Nothing about your visit is remembered if you say no.",
+    "yes": "Yes",
+    "no": "No",
+    "savedYes": "Saved: yes. Change it any time under Cookie choice.",
+    "savedNo": "Saved: no. Change it any time under Cookie choice.",
+    "cookieChoice": "Cookie choice",
+    "failed": "Your choice could not be saved. Try again."
   }
 } as const;
