@@ -19,8 +19,8 @@
  *  - The staff routes: a picture kept as the page's cleaned copy, the
  *    refusals in words; the status read; the home picker lists live pages.
  */
-import { filesRepo, permissionsRepo, rolesRepo, settingsRepo, usersRepo } from '@adminium/meta';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { filesRepo, permissionsRepo, rolesRepo, settingsRepo, usersRepo, viewDaysRepo } from '@adminium/meta';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -29,7 +29,6 @@ import { formsAddOn } from '../../../packages/manifest/test/forms-fixture.js';
 import { landingAddOn } from '../../../packages/manifest/test/landing-fixture.js';
 import { recordDeciderTrust } from '../src/add-ons/decider-trust.js';
 import { composeServer, type ComposedServer } from '../src/compose.js';
-import { countPageView } from '../src/landing/count.js';
 import { PAGE_CACHE_MS } from '../src/landing/catalog.js';
 import { PICTURE_REFUSED_WORDS } from '../src/landing/pictures.js';
 import { createApplyService } from '../src/llm/apply-service.js';
@@ -44,14 +43,14 @@ import { ANONYMOUS, FIT_OUT, NAMED, published, SHOWROOM, SHOWROOM_SETTINGS } fro
 import { makeEnv, TEST_SECRET } from './helpers.js';
 import { LEGS } from './invoicing-install.helpers.js';
 import { png } from './picture-images.js';
-
-vi.mock('../src/landing/count.js', () => ({ countPageView: vi.fn() }));
+import { VIEW_COUNTS_FLUSH_NAME } from '../src/views/wiring.js';
 
 type Doc = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any -- a reply read freely
 
 const PUBLIC = 'forms.meridian.example';
 const PAGES = 'pages.meridian.example';
 const EVENTS = 'events.meridian.example';
+const CHROME = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 const PAGE_HTML = `<!doctype html>
 <html lang="en">
   <head>
@@ -83,7 +82,18 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
   const cookies: Record<string, string> = {};
   let signIns = 0;
 
-  const get = (url: string, host = PUBLIC, headers: Record<string, string> = {}) => composed.app.inject({ method: 'GET', url, headers: { host, ...headers } });
+  let seq = 0;
+  let installId = '';
+  /** A stranger's request, from a browser, each from an address of its own (a view is counted once per address and page). */
+  const get = (url: string, host = PUBLIC, headers: Record<string, string> = {}) => {
+    seq += 1;
+    return composed.app.inject({ method: 'GET', url, remoteAddress: `198.51.100.${String(seq % 250)}`, headers: { host, 'user-agent': CHROME, ...headers } });
+  };
+  /** The views a page has, once what was counted is written. */
+  const viewsOf = async (slug: string): Promise<number> => {
+    await composed.jobs.scheduler.trigger(VIEW_COUNTS_FLUSH_NAME);
+    return (await viewDaysRepo(h.meta).read({ installId, kind: 'page', things: [String(keys[slug])], from: '2000-01-01', to: '2099-12-31' })).reduce((sum, row) => sum + row.views, 0);
+  };
   const as = (who: string, method: 'GET' | 'POST' | 'PATCH' | 'PUT', url: string, payload?: unknown, headers: Record<string, string> = {}) =>
     composed.app.inject({ method, url, headers: { host: PUBLIC, cookie: cookies[who]!, ...headers }, ...(payload === undefined ? {} : { payload: payload as Doc }) });
   const data = (who: string, method: 'POST' | 'PATCH', key: number | null, values: Doc) => as(who, method, `/api/v1/data/${h.connectionId}/${pagesId}${key === null ? '' : `/${String(key)}`}`, { values });
@@ -177,12 +187,13 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
     await composed.jobs.worker.stop();
     composed.jobs.scheduler.stop();
     pagesId = (await createPublicViews(h.meta).viewFor(h.connectionId))!.table(pagesTable).id;
+    installId = (await h.meta.db.selectFrom('adminium_manifests').select(['id']).where('manifestKey', '=', 'landing-pages').executeTakeFirstOrThrow()).id;
     const t = (...actions: string[]) => actions.map((action) => `table:${h.connectionId}:${pagesId}:${action}`);
     // Pat writes pages, as the add-on's page editor does; Rae only reads them; Lib also keeps the Files library; Ops maps hosts.
     await person('pat', t('read', 'create', 'update'));
     await person('rae', t('read'));
     await person('lib', [...t('read', 'update'), 'system:files:manage']);
-    await person('ops', ['system:settings:manage']);
+    await person('ops', ['system:settings:manage', 'system:privacy:manage']);
     await person('sam', []);
 
     for (const slug of ['open-day', 'thanks', 'yawm', 'spring-draft', 'switched-off', 'broken', 'marked', 'login']) await draft(slug, slug === 'yawm' ? { language: 'ar-EG' } : {});
@@ -224,11 +235,8 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
     await rm(root, { recursive: true, force: true });
   });
 
-  beforeEach(() => {
-    vi.mocked(countPageView).mockClear();
-  });
-
   it.skipIf(!available)('serves a live page with the head the server writes, indexable on its canonical host alone', async () => {
+    const before = await viewsOf('open-day');
     const page = await get('/x/pages/open-day', PAGES);
     expect(page.statusCode, page.body).toBe(200);
     expect(page.body).toContain('<html lang="en-US" dir="ltr">');
@@ -245,7 +253,7 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
     expect(page.headers['content-security-policy']).toContain("trusted-types 'none'");
     expect(page.headers['cross-origin-opener-policy']).toBe('same-origin');
     // The HTML is no view: a link preview fetches it too.
-    expect(countPageView).not.toHaveBeenCalled();
+    expect(await viewsOf('open-day')).toBe(before);
 
     // The same page on the public address, and on another pages host: noindex, naming the canonical address.
     for (const host of [PUBLIC, EVENTS]) {
@@ -269,6 +277,7 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
   });
 
   it.skipIf(!available)('answers the page\'s data: its document, its forms in its language, its pictures and links; and counts one view', async () => {
+    const before = await viewsOf('open-day');
     const res = await get('/x/pages/api/open-day');
     expect(res.statusCode, res.body).toBe(200);
     const body = res.json() as Doc;
@@ -287,9 +296,13 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
       [files['thanks']!]: `/x/pages/api/open-day/pictures/${files['thanks']!}`,
     });
     expect(body.links).toEqual({ [String(keys['thanks'])]: '/x/pages/thanks', [String(keys['spring-draft'])]: null });
-    expect(countPageView).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(countPageView).mock.calls[0]![0]).toMatchObject({ page: String(keys['open-day']) });
-    expect(vi.mocked(countPageView).mock.calls[0]![0].installId).toMatch(/\S/);
+    expect(await viewsOf('open-day')).toBe(before + 1);
+    // At "Counts only" the data says nothing of a visitor: no banner.
+    expect(body).not.toHaveProperty('visitor');
+    // Read back by whoever reads the pages; refused to who does not.
+    const views = await as('rae', 'GET', `/api/v1/views?installId=${installId}&kind=page&things=${String(keys['open-day'])}&from=2000-01-01&to=2000-12-31`);
+    expect(views.statusCode, views.body).toBe(200);
+    expect((await as('sam', 'GET', `/api/v1/views?installId=${installId}&kind=page&things=${String(keys['open-day'])}&from=2000-01-01&to=2000-12-31`)).statusCode).toBe(403);
 
     // In Arabic: the form's Arabic version; a form not written in Arabic is left out.
     const yawm = (await get('/x/pages/api/yawm')).json() as Doc;
@@ -313,7 +326,7 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
     }
     // Deeper than a page: the forms door's "not available".
     expect((await get('/x/pages/open-day/more')).statusCode).toBe(404);
-    expect(countPageView).not.toHaveBeenCalled();
+    for (const slug of ['spring-draft', 'switched-off', 'broken', 'marked', 'login']) expect(await viewsOf(slug), slug).toBe(0);
   });
 
   it.skipIf(!available)('never serves a page of a package nobody vouches for', async () => {
@@ -330,6 +343,7 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
   });
 
   it.skipIf(!available)('draws a preview of the draft, marks and all, for someone who reads the pages; never indexed, counting nothing', async () => {
+    const before = await viewsOf('thanks');
     for (const who of ['rae', 'pat']) {
       const page = await as(who, 'GET', '/x/pages/spring-draft?preview=1', undefined, { host: PAGES });
       expect(page.statusCode, page.body).toBe(200);
@@ -349,7 +363,8 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
     expect((await get('/x/pages/api/spring-draft?preview=1')).statusCode).toBe(404);
     expect((await as('sam', 'GET', '/x/pages/api/spring-draft?preview=1')).statusCode).toBe(404);
     expect((await as('sam', 'GET', '/x/pages/spring-draft?preview=1')).statusCode).toBe(404);
-    expect(countPageView).not.toHaveBeenCalled();
+    expect(await viewsOf('spring-draft')).toBe(0);
+    expect(await viewsOf('thanks')).toBe(before);
   });
 
   it.skipIf(!available)('serves a picture only while the live page that owns it names it', async () => {
@@ -455,6 +470,18 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
     const homes = (res.json() as Doc).pageHomes as string[];
     expect(homes).toEqual(expect.arrayContaining(['/x/forms/showroom-visit', '/x/pages/open-day', '/x/pages/thanks', '/x/pages/yawm']));
     for (const slug of ['spring-draft', 'switched-off', 'hand-made']) expect(homes, slug).not.toContain(`/x/pages/${slug}`);
+  });
+
+  it.skipIf(!available)('at Per visitor, tells a live page\'s data what the banner reads; a preview is told nothing', async () => {
+    expect((await as('ops', 'PUT', '/api/v1/privacy/counting', { level: 'visitor' })).statusCode).toBe(200);
+    try {
+      const page = await get('/x/pages/api/thanks');
+      expect(page.headers['set-cookie']).toBeUndefined();
+      expect((page.json() as Doc).visitor).toMatchObject({ said: null, banner: { language: 'en-US', yes: 'Yes', no: 'No' } });
+      expect((await as('rae', 'GET', '/x/pages/api/thanks?preview=1')).json()).not.toHaveProperty('visitor');
+    } finally {
+      expect((await as('ops', 'PUT', '/api/v1/privacy/counting', { level: 'counts' })).statusCode).toBe(200);
+    }
   });
 
   it.skipIf(!available)('answers "not available" while the privacy notice is unset, the add-on is switched off, or the outside cannot reach the server', async () => {

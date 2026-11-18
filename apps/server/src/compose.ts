@@ -149,7 +149,6 @@ import { createChatWaiting, type ChatWaiting } from './chat/waiting.js';
 import { chatOwnTable, sweepChatTranscripts } from './chat/transcripts.js';
 import { landingPagesTable } from './landing/seal.js';
 import { createLandingCatalog } from './landing/catalog.js';
-import { countPageView } from './landing/count.js';
 import { pagesDoorRoutes } from './routes/pages-door/index.js';
 import { landingStaffRoutes } from './routes/landing/index.js';
 import { chatStaffRoutes } from './routes/chat/index.js';
@@ -3722,7 +3721,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       forms: formsCatalog,
       storage,
       pageHosts,
-      countPageView,
+      // A live page's views are counted, and at "Per visitor" its data says what the banner reads.
+      views: counting.counter,
+      visitors: counting.visitors,
       networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
       desktop: env.ADMINIUM_RUNTIME === 'desktop',
       trustProxy: env.ADMINIUM_TRUST_PROXY,

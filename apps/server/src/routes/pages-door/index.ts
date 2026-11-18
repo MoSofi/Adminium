@@ -44,6 +44,13 @@
  * the public picture's headers (`public-api/picture.ts`): kept five minutes,
  * then asked again by its tag, so a page taken down stops showing it.
  *
+ * ─── COUNTING ───────────────────────────────────────────────────────────────
+ * A live page's data read counts one `page` view (`views/counter.ts`: bots
+ * and prefetches left out, one per address and page every half hour, nothing
+ * while counting is off), and carries the banner's block at "Per visitor"
+ * (`views/visitor.ts`). Its HTML, a preview, a picture and a page that is not
+ * available count nothing.
+ *
  * ─── THE PREVIEW ───────────────────────────────────────────────────────────
  * `?preview=1` (and the row's `page` key, where two rows share a slug) on the
  * page, its data and its pictures draws the page's DRAFT, whatever its state,
@@ -65,12 +72,13 @@ import { isNamedSurvey } from '../../forms/invitation.js';
 import { formsReach } from '../../forms/reach.js';
 import { businessToday, strangerBusiness, strangerForm, type StrangerForm } from '../../forms/view.js';
 import { pageLanguageOf, type LandingAddOn, type LandingCatalog, type LivePage, type PageRow } from '../../landing/catalog.js';
-import type { PageView } from '../../landing/count.js';
 import { canonicalAddress, pageAddresses, pagesHostsByName, type PageAddress } from '../../landing/hosts.js';
 import { pagePictureOf } from '../../landing/pictures.js';
 import { matchesTag, pictureHeaders, PICTURE_MAX_BYTES, PICTURE_PIPELINE, readCapped, type PictureMime } from '../../public-api/picture.js';
 import { normalizeHost } from '../../security/csrf.js';
 import { tagRoutes } from '../../security/route-audience.js';
+import type { ViewCounter } from '../../views/counter.js';
+import type { VisitorDoor } from '../../views/visitor.js';
 import { jsonOf } from '../../forms/catalog.js';
 import { framedPageOf, xDoorHeaders } from '../x-door/headers.js';
 import { directionOf, ogLocaleOf, type XHead } from '../x-door/head.js';
@@ -85,8 +93,10 @@ export interface PagesDoorDeps {
   storage: Pick<FileStore, 'read'>;
   /** The hosts mapped to the add-on pages, each with its home (`surfaces.pageHosts`). */
   pageHosts: () => Promise<Readonly<Record<string, { home: string }>>>;
-  /** One view of a live page, at its data read (`landing/count.ts`). */
-  countPageView: (view: PageView) => void;
+  /** A live page's views are counted (`views/counter.ts`); absent, nothing is counted. */
+  views?: Pick<ViewCounter, 'count'> | undefined;
+  /** "Per visitor": the banner's words and the visitor's cookie (`views/visitor.ts`); absent, nothing of it. */
+  visitors?: Pick<VisitorDoor, 'block'> | undefined;
   networkFeatures: boolean;
   desktop: boolean;
   trustProxy: boolean;
@@ -281,8 +291,10 @@ export function pagesDoorRoutes(deps: PagesDoorDeps): FastifyPluginAsyncZod {
       if (live === null) return unavailable(reply);
       const data = await dataOf({ slug, key: live.key, language: live.language, page: live.page, addOn: { connectionId: live.connectionId, pagesTable: live.pagesTable, pk: live.pk }, preview: false });
       // Counted here, where only a browser running the page asks: never the page's HTML, which a link preview fetches.
-      deps.countPageView({ installId: live.installId, page: live.key, request });
-      return { ...(await strangerBusiness(meta)), ...data };
+      deps.views?.count({ installId: live.installId, kind: 'page', thing: live.key, request });
+      // The banner, at "Per visitor": a landing page is always the install's own page, never in a frame.
+      const visitor = deps.visitors === undefined ? {} : await deps.visitors.block(request, { language: live.language, framed: false });
+      return { ...(await strangerBusiness(meta)), ...visitor, ...data };
     });
 
     app.get('/x/pages/api/:slug/pictures/:file', { config: door, schema: { hide: true, params: pictureParams, querystring: pageQuery } }, async (request, reply) => {
