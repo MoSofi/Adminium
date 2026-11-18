@@ -128,6 +128,11 @@ html:has(.x-page[data-frame]) #x-root {
   background: transparent;
 }
 
+/* The page's own part: laid out as if not there, until the visitor banner docks it (`banner/banner.css`). */
+.x-scroll {
+  display: contents;
+}
+
 .x-header,
 .x-footer {
   background: var(--surface);
@@ -777,4 +782,16 @@ html:has(.x-page[data-frame]) #x-root {
 
 .x-footer-inner a {
   color: var(--fg-muted);
+}
+
+/* The footer's "Cookie choice" (at "Per visitor"): a link's look on a button. */
+.x-cookie-choice {
+  min-height: 32px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: inherit;
+  text-decoration: underline;
+  cursor: pointer;
 }

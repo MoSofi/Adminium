@@ -1,0 +1,112 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/*
+ * The visitor banner (`VisitorBanner.tsx`), loaded with its chunk only.
+ *
+ * Docked: the page is one window high, its own part (`.x-scroll`) scrolls,
+ * and the band sits at the bottom of the window under it, never over it
+ * (comp boards 1g: a band of 12px round a card of at most 440px; title
+ * 15/700, text 13.5; two equal outlined buttons, 44 high). The band comes
+ * right after the header in the document; `order` draws it last.
+ */
+.x-page[data-docked] {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+}
+
+.x-page[data-docked] .x-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.x-banner-band {
+  order: 2;
+  flex: 0 0 auto;
+  padding: 12px;
+  background: var(--bg);
+  border-block-start: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.x-banner {
+  width: 100%;
+  max-width: 440px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: var(--shadow-raised);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.x-banner-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+  border-radius: 6px;
+}
+
+.x-banner-text {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--fg-muted);
+  text-wrap: pretty;
+}
+
+.x-banner-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* Both the same: saying no is as easy as saying yes. */
+.x-banner-button {
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--fg);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.x-banner-button:hover {
+  border-color: var(--fg-subtle);
+}
+
+.x-banner-button[aria-disabled="true"] {
+  cursor: wait;
+}
+
+.x-banner-notice {
+  align-self: flex-start;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.x-banner-failed {
+  margin: 0;
+  font-size: 13px;
+  color: var(--danger);
+}
+
+.x-banner-saved {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--fg-muted);
+  text-align: center;
+}
