@@ -27,6 +27,7 @@
     "@adminium/add-on-contracts",
     "@adminium/add-on-contracts/forms",
     "@adminium/add-on-contracts/forms/websites",
+    "@adminium/add-on-contracts/landing",
     "@adminium/add-on-contracts/runtime",
     "@adminium/engine",
     "@adminium/engine/adapter",
