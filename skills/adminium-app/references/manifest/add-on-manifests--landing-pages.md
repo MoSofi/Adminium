@@ -44,12 +44,17 @@ length takes at least that many characters, or has no `maxLength`. A column mark
 | Column | Type | What it holds |
 |---|---|---|
 | `name` | `text` 200 | The funnel's name. |
-| `steps` | `json` | At most 8 steps, in order: `[{ "kind": "page" or "form", "key": "<row key>" }]`. |
+| `steps` | `json` | At most 8 steps, in order: `[{ "kind": "page", "key": "<row key>" }]` for a page, and `{ "kind": "form", "key": "<row key>", "addOn": "<forms add-on key>" }` for a form (two forms add-ons may hold the same row key). |
 | `rule_id` | `text` 64, empty | The rule picked as what happens after the funnel. |
 
 **A slug** is lower-case letters, digits and dashes, 1 to 80 characters, with no dash at either
-end. It is never `api`, `assets`, `login`, `signin`, `sign-in`, `account`, `password` or `reset`.
-A page is published only at a slug no other page of its table holds.
+end. It is never one of the addresses' own words (`api`, `assets`) nor a word a sign-in, a code, the
+staff side or a bill is known by: `login`, `log-in`, `logon`, `signin`, `sign-in`, `account`,
+`password`, `reset`, `verify`, `verification`, `auth`, `oauth`, `sso`, `2fa`, `admin`, `wp-admin`,
+`billing`, `payment`, `payments`, `invoice`, `support` or `security`. A page is published only at a
+slug no other page of its table holds (judged again under a lock as the row is written, so two
+publishes at one moment cannot both take it). When two installs serve the same slug, the oldest
+install with a live page at it answers.
 
 **Publishing.** Adminium seals the columns that publish a page, whoever writes the row and through
 whatever door. A write that sets `state` to `live`, writes `published` or `published_at`, or moves a
@@ -60,7 +65,9 @@ The refusal is a `422` whose `details.reason` is `landing-unparsable`, `landing-
 `landing-slug`. Adminium writes `published_at` itself whenever `published` changes, and ignores a
 value the client sends. Switching a page `off`, or back to a `draft`, is always allowed. Milo never
 publishes: a change it proposes may write a page's `draft`, and never its `state`, `published` or
-`published_at`, whatever the person's own rights (`403`, reason `landing-assistant`).
+`published_at`, whatever the person's own rights (`403`, reason `landing-assistant`). Every block
+Milo adds or changes in a `draft` is marked (`"milo": true`) as it is written, so a person looks at
+each before the page can be published.
 
 **The page document**, in `draft` and `published`, is read by `@adminium/add-on-contracts/landing`
 on both sides:
