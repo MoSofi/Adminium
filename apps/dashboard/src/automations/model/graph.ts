@@ -149,6 +149,12 @@ export type Action =
    * read from the add-on (`Sources`), never kept here.
    */
   | { kind: 'add-on.step'; addOn: string; step: string; addOnName?: string | undefined; inputs: Record<string, string> }
+  /**
+   * Fills in a company record's EMPTY details from a lead source add-on's
+   * free registers (never a website, a paid source or a people source), by
+   * its number, else its name and town.
+   */
+  | { kind: 'company.fill'; addOn: string; sources: string[]; addOnName?: string | undefined }
   | {
       kind: 'webhook';
       url: string | null;

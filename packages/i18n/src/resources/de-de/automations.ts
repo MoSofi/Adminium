@@ -531,5 +531,18 @@ export default {
     "subService": "Service-E-Mail",
     "recheck": "Prüft Einwilligung und Liste „Keine E-Mails“ beim Senden erneut.",
     "older": "Gespeichert, bevor Mails eine Art hatten: Sie geht als Service-E-Mail, bis Sie wählen."
+  },
+  "companyFill": {
+    "label": "Firma ausfüllen",
+    "desc": "Leere Angaben, aus kostenlosen Registern",
+    "title": "Firma ausfüllen · {addOn}",
+    "by": "Suchen nach",
+    "byValue": "Firmennummer, sonst Name und Ort",
+    "registers": "Register",
+    "registersOnly": "Regeln nutzen nur die kostenlosen Register. Websites, kostenpflichtige Quellen und Personensuchen werden nur gelesen, wenn jemand auf Ausfüllen klickt.",
+    "emptyOnly": "Füllt nur leere Felder. Was jemand eingetragen hat, bleibt unverändert.",
+    "budget": "Bis zu 50 Abfragen am Tag für Regeln, je Register.",
+    "pick": "Register · eines wählen",
+    "summary": "Leere Angaben aus {registers}"
   }
 } as const;

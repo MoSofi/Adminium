@@ -1983,6 +1983,50 @@
     "status": "mt",
     "srcHash": "d5e14b063514"
   },
+  "automations.companyFill.budget": {
+    "status": "mt",
+    "srcHash": "8ec91ac62ff6"
+  },
+  "automations.companyFill.by": {
+    "status": "mt",
+    "srcHash": "c9adbf4d24e5"
+  },
+  "automations.companyFill.byValue": {
+    "status": "mt",
+    "srcHash": "737e9c7ef073"
+  },
+  "automations.companyFill.desc": {
+    "status": "mt",
+    "srcHash": "85360879637a"
+  },
+  "automations.companyFill.emptyOnly": {
+    "status": "mt",
+    "srcHash": "60ad492b438f"
+  },
+  "automations.companyFill.label": {
+    "status": "mt",
+    "srcHash": "a3ca158c103c"
+  },
+  "automations.companyFill.pick": {
+    "status": "mt",
+    "srcHash": "3ea8171e26ca"
+  },
+  "automations.companyFill.registers": {
+    "status": "mt",
+    "srcHash": "5f74dc0ddee9"
+  },
+  "automations.companyFill.registersOnly": {
+    "status": "mt",
+    "srcHash": "0454db222f32"
+  },
+  "automations.companyFill.summary": {
+    "status": "mt",
+    "srcHash": "01760e96cb67"
+  },
+  "automations.companyFill.title": {
+    "status": "mt",
+    "srcHash": "8b34ed54533f"
+  },
   "automations.delete.body": {
     "status": "mt",
     "srcHash": "16c3bce97067"

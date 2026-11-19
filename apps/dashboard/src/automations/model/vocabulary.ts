@@ -98,6 +98,7 @@ export function iconForNode(kind: NodeKind, action: Action | null): string {
     case 'document.render':
       return 'file-text';
     case 'add-on.step':
+    case 'company.fill':
       return 'puzzle';
     default:
       // A step a newer server wrote: its kind's own icon, never a crash.
