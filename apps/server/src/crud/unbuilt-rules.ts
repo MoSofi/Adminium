@@ -467,6 +467,9 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // Where a found company's details go on a companies table: the lead door adds and fills through those columns only,
   // and decides "already here" by them (routes/leads, leads/).
   'people.lead',
+  // A record action the generated record page shows on a kind of declared table, and the notes under the fields a
+  // source filled (add-ons/record-actions.ts, routes/leads/notes.ts).
+  'addOn.slots.on',
 ];
 
 /**

@@ -150,6 +150,7 @@ import { isFoundPerson, keepFoundPeople, untoldAddress, type KeepFoundPeopleDeps
 import { sourceLanguages } from './leads/registers.js';
 import type { CompanyFillDeps } from './automations/actions/company-fill.js';
 import { leadDoorRoutes } from './routes/leads/index.js';
+import { recordActionsFor } from './add-ons/record-actions.js';
 import { createWebsiteReaderState, readerCallsOut } from './net/website-reader.js';
 import { FOUND_PEOPLE_SWEEP_CRON, FOUND_PEOPLE_SWEEP_NAME, sweepFoundPeople, type SweepDone } from './leads/sweep.js';
 import { createTellMail } from './leads/tell.js';
@@ -2493,6 +2494,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           // Never waits on the source: a page draws its buttons from what is known.
           tablePrivileges: async (id) => manager.connections.findById(id).then((row) => (row === null ? null : manager.knownTablePrivileges(row))),
           installs: () => addOnInstalls.fresh(),
+          // An add-on's action beside Edit on a declared kind of table (a companies table's "Fill in details").
+          recordActions: (asker, view, tableId) => recordActionsFor({ meta, manifests: appManifests, runtime: () => addOnRuntime }, asker, view, tableId),
         }),
       );
       if (project !== null) {

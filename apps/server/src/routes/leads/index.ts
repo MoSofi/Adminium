@@ -20,7 +20,9 @@
  *    field somebody changed since the sheet showed it;
  *  - `POST /leads/:key/people` and `…/people/keep`: the people at a company,
  *    only while the add-on keeps people, and keeping the ticked ones
- *    (`leads/people.ts`: checked, stored, told at once).
+ *    (`leads/people.ts`: checked, stored, told at once);
+ *  - `GET /leads/:key/notes`: where each filled field of one record came
+ *    from, while it still holds what was filled (`notes.ts`).
  *
  * WHO: a signed-in person (never an API key: a search spends the owner's
  * account) who may open one of the add-on's pages or keep its settings. What
@@ -53,7 +55,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { sql } from 'kysely';
 import { z } from 'zod';
 
-import { pagesAreGated, addOnPagePermission } from '../../add-ons/page-gate.js';
+import { mayUseAddOnScreens } from '../../add-ons/record-actions.js';
 import type { AddOnRuntimeState } from '../../add-ons/runtime.js';
 import { looksLikeAddress } from '../../consent/index.js';
 import type { ConnectionManager } from '../../connections/manager.js';
@@ -70,6 +72,7 @@ import { installReachOf } from '../../installs/reach.js';
 import { rememberInstall, rememberedInstall, resolveInstall, selectorOf } from '../../installs/resolve.js';
 import { installManifest, sourceEntryOf, withLeadSource, type LeadSourceDeps, type LeadSourceRefusal } from '../../lead-sources/call.js';
 import { readSourcesState, sourceStateOf, sourcesOf, speaksForSources, type LeadSourceEntry } from '../../lead-sources/state.js';
+import { lastChangerOf } from '../../leads/changed-by.js';
 import { companiesTableFor, type CompaniesTable } from '../../leads/companies.js';
 import { addRefusal, ADD_REFUSALS, withOfficersFor, type AddRefusal } from '../../leads/flags.js';
 import { readLeadsSettings, type LeadsAddOnTables } from '../../leads/installs.js';
@@ -78,12 +81,10 @@ import { FoundMemory, type AddedAnswer } from '../../leads/memory.js';
 import { genericAddress, leadsInstall, type KeepFoundPeopleInput, type KeptPeople } from '../../leads/people.js';
 import { isRegister } from '../../leads/registers.js';
 import { pageFacts, websiteWords } from '../../leads/website-facts.js';
+import { leadNotesRoute } from './notes.js';
 import { LEAD_FIELDS, leadColumns, noteFieldSources, ownerColumn, shownText, writesFor, type LeadField } from '../../leads/write.js';
 import { readCompanyWebsite, type WebsiteReaderDeps } from '../../net/website-reader.js';
 import { normaliseAddress } from '../../public-api/claim-code.js';
-import { addOnSettingsGrantHeld } from '../../rbac/add-on-grant.js';
-import { PERMISSIONS } from '../../rbac/permissions.js';
-import { getPrincipal } from '../../rbac/principal.js';
 import type { TrialPolicy } from '../../trial/policy.js';
 import { refuseUnlessAllowed } from '../../trial/refuse.js';
 import { rowKeyOf } from '../../payments/payables.js';
@@ -343,21 +344,6 @@ export function leadDoorRoutes(deps: LeadDoorDeps): FastifyPluginAsync {
     const api = app.withTypeProvider<ZodTypeProvider>();
     const { meta, manifests } = deps;
 
-    async function mayKeep(request: FastifyRequest, install: InstalledManifest): Promise<boolean> {
-      if (await request.can(PERMISSIONS.manifestsManage)) return true;
-      const principal = getPrincipal(request);
-      return principal !== null && (await addOnSettingsGrantHeld(meta, principal, install));
-    }
-
-    async function mayOpenPages(request: FastifyRequest, install: InstalledManifest): Promise<boolean> {
-      const manifest = installManifest(install);
-      const pages = manifest?.addOn.pages ?? [];
-      if (manifest === null || pages.length === 0) return false;
-      if (!pagesAreGated(manifest)) return true;
-      for (const page of pages) if (await request.can(addOnPagePermission(page.ref))) return true;
-      return false;
-    }
-
     /** The door's guard: a signed-in person who may open the add-on's pages or keep its settings, on an add-on that speaks for sources. */
     async function doorGuard(request: FastifyRequest): Promise<void> {
       if (request.apiKeyPrincipal != null) {
@@ -365,7 +351,7 @@ export function leadDoorRoutes(deps: LeadDoorDeps): FastifyPluginAsync {
       }
       const { key } = request.params as { key: string };
       const reach = installReachOf(meta, request);
-      const may = async (one: InstalledManifest) => (await mayKeep(request, one)) || (await mayOpenPages(request, one));
+      const may = (one: InstalledManifest) => mayUseAddOnScreens(meta, request, one);
       const install = await resolveInstall(manifests, key, selectorOf(request), { kind: 'add-on', connectionNames: deps.connectionNames, reaches: async (one) => (await reach(one)) && (await may(one)) });
       if (install === null) throw new NotFoundError(`${key} is not installed.`);
       const manifest = installManifest(install);
@@ -657,7 +643,7 @@ export function leadDoorRoutes(deps: LeadDoorDeps): FastifyPluginAsync {
         }
 
         if (door.leads !== null) {
-          for (const one of noted) await noteFieldSources({ manager: deps.manager, writes: deps.writes }, { addOn: door.leads, view: door.view, tableRef, rowKey: one.key, columns: one.columns, stored: one.stored, at: now() });
+          for (const one of noted) await noteFieldSources({ manager: deps.manager, writes: deps.writes }, { addOn: door.leads, view: door.view, tableRef, rowKey: one.key, columns: one.columns, stored: one.stored, table: door.companies.table, at: now() });
         }
         const added = results.filter((one) => one.outcome === 'added').length;
         const refused = results.length - added;
@@ -775,6 +761,19 @@ export function leadDoorRoutes(deps: LeadDoorDeps): FastifyPluginAsync {
     );
 
     // ── fill ──────────────────────────────────────────────────────────────────
+
+    /**
+     * The refusal of a fill over a field somebody changed since the sheet
+     * showed it: the field, its column, and who changed it by name (null when
+     * the record's history names nobody), so the sheet can say "{Field} was
+     * changed by {name} after you looked".
+     */
+    async function fieldChanged(door: Door, record: string, field: LeadField, column: string): Promise<AppError> {
+      const by = await lastChangerOf(meta, { connectionId: door.connectionId, tableId: door.companies.table.id, key: record }, column);
+      const message = by === null ? `${column} was changed after you looked. Look up again.` : `${column} was changed by ${by} after you looked. Look up again.`;
+      return new AppError(409, 'FIELD_CHANGED', message, { field, column, by });
+    }
+
     api.post(
       '/leads/:key/fill',
       { preHandler: [app.requireAuth, doorGuard], config: routeConfig, schema: { params: keyParams, body: fillBody, response: { 200: fillReply } } },
@@ -795,9 +794,7 @@ export function leadDoorRoutes(deps: LeadDoorDeps): FastifyPluginAsync {
           if (write === undefined) throw new ValidationFailedError(`Nothing from ${one.source} to fill ${column} with: look up again.`, { reason: 'look-up-again', field: one.field });
           // Changed since the sheet showed it: nobody's edit is written over.
           const now = shownText(record[column]);
-          if (!sameShown(now, one.now === null ? null : one.now.trim())) {
-            throw new AppError(409, 'FIELD_CHANGED', `${column} was changed after you looked. Look up again.`, { field: one.field, column });
-          }
+          if (!sameShown(now, one.now === null ? null : one.now.trim())) throw await fieldChanged(door, body.record, one.field, column);
           values[column] = write.value;
           if (Object.keys(seen).length < 8) seen[column] = typeof record[column] === 'string' ? (record[column] as string) : (shownText(record[column]) ?? null);
           filled.push({ field: one.field, column, source: one.source });
@@ -806,14 +803,20 @@ export function leadDoorRoutes(deps: LeadDoorDeps): FastifyPluginAsync {
         try {
           stored = await updateAsPerson(app, request, door.connectionId, door.companies.table.id, body.record, { values, seen }, { code: 'FILL_REFUSED', message: 'The fill was refused.' });
         } catch (error) {
-          if (error instanceof AppError && error.code === 'ROW_CHANGED') throw new AppError(409, 'FIELD_CHANGED', 'A field was changed after you looked. Look up again.', error.details);
+          if (error instanceof AppError && error.code === 'ROW_CHANGED') {
+            // The data route names the column that moved between the read above and the write.
+            const moved = (error.details as { column?: unknown } | undefined)?.column;
+            const field = filled.find((one) => one.column === moved);
+            if (field !== undefined) throw await fieldChanged(door, body.record, field.field, field.column);
+            throw new AppError(409, 'FIELD_CHANGED', 'A field was changed after you looked. Look up again.', { ...(error.details as object | undefined), by: null });
+          }
           throw error;
         }
         if (door.leads !== null) {
           const index = await tableRefIndex(meta, door.connectionId, door.view.model);
           await noteFieldSources(
             { manager: deps.manager, writes: deps.writes },
-            { addOn: door.leads, view: door.view, tableRef: storedTableRef(index, door.companies.table.id), rowKey: body.record, columns: filled.map((one) => ({ column: one.column, source: one.source })), stored, at: now() },
+            { addOn: door.leads, view: door.view, tableRef: storedTableRef(index, door.companies.table.id), rowKey: body.record, columns: filled.map((one) => ({ column: one.column, source: one.source })), stored, table: door.companies.table, at: now() },
           );
         }
         await app.rbac.audit(request, {
@@ -956,5 +959,7 @@ export function leadDoorRoutes(deps: LeadDoorDeps): FastifyPluginAsync {
       if (answer.companies.some((one) => one.noMarketing)) throw new AppError(409, 'NO_SALES_CONTACT', ADD_REFUSALS['no-marketing'], { source: register.id });
     }
 
+    // ── notes: where each filled field came from, while it still holds what was filled ──
+    leadNotesRoute(app, { meta, manifests, manager: deps.manager, connectionNames: deps.connectionNames, viewOf });
   };
 }
