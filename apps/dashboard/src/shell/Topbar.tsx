@@ -314,7 +314,8 @@ export function Topbar({
 
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-2.5">
-          <h1 className="min-w-0 truncate text-topbar-title leading-[1.2] text-fg">
+          {/* A long name is cut with an ellipsis: the whole name rides along, read on hover and by the page that set it. */}
+          <h1 data-part="topbar-title" className="min-w-0 truncate text-topbar-title leading-[1.2] text-fg" title={publishedTitle ?? title}>
             {publishedTitle ?? title}
           </h1>
           <PageTitleAdornmentSlot />
