@@ -381,6 +381,13 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/jobs': noRows('Jobs and their results, which hold ids and counts and no row; a file a job made is its requester\'s.'),
   'GET /api/v1/jobs/:id': noRows('Jobs and their results, which hold ids and counts and no row; a file a job made is its requester\'s.'),
   'POST /api/v1/jobs/:id/cancel': noRows('Jobs and their results, which hold ids and counts and no row; a file a job made is its requester\'s.'),
+  // --- /leads
+  'POST /api/v1/leads/:key/search': rows(['system', 'visible'], 'Whether a found company is already here is decided as the install, over at most 100 rows, so nobody adds a colleague\'s company twice; what the reader is shown of a match is asked as them, and one they cannot open is "kept by a colleague", with no key and no values.'),
+  'POST /api/v1/leads/:key/add': rows(['system', 'link'], 'The match as the install, as for a search; the company is made through the data routes as the person, their grants, row limits and staff columns applying.'),
+  'POST /api/v1/leads/:key/lookup': rows('visible', 'The record as its reader, through the data routes; one out of reach answers as one not there.'),
+  'POST /api/v1/leads/:key/fill': rows(['visible', 'link'], 'The record as its reader, then changed through the data routes as the person, refused for a field somebody changed since they looked.'),
+  'POST /api/v1/leads/:key/people': rows(['visible', 'system'], 'The company as its reader; whether a found address is already on a people row is asked as the install, and says only that.'),
+  'POST /api/v1/leads/:key/people/keep': rows(['visible', 'link'], 'The company as its reader; each person kept is made through the data routes as the person.'),
   // --- /ledgers
   'POST /api/v1/ledgers/:addOn/:ledger/catch-up': rows(['system', 'whole'], 'A ledger is kept by the system under the schema grant, and a ledger\'s answer is whole; a private table is refused.'),
   'POST /api/v1/ledgers/:addOn/:ledger/make-items': rows(['system', 'whole'], 'A ledger is kept by the system under the schema grant, and a ledger\'s answer is whole; a private table is refused.'),

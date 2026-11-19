@@ -146,6 +146,7 @@ export const ACTION_NOTES: Readonly<Record<string, string>> = {
   'record.update': 'writes columns of the record the run is about.',
   webhook: 'calls a URL the person gives. Never invent one; leave `headerValue` out.',
   'document.render': 'draws a document from a mapping that already exists. Never draft one: it is made on the mappings page.',
+  'company.fill': 'fills a company\'s empty details from the free registers named.',
   'add-on.step': 'a step an installed add-on gives. `addOn`, `step` and the input keys are EXACTLY those rule_parts lists; `inputs` is input key → text. With none listed that does what was asked, leave the step out and say so in "leftOut".',
 };
 

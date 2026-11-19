@@ -275,7 +275,7 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     await h.stageApp(crm());
     const app = await h.install('crm', '1.0.0');
     expect(app.statusCode, app.body).toBe(200);
-    // Where a company's country is (`people.lead`): kept as a server that runs the word keeps it, until this one does.
+    // Where a company's country is (`people.lead`), written into the stored manifest after the install.
     const stored = await h.meta.db.selectFrom('adminium_manifests').select(['id', 'manifest']).where('manifestKey', '=', 'crm').executeTakeFirstOrThrow();
     const document = (typeof stored.manifest === 'string' ? JSON.parse(stored.manifest) : stored.manifest) as Doc;
     document['people'][1]['lead'] = { website: 'website', address: { country: 'country' } };

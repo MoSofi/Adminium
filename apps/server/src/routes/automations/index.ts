@@ -59,6 +59,8 @@ import type { Row } from '../../crud/mask.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { forgetSpellsIfChosenAnew, nextTickFor } from '../../automations/schedule.js';
 import { walkRule, type RunnerDeps } from '../../automations/runner.js';
+import { companiesTablesOn } from '../../leads/companies.js';
+import { freeRegisters } from '../../leads/registers.js';
 import { isAddressColumn, relatedTargets } from '../../automations/related.js';
 import { readViewForUser } from '../../crud/read-view.js';
 import { liveTemplateKeySet, templateFamilies } from '../../automations/templates.js';
@@ -476,6 +478,17 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
               })),
             });
           }
+          // "Fill in the company": each lead source add-on here with a free register, and the companies tables it may fill.
+          const companyFill = [];
+          const installsHere = deps.installs === undefined ? null : await deps.installs();
+          const companiesHere = installsHere === null ? [] : (await companiesTablesOn(meta, connection.id, view)).map((one) => one.table.id);
+          for (const key of [...(installsHere?.keys?.(connection.id) ?? [])].sort()) {
+            const found = installsHere!.installed(connection.id, key);
+            if (found === null || found.status !== 'installed' || companiesHere.length === 0) continue;
+            const registers = freeRegisters(found.manifest as Parameters<typeof freeRegisters>[0]).map((entry) => entry.id);
+            if (registers.length === 0) continue;
+            companyFill.push({ addOn: key, addOnName: typeof found.manifest.name === 'string' && found.manifest.name !== '' ? found.manifest.name : key, registers, tables: companiesHere });
+          }
           out.push({
             id: connection.id,
             name: connection.name,
@@ -483,6 +496,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
             timezone: connection.timezone ?? 'UTC',
             tables,
             steps,
+            companyFill,
           });
         }
         const families = await templateFamilies(meta);

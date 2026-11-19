@@ -372,6 +372,17 @@ export async function runUpdateAction(
   const values = await resolveValues(action.values, source.table, ctx, notes);
   if (Object.keys(values).length === 0) throw new ActionFailure('This step sets no values.');
 
+  await updateRecordAsRule(ctx, values);
+  return { log: [ctx.text.updateOk(pairsOf(keptRow(values, source.table))), ...notes].join(' · ') };
+}
+
+/**
+ * Writes `values` (already in their columns' shape) to the run's own record,
+ * as the rule: its hooks, its audit, its live updates, and the run's view of
+ * the record moved with the write. A refusal fails the step.
+ */
+export async function updateRecordAsRule(ctx: ActionContext, values: Row): Promise<Row> {
+  const source = sourceOf(ctx);
   const before = source.row;
   await asStep(() =>
     writesOf(ctx).update({
@@ -414,7 +425,7 @@ export async function runUpdateAction(
       },
     }),
   );
-  return { log: [ctx.text.updateOk(pairsOf(keptRow(values, source.table))), ...notes].join(' · ') };
+  return source.row;
 }
 
 export async function dryRunUpdateAction(action: UpdateAction, ctx: ActionContext): Promise<ActionResult> {

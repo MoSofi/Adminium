@@ -147,6 +147,10 @@ import { chatOwnTable, sweepChatTranscripts } from './chat/transcripts.js';
 import { leadsOwnTable } from './leads/installs.js';
 import { withLeadsGuard } from './leads/guard.js';
 import { isFoundPerson, keepFoundPeople, untoldAddress, type KeepFoundPeopleDeps, type KeepFoundPeopleInput, type KeptPeople } from './leads/people.js';
+import { sourceLanguages } from './leads/registers.js';
+import type { CompanyFillDeps } from './automations/actions/company-fill.js';
+import { leadDoorRoutes } from './routes/leads/index.js';
+import { createWebsiteReaderState, readerCallsOut } from './net/website-reader.js';
 import { FOUND_PEOPLE_SWEEP_CRON, FOUND_PEOPLE_SWEEP_NAME, sweepFoundPeople, type SweepDone } from './leads/sweep.js';
 import { createTellMail } from './leads/tell.js';
 import { erasePerson } from './privacy/erase.js';
@@ -195,7 +199,7 @@ import { createPictureDialog, type PictureKeys } from './designer/picture-dialog
 import { createPictureJobs } from './designer/picture-jobs.js';
 import { personLog } from './designer/events.js';
 import { createPictureSearch, type PictureSearch } from './designer/picture-search.js';
-import { designerCallsOut } from './trial/refuse.js';
+import { designerCallsOut, policyOf } from './trial/refuse.js';
 import { createPictureShelf, downloadPicture, openverse, pexels, pixabay, unsplash, type PictureSource } from './designer/pictures.js';
 import { readDotEnv } from './project/dotenv.js';
 import { createDesigner, type Designer } from './designer/service.js';
@@ -713,7 +717,13 @@ export interface ComposedServer {
    * (what the lead door calls, with the staff member's request), what keeping
    * them needs, and the nightly keeping sweep (`leads/sweep.ts`).
    */
-  leads: { deps: KeepFoundPeopleDeps; keep: (input: KeepFoundPeopleInput) => Promise<KeptPeople>; sweep: () => Promise<SweepDone> };
+  leads: {
+    deps: KeepFoundPeopleDeps;
+    keep: (input: KeepFoundPeopleInput) => Promise<KeptPeople>;
+    sweep: () => Promise<SweepDone>;
+    /** What the rule step "fill in the company" reaches a lead source add-on with (`automations/actions/company-fill.ts`). */
+    step: () => CompanyFillDeps;
+  };
   /**
    * Settles once the apps and add-ons that came with this server are in their
    * stores. A caller that installs something straight after composing waits
@@ -1806,6 +1816,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   onMappingRulesChanged(meta, () => automations.matcher.onRulesChanged());
   // A rule's summary, one job a person: read as that person when it is sent, at the hour they chose.
   registerDigestSendHandler(jobs.registry, { meta, manager, secret: env.ADMINIUM_SECRET });
+  // The `company.fill` step's way to a lead source add-on's free registers: the runtime, the keys and the switches as they stand when it runs.
+  const companyFillDeps = (): CompanyFillDeps => ({ call: { manifests: appManifests, runtime: () => addOnRuntime, policy: policyOf(app) }, networkFeatures: () => env.ADMINIUM_NETWORK_FEATURES });
   registerAutomationRunHandler(jobs.registry, {
     meta,
     manager,
@@ -1819,6 +1831,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // rule with that step refuses with a sentence rather than throwing from
     // inside the renderer.
     documents,
+    leadSources: companyFillDeps,
     hub: jobs.hub,
     marketing: marketingMail,
     enqueue: (input: EnqueueJobInput) => jobs.enqueue(input),
@@ -2443,7 +2456,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           policy: app.trialPolicy,
           enqueue: (input: EnqueueJobInput) => jobs.enqueue(input),
           onRulesChanged: () => automations.matcher.onRulesChanged(),
-          runner: { storage, hub: jobs.hub, writes: recordWrites },
+          runner: { storage, hub: jobs.hub, writes: recordWrites, leadSources: companyFillDeps },
           // The steps installed add-ons give: offered in the builder, judged at the save, read again by a test run.
           installs: () => addOnInstalls.fresh(),
         }),
@@ -3529,6 +3542,35 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           catalog: addOnCatalog,
         }),
       );
+      /*
+       * THE LEAD DOOR (`routes/leads`): what a lead source add-on's screens ask
+       * the engine (search, look up, add, fill, find and keep people). Every
+       * call to a source goes through `withLeadSource`; a company's website
+       * is read by the engine's own reader, one per process, only where this
+       * server calls outside and the profile lets add-ons reach their hosts.
+       */
+      const websiteReaderState = createWebsiteReaderState(Date.now);
+      await api.register(
+        leadDoorRoutes({
+          meta,
+          manifests: appManifests,
+          manager,
+          runtime: () => addOnRuntime,
+          policy: () => policyOf(app),
+          networkFeatures: () => addOnCatalog.networkFeaturesAllowed(),
+          writes: recordWrites,
+          keep: (input) => keepFoundPeople(leadsPeopleDeps, input),
+          stopped: (address) => consent.stop.has(address),
+          reader: {
+            state: websiteReaderState,
+            log: app.log,
+            outside: () => readerCallsOut(addOnCatalog.networkFeaturesAllowed(), app.trialPolicy),
+            ...(opts.pictureSeams === undefined ? {} : { seams: opts.pictureSeams }),
+          },
+          connectionNames: async () => new Map((await meta.db.selectFrom('adminium_connections').select(['id', 'name']).execute()).map((row) => [row.id, row.name])),
+          viewFor: (connectionId) => publicViews.viewFor(connectionId),
+        }),
+      );
       await api.register(rolesRoutes);
       await api.register(teamsRoutes);
       await api.register(workspacesRoutes);
@@ -3727,6 +3769,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     secret: env.ADMINIUM_SECRET,
     reach: { networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY },
     viewFor: (connectionId) => publicViews.viewFor(connectionId),
+    // A found person may be told in the language of each switched-on register's country: a purpose is needed in each.
+    sourceLanguages: (addOn) => sourceLanguages(meta, { installId: addOn.installId, manifest: addOn.manifest }),
     onQueued: (addOnKey) => {
       void jobs.enqueue({ kind: OUTBOX_SEND_JOB_KIND, payload: { app: addOnKey }, dedupeKey: `${OUTBOX_SEND_JOB_KIND}:${addOnKey}` }).catch((error: unknown) => {
         app.log.warn({ err: error, addOnKey }, 'the tell mail send job could not be queued; the sweep will send it');
@@ -4691,6 +4735,6 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     packagesSeeded: Promise.all([appSeed, addOnSeed]).then(() => undefined),
     addOnsLoaded,
     chat: { catalog: chatCatalog, store: chatStore, caps: chatCaps, door: chatDoor, staff: chatStaff, waiting: chatWaiting },
-    leads: { deps: leadsPeopleDeps, keep: (input) => keepFoundPeople(leadsPeopleDeps, input), sweep: sweepLeads },
+    leads: { deps: leadsPeopleDeps, keep: (input) => keepFoundPeople(leadsPeopleDeps, input), sweep: sweepLeads, step: companyFillDeps },
   };
 }

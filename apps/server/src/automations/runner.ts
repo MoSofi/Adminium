@@ -72,6 +72,7 @@ import {
   dryRunDocumentRenderAction,
   runDocumentRenderAction,
 } from './actions/document-render.js';
+import { dryRunCompanyFillAction, runCompanyFillAction } from './actions/company-fill.js';
 import type { RenderDeps } from '../documents/render.js';
 import { ActionFailure, type ActionContext, type ActionSource } from './actions/types.js';
 import { evaluateCondition, type ConditionContext } from './conditions.js';
@@ -111,6 +112,8 @@ export interface RunnerDeps {
    * step fails saying its add-on is not installed.
    */
   steps?: (() => Promise<StepLookup>) | undefined;
+  /** How a `company.fill` step reaches a lead source add-on (`actions/company-fill.ts`). */
+  leadSources?: ActionContext['leadSources'];
   progress?: ((pct: number, message: string) => void) | undefined;
 }
 
@@ -236,6 +239,7 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
     text,
     secret: deps.secret,
     documents: deps.documents,
+    ...(deps.leadSources === undefined ? {} : { leadSources: deps.leadSources }),
     ...(deps.storage === undefined ? {} : { storage: deps.storage }),
     ...(deps.hub === undefined ? {} : { hub: deps.hub }),
     ...(deps.createTransport === undefined ? {} : { createTransport: deps.createTransport }),
@@ -478,6 +482,8 @@ async function runAction(node: AutomationNode, ctx: ActionContext) {
       return runDocumentRenderAction(node.action, ctx);
     case 'add-on.step':
       return runAddOnStepAction(node.action, ctx);
+    case 'company.fill':
+      return runCompanyFillAction(node.action, ctx);
   }
 }
 
@@ -500,6 +506,8 @@ async function dryRunAction(node: AutomationNode, ctx: ActionContext) {
       return dryRunDocumentRenderAction(node.action, ctx);
     case 'add-on.step':
       return dryRunAddOnStepAction(node.action, ctx);
+    case 'company.fill':
+      return dryRunCompanyFillAction(node.action, ctx);
   }
 }
 
