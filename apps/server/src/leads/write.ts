@@ -50,7 +50,7 @@ export type LeadField = (typeof LEAD_FIELDS)[number];
 
 /** The longest a fact is kept before it meets a column (the contract's own bounds are wider for some). */
 const FACT_MAX = 2000;
-/** The widths of the fields' sources table's text columns (`shared-design` §8). */
+/** The widths of the fields' sources table's text columns, as the add-on's manifest word declares them. */
 const SOURCE_MAX = 32;
 const ROW_KEY_MAX = 200;
 const TABLE_REF_MAX = 64;
