@@ -38,10 +38,11 @@ import type { HostLookup } from '../net/address-guard.js';
 import type { NetworkPolicy, OutboundPolicy } from '../net/outbound-check.js';
 import { ORDINARY_POLICY, TRIAL_SOURCE_CONNECTIONS, type TrialPolicy } from '../trial/policy.js';
 import { OffByOperatorError } from '../trial/refuse.js';
-import { assertTrialSourceAllowed, operatorLoginOf, type TrialSourceRules } from '../trial/sources.js';
-import { checkDsn, maskDsn, MetaPlacementError, MetaPrefixCollisionError, parseDsn, sameDatabase, type DatabaseHost } from './dsn.js';
+import { assertTrialSourceAllowed, assertUserHostNotOperator, onUserHost, operatorLoginOf, sourcesHeld, type TrialSourceRules } from '../trial/sources.js';
+import { canonicalHost, checkDsn, maskDsn, MetaPlacementError, MetaPrefixCollisionError, parseDsn, sameDatabase, type DatabaseHost, type ParsedDsn } from './dsn.js';
 import { PRIVILEGES_PROBE_TIMEOUT_MS, PRIVILEGES_TTL_MS } from './privileges.js';
 import { assertSqliteSourceAllowed, type SqliteSourcePolicy } from './sqlite-guard.js';
+import type { DenyRange, UserHost } from './user-host.js';
 import { holdingDialect, registerWriteHold, type WriteWatch } from './write-hold.js';
 
 /** Every meta table is `adminium_`-prefixed. */
@@ -149,6 +150,41 @@ export interface ConnectionManagerOptions {
   policy?: Pick<TrialPolicy, 'allows'> | undefined;
   /** `ADMINIUM_SOURCE_URL`: the one login allowed on an operator host when the policy binds logins. */
   operatorSourceUrl?: string | undefined;
+  /**
+   * `ADMINIUM_DATABASE_USER_HOST`, passed only while `ADMINIUM_YOUR_DATABASE`
+   * is set: the one host of the user's own the profile allows besides the list
+   * (`trial/sources.ts`), held to public addresses (`connections/dsn.ts`).
+   */
+  userHost?: UserHost | null | undefined;
+  /** `ADMINIUM_DATABASE_DENY_ADDRESSES`: addresses the user host may never resolve to. */
+  denyAddresses?: readonly DenyRange[] | undefined;
+  /** Test seam: the clock the login lockout counts on. */
+  now?: (() => number) | undefined;
+}
+
+/** Login failures against one host and port that lock it, in trial and hosted mode, for {@link LOGIN_LOCKOUT_MS}. */
+export const LOGIN_LOCKOUT_FAILURES = 5;
+export const LOGIN_LOCKOUT_MS = 60 * 60 * 1000;
+
+/** 429 `SOURCE_LOGIN_LOCKED`: too many failed logins against one database host lately. */
+export class SourceLoginLockedError extends AppError {
+  override readonly name = 'SourceLoginLockedError';
+
+  constructor(retryAfterSeconds: number) {
+    super(
+      429,
+      'SOURCE_LOGIN_LOCKED',
+      `The database refused this installation's login ${String(LOGIN_LOCKOUT_FAILURES)} times within an hour, so it is not tried again for now. Check the user name and password, then try again later.`,
+      { retryAfterSeconds },
+    );
+  }
+}
+
+/** Whether an adapter error is a refused login: a wrong user or password, never a missing database. */
+function isLoginRefusal(error: { code: string; detail?: string | null } | undefined): boolean {
+  if (error === undefined || error.code !== 'AUTH') return false;
+  const detail = error.detail ?? '';
+  return !/^(3D000|ER_BAD_DB_ERROR)\b/.test(detail);
 }
 
 /** 502-ish mapping for adapter failures surfaced through API routes. */
@@ -173,6 +209,10 @@ export class ConnectionManager {
   readonly #pool: { poolMax?: number };
   readonly #lookup: HostLookup | undefined;
   readonly #trialRules: TrialSourceRules;
+  readonly #denyAddresses: readonly DenyRange[] | undefined;
+  readonly #now: () => number;
+  /** Refused logins per `host:port`, in trial and hosted mode: when each happened. */
+  readonly #loginFailures = new Map<string, number[]>();
   /** The last source added in a trial, which the next waits for. */
   #roomTurn: Promise<unknown> = Promise.resolve();
   /** Trial mode's size cap (`trial/size-cap.ts`): what holds a source's growth, and hears of every write. */
@@ -185,13 +225,17 @@ export class ConnectionManager {
     this.#meta = opts.meta;
     this.#registry = opts.registry ?? adapterRegistry;
     this.#metaDsn = opts.metaDsn ?? null;
-    this.#blockLoopback = opts.blockLoopback ?? process.env.NODE_ENV === 'production';
+    const policy = opts.policy ?? ORDINARY_POLICY;
+    // Trial and hosted mode refuse this machine by the profile, whatever NODE_ENV or the caller says.
+    this.#blockLoopback = sourcesHeld({ policy }) ? true : (opts.blockLoopback ?? process.env.NODE_ENV === 'production');
     this.#databaseHosts = opts.databaseHosts ?? [];
     this.#networkPolicy = opts.networkPolicy ?? 'open';
     this.#sqliteSources = opts.sqliteSources;
     this.#pool = opts.sourcePoolMax === undefined ? {} : { poolMax: opts.sourcePoolMax };
     this.#lookup = opts.lookup;
-    this.#trialRules = { policy: opts.policy ?? ORDINARY_POLICY, hosts: this.#databaseHosts, operatorLogin: operatorLoginOf(opts.operatorSourceUrl) };
+    this.#trialRules = { policy, hosts: this.#databaseHosts, operatorLogin: operatorLoginOf(opts.operatorSourceUrl), userHost: opts.userHost ?? null };
+    this.#denyAddresses = opts.denyAddresses;
+    this.#now = opts.now ?? Date.now;
     this.connections = connectionsRepo(opts.meta, opts.crypto);
   }
 
@@ -317,7 +361,11 @@ export class ConnectionManager {
    */
   async #dialConfig(dsn: string, engine: string): Promise<{ dsn: string } | { endpoint: DatabaseEndpoint }> {
     // What the operator allows this installation, before any lookup: a refused host is never even looked up.
-    assertTrialSourceAllowed(parseDsn(dsn), this.#trialRules);
+    const parsed = parseDsn(dsn);
+    assertTrialSourceAllowed(parsed, this.#trialRules);
+    this.#assertNotLocked(parsed);
+    const user = onUserHost(parsed, this.#trialRules);
+    const held = sourcesHeld(this.#trialRules);
     const checked = await checkDsn(dsn, {
       blockLoopback: this.#blockLoopback,
       engine,
@@ -325,9 +373,62 @@ export class ConnectionManager {
       localDatabases: this.#localDatabases,
       blockPrivate: this.#networkPolicy === 'strict',
       lookup: this.#lookup,
+      ...(user ? { userHost: this.#trialRules.userHost, denyAddresses: this.#denyAddresses } : {}),
+      hideAddresses: held,
     });
+    // The user host found at an operator host's address is held to the operator's one login there.
+    if (user) await assertUserHostNotOperator(checked.parsed, checked.endpoint?.addresses ?? [], this.#trialRules, this.#lookup);
     if (checked.parsed.scheme === 'sqlite' && this.#sqliteSources !== undefined) assertSqliteSourceAllowed(dsn, this.#sqliteSources);
     return checked.endpoint === null ? { dsn } : { endpoint: checked.endpoint };
+  }
+
+  /** `host:port` as the lockout counts it; null for SQLite or no host. */
+  #lockoutKey(parsed: Pick<ParsedDsn, 'scheme' | 'host' | 'port'>): string | null {
+    if (parsed.scheme === 'sqlite' || parsed.host === null) return null;
+    return `${canonicalHost(parsed.host).replace(/\.$/, '')}:${String(parsed.port ?? '')}`;
+  }
+
+  /** The refused logins against one target still inside the hour, oldest first. */
+  #recentFailures(key: string): number[] {
+    const since = this.#now() - LOGIN_LOCKOUT_MS;
+    const recent = (this.#loginFailures.get(key) ?? []).filter((at) => at > since);
+    if (recent.length === 0) this.#loginFailures.delete(key);
+    else this.#loginFailures.set(key, recent);
+    return recent;
+  }
+
+  /** Trial and hosted mode: refuse a target that refused {@link LOGIN_LOCKOUT_FAILURES} logins within the hour. Throws 429. */
+  #assertNotLocked(parsed: ParsedDsn): void {
+    if (!sourcesHeld(this.#trialRules)) return;
+    const key = this.#lockoutKey(parsed);
+    if (key === null) return;
+    const recent = this.#recentFailures(key);
+    if (recent.length < LOGIN_LOCKOUT_FAILURES) return;
+    const oldest = recent[recent.length - LOGIN_LOCKOUT_FAILURES] ?? this.#now();
+    throw new SourceLoginLockedError(Math.max(1, Math.ceil((oldest + LOGIN_LOCKOUT_MS - this.#now()) / 1000)));
+  }
+
+  /** Count a refused login against the DSN's target (trial and hosted mode only). */
+  #noteLogin(dsn: string, error: { code: string; detail?: string | null } | undefined): void {
+    if (!sourcesHeld(this.#trialRules) || !isLoginRefusal(error)) return;
+    let key: string | null;
+    try {
+      key = this.#lockoutKey(parseDsn(dsn));
+    } catch {
+      return;
+    }
+    if (key === null) return;
+    this.#loginFailures.set(key, [...this.#recentFailures(key), this.#now()]);
+  }
+
+  /** `provider.create`, counting a refused login (the adapters that dial eagerly fail here). */
+  async #create<Role extends 'introspect' | 'data'>(dsn: string, create: () => DatabaseAdapter<Role> | Promise<DatabaseAdapter<Role>>): Promise<DatabaseAdapter<Role>> {
+    try {
+      return await create();
+    } catch (error) {
+      if (error instanceof AdapterError) this.#noteLogin(dsn, error);
+      throw error;
+    }
   }
 
   /** Guard + dial + test + probe one DSN with a short-lived introspect-role instance. */
@@ -339,6 +440,7 @@ export class ConnectionManager {
       // AdapterProvider.create() receives the config and owns the dial.
       adapter = await provider.create({ role: 'introspect', ...target, ...this.#pool });
       const test: TestResult = await adapter.test();
+      if (!test.ok) this.#noteLogin(dsn, test.error);
       if (!test.ok) {
         return {
           ok: false,
@@ -363,6 +465,7 @@ export class ConnectionManager {
       };
     } catch (error) {
       if (error instanceof AdapterError) {
+        this.#noteLogin(dsn, error);
         return {
           ok: false,
           latencyMs: 0,
@@ -516,7 +619,7 @@ export class ConnectionManager {
     }
     const target = await this.#dialConfig(dsns.introspectDsn, connection.engine);
     const provider = this.provider(connection.engine);
-    return provider.create({ role: 'introspect', ...target, ...this.#pool });
+    return this.#create(dsns.introspectDsn, () => provider.create({ role: 'introspect', ...target, ...this.#pool }));
   }
 
   /**
@@ -544,7 +647,7 @@ export class ConnectionManager {
     }
     const target = await this.#dialConfig(dsns.dataDsn, connection.engine);
     const provider = this.provider(connection.engine);
-    return provider.create({ role: 'data', ...target, ...this.#pool });
+    return this.#create(dsns.dataDsn, () => provider.create({ role: 'data', ...target, ...this.#pool }));
   }
 
   /** A one-connection data-role adapter for the grants probe: one more connection, briefly, once a minute. */

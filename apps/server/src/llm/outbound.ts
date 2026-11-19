@@ -119,6 +119,10 @@ export async function resolveAndCheck(rawUrl: string, opts: ResolveCheckOptions 
         throw new ValidationFailedError('That address is on this server’s own network, which a model connection here may not use.', { host });
       case 'private':
         throw new ValidationFailedError('That address is on this server’s own network, which a model connection here may not use.', { host });
+      // Never asked here (the source-database guard's alone): a blocked range all the same.
+      case 'reserved':
+      case 'denied':
+        throw new ValidationFailedError('That address resolves to a blocked range.', { host });
     }
   }
   // A name the system's own resolver answered is called at the addresses it gave, all of which passed, and no other.

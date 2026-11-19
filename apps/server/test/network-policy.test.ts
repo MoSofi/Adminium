@@ -49,7 +49,7 @@ const ANSWERS = {
   'lan.test': ['192.168.1.20'],
   'ula.test': ['fd12:3456::7'],
   'cgnat.test': ['100.64.3.4'],
-  'public.test': ['203.0.113.10'],
+  'public.test': ['93.184.215.10'],
   'meta.test': ['169.254.169.254'],
   'hook.test': ['127.0.0.1'],
   'empty.test': [],
@@ -148,7 +148,7 @@ describe('source databases', () => {
   it('strict still lets a public host through', async () => {
     const dialled: Dialled[] = [];
     await manager({ policy: 'strict', dialled }).testDsn('postgres', 'postgres://u@public.test:5432/app');
-    expect(dialled[0]?.endpoint?.addresses).toEqual(['203.0.113.10']);
+    expect(dialled[0]?.endpoint?.addresses).toEqual(['93.184.215.10']);
   });
 
   it('strict lets a host in ADMINIUM_DATABASE_HOSTS through, on that port only', async () => {

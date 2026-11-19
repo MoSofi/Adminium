@@ -17,6 +17,7 @@ import { databaseEndpointFromDsn, type DatabaseEndpoint } from '@adminium/engine
 
 import { AppError, HostLookupFailedError, ValidationFailedError } from '../errors.js';
 import { addressKind, canonicalHost, checkHost, hostSpelling, METADATA_NAME, type HostCheck, type HostLookup, type HostPolicy } from '../net/address-guard.js';
+import { addressDenied, isUserHost, type DenyRange, type UserHost } from './user-host.js';
 
 export { canonicalHost } from '../net/address-guard.js';
 
@@ -359,6 +360,76 @@ export interface DsnCheckOptions extends DsnGuardOptions {
    * entries do. Never the metadata check.
    */
   localDatabases?: boolean | undefined;
+  /**
+   * `ADMINIUM_DATABASE_USER_HOST`, passed only while `ADMINIUM_YOUR_DATABASE`
+   * is set (`connections/user-host.ts`): a DSN on this host and port is held
+   * to the public internet on every lookup and re-check (no loopback, private,
+   * reserved or metadata address, nothing on {@link denyAddresses}), never
+   * listed, and gets the TLS defaults of {@link userHostTlsParams}.
+   */
+  userHost?: UserHost | null | undefined;
+  /** `ADMINIUM_DATABASE_DENY_ADDRESSES`: addresses the user host may never resolve to. */
+  denyAddresses?: readonly DenyRange[] | undefined;
+  /**
+   * Trial and hosted mode: a refusal never repeats the address a name resolved
+   * to (the person reading it is not the operator), in its message or details.
+   */
+  hideAddresses?: boolean | undefined;
+}
+
+/** The host policy the user's own host is held to: the public internet, and none of the fleet's addresses. */
+export function userHostPolicy(deny: readonly DenyRange[] | undefined, lookup?: HostLookup): HostPolicy {
+  return {
+    blockLoopback: true,
+    blockPrivate: true,
+    blockReserved: true,
+    listed: false,
+    failClosed: true,
+    denied: (address) => addressDenied(address, deny),
+    lookup,
+  };
+}
+
+/**
+ * The user host's TLS when its URL says none: Postgres `sslmode=verify-full`
+ * for a name and `require` (encrypted, the certificate not checked against an
+ * address it cannot name) for an IP; MySQL `ssl={"rejectUnauthorized":true}`
+ * for a name and `false` for an IP. Plain text only when the URL says
+ * `sslmode=disable`. What the URL sets otherwise is kept.
+ */
+export function userHostTlsParams(scheme: 'postgres' | 'mysql', host: string, params: Readonly<Record<string, string>>): Record<string, string> {
+  const address = isIP(canonicalHost(host)) !== 0;
+  const next: Record<string, string> = { ...params };
+  const mode = params['sslmode']?.toLowerCase();
+  if (scheme === 'postgres') {
+    if (mode === undefined) {
+      if (params['ssl'] === 'no-verify') return next;
+      if (address) {
+        next['sslmode'] = 'require';
+        // `pg` reads plain `require` as verify-full; libpq's meaning is the one asked for.
+        next['uselibpqcompat'] = 'true';
+      } else {
+        next['sslmode'] = 'verify-full';
+        delete next['uselibpqcompat'];
+      }
+    }
+    return next;
+  }
+  if (mode === 'disable' || mode === 'disabled') {
+    delete next['ssl'];
+    return next;
+  }
+  const ssl = params['ssl'];
+  let plain = ssl === undefined;
+  if (ssl !== undefined) {
+    try {
+      plain = JSON.parse(ssl) === false;
+    } catch {
+      plain = false;
+    }
+  }
+  if (plain) next['ssl'] = JSON.stringify({ rejectUnauthorized: !address });
+  return next;
 }
 
 /**
@@ -421,8 +492,8 @@ export interface CheckedDsn {
 export const ADDRESS_RECHECK_MS = 5_000;
 
 /** The error a connection fails with when the re-check refuses: `code` reads as a connection failure in both adapters. */
-function recheckRefusal(check: Extract<HostCheck, { ok: false }>): Error {
-  const at = check.address === undefined ? '' : ` (${check.address})`;
+function recheckRefusal(check: Extract<HostCheck, { ok: false }>, hide = false): Error {
+  const at = check.address === undefined || hide ? '' : ` (${check.address})`;
   const why =
     check.reason === 'unresolved'
       ? `The host ${check.host} could not be looked up.`
@@ -442,6 +513,7 @@ export function addressRechecker(
   policy: HostPolicy,
   first: readonly string[],
   now: () => number = () => Date.now(),
+  hideAddresses = false,
 ): () => Promise<readonly string[]> {
   // An empty first answer (a name that did not resolve, let through outside production) is not reused.
   let held: { at: number; addresses: readonly string[] } | null = first.length > 0 ? { at: now(), addresses: first } : null;
@@ -451,7 +523,7 @@ export function addressRechecker(
     if (pending !== null) return pending;
     pending = checkHost(host, policy)
       .then((check) => {
-        if (!check.ok) throw recheckRefusal(check);
+        if (!check.ok) throw recheckRefusal(check, hideAddresses);
         // Outside production an unresolved name passes with no address: the driver's own error, as before.
         if (check.addresses.length === 0) throw Object.assign(new Error(`getaddrinfo ENOTFOUND ${host}`), { code: 'ENOTFOUND', hostname: host });
         held = { at: now(), addresses: check.addresses };
@@ -494,42 +566,67 @@ export function addressRechecker(
 export async function checkDsn(dsn: string, opts: DsnResolveOptions = {}): Promise<CheckedDsn> {
   const parsed = guardDsn(dsn, opts);
   if (parsed.scheme === 'sqlite') return { parsed, endpoint: null };
-  const endpoint = databaseEndpointFromDsn(dsn, parsed.scheme === 'postgres' ? 'uri' : 'component');
-  if (endpoint === null) throw new ValidationFailedError('Malformed DSN.', {});
-  if (parsed.host === null) return { parsed, endpoint };
-  const policy: HostPolicy = {
-    // "Allow databases on this server" lets any loopback address through; private and metadata are still checked.
-    blockLoopback: opts.blockLoopback === true && opts.localDatabases !== true,
-    blockPrivate: opts.blockPrivate === true,
-    listed: databaseHostListed(opts.databaseHosts, parsed),
-    failClosed: opts.blockLoopback === true || opts.blockPrivate === true,
-    lookup: opts.lookup,
-  };
+  const built = databaseEndpointFromDsn(dsn, parsed.scheme === 'postgres' ? 'uri' : 'component');
+  if (built === null) throw new ValidationFailedError('Malformed DSN.', {});
+  if (parsed.host === null) return { parsed, endpoint: built };
+  const user = isUserHost(opts.userHost, parsed.host, parsed.port);
+  const endpoint = user ? { ...built, params: userHostTlsParams(parsed.scheme, parsed.host, built.params) } : built;
+  const blockPrivate = opts.blockPrivate === true;
+  const policy: HostPolicy = user
+    ? userHostPolicy(opts.denyAddresses, opts.lookup)
+    : {
+        // "Allow databases on this server" lets any loopback address through; private and metadata are still checked.
+        blockLoopback: opts.blockLoopback === true && opts.localDatabases !== true,
+        blockPrivate,
+        // Under strict, a source on a reserved or special-purpose range is refused too, unless listed.
+        blockReserved: blockPrivate,
+        listed: databaseHostListed(opts.databaseHosts, parsed),
+        failClosed: opts.blockLoopback === true || blockPrivate,
+        lookup: opts.lookup,
+      };
+  const hide = opts.hideAddresses === true;
   const check = await checkHost(parsed.host, policy);
   if (check.ok) {
     // An address needs no lookup: it was checked as written, and stays what it is.
     if (!check.looked) return { parsed, endpoint: { ...endpoint, addresses: check.addresses } };
     return {
       parsed,
-      endpoint: { ...endpoint, addresses: check.addresses, resolveAddresses: addressRechecker(parsed.host, policy, check.addresses) },
+      endpoint: { ...endpoint, addresses: check.addresses, resolveAddresses: addressRechecker(parsed.host, policy, check.addresses, undefined, hide) },
     };
   }
-  const at = check.address === undefined ? '' : ` (${check.address})`;
+  const at = check.address === undefined || hide ? '' : ` (${check.address})`;
+  const address = hide ? {} : { address: check.address };
+  if (user) {
+    // The user's own host: one refusal, in words that name no address and no operator variable.
+    if (check.reason === 'unresolved') throw new HostLookupFailedError(check.host);
+    throw new ValidationFailedError(`The host ${check.host} resolves to an address this server does not connect to.`, {
+      host: check.host,
+      ...address,
+      reason: check.reason,
+    });
+  }
   switch (check.reason) {
     case 'metadata':
-      throw new ValidationFailedError('Host resolves to a blocked address range.', { host: check.host, address: check.address });
+    case 'denied':
+      throw new ValidationFailedError('Host resolves to a blocked address range.', { host: check.host, ...address });
+    case 'reserved':
+      throw new ValidationFailedError(`The host ${check.host} resolves to a reserved address range${at}, which ADMINIUM_NETWORK_POLICY=strict does not connect to.`, {
+        host: check.host,
+        ...address,
+        policy: 'strict',
+      });
     case 'loopback': {
       const entry = databaseHostEntry(parsed);
       throw new ValidationFailedError(
         `The host ${check.host} is on this server${at}. Loopback hosts are not allowed in production. If this database runs on this server, add ${entry} to ADMINIUM_DATABASE_HOSTS.`,
-        { host: check.host, address: check.address, port: parsed.port, variable: 'ADMINIUM_DATABASE_HOSTS', entry },
+        { host: check.host, ...address, port: parsed.port, variable: 'ADMINIUM_DATABASE_HOSTS', entry },
       );
     }
     case 'private': {
       const entry = databaseHostEntry(parsed);
       throw new ValidationFailedError(
         `The host ${check.host} is on this server's own network${at}, which ADMINIUM_NETWORK_POLICY=strict does not connect to. If this database is meant to be reached, add ${entry} to ADMINIUM_DATABASE_HOSTS.`,
-        { host: check.host, address: check.address, port: parsed.port, variable: 'ADMINIUM_DATABASE_HOSTS', entry, policy: 'strict' },
+        { host: check.host, ...address, port: parsed.port, variable: 'ADMINIUM_DATABASE_HOSTS', entry, policy: 'strict' },
       );
     }
     case 'unresolved':

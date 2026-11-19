@@ -80,6 +80,10 @@ export async function checkOutboundUrl(rawUrl: string, policy: OutboundPolicy): 
         `The host ${check.host}${at} is on this server's own network, which ADMINIUM_NETWORK_POLICY=strict does not call.`,
         { host: check.host, address: check.address, variable: 'ADMINIUM_NETWORK_POLICY' },
       );
+    // Asked only by the source-database guard, never by this check: read as the blocked ranges they are.
+    case 'reserved':
+    case 'denied':
+      throw new ValidationFailedError('Host resolves to a blocked address range.', { host: check.host });
     case 'unresolved':
       throw new HostLookupFailedError(check.host);
   }

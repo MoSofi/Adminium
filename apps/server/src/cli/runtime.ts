@@ -244,6 +244,9 @@ export async function openRuntime(env: Env, opts: OpenRuntimeOptions = {}): Prom
     // Trial mode and the hosted profile: no SQLite source, only listed hosts, the operator's one login on its hosts.
     policy: trialPolicy(env),
     operatorSourceUrl: env.ADMINIUM_SOURCE_URL,
+    // The user's own host, only while their database is set: then held to public addresses, never the fleet's.
+    userHost: env.ADMINIUM_YOUR_DATABASE === undefined ? null : (env.ADMINIUM_DATABASE_USER_HOST ?? null),
+    denyAddresses: env.ADMINIUM_DATABASE_DENY_ADDRESSES,
   });
 
   // The placement pre-flight, and it has to be HERE — before `start`/`init` call

@@ -87,6 +87,55 @@ function ipv4Kind(address: string): AddressKind {
   return 'public';
 }
 
+/**
+ * Reserved and special-purpose ranges that are no database's home on the
+ * internet: "this network" 0/8, IETF protocol assignments 192.0.0/24, 6to4
+ * relays 192.88.99/24, benchmarking 198.18/15, the three TEST-NETs, multicast
+ * 224/4 and the rest 240/4 (broadcast included); IPv6's IPv4-mapped block as
+ * written (`::ffff:0:0/96`), discard 100::/64, Teredo 2001::/32, ORCHID
+ * 2001:10::/28 and 2001:20::/28, documentation 2001:db8::/32, the old
+ * site-local fec0::/10 and multicast ff00::/8.
+ *
+ * Apart from {@link addressKind} on purpose: a webhook or a storage endpoint
+ * keeps its reading, and only the source-database guard under `strict` and the
+ * user's own host refuse these ({@link HostPolicy.blockReserved}). Metadata
+ * and loopback are read first, so `192.0.0.192` stays metadata and 0/8 stays
+ * this machine.
+ */
+function reservedV4(address: string): boolean {
+  const [a, b, c] = address.split('.').map(Number) as [number, number, number];
+  if (a === 0) return true;
+  if (a === 192 && b === 0 && (c === 0 || c === 2)) return true;
+  if (a === 192 && b === 88 && c === 99) return true;
+  if (a === 198 && (b === 18 || b === 19)) return true;
+  if (a === 198 && b === 51 && c === 100) return true;
+  if (a === 203 && b === 0 && c === 113) return true;
+  return a >= 224;
+}
+
+/** Whether an address lies in a reserved or special-purpose range (see above). Not an address: false. */
+export function isReservedAddress(raw: string): boolean {
+  const address = raw.toLowerCase().replace(/^\[|\]$/g, '').replace(/%.*$/, '');
+  if (isIP(address) === 4) return reservedV4(address);
+  const bytes = ipv6Bytes(address);
+  if (bytes === null) return false;
+  const zero = (from: number, to: number): boolean => bytes.slice(from, to).every((byte) => byte === 0);
+  // IPv4-mapped as written: a lookup answer or an address that dresses an IPv4 address as IPv6.
+  if (zero(0, 10) && bytes[10] === 255 && bytes[11] === 255) return true;
+  const inner = embeddedIpv4(address);
+  if (inner !== null && reservedV4(inner)) return true;
+  const [b0 = 0, b1 = 0, b2 = 0, b3 = 0] = bytes;
+  if (b0 === 0x01 && b1 === 0x00 && zero(2, 8)) return true; // 100::/64
+  if (b0 === 0x20 && b1 === 0x01) {
+    if (b2 === 0x00 && b3 === 0x00) return true; // Teredo 2001::/32
+    if (b2 === 0x0d && b3 === 0xb8) return true; // 2001:db8::/32
+    if (b2 === 0x00 && (b3 & 0xf0) === 0x10) return true; // 2001:10::/28
+    if (b2 === 0x00 && (b3 & 0xf0) === 0x20) return true; // 2001:20::/28
+  }
+  if (b0 === 0xfe && (b1 & 0xc0) === 0xc0) return true; // fec0::/10
+  return b0 === 0xff; // ff00::/8
+}
+
 /** What kind of place an address is. Not an address at all reads as public: the caller looks names up first. */
 export function addressKind(raw: string): AddressKind {
   const address = raw.toLowerCase().replace(/^\[|\]$/g, '').replace(/%.*$/, '');
@@ -149,13 +198,20 @@ export interface HostPolicy {
   blockPrivate?: boolean | undefined;
   /** The operator named this host (and port) as allowed: loopback and private pass. Metadata never does. */
   listed?: boolean | undefined;
+  /**
+   * Refuse reserved and special-purpose ranges ({@link isReservedAddress}): the source-database guard under
+   * `strict`, and always for the user's own host. A listed host passes.
+   */
+  blockReserved?: boolean | undefined;
+  /** Addresses never to dial whatever else says (the fleet's own, `ADMINIUM_DATABASE_DENY_ADDRESSES`). Not skipped by `listed`. */
+  denied?: ((address: string) => boolean) | undefined;
   /** Refuse a name that does not resolve. Default: wherever loopback or private addresses are blocked. */
   failClosed?: boolean | undefined;
   /** Test seam: the lookup. Default {@link systemLookup}. */
   lookup?: HostLookup | undefined;
 }
 
-export type HostRefusal = 'metadata' | 'loopback' | 'private' | 'unresolved';
+export type HostRefusal = 'metadata' | 'loopback' | 'private' | 'reserved' | 'denied' | 'unresolved';
 
 export type HostCheck =
   | {
@@ -179,9 +235,11 @@ export type HostCheck =
 function refusalFor(address: string, policy: HostPolicy): HostRefusal | null {
   const kind = addressKind(address);
   if (kind === 'metadata') return 'metadata';
+  if (policy.denied?.(address) === true) return 'denied';
   if (policy.listed === true) return null;
   if (kind === 'loopback' && policy.blockLoopback === true) return 'loopback';
   if (kind === 'private' && policy.blockPrivate === true) return 'private';
+  if (policy.blockReserved === true && isReservedAddress(address)) return 'reserved';
   return null;
 }
 
@@ -199,7 +257,7 @@ export async function checkHost(rawHost: string, policy: HostPolicy = {}): Promi
     const refused = refusalFor(host, policy);
     return refused === null ? { ok: true, host, addresses: [host], looked: false } : { ok: false, host, reason: refused, address: host };
   }
-  const failClosed = policy.failClosed ?? (policy.blockLoopback === true || policy.blockPrivate === true);
+  const failClosed = policy.failClosed ?? (policy.blockLoopback === true || policy.blockPrivate === true || policy.blockReserved === true);
   let addresses: string[];
   try {
     addresses = [...(await (policy.lookup ?? systemLookup)(host))];

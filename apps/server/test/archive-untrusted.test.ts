@@ -310,7 +310,7 @@ describe('connection strings, checked again as when they are saved', () => {
       'db.p75.test': ['127.0.0.1'],
       'local-db.p75.test': ['127.0.0.1'],
       'lan-db.p75.test': ['10.0.0.7'],
-      'cloud-db.p75.test': ['203.0.113.20'],
+      'cloud-db.p75.test': ['93.184.215.20'],
     };
     const dest = await target();
     const result = await restoreArchive({
