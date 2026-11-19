@@ -520,7 +520,8 @@ describe('an app’s page with its sample data loaded', () => {
       expect(screen.queryByText('Northwind')).toBeNull();
       expect(fetchMock.mock.calls.some((call) => String(call[0]).startsWith('/api/v1/data/'))).toBe(false);
       release();
-      expect(await screen.findByTestId('app-sample-banner')).toBeDefined();
+      // Recorded here too: the observer's last call may not have run yet on a loaded machine.
+      boxes.add(await screen.findByTestId('app-sample-banner'));
       expect(await screen.findByText('Northwind')).toBeDefined();
       // The banner, or the slot keeping its place, already stood above the rows when they first showed.
       expect(atFirstRows).not.toBeNull();
