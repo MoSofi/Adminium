@@ -18,9 +18,14 @@
  *
  * Compared in JavaScript, never by the database's collation: Postgres and
  * SQLite compare text by case, MySQL's default does not, and none of them
- * strips "Limited". The database is asked only for candidates (a number or
- * a domain anywhere in the column, a town, or a word of the name), at most
- * {@link MATCH_CANDIDATES_MAX} of them.
+ * strips "Limited". The database is asked only for candidates, in the same
+ * order, each ask narrow enough that its cap never hides the answer: first
+ * the numbers (the column with spaces, dots and dashes taken out, compared
+ * whole), then each domain still unmatched (in the column anywhere), then
+ * each name still unmatched (a word of it in the name column, AND the town
+ * or no town). Each ask reads at most {@link MATCH_CANDIDATES_MAX} rows, so
+ * a town of a thousand companies is never read whole, and the company that
+ * is here by its number is found however many share its town.
  */
 import { sql, type Expression, type Kysely, type SqlBool } from 'kysely';
 
@@ -102,9 +107,16 @@ export function townKey(value: string | null | undefined): string {
 /** `%`, `_` and the escape mark itself, made literal in a LIKE pattern (`!` escapes: a backslash means something else in MySQL's strings). */
 const likeLiteral = (value: string): string => value.replace(/[!%_]/g, (mark) => `!${mark}`);
 
-/** The longest word of a name, for asking the database for rows that may be it. */
-function longestWord(name: string): string {
-  return name.split(' ').reduce((best, word) => (word.length > best.length ? word : best), '');
+/**
+ * The word of a name to ask the database for rows that may be it: the longest
+ * one written as it is folded (no accent, no capital the database could read
+ * otherwise), else the longest.
+ */
+function askingWord(name: string, written: string): string {
+  const plain = written.toLowerCase();
+  const words = name.split(' ').filter((word) => word.length >= 3);
+  const longest = (list: string[]) => list.reduce((best, word) => (word.length > best.length ? word : best), '');
+  return longest(words.filter((word) => plain.includes(word))) || longest(words);
 }
 
 const textOf = (value: unknown): string | null => (typeof value === 'string' ? value : typeof value === 'number' || typeof value === 'bigint' ? String(value) : null);
@@ -122,50 +134,57 @@ export async function alreadyHere(db: Kysely<SourceDatabase>, companies: Compani
   const nameColumn = has(declared.name) ? declared.name : null;
   if (wanted.length === 0 || nameColumn === null || table.primaryKey.length === 0) return wanted.map(() => null);
 
-  const keys = wanted.map((one) => ({ number: numberKey(one.number), domain: domainKey(one.website), name: nameKey(one.name), town: townKey(one.town) }));
-  const numbers = [...new Set(keys.map((one) => one.number).filter((one) => one !== ''))];
-  const domains = [...new Set(keys.map((one) => one.domain).filter((one) => one !== ''))];
-  const towns = [...new Set(wanted.map((one) => one.town?.trim().toLowerCase() ?? '').filter((one) => one !== ''))];
-  const words = [...new Set(keys.filter((one) => townColumn === null || one.town === '').map((one) => longestWord(one.name)).filter((one) => one.length >= 3))];
-
-  const rows = (await db
-    .selectFrom(table.id as never)
-    .selectAll()
-    .where((eb) => {
-      const any: Expression<SqlBool>[] = [];
-      // The database narrows; JavaScript decides. `upper`, `lower` and `replace` mean the same on every engine.
-      if (numberColumn !== null && numbers.length > 0) any.push(sql<SqlBool>`upper(replace(replace(replace(${sql.ref(numberColumn)}, ' ', ''), '-', ''), '.', '')) in (${sql.join(numbers)})`);
-      if (websiteColumn !== null) for (const domain of domains) any.push(sql<SqlBool>`lower(${sql.ref(websiteColumn)}) like ${`%${likeLiteral(domain)}%`} escape '!'`);
-      if (townColumn !== null && towns.length > 0) any.push(sql<SqlBool>`lower(${sql.ref(townColumn)}) in (${sql.join(towns)})`);
-      for (const word of words) any.push(sql<SqlBool>`lower(${sql.ref(nameColumn)}) like ${`%${likeLiteral(word)}%`} escape '!'`);
-      return any.length === 0 ? sql<SqlBool>`1 = 0` : eb.or(any);
-    })
-    .orderBy(sql.ref(table.primaryKey[0]!) as never)
-    .limit(MATCH_CANDIDATES_MAX)
-    .execute()) as Row[];
-
-  const read = rows.map((row) => ({
+  const keys = wanted.map((one) => ({ number: numberKey(one.number), domain: domainKey(one.website), name: nameKey(one.name), town: townKey(one.town), townAsked: one.town?.trim().toLowerCase() ?? '' }));
+  type Read = { key: string; number: string; domain: string; name: string; town: string };
+  const readOf = (row: Row): Read => ({
     key: rowKeyOf(table, row),
     number: numberColumn === null ? '' : numberKey(textOf(row[numberColumn])),
     domain: websiteColumn === null ? '' : domainKey(textOf(row[websiteColumn])),
     name: nameKey(textOf(row[nameColumn])),
     town: townColumn === null ? '' : townKey(textOf(row[townColumn])),
-  }));
-
-  return keys.map((one) => {
-    if (one.number !== '') {
-      const hit = read.find((row) => row.number === one.number);
-      if (hit !== undefined) return { key: hit.key, by: 'number' };
-    }
-    if (one.domain !== '') {
-      const hit = read.find((row) => row.domain === one.domain);
-      if (hit !== undefined) return { key: hit.key, by: 'domain' };
-    }
-    if (one.name !== '') {
-      // Both towns known: they must agree. Otherwise the name decides.
-      const hit = read.find((row) => row.name === one.name && (one.town === '' || row.town === '' || row.town === one.town));
-      if (hit !== undefined) return { key: hit.key, by: 'name' };
-    }
-    return null;
   });
+  const ask = async (where: Expression<SqlBool>): Promise<Read[]> =>
+    ((await db.selectFrom(table.id as never).selectAll().where(() => where).orderBy(sql.ref(table.primaryKey[0]!) as never).limit(MATCH_CANDIDATES_MAX).execute()) as Row[]).map(readOf);
+  const answers: (Matched | null)[] = keys.map(() => null);
+  const open = () => keys.map((one, at) => ({ one, at })).filter(({ at }) => answers[at] === null);
+
+  // 1. The numbers, compared whole: `upper`, `replace` mean the same on every engine.
+  const numbers = [...new Set(keys.map((one) => one.number).filter((one) => one !== ''))];
+  if (numberColumn !== null && numbers.length > 0) {
+    const read = await ask(sql<SqlBool>`upper(replace(replace(replace(${sql.ref(numberColumn)}, ' ', ''), '-', ''), '.', '')) in (${sql.join(numbers)})`);
+    for (const { one, at } of open()) {
+      const hit = one.number === '' ? undefined : read.find((row) => row.number === one.number);
+      if (hit !== undefined) answers[at] = { key: hit.key, by: 'number' };
+    }
+  }
+  // 2. Each domain still unmatched, anywhere in the website column.
+  if (websiteColumn !== null) {
+    for (const domain of [...new Set(open().map(({ one }) => one.domain).filter((one) => one !== ''))]) {
+      const read = await ask(sql<SqlBool>`lower(${sql.ref(websiteColumn)}) like ${`%${likeLiteral(domain)}%`} escape '!'`);
+      for (const { one, at } of open()) {
+        if (one.domain !== domain) continue;
+        const hit = read.find((row) => row.domain === one.domain);
+        if (hit !== undefined) answers[at] = { key: hit.key, by: 'domain' };
+      }
+    }
+  }
+  // 3. Each name still unmatched: a word of it, and its town or none (both towns known: they must agree).
+  for (const { one, at } of open()) {
+    if (one.name === '') continue;
+    const word = askingWord(one.name, wanted[at]!.name);
+    const same = (row: Read) => row.name === one.name && (one.town === '' || row.town === '' || row.town === one.town);
+    let hit: Read | undefined;
+    if (word !== '') {
+      const named = sql<SqlBool>`lower(${sql.ref(nameColumn)}) like ${`%${likeLiteral(word)}%`} escape '!'`;
+      const where =
+        townColumn === null || one.townAsked === ''
+          ? named
+          : sql<SqlBool>`${named} and (lower(${sql.ref(townColumn)}) = ${one.townAsked} or ${sql.ref(townColumn)} is null or ${sql.ref(townColumn)} = '')`;
+      hit = (await ask(where)).find(same);
+    }
+    // A name the database spells otherwise (an accent the word lacks), or with no word long enough: the town's rows, capped.
+    if (hit === undefined && townColumn !== null && one.townAsked !== '') hit = (await ask(sql<SqlBool>`lower(${sql.ref(townColumn)}) = ${one.townAsked}`)).find(same);
+    if (hit !== undefined) answers[at] = { key: hit.key, by: 'name' };
+  }
+  return answers;
 }
