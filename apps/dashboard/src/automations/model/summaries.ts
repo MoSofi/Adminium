@@ -154,6 +154,10 @@ function actionSentence(action: Action, table: SourceTable | null): string {
     }
     case 'document.render':
       return t('automations:node.document.summary', 'Draws a document');
+    case 'company.fill':
+      return action.sources.length === 0
+        ? t('automations:companyFill.pick', 'Registers · pick one')
+        : t('automations:companyFill.summary', 'Empty details from {registers}', { registers: action.sources.join(', ') });
     case 'add-on.step': {
       // Where it goes, when the step is given a column of the record to send to: "→ customer_id → email".
       const to = Object.values(action.inputs).map((value) => columnOfInput(value)).find((column) => column !== null && knowsColumn(table, column) && holdsAddresses(table, column) === true);

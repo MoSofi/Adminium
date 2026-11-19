@@ -22,6 +22,7 @@ import {
 } from './column-spec.js';
 import type { GridColumnSpec, GridRow } from './column-spec.js';
 import { useCustomCellRenderer } from './custom-cells.js';
+import { isSafeHref } from '../chrome/chrome-lib.js';
 import { parseRefList } from '../../page-config/file-refs.js';
 import type { WidgetEvent } from '../../registry/types.js';
 
@@ -586,6 +587,14 @@ function CellContent({
   }
 
   if (column.semantic === 'url' || column.semantic === 'image-url') {
+    // A link only to a web address or a path on this site: `javascript:`, `data:` and any other scheme read as text.
+    if (!isSafeHref(String(value))) {
+      return (
+        <span data-part="cell-url-text" className="truncate">
+          {String(value)}
+        </span>
+      );
+    }
     return (
       <a
         data-part="cell-url"

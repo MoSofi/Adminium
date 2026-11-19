@@ -46,7 +46,7 @@ import { z } from 'zod';
 import { foundById, markNotTold, markTold, type FoundRow } from './found-store.js';
 import { LEADS_TELL_KIND, leadsAddOnsOn, readLeadsSettings, storedLeadsAddOns, type LeadsAddOnTables } from './installs.js';
 import { OBJECT_LINK_VARIABLE, makeObjectToken, objectLinkKeys, objectUrl } from './object-token.js';
-import { companyCountryColumn } from './pending-p3.js';
+import { companyCountryColumn } from './companies.js';
 import { installLanguage } from './people.js';
 import { sourceName, tellBlocks, tellLanguages, tellOpening, type TellLanguage, type TellTranslate } from './tell-words.js';
 
@@ -166,7 +166,7 @@ export function createTellMail(deps: TellMailDeps): TellMail {
     const firstName = firstNameOf(personEntry?.name === null || personEntry === undefined ? null : person.row[personEntry.name]);
     const company = await rowNamed(db, view, box.connectionId, found.companyTable, found.companyKey);
     const companyEntry = company === null ? undefined : declared.find((one) => one.table === company.table.id && one.kind === 'companies');
-    const countryColumn = company === null || companyEntry === undefined ? null : await companyCountryColumn(meta, companyEntry, company.table);
+    const countryColumn = company === null || companyEntry === undefined ? null : companyCountryColumn(companyEntry, company.table);
     const country = countryColumn === null || company === null ? null : company.row[countryColumn];
     const companyName = company === null || companyEntry?.name === null || companyEntry === undefined ? null : company.row[companyEntry.name];
 

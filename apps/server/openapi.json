@@ -27358,6 +27358,43 @@
                                                     "inputs"
                                                   ],
                                                   "additionalProperties": false
+                                                },
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "kind": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "company.fill"
+                                                      ]
+                                                    },
+                                                    "addOn": {
+                                                      "default": "",
+                                                      "type": "string",
+                                                      "maxLength": 80
+                                                    },
+                                                    "sources": {
+                                                      "default": [],
+                                                      "maxItems": 8,
+                                                      "type": "array",
+                                                      "items": {
+                                                        "type": "string",
+                                                        "maxLength": 32
+                                                      }
+                                                    },
+                                                    "addOnName": {
+                                                      "default": "",
+                                                      "type": "string",
+                                                      "maxLength": 120
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "kind",
+                                                    "addOn",
+                                                    "sources",
+                                                    "addOnName"
+                                                  ],
+                                                  "additionalProperties": false
                                                 }
                                               ]
                                             }
@@ -29173,6 +29210,43 @@
                                                                           "inputs"
                                                                         ],
                                                                         "additionalProperties": false
+                                                                      },
+                                                                      {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "kind": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "company.fill"
+                                                                            ]
+                                                                          },
+                                                                          "addOn": {
+                                                                            "default": "",
+                                                                            "type": "string",
+                                                                            "maxLength": 80
+                                                                          },
+                                                                          "sources": {
+                                                                            "default": [],
+                                                                            "maxItems": 8,
+                                                                            "type": "array",
+                                                                            "items": {
+                                                                              "type": "string",
+                                                                              "maxLength": 32
+                                                                            }
+                                                                          },
+                                                                          "addOnName": {
+                                                                            "default": "",
+                                                                            "type": "string",
+                                                                            "maxLength": 120
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "kind",
+                                                                          "addOn",
+                                                                          "sources",
+                                                                          "addOnName"
+                                                                        ],
+                                                                        "additionalProperties": false
                                                                       }
                                                                     ]
                                                                   }
@@ -30819,6 +30893,43 @@
                                                                           "step",
                                                                           "addOnName",
                                                                           "inputs"
+                                                                        ],
+                                                                        "additionalProperties": false
+                                                                      },
+                                                                      {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "kind": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "company.fill"
+                                                                            ]
+                                                                          },
+                                                                          "addOn": {
+                                                                            "default": "",
+                                                                            "type": "string",
+                                                                            "maxLength": 80
+                                                                          },
+                                                                          "sources": {
+                                                                            "default": [],
+                                                                            "maxItems": 8,
+                                                                            "type": "array",
+                                                                            "items": {
+                                                                              "type": "string",
+                                                                              "maxLength": 32
+                                                                            }
+                                                                          },
+                                                                          "addOnName": {
+                                                                            "default": "",
+                                                                            "type": "string",
+                                                                            "maxLength": 120
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "kind",
+                                                                          "addOn",
+                                                                          "sources",
+                                                                          "addOnName"
                                                                         ],
                                                                         "additionalProperties": false
                                                                       }
@@ -33283,6 +33394,39 @@
                                           "required": [
                                             "kind"
                                           ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
+                                                "company.fill"
+                                              ]
+                                            },
+                                            "addOn": {
+                                              "default": "",
+                                              "type": "string",
+                                              "maxLength": 80
+                                            },
+                                            "sources": {
+                                              "default": [],
+                                              "maxItems": 8,
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string",
+                                                "maxLength": 32
+                                              }
+                                            },
+                                            "addOnName": {
+                                              "default": "",
+                                              "type": "string",
+                                              "maxLength": 120
+                                            }
+                                          },
+                                          "required": [
+                                            "kind"
+                                          ]
                                         }
                                       ]
                                     }
@@ -35013,6 +35157,39 @@
                                                                 "required": [
                                                                   "kind"
                                                                 ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "company.fill"
+                                                                    ]
+                                                                  },
+                                                                  "addOn": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 80
+                                                                  },
+                                                                  "sources": {
+                                                                    "default": [],
+                                                                    "maxItems": 8,
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                      "type": "string",
+                                                                      "maxLength": 32
+                                                                    }
+                                                                  },
+                                                                  "addOnName": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 120
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
                                                               }
                                                             ]
                                                           }
@@ -36578,6 +36755,39 @@
                                                                       "type": "string",
                                                                       "maxLength": 2000
                                                                     }
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "company.fill"
+                                                                    ]
+                                                                  },
+                                                                  "addOn": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 80
+                                                                  },
+                                                                  "sources": {
+                                                                    "default": [],
+                                                                    "maxItems": 8,
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                      "type": "string",
+                                                                      "maxLength": 32
+                                                                    }
+                                                                  },
+                                                                  "addOnName": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 120
                                                                   }
                                                                 },
                                                                 "required": [
@@ -38986,6 +39196,43 @@
                                               "inputs"
                                             ],
                                             "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "company.fill"
+                                                ]
+                                              },
+                                              "addOn": {
+                                                "default": "",
+                                                "type": "string",
+                                                "maxLength": 80
+                                              },
+                                              "sources": {
+                                                "default": [],
+                                                "maxItems": 8,
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "string",
+                                                  "maxLength": 32
+                                                }
+                                              },
+                                              "addOnName": {
+                                                "default": "",
+                                                "type": "string",
+                                                "maxLength": 120
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "addOn",
+                                              "sources",
+                                              "addOnName"
+                                            ],
+                                            "additionalProperties": false
                                           }
                                         ]
                                       }
@@ -40801,6 +41048,43 @@
                                                                     "inputs"
                                                                   ],
                                                                   "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "company.fill"
+                                                                      ]
+                                                                    },
+                                                                    "addOn": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "sources": {
+                                                                      "default": [],
+                                                                      "maxItems": 8,
+                                                                      "type": "array",
+                                                                      "items": {
+                                                                        "type": "string",
+                                                                        "maxLength": 32
+                                                                      }
+                                                                    },
+                                                                    "addOnName": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 120
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "addOn",
+                                                                    "sources",
+                                                                    "addOnName"
+                                                                  ],
+                                                                  "additionalProperties": false
                                                                 }
                                                               ]
                                                             }
@@ -42449,6 +42733,43 @@
                                                                     "inputs"
                                                                   ],
                                                                   "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "company.fill"
+                                                                      ]
+                                                                    },
+                                                                    "addOn": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "sources": {
+                                                                      "default": [],
+                                                                      "maxItems": 8,
+                                                                      "type": "array",
+                                                                      "items": {
+                                                                        "type": "string",
+                                                                        "maxLength": 32
+                                                                      }
+                                                                    },
+                                                                    "addOnName": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 120
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "addOn",
+                                                                    "sources",
+                                                                    "addOnName"
+                                                                  ],
+                                                                  "additionalProperties": false
                                                                 }
                                                               ]
                                                             }
@@ -43515,6 +43836,39 @@
                               ],
                               "additionalProperties": false
                             }
+                          },
+                          "companyFill": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "addOn": {
+                                  "type": "string"
+                                },
+                                "addOnName": {
+                                  "type": "string"
+                                },
+                                "registers": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "tables": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "required": [
+                                "addOn",
+                                "addOnName",
+                                "registers",
+                                "tables"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -43523,7 +43877,8 @@
                           "dialect",
                           "timezone",
                           "tables",
-                          "steps"
+                          "steps",
+                          "companyFill"
                         ],
                         "additionalProperties": false
                       }
@@ -45733,6 +46088,43 @@
                                               "inputs"
                                             ],
                                             "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "company.fill"
+                                                ]
+                                              },
+                                              "addOn": {
+                                                "default": "",
+                                                "type": "string",
+                                                "maxLength": 80
+                                              },
+                                              "sources": {
+                                                "default": [],
+                                                "maxItems": 8,
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "string",
+                                                  "maxLength": 32
+                                                }
+                                              },
+                                              "addOnName": {
+                                                "default": "",
+                                                "type": "string",
+                                                "maxLength": 120
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "addOn",
+                                              "sources",
+                                              "addOnName"
+                                            ],
+                                            "additionalProperties": false
                                           }
                                         ]
                                       }
@@ -47548,6 +47940,43 @@
                                                                     "inputs"
                                                                   ],
                                                                   "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "company.fill"
+                                                                      ]
+                                                                    },
+                                                                    "addOn": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "sources": {
+                                                                      "default": [],
+                                                                      "maxItems": 8,
+                                                                      "type": "array",
+                                                                      "items": {
+                                                                        "type": "string",
+                                                                        "maxLength": 32
+                                                                      }
+                                                                    },
+                                                                    "addOnName": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 120
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "addOn",
+                                                                    "sources",
+                                                                    "addOnName"
+                                                                  ],
+                                                                  "additionalProperties": false
                                                                 }
                                                               ]
                                                             }
@@ -49194,6 +49623,43 @@
                                                                     "step",
                                                                     "addOnName",
                                                                     "inputs"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "company.fill"
+                                                                      ]
+                                                                    },
+                                                                    "addOn": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "sources": {
+                                                                      "default": [],
+                                                                      "maxItems": 8,
+                                                                      "type": "array",
+                                                                      "items": {
+                                                                        "type": "string",
+                                                                        "maxLength": 32
+                                                                      }
+                                                                    },
+                                                                    "addOnName": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 120
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "addOn",
+                                                                    "sources",
+                                                                    "addOnName"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 }
@@ -51645,6 +52111,39 @@
                                           "required": [
                                             "kind"
                                           ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
+                                                "company.fill"
+                                              ]
+                                            },
+                                            "addOn": {
+                                              "default": "",
+                                              "type": "string",
+                                              "maxLength": 80
+                                            },
+                                            "sources": {
+                                              "default": [],
+                                              "maxItems": 8,
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string",
+                                                "maxLength": 32
+                                              }
+                                            },
+                                            "addOnName": {
+                                              "default": "",
+                                              "type": "string",
+                                              "maxLength": 120
+                                            }
+                                          },
+                                          "required": [
+                                            "kind"
+                                          ]
                                         }
                                       ]
                                     }
@@ -53375,6 +53874,39 @@
                                                                 "required": [
                                                                   "kind"
                                                                 ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "company.fill"
+                                                                    ]
+                                                                  },
+                                                                  "addOn": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 80
+                                                                  },
+                                                                  "sources": {
+                                                                    "default": [],
+                                                                    "maxItems": 8,
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                      "type": "string",
+                                                                      "maxLength": 32
+                                                                    }
+                                                                  },
+                                                                  "addOnName": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 120
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
                                                               }
                                                             ]
                                                           }
@@ -54940,6 +55472,39 @@
                                                                       "type": "string",
                                                                       "maxLength": 2000
                                                                     }
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "company.fill"
+                                                                    ]
+                                                                  },
+                                                                  "addOn": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 80
+                                                                  },
+                                                                  "sources": {
+                                                                    "default": [],
+                                                                    "maxItems": 8,
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                      "type": "string",
+                                                                      "maxLength": 32
+                                                                    }
+                                                                  },
+                                                                  "addOnName": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 120
                                                                   }
                                                                 },
                                                                 "required": [
@@ -57353,6 +57918,43 @@
                                               "inputs"
                                             ],
                                             "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "company.fill"
+                                                ]
+                                              },
+                                              "addOn": {
+                                                "default": "",
+                                                "type": "string",
+                                                "maxLength": 80
+                                              },
+                                              "sources": {
+                                                "default": [],
+                                                "maxItems": 8,
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "string",
+                                                  "maxLength": 32
+                                                }
+                                              },
+                                              "addOnName": {
+                                                "default": "",
+                                                "type": "string",
+                                                "maxLength": 120
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "addOn",
+                                              "sources",
+                                              "addOnName"
+                                            ],
+                                            "additionalProperties": false
                                           }
                                         ]
                                       }
@@ -59168,6 +59770,43 @@
                                                                     "inputs"
                                                                   ],
                                                                   "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "company.fill"
+                                                                      ]
+                                                                    },
+                                                                    "addOn": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "sources": {
+                                                                      "default": [],
+                                                                      "maxItems": 8,
+                                                                      "type": "array",
+                                                                      "items": {
+                                                                        "type": "string",
+                                                                        "maxLength": 32
+                                                                      }
+                                                                    },
+                                                                    "addOnName": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 120
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "addOn",
+                                                                    "sources",
+                                                                    "addOnName"
+                                                                  ],
+                                                                  "additionalProperties": false
                                                                 }
                                                               ]
                                                             }
@@ -60814,6 +61453,43 @@
                                                                     "step",
                                                                     "addOnName",
                                                                     "inputs"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "company.fill"
+                                                                      ]
+                                                                    },
+                                                                    "addOn": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "sources": {
+                                                                      "default": [],
+                                                                      "maxItems": 8,
+                                                                      "type": "array",
+                                                                      "items": {
+                                                                        "type": "string",
+                                                                        "maxLength": 32
+                                                                      }
+                                                                    },
+                                                                    "addOnName": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 120
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "addOn",
+                                                                    "sources",
+                                                                    "addOnName"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 }
@@ -63421,6 +64097,43 @@
                                               "inputs"
                                             ],
                                             "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "company.fill"
+                                                ]
+                                              },
+                                              "addOn": {
+                                                "default": "",
+                                                "type": "string",
+                                                "maxLength": 80
+                                              },
+                                              "sources": {
+                                                "default": [],
+                                                "maxItems": 8,
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "string",
+                                                  "maxLength": 32
+                                                }
+                                              },
+                                              "addOnName": {
+                                                "default": "",
+                                                "type": "string",
+                                                "maxLength": 120
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "addOn",
+                                              "sources",
+                                              "addOnName"
+                                            ],
+                                            "additionalProperties": false
                                           }
                                         ]
                                       }
@@ -65236,6 +65949,43 @@
                                                                     "inputs"
                                                                   ],
                                                                   "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "company.fill"
+                                                                      ]
+                                                                    },
+                                                                    "addOn": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "sources": {
+                                                                      "default": [],
+                                                                      "maxItems": 8,
+                                                                      "type": "array",
+                                                                      "items": {
+                                                                        "type": "string",
+                                                                        "maxLength": 32
+                                                                      }
+                                                                    },
+                                                                    "addOnName": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 120
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "addOn",
+                                                                    "sources",
+                                                                    "addOnName"
+                                                                  ],
+                                                                  "additionalProperties": false
                                                                 }
                                                               ]
                                                             }
@@ -66882,6 +67632,43 @@
                                                                     "step",
                                                                     "addOnName",
                                                                     "inputs"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "company.fill"
+                                                                      ]
+                                                                    },
+                                                                    "addOn": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "sources": {
+                                                                      "default": [],
+                                                                      "maxItems": 8,
+                                                                      "type": "array",
+                                                                      "items": {
+                                                                        "type": "string",
+                                                                        "maxLength": 32
+                                                                      }
+                                                                    },
+                                                                    "addOnName": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 120
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "addOn",
+                                                                    "sources",
+                                                                    "addOnName"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 }
@@ -69330,6 +70117,39 @@
                                           "required": [
                                             "kind"
                                           ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
+                                                "company.fill"
+                                              ]
+                                            },
+                                            "addOn": {
+                                              "default": "",
+                                              "type": "string",
+                                              "maxLength": 80
+                                            },
+                                            "sources": {
+                                              "default": [],
+                                              "maxItems": 8,
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string",
+                                                "maxLength": 32
+                                              }
+                                            },
+                                            "addOnName": {
+                                              "default": "",
+                                              "type": "string",
+                                              "maxLength": 120
+                                            }
+                                          },
+                                          "required": [
+                                            "kind"
+                                          ]
                                         }
                                       ]
                                     }
@@ -71060,6 +71880,39 @@
                                                                 "required": [
                                                                   "kind"
                                                                 ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "company.fill"
+                                                                    ]
+                                                                  },
+                                                                  "addOn": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 80
+                                                                  },
+                                                                  "sources": {
+                                                                    "default": [],
+                                                                    "maxItems": 8,
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                      "type": "string",
+                                                                      "maxLength": 32
+                                                                    }
+                                                                  },
+                                                                  "addOnName": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 120
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
                                                               }
                                                             ]
                                                           }
@@ -72625,6 +73478,39 @@
                                                                       "type": "string",
                                                                       "maxLength": 2000
                                                                     }
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "company.fill"
+                                                                    ]
+                                                                  },
+                                                                  "addOn": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 80
+                                                                  },
+                                                                  "sources": {
+                                                                    "default": [],
+                                                                    "maxItems": 8,
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                      "type": "string",
+                                                                      "maxLength": 32
+                                                                    }
+                                                                  },
+                                                                  "addOnName": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 120
                                                                   }
                                                                 },
                                                                 "required": [
@@ -162646,6 +163532,1255 @@
                     "tables",
                     "inUse",
                     "requiredBy"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/leads/{key}/search": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]{1,31}$"
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "activity": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  },
+                  "place": {
+                    "type": "object",
+                    "properties": {
+                      "text": {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      "country": {
+                        "type": "string",
+                        "pattern": "^[A-Z]{2}$"
+                      },
+                      "codes": {
+                        "maxItems": 200,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9-]{1,20}$"
+                        }
+                      }
+                    },
+                    "required": [
+                      "text",
+                      "country"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "cursor": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1024
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "size": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50
+                  }
+                },
+                "required": [
+                  "source",
+                  "activity",
+                  "place"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "type": "string"
+                    },
+                    "table": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "peopleOn": {
+                      "type": "boolean"
+                    },
+                    "companies": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ref": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "number": {
+                            "type": "string"
+                          },
+                          "website": {
+                            "type": "string"
+                          },
+                          "phone": {
+                            "type": "string"
+                          },
+                          "address": {
+                            "type": "object",
+                            "properties": {
+                              "lines": {
+                                "type": "string"
+                              },
+                              "town": {
+                                "type": "string"
+                              },
+                              "region": {
+                                "type": "string"
+                              },
+                              "postalCode": {
+                                "type": "string"
+                              },
+                              "country": {
+                                "type": "string"
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "activity": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "about": {
+                            "type": "string"
+                          },
+                          "natural": {
+                            "type": "boolean"
+                          },
+                          "noMarketing": {
+                            "type": "boolean"
+                          },
+                          "officers": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "role": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "name"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "sourceUrl": {
+                            "type": "string"
+                          },
+                          "here": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "key": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "keptByColleague": {
+                                    "type": "boolean"
+                                  },
+                                  "by": {
+                                    "type": "string",
+                                    "enum": [
+                                      "number",
+                                      "domain",
+                                      "name"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "keptByColleague",
+                                  "by"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "blocked": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "reason": {
+                                    "type": "string",
+                                    "enum": [
+                                      "no-marketing",
+                                      "sole-trader",
+                                      "needs-address"
+                                    ]
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "reason",
+                                  "message"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "ref",
+                          "name",
+                          "natural",
+                          "noMarketing",
+                          "here",
+                          "blocked"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "next": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "total": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "source",
+                    "table",
+                    "peopleOn",
+                    "companies",
+                    "next",
+                    "total"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/leads/{key}/add": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]{1,31}$"
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "companies": {
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "ref": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 100
+                        },
+                        "retryKey": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9_-]{22,64}$"
+                        },
+                        "email": {
+                          "type": "string",
+                          "maxLength": 320
+                        }
+                      },
+                      "required": [
+                        "ref",
+                        "retryKey"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "source",
+                  "companies"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "table": {
+                      "type": "string"
+                    },
+                    "added": {
+                      "type": "number"
+                    },
+                    "refused": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ref": {
+                            "type": "string"
+                          },
+                          "outcome": {
+                            "type": "string",
+                            "enum": [
+                              "added",
+                              "refused"
+                            ]
+                          },
+                          "key": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "reason": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "already-here",
+                                  "no-marketing",
+                                  "sole-trader",
+                                  "needs-address",
+                                  "not-found",
+                                  "refused",
+                                  "not-kept"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "message": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "ref",
+                          "outcome",
+                          "key",
+                          "reason",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "table",
+                    "added",
+                    "refused",
+                    "message",
+                    "results"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/leads/{key}/lookup": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "record": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "sources": {
+                    "default": [],
+                    "maxItems": 8,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,31}$"
+                    }
+                  },
+                  "website": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "confirmedHost": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 253
+                  },
+                  "number": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  },
+                  "town": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  }
+                },
+                "required": [
+                  "record"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "table": {
+                      "type": "string"
+                    },
+                    "record": {
+                      "type": "string"
+                    },
+                    "sources": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "source": {
+                            "type": "string"
+                          },
+                          "outcome": {
+                            "type": "string",
+                            "enum": [
+                              "found",
+                              "several",
+                              "none",
+                              "refused"
+                            ]
+                          },
+                          "code": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "message": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "matches": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "ref": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "number": {
+                                  "type": "string"
+                                },
+                                "website": {
+                                  "type": "string"
+                                },
+                                "phone": {
+                                  "type": "string"
+                                },
+                                "address": {
+                                  "type": "object",
+                                  "properties": {
+                                    "lines": {
+                                      "type": "string"
+                                    },
+                                    "town": {
+                                      "type": "string"
+                                    },
+                                    "region": {
+                                      "type": "string"
+                                    },
+                                    "postalCode": {
+                                      "type": "string"
+                                    },
+                                    "country": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                "activity": {
+                                  "type": "object",
+                                  "properties": {
+                                    "code": {
+                                      "type": "string"
+                                    },
+                                    "label": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                "about": {
+                                  "type": "string"
+                                },
+                                "natural": {
+                                  "type": "boolean"
+                                },
+                                "noMarketing": {
+                                  "type": "boolean"
+                                },
+                                "officers": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "name": {
+                                        "type": "string"
+                                      },
+                                      "role": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "name"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "sourceUrl": {
+                                  "type": "string"
+                                },
+                                "here": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "key": {
+                                          "type": [
+                                            "string",
+                                            "null"
+                                          ]
+                                        },
+                                        "keptByColleague": {
+                                          "type": "boolean"
+                                        },
+                                        "by": {
+                                          "type": "string",
+                                          "enum": [
+                                            "number",
+                                            "domain",
+                                            "name"
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "key",
+                                        "keptByColleague",
+                                        "by"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "blocked": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "reason": {
+                                          "type": "string",
+                                          "enum": [
+                                            "no-marketing",
+                                            "sole-trader",
+                                            "needs-address"
+                                          ]
+                                        },
+                                        "message": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "reason",
+                                        "message"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "ref",
+                                "name",
+                                "natural",
+                                "noMarketing",
+                                "here",
+                                "blocked"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "source",
+                          "outcome",
+                          "code",
+                          "message",
+                          "matches"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "website": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "outcome": {
+                              "type": "string",
+                              "enum": [
+                                "read",
+                                "asks",
+                                "refused-by-site",
+                                "not-a-page",
+                                "unreachable",
+                                "no-website",
+                                "off"
+                              ]
+                            },
+                            "host": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "message": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "outcome",
+                            "host",
+                            "message"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "fields": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "field": {
+                            "type": "string",
+                            "enum": [
+                              "name",
+                              "number",
+                              "website",
+                              "phone",
+                              "lines",
+                              "town",
+                              "region",
+                              "postalCode",
+                              "country",
+                              "activity",
+                              "about"
+                            ]
+                          },
+                          "column": {
+                            "type": "string"
+                          },
+                          "now": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "found": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "source": {
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "source",
+                                "value"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "field",
+                          "column",
+                          "now",
+                          "found"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "table",
+                    "record",
+                    "sources",
+                    "website",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/leads/{key}/fill": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "record": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "fields": {
+                    "minItems": 1,
+                    "maxItems": 11,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "field": {
+                          "type": "string",
+                          "enum": [
+                            "name",
+                            "number",
+                            "website",
+                            "phone",
+                            "lines",
+                            "town",
+                            "region",
+                            "postalCode",
+                            "country",
+                            "activity",
+                            "about"
+                          ]
+                        },
+                        "source": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9-]{1,31}$"
+                        },
+                        "now": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 10000
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "field",
+                        "source",
+                        "now"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "record",
+                  "fields"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "table": {
+                      "type": "string"
+                    },
+                    "record": {
+                      "type": "string"
+                    },
+                    "filled": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "field": {
+                            "type": "string",
+                            "enum": [
+                              "name",
+                              "number",
+                              "website",
+                              "phone",
+                              "lines",
+                              "town",
+                              "region",
+                              "postalCode",
+                              "country",
+                              "activity",
+                              "about"
+                            ]
+                          },
+                          "column": {
+                            "type": "string"
+                          },
+                          "source": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "field",
+                          "column",
+                          "source"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "table",
+                    "record",
+                    "filled"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/leads/{key}/people": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "record": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "source": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]{1,31}$"
+                  }
+                },
+                "required": [
+                  "record",
+                  "source"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "record": {
+                      "type": "string"
+                    },
+                    "domain": {
+                      "type": "string"
+                    },
+                    "people": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "sources": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "note": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "generic",
+                                  "already-here"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "role",
+                          "email",
+                          "sources",
+                          "note"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "stopped": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "record",
+                    "domain",
+                    "people",
+                    "stopped"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/leads/{key}/people/keep": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "record": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "source": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]{1,31}$"
+                  },
+                  "emails": {
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 320
+                    }
+                  }
+                },
+                "required": [
+                  "record",
+                  "source",
+                  "emails"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "kept": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "email": {
+                            "type": "string"
+                          },
+                          "personTable": {
+                            "type": "string"
+                          },
+                          "personKey": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "email",
+                          "personTable",
+                          "personKey"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "refused": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "email": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "email",
+                          "reason"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "kept",
+                    "refused"
                   ],
                   "additionalProperties": false
                 }

@@ -30,6 +30,7 @@ import type { FileStore } from '../../files/store.js';
 import type { NotificationPublisher } from '../../notifications/notify.js';
 import type { TokenMap } from '../templating.js';
 import type { TraceText } from '../trace.js';
+import type { CompanyFillDeps } from './company-fill.js';
 
 /** The connection half of a run's context; null for a bare schedule tick. */
 export interface ActionSource {
@@ -106,6 +107,12 @@ export interface ActionContext {
    * from inside the renderer.
    */
   documents?: RenderDeps | undefined;
+  /**
+   * How a `company.fill` step reaches a lead source add-on's registers. A
+   * function: the add-on runtime and the operator's switches are read when
+   * the step runs. Absent, the step refuses with a sentence.
+   */
+  leadSources?: (() => CompanyFillDeps) | undefined;
 }
 
 export interface ActionResult {

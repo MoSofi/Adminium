@@ -142,6 +142,16 @@ export interface SourceConnection {
   tables: SourceTable[];
   /** The steps installed add-ons give here. Absent from a server that offers none. */
   steps?: SourceStep[] | undefined;
+  /** "Fill in the company": each lead source add-on here, its free registers and the companies tables it fills. Absent from an older server. */
+  companyFill?: CompanyFillSource[] | undefined;
+}
+
+/** A lead source add-on a rule may fill companies in with: only its free registers, only on its companies tables. */
+export interface CompanyFillSource {
+  addOn: string;
+  addOnName: string;
+  registers: string[];
+  tables: string[];
 }
 
 /** A text in each of the product's languages, as an add-on's manifest carries it. */

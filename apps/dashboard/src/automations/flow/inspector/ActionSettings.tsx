@@ -20,7 +20,7 @@
  * `connectionId` is a prop: see `RecordSettings`.
  */
 
-import { Button, ChipInput, Combobox, Input, RadioCard, RadioGroup, SegmentedControl, Select, Switch, Textarea, type ComboboxOption } from '@adminium/ui';
+import { Button, Checkbox, ChipInput, Combobox, Input, RadioCard, RadioGroup, SegmentedControl, Select, Switch, Textarea, type ComboboxOption } from '@adminium/ui';
 import { AtSign, CircleAlert, Columns3, Info, Link2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useId, useState, type ReactNode } from 'react';
@@ -29,6 +29,7 @@ import { getI18nInstance, t } from '../../../i18n/t.js';
 import { createCrudApi } from '../../../api/crud.js';
 import type { SourceStepInput, SourceTable, Sources } from '../../api.js';
 import { addOnNameOf, columnOfInput, inLanguage, inputMode, pickableRows, stepOf, type StepAction } from '../../model/addOnSteps.js';
+import { companyFillSourceOf, type CompanyFillAction } from '../../model/companyFill.js';
 import type { Action, DigestSection, MailClass, MailPurpose, WriteValue } from '../../model/graph.js';
 import { classPatch, classUnsaid, mailClassOf, purposeOf, recipientPatch } from '../../model/mailClass.js';
 import { columnOfValue, holdsAddresses, linkedColumns, placeholderRows, templateOf, varsFor, type PlaceholderRow } from '../../model/placeholders.js';
@@ -79,9 +80,57 @@ export function ActionSettings(props: ActionSettingsProps): ReactNode {
       );
     case 'add-on.step':
       return <AddOnStepSettings {...props} action={props.action} />;
+    case 'company.fill':
+      return <CompanyFillSettings {...props} action={props.action} />;
     default:
       return null;
   }
+}
+
+// --- fill in the company (comp `Lead Finder States` 7a) ----------------------
+
+/**
+ * Which free registers the rule asks, in order, until one finds the company.
+ * Websites, paid sources and people sources are never offered: a rule runs
+ * with nobody there, often on a row a stranger made.
+ */
+function CompanyFillSettings({ action, sources, connectionId, onChange }: ActionSettingsProps & { action: CompanyFillAction }): ReactNode {
+  const source = companyFillSourceOf(sources, connectionId, action);
+  const name = source?.addOnName ?? (action.addOnName !== undefined && action.addOnName !== '' ? action.addOnName : action.addOn);
+  if (source === null) {
+    return (
+      <Card title={t('automations:companyFill.label', 'Fill in the company')}>
+        <p role="alert" className="flex items-start gap-[7px] text-[12px] font-semibold leading-[1.5] text-danger" data-testid="company-fill-gone">
+          <CircleAlert className="mt-0.5 size-[13px] shrink-0" aria-hidden="true" />
+          <span>{t('automations:addOn.gone', 'The add-on {name} is no longer installed.', { name })}</span>
+        </p>
+      </Card>
+    );
+  }
+  const toggle = (register: string, on: boolean): void => {
+    const next = on ? [...action.sources.filter((one) => one !== register), register] : action.sources.filter((one) => one !== register);
+    // In the add-on's own order: the rule asks them one after the other.
+    onChange({ sources: source.registers.filter((one) => next.includes(one)) });
+  };
+  return (
+    <Card title={t('automations:companyFill.title', 'Fill in the company · {addOn}', { addOn: name })}>
+      <Field label={t('automations:companyFill.by', 'Look up by')}>
+        <p className="text-xs text-fg" data-testid="company-fill-by">{t('automations:companyFill.byValue', 'Company number, else name and town')}</p>
+      </Field>
+      <fieldset className="flex flex-col gap-2" data-testid="company-fill-registers">
+        <legend className="mb-1 text-xs font-semibold text-fg">{t('automations:companyFill.registers', 'Registers')}</legend>
+        {source.registers.map((register) => (
+          <label key={register} className="flex min-h-[32px] items-center gap-2 text-xs text-fg">
+            <Checkbox checked={action.sources.includes(register)} onCheckedChange={(checked) => toggle(register, checked === true)} data-testid={`company-fill-register-${register}`} />
+            <span>{register}</span>
+          </label>
+        ))}
+      </fieldset>
+      <p className="text-xs text-fg-muted">{t('automations:companyFill.registersOnly', 'Rules use the free registers only. Websites, paid sources and people searches are read only when someone presses Fill in.')}</p>
+      <p className="text-xs text-fg-muted">{t('automations:companyFill.emptyOnly', 'Fills only empty fields. Nothing a person typed is changed.')}</p>
+      <p className="text-xs text-fg-muted">{t('automations:companyFill.budget', 'Up to 50 look-ups a day for rules, on each register.')}</p>
+    </Card>
+  );
 }
 
 // --- a step an add-on gives (comp `Milo Automations` 5a, 5c) ------------------

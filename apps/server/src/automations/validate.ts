@@ -125,6 +125,9 @@ export function isActionComplete(action: AutomationAction): boolean {
     case 'add-on.step':
       // Which inputs it needs is the add-on's to say: see `isAddOnStepReady`, which can ask.
       return action.addOn !== '' && action.step !== '';
+    case 'company.fill':
+      // An add-on and at least one register; whether each is still a free register is judged when the step runs.
+      return action.addOn !== '' && action.sources.length > 0;
     case 'document.render':
       /*
        * The ONE field. Everything else about the document — the mapping, the

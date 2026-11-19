@@ -243,6 +243,12 @@ export const automationSourcesReply = z.object({
       tables: z.array(sourceTableSchema),
       /** The steps installed add-ons give here, add-on by add-on. */
       steps: z.array(sourceStepSchema),
+      /**
+       * "Fill in the company", per lead source add-on installed here: its
+       * free registers (the only sources a rule may ask) and the companies
+       * tables a rule may fill. Empty where none is installed.
+       */
+      companyFill: z.array(z.object({ addOn: z.string(), addOnName: z.string(), registers: z.array(z.string()), tables: z.array(z.string()) })),
     }),
   ),
   /**

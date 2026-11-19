@@ -56,11 +56,7 @@ export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [];
  * to {@link MANIFEST_WORDS_RUN}: every word the manifest package can name is
  * in one of the two, and a test says so.
  */
-export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {
-  // Finding companies and people: where a company's details go. Read by the manifest now; it moves to the words run
-  // in the change that builds it.
-  'people.lead': '0.3.65',
-};
+export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {};
 
 /** The newer words of a manifest this server runs: nothing is refused for using one. */
 export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
@@ -468,6 +464,9 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // An add-on's tables for the people its sources found and its fields' sources: Adminium alone writes them, keeps a
   // found person in a person's data, tells them at once, and erases them on objection or at the end of their keeping time.
   'addOn.leads',
+  // Where a found company's details go on a companies table: the lead door adds and fills through those columns only,
+  // and decides "already here" by them (routes/leads, leads/).
+  'people.lead',
 ];
 
 /**

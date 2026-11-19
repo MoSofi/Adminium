@@ -69,6 +69,8 @@ const ALLOWED: Record<string, string> = {
     "a found person's own people row deleted once they objected and were erased in place, and only when no other row links to it: the person asked for it, through their mail's signed link, with nothing of theirs left in it to tell a rule or a screen",
   'chat/transcripts.ts':
     "a chat add-on's conversations removed with their messages and the answerer's choices, by key, as the system: by a person's erasure under the privacy action, and by the daily keeping sweep the add-on's own setting asks for, as form answers are (forms/answers.ts) — rows no person writes, so no rule, hook or live frame is owed for them",
+  'leads/write.ts':
+    "a field's source noted in a lead source add-on's fields' sources table, which Adminium alone writes (`compose.ts` refuses a person's own write): the one before it replaced and the new one checked by the write service, beside the fill or add the person made through the data routes — a row no person writes, so no rule, hook or live frame is owed for it",
   'forms/files.ts':
     "a form answer's files in the forms add-on's own files table, which Adminium alone writes (the manifest refuses any role, grant, step or public entry that would): written with the answer they belong to and removed with it, as a ledger's receipts are — no rule, hook or live frame is owed for rows no person writes",
 };

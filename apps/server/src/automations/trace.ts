@@ -96,6 +96,16 @@ export interface TraceText {
   docSkipped(reason: string): string;
   docWould(kind: string, name: string): string;
   docOff(name: string): string;
+  /** What a `company.fill` step did: details filled in, or why none were. */
+  companyFilled(count: number, source: string): string;
+  companyNone(source: string): string;
+  companySeveral(source: string, count: number): string;
+  companyBudget(source: string, count: number): string;
+  companyRefused(source: string, why: string): string;
+  companyNothingEmpty(): string;
+  companyNothingToAsk(): string;
+  companyOffline(): string;
+  companyWould(count: number, sources: string): string;
   stop(): string;
   undone(): string;
   gone(): string;
@@ -131,6 +141,15 @@ export const TRACE_EN: TraceText = {
   docSkipped: (reason) => `no document drawn · ${reason}`,
   docWould: (kind, name) => `Would draw ${kind} · ${name}`,
   docOff: (name) => `mapping is switched off · ${name}`,
+  companyFilled: (count, source) => `${String(count)} ${count === 1 ? 'detail' : 'details'} filled in from ${source}`,
+  companyNone: (source) => `${source} has no company by this number or name`,
+  companySeveral: (source, count) => `${source} has ${String(count)} companies by this name: pick one with Fill in`,
+  companyBudget: (source, count) => `skipped: today's ${String(count)} look-ups for rules on ${source} are used`,
+  companyRefused: (source, why) => `${source} was not asked · ${why}`,
+  companyNothingEmpty: () => 'no empty details to fill in',
+  companyNothingToAsk: () => 'no company number and no name to look up by',
+  companyOffline: () => 'skipped: this server calls nothing outside',
+  companyWould: (count, sources) => `Would look up ${String(count)} empty ${count === 1 ? 'detail' : 'details'} in ${sources}`,
   hookWould: (method, url) => `Would ${method} ${url}`,
   stop: () => 'Stopped here',
   undone: () => 'Undone before it ran',

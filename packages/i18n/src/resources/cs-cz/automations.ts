@@ -531,5 +531,18 @@ export default {
     "subService": "Servisní e-mail",
     "recheck": "Při odeslání znovu ověří souhlas a seznam „Neposílat e-maily“.",
     "older": "Uloženo dřív, než e-maily měly druh: odejde jako servisní, dokud nevyberete."
+  },
+  "companyFill": {
+    "label": "Doplnit firmu",
+    "desc": "Prázdné údaje z bezplatných rejstříků",
+    "title": "Doplnit firmu · {addOn}",
+    "by": "Hledat podle",
+    "byValue": "Čísla firmy, jinak názvu a města",
+    "registers": "Rejstříky",
+    "registersOnly": "Pravidla používají jen bezplatné rejstříky. Weby, placené zdroje a hledání lidí se čtou jen tehdy, když někdo klikne na Doplnit.",
+    "emptyOnly": "Vyplní jen prázdná pole. Nic, co někdo napsal, se nezmění.",
+    "budget": "Pravidla smí denně hledat nejvýše 50krát v každém rejstříku.",
+    "pick": "Rejstříky · vyberte jeden",
+    "summary": "Prázdné údaje z {registers}"
   }
 } as const;

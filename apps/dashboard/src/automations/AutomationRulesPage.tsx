@@ -73,6 +73,7 @@ import {
 } from './model/ops.js';
 import { firstUnfilledEmail, listPlaceholders } from './model/placeholders.js';
 import { addOnNameOf, addOnStepTiles, stepOf } from './model/addOnSteps.js';
+import { companyFillTiles } from './model/companyFill.js';
 import { firstIncompleteNode } from './model/validate.js';
 import { subLineFor, triggerSentence } from './model/summaries.js';
 
@@ -586,7 +587,7 @@ export function AutomationRulesPage(): ReactNode {
       <StepPicker
         target={pickerTarget}
         contextLine={pickerContext(pickerTarget, graph)}
-        addOnSteps={addOnStepTiles(sources.data ?? null, connectionOfRule)}
+        addOnSteps={[...addOnStepTiles(sources.data ?? null, connectionOfRule), ...companyFillTiles(sources.data ?? null, connectionOfRule, trigger?.kind === 'record' ? trigger.table : null)]}
         onClose={() => {
           setPickerTarget(null);
         }}

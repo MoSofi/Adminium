@@ -52,6 +52,8 @@ export function isActionComplete(action: Action): boolean {
     case 'add-on.step':
       // Which inputs it needs is the add-on's to say: `isNodeComplete` asks when it can.
       return action.addOn !== '' && action.step !== '';
+    case 'company.fill':
+      return action.addOn !== '' && action.sources.length > 0;
     default:
       // A step this build does not know is the server's to judge.
       return true;

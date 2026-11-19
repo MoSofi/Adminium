@@ -2443,6 +2443,22 @@ export const automationActionSchema = z.discriminatedUnion('kind', [
     /** What fills each of the step's inputs: text, which may carry `{{record.<column>}}`. */
     inputs: z.record(z.string().max(80), z.string().max(2000)).default({}),
   }),
+  z.object({
+    /*
+     * FILL IN THE COMPANY: the record's EMPTY company details, from the free
+     * registers of a lead source add-on, by the company number, else its
+     * name and town. Never a website, never a paid source, never a people
+     * source: a rule runs with nobody there, often on a row a stranger's form
+     * made. On its own small daily budget per source.
+     */
+    kind: z.literal('company.fill'),
+    /** The add-on's key; '' while the step is being written. */
+    addOn: z.string().max(80).default(''),
+    /** The registers asked, in this order, until one finds the company: free ones only (judged again at every run). */
+    sources: z.array(z.string().max(32)).max(8).default([]),
+    /** The add-on's name when the step was added: what the step says of itself once the add-on is gone. */
+    addOnName: z.string().max(120).default(''),
+  }),
 ]);
 export type AutomationAction = z.infer<typeof automationActionSchema>;
 

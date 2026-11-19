@@ -270,6 +270,13 @@ export const RATE_BUCKETS = {
    */
   'look-up': { max: 60, timeWindowMs: 60_000, keyBy: 'principal' },
   /*
+   * The lead door (`routes/leads`): each search, look-up or people search is
+   * a call to an outside service on the owner's account, and each add or
+   * fill writes rows. A budget per person of its own, far under `api`; what
+   * bounds the cost is each source's own window and daily cap.
+   */
+  'lead-door': { max: 60, timeWindowMs: 60_000, keyBy: 'principal' },
+  /*
    * A price tried on a saved order, and a discount code made or compared before
    * it is saved: every call reads an add-on's tables, and a try runs its code.
    */

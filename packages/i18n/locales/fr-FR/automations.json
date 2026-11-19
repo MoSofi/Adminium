@@ -521,5 +521,18 @@
     "subService": "E-mail de service",
     "recheck": "Revérifie le consentement et la liste « Pas d’e-mail » à l’envoi.",
     "older": "Enregistré avant les types d’e-mail : il part comme e-mail de service tant que vous ne choisissez pas."
+  },
+  "companyFill": {
+    "label": "Compléter l’entreprise",
+    "desc": "Les champs vides, depuis des registres gratuits",
+    "title": "Compléter l’entreprise · {addOn}",
+    "by": "Rechercher par",
+    "byValue": "Numéro d’entreprise, sinon nom et ville",
+    "registers": "Registres",
+    "registersOnly": "Les règles n’utilisent que les registres gratuits. Les sites web, les sources payantes et les recherches de personnes ne sont lus que lorsque quelqu’un clique sur Compléter.",
+    "emptyOnly": "Ne remplit que les champs vides. Rien de ce qu’une personne a saisi n’est modifié.",
+    "budget": "Jusqu’à 50 recherches par jour pour les règles, sur chaque registre.",
+    "pick": "Registres · en choisir un",
+    "summary": "Champs vides depuis {registers}"
   }
 }

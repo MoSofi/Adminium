@@ -531,5 +531,18 @@ export default {
     "subService": "Servicemail",
     "recheck": "Tjekker samtykke og listen „Ingen e-mails“, igen ved afsendelse.",
     "older": "Gemt, før mails havde en type: den sendes som servicemail, indtil du vælger."
+  },
+  "companyFill": {
+    "label": "Udfyld virksomheden",
+    "desc": "Tomme oplysninger fra gratis registre",
+    "title": "Udfyld virksomheden · {addOn}",
+    "by": "Slå op efter",
+    "byValue": "Virksomhedsnummer, ellers navn og by",
+    "registers": "Registre",
+    "registersOnly": "Regler bruger kun de gratis registre. Websites, betalte kilder og søgninger efter personer læses kun, når nogen trykker på Udfyld.",
+    "emptyOnly": "Udfylder kun tomme felter. Intet, som en person har skrevet, ændres.",
+    "budget": "Op til 50 opslag om dagen for regler i hvert register.",
+    "pick": "Registre · vælg et",
+    "summary": "Tomme oplysninger fra {registers}"
   }
 } as const;

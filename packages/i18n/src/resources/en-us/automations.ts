@@ -531,5 +531,18 @@ export default {
     "subService": "Service mail",
     "recheck": "Checks consent and the do-not-email list again when it sends.",
     "older": "Saved before mail had kinds: it goes as service mail until you choose."
+  },
+  "companyFill": {
+    "label": "Fill in the company",
+    "desc": "Empty details, from free registers",
+    "title": "Fill in the company · {addOn}",
+    "by": "Look up by",
+    "byValue": "Company number, else name and town",
+    "registers": "Registers",
+    "registersOnly": "Rules use the free registers only. Websites, paid sources and people searches are read only when someone presses Fill in.",
+    "emptyOnly": "Fills only empty fields. Nothing a person typed is changed.",
+    "budget": "Up to 50 look-ups a day for rules, on each register.",
+    "pick": "Registers · pick one",
+    "summary": "Empty details from {registers}"
   }
 } as const;
