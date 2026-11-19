@@ -62,9 +62,10 @@ import type { DeclaredPeopleTable } from '../people/declared.js';
 import { peopleTablesOf } from '../people/tables-of.js';
 import { privacyNoticeReady } from '../privacy/business.js';
 import { normaliseAddress } from '../public-api/claim-code.js';
-import { boundId, foundRowsOf, insertFound, leadsWriteContext, tellByOf, untoldRows, updateFound, zoneOf } from './found-store.js';
+import { boundId, foundRowsOf, insertFound, leadsWriteContext, tellByOf, untoldChanged, untoldGeneration, untoldRows, updateFound, zoneOf } from './found-store.js';
 import { LEADS_TELL_KIND, leadsAddOnsOn, leadsSettingsRow, readLeadsSettingsRow, storedLeadsAddOns, type LeadsAddOnTables, type LeadsSettings } from './installs.js';
 import { companyCountryColumn } from './companies.js';
+import { markSoleTrader, unmarkSoleTrader } from './sole-trader.js';
 import { tellLanguages, type TellLanguage } from './tell-words.js';
 
 /** Why a found person was not kept. */
@@ -144,6 +145,13 @@ export interface KeepFoundPeopleInput {
   /** The source id that found them (`addOn.sources[].id`). */
   source: string;
   people: readonly FoundPerson[];
+  /**
+   * The company row is this one person's own: a sole trader the lead door
+   * added, whose address a member of staff typed. It is marked as theirs
+   * before they are kept (`sole-trader.ts`), so every erasure of them empties
+   * it too; the mark goes again when they are not kept.
+   */
+  soleTrader?: boolean | undefined;
 }
 
 async function viewOf(deps: LeadsPeopleDeps, connectionId: string): Promise<SnapshotView | null> {
@@ -291,13 +299,34 @@ export async function untoldAddresses(deps: Pick<LeadsPeopleDeps, 'meta' | 'mana
   return out;
 }
 
+/**
+ * How long the set of people not told yet is kept between reads, at most: a
+ * campaign of thousands, or a sender's batch, asks once, not once a message.
+ * It is read again at once when it may have changed in this process (a person
+ * kept, a tell mail gone or failed: `found-store.ts`); this bound covers a
+ * contact's address changed meanwhile.
+ */
+const UNTOLD_KEEP_MS = 15_000;
+const UNTOLD_HELD = new WeakMap<MetaDb, { at: number; generation: number; set: Promise<Set<string>> }>();
+
 /** Whether an address belongs to a found person who has not been told yet (see the header). */
-export async function untoldAddress(deps: Pick<LeadsPeopleDeps, 'meta' | 'manager' | 'viewFor'>, address: string): Promise<boolean> {
+export async function untoldAddress(deps: Pick<LeadsPeopleDeps, 'meta' | 'manager' | 'viewFor' | 'now'>, address: string): Promise<boolean> {
   if (!looksLikeAddress(address)) return false;
   const wanted = normaliseAddress(address);
   if (KEEPING.get(deps.meta)?.has(wanted) === true) return true;
-  if ((await storedLeadsAddOns(deps.meta)).length === 0) return false;
-  return (await untoldAddresses(deps)).has(wanted);
+  const at = (deps.now ?? Date.now)();
+  const generation = untoldGeneration(deps.meta);
+  let held = UNTOLD_HELD.get(deps.meta);
+  if (held === undefined || held.generation !== generation || at - held.at >= UNTOLD_KEEP_MS || at < held.at) {
+    const set = (async () => ((await storedLeadsAddOns(deps.meta)).length === 0 ? new Set<string>() : untoldAddresses(deps)))();
+    held = { at, generation, set };
+    UNTOLD_HELD.set(deps.meta, held);
+    // A read that failed is not kept: the next asks again.
+    set.catch(() => {
+      if (UNTOLD_HELD.get(deps.meta) === held) UNTOLD_HELD.delete(deps.meta);
+    });
+  }
+  return (await held.set).has(wanted);
 }
 
 /** The sentence a mail held back for this reason says. */
@@ -319,6 +348,13 @@ export async function isFoundPerson(deps: Pick<LeadsPeopleDeps, 'meta' | 'manage
 }
 
 // ── Keeping them ─────────────────────────────────────────────────────────────
+
+/** Deletes one row by its key columns, as the engine. */
+async function deleteByKey(db: Kysely<SourceDatabase>, table: ResolvedTable, key: Row): Promise<void> {
+  let query = db.deleteFrom(table.id as never);
+  for (const [column, value] of Object.entries(key)) query = query.where(sql.ref(column), '=', value as never);
+  await query.execute();
+}
 
 /** Whether the address is on a declared people row of the database already. */
 async function alreadyHere(db: Kysely<SourceDatabase>, view: SnapshotView, declared: readonly DeclaredPeopleTable[], address: string): Promise<boolean> {
@@ -447,36 +483,61 @@ export async function keepFoundPeople(deps: KeepFoundPeopleDeps, input: KeepFoun
       refuse('not-told-yet');
       continue;
     }
+    // A sole trader's company row is marked as theirs before they are: nothing of them is ever kept unlinked.
+    if (input.soleTrader === true && addOn.fieldSources === null) {
+      refuse('no-company');
+      continue;
+    }
     seen.add(address);
     keepingNow(deps.meta, address, 1);
+    const peopleTable = view.table(into.table);
+    const company = { table: storedTableRef(index, companyTable.id), key: rowKeyOf(companyTable, companyRow) };
+    const foundPlace = { target: { connectionId, view, table: addOn.foundPeople, db, dialect }, writes: deps.writes, context: leadsWriteContext(addOn.name) };
+    let made: Row | null = null;
+    let foundId: string | null = null;
+    let marked = false;
     try {
+      const foundAt = now();
+      if (input.soleTrader === true) {
+        await markSoleTrader({ ...foundPlace, target: { ...foundPlace.target, table: addOn.fieldSources! } }, company, address, input.source, foundAt);
+        marked = true;
+      }
       // Their row in the people table, as the staff member writes it: "may be e-mailed" left unset.
       const values: Record<string, unknown> = { [into.email!]: address, [into.name!]: name };
       if (into.company !== null) values[into.company] = linkValue(view, into, companyTable, companyRow);
-      const made = await createAsPerson(deps.app, input.staff.request, connectionId, into.table, values, { code: 'PERSON_REFUSED', message: 'The person was refused.' });
-      const peopleTable = view.table(into.table);
+      made = await createAsPerson(deps.app, input.staff.request, connectionId, into.table, values, { code: 'PERSON_REFUSED', message: 'The person was refused.' });
       const personKey = rowKeyOf(peopleTable, made);
       const personTable = storedTableRef(index, into.table);
-      const foundAt = now();
       const purpose = settings.purpose[languages[0]!] ?? '';
-      const foundId = await insertFound(
-        { target: { connectionId, view, table: addOn.foundPeople, db, dialect }, writes: deps.writes, context: leadsWriteContext(addOn.name) },
-        {
-          personTable,
-          personKey,
-          companyTable: storedTableRef(index, companyTable.id),
-          companyKey: rowKeyOf(companyTable, companyRow),
-          source: input.source,
-          foundAt,
-          purpose,
-          tellBy: tellByOf(foundAt, zone),
-          pages: person.sources,
-          email: address,
-        },
-      );
+      foundId = await insertFound(foundPlace, {
+        personTable,
+        personKey,
+        companyTable: company.table,
+        companyKey: company.key,
+        source: input.source,
+        foundAt,
+        purpose,
+        tellBy: tellByOf(foundAt, zone),
+        pages: person.sources,
+        email: address,
+      });
+      untoldChanged(deps.meta);
       const outboxId = await queueTell(deps, addOn, view, foundId, address, languages[0]!);
       if (outboxId !== null) await updateFound({ db, dialect, table: addOn.foundPeople }, foundId, { outbox_id: outboxId });
       out.kept.push({ email: address, personTable, personKey });
+    } catch (error) {
+      // Kept whole or not at all: their found person's row, their contact (as the engine: nobody's rights
+      // decide whether a row Adminium half-made goes) and a sole trader's mark go again, so nobody stays
+      // stored who is never told, never swept and in no found person's row.
+      if (foundId !== null) {
+        // Its tell mail first: the mail names the row.
+        if (addOn.tell !== null) await deleteByKey(db, addOn.tell.table, { [addOn.tell.link]: boundId(foundId) }).catch(() => undefined);
+        await deleteByKey(db, addOn.foundPeople, { [addOn.foundPeople.primaryKey[0]!]: boundId(foundId) }).catch(() => undefined);
+        untoldChanged(deps.meta);
+      }
+      if (made !== null) await deleteByKey(db, peopleTable, Object.fromEntries(peopleTable.primaryKey.map((column) => [column, made![column]]))).catch(() => undefined);
+      if (marked) await unmarkSoleTrader(db, addOn.fieldSources!, company).catch(() => undefined);
+      throw error;
     } finally {
       keepingNow(deps.meta, address, -1);
     }

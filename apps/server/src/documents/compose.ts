@@ -499,6 +499,8 @@ export interface DocumentPipelineDeps {
   logger?: EmailLogger | undefined;
   /** A record's live pay link, for documents that print one, with the moment it stops opening. */
   payLinkFor?: ((entity: RecordRef) => Promise<string | { url: string; expiresAt: number } | null>) | undefined;
+  /** Whether an address is a found person's who has not been told yet (`leads/people.ts`). */
+  untold?: ((address: string) => Promise<boolean>) | undefined;
 }
 
 
@@ -533,6 +535,7 @@ export function createDocumentPipeline(deps: DocumentPipelineDeps): RenderDeps {
   };
   return {
     meta: deps.meta,
+    untold: deps.untold,
     storage: deps.storage,
     runtime: deps.runtime,
     ...(deps.logger === undefined ? {} : { logger: deps.logger }),

@@ -48,6 +48,15 @@ import type { LeadsAddOnTables } from './installs.js';
 export const LEAD_FIELDS = ['name', 'number', 'website', 'phone', 'lines', 'town', 'region', 'postalCode', 'country', 'activity', 'about'] as const;
 export type LeadField = (typeof LEAD_FIELDS)[number];
 
+/**
+ * A sole trader's facts that are not about the person: the register's number
+ * and the activity. Their name, address and phone are a person's, written
+ * only where they are kept and told as one (the lead door's Add).
+ */
+export function businessFactsOf(company: Pick<CompanyFacts, 'number' | 'activity'>): CompanyFacts {
+  return { ...(company.number === undefined ? {} : { number: company.number }), ...(company.activity === undefined ? {} : { activity: company.activity }) };
+}
+
 /** The longest a fact is kept before it meets a column (the contract's own bounds are wider for some). */
 const FACT_MAX = 2000;
 /** The widths of the fields' sources table's text columns, as the add-on's manifest word declares them. */

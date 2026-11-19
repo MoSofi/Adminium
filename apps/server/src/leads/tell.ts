@@ -43,11 +43,12 @@ import { peopleTablesOf } from '../people/tables-of.js';
 import { businessName, privacyNoticeOf, senderPostalAddress } from '../privacy/business.js';
 import { PAY_PAGE_SETTINGS_DOC } from '../privacy/business.js';
 import { z } from 'zod';
-import { foundById, markNotTold, markTold, type FoundRow } from './found-store.js';
+import { foundById, markNotTold, markTold, untoldChanged, type FoundRow } from './found-store.js';
 import { LEADS_TELL_KIND, leadsAddOnsOn, readLeadsSettings, storedLeadsAddOns, type LeadsAddOnTables } from './installs.js';
 import { OBJECT_LINK_VARIABLE, makeObjectToken, objectLinkKeys, objectUrl } from './object-token.js';
 import { companyCountryColumn } from './companies.js';
 import { installLanguage } from './people.js';
+import { soleTraderCompany } from './sole-trader.js';
 import { sourceName, tellBlocks, tellLanguages, tellOpening, type TellLanguage, type TellTranslate } from './tell-words.js';
 
 /** Why a tell mail did not go: its outbox row's sentence. */
@@ -56,6 +57,7 @@ export const TELL_SKIPS = {
   noLanguage: 'Not sent: why found people are kept is not written in a language this person can be told in',
   noOrigin: 'Not sent: this server has no public address for the Object link (set it in Settings)',
   noText: 'Not sent: the add-on has no text for this mail',
+  elsewhere: 'Not sent: this is not the address the person was found with',
 } as const;
 
 /** The outbox a message is in, as the sender has it. */
@@ -157,6 +159,8 @@ export function createTellMail(deps: TellMailDeps): TellMail {
     if (about === null) return null;
     const { addOn, found } = about;
     if (found === null) return { skip: TELL_SKIPS.gone };
+    // Only to the address they were found with: the link it carries names that address, and so does "told".
+    if (found.email === null || input.to.trim().toLowerCase() !== found.email) return { skip: TELL_SKIPS.elsewhere };
     const declared = await peopleTablesOf(meta).all(box.connectionId, view.model);
 
     // Who they are, and where they were found.
@@ -181,7 +185,7 @@ export function createTellMail(deps: TellMailDeps): TellMail {
     if (origin === null) return { skip: TELL_SKIPS.noOrigin };
     const install = await settingsRepo(meta).get('system.instanceId');
     const key = await objectLinkKeys(meta, deps.secret).write();
-    const link = objectUrl(origin, makeObjectToken(key, typeof install === 'string' ? install : '', { address: input.to, installId: addOn.installId, found: found.id, language: languages[0]! }));
+    const link = objectUrl(origin, makeObjectToken(key, typeof install === 'string' ? install : '', { address: found.email, installId: addOn.installId, found: found.id, foundAt: found.foundAt, language: languages[0]! }));
 
     const facts = {
       business: (await businessName(meta, { origin })) || new URL(origin).hostname,
@@ -189,6 +193,8 @@ export function createTellMail(deps: TellMailDeps): TellMail {
       contact: await privacyContact(meta),
       source: sourceName(found.source, (addOn.manifest.addOn as { sources?: { id: string; hosts?: string[] }[] }).sources?.find((one) => one.id === found.source)?.hosts ?? []),
       foundAt: found.foundAt,
+      // A sole trader's address is the one a member of staff typed, never the register's.
+      addressByStaff: await soleTraderCompany(db, addOn.fieldSources, found),
       zone: input.zone,
       keepYears: settings.keepYears,
       noticeUrl: (await privacyNoticeOf(meta)).noticeUrl,
@@ -243,12 +249,14 @@ export function createTellMail(deps: TellMailDeps): TellMail {
     const about = await aboutOf(input.box, input.view, input.target.db, input.row);
     if (about === null || about.foundId === null) return;
     await markTold({ ...input.target, table: about.addOn.foundPeople! }, about.foundId, at);
+    untoldChanged(meta);
   }
 
   async function notTold(input: { box: TellBox; target: Pick<WriteTarget, 'db' | 'dialect'>; view: SnapshotView; row: Row }): Promise<void> {
     const about = await aboutOf(input.box, input.view, input.target.db, input.row);
     if (about === null || about.foundId === null) return;
     await markNotTold({ ...input.target, table: about.addOn.foundPeople! }, about.foundId);
+    untoldChanged(meta);
   }
 
   return { prepare, told, notTold };

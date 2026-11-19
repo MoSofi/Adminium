@@ -35,7 +35,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { auditRepo, emailTemplatesRepo, paymentSettingsRepo, permissionsRepo, rolesRepo, settingsRepo, usersRepo, type EmailRun, type EmailSend } from '@adminium/meta';
+import { auditRepo, documentsRepo, emailTemplatesRepo, filesRepo, paymentSettingsRepo, permissionsRepo, rolesRepo, settingsRepo, usersRepo, type EmailRun, type EmailSend, type PaymentLink } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -49,18 +49,21 @@ import { createConsentService } from '../src/consent/index.js';
 import { decryptSecret, encryptSecret } from '../src/config/secrets.js';
 import { bindWriteValue } from '../src/crud/write-values.js';
 import { loadSnapshotView } from '../src/data-io/snapshot-view.js';
+import { emailDocument } from '../src/documents/deliver.js';
 import { emailSecretKey } from '../src/email/config.js';
 import { createMarketingMail } from '../src/email/marketing.js';
 import { emailEnvelopeKey } from '../src/email/send.js';
 import type { FileStore } from '../src/files/store.js';
 import { campaignMarketingChecks, CAMPAIGN_SKIP_NOT_TOLD } from '../src/jobs/email-campaign-checks.js';
 import { FOUND_TICK_REFUSED, PEOPLE_SWITCH_REFUSED } from '../src/leads/guard.js';
-import { insertFound, leadsWriteContext, tellByOf } from '../src/leads/found-store.js';
+import { foundRowOf, insertFound, leadsWriteContext, tellByOf, untoldChanged } from '../src/leads/found-store.js';
 import { OBJECT_PATH } from '../src/leads/object-token.js';
-import { untoldAddress, UNTOLD_SENTENCE, type KeepFoundPeopleInput } from '../src/leads/people.js';
-import { sweepFoundPeople } from '../src/leads/sweep.js';
+import { keepFoundPeople, untoldAddress, UNTOLD_SENTENCE, type KeepFoundPeopleInput } from '../src/leads/people.js';
+import { sweepFoundPeople, yearsAfter } from '../src/leads/sweep.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
+import { sendPayLinkEmail } from '../src/payments/emails.js';
+import type { ResolvedPayable } from '../src/payments/payables.js';
 import { erasePerson } from '../src/privacy/erase.js';
 import { findPerson } from '../src/privacy/sources.js';
 import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
@@ -101,7 +104,14 @@ function crm(): Doc {
         { ref: 'companies', columns: [pk, text('name', 120), text('country', 2, { nullable: true }), text('website', 200, { nullable: true })] },
         {
           ref: 'contacts',
-          columns: [pk, text('name', 120), text('email', 254, { nullable: true }), { ref: 'company_id', type: 'fk', references: 'companies' }, { ref: 'may_email', type: 'bool', default: false }],
+          columns: [
+            pk,
+            text('name', 120),
+            text('email', 254, { nullable: true }),
+            { ref: 'company_id', type: 'fk', references: 'companies' },
+            { ref: 'may_email', type: 'bool', default: false },
+            { ref: 'is_customer', type: 'bool', default: false },
+          ],
         },
         { ref: 'deals', columns: [pk, text('title', 120), { ref: 'contact_id', type: 'fk', references: 'contacts', nullable: true }] },
         {
@@ -119,7 +129,7 @@ function crm(): Doc {
       ],
     },
     people: [
-      { table: 'contacts', kind: 'people', email: 'email', name: 'name', company: 'company_id', consent: { column: 'may_email', purpose: 'newsletter' } },
+      { table: 'contacts', kind: 'people', email: 'email', name: 'name', company: 'company_id', consent: { column: 'may_email', purpose: 'newsletter' }, customer: 'is_customer' },
       { table: 'companies', kind: 'companies', name: 'name' },
     ],
     outbox: {
@@ -491,7 +501,7 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     expect(row['state']).toBe('failed');
     expect(row['told_at']).toBeNull();
     expect((await tellRows()).find((one) => String(one['found_person_id']) === String(row['id']))!['status']).toBe('failed');
-    const erase = (one: string) => erasePerson(eraseDeps(), one);
+    const erase = (one: string, scope?: Parameters<typeof erasePerson>[2]) => erasePerson(eraseDeps(), one, scope);
     // On the day itself nothing happens; the day after, they are erased.
     const tellBy = Date.parse(`${String(row['tell_by']).slice(0, 10)}T12:00:00Z`);
     expect(await sweepFoundPeople({ meta: h.meta, manager: h.manager, consent: consent(), erase, now: () => tellBy })).toEqual({ 'tell-by': 0, 'kept-for': 0 });
@@ -650,6 +660,231 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     // The keeping table has a row for them, in months.
     const keeping = (await as('priya', 'GET', '/api/v1/privacy/keeping')).json() as Doc;
     expect((keeping.data.rows as Doc[]).find((one) => one['key'] === 'found-people')).toMatchObject({ keptFor: 36, addOn: { key: 'company-finder' } });
+  });
+
+  // ── the gate's fixes ──────────────────────────────────────────────────────
+
+  /** Keeps one person at a company, sends their tell mail, and answers their Object link, contact row and found row. */
+  async function keptAndTold(company: string, name: string, address: string, extra: Partial<KeepFoundPeopleInput> = {}): Promise<{ link: string; contact: Doc; found: Doc; mail: { text: string } }> {
+    await mails();
+    const answer = await composed.leads.keep({ installId, addOnKey: 'company-finder', staff: staff('finn'), company: { table: 'crm:companies', key: company }, source: 'hunter', people: [found(name, address)], ...extra });
+    expect(answer.kept, JSON.stringify(answer.refused)).toHaveLength(1);
+    await send();
+    const mail = (await mails()).find((one) => one.to === address)!;
+    expect(mail, 'the tell mail went').toBeDefined();
+    const contact = (await contactOf(address))!;
+    const row = (await foundRows()).find((one) => String(one['person_key']) === String(contact['id']))!;
+    return { link: objectLinkIn(mail.html), contact, found: row, mail };
+  }
+  const contactById = async (id: unknown) => (await rows(`SELECT * FROM ${table('crm', 'contacts')} WHERE id = ${String(id)}`))[0];
+  const sweepAt = (at: number) => sweepFoundPeople({ meta: h.meta, manager: h.manager, consent: consent(), erase: (one, scope) => erasePerson(eraseDeps(), one, scope), now: () => at });
+  const keptUntil = (row: Doc) => yearsAfter(foundRowOf({ primaryKey: ['id'] }, row)!.foundAt, 3);
+
+  it.skipIf(!available)('Object on a contact row given to someone else since erases only the address the mail went to: the new contact keeps everything', async () => {
+    const jane = await keptAndTold('1', 'Jane Fell', 'jane.fell@kestrel-yard.dev');
+    // Jane left; Bob is the contact now, with a deal of his own.
+    const { db } = await h.manager.data(conn);
+    await db.updateTable(table('crm', 'contacts') as never).set({ name: 'Bob Marsh', email: 'bob.marsh@kestrel-yard.dev' } as never).where('id' as never, '=', jane.contact['id'] as never).execute();
+    await insert('deals', { id: 41, title: 'Plan chests for Bob', contact_id: jane.contact['id'] });
+
+    const done = await stranger('POST', jane.link, 'act=object');
+    expect(done.statusCode, done.body).toBe(200);
+    expect(done.body).toContain('Done. We have deleted your details');
+    // Bob is untouched: his row, his address, his name, and he is not stopped.
+    expect(await contactById(jane.contact['id'])).toMatchObject({ name: 'Bob Marsh', email: 'bob.marsh@kestrel-yard.dev' });
+    expect(await consent().stop.has('bob.marsh@kestrel-yard.dev')).toBe(false);
+    // Jane is stopped, and her found person's row is gone.
+    expect(await consent().stop.has('jane.fell@kestrel-yard.dev')).toBe(true);
+    expect((await foundRows()).some((one) => one['id'] === jane.found['id'])).toBe(false);
+  });
+
+  it.skipIf(!available)('a link whose found person was erased names nobody, even when their row id was given to someone else (SQLite)', async () => {
+    const ada = await keptAndTold('1', 'Ada Reuse', 'ada.reuse@kestrel-yard.dev');
+    // Ada erased (a privacy request); Ben found next.
+    await erasePerson(eraseDeps(), 'ada.reuse@kestrel-yard.dev');
+    const ben = await keptAndTold('1', 'Ben Reuse', 'ben.reuse@kestrel-yard.dev');
+    // SQLite gives Ben Ada's old id: the link's id alone would name him.
+    if (dialect === 'sqlite') expect(String(ben.found['id'])).toBe(String(ada.found['id']));
+
+    const page = await stranger('GET', ada.link);
+    expect(page.body).toContain('You’ve already objected.');
+    expect(page.body).not.toContain('name="act" value="object"');
+    const done = await stranger('POST', ada.link, 'act=object');
+    expect(done.body).not.toContain('Done.');
+    // Ben is untouched.
+    expect(await contactById(ben.contact['id'])).toMatchObject({ name: 'Ben Reuse', email: 'ben.reuse@kestrel-yard.dev' });
+    expect((await foundRows()).some((one) => one['id'] === ben.found['id'])).toBe(true);
+    expect(await consent().stop.has('ben.reuse@kestrel-yard.dev')).toBe(false);
+  });
+
+  it.skipIf(!available)('a link names the moment its person was found: the same address found again later is someone the old link never named', async () => {
+    const first = await keptAndTold('1', 'Rhea Stone', 'rhea.stone@kestrel-yard.dev');
+    // Their rows removed without stopping the address (as an erasure narrowed to one app leaves it), then found again.
+    const { db } = await h.manager.data(conn);
+    await db.deleteFrom(table('company-finder', 'tell_mails') as never).where('found_person_id' as never, '=', first.found['id'] as never).execute();
+    await db.deleteFrom(table('company-finder', 'found_people') as never).where('id' as never, '=', first.found['id'] as never).execute();
+    await db.deleteFrom(table('crm', 'contacts') as never).where('id' as never, '=', first.contact['id'] as never).execute();
+    const again = await keptAndTold('1', 'Rhea Stone', 'rhea.stone@kestrel-yard.dev');
+    if (dialect === 'sqlite') expect(String(again.found['id'])).toBe(String(first.found['id']));
+    const old = await stranger('GET', first.link);
+    expect(old.statusCode).toBe(404);
+    expect(old.body).toContain('This link doesn’t work.');
+    expect((await stranger('POST', first.link, 'act=object')).body).not.toContain('Done.');
+    expect((await foundRows()).some((one) => one['id'] === again.found['id'])).toBe(true);
+    // The link of the mail that told them now works.
+    expect((await stranger('GET', again.link)).body).toContain('name="act" value="object"');
+  });
+
+  it.skipIf(!available)('a sole trader is one unit: told that staff typed their address; Object, the deadline and a privacy erasure each empty their company row too; their download carries it', async () => {
+    const soleTrader = async (id: number, name: string, address: string) => {
+      await insert('companies', { id, name, country: 'FR', website: `https://www.${name.toLowerCase().replace(/\W+/g, '-')}.example` });
+      // A field the register filled on the company row, as the door notes it.
+      await insert('field_sources', { id: 800 + id, table_ref: 'crm:companies', row_key: String(id), column_name: 'name', source: 'france', found_at: new Date().toISOString(), value_hash: 'b'.repeat(64) }, 'company-finder');
+      return keptAndTold(String(id), name, address, { source: 'france', soleTrader: true });
+    };
+    const emptied = async (id: number) => {
+      const row = (await rows(`SELECT * FROM ${table('crm', 'companies')} WHERE id = ${String(id)}`))[0]!;
+      expect(row['name']).toBe('Erased person');
+      expect(row['website'] ?? null).toBeNull();
+      expect(row['country'] ?? null).toBeNull();
+      expect(await rows(`SELECT * FROM ${table('company-finder', 'field_sources')} WHERE table_ref = 'crm:companies' AND row_key = '${String(id)}'`)).toEqual([]);
+    };
+
+    // 1. Told in their language that a member of staff typed their address; Object empties the row.
+    const claire = await soleTrader(61, 'Claire Vernet', 'claire.vernet@vernet-atelier.dev');
+    expect(claire.mail.text).toContain('a fourni les informations enregistrées de votre entreprise');
+    expect(claire.mail.text).toContain('Un membre de notre équipe a ajouté votre adresse e-mail.');
+    const person = await findPerson(eraseDeps(), 'claire.vernet@vernet-atelier.dev');
+    const exported = person.sources.find((one) => one.kind === 'found-people')!.rows[0]!;
+    expect((exported['fields'] as Doc[]).find((one) => one['column'] === 'email')).toMatchObject({ source: 'staff' });
+    expect(exported['soleTrader']).toMatchObject({ table: 'crm:companies', row: '61', values: { name: 'Claire Vernet', country: 'FR' }, fields: [expect.objectContaining({ column: 'name', source: 'france' })] });
+    expect((await stranger('POST', claire.link, 'act=object')).statusCode).toBe(200);
+    await emptied(61);
+
+    // 2. Never told by their day: the sweep empties it.
+    const lucie = await soleTrader(62, 'Lucie Morel', 'lucie.morel@morel-plans.dev');
+    const { db } = await h.manager.data(conn);
+    await db.updateTable(table('company-finder', 'found_people') as never).set({ told_at: null, state: 'failed' } as never).where('id' as never, '=', lucie.found['id'] as never).execute();
+    const tellBy = Date.parse(`${String(lucie.found['tell_by']).slice(0, 10)}T12:00:00Z`);
+    await sweepAt(tellBy + DAY);
+    await emptied(62);
+
+    // 3. A privacy erasure by the address.
+    await soleTrader(63, 'Anne Brisac', 'anne.brisac@brisac-dessin.dev');
+    await erasePerson(eraseDeps(), 'anne.brisac@brisac-dessin.dev');
+    await emptied(63);
+  });
+
+  it.skipIf(!available)('the keeping sweep erases only what the finding stored, by the address they were found with, and never a person who agreed or became a customer', async () => {
+    const { db } = await h.manager.data(conn);
+    // One whose contact row was given to someone else since.
+    const kim = await keptAndTold('1', 'Kim Rowe', 'kim.rowe@kestrel-yard.dev');
+    await db.updateTable(table('crm', 'contacts') as never).set({ name: 'Lee Dunn', email: 'lee.dunn@kestrel-yard.dev' } as never).where('id' as never, '=', kim.contact['id'] as never).execute();
+    // One who later wrote to the business through a form, so is kept elsewhere too.
+    const max = await keptAndTold('1', 'Max Hale', 'max.hale@kestrel-yard.dev');
+    await insert('contacts', { id: 7001, name: 'Max Hale', email: 'max.hale@kestrel-yard.dev', company_id: 1, may_email: dialect === 'sqlite' ? 0 : false });
+    // One who agreed to be written to; one who became a customer.
+    const ivy = await keptAndTold('1', 'Ivy Lane', 'ivy.lane@kestrel-yard.dev');
+    const contactsId = await idOf('crm', 'contacts');
+    expect((await as('finn', 'POST', '/api/v1/consent/record-consent', { connectionId: conn, table: contactsId, recordId: String(ivy.contact['id']), purpose: 'newsletter', how: 'phone', note: 'Rang her; she asked for the newsletter.' })).statusCode).toBe(200);
+    const ray = await keptAndTold('1', 'Ray Cole', 'ray.cole@kestrel-yard.dev');
+    await db.updateTable(table('crm', 'contacts') as never).set({ is_customer: dialect === 'sqlite' ? 1 : true } as never).where('id' as never, '=', ray.contact['id'] as never).execute();
+
+    await sweepAt(Math.max(...[kim, max, ivy, ray].map((one) => keptUntil(one.found))) + DAY);
+
+    // Lee, now on Kim's row, keeps everything; Kim is stopped and her found row gone.
+    expect(await contactById(kim.contact['id'])).toMatchObject({ name: 'Lee Dunn', email: 'lee.dunn@kestrel-yard.dev' });
+    expect(await consent().stop.has('lee.dunn@kestrel-yard.dev')).toBe(false);
+    expect(await consent().stop.has('kim.rowe@kestrel-yard.dev')).toBe(true);
+    expect((await foundRows()).some((one) => one['id'] === kim.found['id'])).toBe(false);
+    // Max's found contact is emptied; the contact he made himself is not the finding's, and stays.
+    expect(String((await contactById(max.contact['id']))!['email'] ?? '')).not.toContain('max.hale');
+    expect(await contactById(7001)).toMatchObject({ name: 'Max Hale', email: 'max.hale@kestrel-yard.dev' });
+    // Ivy (agreed) and Ray (a customer) are ordinary contacts: nothing of them goes.
+    expect(await contactById(ivy.contact['id'])).toMatchObject({ name: 'Ivy Lane', email: 'ivy.lane@kestrel-yard.dev' });
+    expect(await contactById(ray.contact['id'])).toMatchObject({ name: 'Ray Cole', email: 'ray.cole@kestrel-yard.dev' });
+    expect((await foundRows()).some((one) => one['id'] === ivy.found['id'])).toBe(true);
+    expect((await foundRows()).some((one) => one['id'] === ray.found['id'])).toBe(true);
+  });
+
+  it.skipIf(!available)('the keeping time restarts on the person’s own later word (a form’s answer)', async () => {
+    const zoe = await keptAndTold('1', 'Zoe Brandt', 'zoe.brandt@kestrel-yard.dev');
+    const until = keptUntil(zoe.found);
+    const later = until - 30 * DAY;
+    await consent().record({ person: null, address: 'zoe.brandt@kestrel-yard.dev', purpose: 'surveys', state: 'no', source: 'form', at: later });
+    await sweepAt(until + DAY);
+    expect(await contactById(zoe.contact['id'])).toMatchObject({ email: 'zoe.brandt@kestrel-yard.dev' });
+    await sweepAt(yearsAfter(later, 3) + DAY);
+    expect(String((await contactById(zoe.contact['id']))!['email'] ?? '')).not.toContain('zoe.brandt');
+  });
+
+  it.skipIf(!available)('a person whose found row cannot be written is not kept at all: their contact goes again, and they are not held back from mail', async () => {
+    const before = (await foundRows()).length;
+    const failing = (writes: Doc) => keepFoundPeople({ ...composed.leads.deps, writes: { ...composed.leads.deps.writes, ...writes } as never }, { installId, addOnKey: 'company-finder', staff: staff('finn'), company: { table: 'crm:companies', key: '1' }, source: 'hunter', people: [found('Nell Price', 'nell.price@kestrel-yard.dev')] });
+    await expect(failing({ check: async () => { throw new Error('a dropped connection'); } })).rejects.toThrow('a dropped connection');
+    expect(await contactOf('nell.price@kestrel-yard.dev')).toBeUndefined();
+    // The tell mail could not be queued: the found row goes with the contact.
+    await expect(failing({ create: async () => { throw new Error('the outbox refused'); } })).rejects.toThrow('the outbox refused');
+    expect(await contactOf('nell.price@kestrel-yard.dev')).toBeUndefined();
+    expect((await foundRows()).length).toBe(before);
+    expect(await untoldAddress(composed.leads.deps, 'nell.price@kestrel-yard.dev')).toBe(false);
+  });
+
+  it.skipIf(!available)('a drawn document and a pay link are not e-mailed to a person not told yet', async () => {
+    await mails();
+    const address = 'otis.grey@kestrel-yard.dev';
+    // Kept, the tell mail not sent yet.
+    expect((await keep('1', [found('Otis Grey', address)])).kept).toHaveLength(1);
+    const untold = (one: string) => untoldAddress(composed.leads.deps, one);
+    const file = await filesRepo(h.meta).create({ id: 'file_g1_doc', filename: 'Q-7.pdf', mime: 'application/pdf', sizeBytes: 12, sha256: 'x'.repeat(64), kind: 'document', uploadedBy: null, storageKey: 'documents/file_g1_doc.pdf', destinationId: null, storage: 'local' });
+    const drawn = await documentsRepo(h.meta).create({ profileId: null, addOnKey: 'invoices', kind: 'quote', connectionId: null, entity: null, subject: { fields: {}, business: { name: 'Meridian', lines: [] } }, locale: 'en-US', format: 'pdf', requestedBy: null, actorKind: 'system', jobId: null });
+    const document = (await documentsRepo(h.meta).markRendered(drawn.id, { number: 'Q-7', fileId: file.id, htmlFileId: null, format: 'pdf' }, Date.now()))!;
+    expect(await emailDocument({ meta: h.meta, secret: TEST_SECRET, untold }, { document, profile: null, to: address })).toBe('not-sent:not-told');
+    expect((await documentsRepo(h.meta).findById(document.id))?.delivery).toBe('not-sent:not-told');
+    const payable = { ref: { kind: 'profile', connectionId: conn, tableName: 'invoices', rowKey: '1' }, label: 'INV-7', currency: 'GBP', total: '10.00', due: '10.00', dueDate: null, refusal: null, customerEmail: address } as unknown as ResolvedPayable;
+    const link = { id: 'pl_g1', expiresAt: Date.now() + DAY } as unknown as PaymentLink;
+    expect(await sendPayLinkEmail({ meta: h.meta, secret: TEST_SECRET, sources: {} as never, untold }, { link, url: 'https://crm.meridian.example/pay/x', payable })).toEqual({ sent: false, reason: 'not-told' });
+    expect(await mails()).toEqual([]);
+    // Told: both go.
+    await send();
+    await mails();
+    expect(await emailDocument({ meta: h.meta, secret: TEST_SECRET, untold }, { document, profile: null, to: address })).toBe('sent');
+    expect(await sendPayLinkEmail({ meta: h.meta, secret: TEST_SECRET, sources: {} as never, untold }, { link, url: 'https://crm.meridian.example/pay/x', payable })).toMatchObject({ sent: true, to: address });
+    await mails();
+  });
+
+  it.skipIf(!available)('a tell mail goes only to the address its person was found with', async () => {
+    await mails();
+    const address = 'cara.wynn@kestrel-yard.dev';
+    // Kept, then their queued tell mail is pointed elsewhere.
+    expect((await keep('1', [found('Cara Wynn', address)])).kept).toHaveLength(1);
+    const contact = (await contactOf(address))!;
+    const row = (await foundRows()).find((one) => String(one['person_key']) === String(contact['id']))!;
+    const { db } = await h.manager.data(conn);
+    await db.updateTable(table('company-finder', 'tell_mails') as never).set({ to_address: 'someone.else@kestrel-yard.dev' } as never).where('found_person_id' as never, '=', row['id'] as never).execute();
+    await send();
+    expect((await mails()).map((one) => one.to)).not.toContain('someone.else@kestrel-yard.dev');
+    const after = (await foundRows()).find((one) => one['id'] === row['id'])!;
+    expect(after['told_at']).toBeNull();
+    expect(after['state']).not.toBe('told');
+  });
+
+  it.skipIf(!available)('who is not told yet is read once for a batch, and read again at once when someone is kept', async () => {
+    // Whatever an earlier test left held: read again from here.
+    untoldChanged(h.meta);
+    let reads = 0;
+    const counted = { ...composed.leads.deps, manager: { data: async (id: string) => ((reads += 1), h.manager.data(id)) } };
+    expect(await untoldAddress(counted, 'nobody.yet@kestrel-yard.dev')).toBe(false);
+    const first = reads;
+    expect(first).toBeGreaterThan(0);
+    for (let n = 0; n < 50; n += 1) await untoldAddress(counted, `row.${String(n)}@kestrel-yard.dev`);
+    expect(reads).toBe(first);
+    // Kept now: held back at once, though the set was read a moment ago.
+    expect((await keep('1', [found('Pip Ford', 'pip.ford@kestrel-yard.dev')])).kept).toHaveLength(1);
+    expect(await untoldAddress(counted, 'pip.ford@kestrel-yard.dev')).toBe(true);
+    await send();
+    expect(await untoldAddress(counted, 'pip.ford@kestrel-yard.dev')).toBe(false);
+    await mails();
   });
 
   it.skipIf(!available)('the found people table refuses a person’s own write, and keeps its widest values whole', async () => {

@@ -21,7 +21,7 @@ import { SourceGate } from '../src/lead-sources/caps.js';
 import { withLeadSource, type LeadSourceDeps } from '../src/lead-sources/call.js';
 import { withSourceKey } from '../src/lead-sources/keys.js';
 import type { LeadSource, LeadSourceContext } from '@adminium/add-on-contracts';
-import { mutateSourceState } from '../src/lead-sources/state.js';
+import { DEFAULT_DAILY_CAP, mutateSourceState, sourceStateOf, type LeadSourceEntry, type SourcesState } from '../src/lead-sources/state.js';
 import { leadFinder } from '../../../packages/manifest/test/lead-finder-fixture.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 
@@ -204,6 +204,40 @@ describe.each(META_ENGINES)('one call to one source — $name', (engine) => {
     for (const form of [KEYED, encodeURIComponent(KEYED), 'api_token=']) expect(everywhere).not.toContain(form);
   });
 
+  it.skipIf(!engine.available)('keeps the slot of a source that ignores its signal until its work ends: hung calls never pass the cap', async () => {
+    deps.deadlineMs = 10;
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    // It never looks at its signal: only `release` ends its work.
+    const deaf = () => call('hunter', async () => (await held, { ok: true as const }));
+    const answers = await Promise.all([deaf(), deaf()]);
+    // Both replies gave up waiting…
+    expect(answers).toEqual([expect.objectContaining({ ok: false, code: 'UNAVAILABLE' }), expect.objectContaining({ ok: false, code: 'UNAVAILABLE' })]);
+    // …but both are still running: a third is refused, and nothing more is asked of the source.
+    expect(await call('hunter', async () => ({ ok: true as const }))).toMatchObject({ ok: false, code: 'BUSY' });
+    expect(seen).toHaveLength(2);
+    release();
+    await vi.waitFor(async () => expect(await call('hunter', async () => ({ ok: true as const }))).toEqual({ ok: true }));
+  });
+
+  it.skipIf(!engine.available)('takes the key out of every word of a success too, the shape kept', async () => {
+    const answer = await call('hunter', async () => ({
+      ok: true as const,
+      account: `the account of ${PEOPLE_KEY}`,
+      people: [{ name: 'Ida Marsh', email: 'ida.marsh@kestrel-yard.example', sources: [`https://www.kestrel-yard.example/team?ref=${encodeURIComponent(PEOPLE_KEY)}&page=2`] }],
+      count: 1,
+    }));
+    expect(JSON.stringify(answer)).not.toContain(PEOPLE_KEY);
+    expect(answer).toEqual({
+      ok: true,
+      account: 'the account of [the saved key]',
+      people: [{ name: 'Ida Marsh', email: 'ida.marsh@kestrel-yard.example', sources: ['https://www.kestrel-yard.example/team?ref=[the saved key]&page=2'] }],
+      count: 1,
+    });
+  });
+
   it.skipIf(!engine.available)("stops a source's request with the caller's Stop", async () => {
     const mine = new AbortController();
     deps.fetchImpl = ((_input: string | URL, init?: RequestInit) =>
@@ -227,5 +261,16 @@ describe.each(META_ENGINES)('one call to one source — $name', (engine) => {
     expect(seen.at(-1)?.signal.aborted).toBe(true);
     // A Stop is not a refusal: nothing is audited for it.
     expect(JSON.stringify((await auditRepo(handle.meta).list({ category: 'add-on' })).filter((entry) => entry.action === 'add-on.egress-refused'))).not.toContain('recherche-entreprises');
+  });
+});
+
+describe('a source the package made paid after its state was kept', () => {
+  it('reads with the default cap, never uncapped', () => {
+    const hunter = (leadFinder().addOn as { sources: LeadSourceEntry[] }).sources.find((one) => one.id === 'hunter')!;
+    const kept = { lastFour: '1234', savedAt: 1, checkedAt: 1, verdict: 'accepted' as const, on: true, dailyCap: null, personShare: 50 };
+    expect(sourceStateOf({ sources: { hunter: kept } } as unknown as SourcesState, hunter).dailyCap).toBe(DEFAULT_DAILY_CAP);
+    // A free source keeps its stored no-cap; a set cap is kept as set.
+    expect(sourceStateOf({ sources: { hunter: kept } } as unknown as SourcesState, { ...hunter, paid: false }).dailyCap).toBeNull();
+    expect(sourceStateOf({ sources: { hunter: { ...kept, dailyCap: 7 } } } as unknown as SourcesState, hunter).dailyCap).toBe(7);
   });
 });

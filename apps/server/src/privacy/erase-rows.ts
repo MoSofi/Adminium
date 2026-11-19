@@ -162,13 +162,13 @@ async function rowsWhere(db: Kysely<SourceDatabase>, table: ResolvedTable, condi
     .execute()) as Row[];
 }
 
-const pkOf = (table: ResolvedTable, row: Row): Row => Object.fromEntries(table.primaryKey.map((column) => [column, row[column]]));
+export const pkOf = (table: ResolvedTable, row: Row): Row => Object.fromEntries(table.primaryKey.map((column) => [column, row[column]]));
 
 /**
  * The values one row gets: each column as the rule says (`erase-values.ts`),
  * bound for the database; a column already empty is not written.
  */
-function blankRow(table: ResolvedTable, row: Row, columns: ReadonlyMap<string, ErasedRole>, dialect: Dialect, erasedName: string, left: Map<string, number>): { values: Row; columns: string[] } {
+export function blankRow(table: ResolvedTable, row: Row, columns: ReadonlyMap<string, ErasedRole>, dialect: Dialect, erasedName: string, left: Map<string, number>): { values: Row; columns: string[] } {
   const values: Row = {};
   // Which columns go is `erasedColumns`'s to say: the search lists a copy row's files by the same answer.
   const written = erasedColumns(table, row, columns, erasedName);

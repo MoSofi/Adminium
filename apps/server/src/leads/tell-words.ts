@@ -81,6 +81,8 @@ export interface TellFacts {
   source: string;
   /** When they were found. */
   foundAt: number;
+  /** A sole trader: the source gave their business's details, and a member of staff typed their address. */
+  addressByStaff?: boolean | undefined;
   /** The install's clock. */
   zone: string;
   purpose: string;
@@ -112,7 +114,12 @@ export function tellBlocks(t: TellTranslate, language: string, n: number, facts:
   };
   const date = tellDate(facts.foundAt, language, facts.zone);
   const paras = [
-    put('source', t('email:leadsTell.source', { defaultValue: '{source} found your work address on {date}.', source: facts.source, date })),
+    put(
+      'source',
+      facts.addressByStaff === true
+        ? t('email:leadsTell.sourceStaff', { defaultValue: '{source} gave your business’s registered details on {date}. A member of our staff added your e-mail address.', source: facts.source, date })
+        : t('email:leadsTell.source', { defaultValue: '{source} found your work address on {date}.', source: facts.source, date }),
+    ),
     put('why', t('email:leadsTell.why', { defaultValue: 'Why we keep them: {purpose}', purpose: facts.purpose })),
     put('basis', t('email:leadsTell.basis', { defaultValue: 'We rely on our legitimate interest in this (GDPR Article 6(1)(f)).' })),
     put('keep', t('email:leadsTell.keep', { defaultValue: '{years, plural, one {We keep your details for # year from {date}, or from the last time you write to us.} other {We keep your details for # years from {date}, or from the last time you write to us.}}', years: facts.keepYears, date })),

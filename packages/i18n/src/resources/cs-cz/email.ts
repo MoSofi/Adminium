@@ -1019,6 +1019,7 @@ export default {
     "hello": "Dobrý den, {name},",
     "helloNoName": "Dobrý den,",
     "source": "{source} našel vaši pracovní e-mailovou adresu dne {date}.",
+    "sourceStaff": "{source} poskytl dne {date} zapsané údaje o vaší firmě. Vaši e-mailovou adresu doplnil někdo z našich zaměstnanců.",
     "why": "Proč je uchováváme: {purpose}",
     "basis": "Opíráme se o náš oprávněný zájem (čl. 6 odst. 1 písm. f) GDPR).",
     "keep": "{years, plural, one {Vaše údaje uchováváme # rok od {date}, nebo od chvíle, kdy nám naposledy napíšete.} few {Vaše údaje uchováváme # roky od {date}, nebo od chvíle, kdy nám naposledy napíšete.} many {Vaše údaje uchováváme # roku od {date}, nebo od chvíle, kdy nám naposledy napíšete.} other {Vaše údaje uchováváme # let od {date}, nebo od chvíle, kdy nám naposledy napíšete.}}",

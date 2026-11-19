@@ -29,7 +29,7 @@ import { isIP } from 'node:net';
 import type { TrialPolicy } from '../trial/policy.js';
 import { decodePage, extractPage, type WebsitePage } from './extract.js';
 import { createRobotsCache, parseRobots, robotsAllows, ROBOTS_MAX_BYTES, type RobotsCache, type RobotsRules } from './robots.js';
-import { pin, safeFetch, SafeFetchError, type SafeFetchOptions, type SafeResponse } from './safe-fetch.js';
+import { failureCode, pin, safeFetch, SafeFetchError, type SafeFetchOptions, type SafeResponse } from './safe-fetch.js';
 
 // ── the facts it gives ──────────────────────────────────────────────────────
 
@@ -57,6 +57,8 @@ export const READ_DEADLINE_MS = 30_000;
 const PAGE_TYPES = ['text/html', 'application/xhtml+xml'] as const;
 const MAX_PAGE_REDIRECTS = 5;
 const MAX_ROBOTS_REDIRECTS = 5;
+/** The failures that mean nothing answers on the port at all: the only ones after which http is tried. */
+const CONNECT_FAILURES: ReadonlySet<string> = new Set(['ECONNREFUSED', 'ETIMEDOUT', 'EHOSTUNREACH', 'ENETUNREACH', 'EADDRNOTAVAIL']);
 export const READS_PER_INSTALL = 2;
 export const READS_PER_SITE = 1;
 
@@ -306,7 +308,7 @@ async function readTaken(start: URL, confirmed: string | null, input: WebsiteRea
       if (stopped.aborted) throw stopped.reason;
       if (error instanceof SafeFetchError) throw error;
       if (deadline.aborted) throw new SafeFetchError('timeout', 'The site took too long to answer.');
-      throw new SafeFetchError('network', error instanceof Error ? error.message : String(error));
+      throw new SafeFetchError('network', error instanceof Error ? error.message : String(error), undefined, undefined, failureCode(error));
     }
   };
 
@@ -332,6 +334,9 @@ async function readTaken(start: URL, confirmed: string | null, input: WebsiteRea
           return none;
         }
         if (error.reason === 'status' || error.reason === 'too-large') throw new Stop({ outcome: 'refused-by-site' }, `robots-${error.reason}${error.status === undefined ? '' : `-${String(error.status)}`}`, at);
+        // Nothing listens on the port, or nothing answers at all: a site with no https. Anything else (a certificate,
+        // a handshake broken half-way) is a failure of https itself, never a reason to read the site in the clear.
+        if (error.reason === 'network' && error.code !== undefined && CONNECT_FAILURES.has(error.code)) throw new Stop(outcomeOfFetch(error), 'robots-connect', at);
         throw new Stop(outcomeOfFetch(error), `robots-${error.reason}`, at);
       }
       if (answer.status >= 300 && answer.status < 400) {
@@ -359,7 +364,7 @@ async function readTaken(start: URL, confirmed: string | null, input: WebsiteRea
     try {
       await mayRead(url);
     } catch (error) {
-      if (!(error instanceof Stop) || error.why !== 'robots-network') throw error;
+      if (!(error instanceof Stop) || error.why !== 'robots-connect' || url.protocol !== 'https:') throw error;
       deps.log.info({ ...placeOf(url), reason: 'https-network' }, 'website reader: https did not connect, trying http');
       url = new URL(start);
       url.protocol = 'http:';

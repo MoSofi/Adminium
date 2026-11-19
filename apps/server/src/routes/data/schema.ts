@@ -315,11 +315,12 @@ const recordExpectBody = z
 /**
  * Plain columns as the writer saw them (two door phones ticking one party's
  * arrivals): the change is made only while each still holds that value, or
- * refused 409 `ROW_CHANGED`, naming the column. Up to 8.
+ * refused 409 `ROW_CHANGED`, naming the column. Up to 16 (a company's
+ * details filled at once hold all of theirs).
  */
 const recordSeenBody = z
   .record(z.string().min(1).max(120), z.union([z.string().max(10_000), z.number(), z.boolean(), z.null()]))
-  .refine((seen) => Object.keys(seen).length >= 1 && Object.keys(seen).length <= 8, { message: '1 to 8 columns' })
+  .refine((seen) => Object.keys(seen).length >= 1 && Object.keys(seen).length <= 16, { message: '1 to 16 columns' })
   .optional();
 
 /**

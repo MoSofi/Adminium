@@ -1019,6 +1019,7 @@ export default {
     "hello": "Hej {name}",
     "helloNoName": "Hej",
     "source": "{source} fandt din arbejdsadresse den {date}.",
+    "sourceStaff": "{source} gav din virksomheds registrerede oplysninger den {date}. En af vores medarbejdere tilføjede din e-mailadresse.",
     "why": "Derfor gemmer vi dem: {purpose}",
     "basis": "Vi bygger på vores legitime interesse i dette (GDPR artikel 6, stk. 1, litra f).",
     "keep": "{years, plural, one {Vi gemmer dine oplysninger i # år fra {date}, eller fra sidste gang du skriver til os.} other {Vi gemmer dine oplysninger i # år fra {date}, eller fra sidste gang du skriver til os.}}",

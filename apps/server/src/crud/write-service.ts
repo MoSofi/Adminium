@@ -2059,14 +2059,16 @@ function filledValue(value: unknown): boolean {
 
 /**
  * Whether a write is Adminium's own (and so may write a table only it
- * writes): a stranger's answer at the door (`public`), the undo of a
- * person's delete (the row as it was), a ledger's or a payment's row, and
- * an app's sample or seed rows (`import` that brings history, not a
- * person's file, which stamps what it leaves out).
+ * writes): a stranger's answer at a door Adminium draws (`public`: a form,
+ * a chat; never one through a public API key, which is the stranger's own
+ * write), the undo of a person's delete (the row as it was), a ledger's or a
+ * payment's row, and an app's sample or seed rows (`import` that brings
+ * history, not a person's file, which stamps what it leaves out).
  */
-export function writtenByAdminium(context: Pick<WriteContext, 'origin' | 'stamps'>): boolean {
+export function writtenByAdminium(context: Pick<WriteContext, 'origin' | 'stamps' | 'publicKey'>): boolean {
   switch (context.origin) {
     case 'public':
+      return context.publicKey === undefined;
     case 'undo':
     case 'ledger':
     case 'payment':

@@ -1019,6 +1019,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     origin: 'public',
     hops: 0,
     actor: { kind: 'public', id: null, label: `public:${ok.key.keyId}` },
+    // Through a key: the stranger's own write, never Adminium's (a table only Adminium writes refuses it).
+    publicKey: ok.key.keyId,
     request,
     claimed,
     ...(consentTick === undefined ? {} : { consentTick }),
@@ -5732,7 +5734,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
         }
         const delivery = await emailDocument(
-          { meta, runtime: deps.documents?.runtime ?? (() => null), logger: request.log },
+          { meta, runtime: deps.documents?.runtime ?? (() => null), logger: request.log, untold: deps.documents?.untold },
           { document: row, profile: null, to },
         );
         return reply.send({ data: { ...documentView(row), delivery } });

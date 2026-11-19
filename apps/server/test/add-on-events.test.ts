@@ -12,9 +12,13 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
+import type { TrustSources } from '../src/add-ons/decide.js';
 import { createAddOnHttpClient, type AddOnHttpClient } from '../src/add-ons/egress.js';
+import { packageVouched } from '../src/add-ons/runtime.js';
+import type { TreeManifest } from '../src/add-ons/store.js';
 import {
   addOnEventKind,
+  importVouchedEventHalves,
   isEventModule,
   registerAddOnEventHandlers,
   type AddOnEventContext,
@@ -225,5 +229,49 @@ describe('A module that does not implement the contract', () => {
     expect(isEventModule({})).toBe(false);
     expect(isEventModule(null)).toBe(false);
     expect(isEventModule('handle')).toBe(false);
+  });
+});
+
+describe('An event half from a package nobody vouches for', () => {
+  const store = (trees: Record<string, string>) => ({
+    verifyTree: async (key: string, version: string) => {
+      const integrity = trees[`${key}@${version}`];
+      if (integrity === undefined) throw Object.assign(new Error('modified on disk'), { reason: 'TREE_MODIFIED' });
+      return { key, version, files: {}, integrity } as unknown as TreeManifest;
+    },
+  });
+
+  it('is never imported, not even once at boot; a vouched package’s halves are', async () => {
+    const imported: string[] = [];
+    const logged: string[] = [];
+    // The bundled pin names the real package's bytes; the sideloaded look-alike's are its own.
+    const trust: TrustSources = { bundled: [{ key: 'shipping-dhl', version: '1.0.0', integrity: 'sha512-real' }], recorded: {}, nodeEnv: 'production' };
+    const trees = store({ 'shipping-dhl@1.0.0': 'sha512-real', 'shipping-dhl@1.0.1': 'sha512-look-alike', 'stock-sync@2.0.0': 'sha512-other' });
+    const halves = await importVouchedEventHalves({
+      packages: [
+        { key: 'shipping-dhl', version: '1.0.0', events: [{ on: 'order.dispatched', server: 'dist/events.js' }] },
+        { key: 'stock-sync', version: '2.0.0', events: [{ on: 'stock.low', server: 'dist/stock.js' }] },
+      ],
+      vouched: (key, version) => packageVouched(trees, trust, key, version),
+      importHalf: async (key, version, server) => (imported.push(`${key}@${version}/${server}`), { handle: () => null }),
+      log: (message) => logged.push(message),
+    });
+    expect(halves.map((half) => `${half.addOnKey}:${half.event}`)).toEqual(['shipping-dhl:order.dispatched']);
+    expect(imported).toEqual(['shipping-dhl@1.0.0/dist/events.js']);
+    expect(logged.some((line) => line.includes('not loaded'))).toBe(true);
+
+    // The same key at bytes nobody pinned: nothing is imported.
+    imported.length = 0;
+    expect(
+      await importVouchedEventHalves({
+        packages: [{ key: 'shipping-dhl', version: '1.0.1', events: [{ on: 'order.dispatched', server: 'dist/events.js' }] }],
+        vouched: (key, version) => packageVouched(trees, trust, key, version),
+        importHalf: async (key) => (imported.push(key), {}),
+        log: () => undefined,
+      }),
+    ).toEqual([]);
+    expect(imported).toEqual([]);
+    // No trust sources at all: no.
+    expect(await packageVouched(trees, undefined, 'shipping-dhl', '1.0.0')).toBe(false);
   });
 });

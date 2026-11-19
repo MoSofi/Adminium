@@ -4,8 +4,11 @@
  * told by, which language they are told in, what counts as a shared inbox,
  * a purpose with a link in it, a source by name, and the Object link's seal.
  */
+import { createHmac } from 'node:crypto';
+
 import { describe, expect, it } from 'vitest';
 
+import { deriveKey } from '../src/config/secrets.js';
 import { tellByOf } from '../src/leads/found-store.js';
 import { plainSentence, purposeOf, readLeadsSettingsRow } from '../src/leads/installs.js';
 import { makeObjectToken, readObjectToken } from '../src/leads/object-token.js';
@@ -95,12 +98,22 @@ describe('a source by name', () => {
 });
 
 describe('the Object link', () => {
-  const claim = { address: ' Petra.Lindqvist@Kestrel-Yard.dev ', installId: 'mft_1', found: '42', language: 'fr-FR' };
+  const claim = { address: ' Petra.Lindqvist@Kestrel-Yard.dev ', installId: 'mft_1', found: '42', foundAt: 1_785_000_000_123, language: 'fr-FR' };
 
-  it('reads back what it was made with, the address sealed in it', () => {
+  it('reads back what it was made with, the address sealed in it, and when the row says they were found', () => {
     const token = makeObjectToken(KEY, 'ins_1', claim);
     expect(token).not.toContain('petra');
-    expect(readObjectToken(KEY, 'ins_1', token)).toEqual({ address: 'petra.lindqvist@kestrel-yard.dev', installId: 'mft_1', found: '42', language: 'fr-FR' });
+    expect(readObjectToken(KEY, 'ins_1', token)).toEqual({ address: 'petra.lindqvist@kestrel-yard.dev', installId: 'mft_1', found: '42', foundAt: 1_785_000_000_123, language: 'fr-FR' });
+  });
+
+  it('is dead without the moment the row was found: an id alone names whoever holds it now', () => {
+    const token = makeObjectToken(KEY, 'ins_1', claim);
+    const [payload] = token.split('~') as [string, string];
+    const body = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Record<string, unknown>;
+    delete body['t'];
+    const text = Buffer.from(JSON.stringify(body)).toString('base64url');
+    const signature = createHmac('sha256', deriveKey(KEY, 'adminium:object-token:sign:v1', 'sign')).update(text).digest('base64url');
+    expect(readObjectToken(KEY, 'ins_1', `${text}~${signature}`)).toBeNull();
   });
 
   it('is dead when changed by one character, made by another install or with another key', () => {

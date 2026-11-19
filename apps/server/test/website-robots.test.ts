@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { createRobotsCache, parseRobots, robotsAllows, ROBOTS_KEEP_MS } from '../src/net/robots.js';
+import { createRobotsCache, parseRobots, robotsAllows, ROBOTS_KEEP_MS, ROBOTS_MAX_BYTES, ROBOTS_PATH_MAX, ROBOTS_PATTERN_MAX, ROBOTS_RULES_MAX } from '../src/net/robots.js';
 
 const allows = (text: string, path: string): boolean => robotsAllows(parseRobots(text), path);
 
@@ -74,7 +74,8 @@ describe('the rule that wins', () => {
   it('answers quickly a rule written to make a matcher backtrack', () => {
     const text = ['User-agent: *', `Disallow: /${'*a'.repeat(200)}$`].join('\n');
     const began = performance.now();
-    expect(allows(text, `/${'a'.repeat(3000)}b`)).toBe(true);
+    // A path the reader still judges (at most ROBOTS_PATH_MAX): matched in full, within the step budget.
+    expect(allows(text, `/${'a'.repeat(2000)}b`)).toBe(true);
     expect(performance.now() - began).toBeLessThan(2000);
   });
 });
@@ -100,5 +101,38 @@ describe('the cache', () => {
     cache.set('https://huge.example', { rules: [{ allow: false, pattern: `/${'x'.repeat(20_000)}` }] });
     expect(cache.get('https://huge.example')).toBeNull();
     expect(cache.get('https://c.example')).not.toBeNull();
+  });
+});
+
+describe('a hostile robots.txt', () => {
+  it('cannot hold the server: the review’s file, judged against a path the site chose, answers in well under a second', () => {
+    // Rules of `/*` + 8,000 × `a` + `b`, as many as fit in the bytes read, against a path of 16,000 `a`s: each
+    // rule alone took ~0.6 s to match by backtracking, ~40 s for the file.
+    const rule = `Disallow: /*${'a'.repeat(8000)}b`;
+    const lines = ['User-agent: *'];
+    while (lines.join('\n').length + rule.length + 1 < ROBOTS_MAX_BYTES) lines.push(rule);
+    const path = `/${'a'.repeat(16_000)}`;
+    const started = performance.now();
+    expect(allows(lines.join('\n'), path)).toBe(false);
+    // Rules inside the bounds, each a million steps of backtracking against a path inside them: the step budget
+    // ends the judgement (as "not to be read") long before the 200 million steps the file asks for.
+    const within = `Disallow: /*${'a'.repeat(1000)}b`;
+    const many = ['User-agent: *', ...Array.from({ length: 200 }, () => within)].join('\n');
+    expect(allows(many, `/${'a'.repeat(ROBOTS_PATH_MAX - 10)}`)).toBe(false);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
+  it('is not judged by when a rule is too long or there are too many: nothing on the host is read', () => {
+    expect(allows(['User-agent: *', `Allow: /${'x'.repeat(ROBOTS_PATTERN_MAX)}`].join('\n'), '/')).toBe(false);
+    expect(allows(['User-agent: *', ...Array.from({ length: ROBOTS_RULES_MAX + 1 }, (_, n) => `Disallow: /p${String(n)}`)].join('\n'), '/')).toBe(false);
+    // A long rule in another reader's group is not this reader's business.
+    expect(allows(['User-agent: Googlebot', `Disallow: /${'x'.repeat(ROBOTS_PATTERN_MAX)}`, 'User-agent: *', 'Disallow: /private'].join('\n'), '/')).toBe(true);
+    // Up to the bound, rules are judged as ever.
+    expect(allows(['User-agent: *', ...Array.from({ length: ROBOTS_RULES_MAX }, (_, n) => `Disallow: /p${String(n)}`)].join('\n'), '/open')).toBe(true);
+  });
+
+  it('a path longer than the reader judges is not read', () => {
+    expect(allows('', `/${'a'.repeat(ROBOTS_PATH_MAX)}`)).toBe(false);
+    expect(allows('', `/${'a'.repeat(ROBOTS_PATH_MAX - 2)}`)).toBe(true);
   });
 });
