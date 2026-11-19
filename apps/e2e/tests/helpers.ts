@@ -67,6 +67,22 @@ export function useOwnPrincipal(key: OwnPrincipal): string {
 }
 
 /**
+ * Wait, when this principal's `api` budget (300 a minute, a fixed window) has
+ * less than `need` calls left, for its next minute to begin. For a file whose
+ * passes together spend more than one minute's budget: each pass then starts
+ * with room for all of it, rather than meeting a 429 halfway through (an
+ * upload refused leaves the install wizard on its first step). The limit
+ * itself is the shipped one; only the test's pace changes.
+ */
+export async function awaitApiBudget(page: Page, need: number): Promise<void> {
+  const reply = await page.request.get('/api/v1/connections');
+  const left = Number(reply.headers()['x-ratelimit-remaining'] ?? Number.NaN);
+  const reset = Number(reply.headers()['x-ratelimit-reset'] ?? Number.NaN);
+  if (!Number.isFinite(left) || !Number.isFinite(reset)) throw new Error(`no rate-limit headers on GET /api/v1/connections (${String(reply.status())})`);
+  if (left < need) await page.waitForTimeout((reset + 1) * 1000);
+}
+
+/**
  * Land in the app shell as the seeded super admin.
  *
  * The `setup` project (auth.setup.ts) already signed in once and the

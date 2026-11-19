@@ -20,7 +20,7 @@
 import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
-import { signIn } from './helpers.js';
+import { awaitApiBudget, signIn } from './helpers.js';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'];
 const LINK = 'https://forms.meridian.example/x/forms/showroom-visit?from=newsletter';
@@ -104,6 +104,9 @@ test.describe('a campaign that starts with a form’s link', () => {
     test.setTimeout(300_000);
     const failures: string[] = [];
     let states = 0;
+    // Sixteen states spend about 115 of the shared admin's 300 calls a minute: start with room for all of them, or a
+    // 429 halfway leaves the admin in Arabic for the specs after this one.
+    await awaitApiBudget(page, 140);
     await setPrefs(page, { theme: null, locale: null });
     await signIn(page);
     try {
