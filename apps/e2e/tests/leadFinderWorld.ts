@@ -23,7 +23,7 @@
 import { randomBytes } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -71,10 +71,10 @@ export const KEY = 'lead-finder';
 const OWNER = { email: 'e2e-lead-owner@adminium.local', password: 'adminium-e2e-lead-owner-pass', name: 'Dana Whitlock' };
 
 /** The add-ons checkout, and the Lead finder package in it. */
-const REPO = process.env['ADMINIUM_ADD_ONS_REPO'] ?? process.env['ADD_ONS_REPO'] ?? join(homedir(), 'Work', 'lanes', 'p71w6-m5');
-export const PACKAGE = join(REPO, 'packages', 'lead-finder');
+const REPO = process.env['ADMINIUM_ADD_ONS_REPO'] ?? process.env['ADD_ONS_REPO'] ?? '';
+export const PACKAGE = REPO === '' ? '(no add-ons checkout named)' : join(REPO, 'packages', 'lead-finder');
 /** Whether the package is here and built (its manifest names three bundles). */
-export const PACKAGE_BUILT = ['manifest.json', 'package.json', 'dist/server.js', 'dist/client.js', 'dist/pages/lead-finder.js'].every((file) => existsSync(join(PACKAGE, file)));
+export const PACKAGE_BUILT = REPO !== '' && ['manifest.json', 'package.json', 'dist/server.js', 'dist/client.js', 'dist/pages/lead-finder.js'].every((file) => existsSync(join(PACKAGE, file)));
 
 const pk = { ref: 'id', type: 'int', role: 'pk' };
 const text = (ref: string, maxLength: number, label: string) => ({ ref, type: 'text', maxLength, nullable: true, label });
