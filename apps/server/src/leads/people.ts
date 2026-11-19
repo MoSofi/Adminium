@@ -64,7 +64,7 @@ import { privacyNoticeReady } from '../privacy/business.js';
 import { normaliseAddress } from '../public-api/claim-code.js';
 import { boundId, foundRowsOf, insertFound, leadsWriteContext, tellByOf, untoldRows, updateFound, zoneOf } from './found-store.js';
 import { LEADS_TELL_KIND, leadsAddOnsOn, leadsSettingsRow, readLeadsSettingsRow, storedLeadsAddOns, type LeadsAddOnTables, type LeadsSettings } from './installs.js';
-import { companyCountryColumn } from './pending-p3.js';
+import { companyCountryColumn } from './companies.js';
 import { tellLanguages, type TellLanguage } from './tell-words.js';
 
 /** Why a found person was not kept. */
@@ -407,7 +407,7 @@ export async function keepFoundPeople(deps: KeepFoundPeopleDeps, input: KeepFoun
   const into = companyTable === null ? null : peopleTableFor(view, declared, companyTable.id);
   // The company's country: the language its people are told in, when it is one of the eight.
   const companies = companyTable === null ? undefined : declared.find((entry) => entry.table === companyTable.id && entry.kind === 'companies');
-  const countryColumn = companies === undefined || companyTable === null ? null : await companyCountryColumn(deps.meta, companies, companyTable);
+  const countryColumn = companies === undefined || companyTable === null ? null : companyCountryColumn(companies, companyTable);
   const country = countryColumn === null || companyRow === null ? null : companyRow[countryColumn];
   if (into === null && companyTable !== null) throw new ValidationFailedError('No app keeps people on this database, so nobody found here can be kept.', { reason: 'NO_PEOPLE_TABLE' });
 
