@@ -67,10 +67,11 @@ export type LoadRefusal =
  * Contracts imported as ordinary modules, but ONLY from a package Adminium can
  * vouch for — the same sources the deciding contracts use (a bundled pin, a
  * catalogue download, a dev key outside production). A payment provider
- * handles a shop's money and its keys, so a sideloaded look-alike must never
- * load, whatever its manifest says.
+ * handles a shop's money and its keys, and a card terminal is handed the
+ * shop's reader keys and takes payments in person, so a sideloaded look-alike
+ * of either must never load, whatever its manifest says.
  */
-export const VOUCHED_CONTRACTS: ReadonlySet<string> = new Set(['payment-provider']);
+export const VOUCHED_CONTRACTS: ReadonlySet<string> = new Set(['payment-provider', 'card-terminal']);
 
 export interface LoadProblem {
   addOnKey: string;
@@ -280,7 +281,7 @@ export async function buildAddOnRuntime(opts: BuildRuntimeOptions): Promise<AddO
                 `"${manifest.key}" ${version} provides ${key(provided.contract, provided.version)}, and this package is neither one ` +
                 'this build bundles nor one downloaded from the catalogue, so its code was not loaded.',
             });
-            opts.log?.('add-on payment provider is not trusted', { key: manifest.key, version });
+            opts.log?.('add-on provider is not trusted', { key: manifest.key, version, contract: provided.contract });
             continue;
           }
         }
