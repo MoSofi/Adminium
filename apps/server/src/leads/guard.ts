@@ -31,7 +31,7 @@ import type { MailDoorReachFacts } from '../email/door-reach.js';
 import { rowKeyOf } from '../payments/payables.js';
 import { peopleTablesOf } from '../people/tables-of.js';
 import { plainSentence, storedLeadsAddOns } from './installs.js';
-import { isFoundPerson, peopleSwitchProblems } from './people.js';
+import { isFoundPerson, peopleSwitchProblems, peopleSwitchProblemsData } from './people.js';
 import { LEADS_KEEP_YEARS_MAX, LEADS_KEEP_YEARS_MIN } from '@adminium/manifest';
 
 export interface LeadsGuardDeps {
@@ -102,7 +102,8 @@ export function withLeadsGuard(inner: RecordHooks, deps: LeadsGuardDeps): Record
     const install = (await storedLeadsAddOns(deps.meta)).find((one) => one.key === addOnKey && one.connectionId === event.target.connectionId);
     if (install === undefined) return;
     const problems = await peopleSwitchProblems(deps, { installId: install.installId }, { ...(record ?? {}), ...values });
-    if (problems.length > 0) throw new HookRejectedError(`${PEOPLE_SWITCH_REFUSED} ${problems.map((problem) => problem.message).join(' ')}`, 'leads.people-switch');
+    // The English message for a person reading the refusal; `problems` by stable code for an add-on's screen to say in its own words.
+    if (problems.length > 0) throw new HookRejectedError(`${PEOPLE_SWITCH_REFUSED} ${problems.map((problem) => problem.message).join(' ')}`, 'leads.people-switch', { problems: peopleSwitchProblemsData(problems) });
   }
 
   async function judgeTick(column: string, event: BeforeWriteEvent): Promise<void> {

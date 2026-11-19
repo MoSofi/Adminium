@@ -353,6 +353,34 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     return as('seth', 'PATCH', `/api/v1/data/${conn}/${encodeURIComponent(settingsId)}/${String(row['id'])}`, { values: { people_on: true } });
   }
 
+  it.skipIf(!available)('the People switch’s refusal names each thing missing by a stable code, as data, beside the English message', async () => {
+    // A keeping time outside 1 to 10 years reads as none chosen.
+    await setPeople({ purpose: {}, keep_years: 0 });
+    await settings().set('system.publicOrigin', null, { updatedBy: null });
+    await settings().set('privacy.businessName', null, { updatedBy: null });
+    try {
+      const reply = await switchOn();
+      expect(reply.statusCode, reply.body).toBe(422);
+      const error = (JSON.parse(reply.body) as Doc)['error'] as Doc;
+      expect(error['message']).toContain(PEOPLE_SWITCH_REFUSED);
+      expect(error['details']['hook']).toBe('leads.people-switch');
+      expect(error['details']['problems']).toEqual([
+        { code: 'purpose-missing', languages: ['en-US'], message: 'Write the English version of why you keep them.' },
+        { code: 'keep-time', message: 'Choose how long found people are kept: 1 to 10 years.' },
+        { code: 'smtp', message: 'E-mail isn’t set up: Settings → Email.' },
+        { code: 'public-origin', message: 'Set the address in e-mail links: Settings → Senders.' },
+        { code: 'privacy-notice', message: 'Set the business name and the privacy notice’s address: Studio → Privacy.' },
+      ]);
+      // Each code's message is in the English message too, in the same order.
+      const said = (error['details']['problems'] as Doc[]).map((one) => one['message'] as string).join(' ');
+      expect(error['message']).toBe(`${PEOPLE_SWITCH_REFUSED} ${said}`);
+    } finally {
+      await setPeople({ purpose: PURPOSE, keep_years: 3 });
+      await settings().set('system.publicOrigin', ORIGIN, { updatedBy: null });
+      await settings().set('privacy.businessName', 'Meridian Workplace Ltd', { updatedBy: null });
+    }
+  });
+
   it.skipIf(!available)('the People switch refuses, saying why, while e-mail, the public address or the purpose is missing; with all set it turns on', async () => {
     // No mail server.
     let reply = await switchOn();
