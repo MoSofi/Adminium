@@ -126,6 +126,20 @@ describe('an add-on\'s landing pages', () => {
     expect(one((d) => tableOf(d, 'funnels').columns.push({ ref: 'colour', type: 'text', maxLength: 10, default: 'teal' }))).toBe('');
   });
 
+  it('counts a moment Adminium stamps by its role as filled, on both tables', () => {
+    // A column whose role is `updated_at` or `created_at` is written by Adminium on every create (and change).
+    for (const part of LANDING_PARTS) {
+      for (const role of ['updated_at', 'created_at']) {
+        expect(one((d) => tableOf(d, part).columns.push({ ref: 'stamped_on', type: 'timestamptz', role })), `${part} ${role}`).toBe('');
+        expect(one((d) => tableOf(d, part).columns.push({ ref: 'stamped_day', type: 'date', role })), `${part} ${role} date`).toBe('');
+      }
+    }
+    expect(one((d) => tableOf(d, 'funnels').columns.push({ ref: 'updated_at', type: 'timestamptz', role: 'updated_at' }))).toBe('');
+    // A role on a column that is no moment stamps nothing: still a column nothing fills.
+    expect(one((d) => tableOf(d, 'funnels').columns.push({ ref: 'touched', type: 'text', maxLength: 30, role: 'updated_at' }))).toContain('Adminium never fills "touched"');
+    expect(one((d) => tableOf(d, 'funnels').columns.push({ ref: 'touched', type: 'int', role: 'created_at' }))).toContain('Adminium never fills "touched"');
+  });
+
   it('opens neither table to the public', () => {
     for (const part of LANDING_PARTS) {
       const doc = changed((d) => {
