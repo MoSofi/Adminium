@@ -655,10 +655,15 @@ describe.each(LEGS)('the lead door — %s', (dialect, available) => {
   });
 
   it.skipIf(!available)('a fill re-checks every field it writes at the write, the ninth and later too', async () => {
-    await insert('companies', { id: 4170, name: 'Kestrel Yard Architects', account_owner_id: ids['dana'] });
-    const look = await door('dana', 'lookup', { record: '4170', sources: ['companies-house'] });
+    // A rep who may see people's phones and addresses, so every field is one they read.
+    if (cookies['una'] === undefined) {
+      const companiesId = (await loadSnapshotView(h.meta, conn, { forOthers: true })).table(table('crm', 'companies')).id;
+      await person('una', ['crm-rep'], [`page:${PAGE}:view`, `table:${conn}:${companiesId}:read_pii`]);
+    }
+    await insert('companies', { id: 4170, name: 'Kestrel Yard Architects', account_owner_id: ids['una'] });
+    const look = await door('una', 'lookup', { record: '4170', sources: ['companies-house'] });
     expect(look.statusCode, look.body).toBe(200);
-    const fields = ['name', 'number', 'website', 'lines', 'town', 'postalCode', 'country', 'activity', 'about'].map((field) => ({ field, source: 'companies-house', now: field === 'name' ? 'Kestrel Yard Architects' : null }));
+    const fields = ['name', 'number', 'website', 'phone', 'lines', 'town', 'postalCode', 'country', 'activity', 'about'].map((field) => ({ field, source: 'companies-house', now: field === 'name' ? 'Kestrel Yard Architects' : null }));
     const { db } = await h.manager.data(conn);
     // Somebody types the about text after the door read the record, before its change is written.
     const app = composed.app as unknown as { inject: (opts: Doc) => Promise<unknown> };
@@ -669,7 +674,7 @@ describe.each(LEGS)('the lead door — %s', (dialect, available) => {
     };
     let filled;
     try {
-      filled = await door('dana', 'fill', { record: '4170', fields });
+      filled = await door('una', 'fill', { record: '4170', fields });
     } finally {
       app.inject = original;
     }

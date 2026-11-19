@@ -824,6 +824,7 @@ export function leadDoorRoutes(deps: LeadDoorDeps): FastifyPluginAsync {
         const columns = leadColumns(door.companies);
         const values: Record<string, unknown> = {};
         const seen: Record<string, string | null> = {};
+        const masked = new Set(Array.isArray(record['_masked']) ? (record['_masked'] as unknown[]).filter((one): one is string => typeof one === 'string') : []);
         const filled: { field: LeadField; column: string; source: string }[] = [];
         for (const one of body.fields) {
           const column = columns[one.field];
@@ -837,8 +838,9 @@ export function leadDoorRoutes(deps: LeadDoorDeps): FastifyPluginAsync {
             throw new AppError(409, 'FIELD_CHANGED', `${column} was changed after you looked. Look up again.`, { field: one.field, column });
           }
           values[column] = write.value;
-          // Every filled column, as it was read: the write is made only while each still holds it.
-          seen[column] = typeof record[column] === 'string' ? (record[column] as string) : (shownText(record[column]) ?? null);
+          // Every filled column the reader can read, as it was read: the write is made only while each still holds
+          // it. A column masked for them was never shown to them, so it is no condition (it would be refused as one).
+          if (!masked.has(column)) seen[column] = typeof record[column] === 'string' ? (record[column] as string) : (shownText(record[column]) ?? null);
           filled.push({ field: one.field, column, source: one.source });
         }
         let stored: Row;
