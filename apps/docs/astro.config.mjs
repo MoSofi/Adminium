@@ -183,7 +183,13 @@ export default defineConfig({
               items: [
                 { label: 'Email templates', link: '/guides/email/' },
                 { label: 'Campaigns', link: '/guides/email/campaigns/' },
+              ],
+            },
+            {
+              label: 'Privacy',
+              items: [
                 { label: "A person's data", link: '/guides/email/privacy/' },
+                { label: 'Visitor counting', link: '/guides/privacy/visitor-counting/' },
               ],
             },
             {
