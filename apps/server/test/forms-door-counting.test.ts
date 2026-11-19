@@ -403,6 +403,31 @@ describe.each(LEGS)('visitor counting at the forms door — %s', (dialect, avail
     expect(await visitorsRepo(h.meta).counts()).toEqual({ visitors: 0, visits: 0 });
   });
 
+  it.skipIf(!available)('takes a "yes" from the https page behind a proxy that ends TLS unsaid, and still refuses another site\'s', async () => {
+    // The request reads as plain http here (no trusted proxy), while the visitor's page is https: the host is what is compared.
+    const post = (headers: Record<string, string>) => composed.app.inject({ method: 'POST', url: '/x/consent/visit', remoteAddress: nextIp(), headers: { host: HOST, 'user-agent': CHROME, ...headers }, payload: {} });
+    for (const headers of [{ origin: `https://${HOST}`, 'sec-fetch-site': 'same-origin' }, { origin: `https://${HOST}:443` }, { origin: `https://${HOST.toUpperCase()}` }]) {
+      const yes = await post(headers);
+      expect(yes.statusCode, `${JSON.stringify(headers)} ${yes.body}`).toBe(200);
+      expect(String(yes.headers['set-cookie'])).toMatch(/^adm_v=/);
+    }
+    // Another site, another host on the same site, a page on another port or scheme as the browser says, an opaque origin: refused.
+    for (const headers of [
+      { origin: 'https://evil.example', 'sec-fetch-site': 'same-origin' },
+      { origin: `https://shop.${HOST}`, 'sec-fetch-site': 'same-site' },
+      { origin: `https://${HOST}:8443` },
+      { origin: `http://${HOST}`, 'sec-fetch-site': 'same-site' },
+      { origin: 'null' },
+      { origin: 'not a url' },
+    ]) {
+      const refused = await post(headers);
+      expect(refused.statusCode, JSON.stringify(headers)).toBe(403);
+      expect(refused.headers['set-cookie']).toBeUndefined();
+    }
+    const withdrawn = await composed.app.inject({ method: 'DELETE', url: '/x/consent/visit', remoteAddress: nextIp(), headers: { host: HOST, origin: `https://${HOST}`, 'sec-fetch-site': 'same-origin', 'user-agent': CHROME } });
+    expect(withdrawn.statusCode, withdrawn.body).toBeLessThan(300);
+  });
+
   it.skipIf(!available)('going down from Per visitor deletes every visitor and visit at once with one audit entry; Cookie choice withdraws', async () => {
     const yes = async () => {
       const res = await composed.app.inject({ method: 'POST', url: '/x/consent/visit', remoteAddress: nextIp(), headers: { host: HOST, origin: `http://${HOST}`, 'user-agent': CHROME }, payload: {} });
