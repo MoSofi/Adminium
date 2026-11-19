@@ -101,6 +101,16 @@ const publicContentReply = z.object({
     at: z.number(),
     sides: z.array(z.object({ appKey: z.string(), path: z.string(), files: z.array(publicFile), truncated: z.boolean() })),
     forms: z.array(z.object({ slug: z.string(), addOn: z.string(), form: z.unknown() })),
+    pages: z.array(
+      z.object({
+        addOn: z.string(),
+        key: z.string(),
+        slug: z.string(),
+        page: z.unknown(),
+        pictures: z.array(z.object({ file: z.string(), sha256: z.string(), mime: z.string(), bytes: z.number() })),
+        links: z.array(z.string()),
+      }),
+    ),
   }),
 });
 

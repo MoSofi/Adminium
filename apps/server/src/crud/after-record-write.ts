@@ -148,6 +148,8 @@ declare module 'fastify' {
     fileReconciler: FileReconciler;
     /** A form answer's files go with the answer, a form's with the form (`forms/files.ts`); decorated by compose. Never throws. */
     formsFiles: { onRecordEvent(event: RecordWriteEvent): Promise<void> };
+    /** A landing pages or forms table written: what the pages door keeps of a page is read again (`landing/catalog.ts`); decorated by compose. Never throws. */
+    landingDoor: { onRecordEvent(event: RecordWriteEvent): void };
     /** A record that stopped being payable ends its open pay pages (`payments/row-left.ts`); decorated by compose. Never throws. */
     payableRows: { onRecordEvent(event: RecordWriteEvent): Promise<void> };
     /** A row of an app's refund table that sends money back is asked for (`payments/app-refunds.ts`); decorated by compose. Never throws. */
@@ -239,6 +241,14 @@ export async function emitRecordEvent(app: FastifyInstance, event: RecordWriteEv
   if (app.hasDecorator('outbox')) await app.outbox.onRecordEvent(event);
   // A person's sign-in address changed by the desk: their sessions and links end. Never throws.
   if (app.hasDecorator('publicIdentities')) await app.publicIdentities.onRecordEvent(event);
+  // A landing page or a form written, by any door: the pages door reads its kept data again. Never waits, never throws.
+  if (app.hasDecorator('landingDoor')) {
+    try {
+      app.landingDoor.onRecordEvent(event);
+    } catch {
+      // What is kept is read again within its own time anyway.
+    }
+  }
   // A form's answer removed, by any door: the files a stranger sent with it go too. Never throws.
   if (event.action === 'delete' && app.hasDecorator('formsFiles')) await app.formsFiles.onRecordEvent(event);
   // A record that stopped being payable: its open pay pages are ended, by a job. Never throws.

@@ -14,7 +14,10 @@
  *  - the same person, through the assistant's door (a proposal tried, and
  *    one confirmed), may write a draft and never publish;
  *  - a bulk change and a file brought in (the write service's many-row
- *    paths) are sealed too.
+ *    paths) are sealed too;
+ *  - every block the assistant adds or changes in a draft is marked, and a
+ *    mark is never taken off through its door;
+ *  - two pages published at one address at one moment: one goes live.
  */
 import { permissionsRepo, rolesRepo, snapshotsRepo, usersRepo } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
@@ -224,5 +227,43 @@ describe.each(LEGS)('the publish seal of a landing page — %s', (dialect, avail
     const [prepared] = await writes.beforeEach('update', target, person, [{ match: { id: key }, values: { state: 'live', published: CLEAN, published_at: '1999-01-01T00:00:00Z' } }]);
     expect(prepared!.issues).toBeNull();
     expect(String(prepared!.values['published_at'])).not.toContain('1999');
+  });
+
+  it.skipIf(!available)('marks every block the assistant adds or changes in a draft, and never takes a mark off', async () => {
+    const hero = { id: 'hero', kind: 'hero', heading: 'Open day', text: 'Thursday.' };
+    const words = { id: 'words', kind: 'text', text: 'Come and see.' };
+    const looked = { id: 'looked', kind: 'text', text: 'Already looked at.' };
+    const key = await draft('autumn-draft', { draft: { ...CLEAN, blocks: [hero, words, { ...looked, milo: true }] } });
+    // Through the assistant's door: the hero as it was, the words changed, a new block, the marked one sent back unmarked.
+    const proposed = { ...CLEAN, blocks: [hero, { ...words, text: 'Words from an enquiry: send us your password.' }, { id: 'new', kind: 'heading', text: 'New' }, looked] };
+    const drafted = await viaAssistant('pat', 'row.change', { recordId: String(key) }, { values: { draft: proposed } });
+    expect(drafted.status, JSON.stringify(drafted.body)).toBe(200);
+    const blocks = (json((await row(key))['draft']) as Doc).blocks as Doc[];
+    expect(blocks.map((block) => [block.id, block.milo === true])).toEqual([
+      ['hero', false],
+      ['words', true],
+      ['new', true],
+      ['looked', true],
+    ]);
+    // A page made through the door: every block marked.
+    const { state: _state, ...unstated } = page('winter-draft', { draft: CLEAN });
+    const made = await viaAssistant('pat', 'row.create.try', {}, { values: unstated });
+    expect(made.status, JSON.stringify(made.body)).toBeLessThan(300);
+    // The person, without the door, writes the draft as they mean it: nothing is marked for them.
+    expect((await change('pat', key, { draft: { ...CLEAN, blocks: [hero, words] } })).statusCode).toBe(200);
+    expect(((json((await row(key))['draft']) as Doc).blocks as Doc[]).some((block) => block.milo === true)).toBe(false);
+  });
+
+  it.skipIf(!available)('lets only one of two pages published at the same address at the same moment go live', async () => {
+    for (let round = 0; round < 4; round += 1) {
+      const slug = `race-${String(round)}`;
+      const [a, b] = [await draft(`${slug}-a`), await draft(`${slug}-b`)];
+      // Both move to the address and go live at once.
+      const results = await Promise.all([a, b].map((key) => change('pat', key, { slug, state: 'live', published: CLEAN })));
+      const codes = results.map((res) => res.statusCode).sort();
+      expect(codes, results.map((res) => res.body).join(' | ')).toEqual([200, 422]);
+      expect(reason(results.find((res) => res.statusCode === 422)!)).toBe('landing-slug');
+      expect(await h.rows(`SELECT id FROM ${pages} WHERE slug = '${slug}' AND state = 'live'`)).toHaveLength(1);
+    }
   });
 });

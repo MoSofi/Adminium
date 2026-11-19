@@ -150,6 +150,7 @@ import { chatOwnTable, sweepChatTranscripts } from './chat/transcripts.js';
 import { landingPagesTable } from './landing/seal.js';
 import { createLandingEndings } from './landing/ending.js';
 import { createLandingCatalog } from './landing/catalog.js';
+import { pagePictureOf } from './landing/pictures.js';
 import { pagesDoorRoutes } from './routes/pages-door/index.js';
 import { landingStaffRoutes } from './routes/landing/index.js';
 import { chatStaffRoutes } from './routes/chat/index.js';
@@ -3701,6 +3702,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // A live form's views and sends are counted; at "Per visitor" its own page asks first.
       views: counting.counter,
       visitors: counting.visitors,
+      // A form block's `?on=`: the live landing page that holds it.
+      landing: landingCatalog,
     }),
   );
   // The visitor banner's "Yes" and "Cookie choice" (`/x/consent/visit`).
@@ -3708,7 +3711,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     xConsentRoutes({
       meta,
       key: counting.visitors.key,
-      level: () => counting.counter.level(),
+      // Read again within the last few seconds: another process's change reaches this one's "yes" at once.
+      levelNow: () => counting.counter.levelNow(),
       networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
       desktop: env.ADMINIUM_RUNTIME === 'desktop',
       trustProxy: env.ADMINIUM_TRUST_PROXY,
@@ -3736,6 +3740,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       trustProxy: env.ADMINIUM_TRUST_PROXY,
     }),
   );
+  // A write to a landing pages table or a forms table: what the pages door keeps of a page is read again (`crud/after-record-write.ts`).
+  app.decorate('landingDoor', {
+    onRecordEvent(event: { connectionId: string; table: { id: string } }) {
+      const installs = addOnInstalls.current();
+      if (landingPagesTable(installs, event.connectionId, event.table.id) || formsTablesOn(installs, event.connectionId).some((tables) => tables.forms === event.table.id)) landingCatalog.forget();
+    },
+  });
   // Staff: a page's pictures, and where its pages answer (`routes/landing`).
   await app.register(
     async (api) => {
@@ -4641,6 +4652,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       }).keep(installed),
     log: (message, data) => app.log.warn(data, message),
   });
+  // The live landing pages as the operator reads them: their words, the pictures they show and where their buttons lead.
+  const landingPublic = {
+    liveSlugs: () => landingCatalog.liveSlugs(),
+    find: (slug: string) => landingCatalog.find(slug),
+    picture: (owner: { connectionId: string; pagesTable: string; page: string }, file: string) => pagePictureOf(meta, owner, file),
+    forget: (slug?: string) => landingCatalog.forget(slug),
+  };
   // The operator endpoint, on a listener of its own and only with the operator's token (`operator/endpoint.ts`).
   const operatorToken = env.ADMINIUM_OPERATOR_TOKEN ?? operatorSecret('ADMINIUM_OPERATOR_TOKEN');
   const operatorListen = env.ADMINIUM_OPERATOR_LISTEN;
@@ -4652,7 +4670,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           token: operatorToken,
           holds: app.operatorHolds,
           status: () => operatorStatus({ meta, dataDir: env.ADMINIUM_DATA_DIR, projectRoot, publicPages: () => app.operatorHolds.publicPages() }),
-          publicContent: () => buildPublicContent({ surfaces: () => app.surfaces, forms: formsCatalog }),
+          publicContent: () => buildPublicContent({ surfaces: () => app.surfaces, forms: formsCatalog, pages: landingPublic }),
           reinstall: () => operatorReinstaller.reinstall(),
           logger: app.log.child({ listener: 'operator' }),
         });
@@ -4670,6 +4688,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     forms: formsCatalog,
     // What is kept of the add-ons' installs, read without a query: a write to a forms table may change a form.
     formsTable: async (connectionId: string, tableId: string) => formsTablesOn(addOnInstalls.current(), connectionId).some((tables) => tables.forms === tableId),
+    // ...and a write to a landing pages table, a page.
+    pages: landingPublic,
+    landingPagesTable: async (connectionId: string, tableId: string) => landingPagesTable(addOnInstalls.current(), connectionId, tableId),
     log: app.log,
   };
   registerOperatorEventsHandler(jobs.registry, operatorEventsOptions);

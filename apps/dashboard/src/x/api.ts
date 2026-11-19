@@ -3,7 +3,11 @@
  * The calls a stranger's page makes to its own host (`/x/forms/api/*`).
  * On the install's own page (never in a frame) the reads and the answer go
  * with this host's cookies, so "Per visitor" can see a visitor who said yes
- * (`__Secure-adm_v`, `Path=/x/`); in a frame, never a cookie.
+ * (`__Host-adm_v` on the whole host over https, `adm_v` on `/x/` over plain
+ * http); in a frame, never a cookie. A form block on a landing page sends
+ * `on=<page key>` on the read, the human check, its files and the answer: the
+ * door then answers by the block's own form (another forms install may hold
+ * the same slug), and the check is bound to that form.
  *
  * WHAT IS ASKED.
  *   GET  /x/forms/api/<slug>?lang=…[&frame=1][&t=…]   the form, in one of its languages, and who the business is;
@@ -112,8 +116,12 @@ export async function fetchForm(slug: string, opts: { lang: string | null; frame
   return (await response.json()) as XPage;
 }
 
-export async function fetchChallenge(slug: string, token: string | null): Promise<XChallenge> {
-  const response = await fetch(`${base(slug)}/challenge${token === null ? '' : `?t=${encodeURIComponent(token)}`}`, { credentials: 'omit', headers: HEADERS });
+export async function fetchChallenge(slug: string, token: string | null, on: string | null = null): Promise<XChallenge> {
+  const query = new URLSearchParams();
+  if (token !== null) query.set('t', token);
+  if (on !== null) query.set('on', on);
+  const search = query.toString();
+  const response = await fetch(`${base(slug)}/challenge${search === '' ? '' : `?${search}`}`, { credentials: 'omit', headers: HEADERS });
   if (!response.ok) throw new XApiError(response.status);
   return (await response.json()) as XChallenge;
 }

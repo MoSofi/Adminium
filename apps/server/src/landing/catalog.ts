@@ -23,17 +23,24 @@
  *
  * Everything else, a draft, a page switched off, a slug nobody has, an
  * add-on switched off, a copy that no longer parses, answers one same "not
- * available", so the answer never tells which pages exist. The first add-on
- * (oldest install) that holds a slug answers for it, whatever its row says.
+ * available", so the answer never tells which pages exist.
+ *
+ * One slug always serves the same page: the oldest install (by when it was
+ * installed, then its key and id), switched on and vouched for, that holds a
+ * LIVE row with the slug answers for it; another install's draft or a page
+ * switched off never hides it. Within one table the live row published
+ * first answers (then the lowest key), should two ever be live at once (the
+ * seal refuses it under a lock: `landing/seal.ts`).
  *
  * A lookup is kept for at most {@link PAGE_CACHE_MS}: a page and its data
  * ask for the same slug within moments, and a flood of requests for one page
  * reads its row once every few seconds. A change by staff (published,
  * switched off) reaches strangers within that time.
  */
-import { hasMiloMarks, isLandingSlug, parseLandingPage, type LandingPage } from '@adminium/add-on-contracts/landing';
+import { formBlocksOf, hasMiloMarks, isLandingSlug, parseLandingPage, type LandingPage } from '@adminium/add-on-contracts/landing';
 import { landingOf, type AddOnLanding, type AddOnManifest } from '@adminium/manifest';
 import type { MetaDb } from '@adminium/meta';
+import { sql } from 'kysely';
 
 import type { AddOnInstalls } from '../apps/table-ref.js';
 import type { DataHandle } from '../connections/manager.js';
@@ -135,13 +142,15 @@ export function pageLanguageOf(value: unknown): string | null {
 export function createLandingCatalog(deps: LandingCatalogDeps) {
   const now = deps.now ?? Date.now;
   const cache = new Map<string, { at: number; lookup: Promise<PageLookup> }>();
+  const byKeyCache = new Map<string, { at: number; lookup: Promise<LivePage[]> }>();
+  let generation = 0;
 
   /** Every installed add-on that declares landing pages, with its pages table: oldest install first. `only` narrows to one key (and one install). */
   async function landingAddOns(only?: { addOn: string; installId?: string | undefined }): Promise<LandingAddOn[]> {
     let query = deps.meta.db.selectFrom('adminium_manifests').select(['id', 'manifestKey', 'connectionId']).where('kind', '=', 'add-on').where('status', '=', 'installed');
     if (only !== undefined) query = query.where('manifestKey', '=', only.addOn);
     if (only?.installId !== undefined) query = query.where('id', '=', only.installId);
-    const rows = await query.orderBy('installedAt').orderBy('manifestKey').execute();
+    const rows = await query.orderBy('installedAt').orderBy('manifestKey').orderBy('id').execute();
     const installs = await deps.installs();
     const out: LandingAddOn[] = [];
     for (const row of rows) {
@@ -169,20 +178,30 @@ export function createLandingCatalog(deps: LandingCatalogDeps) {
   }
 
   /**
-   * A row of `addOn`'s pages table, read whole: by its slug (the live one
-   * first: a draft may share a live page's slug until it goes live, which the
-   * seal refuses), and also by its key when `key` is given. Null when none, or
+   * A row of `addOn`'s pages table, read whole: by its slug, and also by its
+   * key when `key` is given; only a live one with `live`. In one order on
+   * every engine: a live row first (a draft may share a live page's slug),
+   * then the one published first, then the lowest key. Null when none, or
    * the table cannot be read.
    */
-  async function readRow(addOn: LandingAddOn, by: { slug?: string; key?: string }): Promise<PageRow | null> {
+  async function readRow(addOn: LandingAddOn, by: { slug?: string; key?: string; live?: boolean }): Promise<PageRow | null> {
     let row: Record<string, unknown> | undefined;
     try {
       const { db } = await deps.data(addOn.connectionId);
       let query = db.selectFrom(addOn.pagesTable).select([db.dynamic.ref(addOn.pk), db.dynamic.ref('slug'), db.dynamic.ref('state'), db.dynamic.ref('language'), db.dynamic.ref('draft'), db.dynamic.ref('published')] as never);
       if (by.slug !== undefined) query = query.where(db.dynamic.ref('slug'), '=', by.slug);
       if (by.key !== undefined) query = query.where(db.dynamic.ref(addOn.pk), '=', by.key);
-      const rows = (await query.limit(20).execute()) as Record<string, unknown>[];
-      row = rows.find((one) => one['state'] === 'live') ?? rows[0];
+      if (by.live === true) query = query.where(db.dynamic.ref('state'), '=', 'live');
+      const state = sql.ref('state');
+      const publishedAt = sql.ref('published_at');
+      const rows = (await query
+        .orderBy(sql`case when ${state} = 'live' then 0 else 1 end` as never)
+        .orderBy(sql`case when ${publishedAt} is null then 1 else 0 end` as never)
+        .orderBy(publishedAt as never)
+        .orderBy(sql.ref(addOn.pk) as never)
+        .limit(1)
+        .execute()) as Record<string, unknown>[];
+      row = rows[0];
     } catch {
       // A connection switched off, a table that cannot be read, a key of the wrong type: as a page that is not there.
       return null;
@@ -193,25 +212,86 @@ export function createLandingCatalog(deps: LandingCatalogDeps) {
     return { key, slug: row['slug'], state: row['state'], language: row['language'], draft: row['draft'], published: row['published'] };
   }
 
+  /** A live row of an install that serves pages, judged whole (see the header): the page, or null. */
+  function judged(addOn: LandingAddOn, row: PageRow, slug: string): LivePage | null {
+    if (row.state !== 'live') return null;
+    const language = pageLanguageOf(row.language);
+    if (language === null) return null;
+    // Read whole at every draw: a copy written past the seal (by hand, by an older engine) that does not parse draws nothing.
+    const parsed = parseLandingPage(jsonOf(row.published) ?? null);
+    if (!parsed.ok || hasMiloMarks(parsed.page)) return null;
+    return { key: row.key, slug, addOn: addOn.addOn, installId: addOn.installId, connectionId: addOn.connectionId, pagesTable: addOn.pagesTable, pk: addOn.pk, language, page: parsed.page };
+  }
+
+  /** The installs that serve pages now: switched on and vouched for, oldest first. */
+  async function servingAddOns(): Promise<LandingAddOn[]> {
+    const out: LandingAddOn[] = [];
+    for (const addOn of await landingAddOns()) {
+      if (addOn.on && (await deps.vouched({ key: addOn.addOn, version: addOn.version, manifest: addOn.manifest }))) out.push(addOn);
+    }
+    return out;
+  }
+
   async function lookUp(slug: string): Promise<PageLookup> {
     const unavailable: PageLookup = { state: 'unavailable' };
     // A slug the rule refuses, a reserved word among them, is never a page: the seal refuses it too.
     if (!isLandingSlug(slug)) return unavailable;
-    for (const addOn of await landingAddOns()) {
-      const row = await readRow(addOn, { slug });
+    if (!(await privacyNoticeReady(deps.meta))) return unavailable;
+    for (const addOn of await servingAddOns()) {
+      // Only a live row answers: another install's draft or a page switched off never hides one.
+      const row = await readRow(addOn, { slug, live: true });
       if (row === null) continue;
-      // The first add-on that holds the slug answers for it, whatever its row says.
-      if (!addOn.on || !(await deps.vouched({ key: addOn.addOn, version: addOn.version, manifest: addOn.manifest }))) return unavailable;
-      if (!(await privacyNoticeReady(deps.meta))) return unavailable;
-      if (row.state !== 'live') return unavailable;
-      const language = pageLanguageOf(row.language);
-      if (language === null) return unavailable;
-      // Read whole at every draw: a copy written past the seal (by hand, by an older engine) that does not parse draws nothing.
-      const parsed = parseLandingPage(jsonOf(row.published) ?? null);
-      if (!parsed.ok || hasMiloMarks(parsed.page)) return unavailable;
-      return { state: 'live', live: { key: row.key, slug, addOn: addOn.addOn, installId: addOn.installId, connectionId: addOn.connectionId, pagesTable: addOn.pagesTable, pk: addOn.pk, language, page: parsed.page } };
+      // The first install holding the slug live answers for it: one that does not draw is not available, never another's.
+      const live = judged(addOn, row, slug);
+      return live === null ? unavailable : { state: 'live', live };
     }
     return unavailable;
+  }
+
+  /**
+   * A live page by its row's key, as strangers are served it now (kept as a
+   * slug's lookup is): the first install serving pages that holds a live,
+   * drawable row with that key. What a form block's `?on=` names.
+   */
+  async function lookUpKey(key: string): Promise<LivePage[]> {
+    if (!ROW_KEY.test(key) || !(await privacyNoticeReady(deps.meta))) return [];
+    const out: LivePage[] = [];
+    for (const addOn of await servingAddOns()) {
+      const row = await readRow(addOn, { key, live: true });
+      if (row === null || !isLandingSlug(row.slug)) continue;
+      const live = judged(addOn, row, row.slug);
+      if (live !== null) out.push(live);
+    }
+    return out;
+  }
+
+  /** The live pages with a key (one per install that holds one), kept a few seconds. */
+  function liveByKey(key: string): Promise<LivePage[]> {
+    const id = `key:${key}`;
+    const at = now();
+    const kept = byKeyCache.get(id);
+    if (kept !== undefined && at - kept.at < PAGE_CACHE_MS) return kept.lookup;
+    if (byKeyCache.size >= CACHE_MAX) byKeyCache.clear();
+    const lookup = lookUpKey(key);
+    byKeyCache.set(id, { at, lookup });
+    lookup.catch(() => byKeyCache.delete(id));
+    return lookup;
+  }
+
+  /**
+   * The Form block a live page's `?on=<key>` names for a form a stranger's
+   * read or answer asks by `slug`: the block's forms add-on and form key, and
+   * the page that holds it, when a live page with that key holds a Form
+   * block whose form (resolved by `formSlugOf`, by its add-on and key) is the
+   * one that slug names; else null. The first such page, in install order.
+   */
+  async function formBlockOn(on: string, slug: string, formSlugOf: (addOn: string, key: string) => Promise<string | null>): Promise<{ addOn: string; form: string; page: LivePage } | null> {
+    for (const page of await liveByKey(on)) {
+      for (const block of formBlocksOf(page.page)) {
+        if ((await formSlugOf(block.addOn, block.form)) === slug) return { addOn: block.addOn, form: block.form, page };
+      }
+    }
+    return null;
   }
 
   /** The page a slug names, as strangers are served it now (kept a few seconds). */
@@ -256,23 +336,29 @@ export function createLandingCatalog(deps: LandingCatalogDeps) {
     return out;
   }
 
-  /** The live pages of one add-on, by key and slug: what a link to another page of it resolves to. */
-  async function livePagesOf(addOn: Pick<LandingAddOn, 'connectionId' | 'pagesTable' | 'pk'>): Promise<{ key: string; slug: string }[]> {
+  /**
+   * The live pages of one add-on, by key and slug: what a link to another
+   * page of it resolves to. With `keys`, only those rows are read (a page's
+   * links name a few); without, up to {@link LINKED_PAGES_MAX} of them.
+   */
+  async function livePagesOf(addOn: Pick<LandingAddOn, 'connectionId' | 'pagesTable' | 'pk'>, keys?: readonly string[]): Promise<{ key: string; slug: string }[]> {
+    const named = keys?.filter((key) => ROW_KEY.test(key));
+    if (named !== undefined && named.length === 0) return [];
     try {
       const { db } = await deps.data(addOn.connectionId);
-      const rows = (await db
+      let query = db
         .selectFrom(addOn.pagesTable)
         .select([db.dynamic.ref(addOn.pk), db.dynamic.ref('slug')] as never)
-        .where(db.dynamic.ref('state'), '=', 'live')
-        .limit(LINKED_PAGES_MAX)
-        .execute()) as Record<string, unknown>[];
+        .where(db.dynamic.ref('state'), '=', 'live');
+      if (named !== undefined) query = query.where(db.dynamic.ref(addOn.pk), 'in', named);
+      const rows = (await query.limit(LINKED_PAGES_MAX).execute()) as Record<string, unknown>[];
       const out: { key: string; slug: string }[] = [];
-      // Only a slug the door serves: a reserved word is no page's address.
+      // Only a slug the door serves: a reserved word is no page's address. One page per key (the lowest slug, should a key repeat).
       for (const row of rows) {
         const key = keyText(row[addOn.pk]);
         if (key !== null && isLandingSlug(row['slug'])) out.push({ key, slug: row['slug'] });
       }
-      return out;
+      return out.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0));
     } catch {
       return [];
     }
@@ -294,7 +380,27 @@ export function createLandingCatalog(deps: LandingCatalogDeps) {
     return readRow(addOn, { key });
   }
 
-  return { find, draft, liveSlugs, livePagesOf, forStaff, pageByKey, forget: (slug?: string) => (slug === undefined ? cache.clear() : cache.delete(slug)) };
+  /** Drops what is kept (one slug's lookup, or everything) and says the pages changed ({@link changes}). */
+  function forget(slug?: string): void {
+    generation += 1;
+    byKeyCache.clear();
+    if (slug === undefined) cache.clear();
+    else cache.delete(slug);
+  }
+
+  return {
+    find,
+    draft,
+    liveSlugs,
+    livePagesOf,
+    liveByKey,
+    formBlockOn,
+    forStaff,
+    pageByKey,
+    forget,
+    /** How many times what is kept was dropped: a door's own cache of a page's data is good while this stays the same. */
+    changes: () => generation,
+  };
 }
 
 export type LandingCatalog = ReturnType<typeof createLandingCatalog>;

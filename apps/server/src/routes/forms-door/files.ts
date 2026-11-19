@@ -64,7 +64,7 @@ export interface FormsFileRoutesDeps {
 }
 
 const params = z.object({ slug: z.string().min(1).max(120) });
-const query = z.object({ q: z.string().min(1).max(40), name: z.string().max(1024).optional(), t: z.string().max(2000).optional(), preview: z.string().max(8).optional() });
+const query = z.object({ q: z.string().min(1).max(40), name: z.string().max(1024).optional(), t: z.string().max(2000).optional(), preview: z.string().max(8).optional(), on: z.string().max(64).optional() });
 
 export function formsFileRoutes(deps: FormsFileRoutesDeps): FastifyPluginAsyncZod {
   const proofs = publicProofsRepo(deps.meta);

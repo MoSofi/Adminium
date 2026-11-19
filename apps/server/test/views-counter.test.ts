@@ -16,7 +16,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { viewDaysRepo, visitorsRepo, type VisitInput } from '@adminium/meta';
 
 import { BOT_MARKERS, isKnownBot, isPrefetch } from '../src/views/bots.js';
-import { createViewCounter, DEDUPE_MAX, DEDUPE_MS, dayIn, type CountInput, type TrackingLevel } from '../src/views/counter.js';
+import { createViewCounter, DEDUPE_MAX, DEDUPE_MS, dayIn, LEVEL_FRESH_MS, type CountInput, type TrackingLevel } from '../src/views/counter.js';
+import type { Newcomer } from '../src/views/visitor.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 
 const CHROME = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
@@ -90,16 +91,23 @@ describe('the view counter', () => {
   let level: TrackingLevel;
   let visits: VisitInput[];
 
+  let newcomers: Newcomer[];
+  let dropped: number;
+
   function counter(opts: { add?: (count: (typeof written)[number]) => Promise<void>; zone?: string; visitor?: string | null; errors?: unknown[] } = {}) {
     return createViewCounter({
       add: opts.add ?? (async (count) => void written.push(count)),
-      addVisits: async (list) => {
+      addVisits: async (list, coming) => {
         visits.push(...list);
+        newcomers.push(...coming);
         return list.length;
+      },
+      dropVisitors: async () => {
+        dropped += 1;
       },
       zoneOf: async () => opts.zone ?? 'UTC',
       readLevel: async () => level,
-      visitorOf: () => (opts.visitor === undefined ? null : opts.visitor),
+      visitorOf: () => (opts.visitor == null ? null : { id: opts.visitor, saidYesAt: T0, wordingVersion: 'w-0' }),
       now: () => at,
       onError: (error) => opts.errors?.push(error),
     });
@@ -110,6 +118,8 @@ describe('the view counter', () => {
     written = [];
     level = 'counts';
     visits = [];
+    newcomers = [];
+    dropped = 0;
   });
 
   it('counts a browser\'s view, and never a bot\'s, a preview\'s or a prefetch', async () => {
@@ -156,6 +166,97 @@ describe('the view counter', () => {
     views.count({ installId: INSTALL, kind: 'page', thing: '7', request: req(`10.${String((last >> 16) & 255)}.${String((last >> 8) & 255)}.${String(last & 255)}`) });
     await views.flush();
     expect(written.reduce((sum, one) => sum + one.views, 0)).toBe(DEDUPE_MAX + 11);
+  });
+
+  it('counts the same form block on two pages from one address twice: the place is in the repeat check', async () => {
+    const views = counter();
+    views.count({ installId: INSTALL, kind: 'form-opened', thing: '41', place: '7', request: req('198.51.100.1') });
+    views.count({ installId: INSTALL, kind: 'form-opened', thing: '41', place: '8', request: req('198.51.100.1') });
+    views.count({ installId: INSTALL, kind: 'form-opened', thing: '41', place: '7', request: req('198.51.100.1') });
+    await views.flush();
+    expect(written.map((one) => [one.place, one.views])).toEqual([
+      ['7', 1],
+      ['8', 1],
+    ]);
+  });
+
+  it('lets go of marks from the front at its bound: one step a view, never a walk of the whole map', async () => {
+    const views = counter();
+    const address = (n: number) => `10.${String((n >> 16) & 255)}.${String((n >> 8) & 255)}.${String(n & 255)}`;
+    for (let n = 0; n < DEDUPE_MAX; n += 1) views.count({ installId: INSTALL, kind: 'page', thing: '7', request: req(address(n)) });
+    // Every map step taken from here on is counted.
+    const original = Map.prototype[Symbol.iterator];
+    let steps = 0;
+    Map.prototype[Symbol.iterator] = function counted(this: Map<unknown, unknown>) {
+      const inner = original.call(this);
+      return {
+        next: () => {
+          steps += 1;
+          return inner.next();
+        },
+        [Symbol.iterator]() {
+          return this;
+        },
+      } as never;
+    };
+    try {
+      for (let n = DEDUPE_MAX; n < DEDUPE_MAX + 200; n += 1) views.count({ installId: INSTALL, kind: 'page', thing: '7', request: req(address(n)) });
+    } finally {
+      Map.prototype[Symbol.iterator] = original;
+    }
+    // Two hundred new addresses at the bound: a few steps each, where a walk would take fifty thousand.
+    expect(steps).toBeLessThan(200 * 4);
+    // The oldest were let go (they count again), the newest are held.
+    views.count({ installId: INSTALL, kind: 'page', thing: '7', request: req(address(0)) });
+    views.count({ installId: INSTALL, kind: 'page', thing: '7', request: req(address(DEDUPE_MAX + 199)) });
+    // Marks past their time go from the front first, whatever the bound.
+    at = T0 + DEDUPE_MS;
+    views.count({ installId: INSTALL, kind: 'page', thing: '7', request: req(address(DEDUPE_MAX + 100)) });
+    await views.flush();
+    expect(written.reduce((sum, one) => sum + one.views, 0)).toBe(DEDUPE_MAX + 200 + 1 + 1);
+  });
+
+  it('asks the settings again for the level a few seconds after it last did, never waiting a view on it', async () => {
+    let reads = 0;
+    const views = createViewCounter({ add: async (count) => void written.push(count), zoneOf: async () => 'UTC', readLevel: async () => ((reads += 1), level), now: () => at });
+    await views.refresh();
+    expect(reads).toBe(1);
+    // Switched off elsewhere: within the few seconds, the level held stands.
+    level = 'off';
+    at = T0 + LEVEL_FRESH_MS - 1;
+    await expect(views.levelNow()).resolves.toBe('counts');
+    expect(reads).toBe(1);
+    // Past them, the next view asks again in the background, and the one after counts nothing.
+    at = T0 + LEVEL_FRESH_MS + 1;
+    views.count({ installId: INSTALL, kind: 'page', thing: '7', request: req('198.51.100.1') });
+    // Asked by the view itself, before anything else asks.
+    expect(reads).toBe(2);
+    await views.levelNow();
+    expect(reads).toBe(2);
+    expect(views.level()).toBe('off');
+    views.count({ installId: INSTALL, kind: 'page', thing: '8', request: req('198.51.100.2') });
+    expect(views.pending().counts).toBe(1);
+  });
+
+  it('deletes every visitor once more at the first flush after this process sees the level go down from Per visitor', async () => {
+    level = 'visitor';
+    const views = counter();
+    await views.refresh();
+    await views.flush();
+    expect(dropped).toBe(0);
+    // Another process went down to Counts only: this one sees it at its flush, and deletes once more, once.
+    level = 'counts';
+    await views.flush();
+    expect(dropped).toBe(1);
+    await views.flush();
+    expect(dropped).toBe(1);
+    // Going down here, by the Privacy page's save: the next flush deletes once more too.
+    level = 'visitor';
+    await views.refresh();
+    views.setLevel('off');
+    level = 'off';
+    await views.flush();
+    expect(dropped).toBe(2);
   });
 
   it('counts nothing while Off, and writes nothing once switched off elsewhere', async () => {
@@ -226,6 +327,9 @@ describe('the view counter', () => {
     views.count({ installId: INSTALL, kind: 'form-page', thing: '41', request: req('198.51.100.1') });
     await views.flush();
     expect(visits).toEqual([{ visitorId: 'v'.repeat(64), installId: INSTALL, kind: 'form-page', thing: '41', at: T0 }]);
+    // The "yes" it carries waits to become a visitor: with keyed labels of its networks, never the address.
+    expect(newcomers).toEqual([{ proof: { id: 'v'.repeat(64), saidYesAt: T0, wordingVersion: 'w-0' }, host: '', at: T0, networks: { address: expect.any(String), wide: null } }]);
+    expect(JSON.stringify(newcomers)).not.toContain('198.51.100');
     // At Counts only nothing of a visitor waits, cookie or not.
     level = 'counts';
     await views.refresh();
@@ -272,7 +376,14 @@ for (const engine of META_ENGINES) {
       const visitors = visitorsRepo(handle.meta);
       await visitors.create({ id: 'a'.repeat(64), host: 'crm.meridian.example', saidYesAt: T0, wordingVersion: 'w1' });
       let who = 'a'.repeat(64);
-      const views = createViewCounter({ add: (count) => viewDaysRepo(handle.meta).add(count), addVisits: (list) => visitors.addVisits(list), zoneOf: async () => 'UTC', readLevel: async () => 'visitor', visitorOf: () => who, now: () => T0 });
+      const views = createViewCounter({
+        add: (count) => viewDaysRepo(handle.meta).add(count),
+        addVisits: (list) => visitors.addVisits(list),
+        zoneOf: async () => 'UTC',
+        readLevel: async () => 'visitor',
+        visitorOf: () => ({ id: who, saidYesAt: T0, wordingVersion: 'w1' }),
+        now: () => T0,
+      });
       await views.refresh();
       views.count({ installId: INSTALL, kind: 'form-page', thing: '41', request: req('198.51.100.1') });
       who = 'b'.repeat(64);

@@ -206,7 +206,7 @@ export function FormBody(props: FormBodyProps): ReactNode {
     updateRows(question.id, (rows) => [...(many ? rows : []), ...fresh]);
     if (toSend.length === 0) say(t('x:files.refused', '{file} was not added.', { file: fresh[0]?.name ?? '' }));
     for (const [row, file] of toSend) {
-      const job = sendFile(slug, question.id, file, token).then((reply) => {
+      const job = sendFile(slug, question.id, file, token, props.on ?? null).then((reply) => {
         updateRows(question.id, (rows) => rows.map((one) => (one.key !== row.key ? one : reply.state === 'taken' ? { ...one, state: 'taken', id: reply.id, size: reply.size } : { ...one, state: 'refused', code: reply.code })));
         say(reply.state === 'taken' ? t('x:files.added', '{file} added.', { file: row.name }) : t('x:files.refused', '{file} was not added.', { file: row.name }));
       });
@@ -280,7 +280,7 @@ export function FormBody(props: FormBodyProps): ReactNode {
       const { solve } = await import('../pay/proof.js');
       // One silent retry: a challenge can expire while a slow phone solves it.
       for (let round = 0; round < 2 && reply.state === 'proof'; round += 1) {
-        const challenge = await fetchChallenge(slug, token);
+        const challenge = await fetchChallenge(slug, token, props.on ?? null);
         reply = await postAnswer(slug, answer, `${challenge.id}.${solve(challenge.salt, challenge.difficulty)}`, { frame, ...(props.on === undefined || props.on === null ? {} : { on: props.on }) });
       }
       if (reply.state === 'proof') {

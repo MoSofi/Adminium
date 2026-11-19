@@ -317,6 +317,8 @@ describe('a Form block', () => {
     expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
     const answer = calls.find((call) => call.url.includes('/answers'))!;
     expect(answer.url).toBe('/x/forms/api/showroom-visit/answers?on=5');
+    // The human check goes by the block's form too: the door binds it to the form `on` names.
+    expect(calls.filter((call) => call.url.includes('/challenge')).map((call) => call.url)).toEqual(['/x/forms/api/showroom-visit/challenge?on=5']);
     expect(answer.body).toMatchObject({ language: 'en-US', values: { qname: 'Marta Kovac', qemail: 'marta@cobalt.example' } });
   });
 
