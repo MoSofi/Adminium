@@ -59,7 +59,8 @@ import { findPerson } from '../src/privacy/sources.js';
 import { solveProof } from '../src/public-api/proof.js';
 import { createPublicViews } from '../src/public-api/runtime.js';
 import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
-import { VIEW_COUNTS_FLUSH_NAME } from '../src/views/wiring.js';
+import { dayIn } from '../src/views/counter.js';
+import { VIEW_COUNTS_FLUSH_NAME, zoneOfInstall } from '../src/views/wiring.js';
 import { addOnHarness, type Harness } from './app-add-ons.helpers.js';
 import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
 import { published, SHOWROOM } from './forms-door.helpers.js';
@@ -260,7 +261,8 @@ describe.each(LEGS)('visitor counting at the forms door — %s', (dialect, avail
 
   it.skipIf(!available)('the views route answers whoever may read the forms, refuses a role that reads only the answers, and finds no made-up install', async () => {
     const url = (who: string) => `/api/v1/views?installId=${who}&kind=form-page&things=41,99&from=2000-01-01&to=2000-12-31`;
-    const today = new Date().toISOString().slice(0, 10);
+    // The business's own day (the zone of the add-on's database, as the counter counts days), never the UTC date.
+    const today = dayIn(await zoneOfInstall(h.meta)(installId), Date.now());
     const ranged = `/api/v1/views?installId=${installId}&kind=form-page&things=41,99&from=${today.slice(0, 8)}01&to=${today}`;
     const asBuilder = await composed.app.inject({ method: 'GET', url: ranged, headers: { cookie: builder } });
     expect(asBuilder.statusCode, asBuilder.body).toBe(200);
