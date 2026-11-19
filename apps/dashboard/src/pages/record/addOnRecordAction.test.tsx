@@ -125,8 +125,8 @@ describe('an add-on\'s action on a record', () => {
     // Nothing of the add-on's is fetched until the sheet opens.
     expect(loads.asked).toEqual([]);
     await user.click(button);
-    const sheet = await screen.findByRole('dialog', { name: 'Fill in details' });
-    expect(sheet.textContent).toContain('Ouseburn Studio');
+    const sheet = await screen.findByRole('dialog', { name: 'Fill in details', description: 'Ouseburn Studio' });
+    expect(sheet).toBeTruthy();
     const drawn = JSON.parse((await screen.findByTestId('fill')).textContent ?? '');
     expect(drawn).toEqual({
       keys: ['close', 'grants', 'row', 'rowKey', 'table'],
@@ -196,6 +196,9 @@ describe('which fill of a module is drawn', () => {
     const apps = { slot: 'record.actions', render };
     expect(actionFillOf({ register: () => ({ fills: [apps, companies] }) }, 'companies')).toBe(companies);
     expect(actionFillOf({ register: () => ({ fills: [apps] }) }, 'companies')).toBe(apps);
+    // The add-ons' host types call it `kind`.
+    const byKind = { slot: 'record.actions', kind: 'companies', render };
+    expect(actionFillOf({ register: () => ({ fills: [apps, byKind] }) }, 'companies')).toBe(byKind);
     expect(actionFillOf({ register: () => ({ fills: [{ slot: 'record.actions', on: 'people', render }] }) }, 'companies')).toBeNull();
     expect(actionFillOf({ register: () => ({ fills: [{ slot: 'settings.add-on.panel', render }] }) }, 'companies')).toBeNull();
     expect(actionFillOf({}, 'companies')).toBeNull();

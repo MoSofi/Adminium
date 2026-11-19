@@ -48,7 +48,9 @@ export const RECORD_ACTIONS_SLOT = 'record.actions';
 /** What a module's `register()` hands back for this slot: a fill drawn with the props. */
 interface ActionFill {
   slot: string;
+  /** The kind of table the fill acts on, as the manifest's `on` names it (`kind` in the add-ons' own host types). */
   on?: string;
+  kind?: string;
   render: (props: RecordActionProps) => ReactNode;
 }
 
@@ -56,7 +58,7 @@ type FillState = { status: 'loading' } | { status: 'ready'; fill: ActionFill } |
 
 /**
  * The `record.actions` fill of a module's `register()` for a kind of table:
- * the one that names that kind, else (a module that names none) the first.
+ * the one that names that kind (`on` or `kind`), else one that names none.
  */
 export function actionFillOf(namespace: Record<string, unknown> | null, kind: string): ActionFill | null {
   const register = namespace?.['register'];
@@ -65,7 +67,8 @@ export function actionFillOf(namespace: Record<string, unknown> | null, kind: st
   const fills = (Array.isArray(registered?.fills) ? (registered.fills as unknown[]) : []).filter(
     (one): one is ActionFill => typeof one === 'object' && one !== null && (one as ActionFill).slot === RECORD_ACTIONS_SLOT && typeof (one as ActionFill).render === 'function',
   );
-  return fills.find((one) => one.on === kind) ?? fills.find((one) => one.on === undefined) ?? null;
+  const kindOf = (one: ActionFill): string | undefined => one.on ?? one.kind;
+  return fills.find((one) => kindOf(one) === kind) ?? fills.find((one) => kindOf(one) === undefined) ?? null;
 }
 
 /** The add-on's copy whose code is drawn, and the file of its fill, as the add-ons list names them to this reader. */
@@ -169,7 +172,7 @@ export interface AddOnRecordActionProps {
   row: Readonly<Record<string, unknown>> | null;
   /** May the reader change the record: the server offered the action only if so, and the page says so again. */
   canUpdate: boolean;
-  /** The record's name, under the sheet's title. */
+  /** The record's name: the sheet's description for a screen reader (the fill says it on screen). */
   recordName: string | null;
   /** The sheet closed: the page reads the record again. */
   onClosed?: (() => void) | undefined;
@@ -195,11 +198,13 @@ export default function AddOnRecordAction({ action, recordId, row, canUpdate, re
           {label}
         </Button>
       </DrawerTrigger>
+      {/* The sheet's header is the host's: its title and close. The fill draws its own line under it, its body and its footer. */}
       <div className="flex shrink-0 items-start gap-3 border-b border-border px-5 py-4">
         <div className="min-w-0 flex-1">
           <DrawerTitle className="text-section text-fg">{label}</DrawerTitle>
+          {/* The record it acts on, for a screen reader: the fill says it on screen. */}
           {recordName === null ? null : (
-            <p id={subtitleId} className="mt-0.5 truncate text-body-sm text-fg-muted">
+            <p id={subtitleId} className="sr-only">
               {recordName}
             </p>
           )}
