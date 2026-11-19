@@ -11,10 +11,15 @@
  * outside Adminium (the database written directly) and the log holds none.
  *
  * Whoever may read the record may read its history (`GET …/history`), so
- * naming the changer to the person refused tells them nothing new.
+ * naming the changer to the person refused tells them nothing new. A column
+ * whose earlier values only the audit log keeps (`history: "audit"`) is the
+ * exception: the record's history shows nothing of its changes, so nobody is
+ * named for it either.
  */
 import { auditEntityKeyOf, usersRepo, type MetaDb } from '@adminium/meta';
 
+import type { ResolvedTable } from '../crud/identifiers.js';
+import { auditOnlyColumnsOf } from '../crud/removals.js';
 import { parseJsonColumn } from '../routes/audit/index.js';
 
 /** How far back the log is read for one record: a field changed further back is not "after you looked". */
@@ -22,8 +27,8 @@ const LOOK_BACK = 50;
 
 export interface ChangedRecord {
   connectionId: string;
-  /** The table's id in the snapshot. */
-  tableId: string;
+  /** The table in the snapshot: its id, and its columns' history marks. */
+  table: Pick<ResolvedTable, 'id' | 'table'>;
   /** The record's key (one-column keys: the value as the data routes take it). */
   key: string;
 }
@@ -32,7 +37,9 @@ const isImage = (value: unknown): value is Record<string, unknown> => value !== 
 
 /** The name of whoever last changed `column` of the record, or null when the log names nobody. */
 export async function lastChangerOf(meta: MetaDb, record: ChangedRecord, column: string): Promise<string | null> {
-  const keys = auditEntityKeyOf({ table: record.tableId, pk: { key: record.key } });
+  // Its changes are the audit log's alone: the record's history does not show them, and neither does this.
+  if (auditOnlyColumnsOf(record.table).has(column)) return null;
+  const keys = auditEntityKeyOf({ table: record.table.id, pk: { key: record.key } });
   const rows = await meta.db
     .selectFrom('adminium_audit_log')
     .select(['actorKind', 'actorId', 'actorLabel', 'changes'])

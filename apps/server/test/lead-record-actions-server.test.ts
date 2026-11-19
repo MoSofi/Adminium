@@ -82,7 +82,8 @@ function crm(): Doc {
           columns: [
             pk,
             { ref: 'name', type: 'text', maxLength: 120 },
-            text('company_number', 20),
+            // Its earlier values are the audit log's alone: its history names nobody.
+            text('company_number', 20, { rules: { history: 'audit' } }),
             text('website', 60),
             text('phone', 40),
             text('address_lines', 200),
@@ -424,5 +425,13 @@ describe.each(LEGS)('a company’s page — %s', (dialect, available) => {
     const unnamed = await door('dana', 'fill', { record: '921', fields: [{ field: 'website', source: 'companies-house', now: null }] });
     expect(unnamed.statusCode, unnamed.body).toBe(409);
     expect(((unnamed.json() as Doc)['error'] as Doc)['details']).toMatchObject({ field: 'website', by: null });
+    // A field whose changes only the audit log keeps (`history: "audit"`): who changed it is not said either.
+    const again = await door('dana', 'lookup', { record: '921', sources: ['companies-house'] });
+    expect(again.statusCode, again.body).toBe(200);
+    expect((await edit('wren', 921, { company_number: '98007777' })).statusCode).toBe(200);
+    const hidden = await door('dana', 'fill', { record: '921', fields: [{ field: 'number', source: 'companies-house', now: null }] });
+    expect(hidden.statusCode, hidden.body).toBe(409);
+    expect(((hidden.json() as Doc)['error'] as Doc)['details']).toMatchObject({ field: 'number', column: 'company_number', by: null });
+    expect(((hidden.json() as Doc)['error'] as Doc)['message']).toBe('company_number was changed after you looked. Look up again.');
   });
 });

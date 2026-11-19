@@ -810,7 +810,7 @@ export function leadDoorRoutes(deps: LeadDoorDeps): FastifyPluginAsync {
      * changed by {name} after you looked".
      */
     async function fieldChanged(door: Door, record: string, field: LeadField, column: string): Promise<AppError> {
-      const by = await lastChangerOf(meta, { connectionId: door.connectionId, tableId: door.companies.table.id, key: record }, column);
+      const by = await lastChangerOf(meta, { connectionId: door.connectionId, table: door.companies.table, key: record }, column);
       const message = by === null ? `${column} was changed after you looked. Look up again.` : `${column} was changed by ${by} after you looked. Look up again.`;
       return new AppError(409, 'FIELD_CHANGED', message, { field, column, by });
     }
