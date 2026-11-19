@@ -45,6 +45,7 @@ import type { AddOnManifest, InstallPlan } from '@adminium/manifest';
 
 import type { CatalogClient } from '../src/add-ons/catalog.js';
 import { applyInstall } from '../src/add-ons/install-ddl.js';
+import type { AddOnRuntimeState } from '../src/add-ons/runtime.js';
 import { createAddOnStore, sha512Integrity, type AddOnStore } from '../src/add-ons/store.js';
 import { AppError, errorEnvelope, UnauthorizedError } from '../src/errors.js';
 import { addOnRoutes } from '../src/routes/add-ons/index.js';
@@ -205,7 +206,7 @@ let sourceDb: Kysely<Record<string, Record<string, unknown>>>;
 async function buildApp(
   existingTables: { ref: string; columns: { ref: string }[] }[] = [],
   catalog?: Partial<CatalogClient>,
-  opts: { schemaTarget?: boolean; serverVersion?: string } = {},
+  opts: { schemaTarget?: boolean; serverVersion?: string; runtime?: () => AddOnRuntimeState | null } = {},
 ) {
   created.length = 0;
   rebuilds = 0;
@@ -260,6 +261,7 @@ async function buildApp(
       // Pinned so a declared minimum is asserted against a version this file
       // states, not against whatever the build happens to be.
       serverVersion: opts.serverVersion ?? '0.3.0',
+      ...(opts.runtime === undefined ? {} : { runtime: opts.runtime }),
       rebuildRuntime: async () => {
         rebuilds += 1;
       },
@@ -1933,6 +1935,53 @@ describe('acquisition routes', () => {
       const installed = await app.inject({ method: 'POST', url: '/api/v1/add-ons', payload: { key: 'holiday-calendars', version: '1.0.0', attachTo: ['printing'] } });
       expect(installed.statusCode, installed.body).toBe(200);
       expect(installed.json()).toMatchObject({ addOn: { key: 'holiday-calendars' }, codeWillNotRun: true });
+      await app.close();
+    });
+
+    it('keeps a package whose provider or event code nobody vouches for, and says at once that the code will not run', async () => {
+      const app = await buildApp();
+      for (const [key, block] of [
+        ['holiday-calendars', { provides: [{ contract: 'document-render', version: 1, server: 'dist/server.js' }] }],
+        ['holiday-events', { events: [{ on: 'record.created', server: 'dist/server.js' }] }],
+      ] as const) {
+        const manifest = manifestFor(key) as unknown as { addOn: Record<string, unknown> };
+        Object.assign(manifest.addOn, block);
+        const tarball = packageTarball({ 'manifest.json': JSON.stringify(manifest), 'package.json': JSON.stringify({ name: `@adminiumjs/add-on-${key}` }), 'dist/server.js': 'export {};' });
+        // Stored, and said in the reply: a harness or a person that uploads it is told, and nothing is refused.
+        const res = await sideload(app, tarball);
+        expect(res.statusCode, res.body).toBe(200);
+        expect(res.json()).toMatchObject({ key, version: '1.0.0', providerWillNotRun: true });
+        const plan = await app.inject({ method: 'GET', url: `/api/v1/add-ons/${key}/plan` });
+        expect(plan.statusCode, plan.body).toBe(200);
+        expect(plan.json()).toMatchObject({ providerWillNotRun: true });
+        expect(plan.json()).not.toHaveProperty('codeWillNotRun');
+        // Vouched for: an ordinary upload, and the plan says nothing.
+        await settingsRepo(meta).set('addOns.deciderTrust', { [`${key}@1.0.0`]: sha512Integrity(tarball) });
+        const vouched = await sideload(app, tarball);
+        expect(vouched.statusCode).toBe(200);
+        expect(vouched.json()).not.toHaveProperty('providerWillNotRun');
+        expect((await app.inject({ method: 'GET', url: `/api/v1/add-ons/${key}/plan` })).json()).not.toHaveProperty('providerWillNotRun');
+        await settingsRepo(meta).set('addOns.deciderTrust', {});
+      }
+      await app.close();
+    });
+
+    it('lists the code the last load left out of an installed add-on, and why', async () => {
+      let problems: AddOnRuntimeState['problems'] = [];
+      const app = await buildApp([], undefined, { runtime: () => ({ providers: new Map(), slots: new Map(), conflicts: [], deciders: new Map(), problems }) });
+      expect((await sideload(app, tarballFor('holiday-calendars'))).statusCode).toBe(200);
+      expect((await app.inject({ method: 'POST', url: '/api/v1/add-ons', payload: { key: 'holiday-calendars', version: '1.0.0', attachTo: ['printing'] } })).statusCode).toBe(200);
+      const listed = async () => ((await app.inject({ method: 'GET', url: '/api/v1/add-ons' })).json() as { addOns: { key: string; notLoaded?: unknown }[] }).addOns.find((one) => one.key === 'holiday-calendars');
+      expect((await listed())?.notLoaded).toEqual([]);
+      problems = [
+        { addOnKey: 'holiday-calendars', reason: 'UNTRUSTED_PROVIDER', contract: 'document-render@1', message: 'not vouched' },
+        { addOnKey: 'holiday-calendars', reason: 'UNTRUSTED_PROVIDER', message: 'event code not vouched' },
+        { addOnKey: 'another-add-on', reason: 'IMPORT_FAILED', contract: 'artwork-source@1', message: 'x' },
+      ];
+      expect((await listed())?.notLoaded).toEqual([
+        { reason: 'UNTRUSTED_PROVIDER', contract: 'document-render@1' },
+        { reason: 'UNTRUSTED_PROVIDER', contract: null },
+      ]);
       await app.close();
     });
 

@@ -18,7 +18,7 @@ import { landingPagesTable } from '../landing/seal.js';
 import { leadsOwnTable } from '../leads/installs.js';
 import type { WriteServiceOptions } from './write-service.js';
 
-export function addOnWriteJudges(installs: AddOnInstallsKeeper): Required<Pick<WriteServiceOptions, 'ownRecords' | 'sealedRecords' | 'landingPages'>> {
+export function addOnWriteJudges(installs: Pick<AddOnInstallsKeeper, 'fresh' | 'current'>): Required<Pick<WriteServiceOptions, 'ownRecords' | 'sealedRecords' | 'landingPages'>> {
   return {
     // A forms add-on's answers and their files, a chat add-on's own tables, and an add-on's people found and its
     // fields' sources (the engine writes them as a person is kept, told and erased, `leads/`): written by Adminium alone.

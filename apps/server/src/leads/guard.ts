@@ -31,7 +31,7 @@ import type { MailDoorReachFacts } from '../email/door-reach.js';
 import { rowKeyOf } from '../payments/payables.js';
 import { peopleTablesOf } from '../people/tables-of.js';
 import { plainSentence, storedLeadsAddOns } from './installs.js';
-import { isFoundPerson, peopleSwitchProblems, peopleSwitchProblemsData } from './people.js';
+import { foundPersonBy, peopleSwitchProblems, peopleSwitchProblemsData } from './people.js';
 import { LEADS_KEEP_YEARS_MAX, LEADS_KEEP_YEARS_MIN } from '@adminium/manifest';
 
 export interface LeadsGuardDeps {
@@ -42,10 +42,14 @@ export interface LeadsGuardDeps {
   installs: () => Promise<AddOnInstalls>;
 }
 
-/** The message a refused switch gives. */
-export const PEOPLE_SWITCH_REFUSED = 'Lead finder can’t keep people yet:';
-/** The message a refused tick gives. */
-export const FOUND_TICK_REFUSED = 'This person was found by Lead finder: record how they agreed (Record consent), with a note, before they may be e-mailed.';
+/** The message a refused switch starts with, naming the add-on as its manifest does. */
+export function peopleSwitchRefused(addOnName: string): string {
+  return `${addOnName} can’t keep people yet:`;
+}
+/** The message a refused tick gives, naming the add-on that found the person. */
+export function foundTickRefused(addOnName: string): string {
+  return `This person was found by ${addOnName}: record how they agreed (Record consent), with a note, before they may be e-mailed.`;
+}
 
 const yes = (value: unknown): boolean => value === true || value === 1 || value === '1' || value === 't' || value === 'true';
 
@@ -103,15 +107,14 @@ export function withLeadsGuard(inner: RecordHooks, deps: LeadsGuardDeps): Record
     if (install === undefined) return;
     const problems = await peopleSwitchProblems(deps, { installId: install.installId }, { ...(record ?? {}), ...values });
     // The English message for a person reading the refusal; `problems` by stable code for an add-on's screen to say in its own words.
-    if (problems.length > 0) throw new HookRejectedError(`${PEOPLE_SWITCH_REFUSED} ${problems.map((problem) => problem.message).join(' ')}`, 'leads.people-switch', { problems: peopleSwitchProblemsData(problems) });
+    if (problems.length > 0) throw new HookRejectedError(`${peopleSwitchRefused(install.name)} ${problems.map((problem) => problem.message).join(' ')}`, 'leads.people-switch', { problems: peopleSwitchProblemsData(problems) });
   }
 
   async function judgeTick(column: string, event: BeforeWriteEvent): Promise<void> {
     const { values, record, target } = event;
     if (record === null || !Object.prototype.hasOwnProperty.call(values, column) || !yes(values[column]) || yes(record[column])) return;
-    if (await isFoundPerson(deps, { connectionId: target.connectionId, table: target.table.id, key: rowKeyOf(target.table, record) })) {
-      throw new HookRejectedError(FOUND_TICK_REFUSED, 'leads.consent');
-    }
+    const foundBy = await foundPersonBy(deps, { connectionId: target.connectionId, table: target.table.id, key: rowKeyOf(target.table, record) });
+    if (foundBy !== null) throw new HookRejectedError(foundTickRefused(foundBy), 'leads.consent');
   }
 
   return {

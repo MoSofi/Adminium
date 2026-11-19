@@ -75,6 +75,7 @@ import { rememberInstall, rememberedInstall, resolveInstall, selectorOf } from '
 import { installManifest, sourceEntryOf, withLeadSource, type LeadSourceDeps, type LeadSourceRefusal } from '../../lead-sources/call.js';
 import { readSourcesState, sourceStateOf, sourcesOf, speaksForSources, type LeadSourceEntry } from '../../lead-sources/state.js';
 import { lastChangerOf } from '../../leads/changed-by.js';
+import { scrubHalfMadeRows } from '../../privacy/erase-meta.js';
 import { companiesTableFor, type CompaniesTable } from '../../leads/companies.js';
 import { addRefusal, ADD_REFUSALS, withOfficersFor, type AddRefusal } from '../../leads/flags.js';
 import { readLeadsSettings, type LeadsAddOnTables } from '../../leads/installs.js';
@@ -339,9 +340,11 @@ const sameShown = (a: string | null, b: string | null): boolean => (a ?? '') ===
 
 /**
  * Removes a company row the door just added, as the engine, and makes sure it
- * is gone: a sole trader's row whose person was not kept must not stay.
+ * is gone: a sole trader's row whose person was not kept must not stay. Nor
+ * do its details in the audit entry of its making: a sole trader is a person,
+ * never told, and that entry is the record's history.
  */
-async function removeAddedRow(manager: Pick<ConnectionManager, 'data'>, connectionId: string, companies: CompaniesTable, key: string): Promise<void> {
+async function removeAddedRow(meta: MetaDb, manager: Pick<ConnectionManager, 'data'>, connectionId: string, companies: CompaniesTable, key: string): Promise<void> {
   const table = companies.table.table;
   const resolved = companies.table;
   const pk = pkOfRowKey(resolved, key);
@@ -357,6 +360,7 @@ async function removeAddedRow(manager: Pick<ConnectionManager, 'data'>, connecti
     gone = (await check.executeTakeFirst().catch(() => 'unknown')) === undefined;
   }
   if (!gone) throw new AppError(500, 'SOLE_TRADER_LEFT', `The person was not kept, and the company added for them (${table.label ?? resolved.name} ${key}) could not be removed. Remove it by hand.`, { key });
+  await scrubHalfMadeRows(meta, connectionId, resolved, [key]);
 }
 
 // ── the routes ───────────────────────────────────────────────────────────────
@@ -667,7 +671,7 @@ export function leadDoorRoutes(deps: LeadDoorDeps): FastifyPluginAsync {
             }
             if (why !== null) {
               // As the engine, whoever asked: a rep who may add companies but not delete them still leaves nothing.
-              await removeAddedRow(deps.manager, door.connectionId, door.companies, key);
+              await removeAddedRow(meta, deps.manager, door.connectionId, door.companies, key);
               answer({ ref: one.ref, outcome: 'refused', reason: 'not-kept', message: `The person was not kept (${why}), so the company was not added.` });
               continue;
             }
@@ -810,7 +814,7 @@ export function leadDoorRoutes(deps: LeadDoorDeps): FastifyPluginAsync {
      * changed by {name} after you looked".
      */
     async function fieldChanged(door: Door, record: string, field: LeadField, column: string): Promise<AppError> {
-      const by = await lastChangerOf(meta, { connectionId: door.connectionId, tableId: door.companies.table.id, key: record }, column);
+      const by = await lastChangerOf(meta, { connectionId: door.connectionId, table: door.companies.table, key: record }, column);
       const message = by === null ? `${column} was changed after you looked. Look up again.` : `${column} was changed by ${by} after you looked. Look up again.`;
       return new AppError(409, 'FIELD_CHANGED', message, { field, column, by });
     }

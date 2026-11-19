@@ -27,6 +27,22 @@ import { parseRefList } from '../../page-config/file-refs.js';
 import type { WidgetEvent } from '../../registry/types.js';
 
 /**
+ * Where a url cell's value links to, or null when it is no link: a web
+ * address (`https://`, `http://`), a path on this site, an e-mail address
+ * (`mailto:`) or a phone number (`tel:`). A bare `www.` address is a web
+ * address with its `https://` left out, so it links there rather than to a
+ * path of this site. Any other scheme (`javascript:`, `data:`) is text.
+ */
+export function urlCellHref(value: string): string | null {
+  const trimmed = value.trim();
+  if (isSafeHref(trimmed)) return trimmed;
+  if (/^mailto:[^\s]+$/i.test(trimmed) || /^tel:\+?[\d\s().-]+$/i.test(trimmed)) return trimmed;
+  // Joined, not a template: the desktop's offline check reads a template web address in a bundle as a host it fetches.
+  if (/^www\.[^\s/]+\.[^\s]+$/i.test(trimmed)) return 'https://'.concat(trimmed);
+  return null;
+}
+
+/**
  * Type-aware cell renderers for the `tables` family (annex `data-grid`; list
  * keepers): money → mono end-aligned Intl currency, status/category enum →
  * pill/badge, FK → avatar chip firing `record-open`, boolean → ✓/✕ glyph,
@@ -587,20 +603,23 @@ function CellContent({
   }
 
   if (column.semantic === 'url' || column.semantic === 'image-url') {
-    // A link only to a web address or a path on this site: `javascript:`, `data:` and any other scheme read as text.
-    if (!isSafeHref(String(value))) {
+    // A link only to a web address, a path on this site, an e-mail address or a phone number: `javascript:`,
+    // `data:` and any other scheme read as text.
+    const href = urlCellHref(String(value));
+    if (href === null) {
       return (
         <span data-part="cell-url-text" className="truncate">
           {String(value)}
         </span>
       );
     }
+    // A web address opens beside the list, as before; an e-mail address or a phone number goes to the app that takes it.
+    const away = !/^(?:mailto|tel):/i.test(href);
     return (
       <a
         data-part="cell-url"
-        href={String(value)}
-        target="_blank"
-        rel="noreferrer"
+        href={href}
+        {...(away ? { target: '_blank', rel: 'noreferrer' } : {})}
         onClick={(event) => event.stopPropagation()}
         className="truncate font-medium text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent"
       >

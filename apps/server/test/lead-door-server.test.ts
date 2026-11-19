@@ -559,6 +559,9 @@ describe.each(LEGS)('the lead door — %s', (dialect, available) => {
   const soleTrader = () => door('dana', 'search', { source: 'france', activity: '71.11Z', place: { text: 'Lyon', country: 'FR', codes: ['69381'] } });
   const saone = async () => (await companies()).filter((row) => row['company_number'] === '412345678' && row['name'] === 'Atelier Saône Clair');
   const marks = () => rows(`SELECT * FROM ${table(KEY, 'field_sources')} WHERE column_name = '*person'`);
+  /** The audit entries whose images still hold a text: none, for a row made and taken away again. */
+  const auditHolding = async (text: string) =>
+    (await h.meta.db.selectFrom('adminium_audit_log').select(['changes']).execute()).filter((row) => (typeof row.changes === 'string' ? row.changes : JSON.stringify(row.changes ?? null)).includes(text)).length;
 
   it.skipIf(!available)('a sole trader not kept leaves no company row, though the rep may not delete companies: refused, and said so', async () => {
     const undo = await peopleOn(false);
@@ -570,6 +573,8 @@ describe.each(LEGS)('the lead door — %s', (dialect, available) => {
       expect(add.json()).toMatchObject({ added: 0, results: [{ outcome: 'refused', reason: 'not-kept', message: 'The person was not kept (not-told-yet), so the company was not added.' }] });
       expect(await saone()).toEqual([]);
       expect(await marks()).toEqual([]);
+      // Nor do their details stay in the audit entry of the row's making: the record's history of a person never told.
+      expect(await auditHolding('Saône Clair')).toBe(0);
     } finally {
       await undo();
     }
@@ -587,6 +592,7 @@ describe.each(LEGS)('the lead door — %s', (dialect, available) => {
       expect(await marks()).toEqual([]);
       expect(await rows(`SELECT * FROM ${table('crm', 'contacts')} WHERE email = 'claire.saone@saone-clair.example'`)).toEqual([]);
       expect(await rows(`SELECT * FROM ${table(KEY, 'found_people')}`)).toEqual([]);
+      expect(await auditHolding('Saône Clair')).toBe(0);
 
       // Sam may add contacts too: kept, and the company row is marked as this person's.
       if (cookies['sam'] === undefined) {

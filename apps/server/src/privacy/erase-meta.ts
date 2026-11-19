@@ -146,6 +146,18 @@ export async function scrubAuditImages(meta: MetaDb, targets: readonly ImageTarg
   return changed;
 }
 
+/**
+ * Rows Adminium made and took away again in one step (a sole trader's company
+ * row whose person could not be kept, a contact half-kept): the audit entries
+ * of their making lose every column, so nothing of them stays in the log or
+ * the record's history. Answers the entries changed.
+ */
+export async function scrubHalfMadeRows(meta: MetaDb, connectionId: string, table: Pick<ResolvedTable, 'id' | 'columns'>, keys: readonly string[]): Promise<number> {
+  if (keys.length === 0) return 0;
+  const columns = [...table.columns.keys()];
+  return scrubAuditImages(meta, [{ connectionId, table: table.id, keys, columns: new Map(keys.map((key) => [key, columns])), own: false }]);
+}
+
 /** The removed rows of theirs, and removed copies linked to them, lose their columns. Answers the rows changed, and the removed copies' keys (their audit entries go too). */
 export async function scrubRemovedRows(meta: MetaDb, targets: readonly ImageTarget[], links: readonly CopyLink[]): Promise<{ changed: number; copies: ImageTarget[] }> {
   const { db } = meta;

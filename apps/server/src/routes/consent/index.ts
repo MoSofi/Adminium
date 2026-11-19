@@ -108,8 +108,11 @@ export interface ConsentRoutesDeps {
   mirror?: ((event: ConsentEvent) => Promise<unknown>) | undefined;
   /** The people tables the installed apps declare; the meta store's own reader when left out. */
   people?: PeopleTables | undefined;
-  /** Whether a record is a person a source found (`leads/people.ts`): their consent needs a note of how they agreed. */
-  foundPerson?: ((person: ConsentPerson) => Promise<boolean>) | undefined;
+  /**
+   * The name of the add-on that found a record's person (`leads/people.ts`), or null when no source found them:
+   * a found person's consent needs a note of how they agreed.
+   */
+  foundPerson?: ((person: ConsentPerson) => Promise<string | null>) | undefined;
 }
 
 /** The longest note of how a found person agreed. */
@@ -327,10 +330,11 @@ export function consentRoutes(deps: ConsentRoutesDeps): FastifyPluginAsyncZod {
         const { table, person, address, erased, grant } = await reach(request, body, 'update');
         refuseErased(erased);
         // A found person agreed somehow, and the log says how: a note is required, and short.
-        if (deps.foundPerson !== undefined && (await deps.foundPerson(person))) {
+        const foundBy = deps.foundPerson === undefined ? null : await deps.foundPerson(person);
+        if (foundBy !== null) {
           const note = body.note?.trim() ?? '';
           if (note === '' || [...note].length > FOUND_NOTE_MAX) {
-            throw new ValidationFailedError(`This person was found by Lead finder: say how they agreed, in a note of up to ${String(FOUND_NOTE_MAX)} characters.`, { reason: 'HOW_THEY_AGREED', field: 'note' });
+            throw new ValidationFailedError(`This person was found by ${foundBy}: say how they agreed, in a note of up to ${String(FOUND_NOTE_MAX)} characters.`, { reason: 'HOW_THEY_AGREED', field: 'note' });
           }
         }
         const event = await service.record({ person, address, purpose: body.purpose, state: 'yes', source: 'staff', how: body.how, note: body.note, staff });

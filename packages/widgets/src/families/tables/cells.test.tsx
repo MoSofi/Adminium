@@ -377,6 +377,23 @@ describe('CellValue — type-aware cell renderers', () => {
     expect(container.querySelector('a')?.getAttribute('href')).toBe('http://kestrelyard.example');
   });
 
+  it('a url cell links an e-mail address and a phone number to their apps, and a bare www. address over https', () => {
+    const linked = (site: string) => {
+      const { container } = render(<CellValue column={spec({ name: 'site', label: 'Site', semantic: 'url' })} row={{ site }} />);
+      const link = container.querySelector('a');
+      const out = { href: link?.getAttribute('href') ?? null, target: link?.getAttribute('target') ?? null, text: container.textContent };
+      cleanup();
+      return out;
+    };
+    expect(linked('mailto:hello@kestrelyard.example')).toEqual({ href: 'mailto:hello@kestrelyard.example', target: null, text: 'mailto:hello@kestrelyard.example' });
+    expect(linked('tel:+44 113 496 0000')).toEqual({ href: 'tel:+44 113 496 0000', target: null, text: 'tel:+44 113 496 0000' });
+    // The value is shown as it is kept; the link adds the https:// it left out.
+    expect(linked('www.kestrelyard.example')).toEqual({ href: 'https://www.kestrelyard.example', target: '_blank', text: 'www.kestrelyard.example' });
+    expect(linked('www.kestrelyard.example/about')).toEqual({ href: 'https://www.kestrelyard.example/about', target: '_blank', text: 'www.kestrelyard.example/about' });
+    // Still text: a phone link carrying anything but a number, and a word that only starts like an address.
+    for (const site of ['tel:javascript:alert(1)', 'mailto:', 'www.', 'wwwkestrelyard.example']) expect(linked(site).href, site).toBeNull();
+  });
+
   it("server-masked PII renders '•••' without an unmask affordance", () => {
     render(
       <CellValue

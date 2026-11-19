@@ -12,10 +12,15 @@
  * reach the registers is swapped, so a test drives the add-on's real pages
  * without the network.
  *
- * IT CAN NEVER BE ON IN PRODUCTION, twice over:
- *  - the boot refuses the variable when `NODE_ENV` is `production`, and on a
- *    trial or hosted server (`config/env.ts`, {@link leadSourceDemoProblem});
- *  - and it is read at each call only while none of those holds
+ * IT IS ON ONLY ON A SERVER THAT SAYS IT IS FOR TESTS OR DEVELOPMENT, twice
+ * over. Not being labelled production is not enough: an npm install run by
+ * systemd and the desktop app set no `NODE_ENV` at all, and a variable left
+ * in an env file there would write made-up companies into a real CRM.
+ *  - the boot refuses the variable unless `NODE_ENV` is `test` or
+ *    `development`, and on a trial or hosted server whatever it says
+ *    (`config/env.ts`, {@link leadSourceDemoProblem}), and warns while it is
+ *    on (`compose.ts`);
+ *  - and it is read at each call only while that holds
  *    ({@link leadSourceDemoKeys}), so a server composed without that boot
  *    check (a host embedding the server) still never uses it.
  */
@@ -27,11 +32,16 @@ const TRUTHY = new Set(['1', 'true', 'on', 'yes']);
 
 type RawEnv = Readonly<Record<string, string | undefined>>;
 
-/** Whether this server is one the seam may never be on for: production, a trial, a hosted server. */
+/** The `NODE_ENV` values that say a server is for tests or development. */
+const TEST_ENVS = new Set(['test', 'development']);
+
+/** Why the seam may not be on for this server: anything but a test or development one, a trial, a hosted server. */
 function forbidden(env: RawEnv): string | null {
-  if ((env['NODE_ENV'] ?? '').trim().toLowerCase() === 'production') return 'NODE_ENV is production';
   if (TRUTHY.has((env['ADMINIUM_TRIAL_MODE'] ?? '').trim().toLowerCase())) return 'this is a trial';
   if (TRUTHY.has((env['ADMINIUM_HOSTED_MODE'] ?? '').trim().toLowerCase())) return 'this is a hosted server';
+  const nodeEnv = (env['NODE_ENV'] ?? '').trim().toLowerCase();
+  if (nodeEnv === 'production') return 'NODE_ENV is production';
+  if (!TEST_ENVS.has(nodeEnv)) return nodeEnv === '' ? 'NODE_ENV is not set to test or development' : `NODE_ENV is ${nodeEnv}, not test or development`;
   return null;
 }
 
@@ -50,7 +60,7 @@ export function leadSourceDemoProblem(env: RawEnv): string | null {
   return why === null ? null : `cannot be set: ${why}. It answers lead sources with made-up companies, for tests only. Remove it.`;
 }
 
-/** The add-on keys whose sources the demo answers now: none in production, a trial or a hosted server. */
+/** The add-on keys whose sources the demo answers now: none but on a test or development server. */
 export function leadSourceDemoKeys(env: RawEnv = process.env): string[] {
   return forbidden(env) === null ? namedKeys(env) : [];
 }

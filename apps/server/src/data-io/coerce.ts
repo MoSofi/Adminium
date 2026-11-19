@@ -9,6 +9,7 @@
  */
 
 import type { ResolvedColumn } from '../crud/identifiers.js';
+import { formulaUnquoted } from './csv.js';
 
 export interface CoercionIssue {
   /** 1-based data-row number (header excluded). */
@@ -66,7 +67,8 @@ function isoDateTimeOf(text: string): string | null {
 
 /** Coerce one trimmed CSV cell for `column`. Empty cell ⇒ NULL when nullable. */
 export function coerceCell(raw: string, column: ResolvedColumn): CoercionResult {
-  const text = raw.trim();
+  // A cell an export kept from running as a formula (`'+44 20 7946 0958`) comes back as it was kept.
+  const text = formulaUnquoted(raw.trim());
   if (text === '') {
     if (column.nullable) return { ok: true, value: null };
     return { ok: false, code: 'REQUIRED', message: `${column.name} is required` };

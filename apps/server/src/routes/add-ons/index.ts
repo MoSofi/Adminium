@@ -134,7 +134,7 @@ import {
   type OAuthConnect,
   type OAuthFlowStore,
 } from '../../add-ons/oauth.js';
-import type { AddOnRuntimeState } from '../../add-ons/runtime.js';
+import { VOUCHED_CONTRACTS, type AddOnRuntimeState } from '../../add-ons/runtime.js';
 import type { AddOnSchemaTarget } from '../../add-ons/schema-target.js';
 import { packageIsInStore } from '../../add-ons/store.js';
 import type { AddOnStore, StagedPackage } from '../../add-ons/store.js';
@@ -543,25 +543,42 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       .send(bytes);
   }
 
-  /** Who did it, for the audit rows the shared installer writes. */
-  /** Whether a staged package provides a contract whose code decides inside a save, with nobody vouching for its bytes. */
-  async function shipsDeciderUntrusted(staged: { key: string; version: string; tree: { integrity: string } }): Promise<boolean> {
-    let provides: unknown;
+  /** Which of a package's code nobody vouches for: code that decides inside a save, or other code Adminium imports. */
+  type UntrustedPart = 'decides' | 'runs';
+
+  /**
+   * The code of a staged package that runs only from a package Adminium vouches for, while nobody vouches for these
+   * bytes: `decides` for code that decides inside a save; `runs` for any other code Adminium imports (a contract's
+   * provider, an event's server half); null when it carries none, or its bytes are vouched for.
+   */
+  async function untrustedCodeOf(staged: { key: string; version: string; tree: { integrity: string } }): Promise<UntrustedPart | null> {
+    let block: { provides?: unknown; events?: unknown } | undefined;
     try {
-      provides = (JSON.parse((await deps.store.readFile(staged.key, staged.version, 'manifest.json')).toString('utf8')) as { addOn?: { provides?: unknown } }).addOn?.provides;
+      block = (JSON.parse((await deps.store.readFile(staged.key, staged.version, 'manifest.json')).toString('utf8')) as { addOn?: { provides?: unknown; events?: unknown } }).addOn;
     } catch {
-      return false;
+      return null;
     }
-    const decides = Array.isArray(provides) && provides.some((entry) => DECIDER_CONTRACTS[String((entry as { contract?: unknown } | null)?.contract)] !== undefined);
-    if (!decides) return false;
-    return !deciderTrusted({ key: staged.key, version: staged.version, integrity: staged.tree.integrity }, await trustSources(deps.meta));
+    const provides = Array.isArray(block?.provides) ? (block.provides as unknown[]) : [];
+    const contractOf = (entry: unknown) => String((entry as { contract?: unknown } | null)?.contract);
+    const decides = provides.some((entry) => DECIDER_CONTRACTS[contractOf(entry)] !== undefined);
+    const runs =
+      provides.some((entry) => VOUCHED_CONTRACTS.has(contractOf(entry))) ||
+      (Array.isArray(block?.events) && (block.events as unknown[]).some((entry) => typeof (entry as { server?: unknown } | null)?.server === 'string'));
+    if (!decides && !runs) return null;
+    if (deciderTrusted({ key: staged.key, version: staged.version, integrity: staged.tree.integrity }, await trustSources(deps.meta))) return null;
+    return decides ? 'decides' : 'runs';
   }
 
   /** The same question of a package already in the store: what a plan and an install say of it, so the upload is not the only place that does. */
-  async function codeWillNotRun(key: string, version: string): Promise<{ codeWillNotRun?: true; formsWillNotServe?: true }> {
+  async function codeWillNotRun(key: string, version: string): Promise<{ codeWillNotRun?: true; providerWillNotRun?: true; formsWillNotServe?: true }> {
     try {
       const tree = await deps.store.verifyTree(key, version);
-      return { ...((await shipsDeciderUntrusted({ key, version, tree })) ? { codeWillNotRun: true as const } : {}), ...((await formsUnvouched({ key, version, tree })) ? { formsWillNotServe: true as const } : {}) };
+      const part = await untrustedCodeOf({ key, version, tree });
+      return {
+        ...(part === 'decides' ? { codeWillNotRun: true as const } : {}),
+        ...(part === 'runs' ? { providerWillNotRun: true as const } : {}),
+        ...((await formsUnvouched({ key, version, tree })) ? { formsWillNotServe: true as const } : {}),
+      };
     } catch {
       // A tree that does not verify is the install's own refusal, not this note's.
       return {};
@@ -743,6 +760,8 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         key: manifest.key,
         version: installed.row.version,
       })),
+      // What the last load left out of this add-on's code, so the page says it rather than only the server's log.
+      notLoaded: (deps.runtime?.()?.problems ?? []).filter((problem) => problem.addOnKey === manifest.key).map((problem) => ({ reason: problem.reason, contract: problem.contract ?? null })),
       connectionExpiresAt: credential?.expiresAt ?? null,
       attachments: installed.attachments.map((a) => ({
         attachedTo: a.attachedTo,
@@ -1489,13 +1508,16 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
          * is KEPT — it can still be installed, with that code left out — and
          * the person is told now rather than at the first refused save.
          */
-        if (await shipsDeciderUntrusted(staged)) throw new AddOnUntrustedError(staged.key, staged.version);
+        const untrusted = await untrustedCodeOf(staged);
+        if (untrusted === 'decides') throw new AddOnUntrustedError(staged.key, staged.version);
         return {
           key: staged.key,
           version: staged.version,
           name,
           files: Object.keys(staged.tree.files).length,
           integrity: staged.tree.integrity,
+          // Any other code nobody vouches for: stored and installable, and said in the reply, as the plan says it.
+          ...(untrusted === 'runs' ? { providerWillNotRun: true as const } : {}),
         };
       },
     );

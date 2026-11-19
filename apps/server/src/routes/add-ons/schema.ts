@@ -134,6 +134,16 @@ export const addOnDto = z.object({
    * back.
    */
   missing: z.boolean(),
+  /**
+   * The parts of its code the server did not load, and why: `UNTRUSTED_PROVIDER`
+   * (code Adminium imports, from a package nobody vouches for: one this build
+   * does not bundle and the catalogue did not name), `UNTRUSTED_DECIDER` (the
+   * same, for code that decides inside a save), `TREE_MODIFIED`,
+   * `IMPORT_FAILED` and the rest. `contract` is the contract it provides, or
+   * null for its event code. Empty when everything loaded; absent from an
+   * older server.
+   */
+  notLoaded: z.array(z.object({ reason: z.string(), contract: z.string().nullable() })).optional(),
   /** Epoch ms; null for a credential that does not expire, or none at all. */
   connectionExpiresAt: z.number().nullable(),
   attachments: z.array(addOnAttachmentDto),
@@ -330,6 +340,8 @@ export const installPlanReply = z.object({
   makes: installMakes.optional(),
   /** True when the package carries code that decides inside a save and nobody vouches for its bytes: it installs, and that code does not run. */
   codeWillNotRun: z.literal(true).optional(),
+  /** True when the package carries other code Adminium imports (a contract's provider, an event's server half) and nobody vouches for its bytes: it installs, and that code does not run. */
+  providerWillNotRun: z.literal(true).optional(),
   /** True when the package declares forms and nobody vouches for its bytes: it installs, and no stranger is served its forms. */
   formsWillNotServe: z.literal(true).optional(),
 });
@@ -369,6 +381,8 @@ export const installAddOnReply = z.object({
   plan: installPlanDto,
   /** True when the package carries code that decides inside a save and nobody vouches for its bytes: it installs, and that code does not run. */
   codeWillNotRun: z.literal(true).optional(),
+  /** True when the package carries other code Adminium imports (a contract's provider, an event's server half) and nobody vouches for its bytes: it installs, and that code does not run. */
+  providerWillNotRun: z.literal(true).optional(),
   /** True when the package declares forms and nobody vouches for its bytes: it installs, and no stranger is served its forms. */
   formsWillNotServe: z.literal(true).optional(),
   /** Where its tables are; null for an add-on that keeps none. */
@@ -689,6 +703,13 @@ export const stagedPackageReply = z.object({
   /** How many files the verified tree holds — the receipt for an unpack. */
   files: z.number(),
   integrity: z.string(),
+  /**
+   * True when the package carries code Adminium imports (a contract's
+   * provider, an event's server half) and nobody vouches for its bytes: it is
+   * stored and installs, and that code does not run. (Code that decides
+   * inside a save is refused louder: 422 `ADD_ON_UNTRUSTED`.)
+   */
+  providerWillNotRun: z.literal(true).optional(),
 });
 
 export const stagedParams = z.object({

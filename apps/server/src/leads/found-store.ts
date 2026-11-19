@@ -69,7 +69,7 @@ export async function zoneOf(meta: MetaDb, connectionId: string): Promise<string
 
 /** Who writes a found person's row: Adminium, as it writes the tables only it writes. */
 export function leadsWriteContext(addOnName: string): WriteContext {
-  return { origin: 'public', hops: 0, actor: { kind: 'system', id: null, label: `Lead finder: ${addOnName}`.slice(0, 200) }, request: null };
+  return { origin: 'public', hops: 0, actor: { kind: 'system', id: null, label: addOnName.slice(0, 200) }, request: null };
 }
 
 /** A found person's row, as read back on any engine. */

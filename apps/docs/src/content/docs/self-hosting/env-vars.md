@@ -693,18 +693,24 @@ this is set — the browser blocks mixed content on its own.
 
 ## `ADMINIUM_ADD_ON_DEV_TRUST`
 
-For somebody **writing** an add-on that keeps a ledger. A comma-separated list of add-on keys
-whose [deciding code](/guides/add-ons-with-tables/#a-ledger-and-code-that-decides) this server
-runs whatever its bytes:
+For somebody **writing** an add-on, or testing an app with add-ons built from source. A
+comma-separated list of add-on keys whose server code this server runs whatever its bytes: its
+[deciding code](/guides/add-ons-with-tables/#a-ledger-and-code-that-decides), the providers of
+the contracts it fills (documents, artwork, delivery companies, personalisation, payments,
+company sources) and its event code:
 
 ```sh
 ADMINIUM_ADD_ON_DEV_TRUST='stock-kit,my-ledger'
 ```
 
 Without it, such code runs only from a package this server can vouch for — bundled with the
-release, or downloaded from the catalogue — and a package uploaded by hand installs with every
-save that would ask its code refused. The variable is **ignored when `NODE_ENV` is `production`**:
-it is not a way to run unreleased code on a live server.
+release, or downloaded from the catalogue — and a package uploaded by hand installs with that
+code left out (a save that would ask deciding code is refused; a document kind it would draw is
+not there), and the Add-ons page says so on its row. A test that uploads an add-on it built
+itself (an app's contract run, say) sets this to that add-on's key, for example
+`ADMINIUM_ADD_ON_DEV_TRUST='invoices'`. The variable is **ignored when `NODE_ENV` is
+`production`**, and refused on a trial or a hosted server: it is not a way to run unreleased code
+on a live server.
 
 ## `ADMINIUM_LEAD_SOURCE_DEMO`
 
@@ -717,9 +723,12 @@ ADMINIUM_LEAD_SOURCE_DEMO='lead-finder'
 ```
 
 Everything else holds as on any server: the source's switch, its saved key, the add-on loaded
-from a package this server vouches for, the daily caps and Stop. The server **refuses to start**
-with it set when `NODE_ENV` is `production`, on a trial or on a hosted server, and it is read as
-off there too: it is never a way to show made-up companies on a live server.
+from a package this server vouches for, the daily caps and Stop. It works only on a server that
+says it is for tests: the server **refuses to start** with it set unless `NODE_ENV` is `test` or
+`development`, and on a trial or on a hosted server whatever `NODE_ENV` says, and it is read as
+off there too. An npm install run as a service and the desktop app set no `NODE_ENV`, so a copy
+left in an env file stops the boot rather than showing made-up companies on a live server. While
+it is on, the server says so in its log at every start.
 
 ## `ADMINIUM_TRUST_PROXY`
 
@@ -1070,7 +1079,7 @@ the last two. Either fails on a value that contradicts it:
 | `ADMINIUM_NETWORK_POLICY=open` | Both run `strict`. |
 | `ADMINIUM_LOCAL_DATABASES=setting` | Both keep databases on this server off; only the host list counts. |
 | `ADMINIUM_RATE_LIMIT_SCALE`, `ADMINIUM_ADD_ON_DEV_TRUST` | They widen limits or trust add-on code. |
-| `ADMINIUM_LEAD_SOURCE_DEMO` | It answers lead sources with made-up companies, for tests only (refused when `NODE_ENV` is `production` too). |
+| `ADMINIUM_LEAD_SOURCE_DEMO` | It answers lead sources with made-up companies, for tests only (refused unless `NODE_ENV` is `test` or `development` too). |
 | `NODE_OPTIONS` with anything but `--max-old-space-size=<MB>` or `--max-semi-space-size=<MB>` | It changes what the server loads. The Docker image's own heap ceiling (`--max-old-space-size=512`) is allowed. |
 | `ADMINIUM_BRIDGE_ORIGINS`, `ADMINIUM_DEMO_SEED_SCRIPT`, `ADMINIUM_RUNTIME=desktop` | Not for a server other people use. |
 | `ADMINIUM_STORAGE_URL`, `AWS_ENDPOINT_URL_S3` | Files stay in the data folder. |

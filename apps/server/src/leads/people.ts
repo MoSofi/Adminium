@@ -61,6 +61,7 @@ import { pkOfRowKey, rowKeyOf } from '../payments/payables.js';
 import type { DeclaredPeopleTable } from '../people/declared.js';
 import { peopleTablesOf } from '../people/tables-of.js';
 import { privacyNoticeReady } from '../privacy/business.js';
+import { scrubHalfMadeRows } from '../privacy/erase-meta.js';
 import { normaliseAddress } from '../public-api/claim-code.js';
 import { boundId, foundRowsOf, insertFound, leadsWriteContext, tellByOf, untoldChanged, untoldGeneration, untoldRows, updateFound, zoneOf } from './found-store.js';
 import { LEADS_TELL_KIND, leadsAddOnsOn, leadsSettingsRow, readLeadsSettingsRow, storedLeadsAddOns, type LeadsAddOnTables, type LeadsSettings } from './installs.js';
@@ -275,18 +276,18 @@ export async function peopleSwitchProblems(deps: LeadsPeopleDeps, install: { ins
 
 // ── Not told yet ─────────────────────────────────────────────────────────────
 
-/** Addresses being kept right now in this process: not told, and their row not written yet. */
-const KEEPING = new Map<MetaDb, Map<string, number>>();
+/** Addresses being kept right now in this process: not told, and their row not written yet; by who found them. */
+const KEEPING = new Map<MetaDb, Map<string, { count: number; by: string }>>();
 
-function keepingNow(meta: MetaDb, address: string, delta: 1 | -1): void {
+function keepingNow(meta: MetaDb, address: string, delta: 1 | -1, by: string): void {
   let held = KEEPING.get(meta);
   if (held === undefined) {
     held = new Map();
     KEEPING.set(meta, held);
   }
-  const count = (held.get(address) ?? 0) + delta;
+  const count = (held.get(address)?.count ?? 0) + delta;
   if (count <= 0) held.delete(address);
-  else held.set(address, count);
+  else held.set(address, { count, by });
 }
 
 /** The names a stored table name may be read by, for a people table: its id and its maker's `<app>:<ref>`. */
@@ -301,39 +302,54 @@ function addressOfRow(declared: DeclaredPeopleTable, row: Row): string | null {
 }
 
 /**
- * Every address a found person not told yet has (waiting, or their mail
- * failed), on every install: no other mail may reach them.
+ * Who has not been told yet, as one read found them: each address with the
+ * name of the add-on that found them, and the databases whose found people
+ * could not be read (offline, or a table dropped by hand).
  */
-export async function untoldAddresses(deps: Pick<LeadsPeopleDeps, 'meta' | 'manager' | 'viewFor'>): Promise<Set<string>> {
-  const out = new Set<string>(KEEPING.get(deps.meta)?.keys() ?? []);
-  const stored = await storedLeadsAddOns(deps.meta);
-  for (const connectionId of [...new Set(stored.map((one) => one.connectionId))]) {
-    const view = await viewOf(deps as LeadsPeopleDeps, connectionId);
-    if (view === null) continue;
-    const { db } = await deps.manager.data(connectionId);
-    let index: TableRefIndex | null = null;
-    let declared: DeclaredPeopleTable[] | null = null;
-    for (const addOn of await leadsAddOnsOn(deps.meta, connectionId, view, stored)) {
-      if (addOn.foundPeople === null) continue;
-      const rows = await untoldRows(db, addOn.foundPeople);
-      if (rows.length === 0) continue;
-      // The address they were found with (where their tell mail goes), and the one their row holds now.
-      for (const row of rows) if (row.email !== null) out.add(row.email);
-      index ??= await tableRefIndex(deps.meta, connectionId, view.model);
-      declared ??= await peopleTablesOf(deps.meta).all(connectionId, view.model);
-      const byTable = new Map<string, string[]>();
-      for (const row of rows) byTable.set(row.personTable, [...(byTable.get(row.personTable) ?? []), row.personKey]);
-      for (const [stored, keys] of byTable) {
-        const tableId = resolveTableRef(index, stored)?.tableId ?? null;
-        const entry = tableId === null ? undefined : declared.find((one) => one.table === tableId);
-        if (entry === undefined || entry.email === null) continue;
-        const table = view.table(tableId!);
-        for (const key of keys) {
-          const pk = pkOfRowKey(table, key);
-          const row = pk === null ? undefined : ((await fetchByPk(db, table, pk)) as Row | undefined);
-          const address = row === undefined ? null : addressOfRow(entry, row);
-          if (address !== null) out.add(address);
-        }
+export interface UntoldPeople {
+  by: Map<string, string>;
+  /** Databases not judged by this read: their own mail waits ({@link UntoldUnjudgedError}). */
+  unjudged: Set<string>;
+}
+
+/**
+ * The people not told yet one database holds, as last read: what a read of
+ * it that fails falls back to, so a person known to be untold there stays
+ * held back from every other database's mail while it cannot be read.
+ */
+const LAST_READ = new WeakMap<MetaDb, Map<string, Map<string, string>>>();
+
+/** The untold people one database holds (waiting, or their mail failed), by address, with who found them. */
+async function untoldOn(deps: Pick<LeadsPeopleDeps, 'meta' | 'manager' | 'viewFor'>, connectionId: string, stored: Awaited<ReturnType<typeof storedLeadsAddOns>>): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const view = await viewOf(deps as LeadsPeopleDeps, connectionId);
+  if (view === null) return out;
+  const { db } = await deps.manager.data(connectionId);
+  let index: TableRefIndex | null = null;
+  let declared: DeclaredPeopleTable[] | null = null;
+  for (const addOn of await leadsAddOnsOn(deps.meta, connectionId, view, stored)) {
+    if (addOn.foundPeople === null) continue;
+    const rows = await untoldRows(db, addOn.foundPeople);
+    if (rows.length === 0) continue;
+    const found = (address: string) => {
+      if (!out.has(address)) out.set(address, addOn.name);
+    };
+    // The address they were found with (where their tell mail goes), and the one their row holds now.
+    for (const row of rows) if (row.email !== null) found(row.email);
+    index ??= await tableRefIndex(deps.meta, connectionId, view.model);
+    declared ??= await peopleTablesOf(deps.meta).all(connectionId, view.model);
+    const byTable = new Map<string, string[]>();
+    for (const row of rows) byTable.set(row.personTable, [...(byTable.get(row.personTable) ?? []), row.personKey]);
+    for (const [stored, keys] of byTable) {
+      const tableId = resolveTableRef(index, stored)?.tableId ?? null;
+      const entry = tableId === null ? undefined : declared.find((one) => one.table === tableId);
+      if (entry === undefined || entry.email === null) continue;
+      const table = view.table(tableId!);
+      for (const key of keys) {
+        const pk = pkOfRowKey(table, key);
+        const row = pk === null ? undefined : ((await fetchByPk(db, table, pk)) as Row | undefined);
+        const address = row === undefined ? null : addressOfRow(entry, row);
+        if (address !== null) found(address);
       }
     }
   }
@@ -341,25 +357,82 @@ export async function untoldAddresses(deps: Pick<LeadsPeopleDeps, 'meta' | 'mana
 }
 
 /**
+ * Every address a found person not told yet has (waiting, or their mail
+ * failed), on every install: no other mail may reach them.
+ *
+ * Each database is read on its own. One whose found people cannot be read
+ * does not stop the others' mail: it is named in `unjudged`, and the people
+ * its last good read held stay held back everywhere.
+ */
+export async function untoldAddresses(deps: Pick<LeadsPeopleDeps, 'meta' | 'manager' | 'viewFor'>): Promise<UntoldPeople> {
+  const by = new Map<string, string>();
+  for (const [address, held] of KEEPING.get(deps.meta) ?? []) by.set(address, held.by);
+  const unjudged = new Set<string>();
+  const stored = await storedLeadsAddOns(deps.meta);
+  let last = LAST_READ.get(deps.meta);
+  if (last === undefined) LAST_READ.set(deps.meta, (last = new Map()));
+  for (const connectionId of [...new Set(stored.map((one) => one.connectionId))]) {
+    let read: Map<string, string>;
+    try {
+      read = await untoldOn(deps, connectionId, stored);
+      last.set(connectionId, read);
+    } catch {
+      unjudged.add(connectionId);
+      read = last.get(connectionId) ?? new Map();
+    }
+    for (const [address, name] of read) if (!by.has(address)) by.set(address, name);
+  }
+  return { by, unjudged };
+}
+
+/**
+ * A mail on a database whose found people could not be read: whether it is
+ * to one of them is not known, so it waits for a read that works rather
+ * than going, or failing for good. Mail on every other database goes on.
+ */
+export class UntoldUnjudgedError extends Error {
+  override readonly name = 'UntoldUnjudgedError';
+  readonly code = 'UNTOLD_UNJUDGED';
+
+  constructor(readonly connectionId: string) {
+    super('Whether this person has been told yet could not be checked (the people found on this database could not be read), so the mail waits.');
+  }
+}
+
+/** The sentence a mail held back because of an untold person says. */
+export const UNTOLD_UNJUDGED_SENTENCE = 'Waiting: whether this person has been told yet could not be checked';
+
+/**
  * How long the set of people not told yet is kept between reads, at most: a
  * campaign of thousands, or a sender's batch, asks once, not once a message.
  * It is read again at once when it may have changed in this process (a person
  * kept, a tell mail gone or failed: `found-store.ts`); this bound covers a
- * contact's address changed meanwhile.
+ * contact's address changed meanwhile, and a database that could not be read.
  */
 const UNTOLD_KEEP_MS = 15_000;
-const UNTOLD_HELD = new WeakMap<MetaDb, { at: number; generation: number; set: Promise<Set<string>> }>();
+const UNTOLD_HELD = new WeakMap<MetaDb, { at: number; generation: number; set: Promise<UntoldPeople> }>();
 
-/** Whether an address belongs to a found person who has not been told yet (see the header). */
-export async function untoldAddress(deps: Pick<LeadsPeopleDeps, 'meta' | 'manager' | 'viewFor' | 'now'>, address: string): Promise<boolean> {
-  if (!looksLikeAddress(address)) return false;
+const NOBODY: UntoldPeople = { by: new Map(), unjudged: new Set() };
+
+/**
+ * The name of the add-on that found the person an address belongs to, while
+ * they have not been told yet (see the header); null for anyone else.
+ *
+ * `on`: the database the mail goes out from. When that database's found
+ * people could not be read, nobody can say whether the mail is to one of
+ * them, and {@link UntoldUnjudgedError} is thrown: the mail waits. Without
+ * `on`, or for any other database, the answer is what could be read.
+ */
+export async function untoldBy(deps: Pick<LeadsPeopleDeps, 'meta' | 'manager' | 'viewFor' | 'now'>, address: string, opts: { on?: string | null | undefined } = {}): Promise<string | null> {
+  if (!looksLikeAddress(address)) return null;
   const wanted = normaliseAddress(address);
-  if (KEEPING.get(deps.meta)?.has(wanted) === true) return true;
+  const keeping = KEEPING.get(deps.meta)?.get(wanted);
+  if (keeping !== undefined) return keeping.by;
   const at = (deps.now ?? Date.now)();
   const generation = untoldGeneration(deps.meta);
   let held = UNTOLD_HELD.get(deps.meta);
   if (held === undefined || held.generation !== generation || at - held.at >= UNTOLD_KEEP_MS || at < held.at) {
-    const set = (async () => ((await storedLeadsAddOns(deps.meta)).length === 0 ? new Set<string>() : untoldAddresses(deps)))();
+    const set = (async () => ((await storedLeadsAddOns(deps.meta)).length === 0 ? NOBODY : untoldAddresses(deps)))();
     held = { at, generation, set };
     UNTOLD_HELD.set(deps.meta, held);
     // A read that failed is not kept: the next asks again.
@@ -367,25 +440,41 @@ export async function untoldAddress(deps: Pick<LeadsPeopleDeps, 'meta' | 'manage
       if (UNTOLD_HELD.get(deps.meta) === held) UNTOLD_HELD.delete(deps.meta);
     });
   }
-  return (await held.set).has(wanted);
+  const read = await held.set;
+  const by = read.by.get(wanted);
+  if (by !== undefined) return by;
+  if (opts.on !== undefined && opts.on !== null && read.unjudged.has(opts.on)) throw new UntoldUnjudgedError(opts.on);
+  return null;
 }
 
-/** The sentence a mail held back for this reason says. */
-export const UNTOLD_SENTENCE = 'Not sent: this person was found by Lead finder and has not been told yet';
+/** Whether an address belongs to a found person who has not been told yet (see {@link untoldBy}). */
+export async function untoldAddress(deps: Pick<LeadsPeopleDeps, 'meta' | 'manager' | 'viewFor' | 'now'>, address: string, opts: { on?: string | null | undefined } = {}): Promise<boolean> {
+  return (await untoldBy(deps, address, opts)) !== null;
+}
 
-/** Whether a people row is a found person (a found person's row links it), on any add-on of its database. */
-export async function isFoundPerson(deps: Pick<LeadsPeopleDeps, 'meta' | 'manager' | 'viewFor'>, person: { connectionId: string; table: string; key: string }): Promise<boolean> {
+/** The sentence a mail held back for this reason says, naming the add-on that found them. */
+export function untoldSentence(by: string): string {
+  return `Not sent: this person was found by ${by} and has not been told yet`;
+}
+
+/** The name of the add-on whose found person a people row is, on any add-on of its database; null when it is none. */
+export async function foundPersonBy(deps: Pick<LeadsPeopleDeps, 'meta' | 'manager' | 'viewFor'>, person: { connectionId: string; table: string; key: string }): Promise<string | null> {
   const stored = (await storedLeadsAddOns(deps.meta)).filter((one) => one.connectionId === person.connectionId);
-  if (stored.length === 0) return false;
+  if (stored.length === 0) return null;
   const view = await viewOf(deps as LeadsPeopleDeps, person.connectionId);
-  if (view === null) return false;
+  if (view === null) return null;
   const index = await tableRefIndex(deps.meta, person.connectionId, view.model);
   const { db } = await deps.manager.data(person.connectionId);
   for (const addOn of await leadsAddOnsOn(deps.meta, person.connectionId, view, stored)) {
     if (addOn.foundPeople === null) continue;
-    if ((await foundRowsOf(db, addOn.foundPeople, namesOf(index, person.table), [person.key])).length > 0) return true;
+    if ((await foundRowsOf(db, addOn.foundPeople, namesOf(index, person.table), [person.key])).length > 0) return addOn.name;
   }
-  return false;
+  return null;
+}
+
+/** Whether a people row is a found person (a found person's row links it), on any add-on of its database. */
+export async function isFoundPerson(deps: Pick<LeadsPeopleDeps, 'meta' | 'manager' | 'viewFor'>, person: { connectionId: string; table: string; key: string }): Promise<boolean> {
+  return (await foundPersonBy(deps, person)) !== null;
 }
 
 // ── Keeping them ─────────────────────────────────────────────────────────────
@@ -530,7 +619,7 @@ export async function keepFoundPeople(deps: KeepFoundPeopleDeps, input: KeepFoun
       continue;
     }
     seen.add(address);
-    keepingNow(deps.meta, address, 1);
+    keepingNow(deps.meta, address, 1, addOn.name);
     const peopleTable = view.table(into.table);
     const company = { table: storedTableRef(index, companyTable.id), key: rowKeyOf(companyTable, companyRow) };
     const foundPlace = { target: { connectionId, view, table: addOn.foundPeople, db, dialect }, writes: deps.writes, context: leadsWriteContext(addOn.name) };
@@ -576,11 +665,17 @@ export async function keepFoundPeople(deps: KeepFoundPeopleDeps, input: KeepFoun
         await deleteByKey(db, addOn.foundPeople, { [addOn.foundPeople.primaryKey[0]!]: boundId(foundId) }).catch(() => undefined);
         untoldChanged(deps.meta);
       }
-      if (made !== null) await deleteByKey(db, peopleTable, Object.fromEntries(peopleTable.primaryKey.map((column) => [column, made![column]]))).catch(() => undefined);
+      if (made !== null) {
+        const key = Object.fromEntries(peopleTable.primaryKey.map((column) => [column, made![column]]));
+        // Gone, and so are its details in the audit entry of its making: they were never told, and are kept nowhere.
+        if (await deleteByKey(db, peopleTable, key).then(() => true, () => false)) {
+          await scrubHalfMadeRows(deps.meta, connectionId, peopleTable, [rowKeyOf(peopleTable, made)]).catch(() => undefined);
+        }
+      }
       if (marked) await unmarkSoleTrader(db, addOn.fieldSources!, company).catch(() => undefined);
       throw error;
     } finally {
-      keepingNow(deps.meta, address, -1);
+      keepingNow(deps.meta, address, -1, addOn.name);
     }
   }
   return finish(out);

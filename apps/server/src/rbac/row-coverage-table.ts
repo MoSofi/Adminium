@@ -394,7 +394,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/leads/:key/people': rows(['visible', 'system'], 'The company as its reader; whether a found address is already on a people row is asked as the install, and says only that.'),
   'POST /api/v1/leads/:key/people/keep': rows(['visible', 'link'], 'The company as its reader; each person kept is made through the data routes as the person.'),
   'GET /api/v1/leads/:key/notes': rows(['visible', 'system'], 'The record as its reader, through the data routes, one out of reach answering as one not there; the add-on\'s fields\' sources rows of that one record are read as the install, and a note is answered only for a field the reader is shown that still holds what was filled.'),
-  'GET /api/v1/leads/:key/tell-preview': noRows('The add-on\'s mail drawn for a made-up person, with the business\'s own settings: no row of the database is read.'),
+  'GET /api/v1/leads/:key/tell-preview': rows('system', 'The add-on\'s mail drawn for a made-up person, with the business\'s own settings and the add-on\'s settings row (why people are kept), read as the install; no person\'s row is read, and nothing is queued or sent.'),
   // --- /ledgers
   'POST /api/v1/ledgers/:addOn/:ledger/catch-up': rows(['system', 'whole'], 'A ledger is kept by the system under the schema grant, and a ledger\'s answer is whole; a private table is refused.'),
   'POST /api/v1/ledgers/:addOn/:ledger/make-items': rows(['system', 'whole'], 'A ledger is kept by the system under the schema grant, and a ledger\'s answer is whole; a private table is refused.'),

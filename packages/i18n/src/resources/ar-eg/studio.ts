@@ -110,6 +110,8 @@ export default {
       "emptyTitle": "Nothing installed yet",
       "missing": "مفقود",
       "missingBody": "ملفاته غير موجودة على هذا الخادم، لذا لا يُحمَّل منه شيء. ثبّته مرة أخرى، أو أزله.",
+      "untrusted": "لم تُحمَّل شيفرته: لا يعرف Adminium من أنشأ هذه الحزمة (فهي ليست من الحزم المرفقة بهذا الإصدار ولا من الكتالوج). ثبّتها من الكتالوج لاستخدامها.",
+      "notLoaded": "لم يُحمَّل جزء من شيفرته. يذكر سجل الخادم السبب.",
       "notConnected": "Not connected",
       "off": "off",
       "on": "on",
@@ -164,7 +166,8 @@ export default {
         "title": "تم رفع {name} {version}",
         "body": "ثبّته من القائمة أعلاه."
       },
-      "untrusted": "الحزمة محفوظة ويمكن تثبيتها، لكن Adminium لا يعرف من أنشأها: لن يعمل الجزء الذي يتخذ القرارات أثناء حفظ السجل."
+      "untrusted": "الحزمة محفوظة ويمكن تثبيتها، لكن Adminium لا يعرف من أنشأها: لن يعمل الجزء الذي يتخذ القرارات أثناء حفظ السجل.",
+      "untrustedCode": "الحزمة محفوظة ويمكن تثبيتها، لكن Adminium لا يعرف من أنشأها: لن تعمل الشيفرة التي تشغّلها داخل Adminium. ثبّتها من الكتالوج لاستخدامها."
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",

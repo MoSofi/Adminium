@@ -150,7 +150,7 @@ import { createChatStaff, type ChatStaff } from './chat/staff.js';
 import { createChatWaiting, type ChatWaiting } from './chat/waiting.js';
 import { sweepChatTranscripts } from './chat/transcripts.js';
 import { withLeadsGuard } from './leads/guard.js';
-import { isFoundPerson, keepFoundPeople, untoldAddress, type KeepFoundPeopleDeps, type KeepFoundPeopleInput, type KeptPeople } from './leads/people.js';
+import { foundPersonBy, keepFoundPeople, untoldAddress, untoldBy, type KeepFoundPeopleDeps, type KeepFoundPeopleInput, type KeptPeople } from './leads/people.js';
 import { sourceLanguages } from './leads/registers.js';
 import type { CompanyFillDeps } from './automations/actions/company-fill.js';
 import { leadDoorRoutes } from './routes/leads/index.js';
@@ -183,6 +183,7 @@ import {
 } from './add-ons/store.js';
 import { bindDeciderGates, installRejectionGuard } from './add-ons/decide.js';
 import { keptCopyTrust, recordDeciderTrust, trustSources } from './add-ons/decider-trust.js';
+import { carryOverTrust, trustCarryOverCandidates } from './add-ons/trust-carry-over.js';
 import { createPackageCopies } from './add-ons/package-copies.js';
 import { createAppFiles } from './apps/app-files.js';
 import { createInstalledApps } from './apps/installed.js';
@@ -465,6 +466,7 @@ import { createRequestStats } from './public-api/stats.js';
 import { removeCleanedPicture } from './public-api/picture-store.js';
 import type { OnMetaRelocated } from './meta/relocate.js';
 import { sqlitePathFromUrl, type MetaStoreHandle } from './meta/store.js';
+import { LEAD_SOURCE_DEMO_ENV, leadSourceDemoKeys } from './lead-sources/demo-seam.js';
 import { forgetSources } from './lead-sources/state.js';
 
 /**
@@ -991,6 +993,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // A trial's mail: only through the operator's relay, shaped and capped (`email/trial-relay.ts`). Any other server:
   // the operator's mail server (`ADMINIUM_OPERATOR_SMTP_URL`) while it has none of its own, else nothing.
   configureTrialMail(trialMailSetupOf(env, app.trialPolicy) ?? operatorMailSetupOf(env));
+  // The demo source seam answers lead sources with made-up companies: said once, loudly, so it is never a surprise.
+  const demoSources = leadSourceDemoKeys();
+  if (demoSources.length > 0) app.log.warn({ addOns: demoSources }, `${LEAD_SOURCE_DEMO_ENV} is on: these add-ons' sources answer with made-up companies and people, for tests only`);
   try {
     // Once per release and translation change, not on every start (see the function).
     await seedBuiltinEmailTemplatesIfChanged(meta, process.env['NODE_ENV'] === 'production' ? APP_VERSION : null, Date.now());
@@ -1416,7 +1421,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         manager,
         secret: env.ADMINIUM_SECRET,
         reach: { networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY },
-        installs: () => addOnInstalls.fresh(),
+        // Asked on every create and update (each line of an import): the stamp is read at most once a second.
+        installs: () => addOnInstalls.recent(),
       }),
     // A running number counts in the meta store; a venue's clock is its connection's.
     ...writeStores(meta),
@@ -1547,8 +1553,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     secret: env.ADMINIUM_SECRET,
     // A found person's tell mail: the engine's sentences, its sealed Object link, and their row marked told (`leads/tell.ts`).
     tell: createTellMail({ meta, secret: env.ADMINIUM_SECRET }),
-    // …and no other message reaches them until it has gone.
-    untold: (address) => untoldAddress({ meta, manager, viewFor: (connectionId) => publicViews.viewFor(connectionId) }, address),
+    // …and no other message reaches them until it has gone (one on a database whose found people cannot be read waits).
+    untold: (address, on) => untoldBy({ meta, manager, viewFor: (connectionId) => publicViews.viewFor(connectionId) }, address, { on }),
   });
   app.decorate('outboxSender', outboxSender);
   const projectActions =
@@ -2667,7 +2673,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // Download the app template a shop uploads to its own provider account to make its key.
       await api.register(keyAppRoutes({ meta, runtime: () => addOnRuntime }));
       // Email a record's pay link to its customer, under the links' own rights.
-      await api.register(paymentLinkEmailRoutes({ meta, sources: paymentSources, secret: env.ADMINIUM_SECRET, assertMayLink: createLinkRights({ meta, sources: paymentSources }), logger: app.log, networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY, untold: (address) => untoldAddress({ meta, manager, viewFor: (connectionId) => publicViews.viewFor(connectionId) }, address) }));
+      await api.register(paymentLinkEmailRoutes({ meta, sources: paymentSources, secret: env.ADMINIUM_SECRET, assertMayLink: createLinkRights({ meta, sources: paymentSources }), logger: app.log, networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY, untold: (address) => untoldBy({ meta, manager, viewFor: (connectionId) => publicViews.viewFor(connectionId) }, address) }));
       // Send a test payment, and the pay page's full preview: a throwaway payable and a test link.
       await api.register(
         testPaymentsRoutes({
@@ -2714,7 +2720,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           addressColumnOf: async (connectionId, table) => (await consentMirror.addressColumnOf(connectionId, table)) ?? emailColumnOf(table),
           mirror: (event) => consentMirror.mirrorEvent(event),
           // A person a source found agreed somehow: their consent needs a note of how.
-          foundPerson: (person) => isFoundPerson({ meta, manager, viewFor: (connectionId) => publicViews.viewFor(connectionId) }, person),
+          foundPerson: (person) => foundPersonBy({ meta, manager, viewFor: (connectionId) => publicViews.viewFor(connectionId) }, person),
         }),
       );
       // A person's data by address, the privacy notice and the sender's postal address: the privacy action's.
@@ -4235,6 +4241,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   installRejectionGuard((message, data) => app.log.error(data, message));
 
   rebuildAddOnRuntime = async () => {
+    // An add-on was installed, updated, switched or removed here: what is installed is read again at the next write.
+    addOnInstalls.changed();
     const repo = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
     // Only an add-on whose install finished is loaded: one still `installing`, or being changed, answers nothing.
     const installedAddOns = (await repo.list('add-on')).filter((entry) => isLoadable(entry.row.status));
@@ -4286,6 +4294,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       vouched: (key, version) => packageVouched(addOnStore, trust, key, version),
       importHalf: (key, version, server) => importServerHalf(addOnStore, key, version, server),
       log: (message, data) => app.log.error(data, message),
+      // Said on the Add-ons page too, beside the providers left out.
+      refused: (key, version) =>
+        runtime.problems.push({
+          addOnKey: key,
+          reason: 'UNTRUSTED_PROVIDER',
+          message: `"${key}" ${version} has event code, and this package is neither one this build bundles nor one downloaded from the catalogue, so that code was not loaded.`,
+        }),
     });
     const events = halves.map((half) => {
       const manifest = once.find((one) => one.manifest.key === half.addOnKey)!.manifest;
@@ -4337,6 +4352,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * reinstalling anything, and a later boot costs one `versions()` call per
    * install.
    */
+  // The add-ons installed as this boot begins, before any request is served: what the one-time trust carry-over may
+  // consider (`add-ons/trust-carry-over.ts`); null once it has run.
+  const carryOverCandidates = await trustCarryOverCandidates(meta, manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET))).catch((err: unknown) => {
+    app.log.warn({ err }, 'could not read which add-ons were installed before this release');
+    return null;
+  });
   // `/readyz` answers 503 until both seeds have settled (`routes/system`).
   let packagesSeeding = true;
   void Promise.all([appSeed, addOnSeed]).finally(() => {
@@ -4389,6 +4410,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           await installedApps.refresh();
         } catch (error) {
           app.log.warn({ err: error }, 'could not read installed apps after a restore');
+        }
+      }
+
+      // Once, at the first boot of the release that made every provider need a vouched package: what ran before keeps
+      // running. After the restore (a package put back from its copy is the one that ran) and before the runtime is built.
+      if (carryOverCandidates !== null) {
+        try {
+          await carryOverTrust({ meta, manifests: repo, store: addOnStore, log: (message, data) => app.log.info(data, message) }, carryOverCandidates);
+        } catch (error) {
+          app.log.warn({ err: error }, 'could not carry over the trust of add-ons installed before this release');
         }
       }
     })

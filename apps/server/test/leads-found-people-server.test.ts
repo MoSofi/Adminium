@@ -37,6 +37,7 @@ import { join } from 'node:path';
 
 import { auditRepo, documentsRepo, emailTemplatesRepo, filesRepo, paymentSettingsRepo, permissionsRepo, rolesRepo, settingsRepo, usersRepo, type EmailRun, type EmailSend, type PaymentLink } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
+import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { leadFinder } from '../../../packages/manifest/test/lead-finder-fixture.js';
@@ -55,10 +56,10 @@ import { createMarketingMail } from '../src/email/marketing.js';
 import { emailEnvelopeKey } from '../src/email/send.js';
 import type { FileStore } from '../src/files/store.js';
 import { campaignMarketingChecks, CAMPAIGN_SKIP_NOT_TOLD } from '../src/jobs/email-campaign-checks.js';
-import { FOUND_TICK_REFUSED, PEOPLE_SWITCH_REFUSED } from '../src/leads/guard.js';
+import { foundTickRefused, peopleSwitchRefused } from '../src/leads/guard.js';
 import { foundRowOf, insertFound, leadsWriteContext, tellByOf, untoldChanged } from '../src/leads/found-store.js';
 import { OBJECT_PATH, readObjectLink } from '../src/leads/object-token.js';
-import { keepFoundPeople, untoldAddress, UNTOLD_SENTENCE, type KeepFoundPeopleInput } from '../src/leads/people.js';
+import { keepFoundPeople, untoldAddress, untoldBy, UntoldUnjudgedError, UNTOLD_UNJUDGED_SENTENCE, untoldSentence, type KeepFoundPeopleInput } from '../src/leads/people.js';
 import { sweepFoundPeople, yearsAfter } from '../src/leads/sweep.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
@@ -85,6 +86,11 @@ const text = (ref: string, maxLength: number, more: Record<string, unknown> = {}
 /** An address as wide as a found person's row keeps one: 320 characters. */
 const WIDE_ADDRESS = `${'x'.repeat(303)}@kestrel-yard.dev`;
 const FINDER_PAGE = 'company-finder-search';
+/** The add-on as its manifest names it: what every engine sentence about it says. */
+const FINDER = 'Company finder';
+const PEOPLE_SWITCH_REFUSED = peopleSwitchRefused(FINDER);
+const FOUND_TICK_REFUSED = foundTickRefused(FINDER);
+const UNTOLD_SENTENCE = untoldSentence(FINDER);
 const PURPOSE = { 'en-US': 'To offer your studio drawing boards and plan chests.', 'fr-FR': 'Pour proposer à votre agence des tables à dessin.' };
 
 /** A CRM whose contacts are people (with "may be e-mailed"), whose companies say their country, with deals and a mail of its own. */
@@ -370,6 +376,8 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
       expect(reply.statusCode, reply.body).toBe(422);
       const error = (JSON.parse(reply.body) as Doc)['error'] as Doc;
       expect(error['message']).toContain(PEOPLE_SWITCH_REFUSED);
+      // The add-on by the name its manifest gives it, never another add-on's.
+      expect(error['message'].startsWith('Company finder can’t keep people yet:')).toBe(true);
       expect(error['details']['hook']).toBe('leads.people-switch');
       expect(error['details']['problems']).toEqual([
         { code: 'purpose-missing', languages: ['en-US'], message: 'Write the English version of why you keep them.' },
@@ -553,6 +561,7 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     const ctx = { meta: h.meta, manager: h.manager, rule: { id: 'rul_1', name: 'Welcome', connectionId: null }, runId: 'run_1', hops: 0, now: Date.now(), source: null, tokens: {}, text: TRACE_EN, secret: TEST_SECRET } as unknown as ActionContext;
     const step = await runEmailAction({ kind: 'email', templateKey: 'crm-welcome', to: { kind: 'fixed', addresses: [address] }, vars: {} } as never, ctx);
     expect(step.log).toContain(UNTOLD_SENTENCE);
+    expect(step.log).toContain('Not sent: this person was found by Company finder and has not been told yet');
     // A chat reply.
     const reply = await mailChatReply({ meta: h.meta, secret: TEST_SECRET, caps: composed.chat.caps, chat: { addOn: 'live-chat', connectionId: conn, installId: 'x' }, conversation: { id: '1', email: address, language: 'en-US' }, reply: 'Hi', sample: false, at: Date.now(), untold: (one) => untoldAddress(composed.leads.deps, one) });
     expect(reply).toEqual({ mailed: false, reason: 'not-told' });
@@ -672,6 +681,7 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     const tick = await as('finn', 'PATCH', `/api/v1/data/${conn}/${encodeURIComponent(contactsId)}/${String(contact['id'])}`, { values: { may_email: true } });
     expect(tick.statusCode).toBe(422);
     expect(tick.body).toContain(FOUND_TICK_REFUSED);
+    expect(tick.body).toContain('This person was found by Company finder: record how they agreed');
     // Another contact's tick still saves.
     expect((await as('finn', 'PATCH', `/api/v1/data/${conn}/${encodeURIComponent(contactsId)}/50`, { values: { may_email: true } })).statusCode).toBe(200);
 
@@ -679,6 +689,7 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     const refused = await record(null);
     expect(refused.statusCode).toBe(422);
     expect(refused.body).toContain('HOW_THEY_AGREED');
+    expect(refused.body).toContain('This person was found by Company finder: say how they agreed');
     expect((await record('x'.repeat(201))).statusCode).toBe(422);
     const recorded = await record('Rang her on 30 Jul; she asked for the newsletter.');
     expect(recorded.statusCode, recorded.body).toBe(200);
@@ -909,6 +920,9 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     expect(await contactOf('nell.price@kestrel-yard.dev')).toBeUndefined();
     expect((await foundRows()).length).toBe(before);
     expect(await untoldAddress(composed.leads.deps, 'nell.price@kestrel-yard.dev')).toBe(false);
+    // Nor do their details (their name; the address is masked there) stay in the audit entry of their contact's making: they were never told.
+    const held = (await h.meta.db.selectFrom('adminium_audit_log').select(['changes']).execute()).filter((row) => (typeof row.changes === 'string' ? row.changes : JSON.stringify(row.changes ?? null)).includes('Nell Price') || (typeof row.changes === 'string' ? row.changes : JSON.stringify(row.changes ?? null)).includes('nell.price@kestrel-yard.dev'));
+    expect(held).toEqual([]);
   });
 
   it.skipIf(!available)('a drawn document and a pay link are not e-mailed to a person not told yet', async () => {
@@ -965,6 +979,42 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     expect(await untoldAddress(counted, 'pip.ford@kestrel-yard.dev')).toBe(true);
     await send();
     expect(await untoldAddress(counted, 'pip.ford@kestrel-yard.dev')).toBe(false);
+    await mails();
+  });
+
+  it.skipIf(!available)('a database whose found people cannot be read holds back only its own mail, which waits; the people it last held stay held everywhere', async () => {
+    await mails();
+    const held = 'ivo.marsh@kestrel-yard.dev';
+    const other = 'wren.kale@kestrel-yard.dev';
+    expect((await keep('1', [found('Ivo Marsh', held)])).kept).toHaveLength(1);
+    expect(await untoldBy(composed.leads.deps, held, { on: conn })).toBe(FINDER);
+    // The add-on's found people table dropped by hand (put back below): this database's found people cannot be read.
+    const foundTable = table('company-finder', 'found_people');
+    const away = `${foundTable.split('.').pop()!}_away`;
+    const { db } = await h.manager.data(conn);
+    await sql.raw(`ALTER TABLE ${foundTable} RENAME TO ${away}`).execute(db);
+    const back = foundTable.includes('.') ? `${foundTable.slice(0, foundTable.lastIndexOf('.'))}.${away}` : away;
+    try {
+      untoldChanged(h.meta);
+      // Another database's mail is judged on what could be read: the person this one last held stays held, anyone else goes.
+      expect(await untoldBy(composed.leads.deps, held, { on: 'conn_another_database' })).toBe(FINDER);
+      expect(await untoldBy(composed.leads.deps, other, { on: 'conn_another_database' })).toBeNull();
+      expect(await untoldAddress(composed.leads.deps, other)).toBe(false);
+      // This database's own mail cannot be judged: it waits.
+      await expect(untoldBy(composed.leads.deps, other, { on: conn })).rejects.toBeInstanceOf(UntoldUnjudgedError);
+      // The app's mail stays queued, saying why, rather than failing for good.
+      await insert('mails', { id: 950, kind: 'welcome', status: 'queued', to_address: other });
+      await composed.app.outboxSender.sendApp('crm');
+      expect((await rows(`SELECT status, error FROM ${table('crm', 'mails')} WHERE id = 950`))[0]).toMatchObject({ status: 'queued', error: UNTOLD_UNJUDGED_SENTENCE });
+      expect(await mails()).toEqual([]);
+    } finally {
+      await sql.raw(`ALTER TABLE ${back} RENAME TO ${foundTable.split('.').pop()!}`).execute(db);
+      untoldChanged(h.meta);
+    }
+    // Readable again: once its wait is over, it goes.
+    await composed.app.outboxSender.sendApp('crm', Date.now() + 61_000);
+    expect((await rows(`SELECT status FROM ${table('crm', 'mails')} WHERE id = 950`))[0]!['status']).toBe('sent');
+    await send();
     await mails();
   });
 

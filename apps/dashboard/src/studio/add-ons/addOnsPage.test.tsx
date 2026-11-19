@@ -309,6 +309,15 @@ describe('AddOnsPage', () => {
     expect(await within(dialog).findByText(/Adminium does not know who made it: the part of it that decides things while a record is saved will not run/)).toBeTruthy();
   });
 
+  it('says before consent that a package nobody vouches for installs without the code it runs inside Adminium', async () => {
+    const user = userEvent.setup();
+    await renderPage({ respond: (method, url) => (method === 'GET' && url.endsWith('/holiday-calendars/plan') ? { status: 200, body: { plan: makePlan(), providerWillNotRun: true } } : undefined) });
+    await user.click(await screen.findByRole('button', { name: 'Install' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText(/Adminium does not know who made it: the code it runs inside Adminium will not run/)).toBeTruthy();
+    expect(within(dialog).queryByText(/decides things while a record is saved/)).toBeNull();
+  });
+
   it('refuses to offer Install when the plan cannot be applied', async () => {
     // The dialog is the security surface. A plan that names a missing host
     // table must not have a live Install button beside it.
@@ -496,6 +505,24 @@ describe('AddOnsPage', () => {
       expect(
         screen.getByText(/Its files are not on this server, so none of it loads/),
       ).toBeTruthy();
+    });
+
+    it('says on its row when an installed add-on’s code was left out because nobody vouches for its package', async () => {
+      await renderPage({ installed: [makeAddOn({ notLoaded: [{ reason: 'UNTRUSTED_PROVIDER', contract: 'document-render@1' }] })] });
+      const note = await screen.findByText(/Its code did not load: Adminium does not know who made this package/);
+      expect(note.closest('[data-part="add-on-not-loaded"]')).not.toBeNull();
+      expect(screen.getByText(/Install it from the catalogue to use it/)).toBeTruthy();
+    });
+
+    it('says part of an installed add-on’s code did not load for any other reason', async () => {
+      await renderPage({ installed: [makeAddOn({ notLoaded: [{ reason: 'IMPORT_FAILED', contract: 'document-render@1' }] })] });
+      expect(await screen.findByText('Part of its code did not load. The server’s log says why.')).toBeTruthy();
+    });
+
+    it('says nothing of the kind when all of an installed add-on’s code loaded', async () => {
+      await renderPage({ installed: [makeAddOn({ notLoaded: [] })] });
+      expect((await screen.findAllByText(makeAddOn().name)).length).toBeGreaterThan(0);
+      expect(document.querySelector('[data-part="add-on-not-loaded"]')).toBeNull();
     });
 
     it('marks an installed add-on whose files are gone, and offers the re-download', async () => {
@@ -935,6 +962,18 @@ describe('AddOnsPage', () => {
       await user.type(screen.getByLabelText(/Integrity/), 'sha512-abc==');
       await user.click(screen.getByRole('button', { name: 'Upload' }));
       expect(await screen.findByText(/The package is stored and can be installed, but Adminium does not know who made it/)).toBeTruthy();
+    });
+
+    it('a package stored whose provider or event code nobody vouches for says, with the upload, that code will not run', async () => {
+      const user = userEvent.setup();
+      await renderPage({ upload: { status: 201, body: { key: 'kit', version: '1.0.0', name: 'Kit', files: 3, integrity: 'sha512-abc==', providerWillNotRun: true } } });
+      await screen.findByRole('button', { name: 'Upload' });
+      await user.upload(screen.getByLabelText('Package file (.tgz)'), new File([new Uint8Array([1, 2, 3])], 'kit.tgz', { type: 'application/gzip' }));
+      await user.type(screen.getByLabelText(/Integrity/), 'sha512-abc==');
+      await user.click(screen.getByRole('button', { name: 'Upload' }));
+      expect(await screen.findByText(/Uploaded Kit 1.0.0/)).toBeTruthy();
+      expect(screen.getByText(/the code it runs inside Adminium will not run/).closest('[data-part="add-on-upload-untrusted-code"]')).not.toBeNull();
+      expect(screen.queryByText(/decides things while a record is saved/)).toBeNull();
     });
   });
 

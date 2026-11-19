@@ -95,7 +95,7 @@ import { listedAt } from '../listed-recipients.js';
 import { staffAt, staffReplyTo } from '../staff-recipient.js';
 import { AUTOMATION_NOTICE_KIND } from './notice-kind.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
-import { UNTOLD_SENTENCE, untoldAddress } from '../../leads/people.js';
+import { UntoldUnjudgedError, untoldBy, untoldSentence } from '../../leads/people.js';
 
 type EmailAction = Extract<AutomationAction, { kind: 'email' }>;
 
@@ -331,6 +331,22 @@ async function mailPerson(action: EmailAction, ctx: ActionContext, user: User, r
   return said.join(' · ');
 }
 
+/**
+ * Who found the person an address is, while they have not been told yet; null
+ * for anyone else. On the run's own database, when its found people cannot be
+ * read, the step stops and says so: whether the mail is to one of them is not
+ * known. Other databases' rules go on.
+ */
+async function untoldOf(ctx: ActionContext, to: string): Promise<string | null> {
+  const on = ctx.source?.connectionId ?? ctx.rule.connectionId;
+  try {
+    return await untoldBy({ meta: ctx.meta, manager: ctx.manager }, to, { on });
+  } catch (error) {
+    if (error instanceof UntoldUnjudgedError) throw new ActionFailure(error.message);
+    throw error;
+  }
+}
+
 /** Why a step's mail was not queued on a trial: the relay's caps, its end, or marketing mail being off. */
 const NOT_QUEUED_ON_TRIAL = 'Not queued: this trial’s email rules leave it out';
 /** Why it was not queued through the operator's mail server: marketing mail needs the installation's own. */
@@ -350,8 +366,9 @@ async function queueThroughTrialRelay(action: EmailAction, ctx: ActionContext, t
   const replies: string[] = [];
   for (const to of recipients) {
     // A found person not told yet gets no mail from a rule: only the one that tells them.
-    if (await untoldAddress({ meta: ctx.meta, manager: ctx.manager }, to)) {
-      replies.push(ctx.text.emailSkipped(UNTOLD_SENTENCE, to));
+    const untold = await untoldOf(ctx, to);
+    if (untold !== null) {
+      replies.push(ctx.text.emailSkipped(untoldSentence(untold), to));
       continue;
     }
     const rendered = renderEmail({ ...prepared.render, locale: template.locale, vars, dir: isLocaleId(template.locale) ? dirForLocale(template.locale) : 'ltr' });
@@ -413,8 +430,9 @@ export async function runEmailAction(
   let senderChecked = false;
   for (const to of recipients) {
     // A found person not told yet gets no mail from a rule: only the one that tells them.
-    if (await untoldAddress({ meta: ctx.meta, manager: ctx.manager }, to)) {
-      replies.push(ctx.text.emailSkipped(UNTOLD_SENTENCE, to));
+    const untold = await untoldOf(ctx, to);
+    if (untold !== null) {
+      replies.push(ctx.text.emailSkipped(untoldSentence(untold), to));
       continue;
     }
     let carry: Awaited<ReturnType<MarketingMail['carry']>> | null = null;

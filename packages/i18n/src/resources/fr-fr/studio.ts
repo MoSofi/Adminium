@@ -110,6 +110,8 @@ export default {
       "emptyTitle": "Rien d’installé pour l’instant",
       "missing": "Introuvable",
       "missingBody": "Ses fichiers ne sont pas sur ce serveur, rien n'en est donc chargé. Réinstallez-le, ou supprimez-le.",
+      "untrusted": "Son code n’a pas été chargé : Adminium ne sait pas qui a créé ce paquet (ce n’est ni un paquet livré avec cette version, ni un paquet du catalogue). Installez-le depuis le catalogue pour l’utiliser.",
+      "notLoaded": "Une partie de son code n’a pas été chargée. Le journal du serveur indique pourquoi.",
       "notConnected": "Non connecté",
       "off": "désactivé",
       "on": "activé",
@@ -164,7 +166,8 @@ export default {
         "title": "{name} {version} téléversé",
         "body": "Installez-le depuis la liste ci-dessus."
       },
-      "untrusted": "Le paquet est enregistré et peut être installé, mais Adminium ne sait pas qui l’a créé : la partie qui prend des décisions pendant l’enregistrement d’une fiche ne s’exécutera pas."
+      "untrusted": "Le paquet est enregistré et peut être installé, mais Adminium ne sait pas qui l’a créé : la partie qui prend des décisions pendant l’enregistrement d’une fiche ne s’exécutera pas.",
+      "untrustedCode": "Le paquet est enregistré et peut être installé, mais Adminium ne sait pas qui l’a créé : le code qu’il exécute dans Adminium ne s’exécutera pas. Installez-le depuis le catalogue pour l’utiliser."
     },
     "subtitle": "Des capacités supplémentaires pour vos applications — expédition, graphisme, données. Chacune indique ce dont elle a besoin avant l’installation.",
     "title": "Modules",
