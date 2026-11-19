@@ -717,6 +717,24 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     expect(await consent().stop.has('ben.reuse@kestrel-yard.dev')).toBe(false);
   });
 
+  it.skipIf(!available)('a link names the moment its person was found: the same address found again later is someone the old link never named', async () => {
+    const first = await keptAndTold('1', 'Rhea Stone', 'rhea.stone@kestrel-yard.dev');
+    // Their rows removed without stopping the address (as an erasure narrowed to one app leaves it), then found again.
+    const { db } = await h.manager.data(conn);
+    await db.deleteFrom(table('company-finder', 'tell_mails') as never).where('found_person_id' as never, '=', first.found['id'] as never).execute();
+    await db.deleteFrom(table('company-finder', 'found_people') as never).where('id' as never, '=', first.found['id'] as never).execute();
+    await db.deleteFrom(table('crm', 'contacts') as never).where('id' as never, '=', first.contact['id'] as never).execute();
+    const again = await keptAndTold('1', 'Rhea Stone', 'rhea.stone@kestrel-yard.dev');
+    if (dialect === 'sqlite') expect(String(again.found['id'])).toBe(String(first.found['id']));
+    const old = await stranger('GET', first.link);
+    expect(old.statusCode).toBe(404);
+    expect(old.body).toContain('This link doesn’t work.');
+    expect((await stranger('POST', first.link, 'act=object')).body).not.toContain('Done.');
+    expect((await foundRows()).some((one) => one['id'] === again.found['id'])).toBe(true);
+    // The link of the mail that told them now works.
+    expect((await stranger('GET', again.link)).body).toContain('name="act" value="object"');
+  });
+
   it.skipIf(!available)('a sole trader is one unit: told that staff typed their address; Object, the deadline and a privacy erasure each empty their company row too; their download carries it', async () => {
     const soleTrader = async (id: number, name: string, address: string) => {
       await insert('companies', { id, name, country: 'FR', website: `https://www.${name.toLowerCase().replace(/\W+/g, '-')}.example` });

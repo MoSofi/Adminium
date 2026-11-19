@@ -71,6 +71,12 @@ const ALLOWED: Record<string, string> = {
     "a chat add-on's conversations removed with their messages and the answerer's choices, by key, as the system: by a person's erasure under the privacy action, and by the daily keeping sweep the add-on's own setting asks for, as form answers are (forms/answers.ts) — rows no person writes, so no rule, hook or live frame is owed for them",
   'leads/write.ts':
     "a field's source noted in a lead source add-on's fields' sources table, which Adminium alone writes (`compose.ts` refuses a person's own write): the one before it replaced and the new one checked by the write service, beside the fill or add the person made through the data routes — a row no person writes, so no rule, hook or live frame is owed for it",
+  'leads/sole-trader.ts':
+    "a sole trader's mark in a lead source add-on's fields' sources table, which Adminium alone writes (`compose.ts` refuses a person's own write): the one before it replaced and the new one checked by the write service, taken away again when the person is not kept — a row no person writes, so no rule, hook or live frame is owed for it",
+  'leads/people.ts':
+    "what keeping a found person half-wrote, taken away again as the engine when the rest could not be written (their tell mail, their found person's row, the contact the staff member's save had just made): the person was never kept, so no rule, screen or live frame is owed a removal of what nobody was told was there",
+  'routes/leads/index.ts':
+    "the company row the lead door had just added for a sole trader, removed as the engine when the person it is could not be kept, whoever asked: a person's details may not stay with nobody told, and a rep's missing delete grant must not keep them",
   'forms/files.ts':
     "a form answer's files in the forms add-on's own files table, which Adminium alone writes (the manifest refuses any role, grant, step or public entry that would): written with the answer they belong to and removed with it, as a ledger's receipts are — no rule, hook or live frame is owed for rows no person writes",
 };
