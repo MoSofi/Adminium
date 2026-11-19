@@ -25,20 +25,29 @@
  * keyed hash of the address, never the address (`routes/privacy`). Read as
  * the privacy action, as the rest of a person's data: no role's limits. The
  * address is compared as `normaliseAddress` spells it.
+ *
+ * A SOLE TRADER (`leads/sole-trader.ts`) is one person in two rows: the
+ * company row the lead door added for them (their name, their business's
+ * address and phone) goes with them. Its fields' sources are theirs, the
+ * download carries the row, and an erasure empties it in place (`erase.ts`).
  */
 import type { Dialect } from '@adminium/engine';
 import { realTableOf, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 
-import { storedTableRef, tableRefIndex, type TableRefIndex } from '../apps/table-ref.js';
+import { resolveTableRef, storedTableRef, tableRefIndex, type TableRefIndex } from '../apps/table-ref.js';
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import { readInstant } from '../crud/moments.js';
+import { fetchByPk } from '../crud/records.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
-import { foundRowOf, zoneOf, dayIn } from '../leads/found-store.js';
+import { foundRowOf, zoneOf, dayIn, type FoundRow } from '../leads/found-store.js';
 import { leadsAddOnsOn, storedLeadsAddOns, type LeadsAddOnTables } from '../leads/installs.js';
-import { rowKeyOf } from '../payments/payables.js';
+import { SOLE_TRADER_MARK, soleTraderCompany } from '../leads/sole-trader.js';
+import { pkOfRowKey, rowKeyOf } from '../payments/payables.js';
+import { peopleTablesOf } from '../people/tables-of.js';
+import type { ErasedRole } from './erase-values.js';
 import type { TheirRow } from './chat-transcripts.js';
 import type { FoundSource } from './types.js';
 import { plainValue } from './values.js';
@@ -56,10 +65,24 @@ export interface FoundPersonRows {
   found: Row[];
   /** The tell mails sent to them. */
   mails: Row[];
-  /** The sources of fields filled on their people rows. */
+  /** The sources of fields filled on their people rows (and on a sole trader's company row). */
   fields: Row[];
+  /** A sole trader's company rows: theirs, with the columns of them that are (their name, their business's details). */
+  companies: SoleTraderCompany[];
   /** The install's clock: the day each was told is written on it. */
   zone: string;
+}
+
+/** A sole trader's company row, as found for them. */
+export interface SoleTraderCompany {
+  /** The found person's row it belongs to, by its key. */
+  found: string;
+  table: ResolvedTable;
+  /** Its key, as the record pages name it. */
+  key: string;
+  row: Row;
+  /** Its columns that are the person's, and how each is emptied. */
+  columns: Map<string, ErasedRole>;
 }
 
 export interface FoundPeopleDeps {
@@ -147,46 +170,146 @@ export async function findFoundPeopleRows(deps: FoundPeopleDeps, address: string
       const mails: Row[] = [];
       const tell = addOn.tell;
       if (tell !== null) {
-        newRows(tell.table, mails, (await db.selectFrom(tell.table.id as never).selectAll().where(addressIs(tell.definition.columns.to, address)).execute()) as Row[]);
+        if (address !== '') newRows(tell.table, mails, (await db.selectFrom(tell.table.id as never).selectAll().where(addressIs(tell.definition.columns.to, address)).execute()) as Row[]);
         const named = mails.map((row) => row[tell.link]).filter((value) => value !== null && value !== undefined);
         newRows(people, found, await rowsIn(db, people, people.primaryKey[0]!, named));
         newRows(tell.table, mails, await rowsIn(db, tell.table, tell.link, found.map((row) => row[people.primaryKey[0]!])));
       }
-      // The sources of fields filled on their people rows.
-      const fields: Row[] = [];
-      const sources = addOn.fieldSources;
-      if (sources !== null) {
-        const rows = new Map<string, Set<string>>();
-        for (const one of linked) for (const name of one.names) rows.set(name, new Set([...(rows.get(name) ?? []), ...one.keys]));
-        for (const row of found) {
-          const parsed = foundRowOf(people, row);
-          if (parsed !== null) rows.set(parsed.personTable, new Set([...(rows.get(parsed.personTable) ?? []), parsed.personKey]));
-        }
-        for (const [table, keys] of rows) {
-          const hits = (await db
-            .selectFrom(sources.id as never)
-            .selectAll()
-            .where(sql.ref('table_ref'), '=', table as never)
-            .where(sql.ref('row_key'), 'in', [...keys] as never)
-            .execute()) as Row[];
-          newRows(sources, fields, hits);
-        }
-      }
+      const { fields, companies } = await ownedBy(deps, { connectionId, db, view, index, addOn }, found, linked);
       if (found.length === 0 && mails.length === 0 && fields.length === 0) continue;
-      const cut = (rows: Row[]) => (limit === undefined ? rows : rows.slice(0, limit));
-      out.push({ connectionId, db, dialect, addOn, found: cut(found), mails: cut(mails), fields: cut(fields), zone });
+      const cut = <T>(rows: T[]) => (limit === undefined ? rows : rows.slice(0, limit));
+      out.push({ connectionId, db, dialect, addOn, found: cut(found), mails: cut(mails), fields: cut(fields), companies, zone });
     }
   }
   return out;
 }
 
+/** Where an add-on's found people are read: its database, the snapshot, and the names its tables go by. */
+interface FoundPlace {
+  connectionId: string;
+  db: Kysely<SourceDatabase>;
+  view: SnapshotView;
+  index: TableRefIndex;
+  addOn: LeadsAddOnTables;
+}
+
+/**
+ * What found people's rows bring with them: the fields' sources of their
+ * people rows (and of `linked` rows), and each sole trader's company row with
+ * its own fields' sources.
+ */
+async function ownedBy(deps: FoundPeopleDeps, place: FoundPlace, found: readonly Row[], linked: readonly { names: string[]; keys: string[] }[]): Promise<{ fields: Row[]; companies: SoleTraderCompany[] }> {
+  const { db, view, index, addOn } = place;
+  const people = addOn.foundPeople!;
+  const sources = addOn.fieldSources;
+  const parsed = found.map((row) => foundRowOf(people, row)).filter((row): row is FoundRow => row !== null);
+  const companies = await soleTraderCompanies(deps, place, parsed);
+  const fields: Row[] = [];
+  if (sources !== null) {
+    const rows = new Map<string, Set<string>>();
+    const add = (table: string, keys: readonly string[]) => rows.set(table, new Set([...(rows.get(table) ?? []), ...keys]));
+    for (const one of linked) for (const name of one.names) add(name, one.keys);
+    for (const row of parsed) add(row.personTable, [row.personKey]);
+    // A sole trader's company row: by every name its table is known by.
+    for (const company of companies) for (const name of namesOf(index, view, company.table.id)) add(name, [company.key]);
+    for (const [table, keys] of rows) {
+      const hits = (await db
+        .selectFrom(sources.id as never)
+        .selectAll()
+        .where(sql.ref('table_ref'), '=', table as never)
+        .where(sql.ref('row_key'), 'in', [...keys] as never)
+        .execute()) as Row[];
+      newRows(sources, fields, hits);
+    }
+  }
+  return { fields, companies };
+}
+
+/** The company rows of the sole traders among these found people (`leads/sole-trader.ts`), with the columns of each that are theirs. */
+async function soleTraderCompanies(deps: FoundPeopleDeps, place: FoundPlace, found: readonly FoundRow[]): Promise<SoleTraderCompany[]> {
+  const out: SoleTraderCompany[] = [];
+  let declared: Awaited<ReturnType<ReturnType<typeof peopleTablesOf>['all']>> | null = null;
+  for (const one of found) {
+    if (!(await soleTraderCompany(place.db, place.addOn.fieldSources, one))) continue;
+    const tableId = resolveTableRef(place.index, one.companyTable!)?.tableId ?? null;
+    if (tableId === null) continue;
+    let table: ResolvedTable;
+    try {
+      table = place.view.table(tableId);
+    } catch {
+      continue;
+    }
+    const pk = pkOfRowKey(table, one.companyKey!);
+    const row = pk === null ? undefined : ((await fetchByPk(place.db, table, pk)) as Row | undefined);
+    if (row === undefined) continue;
+    declared ??= await peopleTablesOf(deps.meta).all(place.connectionId, place.view.model);
+    const entry = declared.find((candidate) => candidate.table === tableId && candidate.kind === 'companies');
+    const columns = new Map<string, ErasedRole>();
+    if (entry?.name !== null && entry?.name !== undefined) columns.set(entry.name, 'name');
+    const lead = entry?.lead;
+    // Every detail the door wrote of them; never the owner (a member of staff), never a key.
+    for (const column of [lead?.number, lead?.website, lead?.phone, lead?.activity, lead?.about, lead?.address?.lines, lead?.address?.town, lead?.address?.region, lead?.address?.postalCode, lead?.address?.country]) {
+      if (column !== undefined && column !== null && table.columns.has(column) && !table.primaryKey.includes(column)) columns.set(column, 'other');
+    }
+    if (out.some((held) => held.table.id === table.id && held.key === one.companyKey)) continue;
+    out.push({ found: one.id, table, key: one.companyKey!, row, columns });
+  }
+  return out;
+}
+
+/**
+ * One found person's own rows, by their found person's row: that row, the
+ * tell mails that name it, the fields' sources of their people row and of a
+ * sole trader's company row. Null when the row is gone. What the keeping
+ * sweep erases, and nothing else of them.
+ */
+export async function findFoundPersonRows(deps: FoundPeopleDeps, input: { connectionId: string; addOnKey: string; found: string }): Promise<FoundPersonRows | null> {
+  const stored = (await storedLeadsAddOns(deps.meta)).filter((one) => one.connectionId === input.connectionId && one.key === input.addOnKey);
+  if (stored.length === 0) return null;
+  let view: SnapshotView;
+  try {
+    view = await loadSnapshotView(deps.meta, input.connectionId, { forOthers: true });
+  } catch {
+    return null;
+  }
+  const addOn = (await leadsAddOnsOn(deps.meta, input.connectionId, view, stored))[0];
+  const people = addOn?.foundPeople ?? null;
+  if (addOn === undefined || people === null) return null;
+  const { db, dialect } = await deps.manager.data(input.connectionId);
+  const index = await tableRefIndex(deps.meta, input.connectionId, view.model);
+  const found = await rowsIn(db, people, people.primaryKey[0]!, [boundKey(input.found)]);
+  if (found.length === 0) return null;
+  const mails: Row[] = [];
+  if (addOn.tell !== null) newRows(addOn.tell.table, mails, await rowsIn(db, addOn.tell.table, addOn.tell.link, found.map((row) => row[people.primaryKey[0]!])));
+  const { fields, companies } = await ownedBy(deps, { connectionId: input.connectionId, db, view, index, addOn }, found, []);
+  return { connectionId: input.connectionId, db, dialect, addOn, found, mails, fields, companies, zone: await zoneOf(deps.meta, input.connectionId) };
+}
+
+/** A found person's key as its column takes it. */
+const boundKey = (id: string): number | string => (Number.isSafeInteger(Number(id)) ? Number(id) : id);
+
 const plain = (row: Row): Record<string, unknown> => Object.fromEntries(Object.entries(row).map(([column, value]) => [column, plainValue(value)]));
 
 /** A found person's row as the download writes it: where they were found, by what, why, and when they were told (Art. 15(1)(g)). */
-function foundExport(addOn: LeadsAddOnTables, row: Row, fields: readonly Row[]): Record<string, unknown> {
+function foundExport(addOn: LeadsAddOnTables, row: Row, fields: readonly Row[], companies: readonly SoleTraderCompany[]): Record<string, unknown> {
   const parsed = foundRowOf(addOn.foundPeople!, row);
   if (parsed === null) return plain(row);
   const own = fields.filter((one) => one['table_ref'] === parsed.personTable && String(one['row_key']) === parsed.personKey);
+  const company = companies.find((one) => one.found === parsed.id);
+  // A sole trader: their business's details are theirs too, each with where it came from; their address a member of staff typed.
+  const soleTrader =
+    company === undefined
+      ? {}
+      : {
+          soleTrader: {
+            table: parsed.companyTable,
+            row: parsed.companyKey,
+            values: plain(Object.fromEntries([...company.columns.keys()].map((column) => [column, company.row[column] ?? null]))),
+            fields: fields
+              .filter((one) => one['table_ref'] === parsed.companyTable && String(one['row_key']) === parsed.companyKey && one['column_name'] !== SOLE_TRADER_MARK)
+              .map((one) => ({ column: one['column_name'], source: one['source'], at: readInstant(one['found_at']) })),
+          },
+        };
   return plain({
     id: parsed.id,
     foundBy: parsed.source,
@@ -203,9 +326,10 @@ function foundExport(addOn: LeadsAddOnTables, row: Row, fields: readonly Row[]):
     // Each field a source gave, with the source and when: their name and work address from the one that found them.
     fields: [
       { column: 'name', source: parsed.source, at: new Date(parsed.foundAt) },
-      { column: 'email', source: parsed.source, at: new Date(parsed.foundAt) },
+      { column: 'email', source: company === undefined ? parsed.source : 'staff', at: new Date(parsed.foundAt) },
       ...own.map((one) => ({ column: one['column_name'], source: one['source'], at: readInstant(one['found_at']) })),
     ],
+    ...soleTrader,
   });
 }
 
@@ -214,7 +338,7 @@ export function foundPeopleSources(found: readonly FoundPersonRows[]): FoundSour
   const out: FoundSource[] = [];
   for (const one of found) {
     const parts = [
-      ['found-people', one.addOn.foundPeople, one.found, one.addOn.block.foundPeople, (row: Row) => foundExport(one.addOn, row, one.fields)],
+      ['found-people', one.addOn.foundPeople, one.found, one.addOn.block.foundPeople, (row: Row) => foundExport(one.addOn, row, one.fields, one.companies)],
       ['found-people-mail', one.addOn.tell?.table ?? null, one.mails, 'tell', plain],
       ['found-people-fields', one.addOn.fieldSources, one.fields, one.addOn.block.fieldSources, plain],
     ] as const;

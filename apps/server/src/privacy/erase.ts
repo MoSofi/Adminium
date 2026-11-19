@@ -64,10 +64,11 @@ import type { RecordWriteEvent } from '../crud/after-record-write.js';
 import { pkLabel } from '../crud/records.js';
 import type { FileStore } from '../files/store.js';
 import { blankCampaignSends, campaignSendIds, copyFileIds, purgeRowFiles, rowFileIds, scrubAuditImages, scrubRemovedRows, sweepAddress, sweepMailAddress, type CopyLink, type CopyRowFiles, type ImageTarget, type PersonRowRef } from './erase-meta.js';
-import { findPersonRows, writePersonRows, type ErasedSource, type LeftColumn, type PersonRows } from './erase-rows.js';
+import { blankRow, findPersonRows, pkOf, writePersonRows, type ErasedSource, type LeftColumn, type PersonRows } from './erase-rows.js';
 import { eraseFormRows, findFormRows, formImageTargets } from './form-answers.js';
 import { eraseChatRows, findChatRows, type TheirRow } from './chat-transcripts.js';
-import { eraseFoundPeopleRows, findFoundPeopleRows } from './found-people.js';
+import { eraseFoundPeopleRows, findFoundPeopleRows, type FoundPersonRows } from './found-people.js';
+import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import type { ChatForget } from '../chat/transcripts.js';
 import type { AnswerFilesRemover } from '../forms/answers.js';
 import { personHash, personHashes } from './export.js';
@@ -98,6 +99,67 @@ export interface EraseDeps {
 export interface EraseScope {
   apps: AppScope;
   by: string;
+  /**
+   * The keeping sweep's erasure of one found person (`leads/sweep.ts`): only
+   * these people rows of theirs (their contact, while it still holds the
+   * address), and these found people's own rows (`findFoundPersonRows`).
+   * Nothing else kept at the address: what they gave the business since is
+   * kept for its own purpose. Their address goes on the do-not-email list.
+   */
+  only?: { rows: readonly TheirRow[]; found: readonly FoundPersonRows[] } | undefined;
+}
+
+/** The rows of `found` that are these people rows of theirs, and nothing else (no copy, no mail). */
+function onlyTheseRows(found: PersonRows, rows: readonly TheirRow[]): PersonRows {
+  const wanted = new Set(rows.map((row) => `${row.connectionId}\u0000${row.table}\u0000${row.key}`));
+  const databases = found.databases
+    .map((database) => ({
+      ...database,
+      sources: database.sources
+        .filter((source) => source.kind === 'people')
+        .map((source) => ({ ...source, rows: source.rows.filter((row) => wanted.has(`${source.connectionId}\u0000${source.table.id}\u0000${row.key}`)) }))
+        .filter((source) => source.rows.length > 0),
+    }))
+    .filter((database) => database.sources.length > 0);
+  const tables = new Set(databases.flatMap((database) => database.sources.map((source) => `${source.connectionId}\u0000${source.table.id}`)));
+  return { address: found.address, databases, left: found.left.filter((one) => tables.has(`${one.connectionId}\u0000${one.table}`)) };
+}
+
+/**
+ * A sole trader's company rows (`found-people.ts`), emptied in place with their rows: each a source of the erasure's
+ * own, so its audit images are scrubbed and it is written in its database's one transaction.
+ */
+async function withSoleTraders(deps: EraseDeps, rows: PersonRows, found: readonly FoundPersonRows[], erasedName: string): Promise<PersonRows> {
+  const out: PersonRows = { ...rows, databases: [...rows.databases], left: [...rows.left] };
+  for (const one of found) {
+    if (one.companies.length === 0) continue;
+    let database = out.databases.find((held) => held.connectionId === one.connectionId);
+    if (database === undefined) {
+      database = { connectionId: one.connectionId, db: one.db, dialect: one.dialect, view: await loadSnapshotView(deps.meta, one.connectionId, { forOthers: true }), sources: [] };
+      out.databases.push(database);
+    } else {
+      database = { ...database, sources: [...database.sources] };
+      out.databases[out.databases.findIndex((held) => held.connectionId === one.connectionId)] = database;
+    }
+    const left = new Map<string, number>();
+    for (const company of one.companies) {
+      const blank = blankRow(company.table, company.row, company.columns, one.dialect, erasedName, left);
+      database.sources.push({
+        id: `found-people-company-${one.addOn.key}`,
+        kind: 'copy',
+        connectionId: one.connectionId,
+        table: company.table,
+        app: one.addOn.key,
+        ref: 'sole-trader',
+        label: company.table.table.label ?? company.table.name,
+        copies: [],
+        rows: [{ key: company.key, pk: pkOf(company.table, company.row), before: company.row, ...blank }],
+      });
+      for (const [column, count] of left) out.left.push({ connectionId: one.connectionId, table: company.table.id, column, rows: count });
+      left.clear();
+    }
+  }
+  return out;
 }
 
 /** What goes, as the erase dialog counts it. */
@@ -222,7 +284,8 @@ export async function previewErasure(deps: EraseDeps, rawAddress: string, scope?
     const table = one.addOn.conversations;
     if (table !== null && one.conversations.length > 0) goes.push({ kind: 'chat-conversations', count: one.conversations.length, connectionId: one.connectionId, table: table.id, app: one.addOn.key, label: table.table.label ?? table.name });
   }
-  for (const one of whole ? await findFoundPeopleRows(deps, address, theirRows(rows)) : []) {
+  // A narrowed erasure reaches the found people its rows' links reach, never one found by the address alone.
+  for (const one of await findFoundPeopleRows(deps, whole ? address : '', theirRows(rows))) {
     const table = one.addOn.foundPeople;
     if (table !== null && one.found.length > 0) goes.push({ kind: 'found-people', count: one.found.length, connectionId: one.connectionId, table: table.id, app: one.addOn.key, label: table.table.label ?? table.name });
   }
@@ -243,23 +306,28 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: E
   const now = deps.now ?? Date.now;
   const address = searchAddress(rawAddress);
   const apps = scope?.apps ?? null;
-  const whole = apps === null;
+  const only = scope?.only;
+  const whole = apps === null && only === undefined;
   const started = now();
   // The keys first: while they cannot be read, nothing is touched (the caller answers 503).
   const hash = await personHash(meta, deps.secret, address);
   const hashes = await personHashes(meta, deps.secret, address);
   const erasedName = await erasedNameOf(meta);
-  const rows = await findPersonRows({ meta, manager: deps.manager, erasedName, now }, address, apps);
+  const all = await findPersonRows({ meta, manager: deps.manager, erasedName, now }, address, apps);
+  const narrowed = only === undefined ? all : onlyTheseRows(all, only.rows);
   const forms = whole ? await findFormRows(deps, address) : [];
   // Found before their rows are emptied: a chat that became one of them is found by the row's key, which stays.
-  const chats = whole ? await findChatRows(deps, address, theirRows(rows)) : [];
-  // …and so is a found person's row, which names their row by its key.
-  const foundPeople = whole ? await findFoundPeopleRows(deps, address, theirRows(rows)) : [];
+  const chats = whole ? await findChatRows(deps, address, theirRows(narrowed)) : [];
+  // …and so is a found person's row, which names their row by its key (a narrowed erasure: only by their rows).
+  const foundPeople = only !== undefined ? only.found : await findFoundPeopleRows(deps, whole ? address : '', theirRows(narrowed));
+  // A sole trader's company row is theirs: emptied with them.
+  const rows = await withSoleTraders(deps, narrowed, foundPeople, erasedName);
   const people = peopleRefs(rows);
   const counts: Record<string, number> = {};
 
   // 1. Still stopped, by the hash alone. The do-not-email list is the workspace's: an erasure for some apps leaves it.
-  if (whole) {
+  //    The keeping sweep's stops the found person: a source that finds them again is refused.
+  if (whole || only !== undefined) {
     await consent.eraseDisplay(address, { addIfMissing: true, at: started });
     counts['stop-list'] = 1;
   }

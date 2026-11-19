@@ -1019,6 +1019,7 @@ export default {
     "hello": "Bonjour {name},",
     "helloNoName": "Bonjour,",
     "source": "{source} a trouvé votre adresse e-mail de travail le {date}.",
+    "sourceStaff": "{source} a fourni les informations enregistrées de votre entreprise le {date}. Un membre de notre équipe a ajouté votre adresse e-mail.",
     "why": "Pourquoi nous les gardons : {purpose}",
     "basis": "Nous nous fondons pour cela sur notre intérêt légitime (RGPD, article 6, paragraphe 1, point f).",
     "keep": "{years, plural, one {Nous gardons vos coordonnées # an à partir du {date}, ou de la dernière fois que vous nous écrivez.} other {Nous gardons vos coordonnées # ans à partir du {date}, ou de la dernière fois que vous nous écrivez.}}",
