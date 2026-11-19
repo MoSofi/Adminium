@@ -21,7 +21,9 @@ import { api } from '../app/api.js';
 import type {
   BulkActionFact,
   ColumnFactsReply,
+  FieldNotesFact,
   PageDocumentResult,
+  RecordActionFact,
   RecordPanelFact,
   RecordTabFact,
   StateActionFact,
@@ -35,7 +37,9 @@ export type {
   FormChildFactReply,
   FormColumnFactReply,
   FormRelationFactReply,
+  FieldNotesFact,
   PageDocumentResult,
+  RecordActionFact,
   RecordPanelFact,
   RecordTabFact,
   StateActionFact,
@@ -94,6 +98,8 @@ export function pageQuery(pageId: string) {
         bulkActions?: BulkActionFact[];
         recordTabs?: RecordTabFact[];
         recordPanels?: RecordPanelFact[];
+        recordActions?: RecordActionFact[];
+        fieldNotes?: FieldNotesFact[];
         columnFacts?: ColumnFactsReply;
       }>(`/api/v1/pages/${encodeURIComponent(pageId)}`);
       const result = (await reading).parsePageDocument(reply.data);
@@ -114,6 +120,8 @@ export function pageQuery(pageId: string) {
             bulkActions: reply.bulkActions ?? [],
             recordTabs: reply.recordTabs ?? [],
             recordPanels: reply.recordPanels ?? [],
+            recordActions: reply.recordActions ?? [],
+            fieldNotes: reply.fieldNotes ?? [],
             columnFacts: factsByColumn(reply.columnFacts),
             formColumns: reply.columnFacts?.columns ?? [],
             formRelations: reply.columnFacts?.relations ?? [],

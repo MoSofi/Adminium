@@ -92,12 +92,15 @@ import { addOnWords } from '../add-ons/messages.js';
 import { leftToOthers, RecordStateActions } from './RecordStateActions.js';
 import { childWritable, deleteRefused, linkKeptColumns, lockedFields, lockedIn, releasedColumns, stateFactsQuery, stateOf, timedMove, type TableStateFacts } from './recordLocks.js';
 import { childFactsOf } from './formChildren.js';
+import { useFieldNotes } from './record/AddOnFieldNotes.js';
 import type { PageTemplateProps } from './template-types.js';
 
 // The tab of an add-on's rows is loaded when a record has one, never with the page.
 const LinkedRowsTab = lazy(() => import('../add-ons/LinkedRowsTab.js'));
 // An add-on's own screen on a record is loaded when the record has one, never with the page.
 const RecordPanelHost = lazy(() => import('../add-ons/RecordPanelHost.js'));
+// An add-on's action beside Edit (a companies table's "Fill in details") is loaded when the record has one.
+const AddOnRecordAction = lazy(() => import('./record/AddOnRecordAction.js'));
 // The Payment panel and its words load only on a record that takes payments.
 const PaymentPanel = lazy(() => import('../payments-panel/PaymentPanel.js'));
 // The e-mail consent panel and its words load only on a record of a table an app declares as people.
@@ -114,6 +117,8 @@ export function PageRecordBinding({
   stateActions,
   recordTabs,
   recordPanels,
+  recordActions: addOnActions,
+  fieldNotes,
   columnFacts,
   formColumns,
   formRelations,
@@ -838,8 +843,30 @@ export function PageRecordBinding({
     // The record is named by its three parts; the object itself is new on every render.
   }, [consentView, consentName, consentAddress, panelRecord?.connectionId, panelRecord?.table, panelRecord?.recordId, words]);
 
+  /*
+   * The add-ons' actions on this record, as the server offered them to this
+   * reader (only one who may change the table): last among the host's
+   * actions, so beside Edit. Not on a record that cannot be changed now.
+   */
+  const addOnButtons = useMemo(() => {
+    if (recordId === undefined || addOnActions === undefined || addOnActions.length === 0) return [];
+    const changes = canUpdate !== false && !readOnly && !parentClosed;
+    if (!changes) return [];
+    return addOnActions.map((action) => ({
+      id: `add-on-${action.addOn}-${action.client}`,
+      label: action.label,
+      content: (
+        <Suspense fallback={null}>
+          <AddOnRecordAction action={action} recordId={String(recordId)} row={row} canUpdate={changes} recordName={hero} onClosed={afterAction} />
+        </Suspense>
+      ),
+    }));
+  }, [addOnActions, recordId, row, canUpdate, readOnly, parentClosed, hero, afterAction]);
+  // Where each field came from ("From {source} · {date}"), while it holds what was filled.
+  const notes = useFieldNotes(fieldNotes, recordId === undefined ? undefined : String(recordId), row);
+
   const recordActions = useMemo(() => {
-    if (recordId === undefined || projectActions.record.length === 0) return [...stateButtons, ...documentActions];
+    if (recordId === undefined || projectActions.record.length === 0) return [...stateButtons, ...documentActions, ...addOnButtons];
     return [
       ...stateButtons,
       ...documentActions,
@@ -848,8 +875,9 @@ export function PageRecordBinding({
         label: t('projectAction.menu', 'Actions'),
         content: <ProjectActionButtons actions={projectActions} id={recordId} />,
       },
+      ...addOnButtons,
     ];
-  }, [stateButtons, documentActions, projectActions, recordId, words]);
+  }, [stateButtons, documentActions, addOnButtons, projectActions, recordId, words]);
 
   if (crud === null) {
     // Bad generation output (record page without a source) — caught by the
@@ -948,6 +976,7 @@ export function PageRecordBinding({
               ],
             })}
         {...(recordActions.length === 0 ? {} : { actions: recordActions })}
+        {...(Object.keys(notes).length === 0 ? {} : { fieldNotes: notes })}
         {...(refusal === null ? {} : { notice: <Alert tone="warn" title={refusal} /> })}
         onEvent={adapters.onEvent}
         onDeleted={handleDeleted}

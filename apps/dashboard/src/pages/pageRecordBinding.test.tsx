@@ -169,6 +169,8 @@ interface Fixture {
   consentReply?: () => Response;
   /** `GET …/public.customers/1/links/:relation`, by relation id. */
   linksReply?: (relationId: string) => Response | Promise<Response>;
+  /** `GET /api/v1/leads/:key/notes?…`: where the record's fields came from. */
+  notesReply?: (url: string) => Response;
 }
 
 function stubFetch(fixture: Fixture = {}) {
@@ -178,6 +180,9 @@ function stubFetch(fixture: Fixture = {}) {
     const linksOf = /^\/api\/v1\/data\/conn_1\/public\.customers\/1\/links\/([^/?]+)/.exec(url);
     if (linksOf !== null && fixture.linksReply !== undefined) {
       return Promise.resolve(fixture.linksReply(decodeURIComponent(linksOf[1] ?? '')));
+    }
+    if (url.startsWith('/api/v1/leads/') && fixture.notesReply !== undefined) {
+      return Promise.resolve(fixture.notesReply(url));
     }
     if (url === '/api/v1/consent/panel' && method === 'POST' && fixture.consentReply !== undefined) {
       return Promise.resolve(fixture.consentReply());
@@ -1433,3 +1438,46 @@ describe('an edit keeps the record’s links', () => {
   });
 });
 
+describe('an add-on\'s action and the field notes on a record', () => {
+  const ACTION = { addOn: 'company-finder', installId: 'man_finder', kind: 'companies', table: 'crm:companies', label: 'Fill in details', labelKey: 'company-finder.fill', icon: 'scan-search', client: 'dist/client.js', order: 10 };
+  const NOTES = [{ addOn: 'company-finder', installId: 'man_finder', table: 'crm:companies' }];
+  const FOUND = Date.UTC(2026, 6, 28, 9, 0);
+  const notesReply = () => jsonResponse(200, { table: 'crm:companies', row: '1', notes: [{ column: 'name', source: 'companies-house', label: 'Companies House', labelKey: null, foundAt: FOUND }] });
+
+  it('sits beside Edit, just before it, and each filled field says where it came from', async () => {
+    const { fetchMock } = await renderAt('/p/customers/r/1', { pageReply: () => jsonResponse(200, { data: recordEnvelope(), canUpdate: true, canDelete: true, recordActions: [ACTION], fieldNotes: NOTES }), notesReply });
+    const fill = await screen.findByRole('button', { name: 'Fill in details' });
+    const edit = screen.getByRole('button', { name: 'Edit' });
+    // In the hero, right before Edit: nothing between them.
+    const buttons = [...document.querySelectorAll('[data-part="page-record"] button')];
+    expect(buttons.indexOf(edit) - buttons.indexOf(fill)).toBe(1);
+    // The note under the field the source filled, and none under the others.
+    const fields = document.querySelector('[data-part="record-fields"]') as HTMLElement;
+    const note = await waitFor(() => {
+      const found = fields.querySelector('[data-column="name"] [data-part="field-note"]');
+      expect(found).not.toBeNull();
+      return found as HTMLElement;
+    });
+    expect(note.textContent).toBe(`From Companies House·${new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'short', ...(new Date().getFullYear() === 2026 ? {} : { year: 'numeric' }) }).format(new Date(FOUND))}`);
+    expect(fields.querySelectorAll('[data-part="field-note"]')).toHaveLength(1);
+    // Asked of the add-on's copy, for this record, by the table's name in the add-on's tables.
+    const asked = fetchMock.mock.calls.find(([url]) => String(url).startsWith('/api/v1/leads/'));
+    expect(String(asked![0])).toBe('/api/v1/leads/company-finder/notes?table=crm%3Acompanies&row=1');
+    expect(new Headers((asked![1] as RequestInit | undefined)?.headers).get('x-adminium-install')).toBe('man_finder');
+  });
+
+  it('a reader who may not change the record gets no button, and still the notes', async () => {
+    await renderAt('/p/customers/r/1', { pageReply: () => jsonResponse(200, { data: recordEnvelope(), canUpdate: false, canDelete: false, recordActions: [ACTION], fieldNotes: NOTES }), notesReply });
+    await waitFor(() => expect(document.querySelector('[data-column="name"] [data-part="field-note"]')).not.toBeNull());
+    expect(screen.queryByRole('button', { name: 'Fill in details' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+  });
+
+  it('a page whose reply offers neither draws neither, and asks for no notes', async () => {
+    const { fetchMock } = await renderAt('/p/customers/r/1', { pageReply: () => jsonResponse(200, { data: recordEnvelope(), canUpdate: true, canDelete: true }), notesReply });
+    await screen.findByRole('button', { name: 'Edit' });
+    expect(screen.queryByRole('button', { name: 'Fill in details' })).toBeNull();
+    expect(document.querySelector('[data-part="field-note"]')).toBeNull();
+    expect(fetchMock.mock.calls.some(([url]) => String(url).startsWith('/api/v1/leads/'))).toBe(false);
+  });
+});
