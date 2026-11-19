@@ -31,9 +31,20 @@ export class SafeFetchError extends Error {
     readonly status?: number,
     /** For a status: the answer's headers, names in lower case (a 429's `retry-after`). */
     readonly headers?: Readonly<Record<string, string>>,
+    /** For a network failure: the system's code for it (`ECONNREFUSED`, `CERT_HAS_EXPIRED`), when it gave one. */
+    readonly code?: string,
   ) {
     super(message);
   }
+}
+
+/** The system's code of a failure (`ECONNREFUSED`), on the error or its cause; undefined when it has none. */
+export function failureCode(error: unknown): string | undefined {
+  for (let at: unknown = error, depth = 0; at !== null && typeof at === 'object' && depth < 4; at = (at as { cause?: unknown }).cause, depth += 1) {
+    const code = (at as { code?: unknown }).code;
+    if (typeof code === 'string' && code !== '') return code;
+  }
+  return undefined;
 }
 
 export interface SafeFetchOptions {
@@ -243,7 +254,7 @@ export async function safeFetch(rawUrl: string, opts: SafeFetchOptions): Promise
     if (error instanceof SafeFetchError) throw error;
     if (opts.signal?.aborted === true) throw error;
     if (timeout.aborted) throw new SafeFetchError('timeout', 'The address took too long to answer.');
-    throw new SafeFetchError('network', error instanceof Error ? error.message : String(error));
+    throw new SafeFetchError('network', error instanceof Error ? error.message : String(error), undefined, undefined, failureCode(error));
   }
 }
 

@@ -134,8 +134,16 @@ function nationalOf(raw: string, known: Country | null): { country: Country | nu
   return { country: known, digits };
 }
 
-/** Whether a number is in a country's mobile range: a person's own phone, not a switchboard. */
+/**
+ * Whether a number is in a country's mobile range: a person's own phone, not
+ * a switchboard. A number written with a country code this reader has no
+ * ranges for (`+49 171 …`) cannot be judged, so it is read as one: never kept.
+ */
 export function isMobile(raw: string, known: Country | null): boolean {
+  if (/^\s*(?:\+|00)/.test(raw.replace(/\(0\)/g, ''))) {
+    const digits = raw.replace(/\D/g, '').replace(/^00/, '');
+    if (!Object.keys(PREFIXES).some((code) => digits.startsWith(code))) return true;
+  }
   const { country, digits } = nationalOf(raw, known);
   if (country === 'GB') return digits.startsWith('7');
   if (country === 'FR') return digits.length === 9 && (digits.startsWith('6') || digits.startsWith('7'));

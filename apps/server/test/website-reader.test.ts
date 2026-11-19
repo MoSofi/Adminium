@@ -30,6 +30,10 @@ let asked: Asked[] = [];
 /** Hosts whose https cannot be connected to (always, or for the first try only). */
 let httpsDown = new Set<string>();
 let httpsDownOnce = new Set<string>();
+/** Hosts whose https answers with a certificate that does not hold (an attacker on the path, say). */
+let httpsBroken = new Set<string>();
+/** A failure as Node's socket gives it: a message and a system code. */
+const failure = (message: string, code: string) => Object.assign(new Error(message), { code });
 /** Bytes a streamed body sent before the reader hung up. */
 let streamed = 0;
 
@@ -47,8 +51,9 @@ const resolve = async (host: string): Promise<{ address: string; family: 4 | 6 }
 const connect = (target: PinnedTarget, opts: { headers: Record<string, string>; signal: AbortSignal }): Promise<RawResponse> =>
   new Promise((done, fail) => {
     const scheme = target.url.protocol === 'http:' ? 'http' : 'https';
-    if (scheme === 'https' && httpsDownOnce.delete(target.url.hostname)) return fail(new Error('connect ECONNREFUSED'));
-    if (scheme === 'https' && httpsDown.has(target.url.hostname)) return fail(new Error('connect ECONNREFUSED'));
+    if (scheme === 'https' && httpsDownOnce.delete(target.url.hostname)) return fail(failure('connect ECONNREFUSED', 'ECONNREFUSED'));
+    if (scheme === 'https' && httpsDown.has(target.url.hostname)) return fail(failure('connect ECONNREFUSED', 'ECONNREFUSED'));
+    if (scheme === 'https' && httpsBroken.has(target.url.hostname)) return fail(failure('certificate has expired', 'CERT_HAS_EXPIRED'));
     const req = httpRequest(
       { host: '127.0.0.1', port, path: `${target.url.pathname}${target.url.search}`, method: 'GET', headers: { ...opts.headers, host: target.url.host, 'x-test-scheme': scheme }, signal: opts.signal, agent: false },
       (res) => done({ status: res.statusCode ?? 0, headers: res.headers, body: res, destroy: () => res.destroy() }),
@@ -112,6 +117,7 @@ beforeEach(() => {
   logs.length = 0;
   httpsDown = new Set();
   httpsDownOnce = new Set();
+  httpsBroken = new Set();
   streamed = 0;
   now = 1_000_000;
   state = createWebsiteReaderState(() => now);
@@ -161,6 +167,13 @@ describe('falling back to http', () => {
     expect((await read('millbeck.example')).outcome).toBe('read');
     expect(asked.map((a) => `${a.scheme}://${a.host}${a.path}`)).toEqual(['http://millbeck.example/robots.txt', 'http://millbeck.example/']);
     expect(asked.every((a) => a.headers['cookie'] === undefined && a.headers['authorization'] === undefined)).toBe(true);
+  });
+
+  it('never falls back when https failed on its certificate or handshake: that is no site without https', async () => {
+    httpsBroken.add('millbeck.example');
+    site = sites({ 'http://millbeck.example/robots.txt': (res) => res.writeHead(200).end(''), 'http://millbeck.example/': html(PAGE) });
+    expect(await read('millbeck.example')).toEqual({ outcome: 'unreachable' });
+    expect(asked.some((a) => a.scheme === 'http')).toBe(false);
   });
 
   it('does not fall back when https answered, even with an error', async () => {
