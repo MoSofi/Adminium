@@ -70,7 +70,7 @@ const EXPORT_SKIPPED_TABLES: readonly string[] = ['adminium_jobs'];
  */
 export const NEVER_ARCHIVED_JOB_KINDS: readonly string[] = ['operator.event'];
 
-export const NEVER_ARCHIVED_SETTINGS: readonly string[] = ['addOns.deciderTrust', 'designer.live', 'designer.liveId', 'connections.allowLocalDatabases', 'email.builtinsSeededFor', 'addOns.keptCopyTrust'];
+export const NEVER_ARCHIVED_SETTINGS: readonly string[] = ['addOns.deciderTrust', 'designer.live', 'designer.liveId', 'connections.allowLocalDatabases', 'email.builtinsSeededFor', 'addOns.keptCopyTrust', 'addOns.trustCarriedOver'];
 
 /**
  * This instance's own identity: an export does not clone it onto another server. Nor does it say who a

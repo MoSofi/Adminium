@@ -183,6 +183,7 @@ import {
 } from './add-ons/store.js';
 import { bindDeciderGates, installRejectionGuard } from './add-ons/decide.js';
 import { keptCopyTrust, recordDeciderTrust, trustSources } from './add-ons/decider-trust.js';
+import { carryOverTrust, trustCarryOverCandidates } from './add-ons/trust-carry-over.js';
 import { createPackageCopies } from './add-ons/package-copies.js';
 import { createAppFiles } from './apps/app-files.js';
 import { createInstalledApps } from './apps/installed.js';
@@ -465,8 +466,8 @@ import { createRequestStats } from './public-api/stats.js';
 import { removeCleanedPicture } from './public-api/picture-store.js';
 import type { OnMetaRelocated } from './meta/relocate.js';
 import { sqlitePathFromUrl, type MetaStoreHandle } from './meta/store.js';
-import { forgetSources } from './lead-sources/state.js';
 import { LEAD_SOURCE_DEMO_ENV, leadSourceDemoKeys } from './lead-sources/demo-seam.js';
+import { forgetSources } from './lead-sources/state.js';
 
 /**
  * Daily, at 04:00 UTC, with an hour of jitter (below). Telemetry is the least
@@ -992,10 +993,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // A trial's mail: only through the operator's relay, shaped and capped (`email/trial-relay.ts`). Any other server:
   // the operator's mail server (`ADMINIUM_OPERATOR_SMTP_URL`) while it has none of its own, else nothing.
   configureTrialMail(trialMailSetupOf(env, app.trialPolicy) ?? operatorMailSetupOf(env));
-  try {
   // The demo source seam answers lead sources with made-up companies: said once, loudly, so it is never a surprise.
   const demoSources = leadSourceDemoKeys();
   if (demoSources.length > 0) app.log.warn({ addOns: demoSources }, `${LEAD_SOURCE_DEMO_ENV} is on: these add-ons' sources answer with made-up companies and people, for tests only`);
+  try {
     // Once per release and translation change, not on every start (see the function).
     await seedBuiltinEmailTemplatesIfChanged(meta, process.env['NODE_ENV'] === 'production' ? APP_VERSION : null, Date.now());
   } catch (error) {
@@ -4240,9 +4241,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   installRejectionGuard((message, data) => app.log.error(data, message));
 
   rebuildAddOnRuntime = async () => {
-    const repo = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
     // An add-on was installed, updated, switched or removed here: what is installed is read again at the next write.
     addOnInstalls.changed();
+    const repo = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
     // Only an add-on whose install finished is loaded: one still `installing`, or being changed, answers nothing.
     const installedAddOns = (await repo.list('add-on')).filter((entry) => isLoadable(entry.row.status));
     if (installedAddOns.length === 0) {
@@ -4293,6 +4294,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       vouched: (key, version) => packageVouched(addOnStore, trust, key, version),
       importHalf: (key, version, server) => importServerHalf(addOnStore, key, version, server),
       log: (message, data) => app.log.error(data, message),
+      // Said on the Add-ons page too, beside the providers left out.
+      refused: (key, version) =>
+        runtime.problems.push({
+          addOnKey: key,
+          reason: 'UNTRUSTED_PROVIDER',
+          message: `"${key}" ${version} has event code, and this package is neither one this build bundles nor one downloaded from the catalogue, so that code was not loaded.`,
+        }),
     });
     const events = halves.map((half) => {
       const manifest = once.find((one) => one.manifest.key === half.addOnKey)!.manifest;
@@ -4344,6 +4352,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * reinstalling anything, and a later boot costs one `versions()` call per
    * install.
    */
+  // The add-ons installed as this boot begins, before any request is served: what the one-time trust carry-over may
+  // consider (`add-ons/trust-carry-over.ts`); null once it has run.
+  const carryOverCandidates = await trustCarryOverCandidates(meta, manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET))).catch((err: unknown) => {
+    app.log.warn({ err }, 'could not read which add-ons were installed before this release');
+    return null;
+  });
   // `/readyz` answers 503 until both seeds have settled (`routes/system`).
   let packagesSeeding = true;
   void Promise.all([appSeed, addOnSeed]).finally(() => {
@@ -4396,6 +4410,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           await installedApps.refresh();
         } catch (error) {
           app.log.warn({ err: error }, 'could not read installed apps after a restore');
+        }
+      }
+
+      // Once, at the first boot of the release that made every provider need a vouched package: what ran before keeps
+      // running. After the restore (a package put back from its copy is the one that ran) and before the runtime is built.
+      if (carryOverCandidates !== null) {
+        try {
+          await carryOverTrust({ meta, manifests: repo, store: addOnStore, log: (message, data) => app.log.info(data, message) }, carryOverCandidates);
+        } catch (error) {
+          app.log.warn({ err: error }, 'could not carry over the trust of add-ons installed before this release');
         }
       }
     })

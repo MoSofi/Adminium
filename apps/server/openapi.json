@@ -157085,6 +157085,12 @@
                     },
                     "integrity": {
                       "type": "string"
+                    },
+                    "providerWillNotRun": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
                     }
                   },
                   "required": [
@@ -157244,6 +157250,28 @@
                         },
                         "missing": {
                           "type": "boolean"
+                        },
+                        "notLoaded": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "reason": {
+                                "type": "string"
+                              },
+                              "contract": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "reason",
+                              "contract"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "connectionExpiresAt": {
                           "type": [
@@ -158120,6 +158148,28 @@
                         "missing": {
                           "type": "boolean"
                         },
+                        "notLoaded": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "reason": {
+                                "type": "string"
+                              },
+                              "contract": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "reason",
+                              "contract"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
                         "connectionExpiresAt": {
                           "type": [
                             "number",
@@ -158579,6 +158629,28 @@
                           "missing": {
                             "type": "boolean"
                           },
+                          "notLoaded": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "reason": {
+                                  "type": "string"
+                                },
+                                "contract": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "reason",
+                                "contract"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
                           "connectionExpiresAt": {
                             "type": [
                               "number",
@@ -159027,6 +159099,28 @@
                         },
                         "missing": {
                           "type": "boolean"
+                        },
+                        "notLoaded": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "reason": {
+                                "type": "string"
+                              },
+                              "contract": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "reason",
+                              "contract"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "connectionExpiresAt": {
                           "type": [
@@ -159534,6 +159628,12 @@
                         true
                       ]
                     },
+                    "providerWillNotRun": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
                     "formsWillNotServe": {
                       "type": "boolean",
                       "enum": [
@@ -159907,6 +160007,12 @@
                         true
                       ]
                     },
+                    "providerWillNotRun": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
                     "formsWillNotServe": {
                       "type": "boolean",
                       "enum": [
@@ -160268,6 +160374,12 @@
                         true
                       ]
                     },
+                    "providerWillNotRun": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
                     "formsWillNotServe": {
                       "type": "boolean",
                       "enum": [
@@ -160379,6 +160491,28 @@
                         },
                         "missing": {
                           "type": "boolean"
+                        },
+                        "notLoaded": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "reason": {
+                                "type": "string"
+                              },
+                              "contract": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "reason",
+                              "contract"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "connectionExpiresAt": {
                           "type": [
@@ -161048,6 +161182,28 @@
                         "missing": {
                           "type": "boolean"
                         },
+                        "notLoaded": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "reason": {
+                                "type": "string"
+                              },
+                              "contract": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "reason",
+                              "contract"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
                         "connectionExpiresAt": {
                           "type": [
                             "number",
@@ -161604,6 +161760,28 @@
                         "missing": {
                           "type": "boolean"
                         },
+                        "notLoaded": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "reason": {
+                                "type": "string"
+                              },
+                              "contract": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "reason",
+                              "contract"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
                         "connectionExpiresAt": {
                           "type": [
                             "number",
@@ -162044,6 +162222,28 @@
                         },
                         "missing": {
                           "type": "boolean"
+                        },
+                        "notLoaded": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "reason": {
+                                "type": "string"
+                              },
+                              "contract": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "reason",
+                              "contract"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "connectionExpiresAt": {
                           "type": [

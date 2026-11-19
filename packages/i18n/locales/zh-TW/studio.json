@@ -100,6 +100,8 @@
       "emptyTitle": "Nothing installed yet",
       "missing": "遺失",
       "missingBody": "它的檔案不在此伺服器上，因此其中任何部分都不會載入。請重新安裝，或將其移除。",
+      "untrusted": "它的程式碼未載入：Adminium 不知道此套件的製作者（它既不是此版本隨附的，也不是來自目錄的）。請從目錄安裝以使用它。",
+      "notLoaded": "它的部分程式碼未載入。伺服器記錄中說明了原因。",
       "notConnected": "Not connected",
       "off": "off",
       "on": "on",
@@ -154,7 +156,8 @@
         "title": "已上傳 {name} {version}",
         "body": "請在上方清單中安裝。"
       },
-      "untrusted": "套件已儲存，可以安裝，但 Adminium 不知道它的製作者：其中在儲存記錄時做出決定的部分不會執行。"
+      "untrusted": "套件已儲存，可以安裝，但 Adminium 不知道它的製作者：其中在儲存記錄時做出決定的部分不會執行。",
+      "untrustedCode": "套件已儲存，可以安裝，但 Adminium 不知道它的製作者：它在 Adminium 中執行的程式碼不會執行。請從目錄安裝以使用它。"
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",

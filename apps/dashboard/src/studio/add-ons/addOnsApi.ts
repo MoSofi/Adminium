@@ -70,6 +70,12 @@ export interface AddOnDto {
    * `connected`, because the credential row outlives the volume.
    */
   missing: boolean;
+  /**
+   * The parts of its code the server did not load, and why
+   * (`UNTRUSTED_PROVIDER`, `UNTRUSTED_DECIDER`: nobody vouches for the
+   * package). Absent from an older server.
+   */
+  notLoaded?: { reason: string; contract: string | null }[];
   connectionExpiresAt: number | null;
   attachments: AddOnAttachment[];
   slots: { slot: string; client: string; order: number }[];
@@ -241,6 +247,8 @@ export interface InstallCheck {
   publicAccess?: PublicAccessCheck;
   /** Nobody vouches for the package: it installs, and its code that decides while a record is saved does not run. */
   codeWillNotRun?: true;
+  /** Nobody vouches for the package: it installs, and the other code it runs inside Adminium does not run. */
+  providerWillNotRun?: true;
   /** Nobody vouches for the package: it installs, and no stranger is served its forms. */
   formsWillNotServe?: true;
 }
@@ -427,6 +435,8 @@ export interface StagedPackage {
   name: string;
   files: number;
   integrity: string;
+  /** Nobody vouches for the package: it is stored and installs, and the code it runs inside Adminium does not run. */
+  providerWillNotRun?: true;
 }
 
 /**

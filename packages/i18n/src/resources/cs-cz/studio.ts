@@ -110,6 +110,8 @@ export default {
       "emptyTitle": "Nothing installed yet",
       "missing": "Chybí",
       "missingBody": "Jeho soubory na tomto serveru nejsou, takže se z něj nenačte nic. Nainstalujte jej znovu, nebo jej odeberte.",
+      "untrusted": "Jeho kód se nenačetl: Adminium neví, kdo tento balíček vytvořil (není to balíček dodaný s touto verzí ani balíček z katalogu). Chcete-li ho používat, nainstalujte ho z katalogu.",
+      "notLoaded": "Část jeho kódu se nenačetla. Důvod uvádí protokol serveru.",
       "notConnected": "Not connected",
       "off": "off",
       "on": "on",
@@ -164,7 +166,8 @@ export default {
         "title": "Nahráno: {name} {version}",
         "body": "Nainstalujte ho ze seznamu výše."
       },
-      "untrusted": "Balíček je uložen a lze ho nainstalovat, ale Adminium neví, kdo ho vytvořil: jeho část, která rozhoduje při ukládání záznamu, se nespustí."
+      "untrusted": "Balíček je uložen a lze ho nainstalovat, ale Adminium neví, kdo ho vytvořil: jeho část, která rozhoduje při ukládání záznamu, se nespustí.",
+      "untrustedCode": "Balíček je uložen a lze ho nainstalovat, ale Adminium neví, kdo ho vytvořil: kód, který spouští uvnitř Adminium, se nespustí. Chcete-li ho používat, nainstalujte ho z katalogu."
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",

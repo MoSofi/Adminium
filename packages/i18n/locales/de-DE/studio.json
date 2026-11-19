@@ -100,6 +100,8 @@
       "emptyTitle": "Noch nichts installiert",
       "missing": "Fehlt",
       "missingBody": "Seine Dateien liegen nicht auf diesem Server, daher wird nichts davon geladen. Installieren Sie es erneut oder entfernen Sie es.",
+      "untrusted": "Sein Code wurde nicht geladen: Adminium weiß nicht, von wem dieses Paket stammt (es ist weder eines, das diese Version mitbringt, noch eines aus dem Katalog). Installieren Sie es aus dem Katalog, um es zu nutzen.",
+      "notLoaded": "Ein Teil seines Codes wurde nicht geladen. Das Protokoll des Servers nennt den Grund.",
       "notConnected": "Nicht verbunden",
       "off": "aus",
       "on": "an",
@@ -154,7 +156,8 @@
         "title": "{name} {version} hochgeladen",
         "body": "Installieren Sie es über die Liste oben."
       },
-      "untrusted": "Das Paket ist gespeichert und kann installiert werden, aber Adminium weiß nicht, von wem es stammt: Der Teil, der beim Speichern eines Datensatzes Entscheidungen trifft, wird nicht ausgeführt."
+      "untrusted": "Das Paket ist gespeichert und kann installiert werden, aber Adminium weiß nicht, von wem es stammt: Der Teil, der beim Speichern eines Datensatzes Entscheidungen trifft, wird nicht ausgeführt.",
+      "untrustedCode": "Das Paket ist gespeichert und kann installiert werden, aber Adminium weiß nicht, von wem es stammt: Der Code, den es in Adminium ausführt, wird nicht ausgeführt. Installieren Sie es aus dem Katalog, um es zu nutzen."
     },
     "subtitle": "Zusätzliche Funktionen für Ihre Apps – Versand, Grafik, Daten. Jedes sagt vor der Installation, was es benötigt.",
     "title": "Add-ons",

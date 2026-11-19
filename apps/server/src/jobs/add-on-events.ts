@@ -195,12 +195,15 @@ export async function importVouchedEventHalves(input: {
   vouched: (key: string, version: string) => Promise<boolean>;
   importHalf: (key: string, version: string, server: string) => Promise<unknown>;
   log: (message: string, data: Record<string, unknown>) => void;
+  /** Told of each package whose event code was left out because nobody vouches for it (the Add-ons page says so). */
+  refused?: ((key: string, version: string) => void) | undefined;
 }): Promise<{ addOnKey: string; event: string; module: unknown }[]> {
   const out: { addOnKey: string; event: string; module: unknown }[] = [];
   for (const pkg of input.packages) {
     if (pkg.events.length === 0) continue;
     if (!(await input.vouched(pkg.key, pkg.version))) {
       input.log('add-on event half not loaded: this package is neither one this build bundles nor one downloaded from the catalogue', { key: pkg.key, version: pkg.version });
+      input.refused?.(pkg.key, pkg.version);
       continue;
     }
     for (const declared of pkg.events) {

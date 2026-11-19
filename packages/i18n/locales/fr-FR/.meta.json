@@ -24927,6 +24927,10 @@
     "status": "mt",
     "srcHash": "8b02f3de3906"
   },
+  "studio.addOns.installed.notLoaded": {
+    "status": "mt",
+    "srcHash": "890bd87f3ee5"
+  },
   "studio.addOns.installed.off": {
     "status": "mt",
     "srcHash": "da7a68734367"
@@ -24962,6 +24966,10 @@
   "studio.addOns.installed.uninstall": {
     "status": "mt",
     "srcHash": "a735da1d32d7"
+  },
+  "studio.addOns.installed.untrusted": {
+    "status": "mt",
+    "srcHash": "30c97da55b02"
   },
   "studio.addOns.job.body": {
     "status": "mt",
@@ -25142,6 +25150,10 @@
   "studio.addOns.sideload.untrusted": {
     "status": "mt",
     "srcHash": "64808a9c87a9"
+  },
+  "studio.addOns.sideload.untrustedCode": {
+    "status": "mt",
+    "srcHash": "cb4c75760aea"
   },
   "studio.addOns.sideload.uploaded.body": {
     "status": "mt",

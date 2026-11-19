@@ -693,18 +693,24 @@ this is set — the browser blocks mixed content on its own.
 
 ## `ADMINIUM_ADD_ON_DEV_TRUST`
 
-For somebody **writing** an add-on that keeps a ledger. A comma-separated list of add-on keys
-whose [deciding code](/guides/add-ons-with-tables/#a-ledger-and-code-that-decides) this server
-runs whatever its bytes:
+For somebody **writing** an add-on, or testing an app with add-ons built from source. A
+comma-separated list of add-on keys whose server code this server runs whatever its bytes: its
+[deciding code](/guides/add-ons-with-tables/#a-ledger-and-code-that-decides), the providers of
+the contracts it fills (documents, artwork, delivery companies, personalisation, payments,
+company sources) and its event code:
 
 ```sh
 ADMINIUM_ADD_ON_DEV_TRUST='stock-kit,my-ledger'
 ```
 
 Without it, such code runs only from a package this server can vouch for — bundled with the
-release, or downloaded from the catalogue — and a package uploaded by hand installs with every
-save that would ask its code refused. The variable is **ignored when `NODE_ENV` is `production`**:
-it is not a way to run unreleased code on a live server.
+release, or downloaded from the catalogue — and a package uploaded by hand installs with that
+code left out (a save that would ask deciding code is refused; a document kind it would draw is
+not there), and the Add-ons page says so on its row. A test that uploads an add-on it built
+itself (an app's contract run, say) sets this to that add-on's key, for example
+`ADMINIUM_ADD_ON_DEV_TRUST='invoices'`. The variable is **ignored when `NODE_ENV` is
+`production`**, and refused on a trial or a hosted server: it is not a way to run unreleased code
+on a live server.
 
 ## `ADMINIUM_LEAD_SOURCE_DEMO`
 

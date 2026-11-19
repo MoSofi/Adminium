@@ -182,6 +182,16 @@ const untrustedInWords = (): string =>
     'The package is stored and can be installed, but Adminium does not know who made it: the part of it that decides things while a record is saved will not run.',
   );
 
+/** The same, for a package whose other code Adminium imports (a provider, event code). */
+const untrustedCodeInWords = (): string =>
+  t(
+    'studio:addOns.sideload.untrustedCode',
+    'The package is stored and can be installed, but Adminium does not know who made it: the code it runs inside Adminium will not run. Install it from the catalogue to use it.',
+  );
+
+/** Whether the server left an installed add-on's code out because nobody vouches for its package. */
+const UNTRUSTED_LOADS = new Set(['UNTRUSTED_PROVIDER', 'UNTRUSTED_DECIDER']);
+
 /**
  * An install that stopped part way, or a package stored but not trusted, in
  * words a person can act on. Null for any other failure: its own message stands.
@@ -290,6 +300,12 @@ function ConsentDialog({
                 <p role="note" data-part="add-on-plan-untrusted" className="flex items-start gap-2 text-sm text-fg">
                   <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warn" />
                   {untrustedInWords()}
+                </p>
+              )}
+              {check?.providerWillNotRun === true && (
+                <p role="note" data-part="add-on-plan-untrusted-code" className="flex items-start gap-2 text-sm text-fg">
+                  <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warn" />
+                  {untrustedCodeInWords()}
                 </p>
               )}
               {check?.formsWillNotServe === true && (
@@ -668,6 +684,12 @@ function SideloadCard({
             })}
           >
             {t('studio:addOns.sideload.uploaded.body', 'Install it from the list above.')}
+            {uploaded.providerWillNotRun === true && (
+              <span data-part="add-on-upload-untrusted-code" className="mt-1 flex items-start gap-2">
+                <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warn" aria-hidden="true" />
+                {untrustedCodeInWords()}
+              </span>
+            )}
           </Alert>
         )}
         <FormField label={t('studio:addOns.sideload.file', 'Package file (.tgz)')}>
@@ -1205,6 +1227,19 @@ export function AddOnsPage() {
                         'studio:addOns.installed.missingBody',
                         'Its files are not on this server, so none of it loads. Install it again, or remove it.',
                       )}
+                    </p>
+                  )}
+
+                  {/* What the server left out of its code, said here and not only in the server's log. */}
+                  {!addOn.missing && (addOn.notLoaded ?? []).length > 0 && (
+                    <p role="note" data-part="add-on-not-loaded" className="flex items-start gap-2 text-xs text-fg">
+                      <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-warn" aria-hidden="true" />
+                      {(addOn.notLoaded ?? []).some((one) => UNTRUSTED_LOADS.has(one.reason))
+                        ? t(
+                            'studio:addOns.installed.untrusted',
+                            'Its code did not load: Adminium does not know who made this package (it is neither one this version ships nor one from the catalogue). Install it from the catalogue to use it.',
+                          )
+                        : t('studio:addOns.installed.notLoaded', 'Part of its code did not load. The server’s log says why.')}
                     </p>
                   )}
 

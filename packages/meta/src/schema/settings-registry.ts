@@ -962,6 +962,15 @@ export const SETTINGS_REGISTRY = {
     {},
     'Kept copies of trusted add-on packages: key@version → the copy\'s hash',
   ),
+  /*
+   * Whether the add-on packages installed before every provider's code
+   * needed a vouched package (0.3.66) have been carried over: at the first
+   * boot of that release, each installed tree that loaded before and verifies
+   * as unpacked is recorded in `addOns.deciderTrust`, once, so nothing that
+   * ran stops running at the update. A package staged after is never carried
+   * over. Instance state: not portable, and never archived.
+   */
+  'addOns.trustCarriedOver': def<boolean>(z.boolean(), false, 'Whether add-on packages installed before vouching was widened were carried over'),
 } as const;
 
 export type SettingsRegistry = typeof SETTINGS_REGISTRY;

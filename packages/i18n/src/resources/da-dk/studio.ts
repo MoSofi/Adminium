@@ -110,6 +110,8 @@ export default {
       "emptyTitle": "Nothing installed yet",
       "missing": "Mangler",
       "missingBody": "Dens filer findes ikke på denne server, så intet af den indlæses. Installer den igen, eller fjern den.",
+      "untrusted": "Dens kode blev ikke indlæst: Adminium ved ikke, hvem der har lavet denne pakke (den følger hverken med denne version eller kommer fra kataloget). Installer den fra kataloget for at bruge den.",
+      "notLoaded": "En del af dens kode blev ikke indlæst. Serverens log fortæller hvorfor.",
       "notConnected": "Not connected",
       "off": "off",
       "on": "on",
@@ -164,7 +166,8 @@ export default {
         "title": "{name} {version} er uploadet",
         "body": "Installer det fra listen ovenfor."
       },
-      "untrusted": "Pakken er gemt og kan installeres, men Adminium ved ikke, hvem der har lavet den: den del, der træffer afgørelser, mens en post gemmes, bliver ikke kørt."
+      "untrusted": "Pakken er gemt og kan installeres, men Adminium ved ikke, hvem der har lavet den: den del, der træffer afgørelser, mens en post gemmes, bliver ikke kørt.",
+      "untrustedCode": "Pakken er gemt og kan installeres, men Adminium ved ikke, hvem der har lavet den: den kode, den kører i Adminium, bliver ikke kørt. Installer den fra kataloget for at bruge den."
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",

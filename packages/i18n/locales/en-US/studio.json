@@ -100,6 +100,8 @@
       "emptyTitle": "Nothing installed yet",
       "missing": "Missing",
       "missingBody": "Its files are not on this server, so none of it loads. Install it again, or remove it.",
+      "untrusted": "Its code did not load: Adminium does not know who made this package (it is neither one this version ships nor one from the catalogue). Install it from the catalogue to use it.",
+      "notLoaded": "Part of its code did not load. The server’s log says why.",
       "notConnected": "Not connected",
       "off": "off",
       "on": "on",
@@ -154,7 +156,8 @@
         "title": "Uploaded {name} {version}",
         "body": "Install it from the list above."
       },
-      "untrusted": "The package is stored and can be installed, but Adminium does not know who made it: the part of it that decides things while a record is saved will not run."
+      "untrusted": "The package is stored and can be installed, but Adminium does not know who made it: the part of it that decides things while a record is saved will not run.",
+      "untrustedCode": "The package is stored and can be installed, but Adminium does not know who made it: the code it runs inside Adminium will not run. Install it from the catalogue to use it."
     },
     "subtitle": "Extra capabilities you can add to your apps — shipping, artwork, data. Each one says what it needs before you install it.",
     "title": "Add-ons",
