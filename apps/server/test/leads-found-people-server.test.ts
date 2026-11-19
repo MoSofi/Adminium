@@ -920,8 +920,8 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     expect(await contactOf('nell.price@kestrel-yard.dev')).toBeUndefined();
     expect((await foundRows()).length).toBe(before);
     expect(await untoldAddress(composed.leads.deps, 'nell.price@kestrel-yard.dev')).toBe(false);
-    // Nor do their details stay in the audit entry of their contact's making: they were never told.
-    const held = (await h.meta.db.selectFrom('adminium_audit_log').select(['changes']).execute()).filter((row) => (typeof row.changes === 'string' ? row.changes : JSON.stringify(row.changes ?? null)).includes('nell.price@kestrel-yard.dev'));
+    // Nor do their details (their name; the address is masked there) stay in the audit entry of their contact's making: they were never told.
+    const held = (await h.meta.db.selectFrom('adminium_audit_log').select(['changes']).execute()).filter((row) => (typeof row.changes === 'string' ? row.changes : JSON.stringify(row.changes ?? null)).includes('Nell Price') || (typeof row.changes === 'string' ? row.changes : JSON.stringify(row.changes ?? null)).includes('nell.price@kestrel-yard.dev'));
     expect(held).toEqual([]);
   });
 
