@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A trial's Designer switched on at its first boot (W2), and the build box's operator variables, which no folder
+ * A trial's Designer switched on at its first boot, and the build box's operator variables, which no folder
  * decides.
  *
  *  - Trial mode with `ADMINIUM_DESIGNER=live`: the first boot switches it on, once, audited as the operator.

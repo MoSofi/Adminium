@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The idea path (W5): the visitor's idea is the Designer's start prompt, built as a dashboard in `main`, under the
+ * The idea path: the visitor's idea is the Designer's start prompt, built as a dashboard in `main`, under the
  * operator's dashboard-only scope.
  *
  *  - The start prompt's session is a `dashboard` session, its idea the first user turn, every card answered no.

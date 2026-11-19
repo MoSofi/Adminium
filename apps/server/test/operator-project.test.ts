@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * An operator project (plan build-box E2, E3): a trial run as a project whose
+ * An operator project: a trial run as a project whose
  * config is the environment's, and the user's own database connected as
  * `yours` off the boot path.
  *

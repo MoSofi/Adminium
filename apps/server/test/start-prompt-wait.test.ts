@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The start prompt is never lost (W3).
+ * The start prompt is never lost.
  *
  *  - `/system/info` says it waits only where the Designer is live and switched on, and a default model is there.
  *  - A run the operator's gateway refused at its cap (429 before any step) spends nothing: the tally goes back, the

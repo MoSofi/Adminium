@@ -330,7 +330,7 @@ describe('chunk rendering', () => {
   });
 });
 
-describe("the owner's notes (build box W4)", () => {
+describe("the owner's notes", () => {
   it('leave the prompt byte-identical when absent, null or blank', () => {
     const plain = buildPrompt(makeInput(), options).user;
     expect(buildPrompt(makeInput({ notes: null }), options).user).toBe(plain);

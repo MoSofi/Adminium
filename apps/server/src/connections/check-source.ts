@@ -5,7 +5,7 @@
  * one-off container of the trial image, after sign-in and before the trial
  * exists, with the visitor's connection string on stdin.
  *
- * It holds the string to exactly what a trial would (E1): the parameter
+ * It holds the string to exactly what a trial would: the parameter
  * allow-list (`parseDsn`), the user host's rules (a database port, public
  * addresses only, none of the fleet's: `ADMINIUM_DATABASE_DENY_ADDRESSES`),
  * the user host's TLS defaults, and a driver built from fields, never from the
@@ -13,7 +13,7 @@
  * ({@link CHECK_DEADLINE_MS}), a per-statement timeout, and capped answers
  * ({@link CHECK_MAX_TABLES} tables, {@link CHECK_MAX_COLUMNS} columns each).
  *
- * The answer is one JSON object (the contract with adminium.app, plan §2.1 E6):
+ * The answer is one JSON object (the contract with adminium.app):
  *
  *   { ok, class, engine, version, tables: [{ id, schema, name, columns, links, estimate }], schemas }
  *

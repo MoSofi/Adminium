@@ -14,7 +14,7 @@
  *    save control the page templates draw is locked with the reason
  *    (`setWriteLock`, @adminium/widgets); the server refuses the write itself.
  *  - On the visitor's own database (an operator project's `yours`): "Using
- *    your database at {host}" in place of the test-environment line (D2), or
+ *    your database at {host}" in place of the test-environment line, or
  *    "Can’t reach your database at {host}: why" while it is down, with Change
  *    (adminium.app's account page, where it was connected). Before sign-in
  *    the host is not known (`/system/info` never names it): the line says
@@ -213,7 +213,7 @@ export function TrialStrips({ shell = false }: { shell?: boolean }): ReactNode {
   }
 
   const days = daysLeftAt(trial, now) ?? 1;
-  // A trial on the visitor's own database says so in place of "test environment" (D2): with its host once signed in.
+  // A trial on the visitor's own database says so in place of "test environment": with its host once signed in.
   const own = ownDatabaseLine(boot.data?.ownDatabase, info.data?.ownDatabase);
   return (
     <>

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * An operator project's archive (plan build-box E5, O1): the project folder
+ * An operator project's archive: the project folder
  * lives INSIDE the data folder (`<data>/project`), and it travels and comes
  * back; with `--without-your-database` the user's own database travels
  * without its connection string, a restore asks for it again, and the next

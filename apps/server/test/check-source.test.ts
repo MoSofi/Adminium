@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * E6 (build box): `adminium check-source`.
+ * `adminium check-source`.
  *
  * The guard's refusals run without a database. The classes a real server
  * answers run against Postgres (TEST_POSTGRES_URL) and MySQL (TEST_MYSQL_URL),

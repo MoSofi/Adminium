@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * E1 (build box): the one host of the user's own a trial may reach.
+ * The one host of the user's own a trial may reach.
  *
  * `ADMINIUM_DATABASE_USER_HOST` is allowed besides `ADMINIUM_DATABASE_HOSTS`
  * only while `ADMINIUM_YOUR_DATABASE` is set; it is never listed, so every

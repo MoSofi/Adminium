@@ -4952,7 +4952,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   }
 
   /*
-   * The schema assistant's one run on the user's own database (an operator project's `yours`, build box W4): once
+   * The schema assistant's one run on the user's own database (an operator project's `yours`): once
    * the database is ready and the owner's account exists, on the operator's AI, with the visitor's notes.
    */
   const yoursDatabase = env.ADMINIUM_YOUR_DATABASE;

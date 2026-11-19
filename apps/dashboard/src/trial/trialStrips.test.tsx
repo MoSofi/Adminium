@@ -311,7 +311,7 @@ describe('Upgrade in the user menu', () => {
   });
 });
 
-describe('a trial on the visitor’s own database (build box E4)', () => {
+describe('a trial on the visitor’s own database', () => {
   const own = { state: 'ready' as const, reason: null, readOnly: false };
 
   function withOwn(info: Partial<SystemInfo>, signedIn?: Partial<NonNullable<ReturnType<typeof makeBootstrap>['ownDatabase']>>): ReactNode {

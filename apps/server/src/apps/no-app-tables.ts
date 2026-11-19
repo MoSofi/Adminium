@@ -9,7 +9,7 @@
  * asked us to change. So the one place tables are created for an install
  * (`add-ons/schema-target.ts` `applyPlanTo`, which apps and add-ons share)
  * and the one place an app's edit changes existing tables (`apps/schema-target.ts`)
- * refuse a connection with the project key `yours`, by its key alone (E15).
+ * refuse a connection with the project key `yours`, by its key alone.
  * A person in Studio editing their own schema is not an app, and is not held here.
  */
 import { ForbiddenError } from '../errors.js';

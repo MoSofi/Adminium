@@ -71,7 +71,7 @@ export interface ConnectionsRoutesDeps {
 
 /**
  * The user's own database (`yours`, an operator project) is changed where the operator set it: adminium.app's
- * account page, which re-checks it and starts the server again with the new environment (build box E4, O5). A rename
+ * account page, which re-checks it and starts the server again with the new environment. A rename
  * or a new intent here would be undone on the next start, so it is refused, with the reason, instead.
  */
 function refuseYourDatabaseEdit(policy: Pick<TrialPolicy, 'allows'>, connection: Pick<Connection, 'projectKey'>): void {

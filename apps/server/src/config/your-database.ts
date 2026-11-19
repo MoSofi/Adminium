@@ -16,7 +16,7 @@
  *  - `readOnly`  open it read-only; forced on for `read-only-analytics`;
  *  - `label`     the connection's name in Studio (default: the database's name);
  *  - `notes`     what the visitor said about the database, for the schema assistant's
- *                one run on `yours` (W4). Cleaned again here ({@link cleanNotes}): no
+ *                one run on `yours`. Cleaned again here ({@link cleanNotes}): no
  *                database address or password, no control character, 2,000 characters.
  *
  * The URL carries a password, so a problem with this variable never prints the

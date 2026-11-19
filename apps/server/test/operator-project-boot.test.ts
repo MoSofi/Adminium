@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A trial booted by `adminium start` as an operator project (plan build-box
- * E2, E3), on a real port:
+ * A trial booted by `adminium start` as an operator project, on a real
+ * port:
  *
  *  - a trial that was seeded before (the classic `ADMINIUM_SOURCE_URL` boot)
  *    and is then started as an operator project keeps ONE `main`;
