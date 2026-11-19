@@ -5,7 +5,7 @@
  * phone, address, activity, about and owner go. A CRM-shaped companies table
  * with its three new columns passes; a lead on a people table, a country
  * column wider than 2, an owner that holds no staff member, and a text column
- * with no width are each refused; and the word needs Adminium 0.3.65.
+ * with no width are each refused; and the word needs Adminium 0.3.66.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -28,7 +28,7 @@ const LEAD: Doc = {
 };
 
 /** A small CRM: companies shaped like the CRM's, with `company_number`, `phone` and `about`, and their contacts. */
-function crm(lead: Doc | null = LEAD, floor = '0.3.65'): Doc & { requiredSchema: { tables: { ref: string; columns: Doc[] }[] }; people: Doc[] } {
+function crm(lead: Doc | null = LEAD, floor = '0.3.66'): Doc & { requiredSchema: { tables: { ref: string; columns: Doc[] }[] }; people: Doc[] } {
   return {
     kind: 'app',
     manifestVersion: 1,
@@ -126,11 +126,11 @@ describe('a company\'s details in the declaration', () => {
     expect(withLead({ address: { town: 'town', city: 'town' } })).toContain('Unrecognized key');
   });
 
-  it('needs Adminium 0.3.65', () => {
-    expect(WORD_FLOORS['people.lead']).toBe('0.3.65');
+  it('needs Adminium 0.3.66', () => {
+    expect(WORD_FLOORS['people.lead']).toBe('0.3.66');
     expect(installFloorWords(crm())).toContainEqual({ word: 'people.lead', path: 'people.1.lead' });
-    expect(issuesOf(crm(LEAD, '0.3.64'))).toContain('people.1.lead: "people.lead" is read by Adminium 0.3.65 and later, and compatibility.minAdminiumVersion is 0.3.64: set it to 0.3.65 or later');
+    expect(issuesOf(crm(LEAD, '0.3.65'))).toContain('people.1.lead: "people.lead" is read by Adminium 0.3.66 and later, and compatibility.minAdminiumVersion is 0.3.65: set it to 0.3.66 or later');
     // Without the word, the same app is fine at the older floor.
-    expect(issuesOf(crm(null, '0.3.64'))).toEqual([]);
+    expect(issuesOf(crm(null, '0.3.65'))).toEqual([]);
   });
 });

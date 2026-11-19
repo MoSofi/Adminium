@@ -149,7 +149,7 @@ function crm(): Doc {
 /** The add-on, with its tell mail: an outbox of its own linked to the found people, and its text in English and French. */
 function finder(): Doc {
   const doc = leadFinder() as Doc;
-  doc['compatibility'] = { minAdminiumVersion: '0.3.65', requires: ['outbound-http'] };
+  doc['compatibility'] = { minAdminiumVersion: '0.3.66', requires: ['outbound-http'] };
   doc['requiredSchema'].tables.push({
     ref: 'tell_mails',
     columns: [

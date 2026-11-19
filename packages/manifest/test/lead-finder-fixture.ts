@@ -27,7 +27,7 @@ export function leadFinder(): Doc {
     license: 'MIT',
     description: { key: 'company-finder.description', fallback: 'Find companies and fill in their details.' },
     categories: ['marketing'],
-    compatibility: { minAdminiumVersion: '0.3.65', requires: ['outbound-http'] },
+    compatibility: { minAdminiumVersion: '0.3.66', requires: ['outbound-http'] },
     capabilities: ['outbound-http'],
     settings: [
       { key: 'companies_house_key', type: 'string', secret: true },

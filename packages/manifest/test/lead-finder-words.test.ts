@@ -5,7 +5,7 @@
  * the contract they answer by; and the two tables Adminium keeps what they
  * found in (`addOn.leads`), written by Adminium alone. Each refusal is one
  * broken thing of a fixture that validates. And the floor: each new word,
- * the contract's id among them, needs Adminium 0.3.65.
+ * the contract's id among them, needs Adminium 0.3.66.
  */
 import { sourceConsentLines } from '@adminium/add-on-contracts';
 import { describe, expect, it } from 'vitest';
@@ -105,7 +105,7 @@ describe('an add-on\'s sources', () => {
     expect(
       one((d) => {
         delete d['capabilities'];
-        d['compatibility'] = { minAdminiumVersion: '0.3.65' };
+        d['compatibility'] = { minAdminiumVersion: '0.3.66' };
       }),
     ).toContain('capabilities: the source "companies-house" reaches its hosts through outbound-http: declare the capability');
   });
@@ -181,28 +181,28 @@ describe('an add-on\'s leads tables', () => {
 });
 
 describe('the floor of the words that find companies', () => {
-  it('is 0.3.65 for each', () => {
-    for (const word of ['addOn.sources', 'addOn.leads', 'provides.lead-source', 'people.lead'] as const) expect(WORD_FLOORS[word], word).toBe('0.3.65');
+  it('is 0.3.66 for each', () => {
+    for (const word of ['addOn.sources', 'addOn.leads', 'provides.lead-source', 'people.lead'] as const) expect(WORD_FLOORS[word], word).toBe('0.3.66');
     expect(installFloorWords(leadFinder()).map((found) => found.word)).toEqual(expect.arrayContaining(['addOn.sources', 'addOn.leads', 'provides.lead-source']));
   });
 
-  it('refuses each at 0.3.64, the contract\'s id among them, with the floor message', () => {
-    const older = issuesOf(changed((d) => (d['compatibility'] = { minAdminiumVersion: '0.3.64', requires: ['outbound-http'] })));
+  it('refuses each at 0.3.65, the contract\'s id among them, with the floor message', () => {
+    const older = issuesOf(changed((d) => (d['compatibility'] = { minAdminiumVersion: '0.3.65', requires: ['outbound-http'] })));
     expect(older).toEqual(
       expect.arrayContaining([
-        'addOn.sources: "addOn.sources" is read by Adminium 0.3.65 and later, and compatibility.minAdminiumVersion is 0.3.64: set it to 0.3.65 or later',
-        'addOn.leads: "addOn.leads" is read by Adminium 0.3.65 and later, and compatibility.minAdminiumVersion is 0.3.64: set it to 0.3.65 or later',
-        'addOn.provides.0.contract: "provides.lead-source" is read by Adminium 0.3.65 and later, and compatibility.minAdminiumVersion is 0.3.64: set it to 0.3.65 or later',
+        'addOn.sources: "addOn.sources" is read by Adminium 0.3.66 and later, and compatibility.minAdminiumVersion is 0.3.65: set it to 0.3.66 or later',
+        'addOn.leads: "addOn.leads" is read by Adminium 0.3.66 and later, and compatibility.minAdminiumVersion is 0.3.65: set it to 0.3.66 or later',
+        'addOn.provides.0.contract: "provides.lead-source" is read by Adminium 0.3.66 and later, and compatibility.minAdminiumVersion is 0.3.65: set it to 0.3.66 or later',
       ]),
     );
     // A package that only provides the contract (refused for its missing sources too) still names the release it needs.
     const bare = issuesOf(
       changed((d) => {
-        d['compatibility'] = { minAdminiumVersion: '0.3.64', requires: ['outbound-http'] };
+        d['compatibility'] = { minAdminiumVersion: '0.3.65', requires: ['outbound-http'] };
         delete addOn(d)['sources'];
         delete addOn(d)['leads'];
       }),
     );
-    expect(bare).toContain('addOn.provides.0.contract: "provides.lead-source" is read by Adminium 0.3.65 and later, and compatibility.minAdminiumVersion is 0.3.64: set it to 0.3.65 or later');
+    expect(bare).toContain('addOn.provides.0.contract: "provides.lead-source" is read by Adminium 0.3.66 and later, and compatibility.minAdminiumVersion is 0.3.65: set it to 0.3.66 or later');
   });
 });

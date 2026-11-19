@@ -102,7 +102,7 @@ function crm(): Doc {
     license: 'AGPL-3.0-only',
     description: { key: 'd', fallback: 'A small CRM.' },
     categories: ['crm'],
-    compatibility: { minAdminiumVersion: '0.3.65', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: '0.3.66', engines: ['postgres', 'mysql', 'sqlite'] },
     requiredSchema: {
       prefixed: true,
       tables: [

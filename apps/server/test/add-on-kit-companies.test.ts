@@ -33,7 +33,7 @@ const LEAD = { number: 'company_number', website: 'website', phone: 'phone', add
 /** A small app that keeps companies, with the three columns the lead word needs. */
 const book = appManifest('book', {
   version: '0.2.0',
-  compatibility: { minAdminiumVersion: '0.3.65', engines: ['postgres', 'mysql', 'sqlite'] },
+  compatibility: { minAdminiumVersion: '0.3.66', engines: ['postgres', 'mysql', 'sqlite'] },
   requiredSchema: {
     tables: [
       {

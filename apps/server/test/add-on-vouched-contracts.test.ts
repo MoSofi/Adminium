@@ -35,7 +35,7 @@ function manifestFor(key: string, contract: string): AddOnManifest {
     license: 'AGPL-3.0-only',
     description: { key: `addon.${key}.line`, fallback: 'x' },
     categories: ['data'],
-    compatibility: { minAdminiumVersion: '0.3.65' },
+    compatibility: { minAdminiumVersion: '0.3.66' },
     addOn: { attaches: [{ app: '*' }], provides: [{ contract, version: 1, server: 'dist/server.js' }], connect: { kind: 'none' } },
   } as unknown as AddOnManifest;
 }

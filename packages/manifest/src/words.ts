@@ -663,10 +663,10 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'outbox.manyProducers': '0.3.62',
   'payments.statusSet': '0.3.62',
   // A release before refuses the keys, and the contract as one it does not know (CONTRACT_UNKNOWN).
-  'addOn.sources': '0.3.65',
-  'provides.lead-source': '0.3.65',
-  'addOn.leads': '0.3.65',
-  'people.lead': '0.3.65',
+  'addOn.sources': '0.3.66',
+  'provides.lead-source': '0.3.66',
+  'addOn.leads': '0.3.66',
+  'people.lead': '0.3.66',
 };
 
 /** The kinds of file a column takes from the release that cleans SVG and reads models and fonts whole (`ASSET_FILE_KINDS`). */
