@@ -582,7 +582,7 @@ describe('42 — the runner walks the owner’s first example', () => {
       const outcome = await walkRule(deps(), { rule: await thanksRule({}), runId: 'arun_test', event: event(), dryRun: true });
       if (outcome.kind !== 'finished') throw new Error('expected a finished run');
       expect(sent).toHaveLength(0);
-      // A person is watching a test: it stops at the step and names what nothing fills (the owner's ruling on Q-I).
+      // A person is watching a test: it stops at the step and names what nothing fills, as the owner ruled.
       expect(outcome.status).toBe('failed');
       expect(outcome.trace.steps[1]).toMatchObject({
         status: 'fail',

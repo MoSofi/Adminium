@@ -690,7 +690,7 @@ describe('visitor counting', () => {
     expect(within(tab).getByRole('radio', { name: /Counts only/ }).textContent).toContain('known bots are left out');
     expect(screen.getByTestId('privacy-counting-since').textContent).toMatch(/^Counting started on .*2026\.$/);
     expect(within(tab).getByText('Kept: view counts 13 months.')).toBeDefined();
-    // Q-S a: nothing of the website's own banner.
+    // The install's own banner only, never one for the owner's own website.
     expect(tab.textContent).not.toContain('adminium.consent');
     expect(tab.textContent).not.toContain('On your own website');
     // No banner card below Per visitor.
