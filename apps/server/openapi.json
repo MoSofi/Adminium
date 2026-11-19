@@ -102160,6 +102160,81 @@
                         "additionalProperties": false
                       }
                     },
+                    "recordActions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "addOn": {
+                            "type": "string"
+                          },
+                          "installId": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "companies"
+                            ]
+                          },
+                          "table": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "labelKey": {
+                            "type": "string"
+                          },
+                          "icon": {
+                            "type": "string"
+                          },
+                          "client": {
+                            "type": "string"
+                          },
+                          "order": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "addOn",
+                          "installId",
+                          "kind",
+                          "table",
+                          "label",
+                          "labelKey",
+                          "icon",
+                          "client",
+                          "order"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "fieldNotes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "addOn": {
+                            "type": "string"
+                          },
+                          "installId": {
+                            "type": "string"
+                          },
+                          "table": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "addOn",
+                          "installId",
+                          "table"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "stateActions": {
                       "type": "array",
                       "items": {
@@ -164781,6 +164856,101 @@
                   "required": [
                     "kept",
                     "refused"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/leads/{key}/notes": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "table",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "row",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "table": {
+                      "type": "string"
+                    },
+                    "row": {
+                      "type": "string"
+                    },
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string"
+                          },
+                          "source": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "labelKey": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "foundAt": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "source",
+                          "label",
+                          "labelKey",
+                          "foundAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "table",
+                    "row",
+                    "notes"
                   ],
                   "additionalProperties": false
                 }
