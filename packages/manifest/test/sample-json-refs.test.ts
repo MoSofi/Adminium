@@ -3,7 +3,9 @@
  * A row named inside a json value (`{"@ref": "<label>"}` in a funnel's steps,
  * a page's link): the bundle's check holds it to a column's `@ref` rules (an
  * earlier row, never one of a table only for an empty table) and refuses one
- * deeper than the loader reads.
+ * deeper than the loader reads. Words (`@t`) and a rule (`@rule`) inside
+ * json are held to the same depth; a `@rule` in a column takes a text column,
+ * and a key the install may not have is never a refusal.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -24,7 +26,7 @@ const MANIFEST = {
     tables: [
       { ref: 'settings', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'name', type: 'text' }] },
       { ref: 'pages', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'name', type: 'text' }] },
-      { ref: 'funnels', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'name', type: 'text' }, { ref: 'steps', type: 'json' }] },
+      { ref: 'funnels', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'name', type: 'text' }, { ref: 'steps', type: 'json' }, { ref: 'rule_id', type: 'text', nullable: true }, { ref: 'runs', type: 'int', nullable: true }] },
     ],
   },
   pages: [{ ref: 'studio-funnels', template: 'page-crud', title: { key: 't', fallback: 'Funnels' }, nav: { group: 'library', icon: 'list', order: 1 }, bindings: { rows: 'funnels' } }],
@@ -37,9 +39,9 @@ function manifest(): Manifest {
   return result.manifest as Manifest;
 }
 
-const bundle = (steps: unknown, more: { pagesAfter?: boolean } = {}) => {
+const bundle = (steps: unknown, more: { pagesAfter?: boolean; columns?: Record<string, unknown> } = {}) => {
   const pages = { ref: 'pages', rows: [{ '@label': 'page:open-day', name: 'Open day' }] };
-  const funnels = { ref: 'funnels', rows: [{ '@label': 'funnel:one', name: 'One', steps }] };
+  const funnels = { ref: 'funnels', rows: [{ '@label': 'funnel:one', name: 'One', steps, ...more.columns }] };
   return {
     format: 'adminium.sample/1',
     app: 'studio',
@@ -75,8 +77,25 @@ describe('a row named inside a json value', () => {
     expect(sampleJsonRefs(nested(SAMPLE_JSON_DEPTH + 1, 'write {"@ref": "x"} here'))).toEqual({ labels: [], deeper: false });
     expect(issues(bundle(nested(SAMPLE_JSON_DEPTH, { '@ref': 'page:open-day' })))).toEqual([]);
     expect(issues(bundle(nested(SAMPLE_JSON_DEPTH + 1, { '@ref': 'page:open-day' })))).toEqual([
-      `tables.2.rows.0.steps: A "@ref" or "@person" inside "steps" is more than ${String(SAMPLE_JSON_DEPTH)} levels down, where it is not read: move it up.`,
+      `tables.2.rows.0.steps: A "@ref", "@person", "@t" or "@rule" inside "steps" is more than ${String(SAMPLE_JSON_DEPTH)} levels down, where it is not read: move it up.`,
     ]);
+  });
+
+  it('holds words and a rule inside json to the same depth', () => {
+    for (const inner of [{ '@t': { 'en-US': 'Booths' } }, { '@rule': 'brochure-asked' }]) {
+      expect(issues(bundle(nested(SAMPLE_JSON_DEPTH, inner))), JSON.stringify(inner)).toEqual([]);
+      expect(issues(bundle(nested(SAMPLE_JSON_DEPTH + 1, inner))), JSON.stringify(inner)).toEqual([
+        `tables.2.rows.0.steps: A "@ref", "@person", "@t" or "@rule" inside "steps" is more than ${String(SAMPLE_JSON_DEPTH)} levels down, where it is not read: move it up.`,
+      ]);
+    }
+  });
+
+  it('takes a rule by its key in a text column, whichever rules the install has', () => {
+    expect(issues(bundle([], { columns: { rule_id: { '@rule': 'brochure-asked' } } }))).toEqual([]);
+    // A key the manifest ships no rule under is the install's to settle (written empty), never a refusal.
+    expect(issues(bundle([], { columns: { rule_id: { '@rule': 'no-such-rule' } } }))).toEqual([]);
+    expect(issues(bundle([], { columns: { runs: { '@rule': 'brochure-asked' } } }))).toEqual(['tables.2.rows.0.runs: "funnels.runs" is not a text column, so it cannot hold a rule.']);
+    expect(issues(bundle([], { columns: { rule_id: { '@rule': 'Not A Key' } } }))).toEqual(['tables.2.rows.0.rule_id: "rule_id" holds a directive that is not well formed.']);
   });
 
   it('leaves a column\'s own directive to the column\'s rules', () => {

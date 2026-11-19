@@ -20,7 +20,8 @@
  *   `{"@day": -1, "@time": "09:30"}`   a wall time in the venue's own zone,
  *                               days from today
  *   `{"@day": 3}`              a date in the venue's own zone
- *   `{"@t": {"en-US": "…"}}`   the adding person's language
+ *   `{"@t": {"en-US": "…"}}`   the adding person's language; in a column, and
+ *                               anywhere inside a json value (a page's words)
  *   `{"@asset": "<label>"}`    a file from `assets`, added to the Files library:
  *                               a picture (in a picture column) or a product
  *                               asset — an SVG or a model (.glb, .stl, .3mf) —
@@ -34,6 +35,14 @@
  *                               or another text column that holds a staff id,
  *                               and anywhere inside a json value (a saved
  *                               filter that names a rep)
+ *   `{"@rule": "<rule key>"}`  the id of the rule the file's own app (or
+ *                               add-on) ships under that key (`automations`),
+ *                               as this install holds it: in a column (a
+ *                               funnel's `rule_id`) and anywhere inside a json
+ *                               value. A key with no such rule here (never
+ *                               shipped, or taken away) is written as null, and
+ *                               the server says so in its log: the rest of the
+ *                               sample goes in all the same
  *
  * A `@day` may add `"@workdays": true`: its days count Monday to Friday, and
  * day 0 on a weekend is the Monday after — so "today's" busy day is never a
@@ -135,6 +144,7 @@ const directive = z.union([
   z.object({ '@asset': label }).strict(),
   z.object({ '@table': z.string().regex(/^[a-z][a-z0-9_]*$/, 'a table') }).strict(),
   z.object({ '@person': z.string().regex(/^[a-z][a-z0-9_-]{0,39}$/, 'a sample person\'s key') }).strict(),
+  z.object({ '@rule': z.string().regex(/^[a-z][a-z0-9-]{0,79}$/, 'a rule\'s key') }).strict(),
 ]);
 
 const plain = z.union([z.string(), z.number(), z.boolean(), z.null()]);
@@ -267,6 +277,7 @@ export function sampleDirective(value: unknown):
   | { kind: 'asset'; label: string }
   | { kind: 'table'; ref: string }
   | { kind: 'person'; key: string }
+  | { kind: 'rule'; key: string }
   | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
@@ -293,6 +304,7 @@ export function sampleDirective(value: unknown):
   if (typeof record['@asset'] === 'string') return { kind: 'asset', label: record['@asset'] };
   if (typeof record['@table'] === 'string') return { kind: 'table', ref: record['@table'] };
   if (typeof record['@person'] === 'string') return { kind: 'person', key: record['@person'] };
+  if (typeof record['@rule'] === 'string') return { kind: 'rule', key: record['@rule'] };
   return null;
 }
 
@@ -309,7 +321,8 @@ export function samplePeopleIn(value: unknown): string[] {
 }
 
 /**
- * How deep inside a json value a `@ref` or a `@person` is resolved: a page
+ * How deep inside a json value a directive is resolved (`@ref`, `@person`,
+ * `@t`, `@rule`; any other one there is written as it stands): a page
  * document names another page five levels down (its blocks, a block, its
  * button, the link, the key), so sixteen is room to spare, and the loader
  * never walks a value nested without end. One deeper is refused by the check.
@@ -319,8 +332,8 @@ export const SAMPLE_JSON_DEPTH = 16;
 /**
  * Every row a json value names inside it (`{"@ref": label}` in an object or a
  * list that is no directive of its own), within {@link SAMPLE_JSON_DEPTH}
- * levels; `deeper` when a `@ref` or a `@person` sits past them, where the
- * loader would leave it as written.
+ * levels; `deeper` when a directive the loader resolves inside json sits
+ * past them, where it would be left as written.
  */
 export function sampleJsonRefs(value: unknown): { labels: string[]; deeper: boolean } {
   const labels: string[] = [];
@@ -329,7 +342,7 @@ export function sampleJsonRefs(value: unknown): { labels: string[]; deeper: bool
     if (typeof inner !== 'object' || inner === null) return;
     if (depth > SAMPLE_JSON_DEPTH) {
       // Past the depth the loader reads: what is there stays as written.
-      if (/"@(ref|person)"/.test(JSON.stringify(inner))) deeper = true;
+      if (/"@(ref|person|t|rule)"/.test(JSON.stringify(inner))) deeper = true;
       return;
     }
     const found = sampleDirective(inner);
@@ -919,6 +932,10 @@ function rowIssues(
           const holds = shape.columns.find((c) => c.ref === column);
           if (holds?.type !== 'text') issues.push({ path: `${at}.${column}`, message: `"${table.ref}.${column}" is not a text column, so it cannot hold a staff member.` });
         }
+        // A rule's id is text: a funnel's `rule_id`. Which rules there are is the install's to say, never a reason to refuse.
+        if (found?.kind === 'rule' && shape.columns.find((c) => c.ref === column)?.type !== 'text') {
+          issues.push({ path: `${at}.${column}`, message: `"${table.ref}.${column}" is not a text column, so it cannot hold a rule.` });
+        }
         if (found?.kind === 'table') {
           const holds = shape.columns.find((c) => c.ref === column);
           if (!opts.names.has(found.ref)) issues.push({ path: `${at}.${column}`, message: `"${found.ref}" is not a table this ${opts.what} declares.` });
@@ -939,7 +956,7 @@ function rowIssues(
           else if (mayBeLeftOut.has(named)) issues.push({ path: `${at}.${column}`, message: `"${named}" is in a table only for an empty table, so it may not be written: nothing points at it.` });
         }
         if (inside.deeper) {
-          issues.push({ path: `${at}.${column}`, message: `A "@ref" or "@person" inside "${column}" is more than ${String(SAMPLE_JSON_DEPTH)} levels down, where it is not read: move it up.` });
+          issues.push({ path: `${at}.${column}`, message: `A "@ref", "@person", "@t" or "@rule" inside "${column}" is more than ${String(SAMPLE_JSON_DEPTH)} levels down, where it is not read: move it up.` });
         }
         if (found?.kind === 'asset' && bundle.assets[found.label] === undefined) {
           issues.push({ path: `${at}.${column}`, message: `"${found.label}" is not one of the bundle’s assets.` });

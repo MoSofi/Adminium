@@ -1135,6 +1135,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     },
     store: appStore,
     appFiles,
+    // A sample row's `@rule` naming no rule here is written empty, and said in the log.
+    warn: (fields, message) => app.log.warn(fields, message),
     // An add-on's own sample is read from its package (made further down; read only when a sample is asked for).
     addOnFiles: { readVerifiedFile: (key, version, relativePath) => addOnStore.readVerifiedFile(key, version, relativePath) },
     // How a receipt names a table (the installs are kept further down; read only when sample rows are looked at).
