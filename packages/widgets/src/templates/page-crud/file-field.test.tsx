@@ -470,6 +470,8 @@ describe('the grid chip for a list column', () => {
       />,
     );
     expect(container.querySelector('[data-part="cell-file-list"]')).toBeNull();
-    expect(container.querySelector('[data-part="cell-url"]')).not.toBeNull();
+    // The old rendering of a web address column: the list as written is no web address, so it reads as text, never a link.
+    expect(container.querySelector('[data-part="cell-url-text"]')).not.toBeNull();
+    expect(container.querySelector('a')).toBeNull();
   });
 });
