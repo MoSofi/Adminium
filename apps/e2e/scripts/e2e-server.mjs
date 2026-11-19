@@ -54,6 +54,12 @@ const dashboardDist = join(repoRoot, 'apps', 'dashboard', 'dist');
  * skipped. See `tests/onboarding.spec.ts`.
  */
 const FIRST_RUN = process.env.E2E_FIRST_RUN === '1';
+// The specs upload add-ons built here (the invoicing spec's `e2e-invoices` draws documents). A package that provides a
+// contract loads only from one Adminium vouches for, so this server names them as a developer's own: read from the
+// environment at each upload, ignored whenever NODE_ENV is production. Keys a run already set are kept.
+process.env.ADMINIUM_ADD_ON_DEV_TRUST = [process.env.ADMINIUM_ADD_ON_DEV_TRUST, 'e2e-invoices']
+  .filter((key) => key !== undefined && key !== '')
+  .join(',');
 const ENGINE = process.env.E2E_ENGINE ?? 'sqlite';
 const DEFAULT_PORTS = { sqlite: 4610, postgres: 4611, mysql: 4612 };
 const PORT = Number(process.env.E2E_PORT ?? DEFAULT_PORTS[ENGINE] ?? 4610);
