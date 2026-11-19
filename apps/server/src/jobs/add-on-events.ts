@@ -174,3 +174,42 @@ export function registerAddOnEventHandlers(
 
   return { registered, refused };
 }
+
+/** An installed package's event halves, as its manifest declares them. */
+export interface EventHalvesOf {
+  key: string;
+  version: string;
+  events: readonly { on: string; server: string }[];
+}
+
+/**
+ * The event halves to register, imported. An event half is server code like
+ * any contract's, run in this process with no sandbox: it is imported only
+ * from a package Adminium vouches for (`vouched`: the same sources a
+ * contract's provider is loaded from), so a sideloaded look-alike's module
+ * never runs, not even once at boot. A package that is not vouched for, or a
+ * half that fails to import, is logged and left out.
+ */
+export async function importVouchedEventHalves(input: {
+  packages: readonly EventHalvesOf[];
+  vouched: (key: string, version: string) => Promise<boolean>;
+  importHalf: (key: string, version: string, server: string) => Promise<unknown>;
+  log: (message: string, data: Record<string, unknown>) => void;
+}): Promise<{ addOnKey: string; event: string; module: unknown }[]> {
+  const out: { addOnKey: string; event: string; module: unknown }[] = [];
+  for (const pkg of input.packages) {
+    if (pkg.events.length === 0) continue;
+    if (!(await input.vouched(pkg.key, pkg.version))) {
+      input.log('add-on event half not loaded: this package is neither one this build bundles nor one downloaded from the catalogue', { key: pkg.key, version: pkg.version });
+      continue;
+    }
+    for (const declared of pkg.events) {
+      try {
+        out.push({ addOnKey: pkg.key, event: declared.on, module: await input.importHalf(pkg.key, pkg.version, declared.server) });
+      } catch (err) {
+        input.log('add-on event half failed to load', { key: pkg.key, event: declared.on, err });
+      }
+    }
+  }
+  return out;
+}
