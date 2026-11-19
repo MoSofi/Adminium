@@ -101,8 +101,9 @@ const DESCRIPTIONS = {
   data: 'Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references',
   leads:
     'Finding companies, for staff of an add-on that finds them: search a register, look up one company, add found companies, fill in a ' +
-    'company\'s details, and find and keep the people who work there — every write made as the person asking; and where each ' +
-    'filled field of a company came from, while it still holds what was filled',
+    'company\'s details, and find and keep the people who work there — every write made as the person asking; where each ' +
+    'filled field of a company came from, while it still holds what was filled; and the mail a found person is sent, drawn for ' +
+    'a made-up person and never sent',
   designer:
     'Adminium Designer on a server people reach — whether it is allowed and switched on, and the switch itself ' +
     '(a Super Admin, with their password). The Designer’s own routes exist only while the server runs it',

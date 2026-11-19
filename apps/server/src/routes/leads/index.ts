@@ -22,7 +22,9 @@
  *    only while the add-on keeps people, and keeping the ticked ones
  *    (`leads/people.ts`: checked, stored, told at once);
  *  - `GET /leads/:key/notes`: where each filled field of one record came
- *    from, while it still holds what was filled (`notes.ts`).
+ *    from, while it still holds what was filled (`notes.ts`);
+ *  - `GET /leads/:key/tell-preview`: the mail a found person is sent, as it
+ *    would go, for a made-up person; never sent (`tell-preview.ts`).
  *
  * WHO: a signed-in person (never an API key: a search spends the owner's
  * account) who may open one of the add-on's pages or keep its settings. What
@@ -82,6 +84,7 @@ import { genericAddress, leadsInstall, type KeepFoundPeopleInput, type KeptPeopl
 import { isRegister } from '../../leads/registers.js';
 import { pageFacts, websiteWords } from '../../leads/website-facts.js';
 import { leadNotesRoute } from './notes.js';
+import { tellPreviewRoute } from './tell-preview.js';
 import { businessFactsOf, LEAD_FIELDS, leadColumns, noteFieldSources, ownerColumn, shownText, writesFor, type LeadField } from '../../leads/write.js';
 import { readCompanyWebsite, type WebsiteReaderDeps } from '../../net/website-reader.js';
 import { normaliseAddress } from '../../public-api/claim-code.js';
@@ -1002,5 +1005,8 @@ export function leadDoorRoutes(deps: LeadDoorDeps): FastifyPluginAsync {
 
     // ── notes: where each filled field came from, while it still holds what was filled ──
     leadNotesRoute(app, { meta, manifests, manager: deps.manager, connectionNames: deps.connectionNames, viewOf });
+
+    // ── the tell mail as it would go, for a made-up person: never sent, its Object link opens nothing ──
+    tellPreviewRoute(app, { meta, manager: deps.manager, viewOf, guard: doorGuard, now });
   };
 }

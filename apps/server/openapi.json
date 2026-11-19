@@ -165706,6 +165706,89 @@
         }
       }
     },
+    "/api/v1/leads/{key}/tell-preview": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 35
+            },
+            "in": "query",
+            "name": "locale",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "locale": {
+                      "type": "string"
+                    },
+                    "purposeWritten": {
+                      "type": "boolean"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "html": {
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "objectLink": {
+                      "type": "string"
+                    },
+                    "sample": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "company": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "company"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "locale",
+                    "purposeWritten",
+                    "subject",
+                    "html",
+                    "text",
+                    "objectLink",
+                    "sample"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/roles": {
       "get": {
         "responses": {

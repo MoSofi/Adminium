@@ -49,7 +49,7 @@ import { OBJECT_LINK_VARIABLE, makeObjectToken, objectLinkKeys, objectUrl } from
 import { companyCountryColumn } from './companies.js';
 import { installLanguage } from './people.js';
 import { soleTraderCompany } from './sole-trader.js';
-import { sourceName, tellBlocks, tellLanguages, tellOpening, type TellLanguage, type TellTranslate } from './tell-words.js';
+import { sourceName, tellBlocks, tellLanguages, tellOpening, type TellFacts, type TellLanguage, type TellTranslate } from './tell-words.js';
 
 /** Why a tell mail did not go: its outbox row's sentence. */
 export const TELL_SKIPS = {
@@ -119,6 +119,76 @@ function firstNameOf(name: unknown): string | null {
   return first === '' ? null : first;
 }
 
+/** What a tell mail is made of, once its person, languages and link are known. */
+export interface TellDraft {
+  /** The add-on's template key for its `tell` kind; none: it has no text. */
+  templateKey: string | undefined;
+  /** The languages the person is told in, first the one the mail is in. */
+  languages: TellLanguage[];
+  facts: Omit<TellFacts, 'purpose'>;
+  /** Why they are kept, per language. */
+  purpose: Partial<Record<string, string>>;
+  /** Why they are kept, as copied when they were found: for a language the settings no longer say it in. */
+  fallbackPurpose: string;
+  /** The person's name, and their company's, as the add-on's text may print them. */
+  name: string;
+  company: string;
+  /** The Object link. */
+  link: string;
+}
+
+/**
+ * The tell mail's template and values: the add-on's text in each language
+ * (or the engine's opening where it wrote none), each followed by the
+ * engine's sentences and the Object block. The sender sends it; the preview
+ * shows it, with a link that opens nothing.
+ */
+export async function tellTemplate(meta: MetaDb, draft: TellDraft): Promise<TellPrepared | { skip: string }> {
+  const { facts, purpose, templateKey } = draft;
+  let languages = draft.languages;
+  const firstName = facts.firstName;
+  const rows = templateKey === undefined ? [] : (await emailTemplatesRepo(meta).siblings(templateKey)).filter((one) => one.archivedAt === null);
+  const base = rows.find((one) => one.locale === languages[0]!.replace('-', '_')) ?? rows.find((one) => one.locale === 'en_US') ?? rows[0];
+  if (base === undefined) return { skip: TELL_SKIPS.noText };
+  const blocks: Record<string, unknown>[] = [];
+  const vars: Record<string, string> = {};
+  const subjects: string[] = [];
+  languages = languages.slice(0, 2);
+  for (const [n, language] of languages.entries()) {
+    const locale = language.replace('-', '_');
+    const i18n = await translatorForLocale(meta, locale);
+    const t: TellTranslate = (k, options) => i18n.t(k, options);
+    const own = rows.find((one) => one.locale === locale);
+    if (n > 0) blocks.push({ block: 'email.divider', id: `tell_${String(n)}_between`, data: { height: 16 } });
+    if (own !== undefined) {
+      // The add-on's text as written, its own blocks given ids of their own so the two languages never share one.
+      blocks.push(...own.blocks.map((block, b) => ({ ...block, id: `tell_${String(n)}_own_${String(b)}` })));
+      subjects.push(own.subject);
+    } else {
+      const opening = tellOpening(t, n, firstName);
+      blocks.push(...opening.blocks);
+      Object.assign(vars, opening.vars);
+      subjects.push(t('email:leadsTell.subject', { defaultValue: 'Why we have your details' }));
+    }
+    const engine = tellBlocks(t, language, n, { ...facts, purpose: purpose[language] ?? draft.fallbackPurpose });
+    blocks.push(...engine.blocks);
+    Object.assign(vars, engine.vars);
+  }
+  // What the add-on's text may print about the person, filled here.
+  vars['name'] = draft.name;
+  vars['first_name'] = firstName ?? '';
+  vars['company'] = draft.company;
+  vars['source'] = facts.source;
+  vars['business'] = facts.business;
+  vars[OBJECT_LINK_VARIABLE] = draft.link;
+  const subject = [...new Set(subjects.filter((one) => one.trim() !== ''))].join(' / ');
+  return {
+    template: { ...base, locale: languages[0]!.replace('-', '_'), subject: subject === '' ? base.subject : subject, blocks, preheader: '', enabled: true },
+    locale: languages[0]!.replace('-', '_'),
+    vars,
+  };
+}
+
 export function createTellMail(deps: TellMailDeps): TellMail {
   const { meta } = deps;
 
@@ -177,7 +247,7 @@ export function createTellMail(deps: TellMailDeps): TellMail {
     // In which languages, why, and for how long.
     const settings = await readLeadsSettings(db, addOn);
     const purpose = { ...settings.purpose };
-    let languages: TellLanguage[] = tellLanguages(typeof country === 'string' ? country : null, await installLanguage(meta), purpose);
+    const languages: TellLanguage[] = tellLanguages(typeof country === 'string' ? country : null, await installLanguage(meta), purpose);
     if (languages.length === 0) return { skip: TELL_SKIPS.noLanguage };
 
     // The Object link: sealed, for this person's row and this address.
@@ -203,46 +273,16 @@ export function createTellMail(deps: TellMailDeps): TellMail {
 
     // The add-on's text in each language, each followed by the engine's sentences and the Object block.
     const templateKey = (box.definition as Outbox).kinds?.[LEADS_TELL_KIND];
-    const rows = templateKey === undefined ? [] : (await emailTemplatesRepo(meta).siblings(templateKey)).filter((one) => one.archivedAt === null);
-    const base = rows.find((one) => one.locale === languages[0]!.replace('-', '_')) ?? rows.find((one) => one.locale === 'en_US') ?? rows[0];
-    if (base === undefined) return { skip: TELL_SKIPS.noText };
-    const blocks: Record<string, unknown>[] = [];
-    const vars: Record<string, string> = {};
-    const subjects: string[] = [];
-    languages = languages.slice(0, 2);
-    for (const [n, language] of languages.entries()) {
-      const locale = language.replace('-', '_');
-      const i18n = await translatorForLocale(meta, locale);
-      const t: TellTranslate = (k, options) => i18n.t(k, options);
-      const own = rows.find((one) => one.locale === locale);
-      if (n > 0) blocks.push({ block: 'email.divider', id: `tell_${String(n)}_between`, data: { height: 16 } });
-      if (own !== undefined) {
-        // The add-on's text as written, its own blocks given ids of their own so the two languages never share one.
-        blocks.push(...own.blocks.map((block, b) => ({ ...block, id: `tell_${String(n)}_own_${String(b)}` })));
-        subjects.push(own.subject);
-      } else {
-        const opening = tellOpening(t, n, firstName);
-        blocks.push(...opening.blocks);
-        Object.assign(vars, opening.vars);
-        subjects.push(t('email:leadsTell.subject', { defaultValue: 'Why we have your details' }));
-      }
-      const engine = tellBlocks(t, language, n, { ...facts, purpose: purpose[language] ?? found.purpose });
-      blocks.push(...engine.blocks);
-      Object.assign(vars, engine.vars);
-    }
-    // What the add-on's text may print about the person, filled here.
-    vars['name'] = typeof person.row[personEntry?.name ?? ''] === 'string' ? String(person.row[personEntry!.name!]) : '';
-    vars['first_name'] = firstName ?? '';
-    vars['company'] = typeof companyName === 'string' ? companyName : '';
-    vars['source'] = facts.source;
-    vars['business'] = facts.business;
-    vars[OBJECT_LINK_VARIABLE] = link;
-    const subject = [...new Set(subjects.filter((one) => one.trim() !== ''))].join(' / ');
-    return {
-      template: { ...base, locale: languages[0]!.replace('-', '_'), subject: subject === '' ? base.subject : subject, blocks, preheader: '', enabled: true },
-      locale: languages[0]!.replace('-', '_'),
-      vars,
-    };
+    return tellTemplate(meta, {
+      templateKey,
+      languages,
+      facts,
+      purpose,
+      fallbackPurpose: found.purpose,
+      name: typeof person.row[personEntry?.name ?? ''] === 'string' ? String(person.row[personEntry!.name!]) : '',
+      company: typeof companyName === 'string' ? companyName : '',
+      link,
+    });
   }
 
   async function told(input: { box: TellBox; target: Pick<WriteTarget, 'db' | 'dialect'>; view: SnapshotView; row: Row }, at: number): Promise<void> {
