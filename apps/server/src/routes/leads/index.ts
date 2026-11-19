@@ -55,7 +55,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { sql } from 'kysely';
 import { z } from 'zod';
 
-import { mayUseAddOnScreens } from '../../add-ons/record-actions.js';
+import { mayUseAddOnScreens } from '../../leads/record-actions.js';
 import type { AddOnRuntimeState } from '../../add-ons/runtime.js';
 import { looksLikeAddress } from '../../consent/index.js';
 import type { ConnectionManager } from '../../connections/manager.js';

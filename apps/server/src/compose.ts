@@ -151,7 +151,7 @@ import { isFoundPerson, keepFoundPeople, untoldAddress, type KeepFoundPeopleDeps
 import { sourceLanguages } from './leads/registers.js';
 import type { CompanyFillDeps } from './automations/actions/company-fill.js';
 import { leadDoorRoutes } from './routes/leads/index.js';
-import { recordActionsFor } from './add-ons/record-actions.js';
+import { recordActionsFor } from './leads/record-actions.js';
 import { createWebsiteReaderState, readerCallsOut } from './net/website-reader.js';
 import { FOUND_PEOPLE_SWEEP_CRON, FOUND_PEOPLE_SWEEP_NAME, sweepFoundPeople, type SweepDone } from './leads/sweep.js';
 import { createTellMail } from './leads/tell.js';

@@ -41,12 +41,12 @@ import type { SnapshotView } from '../crud/identifiers.js';
 import { readerWords } from '../i18n/bcp47.js';
 import { installReachOf } from '../installs/reach.js';
 import { installManifest } from '../lead-sources/call.js';
-import { companiesTablesOn } from '../leads/companies.js';
+import { companiesTablesOn } from './companies.js';
 import { addOnSettingsGrantHeld } from '../rbac/add-on-grant.js';
 import { PERMISSIONS } from '../rbac/permissions.js';
 import { getPrincipal } from '../rbac/principal.js';
-import { addOnPagePermission, pagesAreGated } from './page-gate.js';
-import type { AddOnRuntimeState } from './runtime.js';
+import { addOnPagePermission, pagesAreGated } from '../add-ons/page-gate.js';
+import type { AddOnRuntimeState } from '../add-ons/runtime.js';
 
 /** The slot an add-on's action on a record fills. */
 export const RECORD_ACTIONS_SLOT = 'record.actions';

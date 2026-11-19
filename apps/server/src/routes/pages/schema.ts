@@ -353,7 +353,7 @@ export const pageReply = z.object({
    * companies table's "Fill in details"): each with its install, the table as
    * the add-on's tables name it, its words in the reader's language, its icon
    * and its file. Only for a reader who may change the table. Absent when
-   * there is none (`add-ons/record-actions.ts`).
+   * there is none (`leads/record-actions.ts`).
    */
   recordActions: z
     .array(

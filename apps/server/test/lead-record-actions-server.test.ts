@@ -28,7 +28,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { leadFinder } from '../../../packages/manifest/test/lead-finder-fixture.js';
 import { addOnCredentialCryptoFromSecret } from '../src/add-ons/credential-crypto.js';
-import { recordActionsFor } from '../src/add-ons/record-actions.js';
+import { recordActionsFor } from '../src/leads/record-actions.js';
 import type { AddOnRuntimeState } from '../src/add-ons/runtime.js';
 import { composeServer, type ComposedServer } from '../src/compose.js';
 import type { RecordWriteService } from '../src/crud/write-service.js';

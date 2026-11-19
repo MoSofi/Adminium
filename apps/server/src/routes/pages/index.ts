@@ -80,7 +80,7 @@ import type { SnapshotView } from '../../crud/identifiers.js';
 import { columnFactsFor, factsViewFor, hiddenColumnsOf, labelWordsOf, withoutColumns, withReaderLabels, withReaderTitle, withStoredLabels, withLinkNames, withYesNoColumns } from './column-facts.js';
 import { bulkActionFacts, stateActionFacts } from './state-actions.js';
 import { recordPanelsFor } from '../../add-ons/record-panels.js';
-import type { RecordActionsAsker, RecordAddOnFacts } from '../../add-ons/record-actions.js';
+import type { RecordActionsAsker, RecordAddOnFacts } from '../../leads/record-actions.js';
 import { recordTabsFor, type TabInstalls } from '../../add-ons/record-tabs.js';
 import { buildUserPageEnvelope, defaultIconFor, reidentifyEnvelope } from './envelope.js';
 import { fitRefusalMessage } from './fit-prose.js';
@@ -134,7 +134,7 @@ export interface PagesRoutesDeps {
   tablePrivileges?: ((connectionId: string) => Promise<TablePrivilegeMap | null>) | undefined;
   /** What is installed where, read again when it moved: which add-ons' tabs a record has. Absent, a record has none. */
   installs?: (() => Promise<TabInstalls>) | undefined;
-  /** The add-ons' actions a record of a table shows a reader, and whose fields' notes it asks for (`add-ons/record-actions.ts`). Absent, none. */
+  /** The add-ons' actions a record of a table shows a reader, and whose fields' notes it asks for (`leads/record-actions.ts`). Absent, none. */
   recordActions?: ((asker: RecordActionsAsker, view: SnapshotView, tableId: string) => Promise<RecordAddOnFacts>) | undefined;
 }
 

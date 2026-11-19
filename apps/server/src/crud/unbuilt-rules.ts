@@ -468,7 +468,7 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // and decides "already here" by them (routes/leads, leads/).
   'people.lead',
   // A record action the generated record page shows on a kind of declared table, and the notes under the fields a
-  // source filled (add-ons/record-actions.ts, routes/leads/notes.ts).
+  // source filled (leads/record-actions.ts, routes/leads/notes.ts).
   'addOn.slots.on',
 ];
 
