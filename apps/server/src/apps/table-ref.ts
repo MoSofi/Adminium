@@ -194,22 +194,58 @@ export async function loadAddOnInstalls(meta: MetaDb, models: ModelOf): Promise<
  * transaction opens: it reads one stamp and loads again only when what is
  * installed, attached, switched, recorded or read moved — in this process or
  * another. `current()` is the last one loaded, for inside the transaction.
+ *
+ * `recent()` is for a question asked on every write (a CSV import asks it
+ * per line): what `fresh()` found less than {@link RECENT_INSTALLS_MS} ago,
+ * unless this process changed what is installed since (`changed()`, called
+ * by every install, update, switch and removal). A change made by another
+ * process is seen within that second.
  */
 export interface AddOnInstallsKeeper {
   fresh(): Promise<AddOnInstalls>;
   current(): AddOnInstalls;
+  recent(): Promise<AddOnInstalls>;
+  changed(): void;
 }
+
+/** How long `recent()` answers without reading the stamp again. */
+export const RECENT_INSTALLS_MS = 1_000;
 
 const NOTHING: AddOnInstalls = { installed: () => null, tableOf: () => null, refOf: (_connectionId, tableId) => tableId, tableOfRef: () => null, featureOn: () => false };
 
-export function keepAddOnInstalls(meta: MetaDb, models: ModelOf): AddOnInstallsKeeper {
+export interface KeepAddOnInstallsOptions {
+  /** Tests: the clock, and the stamp read. */
+  now?: () => number;
+  stamp?: (meta: MetaDb) => Promise<string>;
+}
+
+export function keepAddOnInstalls(meta: MetaDb, models: ModelOf, opts: KeepAddOnInstallsOptions = {}): AddOnInstallsKeeper {
+  const now = opts.now ?? Date.now;
+  const stampOf = opts.stamp ?? addOnInstallsStamp;
   let kept: { stamp: string; installs: AddOnInstalls } | null = null;
+  /** When the stamp was last read, and whether this process changed anything since. */
+  let checkedAt = Number.NEGATIVE_INFINITY;
+  let generation = 0;
+  let checkedGeneration = -1;
+  const fresh = async (): Promise<AddOnInstalls> => {
+    const asked = generation;
+    const at = now();
+    const stamp = await stampOf(meta);
+    if (kept?.stamp !== stamp) kept = { stamp, installs: await loadAddOnInstalls(meta, models) };
+    checkedAt = at;
+    checkedGeneration = asked;
+    return kept.installs;
+  };
   return {
-    async fresh() {
-      const stamp = await addOnInstallsStamp(meta);
-      if (kept?.stamp !== stamp) kept = { stamp, installs: await loadAddOnInstalls(meta, models) };
-      return kept.installs;
-    },
+    fresh,
     current: () => kept?.installs ?? NOTHING,
+    async recent() {
+      const at = now();
+      if (kept !== null && checkedGeneration === generation && at >= checkedAt && at - checkedAt < RECENT_INSTALLS_MS) return kept.installs;
+      return fresh();
+    },
+    changed() {
+      generation += 1;
+    },
   };
 }

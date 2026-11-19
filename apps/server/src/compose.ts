@@ -1420,7 +1420,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         manager,
         secret: env.ADMINIUM_SECRET,
         reach: { networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY },
-        installs: () => addOnInstalls.fresh(),
+        // Asked on every create and update (each line of an import): the stamp is read at most once a second.
+        installs: () => addOnInstalls.recent(),
       }),
     // A running number counts in the meta store; a venue's clock is its connection's.
     ...writeStores(meta),
@@ -4240,6 +4241,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
 
   rebuildAddOnRuntime = async () => {
     const repo = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
+    // An add-on was installed, updated, switched or removed here: what is installed is read again at the next write.
+    addOnInstalls.changed();
     // Only an add-on whose install finished is loaded: one still `installing`, or being changed, answers nothing.
     const installedAddOns = (await repo.list('add-on')).filter((entry) => isLoadable(entry.row.status));
     if (installedAddOns.length === 0) {
