@@ -6,13 +6,15 @@ import { isAbsolute, resolve } from 'node:path';
 import { z } from 'zod';
 
 import { parseConnectUrl } from '../connect/providers.js';
-import { parseDatabaseHost, parseDsn, type DatabaseHost } from '../connections/dsn.js';
+import { canonicalHost, databaseHostListed, parseDatabaseHost, parseDsn, type DatabaseHost } from '../connections/dsn.js';
+import { parseDenyAddresses, parseUserHost } from '../connections/user-host.js';
 import { addressKind } from '../net/address-guard.js';
 import { NETWORK_POLICIES } from '../net/outbound-check.js';
 import { DEV_TRUST_ENV, devTrustProblem } from '../add-ons/dev-trust.js';
 import { LEAD_SOURCE_DEMO_ENV, leadSourceDemoProblem } from '../lead-sources/demo-seam.js';
 import { invalidTrustedProxies } from '../security/trust-proxy.js';
 import { readSecretFiles, SECRET_FILE_SUFFIX, withHeldSecrets, type SecretFileProblem } from './operator-secrets.js';
+import { parseYourDatabase } from './your-database.js';
 
 /**
  * Environment validation. `loadEnv()` is called first in the boot
@@ -414,6 +416,11 @@ export const OPERATOR_DECIDED_ENV = [
   'ADMINIUM_SUPABASE_CONNECT_URL',
   'ADMINIUM_DESIGNER_START_PROMPT_B64',
   'ADMINIUM_DESIGNER_START_PROMPT_FILE',
+  'ADMINIUM_OPERATOR_PROJECT',
+  'ADMINIUM_YOUR_DATABASE',
+  'ADMINIUM_DATABASE_USER_HOST',
+  'ADMINIUM_DATABASE_DENY_ADDRESSES',
+  'ADMINIUM_AI_BUILD_API_KEY',
 ] as const;
 
 /** The ones that hold only for a trial: set without trial mode, they would do nothing, so the boot says so. */
@@ -421,7 +428,7 @@ const TRIAL_ONLY_ENV = OPERATOR_DECIDED_ENV.filter((name) => name.startsWith('AD
 
 /** The variables this plan added: a control character in one fails the boot on any server. */
 const NEW_OPERATOR_ENV: readonly string[] = [
-  ...OPERATOR_DECIDED_ENV.filter((name) => /^ADMINIUM_(TRIAL_|HOSTED_MODE|PUBLIC_ORIGIN|OPERATOR_|AI_OPERATOR_|DESIGNER_START_PROMPT)/.test(name)),
+  ...OPERATOR_DECIDED_ENV.filter((name) => /^ADMINIUM_(TRIAL_|HOSTED_MODE|PUBLIC_ORIGIN|OPERATOR_|AI_OPERATOR_|DESIGNER_START_PROMPT|YOUR_DATABASE|DATABASE_USER_HOST|DATABASE_DENY_ADDRESSES|AI_BUILD_API_KEY)/.test(name)),
 ];
 
 export const envSchema = z.object({
@@ -754,6 +761,13 @@ export const envSchema = z.object({
   ADMINIUM_AI_COMPATIBLE_BASE_URL: z.preprocess(emptyToUndefined, z.string().url().max(500).optional()),
   ADMINIUM_AI_COMPATIBLE_API_KEY: z.preprocess(emptyToUndefined, z.string().max(500).optional()),
   ADMINIUM_AI_OLLAMA_BASE_URL: z.preprocess(emptyToUndefined, z.string().url().max(500).optional()),
+  /*
+   * The operator gateway's key for builds: Designer runs and the schema
+   * assistant (`POST /llm/runs`) use it in place of ADMINIUM_AI_COMPATIBLE_API_KEY,
+   * at the same base URL and model, so the operator can meter or refuse builds
+   * alone. Unset: they use ADMINIUM_AI_COMPATIBLE_API_KEY.
+   */
+  ADMINIUM_AI_BUILD_API_KEY: z.preprocess(emptyToUndefined, z.string().max(500).optional()),
   ADMINIUM_AI_GOOGLE_API_KEY: z.preprocess(emptyToUndefined, z.string().max(500).optional()),
   ADMINIUM_AI_MODEL: z.preprocess(
     emptyToUndefined,
@@ -1046,6 +1060,71 @@ export const envSchema = z.object({
           });
         }
         return metadata.length > 0 || refused.length > 0 ? z.NEVER : hosts;
+      }),
+  ),
+  /*
+   * The one host of the user's own a trial or hosted installation may reach
+   * besides ADMINIUM_DATABASE_HOSTS: `host:port`, set by the operator from the
+   * host `adminium check-source` passed. Only while ADMINIUM_YOUR_DATABASE is
+   * set, and never with a listed host's skip: every lookup holds it to public
+   * addresses (`connections/user-host.ts`). A port below 1024 or one of the
+   * fleet's service ports is refused here.
+   */
+  ADMINIUM_DATABASE_USER_HOST: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(300)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const parsed = parseUserHost(value);
+        if (!parsed.ok) {
+          ctx.addIssue({ code: 'custom', message: parsed.problem });
+          return z.NEVER;
+        }
+        return parsed.entry;
+      }),
+  ),
+  /*
+   * The fleet's own addresses (public, private and floating IPs, or CIDR
+   * ranges), comma-separated: the user host may never resolve to one.
+   */
+  ADMINIUM_DATABASE_DENY_ADDRESSES: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(20_000)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const parsed = parseDenyAddresses(value);
+        if (!parsed.ok) {
+          ctx.addIssue({ code: 'custom', message: `${parsed.refused.map((entry) => `"${entry}"`).join(', ')} is not an IP address or CIDR range` });
+          return z.NEVER;
+        }
+        return parsed.ranges;
+      }),
+  ),
+  /*
+   * The user's own database, connected as `yours` in an operator project
+   * (`config/your-database.ts` has the JSON's shape). Its URL holds a password:
+   * a problem with it never prints the value.
+   */
+  ADMINIUM_YOUR_DATABASE: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(20_000)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const parsed = parseYourDatabase(value);
+        if (!parsed.ok) {
+          ctx.addIssue({ code: 'custom', message: parsed.problem });
+          return z.NEVER;
+        }
+        return parsed.value;
       }),
   ),
   /*
@@ -1404,6 +1483,13 @@ export const envSchema = z.object({
         return url;
       }),
   ),
+  /*
+   * An operator project (trial and hosted mode): the project's config is built
+   * in memory from the environment (`main` = ADMINIUM_SOURCE_URL, `yours` =
+   * ADMINIUM_YOUR_DATABASE), and the project folder under the data folder holds
+   * only `apps/` and `.adminium/`. No config file is read or run.
+   */
+  ADMINIUM_OPERATOR_PROJECT: booleanVar(false),
   /* Operator AI: AI connections saved in Settings → AI only as the user's own key to a fixed public provider; otherwise the operator's. */
   ADMINIUM_AI_OPERATOR_ONLY: booleanVar(false),
   /*
@@ -1508,6 +1594,24 @@ export const envSchema = z.object({
         namesNoLogin(env.ADMINIUM_SOURCE_URL),
         'ADMINIUM_SOURCE_URL',
         `must name a user and a database in ${which}: on the operator's database host this installation may use only the login this URL names, e.g. postgres://trial_7f3a:password@pg-trials:5432/trial_7f3a`,
+      );
+    }
+    if (env.ADMINIUM_OPERATOR_PROJECT) {
+      need(!env.ADMINIUM_TRIAL_MODE && !env.ADMINIUM_HOSTED_MODE, 'ADMINIUM_OPERATOR_PROJECT', 'is on, but neither ADMINIUM_TRIAL_MODE nor ADMINIUM_HOSTED_MODE is: an operator project is for a trial or a hosted installation.');
+    }
+    need(
+      env.ADMINIUM_YOUR_DATABASE !== undefined && !env.ADMINIUM_OPERATOR_PROJECT,
+      'ADMINIUM_YOUR_DATABASE',
+      'is set, but ADMINIUM_OPERATOR_PROJECT is not on: the user\'s database is connected as `yours` in an operator project. Set ADMINIUM_OPERATOR_PROJECT=on as well.',
+    );
+    if (env.ADMINIUM_YOUR_DATABASE !== undefined && (env.ADMINIUM_TRIAL_MODE || env.ADMINIUM_HOSTED_MODE)) {
+      const yours = env.ADMINIUM_YOUR_DATABASE;
+      const user = env.ADMINIUM_DATABASE_USER_HOST;
+      const onList = databaseHostListed(env.ADMINIUM_DATABASE_HOSTS, { scheme: yours.engine, host: yours.host, port: yours.port });
+      need(
+        !onList && (user === undefined || user.host !== canonicalHost(yours.host).replace(/\.$/, '') || user.port !== yours.port),
+        'ADMINIUM_DATABASE_USER_HOST',
+        `must be ADMINIUM_YOUR_DATABASE's host and port (${yours.host.includes(':') ? `[${yours.host}]` : yours.host}:${String(yours.port)}): the only host of the user's own this installation may reach.`,
       );
     }
     need(
@@ -1788,6 +1892,11 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_PRESENCE: `one of ${BOOLEANISH.join(', ')} (default off; on: an active dashboard tab sends GET /api/v1/presence once a minute, for an operator's sleep proxy)`,
   ADMINIUM_AI_OPERATOR_SCOPE: 'dashboard: operator AI builds dashboards only (unset: no scope)',
   ADMINIUM_AI_OPERATOR_BUDGET_TOKENS: 'whole number of tokens operator AI may spend over the instance\'s life',
+  ADMINIUM_OPERATOR_PROJECT: `one of ${BOOLEANISH.join(', ')} (default off; on: the project's config is built from the environment, main = ADMINIUM_SOURCE_URL, yours = ADMINIUM_YOUR_DATABASE)`,
+  ADMINIUM_YOUR_DATABASE: 'one JSON object: {"url":"postgres://…","intent":"full-admin","tables":["public.orders"],"readOnly":false,"label":"My shop"}',
+  ADMINIUM_DATABASE_USER_HOST: 'host:port of the user\'s own database, e.g. db.example.com:5432 (port 1024 or above)',
+  ADMINIUM_DATABASE_DENY_ADDRESSES: 'comma-separated IP addresses or CIDR ranges of the operator\'s own servers, e.g. 203.0.113.7,10.0.0.0/8',
+  ADMINIUM_AI_BUILD_API_KEY: 'the operator gateway\'s key for Designer runs and the schema assistant (default: ADMINIUM_AI_COMPATIBLE_API_KEY)',
   ADMINIUM_DESIGNER_START_PROMPT_B64: `the Designer's first prompt after setup, base64, at most ${String(START_PROMPT_MAX_CHARS)} characters decoded`,
   ADMINIUM_DESIGNER_START_PROMPT_FILE: `absolute path to a read-only file holding the Designer's first prompt, at most ${String(START_PROMPT_MAX_CHARS)} characters`,
   ADMINIUM_ADD_ON_DEV_TRUST: 'developer machines only, with NODE_ENV=development or test; never with ADMINIUM_TRIAL_MODE or ADMINIUM_HOSTED_MODE',
