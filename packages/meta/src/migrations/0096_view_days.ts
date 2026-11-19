@@ -24,11 +24,15 @@
  *
  * No foreign key: an install removed leaves its counts until their sweep, as
  * the public API's request counts are left.
+ *
+ * Each step asks first, so a run stopped part way on MySQL (which keeps every
+ * statement before the stop) is finished by the next.
  */
 import type { Kysely } from 'kysely';
 
 import type { ColumnHelpers } from '../columns.js';
 import { metaTable } from '../prefix.js';
+import { createIndexUnlessMade } from './probe.js';
 
 /** The longest install id (an add-on install's `adminium_manifests` id). */
 export const VIEW_INSTALL_WIDTH = 64;
@@ -43,6 +47,7 @@ export const VIEW_DAY_WIDTH = 10;
 export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
   await db.schema
     .createTable(metaTable('view_days'))
+    .ifNotExists()
     .addColumn('install_id', c.str(VIEW_INSTALL_WIDTH), (col) => col.notNull())
     .addColumn('kind', c.str(VIEW_KIND_WIDTH), (col) => col.notNull())
     .addColumn('thing', c.str(VIEW_THING_WIDTH), (col) => col.notNull())
@@ -52,5 +57,5 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addPrimaryKeyConstraint('pk_adminium_view_days', ['install_id', 'kind', 'thing', 'place', 'day'])
     .execute();
   // The daily sweep: every day before the keeping cutoff.
-  await db.schema.createIndex('ix_adminium_view_days_day').on(metaTable('view_days')).columns(['day']).execute();
+  await createIndexUnlessMade(db, c.dialect, 'ix_adminium_view_days_day', metaTable('view_days'), ['day']);
 }

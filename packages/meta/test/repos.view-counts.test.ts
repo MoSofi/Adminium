@@ -12,6 +12,7 @@
  * delete visits with their visitor; and every bounded column takes its full
  * width, and refuses one character more.
  */
+import type { KyselyPlugin, RootOperationNode } from 'kysely';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -30,6 +31,8 @@ import {
   viewDaysRepo,
   visitorsRepo,
 } from '../src/index.js';
+import type { MetaMigration } from '../src/migrations/index.js';
+import { indexExists } from '../src/migrations/probe.js';
 import { TEST_DIALECTS, migrateOnly, useMetaDb } from './helpers/db.js';
 
 const T0 = 1_750_000_000_000;
@@ -222,5 +225,72 @@ for (const dialect of TEST_DIALECTS) {
         await t.destroy();
       }
     });
+
+    it('a run stopped between any two steps of either wave is finished by the next', async () => {
+      // On MySQL every step before the stop stays (no transactional DDL); on Postgres and SQLite the wave rolls back whole.
+      for (const wave of ['0096_view_days', '0097_visitors']) {
+        const before = ALL_MIGRATIONS.filter((m) => m.name < wave);
+        const own = ALL_MIGRATIONS.find((m) => m.name === wave)!;
+        const counted = stoppedAt(own, Number.POSITIVE_INFINITY);
+        const whole = await dialect.make();
+        try {
+          await applyMigrations(whole.meta.db, { dialect: whole.meta.dialect, migrations: [...before, counted.migration] });
+        } finally {
+          await whole.destroy();
+        }
+        const total = counted.steps();
+        expect(total, wave).toBe(wave === '0096_view_days' ? 2 : 6);
+        for (let at = 1; at < total; at += 1) {
+          const t = await dialect.make();
+          try {
+            await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: before });
+            const stop = stoppedAt(own, at);
+            await expect(applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: [...before, stop.migration] }), `${wave} stop at ${String(at)}`).rejects.toThrow(`stopped before step ${String(at + 1)}`);
+            // Run again, as the next start of the server does: the wave finishes, then the ones after it.
+            const resumed = await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS });
+            expect(resumed.applied[0], `${wave} stop at ${String(at)}`).toBe(wave);
+            for (const [table, index] of INDEXES) expect(await indexExists(t.meta.db as never, t.meta.dialect, table, index), `${wave} stop at ${String(at)}: ${index}`).toBe(true);
+            await viewDaysRepo(t.meta).add({ ...DAY, views: 1 });
+            expect(await visitorsRepo(t.meta).counts()).toEqual({ visitors: 0, visits: 0 });
+          } finally {
+            await t.destroy();
+          }
+        }
+      }
+    }, 600_000);
   });
+}
+
+/** Every index the two waves make, by its table. */
+const INDEXES = [
+  ['adminium_view_days', 'ix_adminium_view_days_day'],
+  ['adminium_visitors', 'ix_adminium_visitors_address'],
+  ['adminium_visitors', 'ix_adminium_visitors_seen'],
+  ['adminium_visits', 'ix_adminium_visits_visitor'],
+  ['adminium_visits', 'ix_adminium_visits_at'],
+] as const;
+
+/** A statement that changes the schema: what a stop can fall between. The wave's own questions are reads. */
+function isStep(node: RootOperationNode): boolean {
+  if (node.kind === 'RawNode') return !node.sqlFragments.join('').trimStart().toLowerCase().startsWith('select');
+  return ['AlterTableNode', 'CreateIndexNode', 'DropIndexNode', 'CreateTableNode', 'DropTableNode'].includes(node.kind);
+}
+
+/** A wave, stopped before its step `at + 1` (the database went away), counting the steps it got to. */
+function stoppedAt(wave: MetaMigration, at: number) {
+  let steps = 0;
+  const plugin: KyselyPlugin = {
+    transformQuery({ node }) {
+      if (isStep(node)) {
+        steps += 1;
+        if (steps > at) throw new Error(`stopped before step ${String(steps)}`);
+      }
+      return node;
+    },
+    transformResult: async ({ result }) => result,
+  };
+  return {
+    migration: { name: wave.name, up: (db: Parameters<MetaMigration['up']>[0], c: Parameters<MetaMigration['up']>[1]) => wave.up(db.withPlugin(plugin), c) },
+    steps: () => steps,
+  };
 }
