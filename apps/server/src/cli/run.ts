@@ -17,6 +17,7 @@ import { appCommand } from './commands/app.js';
 import { applyLlmResponseCommand } from './commands/apply-llm-response.js';
 import { buildCommand } from './commands/build.js';
 import { checkCommand } from './commands/check.js';
+import { checkSourceCommand } from './commands/check-source.js';
 import { devCommand } from './commands/dev.js';
 import { ejectCommand } from './commands/eject.js';
 import { archiveCommand } from './commands/archive.js';
@@ -53,6 +54,7 @@ export const COMMANDS: readonly Command[] = [
   initCommand,
   migrateCommand,
   introspectCommand,
+  checkSourceCommand,
   generatePromptCommand,
   applyLlmResponseCommand,
   exportZipCommand,
