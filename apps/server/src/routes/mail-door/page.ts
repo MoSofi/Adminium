@@ -24,7 +24,7 @@
  *  3. The header shows the business's initial in the accent colour, not an
  *     uploaded logo, and no city line; the footer has no legal name or city.
  *     Its "Privacy notice" link shows only once the privacy settings name
- *     the notice's address (Studio → Privacy & public pages).
+ *     the notice's address (Server settings → Privacy & public pages).
  *  4. System fonts: Manrope and the mono face are served from the
  *     dashboard's own files, which a customer domain does not answer.
  *  5. A mail sent on the "existing customers" basis has no purpose, so its

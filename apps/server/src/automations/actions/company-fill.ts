@@ -28,7 +28,7 @@ import { manifestsRepo, type AutomationAction } from '@adminium/meta';
 import { addOnCredentialCryptoFromSecret } from '../../add-ons/credential-crypto.js';
 import { installOnConnection } from '../../installs/resolve.js';
 import { STEP_SPENDER } from '../../lead-sources/caps.js';
-import { installManifest, withLeadSource, type LeadSourceDeps } from '../../lead-sources/call.js';
+import { installManifest, withLeadSource } from '../../lead-sources/call.js';
 import { storedTableRef, tableRefIndex } from '../../apps/table-ref.js';
 import { companiesTablesOn } from '../../leads/companies.js';
 import { leadsInstall } from '../../leads/people.js';
@@ -41,13 +41,7 @@ import { ActionFailure, type ActionContext, type ActionResult } from './types.js
 
 type CompanyFillAction = Extract<AutomationAction, { kind: 'company.fill' }>;
 
-/** What the step reaches a lead source add-on with. */
-export interface CompanyFillDeps {
-  /** One call to one source (`lead-sources/call.ts`), with the add-on runtime, the keys and the operator's switches. */
-  call: Omit<LeadSourceDeps, 'meta'>;
-  /** Whether this server calls anything outside at all. */
-  networkFeatures: () => boolean;
-}
+export type { CompanyFillDeps } from './company-fill-deps.js';
 
 /** How long a rule waits for one register. */
 const STEP_CALL_MS = 30_000;

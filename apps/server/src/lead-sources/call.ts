@@ -44,6 +44,7 @@ import type { CredentialEnvelope, InstalledManifest, MetaDb } from '@adminium/me
 import { addOnHttpClientFor, type AddOnHttpClientOptions } from '../add-ons/egress.js';
 import { providerByKey, type AddOnRuntimeState } from '../add-ons/runtime.js';
 import { reserveDay, retryAfterSeconds, sourceGate, type SourceGate, type SourceRefusal } from './caps.js';
+import { leadSourceDemoFor } from './demo-seam.js';
 import { sourceKey, withoutKey, withoutKeyText } from './keys.js';
 import { needsKey, readSourcesState, sourceStateOf, sourcesOf, type LeadSourceEntry } from './state.js';
 
@@ -70,6 +71,8 @@ export interface LeadSourceDeps {
   now?: () => number;
   deadlineMs?: number | undefined;
   log?: (message: string, fields: Record<string, unknown>) => void;
+  /** The environment the demo seam reads (`demo-seam.ts`); the process's when absent. */
+  seamEnv?: Readonly<Record<string, string | undefined>> | undefined;
 }
 
 export interface LeadSourceCall {
@@ -138,6 +141,8 @@ export async function withLeadSource<T>(deps: LeadSourceDeps, call: LeadSourceCa
   const provider = runtime === null ? null : providerByKey(runtime, LEAD_SOURCE_CONTRACT, LEAD_SOURCE_VERSION, manifest.key);
   const factory = provider === null ? null : factoryOf(provider.module);
   if (factory === null) return refuse('NOT_VOUCHED', `The add-on "${manifest.key}" did not load: only a package Adminium vouches for may speak for a source.`);
+  // A test server's demo in place of the add-on's code (`demo-seam.ts`): never in production, a trial or a hosted server.
+  const make = (await leadSourceDemoFor(manifest.key, deps.seamEnv)) ?? factory;
 
   const entered = gate.enter(install.row.id, source, entry.window);
   if (!entered.ok) return entered;
@@ -168,7 +173,7 @@ export async function withLeadSource<T>(deps: LeadSourceDeps, call: LeadSourceCa
     });
     try {
       made = true;
-      const work = Promise.resolve().then(() => run(factory(context)));
+      const work = Promise.resolve().then(() => run(make(context)));
       // The slot is the source's own work: given back when that work ends, not when the reply stops waiting for it,
       // so a source that ignores its signal never has more calls running than the cap allows.
       leaveWith = work;

@@ -284,11 +284,13 @@ export const NO_RECORD_HOOKS: RecordHooks = {
 export class HookRejectedError extends AppError {
   override readonly name = 'HookRejectedError';
 
+  /** `more` adds facts a caller reads beside the message (a refusal's stable codes, say); it never replaces `hook` or `rejected`. */
   constructor(
     message: string,
     readonly hook: string,
+    more?: Readonly<Record<string, unknown>>,
   ) {
-    super(422, 'VALIDATION_FAILED', message, { hook, rejected: true });
+    super(422, 'VALIDATION_FAILED', message, { ...more, hook, rejected: true });
   }
 }
 

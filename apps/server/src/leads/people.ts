@@ -183,12 +183,53 @@ export async function installLanguage(meta: MetaDb): Promise<string> {
 
 // ── The People switch ────────────────────────────────────────────────────────
 
+/**
+ * What may be missing before people may be switched on, by a STABLE code: an
+ * add-on's screen reads these (in a refusal's `details.problems`) and says
+ * each in its reader's language, rather than reading the English message.
+ *  - `purpose-missing`: why they are kept, not written in a language needed;
+ *  - `keep-time`: how long they are kept, not chosen;
+ *  - `smtp`: e-mail is not set up;
+ *  - `public-origin`: the address in e-mail links is not set;
+ *  - `mail-door`: the Object page cannot be reached from outside;
+ *  - `privacy-notice`: the business name or the privacy notice is not set;
+ *  - `tell-outbox`: the add-on declares no mail that tells a person;
+ *  - `tables`: the add-on, or its tables for found people, are not here.
+ */
+export const PEOPLE_SWITCH_CODES = ['purpose-missing', 'keep-time', 'smtp', 'public-origin', 'mail-door', 'privacy-notice', 'tell-outbox', 'tables'] as const;
+export type PeopleSwitchCode = (typeof PEOPLE_SWITCH_CODES)[number];
+
 /** One thing missing before people may be switched on. */
 export interface PeopleSwitchProblem {
-  code: 'purpose' | 'keep-years' | 'mail-server' | 'public-origin' | 'mail-door' | 'privacy-notice' | 'tell-mail' | 'tables';
+  code: PeopleSwitchCode;
   /** For a missing purpose: the language it is missing in (`fr-FR`). */
   language?: string;
   message: string;
+}
+
+/** One thing missing, as a refusal carries it: a missing purpose names every language it is missing in. */
+export interface PeopleSwitchProblemData {
+  code: PeopleSwitchCode;
+  /** For `purpose-missing`: the languages (BCP 47 tags, `fr-FR`), sorted. */
+  languages?: string[];
+  /** The same thing in English, as the refusal's message says it. */
+  message: string;
+}
+
+/** The problems as a refusal's `details.problems`: one entry per code, in the order they were found. */
+export function peopleSwitchProblemsData(problems: readonly PeopleSwitchProblem[]): PeopleSwitchProblemData[] {
+  const out: PeopleSwitchProblemData[] = [];
+  for (const problem of problems) {
+    const same = out.find((one) => one.code === problem.code);
+    if (problem.code === 'purpose-missing') {
+      if (same === undefined) out.push({ code: problem.code, languages: problem.language === undefined ? [] : [problem.language], message: problem.message });
+      else {
+        if (problem.language !== undefined) same.languages = [...(same.languages ?? []), problem.language].sort();
+        same.message = `${same.message} ${problem.message}`;
+      }
+    } else if (same === undefined) out.push({ code: problem.code, message: problem.message });
+  }
+  return out;
 }
 
 const LANGUAGE_NAMES: Readonly<Record<string, string>> = {
@@ -213,22 +254,22 @@ export async function peopleSwitchProblems(deps: LeadsPeopleDeps, install: { ins
   const { addOn } = found;
   const out: PeopleSwitchProblem[] = [];
   if (addOn.foundPeople === null || addOn.settings === null) out.push({ code: 'tables', message: 'The add-on’s tables for the people it finds are not here.' });
-  if (addOn.tell === null) out.push({ code: 'tell-mail', message: 'The add-on has no mail that tells a person where their details came from.' });
+  if (addOn.tell === null) out.push({ code: 'tell-outbox', message: 'The add-on has no mail that tells a person where their details came from.' });
   const { db } = await deps.manager.data(addOn.connectionId);
   const stored = addOn.settings === null ? null : await leadsSettingsRow(db, addOn);
   const read: LeadsSettings = readLeadsSettingsRow({ ...(stored ?? {}), ...(settings ?? {}) });
   const needed = new Set<string>([await installLanguage(deps.meta), 'en-US', ...((await deps.sourceLanguages?.(addOn)) ?? [])]);
   for (const language of [...needed].sort()) {
     if ((read.purpose as Record<string, string | undefined>)[language] === undefined) {
-      out.push({ code: 'purpose', language, message: `Write the ${LANGUAGE_NAMES[language] ?? language} version of why you keep them.` });
+      out.push({ code: 'purpose-missing', language, message: `Write the ${LANGUAGE_NAMES[language] ?? language} version of why you keep them.` });
     }
   }
-  if (read.keepYearsSet === null) out.push({ code: 'keep-years', message: 'Choose how long found people are kept: 1 to 10 years.' });
-  if (!(await isEmailConfigured(deps.meta, deps.secret))) out.push({ code: 'mail-server', message: 'E-mail isn’t set up: Settings → Email.' });
+  if (read.keepYearsSet === null) out.push({ code: 'keep-time', message: 'Choose how long found people are kept: 1 to 10 years.' });
+  if (!(await isEmailConfigured(deps.meta, deps.secret))) out.push({ code: 'smtp', message: 'E-mail isn’t set up: Settings → Email.' });
   const door = await mailDoorReach(deps.meta, deps.reach);
   if (door.origin === null) out.push({ code: 'public-origin', message: 'Set the address in e-mail links: Settings → Senders.' });
   else if (!door.open) out.push({ code: 'mail-door', message: 'The page a person objects on can’t be reached from outside: check this server’s public address.' });
-  if (!(await privacyNoticeReady(deps.meta))) out.push({ code: 'privacy-notice', message: 'Set the business name and the privacy notice’s address: Studio → Privacy.' });
+  if (!(await privacyNoticeReady(deps.meta))) out.push({ code: 'privacy-notice', message: 'Set the business name and the privacy notice’s address: Server settings → Privacy & public pages.' });
   return out;
 }
 
@@ -448,7 +489,7 @@ export async function keepFoundPeople(deps: KeepFoundPeopleDeps, input: KeepFoun
   if (into === null && companyTable !== null) throw new ValidationFailedError('No app keeps people on this database, so nobody found here can be kept.', { reason: 'NO_PEOPLE_TABLE' });
 
   // The mail must be able to go now, in a language they could be told in.
-  const mailProblems = (await peopleSwitchProblems(deps, addOn)).filter((problem) => problem.code !== 'purpose');
+  const mailProblems = (await peopleSwitchProblems(deps, addOn)).filter((problem) => problem.code !== 'purpose-missing');
   const zone = await zoneOf(deps.meta, connectionId);
   const fallback = await installLanguage(deps.meta);
 

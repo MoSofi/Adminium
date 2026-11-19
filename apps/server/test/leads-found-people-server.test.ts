@@ -57,13 +57,14 @@ import type { FileStore } from '../src/files/store.js';
 import { campaignMarketingChecks, CAMPAIGN_SKIP_NOT_TOLD } from '../src/jobs/email-campaign-checks.js';
 import { FOUND_TICK_REFUSED, PEOPLE_SWITCH_REFUSED } from '../src/leads/guard.js';
 import { foundRowOf, insertFound, leadsWriteContext, tellByOf, untoldChanged } from '../src/leads/found-store.js';
-import { OBJECT_PATH } from '../src/leads/object-token.js';
+import { OBJECT_PATH, readObjectLink } from '../src/leads/object-token.js';
 import { keepFoundPeople, untoldAddress, UNTOLD_SENTENCE, type KeepFoundPeopleInput } from '../src/leads/people.js';
 import { sweepFoundPeople, yearsAfter } from '../src/leads/sweep.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import { sendPayLinkEmail } from '../src/payments/emails.js';
 import type { ResolvedPayable } from '../src/payments/payables.js';
+import { businessName } from '../src/privacy/business.js';
 import { erasePerson } from '../src/privacy/erase.js';
 import { findPerson } from '../src/privacy/sources.js';
 import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
@@ -83,6 +84,7 @@ const pk = { ref: 'id', type: 'int', role: 'pk' };
 const text = (ref: string, maxLength: number, more: Record<string, unknown> = {}) => ({ ref, type: 'text', maxLength, ...more });
 /** An address as wide as a found person's row keeps one: 320 characters. */
 const WIDE_ADDRESS = `${'x'.repeat(303)}@kestrel-yard.dev`;
+const FINDER_PAGE = 'company-finder-search';
 const PURPOSE = { 'en-US': 'To offer your studio drawing boards and plan chests.', 'fr-FR': 'Pour proposer à votre agence des tables à dessin.' };
 
 /** A CRM whose contacts are people (with "may be e-mailed"), whose companies say their country, with deals and a mail of its own. */
@@ -197,6 +199,9 @@ function finder(): Doc {
     },
   ];
   doc['roles'][0].permissions.push('table:@tell_mails:read');
+  // A page of its own: whoever may open it may see the tell mail's preview.
+  doc['addOn'].hostApi = 1;
+  doc['addOn'].pages = [{ ref: FINDER_PAGE, title: { key: 'company-finder.search', fallback: 'Find companies' }, icon: 'search', client: 'pages/search.js' }];
   return doc;
 }
 
@@ -290,7 +295,7 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     const document = (typeof stored.manifest === 'string' ? JSON.parse(stored.manifest) : stored.manifest) as Doc;
     document['people'][1]['lead'] = { website: 'website', address: { country: 'country' } };
     await h.meta.db.updateTable('adminium_manifests').set({ manifest: JSON.stringify(document) } as never).where('id', '=', stored.id).execute();
-    await h.stageAddOn(finder(), { bundled: true, files: { 'dist/server.js': 'export function createLeadSource() { return { checkKey: async () => ({ ok: true }) }; }\n' } });
+    await h.stageAddOn(finder(), { bundled: true, files: { 'dist/server.js': 'export function createLeadSource() { return { checkKey: async () => ({ ok: true }) }; }\n', 'pages/search.js': 'export default {};\n' } });
     const added = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: 'company-finder', version: '1.0.0', attachTo: ['crm'] } });
     expect(added.statusCode, added.body).toBe(200);
     installId = (await h.meta.db.selectFrom('adminium_manifests').select(['id']).where('manifestKey', '=', 'company-finder').executeTakeFirstOrThrow()).id;
@@ -333,6 +338,8 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     // Finn keeps people and works the contacts; Seth keeps the add-on's settings.
     await person('finn', 'Finn Ashcombe', await grants(await t('crm', 'contacts', 'read', 'create', 'update'), await t('crm', 'companies', 'read'), await t('crm', 'deals', 'read'), await t('company-finder', 'found_people', 'read', 'create', 'update', 'delete')));
     await person('seth', 'Seth Admin', await grants(await t('company-finder', 'finder_settings', 'read', 'update')));
+    // Pia may open the add-on's page and nothing else.
+    await person('pia', 'Pia Lund', [`page:${FINDER_PAGE}:view`]);
 
     await insert('companies', { id: 1, name: 'Kestrel Yard Architects', country: 'GB', website: 'https://www.kestrel-yard.example' });
     await insert('companies', { id: 2, name: 'Atelier Saône Clair', country: 'FR', website: 'https://www.saone-clair.example' });
@@ -352,6 +359,34 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     const row = (await rows(`SELECT id FROM ${table('company-finder', 'finder_settings')}`))[0]!;
     return as('seth', 'PATCH', `/api/v1/data/${conn}/${encodeURIComponent(settingsId)}/${String(row['id'])}`, { values: { people_on: true } });
   }
+
+  it.skipIf(!available)('the People switch’s refusal names each thing missing by a stable code, as data, beside the English message', async () => {
+    // A keeping time outside 1 to 10 years reads as none chosen.
+    await setPeople({ purpose: {}, keep_years: 0 });
+    await settings().set('system.publicOrigin', null, { updatedBy: null });
+    await settings().set('privacy.businessName', null, { updatedBy: null });
+    try {
+      const reply = await switchOn();
+      expect(reply.statusCode, reply.body).toBe(422);
+      const error = (JSON.parse(reply.body) as Doc)['error'] as Doc;
+      expect(error['message']).toContain(PEOPLE_SWITCH_REFUSED);
+      expect(error['details']['hook']).toBe('leads.people-switch');
+      expect(error['details']['problems']).toEqual([
+        { code: 'purpose-missing', languages: ['en-US'], message: 'Write the English version of why you keep them.' },
+        { code: 'keep-time', message: 'Choose how long found people are kept: 1 to 10 years.' },
+        { code: 'smtp', message: 'E-mail isn’t set up: Settings → Email.' },
+        { code: 'public-origin', message: 'Set the address in e-mail links: Settings → Senders.' },
+        { code: 'privacy-notice', message: 'Set the business name and the privacy notice’s address: Server settings → Privacy & public pages.' },
+      ]);
+      // Each code's message is in the English message too, in the same order.
+      const said = (error['details']['problems'] as Doc[]).map((one) => one['message'] as string).join(' ');
+      expect(error['message']).toBe(`${PEOPLE_SWITCH_REFUSED} ${said}`);
+    } finally {
+      await setPeople({ purpose: PURPOSE, keep_years: 3 });
+      await settings().set('system.publicOrigin', ORIGIN, { updatedBy: null });
+      await settings().set('privacy.businessName', 'Meridian Workplace Ltd', { updatedBy: null });
+    }
+  });
 
   it.skipIf(!available)('the People switch refuses, saying why, while e-mail, the public address or the purpose is missing; with all set it turns on', async () => {
     // No mail server.
@@ -377,6 +412,52 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     reply = await switchOn();
     expect(reply.statusCode, reply.body).toBe(200);
     expect(Number((await rows(`SELECT people_on FROM ${table('company-finder', 'finder_settings')}`))[0]!['people_on'])).toBe(1);
+  });
+
+  it.skipIf(!available)('the tell mail’s preview draws the mail as it would go, with the real business details, for a made-up person; it sends nothing and its Object link opens nothing', async () => {
+    await mails();
+    const foundBefore = (await foundRows()).length;
+    const tellsBefore = (await tellRows()).length;
+    const reply = await as('pia', 'GET', '/api/v1/leads/company-finder/tell-preview?locale=fr-FR');
+    expect(reply.statusCode, reply.body).toBe(200);
+    const preview = JSON.parse(reply.body) as Doc;
+    expect(preview['locale']).toBe('fr-FR');
+    expect(preview['purposeWritten']).toBe(true);
+    expect(preview['sample']).toEqual({ name: 'Robin Hale', company: 'Kestrel Yard Architects' });
+    // The add-on's French opening, then the engine's sentences, with this install's business, contact and purpose.
+    const html = preview['html'] as string;
+    expect(html).toContain('Bonjour Robin');
+    expect(html).toContain('Kestrel Yard Architects');
+    expect(html).toContain(PURPOSE['fr-FR']);
+    // The business as every mail of the install names it (the pay page's shop name wins over the privacy setting).
+    const business = await businessName(h.meta);
+    expect(business).toBe('Meridian');
+    expect(html).toContain('privacy@meridian.example');
+    expect(preview['subject']).toBe('Pourquoi nous avons vos coordonnées');
+    expect(preview['text']).toMatch(/privacy@meridian\.example[^\n]*Meridian/);
+    // The Object link: the Object page with a word that opens nothing, and no other link to it anywhere in the mail.
+    expect(preview['objectLink']).toBe(`${ORIGIN}${OBJECT_PATH}preview`);
+    const objectLinks = [...`${html}\n${preview['text'] as string}`.matchAll(new RegExp(`${OBJECT_PATH}([A-Za-z0-9_~.-]+)`, 'g'))].map((match) => match[1]);
+    expect(objectLinks.length).toBeGreaterThan(0);
+    expect(new Set(objectLinks)).toEqual(new Set(['preview']));
+    const install = String(await settings().get('system.instanceId'));
+    expect(await readObjectLink(h.meta, TEST_SECRET, install, 'preview')).toBeNull();
+    // A stranger following it is shown a dead link, and nothing changes.
+    const followed = await stranger('GET', `${OBJECT_PATH}preview`);
+    expect(followed.body).not.toContain('Kestrel Yard Architects');
+    // Nothing sent, queued or stored.
+    expect(await mails()).toEqual([]);
+    expect((await foundRows()).length).toBe(foundBefore);
+    expect((await tellRows()).length).toBe(tellsBefore);
+
+    // A language the purpose is not written in: shown in English, as the People card shows it.
+    const german = JSON.parse((await as('pia', 'GET', '/api/v1/leads/company-finder/tell-preview?locale=de-DE')).body) as Doc;
+    expect(german['locale']).toBe('en-US');
+    expect(german['html']).toContain(PURPOSE['en-US']);
+    expect(german['html']).toContain('Hello Robin');
+    // Someone who may not open the add-on's pages is not answered.
+    const finn = await as('finn', 'GET', '/api/v1/leads/company-finder/tell-preview');
+    expect([403, 404]).toContain(finn.statusCode);
   });
 
   it.skipIf(!available)('before storing: stopped, already here, a shared inbox, no name and no company are each refused by reason, and nothing is stored for them', async () => {

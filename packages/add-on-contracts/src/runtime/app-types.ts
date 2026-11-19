@@ -29,13 +29,23 @@
  */
 import type { ComponentType, ReactNode } from 'react';
 
+/**
+ * A call's own options. `signal` cancels the request itself: a page's Stop
+ * aborts it, the fetch ends, and the server sees the request close and stops
+ * its own work (a lead source's look-up, say), rather than only dropping the
+ * answer when it comes.
+ */
+export interface AddOnApiOptions {
+  signal?: AbortSignal;
+}
+
 /** `apiFetch` returns the WHOLE body; these are the verbs a page uses. */
 export interface AddOnApiClient {
-  get<T>(path: string): Promise<T>;
-  post<T>(path: string, payload?: unknown): Promise<T>;
-  put<T>(path: string, payload: unknown): Promise<T>;
-  patch<T>(path: string, payload: unknown): Promise<T>;
-  delete<T>(path: string, payload?: unknown): Promise<T>;
+  get<T>(path: string, options?: AddOnApiOptions): Promise<T>;
+  post<T>(path: string, payload?: unknown, options?: AddOnApiOptions): Promise<T>;
+  put<T>(path: string, payload: unknown, options?: AddOnApiOptions): Promise<T>;
+  patch<T>(path: string, payload: unknown, options?: AddOnApiOptions): Promise<T>;
+  delete<T>(path: string, payload?: unknown, options?: AddOnApiOptions): Promise<T>;
 }
 
 /**

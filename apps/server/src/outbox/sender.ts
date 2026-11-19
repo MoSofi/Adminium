@@ -200,6 +200,7 @@ import { producerOf, settingReader, skipSentence, sourceOf } from './timing.js';
 import { PAYMENT_HOLD_RETRY_MS, createPaymentHolds, paymentHoldSentence } from '../payments/reminder-hold.js';
 import { createMemoryHolds } from './memory-holds.js';
 import { OBJECT_LINK_VARIABLE } from '../leads/object-token.js';
+import { isDemoPersonAddress } from '../lead-sources/demo-seam.js';
 import { UNTOLD_SENTENCE } from '../leads/people.js';
 import type { TellMail } from '../leads/tell.js';
 import { yesNo } from '../automations/yes-no.js';
@@ -1613,7 +1614,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     if (!plausibleAddress(found)) return { status: 'skipped', error: 'No email on file' };
     // A person who deleted their details since the message was queued: read as they are now, and written to no more.
     if (await toForgotten(ctx, box.definition, row, addressed, columnRecipientOf(producer)?.column)) return { status: 'skipped', error: 'No email on file' };
-    if (reservedAddress(found)) return { status: 'skipped', error: 'A reserved address (for examples and tests)' };
+    // A test server's demo people are the one exception (`lead-sources/demo-seam.ts`, never in production).
+    if (reservedAddress(found) && !(await isDemoPersonAddress(found))) return { status: 'skipped', error: 'A reserved address (for examples and tests)' };
     const templateKey = box.definition.kinds[kind];
     if (templateKey === undefined) return { status: 'failed', error: sentence(`No email is set for "${kind}"`) };
     // A found person's tell mail: its template made with the engine's sentences and its Object link (`leads/tell.ts`).
