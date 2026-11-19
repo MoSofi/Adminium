@@ -29,6 +29,7 @@
     "@adminium/add-on-contracts/forms/websites",
     "@adminium/add-on-contracts/landing",
     "@adminium/add-on-contracts/runtime",
+    "@adminium/add-on-contracts/testing/lead-source",
     "@adminium/engine",
     "@adminium/engine/adapter",
     "@adminium/engine/config",
