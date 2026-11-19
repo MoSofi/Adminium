@@ -82,6 +82,8 @@ describe('loadEnv — valid input', () => {
       ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY: 50,
       ADMINIUM_OPERATOR_EMAIL_MAX_PER_DAY: 500,
       ADMINIUM_AI_OPERATOR_ONLY: false,
+      // An operator project (a trial run as a project with its config from the environment) is the operator's to switch on.
+      ADMINIUM_OPERATOR_PROJECT: false,
       // Due jobs run, and the dashboard reports nobody's presence, unless an operator says otherwise.
       ADMINIUM_SCHEDULER: true,
       ADMINIUM_PRESENCE: false,

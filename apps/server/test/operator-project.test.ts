@@ -20,6 +20,7 @@ import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter'
 import { operatorTalliesRepo, pagesRepo, type MetaDb } from '@adminium/meta';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { envSchema } from '../src/config/env.js';
 import { parseYourDatabase, cleanNotes, type YourDatabase } from '../src/config/your-database.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { ConnectionManager } from '../src/connections/manager.js';
@@ -31,7 +32,7 @@ import { syncProjectDatabases } from '../src/project/databases.js';
 import { findProject } from '../src/project/locate.js';
 import { adoptSeededMain } from '../src/project/operator-adopt.js';
 import { forgetOperatorProjects, isOperatorLocation, OPERATOR_CONFIG_NAME, operatorProjectOn } from '../src/project/operator-project.js';
-import { connectYourDatabase, registerYourDatabase, startYourDatabase, YOURS_CHOICE_TALLY, yoursDataDsn } from '../src/project/your-database.js';
+import { connectYourDatabase, reasonOf, registerYourDatabase, startYourDatabase, YOURS_CHOICE_TALLY, yoursDataDsn } from '../src/project/your-database.js';
 import { yourDatabaseStatus } from '../src/project/your-database-state.js';
 import { META_ENGINES } from './meta-dialects.js';
 
@@ -126,6 +127,17 @@ describe.each(META_ENGINES.filter((engine) => engine.available))('an existing tr
       await manager.disposeAll().catch(() => undefined);
       await handle.destroy();
     }
+  });
+});
+
+describe('a failure as a coarse reason', () => {
+  it('reads a missing database before a refused login, and the lockout as ours', () => {
+    expect(reasonOf({ code: 'AUTH', message: 'database "shop" does not exist' })).toBe('no-database');
+    expect(reasonOf({ code: 'AUTH', message: "Unknown database 'shop'" })).toBe('no-database');
+    expect(reasonOf({ code: 'AUTH', message: 'password authentication failed for user "ava"' })).toBe('auth');
+    expect(reasonOf({ code: 'SOURCE_LOGIN_LOCKED', message: 'too many refused logins' })).toBe('refused-by-us');
+    expect(reasonOf({ code: 'HOST_LOOKUP_FAILED', message: 'Could not look up db.invalid.' })).toBe('dns');
+    expect(reasonOf({ code: 'TIMEOUT', message: 'The database did not answer in time.' })).toBe('unreachable');
   });
 });
 
@@ -323,5 +335,48 @@ describe.each(META_ENGINES.filter((engine) => engine.available))('yours that can
       await manager.disposeAll().catch(() => undefined);
       await handle.destroy();
     }
+  });
+});
+
+describe('the operator project variables at boot', () => {
+  const base = {
+    ADMINIUM_SECRET: 'a-sufficiently-long-dev-secret',
+    ADMINIUM_TRIAL_MODE: 'on',
+    ADMINIUM_TRIAL_ENDS_AT: '2099-12-01T00:00:00Z',
+    ADMINIUM_PUBLIC_ORIGIN: 'https://hollis.try.example.com',
+    ADMINIUM_DATABASE_HOSTS: 'pg-trials:5432',
+    ADMINIUM_SETUP_TOKEN: 'a-long-enough-setup-token',
+    ADMINIUM_SOURCE_URL: 'postgres://trial_1:pw@pg-trials:5432/trial_1',
+  };
+  const yours = JSON.stringify({ url: 'postgres://ava:her-secret@db.example.com:6543/shop' });
+  const problems = (env: Record<string, string>): string[] => {
+    const parsed = envSchema.safeParse(env);
+    return parsed.success ? [] : parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`);
+  };
+
+  it('boots with the five set as the operator sets them', () => {
+    expect(
+      problems({ ...base, ADMINIUM_OPERATOR_PROJECT: 'on', ADMINIUM_YOUR_DATABASE: yours, ADMINIUM_DATABASE_USER_HOST: 'db.example.com:6543', ADMINIUM_DATABASE_DENY_ADDRESSES: '203.0.113.7,10.0.0.0/8,2001:db8::/32', ADMINIUM_AI_BUILD_API_KEY: 'k' }),
+    ).toEqual([]);
+  });
+
+  it('refuses a user host on a port below 1024 or a fleet service port, and one that is not the user database’s', () => {
+    for (const host of ['db.example.com:22', 'db.example.com:2376', 'db.example.com:8443', 'localhost:6543', 'db.example.com']) {
+      expect(problems({ ...base, ADMINIUM_DATABASE_USER_HOST: host }).join('\n')).toMatch(/ADMINIUM_DATABASE_USER_HOST/);
+    }
+    expect(problems({ ...base, ADMINIUM_OPERATOR_PROJECT: 'on', ADMINIUM_YOUR_DATABASE: yours, ADMINIUM_DATABASE_USER_HOST: 'other.example.com:6543' }).join('\n')).toMatch(
+      /ADMINIUM_DATABASE_USER_HOST: must be ADMINIUM_YOUR_DATABASE's host and port \(db\.example\.com:6543\)/,
+    );
+    expect(problems({ ...base, ADMINIUM_OPERATOR_PROJECT: 'on', ADMINIUM_YOUR_DATABASE: yours }).join('\n')).toMatch(/ADMINIUM_DATABASE_USER_HOST/);
+  });
+
+  it('needs an operator project for the user database, and trial or hosted mode for an operator project; never prints the password', () => {
+    const without = problems({ ...base, ADMINIUM_YOUR_DATABASE: yours, ADMINIUM_DATABASE_USER_HOST: 'db.example.com:6543' });
+    expect(without.join('\n')).toMatch(/ADMINIUM_YOUR_DATABASE: is set, but ADMINIUM_OPERATOR_PROJECT is not on/);
+    expect(problems({ ADMINIUM_SECRET: base.ADMINIUM_SECRET, ADMINIUM_OPERATOR_PROJECT: 'on' }).join('\n')).toMatch(/ADMINIUM_OPERATOR_PROJECT: is on, but neither/);
+    const bad = problems({ ...base, ADMINIUM_OPERATOR_PROJECT: 'on', ADMINIUM_YOUR_DATABASE: JSON.stringify({ url: 'postgres://ava:her-secret@db.example.com:6543/shop', intent: 'nope' }) });
+    expect(bad.join('\n')).toMatch(/ADMINIUM_YOUR_DATABASE/);
+    expect(JSON.stringify(bad)).not.toContain('her-secret');
+    expect(problems({ ...base, ADMINIUM_DATABASE_DENY_ADDRESSES: '203.0.113.7,not-an-ip' }).join('\n')).toMatch(/"not-an-ip" is not an IP address or CIDR range/);
   });
 });

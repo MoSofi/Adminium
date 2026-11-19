@@ -81,12 +81,14 @@ export function yoursDataDsn(yours: YourDatabase): string | null {
 export function reasonOf(error: { code?: string | undefined; message?: string | undefined } | null | undefined): YourDatabaseReason {
   const code = error?.code ?? '';
   const message = error?.message ?? '';
-  if (code === 'OFF_BY_OPERATOR' || code === 'VALIDATION_FAILED' || code === 'REFUSED' || code === 'TOO_MANY_ATTEMPTS') return 'refused-by-us';
+  // The lockout after repeated refused logins (`SOURCE_LOGIN_LOCKED`) is ours, as every refusal before a dial is.
+  if (code === 'OFF_BY_OPERATOR' || code === 'VALIDATION_FAILED' || code === 'REFUSED' || code === 'SOURCE_LOGIN_LOCKED') return 'refused-by-us';
   if (code === 'HOST_LOOKUP_FAILED' || code === 'ENOTFOUND' || /ENOTFOUND|getaddrinfo|could not be looked up/i.test(message)) return 'dns';
+  // Before `auth`: the adapters report a missing database as an AUTH failure (Postgres 3D000, MySQL ER_BAD_DB_ERROR).
+  if (/database .* does not exist|unknown database|3D000|ER_BAD_DB_ERROR|ER_DBACCESS_DENIED_ERROR/i.test(message)) return 'no-database';
   if (code === 'AUTH') return 'auth';
   if (code === 'TLS') return 'tls';
   if (code === 'PERMISSION') return 'no-permission';
-  if (/database .* does not exist|unknown database|ER_BAD_DB_ERROR/i.test(message)) return 'no-database';
   if (/ENETUNREACH|EHOSTUNREACH/.test(message) && /[0-9a-f]*:[0-9a-f:]+/i.test(message)) return 'ipv6-only';
   return 'unreachable';
 }

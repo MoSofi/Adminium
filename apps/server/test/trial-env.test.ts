@@ -349,9 +349,11 @@ describe('implied values are enforced, never defaults', () => {
 
 describe('the operator-decided list', () => {
   it('names every trial and operator variable the schema validates', () => {
-    const pattern = /^ADMINIUM_(TRIAL_|HOSTED_MODE$|PUBLIC_ORIGIN$|DATABASE_HOSTS$|LOCAL_DATABASES$|NETWORK_POLICY$|SQLITE_DIRS$|STORAGE_DIRS$|SETUP_TOKEN$|DEPLOY_LINK$|OPERATOR_|AI_OPERATOR_|SUPABASE_CONNECT_URL$|DESIGNER_START_PROMPT)/;
+    const pattern =
+      /^ADMINIUM_(TRIAL_|HOSTED_MODE$|PUBLIC_ORIGIN$|DATABASE_HOSTS$|LOCAL_DATABASES$|NETWORK_POLICY$|SQLITE_DIRS$|STORAGE_DIRS$|SETUP_TOKEN$|DEPLOY_LINK$|OPERATOR_|AI_OPERATOR_|SUPABASE_CONNECT_URL$|DESIGNER_START_PROMPT|YOUR_DATABASE$|DATABASE_USER_HOST$|DATABASE_DENY_ADDRESSES$|AI_BUILD_API_KEY$)/;
     const fromSchema = Object.keys(envSchema.shape).filter((name) => pattern.test(name)).sort();
     expect([...OPERATOR_DECIDED_ENV].sort()).toEqual(fromSchema);
-    expect(fromSchema.length).toBe(33);
+    // 33, and the build box's five: the operator project, the user's database, its host, the deny list, the build key.
+    expect(fromSchema.length).toBe(38);
   });
 });
