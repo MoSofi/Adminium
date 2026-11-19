@@ -121,6 +121,18 @@ RUN node scripts/check-dist-spdx.mjs /app
 # re-verifies every hash again on the way into the store, copy-if-absent.
 RUN node scripts/release/fetch-add-ons-bundle.mjs /app/add-ons-bundle
 
+# esbuild for the Designer's app builds in an operator project (adminium.app trials). The server finds esbuild by
+# walking up from the project folder to `/node_modules` (`project/build.ts`, `projectBundlerManifest`), and an
+# operator project's folder is `/data/project`, so it goes to `/node_modules/esbuild`. Installed here, in the stage
+# buildx runs on the TARGET platform, so npm picks the one `@esbuild/linux-<arch>` binary that matches the image.
+# Exact version (the lockfile's 0.28 line, `ESBUILD_RANGE` in `project/scaffold.ts`). About 10 MB per image.
+# Custom screens stay off on trials (`designerCode`): this builds the declarative apps' own files only.
+ARG ESBUILD_VERSION=0.28.2
+RUN mkdir -p /esbuild \
+    && cd /esbuild \
+    && npm install --no-save --no-package-lock --no-audit --no-fund "esbuild@${ESBUILD_VERSION}" \
+    && node -e "require('/esbuild/node_modules/esbuild').transformSync('let a=1')"
+
 # ────────────────────────── runtime ──────────────────────────
 FROM node:22-slim AS runtime
 
@@ -145,6 +157,9 @@ ENV NODE_ENV=production \
 WORKDIR /app
 
 COPY --from=build --chown=node:node /app /app
+
+# esbuild (see the build stage): read-only to the server, owned by root.
+COPY --from=build /esbuild/node_modules /node_modules
 
 # `adminium <cmd>` for `docker compose exec` / one-shot overrides
 # (e.g. `docker run … adminium migrate`). The default CMD stays on the explicit
