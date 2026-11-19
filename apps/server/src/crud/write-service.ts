@@ -2333,7 +2333,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    * assistant's door is told apart by the request it carries.
    */
   const sealLanding = async (action: WriteAction, target: Pick<WriteTarget, 'connectionId' | 'table' | 'db'>, context: WriteContext, values: Row, stored: () => Promise<Row | null>, seals?: boolean): Promise<Row> => {
-    if (!(seals ?? (await sealsLanding(action, target, context)))) return values;
+    if (action === 'delete' || !(seals ?? (await sealsLanding(action, target, context)))) return values;
     const column = target.table.columns.get('published_at');
     let judged: { slug: string; own: Row | null } | null = null;
     const sealed = await sealLandingWrite({
