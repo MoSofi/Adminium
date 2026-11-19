@@ -19,7 +19,7 @@
  *   `export-derived.test.ts`.
  */
 
-import { CRLF, EXPORT_BOM, serializeCsvRow } from '../data-io/csv.js';
+import { CRLF, EXPORT_BOM, formulaSafe, serializeCsvRow } from '../data-io/csv.js';
 import type { Row } from '../crud/mask.js';
 import { placeCellText } from '../geo/values.js';
 
@@ -114,12 +114,13 @@ export function createRowWriter(
       extension: 'csv',
       mime: 'text/csv; charset=utf-8',
       preamble: () => EXPORT_BOM,
-      headerLine: () => (headerRow ? serializeCsvRow(columns.map((column) => column.header)) : null),
+      // Every cell, the headers too, as a spreadsheet may open it: never a formula (`formulaSafe`).
+      headerLine: () => (headerRow ? serializeCsvRow(columns.map((column) => formulaSafe(column.header))) : null),
       line: (record) => {
-        if (legacy) return serializeCsvRow(columns.map((column) => csvValue(record[column.key], column)));
+        if (legacy) return serializeCsvRow(columns.map((column) => csvValue(formulaSafe(record[column.key]), column)));
         const masked = maskedKeysOf(record);
         return serializeCsvRow(
-          columns.map((column) => (masked.has(column.key) ? MASKED_CELL : csvValue(record[column.key], column))),
+          columns.map((column) => (masked.has(column.key) ? MASKED_CELL : csvValue(formulaSafe(record[column.key]), column))),
         );
       },
     };

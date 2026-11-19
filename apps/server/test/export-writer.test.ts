@@ -44,6 +44,17 @@ describe('csv', () => {
     );
   });
 
+  it('neutralises a formula an answer, a register or a form wrote, and leaves numbers written as text alone', () => {
+    const writer = createRowWriter('csv', COLUMNS);
+    const line = writer.line({ number: '=HYPERLINK("https://evil.example","Kestrel")', total: '-12.50', contact_email: '@SUM(A1:A2)', issued_on: '+44 113 496 0412' });
+    expect(line).toBe(`"'=HYPERLINK(""https://evil.example"",""Kestrel"")",-12.50,'@SUM(A1:A2),'+44 113 496 0412\r\n`);
+    // A tab or a carriage return first, and a minus that is not a number.
+    expect(writer.line({ number: '\tcmd', total: '-1e3', contact_email: '-x', issued_on: '\r=1' })).toBe(`'\tcmd,-1e3,'-x,"'\r=1"\r\n`);
+    // The legacy writer and the header row are held to the same rule.
+    expect(createRowWriter('csv', COLUMNS, { legacy: true }).line({ number: '=1+1' })).toBe(`'=1+1,,,\r\n`);
+    expect(createRowWriter('csv', [{ key: 'a', header: '=cmd|"/c calc"!A1', numeric: false }]).headerLine()).toBe(`"'=cmd|""/c calc""!A1"\r\n`);
+  });
+
   it('omits the header line when the option is off', () => {
     const writer = createRowWriter('csv', COLUMNS, { headerRow: false });
     expect(writer.headerLine()).toBeNull();

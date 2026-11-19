@@ -15,6 +15,11 @@
  * - null/undefined serialize as the empty field; the importer's coercion maps
  *   the empty field back to NULL for nullable columns. This is lossy for
  *   empty-string-vs-null on purpose: CSV has no NULL literal.
+ * - A table's export goes through `formulaSafe` (`export/writer.ts`): a text
+ *   cell a spreadsheet would run as a formula (`=HYPERLINK(...)`, `+`, `-`,
+ *   `@`, a tab, a carriage return first) is written with a quote before it,
+ *   as the privacy export writes it. A number written as text (`-12.50`) is
+ *   left as it is, so a table's figures still import back.
  *
  * PARSER: a streaming state machine — `write(chunk)` may be called with
  * arbitrary splits (even mid-quote); rows are emitted as soon as complete.
@@ -39,6 +44,22 @@ export function serializeCsvField(value: unknown): string {
   else text = String(value);
   if (NEEDS_QUOTING.test(text)) return `"${text.replaceAll('"', '""')}"`;
   return text;
+}
+
+/** A plain number written as text: a sign, digits, one decimal mark, an exponent. */
+const PLAIN_NUMBER = /^[+-]?(?:\d+(?:[.,]\d+)?|[.,]\d+)(?:[eE][+-]?\d+)?$/;
+/** What a spreadsheet reads as the start of a formula. */
+const FORMULA_START = /^[=+\-@\t\r]/;
+
+/**
+ * A cell as a spreadsheet may open it: a text a spreadsheet would run as a
+ * formula starts with a quote instead (a value a register, a website or a
+ * stranger's form wrote can hold `=HYPERLINK(...)`). Numbers and everything
+ * that is not text are left as they are.
+ */
+export function formulaSafe(value: unknown): unknown {
+  if (typeof value !== 'string' || !FORMULA_START.test(value) || PLAIN_NUMBER.test(value)) return value;
+  return `'${value}`;
 }
 
 /** One row → one CRLF-terminated record. */
