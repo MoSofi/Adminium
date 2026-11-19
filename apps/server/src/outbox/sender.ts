@@ -201,7 +201,7 @@ import { PAYMENT_HOLD_RETRY_MS, createPaymentHolds, paymentHoldSentence } from '
 import { createMemoryHolds } from './memory-holds.js';
 import { OBJECT_LINK_VARIABLE } from '../leads/object-token.js';
 import { isDemoPersonAddress } from '../lead-sources/demo-seam.js';
-import { UNTOLD_SENTENCE } from '../leads/people.js';
+import { UNTOLD_UNJUDGED_SENTENCE, UntoldUnjudgedError, untoldSentence } from '../leads/people.js';
 import type { TellMail } from '../leads/tell.js';
 import { yesNo } from '../automations/yes-no.js';
 
@@ -293,11 +293,13 @@ export interface OutboxSenderDeps {
    */
   tell?: TellMail | undefined;
   /**
-   * Whether an address is a found person's who has not been told yet
-   * (`leads/people.ts`): every message to them but their tell mail is
-   * skipped. Absent: none is.
+   * The name of the add-on that found the person an address is, while they
+   * have not been told yet (`leads/people.ts` `untoldBy`), else null: every
+   * message to them but their tell mail is skipped. Asked with the outbox's
+   * database: when that database's found people cannot be read it throws
+   * `UntoldUnjudgedError`, and the message waits. Absent: none is skipped.
    */
-  untold?: ((address: string) => Promise<boolean>) | undefined;
+  untold?: ((address: string, connectionId: string) => Promise<string | null>) | undefined;
 }
 
 export interface OutboxSender {
@@ -324,6 +326,11 @@ declare module 'fastify' {
  * where it went.
  */
 type Outcome = { status: 'failed' | 'skipped'; error: string | null };
+/** A row that stays queued for a later pass, saying why. */
+type Waiting = { wait: string };
+
+/** How long a message waits when whether its person has been told yet could not be checked. */
+const UNTOLD_WAIT_MS = 60_000;
 
 /** A row made ready to go: its email, and what the claim writes back (the address and language looked up). */
 /** Whose codes an email may carry: one row of the recipient's table. */
@@ -1595,7 +1602,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       labels?: ((locale: string) => ChoiceLabels) | undefined;
     },
     row: Row,
-  ): Promise<Outcome | Prepared> {
+  ): Promise<Outcome | Prepared | Waiting> {
     const cols = box.definition.columns;
     const kind = String(row[cols.kind] ?? '');
     const producer = producerOf(box.definition, kind);
@@ -1621,8 +1628,17 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // A found person's tell mail: its template made with the engine's sentences and its Object link (`leads/tell.ts`).
     const tell = deps.tell === undefined ? null : await deps.tell.prepare({ box, db: ctx.db, view: ctx.view, row, to: found.trim(), zone: ctx.zone, now: ctx.now });
     if (tell !== null && 'skip' in tell) return { status: 'failed', error: sentence(tell.skip) };
-    // A found person not told yet gets no other mail.
-    if (tell === null && deps.untold !== undefined && (await deps.untold(found.trim()))) return { status: 'skipped', error: UNTOLD_SENTENCE };
+    // A found person not told yet gets no other mail. When this database's found people cannot be read, it waits.
+    if (tell === null && deps.untold !== undefined) {
+      let by: string | null;
+      try {
+        by = await deps.untold(found.trim(), box.connectionId);
+      } catch (error) {
+        if (error instanceof UntoldUnjudgedError) return { wait: UNTOLD_UNJUDGED_SENTENCE };
+        throw error;
+      }
+      if (by !== null) return { status: 'skipped', error: untoldSentence(by) };
+    }
 
     const own = cols.language === undefined ? undefined : row[cols.language];
     // The row's own language first, when a message can be written in it; for a row addressed now, the one looked up with the address.
@@ -1975,6 +1991,15 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         forgets ??= await forgetsOn(deps.meta, box.connectionId, { key: box.appKey, manifest: (await appFacts(box.row.manifestId)).manifest });
         labels ??= await choiceLabels(deps.meta, box.connectionId);
         const ready = await prepare(box, { db, view, outbox, zone, currency: tenant?.currency ?? null, now, shareCodes, withholds, forgets, labels }, row);
+        if ('wait' in ready) {
+          // Still queued, for a later pass: this process keeps the wait, so the row does not head every batch.
+          heldInMemory.hold(box.row.id, row[key], now + UNTOLD_WAIT_MS);
+          if (cols.error !== undefined) {
+            const held = await settle(box, target, pk, { [cols.error]: ready.wait }, (q) => q.where(sql.ref(cols.status), '=', 'queued'));
+            if (held !== null) settled.push(held);
+          }
+          continue;
+        }
         if ('status' in ready) {
           const values: Row = { [cols.status]: ready.status };
           if (cols.error !== undefined) values[cols.error] = ready.error;

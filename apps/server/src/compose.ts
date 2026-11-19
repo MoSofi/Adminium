@@ -150,7 +150,7 @@ import { createChatStaff, type ChatStaff } from './chat/staff.js';
 import { createChatWaiting, type ChatWaiting } from './chat/waiting.js';
 import { sweepChatTranscripts } from './chat/transcripts.js';
 import { withLeadsGuard } from './leads/guard.js';
-import { isFoundPerson, keepFoundPeople, untoldAddress, type KeepFoundPeopleDeps, type KeepFoundPeopleInput, type KeptPeople } from './leads/people.js';
+import { foundPersonBy, keepFoundPeople, untoldAddress, untoldBy, type KeepFoundPeopleDeps, type KeepFoundPeopleInput, type KeptPeople } from './leads/people.js';
 import { sourceLanguages } from './leads/registers.js';
 import type { CompanyFillDeps } from './automations/actions/company-fill.js';
 import { leadDoorRoutes } from './routes/leads/index.js';
@@ -1552,8 +1552,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     secret: env.ADMINIUM_SECRET,
     // A found person's tell mail: the engine's sentences, its sealed Object link, and their row marked told (`leads/tell.ts`).
     tell: createTellMail({ meta, secret: env.ADMINIUM_SECRET }),
-    // …and no other message reaches them until it has gone.
-    untold: (address) => untoldAddress({ meta, manager, viewFor: (connectionId) => publicViews.viewFor(connectionId) }, address),
+    // …and no other message reaches them until it has gone (one on a database whose found people cannot be read waits).
+    untold: (address, on) => untoldBy({ meta, manager, viewFor: (connectionId) => publicViews.viewFor(connectionId) }, address, { on }),
   });
   app.decorate('outboxSender', outboxSender);
   const projectActions =
@@ -2672,7 +2672,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // Download the app template a shop uploads to its own provider account to make its key.
       await api.register(keyAppRoutes({ meta, runtime: () => addOnRuntime }));
       // Email a record's pay link to its customer, under the links' own rights.
-      await api.register(paymentLinkEmailRoutes({ meta, sources: paymentSources, secret: env.ADMINIUM_SECRET, assertMayLink: createLinkRights({ meta, sources: paymentSources }), logger: app.log, networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY, untold: (address) => untoldAddress({ meta, manager, viewFor: (connectionId) => publicViews.viewFor(connectionId) }, address) }));
+      await api.register(paymentLinkEmailRoutes({ meta, sources: paymentSources, secret: env.ADMINIUM_SECRET, assertMayLink: createLinkRights({ meta, sources: paymentSources }), logger: app.log, networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY, untold: (address) => untoldBy({ meta, manager, viewFor: (connectionId) => publicViews.viewFor(connectionId) }, address) }));
       // Send a test payment, and the pay page's full preview: a throwaway payable and a test link.
       await api.register(
         testPaymentsRoutes({
@@ -2719,7 +2719,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           addressColumnOf: async (connectionId, table) => (await consentMirror.addressColumnOf(connectionId, table)) ?? emailColumnOf(table),
           mirror: (event) => consentMirror.mirrorEvent(event),
           // A person a source found agreed somehow: their consent needs a note of how.
-          foundPerson: (person) => isFoundPerson({ meta, manager, viewFor: (connectionId) => publicViews.viewFor(connectionId) }, person),
+          foundPerson: (person) => foundPersonBy({ meta, manager, viewFor: (connectionId) => publicViews.viewFor(connectionId) }, person),
         }),
       );
       // A person's data by address, the privacy notice and the sender's postal address: the privacy action's.
