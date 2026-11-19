@@ -235,6 +235,19 @@ export default defineConfig({
                 { label: 'The Inventory add-on', link: '/guides/add-ons/inventory/' },
                 { label: 'The Offers & gift cards add-on', link: '/guides/add-ons/offers/' },
                 { label: 'The Customiser add-on', link: '/guides/add-ons/customiser/' },
+                {
+                  label: 'The Lead finder add-on',
+                  items: [
+                    { label: 'Overview', link: '/guides/add-ons/lead-finder/' },
+                    { label: 'People and the law', link: '/guides/add-ons/lead-finder-people/' },
+                    { label: 'Companies House (UK)', link: '/guides/add-ons/lead-finder-companies-house/' },
+                    { label: 'Register of France', link: '/guides/add-ons/lead-finder-france/' },
+                    { label: 'Register of Norway', link: '/guides/add-ons/lead-finder-norway/' },
+                    { label: 'OpenCorporates', link: '/guides/add-ons/lead-finder-opencorporates/' },
+                    { label: 'Hunter', link: '/guides/add-ons/lead-finder-hunter/' },
+                    { label: 'The website reader', link: '/guides/add-ons/lead-finder-website/' },
+                  ],
+                },
               ],
             },
             {
