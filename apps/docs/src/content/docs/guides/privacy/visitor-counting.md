@@ -60,7 +60,7 @@ in, else UTC.
 
 - The **Landing pages** list shows each page's views this month.
 - A **funnel** shows the views of each step and the sends of each form, over
-  a date range you pick.
+  a date range you pick (see [The Landing pages add-on](/guides/add-ons/landing-pages/#funnels)).
 - An app or a screen of your own reads them at `GET /api/v1/views` (see the
   [REST API](/reference/rest-api/)). Whoever may read the counted thing's
   table may read its counts. A role held to some of its rows is refused: the

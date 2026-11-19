@@ -241,6 +241,7 @@ export default defineConfig({
                 { label: 'The Inventory add-on', link: '/guides/add-ons/inventory/' },
                 { label: 'The Offers & gift cards add-on', link: '/guides/add-ons/offers/' },
                 { label: 'The Customiser add-on', link: '/guides/add-ons/customiser/' },
+                { label: 'The Landing pages add-on', link: '/guides/add-ons/landing-pages/' },
               ],
             },
             {

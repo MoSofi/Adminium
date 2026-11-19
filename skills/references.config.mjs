@@ -85,6 +85,7 @@ export default {
     { area: 'guides', page: 'guides/apps/discounts-and-codes.md' },
     { area: 'guides', page: 'guides/add-ons/offers.md' },
     { area: 'guides', page: 'guides/add-ons/customiser.md' },
+    { area: 'guides', page: 'guides/add-ons/landing-pages.md' },
     { area: 'guides', page: 'guides/take-payments.md' },
     { area: 'shapes', page: 'reference/offers-shapes.md', flat: true },
     { area: 'install', page: 'self-hosting/installing-add-ons.md', flat: true },
