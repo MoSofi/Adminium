@@ -17,6 +17,7 @@ import { overridesRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { parseCsv } from '../src/data-io/csv.js';
+import { createRowWriter } from '../src/export/writer.js';
 import { ENGINES, world, type PersonName, type World } from './row-limit-world.js';
 
 const OWN = { reach: 'own' } as const;
@@ -355,6 +356,23 @@ for (const [dialect, available] of ENGINES) {
       expectAgreed(preview, await ranImport('lena', made.id), 'skip');
       expect(await countOf('SELECT COUNT(*) FROM deals')).toBe(450);
       await w.run('DELETE FROM deals WHERE id > 9');
+    });
+
+    it('brings back what a CSV export wrote as it was kept: a phone number, a signed text, a formula and a quote', async () => {
+      // The titles a table's export keeps from running as formulas, written by the export's own writer.
+      const titles = ['+44 113 496 0000', '-not set-', '=HYPERLINK("https://evil.example")', "'=kept with its quote", "'plain quote", '-12.50'];
+      const columns = ['id', 'title', 'state', 'amount', 'big'].map((key) => ({ key, header: key, numeric: key === 'id' || key === 'amount' }));
+      const writer = createRowWriter('csv', columns);
+      const csv = writer.headerLine()! + titles.map((title, at) => writer.line({ id: 501 + at, title, state: 'open', amount: 1, big: 0 })).join('');
+      expect(csv).toContain("'+44 113 496 0000");
+      const made = await readyImport('sam', csv.replaceAll('\r\n', '\n'), { mode: 'insert' });
+      expect(made.statusCode, made.body).toBe(201);
+      const preview = await previewOf('sam', made.id);
+      expect(preview.counts).toEqual({ new: titles.length, here: 0, refused: 0 });
+      expect((await ranImport('sam', made.id)).stats?.inserted).toBe(titles.length);
+      const kept = await w.rows('SELECT id, title FROM deals WHERE id > 500 ORDER BY id');
+      expect(kept.map((row) => row['title'])).toEqual(titles);
+      await w.run('DELETE FROM deals WHERE id > 500');
     });
   });
 }
