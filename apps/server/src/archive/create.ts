@@ -89,6 +89,13 @@ export interface CreateArchiveOptions {
   scratchRoot?: string;
   /** How far along the file is, 0 to 1: called as members are read and written, at most once per percent. */
   onProgress?: (fraction: number) => void;
+  /**
+   * Leave out the connection strings of the connections with these project keys (`yours`: the user's own
+   * database in an operator project, whose password the operator may not keep in an archive). The rows travel
+   * as Drafts, and a restore asks for the string again (an operator project's boot gives it from the
+   * environment).
+   */
+  withoutConnectionStrings?: readonly string[];
   /** Called after each meta table is read, inside the snapshot. Tests only: what a write landing mid-dump does. */
   afterMetaTable?: (table: string) => Promise<void> | void;
 }
@@ -189,6 +196,8 @@ export async function createArchive(opts: CreateArchiveOptions): Promise<CreateA
   });
   // A full archive carries API keys; the RESTORE drops them unless asked.
   const sanitized = sanitizeDump(tables, { kind: opts.kind, dialect: opts.meta.dialect, keepApiKeys: true });
+  const blanked = blankConnectionStrings(tables, opts.withoutConnectionStrings ?? []);
+  if (blanked.length > 0) warnings.push(`Left out the connection string of ${blanked.map((name) => `“${name}”`).join(', ')}: a restore asks for it again.`);
 
   const members: Member[] = [];
   const metaEntries: ArchiveManifest['meta'] = [];
@@ -260,9 +269,12 @@ export async function createArchive(opts: CreateArchiveOptions): Promise<CreateA
     let project: ArchiveManifest['project'] = null;
     if (opts.projectRoot !== null) {
       const root = resolve(opts.projectRoot);
+      // The data dir inside the project (`<project>/data`) is the instance's own, carried above. An operator
+      // project is the other way round: its folder is inside the data dir (`<data>/project`), and all of it travels.
+      const dataInProject = inside(dataDir, root);
       const skip = (rel: string): boolean => {
         const full = join(root, ...rel.split('/'));
-        if (inside(full, dataDir) || full === scratch) return true;
+        if ((dataInProject && inside(full, dataDir)) || full === scratch || inside(full, scratch)) return true;
         for (const db of sqliteFiles) if (full === db || full.startsWith(`${db}-`)) return true;
         return false;
       };
@@ -416,4 +428,23 @@ async function writeZip(path: string, members: readonly Member[], onRead: (bytes
   }
   closeSync(fd);
   return written;
+}
+
+/** Blank the connection strings of the rows with these project keys; their names, for the report. */
+export function blankConnectionStrings(tables: Map<string, MetaTableDump>, projectKeys: readonly string[]): string[] {
+  if (projectKeys.length === 0) return [];
+  const connections = tables.get('adminium_connections');
+  if (connections === undefined) return [];
+  const columns = connections.columns;
+  const at = (name: string): number => columns.indexOf(name);
+  const key = at('projectKey');
+  const names: string[] = [];
+  if (key < 0) return names;
+  for (const row of connections.rows) {
+    if (!projectKeys.includes(String(row[key]))) continue;
+    for (const column of ['introspectDsnEncrypted', 'dataDsnEncrypted']) if (at(column) >= 0) row[at(column)] = null;
+    if (at('status') >= 0) row[at('status')] = 'unconfigured';
+    names.push(String(row[at('name')] ?? row[key]));
+  }
+  return names;
 }

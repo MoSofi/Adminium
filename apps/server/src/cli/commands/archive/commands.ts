@@ -29,6 +29,7 @@ import { CliError, CliUsageError, EXIT_ERROR, EXIT_OK, type ExitCode } from '../
 import type { CliIo } from '../../io.js';
 import { loadCliEnv } from '../../runtime.js';
 import { formatBytes } from '../export-zip.js';
+import { YOURS_KEY } from '../../../project/your-database.js';
 
 const STORE_FLAGS = {
   'data-dir': {
@@ -57,7 +58,7 @@ function onePath(positionals: readonly string[], command: string): string {
 export const archiveCreateCommand: Command = {
   name: 'create',
   summary: 'Write this instance into one archive file',
-  usage: 'adminium archive create <file> [--export]',
+  usage: 'adminium archive create <file> [--export] [--without-your-database]',
   describe:
     'Writes the meta store (any engine), uploads kept on this server, local SQLite\n' +
     'databases, the project folder and a list of installed apps and add-ons into\n' +
@@ -68,6 +69,11 @@ export const archiveCreateCommand: Command = {
     'keys or tokens, unsigned, and read back with `adminium import-zip`.',
   flags: {
     export: { type: 'boolean', describe: 'Leave out password hashes, secrets and keys', defaultDescription: 'off' },
+    'without-your-database': {
+      type: 'boolean',
+      describe: 'Leave out the connection string of the user’s own database (project key "yours"); a restore asks for it again',
+      defaultDescription: 'off',
+    },
     ...STORE_FLAGS,
   },
 
@@ -94,6 +100,7 @@ export const archiveCreateCommand: Command = {
         secret: env.ADMINIUM_SECRET,
         dsnCrypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET),
         signing: archiveSigningKey(env),
+        ...(boolFlag(values['without-your-database']) ? { withoutConnectionStrings: [YOURS_KEY] } : {}),
       });
       const { manifest } = result;
       io.out(`Wrote ${result.path} (${formatBytes(result.bytes)}).`);
