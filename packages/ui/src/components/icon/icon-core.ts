@@ -3,7 +3,7 @@
 //
 // The lucide icons this product renders, as NAMED imports so a bundler can
 // shake the other ~1,520. Importing lucide's `icons` map instead put all 1,611
-// into the dashboard's entry chunk: 112.6 KiB gzipped, measured, for these 126.
+// into the dashboard's entry chunk: 112.6 KiB gzipped, measured, for these 127.
 //
 // An icon outside this set still resolves — `icon-resolver.ts` loads the full
 // catalogue on demand — it just costs a chunk fetch the first time.
@@ -96,6 +96,7 @@ import {
   Phone,
   Plane,
   Plus,
+  Puzzle,
   Receipt,
   Redo2,
   Rows3,
@@ -226,6 +227,7 @@ export const CORE_ICONS: Readonly<Record<string, LucideIcon>> = {
   Phone,
   Plane,
   Plus,
+  Puzzle,
   Receipt,
   Redo2,
   Rows3,
