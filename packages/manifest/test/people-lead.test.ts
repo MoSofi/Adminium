@@ -16,7 +16,7 @@ type Doc = Record<string, unknown>;
 const id = { ref: 'id', type: 'int', role: 'pk' };
 const text = (ref: string, maxLength: number | undefined, more: Doc = {}): Doc => ({ ref, type: 'text', ...(maxLength === undefined ? {} : { maxLength }), nullable: true, ...more });
 
-/** The CRM's `companies` declaration over its details (its K11 shape). */
+/** The CRM's `companies` declaration over its details (the CRM's shape). */
 const LEAD: Doc = {
   number: 'company_number',
   website: 'website',
