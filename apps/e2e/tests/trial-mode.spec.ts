@@ -47,9 +47,11 @@ const DASHBOARD = join(repoRoot, 'apps', 'dashboard', 'dist');
 /**
  * Clear of the servers at +0, +20 (first run), +40 (project) and +60, +80 (own apps), and of the SMTP sink, its
  * messages and the scripted model each of them takes 100 above itself (+100 to +102, +120 to +122, …).
+ * `E2E_TRIAL_PORT` moves it (the operator's port is the next one up): from `E2E_PORT` 4890 it would be 5000,
+ * which macOS keeps for AirPlay.
  */
-const TRIAL_PORT = PORT + 110;
-const OPERATOR_PORT = PORT + 111;
+const TRIAL_PORT = Number(process.env['E2E_TRIAL_PORT'] ?? PORT + 110);
+const OPERATOR_PORT = TRIAL_PORT + 1;
 const ORIGIN = `http://localhost:${String(TRIAL_PORT)}`;
 const OPERATOR_URL = `http://127.0.0.1:${String(OPERATOR_PORT)}/api/v1/operator`;
 
