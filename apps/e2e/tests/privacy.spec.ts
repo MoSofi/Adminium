@@ -3,7 +3,7 @@
  * Privacy & public pages, walked by the Super Admin (the one role that
  * holds `privacy.manage`):
  *
- *  1. Server settings → "Open privacy": the three tabs. The notice's
+ *  1. Server settings → "Open privacy": the five tabs, in order. The notice's
  *     address refuses `http://` as it is typed; an https one is saved.
  *  2. A person's data: find an address the install keeps (on the
  *     do-not-email list, with a consent entry), "Download everything", and
@@ -11,7 +11,8 @@
  *  3. "Erase…": the dialog's What goes matches the server's own preview,
  *     "Erase for good" opens only to the typed address, and the page ends
  *     on "Erased. Saved in the audit log."; the download went with them.
- *  4. How long we keep things: the two fixed rows.
+ *  4. How long we keep things: the two fixed rows, and visitor counting's
+ *     two, each a choice of months.
  *  5. Your websites: the reach card first, every line of the add box checked
  *     as typed, an add and a removal, the loader line; axe finds nothing on
  *     it or on the notice tab, in light, dark, Arabic and at a phone's width.
@@ -116,7 +117,7 @@ test('the notice: http:// is refused as typed, an https address is saved', async
   await page.goto('/studio/settings');
   await page.getByRole('button', { name: 'Open privacy' }).click();
   await expect(page).toHaveURL(/\/studio\/privacy$/);
-  await expect(page.getByRole('tab')).toHaveText(['Privacy notice', 'Your websites', 'A person’s data', 'How long we keep things']);
+  await expect(page.getByRole('tab')).toHaveText(['Privacy notice', 'Your websites', 'Visitor counting', 'A person’s data', 'How long we keep things']);
   // The reach card comes first, whatever this server's state.
   await expect(page.getByTestId('privacy-reach')).toBeVisible();
   await expect(page.getByTestId('privacy-notice-unset')).toBeVisible();
@@ -262,7 +263,10 @@ test('a person’s data: find, download (the file arrives), erase, keeping', asy
 
   await page.goto('/studio/privacy?tab=keeping');
   const keeping = page.getByTestId('privacy-keeping');
-  await expect(keeping.getByRole('rowheader')).toHaveText(['Consent history', 'Do-not-email list']);
+  await expect(keeping.getByRole('rowheader')).toHaveText(['Consent history', 'Do-not-email list', 'View counts', 'Pages a visitor saw']);
+  // Visitor counting's two rows are a choice of months, at their defaults.
+  await expect(keeping.getByLabel('Kept for: View counts')).toHaveValue('13');
+  await expect(keeping.getByLabel('Kept for: Pages a visitor saw')).toHaveValue('6');
   await expect(keeping).toContainText('Kept until the person is erased');
   await expect(keeping).toContainText('Kept for good');
   await shot(page, 'keeping-desktop');
