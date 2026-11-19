@@ -1,5 +1,36 @@
 # @adminium/dashboard
 
+## 0.3.65
+
+### Patch Changes
+
+- 3766e08: Two fixes to the kit add-ons and project pages draw with. An `Input` or a `Select` given both a `label` and its own `id` is now named by that label for screen readers; before, the label pointed at a different id and the field had no name. A `DataTable` column whose label is empty no longer stops the whole page from drawing: the column is headed by its key instead.
+- 79a1724: Live landing pages are now served to strangers at `/x/pages/<slug>`, with their data and pictures under `/x/pages/api/`. The server writes each page's title, description, language and preview picture into the HTML itself, so a link shared in a chat shows the page, and a page may be indexed by search engines only on its main address. A host mapped for pages can show a live page as its home. A page's form blocks draw the real form, and its pictures are served from files the page owns.
+  
+  Staff get the routes a pages editor needs under `/api/v1/landing/`: a first draft of a page written by Milo from a short description (marked for review, from the person's own allowance), the live forms and live pages a page can link to, the rule a funnel leads to, picture uploads, and where a page answers. A role held to some rows of the pages table cannot use them.
+- 89ba5bf: An app's page no longer jumps when its "Sample data is loaded" banner appears. The banner used to be asked for only after the page had drawn, so it arrived after the cards and pushed them down by about 55 px. Whether the sample data is loaded is now asked together with the page itself, so the banner's place is kept above the cards from the first moment, and the banner fills it without moving them. Only people who manage apps are asked, as before.
+- 79a1724: The pages strangers see (forms, live chat and landing pages, under `/x/`) are locked down further. Their content policy now lets them call only `/x/` on the same host, never the staff API, and allows no `data:` pictures; they refuse any script that would write markup (Trusted Types), and they open with `Cross-Origin-Opener-Policy: same-origin`. A signed-in member of staff's session is no longer read at these doors, so a page there can never act with it. A form's own page now carries its title and language in the HTML. A preview of a form or a page is refused to a role that may read only some rows of its table.
+- 1710d3f: A page title too long for the top bar is still cut with an ellipsis, but its whole name now shows when you hover over it, for every page, add-on pages included.
+- 79a1724: Adminium now counts how many times strangers see your landing pages and forms, and this is switched on for every install at "Counts only". It sets no cookie and keeps nothing about the visitor: only a number per page or form per day, with known bots and prefetches left out and a repeat view of the same page from one address within half an hour counted once. Counts are kept 13 months by default, then removed. You can see the setting, and turn it Off, under Privacy → Visitor counting; mention it in your privacy notice if you keep it on.
+  
+  A form counts when its page is read, when a form block on a landing page comes into view, and when an answer is kept. Staff who may read a form's or a page's table see its counts through `GET /api/v1/views`. The level and the banner's words are read and changed with `GET` and `PUT /api/v1/privacy/counting`, and how long counts and visits are kept with `PUT /api/v1/privacy/keeping`; both appear as two new rows under Privacy → Keeping. The counts are kept in two new meta tables, added by migrations 0096 and 0097.
+- 79a1724: Visitor counting has a third level, "Per visitor", which remembers the pages one visitor saw once they say yes. It is never on by default, and it can only be chosen once your privacy notice is set. At this level a banner asks the visitor on a form's own page and on your landing pages, on your own addresses only, never inside a frame on another website. A "Yes" sets one cookie, `__Host-adm_v` (180 days, this host only); a "No" is kept only in the visitor's browser and nothing is stored. "Cookie choice" in the page's footer lets a visitor take a yes back at any time. The banner comes in eight languages, and you can write your own words for it.
+  
+  When a visitor who said yes sends a form, the pages they saw are joined to the address they gave: they show as "Pages they saw" in that person's data, and go with them when they are erased. Visits are kept 6 months by default. Going down from "Per visitor" to a lower level deletes every visitor and every visit at once.
+- Updated dependencies [001701e]
+- Updated dependencies [79a1724]
+- Updated dependencies [79a1724]
+- Updated dependencies [79a1724]
+- Updated dependencies [79a1724]
+- Updated dependencies [79a1724]
+  - @adminium/ui@0.3.65
+  - @adminium/add-on-contracts@0.3.65
+  - @adminium/i18n@0.3.65
+  - @adminium/widgets@0.3.65
+  - @adminium/charts@0.3.65
+  - @adminium/engine@0.3.65
+  - @adminium/tokens@0.3.65
+
 ## 0.3.64
 
 ### Patch Changes

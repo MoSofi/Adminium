@@ -1,5 +1,46 @@
 # @adminium/server
 
+## 0.3.65
+
+### Patch Changes
+
+- df0f214: The add-ons that come with Adminium are now 1.0.30, and Live chat now comes with Adminium too, beside Forms: the Docker image and the desktop app carry it, so it can be installed without reaching the network.
+- 8cab286: A card reader add-on now loads only from a package Adminium can vouch for (one this build bundles, one downloaded from the catalogue, or a developer key outside production), as a payment provider already did. A card reader package is handed the shop's reader keys and takes payments in person, so a hand-uploaded look-alike is now left out by name and its code is never run. The Square card readers add-on is bundled and catalogue-verified, so nothing changes for it.
+- 79a1724: A forms, live chat or landing pages add-on now keeps serving after a restore or a redeploy that empties the data folder. When its package is put back from the copy kept in your file storage, it is trusted as the original was, so its public pages are not left out. A copy of a package that was uploaded by hand is still never trusted, and a copy whose bytes changed is refused.
+- 79a1724: A form can now end on a landing page: the new ending `{ kind: 'landing', page, addOn }` (in `FORM_ENDING_KINDS`) sends the person to that page after they send the form, at its address on the host they are on. If the page is not live, they see the usual thanks instead.
+- 79a1724: Add-ons can now declare landing pages, with the new manifest word `addOn.landing` (it needs Adminium 0.3.65 or later). The add-on names its pages table and its funnels table, which must hold the columns the contract lists; `@adminium/add-on-contracts/landing` describes the page document, its blocks, its links and the slugs a page may not use (words like `login`, `account`, `admin` or `billing`), and `@adminium/add-on-contracts/landing/render` draws a page.
+  
+  Adminium seals the publishing of a page, whoever writes the row and through whatever door: a page goes live only if its published copy reads as a whole page (422 `landing-unparsable`), carries no block Milo wrote that nobody has looked at (422 `landing-marked`), and sits at an allowed address no other live page holds (422 `landing-slug`). Milo may write a draft but never publish one (403 `landing-assistant`). When a page was published is always set by Adminium, never taken from the request.
+- 79a1724: Live landing pages are now served to strangers at `/x/pages/<slug>`, with their data and pictures under `/x/pages/api/`. The server writes each page's title, description, language and preview picture into the HTML itself, so a link shared in a chat shows the page, and a page may be indexed by search engines only on its main address. A host mapped for pages can show a live page as its home. A page's form blocks draw the real form, and its pictures are served from files the page owns.
+  
+  Staff get the routes a pages editor needs under `/api/v1/landing/`: a first draft of a page written by Milo from a short description (marked for review, from the person's own allowance), the live forms and live pages a page can link to, the rule a funnel leads to, picture uploads, and where a page answers. A role held to some rows of the pages table cannot use them.
+- d86b61a: Milo can draft live chat replies again. Every draft ended in "Milo could not write a draft" with a real AI service, because the request asked for a setting the AI clients refuse; the same was true of Milo's first draft of a landing page. Both now ask the way the clients accept, and when a call to the AI service fails, the server's log says why (the service, the kind of failure and its status, never the conversation or a key).
+- 79a1724: The operator endpoint now lists live landing pages. `GET /api/v1/operator/public-content` has a `pages` list (each page's published copy, pictures and links), and the `public-page.changed` event can carry `{ "page": … }`, or `{ "page": { "slug", "removed": true } }` when a page is taken down. A service that reads this feed should expect the new item.
+- 89ba5bf: An app's page no longer jumps when its "Sample data is loaded" banner appears. The banner used to be asked for only after the page had drawn, so it arrived after the cards and pushed them down by about 55 px. Whether the sample data is loaded is now asked together with the page itself, so the banner's place is kept above the cards from the first moment, and the banner fills it without moving them. Only people who manage apps are asked, as before.
+- 79a1724: The pages strangers see (forms, live chat and landing pages, under `/x/`) are locked down further. Their content policy now lets them call only `/x/` on the same host, never the staff API, and allows no `data:` pictures; they refuse any script that would write markup (Trusted Types), and they open with `Cross-Origin-Opener-Policy: same-origin`. A signed-in member of staff's session is no longer read at these doors, so a page there can never act with it. A form's own page now carries its title and language in the HTML. A preview of a form or a page is refused to a role that may read only some rows of its table.
+- 79a1724: Adminium now counts how many times strangers see your landing pages and forms, and this is switched on for every install at "Counts only". It sets no cookie and keeps nothing about the visitor: only a number per page or form per day, with known bots and prefetches left out and a repeat view of the same page from one address within half an hour counted once. Counts are kept 13 months by default, then removed. You can see the setting, and turn it Off, under Privacy → Visitor counting; mention it in your privacy notice if you keep it on.
+  
+  A form counts when its page is read, when a form block on a landing page comes into view, and when an answer is kept. Staff who may read a form's or a page's table see its counts through `GET /api/v1/views`. The level and the banner's words are read and changed with `GET` and `PUT /api/v1/privacy/counting`, and how long counts and visits are kept with `PUT /api/v1/privacy/keeping`; both appear as two new rows under Privacy → Keeping. The counts are kept in two new meta tables, added by migrations 0096 and 0097.
+- 79a1724: Visitor counting has a third level, "Per visitor", which remembers the pages one visitor saw once they say yes. It is never on by default, and it can only be chosen once your privacy notice is set. At this level a banner asks the visitor on a form's own page and on your landing pages, on your own addresses only, never inside a frame on another website. A "Yes" sets one cookie, `__Host-adm_v` (180 days, this host only); a "No" is kept only in the visitor's browser and nothing is stored. "Cookie choice" in the page's footer lets a visitor take a yes back at any time. The banner comes in eight languages, and you can write your own words for it.
+  
+  When a visitor who said yes sends a form, the pages they saw are joined to the address they gave: they show as "Pages they saw" in that person's data, and go with them when they are erased. Visits are kept 6 months by default. Going down from "Per visitor" to a lower level deletes every visitor and every visit at once.
+- Updated dependencies [79a1724]
+- Updated dependencies [79a1724]
+- Updated dependencies [79a1724]
+- Updated dependencies [79a1724]
+- Updated dependencies [79a1724]
+- Updated dependencies [79a1724]
+  - @adminium/meta@0.3.65
+  - @adminium/add-on-contracts@0.3.65
+  - @adminium/manifest@0.3.65
+  - @adminium/i18n@0.3.65
+  - @adminium/engine@0.3.65
+  - @adminium/llm@0.3.65
+  - @adminium/adapter-mysql@0.3.65
+  - @adminium/adapter-postgres@0.3.65
+  - @adminium/adapter-sqlite@0.3.65
+  - @adminium/schema-import@0.3.65
+
 ## 0.3.64
 
 ### Patch Changes

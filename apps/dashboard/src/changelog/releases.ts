@@ -62,6 +62,25 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.65',
+    date: '2026-11-19',
+    title: 'Landing pages, and counting what visitors see',
+    summary:
+      'Add-ons can now carry landing pages: pages for an offer or an event, built from blocks, drawn by Adminium for visitors at their own address with a title and a sharing preview. Adminium now counts how often your public pages and forms are seen, with no cookie and nothing about the visitor kept.',
+    changes: [
+      { tag: 'New', text: 'A landing page lives at /x/pages/<address> on your public address, or as the home of a pages host. Adminium writes its title and sharing preview, serves its pictures and lets search engines find it once it is live.' },
+      { tag: 'New', text: 'Views of your landing pages and forms are counted at “Counts only”, the new default: no cookie, no banner, known bots left out. Privacy → Visitor counting turns it off, or to “Per visitor”, which asks first with a banner and keeps a visitor’s pages with what they send you.' },
+      { tag: 'New', text: 'Milo can draft a landing page from a description. Every section it writes is marked, and the page cannot be published until a person has looked at each one.' },
+      { tag: 'New', text: 'A form can end by sending the visitor to one of your landing pages.' },
+      { tag: 'Improved', text: 'An app’s page no longer jumps when its “Sample data is loaded” banner appears.' },
+      { tag: 'Improved', text: 'The add-ons that come with Adminium are now 1.0.30, Live chat among them.' },
+      { tag: 'Fixed', text: 'Milo can draft live chat replies again: the drafts asked the AI service in a way every provider refused.' },
+      { tag: 'Fixed', text: 'An add-on whose files were put back from their kept copy after a redeploy is trusted as before, so its forms, chats and pages keep working.' },
+      { tag: 'Security', text: 'Pages a visitor sees under /x/ now carry stricter browser protections, and never act with a signed-in person’s rights.' },
+      { tag: 'Security', text: 'A card terminal is loaded only from an add-on Adminium can vouch for.' },
+    ],
+  },
+  {
     version: '0.3.64',
     date: '2026-11-18',
     title: 'A live chat for your website',

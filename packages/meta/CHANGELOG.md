@@ -1,5 +1,17 @@
 # @adminium/meta
 
+## 0.3.65
+
+### Patch Changes
+
+- 79a1724: A forms, live chat or landing pages add-on now keeps serving after a restore or a redeploy that empties the data folder. When its package is put back from the copy kept in your file storage, it is trusted as the original was, so its public pages are not left out. A copy of a package that was uploaded by hand is still never trusted, and a copy whose bytes changed is refused.
+- 79a1724: Adminium now counts how many times strangers see your landing pages and forms, and this is switched on for every install at "Counts only". It sets no cookie and keeps nothing about the visitor: only a number per page or form per day, with known bots and prefetches left out and a repeat view of the same page from one address within half an hour counted once. Counts are kept 13 months by default, then removed. You can see the setting, and turn it Off, under Privacy → Visitor counting; mention it in your privacy notice if you keep it on.
+  
+  A form counts when its page is read, when a form block on a landing page comes into view, and when an answer is kept. Staff who may read a form's or a page's table see its counts through `GET /api/v1/views`. The level and the banner's words are read and changed with `GET` and `PUT /api/v1/privacy/counting`, and how long counts and visits are kept with `PUT /api/v1/privacy/keeping`; both appear as two new rows under Privacy → Keeping. The counts are kept in two new meta tables, added by migrations 0096 and 0097.
+- 79a1724: Visitor counting has a third level, "Per visitor", which remembers the pages one visitor saw once they say yes. It is never on by default, and it can only be chosen once your privacy notice is set. At this level a banner asks the visitor on a form's own page and on your landing pages, on your own addresses only, never inside a frame on another website. A "Yes" sets one cookie, `__Host-adm_v` (180 days, this host only); a "No" is kept only in the visitor's browser and nothing is stored. "Cookie choice" in the page's footer lets a visitor take a yes back at any time. The banner comes in eight languages, and you can write your own words for it.
+  
+  When a visitor who said yes sends a form, the pages they saw are joined to the address they gave: they show as "Pages they saw" in that person's data, and go with them when they are erased. Visits are kept 6 months by default. Going down from "Per visitor" to a lower level deletes every visitor and every visit at once.
+
 ## 0.3.64
 
 ### Patch Changes

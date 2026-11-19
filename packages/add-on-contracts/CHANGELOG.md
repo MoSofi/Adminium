@@ -1,5 +1,17 @@
 # @adminium/add-on-contracts
 
+## 0.3.65
+
+### Patch Changes
+
+- 79a1724: A form can now end on a landing page: the new ending `{ kind: 'landing', page, addOn }` (in `FORM_ENDING_KINDS`) sends the person to that page after they send the form, at its address on the host they are on. If the page is not live, they see the usual thanks instead.
+- 79a1724: Add-ons can now declare landing pages, with the new manifest word `addOn.landing` (it needs Adminium 0.3.65 or later). The add-on names its pages table and its funnels table, which must hold the columns the contract lists; `@adminium/add-on-contracts/landing` describes the page document, its blocks, its links and the slugs a page may not use (words like `login`, `account`, `admin` or `billing`), and `@adminium/add-on-contracts/landing/render` draws a page.
+  
+  Adminium seals the publishing of a page, whoever writes the row and through whatever door: a page goes live only if its published copy reads as a whole page (422 `landing-unparsable`), carries no block Milo wrote that nobody has looked at (422 `landing-marked`), and sits at an allowed address no other live page holds (422 `landing-slug`). Milo may write a draft but never publish one (403 `landing-assistant`). When a page was published is always set by Adminium, never taken from the request.
+- 79a1724: Live landing pages are now served to strangers at `/x/pages/<slug>`, with their data and pictures under `/x/pages/api/`. The server writes each page's title, description, language and preview picture into the HTML itself, so a link shared in a chat shows the page, and a page may be indexed by search engines only on its main address. A host mapped for pages can show a live page as its home. A page's form blocks draw the real form, and its pictures are served from files the page owns.
+  
+  Staff get the routes a pages editor needs under `/api/v1/landing/`: a first draft of a page written by Milo from a short description (marked for review, from the person's own allowance), the live forms and live pages a page can link to, the rule a funnel leads to, picture uploads, and where a page answers. A role held to some rows of the pages table cannot use them.
+
 ## 0.3.64
 
 ### Patch Changes
