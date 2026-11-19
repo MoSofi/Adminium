@@ -199,6 +199,9 @@ export async function startLeadWorld(): Promise<LeadWorld> {
   // The add-on's code is a developer's own here, and its sources are the demo's: neither is allowed in production.
   process.env['ADMINIUM_ADD_ON_DEV_TRUST'] = KEY;
   process.env['ADMINIUM_LEAD_SOURCE_DEMO'] = KEY;
+  // The seam is on only on a server that says it is for tests.
+  const nodeEnvBefore = process.env['NODE_ENV'];
+  process.env['NODE_ENV'] = 'test';
   const dir = mkdtempSync(join(tmpdir(), 'adminium-lead-e2e-'));
   const sourceFile = join(dir, 'source.db');
   new BetterSqlite3(sourceFile).close();
@@ -226,7 +229,7 @@ export async function startLeadWorld(): Promise<LeadWorld> {
     smtp.listen(SMTP_PORT, '127.0.0.1', () => resolve());
   });
 
-  const env = loadCliEnv({ ADMINIUM_SECRET: randomBytes(32).toString('hex'), ADMINIUM_LEAD_SOURCE_DEMO: KEY, ADMINIUM_ADD_ON_DEV_TRUST: KEY }, { port: PORT, host: '127.0.0.1', dataDir: dir });
+  const env = loadCliEnv({ ADMINIUM_SECRET: randomBytes(32).toString('hex'), ADMINIUM_LEAD_SOURCE_DEMO: KEY, ADMINIUM_ADD_ON_DEV_TRUST: KEY, NODE_ENV: 'test' }, { port: PORT, host: '127.0.0.1', dataDir: dir });
   const runtime = await openRuntime(env, { blockLoopback: false });
   const meta = runtime.metaStore.meta;
   const { hashPassword } = (await import(distUrl('auth/passwords.js'))) as { hashPassword: (password: string) => Promise<string> };
@@ -324,6 +327,8 @@ export async function startLeadWorld(): Promise<LeadWorld> {
       await new Promise<void>((resolve) => smtp.close(() => resolve()));
       rmSync(dir, { recursive: true, force: true });
       delete process.env['ADMINIUM_LEAD_SOURCE_DEMO'];
+      if (nodeEnvBefore === undefined) delete process.env['NODE_ENV'];
+      else process.env['NODE_ENV'] = nodeEnvBefore;
     },
   };
 }

@@ -31,6 +31,8 @@ import { TEST_SECRET } from './helpers.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 
 const KEY = 'company-finder';
+/** A test server's environment: it says so. */
+const TESTING = { NODE_ENV: 'test' } as const;
 const silent = { write: () => true };
 
 /** The variables the boot refuses, or none. */
@@ -61,21 +63,33 @@ describe('the demo source seam at boot', () => {
     expect(leadSourceDemoProblem({ ADMINIUM_HOSTED_MODE: 'true', [LEAD_SOURCE_DEMO_ENV]: KEY })).toMatch(/hosted/);
   });
 
-  it('boots with it on a test server, and with it unset or empty anywhere', () => {
+  it('boots with it on a test or development server, and with it unset or empty anywhere', () => {
     expect(refused({ NODE_ENV: 'test', [LEAD_SOURCE_DEMO_ENV]: KEY })).toEqual([]);
-    expect(refused({ [LEAD_SOURCE_DEMO_ENV]: KEY })).toEqual([]);
+    expect(refused({ NODE_ENV: ' Development ', [LEAD_SOURCE_DEMO_ENV]: KEY })).toEqual([]);
+    expect(refused({})).toEqual([]);
     expect(refused({ NODE_ENV: 'production' })).toEqual([]);
     expect(refused({ NODE_ENV: 'production', [LEAD_SOURCE_DEMO_ENV]: ' , ' })).toEqual([]);
   });
 
-  it('is read as off in production, a trial or a hosted server, whatever it says', async () => {
-    expect(leadSourceDemoKeys({ [LEAD_SOURCE_DEMO_ENV]: `${KEY}, other` })).toEqual([KEY, 'other']);
-    for (const where of [{ NODE_ENV: 'production' }, { ADMINIUM_TRIAL_MODE: '1' }, { ADMINIUM_HOSTED_MODE: 'yes' }]) {
+  it('refuses it on a server that does not say it is for tests: no NODE_ENV (an npm install, the desktop app) or another one', () => {
+    expect(refused({ [LEAD_SOURCE_DEMO_ENV]: KEY })).toEqual([LEAD_SOURCE_DEMO_ENV]);
+    expect(refused({ NODE_ENV: 'staging', [LEAD_SOURCE_DEMO_ENV]: KEY })).toEqual([LEAD_SOURCE_DEMO_ENV]);
+    expect(leadSourceDemoProblem({ [LEAD_SOURCE_DEMO_ENV]: KEY })).toMatch(/NODE_ENV is not set to test or development/);
+    expect(leadSourceDemoProblem({ NODE_ENV: 'staging', [LEAD_SOURCE_DEMO_ENV]: KEY })).toMatch(/NODE_ENV is staging/);
+    // A trial or hosted server says it is neither, whatever NODE_ENV says.
+    expect(leadSourceDemoProblem({ ...TESTING, ADMINIUM_TRIAL_MODE: 'on', [LEAD_SOURCE_DEMO_ENV]: KEY })).toMatch(/trial/);
+    expect(leadSourceDemoProblem({ ...TESTING, ADMINIUM_HOSTED_MODE: 'on', [LEAD_SOURCE_DEMO_ENV]: KEY })).toMatch(/hosted/);
+  });
+
+  it('is read as off anywhere but a test or development server, whatever it says', async () => {
+    expect(leadSourceDemoKeys({ ...TESTING, [LEAD_SOURCE_DEMO_ENV]: `${KEY}, other` })).toEqual([KEY, 'other']);
+    expect(leadSourceDemoKeys({ NODE_ENV: 'development', [LEAD_SOURCE_DEMO_ENV]: KEY })).toEqual([KEY]);
+    for (const where of [{}, { NODE_ENV: 'staging' }, { NODE_ENV: 'production' }, { ...TESTING, ADMINIUM_TRIAL_MODE: '1' }, { ...TESTING, ADMINIUM_HOSTED_MODE: 'yes' }]) {
       expect(leadSourceDemoKeys({ ...where, [LEAD_SOURCE_DEMO_ENV]: KEY })).toEqual([]);
       expect(await leadSourceDemoFor(KEY, { ...where, [LEAD_SOURCE_DEMO_ENV]: KEY })).toBeNull();
     }
-    expect(await leadSourceDemoFor('another-add-on', { [LEAD_SOURCE_DEMO_ENV]: KEY })).toBeNull();
-    expect(await leadSourceDemoFor(KEY, { [LEAD_SOURCE_DEMO_ENV]: KEY })).toBeTypeOf('function');
+    expect(await leadSourceDemoFor('another-add-on', { ...TESTING, [LEAD_SOURCE_DEMO_ENV]: KEY })).toBeNull();
+    expect(await leadSourceDemoFor(KEY, { ...TESTING, [LEAD_SOURCE_DEMO_ENV]: KEY })).toBeTypeOf('function');
   });
 });
 
@@ -84,16 +98,16 @@ describe('the demo’s people may be mailed only while the seam is on', () => {
 
   it('a demo person’s address is reserved, and is the exception only with the seam on', async () => {
     expect(reservedAddress(robin)).toBe(true);
-    expect(await isDemoPersonAddress(robin, { [LEAD_SOURCE_DEMO_ENV]: KEY })).toBe(true);
-    expect(await isDemoPersonAddress(` ${robin.toUpperCase()} `, { [LEAD_SOURCE_DEMO_ENV]: KEY })).toBe(true);
-    expect(await isDemoPersonAddress(robin, {})).toBe(false);
-    for (const where of [{ NODE_ENV: 'production' }, { ADMINIUM_TRIAL_MODE: 'on' }, { ADMINIUM_HOSTED_MODE: 'on' }]) {
+    expect(await isDemoPersonAddress(robin, { ...TESTING, [LEAD_SOURCE_DEMO_ENV]: KEY })).toBe(true);
+    expect(await isDemoPersonAddress(` ${robin.toUpperCase()} `, { ...TESTING, [LEAD_SOURCE_DEMO_ENV]: KEY })).toBe(true);
+    expect(await isDemoPersonAddress(robin, TESTING)).toBe(false);
+    for (const where of [{}, { NODE_ENV: 'production' }, { ...TESTING, ADMINIUM_TRIAL_MODE: 'on' }, { ...TESTING, ADMINIUM_HOSTED_MODE: 'on' }]) {
       expect(await isDemoPersonAddress(robin, { ...where, [LEAD_SOURCE_DEMO_ENV]: KEY })).toBe(false);
     }
   });
 
   it('no other reserved address is an exception', async () => {
-    for (const other of ['someone@kestrelyard.example', 'robin@example.com', 'robin@kestrelyard.test']) expect(await isDemoPersonAddress(other, { [LEAD_SOURCE_DEMO_ENV]: KEY })).toBe(false);
+    for (const other of ['someone@kestrelyard.example', 'robin@example.com', 'robin@kestrelyard.test']) expect(await isDemoPersonAddress(other, { ...TESTING, [LEAD_SOURCE_DEMO_ENV]: KEY })).toBe(false);
   });
 });
 
@@ -131,20 +145,22 @@ describe.each(META_ENGINES)('the demo source seam at a call — $name', (engine)
   });
 
   it.skipIf(!engine.available)('on a test server, the add-on it names is answered by the demo; in production, by its own code', async () => {
-    const demo = await find({ [LEAD_SOURCE_DEMO_ENV]: KEY });
+    const demo = await find({ ...TESTING, [LEAD_SOURCE_DEMO_ENV]: KEY });
     if (!demo.ok) throw new Error(demo.message);
     expect(demo.companies.map((one) => one.name)).toEqual(DEMO_LEAD_COMPANIES.filter((one) => one.address?.country === 'GB' && one.address.town === 'Leeds').map((one) => one.name));
     expect(await find({ NODE_ENV: 'production', [LEAD_SOURCE_DEMO_ENV]: KEY })).toEqual(OWN);
-    expect(await find({ [LEAD_SOURCE_DEMO_ENV]: 'another-add-on' })).toEqual(OWN);
+    // A server that does not say it is for tests (no NODE_ENV: an npm install, the desktop app): its own code too.
+    expect(await find({ [LEAD_SOURCE_DEMO_ENV]: KEY })).toEqual(OWN);
+    expect(await find({ ...TESTING, [LEAD_SOURCE_DEMO_ENV]: 'another-add-on' })).toEqual(OWN);
     expect(await find({})).toEqual(OWN);
   });
 
   it.skipIf(!engine.available)('the switch, the key and the loaded package are still asked first', async () => {
     const entries = (leadFinder().addOn as { sources: { id: string; hosts?: string[]; key?: string; gives: ('find' | 'fill' | 'people')[] }[] }).sources;
     await mutateSourceState(handle.meta, install.row.id, entries.find((one) => one.id === 'companies-house')!, (state) => ({ ...state, on: false }));
-    expect(await find({ [LEAD_SOURCE_DEMO_ENV]: KEY })).toMatchObject({ ok: false, code: 'SOURCE_OFF' });
+    expect(await find({ ...TESTING, [LEAD_SOURCE_DEMO_ENV]: KEY })).toMatchObject({ ok: false, code: 'SOURCE_OFF' });
     await mutateSourceState(handle.meta, install.row.id, entries.find((one) => one.id === 'companies-house')!, (state) => ({ ...state, on: true }));
     deps = { ...deps, runtime: () => null };
-    expect(await find({ [LEAD_SOURCE_DEMO_ENV]: KEY })).toMatchObject({ ok: false, code: 'NOT_VOUCHED' });
+    expect(await find({ ...TESTING, [LEAD_SOURCE_DEMO_ENV]: KEY })).toMatchObject({ ok: false, code: 'NOT_VOUCHED' });
   });
 });

@@ -466,6 +466,7 @@ import { removeCleanedPicture } from './public-api/picture-store.js';
 import type { OnMetaRelocated } from './meta/relocate.js';
 import { sqlitePathFromUrl, type MetaStoreHandle } from './meta/store.js';
 import { forgetSources } from './lead-sources/state.js';
+import { LEAD_SOURCE_DEMO_ENV, leadSourceDemoKeys } from './lead-sources/demo-seam.js';
 
 /**
  * Daily, at 04:00 UTC, with an hour of jitter (below). Telemetry is the least
@@ -992,6 +993,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // the operator's mail server (`ADMINIUM_OPERATOR_SMTP_URL`) while it has none of its own, else nothing.
   configureTrialMail(trialMailSetupOf(env, app.trialPolicy) ?? operatorMailSetupOf(env));
   try {
+  // The demo source seam answers lead sources with made-up companies: said once, loudly, so it is never a surprise.
+  const demoSources = leadSourceDemoKeys();
+  if (demoSources.length > 0) app.log.warn({ addOns: demoSources }, `${LEAD_SOURCE_DEMO_ENV} is on: these add-ons' sources answer with made-up companies and people, for tests only`);
     // Once per release and translation change, not on every start (see the function).
     await seedBuiltinEmailTemplatesIfChanged(meta, process.env['NODE_ENV'] === 'production' ? APP_VERSION : null, Date.now());
   } catch (error) {
