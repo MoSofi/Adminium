@@ -183,7 +183,13 @@ export default defineConfig({
               items: [
                 { label: 'Email templates', link: '/guides/email/' },
                 { label: 'Campaigns', link: '/guides/email/campaigns/' },
+              ],
+            },
+            {
+              label: 'Privacy',
+              items: [
                 { label: "A person's data", link: '/guides/email/privacy/' },
+                { label: 'Visitor counting', link: '/guides/privacy/visitor-counting/' },
               ],
             },
             {
@@ -235,6 +241,7 @@ export default defineConfig({
                 { label: 'The Inventory add-on', link: '/guides/add-ons/inventory/' },
                 { label: 'The Offers & gift cards add-on', link: '/guides/add-ons/offers/' },
                 { label: 'The Customiser add-on', link: '/guides/add-ons/customiser/' },
+                { label: 'The Landing pages add-on', link: '/guides/add-ons/landing-pages/' },
                 {
                   label: 'The Lead finder add-on',
                   items: [

@@ -29,6 +29,19 @@
 | `references/guides/customiser--the-saved-design-s-link.md` | The saved design's link | 874 |
 | `references/guides/customiser--sample-data.md` | Sample data | 463 |
 | `references/guides/customiser--on-two-databases.md` | On two databases | 474 |
+| `references/guides/landing-pages--overview.md` | The Landing pages add-on | 1160 |
+| `references/guides/landing-pages--making-a-page.md` | Making a page | 2468 |
+| `references/guides/landing-pages--drafting-with-milo.md` | Drafting with Milo | 1084 |
+| `references/guides/landing-pages--publishing.md` | Publishing | 1478 |
+| `references/guides/landing-pages--the-page-s-address.md` | The page's address | 761 |
+| `references/guides/landing-pages--your-own-domain-and-a-home-page.md` | Your own domain and a home page | 805 |
+| `references/guides/landing-pages--sharing-and-search-engines.md` | Sharing and search engines | 976 |
+| `references/guides/landing-pages--switching-a-page-off.md` | Switching a page off | 465 |
+| `references/guides/landing-pages--languages.md` | Languages | 429 |
+| `references/guides/landing-pages--funnels.md` | Funnels | 1514 |
+| `references/guides/landing-pages--a-form-that-ends-on-a-landing-page.md` | A form that ends on a landing page | 604 |
+| `references/guides/landing-pages--roles.md` | Roles | 470 |
+| `references/guides/landing-pages--sample-data.md` | Sample data | 417 |
 | `references/guides/take-payments--overview.md` | Take payments | 399 |
 | `references/guides/take-payments--who-the-seller-is.md` | Who the seller is | 883 |
 | `references/guides/take-payments--what-you-need.md` | What you need | 693 |

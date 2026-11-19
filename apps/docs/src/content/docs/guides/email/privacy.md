@@ -14,8 +14,9 @@ Roles) — for example to the person who answers access requests. The built-in
 Admin role does not get it, on a new install or an old one.
 
 On screen it is **Server settings → Privacy & public pages**, shown only to
-whoever holds the permission. Its three tabs are the privacy notice, **A
-person's data** (find, download, erase) and **How long we keep things**. The
+whoever holds the permission. Its tabs are the privacy notice, **Your
+websites**, **Visitor counting** (see [Visitor counting](/guides/privacy/visitor-counting/)),
+**A person's data** (find, download, erase) and **How long we keep things**. The
 address you search for stays on the page: it is sent to the server in the
 request, never put in the page's address.
 
@@ -35,6 +36,8 @@ It looks in:
 - the **consent history** and the **do-not-email list**;
 - every forms add-on's **answers** given by the address (a sign-up still
   waiting for its confirmation too) and the **survey invitations** sent to it;
+- **Pages they saw**: at Per visitor, the pages seen by a visitor who said
+  yes and then sent a form with the address;
 - what Adminium keeps itself: campaign mail sent to them and its failures,
   rendered documents, invoices, payments, the payment services' messages, the
   rules' run history, staff notifications, and files attached to their rows
@@ -115,6 +118,7 @@ follows another row is never moved.
   left whole, and "What stays" counts their rows on it.
 - **Their mail** in each app's outbox loses its address; a message still
   waiting is skipped.
+- **The pages they saw** are deleted, with the visitor they were joined to.
 - **Their form answers** are deleted, a waiting sign-up's too; the **survey
   invitations** sent to them lose the address and the name and are kept, so a
   survey's invited and answered counts stay whole.
@@ -152,6 +156,10 @@ number of months in its settings table's `answers_months` column, changed in
 the add-on's settings; empty keeps them until someone removes them. Every night
 Adminium deletes the answers submitted longer ago than that: the add-on runs no
 timer of its own.
+
+Two rows belong to visitor counting: **View counts** (13 months by default) and
+**Pages a visitor saw** (6 months). See
+[Visitor counting](/guides/privacy/visitor-counting/#how-long-things-are-kept).
 
 ## The privacy notice and the postal address
 
