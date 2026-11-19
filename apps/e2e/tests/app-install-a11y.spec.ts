@@ -44,7 +44,7 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
 import { APP_KEY, APP_NEXT_VERSION, APP_VERSION, appBundle } from './appBundle.js';
-import { signIn, serverDataDir } from './helpers.js';
+import { awaitApiBudget, signIn, serverDataDir, useOwnPrincipal } from './helpers.js';
 import { textIn } from './localeText.js';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
@@ -204,6 +204,9 @@ const COMBOS = [
   { theme: 'dark', locale: 'ar-EG', pref: 'ar_EG', dir: 'rtl' },
 ] as const;
 
+// Its own `api` budget: four sweeps of every state spend the shared principal's minute for the specs after it.
+useOwnPrincipal('apps');
+
 test.describe.configure({ mode: 'serial' });
 
 test.describe('/studio/apps under axe', () => {
@@ -234,6 +237,8 @@ test.describe('/studio/apps under axe', () => {
       const at = (label: string): string => `${name} · ${label}`;
 
       await signIn(page);
+      // A pass spends about 100 of the principal's 300 calls a minute; four of them do not fit in one minute.
+      await awaitApiBudget(page, 130);
       await setPrefs(page, combo.theme, combo.pref);
       await page.goto('/studio/apps');
       await expect(page.getByRole('heading', { name: tx('studio:hostedApps.title') })).toBeVisible();

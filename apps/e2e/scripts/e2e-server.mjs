@@ -88,6 +88,7 @@ const OWN_PRINCIPALS = [
   ['e2e-settings@adminium.local', 'E2E Settings Admin'],
   ['e2e-pictures@adminium.local', 'E2E Pictures Admin'],
   ['e2e-template-fit@adminium.local', 'E2E Template Fit Admin'],
+  ['e2e-apps-a11y@adminium.local', 'E2E Apps Axe Admin'],
 ];
 const OWN_PRINCIPAL_PASSWORD = 'adminium-e2e-password';
 const CONNECTION_NAME = process.env.E2E_CONNECTION_NAME ?? 'northwind';

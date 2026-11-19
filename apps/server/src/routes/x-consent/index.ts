@@ -51,7 +51,7 @@ import { ipv6Network, rateAddress } from '../../public-api/limiter.js';
 import { hostOf, normalizeHost } from '../../security/csrf.js';
 import { tagRoutes } from '../../security/route-audience.js';
 import { isKnownBot, isPrefetch } from '../../views/bots.js';
-import type { TrackingLevel } from '../../views/counter.js';
+import type { TrackingLevel } from '../../views/level.js';
 import { bannerLocaleOf, bannerWords, clearVisitorCookie, newVisitor, ownPagesHost, pendingYes, setVisitorCookie, visitorProofOf, visitorSince } from '../../views/visitor.js';
 import { xDoorHeaders } from '../x-door/headers.js';
 import { strangerDoor } from '../x-door/stranger.js';

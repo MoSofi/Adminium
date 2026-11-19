@@ -49,7 +49,7 @@ import { deriveKey } from '../config/secrets.js';
 import { storedPublicOrigin } from '../email/door-reach.js';
 import { loadOverrideMap } from '../i18n/server-i18n.js';
 import { normalizeHost } from '../security/csrf.js';
-import type { TrackingLevel } from './counter.js';
+import type { TrackingLevel } from './level.js';
 
 /** The cookie's name on an https address, and on a plain-http one. */
 export const VISITOR_COOKIE = '__Host-adm_v';

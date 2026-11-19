@@ -97,6 +97,12 @@ export const PUBLIC_API_ADMIN_PASSWORD = 'adminium-e2e-password';
  *               per test), so on the shared admin it met a 429 wherever the
  *               specs before it had spent that minute (the board's first
  *               read, sqlite).
+ *   apps        the /studio/apps sweeps under axe: four passes of every state
+ *               of the install wizard, about 100 `api` calls each in 17
+ *               seconds, more than one minute's budget together. On the shared
+ *               admin the specs after it (app-install, the Parts card, the role
+ *               tables) met 429s, on 0.3.64 as well; each pass now also waits
+ *               for room (`awaitApiBudget`).
  */
 export const OWN_PRINCIPALS = {
   generated: { email: 'e2e-generated@adminium.local', name: 'E2E Generated App Admin' },
@@ -108,6 +114,7 @@ export const OWN_PRINCIPALS = {
   settings: { email: 'e2e-settings@adminium.local', name: 'E2E Settings Admin' },
   pictures: { email: 'e2e-pictures@adminium.local', name: 'E2E Pictures Admin' },
   fit: { email: 'e2e-template-fit@adminium.local', name: 'E2E Template Fit Admin' },
+  apps: { email: 'e2e-apps-a11y@adminium.local', name: 'E2E Apps Axe Admin' },
 } as const;
 export type OwnPrincipal = keyof typeof OWN_PRINCIPALS;
 export const OWN_PRINCIPAL_PASSWORD = 'adminium-e2e-password';

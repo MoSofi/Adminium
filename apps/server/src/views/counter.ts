@@ -60,15 +60,12 @@ import type { VisitInput } from '@adminium/meta';
 
 import { ipv6Network, rateAddress } from '../public-api/limiter.js';
 import { isPrefetch, isKnownBot } from './bots.js';
+import { TRACKING_LEVELS, type TrackingLevel } from './level.js';
 import type { Newcomer, VisitorProof } from './visitor.js';
 
 /** What is counted: a landing page, a form on its own page or in a frame, a form block opened on a page, a form sent. */
 export const VIEW_KINDS = ['page', 'form-page', 'form-opened', 'form-sent'] as const;
 export type ViewKind = (typeof VIEW_KINDS)[number];
-
-/** How visitors are counted: `privacy.tracking`. */
-export const TRACKING_LEVELS = ['off', 'counts', 'visitor'] as const;
-export type TrackingLevel = (typeof TRACKING_LEVELS)[number];
 
 /** A repeat view of one thing from one address within this time is not counted again: thirty minutes. */
 export const DEDUPE_MS = 30 * 60_000;

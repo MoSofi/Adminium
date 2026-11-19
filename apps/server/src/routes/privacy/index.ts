@@ -82,7 +82,7 @@ import { erasePerson, previewErasure } from '../../privacy/erase.js';
 import type { AnswerFilesRemover } from '../../forms/answers.js';
 import { countsOf, PRIVACY_EXPORT_KIND, personHash } from '../../privacy/export.js';
 import { chatTranscriptsKeeping, formAnswersKeeping, KEEPING_ROWS, keepingRows } from '../../privacy/keeping.js';
-import type { TrackingLevel } from '../../views/counter.js';
+import type { TrackingLevel } from '../../views/level.js';
 import { changeCounting, countingState, PerVisitorNeedsNotice } from '../../views/tracking.js';
 import { defaultBannerWords } from '../../views/visitor.js';
 import type { ChatForget } from '../../chat/transcripts.js';
