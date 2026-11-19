@@ -69,6 +69,11 @@ function primaryColumnOf(manifest: AddOnManifest, ref: string): RequiredColumn |
   return table?.columns.find((column) => column.role === 'pk') ?? null;
 }
 
+/** Whether a table is an installed forms add-on's answers or files table: rows Adminium alone writes. */
+export function formsOwnTable(installs: AddOnInstalls, connectionId: string, tableId: string): boolean {
+  return formsTablesOn(installs, connectionId).some((one) => one.answers === tableId || one.files?.table === tableId);
+}
+
 /** Every forms add-on installed on a connection, with its tables as they stand. */
 export function formsTablesOn(installs: AddOnInstalls, connectionId: string): FormsTables[] {
   const out: FormsTables[] = [];
@@ -249,7 +254,7 @@ export function createFormsFiles(deps: FormsFilesDeps) {
      * them), which the write service refuses a person's create or change of.
      */
     async ownTable(connectionId: string, tableId: string): Promise<boolean> {
-      return formsTablesOn(await deps.installs(), connectionId).some((one) => one.answers === tableId || one.files?.table === tableId);
+      return formsOwnTable(await deps.installs(), connectionId, tableId);
     },
 
     /**
