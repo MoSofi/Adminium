@@ -954,7 +954,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
         const profile =
           row.profileId === null ? null : await profiles.findById(row.profileId);
         const delivery = await emailDocument(
-          { meta: deps.meta, runtime: deps.runtime, logger: request.log },
+          { meta: deps.meta, runtime: deps.runtime, logger: request.log, untold: deps.pipeline?.untold },
           /*
            * No `to`. A mapped document goes to its mapping's address slot and
            * an intent goes to the claim that made it — both read from the row

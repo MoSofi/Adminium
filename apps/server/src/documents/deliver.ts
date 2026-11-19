@@ -75,6 +75,8 @@ export type DeliveryOutcome =
   | 'not-sent:no-email'
   | 'not-sent:no-file'
   | 'not-sent:smtp-unconfigured'
+  /** The address is a person a source found who has not been told yet (`leads/people.ts`): nothing else reaches them first. */
+  | 'not-sent:not-told'
   | 'pending-review';
 
 /*
@@ -90,6 +92,8 @@ export interface DeliverDeps {
   /** For the provider's localized kind label; absent = fall back to the id. */
   runtime?: (() => AddOnRuntimeState | null) | undefined;
   logger?: EmailLogger | undefined;
+  /** Whether an address is a found person's who has not been told yet: their tell mail goes first, nothing else. */
+  untold?: ((address: string) => Promise<boolean>) | undefined;
 }
 
 export interface DeliverInput {
@@ -191,6 +195,9 @@ export async function emailDocument(
   const to = input.to ?? addressFrom(document, deliver.emailSlot) ?? claimAddress(document);
   if (to === null || to === undefined || to === '') {
     return await record(documents, document.id, 'not-sent:no-email');
+  }
+  if (deps.untold !== undefined && (await deps.untold(to))) {
+    return await record(documents, document.id, 'not-sent:not-told');
   }
 
   // The PDF when there is one, else the HTML — the same preference the

@@ -42,6 +42,8 @@ import { serviceMark } from './service-name.js';
 export interface PaymentEmailDeps extends EnqueueEmailDeps {
   sources: PayableSources;
   now?: () => number;
+  /** Whether an address is a found person's who has not been told yet: their tell mail goes first, nothing else. */
+  untold?: ((address: string) => Promise<boolean>) | undefined;
 }
 
 /** The shop as its customers know it. */
@@ -116,7 +118,7 @@ async function templateFor(meta: MetaDb, key: string, locale: string, shop: Shop
 
 export type LinkEmailOutcome =
   | { sent: true; to: string; jobId: string }
-  | { sent: false; reason: 'no-customer-email' | 'not-payable' | 'email-off' | 'template-off' };
+  | { sent: false; reason: 'no-customer-email' | 'not-payable' | 'email-off' | 'template-off' | 'not-told' };
 
 /**
  * Sends a payable's pay link to the address the record holds. `url` is the
@@ -127,6 +129,7 @@ export async function sendPayLinkEmail(deps: PaymentEmailDeps, input: { link: Pa
   if (payable === null || payable.refusal !== null) return { sent: false, reason: 'not-payable' };
   const to = payable.customerEmail;
   if (to === null) return { sent: false, reason: 'no-customer-email' };
+  if (deps.untold !== undefined && (await deps.untold(to))) return { sent: false, reason: 'not-told' };
   const locale = await recipientLocale(deps.meta, null);
   const { shop, sender } = await shopFor(deps.meta, payable, PAYMENT_LINK_TEMPLATE_KEY);
   const template = await templateFor(deps.meta, PAYMENT_LINK_TEMPLATE_KEY, locale, shop);
@@ -183,6 +186,7 @@ export async function queuePaymentReceipt(deps: PaymentEmailDeps, attempt: Payme
     const payable = await resolvePayable(deps.sources, attempt.payable);
     const to = payable?.customerEmail ?? null;
     if (payable === null || to === null) return false;
+    if (deps.untold !== undefined && (await deps.untold(to))) return false;
     const locale = await recipientLocale(deps.meta, null);
     const { shop, sender } = await shopFor(deps.meta, payable, PAYMENT_RECEIPT_TEMPLATE_KEY);
     const template = await templateFor(deps.meta, PAYMENT_RECEIPT_TEMPLATE_KEY, locale, shop);

@@ -137,6 +137,8 @@ export interface DocumentInstall {
 
 export interface RenderDeps {
   meta: MetaDb;
+  /** Whether an address is a found person's who has not been told yet: a drawn document is not e-mailed to them first. */
+  untold?: ((address: string) => Promise<boolean>) | undefined;
   storage: FileStore;
   runtime: () => AddOnRuntimeState | null;
   /** Read the source row and its children with the requester's own grants. */
@@ -915,6 +917,7 @@ async function renderCore(
         meta: deps.meta,
         runtime: deps.runtime,
         ...(deps.logger === undefined ? {} : { logger: deps.logger }),
+        untold: deps.untold,
       },
       { document: done!, profile },
     );
