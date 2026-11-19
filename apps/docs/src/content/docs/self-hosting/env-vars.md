@@ -706,6 +706,21 @@ release, or downloaded from the catalogue — and a package uploaded by hand ins
 save that would ask its code refused. The variable is **ignored when `NODE_ENV` is `production`**:
 it is not a way to run unreleased code on a live server.
 
+## `ADMINIUM_LEAD_SOURCE_DEMO`
+
+For **testing** an add-on that finds companies, end to end, without reaching any register. A
+comma-separated list of add-on keys whose sources are answered with made-up companies and people
+(the add-on contract's demo) instead of the add-on's own code:
+
+```sh
+ADMINIUM_LEAD_SOURCE_DEMO='lead-finder'
+```
+
+Everything else holds as on any server: the source's switch, its saved key, the add-on loaded
+from a package this server vouches for, the daily caps and Stop. The server **refuses to start**
+with it set when `NODE_ENV` is `production`, on a trial or on a hosted server, and it is read as
+off there too: it is never a way to show made-up companies on a live server.
+
 ## `ADMINIUM_TRUST_PROXY`
 
 Off by default, which is right for a direct-to-internet or localhost process:
@@ -1055,6 +1070,7 @@ the last two. Either fails on a value that contradicts it:
 | `ADMINIUM_NETWORK_POLICY=open` | Both run `strict`. |
 | `ADMINIUM_LOCAL_DATABASES=setting` | Both keep databases on this server off; only the host list counts. |
 | `ADMINIUM_RATE_LIMIT_SCALE`, `ADMINIUM_ADD_ON_DEV_TRUST` | They widen limits or trust add-on code. |
+| `ADMINIUM_LEAD_SOURCE_DEMO` | It answers lead sources with made-up companies, for tests only (refused when `NODE_ENV` is `production` too). |
 | `NODE_OPTIONS` with anything but `--max-old-space-size=<MB>` or `--max-semi-space-size=<MB>` | It changes what the server loads. The Docker image's own heap ceiling (`--max-old-space-size=512`) is allowed. |
 | `ADMINIUM_BRIDGE_ORIGINS`, `ADMINIUM_DEMO_SEED_SCRIPT`, `ADMINIUM_RUNTIME=desktop` | Not for a server other people use. |
 | `ADMINIUM_STORAGE_URL`, `AWS_ENDPOINT_URL_S3` | Files stay in the data folder. |

@@ -9,6 +9,7 @@ import { parseConnectUrl } from '../connect/providers.js';
 import { parseDatabaseHost, parseDsn, type DatabaseHost } from '../connections/dsn.js';
 import { addressKind } from '../net/address-guard.js';
 import { NETWORK_POLICIES } from '../net/outbound-check.js';
+import { LEAD_SOURCE_DEMO_ENV, leadSourceDemoProblem } from '../lead-sources/demo-seam.js';
 import { invalidTrustedProxies } from '../security/trust-proxy.js';
 import { readSecretFiles, SECRET_FILE_SUFFIX, withHeldSecrets, type SecretFileProblem } from './operator-secrets.js';
 
@@ -1844,7 +1845,13 @@ export function loadEnv(
   // A secret given as a file (`<NAME>_FILE`) is read as if it had been set in `<NAME>`.
   const files = readSecretFiles(withHeldSecrets(env));
   const result = envSchema.safeParse(files.env);
-  const issues = [...secretFileIssues(files.problems, result.success ? [] : result.error.issues), ...problemIssues(profileIssues(files.env))];
+  // The demo source seam is for tests: refused where it may never be on (production, a trial, a hosted server).
+  const demo = leadSourceDemoProblem(files.env);
+  const issues = [
+    ...secretFileIssues(files.problems, result.success ? [] : result.error.issues),
+    ...problemIssues(profileIssues(files.env)),
+    ...problemIssues(demo === null ? [] : [{ variable: LEAD_SOURCE_DEMO_ENV, problem: demo }]),
+  ];
   if (!result.success || issues.length > 0) {
     const table = formatEnvErrorTable(issues);
     stderr.write(`Adminium failed to start — invalid environment configuration:\n\n${table}\n`);
