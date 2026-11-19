@@ -99,6 +99,9 @@ const DESCRIPTIONS = {
     'Connect Supabase: the one-time hand-off from an operator\'s connect service (ADMINIUM_SUPABASE_CONNECT_URL). Start, the return with its one-time code, and the password for an existing project',
   connections: 'Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation',
   data: 'Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references',
+  leads:
+    'Finding companies, for staff of an add-on that finds them: search a register, look up one company, add found companies, fill in a ' +
+    'company\'s details, and find and keep the people who work there — every write made as the person asking',
   designer:
     'Adminium Designer on a server people reach — whether it is allowed and switched on, and the switch itself ' +
     '(a Super Admin, with their password). The Designer’s own routes exist only while the server runs it',
