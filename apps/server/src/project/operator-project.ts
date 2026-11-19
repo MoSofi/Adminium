@@ -25,7 +25,7 @@ import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 
 import { BUILD_DIR } from './build-shared.js';
-import { CONFIG_FILES, type ProjectLocation } from './locate.js';
+import { CONFIG_FILES, type ProjectLocation } from './config-files.js';
 import type { ProjectConfig } from './config.js';
 
 /** The name the in-memory config goes by where a file name is shown. Never a file. */

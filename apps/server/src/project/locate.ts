@@ -14,20 +14,9 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { CliError } from '../cli/exit.js';
 import { operatorProjectAt } from './operator-project.js';
 
-/** Accepted config file names, in the order they are looked for. */
-export const CONFIG_FILES = [
-  'adminium.config.ts',
-  'adminium.config.mts',
-  'adminium.config.js',
-  'adminium.config.mjs',
-] as const;
+import { CONFIG_FILES, type ProjectLocation } from './config-files.js';
 
-export interface ProjectLocation {
-  /** Absolute path of the project folder. */
-  root: string;
-  /** Absolute path of its config file. */
-  configFile: string;
-}
+export { CONFIG_FILES, type ProjectLocation };
 
 type Exists = (path: string) => boolean;
 
