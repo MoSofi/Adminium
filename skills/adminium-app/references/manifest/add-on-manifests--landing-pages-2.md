@@ -2,6 +2,15 @@
 
 # Manifest spec: Add-on manifests — Landing pages
 
+The page has one main heading: the first hero's, else the first heading's, else its `title`, drawn
+for screen readers only. Every other heading of a block is a section's, and an item under a titled
+block is under that section.
+
+A package that declares landing pages serves them only when Adminium can vouch for its bytes, as
+forms and chat are.
+
+#### The pages door
+
 A live page answers at `/x/pages/<slug>`, on the public address, on every host mapped to the add-on
 pages and on an app's customer domain alike. Its data is read from `/x/pages/api/<slug>` and its
 pictures from `/x/pages/api/<slug>/pictures/<file id>`. A page answers only while its row is `live`,

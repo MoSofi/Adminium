@@ -20,7 +20,13 @@ add-on's own staff screens.)
 Both are required, each a table of its own, and each has a numbered key: an `int` or `bigint`
 column with `"role": "pk"`. A funnel's step and a link to another page name a page by it. Staff
 write both tables: a role or an app's grant may create, update and delete them. No public entry of
-the add-on opens either table. A further column is nullable or has a default.
+the add-on opens either table. A further column is nullable, has a default, is decided by a rule
+(a `stamp`, a `code`), or is a time or a date with `"role": "updated_at"` or `"role": "created_at"`,
+which Adminium stamps on every write:
+
+```json
+{ "ref": "updated_at", "type": "timestamptz", "role": "updated_at" }
+```
 
 Each table has these columns, by these names. A table may add its own. A `text` column given here a
 length takes at least that many characters, or has no `maxLength`. A column marked "empty" is
@@ -119,12 +125,3 @@ form block on this page, which the page then must have).
 A **picture** is `{ "file": "<file id>", "alt": "…" }`, with a description read aloud of up to 300
 characters, or `{ "file": "<file id>", "decorative": true }` for one that is only decoration. The
 file is one the page owns, named by its id, never an address or a `data:` URL.
-
-The page has one main heading: the first hero's, else the first heading's, else its `title`, drawn
-for screen readers only. Every other heading of a block is a section's, and an item under a titled
-block is under that section.
-
-A package that declares landing pages serves them only when Adminium can vouch for its bytes, as
-forms and chat are.
-
-#### The pages door
