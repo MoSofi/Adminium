@@ -60,6 +60,23 @@ function def<T>(
 /** Shorthand for the common case: operator-authored config that a bundle carries. */
 const P: DefOptions = { portable: true };
 
+/**
+ * `llm.yoursAssist`. `undo` is the apply's before-image (`ApplyUndo` in the
+ * server): ids and the rows an apply replaced, kept as JSON.
+ */
+const yoursAssistSchema = z.object({
+  state: z.enum(['running', 'applied', 'failed', 'undone', 'interrupted']),
+  runId: z.string().nullable(),
+  connectionId: z.string(),
+  at: z.number(),
+  /** What was applied, by kind. */
+  counts: z.record(z.string(), z.number()).nullable(),
+  undo: z.unknown().nullable(),
+  /** Why it failed, as a short code (`no-model`, `provider`, `invalid`, `apply`). */
+  reason: z.string().max(60).nullable(),
+});
+export type YoursAssistRecord = z.infer<typeof yoursAssistSchema>;
+
 /** The months a keeping row may be set to (Privacy → How long we keep things). */
 export const KEEPING_MONTHS: readonly number[] = [3, 6, 12, 13, 24, 36];
 
@@ -475,6 +492,13 @@ export const SETTINGS_REGISTRY = {
   'llm.model': def<string | null>(z.string().nullable(), null, 'LLM model override (null = provider default)', P),
   'llm.baseUrl': def<string | null>(z.string().nullable(), null, 'Base URL for openai-compatible / ollama', P),
   'llm.maxOutputTokens': def<number | null>(z.number().int().positive().nullable(), null, 'Max output tokens (null = provider default)', P),
+  /**
+   * The schema assistant's one run on the user's own database (`yours`, an
+   * operator project): which run, how it ended, and the before-image of its
+   * apply, so the owner can undo it later (`POST /llm/yours-assist/undo`).
+   * Written only by the server. Instance state: never portable.
+   */
+  'llm.yoursAssist': def<YoursAssistRecord | null>(yoursAssistSchema.nullable(), null, "The schema assistant's first run on the user's database, and its undo"),
   'retention.auditLogDays': def(z.number().int().min(30).max(3650), 365, 'Audit log retention in days', P),
   'retention.exportsDays': def(z.number().int().min(1).max(365), 30, 'Export artifact retention in days', P),
   'retention.webhookDeliveriesDays': def(z.number().int().min(1), 30, 'Webhook delivery log retention in days', P),

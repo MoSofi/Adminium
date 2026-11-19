@@ -2223,6 +2223,22 @@
     "ended": "Denne prøveperiode er slut.",
     "readOnly": "Skrivebeskyttet: denne prøveperiode er slut",
     "readOnlyChip": "Skrivebeskyttet",
-    "upgradeLine": "Behold denne installation: alt forbliver, som det er."
+    "upgradeLine": "Behold denne installation: alt forbliver, som det er.",
+    "ownDatabase": "Bruger din database på {host}",
+    "ownDatabaseNoHost": "Bruger din egen database",
+    "ownDatabaseDown": "Kan ikke nå din database på {host}: {reason}",
+    "ownDatabaseDownNoHost": "Kan ikke nå din database: {reason}",
+    "ownDatabaseChange": "Skift",
+    "ownDatabaseReason": {
+      "auth": "brugernavn eller adgangskode blev afvist",
+      "unreachable": "den svarer ikke",
+      "dns": "dens adresse kan ikke findes",
+      "tls": "den sikre forbindelse mislykkedes",
+      "refusedByUs": "denne server forbinder ikke til den adresse",
+      "ipv6Only": "den kan kun nås over IPv6",
+      "noDatabase": "databasen findes ikke",
+      "noPermission": "dette login må ikke læse den",
+      "empty": "den har ingen tabeller"
+    }
   }
 }

@@ -13,6 +13,12 @@
  *    page title gains a "Read-only" chip and every create, edit, delete and
  *    save control the page templates draw is locked with the reason
  *    (`setWriteLock`, @adminium/widgets); the server refuses the write itself.
+ *  - On the visitor's own database (an operator project's `yours`): "Using
+ *    your database at {host}" in place of the test-environment line (D2), or
+ *    "Can’t reach your database at {host}: why" while it is down, with Change
+ *    (adminium.app's account page, where it was connected). Before sign-in
+ *    the host is not known (`/system/info` never names it): the line says
+ *    "your own database".
  *  - Upgrade (only with the operator's address set) opens that address in
  *    the same tab: the operator's page brings the person back here.
  *
@@ -21,12 +27,13 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { CircleArrowUp, FlaskConical, Hourglass, Lock } from 'lucide-react';
+import { CircleArrowUp, Database, FlaskConical, Hourglass, Lock } from 'lucide-react';
 import { useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { Button, Card, DropdownMenuItem, DropdownMenuSeparator } from '@adminium/ui';
 import { setWriteLock } from '@adminium/widgets';
 
-import { showsDeployLink, systemInfoQuery, type TrialInfo } from '../app/capabilities.js';
+import { bootstrapQuery } from '../app/bootstrap.js';
+import { showsDeployLink, systemInfoQuery, type OwnDatabaseInfo, type OwnDatabaseReason, type TrialInfo } from '../app/capabilities.js';
 import { useCommonWords } from '../i18n/commonWords.js';
 import { t } from '../i18n/t.js';
 import { TitleReadOnlyChip } from './ReadOnlyChip.js';
@@ -91,9 +98,86 @@ function UpgradeButton({ url }: { url: string }): ReactNode {
   );
 }
 
+/** What the own-database strip shows: the host only from the signed-in bootstrap, the state from either reply. */
+export interface OwnDatabaseLine {
+  state: OwnDatabaseInfo['state'];
+  reason: OwnDatabaseReason | null;
+  host: string | null;
+  editUrl: string | null;
+}
+
+export function ownDatabaseLine(
+  signedIn: (OwnDatabaseInfo & { host: string; editUrl: string | null }) | undefined,
+  open: OwnDatabaseInfo | null | undefined,
+): OwnDatabaseLine | null {
+  if (signedIn !== undefined) return { state: signedIn.state, reason: signedIn.reason, host: signedIn.host, editUrl: signedIn.editUrl };
+  if (open === undefined || open === null) return null;
+  return { state: open.state, reason: open.reason, host: null, editUrl: null };
+}
+
+/** A reason class in the person's words. */
+export function ownDatabaseReasonWords(reason: OwnDatabaseReason | null): string {
+  switch (reason) {
+    case 'auth':
+      return t('trial.ownDatabaseReason.auth', 'the user name or password was refused');
+    case 'dns':
+      return t('trial.ownDatabaseReason.dns', 'its address cannot be found');
+    case 'tls':
+      return t('trial.ownDatabaseReason.tls', 'the secure connection failed');
+    case 'refused-by-us':
+      return t('trial.ownDatabaseReason.refusedByUs', 'this server does not connect to that address');
+    case 'ipv6-only':
+      return t('trial.ownDatabaseReason.ipv6Only', 'it can be reached over IPv6 only');
+    case 'no-database':
+      return t('trial.ownDatabaseReason.noDatabase', 'the database does not exist');
+    case 'no-permission':
+      return t('trial.ownDatabaseReason.noPermission', 'this login may not read it');
+    case 'empty':
+      return t('trial.ownDatabaseReason.empty', 'it has no tables');
+    case 'unreachable':
+    case null:
+      return t('trial.ownDatabaseReason.unreachable', 'it does not answer');
+  }
+}
+
+/** "Using your database at db.example.com", or "Can’t reach your database at …: why", with Change when signed in. */
+function OwnDatabaseStrip({ own }: { own: OwnDatabaseLine }): ReactNode {
+  const down = own.state === 'down';
+  const reason = ownDatabaseReasonWords(own.reason);
+  const words = down
+    ? own.host === null
+      ? t('trial.ownDatabaseDownNoHost', 'Can’t reach your database: {reason}', { reason })
+      : t('trial.ownDatabaseDown', 'Can’t reach your database at {host}: {reason}', { host: own.host, reason })
+    : own.host === null
+      ? t('trial.ownDatabaseNoHost', 'Using your own database')
+      : t('trial.ownDatabase', 'Using your database at {host}', { host: own.host });
+  return (
+    <div
+      role={down ? 'status' : 'note'}
+      className={`${STRIP} gap-x-[9px] py-1.5 text-fg sm:py-2 ${
+        down ? 'border-[color-mix(in_srgb,var(--danger)_22%,transparent)] bg-danger-soft' : 'border-border bg-accent-soft'
+      }`}
+      data-testid="trial-own-database"
+      data-state={own.state}
+    >
+      <Database aria-hidden="true" className={`size-[15px] shrink-0 ${down ? 'text-danger' : 'text-accent'}`} />
+      {/* The host may be long: it wraps on a phone rather than being cut. */}
+      <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{words}</span>
+      {own.editUrl === null ? null : (
+        <a href={own.editUrl} className="whitespace-nowrap font-bold text-accent hover:underline" data-testid="trial-own-database-change">
+          {t('trial.ownDatabaseChange', 'Change')}
+        </a>
+      )}
+    </div>
+  );
+}
+
 export function TrialStrips({ shell = false }: { shell?: boolean }): ReactNode {
   useCommonWords();
-  const trial = useQuery(systemInfoQuery()).data?.trial;
+  const info = useQuery(systemInfoQuery());
+  // Cache read only: signed in, the shell has the bootstrap already; on the sign-in and setup pages there is none.
+  const boot = useQuery({ ...bootstrapQuery(), enabled: false });
+  const trial = info.data?.trial;
   const now = useTrialNow(trial);
   const state = trialState(trial, now);
   const ended = state === 'ended';
@@ -129,17 +213,23 @@ export function TrialStrips({ shell = false }: { shell?: boolean }): ReactNode {
   }
 
   const days = daysLeftAt(trial, now) ?? 1;
+  // A trial on the visitor's own database says so in place of "test environment" (D2): with its host once signed in.
+  const own = ownDatabaseLine(boot.data?.ownDatabase, info.data?.ownDatabase);
   return (
     <>
-      <div
-        role="note"
-        className={`${STRIP} gap-x-[9px] border-[color-mix(in_srgb,var(--warn)_22%,transparent)] bg-warn-soft py-1.5 text-fg sm:py-2`}
-        data-testid="trial-test-environment"
-      >
-        <FlaskConical aria-hidden="true" className="size-[15px] shrink-0 text-warn" />
-        {/* The whole sentence on every width: on a phone it wraps rather than shortening. */}
-        <span className="min-w-0 flex-1">{t('trial.testEnvironment', 'This is a test environment. Please don’t put real customer data in.')}</span>
-      </div>
+      {own === null ? (
+        <div
+          role="note"
+          className={`${STRIP} gap-x-[9px] border-[color-mix(in_srgb,var(--warn)_22%,transparent)] bg-warn-soft py-1.5 text-fg sm:py-2`}
+          data-testid="trial-test-environment"
+        >
+          <FlaskConical aria-hidden="true" className="size-[15px] shrink-0 text-warn" />
+          {/* The whole sentence on every width: on a phone it wraps rather than shortening. */}
+          <span className="min-w-0 flex-1">{t('trial.testEnvironment', 'This is a test environment. Please don’t put real customer data in.')}</span>
+        </div>
+      ) : (
+        <OwnDatabaseStrip own={own} />
+      )}
       <div role="note" className={`${STRIP} border-border bg-surface-2 py-1.5 text-fg-muted`} data-testid="trial-days">
         <Hourglass aria-hidden="true" className="size-[15px] shrink-0" />
         <span className="whitespace-nowrap text-fg">{t('trial.daysLeft', '{count, plural, one {# day left} other {# days left}}', { count: days })}</span>

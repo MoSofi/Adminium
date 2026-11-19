@@ -52,6 +52,8 @@ import type { AuthContext } from '../../plugins/auth.js';
 import { csrfSigningKey, issueCsrfToken } from '../../security/csrf.js';
 import { toUserView } from '../auth/handlers.js';
 import { APP_VERSION } from '../../version.js';
+import { YOUR_DATABASE_STATUS } from '../../project/your-database-state.js';
+import { YOURS_KEY } from '../../apps/no-app-tables.js';
 import { resolveLabel, SURFACES_URL_ROOT, type HostedSurface } from '../../cli/surfaces-root.js';
 import {
   addressForMount,
@@ -1026,7 +1028,7 @@ export async function bootstrapHandler(
     // `canImport`, with the pause.
     ctx.meta.db
       .selectFrom('adminium_connections')
-      .select(['id', 'name', 'disabledAt', 'currency', 'readOnly', 'engine'])
+      .select(['id', 'name', 'disabledAt', 'currency', 'readOnly', 'engine', 'projectKey'])
       .execute(),
     // `llm.enabled` = a provider is configured — the same
     // `llm.provider` row `resolveProviderClient` gates direct runs
@@ -1358,6 +1360,37 @@ export async function bootstrapHandler(
       ...(project === null ? {} : { project }),
       // The server's operator has hidden every public page: Studio says so, with their reason (`operator/holds.ts`).
       ...publicPagesHiddenOf(request),
+      ...ownDatabaseOf(ctx.env, connectionRows.find((row) => row.projectKey === YOURS_KEY)?.id ?? null),
+    },
+  };
+}
+
+/**
+ * Where the user's own database's settings are changed: adminium.app's account page, at the origin of the trial's
+ * Upgrade address (`ADMINIUM_TRIAL_UPGRADE_URL`, which the operator points at the same site). Null without one (the
+ * hosted profile): the strip then names the database and links nowhere.
+ */
+export function ownDatabaseEditUrl(upgradeUrl: string | undefined): string | null {
+  if (upgradeUrl === undefined) return null;
+  try {
+    return new URL('/account/', upgradeUrl).toString();
+  } catch {
+    return null;
+  }
+}
+
+function ownDatabaseOf(env: AuthContext['env'], connectionId: string | null): { ownDatabase?: NonNullable<BootstrapReply['data']['ownDatabase']> } {
+  const state = YOUR_DATABASE_STATUS.current();
+  if (state === null) return {};
+  return {
+    ownDatabase: {
+      host: state.host,
+      label: state.label,
+      state: state.state,
+      reason: state.reason,
+      readOnly: state.readOnly,
+      editUrl: ownDatabaseEditUrl(env.ADMINIUM_TRIAL_UPGRADE_URL),
+      connectionId,
     },
   };
 }

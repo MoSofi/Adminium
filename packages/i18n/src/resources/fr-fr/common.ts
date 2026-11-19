@@ -2233,6 +2233,22 @@ export default {
     "ended": "Cet essai est terminé.",
     "readOnly": "Lecture seule : cet essai est terminé",
     "readOnlyChip": "Lecture seule",
-    "upgradeLine": "Garder cette installation : tout reste tel quel."
+    "upgradeLine": "Garder cette installation : tout reste tel quel.",
+    "ownDatabase": "Votre base de données sur {host} est utilisée",
+    "ownDatabaseNoHost": "Votre propre base de données est utilisée",
+    "ownDatabaseDown": "Impossible de joindre votre base de données sur {host} : {reason}",
+    "ownDatabaseDownNoHost": "Impossible de joindre votre base de données : {reason}",
+    "ownDatabaseChange": "Modifier",
+    "ownDatabaseReason": {
+      "auth": "le nom d’utilisateur ou le mot de passe a été refusé",
+      "unreachable": "elle ne répond pas",
+      "dns": "son adresse est introuvable",
+      "tls": "la connexion sécurisée a échoué",
+      "refusedByUs": "ce serveur ne se connecte pas à cette adresse",
+      "ipv6Only": "elle n’est joignable qu’en IPv6",
+      "noDatabase": "la base de données n’existe pas",
+      "noPermission": "cet identifiant ne peut pas la lire",
+      "empty": "elle n’a aucune table"
+    }
   }
 } as const;

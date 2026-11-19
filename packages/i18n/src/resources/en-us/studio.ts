@@ -1187,7 +1187,8 @@ export default {
       "rename": "Rename",
       "resume": "Resume",
       "test": "Test",
-      "saveAsApp": "Save as app"
+      "saveAsApp": "Save as app",
+      "changeOwnDatabase": "Change on your account"
     },
     "card": {
       "lastIntrospected": "Last introspected",

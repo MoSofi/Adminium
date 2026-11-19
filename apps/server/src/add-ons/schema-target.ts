@@ -47,6 +47,7 @@ import type { ConnectionManager } from '../connections/manager.js';
 import { runIntrospection } from '../connections/introspect.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { applyInstall, type ApplyInstallResult, type ExistingTable } from './install-ddl.js';
+import { assertNoAppTables } from '../apps/no-app-tables.js';
 
 export interface AddOnSchemaTarget {
   /**
@@ -343,6 +344,8 @@ export async function applyPlanTo(
   // install ran CREATE TABLE against a connection Adminium had already
   // recorded as read-only, and failed with whatever the engine said.
   const connection = await deps.manager.mustFind(connectionId);
+  // Never on the user's own database (an operator project's `yours`), whoever asks: before any other check says why.
+  assertNoAppTables(connection, plan.create.map((table) => table.ref));
   if (connection.readOnly) {
     throw new ForbiddenError(
       `"${manifest.key}" needs to create tables, but this connection uses a read-only role.`,

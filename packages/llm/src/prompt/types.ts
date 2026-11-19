@@ -143,6 +143,13 @@ export interface PromptInput {
   runId: string;
   /** Present only for a chunked run; the chunker fills it. */
   chunk?: PromptChunkInfo;
+  /**
+   * What the database's owner wrote about it, already cleaned by the caller (no
+   * address, password or control character; 2,000 characters at most). Added to
+   * the user section as DATA, a JSON string under its own heading, never as
+   * instructions. Absent or null: the prompt is byte-identical to one without.
+   */
+  notes?: string | null;
 }
 
 /** Chunk placement for a map-phase prompt. `index` is 1-based for display. */

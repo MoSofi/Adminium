@@ -2233,6 +2233,22 @@ export default {
     "ended": "Dieser Testzeitraum ist beendet.",
     "readOnly": "Nur lesen: Dieser Testzeitraum ist beendet",
     "readOnlyChip": "Nur lesen",
-    "upgradeLine": "Diese Installation behalten: Alles bleibt, wie es ist."
+    "upgradeLine": "Diese Installation behalten: Alles bleibt, wie es ist.",
+    "ownDatabase": "Ihre Datenbank auf {host} wird verwendet",
+    "ownDatabaseNoHost": "Ihre eigene Datenbank wird verwendet",
+    "ownDatabaseDown": "Ihre Datenbank auf {host} ist nicht erreichbar: {reason}",
+    "ownDatabaseDownNoHost": "Ihre Datenbank ist nicht erreichbar: {reason}",
+    "ownDatabaseChange": "Ändern",
+    "ownDatabaseReason": {
+      "auth": "Benutzername oder Passwort wurde abgelehnt",
+      "unreachable": "sie antwortet nicht",
+      "dns": "ihre Adresse wurde nicht gefunden",
+      "tls": "die sichere Verbindung ist fehlgeschlagen",
+      "refusedByUs": "dieser Server verbindet sich nicht mit dieser Adresse",
+      "ipv6Only": "sie ist nur über IPv6 erreichbar",
+      "noDatabase": "die Datenbank existiert nicht",
+      "noPermission": "diese Anmeldung darf sie nicht lesen",
+      "empty": "sie hat keine Tabellen"
+    }
   }
 } as const;

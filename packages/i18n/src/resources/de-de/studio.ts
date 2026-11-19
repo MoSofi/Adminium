@@ -1187,7 +1187,8 @@ export default {
       "rename": "Umbenennen",
       "resume": "Fortsetzen",
       "test": "Testen",
-      "saveAsApp": "Als App speichern"
+      "saveAsApp": "Als App speichern",
+      "changeOwnDatabase": "In Ihrem Konto ändern"
     },
     "card": {
       "lastIntrospected": "Zuletzt introspiziert",

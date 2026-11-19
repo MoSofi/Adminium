@@ -134,6 +134,8 @@ export interface CreateRunInput {
   createdBy?: string | null;
   /** Override the default input-token budget. */
   tokenBudget?: number;
+  /** The owner's notes about the database, already cleaned (`cleanNotes`); data in the prompt, never instructions. */
+  notes?: string | null;
 }
 
 export interface CreateRunResult {
@@ -224,6 +226,18 @@ export interface RunServiceDeps {
 export function createRunService(deps: RunServiceDeps) {
   const runs = llmRunsRepo(deps.meta);
   const now = deps.now ?? Date.now;
+  /** Told when a run reaches its end (applied, partly applied, failed, discarded): the operator's `assist.finished`. */
+  const ended = new Set<(run: LlmRun) => void>();
+  const tellEnded = (run: LlmRun): LlmRun => {
+    for (const listener of ended) {
+      try {
+        listener(run);
+      } catch {
+        // A listener's failure never fails the run.
+      }
+    }
+    return run;
+  };
 
   async function findOrThrow(runId: string): Promise<LlmRun> {
     const run = await runs.findById(runId);
@@ -251,6 +265,11 @@ export function createRunService(deps: RunServiceDeps) {
   }
 
   return {
+    /** Hear of every run that reaches its end. Returns the way to stop hearing. */
+    onEnded(listener: (run: LlmRun) => void): () => void {
+      ended.add(listener);
+      return () => ended.delete(listener);
+    },
     getRun: (runId: string): Promise<LlmRun | null> => runs.findById(runId),
     listRuns: (connectionId: string): Promise<LlmRun[]> => runs.listForConnection(connectionId),
 
@@ -278,6 +297,7 @@ export function createRunService(deps: RunServiceDeps) {
           sections: input.sections,
           sampling: input.sampling,
           runId: id,
+          ...(input.notes === undefined || input.notes === null ? {} : { notes: input.notes }),
         },
         {
           allowed: input.allowed,
@@ -441,7 +461,7 @@ export function createRunService(deps: RunServiceDeps) {
         },
         now(),
       );
-      return findOrThrow(run.id);
+      return tellEnded(await findOrThrow(run.id));
     },
 
     /**
@@ -500,13 +520,13 @@ export function createRunService(deps: RunServiceDeps) {
         ...(input.tokensOut !== undefined ? { tokensOut: input.tokensOut } : {}),
         ...(input.durationMs !== undefined ? { durationMs: input.durationMs } : {}),
       });
-      return findOrThrow(run.id);
+      return tellEnded(await findOrThrow(run.id));
     },
 
     /** Abandon a non-terminal run (user cancel) → discarded. */
     async discard(runId: string): Promise<LlmRun> {
       const run = await findOrThrow(runId);
-      return transition(run, 'discarded');
+      return tellEnded(await transition(run, 'discarded'));
     },
   };
 }

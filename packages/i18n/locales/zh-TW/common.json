@@ -2223,6 +2223,22 @@
     "ended": "此試用已結束。",
     "readOnly": "唯讀：此試用已結束",
     "readOnlyChip": "唯讀",
-    "upgradeLine": "保留此安裝：一切維持原樣。"
+    "upgradeLine": "保留此安裝：一切維持原樣。",
+    "ownDatabase": "正在使用你位於 {host} 的資料庫",
+    "ownDatabaseNoHost": "正在使用你自己的資料庫",
+    "ownDatabaseDown": "無法連線你位於 {host} 的資料庫：{reason}",
+    "ownDatabaseDownNoHost": "無法連線你的資料庫：{reason}",
+    "ownDatabaseChange": "變更",
+    "ownDatabaseReason": {
+      "auth": "使用者名稱或密碼遭拒",
+      "unreachable": "沒有回應",
+      "dns": "找不到它的位址",
+      "tls": "安全連線失敗",
+      "refusedByUs": "此伺服器不連線到該位址",
+      "ipv6Only": "只能透過 IPv6 連線",
+      "noDatabase": "資料庫不存在",
+      "noPermission": "此登入無權讀取",
+      "empty": "沒有任何資料表"
+    }
   }
 }

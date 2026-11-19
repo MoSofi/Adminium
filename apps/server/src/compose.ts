@@ -80,7 +80,7 @@ import type { Env } from './config/env.js';
 import { holdOperatorSecrets, operatorSecret } from './config/operator-secrets.js';
 import { buildOperatorEndpoint, hiddenPageLogoReader, OPERATOR_ACTOR_LABEL, operatorListener } from './operator/endpoint.js';
 import { addOnReinstallSide, appReinstallSide, createPackageReinstaller } from './operator/reinstall.js';
-import { createOperatorEvents, registerOperatorEventsHandler } from './operator/events.js';
+import { createOperatorEvents, registerOperatorEventsHandler, turnEndOf } from './operator/events.js';
 import { buildPublicContent } from './operator/public-content.js';
 import { operatorStatus } from './operator/status.js';
 import { decryptSecret, deriveKey, encryptSecret } from './config/secrets.js';
@@ -219,6 +219,8 @@ import { readDotEnv } from './project/dotenv.js';
 import { createDesigner, type Designer } from './designer/service.js';
 import { createStarter } from './designer/start-with-app.js';
 import { createLive } from './designer/live.js';
+import { switchLiveOnFirstBoot } from './designer/live-first-boot.js';
+import { createStartPromptRetry, type StartPromptRetry } from './designer/start-prompt.js';
 import { designerLiveRoutes } from './routes/designer/live.js';
 import { pickLocalized } from './add-ons/catalog.js';
 import { designerRoutes } from './routes/designer/index.js';
@@ -366,6 +368,9 @@ import { importsRoutes } from './routes/imports/index.js';
 import { invoicesRoutes } from './routes/invoices/index.js';
 import { reportDocumentsRoutes } from './routes/report-documents/index.js';
 import { llmRoutes } from './routes/llm/index.js';
+import { createYoursAssist, hasOperatorBuildKey, YOURS_KEY } from './llm/yours-assist.js';
+import { createPromptService } from './llm/prompt-service.js';
+import { YOUR_DATABASE_STATUS } from './project/your-database-state.js';
 import { meViewsRoutes } from './routes/me-views/index.js';
 import { columnReadCheck, fileHeldCheck, fileRecordCheck, hiddenFileCheck, privateFileCheck, publicAssetColumn, publicPictureColumn, recordLabelsOf, ruledFileColumn, tableIdOf } from './files/read-limited.js';
 import { notificationsRoutes } from './routes/notifications/index.js';
@@ -1056,6 +1061,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // Trial mode: no AI address of the person's own, saved or typed into a test.
     policy: app.trialPolicy,
     operatorAi,
+    // Designer runs and the schema assistant on the operator's gateway: its build key, when the operator set one.
+    buildApiKey: env.ADMINIUM_AI_BUILD_API_KEY,
   });
   if (!app.hasDecorator('aiConnections')) app.decorate('aiConnections', aiConnections);
 
@@ -3104,6 +3111,14 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             app.log.warn({ err: error }, 'the Designer switching off was not recorded in the audit log');
           });
       }
+      // A trial's first boot: the operator's Designer switched on for its Super Admin, once, after the check above.
+      if (live !== null) {
+        const first = await switchLiveOnFirstBoot({ live, meta, profile: app.trialPolicy.profile }).catch((error: unknown) => {
+          app.log.warn({ err: error }, 'the Designer could not be switched on at the trial’s first boot');
+          return null;
+        });
+        if (first?.kind === 'refused') app.log.warn(`Adminium Designer was not switched on at the trial’s first boot: ${first.reason}. The next boot tries again.`);
+      }
       // A build command still running when the server stops is ended with it; so is the phone preview's door and its bundler.
       app.addHook('onClose', async () => {
         stopOwnBuilds();
@@ -3185,6 +3200,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           // The Imports page's own right: using the Designer does not stand in for it.
           mayImport: async (by, connectionId, table) => by.id !== null && permissionSetAllows(await permissionsOf(by.id), `table:${connectionId}:${table}:import`),
         });
+        /** The start prompt's run held while the operator's gateway refuses it at its cap (`designer/start-prompt.ts`); made with the Designer. */
+        let startPromptRetry: StartPromptRetry | null = null;
         const designerAudit = async (action: string, actor: { id: string | null; label: string } | null, detail: Record<string, unknown>): Promise<void> => {
             await auditRepo(meta).append({
               actorKind: actor === null ? 'system' : 'user',
@@ -3194,6 +3211,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
               action,
               changes: { after: detail },
             });
+            if (action === 'designer.turn.finished') {
+              // A turn's end, told to the operator (`designer.build-finished` / `designer.stopped`), and to the start prompt's wait.
+              const end = turnEndOf(detail);
+              if (end !== null) {
+                if (app.hasDecorator('operatorEvents')) app.operatorEvents?.designerTurnFinished(end);
+                await startPromptRetry?.turnFinished(end).catch((error: unknown) => {
+                  app.log.warn({ err: error }, 'the start prompt’s wait could not be kept');
+                });
+              }
+            }
         };
         // The sites pages may load pictures from: a person's yes adds one under `adminium design`.
         const pictureSites: PictureSites | undefined = !app.hasDecorator('pictureHosts')
@@ -3435,13 +3462,25 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
               session.id,
             ),
         });
+        const startPromptText = env.ADMINIUM_DESIGNER_START_PROMPT_B64 ?? env.ADMINIUM_DESIGNER_START_PROMPT_FILE ?? null;
+        if (startPromptText !== null) {
+          const retry = createStartPromptRetry({ meta, designer, connections: aiConnections, prompt: startPromptText, log: (message, error) => app.log.warn({ err: error }, message) });
+          startPromptRetry = retry;
+          // A run that waited for the operator's cap when the server stopped starts again at its time.
+          app.addHook('onReady', async () => {
+            await retry.resume().catch((error: unknown) => app.log.warn({ err: error }, 'the start prompt’s wait could not be read'));
+          });
+          app.addHook('onClose', async () => {
+            retry.stop();
+          });
+        }
         await api.register(
           designerRoutes({
             designer,
             versions: designerVersions,
             connections: aiConnections,
             // The operator's first request, run once after the first-run account step (`designer/start-prompt.ts`).
-            startPrompt: { meta, prompt: env.ADMINIUM_DESIGNER_START_PROMPT_B64 ?? env.ADMINIUM_DESIGNER_START_PROMPT_FILE ?? null },
+            startPrompt: { meta, prompt: startPromptText, retry: startPromptRetry },
             mode: designerOpts.mode,
             ignoredEnv: [...(opts.designer?.ignoredEnv ?? []), ...figmaIgnored],
             attachments: designerAttachments,
@@ -4888,13 +4927,74 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     publicSidesChanged = () => operatorEvents.publicMayHaveChanged();
     const stopCaps = onEmailCapReached((event) => operatorEvents.emailCapReached(event));
     const stopReadings = sizeCap?.listen((event) => operatorEvents.storageReading(event)) ?? null;
+    // A schema-assistant run's end; the run on the user's own database (`yours`) is the one started from their notes.
+    const stopAssist = opts.runService.onEnded((run) => {
+      if (run.status !== 'applied' && run.status !== 'partially_applied' && run.status !== 'failed' && run.status !== 'discarded') return;
+      const status = run.status;
+      void manager.connections
+        .findById(run.connectionId)
+        .then((connection) => connection?.projectKey === 'yours')
+        .catch(() => false)
+        .then((notes) => operatorEvents.assistFinished({ runId: run.id, connectionId: run.connectionId, status, tokens: (run.tokensIn ?? 0) + (run.tokensOut ?? 0), notes }));
+    });
+    // The user's own database changing state: a state and a class, never its host or login.
+    const stopSource = YOUR_DATABASE_STATUS.onChange((state) => operatorEvents.sourceStatusChanged({ state: state.state, reason: state.reason }));
     app.addHook('onReady', async () => {
       await operatorEvents.start();
     });
     app.addHook('onClose', async () => {
       stopCaps();
       stopReadings?.();
+      stopAssist();
+      stopSource();
       await operatorEvents.stop();
+    });
+  }
+
+  /*
+   * The schema assistant's one run on the user's own database (an operator project's `yours`, build box W4): once
+   * the database is ready and the owner's account exists, on the operator's AI, with the visitor's notes.
+   */
+  const yoursDatabase = env.ADMINIUM_YOUR_DATABASE;
+  if (yoursDatabase !== undefined && llm !== null && allowed !== null) {
+    const yoursAssist = createYoursAssist({
+      meta,
+      yoursConnectionId: async () => (await manager.connections.findByProjectKey(YOURS_KEY))?.id ?? null,
+      notes: yoursDatabase.notes,
+      operatorKey: hasOperatorBuildKey(env),
+      status: YOUR_DATABASE_STATUS,
+      promptService: createPromptService({
+        meta,
+        runService,
+        allowed,
+        ...(opts.collectStats === undefined ? {} : { collectStats: opts.collectStats }),
+        defaultModel: async () => {
+          const chosen = await aiConnections.default();
+          return chosen === null ? null : { provider: chosen.connection.provider, model: chosen.model };
+        },
+      }),
+      runService,
+      applyService,
+      resolve: llm.resolve,
+      onFinished: (outcome) => {
+        operatorEvents?.assistFinished({
+          runId: outcome.runId ?? 'none',
+          connectionId: outcome.connectionId,
+          status: outcome.state === 'applied' ? 'applied' : 'failed',
+          tokens: outcome.tokens,
+          notes: yoursDatabase.notes !== null,
+        });
+      },
+      log: (message, data) => {
+        app.log.info({ yoursAssist: data }, message);
+      },
+    });
+    let stopYoursAssist: (() => void) | null = null;
+    app.addHook('onReady', async () => {
+      stopYoursAssist = yoursAssist.watch();
+    });
+    app.addHook('onClose', async () => {
+      stopYoursAssist?.();
     });
   }
 

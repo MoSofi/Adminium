@@ -27,6 +27,7 @@ import type { Env } from '../../config/env.js';
 import { UnauthorizedError } from '../../errors.js';
 import { healthz, readyz, systemInfo } from './handlers.js';
 import { systemHealthzReply, systemInfoReply, systemReadyzQuery, systemReadyzReply, systemSizeCapsReply } from './schema.js';
+import { YOUR_DATABASE_STATUS } from '../../project/your-database-state.js';
 import { tagRoutes } from '../../security/route-audience.js';
 
 export interface SystemRoutesDeps {
@@ -74,6 +75,14 @@ export const systemRoutes = ({ env }: SystemRoutesDeps): FastifyPluginAsyncZod =
         meta: app.authContext?.meta ?? null,
         designer: app.hasDecorator('designerMode') ? (app as unknown as { designerMode: 'local' | 'live' | 'off' }).designerMode : 'off',
         designerLink: app.hasDecorator('designerLink') && (app as unknown as { designerLink: boolean }).designerLink,
+        // The user's own database, where this server has one (an operator project's `yours`).
+        ownDatabase: env.ADMINIUM_OPERATOR_PROJECT && env.ADMINIUM_YOUR_DATABASE !== undefined ? () => YOUR_DATABASE_STATUS.current() : undefined,
+        // A model for the start prompt: the default connection and model, not refused (`designer/start-prompt.ts` asks the same).
+        hasDefaultModel: async () => {
+          if (!app.hasDecorator('aiConnections')) return false;
+          const chosen = await app.aiConnections.default();
+          return chosen !== null && app.aiConnections.refusal(chosen.connection) === null && chosen.model !== null && chosen.model !== '';
+        },
       }),
   );
 

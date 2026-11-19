@@ -551,6 +551,23 @@ export const bootstrapReply = z.object({
      * working. Read at sign-in, like everything here.
      */
     publicPagesHidden: z.object({ reason: z.string().nullable() }).optional(),
+    /**
+     * Only on a server with the user's own database (`yours`, an operator project): where it is and how it is doing,
+     * for the trial strip ("Using your database at …"). Signed-in only, because it names the host; `/system/info`
+     * says the state without it. `editUrl` is where it is changed (adminium.app's account page), or null.
+     */
+    ownDatabase: z
+      .object({
+        host: z.string(),
+        label: z.string(),
+        state: z.enum(['connecting', 'ready', 'down']),
+        reason: z.enum(['auth', 'unreachable', 'dns', 'tls', 'refused-by-us', 'ipv6-only', 'no-database', 'no-permission', 'empty']).nullable(),
+        readOnly: z.boolean(),
+        editUrl: z.string().nullable(),
+        /** Its connection, so Studio offers "Change on your account" in place of Rename and Delete; null before it exists. */
+        connectionId: z.string().nullable(),
+      })
+      .optional(),
   }),
 });
 export type BootstrapReply = z.infer<typeof bootstrapReply>;

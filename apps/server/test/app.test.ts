@@ -46,7 +46,7 @@ describe('GET /api/v1/system/info', () => {
     expect(res.json()).toEqual({
       version: APP_VERSION,
       // Adminium Designer: off unless the server was started by `adminium design`.
-      designer: { mode: 'off', link: false, startPrompt: false },
+      designer: { mode: 'off', link: false, startPrompt: false, startPromptWaitsUntil: null },
       node: process.version,
       dialect: null,
       // The desktop feature flags. `smtpConfigured` is false because a server
@@ -75,6 +75,8 @@ describe('GET /api/v1/system/info', () => {
       connect: [],
       // Trial mode: off unless the operator switches it on.
       trial: { on: false, endsAt: null, daysLeft: null, upgradeUrl: null },
+      // No user database: this server is not an operator project.
+      ownDatabase: null,
       // Nothing switched off by an operator on an ordinary server.
       offByOperator: {
         sqliteSources: { allowed: true, reason: null },

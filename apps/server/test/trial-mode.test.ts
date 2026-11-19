@@ -15,7 +15,7 @@ import { join } from 'node:path';
 
 import BetterSqlite3 from 'better-sqlite3';
 import { llmKeyCryptoFromSecret, ProviderError, type ProviderClient } from '@adminium/llm';
-import { createSqliteMetaDb, firstRun, settingsRepo, type Automation, type MetaDb } from '@adminium/meta';
+import { connectionsRepo, createSqliteMetaDb, firstRun, settingsRepo, type Automation, type MetaDb } from '@adminium/meta';
 import { sql } from 'kysely';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
@@ -39,6 +39,7 @@ import { guardBootMetaUrl, MetaUrlError, openMetaStore, type MetaStoreHandle } f
 import type { HostLookup } from '../src/net/address-guard.js';
 import { linkOrigin } from '../src/security/public-origin.js';
 import { trialPolicy } from '../src/trial/policy.js';
+import { ownDatabaseEditUrl } from '../src/routes/bootstrap/handlers.js';
 import { makeEnv, TEST_SECRET } from './helpers.js';
 
 const PASSWORD = 'a-long-enough-test-password-1!';
@@ -112,7 +113,7 @@ afterEach(async () => {
   meta = undefined;
 });
 
-type Method = 'GET' | 'HEAD' | 'POST' | 'PUT' | 'PATCH';
+type Method = 'GET' | 'HEAD' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 interface Answer {
   status: number;
@@ -944,5 +945,45 @@ describe('A2 AI addresses', { timeout: 60_000 }, () => {
     const saved = await s.api('PUT', '/api/v1/llm/config', { provider: 'openai-compatible', baseUrl: 'https://models.example.com/v1', model: 'm' });
     expect(saved.status, JSON.stringify(saved.body)).toBe(200);
     expect(saved.body).toMatchObject({ provider: 'openai-compatible', baseUrl: 'https://models.example.com/v1', locks: { baseUrl: { allowed: true }, customProviders: { allowed: true } } });
+  });
+});
+
+describe('E4 the user’s own database is changed where it was connected', { timeout: 60_000 }, () => {
+  /** A `yours` connection, as an operator project registers it (`project/your-database.ts`), and an ordinary one. */
+  let yoursId = '';
+  let otherId = '';
+  const seed = async (store: MetaDb): Promise<void> => {
+    const repo = connectionsRepo(store, dsnCryptoFromSecret(TEST_SECRET));
+    yoursId = (await repo.create({ name: 'Harbor books', engine: 'postgres', introspectDsn: 'postgres://ava:pw@db.acme.io:5432/shop', projectKey: 'yours' })).id;
+    otherId = (await repo.create({ name: 'Shop', engine: 'postgres', introspectDsn: 'postgres://trial_hollis:secret@pg-trials:5432/trial_hollis' })).id;
+  };
+
+  for (const [profile, env, reason] of [
+    ['trial', TRIAL, 'trial-mode'],
+    ['hosted', HOSTED, 'hosted-mode'],
+  ] as const) {
+    it(`${profile}: renaming, re-setting or deleting \`yours\` is refused with the reason; its zone and other databases are not`, async () => {
+      const server = await serve(env, { before: seed });
+      for (const payload of [{ name: 'Mine now' }, { settings: { intent: 'crud' } }]) {
+        const res = await server.api('PATCH', `/api/v1/connections/${yoursId}`, payload);
+        expect(res.status, JSON.stringify(res.body)).toBe(403);
+        expect(res.body).toMatchObject({ error: { code: 'OFF_BY_OPERATOR', details: { question: 'yourDatabaseEdits', reason } } });
+      }
+      const removed = await server.api('DELETE', `/api/v1/connections/${yoursId}`, { confirmName: 'Harbor books' });
+      expect(removed.status).toBe(403);
+      // The zone is the business's, not the environment's: it stays editable.
+      expect((await server.api('PATCH', `/api/v1/connections/${yoursId}`, { timezone: 'Europe/Berlin' })).status).toBe(200);
+      expect((await server.api('PATCH', `/api/v1/connections/${otherId}`, { name: 'Shop two' })).status).toBe(200);
+    });
+  }
+
+  it('on an ordinary server a database keyed `yours` is an ordinary database', async () => {
+    const server = await serve(ORDINARY, { before: seed });
+    expect((await server.api('PATCH', `/api/v1/connections/${yoursId}`, { name: 'Mine' })).status).toBe(200);
+  });
+
+  it('Studio’s Change points at the account page on the Upgrade address’s site', () => {
+    expect(ownDatabaseEditUrl('https://adminium.app/upgrade/?from=trial')).toBe('https://adminium.app/account/');
+    expect(ownDatabaseEditUrl(undefined)).toBeNull();
   });
 });

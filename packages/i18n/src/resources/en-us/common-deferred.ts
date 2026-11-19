@@ -1551,6 +1551,22 @@ export default {
     "ended": "This trial has ended.",
     "readOnly": "Read-only: this trial has ended",
     "readOnlyChip": "Read-only",
-    "upgradeLine": "Keep this installation: everything stays as it is."
+    "upgradeLine": "Keep this installation: everything stays as it is.",
+    "ownDatabase": "Using your database at {host}",
+    "ownDatabaseNoHost": "Using your own database",
+    "ownDatabaseDown": "Can’t reach your database at {host}: {reason}",
+    "ownDatabaseDownNoHost": "Can’t reach your database: {reason}",
+    "ownDatabaseChange": "Change",
+    "ownDatabaseReason": {
+      "auth": "the user name or password was refused",
+      "unreachable": "it does not answer",
+      "dns": "its address cannot be found",
+      "tls": "the secure connection failed",
+      "refusedByUs": "this server does not connect to that address",
+      "ipv6Only": "it can be reached over IPv6 only",
+      "noDatabase": "the database does not exist",
+      "noPermission": "this login may not read it",
+      "empty": "it has no tables"
+    }
   }
 } as const;

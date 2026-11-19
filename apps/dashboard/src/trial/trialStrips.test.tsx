@@ -310,3 +310,53 @@ describe('Upgrade in the user menu', () => {
     expect(screen.queryByRole('menuitem', { name: 'Put this online…' })).toBeNull();
   });
 });
+
+describe('a trial on the visitor’s own database (build box E4)', () => {
+  const own = { state: 'ready' as const, reason: null, readOnly: false };
+
+  function withOwn(info: Partial<SystemInfo>, signedIn?: Partial<NonNullable<ReturnType<typeof makeBootstrap>['ownDatabase']>>): ReactNode {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+    client.setQueryData(['system', 'info'], { deployLink: false, trial: trialEnding(9 * DAY), ...info });
+    if (signedIn !== undefined) {
+      client.setQueryData(['bootstrap'], makeBootstrap({ ownDatabase: { ...own, host: 'db.acme.io', label: 'Harbor books', editUrl: null, connectionId: 'conn_yours', ...signedIn } }));
+    }
+    return (
+      <QueryClientProvider client={client}>
+        <ThemeProvider>
+          <TooltipProvider>
+            <TrialMount shell />
+          </TooltipProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    );
+  }
+
+  it('signed in: "Using your database at {host}" in place of the test-environment line, with Change', async () => {
+    render(withOwn({ ownDatabase: own }, { editUrl: 'https://adminium.app/account/' }));
+    const line = await screen.findByTestId('trial-own-database');
+    expect(line.textContent).toContain('Using your database at db.acme.io');
+    expect(line.getAttribute('role')).toBe('note');
+    expect(screen.queryByTestId('trial-test-environment')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Change' }).getAttribute('href')).toBe('https://adminium.app/account/');
+    expect(screen.getByTestId('trial-days')).toBeTruthy();
+  });
+
+  it('while it is down: "Can’t reach your database at {host}: why", as a status', async () => {
+    render(withOwn({ ownDatabase: { ...own, state: 'down', reason: 'auth' } }, { state: 'down', reason: 'auth' }));
+    const line = await screen.findByTestId('trial-own-database');
+    expect(line.textContent).toContain('Can’t reach your database at db.acme.io: the user name or password was refused');
+    expect(line.getAttribute('role')).toBe('status');
+    expect(screen.queryByRole('link', { name: 'Change' })).toBeNull();
+  });
+
+  it('before sign-in: no host (the open reply never names one)', async () => {
+    render(withOwn({ ownDatabase: { ...own, state: 'down', reason: 'unreachable' } }));
+    expect((await screen.findByTestId('trial-own-database')).textContent).toContain('Can’t reach your database: it does not answer');
+  });
+
+  it('without one: the test-environment line, as before', async () => {
+    render(withOwn({ ownDatabase: null }));
+    expect((await screen.findByTestId('trial-test-environment')).textContent).toBe(SENTENCE);
+    expect(screen.queryByTestId('trial-own-database')).toBeNull();
+  });
+});

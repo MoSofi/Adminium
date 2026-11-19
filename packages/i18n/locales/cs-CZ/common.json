@@ -2223,6 +2223,22 @@
     "ended": "Tato zkušební verze skončila.",
     "readOnly": "Jen pro čtení: tato zkušební verze skončila",
     "readOnlyChip": "Jen pro čtení",
-    "upgradeLine": "Ponechat tuto instalaci: vše zůstane tak, jak je."
+    "upgradeLine": "Ponechat tuto instalaci: vše zůstane tak, jak je.",
+    "ownDatabase": "Používá se vaše databáze na {host}",
+    "ownDatabaseNoHost": "Používá se vaše vlastní databáze",
+    "ownDatabaseDown": "Vaše databáze na {host} není dostupná: {reason}",
+    "ownDatabaseDownNoHost": "Vaše databáze není dostupná: {reason}",
+    "ownDatabaseChange": "Změnit",
+    "ownDatabaseReason": {
+      "auth": "uživatelské jméno nebo heslo bylo odmítnuto",
+      "unreachable": "neodpovídá",
+      "dns": "její adresu nelze najít",
+      "tls": "zabezpečené připojení selhalo",
+      "refusedByUs": "tento server se k této adrese nepřipojuje",
+      "ipv6Only": "je dostupná pouze přes IPv6",
+      "noDatabase": "databáze neexistuje",
+      "noPermission": "tento účet ji nesmí číst",
+      "empty": "nemá žádné tabulky"
+    }
   }
 }

@@ -239,7 +239,31 @@ export function createSetupService(deps: SetupServiceDeps): SetupService {
         });
       }
 
+      // Told after the account exists: work that waits for an owner (the schema assistant's first run on the user's
+      // database) checks again. A nudge, never a promise: a listener reads its own store.
+      notifySuperAdminCreated();
       return user;
     },
   };
+}
+
+const superAdminListeners = new Set<() => void>();
+
+/**
+ * Be told when a first Super Admin has just been created in this process. Listeners re-check their own meta store
+ * (`isBootstrapRequired`): two servers in one process (a test) each hear the other's, and find nothing to do.
+ */
+export function onSuperAdminCreated(listener: () => void): () => void {
+  superAdminListeners.add(listener);
+  return () => superAdminListeners.delete(listener);
+}
+
+function notifySuperAdminCreated(): void {
+  for (const listener of superAdminListeners) {
+    try {
+      listener();
+    } catch {
+      // A listener's failure is its own.
+    }
+  }
 }

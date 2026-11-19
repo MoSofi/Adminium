@@ -92,6 +92,11 @@ export const systemInfoReply = z.object({
     link: z.boolean(),
     /** The operator's start prompt is set and has not run: the first-run wizard starts it (`POST /designer/start-prompt`). */
     startPrompt: z.boolean(),
+    /**
+     * The start prompt's run was refused at the operator's AI cap and starts again by itself at this time (ms since the
+     * epoch); null when nothing waits. The wizard says when, and starts nothing.
+     */
+    startPromptWaitsUntil: z.number().nullable(),
   }),
   node: z.string(),
   dialect: metaDialect.nullable(),
@@ -171,6 +176,18 @@ export const systemInfoReply = z.object({
     /** The operator's Upgrade page with `?instance=` added; null when unset (no button) or outside trial mode. */
     upgradeUrl: z.string().nullable(),
   }),
+  /**
+   * The user's own database in an operator project (`ADMINIUM_YOUR_DATABASE`), connected after the server
+   * listens: `connecting`, `ready`, or `down` with a coarse reason (the classes `adminium check-source` prints).
+   * No host, login or message: this reply answers before sign-in. Null when the server has none.
+   */
+  ownDatabase: z
+    .object({
+      state: z.enum(['connecting', 'ready', 'down']),
+      reason: z.enum(['auth', 'unreachable', 'dns', 'tls', 'refused-by-us', 'ipv6-only', 'no-database', 'no-permission', 'empty']).nullable(),
+      readOnly: z.boolean(),
+    })
+    .nullable(),
   /**
    * What the operator has switched off for this installation (trial mode, the
    * hosted profile), for the screens that offer it before anyone signs in or

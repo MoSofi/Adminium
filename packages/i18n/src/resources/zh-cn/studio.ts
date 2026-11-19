@@ -1187,7 +1187,8 @@ export default {
       "rename": "重命名",
       "resume": "恢复",
       "test": "测试",
-      "saveAsApp": "另存为应用"
+      "saveAsApp": "另存为应用",
+      "changeOwnDatabase": "在你的账户中更改"
     },
     "card": {
       "lastIntrospected": "上次内省",

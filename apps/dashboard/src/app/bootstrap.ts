@@ -20,6 +20,7 @@ import type { Accent, Density, Dir, ThemePref } from '@adminium/tokens';
 import type { Locale } from '@adminium/ui';
 
 import { api, ApiError, setCsrfToken } from './api.js';
+import type { OwnDatabaseInfo } from './capabilities.js';
 
 export interface SessionUser {
   id: string;
@@ -422,6 +423,11 @@ export interface BootstrapData {
   project?: BootstrapProject;
   /** While the server's operator has hidden every public page: their reason. Studio says so (`studio/OperatorHiddenStrip.tsx`). */
   publicPagesHidden?: { reason: string | null };
+  /**
+   * The user's own database (an operator project's `yours`): where it is and how it is doing, for the trial strip
+   * (`trial/TrialStrips.tsx`). `editUrl` is where it is changed (adminium.app's account page), or null.
+   */
+  ownDatabase?: OwnDatabaseInfo & { host: string; label: string; editUrl: string | null; connectionId: string | null };
 }
 
 /**

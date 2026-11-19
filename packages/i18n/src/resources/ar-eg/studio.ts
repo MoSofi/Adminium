@@ -1187,7 +1187,8 @@ export default {
       "rename": "إعادة تسمية",
       "resume": "استئناف",
       "test": "اختبار",
-      "saveAsApp": "حفظ كتطبيق"
+      "saveAsApp": "حفظ كتطبيق",
+      "changeOwnDatabase": "غيّرها من حسابك"
     },
     "card": {
       "lastIntrospected": "آخر فحص للمخطط",

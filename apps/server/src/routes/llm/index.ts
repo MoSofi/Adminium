@@ -43,12 +43,14 @@ import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import { spend } from '../../assistant/allowance.js';
+import { cleanNotes } from '../../config/your-database.js';
 import { testAssistantModel } from '../../assistant/model-test.js';
 import { auditExempt } from '../../audit/coverage.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import type { AiConnections, ConnectionId } from '../../llm/connections.js';
 import { LLM_RUN_KIND } from '../../jobs/llm-run.js';
-import type { ApplyService } from '../../llm/apply-service.js';
+import type { ApplyService, ApplyUndo } from '../../llm/apply-service.js';
+import { undoYoursAssist } from '../../llm/yours-assist.js';
 import { RunNotApplicableError, SnapshotNotFoundError } from '../../llm/apply-service.js';
 import { LlmApplyUndoStore } from '../../llm/apply-undo-store.js';
 import {
@@ -92,6 +94,7 @@ import {
   runUndoReply,
   runsListQuery,
   runsListReply,
+  yoursAssistReply,
   llmRunDetailDto,
   type LlmRunDetailDto,
   type LlmRunDto,
@@ -361,7 +364,9 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
           policy,
         });
         const after = await configView();
-        // Audit carries provider/model/baseUrl/key-presence only — never the key.
+        // A key of the person's own was saved: the operator hears the provider's name, never the key.
+        const keyTyped = typeof request.body.apiKey === 'string' && request.body.apiKey !== '';
+        if (keyTyped && after.provider !== null && after.apiKeySet && app.hasDecorator('operatorEvents')) app.operatorEvents?.ownAiKeyAdded(after.provider);
         await app.rbac.audit(request, {
           category: 'llm',
           action: 'llm.config.update',
@@ -467,6 +472,8 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
       { preHandler: guard, schema: { body: createRunBody, response: { 201: createRunReply } } },
       async (request, reply) => {
         const body = request.body;
+        // The owner's notes, cleaned again whoever sent them: they reach a model, and the run row keeps the prompt.
+        const notes = body.notes === undefined ? null : cleanNotes(body.notes);
 
         // The orchestration lives in the prompt service so `adminium
         // generate-prompt` runs the identical path (CLI parity).
@@ -480,6 +487,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
             sampling: (body.sampling ?? null) as Sampling,
             createdBy: actorIdOf(request),
             withoutStatsOf: await tablesReadInPart(request, body.connectionId),
+            ...(notes === null ? {} : { notes }),
           });
         } catch (error) {
           if (error instanceof SnapshotRequiredError) {
@@ -515,6 +523,8 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
               sampling: created.run.sampling,
               chunks: created.artifact.chunks.length,
               tokenEstimate: created.artifact.tokenEstimate,
+              // How much the owner wrote, never what: the prompt row holds the text.
+              notesChars: notes === null ? 0 : [...notes].length,
             },
           },
         });
@@ -778,6 +788,44 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
           overrides: entry.undo.insertedOverrideIds.length + entry.undo.updatedOverrides.length,
           pages: entry.undo.insertedPageIds.length,
         };
+      },
+    );
+
+    // ── The schema assistant's one run on the user's own database (`llm/yours-assist.ts`) ──
+
+    app.get(
+      '/llm/yours-assist',
+      { preHandler: guard, schema: { response: { 200: yoursAssistReply } } },
+      async () => {
+        const held = await settingsRepo(meta).get('llm.yoursAssist');
+        if (held === null) return { assist: null };
+        const { undo, ...rest } = held;
+        return { assist: { ...rest, undoable: held.state === 'applied' && undo !== null } };
+      },
+    );
+
+    app.post(
+      '/llm/yours-assist/undo',
+      { preHandler: guard, schema: { response: { 200: runUndoReply } } },
+      async (request) => {
+        const held = await settingsRepo(meta).get('llm.yoursAssist');
+        const undo = held?.undo as ApplyUndo | null | undefined;
+        if (held === null || held.state !== 'applied' || undo === null || undo === undefined) {
+          throw new ConflictError('There is no applied run on your database to undo.', 'CONFLICT');
+        }
+        const undone = await undoYoursAssist(meta, applyService);
+        if (undone === null) throw new ConflictError('There is no applied run on your database to undo.', 'CONFLICT');
+        const counts = {
+          overrides: undo.insertedOverrideIds.length + undo.updatedOverrides.length,
+          pages: undo.insertedPageIds.length,
+        };
+        await app.rbac.audit(request, {
+          category: 'llm',
+          action: 'llm.run.undo',
+          connectionId: held.connectionId,
+          changes: { after: { runId: held.runId, ...counts, yoursAssist: true } },
+        });
+        return counts;
       },
     );
   };

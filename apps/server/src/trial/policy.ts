@@ -109,6 +109,11 @@ const QUESTIONS = {
   metaStoreRoutes: profiles(false, false),
   /** A source host that is not on `ADMINIUM_DATABASE_HOSTS`: otherwise the list is the only hosts allowed. */
   unlistedDatabaseHosts: profiles(false, false),
+  /**
+   * Renaming, re-setting or removing the user's own database (`yours`, an operator project) in Studio: the
+   * operator's environment is its truth, and adminium.app is where it changes (`routes/connections`).
+   */
+  yourDatabaseEdits: profiles(false, false),
   // ── storage ──────────────────────────────────────────────────────────────
   /** Creating or testing storage destinations; only the default `local` one under the data dir. */
   storageDestinations: profiles(false, false),

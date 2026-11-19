@@ -6,8 +6,9 @@ import { sql } from 'kysely';
 import type { Env } from '../../config/env.js';
 import { connectProviders } from '../../connect/providers.js';
 import { demoSeedAvailable } from '../../desktop/demo-seed.js';
-import { startPromptWaiting } from '../../designer/start-prompt.js';
+import { startPromptWaiting, startPromptWaitsUntil } from '../../designer/start-prompt.js';
 import { lanShareActive } from '../../desktop/lan-share.js';
+import type { YourDatabaseState } from '../../project/your-database-state.js';
 import { trialPolicy } from '../../trial/policy.js';
 import { APP_VERSION } from '../../version.js';
 import type { SystemHealthzReply, SystemInfoReply, SystemReadyzReply } from './schema.js';
@@ -77,8 +78,15 @@ export interface SystemInfoDeps {
   designer?: 'local' | 'live' | 'off' | undefined;
   /** Whether `adminium design` signs its owner in with a one-use link. */
   designerLink?: boolean | undefined;
+  /** The user's own database's state (`project/your-database-state.ts`); none when left out. */
+  ownDatabase?: (() => YourDatabaseState | null) | undefined;
   /** The clock the trial's days are counted on. Default `Date.now`. */
   now?: (() => number) | undefined;
+  /**
+   * Whether a model is there for the start prompt to run on: the instance's default connection and model, not refused.
+   * Absent (a harness with no AI layer): none is.
+   */
+  hasDefaultModel?: (() => Promise<boolean>) | undefined;
 }
 
 /**
@@ -110,7 +118,7 @@ export async function systemInfo(deps: SystemInfoDeps): Promise<SystemInfoReply>
   const { env, meta } = deps;
   return {
     version: APP_VERSION,
-    designer: { mode: deps.designer ?? 'off', link: deps.designerLink === true, startPrompt: await startPromptOpen(env, meta, deps.designer ?? 'off') },
+    designer: { mode: deps.designer ?? 'off', link: deps.designerLink === true, startPrompt: await startPromptOpen(env, meta, deps.designer ?? 'off', deps.hasDefaultModel), startPromptWaitsUntil: await waitsUntil(env, meta, deps.designer ?? 'off') },
     node: process.version,
     dialect: meta?.dialect ?? null,
     runtime: env.ADMINIUM_RUNTIME,
@@ -123,14 +131,28 @@ export async function systemInfo(deps: SystemInfoDeps): Promise<SystemInfoReply>
     desktopDemo: demoSeedAvailable(env),
     connect: connectProviders(env).map((provider) => ({ provider: provider.id })),
     trial: trialInfo(env, deps.now?.() ?? Date.now()),
+    ownDatabase: ownDatabaseInfo(deps.ownDatabase?.() ?? null),
     offByOperator: offByOperator(env),
   };
 }
 
-/** Whether the operator's start prompt waits to run: only where the Designer runs, which is where its route is. */
-async function startPromptOpen(env: Env, meta: MetaDb | null, designer: 'local' | 'live' | 'off'): Promise<boolean> {
+/**
+ * Whether the operator's start prompt waits to run, and can: only where the Designer runs (which is where its route
+ * is), on a live server only while its switch is on, and only with a model to run it on. Otherwise the first-run
+ * wizard would offer a build that is refused the moment it starts, and the person would read a failure instead of
+ * an empty dashboard.
+ */
+async function startPromptOpen(env: Env, meta: MetaDb | null, designer: 'local' | 'live' | 'off', hasDefaultModel: (() => Promise<boolean>) | undefined): Promise<boolean> {
   if (meta === null || designer === 'off') return false;
-  return startPromptWaiting({ meta, prompt: env.ADMINIUM_DESIGNER_START_PROMPT_B64 ?? env.ADMINIUM_DESIGNER_START_PROMPT_FILE ?? null });
+  if (!(await startPromptWaiting({ meta, prompt: env.ADMINIUM_DESIGNER_START_PROMPT_B64 ?? env.ADMINIUM_DESIGNER_START_PROMPT_FILE ?? null }))) return false;
+  if (designer === 'live' && (await settingsRepo(meta).get('designer.live').catch(() => false)) !== true) return false;
+  return hasDefaultModel === undefined ? false : await hasDefaultModel().catch(() => false);
+}
+
+/** When a start prompt refused at the operator's cap starts again by itself (ms), or null. */
+async function waitsUntil(env: Env, meta: MetaDb | null, designer: 'local' | 'live' | 'off'): Promise<number | null> {
+  if (meta === null || designer === 'off') return null;
+  return startPromptWaitsUntil({ meta, prompt: env.ADMINIUM_DESIGNER_START_PROMPT_B64 ?? env.ADMINIUM_DESIGNER_START_PROMPT_FILE ?? null }).catch(() => null);
 }
 
 /** The switches the dashboard explains before anyone signs in (the connect wizards' SQLite choice) or without a reply of its own. */
@@ -181,4 +203,9 @@ async function smtpConfigured(meta: MetaDb | null): Promise<boolean> {
     // route is unauthenticated.
     return false;
   }
+}
+
+/** The user's database for a reply anyone may read: the state and reason class, never its host or login. */
+function ownDatabaseInfo(state: YourDatabaseState | null): SystemInfoReply['ownDatabase'] {
+  return state === null ? null : { state: state.state, reason: state.reason, readOnly: state.readOnly };
 }

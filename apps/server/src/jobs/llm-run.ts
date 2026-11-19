@@ -89,13 +89,17 @@ export function registerLlmRunHandler(registry: JobRegistry, deps: LlmRunHandler
   }, { internal: true });
 }
 
-interface ExecuteDeps {
+export interface ExecuteDeps {
   runService: RunService;
   resolve: ResolveRun;
   now: () => number;
 }
 
-async function executeLlmRun(
+/**
+ * One direct run, start to end: what the job does, callable without a job (the schema assistant's first run on the
+ * user's database, `llm/yours-assist.ts`, which waits for its result to apply it).
+ */
+export async function executeLlmRun(
   payload: LlmRunPayload,
   ctx: JobHandlerContext,
   deps: ExecuteDeps,

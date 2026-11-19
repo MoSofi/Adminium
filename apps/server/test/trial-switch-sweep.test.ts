@@ -36,6 +36,10 @@ const SWEEP: Record<PolicyQuestion, BothWays> = {
     refused: p('operator-lock.test.ts', ": locked off with the profile's reason, a switch-on refused as SET_BY_OPERATOR"),
     allowed: p('hosted-mode.test.ts', 'every way open, as before'),
   },
+  yourDatabaseEdits: {
+    refused: p('trial-mode.test.ts', ': renaming, re-setting or deleting'),
+    allowed: p('trial-mode.test.ts', 'on an ordinary server a database keyed `yours` is an ordinary database'),
+  },
   sqliteSources: {
     refused: p('trial-mode.test.ts', 'a SQLite source: refused in trial mode and the hosted profile, opened as before on an ordinary server'),
     allowed: p('trial-mode.test.ts', 'a SQLite source: refused in trial mode and the hosted profile, opened as before on an ordinary server'),

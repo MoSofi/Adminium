@@ -1187,7 +1187,8 @@ export default {
       "rename": "Omdøb",
       "resume": "Genoptag",
       "test": "Test",
-      "saveAsApp": "Gem som app"
+      "saveAsApp": "Gem som app",
+      "changeOwnDatabase": "Skift på din konto"
     },
     "card": {
       "lastIntrospected": "Senest introspiceret",

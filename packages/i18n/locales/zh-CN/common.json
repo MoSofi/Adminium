@@ -2223,6 +2223,22 @@
     "ended": "此试用已结束。",
     "readOnly": "只读：此试用已结束",
     "readOnlyChip": "只读",
-    "upgradeLine": "保留此安装：一切保持原样。"
+    "upgradeLine": "保留此安装：一切保持原样。",
+    "ownDatabase": "正在使用你位于 {host} 的数据库",
+    "ownDatabaseNoHost": "正在使用你自己的数据库",
+    "ownDatabaseDown": "无法连接你位于 {host} 的数据库：{reason}",
+    "ownDatabaseDownNoHost": "无法连接你的数据库：{reason}",
+    "ownDatabaseChange": "更改",
+    "ownDatabaseReason": {
+      "auth": "用户名或密码被拒绝",
+      "unreachable": "没有响应",
+      "dns": "找不到它的地址",
+      "tls": "安全连接失败",
+      "refusedByUs": "此服务器不连接该地址",
+      "ipv6Only": "只能通过 IPv6 访问",
+      "noDatabase": "数据库不存在",
+      "noPermission": "此登录无权读取",
+      "empty": "没有任何表"
+    }
   }
 }

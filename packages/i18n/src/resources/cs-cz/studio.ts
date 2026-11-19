@@ -1187,7 +1187,8 @@ export default {
       "rename": "Přejmenovat",
       "resume": "Obnovit",
       "test": "Otestovat",
-      "saveAsApp": "Uložit jako aplikaci"
+      "saveAsApp": "Uložit jako aplikaci",
+      "changeOwnDatabase": "Změnit ve vašem účtu"
     },
     "card": {
       "lastIntrospected": "Poslední introspekce",

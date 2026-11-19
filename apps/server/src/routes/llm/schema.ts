@@ -285,6 +285,12 @@ export const createRunBody = z.object({
   locales: z.array(llmLocaleSchema).min(1).optional(),
   /** Sampling opt-in; default sample-free. */
   sampling: llmSamplingSchema.optional(),
+  /**
+   * What the database's owner says about it, for the model to read as data. Cleaned on the server
+   * (`config/your-database.ts` `cleanNotes`): no database address or password, no control character,
+   * 2,000 characters at most. A longer value is refused here; what cleaning takes out is not.
+   */
+  notes: z.string().max(8000).optional(),
 });
 export type CreateRunBody = z.infer<typeof createRunBody>;
 
@@ -384,6 +390,26 @@ export const runUndoReply = z.object({
   pages: z.number().int(),
 });
 export type RunUndoReply = z.infer<typeof runUndoReply>;
+
+/**
+ * `GET /llm/yours-assist`: the schema assistant's one run on the user's own database (an operator project), or
+ * null when there was none. The before-image itself never leaves the server.
+ */
+export const yoursAssistReply = z.object({
+  assist: z
+    .object({
+      state: z.enum(['running', 'applied', 'failed', 'undone', 'interrupted']),
+      runId: z.string().nullable(),
+      connectionId: z.string(),
+      at: z.number(),
+      counts: z.record(z.string(), z.number()).nullable(),
+      reason: z.string().nullable(),
+      /** An apply is kept and can be undone. */
+      undoable: z.boolean(),
+    })
+    .nullable(),
+});
+export type YoursAssistReply = z.infer<typeof yoursAssistReply>;
 
 /** 202 reply for the direct-path enqueue (`POST /runs/:id/execute`). */
 export const jobAcceptedReply = z.object({ jobId: z.string() });

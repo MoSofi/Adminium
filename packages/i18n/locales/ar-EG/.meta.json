@@ -9923,6 +9923,62 @@
     "status": "mt",
     "srcHash": "7089c1cc58f6"
   },
+  "common.trial.ownDatabase": {
+    "status": "mt",
+    "srcHash": "386ec5bc0059"
+  },
+  "common.trial.ownDatabaseChange": {
+    "status": "mt",
+    "srcHash": "64fbd995d3b6"
+  },
+  "common.trial.ownDatabaseDown": {
+    "status": "mt",
+    "srcHash": "96300475a662"
+  },
+  "common.trial.ownDatabaseDownNoHost": {
+    "status": "mt",
+    "srcHash": "12a49b5ad1de"
+  },
+  "common.trial.ownDatabaseNoHost": {
+    "status": "mt",
+    "srcHash": "42092de5aae3"
+  },
+  "common.trial.ownDatabaseReason.auth": {
+    "status": "mt",
+    "srcHash": "ad6b3f86f82e"
+  },
+  "common.trial.ownDatabaseReason.dns": {
+    "status": "mt",
+    "srcHash": "3ce48c542b0b"
+  },
+  "common.trial.ownDatabaseReason.empty": {
+    "status": "mt",
+    "srcHash": "d54854cd2cd3"
+  },
+  "common.trial.ownDatabaseReason.ipv6Only": {
+    "status": "mt",
+    "srcHash": "304a2e603144"
+  },
+  "common.trial.ownDatabaseReason.noDatabase": {
+    "status": "mt",
+    "srcHash": "b5fb7f090ec6"
+  },
+  "common.trial.ownDatabaseReason.noPermission": {
+    "status": "mt",
+    "srcHash": "1a64a85c4c66"
+  },
+  "common.trial.ownDatabaseReason.refusedByUs": {
+    "status": "mt",
+    "srcHash": "949c639db693"
+  },
+  "common.trial.ownDatabaseReason.tls": {
+    "status": "mt",
+    "srcHash": "2410cd38b079"
+  },
+  "common.trial.ownDatabaseReason.unreachable": {
+    "status": "mt",
+    "srcHash": "0f5b2714a8e0"
+  },
   "common.trial.readOnly": {
     "status": "mt",
     "srcHash": "39a50bfca268"
@@ -21375,6 +21431,22 @@
     "status": "mt",
     "srcHash": "c69556afc906"
   },
+  "onboarding.done.startPrompt.failed": {
+    "status": "mt",
+    "srcHash": "2a22c1c217d7"
+  },
+  "onboarding.done.startPrompt.retry": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "onboarding.done.startPrompt.skip": {
+    "status": "mt",
+    "srcHash": "93a4b1256db7"
+  },
+  "onboarding.done.startPrompt.waiting": {
+    "status": "mt",
+    "srcHash": "9e28900bba5f"
+  },
   "onboarding.done.storage.local": {
     "status": "mt",
     "srcHash": "3212c89af1b0"
@@ -31234,6 +31306,10 @@
   "studio.hostedApps.veto.title": {
     "status": "mt",
     "srcHash": "07d6b1ab25ea"
+  },
+  "studio.hub.action.changeOwnDatabase": {
+    "status": "mt",
+    "srcHash": "0aa745ee13cd"
   },
   "studio.hub.action.delete": {
     "srcHash": "f6fdbe48dc54",

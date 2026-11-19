@@ -24,7 +24,9 @@ import {
 import { ConflictError, ValidationFailedError } from '../../errors.js';
 import { DsnSecretMismatchError } from '../../connections/crypto.js';
 import { maskDsn } from '../../connections/dsn.js';
-import { policyOf } from '../../trial/refuse.js';
+import { OffByOperatorError, policyOf } from '../../trial/refuse.js';
+import type { TrialPolicy } from '../../trial/policy.js';
+import { YOURS_KEY } from '../../apps/no-app-tables.js';
 import { connectionTestBudget } from '../../trial/test-budget.js';
 import {
   INTROSPECT_JOB_KIND,
@@ -65,6 +67,18 @@ export interface ConnectionsRoutesDeps {
    * the old clock until then is a booking at the wrong time.
    */
   onTenantChanged?: ((connectionId: string) => void) | undefined;
+}
+
+/**
+ * The user's own database (`yours`, an operator project) is changed where the operator set it: adminium.app's
+ * account page, which re-checks it and starts the server again with the new environment (build box E4, O5). A rename
+ * or a new intent here would be undone on the next start, so it is refused, with the reason, instead.
+ */
+function refuseYourDatabaseEdit(policy: Pick<TrialPolicy, 'allows'>, connection: Pick<Connection, 'projectKey'>): void {
+  if (connection.projectKey !== YOURS_KEY) return;
+  const answer = policy.allows('yourDatabaseEdits');
+  if (answer.allowed) return;
+  throw new OffByOperatorError('yourDatabaseEdits', answer.reason ?? 'trial-mode', 'Your database is changed on your account page, where it was connected.');
 }
 
 function testReply(summary: ConnectionTestSummary): ConnectionTestReply {
@@ -270,6 +284,8 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
       },
       async (request) => {
         const connection = await manager.mustFind(request.params.id);
+        // The user's own database in an operator project: its name and settings are the operator's environment's.
+        if (request.body.name !== undefined || request.body.settings !== undefined) refuseYourDatabaseEdit(policyOf(app), connection);
         /*
          * Pause/resume is applied through its own repo writer BEFORE the field
          * patch, and audited under its own action.
@@ -361,6 +377,8 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
       },
       async (request) => {
         const connection = await manager.mustFind(request.params.id);
+        // The user's own database comes back from the environment on the next start: it is removed where it was added.
+        refuseYourDatabaseEdit(policyOf(app), connection);
         // Type-to-confirm contract: the submitted name must match.
         if (request.body.confirmName !== connection.name) {
           throw new ConflictError('Type the connection name to confirm deletion.', 'CONFLICT', {

@@ -394,6 +394,13 @@ function MetaCell({ label, children, mono = true }: { label: string; children: R
 function ConnectionCard({ connection, workspaces, onOpenRemap, onSaveAsApp, onDelete, pollIntervalMs }: ConnectionCardProps) {
   const queryClient = useQueryClient();
   const toasts = useAppToasts();
+  /*
+   * The visitor's own database on an operator's server (`yours`): its name and settings are the operator's
+   * environment's, changed on adminium.app's account page, where it was connected. Rename and Delete give way
+   * to that link; the server refuses both anyway (`yourDatabaseEdits`).
+   */
+  const ownDatabase = useQuery({ ...bootstrapQuery(), enabled: false }).data?.ownDatabase;
+  const isOwnDatabase = ownDatabase !== undefined && ownDatabase.connectionId === connection.id;
 
   const test = useMutation({
     mutationFn: () => studioApi.testConnection(connection.id),
@@ -722,9 +729,19 @@ function ConnectionCard({ connection, workspaces, onOpenRemap, onSaveAsApp, onDe
         <Button size="sm" variant="secondary" onClick={() => onOpenRemap(connection.id)}>
           {t('studio:hub.action.remap', 'Remap schema')}
         </Button>
-        <Button size="sm" variant="secondary" onClick={() => setRenaming(true)}>
-          {t('studio:hub.action.rename', 'Rename')}
-        </Button>
+        {isOwnDatabase ? (
+          ownDatabase.editUrl === null ? null : (
+            <Button asChild size="sm" variant="secondary">
+              <a href={ownDatabase.editUrl} data-testid={`connection-own-database-change-${connection.id}`}>
+                {t('studio:hub.action.changeOwnDatabase', 'Change on your account')}
+              </a>
+            </Button>
+          )
+        ) : (
+          <Button size="sm" variant="secondary" onClick={() => setRenaming(true)}>
+            {t('studio:hub.action.rename', 'Rename')}
+          </Button>
+        )}
         {workspaces === undefined ? null : (
           <Button size="sm" variant="secondary" onClick={() => setChoosingWorkspaces(true)} data-testid={`connection-workspaces-open-${connection.id}`}>
             {t('studio:hub.workspaces.connection.action', 'Workspaces…')}
@@ -759,7 +776,7 @@ function ConnectionCard({ connection, workspaces, onOpenRemap, onSaveAsApp, onDe
             ? t('studio:hub.action.resume', 'Resume')
             : t('studio:hub.action.pause', 'Pause')}
         </Button>
-        {onDelete === undefined ? null : (
+        {onDelete === undefined || isOwnDatabase ? null : (
           <Button size="sm" variant="ghost" className="text-danger" onClick={() => onDelete(connection)}>
             {t('studio:hub.action.delete', 'Delete')}
           </Button>

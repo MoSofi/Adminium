@@ -53,7 +53,13 @@ export interface SystemInfo {
    * command opens. Absent from a server older than the Designer. `startPrompt`: the operator's start prompt waits
    * to run (the first-run wizard starts it).
    */
-  designer?: { mode: 'local' | 'live' | 'off'; link: boolean; startPrompt?: boolean };
+  designer?: {
+    mode: 'local' | 'live' | 'off';
+    link: boolean;
+    startPrompt?: boolean;
+    /** The start prompt was refused at the operator's AI cap and starts again by itself then (ms); null or absent: nothing waits. */
+    startPromptWaitsUntil?: number | null;
+  };
   node: string;
   dialect: 'postgres' | 'mysql' | 'sqlite' | null;
   /** Which wrapper booted the server (detection contract). */
@@ -117,6 +123,11 @@ export interface SystemInfo {
    */
   trial?: TrialInfo;
   /**
+   * The user's own database in an operator project: its state and why it is down, never its host (this reply
+   * answers before sign-in; the host is in the bootstrap's `ownDatabase`). Null or absent: none.
+   */
+  ownDatabase?: OwnDatabaseInfo | null;
+  /**
    * What the operator switched off for this installation (trial mode, the
    * hosted profile), each `{ allowed, reason }` under its policy question's
    * name, the same name a 403 `OFF_BY_OPERATOR` carries in `details.question`:
@@ -134,6 +145,16 @@ export type OperatorSwitchName = 'sqliteSources' | 'storageDestinations' | 'webh
 export interface OperatorSwitch {
   allowed: boolean;
   reason: string | null;
+}
+
+/** Why the user's own database cannot be reached: the classes `adminium check-source` prints. */
+export type OwnDatabaseReason = 'auth' | 'unreachable' | 'dns' | 'tls' | 'refused-by-us' | 'ipv6-only' | 'no-database' | 'no-permission' | 'empty';
+
+export interface OwnDatabaseInfo {
+  state: 'connecting' | 'ready' | 'down';
+  /** Null unless `down`. */
+  reason: OwnDatabaseReason | null;
+  readOnly: boolean;
 }
 
 export interface TrialInfo {

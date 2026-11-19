@@ -85,6 +85,8 @@ export interface CreateRunForConnectionInput {
   createdBy?: string | null | undefined;
   /** Tables (by id) whose rows the asker reads only in part: no statistics are collected of them. */
   withoutStatsOf?: ReadonlySet<string> | undefined;
+  /** The owner's notes about the database, already cleaned (`cleanNotes`). */
+  notes?: string | null | undefined;
 }
 
 export interface CreateRunForConnectionResult extends CreateRunResult {
@@ -214,6 +216,7 @@ export function createPromptService(deps: PromptServiceDeps) {
         model: providerModel,
         allowed,
         createdBy: input.createdBy ?? null,
+        ...(input.notes === undefined || input.notes === null ? {} : { notes: input.notes }),
       });
 
       const run =
