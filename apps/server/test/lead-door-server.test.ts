@@ -28,7 +28,7 @@ import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { auditRepo, manifestsRepo, permissionsRepo, rolesRepo, sourceDayOf, usersRepo } from '@adminium/meta';
+import { auditRepo, manifestsRepo, permissionsRepo, rolesRepo, settingsRepo, sourceDayOf, usersRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { leadFinder } from '../../../packages/manifest/test/lead-finder-fixture.js';
@@ -37,9 +37,11 @@ import { runCompanyFillAction } from '../src/automations/actions/company-fill.js
 import type { ActionContext } from '../src/automations/actions/types.js';
 import { TRACE_EN } from '../src/automations/trace.js';
 import { composeServer, type ComposedServer } from '../src/compose.js';
+import { encryptSecret } from '../src/config/secrets.js';
 import type { RecordWriteService } from '../src/crud/write-service.js';
 import { bindWriteValue } from '../src/crud/write-values.js';
 import { loadSnapshotView } from '../src/data-io/snapshot-view.js';
+import { emailSecretKey } from '../src/email/config.js';
 import { createRowWriter } from '../src/export/writer.js';
 import { withSourceKey } from '../src/lead-sources/keys.js';
 import { mutateSourceState, sourcesOf } from '../src/lead-sources/state.js';
@@ -114,6 +116,7 @@ function crm(): Doc {
             text('phone', 40),
             text('address_lines', 200),
             text('town', 80),
+            text('postal_code', 20),
             text('country', 2),
             text('sector', 80),
             text('about', 500),
@@ -135,7 +138,7 @@ function crm(): Doc {
           number: 'company_number',
           website: 'website',
           phone: 'phone',
-          address: { lines: 'address_lines', town: 'town', country: 'country' },
+          address: { lines: 'address_lines', town: 'town', postalCode: 'postal_code', country: 'country' },
           activity: 'sector',
           about: 'about',
           owner: 'account_owner_id',
@@ -156,11 +159,33 @@ function crm(): Doc {
   };
 }
 
-/** The add-on, with a page a rep may open. */
+/** The add-on, with a page a rep may open, and its tell mail (an outbox of its own linked to the found people). */
 function finder(): Doc {
   const doc = leadFinder() as Doc;
   doc['addOn'].hostApi = 1;
   doc['addOn'].pages = [{ ref: PAGE, title: { key: 'company-finder.search', fallback: 'Find companies' }, icon: 'search', client: 'pages/search.js' }];
+  doc['requiredSchema'].tables.push({
+    ref: 'tell_mails',
+    columns: [
+      pk,
+      { ref: 'kind', type: 'enum', enum: ['tell'] },
+      { ref: 'status', type: 'enum', enum: ['queued', 'sent', 'failed', 'skipped'], default: 'queued' },
+      text('to_address', 320),
+      { ref: 'found_person_id', type: 'fk', references: 'found_people', nullable: true },
+      text('language', 10),
+      text('error', 200),
+      { ref: 'sent_at', type: 'timestamptz', nullable: true },
+    ],
+  });
+  doc['outbox'] = {
+    table: 'tell_mails',
+    columns: { kind: 'kind', status: 'status', to: 'to_address', language: 'language', error: 'error', sentAt: 'sent_at' },
+    links: { found_person: 'found_person_id' },
+    recipient: { via: 'found_person_id', table: 'found_people', email: 'email' },
+    kinds: { tell: 'company-finder-tell' },
+    classes: { tell: 'service' },
+  };
+  doc['emailTemplates'] = [{ key: 'company-finder-tell', name: 'Why we have your details', locales: { 'en-US': { subject: 'Why we have your details', blocks: [{ block: 'email.text', data: { text: 'Hello {{first_name}},' } }] } } }];
   return doc;
 }
 
@@ -509,6 +534,194 @@ describe.each(LEGS)('the lead door — %s', (dialect, available) => {
     expect(JSON.stringify(refused)).toContain(PEOPLE_HOST);
     expect(JSON.stringify(refused)).toContain(`"declared":["${REGISTER_HOST}"]`);
     expect(JSON.stringify(refused)).not.toContain(REGISTER_KEY);
+  });
+
+  /** Keeping people switched on in the add-on's settings (with the mail set up when `mail` says so); answers how to undo it. */
+  async function peopleOn(mail: boolean): Promise<() => Promise<void>> {
+    const { db } = await h.manager.data(conn);
+    const settingsTable = table(KEY, 'finder_settings');
+    if ((await rows(`SELECT id FROM ${settingsTable}`)).length === 0) await db.insertInto(settingsTable as never).values({ keep_years: 3 } as never).execute();
+    const purpose = JSON.stringify({ 'en-US': 'To offer your studio drawing boards.', 'fr-FR': 'Pour proposer à votre atelier des tables à dessin.' });
+    await db.updateTable(settingsTable as never).set({ people_on: dialect === 'sqlite' ? 1 : true, keep_years: 3, purpose } as never).execute();
+    const settings = settingsRepo(h.meta);
+    if (mail) {
+      await settings.set('email.smtp', { host: '127.0.0.1', port: 9, user: 'postmaster', passEncrypted: encryptSecret('not-a-real-password', emailSecretKey(TEST_SECRET)), from: 'Meridian <hello@meridian.example>', secure: false }, { updatedBy: null });
+      await settings.set('system.publicOrigin', 'https://crm.meridian.example', { updatedBy: null });
+      await settings.set('privacy.businessName', 'Meridian Workplace Ltd', { updatedBy: null });
+      await settings.set('privacy.noticeUrl', 'https://www.meridian.example/privacy', { updatedBy: null });
+    }
+    return async () => {
+      await db.updateTable(settingsTable as never).set({ people_on: dialect === 'sqlite' ? 0 : false } as never).execute();
+      for (const key of ['email.smtp', 'system.publicOrigin', 'privacy.businessName', 'privacy.noticeUrl'] as const) await settings.set(key, null, { updatedBy: null });
+    };
+  }
+
+  const soleTrader = () => door('dana', 'search', { source: 'france', activity: '71.11Z', place: { text: 'Lyon', country: 'FR', codes: ['69381'] } });
+  const saone = async () => (await companies()).filter((row) => row['company_number'] === '412345678' && row['name'] === 'Atelier Saône Clair');
+  const marks = () => rows(`SELECT * FROM ${table(KEY, 'field_sources')} WHERE column_name = '*person'`);
+
+  it.skipIf(!available)('a sole trader not kept leaves no company row, though the rep may not delete companies: refused, and said so', async () => {
+    const undo = await peopleOn(false);
+    try {
+      expect((await soleTrader()).statusCode).toBe(200);
+      // No mail server: nobody may be kept, so neither is the row that is them.
+      const add = await door('dana', 'add', { source: 'france', companies: [{ ref: 'fr-412345678', retryKey: retry('saone-1'), email: 'claire.saone@saone-clair.example' }] });
+      expect(add.statusCode, add.body).toBe(200);
+      expect(add.json()).toMatchObject({ added: 0, results: [{ outcome: 'refused', reason: 'not-kept', message: 'The person was not kept (not-told-yet), so the company was not added.' }] });
+      expect(await saone()).toEqual([]);
+      expect(await marks()).toEqual([]);
+    } finally {
+      await undo();
+    }
+  });
+
+  it.skipIf(!available)('a sole trader whose keeping throws (the rep may not add contacts) leaves nothing; kept by one who may, the row is marked theirs', async () => {
+    const undo = await peopleOn(true);
+    try {
+      expect((await soleTrader()).statusCode).toBe(200);
+      const add = await door('dana', 'add', { source: 'france', companies: [{ ref: 'fr-412345678', retryKey: retry('saone-2'), email: 'claire.saone@saone-clair.example' }] });
+      expect(add.statusCode, add.body).toBe(200);
+      expect(add.json()).toMatchObject({ added: 0, results: [{ outcome: 'refused', reason: 'not-kept' }] });
+      expect(add.json().results[0].message).toContain('so the company was not added');
+      expect(await saone()).toEqual([]);
+      expect(await marks()).toEqual([]);
+      expect(await rows(`SELECT * FROM ${table('crm', 'contacts')} WHERE email = 'claire.saone@saone-clair.example'`)).toEqual([]);
+      expect(await rows(`SELECT * FROM ${table(KEY, 'found_people')}`)).toEqual([]);
+
+      // Sam may add contacts too: kept, and the company row is marked as this person's.
+      if (cookies['sam'] === undefined) {
+        const contactsId = (await loadSnapshotView(h.meta, conn, { forOthers: true })).table(table('crm', 'contacts')).id;
+        await person('sam', ['crm-rep'], [`page:${PAGE}:view`, `table:${conn}:${contactsId}:read`, `table:${conn}:${contactsId}:create`]);
+      }
+      expect((await door('sam', 'search', { source: 'france', activity: '71.11Z', place: { text: 'Lyon', country: 'FR', codes: ['69381'] } })).statusCode).toBe(200);
+      const kept = await door('sam', 'add', { source: 'france', companies: [{ ref: 'fr-412345678', retryKey: retry('saone-3'), email: 'claire.saone@saone-clair.example' }] });
+      expect(kept.json(), kept.body).toMatchObject({ added: 1 });
+      const [row] = await saone();
+      expect(row).toBeDefined();
+      expect(await marks()).toEqual([expect.objectContaining({ table_ref: 'crm:companies', row_key: String(row!['id']), source: 'france' })]);
+      expect((await rows(`SELECT * FROM ${table(KEY, 'found_people')}`))[0]).toMatchObject({ company_table: 'crm:companies', company_key: String(row!['id']), email: 'claire.saone@saone-clair.example' });
+    } finally {
+      await undo();
+    }
+  });
+
+  it.skipIf(!available)('a sole trader’s register facts fill only their number and activity while people are off; the look-up is audited', async () => {
+    await insert('companies', { id: 4100, name: 'Saône', company_number: '412345678', account_owner_id: ids['dana'] });
+    const look = await door('dana', 'lookup', { record: '4100', sources: ['france'] });
+    expect(look.statusCode, look.body).toBe(200);
+    const offered = ((look.json() as Doc)['fields'] as Doc[]).filter((one) => (one['found'] as Doc[]).length > 0).map((one) => one['field']);
+    expect(offered.sort()).toEqual(['activity', 'number']);
+    const town = await door('dana', 'fill', { record: '4100', fields: [{ field: 'town', source: 'france', now: null }] });
+    expect(town.statusCode).toBe(422);
+    expect(await company(4100)).toMatchObject({ town: null, address_lines: null, name: 'Saône' });
+    const sector = await door('dana', 'fill', { record: '4100', fields: [{ field: 'activity', source: 'france', now: null }] });
+    expect(sector.statusCode, sector.body).toBe(200);
+    expect((await company(4100))!['sector']).toBeTruthy();
+    // Who looked up which record, asking whom: never what was found.
+    const audit = (await auditRepo(h.meta).list({ category: 'leads', limit: 50 })).find((entry) => entry.action === 'leads.lookup' && (entry.changes?.after as Doc | undefined)?.['record'] === '4100');
+    expect(audit).toBeDefined();
+    expect((audit!.changes!.after as Doc)['sources']).toEqual([{ source: 'france', outcome: 'found' }]);
+    expect(JSON.stringify(audit)).not.toContain('Lyon');
+  });
+
+  it.skipIf(!available)('"already here" finds the company past a hundred others in the same town: by its number, and by its name', async () => {
+    const view = await loadSnapshotView(h.meta, conn, { forOthers: true });
+    const { db } = await h.manager.data(conn);
+    const at = view.table(table('crm', 'companies'));
+    const many = Array.from({ length: 150 }, (_, n) => ({ id: 3000 + n, name: `Leeds Practice ${String(n)}`, town: 'Leeds', account_owner_id: ids['dana'] }));
+    await db.insertInto(at.id as never).values(many as never).execute();
+    await insert('companies', { id: 3200, name: 'Lime Kiln Joinery', company_number: '98004444', town: 'Leeds', account_owner_id: ids['dana'] });
+    await insert('companies', { id: 3201, name: 'Calder Wharf Joinery', town: 'Leeds', account_owner_id: ids['dana'] });
+    hooks.findCompanies = async () => ({
+      ok: true,
+      companies: [
+        { ref: 'gb-lime', name: 'Lime Kiln Joinery', number: '98 004 444', address: { town: 'Leeds', country: 'GB' }, natural: false, noMarketing: false },
+        { ref: 'gb-calder', name: 'CALDER WHARF JOINERY LTD', address: { town: 'LEEDS', country: 'GB' }, natural: false, noMarketing: false },
+      ],
+      next: null,
+    });
+    try {
+      const res = await search('dana');
+      expect(res.statusCode, res.body).toBe(200);
+      const found = (res.json() as Doc)['companies'] as Doc[];
+      expect(found.find((one) => one['ref'] === 'gb-lime')!['here']).toEqual({ key: '3200', keptByColleague: false, by: 'number' });
+      expect(found.find((one) => one['ref'] === 'gb-calder')!['here']).toEqual({ key: '3201', keptByColleague: false, by: 'name' });
+      // And Add makes no second row.
+      const add = await door('dana', 'add', { source: 'companies-house', companies: [{ ref: 'gb-lime', retryKey: retry('lime') }] });
+      expect(add.json()).toMatchObject({ added: 0, results: [{ reason: 'already-here' }] });
+    } finally {
+      delete hooks.findCompanies;
+    }
+  });
+
+  it.skipIf(!available)('a fill re-checks every field it writes at the write, the ninth and later too', async () => {
+    await insert('companies', { id: 4170, name: 'Kestrel Yard Architects', account_owner_id: ids['dana'] });
+    const look = await door('dana', 'lookup', { record: '4170', sources: ['companies-house'] });
+    expect(look.statusCode, look.body).toBe(200);
+    const fields = ['name', 'number', 'website', 'lines', 'town', 'postalCode', 'country', 'activity', 'about'].map((field) => ({ field, source: 'companies-house', now: field === 'name' ? 'Kestrel Yard Architects' : null }));
+    const { db } = await h.manager.data(conn);
+    // Somebody types the about text after the door read the record, before its change is written.
+    const app = composed.app as unknown as { inject: (opts: Doc) => Promise<unknown> };
+    const original = app.inject;
+    app.inject = async function (this: unknown, opts: Doc) {
+      if (opts['method'] === 'PATCH' && String(opts['url']).endsWith('/4170')) await db.updateTable(table('crm', 'companies') as never).set({ about: 'Typed meanwhile.' } as never).where('id' as never, '=', 4170 as never).execute();
+      return original.call(this, opts);
+    };
+    let filled;
+    try {
+      filled = await door('dana', 'fill', { record: '4170', fields });
+    } finally {
+      app.inject = original;
+    }
+    expect(filled.statusCode, filled.body).toBe(409);
+    expect(filled.json().error.code).toBe('FIELD_CHANGED');
+    expect(await company(4170)).toMatchObject({ about: 'Typed meanwhile.', company_number: null });
+  });
+
+  it.skipIf(!available)('the rule step holds "only empty fields" at its write, and fills a sole trader’s number and activity only', async () => {
+    const view = await loadSnapshotView(h.meta, conn, { forOthers: true });
+    const companiesTable = view.table(table('crm', 'companies'));
+    const { db } = await h.manager.data(conn);
+    await h.meta.db.updateTable('adminium_source_days').set({ calls: 0, held: 0 }).where('installId', '=', installId).where('spender', '=', 'step').execute();
+    const ctx = async (id: number): Promise<ActionContext> =>
+      ({
+        meta: h.meta,
+        manager: h.manager,
+        app: composed.app,
+        writes: composed.leads.deps.writes as unknown as RecordWriteService,
+        rule: { id: 'rul_fill', name: 'Fill in new companies', connectionId: conn, createdBy: null },
+        runId: 'run_fill',
+        hops: 0,
+        now: Date.now(),
+        source: { connectionId: conn, view, db, dialect, table: companiesTable, record: { connectionId: conn, table: companiesTable.id, pk: { id }, label: 'A company' }, row: (await company(id))! },
+        tokens: {},
+        text: TRACE_EN,
+        secret: TEST_SECRET,
+        leadSources: composed.leads.step,
+      }) as unknown as ActionContext;
+    const step = { kind: 'company.fill' as const, addOn: KEY, sources: ['companies-house'], addOnName: 'Company finder' };
+
+    // A person types the website while the register answers.
+    await insert('companies', { id: 4180, name: 'Ouseburn Studio', town: 'Newcastle upon Tyne' });
+    hooks.fillCompany = async () => {
+      await db.updateTable(table('crm', 'companies') as never).set({ website: 'https://typed.example' } as never).where('id' as never, '=', 4180 as never).execute();
+      return undefined;
+    };
+    try {
+      await runCompanyFillAction(step, await ctx(4180)).catch(() => undefined);
+      expect(await company(4180)).toMatchObject({ website: 'https://typed.example' });
+
+      // A sole trader: their number and activity, never their name, address or phone.
+      await insert('companies', { id: 4181, name: 'Claire', company_number: '412345678', country: 'FR' });
+      delete hooks.fillCompany;
+      const step2 = { ...step, sources: ['france'] };
+      await runCompanyFillAction(step2, await ctx(4181));
+      const row = (await company(4181))!;
+      expect(row['sector']).toBeTruthy();
+      expect(row).toMatchObject({ name: 'Claire', address_lines: null, town: null, phone: null, website: null });
+    } finally {
+      delete hooks.fillCompany;
+    }
   });
 
   it.skipIf(!available)('the rule step asks only the free registers, never a website or a paid source, fills only empty fields; its 51st call of the day is refused', async () => {

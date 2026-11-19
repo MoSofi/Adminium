@@ -33,7 +33,8 @@ import { storedTableRef, tableRefIndex } from '../../apps/table-ref.js';
 import { companiesTablesOn } from '../../leads/companies.js';
 import { leadsInstall } from '../../leads/people.js';
 import { freeRegisters } from '../../leads/registers.js';
-import { leadColumns, noteFieldSources, shownText, writesFor, type LeadField } from '../../leads/write.js';
+import { businessFactsOf, leadColumns, noteFieldSources, shownText, writesFor, type LeadField } from '../../leads/write.js';
+import { attachSeen } from '../../crud/states.js';
 import { rowKeyOf } from '../../payments/payables.js';
 import { sourceOf, updateRecordAsRule } from './record-write.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
@@ -120,14 +121,18 @@ export async function runCompanyFillAction(action: CompanyFillAction, ctx: Actio
       notes.push(ctx.text.companySeveral(register.id, answer.companies.length));
       continue;
     }
-    // The one company: only the fields that are empty, in their columns' shape.
-    const { ref: _ref, natural: _natural, noMarketing: _noMarketing, officers: _officers, ...facts } = answer.companies[0]!;
+    // The one company: only the fields that are empty, in their columns' shape. A sole trader is a person, and
+    // nobody is told from here: only their number and activity, never their name, address or phone.
+    const { ref: _ref, natural, noMarketing: _noMarketing, officers: _officers, ...all } = answer.companies[0]!;
+    const facts = natural ? businessFactsOf(all) : all;
     const writes = writesFor(plan.companies, facts, plan.empty);
     if (writes.length === 0) {
       notes.push(ctx.text.companyFilled(0, register.id));
       return { log: notes.join(' · ') };
     }
-    const stored = await updateRecordAsRule(ctx, Object.fromEntries(writes.map((write) => [write.column, write.value])));
+    // Still empty at the write: a field a person filled while the register answered is never written over.
+    const seen = Object.fromEntries(writes.map((write) => [write.column, plan.source.row[write.column] ?? null]));
+    const stored = await updateRecordAsRule(ctx, attachSeen(Object.fromEntries(writes.map((write) => [write.column, write.value])), seen));
     const leads = await leadsInstall({ meta: ctx.meta, manager: ctx.manager, viewFor: async () => plan.source.view }, plan.install.row.id);
     if (leads !== null && ctx.writes !== undefined) {
       const index = await tableRefIndex(ctx.meta, plan.source.connectionId, plan.source.view.model);

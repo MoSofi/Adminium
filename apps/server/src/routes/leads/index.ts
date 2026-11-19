@@ -63,7 +63,7 @@ import type { Row } from '../../crud/mask.js';
 import type { RecordWriteService } from '../../crud/write-service.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { plainWords } from '../../designer/untrusted.js';
-import { audited, auditExempt } from '../../audit/coverage.js';
+import { audited } from '../../audit/coverage.js';
 import { AppError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import { recipientLocale } from '../../i18n/server-i18n.js';
 import { installReachOf } from '../../installs/reach.js';
@@ -78,7 +78,7 @@ import { FoundMemory, type AddedAnswer } from '../../leads/memory.js';
 import { genericAddress, leadsInstall, type KeepFoundPeopleInput, type KeptPeople } from '../../leads/people.js';
 import { isRegister } from '../../leads/registers.js';
 import { pageFacts, websiteWords } from '../../leads/website-facts.js';
-import { LEAD_FIELDS, leadColumns, noteFieldSources, ownerColumn, shownText, writesFor, type LeadField } from '../../leads/write.js';
+import { businessFactsOf, LEAD_FIELDS, leadColumns, noteFieldSources, ownerColumn, shownText, writesFor, type LeadField } from '../../leads/write.js';
 import { readCompanyWebsite, type WebsiteReaderDeps } from '../../net/website-reader.js';
 import { normaliseAddress } from '../../public-api/claim-code.js';
 import { addOnSettingsGrantHeld } from '../../rbac/add-on-grant.js';
@@ -86,7 +86,7 @@ import { PERMISSIONS } from '../../rbac/permissions.js';
 import { getPrincipal } from '../../rbac/principal.js';
 import type { TrialPolicy } from '../../trial/policy.js';
 import { refuseUnlessAllowed } from '../../trial/refuse.js';
-import { rowKeyOf } from '../../payments/payables.js';
+import { pkOfRowKey, rowKeyOf } from '../../payments/payables.js';
 import { peopleTablesOf } from '../../people/tables-of.js';
 import { tableRefIndex, storedTableRef } from '../../apps/table-ref.js';
 
@@ -333,6 +333,28 @@ function factsOf(company: FoundCompany): CompanyFacts {
 
 const sameShown = (a: string | null, b: string | null): boolean => (a ?? '') === (b ?? '');
 
+/**
+ * Removes a company row the door just added, as the engine, and makes sure it
+ * is gone: a sole trader's row whose person was not kept must not stay.
+ */
+async function removeAddedRow(manager: Pick<ConnectionManager, 'data'>, connectionId: string, companies: CompaniesTable, key: string): Promise<void> {
+  const table = companies.table.table;
+  const resolved = companies.table;
+  const pk = pkOfRowKey(resolved, key);
+  if (pk === null) throw new AppError(500, 'SOLE_TRADER_LEFT', 'The person was not kept, and the company added for them could not be removed. Remove it by hand.', { key });
+  const { db } = await manager.data(connectionId);
+  let query = db.deleteFrom(resolved.id as never);
+  for (const [column, value] of Object.entries(pk)) query = query.where(sql.ref(column), '=', value as never);
+  const result = await query.executeTakeFirst().catch(() => null);
+  let gone = result !== null && Number(result.numDeletedRows) > 0;
+  if (!gone) {
+    let check = db.selectFrom(resolved.id as never).select(sql<number>`1`.as('one') as never);
+    for (const [column, value] of Object.entries(pk)) check = check.where(sql.ref(column), '=', value as never);
+    gone = (await check.executeTakeFirst().catch(() => 'unknown')) === undefined;
+  }
+  if (!gone) throw new AppError(500, 'SOLE_TRADER_LEFT', `The person was not kept, and the company added for them (${table.label ?? resolved.name} ${key}) could not be removed. Remove it by hand.`, { key });
+}
+
 // ── the routes ───────────────────────────────────────────────────────────────
 
 export function leadDoorRoutes(deps: LeadDoorDeps): FastifyPluginAsync {
@@ -531,9 +553,8 @@ export function leadDoorRoutes(deps: LeadDoorDeps): FastifyPluginAsync {
       return row;
     }
 
-    // Every door writes an audit row as the person (`leads.*`), but a look-up, which only reads and asks.
+    // Every door writes an audit row as the person (`leads.*`): a look-up too, which may spend a paid source's day and fetch a site.
     const routeConfig = { audience: 'staff' as const, rateLimitBucket: 'lead-door' as const, audit: audited('rbac') };
-    const readConfig = { audience: 'staff' as const, rateLimitBucket: 'lead-door' as const, audit: auditExempt('A look-up reads one record and asks the chosen sources and the website; it writes nothing, and the fill that follows is audited.') };
 
     // ── search ────────────────────────────────────────────────────────────────
     api.post(
@@ -636,19 +657,29 @@ export function leadDoorRoutes(deps: LeadDoorDeps): FastifyPluginAsync {
             continue;
           }
           const key = rowKeyOf(door.companies.table, stored);
-          // A sole trader is a person: kept and told at once, or the company row goes again.
+          // A sole trader is a person: one unit with their company row. Kept and told at once (the row marked as
+          // theirs, their address the one a member of staff typed), or the company row goes again.
           if (company.natural && address !== null) {
-            const kept = await deps.keep({
-              installId: door.install.row.id,
-              addOnKey: door.install.row.manifestKey,
-              staff: { id: door.staffId, label: door.staffLabel, request },
-              company: { table: tableRef, key },
-              source: body.source,
-              people: [{ name: company.officers?.[0]?.name ?? company.name, email: address, sources: company.sourceUrl === undefined ? [] : [company.sourceUrl] }],
-            });
-            if (kept.kept.length === 0) {
-              await app.inject({ method: 'DELETE', url: `/api/v1/data/${encodeURIComponent(door.connectionId)}/${encodeURIComponent(door.companies.table.id)}/${encodeURIComponent(key)}`, headers: { ...(request.headers.cookie === undefined ? {} : { cookie: request.headers.cookie }), ...(request.headers.authorization === undefined ? {} : { authorization: request.headers.authorization }) }, remoteAddress: request.ip });
-              answer({ ref: one.ref, outcome: 'refused', reason: 'not-kept', message: `The person was not kept (${kept.refused[0]?.reason ?? 'refused'}).` });
+            let why: string | null = null;
+            try {
+              const kept = await deps.keep({
+                installId: door.install.row.id,
+                addOnKey: door.install.row.manifestKey,
+                staff: { id: door.staffId, label: door.staffLabel, request },
+                company: { table: tableRef, key },
+                source: body.source,
+                people: [{ name: company.officers?.[0]?.name ?? company.name, email: address, sources: company.sourceUrl === undefined ? [] : [company.sourceUrl] }],
+                soleTrader: true,
+              });
+              if (kept.kept.length === 0) why = kept.refused[0]?.reason ?? 'refused';
+            } catch (error) {
+              if (!(error instanceof AppError)) request.log.error({ err: error }, 'lead door: a sole trader could not be kept');
+              why = error instanceof AppError ? error.message : 'they could not be kept';
+            }
+            if (why !== null) {
+              // As the engine, whoever asked: a rep who may add companies but not delete them still leaves nothing.
+              await removeAddedRow(deps.manager, door.connectionId, door.companies, key);
+              answer({ ref: one.ref, outcome: 'refused', reason: 'not-kept', message: `The person was not kept (${why}), so the company was not added.` });
               continue;
             }
           }
@@ -681,7 +712,7 @@ export function leadDoorRoutes(deps: LeadDoorDeps): FastifyPluginAsync {
     // ── look up ───────────────────────────────────────────────────────────────
     api.post(
       '/leads/:key/lookup',
-      { preHandler: [app.requireAuth, doorGuard], config: readConfig, schema: { params: keyParams, body: lookupBody, response: { 200: lookupReply } } },
+      { preHandler: [app.requireAuth, doorGuard], config: routeConfig, schema: { params: keyParams, body: lookupBody, response: { 200: lookupReply } } },
       async (request, reply) => {
         const body = request.body;
         const door = await doorOf(request, body.table);
@@ -719,7 +750,8 @@ export function leadDoorRoutes(deps: LeadDoorDeps): FastifyPluginAsync {
           }
           const matches = answer.companies.map(plainCompany);
           if (matches.length === 1) {
-            const facts = factsOf(matches[0]!);
+            // A sole trader is a person: while people are off, only their number and activity are offered.
+            const facts = matches[0]!.natural && !door.peopleOn ? businessFactsOf(matches[0]!) : factsOf(matches[0]!);
             memory.rememberFacts(door.owner, recordRef, entry.id, facts);
             found.set(entry.id, facts);
           }
@@ -770,6 +802,12 @@ export function leadDoorRoutes(deps: LeadDoorDeps): FastifyPluginAsync {
           }
           fields.push({ field, column, now: shownText(record[column]), found: offered });
         }
+        await app.rbac.audit(request, {
+          category: 'leads',
+          action: 'leads.lookup',
+          // Which record, which sources were asked and how each answered, and whether the site was read: never what was found.
+          changes: { after: { key: door.install.row.manifestKey, table: door.companies.ref, record: body.record, sources: sources.map((one) => ({ source: one.source, outcome: one.outcome })), website: website?.outcome ?? null } },
+        });
         return { table: door.companies.ref, record: body.record, sources, website, fields };
       },
     );
@@ -799,7 +837,8 @@ export function leadDoorRoutes(deps: LeadDoorDeps): FastifyPluginAsync {
             throw new AppError(409, 'FIELD_CHANGED', `${column} was changed after you looked. Look up again.`, { field: one.field, column });
           }
           values[column] = write.value;
-          if (Object.keys(seen).length < 8) seen[column] = typeof record[column] === 'string' ? (record[column] as string) : (shownText(record[column]) ?? null);
+          // Every filled column, as it was read: the write is made only while each still holds it.
+          seen[column] = typeof record[column] === 'string' ? (record[column] as string) : (shownText(record[column]) ?? null);
           filled.push({ field: one.field, column, source: one.source });
         }
         let stored: Row;

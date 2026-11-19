@@ -99,7 +99,7 @@ export async function createAsPerson(
  * Changes one row as the person behind `request`, by the data route's own
  * PATCH: their grants, column limits, row limits (the row as its changer),
  * rules, audit and live updates apply. `seen` holds columns as the person
- * saw them (at most 8): the change is made only while each still holds that
+ * saw them (at most 16): the change is made only while each still holds that
  * value, else refused 409 `ROW_CHANGED`. Returns the stored row, or throws
  * the data route's refusal.
  */
