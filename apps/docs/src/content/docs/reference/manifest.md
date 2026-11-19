@@ -7124,7 +7124,7 @@ length takes at least that many characters, or has no `maxLength`. A column mark
 | Column | Type | What it holds |
 |---|---|---|
 | `name` | `text` 200 | The funnel's name. |
-| `steps` | `json` | At most 8 steps, in order: `[{ "kind": "page" or "form", "key": "<row key>" }]`. |
+| `steps` | `json` | At most 8 steps, in order: `[{ "kind": "page", "key": "<row key>" }]` for a page, and `{ "kind": "form", "key": "<row key>", "addOn": "<forms add-on key>" }` for a form (two forms add-ons may hold the same row key). |
 | `rule_id` | `text` 64, empty | The rule picked as what happens after the funnel. |
 
 **A slug** is lower-case letters, digits and dashes, 1 to 80 characters, with no dash at either

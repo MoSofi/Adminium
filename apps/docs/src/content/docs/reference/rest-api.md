@@ -185,7 +185,8 @@ Three of these deserve a note, because the obvious guess is wrong:
   under the connection they belong to: `/connections/:id/schema/*`.
 - **There is no `/api/v1/generate/*`.** Generation is an action on a connection:
   `POST /connections/:id/generate`.
-- **There is no `/api/v1/views/*`.** Shared views belong to a page
+- **`/api/v1/views` is not a page's views.** It counts how many times strangers saw
+  a landing page or a form. Shared views belong to a page
   (`/pages/:pageId/views`); per-user saved layouts belong to you
   (`/me/views/:pageId/layout`).
 
@@ -1210,7 +1211,7 @@ operator's own listener (`ADMINIUM_OPERATOR_LISTEN`), and only
 |---|---|
 | `GET /api/v1/operator/status` | Disk used, mail and AI spent, the Super Admins' last 20 sign-ins (time and address), the last sign-in, and whether the public pages are hidden |
 | `POST /api/v1/operator/public-pages` | `{ "hidden": true, "reason": "…" }` hides every public page at once (404 on every host); `{ "hidden": false }` shows them again |
-| `GET /api/v1/operator/public-content` | What the instance serves to anybody: every customer side's files, with their text, and every live form's fields |
+| `GET /api/v1/operator/public-content` | What the instance serves to anybody: every customer side's files, with their text, every live form's fields, and every live landing page with its pictures and links |
 | `POST /api/v1/operator/reinstall` | Downloads again every installed catalog app and add-on whose files are not on this server (after a restore, say), at its installed version and checked as Studio's Download checks it; answers what came back, what was already here, and what failed and why |
 
 They are for whoever runs the server, not for the people who use it, and a
