@@ -1009,6 +1009,7 @@
     "hello": "{name}，您好：",
     "helloNoName": "您好：",
     "source": "{source} 于 {date} 找到了您的工作邮箱地址。",
+    "sourceStaff": "{source} 于 {date} 提供了您企业的登记信息。您的电子邮箱地址由我们的一名员工添加。",
     "why": "我们保留这些信息的原因：{purpose}",
     "basis": "我们依据的是我们在此方面的合法利益（GDPR 第 6 条第 1 款第 f 项）。",
     "keep": "{years, plural, other {我们自 {date} 起保留您的信息 # 年，或自您最后一次给我们写信时起算。}}",

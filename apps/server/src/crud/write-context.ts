@@ -139,6 +139,12 @@ export interface WriteContext {
   /** A public entry's consent tick, on a write through that entry (`public-api/consent-tick.ts`). */
   consentTick?: PublicConsentTick | undefined;
   /**
+   * The public API key a stranger's write came through (`routes/public`):
+   * set there, and only there. Such a write is a stranger's, never
+   * Adminium's own, whatever its origin says.
+   */
+  publicKey?: string | undefined;
+  /**
    * The address a public write's session proved it reads mail at (trimmed,
    * lower case): the signed-in person's own address, for a session at the
    * `verified` level or opened by an emailed sign-in link. Set by the public

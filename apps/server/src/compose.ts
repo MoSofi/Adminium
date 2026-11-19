@@ -106,6 +106,7 @@ import {
   deciderFor,
   isLoadable,
   importServerHalf,
+  packageVouched,
   providersFor,
   type AddOnRuntimeState,
 } from './add-ons/runtime.js';
@@ -153,7 +154,7 @@ import { leadDoorRoutes } from './routes/leads/index.js';
 import { createWebsiteReaderState, readerCallsOut } from './net/website-reader.js';
 import { FOUND_PEOPLE_SWEEP_CRON, FOUND_PEOPLE_SWEEP_NAME, sweepFoundPeople, type SweepDone } from './leads/sweep.js';
 import { createTellMail } from './leads/tell.js';
-import { erasePerson } from './privacy/erase.js';
+import { erasePerson, type EraseScope } from './privacy/erase.js';
 import { objectDoorRoutes } from './routes/mail-door/object.js';
 import { chatStaffRoutes } from './routes/chat/index.js';
 import { createLedgerRuntime } from './ledgers/registry.js';
@@ -245,7 +246,7 @@ import {
   registerAddOnAcquireHandlers,
 } from './jobs/add-on-acquire.js';
 import { enqueueAppCatalogRefresh, registerAppAcquireHandlers } from './jobs/app-acquire.js';
-import { registerAddOnEventHandlers } from './jobs/add-on-events.js';
+import { importVouchedEventHalves, registerAddOnEventHandlers } from './jobs/add-on-events.js';
 import { registerJobsAndRealtime, type JobsAndRealtime } from './jobs/register.js';
 import { stepLookupOf } from './automations/add-on-steps.js';
 import { registerAutomationRunHandler } from './jobs/automation-run.js';
@@ -1718,6 +1719,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // Step 8's delivery reports here. The outcome is on the register row
     // either way — this is for whoever is watching the queue.
     logger: app.log,
+    // A person a source found is told first: no drawn document is e-mailed to them before (`leads/people.ts`).
+    untold: (address) => untoldAddress({ meta, manager, viewFor: (connectionId) => publicViews.viewFor(connectionId) }, address),
   });
 
   const jobs = await registerJobsAndRealtime(app, {
@@ -1932,7 +1935,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     writes: recordWrites,
     app,
     log: app.log,
-    onRecorded: (attempt) => queuePaymentReceipt({ meta, sources: paymentSources, secret: env.ADMINIUM_SECRET, logger: app.log }, attempt),
+    onRecorded: (attempt) => queuePaymentReceipt({ meta, sources: paymentSources, secret: env.ADMINIUM_SECRET, logger: app.log, untold: (address) => untoldAddress({ meta, manager, viewFor: (connectionId) => publicViews.viewFor(connectionId) }, address) }, attempt),
   });
   // ── The demo payment service ─────────────────────────────────────────────
   // Pretend money in test mode, with no account: the staff preview and a test
@@ -2632,7 +2635,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // Download the app template a shop uploads to its own provider account to make its key.
       await api.register(keyAppRoutes({ meta, runtime: () => addOnRuntime }));
       // Email a record's pay link to its customer, under the links' own rights.
-      await api.register(paymentLinkEmailRoutes({ meta, sources: paymentSources, secret: env.ADMINIUM_SECRET, assertMayLink: createLinkRights({ meta, sources: paymentSources }), logger: app.log, networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY }));
+      await api.register(paymentLinkEmailRoutes({ meta, sources: paymentSources, secret: env.ADMINIUM_SECRET, assertMayLink: createLinkRights({ meta, sources: paymentSources }), logger: app.log, networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY, untold: (address) => untoldAddress({ meta, manager, viewFor: (connectionId) => publicViews.viewFor(connectionId) }, address) }));
       // Send a test payment, and the pay page's full preview: a throwaway payable and a test link.
       await api.register(
         testPaymentsRoutes({
@@ -3728,7 +3731,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * the found people's keeping sweep erase by address exactly as the privacy
    * page does (their sessions ended, their answers' files and chats gone).
    */
-  const eraseAsEngine = (address: string) =>
+  const eraseAsEngine = (address: string, scope?: EraseScope) =>
     erasePerson(
       {
         meta,
@@ -3741,6 +3744,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         chatForget: (place, id) => chatStore.forget(place, id),
       },
       address,
+      scope,
     );
   // The Object page (`/m/o/`): a found person objects, and is erased. Beside the unsubscribe page, by the door's rules.
   await app.register(
@@ -4133,12 +4137,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       return [{ row: entry.row, manifest: result.manifest }];
     });
 
+    const trust = await trustSources(meta);
     const runtime = await buildAddOnRuntime({
       store: addOnStore,
       // Once per key: every install of an add-on runs the same code (one version per server).
       installed: parsed.filter((p, at) => parsed.findIndex((other) => other.manifest.key === p.manifest.key) === at).map((p) => ({ manifest: p.manifest, version: p.row.version })),
       // Read at every build: a download a moment ago is trusted by the time its add-on is installed.
-      trust: await trustSources(meta),
+      trust,
       log: (message, data) => app.log.warn(data, message),
     });
     // Published where the document pipeline and `GET /documents/kinds` read it.
@@ -4156,37 +4161,26 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // gets the worker's retries, cancellation and `jobs:<jobId>` progress.
     // One kind per key and event: the code is loaded once per key (one version per server), and each run
     // names its install, whose credential it then uses.
-    const events = [];
-    const eventKeys = new Set<string>();
-    for (const { row, manifest } of parsed) {
-      if (eventKeys.has(manifest.key)) continue;
-      eventKeys.add(manifest.key);
-      for (const declared of manifest.addOn.events ?? []) {
-        let module: unknown;
-        try {
-          module = await importServerHalf(
-            addOnStore,
-            manifest.key,
-            row.version,
-            declared.server,
-          );
-        } catch (err) {
-          app.log.error({ key: manifest.key, event: declared.on, err }, 'add-on event half failed to load');
-          continue;
-        }
-        events.push({
-          addOnKey: manifest.key,
-          event: declared.on,
-          module,
-          // Built from the MANIFEST, so no caller can widen the allow-list.
-          http: addOnHttpClientFor(meta, manifest, { policy: app.trialPolicy }),
-          credential: async (installId: string | undefined) => {
-            const install = await installOfRecord(repo, manifest.key, installId);
-            return install === null ? null : ((await repo.getCredential(install.row.id))?.secret ?? null);
-          },
-        });
-      }
-    }
+    // Only from a package Adminium vouches for, as a contract's provider is.
+    const once = parsed.filter((p, at) => parsed.findIndex((other) => other.manifest.key === p.manifest.key) === at);
+    const halves = await importVouchedEventHalves({
+      packages: once.map(({ row, manifest }) => ({ key: manifest.key, version: row.version, events: manifest.addOn.events ?? [] })),
+      vouched: (key, version) => packageVouched(addOnStore, trust, key, version),
+      importHalf: (key, version, server) => importServerHalf(addOnStore, key, version, server),
+      log: (message, data) => app.log.error(data, message),
+    });
+    const events = halves.map((half) => {
+      const manifest = once.find((one) => one.manifest.key === half.addOnKey)!.manifest;
+      return {
+        ...half,
+        // Built from the MANIFEST, so no caller can widen the allow-list.
+        http: addOnHttpClientFor(meta, manifest, { policy: app.trialPolicy }),
+        credential: async (installId: string | undefined) => {
+          const install = await installOfRecord(repo, manifest.key, installId);
+          return install === null ? null : ((await repo.getCredential(install.row.id))?.secret ?? null);
+        },
+      };
+    });
     const registered = registerAddOnEventHandlers(jobs.registry, events);
     for (const refusal of registered.refused) {
       app.log.error(refusal, 'add-on event module does not export handle()');

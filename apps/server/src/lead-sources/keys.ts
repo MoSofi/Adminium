@@ -65,11 +65,16 @@ function keysOf(envelope: CredentialEnvelope | null): Map<string, string> {
  * string), and every query string with it.
  */
 export function withoutKey(text: string, key: string | null): string {
+  return withoutQueries(withoutKeyText(text, key));
+}
+
+/** Text without the key, as written and as it reads inside a URL; every other part, a query string included, as it was. */
+export function withoutKeyText(text: string, key: string | null): string {
   let out = text;
   if (key !== null && key.length >= 4) {
     for (const form of new Set([key, encodeURIComponent(key), encodeURI(key), encodeURIComponent(key).replace(/%20/g, '+')])) out = out.split(form).join('[the saved key]');
   }
-  return withoutQueries(out);
+  return out;
 }
 
 /** One source's key, or null when none is saved. */

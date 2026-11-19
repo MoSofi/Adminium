@@ -72,6 +72,18 @@ describe('a sealed table refuses a person’s delete on every path', () => {
     await expect(own.check('update', target, as('dashboard'), [{ id: 1, state: 'closed' }])).rejects.toMatchObject({ message: 'Only Adminium writes these rows. You can read them.', details: { reason: 'adminium-writes' } });
   });
 
+  it('a stranger’s write through a public API key is theirs, never Adminium’s: refused on a table only Adminium writes', async () => {
+    const own = createWriteService({ ownRecords: async () => true, sealedRecords: async () => true });
+    const throughKey: WriteContext = { origin: 'public', hops: 0, actor: { kind: 'public', id: null, label: 'public:key_1' }, request: null, publicKey: 'key_1' };
+    await expect(own.check('create', target, throughKey, [{ id: 3, state: 'open' }])).rejects.toMatchObject({ details: { reason: 'adminium-writes' } });
+    await expect(own.check('update', target, throughKey, [{ id: 1, state: 'closed' }])).rejects.toMatchObject({ details: { reason: 'adminium-writes' } });
+    await expect(own.delete({ target, pk: { id: 1 }, context: throughKey, announce: async () => {} })).rejects.toMatchObject({ details: { reason: 'adminium-keeps' } });
+    expect(left()).toBe(2);
+    // A stranger at a door Adminium draws (a chat's question, a form's answer) is still Adminium writing.
+    const atTheDoor: WriteContext = { origin: 'public', hops: 0, actor: { kind: 'public', id: null, label: 'Chat: Help' }, request: null };
+    await expect(own.check('create', target, atTheDoor, [{ id: 3, state: 'open' }])).resolves.toBeDefined();
+  });
+
   it('Adminium’s own write still removes a row', async () => {
     await sealed.delete({ target, pk: { id: 1 }, context: as('public'), announce: async () => {} });
     expect(left()).toBe(1);

@@ -38,9 +38,17 @@ describe('mobiles', () => {
     expect(isMobile('+47 412 34 567', null)).toBe(true);
     expect(isMobile('912 34 567', 'NO')).toBe(true);
     expect(isMobile('22 12 34 56', 'NO')).toBe(false);
-    // With no country to go by, a number is kept.
+    // With no country to go by, a number written nationally is kept.
     expect(isMobile('07700 900123', null)).toBe(false);
-    expect(isMobile('+49 151 2345678', null)).toBe(false);
+  });
+
+  it('are never kept when written with a country code this reader cannot judge', () => {
+    expect(isMobile('+49 151 2345678', null)).toBe(true);
+    expect(isMobile('0049 171 2345678', 'GB')).toBe(true);
+    expect(isMobile('+420 601 123 456', null)).toBe(true);
+    expect(isMobile('+45 20 12 34 56', 'FR')).toBe(true);
+    // A country code it knows is judged by its ranges.
+    expect(isMobile('+44 20 7946 0123', 'FR')).toBe(false);
   });
 });
 

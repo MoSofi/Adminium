@@ -162,6 +162,23 @@ export interface FoundPlace {
   context: WriteContext;
 }
 
+/**
+ * A count per meta store that moves whenever the set of people not told yet
+ * may have grown or shrunk (a row written, a mail failed, a mail went): a
+ * reader that keeps the set for a while (`people.ts`) reads it again then.
+ */
+const UNTOLD_GENERATION = new WeakMap<object, number>();
+
+/** The current count for a meta store (see {@link UNTOLD_GENERATION}). */
+export function untoldGeneration(meta: object): number {
+  return UNTOLD_GENERATION.get(meta) ?? 0;
+}
+
+/** Says the set of people not told yet changed. */
+export function untoldChanged(meta: object): void {
+  UNTOLD_GENERATION.set(meta, untoldGeneration(meta) + 1);
+}
+
 /** Writes a found person's row, waiting to be told; answers its key. */
 export async function insertFound(place: FoundPlace, row: NewFoundRow): Promise<string> {
   const values: Row = {

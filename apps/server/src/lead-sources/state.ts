@@ -101,9 +101,15 @@ export function defaultSourceState(entry: LeadSourceEntry): SourceState {
   };
 }
 
-/** One source's state, its defaults filled in where the document says nothing of it. */
+/**
+ * One source's state, its defaults filled in where the document says nothing
+ * of it. A paid source is never uncapped: a state kept from when it was free
+ * (an add-on update made it paid) reads with the default cap.
+ */
 export function sourceStateOf(document: SourcesState, entry: LeadSourceEntry): SourceState {
-  return document.sources[entry.id] ?? defaultSourceState(entry);
+  const stored = document.sources[entry.id];
+  if (stored === undefined) return defaultSourceState(entry);
+  return entry.paid === true && stored.dailyCap === null ? { ...stored, dailyCap: DEFAULT_DAILY_CAP } : stored;
 }
 
 /** The install's document as stored, or an empty one. */

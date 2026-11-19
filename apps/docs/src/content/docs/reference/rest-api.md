@@ -1373,7 +1373,7 @@ seen in, rather than one request per order.
 
 ### The values a form loaded
 
-`seen` on a `PATCH` names up to 8 plain columns as the form loaded them. The change is made only
+`seen` on a `PATCH` names up to 16 plain columns as the form loaded them. The change is made only
 while each still holds that value: two door phones ticking one party's arrivals, or two people
 editing one note, cannot both write over what they did not see. A row that moved is refused `409`
 `ROW_CHANGED`, with `details.column`, `expected` and `retry: true`; read the row again and decide.

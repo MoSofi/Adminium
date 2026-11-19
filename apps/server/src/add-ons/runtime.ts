@@ -76,6 +76,22 @@ export type LoadRefusal =
  */
 export const VOUCHED_CONTRACTS: ReadonlySet<string> = new Set(CONTRACT_IDS.filter((id) => DECIDER_CONTRACTS[id] === undefined));
 
+/**
+ * Whether Adminium vouches for an installed package's bytes: its tree is as
+ * unpacked, and it is one this build bundles, one downloaded from the
+ * catalogue, or a dev key's outside production. Any doubt (no trust sources,
+ * a tree changed on disk) is a no.
+ */
+export async function packageVouched(store: Pick<AddOnStore, 'verifyTree'>, trust: TrustSources | undefined, key: string, version: string): Promise<boolean> {
+  if (trust === undefined) return false;
+  try {
+    const { integrity } = await store.verifyTree(key, version);
+    return deciderTrusted({ key, version, integrity }, trust);
+  } catch {
+    return false;
+  }
+}
+
 export interface LoadProblem {
   addOnKey: string;
   reason: LoadRefusal;

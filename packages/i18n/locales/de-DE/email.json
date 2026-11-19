@@ -1009,6 +1009,7 @@
     "hello": "Hallo {name},",
     "helloNoName": "Hallo,",
     "source": "{source} hat Ihre geschäftliche E-Mail-Adresse am {date} gefunden.",
+    "sourceStaff": "{source} hat am {date} die eingetragenen Angaben zu Ihrem Unternehmen geliefert. Ihre E-Mail-Adresse hat eine Person aus unserem Team ergänzt.",
     "why": "Warum wir sie aufbewahren: {purpose}",
     "basis": "Wir stützen uns dabei auf unser berechtigtes Interesse (Art. 6 Abs. 1 lit. f DSGVO).",
     "keep": "{years, plural, one {Wir bewahren Ihre Daten # Jahr ab dem {date} auf, oder ab dem Tag, an dem Sie uns zuletzt schreiben.} other {Wir bewahren Ihre Daten # Jahre ab dem {date} auf, oder ab dem Tag, an dem Sie uns zuletzt schreiben.}}",

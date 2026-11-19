@@ -14,6 +14,14 @@
  * - The longest matching rule wins; an allow and a disallow of the same length
  *   is an allow. `*` matches any run of characters, a final `$` the end.
  * - `/robots.txt` itself is always allowed.
+ * - The work is bounded, whatever the site writes: a rule longer than
+ *   {@link ROBOTS_PATTERN_MAX} characters, or more than {@link ROBOTS_RULES_MAX}
+ *   rules for this reader, make the file one this reader will not judge by,
+ *   and a path longer than {@link ROBOTS_PATH_MAX} is not read; every judgement
+ *   stops after {@link ROBOTS_STEPS_MAX} steps of matching. Each of these reads
+ *   as "this site asks not to be read": a site that writes such a file, or
+ *   sends the reader to such a path, is not read, and the server never spends
+ *   long on it.
  *
  * Whether a missing file allows and a failing server blocks is the fetcher's
  * to decide (4xx allows, 5xx blocks): this file sees only text.
@@ -34,7 +42,18 @@ export interface RobotsRule {
 /** The rules that apply to this reader on one host. Empty: everything is allowed. */
 export interface RobotsRules {
   rules: RobotsRule[];
+  /** A file too large to judge by (a rule too long, too many rules): nothing on the host is read. */
+  refused?: true;
 }
+
+/** The longest rule this reader judges by (Google's parser keeps lines about this long). */
+export const ROBOTS_PATTERN_MAX = 2048;
+/** The most rules for this reader it judges by. */
+export const ROBOTS_RULES_MAX = 2000;
+/** The longest path (with its query) it judges. */
+export const ROBOTS_PATH_MAX = 2048;
+/** The most steps of matching one judgement takes, across every rule: a few milliseconds. */
+export const ROBOTS_STEPS_MAX = 2_000_000;
 
 /** The leading product token of a `user-agent` value: letters, `_` and `-` (the product token rule of RFC 9309). */
 const tokenOf = (value: string): string => /^[A-Za-z_-]*/.exec(value.trim())?.[0]?.toLowerCase() ?? '';
@@ -93,18 +112,31 @@ export function parseRobots(text: string): RobotsRules {
     inRules = true;
     // An empty disallow disallows nothing; an empty allow allows nothing more.
     if (value === '') continue;
+    if (!forUs && !forAnyone) continue;
     const rule = { allow: key === 'allow', pattern: normalisePath(value) };
+    // A rule too long to judge by: the file is not one to judge by.
+    if (rule.pattern.length > ROBOTS_PATTERN_MAX) return { rules: [], refused: true };
     if (forUs) named.push(rule);
     if (forAnyone) anyone.push(rule);
   }
-  return { rules: namedSeen ? named : anyone };
+  const rules = namedSeen ? named : anyone;
+  return rules.length > ROBOTS_RULES_MAX ? { rules: [], refused: true } : { rules };
 }
+
+/** What one judgement may still spend, in steps of matching. */
+interface Budget {
+  left: number;
+}
+
+/** A judgement that ran out of steps. */
+class OverBudget extends Error {}
 
 /**
  * Whether `pattern` matches the start of `path`: `*` any run of characters, a final `$` the end of the path.
- * Matched by hand, not by a regular expression, so a rule full of `*` cannot make the match take long.
+ * Matched by hand, not by a regular expression; each step is counted against `budget`, so a rule full of `*`
+ * against a long path cannot make the match take long (it throws {@link OverBudget} instead).
  */
-function matches(pattern: string, path: string): boolean {
+function matches(pattern: string, path: string, budget: Budget): boolean {
   const anchored = pattern.endsWith('$');
   const body = anchored ? pattern.slice(0, -1) : pattern;
   let p = 0;
@@ -112,6 +144,8 @@ function matches(pattern: string, path: string): boolean {
   let star = -1;
   let starAt = 0;
   while (s < path.length) {
+    budget.left -= 1;
+    if (budget.left < 0) throw new OverBudget();
     if (p < body.length && body[p] !== '*' && body[p] === path[s]) {
       p += 1;
       s += 1;
@@ -137,14 +171,21 @@ function matches(pattern: string, path: string): boolean {
 /** The length a rule counts for when two match: its pattern's characters, a final `$` not counted. */
 const weight = (rule: RobotsRule): number => rule.pattern.replace(/\$$/, '').length;
 
-/** Whether the path (with its query) may be read under these rules. */
+/** Whether the path (with its query) may be read under these rules (see the header for what is not judged). */
 export function robotsAllows(robots: RobotsRules, pathAndQuery: string): boolean {
   const path = normalisePath(pathAndQuery === '' ? '/' : pathAndQuery);
   if (path === '/robots.txt') return true;
+  if (robots.refused === true || path.length > ROBOTS_PATH_MAX) return false;
+  const budget: Budget = { left: ROBOTS_STEPS_MAX };
   let best: RobotsRule | null = null;
-  for (const rule of robots.rules) {
-    if (!matches(rule.pattern, path)) continue;
-    if (best === null || weight(rule) > weight(best) || (weight(rule) === weight(best) && rule.allow && !best.allow)) best = rule;
+  try {
+    for (const rule of robots.rules) {
+      if (!matches(rule.pattern, path, budget)) continue;
+      if (best === null || weight(rule) > weight(best) || (weight(rule) === weight(best) && rule.allow && !best.allow)) best = rule;
+    }
+  } catch (error) {
+    if (error instanceof OverBudget) return false;
+    throw error;
   }
   return best === null || best.allow;
 }

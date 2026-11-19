@@ -9,8 +9,11 @@
  * they were told. The payload says:
  *   - `i`: this install (`system.instanceId`): read only by the install that
  *     made it;
- *   - `m`: the add-on's install that found them, and `r`: their found
- *     person's row in it;
+ *   - `m`: the add-on's install that found them, `r`: their found
+ *     person's row in it, and `t`: when that row says they were found (in
+ *     milliseconds). A row id alone may be given again to someone else (a
+ *     SQLite table reuses the highest id once its row is deleted): the page
+ *     acts only while the row still holds this moment AND this address;
  *   - `a`: the address the mail went to, SEALED (AES-256-GCM under a key of
  *     its own): the page shows it, and a link forwarded or logged does not
  *     hand anyone the address in clear;
@@ -53,6 +56,8 @@ export interface ObjectClaim {
   installId: string;
   /** Their found person's row, by its key. */
   found: string;
+  /** When that row says they were found, as it reads back (milliseconds). */
+  foundAt: number;
   /** The mail's language (`fr-FR`), when it said. */
   language: string | null;
 }
@@ -62,6 +67,7 @@ interface Payload {
   i: string;
   m: string;
   r: string;
+  t: number;
   a: string;
   l?: string;
 }
@@ -96,6 +102,7 @@ export function makeObjectToken(key: string, install: string, claim: Omit<Object
     i: install,
     m: claim.installId,
     r: claim.found,
+    t: claim.foundAt,
     a: seal(sealKey(key), claim.address.trim().toLowerCase()),
     ...(claim.language !== null && claim.language !== undefined && LANGUAGE.test(claim.language) ? { l: claim.language } : {}),
   };
@@ -120,9 +127,10 @@ export function readObjectToken(key: string, install: string, token: unknown): O
   }
   if (payload.v !== 1 || payload.i !== install || typeof payload.a !== 'string') return null;
   if (typeof payload.m !== 'string' || !ID.test(payload.m) || typeof payload.r !== 'string' || !ID.test(payload.r)) return null;
+  if (typeof payload.t !== 'number' || !Number.isSafeInteger(payload.t)) return null;
   const address = open(sealKey(key), payload.a);
   if (address === null) return null;
-  return { address, installId: payload.m, found: payload.r, language: typeof payload.l === 'string' && LANGUAGE.test(payload.l) ? payload.l : null };
+  return { address, installId: payload.m, found: payload.r, foundAt: payload.t, language: typeof payload.l === 'string' && LANGUAGE.test(payload.l) ? payload.l : null };
 }
 
 /** The keys an Object link is made and read with: the newest, and every version there is. */

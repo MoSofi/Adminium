@@ -1009,6 +1009,7 @@
     "hello": "Hello {name},",
     "helloNoName": "Hello,",
     "source": "{source} found your work address on {date}.",
+    "sourceStaff": "{source} gave your business’s registered details on {date}. A member of our staff added your e-mail address.",
     "why": "Why we keep them: {purpose}",
     "basis": "We rely on our legitimate interest in this (GDPR Article 6(1)(f)).",
     "keep": "{years, plural, one {We keep your details for # year from {date}, or from the last time you write to us.} other {We keep your details for # years from {date}, or from the last time you write to us.}}",

@@ -23,6 +23,13 @@
  *     taken out.
  * Then: "Done. We have deleted your details and won't write to you again."
  *
+ * A link acts only for the found person's row it names while that row still
+ * holds the address the mail went to and the moment they were found (sealed
+ * into the link): a row id given again to someone else, or a row whose
+ * person was changed, makes the link one that doesn't work. Only that
+ * address is erased; their people row is deleted only while it still holds
+ * it (a contact row given to someone else since keeps that person).
+ *
  * The other answers: "You've already objected" (nothing left of them, the
  * address stopped); "This link doesn't work" (not this install's, changed
  * by one byte, or nothing is known of it any more); "This page isn't
@@ -102,7 +109,9 @@ export function objectDoorRoutes(deps: ObjectDoorDeps): FastifyPluginAsyncZod {
     const { addOn, view } = found;
     const { db } = await deps.manager.data(addOn.connectionId);
     const row = await foundById(db, people, claim.found);
-    if (row === null) return null;
+    // Still the person the link was made for: the address it went to and the moment they were found. A row
+    // whose id was given again to someone else (SQLite reuses a deleted highest id) holds neither.
+    if (row === null || row.email !== claim.address || row.foundAt !== claim.foundAt) return null;
     const index = await tableRefIndex(meta, addOn.connectionId, view.model);
     const tableId = resolveTableRef(index, row.personTable)?.tableId ?? null;
     let person: Objector['person'] = null;
@@ -270,13 +279,15 @@ export function objectDoorRoutes(deps: ObjectDoorDeps): FastifyPluginAsyncZod {
           const at = now();
           // 1. Never mailed again, first: an erasure cut short still leaves them stopped.
           await deps.consent.stop.add({ address: claim.address, reason: 'lead-finder', origin: null, at });
-          // 2. What stays (the business's records that name them), read before their row is emptied.
-          const stays = await linksTo(objector);
-          // 3. Erased in place, by the address the mail went to and by the one their row holds now, when it moved.
+          // 2. What stays (the business's records that name them), read before their row is emptied. A row given to
+          //    someone else since names that person, not them: it stays as it is, and nothing of it is theirs.
+          const stillTheirs = objector.person !== null && objector.person.address === claim.address;
+          const stays = stillTheirs ? await linksTo(objector) : [];
+          // 3. Erased in place, by the address the mail went to: theirs. Never by the one their row holds now: a row
+          //    given to someone else since ("Jane left, Bob is the contact") is Bob's, and keeps him.
           const results: EraseResult[] = [await deps.erase(claim.address)];
-          if (objector.person?.address != null && objector.person.address !== claim.address) results.push(await deps.erase(objector.person.address));
-          // 4. Their row goes too, once nothing links to it.
-          if (stays.length === 0) await removePerson(objector);
+          // 4. Their row goes too, once nothing links to it, while it is still theirs.
+          if (stillTheirs && stays.length === 0) await removePerson(objector);
           const told = [...new Set(results.flatMap((one) => one.told))].sort();
           await auditRepo(meta).append(
             {
@@ -286,7 +297,7 @@ export function objectDoorRoutes(deps: ObjectDoorDeps): FastifyPluginAsyncZod {
               category: 'leads',
               action: 'leads.object',
               connectionId: objector.connectionId,
-              changes: { after: { address: results[0]!.address, counts: results[0]!.counts, stays: stays.length, removed: stays.length === 0, ...(told.length === 0 ? {} : { told }) } },
+              changes: { after: { address: results[0]!.address, counts: results[0]!.counts, stays: stays.length, removed: stillTheirs && stays.length === 0, ...(told.length === 0 ? {} : { told }) } },
               ip: request.ip ?? null,
             },
             at,

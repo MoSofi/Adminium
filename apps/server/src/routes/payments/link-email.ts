@@ -36,6 +36,8 @@ export interface PaymentLinkEmailDeps {
   desktop: boolean;
   trustProxy: boolean;
   logger?: EmailLogger;
+  /** Whether an address is a found person's who has not been told yet: no pay link reaches them first. */
+  untold?: ((address: string) => Promise<boolean>) | undefined;
 }
 
 /** Pay-link emails one payable may get in an hour. */
@@ -88,7 +90,7 @@ export function paymentLinkEmailRoutes(deps: PaymentLinkEmailDeps): FastifyPlugi
         }
 
         const outcome = await sendPayLinkEmail(
-          { meta, sources: deps.sources, secret: deps.secret, ...(deps.logger === undefined ? {} : { logger: deps.logger }), now: () => app.rbac.now() },
+          { meta, sources: deps.sources, secret: deps.secret, ...(deps.logger === undefined ? {} : { logger: deps.logger }), now: () => app.rbac.now(), untold: deps.untold },
           { link, url: payUrl(address, seal.unseal(link.tokenSealed)) },
         );
         if (!outcome.sent) {
@@ -97,6 +99,7 @@ export function paymentLinkEmailRoutes(deps: PaymentLinkEmailDeps): FastifyPlugi
             'not-payable': 'Nothing can be paid on this record right now.',
             'email-off': 'Email is not set up on this server, so the link cannot be sent.',
             'template-off': 'The pay link email is switched off in Email templates.',
+            'not-told': 'This person was found by Lead finder and has not been told yet, so nothing else is sent to them first.',
           };
           throw new ValidationFailedError(words[outcome.reason], { reason: outcome.reason });
         }

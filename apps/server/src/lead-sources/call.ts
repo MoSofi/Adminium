@@ -44,7 +44,7 @@ import type { CredentialEnvelope, InstalledManifest, MetaDb } from '@adminium/me
 import { addOnHttpClientFor, type AddOnHttpClientOptions } from '../add-ons/egress.js';
 import { providerByKey, type AddOnRuntimeState } from '../add-ons/runtime.js';
 import { reserveDay, retryAfterSeconds, sourceGate, type SourceGate, type SourceRefusal } from './caps.js';
-import { sourceKey, withoutKey } from './keys.js';
+import { sourceKey, withoutKey, withoutKeyText } from './keys.js';
 import { needsKey, readSourcesState, sourceStateOf, sourcesOf, type LeadSourceEntry } from './state.js';
 
 /** How long the engine waits for one call, whatever the source does with its stop signal. */
@@ -143,6 +143,7 @@ export async function withLeadSource<T>(deps: LeadSourceDeps, call: LeadSourceCa
   if (!entered.ok) return entered;
   let hold: { settle(made: boolean): Promise<void> } | null = null;
   let made = false;
+  let leaveWith: Promise<unknown> | null = null;
   try {
     if (!check) {
       const reserved = await reserveDay(deps.meta, { installId: install.row.id, source, spender: call.spender, state, at: now() });
@@ -167,8 +168,13 @@ export async function withLeadSource<T>(deps: LeadSourceDeps, call: LeadSourceCa
     });
     try {
       made = true;
-      const answer = await Promise.race([run(factory(context)), late]);
-      if (!isLeadSourceError(answer)) return answer;
+      const work = Promise.resolve().then(() => run(factory(context)));
+      // The slot is the source's own work: given back when that work ends, not when the reply stops waiting for it,
+      // so a source that ignores its signal never has more calls running than the cap allows.
+      leaveWith = work;
+      const answer = await Promise.race([work, late]);
+      // A success's words go to screens and to the found people's pages: never with the key in them.
+      if (!isLeadSourceError(answer)) return key === null ? answer : (withoutKeyDeep(answer, key) as T);
       if (answer.code === 'RATE_LIMITED') gate.pause(install.row.id, source, answer.retryAfterSeconds);
       // A refusal's words go to a screen and a log: never with the key, nor a URL's query string, in them.
       return { ...answer, message: withoutKey(answer.message, key) };
@@ -179,7 +185,19 @@ export async function withLeadSource<T>(deps: LeadSourceDeps, call: LeadSourceCa
       clearTimeout(timer);
     }
   } finally {
-    entered.leave();
+    const leave = () => entered.leave();
+    if (leaveWith === null) leave();
+    else void leaveWith.then(leave, leave);
     await hold?.settle(made);
   }
+}
+
+/** Every string of an answer without the key (`withoutKeyText`), in place of the answer: the shape is kept. */
+function withoutKeyDeep(value: unknown, key: string): unknown {
+  if (typeof value === 'string') return withoutKeyText(value, key);
+  if (Array.isArray(value)) return value.map((one) => withoutKeyDeep(one, key));
+  if (value !== null && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
+    return Object.fromEntries(Object.entries(value).map(([name, one]) => [name, withoutKeyDeep(one, key)]));
+  }
+  return value;
 }
