@@ -76,9 +76,11 @@ import { assertPagePartOn, cardsOfPartsOff, cardsOfPartsOn, withCardsOfPartsOn }
 import { applyCompositionOverrides, applyOverrides } from '../../connections/effective-schema.js';
 import { writeRefused } from '../../connections/privileges.js';
 import { canReadPii } from '../../crud/mask.js';
+import type { SnapshotView } from '../../crud/identifiers.js';
 import { columnFactsFor, factsViewFor, hiddenColumnsOf, labelWordsOf, withoutColumns, withReaderLabels, withReaderTitle, withStoredLabels, withLinkNames, withYesNoColumns } from './column-facts.js';
 import { bulkActionFacts, stateActionFacts } from './state-actions.js';
 import { recordPanelsFor } from '../../add-ons/record-panels.js';
+import type { RecordActionsAsker, RecordAddOnFacts } from '../../leads/record-actions.js';
 import { recordTabsFor, type TabInstalls } from '../../add-ons/record-tabs.js';
 import { buildUserPageEnvelope, defaultIconFor, reidentifyEnvelope } from './envelope.js';
 import { fitRefusalMessage } from './fit-prose.js';
@@ -132,6 +134,8 @@ export interface PagesRoutesDeps {
   tablePrivileges?: ((connectionId: string) => Promise<TablePrivilegeMap | null>) | undefined;
   /** What is installed where, read again when it moved: which add-ons' tabs a record has. Absent, a record has none. */
   installs?: (() => Promise<TabInstalls>) | undefined;
+  /** The add-ons' actions a record of a table shows a reader, and whose fields' notes it asks for (`leads/record-actions.ts`). Absent, none. */
+  recordActions?: ((asker: RecordActionsAsker, view: SnapshotView, tableId: string) => Promise<RecordAddOnFacts>) | undefined;
 }
 
 /** The acting session user id, or null for keyless/API-key principals. */
@@ -695,12 +699,16 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           factsView === null || source === null || deps.installs === undefined
             ? undefined
             : await recordPanelsFor(await deps.installs(), { can: (permission) => request.can(permission), locale: reader, log: request.log }, factsView, source.table);
+        // The add-ons' actions a record of the table shows this caller (`record.actions` on a declared kind of table).
+        const addOnFacts = factsView === null || source === null || deps.recordActions === undefined ? {} : await deps.recordActions({ request, locale: reader, rights }, factsView, source.table);
         const facts = {
           ...(columnFacts === null ? {} : { columnFacts }),
           ...(stateActions === undefined ? {} : { stateActions }),
           ...(bulkActions === undefined ? {} : { bulkActions }),
           ...(recordTabs === undefined ? {} : { recordTabs }),
           ...(recordPanels === undefined ? {} : { recordPanels }),
+          ...(addOnFacts.actions === undefined ? {} : { recordActions: addOnFacts.actions }),
+          ...(addOnFacts.notes === undefined ? {} : { fieldNotes: addOnFacts.notes }),
         };
         const hiddenColumns = source === null || permissions === undefined ? [] : await hiddenColumnsOf(deps.meta, source.connectionId, source.table, permissions);
         // A column marked a yes/no since the page was stored reads as one here too.

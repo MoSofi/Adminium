@@ -44779,6 +44779,10 @@
     "status": "mt",
     "srcHash": "61cc55aa0453"
   },
+  "ui.pages.record.addOnAction.failed": {
+    "status": "mt",
+    "srcHash": "6686aaa046b1"
+  },
   "ui.pages.record.already": {
     "status": "mt",
     "srcHash": "3ad6ead5e6ca"
@@ -44786,6 +44790,10 @@
   "ui.pages.record.cancel": {
     "status": "mt",
     "srcHash": "77dfd2135f4d"
+  },
+  "ui.pages.record.fieldNote": {
+    "status": "mt",
+    "srcHash": "5188d238297e"
   },
   "ui.pages.record.fieldRequired": {
     "status": "mt",

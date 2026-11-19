@@ -171,18 +171,87 @@ export function writesFor(companies: Pick<CompaniesTable, 'declared' | 'table'>,
   return out;
 }
 
-/** The text a record page reads a value as, trimmed; null when it holds none. */
-export function shownText(value: unknown): string | null {
+/**
+ * How a column's value reads on the record page, for a note's hash: as text
+ * (trimmed), as a number, as a day or as an instant. By the column's kind,
+ * never by what the driver handed back, so every engine reads one value the
+ * same: Postgres and MySQL give a decimal as `"12.50"` where SQLite gives
+ * `12.5`, and a day or an instant as a `Date` where SQLite gives text.
+ */
+export type ShownKind = 'text' | 'number' | 'date' | 'instant';
+
+/** The kind a column of this logical type reads as. */
+export function shownKindOf(logicalType: string | undefined): ShownKind {
+  if (logicalType === 'integer' || logicalType === 'bigint' || logicalType === 'decimal' || logicalType === 'float') return 'number';
+  if (logicalType === 'date') return 'date';
+  if (logicalType === 'timestamp' || logicalType === 'timestamptz') return 'instant';
+  return 'text';
+}
+
+const pad = (n: number, width = 2): string => String(n).padStart(width, '0');
+
+/** A number as one spelling: no trailing zeros after the point, no point when nothing follows it. */
+function numberText(value: unknown): string | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? String(Object.is(value, -0) ? 0 : value) : null;
+  if (typeof value === 'bigint') return String(value);
+  if (typeof value !== 'string') return null;
+  const m = /^\s*([+-]?)(\d+)(?:\.(\d*))?\s*$/.exec(value);
+  if (m === null) return value.trim();
+  const whole = m[2]!.replace(/^0+(?=\d)/, '');
+  const fraction = (m[3] ?? '').replace(/0+$/, '');
+  const text = fraction === '' ? whole : `${whole}.${fraction}`;
+  return m[1] === '-' && text !== '0' ? `-${text}` : text;
+}
+
+/** A day as `YYYY-MM-DD`: as written, or the server's own day of an instant (the day a driver's midnight stands for). */
+function dayText(value: unknown): string | null {
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) return value.trim();
+  const at = value instanceof Date ? value : typeof value === 'string' ? new Date(value) : null;
+  if (at === null || Number.isNaN(at.getTime())) return typeof value === 'string' ? value.trim() : null;
+  return `${pad(at.getFullYear(), 4)}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
+}
+
+/** A wall time with no zone, as SQLite keeps one: `2026-07-28 11:30:00`, maybe with milliseconds. */
+const WALL = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3})\d*)?)?$/;
+
+/**
+ * An instant as ISO text in UTC. A wall time with no zone is the server's own
+ * clock (what Adminium keeps in a SQLite timestamp column, and what a driver
+ * makes of a Postgres `timestamp`), read as the instant it denotes.
+ */
+function instantText(value: unknown): string | null {
+  const wall = typeof value === 'string' ? WALL.exec(value.trim()) : null;
+  const at =
+    value instanceof Date
+      ? value
+      : wall !== null
+        ? new Date(Number(wall[1]), Number(wall[2]) - 1, Number(wall[3]), Number(wall[4]), Number(wall[5]), Number(wall[6] ?? 0), Number((wall[7] ?? '0').padEnd(3, '0')))
+        : typeof value === 'string'
+          ? new Date(value.trim())
+          : null;
+  if (at === null || Number.isNaN(at.getTime())) return typeof value === 'string' ? value.trim() : null;
+  return at.toISOString();
+}
+
+/** The text a record page reads a value as, trimmed; null when it holds none. A column's kind reads it by that kind. */
+export function shownText(value: unknown, kind: ShownKind = 'text'): string | null {
   if (value === null || value === undefined) return null;
+  if (kind === 'number') return numberText(value);
+  if (kind === 'date') return dayText(value);
+  if (kind === 'instant') return instantText(value);
   if (typeof value === 'string') return value.trim();
   if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') return String(value);
   if (value instanceof Date) return value.toISOString();
   return JSON.stringify(value);
 }
 
-/** The hash a field's note is drawn by: sha-256 hex of the value as the record page reads it (its text, trimmed). */
-export function valueHash(value: unknown): string {
-  return createHash('sha256').update(shownText(value) ?? '', 'utf8').digest('hex');
+/**
+ * The hash a field's note is drawn by: sha-256 hex of the value as the record
+ * page reads it (its text, trimmed; a number, a day or an instant by its
+ * column's kind). The fill writes it; the notes compare against it.
+ */
+export function valueHash(value: unknown, kind: ShownKind = 'text'): string {
+  return createHash('sha256').update(shownText(value, kind) ?? '', 'utf8').digest('hex');
 }
 
 /** What notes the fields a source wrote: on which add-on, which row, which columns, by which source, when. */
@@ -195,6 +264,8 @@ export interface FieldSourcesNote {
   /** Each column written, by the source that gave it, with the row as stored after the write. */
   columns: readonly { column: string; source: string }[];
   stored: Row;
+  /** The table written: each column's value is hashed by its kind. Absent, every value reads as text. */
+  table?: Pick<ResolvedTable, 'columns'> | undefined;
   at: number;
 }
 
@@ -220,7 +291,8 @@ export async function noteFieldSources(deps: { manager: Pick<ConnectionManager, 
   const context = leadsWriteContext(note.addOn.name);
   let written = 0;
   for (const { column, source } of note.columns) {
-    const shown = shownText(note.stored[column]);
+    const kind = shownKindOf(note.table?.columns.get(column)?.logicalType);
+    const shown = shownText(note.stored[column], kind);
     if (shown === null || shown === '') continue;
     const values: Row = {
       table_ref: tableRef,
@@ -228,7 +300,7 @@ export async function noteFieldSources(deps: { manager: Pick<ConnectionManager, 
       column_name: column.slice(0, COLUMN_MAX),
       source: plainWords(source, SOURCE_MAX),
       found_at: instantFor(new Date(note.at)),
-      value_hash: valueHash(note.stored[column]),
+      value_hash: valueHash(note.stored[column], kind),
     };
     const verdict = await deps.writes.check('create', target, context, [values], { capacity: 'unchecked' });
     const good = verdict.rows[0];

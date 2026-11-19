@@ -12,8 +12,9 @@
     "e2e:chat": "playwright test --config playwright.chat.config.ts",
     "e2e:chat-staff": "playwright test --config playwright.chat-staff.config.ts",
     "e2e:landing": "playwright test --config playwright.landing.config.ts",
+    "e2e:company-record": "playwright test --config playwright.company-record.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint tests tests-desktop playwright.config.ts playwright.desktop.config.ts playwright.chat.config.ts playwright.chat-staff.config.ts playwright.landing.config.ts"
+    "lint": "eslint tests tests-desktop playwright.config.ts playwright.desktop.config.ts playwright.chat.config.ts playwright.chat-staff.config.ts playwright.landing.config.ts playwright.company-record.config.ts"
   },
   "devDependencies": {
     "@adminium/adapter-mysql": "workspace:*",

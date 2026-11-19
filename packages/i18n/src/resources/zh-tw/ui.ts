@@ -2316,7 +2316,11 @@ export default {
       "forbidden": "您的角色不能變更此項目。",
       "notFound": "此記錄或此操作已不存在。",
       "fieldRequired": "請先填寫此項目。",
-      "panelFailed": "無法載入此面板。其中的任何內容都未執行。"
+      "panelFailed": "無法載入此面板。其中的任何內容都未執行。",
+      "fieldNote": "來源：{source}",
+      "addOnAction": {
+        "failed": "無法載入。其中的任何內容都未執行。"
+      }
     },
     "bulk": {
       "tooMany": "請選擇不超過 {max} 列。",

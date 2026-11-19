@@ -2076,7 +2076,11 @@ export default {
       "forbidden": "Your role may not change this.",
       "notFound": "This record, or this action, is no longer there.",
       "fieldRequired": "Fill this in first.",
-      "panelFailed": "This panel could not be loaded. Nothing from it has been run."
+      "panelFailed": "This panel could not be loaded. Nothing from it has been run.",
+      "fieldNote": "From {source}",
+      "addOnAction": {
+        "failed": "This could not be loaded. Nothing from it has been run."
+      }
     },
     "bulk": {
       "tooMany": "Select {max} rows or fewer.",

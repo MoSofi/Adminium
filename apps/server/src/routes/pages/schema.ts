@@ -348,6 +348,36 @@ export const pageReply = z.object({
     .array(z.object({ addOn: z.string(), id: z.string(), title: z.string(), titleKey: z.string(), column: z.string(), order: z.number().int() }))
     .optional(),
   /**
+   * The add-ons' actions a record of this table shows this caller
+   * (`record.actions` fills that name the kind of declared table it is, a
+   * companies table's "Fill in details"): each with its install, the table as
+   * the add-on's tables name it, its words in the reader's language, its icon
+   * and its file. Only for a reader who may change the table. Absent when
+   * there is none (`leads/record-actions.ts`).
+   */
+  recordActions: z
+    .array(
+      z.object({
+        addOn: z.string(),
+        installId: z.string(),
+        kind: z.enum(['companies']),
+        table: z.string(),
+        label: z.string(),
+        labelKey: z.string(),
+        icon: z.string(),
+        client: z.string(),
+        order: z.number().int(),
+      }),
+    )
+    .optional(),
+  /**
+   * The add-ons that keep where this table's fields came from (`addOn.leads`
+   * on a declared companies table), for any reader of a record of it: the
+   * record page asks each one's `GET /leads/:key/notes` and draws "From
+   * {source} · {date}" under a field while it holds what was filled.
+   */
+  fieldNotes: z.array(z.object({ addOn: z.string(), installId: z.string(), table: z.string() })).optional(),
+  /**
    * The buttons a record page of this table may show this caller
    * (`states.actions`): each with the states of the row it may be used in,
    * its words in the reader's language, and what it asks for first. Decided

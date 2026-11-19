@@ -141,7 +141,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/invoices/*` | 10 | Invoice templates and invoices — the documents, their language variations, the starters, duplicates, and building an invoice from a template |
 | `/api/v1/jobs/*` | 4 | Background jobs — enqueue, poll, cancel |
 | `/api/v1/landing/*` | 7 | A landing pages add-on, for staff: a page drafted by Milo on the person’s own allowance (no rows, every block marked, never published); the live forms a Form block may show and the live pages a form may end on; the name and steps of the rule a funnel names; a page’s own pictures; and what the editor’s page settings say (reach, notice, the pages hosts and a page’s addresses). The install is named as the add-on kit names it: the X-Adminium-Install header, else ?connectionId= |
-| `/api/v1/leads/*` | 6 | Finding companies, for staff of an add-on that finds them: search a register, look up one company, add found companies, fill in a company's details, and find and keep the people who work there — every write made as the person asking |
+| `/api/v1/leads/*` | 7 | Finding companies, for staff of an add-on that finds them: search a register, look up one company, add found companies, fill in a company's details, and find and keep the people who work there — every write made as the person asking; and where each filled field of a company came from, while it still holds what was filled |
 | `/api/v1/ledgers/*` | 4 | The rules that hand rows to an add-on's ledger (stock, gift cards) — which tables post into it, whether each rule runs, how many rows hold something under it and how many saves wait to be worked out; the tables and columns a new rule may be drawn from; making the ledger's items from a table's rows; and recording the saves let through while the add-on could not be asked. Reading needs a session and the connection; the two runs need the grant that changes what a table's columns mean. A rule itself is stored under /connections/:id/tables/:table/postings. |
 | `/api/v1/llm/*` | 16 | LLM assist — provider config, runs, prompts, diffs, apply, undo |
 | `/api/v1/me/*` | 15 | The signed-in user — profile, preferences, notifications, saved layouts |
@@ -186,8 +186,7 @@ Three of these deserve a note, because the obvious guess is wrong:
   under the connection they belong to: `/connections/:id/schema/*`.
 - **There is no `/api/v1/generate/*`.** Generation is an action on a connection:
   `POST /connections/:id/generate`.
-- **`/api/v1/views` is not a page's views.** It counts how many times strangers saw
-  a landing page or a form. Shared views belong to a page
+- **There is no `/api/v1/views/*`.** Shared views belong to a page
   (`/pages/:pageId/views`); per-user saved layouts belong to you
   (`/me/views/:pageId/layout`).
 
@@ -738,6 +737,7 @@ POST /api/v1/leads/{key}/lookup
 POST /api/v1/leads/{key}/fill
 POST /api/v1/leads/{key}/people
 POST /api/v1/leads/{key}/people/keep
+GET /api/v1/leads/{key}/notes
 ```
 
 ### `/ledgers`
@@ -1228,7 +1228,7 @@ operator's own listener (`ADMINIUM_OPERATOR_LISTEN`), and only
 |---|---|
 | `GET /api/v1/operator/status` | Disk used, mail and AI spent, the Super Admins' last 20 sign-ins (time and address), the last sign-in, and whether the public pages are hidden |
 | `POST /api/v1/operator/public-pages` | `{ "hidden": true, "reason": "…" }` hides every public page at once (404 on every host); `{ "hidden": false }` shows them again |
-| `GET /api/v1/operator/public-content` | What the instance serves to anybody: every customer side's files, with their text, every live form's fields, and every live landing page with its pictures and links |
+| `GET /api/v1/operator/public-content` | What the instance serves to anybody: every customer side's files, with their text, and every live form's fields |
 | `POST /api/v1/operator/reinstall` | Downloads again every installed catalog app and add-on whose files are not on this server (after a restore, say), at its installed version and checked as Studio's Download checks it; answers what came back, what was already here, and what failed and why |
 
 They are for whoever runs the server, not for the people who use it, and a

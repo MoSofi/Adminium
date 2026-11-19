@@ -151,6 +151,37 @@ export interface RecordPanelFact {
   order: number;
 }
 
+/**
+ * One add-on's action on a record page, as the server offers it to one reader
+ * (`GET /pages/:id` · `recordActions`): a `record.actions` fill that names the
+ * kind of declared table the page's table is (a companies table's "Fill in
+ * details"), drawn beside Edit only for a reader who may change the table.
+ */
+export interface RecordActionFact {
+  addOn: string;
+  /** The install whose code is drawn: the one on the record's database. */
+  installId: string;
+  kind: 'companies';
+  /** The table as the add-on's tables name it (`<app>:<ref>`): what the fill is handed. */
+  table: string;
+  /** The button's words in the reader's language, and its key in the add-on's own strings. */
+  label: string;
+  labelKey: string;
+  /** A Lucide name. */
+  icon: string;
+  /** The fill's file, as the add-ons list names its bundle. */
+  client: string;
+  order: number;
+}
+
+/** An add-on that keeps where a record's fields came from (`GET /pages/:id` · `fieldNotes`): the page asks it for the notes. */
+export interface FieldNotesFact {
+  addOn: string;
+  installId: string;
+  /** The table as the add-on's tables name it (`<app>:<ref>`). */
+  table: string;
+}
+
 export type PageDocumentResult =
   | {
       status: 'ok';
@@ -184,6 +215,10 @@ export type PageDocumentResult =
       recordTabs: readonly RecordTabFact[];
       /** The add-ons' own screens a record of the source table has, for this reader (`addOn.panels`); empty when it has none. */
       recordPanels: readonly RecordPanelFact[];
+      /** The add-ons' actions a record of the source table shows this reader (`record.actions`); empty when it has none. */
+      recordActions: readonly RecordActionFact[];
+      /** The add-ons a record of the source table asks for its fields' notes ("From {source} · {date}"); empty when none. */
+      fieldNotes: readonly FieldNotesFact[];
       /**
        * The source table as it stands right now — who fills each column and
        * which ones the create form has to ask for. Empty when the server did

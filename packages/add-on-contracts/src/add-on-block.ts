@@ -13,6 +13,7 @@ import { z } from 'zod';
 
 import { i18nMessageSchema, wordsByLanguageSchema } from './common.js';
 import { contractIdSchema, hasContractVersion } from './contracts.js';
+import { RECORD_ACTION_KINDS } from './record-actions.js';
 import { recordPanelsSchema } from './record-panels.js';
 import { recordTabsSchema } from './record-tabs.js';
 import { slotIdSchema } from './slots.js';
@@ -92,13 +93,41 @@ export const consumesSchema = z
   })
   .strict();
 
+/**
+ * One slot an add-on fills, with the file its fill is in.
+ *
+ * A `record.actions` fill may also name the kind of declared table it acts
+ * on (`on`): Adminium's generated record page then shows it on such a table,
+ * as a button in the fill's own words (`label`, `labels`) and `icon`, beside
+ * "Edit" (see `record-actions.ts`). A fill without `on` is for apps' own
+ * screens alone, as every fill was before. The three words go together, and
+ * only on that slot.
+ */
 export const slotFillSchema = z
   .object({
     slot: slotIdSchema,
     client: z.string().min(1),
     order: z.number().int(),
+    /** `record.actions` only: the kind of declared table whose generated record page shows this fill. */
+    on: z.enum(RECORD_ACTION_KINDS).optional(),
+    /** The button's words, with `on`: a key in the add-on's own strings and the English fallback. */
+    label: i18nMessageSchema.optional(),
+    /** The button's words in the other languages: it is drawn before any of the add-on's code runs. */
+    labels: wordsByLanguageSchema.optional(),
+    /** The button's icon (a Lucide name), with `on`. */
+    icon: z.string().regex(/^[a-z][a-z0-9-]{0,59}$/, 'an icon is a kebab-case Lucide name').optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((fill, ctx) => {
+    const drawn = fill.label !== undefined || fill.labels !== undefined || fill.icon !== undefined;
+    if (fill.on === undefined) {
+      if (drawn) ctx.addIssue({ code: 'custom', path: ['on'], message: 'a fill\'s label, labels and icon are for a record action Adminium\'s record page shows: name the kind of table it acts on ("on")' });
+      return;
+    }
+    if (fill.slot !== 'record.actions') ctx.addIssue({ code: 'custom', path: ['on'], message: '"on" is for a record.actions fill only' });
+    if (fill.label === undefined) ctx.addIssue({ code: 'custom', path: ['label'], message: 'a record action Adminium\'s record page shows needs its words ("label")' });
+    if (fill.icon === undefined) ctx.addIssue({ code: 'custom', path: ['icon'], message: 'a record action Adminium\'s record page shows needs an icon' });
+  });
 
 export const addOnEventSchema = z
   .object({
@@ -161,6 +190,14 @@ export const addOnSourceSchema = z
     window: z.object({ calls: z.number().int().min(1).max(100_000), seconds: z.number().int().min(1).max(86_400) }).strict().optional(),
     /** Each call costs the owner money: it counts against the owner's daily cap. */
     paid: z.boolean().optional(),
+    /**
+     * The source's name as a person reads it ("Companies House", "the
+     * website"): a key in the add-on's own strings and the English fallback.
+     * The record page says where a filled field came from in these words.
+     */
+    label: i18nMessageSchema.optional(),
+    /** The name in the other languages: drawn before any of the add-on's code runs. */
+    labels: wordsByLanguageSchema.optional(),
   })
   .strict()
   .superRefine((source, ctx) => {

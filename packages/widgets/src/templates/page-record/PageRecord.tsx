@@ -340,6 +340,13 @@ export interface PageRecordProps {
    */
   actions?: readonly PageRecordAction[] | undefined;
   /**
+   * A LINE UNDER A FIELD, by column name: what the host knows of the value
+   * (where it came from, "From Companies House · 28 Jul"). The host decides
+   * which fields have one and draws it; the page gives it a place under the
+   * value. Absent: none.
+   */
+  fieldNotes?: Readonly<Record<string, ReactNode>> | undefined;
+  /**
    * Something the host has to say about the record, drawn between its heading
    * and its fields — why an action was refused. Announced as it appears
    * (`role="alert"`); the host takes it away again.
@@ -1075,6 +1082,7 @@ function PageRecordPage({
   panels,
   hostTabs,
   notice,
+  fieldNotes,
   actions,
   onEvent,
   onDeleted,
@@ -1494,6 +1502,7 @@ function PageRecordPage({
             columns={half}
             record={record}
             cellContext={cellContext}
+            {...(fieldNotes === undefined ? {} : { notes: fieldNotes })}
           />
         ))}
       </div>

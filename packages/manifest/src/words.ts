@@ -357,6 +357,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'provides.lead-source',
   'addOn.leads',
   'people.lead',
+  // A record action Adminium's own record page shows on a kind of declared table (a companies table's "Fill in details").
+  'addOn.slots.on',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -667,6 +669,7 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'provides.lead-source': '0.3.66',
   'addOn.leads': '0.3.66',
   'people.lead': '0.3.66',
+  'addOn.slots.on': '0.3.66',
 };
 
 /** The kinds of file a column takes from the release that cleans SVG and reads models and fonts whole (`ASSET_FILE_KINDS`). */
@@ -710,6 +713,12 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (block['scope'] !== undefined) out.push({ word: 'addOn.scope', path: 'addOn.scope' });
     if (block['sources'] !== undefined) out.push({ word: 'addOn.sources', path: 'addOn.sources' });
     if (block['leads'] !== undefined) out.push({ word: 'addOn.leads', path: 'addOn.leads' });
+    // A fill the generated record page draws: the kind of table it acts on, and its words and icon.
+    list(block['slots']).forEach((fill, f) => {
+      if (isDoc(fill) && (fill['on'] !== undefined || fill['label'] !== undefined || fill['labels'] !== undefined || fill['icon'] !== undefined)) {
+        out.push({ word: 'addOn.slots.on', path: `addOn.slots.${String(f)}.on` });
+      }
+    });
     // A contract named after the release that knows it: an older one would call it unknown, not name the release.
     list(block['provides']).forEach((entry, p) => {
       if (isDoc(entry) && entry['contract'] === 'lead-source') out.push({ word: 'provides.lead-source', path: `addOn.provides.${String(p)}.contract` });
