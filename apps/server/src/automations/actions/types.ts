@@ -30,7 +30,7 @@ import type { FileStore } from '../../files/store.js';
 import type { NotificationPublisher } from '../../notifications/notify.js';
 import type { TokenMap } from '../templating.js';
 import type { TraceText } from '../trace.js';
-import type { CompanyFillDeps } from './company-fill.js';
+import type { CompanyFillDeps } from './company-fill-deps.js';
 
 /** The connection half of a run's context; null for a bare schedule tick. */
 export interface ActionSource {
