@@ -422,7 +422,7 @@ export default {
       "ok": "{smtp} · remis à {to}",
       "fail": "ERREUR · {reason}",
       "would": "Enverrait « {subject} » à {to}",
-      "noSmtp": "SMTP n'est pas configuré — Réglages → E-mail",
+      "noSmtp": "SMTP n'est pas configuré — Paramètres → E-mail",
       "noRecipient": "Aucun destinataire : {column} est vide",
       "unfilled": "rien n’a rempli {names}"
     },

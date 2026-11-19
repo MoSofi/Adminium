@@ -269,7 +269,7 @@ export async function peopleSwitchProblems(deps: LeadsPeopleDeps, install: { ins
   const door = await mailDoorReach(deps.meta, deps.reach);
   if (door.origin === null) out.push({ code: 'public-origin', message: 'Set the address in e-mail links: Settings → Senders.' });
   else if (!door.open) out.push({ code: 'mail-door', message: 'The page a person objects on can’t be reached from outside: check this server’s public address.' });
-  if (!(await privacyNoticeReady(deps.meta))) out.push({ code: 'privacy-notice', message: 'Set the business name and the privacy notice’s address: Studio → Privacy.' });
+  if (!(await privacyNoticeReady(deps.meta))) out.push({ code: 'privacy-notice', message: 'Set the business name and the privacy notice’s address: Server settings → Privacy & public pages.' });
   return out;
 }
 

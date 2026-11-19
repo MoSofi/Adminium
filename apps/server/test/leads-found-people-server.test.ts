@@ -376,7 +376,7 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
         { code: 'keep-time', message: 'Choose how long found people are kept: 1 to 10 years.' },
         { code: 'smtp', message: 'E-mail isn’t set up: Settings → Email.' },
         { code: 'public-origin', message: 'Set the address in e-mail links: Settings → Senders.' },
-        { code: 'privacy-notice', message: 'Set the business name and the privacy notice’s address: Studio → Privacy.' },
+        { code: 'privacy-notice', message: 'Set the business name and the privacy notice’s address: Server settings → Privacy & public pages.' },
       ]);
       // Each code's message is in the English message too, in the same order.
       const said = (error['details']['problems'] as Doc[]).map((one) => one['message'] as string).join(' ');
