@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import type { ReactNode } from 'react';
 import { KeyValueList, KeyValueRow, Tag } from '@adminium/ui';
 
 import { CellValue } from './cells.js';
@@ -18,6 +19,11 @@ export interface DetailKeyValueProps {
   cellContext?: CellContext | undefined;
   /** Show mono type tags (`varchar`, `enum`, `→ public.team_members`). */
   showTypeTags?: boolean | undefined;
+  /**
+   * A line the host draws under a field's value, by column name (where the
+   * value came from: "From Companies House · 28 Jul"). Absent: none.
+   */
+  notes?: Readonly<Record<string, ReactNode>> | undefined;
   testId?: string | undefined;
 }
 
@@ -32,6 +38,7 @@ export function DetailKeyValue({
   record,
   cellContext,
   showTypeTags = false,
+  notes,
   testId,
 }: DetailKeyValueProps) {
   return (
@@ -52,7 +59,14 @@ export function DetailKeyValue({
           }
           className={column.isDisplay ? 'bg-surface-2/50' : undefined}
         >
-          <CellValue column={column} row={record} context={cellContext ?? {}} />
+          {notes?.[column.name] === undefined ? (
+            <CellValue column={column} row={record} context={cellContext ?? {}} />
+          ) : (
+            <span className="flex min-w-0 flex-col items-start">
+              <CellValue column={column} row={record} context={cellContext ?? {}} />
+              {notes[column.name]}
+            </span>
+          )}
         </KeyValueRow>
       ))}
     </KeyValueList>

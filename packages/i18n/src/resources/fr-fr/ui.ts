@@ -2316,7 +2316,11 @@ export default {
       "forbidden": "Votre rôle ne permet pas de modifier ceci.",
       "notFound": "Cet enregistrement, ou cette action, n'existe plus.",
       "fieldRequired": "Renseignez d'abord ce champ.",
-      "panelFailed": "Ce panneau n’a pas pu être chargé. Rien n’en a été exécuté."
+      "panelFailed": "Ce panneau n’a pas pu être chargé. Rien n’en a été exécuté.",
+      "fieldNote": "Source : {source}",
+      "addOnAction": {
+        "failed": "Impossible de charger cet élément. Rien n’en a été exécuté."
+      }
     },
     "bulk": {
       "tooMany": "Sélectionnez {max} lignes au plus.",

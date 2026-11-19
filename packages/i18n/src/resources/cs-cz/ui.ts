@@ -2316,7 +2316,11 @@ export default {
       "forbidden": "Vaše role to nesmí změnit.",
       "notFound": "Tento záznam nebo tato akce už neexistuje.",
       "fieldRequired": "Nejprve vyplňte toto pole.",
-      "panelFailed": "Tento panel se nepodařilo načíst. Nic z něj se nespustilo."
+      "panelFailed": "Tento panel se nepodařilo načíst. Nic z něj se nespustilo.",
+      "fieldNote": "Zdroj: {source}",
+      "addOnAction": {
+        "failed": "Nepodařilo se to načíst. Nic z toho se nespustilo."
+      }
     },
     "bulk": {
       "tooMany": "Vyberte nejvýše {max} řádků.",
