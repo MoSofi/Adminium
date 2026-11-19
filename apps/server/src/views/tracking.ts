@@ -20,7 +20,7 @@
 import { settingsRepo, viewDaysRepo, visitorsRepo, type BannerWords, type BannerLocale, type MetaDb, type VisitorsGone } from '@adminium/meta';
 
 import { privacyNoticeReady } from '../privacy/business.js';
-import type { TrackingLevel } from './counter.js';
+import type { TrackingLevel } from './level.js';
 
 /** "Per visitor" asked for while the privacy notice is not set. */
 export class PerVisitorNeedsNotice extends Error {

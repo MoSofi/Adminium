@@ -16,7 +16,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { viewDaysRepo, visitorsRepo, type VisitInput } from '@adminium/meta';
 
 import { BOT_MARKERS, isKnownBot, isPrefetch } from '../src/views/bots.js';
-import { createViewCounter, DEDUPE_MAX, DEDUPE_MS, dayIn, LEVEL_FRESH_MS, type CountInput, type TrackingLevel } from '../src/views/counter.js';
+import { createViewCounter, DEDUPE_MAX, DEDUPE_MS, dayIn, LEVEL_FRESH_MS, type CountInput } from '../src/views/counter.js';
+import type { TrackingLevel } from '../src/views/level.js';
 import type { Newcomer } from '../src/views/visitor.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 
