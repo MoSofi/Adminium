@@ -920,6 +920,9 @@ describe.each(LEGS)('found people, the tell mail and the Object page — %s', (d
     const file = await filesRepo(h.meta).create({ id: 'file_g1_doc', filename: 'Q-7.pdf', mime: 'application/pdf', sizeBytes: 12, sha256: 'x'.repeat(64), kind: 'document', uploadedBy: null, storageKey: 'documents/file_g1_doc.pdf', destinationId: null, storage: 'local' });
     const drawn = await documentsRepo(h.meta).create({ profileId: null, addOnKey: 'invoices', kind: 'quote', connectionId: null, entity: null, subject: { fields: {}, business: { name: 'Meridian', lines: [] } }, locale: 'en-US', format: 'pdf', requestedBy: null, actorKind: 'system', jobId: null });
     const document = (await documentsRepo(h.meta).markRendered(drawn.id, { number: 'Q-7', fileId: file.id, htmlFileId: null, format: 'pdf' }, Date.now()))!;
+    // Nor do their details stay in the audit entry of their contact's making: they were never told.
+    const held = (await h.meta.db.selectFrom('adminium_audit_log').select(['changes']).execute()).filter((row) => (typeof row.changes === 'string' ? row.changes : JSON.stringify(row.changes ?? null)).includes('nell.price@kestrel-yard.dev'));
+    expect(held).toEqual([]);
     expect(await emailDocument({ meta: h.meta, secret: TEST_SECRET, untold }, { document, profile: null, to: address })).toBe('not-sent:not-told');
     expect((await documentsRepo(h.meta).findById(document.id))?.delivery).toBe('not-sent:not-told');
     const payable = { ref: { kind: 'profile', connectionId: conn, tableName: 'invoices', rowKey: '1' }, label: 'INV-7', currency: 'GBP', total: '10.00', due: '10.00', dueDate: null, refusal: null, customerEmail: address } as unknown as ResolvedPayable;

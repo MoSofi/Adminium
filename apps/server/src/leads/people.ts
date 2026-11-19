@@ -61,6 +61,7 @@ import { pkOfRowKey, rowKeyOf } from '../payments/payables.js';
 import type { DeclaredPeopleTable } from '../people/declared.js';
 import { peopleTablesOf } from '../people/tables-of.js';
 import { privacyNoticeReady } from '../privacy/business.js';
+import { scrubHalfMadeRows } from '../privacy/erase-meta.js';
 import { normaliseAddress } from '../public-api/claim-code.js';
 import { boundId, foundRowsOf, insertFound, leadsWriteContext, tellByOf, untoldChanged, untoldGeneration, untoldRows, updateFound, zoneOf } from './found-store.js';
 import { LEADS_TELL_KIND, leadsAddOnsOn, leadsSettingsRow, readLeadsSettingsRow, storedLeadsAddOns, type LeadsAddOnTables, type LeadsSettings } from './installs.js';
@@ -576,7 +577,13 @@ export async function keepFoundPeople(deps: KeepFoundPeopleDeps, input: KeepFoun
         await deleteByKey(db, addOn.foundPeople, { [addOn.foundPeople.primaryKey[0]!]: boundId(foundId) }).catch(() => undefined);
         untoldChanged(deps.meta);
       }
-      if (made !== null) await deleteByKey(db, peopleTable, Object.fromEntries(peopleTable.primaryKey.map((column) => [column, made![column]]))).catch(() => undefined);
+      if (made !== null) {
+        const key = Object.fromEntries(peopleTable.primaryKey.map((column) => [column, made![column]]));
+        // Gone, and so are its details in the audit entry of its making: they were never told, and are kept nowhere.
+        if (await deleteByKey(db, peopleTable, key).then(() => true, () => false)) {
+          await scrubHalfMadeRows(deps.meta, connectionId, peopleTable, [rowKeyOf(peopleTable, made)]).catch(() => undefined);
+        }
+      }
       if (marked) await unmarkSoleTrader(db, addOn.fieldSources!, company).catch(() => undefined);
       throw error;
     } finally {
