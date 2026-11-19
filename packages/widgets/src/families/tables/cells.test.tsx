@@ -366,6 +366,17 @@ describe('CellValue — type-aware cell renderers', () => {
     expect(link.getAttribute('target')).toBe('_blank');
   });
 
+  it('a url cell links only to a web address: javascript:, data: and other schemes read as text', () => {
+    for (const site of ['javascript:alert(1)', ' JavaScript:alert(1)', 'data:text/html,<b>x</b>', 'vbscript:msgbox(1)', 'file:///etc/passwd']) {
+      const { container } = render(<CellValue column={spec({ name: 'site', label: 'Site', semantic: 'url' })} row={{ site }} />);
+      expect(container.querySelector('a'), site).toBeNull();
+      expect(container.textContent).toBe(site);
+      cleanup();
+    }
+    const { container } = render(<CellValue column={spec({ name: 'site', label: 'Site', semantic: 'url' })} row={{ site: 'http://kestrelyard.example' }} />);
+    expect(container.querySelector('a')?.getAttribute('href')).toBe('http://kestrelyard.example');
+  });
+
   it("server-masked PII renders '•••' without an unmask affordance", () => {
     render(
       <CellValue
