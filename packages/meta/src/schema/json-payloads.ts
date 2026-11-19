@@ -454,6 +454,11 @@ export const connectionSettingsSchema = z.object({
   intent: z.enum(['full-admin', 'read-only-analytics', 'crud', 'support-console']).optional(),
   highVolumeUnchecked: z.boolean().optional(),
   placeholderRows: z.boolean().optional(),
+  /**
+   * Read-only whatever a probe finds: the operator opened this database read-only (the user's own database in an
+   * operator project, `ADMINIUM_YOUR_DATABASE`). `recordTestResult` never lowers `readOnly` while it is set.
+   */
+  readOnlyForced: z.boolean().optional(),
 });
 export type ConnectionSettings = z.infer<typeof connectionSettingsSchema>;
 

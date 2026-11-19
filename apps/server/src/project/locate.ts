@@ -12,6 +12,7 @@ import { existsSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 
 import { CliError } from '../cli/exit.js';
+import { operatorProjectAt } from './operator-project.js';
 
 /** Accepted config file names, in the order they are looked for. */
 export const CONFIG_FILES = [
@@ -42,14 +43,18 @@ export function configFileIn(dir: string, exists: Exists = existsSync): string |
 }
 
 /**
- * The project `start` belongs to: `ADMINIUM_PROJECT_DIR` if set, else the
- * nearest folder at or above `start` with a config file, else null.
+ * The project `start` belongs to: an operator project (`project/operator-project.ts`,
+ * whose config is in memory and whose folder is never searched for a file),
+ * else `ADMINIUM_PROJECT_DIR` if set, else the nearest folder at or above
+ * `start` with a config file, else null.
  */
 export function findProject(
   start: string,
   env: Readonly<Record<string, string | undefined>>,
   exists: Exists = existsSync,
 ): ProjectLocation | null {
+  const operator = operatorProjectAt(start, env);
+  if (operator !== null) return operator;
   const named = env.ADMINIUM_PROJECT_DIR?.trim() ?? '';
   if (named !== '') {
     const root = resolve(start, named);

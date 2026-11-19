@@ -37,6 +37,7 @@ import { appsBuiltAsOther, appsStaleReason, buildProjectApps, type AppsBuild } f
 import { parseProjectConfig, type ProjectConfig } from './config.js';
 import { listAppKeys } from './apps/read-app.js';
 import { configFileName, type ProjectLocation } from './locate.js';
+import { isOperatorLocation, operatorProjectConfig } from './operator-project.js';
 import { toProjectPath } from './paths.js';
 import { publicFilesMayHaveChanged } from '../operator/public-signal.js';
 
@@ -412,6 +413,7 @@ export async function buildProject(
   project: ProjectLocation,
   opts: { version: string; loadBundler?: LoadBundler; dev?: boolean },
 ): Promise<BuildResult> {
+  if (isOperatorLocation(project)) throw new CliError('An operator project has no config or code to build: its apps are built with `rebuildApps`.');
   const bundler = await requireBundler(project, opts.loadBundler, configFileName(project));
 
   const out = buildDir(project);
@@ -503,6 +505,8 @@ export async function loadProjectConfig(
     dev?: boolean;
   },
 ): Promise<LoadedProjectConfig> {
+  // An operator project's config is never a file: it is built from the environment, and nothing in its folder runs.
+  if (isOperatorLocation(project)) return { config: operatorProjectConfig(process.env), from: 'source' };
   const stale = opts.rebuild === true ? 'a rebuild was asked for' : staleReason(project, opts.version);
   if (stale === null) {
     const config = await importConfig(project, join(buildDir(project), BUILT_CONFIG));

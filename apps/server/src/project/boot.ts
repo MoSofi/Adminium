@@ -18,6 +18,7 @@ import { DOTENV_FILE, KEPT_OUT_OF_THE_ENVIRONMENT, loadDotEnv, readDotEnv } from
 import { loadProjectConfig, type LoadBundler, type LoadedProjectConfig } from './build.js';
 import { configFileName, findProject, type ProjectLocation } from './locate.js';
 import { allowsIn, rawProfile } from '../trial/policy.js';
+import { isOperatorLocation, operatorProjectConfig, prepareOperatorFolder } from './operator-project.js';
 
 export interface PreparedProject {
   project: ProjectLocation;
@@ -28,6 +29,8 @@ export interface PreparedProject {
   /** The environment the server should validate: yours, with the config's values filling gaps. */
   env: Record<string, string | undefined>;
   databases: ReturnType<typeof configuredDatabases>;
+  /** An operator project: config from the environment, no file (`project/operator-project.ts`). */
+  operator: boolean;
   /** Variables `.env` supplied. */
   fromDotEnv: string[];
   /** Where each variable the project supplied came from, for error messages. */
@@ -88,9 +91,14 @@ export async function prepareProject(opts: {
    * for {@link NEVER_FROM_A_FOLDER}, which is refused everywhere.
    */
   refuse?: readonly string[];
+  /** Where a note about the folder goes (an operator project's folder holding a config file it does not read). */
+  warn?: (message: string) => void;
 }): Promise<PreparedProject | null> {
   const project = findProject(opts.cwd, opts.env);
   if (project === null) return null;
+  // An operator project: the folder is made here, before anything reads it, and its config is the environment's.
+  const operator = isOperatorLocation(project);
+  if (operator) prepareOperatorFolder(project.root, opts.version, opts.warn);
   // Trial and hosted mode: the Super Admin is a stranger who can write the folder, so its `.env`
   // is not read at all (their own AI key lives in Settings → AI), and its config decides nothing the host does.
   const dotEnv = allowsIn(rawProfile(opts.env), 'projectDotEnv').allowed;
@@ -104,11 +112,13 @@ export async function prepareProject(opts: {
   // environment and from `.env`, just read) leave `process.env` before it is imported
   // (`config/operator-secrets.ts`). The boot gets them back below, with the held values.
   if (opts.env === process.env) holdOperatorSecrets(opts.env);
-  const loaded = await loadProjectConfig(project, {
-    version: opts.version,
-    ...(opts.loadBundler === undefined ? {} : { loadBundler: opts.loadBundler }),
-    ...(opts.dev === undefined ? {} : { dev: opts.dev }),
-  });
+  const loaded: LoadedProjectConfig = operator
+    ? { config: operatorProjectConfig(opts.env, opts.cwd), from: 'source' }
+    : await loadProjectConfig(project, {
+        version: opts.version,
+        ...(opts.loadBundler === undefined ? {} : { loadBundler: opts.loadBundler }),
+        ...(opts.dev === undefined ? {} : { dev: opts.dev }),
+      });
   const fromConfig = projectEnvironment(loaded.config, project.root);
   for (const name of refuse) {
     if (name in fromConfig && (opts.env[name] ?? '') === '') refused.add(name);
@@ -121,6 +131,7 @@ export async function prepareProject(opts: {
     ...(loaded.appsRebuilt === true ? { appsRebuilt: true as const } : {}),
     env: withDefaults(withHeldSecrets(opts.env), fromConfig),
     databases: configuredDatabases(loaded.config),
+    operator,
     fromDotEnv,
     sources: variableSources(project, loaded.config, opts.env, fromDotEnv),
     refused: [...refused].sort(),

@@ -108,7 +108,9 @@ export async function syncProjectDatabases(opts: SyncProjectDatabasesOptions): P
         const summary = await probe(manager, engine, url);
         ok = summary.ok;
         if (existing === null) {
-          const created = await manager.connections.create(
+          // Through the trial's room for sources, as every other way a source is added.
+          const created = await manager.withRoomForSource(() =>
+            manager.connections.create(
             {
               name: key,
               engine,
@@ -122,6 +124,7 @@ export async function syncProjectDatabases(opts: SyncProjectDatabasesOptions): P
               createdBy: null,
             },
             at,
+            ),
           );
           connectionId = created.id;
           log(`Database "${key}": added (${masked}).`);

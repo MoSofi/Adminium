@@ -439,7 +439,11 @@ export function connectionsRepo(meta: MetaDb, crypto: DsnCrypto) {
         status: outcome.ok ? 'connected' : 'error',
         updatedAt: at,
       };
-      if (outcome.readOnly !== undefined) set.readOnly = writeBool(meta, outcome.readOnly);
+      if (outcome.readOnly !== undefined) {
+        // A connection the operator opened read-only stays read-only, whatever the role turns out to be allowed.
+        const forced = outcome.readOnly ? false : (await this.findById(id))?.settings.readOnlyForced === true;
+        set.readOnly = writeBool(meta, outcome.readOnly || forced);
+      }
       // Wave 0023: the probe has computed `canDDL` since M3 and thrown it away
       // every time. Persisting it is what lets Studio hide schema authoring
       // without a round trip — it is not the guard.

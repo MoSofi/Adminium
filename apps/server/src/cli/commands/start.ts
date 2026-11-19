@@ -57,6 +57,9 @@ import { findProject } from '../../project/locate.js';
 import { markRunning, refuseIfRunning } from '../../project/running.js';
 import { withDefaults } from '../../project/config.js';
 import { syncProjectDatabases } from '../../project/databases.js';
+import { adoptSeededMain } from '../../project/operator-adopt.js';
+import { registerYourDatabase, startYourDatabase, type YourDatabaseJob } from '../../project/your-database.js';
+import { YOUR_DATABASE_STATUS } from '../../project/your-database-state.js';
 import { diskFileStore } from '../../project/file-store.js';
 import { databasesWithPageFiles } from '../../project/project-files.js';
 import { createProjectService, type ProjectServerOptions } from '../../project/service.js';
@@ -292,7 +295,7 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
     // Before the folder's code is built or run: a second server on one folder would write the same database.
     const located = findProject(deps.cwd, deps.env);
     if (located !== null) refuseIfRunning(located.root);
-    const project = await prepareProject({ cwd: deps.cwd, env: deps.env, version: APP_VERSION, dev: projectMode === 'dev', ...(flags.refuse === undefined ? {} : { refuse: flags.refuse }) });
+    const project = await prepareProject({ cwd: deps.cwd, env: deps.env, version: APP_VERSION, dev: projectMode === 'dev', ...(flags.refuse === undefined ? {} : { refuse: flags.refuse }), warn: (message) => { io.err(message); } });
     if (project !== null && project.refused.length > 0) {
       const why = flags.refuse === undefined ? 'how Adminium was started decides these, not the folder' : 'the app decides these itself';
       io.err(`Ignored from this project's .env and config (${why}): ${project.refused.join(', ')}`);
@@ -474,9 +477,19 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
     runtime.manager.localDatabases = await readLocalDatabases(runtime.metaStore.meta, localDatabasesMode(env)).catch(() => false);
 
     let projectServer: ProjectServerOptions | undefined;
+    let yoursAfterListen: (() => YourDatabaseJob) | null = null;
     if (project !== null) {
-      if (env.ADMINIUM_SOURCE_URL !== undefined) {
+      // An operator project reads ADMINIUM_SOURCE_URL as its `main`, and says nothing about it.
+      if (env.ADMINIUM_SOURCE_URL !== undefined && !project.operator) {
         io.err('ADMINIUM_SOURCE_URL is ignored in a project; list the database in adminium.config.ts instead.');
+      }
+      // A trial seeded before it ran as a project: its seeded connection becomes `main`, not a second one beside it.
+      if (project.operator) {
+        const adopted = await adoptSeededMain(runtime.manager, runtime.metaStore.meta).catch((error: unknown) => {
+          io.err(`Could not adopt the seeded connection as main: ${error instanceof Error ? error.message : String(error)}`);
+          return 'none' as const;
+        });
+        if (adopted === 'adopted') io.out('Database "main": the seeded connection is now the project\'s main.');
       }
       const withPageFiles = await databasesWithPageFiles(diskFileStore(project.project.root));
       await syncProjectDatabases({
@@ -509,6 +522,23 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
         ...(project.config.apps === undefined ? {} : { apps: project.config.apps }),
         databases: [...project.databases.ready.keys()],
       };
+      // The user's own database: its row now, no dial; it is connected after the server listens.
+      if (project.operator && env.ADMINIUM_YOUR_DATABASE !== undefined) {
+        const yoursOptions = {
+          manager: runtime.manager,
+          meta: runtime.metaStore.meta,
+          yours: env.ADMINIUM_YOUR_DATABASE,
+          status: YOUR_DATABASE_STATUS,
+          log: (message: string) => {
+            io.out(message);
+          },
+          warn: (message: string) => {
+            io.err(message);
+          },
+        };
+        const registered = await registerYourDatabase(yoursOptions);
+        if (registered !== null) yoursAfterListen = () => startYourDatabase(yoursOptions, registered);
+      }
       const boot = createProjectService({ meta: runtime.metaStore.meta, ...projectServer, pollMs: 0, watchFiles: false });
       try {
         await boot.reconcile();
@@ -585,6 +615,8 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
       },
     });
     const server = await relocationHost.start(runtime);
+    // After listen: readiness never waits for a database the operator does not run.
+    const yoursJob = yoursAfterListen?.() ?? null;
     const forget = project === null ? () => undefined : markRunning(project.project.root, { port: env.PORT, mode: design !== undefined ? 'design' : projectMode === 'dev' ? 'dev' : 'start', by: deps.env.ADMINIUM_RUNTIME === 'desktop' ? 'desktop' : 'cli' });
     return {
       url: server.url,
@@ -594,6 +626,7 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
       setupToken,
       refused: project?.refused ?? [],
       async close() {
+        yoursJob?.close();
         try {
           await relocationHost.close();
         } finally {
