@@ -20,7 +20,13 @@ add-on's own staff screens.)
 Both are required, each a table of its own, and each has a numbered key: an `int` or `bigint`
 column with `"role": "pk"`. A funnel's step and a link to another page name a page by it. Staff
 write both tables: a role or an app's grant may create, update and delete them. No public entry of
-the add-on opens either table. A further column is nullable or has a default.
+the add-on opens either table. A further column is nullable, has a default, is decided by a rule
+(a `stamp`, a `code`), or is a time or a date with `"role": "updated_at"` or `"role": "created_at"`,
+which Adminium stamps on every write:
+
+```json
+{ "ref": "updated_at", "type": "timestamptz", "role": "updated_at" }
+```
 
 Each table has these columns, by these names. A table may add its own. A `text` column given here a
 length takes at least that many characters, or has no `maxLength`. A column marked "empty" is
@@ -44,12 +50,17 @@ length takes at least that many characters, or has no `maxLength`. A column mark
 | Column | Type | What it holds |
 |---|---|---|
 | `name` | `text` 200 | The funnel's name. |
-| `steps` | `json` | At most 8 steps, in order: `[{ "kind": "page" or "form", "key": "<row key>" }]`. |
+| `steps` | `json` | At most 8 steps, in order: `[{ "kind": "page", "key": "<row key>" }]` for a page, and `{ "kind": "form", "key": "<row key>", "addOn": "<forms add-on key>" }` for a form (two forms add-ons may hold the same row key). |
 | `rule_id` | `text` 64, empty | The rule picked as what happens after the funnel. |
 
 **A slug** is lower-case letters, digits and dashes, 1 to 80 characters, with no dash at either
-end. It is never `api`, `assets`, `login`, `signin`, `sign-in`, `account`, `password` or `reset`.
-A page is published only at a slug no other page of its table holds.
+end. It is never one of the addresses' own words (`api`, `assets`) nor a word a sign-in, a code, the
+staff side or a bill is known by: `login`, `log-in`, `logon`, `signin`, `sign-in`, `account`,
+`password`, `reset`, `verify`, `verification`, `auth`, `oauth`, `sso`, `2fa`, `admin`, `wp-admin`,
+`billing`, `payment`, `payments`, `invoice`, `support` or `security`. A page is published only at a
+slug no other page of its table holds (judged again under a lock as the row is written, so two
+publishes at one moment cannot both take it). When two installs serve the same slug, the oldest
+install with a live page at it answers.
 
 **Publishing.** Adminium seals the columns that publish a page, whoever writes the row and through
 whatever door. A write that sets `state` to `live`, writes `published` or `published_at`, or moves a
@@ -60,7 +71,9 @@ The refusal is a `422` whose `details.reason` is `landing-unparsable`, `landing-
 `landing-slug`. Adminium writes `published_at` itself whenever `published` changes, and ignores a
 value the client sends. Switching a page `off`, or back to a `draft`, is always allowed. Milo never
 publishes: a change it proposes may write a page's `draft`, and never its `state`, `published` or
-`published_at`, whatever the person's own rights (`403`, reason `landing-assistant`).
+`published_at`, whatever the person's own rights (`403`, reason `landing-assistant`). Every block
+Milo adds or changes in a `draft` is marked (`"milo": true`) as it is written, so a person looks at
+each before the page can be published.
 
 **The page document**, in `draft` and `published`, is read by `@adminium/add-on-contracts/landing`
 on both sides:
@@ -112,12 +125,3 @@ form block on this page, which the page then must have).
 A **picture** is `{ "file": "<file id>", "alt": "…" }`, with a description read aloud of up to 300
 characters, or `{ "file": "<file id>", "decorative": true }` for one that is only decoration. The
 file is one the page owns, named by its id, never an address or a `data:` URL.
-
-The page has one main heading: the first hero's, else the first heading's, else its `title`, drawn
-for screen readers only. Every other heading of a block is a section's, and an item under a titled
-block is under that section.
-
-A package that declares landing pages serves them only when Adminium can vouch for its bytes, as
-forms and chat are.
-
-#### The pages door

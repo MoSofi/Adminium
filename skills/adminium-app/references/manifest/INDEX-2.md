@@ -39,7 +39,8 @@
 | `references/manifest/automations--a-row-a-step-makes.md` | Automations — A row a step makes | 3179 |
 | `references/manifest/sample-data.md` | Sample data | 975 |
 | `references/manifest/sample-data--sample-people.md` | Sample data — Sample people | 5060 |
-| `references/manifest/sample-data--sample-people-2.md` | Sample data — Sample people (part 2) | 7089 |
+| `references/manifest/sample-data--sample-people-2.md` | Sample data — Sample people (part 2) | 7786 |
+| `references/manifest/sample-data--sample-people-3.md` | Sample data — Sample people (part 3) | 322 |
 | `references/manifest/seeds-and-widgets.md` | seeds and widgets | 2826 |
 | `references/manifest/a-self-made-app.md` | A self-made app | 669 |
 | `references/manifest/a-self-made-app--new-in-0-3-49.md` | A self-made app — New in 0.3.49 | 2847 |
@@ -69,6 +70,6 @@
 | `references/manifest/add-on-manifests--what-a-typed-code-may-find.md` | Add-on manifests — What a typed code may find | 1966 |
 | `references/manifest/add-on-manifests--live-chat.md` | Add-on manifests — Live chat | 7102 |
 | `references/manifest/add-on-manifests--live-chat-2.md` | Add-on manifests — Live chat (part 2) | 1486 |
-| `references/manifest/add-on-manifests--landing-pages.md` | Add-on manifests — Landing pages | 7015 |
-| `references/manifest/add-on-manifests--landing-pages-2.md` | Add-on manifests — Landing pages (part 2) | 2978 |
+| `references/manifest/add-on-manifests--landing-pages.md` | Add-on manifests — Landing pages | 7632 |
+| `references/manifest/add-on-manifests--landing-pages-2.md` | Add-on manifests — Landing pages (part 2) | 3553 |
 | `references/manifest/validation.md` | Validation | 3648 |

@@ -148,6 +148,21 @@ describe('layout and controls', () => {
     const sync = screen.getByRole('button', { name: /Sync/ });
     expect(sync.getAttribute('aria-busy')).toBe('true');
   });
+
+  it('names an input and a select by their labels when the caller gives each its own id', async () => {
+    renderInApp(
+      <>
+        <Input id="page-title" label="Page title" hint="Shown in the tab" />
+        <Select id="page-language" label="Language" options={['en-US', 'de-DE']} />
+      </>,
+    );
+    const title = await screen.findByLabelText('Page title');
+    expect(title.id).toBe('page-title');
+    expect(title.tagName).toBe('INPUT');
+    const language = screen.getByLabelText('Language');
+    expect(language.id).toBe('page-language');
+    expect(language.tagName).toBe('SELECT');
+  });
 });
 
 describe('the data table', () => {
@@ -181,6 +196,22 @@ describe('the data table', () => {
     expect(screen.getByText('No records')).toBeTruthy();
     rerender(<DataTable columns={[{ key: 'a', label: 'A' }]} rows={[]} empty={<p>Nothing yet</p>} />);
     expect(screen.getByText('Nothing yet')).toBeTruthy();
+  });
+
+  it('draws a column whose label is empty, headed by its key', async () => {
+    renderInApp(
+      <DataTable
+        columns={[
+          { key: 'name', label: 'Name' },
+          { key: 'actions', label: '', render: () => <button type="button">Open</button> },
+        ]}
+        rows={[{ id: 1, name: 'Ada' }]}
+      />,
+    );
+    expect(await screen.findByText('Ada')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Open' })).toBeTruthy();
+    expect(toColumnSpec({ key: 'actions', label: '' })).toMatchObject({ name: 'actions', label: 'actions' });
+    expect(toColumnSpec({ key: 'gap', label: '   ' })).toMatchObject({ label: 'gap' });
   });
 
   it('turns kit columns into grid column specs', () => {

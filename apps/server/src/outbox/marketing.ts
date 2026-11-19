@@ -10,8 +10,7 @@
  * message's address is theirs on; a message to an address somebody typed
  * (a friend, a supplier) is judged by the address alone.
  *
- * The existing-customers basis carries a person only when all of these hold
- * (plan C7, CR1, Q-D):
+ * The existing-customers basis carries a person only when all of these hold:
  *   - the owner switched it on for their table (`existingCustomersOn`);
  *   - the app declares the table's opt-out mark (`people[].optOutMark`):
  *     its screens show the "you can say no" line where they take an address;

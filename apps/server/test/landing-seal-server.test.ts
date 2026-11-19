@@ -25,6 +25,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { landingAddOn } from '../../../packages/manifest/test/landing-fixture.js';
 import { composeServer, type ComposedServer } from '../src/compose.js';
+import { addOnWriteJudges } from '../src/crud/add-on-write-judges.js';
 import { createWriteService, type WriteContext, type WriteTarget } from '../src/crud/write-service.js';
 import { writeStores } from '../src/crud/write-stores.js';
 import { keepAddOnInstalls } from '../src/apps/table-ref.js';
@@ -227,6 +228,36 @@ describe.each(LEGS)('the publish seal of a landing page — %s', (dialect, avail
     const [prepared] = await writes.beforeEach('update', target, person, [{ match: { id: key }, values: { state: 'live', published: CLEAN, published_at: '1999-01-01T00:00:00Z' } }]);
     expect(prepared!.issues).toBeNull();
     expect(String(prepared!.values['published_at'])).not.toContain('1999');
+  });
+
+  it.skipIf(!available)('reads what is installed once for a person\'s write, however many rows, and still seals the pages', async () => {
+    // The server's own judges, over a keeper that counts each read of what is installed (one meta query each).
+    const keeper = keepAddOnInstalls(h.meta, async (connectionId) => ((await snapshotsRepo(h.meta).latest(connectionId))?.schema as { tables: { id: string; name: string }[] } | undefined) ?? null);
+    let reads = 0;
+    const counted = { fresh: async () => ((reads += 1), keeper.fresh()), current: () => keeper.current() };
+    const writes = createWriteService({ ...writeStores(h.meta), ...addOnWriteJudges(counted) });
+    const view = (await createPublicViews(h.meta).viewFor(h.connectionId))!;
+    const handle = await h.manager.data(h.connectionId);
+    const targetOf = (table: string): WriteTarget => ({ connectionId: h.connectionId, view, table: view.table(table), db: handle.db, dialect: handle.dialect, timezone: 'UTC' });
+    const person: WriteContext = { origin: 'bulk', hops: 0, actor: { kind: 'user', id: ids['pat']!, label: 'pat' }, request: null };
+    const funnel = (name: string): Doc => ({ name, steps: [] });
+    // An ordinary table: one read for three rows, by the check and by the write's preparing alike.
+    const funnelsId = pagesId.replace(/pages$/, 'funnels');
+    await writes.check('create', targetOf(funnelsId), person, [funnel('One'), funnel('Two'), funnel('Three')]);
+    expect(reads).toBe(1);
+    reads = 0;
+    await writes.beforeEach('create', targetOf(funnelsId), { ...person, origin: 'import', stamps: 'left-out' }, [{ values: funnel('Four') }, { values: funnel('Five') }]);
+    expect(reads).toBe(1);
+    // The pages table is still sealed on that one read.
+    reads = 0;
+    const key = await draft('one-read');
+    await expect(writes.beforeEach('update', targetOf(pagesId), person, [{ match: { id: key }, values: { state: 'live', published: MARKED } }, { match: { id: key }, values: { state: 'live', published: MARKED } }])).rejects.toMatchObject({ details: { reason: 'landing-marked' } });
+    expect(reads).toBe(1);
+    // A write Adminium makes itself skips the own-records check, so the seal reads what is installed for itself: once for two rows.
+    reads = 0;
+    await writes.check('update', targetOf(pagesId), { ...person, origin: 'import' }, [{ id: key, name: 'One read' }, { id: key, name: 'One read again' }]);
+    expect(reads).toBe(1);
+    await expect(writes.check('update', targetOf(pagesId), { ...person, origin: 'import' }, [{ id: key, state: 'live', published: MARKED }])).rejects.toMatchObject({ details: { reason: 'landing-marked' } });
   });
 
   it.skipIf(!available)('marks every block the assistant adds or changes in a draft, and never takes a mark off', async () => {

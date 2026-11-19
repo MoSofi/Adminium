@@ -165,6 +165,12 @@ const POINTER = new RegExp(
     // A plan task id, and a milestone task id.
     String.raw`(?<![\w-])\d{1,2}[a-z]?-T\d{1,3}\b`,
     String.raw`\bM\d{1,2}-T\d{1,3}\b`,
+    // A question the plan asked the owner (a Q, a hyphen and one or two
+    // capitals), and a wave's own decision or finding (a W and the wave's
+    // number, a hyphen, a letter or two and a number). Bounded on both sides,
+    // so a word or a constant that merely holds the letters is never read.
+    String.raw`(?<![\w-])Q-[A-Z]{1,2}(?![\w-])`,
+    String.raw`(?<!\w)W\d{1,2}-[A-Z]{1,2}\d{1,3}\b`,
     // A parenthesised id and nothing else: a decision, question, ruling, fact
     // or task tag at the end of a sentence. See TAG below for why this form,
     // and only this form.
@@ -191,6 +197,11 @@ if (flag('self-test')) {
     `* The row this server is too old for is LISTED ${tag('G8-D2')}.`,
     `* a file hung on a record ${tag('F1\u2013F3')}`,
     'See NN-some-plan.md for more.'.replace('NN', '12'),
+    // Built from parts, for the reason given at TAG.
+    `    // ${'Q'}-S a: nothing of the website's own banner.`,
+    `// the owner's ruling on ${'Q'}-I`,
+    `* a departure, as ${'W'}4-B12 says`,
+    `* D-${'W'}4-G1-1: the cookie's path`,
   ];
   const mustNot = [
     'const [before, after] = sentence.split(M1);',
@@ -199,6 +210,11 @@ if (flag('self-test')) {
     '// every SOFn but DHT (0xC4), JPG (0xC8) and DAC (0xCC).',
     `// a decision spelled out ${tag('D13').replace(')', ': the reason)')} is a sentence`,
     'expect(text).toMatch(/center \\(M7\\)/);',
+    "const kind = 'Q-ANSWER';",
+    "type Faq = 'FAQ-A';",
+    "const sku = 'TOP-Q-A';",
+    'const browser = "SW4-B12";',
+    "const link = 'https://www.w3.org/TR/WCAG21/';",
   ];
   const fails = [];
   for (const line of must) {

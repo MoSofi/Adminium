@@ -52,11 +52,16 @@ export function Button({
   );
 }
 
-/** Wraps a control in a labelled field when the caller gave a label. */
-function field({ label, hint, error }: FieldProps, control: ReactElement): ReactNode {
+/**
+ * Wraps a control in a labelled field when the caller gave a label. The
+ * control's own `id`, when the caller gave one, is the one the label points
+ * at: the field would otherwise point at an id of its own that the control,
+ * keeping the caller's, does not carry, and the control would have no name.
+ */
+function field({ label, hint, error }: FieldProps, control: ReactElement, id: string | undefined): ReactNode {
   if (label === undefined) return control;
   return (
-    <FormField label={label} helper={hint} error={error}>
+    <FormField label={label} helper={hint} error={error} controlId={id}>
       {control}
     </FormField>
   );
@@ -64,7 +69,7 @@ function field({ label, hint, error }: FieldProps, control: ReactElement): React
 
 export function Input({ label, hint, error, ...props }: InputProps): ReactNode {
   const invalid = error !== undefined && error !== null && error !== false;
-  return field({ label, hint, error }, <UiInput {...props} error={invalid} />);
+  return field({ label, hint, error }, <UiInput {...props} error={invalid} />, props.id);
 }
 
 export function Select({ label, hint, error, options, children, ...props }: SelectProps): ReactNode {
@@ -85,6 +90,7 @@ export function Select({ label, hint, error, options, children, ...props }: Sele
       )}
       {children}
     </UiSelect>,
+    props.id,
   );
 }
 

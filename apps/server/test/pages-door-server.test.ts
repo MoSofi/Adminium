@@ -169,6 +169,9 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
       await db.insertInto(formsTable).values({ id, title: slug, slug, kind, state: 'live', definition: '{}', settings: '{}', published: published(definition, settings) } as never).execute();
     }
 
+    // The database's own zone, set here so the test reads the same on any host: not the zone of the machine it runs on.
+    await h.meta.db.updateTable('adminium_connections').set({ timezone: 'Asia/Kathmandu' }).where('id', '=', h.connectionId).execute();
+
     const settings = settingsRepo(h.meta);
     await settings.set('system.publicOrigin', `https://${PUBLIC}`, { updatedBy: null });
     await settings.set('privacy.businessName', 'Meridian Workplace Ltd', { updatedBy: null });
@@ -466,8 +469,8 @@ describe.each(LEGS)('the pages door on the real server — %s', (dialect, availa
     expect(res.statusCode, res.body).toBe(200);
     expect((res.json() as Doc).data).toEqual({
       installId,
-      // The zone of the add-on's database (the harness sets Berlin): the one the counter counts days in.
-      timeZone: 'Europe/Berlin',
+      // The zone of the add-on's database (set above), never the host's: the one the counter counts days in.
+      timeZone: 'Asia/Kathmandu',
       viewCountsMonths: 13,
       reach: { state: 'reachable', proxyUnchecked: true },
       notice: true,

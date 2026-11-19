@@ -2011,8 +2011,13 @@ export interface WriteServiceOptions {
    * mark of the assistant's and sits at an allowed address no other page holds; the engine
    * says when it was published; the assistant publishes nothing. Without it,
    * no table is sealed.
+   *
+   * Asked once per write, never once per row. `askedJustNow` is true when
+   * {@link ownRecords} was asked about the same table on this write a moment
+   * before (a person's write), so what is installed was read then and need
+   * not be read again.
    */
-  landingPages?: ((connectionId: string, tableId: string) => Promise<boolean>) | undefined;
+  landingPages?: ((connectionId: string, tableId: string, askedJustNow?: boolean) => Promise<boolean>) | undefined;
   /**
    * Whether a table is a payable's payments table, and which of its columns
    * name a payment taken online (`payments/payment-rows.ts`). A row that
@@ -2327,9 +2332,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    * engine, or its refusal. Whatever door the write came through; the
    * assistant's door is told apart by the request it carries.
    */
-  const sealLanding = async (action: WriteAction, target: Pick<WriteTarget, 'connectionId' | 'table' | 'db'>, context: WriteContext, values: Row, stored: () => Promise<Row | null>): Promise<Row> => {
-    if (action === 'delete' || opts.landingPages === undefined) return values;
-    if (!(await opts.landingPages(target.connectionId, target.table.id))) return values;
+  const sealLanding = async (action: WriteAction, target: Pick<WriteTarget, 'connectionId' | 'table' | 'db'>, context: WriteContext, values: Row, stored: () => Promise<Row | null>, seals?: boolean): Promise<Row> => {
+    if (action === 'delete' || !(seals ?? (await sealsLanding(action, target, context)))) return values;
     const column = target.table.columns.get('published_at');
     let judged: { slug: string; own: Row | null } | null = null;
     const sealed = await sealLandingWrite({
@@ -2347,6 +2351,16 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     // Judged again with the write, under the address's lock ({@link slugLocked}).
     if (judged !== null) judgedSlugs.set(sealed, judged);
     return sealed;
+  };
+
+  /**
+   * Whether a write is one the landing seal judges: asked once for a write of
+   * many rows. A person's write has just asked {@link refuseOwnRecords}, which
+   * read what is installed, so the judge need not read it again.
+   */
+  const sealsLanding = async (action: WriteAction, target: Pick<WriteTarget, 'connectionId' | 'table'>, context: WriteContext): Promise<boolean> => {
+    if (action === 'delete' || opts.landingPages === undefined) return false;
+    return opts.landingPages(target.connectionId, target.table.id, opts.ownRecords !== undefined && !writtenByAdminium(context));
   };
 
   /** Whether a row of the table other than `own` holds the slug, read through `db`. */
@@ -4386,7 +4400,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const heldOf = (values: Row, index: number) => async () => checkOpts?.stored?.[index] ?? (action === 'create' ? null : await fetchMatched(target, values));
       await refusePaymentRows(action, target, context, given.map((values, index) => ({ values, stored: heldOf(values, index) })));
       const rows: Row[] = [];
-      for (const [index, values] of given.entries()) rows.push(await sealLanding(action, target, context, values, heldOf(values, index)));
+      const seals = await sealsLanding(action, target, context);
+      for (const [index, values] of given.entries()) rows.push(await sealLanding(action, target, context, values, heldOf(values, index), seals));
       if (action !== 'delete') await freshCodes(target);
       const rules = rulesOf(target);
       refuseGuardedBatch(rules, action, target, rows, checkOpts?.capacity);
@@ -5746,7 +5761,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         givenRows.map((row) => ({ values: row.values, stored: heldOf(row) })),
       );
       const rows: typeof givenRows = [];
-      for (const row of givenRows) rows.push({ ...row, values: await sealLanding(action, target, context, row.values, heldOf(row)) });
+      const seals = await sealsLanding(action, target, context);
+      for (const row of givenRows) rows.push({ ...row, values: await sealLanding(action, target, context, row.values, heldOf(row), seals) });
       if (action !== 'delete') await freshCodes(target);
       const hooks = current();
       const withRules = beforeOpts?.rules !== false;

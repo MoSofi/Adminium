@@ -48,6 +48,7 @@ import { z } from 'zod';
 import { auditExempt } from '../../audit/coverage.js';
 import { formsReach, type FormsReachFacts } from '../../forms/reach.js';
 import { ipv6Network, rateAddress } from '../../public-api/limiter.js';
+import { hostOf, normalizeHost } from '../../security/csrf.js';
 import { tagRoutes } from '../../security/route-audience.js';
 import { isKnownBot, isPrefetch } from '../../views/bots.js';
 import type { TrackingLevel } from '../../views/counter.js';
@@ -75,10 +76,19 @@ const NETWORKS_MAX = 50_000;
 
 const yesBody = z.object({ language: z.string().max(20).optional() }).strict();
 
-/** Whether a request is a browser's own page on this host asking. */
-export function sameOriginOf(request: Pick<FastifyRequest, 'headers' | 'protocol' | 'host'>): boolean {
+/**
+ * Whether a request is a browser's own page on this host asking. The host is
+ * compared alone, as the staff origin check compares it (`security/csrf.ts`):
+ * behind a proxy that ends TLS and is not trusted (no `ADMINIUM_TRUST_PROXY`),
+ * the request reads as `http` while the visitor's page is `https`. Where the
+ * browser sends `Sec-Fetch-Site`, it still tells a page on another scheme,
+ * port or site apart.
+ */
+export function sameOriginOf(request: Pick<FastifyRequest, 'headers' | 'host'>): boolean {
   const origin = request.headers.origin;
-  if (typeof origin !== 'string' || origin !== `${request.protocol}://${request.host}`) return false;
+  if (typeof origin !== 'string') return false;
+  const originHost = hostOf(origin);
+  if (originHost === null || originHost !== normalizeHost(request.host)) return false;
   const site = request.headers['sec-fetch-site'];
   if (site !== undefined && site !== 'same-origin') return false;
   // A known bot or script, or a prefetch, never answers the banner.

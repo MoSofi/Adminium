@@ -89,3 +89,13 @@ export async function primaryKeyColumns(db: Kysely<unknown>, dialect: MetaDialec
   `.execute(db);
   return rows.rows.map((row) => row.col);
 }
+
+/**
+ * An index, made unless a run before this one made it: what makes a wave
+ * that adds indexes safe to run again after a stop on MySQL, which knows no
+ * `CREATE INDEX IF NOT EXISTS`.
+ */
+export async function createIndexUnlessMade(db: Kysely<unknown>, dialect: MetaDialect, name: string, table: string, columns: string[]): Promise<void> {
+  if (await indexExists(db, dialect, table, name)) return;
+  await db.schema.createIndex(name).on(table).columns(columns).execute();
+}

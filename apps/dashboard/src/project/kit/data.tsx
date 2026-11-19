@@ -22,13 +22,18 @@ import { getI18nInstance, t } from '../../i18n/t.js';
 import { lucideByName } from '../../lib/lucide.js';
 import { InProjectCardContext } from './surface.js';
 
-/** A kit column as the grid's column spec. */
+/**
+ * A kit column as the grid's column spec. A column with no words for its
+ * header (an empty label, as a column of buttons is often given) is headed by
+ * its key: the grid needs a name for every column, and a page must never fail
+ * to draw over a header.
+ */
 export function toColumnSpec(column: DataTableColumn): GridColumnSpec {
   const type = column.type ?? 'text';
   const numeric = type === 'number' || type === 'money' || type === 'percent';
   return gridColumnSpecSchema.parse({
     name: column.key,
-    label: column.label,
+    label: typeof column.label === 'string' && column.label.trim() !== '' ? column.label : column.key,
     logicalType:
       type === 'number' || type === 'money' || type === 'percent'
         ? 'decimal'

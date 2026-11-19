@@ -92,6 +92,7 @@ import { registerIntrospectJob } from './connections/introspect.js';
 import { createLocalDatabases, localDatabasesMode } from './connections/local-databases.js';
 import type { ConnectionManager } from './connections/manager.js';
 import { privilegesOf } from './connections/privileges.js';
+import { addOnWriteJudges } from './crud/add-on-write-judges.js';
 import { UndoStore } from './crud/undo.js';
 import { seedBuiltinEmailTemplatesIfChanged } from './email/builtins.js';
 import { configureSmtpNetwork, emailSecretKey } from './email/config.js';
@@ -146,7 +147,7 @@ import { chatSettingsLink, tellChatPaused } from './chat/notices.js';
 import { createChatStore, type ChatStore } from './chat/store.js';
 import { createChatStaff, type ChatStaff } from './chat/staff.js';
 import { createChatWaiting, type ChatWaiting } from './chat/waiting.js';
-import { chatOwnTable, sweepChatTranscripts } from './chat/transcripts.js';
+import { sweepChatTranscripts } from './chat/transcripts.js';
 import { landingPagesTable } from './landing/seal.js';
 import { createLandingEndings } from './landing/ending.js';
 import { createLandingCatalog } from './landing/catalog.js';
@@ -1399,11 +1400,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     releases: async (connectionId, tableId) => [...(await outboxProducers.releasing(connectionId, tableId)), ...(await formsFiles.releasing(connectionId, tableId))],
     // A forms add-on's answers and their files are written by Adminium alone: staff read and delete them, never write them.
     // …and a chat add-on's conversations, messages and choices: staff act through the chat's own routes (`routes/chat`).
-    ownRecords: async (connectionId, tableId) => (await formsFiles.ownTable(connectionId, tableId)) || chatOwnTable(await addOnInstalls.fresh(), connectionId, tableId),
     // …and those three chat tables are not a person's to delete either (a forms answer is): only the keeping sweep and an erasure remove them.
-    sealedRecords: async (connectionId, tableId) => chatOwnTable(await addOnInstalls.fresh(), connectionId, tableId),
     // A landing pages add-on's pages: a page goes live, or its published copy is written, only whole, unmarked and at an address no other page holds.
-    landingPages: async (connectionId, tableId) => landingPagesTable(await addOnInstalls.fresh(), connectionId, tableId),
+    // What is installed is read once per write for all three (`crud/add-on-write-judges.ts`).
+    ...addOnWriteJudges(addOnInstalls),
     // A file column names only a file its writer uploaded and no record holds; a picture, one cleaned as it came in.
     // A page's file column too, when a person saves it: what it newly names is an upload of theirs.
     files: createFileColumnJudge({

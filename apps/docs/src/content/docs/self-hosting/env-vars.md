@@ -1019,7 +1019,7 @@ ADMINIUM_OPERATOR_EVENTS_URL=https://control.example.com/instance-events
 
 | Event | When | `data` |
 |---|---|---|
-| `public-page.changed` | A customer side or a live form changed, was published or was taken down; each one at boot the first time | `{ "side": … }` or `{ "form": … }`, as [`public-content`](/self-hosting/operator-endpoint/#get-apiv1operatorpublic-content) gives it, or `{ "side": { "appKey", "removed": true } }` |
+| `public-page.changed` | A customer side, a live form or a live landing page changed, was published or was taken down; each one at boot the first time | `{ "side": … }`, `{ "form": … }` or `{ "page": … }`, as [`public-content`](/self-hosting/operator-endpoint/#get-apiv1operatorpublic-content) gives it, or `{ "side": { "appKey", "removed": true } }`, `{ "form": { "slug", "removed": true } }` or `{ "page": { "slug", "removed": true } }` |
 | `super-admin.signed-in` | A Super Admin signed in | `{ "ip": "203.0.113.7" }` |
 | `email.cap-reached` | A cap of [your mail relay](#email-in-trial-mode) held mail back, once per cap and window | `{ "cap": "hour", "window": <ms>, "waiting": 1 }` |
 | `storage.over-80` | The data folder, or a database, reached 80% of [its cap](#size-caps-in-trial-mode); once per crossing | `{ "target": "files", "usedBytes", "limitBytes" }` |

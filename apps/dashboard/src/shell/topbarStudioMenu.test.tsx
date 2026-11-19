@@ -58,7 +58,7 @@ function stubFetch() {
   );
 }
 
-function renderTopbar(roles: string[], systemActions?: string[]) {
+function renderTopbar(roles: string[], systemActions?: string[], title = 'Customers') {
   stubFetch();
   const onOpenPayments = vi.fn();
   const onOpenStudio = vi.fn();
@@ -72,7 +72,7 @@ function renderTopbar(roles: string[], systemActions?: string[]) {
           <ShortcutsProvider>
             <Topbar
               bootstrap={makeBootstrap({ roles, ...(systemActions === undefined ? {} : { systemActions }) })}
-              title="Customers"
+              title={title}
               onOpenPalette={() => {}}
               onToggleSidebar={() => {}}
               sidebarExpanded
@@ -97,6 +97,16 @@ function renderTopbar(roles: string[], systemActions?: string[]) {
 afterEach(() => {
   vi.unstubAllGlobals();
   deployLink = undefined;
+});
+
+describe('the page title', () => {
+  it('carries its whole name, so a name cut short with an ellipsis can still be read', () => {
+    const long = 'Spring open day at the Leeds showroom, with the new booths and every desk to try';
+    renderTopbar(['admin'], undefined, long);
+    const heading = screen.getByRole('heading', { level: 1 });
+    expect(heading.textContent).toBe(long);
+    expect(heading.getAttribute('title')).toBe(long);
+  });
 });
 
 describe('avatar menu Studio section', () => {

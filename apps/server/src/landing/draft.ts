@@ -52,6 +52,7 @@ import { z } from 'zod';
 
 import { readAllowance, roundTokens, spend } from '../assistant/allowance.js';
 import { chatAiService, type ChatAiRefusal, type ChatAnswererDeps } from '../chat/answerer.js';
+import { draftFailureOf } from '../chat/draft.js';
 
 /** The most a draft may be: a long page's worth of JSON. */
 export const LANDING_DRAFT_MAX_TOKENS = 6000;
@@ -283,6 +284,8 @@ export interface LandingDraftInput {
   pagesHeld: (keys: readonly string[]) => Promise<ReadonlySet<string>>;
   at: number;
   timeoutMs?: number;
+  /** Told why a call to the model failed: never the prompt, never a key. */
+  warn?: (fields: Record<string, unknown>, message: string) => void;
 }
 
 /** The answer read as a page (see the header), or the issues why not. */
@@ -316,8 +319,10 @@ export async function draftLandingPage(input: LandingDraftInput): Promise<Landin
     try {
       const resolved = await input.ai.connections.client(service.connection.id, service.model);
       model = resolved.model;
-      reply = await withTimeout(resolved.client.complete({ system, messages, model: resolved.model, maxTokens: LANDING_DRAFT_MAX_TOKENS, temperature: 0.3 }), input.timeoutMs ?? LANDING_DRAFT_TIMEOUT_MS);
-    } catch {
+      // Temperature 0: every provider client refuses any other (`@adminium/llm` `assertEnrichmentTemperature`).
+      reply = await withTimeout(resolved.client.complete({ system, messages, model: resolved.model, maxTokens: LANDING_DRAFT_MAX_TOKENS, temperature: 0 }), input.timeoutMs ?? LANDING_DRAFT_TIMEOUT_MS);
+    } catch (error) {
+      input.warn?.(draftFailureOf(error), 'a landing page could not be drafted');
       return { ok: false, refused: 'failed', tokens, model };
     }
     const spent = roundTokens({ system, messages, reply: reply.text, usage: reply.usage });

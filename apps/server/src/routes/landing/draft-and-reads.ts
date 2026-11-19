@@ -264,6 +264,7 @@ export function landingDraftAndReadsRoutes(deps: LandingDraftAndReadsDeps): Fast
             }
           },
           at: now(),
+          warn: (fields, message) => request.log.warn(fields, message),
         });
         const audit = (outcome: string) =>
           app.rbac.audit(request, { category: 'llm', action: 'landing.draft', connectionId: landing.connectionId, changes: { after: { addOn: landing.key, outcome, model: drafted.model, tokens: drafted.tokens } } });

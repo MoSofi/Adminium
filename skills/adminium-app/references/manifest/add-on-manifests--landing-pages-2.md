@@ -2,6 +2,15 @@
 
 # Manifest spec: Add-on manifests — Landing pages
 
+The page has one main heading: the first hero's, else the first heading's, else its `title`, drawn
+for screen readers only. Every other heading of a block is a section's, and an item under a titled
+block is under that section.
+
+A package that declares landing pages serves them only when Adminium can vouch for its bytes, as
+forms and chat are.
+
+#### The pages door
+
 A live page answers at `/x/pages/<slug>`, on the public address, on every host mapped to the add-on
 pages and on an app's customer domain alike. Its data is read from `/x/pages/api/<slug>` and its
 pictures from `/x/pages/api/<slug>/pictures/<file id>`. A page answers only while its row is `live`,
@@ -9,8 +18,10 @@ its `published` copy is a whole page document with no Milo mark, its add-on is s
 vouched for, the privacy notice is set, and visitors can reach the server (the forms door's own
 check). Anything else, a draft, a page switched off, a slug nobody has, a copy that no longer reads,
 answers one same "This page isn't available." `?preview=1` draws the page's `draft`, marks and
-all, for a signed-in person who may read the pages table; it sends nothing, counts nothing and is
-never indexed. A host's home page may be a live page: `/x/pages/<slug>`, never the door's `api`.
+all, for a signed-in person who may read the whole pages table (a role held to some of its rows is
+refused); it sends nothing, counts nothing, is never indexed, and its pictures are never cached.
+Every other request to the door is a stranger's, whatever cookie it carries: a signed-in person's
+session is not read there. A host's home page may be a live page: `/x/pages/<slug>`, never the door's `api`.
 
 **The head.** Adminium writes the page's head on the server, so a link preview, which runs no
 script, sees the page: `<html lang dir>` from the page's language, `<title>` from `title`, the
