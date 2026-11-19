@@ -1,5 +1,13 @@
 # @adminium/add-on-contracts
 
+## 0.3.66
+
+### Patch Changes
+
+- e1eb2f5: An add-on page's calls can now be stopped for real. The `api` a page is handed takes a last `{ signal }` argument on every verb; aborting it cancels the request itself, so the server sees it go and stops its own work (a look-up at a register, say), instead of the page only ignoring the answer when it comes.
+- 765ae5e: A new contract, `lead-source@1`, for add-ons that find companies and the people at them: check the owner's key, find companies by activity and place, fill in one company by its number or its name and town, pick facts from a page Adminium read, and find the people at a company's domain. Every answer is checked against a fixed shape (every text bounded, every link https, at most 50 companies or people), and anything else is read as the source being unavailable. The add-on block gains `sources`, the places such an add-on reaches (each with its own hosts, inside `network.allow`, and its own secret key), and `leads`, the add-on's two tables for what was found. A demo source with made-up companies and a conformance suite that every adapter runs are at `@adminium/add-on-contracts/testing`.
+- a6d462f: An add-on can now name the kind of table its record action is for: a `record.actions` slot fill with `on: "companies"`, a `label` (and `labels` in other languages) and an `icon` is shown by Adminium's own record page on tables declared as companies (the new `addOn.slots.on` word). A source in `addOn.sources` can now carry its name as people read it (`label`, `labels`), used where Adminium says which source filled a field.
+
 ## 0.3.65
 
 ### Patch Changes

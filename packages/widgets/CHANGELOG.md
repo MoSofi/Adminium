@@ -1,5 +1,18 @@
 # @adminium/widgets
 
+## 0.3.66
+
+### Patch Changes
+
+- 949f8a1: A company's own page can now show an add-on's action beside Edit. On a table an app declares as companies, an add-on that fills in companies' details (and whose code Adminium loaded) adds its button, in its own words, to the record page; it opens a side sheet with the add-on's screen for that company, full width on a phone. Only someone who may change companies sees the button. Each field a source filled now says where it came from under its value ("From Companies House · 28 Jul"), for anyone who can read the record, until somebody changes that field: then its note goes and the others stay. When a fill is refused because somebody changed a field after the details were looked up, the refusal now names who changed it.
+- 8607fc5: A web address column in a table shows a link only to a web address (`https://`, `http://`), a page of this site, an e-mail address (`mailto:`) or a phone number (`tel:`). A bare address such as `www.example.com` links to it over `https://`. A value such as `javascript:` or `data:` is shown as plain text and never becomes something to click.
+- Updated dependencies [889261b]
+- Updated dependencies [ddd91f1]
+  - @adminium/i18n@0.3.66
+  - @adminium/charts@0.3.66
+  - @adminium/tokens@0.3.66
+  - @adminium/ui@0.3.66
+
 ## 0.3.65
 
 ### Patch Changes

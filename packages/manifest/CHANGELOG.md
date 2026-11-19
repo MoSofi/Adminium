@@ -1,5 +1,17 @@
 # @adminium/manifest
 
+## 0.3.66
+
+### Patch Changes
+
+- 182057a: An add-on's found people table (`addOn.leads.foundPeople`) now has an `email` column (text, at least 320 wide, nullable): the address a person was found with, where the mail that tells them goes. Adminium writes it with the row and erases it with the row.
+- f352d7d: New words for finding companies, read from Adminium 0.3.66: an add-on's `sources` (each key a secret setting of its own, each source's hosts reached through outbound-http), its `leads` tables (the people found and where each filled field came from, with the columns Adminium reads and writes, written by Adminium alone, never by a role, an app's grant or a step), and `lead` on an app's companies table, which says where a company's number, website, phone, address, activity, about and owner go. A package that provides the `lead-source` contract now says it needs Adminium 0.3.66 instead of being refused as an unknown contract.
+- a6d462f: An add-on can now name the kind of table its record action is for: a `record.actions` slot fill with `on: "companies"`, a `label` (and `labels` in other languages) and an `icon` is shown by Adminium's own record page on tables declared as companies (the new `addOn.slots.on` word). A source in `addOn.sources` can now carry its name as people read it (`label`, `labels`), used where Adminium says which source filled a field.
+- Updated dependencies [e1eb2f5]
+- Updated dependencies [765ae5e]
+- Updated dependencies [a6d462f]
+  - @adminium/add-on-contracts@0.3.66
+
 ## 0.3.65
 
 ### Patch Changes

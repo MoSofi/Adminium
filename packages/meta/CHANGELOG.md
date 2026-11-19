@@ -1,5 +1,13 @@
 # @adminium/meta
 
+## 0.3.66
+
+### Patch Changes
+
+- 380be40: Automation rules gain a step "Fill in the company", offered on a companies table while an add-on that finds companies is installed. It fills in only the empty details of the company the rule runs on, from the free registers you tick, by its company number or else its name and town. It never reads a website, never asks a paid service or a people search, and has its own daily budget of 50 look-ups on each register, so a form posted all night cannot spend your accounts. When it finds nothing, the run log says so.
+- 889261b: An add-on that finds companies is now told, through its data kit, which tables of its database hold companies: each table's label, the columns a company's number, website, phone, address, activity, about and owner go in, and the table's page the reader may open. The owner may point any of those details at another column of the table; a country is taken only on a column exactly two letters wide, and the owner only on a column that holds a staff member.
+- 889261b: An add-on that finds companies through several services keeps one key per service, saved, replaced, removed and checked one at a time on its Sources screen, with only the last four characters shown and the service's answer read as accepted, refused or can't reach. Each service has its own switch, a daily cap (100 calls for a paid one unless the owner sets another), a share of that cap for any one person, and a budget of 50 calls a day for automation rules (never more than the source's own cap); every call reserves before it runs, so calls at once never pass a cap together. A service that answers "too many" is left alone for the time it names, and only that service. Each call is handed only that service's key and a client that reaches only that service's hosts. The audit log names the service, never the key. The generic Connect form refuses such an add-on, as it refuses a payment service, and the Add-ons page lists the hosts each source may contact.
+
 ## 0.3.65
 
 ### Patch Changes

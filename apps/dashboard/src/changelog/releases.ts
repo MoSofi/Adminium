@@ -62,6 +62,24 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.66',
+    date: '2026-11-20',
+    title: 'Finding companies, and telling the people you keep',
+    summary:
+      'Add-ons can now find companies for you: in the UK, French and Norwegian registers by what they do and where, and fill in a company you already have from its register and its own website. If you choose to keep the people found at a company, Adminium tells each one at once where their details came from, with a way to object.',
+    changes: [
+      { tag: 'New', text: 'An add-on that finds companies searches the registers by trade and place, adds the ones you tick to your companies table as yours, and shows a company that is already there, even one a colleague keeps, without its details.' },
+      { tag: 'New', text: 'On a company’s own page, “Fill in details” reads the company’s register and one page of its website, shows what it found beside what you have, and fills only what you tick. A filled field says where it came from and when, until someone changes it.' },
+      { tag: 'New', text: 'People found at a company are kept only if you turn that on. Each one is mailed at once, in their country’s language, with what was kept, why, for how long, their rights and an Object button that deletes them. Nobody else can write to them until that mail has gone.' },
+      { tag: 'New', text: 'Automation rules gain a step “Fill in the company”, which fills only empty details from the free registers. It never reads a website.' },
+      { tag: 'New', text: 'An add-on can now keep one key per service it uses, each saved, checked and switched on its own, with a daily limit for paid services.' },
+      { tag: 'Improved', text: 'The add-ons that come with Adminium are now 1.0.31, Landing pages among them.' },
+      { tag: 'Improved', text: 'A website reader built into Adminium reads one page of a company’s site, asks robots.txt first, and keeps only the company’s own facts: never a person’s name, a named address or a mobile number.' },
+      { tag: 'Fixed', text: 'A table’s CSV download no longer hands a spreadsheet a formula, and a link cell never opens a javascript: address.' },
+      { tag: 'Security', text: 'Every add-on whose code Adminium runs now loads only from a package Adminium can vouch for. Add-ons that were already running keep running, and one that does not load now says so on the Add-ons page.' },
+    ],
+  },
+  {
     version: '0.3.65',
     date: '2026-11-19',
     title: 'Landing pages, and counting what visitors see',

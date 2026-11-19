@@ -1,5 +1,12 @@
 # @adminium/i18n
 
+## 0.3.66
+
+### Patch Changes
+
+- 889261b: The Add-ons page no longer offers its Connect form, its Connected badge or Disconnect for an add-on that keeps a key per source: it says to set up its sources on the add-on's own Sources screen. The audit log has a new category, "Finding companies", for those sources' keys and checks.
+- ddd91f1: Two places named a screen by the wrong words. Turning on People in an add-on that finds companies, when the privacy notice is missing, now says where to set it as the screen is labelled: Server settings → Privacy & public pages. In French, a rule's run log saying e-mail is not set up now points at "Paramètres → E-mail", as the settings screen is titled.
+
 ## 0.3.65
 
 ### Patch Changes

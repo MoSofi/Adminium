@@ -1,5 +1,33 @@
 # @adminium/dashboard
 
+## 0.3.66
+
+### Patch Changes
+
+- e1eb2f5: An add-on page's calls can now be stopped for real. The `api` a page is handed takes a last `{ signal }` argument on every verb; aborting it cancels the request itself, so the server sees it go and stops its own work (a look-up at a register, say), instead of the page only ignoring the answer when it comes.
+- 380be40: Automation rules gain a step "Fill in the company", offered on a companies table while an add-on that finds companies is installed. It fills in only the empty details of the company the rule runs on, from the free registers you tick, by its company number or else its name and town. It never reads a website, never asks a paid service or a people search, and has its own daily budget of 50 look-ups on each register, so a form posted all night cannot spend your accounts. When it finds nothing, the run log says so.
+- 949f8a1: A company's own page can now show an add-on's action beside Edit. On a table an app declares as companies, an add-on that fills in companies' details (and whose code Adminium loaded) adds its button, in its own words, to the record page; it opens a side sheet with the add-on's screen for that company, full width on a phone. Only someone who may change companies sees the button. Each field a source filled now says where it came from under its value ("From Companies House · 28 Jul"), for anyone who can read the record, until somebody changes that field: then its note goes and the others stay. When a fill is refused because somebody changed a field after the details were looked up, the refusal now names who changed it.
+- 889261b: The Add-ons page no longer offers its Connect form, its Connected badge or Disconnect for an add-on that keeps a key per source: it says to set up its sources on the add-on's own Sources screen. The audit log has a new category, "Finding companies", for those sources' keys and checks.
+- 54e292b: Every add-on contract whose code Adminium imports, and every add-on's event code, now loads only from a package Adminium can vouch for (one this build bundles, one downloaded from the catalogue, a kept copy of one of those, or a developer key outside production), not just payment providers and card readers. An add-on's server code runs inside Adminium and may be handed the owner's keys, so a package uploaded by hand from now on that provides any of them (artwork sources, delivery companies, personalisation, documents, the new company sources, event code) is left out by name and its code is never run. Uploading one says so at once, as the check before installing does, and the Add-ons page says on its row that its code did not load, with the way back: install it from the catalogue.
+  
+  What already ran keeps running. A package installed before this update that had no trust record (staged by Adminium 0.3.17 or older and never updated since, or uploaded by hand on a server with no catalogue) is recorded as trusted once, at the first start of this release, by the hash of its files as they were unpacked, so its document kinds, artwork sources, personaliser or carrier do not vanish at the update. A package whose files were changed on disk since it was unpacked is not, and nor is anything uploaded after that first start. A manifest that uses the new words for finding companies is refused by this release with the release that runs them.
+- 4a7fcf0: A found person is part of a person's data: the privacy page finds them by their address, the download says which source found them and when, the pages it saw their address on, why they were kept and when they were told, and an erasure removes it all, keeping only the day they were told. "How long we keep things" shows a row for the people an add-on found (3 years by default, from when they were found or the last time they wrote); the nightly sweep erases them after that, and erases anyone who could not be told within a month. A found person may be e-mailed only once their consent is recorded with how they agreed and a note; ticking "may be e-mailed" on them is refused. The privacy notice settings take an optional data privacy contact, and say what the notice must name while an add-on keeps the people it finds.
+- 889261b: An add-on that finds companies is now told, through its data kit, which tables of its database hold companies: each table's label, the columns a company's number, website, phone, address, activity, about and owner go in, and the table's page the reader may open. The owner may point any of those details at another column of the table; a country is taken only on a column exactly two letters wide, and the owner only on a column that holds a staff member.
+- Updated dependencies [e1eb2f5]
+- Updated dependencies [949f8a1]
+- Updated dependencies [889261b]
+- Updated dependencies [765ae5e]
+- Updated dependencies [a6d462f]
+- Updated dependencies [ddd91f1]
+- Updated dependencies [8607fc5]
+  - @adminium/add-on-contracts@0.3.66
+  - @adminium/widgets@0.3.66
+  - @adminium/i18n@0.3.66
+  - @adminium/engine@0.3.66
+  - @adminium/charts@0.3.66
+  - @adminium/tokens@0.3.66
+  - @adminium/ui@0.3.66
+
 ## 0.3.65
 
 ### Patch Changes
