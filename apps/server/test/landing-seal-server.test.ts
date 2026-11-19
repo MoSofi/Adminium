@@ -253,10 +253,11 @@ describe.each(LEGS)('the publish seal of a landing page — %s', (dialect, avail
     const key = await draft('one-read');
     await expect(writes.beforeEach('update', targetOf(pagesId), person, [{ match: { id: key }, values: { state: 'live', published: MARKED } }, { match: { id: key }, values: { state: 'live', published: MARKED } }])).rejects.toMatchObject({ details: { reason: 'landing-marked' } });
     expect(reads).toBe(1);
-    // A write Adminium makes itself skips the own-records check, so the seal reads what is installed for itself.
+    // A write Adminium makes itself skips the own-records check, so the seal reads what is installed for itself: once for two rows.
     reads = 0;
-    await expect(writes.check('update', targetOf(pagesId), { ...person, origin: 'import' }, [{ id: key, state: 'live', published: MARKED }])).rejects.toMatchObject({ details: { reason: 'landing-marked' } });
+    await writes.check('update', targetOf(pagesId), { ...person, origin: 'import' }, [{ id: key, name: 'One read' }, { id: key, name: 'One read again' }]);
     expect(reads).toBe(1);
+    await expect(writes.check('update', targetOf(pagesId), { ...person, origin: 'import' }, [{ id: key, state: 'live', published: MARKED }])).rejects.toMatchObject({ details: { reason: 'landing-marked' } });
   });
 
   it.skipIf(!available)('marks every block the assistant adds or changes in a draft, and never takes a mark off', async () => {
