@@ -457,6 +457,38 @@ describe.each(LEGS)('the lead door — %s', (dialect, available) => {
     expect(await company(950)).toMatchObject({ website: null, town: null });
   });
 
+  it.skipIf(!available)('before the first people are kept at a company a register filled, the register is asked again: one that objected since keeps nobody', async () => {
+    // Millbeck's number, filled from the register, is noted as the register's.
+    const look = await door('dana', 'lookup', { record: '902', sources: ['companies-house'] });
+    expect(look.statusCode, look.body).toBe(200);
+    const fill = await door('dana', 'fill', { record: '902', fields: [{ field: 'number', source: 'companies-house', now: null }] });
+    expect(fill.statusCode, fill.body).toBe(200);
+    // People are on (the switch's own checks are the People settings' to test).
+    const { db } = await h.manager.data(conn);
+    const settingsTable = table(KEY, 'finder_settings');
+    if ((await rows(`SELECT id FROM ${settingsTable}`)).length === 0) await db.insertInto(settingsTable as never).values({ keep_years: 3 } as never).execute();
+    await db.updateTable(settingsTable as never).set({ people_on: dialect === 'sqlite' ? 1 : true } as never).execute();
+    try {
+      const people = await door('dana', 'people', { record: '902', source: 'hunter' });
+      expect(people.statusCode, people.body).toBe(200);
+      expect(people.json()).toMatchObject({ domain: 'millbeck.example', people: [{ name: 'Jo Ashby', email: 'jo@millbeck.example', note: null }] });
+      // The register now says the business objected to sales contact: nobody is kept.
+      hooks.fillCompany = async (_context, query) => ({ ok: true, companies: [{ ref: 'gb-98001537', name: 'Millbeck Drawing Office', number: String(query['number']), natural: false, noMarketing: true }], next: null });
+      const refused = await door('dana', 'people/keep', { record: '902', source: 'hunter', emails: ['jo@millbeck.example'] });
+      expect(refused.statusCode, refused.body).toBe(409);
+      expect(refused.json().error).toMatchObject({ code: 'NO_SALES_CONTACT', message: 'This business asked not to be contacted for sales.' });
+      expect(await rows(`SELECT * FROM ${table('crm', 'contacts')} WHERE email = 'jo@millbeck.example'`)).toEqual([]);
+      // As it stands in the register: on to keeping them (here refused by the keeping's own checks: no mail server).
+      delete hooks.fillCompany;
+      const kept = await door('dana', 'people/keep', { record: '902', source: 'hunter', emails: ['jo@millbeck.example'] });
+      expect(kept.statusCode, kept.body).toBe(200);
+      expect(kept.json()).toMatchObject({ kept: [], refused: [{ email: 'jo@millbeck.example', reason: 'not-told-yet' }] });
+    } finally {
+      delete hooks.fillCompany;
+      await db.updateTable(settingsTable as never).set({ people_on: dialect === 'sqlite' ? 0 : false } as never).execute();
+    }
+  });
+
   it.skipIf(!available)('a source’s key never reaches another source’s host, end to end through the door', async () => {
     const seen: Doc[] = [];
     hooks.made = (context) => seen.push({ source: context['source'], key: context['key'] });
