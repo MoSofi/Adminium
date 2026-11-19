@@ -12,7 +12,7 @@
  *    loaded package still asked first; an add-on it does not name answers
  *    with its own code.
  */
-import { DEMO_LEAD_COMPANIES } from '@adminium/add-on-contracts/testing/lead-source';
+import { DEMO_LEAD_COMPANIES, DEMO_LEAD_PEOPLE } from '@adminium/add-on-contracts/testing/lead-source';
 import type { LeadSource } from '@adminium/add-on-contracts';
 import { manifestsRepo, type InstalledManifest, type ManifestsRepo } from '@adminium/meta';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -22,7 +22,8 @@ import type { AddOnRuntimeState } from '../src/add-ons/runtime.js';
 import { EnvValidationError, loadEnv } from '../src/config/env.js';
 import { SourceGate } from '../src/lead-sources/caps.js';
 import { withLeadSource, type LeadSourceDeps } from '../src/lead-sources/call.js';
-import { LEAD_SOURCE_DEMO_ENV, leadSourceDemoFor, leadSourceDemoKeys, leadSourceDemoProblem } from '../src/lead-sources/demo-seam.js';
+import { isDemoPersonAddress, LEAD_SOURCE_DEMO_ENV, leadSourceDemoFor, leadSourceDemoKeys, leadSourceDemoProblem } from '../src/lead-sources/demo-seam.js';
+import { reservedAddress } from '../src/outbox/sender.js';
 import { withSourceKey } from '../src/lead-sources/keys.js';
 import { mutateSourceState } from '../src/lead-sources/state.js';
 import { leadFinder } from '../../../packages/manifest/test/lead-finder-fixture.js';
@@ -75,6 +76,24 @@ describe('the demo source seam at boot', () => {
     }
     expect(await leadSourceDemoFor('another-add-on', { [LEAD_SOURCE_DEMO_ENV]: KEY })).toBeNull();
     expect(await leadSourceDemoFor(KEY, { [LEAD_SOURCE_DEMO_ENV]: KEY })).toBeTypeOf('function');
+  });
+});
+
+describe('the demo’s people may be mailed only while the seam is on', () => {
+  const robin = DEMO_LEAD_PEOPLE['kestrelyard.example']![0]!.email;
+
+  it('a demo person’s address is reserved, and is the exception only with the seam on', async () => {
+    expect(reservedAddress(robin)).toBe(true);
+    expect(await isDemoPersonAddress(robin, { [LEAD_SOURCE_DEMO_ENV]: KEY })).toBe(true);
+    expect(await isDemoPersonAddress(` ${robin.toUpperCase()} `, { [LEAD_SOURCE_DEMO_ENV]: KEY })).toBe(true);
+    expect(await isDemoPersonAddress(robin, {})).toBe(false);
+    for (const where of [{ NODE_ENV: 'production' }, { ADMINIUM_TRIAL_MODE: 'on' }, { ADMINIUM_HOSTED_MODE: 'on' }]) {
+      expect(await isDemoPersonAddress(robin, { ...where, [LEAD_SOURCE_DEMO_ENV]: KEY })).toBe(false);
+    }
+  });
+
+  it('no other reserved address is an exception', async () => {
+    for (const other of ['someone@kestrelyard.example', 'robin@example.com', 'robin@kestrelyard.test']) expect(await isDemoPersonAddress(other, { [LEAD_SOURCE_DEMO_ENV]: KEY })).toBe(false);
   });
 });
 

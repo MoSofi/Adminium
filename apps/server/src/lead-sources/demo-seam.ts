@@ -62,3 +62,18 @@ export async function leadSourceDemoFor(addOnKey: string, env: RawEnv = process.
   const { createDemoLeadSource } = await import('@adminium/add-on-contracts/testing/lead-source');
   return createDemoLeadSource;
 }
+
+/**
+ * Whether an address is one of the demo's made-up people while the seam is
+ * on. Their addresses sit at `.example` domains, which the outbox never
+ * writes to (`outbox/sender.ts` `reservedAddress`); with the seam on, a found
+ * person's tell mail to one of them goes to the test's own mail catcher, so
+ * a test can follow its Object link. Never in production: the seam is off
+ * there, and so is this.
+ */
+export async function isDemoPersonAddress(address: string, env: RawEnv = process.env): Promise<boolean> {
+  if (leadSourceDemoKeys(env).length === 0) return false;
+  const { DEMO_LEAD_PEOPLE } = await import('@adminium/add-on-contracts/testing/lead-source');
+  const wanted = address.trim().toLowerCase();
+  return Object.values(DEMO_LEAD_PEOPLE).some((people) => people.some((person) => person.email.toLowerCase() === wanted));
+}
