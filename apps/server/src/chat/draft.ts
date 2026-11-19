@@ -83,6 +83,24 @@ export interface ChatDraftInput {
   messages: readonly ChatMessage[];
   at: number;
   timeoutMs?: number;
+  /** Told why a call to the model failed: never the prompt, never a key. */
+  warn?: (fields: Record<string, unknown>, message: string) => void;
+}
+
+/**
+ * What a failed call to the model may say in the server's log: the provider,
+ * the kind of failure, its status and its own words (a provider client's
+ * message has its key scrubbed and never quotes the prompt). Nothing more.
+ */
+export function draftFailureOf(error: unknown): Record<string, unknown> {
+  if (error instanceof TimedOut) return { code: 'timeout' };
+  const known = error as { provider?: unknown; code?: unknown; status?: unknown; message?: unknown } | null;
+  return {
+    provider: typeof known?.provider === 'string' ? known.provider : null,
+    code: typeof known?.code === 'string' ? known.code : null,
+    status: typeof known?.status === 'number' ? known.status : null,
+    message: typeof known?.message === 'string' ? known.message.slice(0, 300) : String(error).slice(0, 300),
+  };
 }
 
 /** A draft (see the header), or why there is none. */
@@ -98,8 +116,10 @@ export async function draftChatReply(input: ChatDraftInput): Promise<ChatDraftOu
   let reply: { text: string; usage?: { inputTokens: number; outputTokens: number } };
   try {
     const resolved = await input.ai.connections.client(service.connection.id, service.model);
-    reply = await withTimeout(resolved.client.complete({ system, messages, model: resolved.model, maxTokens: CHAT_DRAFT_MAX_TOKENS, temperature: 0.2 }), input.timeoutMs ?? CHAT_DRAFT_TIMEOUT_MS);
-  } catch {
+    // Temperature 0: every provider client refuses any other (`@adminium/llm` `assertEnrichmentTemperature`).
+    reply = await withTimeout(resolved.client.complete({ system, messages, model: resolved.model, maxTokens: CHAT_DRAFT_MAX_TOKENS, temperature: 0 }), input.timeoutMs ?? CHAT_DRAFT_TIMEOUT_MS);
+  } catch (error) {
+    input.warn?.(draftFailureOf(error), 'a live chat reply could not be drafted');
     return { ok: false, refused: 'failed' };
   }
   const tokens = roundTokens({ system, messages, reply: reply.text, usage: reply.usage });

@@ -30,6 +30,7 @@ import {
   Copy,
   CreditCard,
   Download,
+  Eye,
   FileCheck2,
   FileText,
   ListChecks,
@@ -81,6 +82,7 @@ const ICONS: Record<SourceKind, LucideIcon> = {
   'chat-conversations': MessagesSquare,
   'chat-messages': MessageSquare,
   'chat-choices': ListChecks,
+  'page-visits': Eye,
   'found-people': UserSearch,
   'found-people-mail': MailCheck,
   'found-people-fields': FileCheck2,
@@ -121,6 +123,8 @@ function sourceLabel(source: Pick<FoundSource, 'kind' | 'label' | 'app'>): strin
       return t('studio:privacy.person.kind.invitations', 'Survey invitations');
     case 'form-files':
       return t('studio:privacy.person.kind.answerFiles', 'Files sent with form answers');
+    case 'page-visits':
+      return t('studio:privacy.sources.visits', 'Pages they saw');
     // A chat's tables always come with their own label: their words here are a floor, never met.
     case 'people':
     case 'copy':
@@ -154,7 +158,9 @@ function countOf(source: FoundSource): { pre: string; n: string; post: string } 
                 ? t('studio:privacy.person.chats', '{count, plural, one {# conversation} other {# conversations}}', { count: source.count })
                 : source.kind === 'chat-messages'
                   ? t('studio:privacy.person.chatMessages', '{count, plural, one {# message} other {# messages}}', { count: source.count })
-                  : new Intl.NumberFormat(locale()).format(source.count);
+                  : source.kind === 'page-visits'
+                    ? t('studio:privacy.sources.visitsCount', '{count, plural, one {# page visit} other {# page visits}}', { count: source.count })
+                    : new Intl.NumberFormat(locale()).format(source.count);
   // The number in mono (the comp's `n`), the words around it as they are.
   const digits = new Intl.NumberFormat(locale()).format(source.count);
   const at = words.indexOf(digits);

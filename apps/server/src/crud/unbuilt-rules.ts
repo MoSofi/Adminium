@@ -457,6 +457,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // A self-made app's deployment-wide part: applied only when ticked, by who may change the settings, in one
   // transaction with what it replaced kept for the undo (apps/manifest-instance.ts).
   'instance',
+  // An add-on's landing pages: drawn for strangers by the pages door (routes/pages-door), their publish sealed (landing/seal.ts).
+  'addOn.landing',
   // An add-on's sources and the contract they answer by: each source's key, switch and caps, and one call to one
   // source with its own key and hosts (lead-sources/, routes/add-ons/sources.ts).
   'addOn.sources',

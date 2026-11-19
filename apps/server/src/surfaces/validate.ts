@@ -133,11 +133,12 @@ export function validateDomainEntries(
 
 /**
  * The doors under `/x/`, each serving its pages one name below it
- * (`/x/forms/<form>`, `/x/chat/<add-on>`) and its own calls beside or below
- * them (`/x/forms/api/…`, `/x/chat/<add-on>/messages`). A new door is added
- * here, and its calls are never a pages home from then on.
+ * (`/x/forms/<form>`, `/x/chat/<add-on>`, `/x/pages/<page>`) and its own
+ * calls beside or below them (`/x/forms/api/…`, `/x/chat/<add-on>/messages`,
+ * `/x/pages/api/…`). A new door is added here, and its calls are never a
+ * pages home from then on.
  */
-export const X_DOORS: readonly string[] = ['forms', 'chat'];
+export const X_DOORS: readonly string[] = ['forms', 'chat', 'pages'];
 
 /**
  * A home page a pages host sends `/` to: a page address under `/x/`, in lower

@@ -140,7 +140,8 @@ for (const dialect of TEST_DIALECTS) {
       try {
         const before = ALL_MIGRATIONS.filter((m) => m.name < '0094_chat_ai_tally');
         await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: before });
-        expect((await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS })).applied).toEqual(['0094_chat_ai_tally', '0095_chat_ai_addresses', '0099_source_days']);
+        // Later waves apply after these two.
+        expect((await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS })).applied.slice(0, 2)).toEqual(['0094_chat_ai_tally', '0095_chat_ai_addresses']);
         expect(await chatAiTallyRepo(t.meta).day(DAY)).toBeNull();
       } finally {
         await t.destroy();
@@ -159,7 +160,7 @@ for (const dialect of TEST_DIALECTS) {
           .insertInto('adminium_chat_ai_addresses' as never)
           .values({ install_id: 'inst-1', add_on: 'live-chat', day: '2026-11-18', address_hash: 'h:a', conversation_id: 41, created_at: T0 } as never)
           .execute();
-        expect((await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS })).applied).toEqual(['0095_chat_ai_addresses', '0099_source_days']);
+        expect((await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS })).applied[0]).toBe('0095_chat_ai_addresses');
         expect(await chatAiTallyRepo(t.meta).addressUse({ installId: 'inst-1', addOn: 'live-chat' }, 'h:a', T0)).toEqual({ conversations: 0, tokens: 0 });
       } finally {
         await t.destroy();

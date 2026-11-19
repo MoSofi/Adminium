@@ -6,7 +6,8 @@
  *
  *   GET  /x/forms/:slug                    the form's page (the `x` bundle); `?frame=1` draws it for a website's frame;
  *                                          `?preview=1` its saved draft, for staff who may read the add-on's forms
- *   GET  /x/forms/api/:slug                what a stranger is shown of the form, in one of its languages
+ *   GET  /x/forms/api/:slug                what a stranger is shown of the form, in one of its languages; `?on=<page key>`:
+ *                                          the form block on a landing page asking (counted as "opened" on that page)
  *   GET  /x/forms/api/:slug/challenge      the human check, bound to the form (solved when Send is pressed)
  *   POST /x/forms/api/:slug/answers        a stranger's answer (`forms/answer.ts`)
  *   POST /x/forms/api/:slug/files          the file door: one file for a file question (`files.ts`)
@@ -34,6 +35,10 @@
  *   that is sent with it does (`forms/answer.ts`).
  * - A stranger is never shown what an answer becomes, who is told, or the
  *   form's hourly cap (`forms/view.ts`).
+ * - A form that ends on one of the business's landing pages (`landing`) is
+ *   served with that page's address on the host asked, while the page is
+ *   live, and with the default thanks otherwise (`landing/ending.ts`); a sent
+ *   answer's `url` says the same.
  * - Every answer carries the page's own content policy ({@link xContentPolicy}),
  *   set by the `/x/` doors' shared `onSend` (`../x-door/headers.ts`), after the global hooks: scripts, styles and
  *   fonts from `/x/assets/` on this host only. A form drawn for a frame may be
@@ -42,6 +47,35 @@
  *   `X-Frame-Options` is taken off here: the policy's `frame-ancestors` says it.
  * - Nothing is cached but the hashed files (and the loader, for minutes), and
  *   no referrer leaves.
+ *
+ * ─── COUNTING (`views/counter.ts`) ─────────────────────────────────────────
+ * A live form's data read counts one view: `form-page` on its own page or in
+ * a frame, `form-opened` with `?on=<page key>` (the form block on a landing
+ * page, asking as it nears the screen; the place is that page's key). An
+ * answer kept counts `form-sent` after its write stood, with the same
+ * `?on=`; a trap, a refused or failed answer counts nothing. A form that is
+ * not live, a preview and a made-up slug count nothing. Counting never
+ * changes what the door answers.
+ *
+ * ─── A FORM ON A LANDING PAGE (`?on=<page key>`) ───────────────────────────
+ * `on` names a place only when it is the key of a live landing page (of an
+ * install switched on and vouched for, `landing/catalog.ts`) whose published
+ * copy holds a Form block for exactly this form: the block's forms add-on and
+ * form key, resolving to the slug asked. Then the form is the BLOCK's (found
+ * by its add-on and key, never by the slug alone, so another forms install
+ * holding the same slug never takes the page's answers), for the read, its
+ * human check, its files and its answer alike. Anything else (a made-up key,
+ * a page that does not hold this form) is no place: the read counts
+ * `form-page` with none, and the form is found by its slug as on its own
+ * page.
+ *
+ * At "Per visitor", a form's own page (never a frame, never a form block
+ * asking with `?on=`) is told the banner's words and whether this browser
+ * said yes (`views/visitor.ts`); a view of a visitor who said yes is kept as
+ * a visit; and an answer kept with the visitor's cookie joins the answer's
+ * address (its keyed hash) onto them; a second address sent from the same
+ * browser starts a new visitor (a new cookie), so neither address holds the
+ * other's visits. In a frame no cookie is read or set.
  *
  * ─── THE PREVIEW ───────────────────────────────────────────────────────────
  * `?preview=1` on the page and on its read draws a form's saved DRAFT,
@@ -74,14 +108,22 @@ import type { PublicUploads } from '../../public-uploads/store.js';
 import { formsReach } from '../../forms/reach.js';
 import type { ListedWebsites } from '../../forms/websites.js';
 import { previewForm, type PreviewForm } from '../../forms/preview.js';
-import { businessToday, formLanguageFor, strangerBusiness, strangerForm } from '../../forms/view.js';
+import { businessToday, formLanguageFor, strangerBusiness, strangerForm, type StrangerForm } from '../../forms/view.js';
+import { servedEnding, type LandingEndings } from '../../landing/ending.js';
+import { requestHostOrigin } from '../../security/public-origin.js';
 import type { FileStore } from '../../files/store.js';
 import { issueChallenge, PROOF_DIFFICULTY, proofKey } from '../../public-api/proof.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../payments/ways.js';
 import { formsFileRoutes } from './files.js';
 import { tagRoutes } from '../../security/route-audience.js';
 import { framedPageOf, xContentPolicy, xDoorHeaders } from '../x-door/headers.js';
+import { strangerDoor } from '../x-door/stranger.js';
+import { directionOf, type XHead } from '../x-door/head.js';
 import { xPages, type XPageWords } from '../x-door/page.js';
+import type { ViewCounter } from '../../views/counter.js';
+import type { VisitorDoor } from '../../views/visitor.js';
+import type { LandingCatalog } from '../../landing/catalog.js';
+import { mayPreview } from '../x-door/preview-reader.js';
 
 export interface FormsDoorDeps {
   meta: MetaDb;
@@ -101,6 +143,14 @@ export interface FormsDoorDeps {
   trustProxy: boolean;
   /** The store strangers' files go to: the file door is open with it, and "not available" without. */
   uploads?: PublicUploads | undefined;
+  /** A form's `landing` ending, looked up as it is served (`landing/ending.ts`); absent, such an ending is the default thanks. */
+  endings?: LandingEndings | undefined;
+  /** The view counter; absent, nothing is counted. */
+  views?: Pick<ViewCounter, 'count'> | undefined;
+  /** "Per visitor": the banner's words, the visitor's cookie and the join; absent, nothing of it. */
+  visitors?: VisitorDoor | undefined;
+  /** The landing pages a form block's `?on=` names (`landing/catalog.ts`); absent, `on` names no place. */
+  landing?: Pick<LandingCatalog, 'formBlockOn'> | undefined;
   now?: () => number;
 }
 
@@ -132,7 +182,14 @@ export { xContentPolicy };
 const slugParams = z.object({ slug: z.string().min(1).max(120) });
 /** A named survey's token, as its link carries it: anything that is not one opens nothing (`forms/invitation.ts`). */
 const tokenField = z.string().max(2000).optional();
-const pageQuery = z.object({ frame: z.string().max(8).optional(), lang: z.string().max(20).optional(), t: tokenField, preview: z.string().max(8).optional() }).passthrough();
+const pageQuery = z.object({ frame: z.string().max(8).optional(), lang: z.string().max(20).optional(), t: tokenField, preview: z.string().max(8).optional(), on: z.string().max(64).optional() }).passthrough();
+/** An answer's query: the landing page the form block sat on, when it sat on one. */
+const answerQuery = z.object({ on: z.string().max(64).optional() }).passthrough();
+
+/** A landing page's key as `?on=` may name it: a numbered key (every landing table has one); anything else is no place, unread. */
+export function placeOf(on: unknown): string | null {
+  return typeof on === 'string' && /^[0-9]{1,19}$/.test(on) ? on : null;
+}
 const challengeQuery = z.object({ t: tokenField, preview: z.string().max(8).optional() }).passthrough();
 
 /** Whether a request says it is a form's preview. */
@@ -150,6 +207,18 @@ const FORMS_PAGE_WORDS: XPageWords = {
   unavailable: { key: 'x:ending.unavailable', fallback: 'This page isn’t available.' },
 };
 
+/**
+ * The head of a live form's page (`../x-door/head.ts`): its language and
+ * direction, and its title in that language when it is one line; undefined
+ * (the bundle's own head) for a form with no such title.
+ */
+function formHead(live: LiveForm, asked: unknown, acceptLanguage: string | undefined): XHead | undefined {
+  const language = formLanguageFor(live.form.definition, asked, acceptLanguage);
+  const title = live.form.definition.title[language];
+  if (title === undefined || /[\r\n]/.test(title) || title.trim() === '') return undefined;
+  return { lang: language, dir: directionOf(language), title, indexable: false };
+}
+
 /** The pages of this door a listed website may frame, with `?frame=1`: a form's page. */
 export const FORMS_FRAMED_PAGES: readonly RegExp[] = [/^\/x\/forms\/[^/]+$/];
 
@@ -162,10 +231,37 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
     return (await formsReach(meta, deps, request)).state === 'reachable';
   }
 
-  /** The form a request names as the catalog has it, a named survey included; never live while the outside cannot reach the server. */
+  /** What a request's `?on=` resolves to, once per request: the Form block on a live landing page, for the slug asked. */
+  const blocks = new WeakMap<FastifyRequest, Promise<{ addOn: string; form: string; place: string } | null>>();
+  function blockOn(request: FastifyRequest, slug: string): Promise<{ addOn: string; form: string; place: string } | null> {
+    let found = blocks.get(request);
+    if (found === undefined) {
+      const on = placeOf((request.query as { on?: unknown } | undefined)?.on);
+      const landing = deps.landing;
+      found =
+        on === null || landing === undefined
+          ? Promise.resolve(null)
+          : landing
+              .formBlockOn(on, slug, async (addOn, key) => {
+                const form = await catalog.byKey(addOn, key);
+                return form.state === 'live' ? form.live.slug : null;
+              })
+              .then((block) => (block === null ? null : { addOn: block.addOn, form: block.form, place: block.page.key }))
+              .catch(() => null);
+      blocks.set(request, found);
+    }
+    return found;
+  }
+
+  /**
+   * The form a request names as the catalog has it, a named survey included;
+   * never live while the outside cannot reach the server. With a `?on=` that
+   * resolves (see the header), the Form block's own form.
+   */
   async function findForm(request: FastifyRequest, slug: string) {
     if (!(await reachable(request))) return { state: 'unavailable' as const };
-    return catalog.find(slug);
+    const block = await blockOn(request, slug);
+    return block === null ? catalog.find(slug) : catalog.byKey(block.addOn, block.form);
   }
 
   /**
@@ -182,18 +278,40 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
     return invited.state === 'open' ? { state: 'live', live: found.live, invitation: invited.invitation } : invited;
   }
 
+  /** The origin a request is served on (the host the form is drawn on), or null for a Host no address can be written for. */
+  function servedOrigin(request: FastifyRequest): string | null {
+    try {
+      return requestHostOrigin(request);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * A form as a stranger is served it on this request's host: a `landing`
+   * ending becomes its live page's address there, or the default thanks
+   * (`landing/ending.ts`). Every other ending goes out as it is.
+   */
+  async function withEnding(request: FastifyRequest, form: StrangerForm, connectionId: string): Promise<StrangerForm> {
+    const { definition } = form;
+    if (definition.ending.kind !== 'landing') return form;
+    if (deps.endings === undefined) return { ...form, definition: { ...definition, ending: servedEnding(definition.ending, null, null) } };
+    return { ...form, definition: await deps.endings.serve(definition, connectionId, servedOrigin(request)) };
+  }
+
   /** The requests answered with a preview: framed by this host alone. */
   const previewing = new WeakSet<FastifyRequest>();
 
   /**
    * A form's draft for its preview: only for a signed-in person who may read
-   * the forms table that holds it; null for everyone else, and for a draft
-   * with nothing to draw (see the header).
+   * the forms table that holds it whole (a role held to some of its rows is
+   * refused, `../x-door/preview-reader.ts`); null for everyone else, and for
+   * a draft with nothing to draw (see the header).
    */
   async function previewOf(request: FastifyRequest, slug: string): Promise<(PreviewForm & { connectionId: string }) | null> {
     if (request.user === null || request.user === undefined || request.session === null || request.session === undefined) return null;
     const found = await catalog.draft(slug);
-    if (found === null || !(await request.can(`table:${found.connectionId}:${found.formsTable}:read`))) return null;
+    if (found === null || !(await mayPreview(meta, request, found.connectionId, found.formsTable))) return null;
     const drawn = previewForm(found.definition, found.settings);
     if (drawn === null) return null;
     previewing.add(request);
@@ -203,6 +321,8 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
   return async (app) => {
     // Doors anybody may open: hidden with the other public pages (`security/route-audience.ts`).
     tagRoutes(app, 'public');
+    // A stranger's door: a signed-in person's session or key is let go, a preview's read aside (`../x-door/stranger.ts`).
+    strangerDoor(app);
     // Last word on the headers of everything this plugin answers (`../x-door/headers.ts`).
     xDoorHeaders(app, { framed: framedPageOf(FORMS_FRAMED_PAGES), websites: deps.websites, previewing: (request) => previewing.has(request) });
 
@@ -217,6 +337,8 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
     app.get('/x/forms/:slug', { config: { rateLimitBucket: 'forms-door' }, schema: { hide: true, params: slugParams, querystring: pageQuery } }, async (request, reply) => {
       if (request.query.preview !== undefined) return page(request, reply, request.query.preview === '1' && (await previewOf(request, request.params.slug)) !== null ? 'live' : 'unavailable');
       const found = await lookUp(request, request.params.slug, request.query.t);
+      // A live form's page is titled with the form's own title, in the language it is drawn in; never indexed.
+      if (found.state === 'live') return page(request, reply, 'live', formHead(found.live, request.query.lang, request.headers['accept-language']));
       // A survey answered already is a page the script draws its card on; a link that does not work is a page that is not there.
       return page(request, reply, found.state === 'already' ? 'live' : found.state === 'dead' ? 'unavailable' : found.state);
     });
@@ -229,7 +351,7 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
         return {
           state: 'live',
           ...(await strangerBusiness(meta)),
-          form: strangerForm(draft.form, language),
+          form: await withEnding(request, strangerForm(draft.form, language), draft.connectionId),
           today: await businessToday(meta, draft.connectionId, now()),
           // The page sends nothing, and says so; the questions the draft could not draw are named for the builder.
           preview: true,
@@ -243,10 +365,16 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
       const { live, invitation } = found;
       const language = formLanguageFor(live.form.definition, request.query.lang, request.headers['accept-language']);
       const frame = request.query.frame === '1';
+      // One view of a live form: opened as a live landing page's form block (`?on=`, resolved), else on its own page or in a frame.
+      const place = (await blockOn(request, request.params.slug))?.place ?? null;
+      deps.views?.count({ installId: live.installId, kind: place === null ? 'form-page' : 'form-opened', thing: live.id, place: place ?? '', request, framed: frame });
+      // The banner on a form's own page only: never in a frame (the block says nothing there), never for a form block a landing page draws.
+      const visitor = deps.visitors === undefined || request.query.on !== undefined ? {} : await deps.visitors.block(request, { language, framed: frame });
       return {
         state: 'live',
         ...shared,
-        form: strangerForm(live.form, language),
+        ...visitor,
+        form: await withEnding(request, strangerForm(live.form, language), live.connectionId),
         today: await businessToday(meta, live.connectionId, now()),
         // Only a frame asks which websites it may answer: the loader's first message must come from one.
         ...(frame ? { frameOrigins: [...(await deps.websites())] } : {}),
@@ -272,7 +400,7 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
     };
 
     // A stranger's answer: taken by the answer door, all or nothing (a named survey's token is the door's to read, after the human check).
-    app.post('/x/forms/api/:slug/answers', { bodyLimit: ANSWER_BODY_LIMIT, config: posted, schema: { hide: true, params: slugParams } }, async (request, reply) => {
+    app.post('/x/forms/api/:slug/answers', { bodyLimit: ANSWER_BODY_LIMIT, config: posted, schema: { hide: true, params: slugParams, querystring: answerQuery } }, async (request, reply) => {
       // A preview's answer is never taken: refused before the form is even looked up, and nothing is written.
       if (asksPreview(request)) return unavailable(reply);
       const found = await findForm(request, request.params.slug);
@@ -281,6 +409,18 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
       const parsed = answerBodySchema.safeParse(request.body);
       const answered = await deps.answers.takeAnswer(request, found.live, parsed.success ? parsed.data : null);
       if (answered.status === 404) return unavailable(reply);
+      if (answered.status === 200 && 'kept' in answered && answered.kept !== undefined) {
+        // An answer kept, as an event: never a trap, a refusal or a failure. A frame's answer says where it sat (`from`).
+        const framed = parsed.success && parsed.data.from !== undefined;
+        deps.views?.count({ installId: found.live.installId, kind: 'form-sent', thing: found.live.id, place: (await blockOn(request, request.params.slug))?.place ?? '', request, framed });
+        if (!framed && answered.kept.email !== null) await deps.visitors?.join(request, reply, answered.kept.email);
+      }
+      // A sent answer of a form that ends on a landing page: that page's address on this host, while it is live.
+      const { ending } = found.live.form.definition;
+      if (answered.status === 200 && answered.body.state === 'sent' && ending.kind === 'landing') {
+        const served = servedEnding(ending, deps.endings === undefined ? null : await deps.endings.target(ending, found.live.connectionId), servedOrigin(request));
+        return reply.status(200).send(served.kind === 'page' ? { ...answered.body, url: served.url } : answered.body);
+      }
       return reply.status(answered.status).send(answered.body);
     });
 

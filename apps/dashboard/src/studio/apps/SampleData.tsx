@@ -58,6 +58,7 @@ import {
   type SampleDataStatus,
 } from './appsApi.js';
 import { useInstallId } from './installScope.js';
+import { SAMPLE_BANNER_FRAME } from './sampleBannerFrame.js';
 
 const CARD = 'rounded-[14px] border border-border bg-surface p-[18px] shadow-sm';
 
@@ -551,7 +552,7 @@ export function SampleDataBanner({ appKey, kind = 'app' }: { appKey: string; kin
   return (
     <div
       data-testid="app-sample-banner"
-      className="mb-3.5 flex flex-wrap items-center gap-[11px] rounded-[11px] border border-accent/25 bg-accent-soft px-3.5 py-2.5"
+      className={SAMPLE_BANNER_FRAME}
     >
       <Sprout aria-hidden className="size-[15px] shrink-0 text-accent" />
       <span className="min-w-[150px] flex-1 text-[12.5px] font-semibold text-fg">

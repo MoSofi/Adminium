@@ -109,6 +109,11 @@ describe('a manifest that uses a word this server does not run yet', () => {
     expect(unbuiltInManifest({ ...ADD_ON, addOn: { ledgers: [{ id: 'cards', actions: { pay: { decides: [{ input: 'amount' }] } } }] } })).toEqual([]);
   });
 
+  it('runs an add-on\'s landing pages: the door that serves them is built', () => {
+    expect(unbuiltInManifest({ ...ADD_ON, addOn: { landing: { pages: 'pages', funnels: 'funnels' } } })).toEqual([]);
+    expect(() => refuseUnbuiltManifest({ ...ADD_ON, addOn: { landing: { pages: 'pages', funnels: 'funnels' } } }, '"landing-pages"', '0.3.64')).not.toThrow();
+  });
+
   /** A word of a release after this one, as the list would hold it: every word there is today is run. */
   const LATER = { 'column.codeLast4': '0.3.21' };
 

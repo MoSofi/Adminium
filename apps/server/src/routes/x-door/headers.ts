@@ -9,15 +9,23 @@
  * word on its headers:
  *
  * - the page's own content policy ({@link xContentPolicy}): scripts, styles
- *   and fonts from `/x/assets/` on this host only, calls to this host only;
+ *   and fonts from `/x/assets/` on this host only, calls to `/x/` on this
+ *   host only (a script that ran anyway could not reach `/api/v1/` with a
+ *   member of staff's cookie), and Trusted Types required with no policy
+ *   allowed, so no HTML is ever written into the page as markup;
+ * - `Cross-Origin-Opener-Policy: same-origin`: a window this page opens, or
+ *   one that opened it, from another site holds no handle on it;
  * - `frame-ancestors`: the listed websites ("Your websites") for an answer the
  *   door says is drawn for a website's frame, this host alone for a staff
  *   preview, and nobody for everything else;
  * - no referrer, no type sniffing, `noindex` (a stronger header the server
- *   already set, as a trial's, is kept);
+ *   already set, as a trial's, is kept), save on an answer the door says may
+ *   be indexed (a live landing page on its canonical host);
  * - the dashboard's own `X-Frame-Options` taken off: the policy says who may
  *   frame, and that header would refuse every website;
- * - nothing cached, save the bundle's hashed files and the loader.
+ * - nothing cached, save the bundle's hashed files and the loader;
+ * - a file the door serves with headers of its own (a page's picture, with
+ *   its own sandboxing policy and its own cache time) keeps them.
  *
  * Which pages a website may frame is a list of path patterns
  * ({@link framedPageOf}): each door passes its own, so a new door's page is
@@ -39,11 +47,16 @@ export function xContentPolicy(origin: string, framers: readonly string[] = []):
     `script-src ${assets}`,
     `style-src ${assets}`,
     `font-src ${assets}`,
-    "img-src 'self' data:",
-    "connect-src 'self'",
+    // Pictures from this host only: no bundle draws a `data:` picture, and a page's own pictures are served under `/x/`.
+    "img-src 'self'",
+    // Every call the pages make is under the doors' own prefix: never the dashboard's API.
+    `connect-src ${origin}${X_PREFIX}/`,
     framers.length === 0 ? "frame-ancestors 'none'" : `frame-ancestors ${framers.join(' ')}`,
     "base-uri 'none'",
     "form-action 'none'",
+    // No script may write markup into the page: React draws text, and the bundle makes no policy.
+    "require-trusted-types-for 'script'",
+    "trusted-types 'none'",
   ].join('; ');
 }
 
@@ -55,6 +68,10 @@ export interface XDoorHeaderOptions {
   websites: () => Promise<readonly string[]>;
   /** Whether this answer is a staff preview: framed by this host alone, whatever else holds. */
   previewing: (request: FastifyRequest) => boolean;
+  /** Whether a search engine may index this answer (a live landing page on its canonical host); absent, none may. */
+  indexable?: ((request: FastifyRequest) => boolean) | undefined;
+  /** Whether this answer is a file served with its own policy and cache time (a page's picture); absent, none is. */
+  ownHeaders?: ((request: FastifyRequest) => boolean) | undefined;
 }
 
 /**
@@ -79,16 +96,21 @@ function originOf(request: FastifyRequest): string {
  */
 export function xDoorHeaders(app: FastifyInstance, options: XDoorHeaderOptions): void {
   app.addHook('onSend', async (request, reply, payload) => {
-    // A preview is framed by the builder on this host, and by nobody else.
-    const framers = options.previewing(request) ? ["'self'"] : options.framed(request) ? await options.websites() : [];
-    void reply.header('content-security-policy', xContentPolicy(originOf(request), framers));
+    const own = options.ownHeaders?.(request) === true;
+    // A file with its own policy (a picture's: nothing runs, sandboxed) keeps it; every other answer gets the page's.
+    if (!own) {
+      // A preview is framed by the builder on this host, and by nobody else.
+      const framers = options.previewing(request) ? ["'self'"] : options.framed(request) ? await options.websites() : [];
+      void reply.header('content-security-policy', xContentPolicy(originOf(request), framers));
+    }
+    void reply.header('cross-origin-opener-policy', 'same-origin');
     void reply.header('referrer-policy', 'no-referrer');
     void reply.header('x-content-type-options', 'nosniff');
     // Kept when the server already said more (trial mode's `noindex, nofollow`, `trial/public-pages.ts`).
-    if (reply.getHeader('x-robots-tag') === undefined) void reply.header('x-robots-tag', 'noindex');
+    if (reply.getHeader('x-robots-tag') === undefined && options.indexable?.(request) !== true) void reply.header('x-robots-tag', 'noindex');
     // The policy's frame-ancestors decides who may frame a page; the dashboard's own header would refuse every website.
     reply.removeHeader('x-frame-options');
-    if (!request.url.startsWith(`${X_PREFIX}/assets/`) && !request.url.startsWith(`${X_PREFIX}/embed.js`)) void reply.header('cache-control', 'no-store');
+    if (!own && !request.url.startsWith(`${X_PREFIX}/assets/`) && !request.url.startsWith(`${X_PREFIX}/embed.js`)) void reply.header('cache-control', 'no-store');
     return payload;
   });
 }

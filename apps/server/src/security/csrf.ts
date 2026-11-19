@@ -167,7 +167,8 @@ export function allowedOriginHosts(origins: readonly string[] | undefined): Read
 }
 
 /** `https://acme.adminium.app:8443` → `acme.adminium.app:8443`; null if unparseable. */
-function hostOf(value: string): string | null {
+/** The host of an `Origin` or `Referer` value, its default port dropped; null for `null` or anything unparseable. */
+export function hostOf(value: string): string | null {
   try {
     const { host } = new URL(value);
     return host === '' ? null : normalizeHost(host);

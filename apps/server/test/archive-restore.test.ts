@@ -421,10 +421,12 @@ describe('restore never writes', () => {
       (files) => {
         const path = 'adminium-archive/meta/adminium_settings.json';
         const dump = JSON.parse(Buffer.from(files[path] as Uint8Array).toString('utf8')) as { columns: string[]; rows: unknown[][] };
-        const row = dump.columns.map((column) =>
-          column === 'key' ? 'addOns.deciderTrust' : column === 'value' ? JSON.stringify({ 'evil@1.0.0': `sha512-${'B'.repeat(86)}==` }) : column === 'updatedAt' ? 1 : null,
-        );
-        dump.rows.push(row);
+        for (const key of ['addOns.deciderTrust', 'addOns.keptCopyTrust']) {
+          const row = dump.columns.map((column) =>
+            column === 'key' ? key : column === 'value' ? JSON.stringify({ 'evil@1.0.0': `sha512-${'B'.repeat(86)}==` }) : column === 'updatedAt' ? 1 : null,
+          );
+          dump.rows.push(row);
+        }
         const data = strToU8(JSON.stringify(dump));
         files[path] = data;
         editManifest(files, (m) => {
@@ -437,6 +439,8 @@ describe('restore never writes', () => {
     const result = await restoreArchive(restoreOptions({ ...src, archive: out }, dest));
     expect(result.sanitized.droppedSettings).toContain('addOns.deciderTrust');
     expect(await settingsRepo(dest.meta).get('addOns.deciderTrust')).toEqual({});
+    expect(result.sanitized.droppedSettings).toContain('addOns.keptCopyTrust');
+    expect(await settingsRepo(dest.meta).get('addOns.keptCopyTrust')).toEqual({});
   });
 });
 

@@ -18,6 +18,9 @@
  *   POST /privacy/erase/preview          what an erasure would do: what goes and what stays, with counts
  *   POST /privacy/erase                  erase the person in place, confirmed by the address typed again
  *   GET  /privacy/reach                  "Can visitors reach your public pages?": the forms door's own answer
+ *   GET  /privacy/counting               "Visitor counting": the level, when counting started, the banner's words, the notice
+ *   PUT  /privacy/counting               change the level and the banner's words ("Per visitor" needs the notice: 409)
+ *   PUT  /privacy/keeping                change how long the counting rows are kept, in months
  *   GET  /privacy/websites               the websites that may show a form in a frame ("Your websites")
  *   POST /privacy/websites               add several, every line checked, all or none
  *   POST /privacy/websites/remove        take one off the list
@@ -44,6 +47,14 @@
  * CORS list (`forms/websites.ts`). A refused add answers each line's code;
  * the page words them. Each add and remove is audited with the origins.
  *
+ * ─── Visitor counting ──────────────────────────────────────────────────────
+ * Under the privacy action. "Per visitor" is refused (409
+ * `PER_VISITOR_NEEDS_NOTICE`) while the privacy notice is not set. Going
+ * down from it deletes every visitor and visit row at once and writes ONE
+ * audit entry with the level before and after and the counts deleted (never
+ * an id). The counter in this process uses the new level at once; the others
+ * at their next minute's write, which reads it again (`views/counter.ts`).
+ *
  * ─── Erasing ────────────────────────────────────────────────────────────────
  * Under the same action, by a signed-in person, and never through the staff
  * write path: the erasure writes as the system (`privacy/erase.ts`), past
@@ -54,7 +65,7 @@
 import { WEBSITES_MAX } from '@adminium/add-on-contracts/forms/websites';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { filesRepo, isHttpsPageUrl, privacyExportsRepo, settingsRepo, usersRepo, type EnqueueJobInput, type MetaDb, type PrivacyExport } from '@adminium/meta';
+import { BANNER_LOCALES, filesRepo, isHttpsPageUrl, privacyExportsRepo, settingsRepo, usersRepo, type EnqueueJobInput, type MetaDb, type PrivacyExport, type SettingKey } from '@adminium/meta';
 
 import { audited } from '../../audit/coverage.js';
 import { AddressKeysLockedError, type ConsentService } from '../../consent/index.js';
@@ -71,7 +82,10 @@ import { erasePerson, previewErasure } from '../../privacy/erase.js';
 import { peopleFoundNotice } from '../../leads/notice.js';
 import type { AnswerFilesRemover } from '../../forms/answers.js';
 import { countsOf, PRIVACY_EXPORT_KIND, personHash } from '../../privacy/export.js';
-import { chatTranscriptsKeeping, foundPeopleKeeping, formAnswersKeeping, keepingRows } from '../../privacy/keeping.js';
+import { chatTranscriptsKeeping, foundPeopleKeeping, formAnswersKeeping, KEEPING_ROWS, keepingRows } from '../../privacy/keeping.js';
+import type { TrackingLevel } from '../../views/level.js';
+import { changeCounting, countingState, PerVisitorNeedsNotice } from '../../views/tracking.js';
+import { defaultBannerWords } from '../../views/visitor.js';
 import type { ChatForget } from '../../chat/transcripts.js';
 import { privacyScopeOf, refuseStaffAddress, type PrivacyScope } from '../../privacy/scope.js';
 import { findPerson, searchAddress, type PersonFound } from '../../privacy/sources.js';
@@ -79,9 +93,12 @@ import { normaliseAddress } from '../../public-api/claim-code.js';
 import { whatStays } from '../../privacy/what-stays.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import {
+  countingBody,
+  countingReply,
   eraseBody,
   erasePreviewReply,
   eraseReply,
+  keepingBody,
   keepingReply,
   postalAddressBody,
   postalAddressReply,
@@ -117,6 +134,8 @@ export interface PrivacyRoutesDeps {
   answerFiles?: AnswerFilesRemover | undefined;
   /** Makes the chat store forget an erased conversation (`chat/store.ts`). */
   chatForget?: ChatForget | undefined;
+  /** The view counter of this process: told a new level at once (`views/counter.ts`). */
+  counting?: { setLevel: (level: TrackingLevel) => void } | undefined;
 }
 
 /** One plain e-mail address, as the DPO contact setting takes it. */
@@ -360,9 +379,68 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
       },
     );
 
-    app.get('/privacy/keeping', { preHandler: privacy, schema: { response: { 200: keepingReply } } }, async () => ({
+    const keepingNow = async () => ({
       data: { rows: [...(await keepingRows((key) => settings.get(key))), ...(await formAnswersKeeping({ meta, manager: deps.manager })), ...(await chatTranscriptsKeeping({ meta, manager: deps.manager })), ...(await foundPeopleKeeping({ meta, manager: deps.manager }))] },
-    }));
+    });
+
+    app.get('/privacy/keeping', { preHandler: privacy, schema: { response: { 200: keepingReply } } }, async () => keepingNow());
+
+    // The rows a person may change (a setting behind them): each to one of its offered months, all or none.
+    app.put(
+      '/privacy/keeping',
+      { preHandler: privacy, config: { audit: audited('rbac') }, schema: { body: keepingBody, response: { 200: keepingReply } } },
+      async (request) => {
+        const changes: { setting: SettingKey; months: number; key: string }[] = [];
+        for (const row of request.body.rows) {
+          const def = KEEPING_ROWS.find((one) => one.key === row.key);
+          if (def === undefined || def.fixed || def.setting === undefined) throw new ValidationFailedError('That row cannot be changed here.', { field: 'rows', key: row.key });
+          if (!(def.options ?? []).includes(row.months)) throw new ValidationFailedError('Pick one of the offered months.', { field: 'rows', key: row.key });
+          changes.push({ setting: def.setting, months: row.months, key: row.key });
+        }
+        const at = app.rbac.now();
+        const before: Record<string, unknown> = {};
+        for (const change of changes) {
+          before[change.key] = await settings.get(change.setting);
+          await settings.set(change.setting as 'privacy.viewCountsMonths', change.months, { updatedBy: actingUserId(request), at });
+        }
+        await app.rbac.audit(request, { category: 'settings', action: 'privacy.keeping.update', changes: { before, after: Object.fromEntries(changes.map((change) => [change.key, change.months])) } });
+        return keepingNow();
+      },
+    );
+
+    // ── "Visitor counting" ──────────────────────────────────────────────────
+    async function countingNow(deleted?: { visitors: number; visits: number } | null) {
+      const state = await countingState(meta);
+      const defaults = Object.fromEntries(await Promise.all(BANNER_LOCALES.map(async (language) => [language, await defaultBannerWords(meta, language)] as const)));
+      return { data: { ...state, defaults, ...(deleted === undefined ? {} : { deleted }) } };
+    }
+
+    app.get('/privacy/counting', { preHandler: privacy, schema: { response: { 200: countingReply } } }, async () => countingNow());
+
+    app.put(
+      '/privacy/counting',
+      { preHandler: privacy, config: { audit: audited('rbac') }, schema: { body: countingBody, response: { 200: countingReply } } },
+      async (request) => {
+        let change: Awaited<ReturnType<typeof changeCounting>>;
+        try {
+          change = await changeCounting(meta, { level: request.body.level, banner: request.body.banner }, { by: actingUserId(request), at: app.rbac.now() });
+        } catch (error) {
+          if (error instanceof PerVisitorNeedsNotice) throw new AppError(409, 'PER_VISITOR_NEEDS_NOTICE', error.message, { field: 'level' });
+          throw error;
+        }
+        deps.counting?.setLevel(change.after);
+        // One entry: the levels, whether the words changed, and what going down deleted (counts, never an id).
+        await app.rbac.audit(request, {
+          category: 'settings',
+          action: 'privacy.counting.update',
+          changes: {
+            before: { level: change.before },
+            after: { level: change.after, bannerChanged: request.body.banner !== undefined, ...(change.deleted === null ? {} : { deleted: change.deleted }) },
+          },
+        });
+        return countingNow(change.deleted);
+      },
+    );
 
     // ── "Download everything" ───────────────────────────────────────────────
     app.post(

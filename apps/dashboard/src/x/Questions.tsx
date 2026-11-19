@@ -32,6 +32,8 @@ export interface QuestionProps {
   onChange: (value: Held) => void;
   /** A file question's rows, and what picking and removing a file does (the page sends each file as it is picked). */
   files?: { rows: readonly FileRow[]; onPick: (files: File[]) => void; onRemove: (key: string) => void } | undefined;
+  /** What sets this form's control ids apart from another form's on the same page (a landing page may hold two). */
+  scope?: string | undefined;
 }
 
 /** The owner's words for this question, in the page's one language. */
@@ -44,7 +46,7 @@ function nextDay(day: string): string {
 }
 
 /** The id a question's control carries: what the error summary and focus after Send move to. */
-export const controlId = (questionId: string): string => `x-q-${questionId}`;
+export const controlId = (questionId: string, scope = ''): string => `x-q-${scope}${questionId}`;
 
 function Mark({ required }: { required: boolean }): ReactNode {
   const t = useT();
@@ -105,7 +107,7 @@ export function Question(props: QuestionProps): ReactNode {
   const t = useT();
   const { question, value, error, tag, onChange } = props;
   const base = useId();
-  const id = controlId(question.id);
+  const id = controlId(question.id, props.scope);
   const labelId = `${base}-label`;
   const helpId = `${base}-help`;
   const errorId = `${base}-error`;

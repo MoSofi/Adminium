@@ -5972,7 +5972,7 @@ A value is plain JSON, or one of these directives:
 
 | Directive | Value |
 |---|---|
-| `{ "@ref": "<label>" }` | The key of an earlier row with that label. In an add-on's sample it may also be the label of one of the add-on's `seeds` rows (a unit the install wrote). |
+| `{ "@ref": "<label>" }` | The key of an earlier row with that label. In an add-on's sample it may also be the label of one of the add-on's `seeds` rows (a unit the install wrote). In a column, and anywhere inside a json value (a funnel's step, a page's link) down to 16 levels, where it is the key as text (`"7"`, not `7`): a json document names a row by a text key. A row whose key has several columns cannot be named inside json. |
 | `{ "@person": "<key>" }` | One of the manifest's [sample people](#sample-people): the staff member made for that key. In a [staff column](#whose-a-row-is) or another text column that holds a staff member's id, and anywhere inside a json value (a saved filter that names a rep). Only in the app's own sample file, not in its rows for an add-on. |
 | `{ "@ago": "PT19M" }` | An ISO 8601 duration before now. |
 | `{ "@in": "PT20M", "@grid": 15 }` | An ISO 8601 duration after now. With `@grid`, rounded up to the next step of that many minutes on the venue's own clock, counted from its midnight (never past the next midnight): the first pickup slot at least 20 minutes away. |
@@ -5982,7 +5982,8 @@ A value is plain JSON, or one of these directives:
 | `"@workdays": true` | Added to either `@day` form: the days count Monday to Friday only, and day 0 on a weekend is the Monday after. So the sample's busy day is never a Saturday. |
 | `"@week": true` | Added to either `@day` form instead: the days count from the bundle's `weekAnchor` in the week nearest today (three days either way), so every date keeps the weekday it was written for: a weekend stay stays on a weekend, whatever day the sample is added on. Needs `weekAnchor`. |
 | `{"@month": -2, "@dom": 14}` | A date in the venue's time zone: that day of the month, so many months back (`0` is this month). Add `"@time": "10:00"` for a time on that day. A day past the month's end is its last day, and a day that has not come yet is today (a time not yet come, now). Use it for history counted in calendar months: "this month" and "in May" read the same whether the sample is added on the 3rd or the 28th. |
-| `{ "@t": { "en-US": "…" } }` | Text in the language of the person adding the sample. Keys are `xx` or `xx-XX`. |
+| `{ "@t": { "en-US": "…" } }` | Text in the language of the person adding the sample. Keys are `xx` or `xx-XX`. In a column, and anywhere inside a json value down to 16 levels (a page's blocks in eight languages). |
+| `{ "@rule": "<key>" }` | The id of the rule the file's own app or add-on ships under that key (its [`automations`](#automations)), as this install holds it: a rule's id is made at install, so a sample names it by its key. In a `text` column (a funnel's `rule_id`) and anywhere inside a json value down to 16 levels. A key with no such rule here (never shipped, or removed) is written as `null` and the server logs it; the rest of the sample goes in. |
 | `{ "@asset": "<label>" }` | A file from `assets`, added to the Files library: a picture (`.png`, `.jpg`, `.webp`, `.gif`) for a picture column, or an SVG or a model (`.svg`, `.glb`, `.stl`, `.3mf`) for a column of one product asset whose `accept` names its kind. Each is held to what an upload of it is held to: the column's `maxBytes`; an SVG written again by the cleaner, so a script or an `onload` is dropped and a `<foreignObject>` or a link out of the drawing refuses the sample; a model read whole and refused when it is not the kind its name says; and the public cap of its kind (a model 30 MiB, an SVG 2 MiB). No font: a sample ships no `.woff2`. An app's rows for an add-on name their own `assets`, which leave with those rows. Needs Adminium 0.3.51 for an SVG or a model, and for files in an app's rows for an add-on: `adminium app check` asks for that floor when a sample ships one. |
 
 Beside its `@label`, a row may carry the row directive `@byClock`, so that a sample day's
@@ -7081,6 +7082,175 @@ question goes into the first of `message`, `text`, `question` or `body`; the vis
 visitor typed, so `"source": "chat"` marks the row. An entry that opens none of the question's
 columns takes no question: the question is kept as a conversation in the chat alone. Adminium never
 mails the address a visitor types, and records no consent for it.
+
+### Landing pages
+
+`addOn.landing` names the add-on's own tables that hold landing pages and their funnels. Adminium
+draws a live page for a stranger, from its published copy, and no code of the add-on runs for one.
+The add-on brings the tables, the editor and the staff screens. A manifest that declares it sets
+`compatibility.minAdminiumVersion` to `0.3.65` or later, files the add-on under the `marketing`
+category, and declares neither `forms` nor `chat` beside it. (`addOn.pages` is another word: the
+add-on's own staff screens.)
+
+```json
+"addOn": {
+  "landing": { "pages": "pages", "funnels": "funnels" }
+}
+```
+
+Both are required, each a table of its own, and each has a numbered key: an `int` or `bigint`
+column with `"role": "pk"`. A funnel's step and a link to another page name a page by it. Staff
+write both tables: a role or an app's grant may create, update and delete them. No public entry of
+the add-on opens either table. A further column is nullable, has a default, is decided by a rule
+(a `stamp`, a `code`), or is a time or a date with `"role": "updated_at"` or `"role": "created_at"`,
+which Adminium stamps on every write:
+
+```json
+{ "ref": "updated_at", "type": "timestamptz", "role": "updated_at" }
+```
+
+Each table has these columns, by these names. A table may add its own. A `text` column given here a
+length takes at least that many characters, or has no `maxLength`. A column marked "empty" is
+`nullable`; every other one is not.
+
+**`pages`**, one row per page:
+
+| Column | Type | What it holds |
+|---|---|---|
+| `name` | `text` 200 | Staff's own name for the page. A stranger never sees it. |
+| `slug` | `text` 80 | The last part of its address, `/x/pages/<slug>`. |
+| `state` | `enum` `draft`, `live`, `off` | Being written, served to strangers, or switched off. |
+| `language` | `text` 10 | The one language the page is written in. |
+| `draft` | `json` | The page as staff are writing it. It may carry Milo's marks. |
+| `published` | `json`, empty | The page as published. Strangers see only this. |
+| `published_at` | `timestamptz`, empty | When the published copy was written. Adminium sets it. |
+| `updated_at` | `timestamptz` | When the row last changed. |
+
+**`funnels`**, one row per funnel:
+
+| Column | Type | What it holds |
+|---|---|---|
+| `name` | `text` 200 | The funnel's name. |
+| `steps` | `json` | At most 8 steps, in order: `[{ "kind": "page", "key": "<row key>" }]` for a page, and `{ "kind": "form", "key": "<row key>", "addOn": "<forms add-on key>" }` for a form (two forms add-ons may hold the same row key). |
+| `rule_id` | `text` 64, empty | The rule picked as what happens after the funnel. |
+
+**A slug** is lower-case letters, digits and dashes, 1 to 80 characters, with no dash at either
+end. It is never one of the addresses' own words (`api`, `assets`) nor a word a sign-in, a code, the
+staff side or a bill is known by: `login`, `log-in`, `logon`, `signin`, `sign-in`, `account`,
+`password`, `reset`, `verify`, `verification`, `auth`, `oauth`, `sso`, `2fa`, `admin`, `wp-admin`,
+`billing`, `payment`, `payments`, `invoice`, `support` or `security`. A page is published only at a
+slug no other page of its table holds (judged again under a lock as the row is written, so two
+publishes at one moment cannot both take it). When two installs serve the same slug, the oldest
+install with a live page at it answers.
+
+**Publishing.** Adminium seals the columns that publish a page, whoever writes the row and through
+whatever door. A write that sets `state` to `live`, writes `published` or `published_at`, or moves a
+live page to another slug, is refused unless the row it leaves has a `published` copy that is a
+whole page document, carries no Milo mark, and has a slug that keeps the rule above and that no
+other page holds.
+The refusal is a `422` whose `details.reason` is `landing-unparsable`, `landing-marked` or
+`landing-slug`. Adminium writes `published_at` itself whenever `published` changes, and ignores a
+value the client sends. Switching a page `off`, or back to a `draft`, is always allowed. Milo never
+publishes: a change it proposes may write a page's `draft`, and never its `state`, `published` or
+`published_at`, whatever the person's own rights (`403`, reason `landing-assistant`). Every block
+Milo adds or changes in a `draft` is marked (`"milo": true`) as it is written, so a person looks at
+each before the page can be published.
+
+**The page document**, in `draft` and `published`, is read by `@adminium/add-on-contracts/landing`
+on both sides:
+
+```json
+{ "v": 1, "title": "Open day", "description": "Sit in the new booths and try the desks.",
+  "picture": { "file": "<file id>", "alt": "The showroom in Leeds" },
+  "blocks": [
+    { "id": "intro", "kind": "hero", "heading": "Open day at our Leeds showroom",
+      "text": "Thursday 18 September, 10:00 to 19:00.",
+      "button": { "label": "Book a time", "link": { "kind": "form" } } },
+    { "id": "book", "kind": "form", "form": "7", "addOn": "forms" }
+  ] }
+```
+
+`title` holds up to 70 characters and `description` up to 200. A page holds at most 60 blocks.
+Every block has an `id` of its own on the page (letters, digits, `_` and `-`, up to 40), and Milo
+marks a block it drafted with `"milo": true` until a person has looked at it. The blocks:
+
+| Kind | Fields |
+|---|---|
+| `hero` | `heading` (120), `text` (600), `button` (`label` 60 and `link`), `picture` |
+| `heading` | `text` (120). Its level is the page's to decide. |
+| `text` | `text` (5000): paragraphs, split at a blank line. |
+| `picture` | `picture` |
+| `button` | `label` (60), `link` |
+| `columns` | `columns`: 2 or 3 of `heading` (120), `text` (2000), `picture` |
+| `features` | `title` (120), `items`: 1 to 12 of `icon`, `heading` (120), `text` (600) |
+| `quote` | `text` (600), `who` (120) |
+| `questions` | `title` (120, written in the page's language, "Questions and answers" by default), `items`: 1 to 20 of `question` (200), `answer` (2000) |
+| `spacer` | `size`: `s`, `m` or `l` |
+| `form` | `form`, the key of a form in the forms add-on's forms table, and `addOn`, that add-on's key |
+
+`button`, `picture` and `heading` of a column, and a feature's `title` and `icon`, are optional; the
+rest are required. A feature's `icon` is one of `check`, `star`, `heart`, `shield-check`, `clock`,
+`calendar`, `map-pin`, `phone`, `mail`, `truck`, `leaf`, `sparkles`, `zap`, `wind`, `volume-x`,
+`move`, `users`, `wrench`, `thumbs-up` and `lock`. There is no footer block (the page's footer is
+Adminium's), no pay link and never a block of code.
+
+Every text is plain text, with no HTML, no markdown and no link inside it. Markup typed into a text
+is shown as the characters typed. A text holds no control character, and only `text`, a hero's
+`text`, a column's `text`, a feature's `text`, a quote and an answer may hold a line break.
+
+A **link** is one of `{ "kind": "url", "href": "https://…" }` (an absolute `https:` address of up to
+2048 characters, with no user or password: `http:`, `javascript:` and `data:` are refused),
+`{ "kind": "page", "key": "<row key>" }` (another page of this add-on) or `{ "kind": "form" }` (the
+form block on this page, which the page then must have).
+
+A **picture** is `{ "file": "<file id>", "alt": "…" }`, with a description read aloud of up to 300
+characters, or `{ "file": "<file id>", "decorative": true }` for one that is only decoration. The
+file is one the page owns, named by its id, never an address or a `data:` URL.
+
+The page has one main heading: the first hero's, else the first heading's, else its `title`, drawn
+for screen readers only. Every other heading of a block is a section's, and an item under a titled
+block is under that section.
+
+A package that declares landing pages serves them only when Adminium can vouch for its bytes, as
+forms and chat are.
+
+#### The pages door
+
+A live page answers at `/x/pages/<slug>`, on the public address, on every host mapped to the add-on
+pages and on an app's customer domain alike. Its data is read from `/x/pages/api/<slug>` and its
+pictures from `/x/pages/api/<slug>/pictures/<file id>`. A page answers only while its row is `live`,
+its `published` copy is a whole page document with no Milo mark, its add-on is switched on and
+vouched for, the privacy notice is set, and visitors can reach the server (the forms door's own
+check). Anything else, a draft, a page switched off, a slug nobody has, a copy that no longer reads,
+answers one same "This page isn't available." `?preview=1` draws the page's `draft`, marks and
+all, for a signed-in person who may read the whole pages table (a role held to some of its rows is
+refused); it sends nothing, counts nothing, is never indexed, and its pictures are never cached.
+Every other request to the door is a stranger's, whatever cookie it carries: a signed-in person's
+session is not read there. A host's home page may be a live page: `/x/pages/<slug>`, never the door's `api`.
+
+**The head.** Adminium writes the page's head on the server, so a link preview, which runs no
+script, sees the page: `<html lang dir>` from the page's language, `<title>` from `title`, the
+description, `og:title`, `og:description`, `og:type`, `og:url`, `og:locale`, `og:image` (the
+sharing `picture`, as an absolute address), `twitter:card` (`summary_large_image` with a picture,
+else `summary`) and `<link rel="canonical">`. Every value is escaped.
+
+**Where it is indexed.** A page has one canonical address: the mapped pages host whose home it is,
+else the first mapped pages host by name, else the public address. A live page asked on that host
+may be indexed; everywhere else it answers `noindex` and names the canonical address. A preview,
+a form, the chat and every page of a trial are always `noindex`.
+
+**Pictures.** A page shows only pictures it owns. Choosing one for a page, from Files or from the
+person's computer, makes a copy of it for that page: a PNG, JPEG, WebP or GIF of at most 5 MB,
+read again and stripped of what the camera wrote beside it; never an SVG. The door serves a copy
+only while the live page that owns it names it, and keeps it in a browser five minutes, so a page
+switched off stops showing it. The add-on's editor makes the copy through
+`POST /api/v1/landing/<add-on>/pictures?page=<page key>` (the picture as the body, or
+`{ "file": "<file id>" }` for a file of Files the person may read), for someone who may change the
+pages; a picture refused answers `422`, reason `picture-refused`. `GET /api/v1/landing/<add-on>/status`
+names the add-on's install (what its pages' view counts are read under), the time zone the counts'
+days are in and how many months they are kept, and says whether visitors can reach the pages, whether the privacy notice is set, the public address,
+the mapped pages hosts and, with `?page=<page key>`, the page's address on each and which host it
+is home of.
 
 ## Validation
 

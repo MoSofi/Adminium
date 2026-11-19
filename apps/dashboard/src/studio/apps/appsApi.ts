@@ -17,6 +17,7 @@ import { queryOptions } from '@tanstack/react-query';
 import type { DesiredColumn, SchemaPlan } from '../remap/design/types.js';
 import { ApiError, api, csrfHeaders, installOptions } from '../../app/api.js';
 import type { SurfaceSide } from './hostedAppsApi.js';
+import { sampleDataUrl, type SampleCount, type SampleOwnerKind } from './sampleDataStatus.js';
 
 export interface InstalledAppSide {
   side: SurfaceSide;
@@ -548,23 +549,8 @@ export { packProjectApp, packedFileUrl, type PackedAppFile } from '../../apps/ap
 
 // ── Sample data ─────────────────────────────────────────────────────────────
 
-export interface SampleCount {
-  /** The table's short name in the app. */
-  ref: string;
-  count: number;
-}
-
-export interface SampleDataStatus {
-  /** The app ships sample data. */
-  offered: boolean;
-  loaded: boolean;
-  total: number;
-  /** When it was added (epoch ms). */
-  addedAt: number | null;
-  tables: SampleCount[];
-  /** What an add would write, while none is loaded. */
-  available: { total: number; tables: SampleCount[]; assets: number } | null;
-}
+// The status read is its own small module: the page route's loader starts it beside the page document.
+export { sampleDataKey, sampleDataQuery, type SampleCount, type SampleDataStatus, type SampleOwnerKind } from './sampleDataStatus.js';
 
 export interface SampleRemovePlan {
   tables: SampleCount[];
@@ -573,20 +559,6 @@ export interface SampleRemovePlan {
   /** Sample records you changed since they were added. */
   changed: { ref: string; label: string | null; title: string | null; columns: string[] }[];
   total: number;
-}
-
-/** Whose sample data: an app's, or an add-on's that keeps tables of its own. The same four routes, under each one's own address. */
-export type SampleOwnerKind = 'app' | 'add-on';
-
-const sampleDataUrl = (key: string, kind: SampleOwnerKind): string => `/api/v1/${kind === 'add-on' ? 'add-ons' : 'apps'}/${encodeURIComponent(key)}/sample-data`;
-
-export const sampleDataKey = (key: string, kind: SampleOwnerKind = 'app', install: string | null = null) => [kind === 'add-on' ? 'add-on-sample-data' : 'app-sample-data', key, install] as const;
-
-export function sampleDataQuery(key: string, kind: SampleOwnerKind = 'app', install: string | null = null) {
-  return queryOptions({
-    queryKey: sampleDataKey(key, kind, install),
-    queryFn: () => api.get<SampleDataStatus>(sampleDataUrl(key, kind), installOptions(install)),
-  });
 }
 
 /**

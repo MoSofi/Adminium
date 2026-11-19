@@ -94,5 +94,13 @@
     "design-too-large": "Dette design er for stort til at blive kontrolleret.",
     "check-unavailable": "Designs kan ikke kontrolleres lige nu, så dette kan ikke gemmes.",
     "check-failed": "Tilføjelsen, der kontrollerer designs, svarede ikke, som den skulle, så intet blev gemt."
+  },
+  "landing": {
+    "unparsable": "Siden kan ikke udgives: Dens udgivne version er ikke en side, Adminium kan vise.",
+    "marked": "Siden kan ikke udgives, så længe et afsnit stadig har Milos mærke. Se hvert af dem igennem først.",
+    "slug": "Siden kan ikke udgives på den adresse. Brug små bogstaver, tal og bindestreger og ikke et ord, som adresserne selv bruger.",
+    "slugTaken": "En anden side har allerede denne adresse.",
+    "assistant": "Milo kan skrive en sides kladde, men aldrig udgive den eller ændre, om den er online.",
+    "draftFailed": "Milo kunne ikke skrive en side ud fra det. Prøv igen, eller beskriv siden med andre ord."
   }
 }

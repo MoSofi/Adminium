@@ -4,7 +4,7 @@
  */
 import { WEBSITES_MAX } from '@adminium/add-on-contracts/forms/websites';
 import { KEPT_BY_LAW_REASONS } from '@adminium/manifest';
-import { PRIVACY_EXPORT_STATUSES } from '@adminium/meta';
+import { BANNER_LOCALES, bannerWordsSchema, KEEPING_MONTHS, PRIVACY_EXPORT_STATUSES } from '@adminium/meta';
 import { z } from 'zod';
 
 import { REACHABILITY_STATES } from '../../payments/reachability.js';
@@ -111,7 +111,7 @@ export const erasePreviewReply = z.object({
     /** What goes: their rows, copies of them, their mail, consent entries, campaign sends, files on their rows. */
     goes: z.array(
       z.object({
-        kind: z.enum(['people', 'copy', 'outbox', 'consent', 'campaign-mail', 'files', 'form-answers', 'form-invitations', 'form-files', 'chat-conversations', 'found-people']),
+        kind: z.enum(['people', 'copy', 'outbox', 'consent', 'campaign-mail', 'files', 'form-answers', 'form-invitations', 'form-files', 'chat-conversations', 'page-visits', 'found-people']),
         count: z.number(),
         connectionId: z.string().optional(),
         table: z.string().optional(),
@@ -199,4 +199,40 @@ export const reachReply = z.object({
      */
     proxyUnchecked: z.boolean(),
   }),
+});
+
+/** The keeping rows a person may change: each one's months, from its offered choices. */
+export const keepingBody = z.object({
+  rows: z
+    .array(z.object({ key: z.string().min(1).max(64), months: z.number().int().refine((months) => KEEPING_MONTHS.includes(months), 'one of the offered months') }))
+    .min(1)
+    .max(20),
+});
+
+/** The owner's banner words, per language (each field left out keeps the default). */
+const bannerField = z.partialRecord(z.enum(BANNER_LOCALES), bannerWordsSchema);
+const bannerWordsView = z.object({ title: z.string(), text: z.string(), yes: z.string(), no: z.string() });
+
+/** The counting tab ("Visitor counting"). */
+export const countingReply = z.object({
+  data: z.object({
+    level: z.enum(['off', 'counts', 'visitor']),
+    countingSince: z.number().nullable(),
+    viewCountsMonths: z.number(),
+    visitsMonths: z.number(),
+    banner: bannerField.nullable(),
+    /** The engine's default words per language: the editor's placeholders. */
+    defaults: z.partialRecord(z.enum(BANNER_LOCALES), bannerWordsView),
+    noticeReady: z.boolean(),
+    /** What going down from "Per visitor" would delete now. */
+    kept: z.object({ visitors: z.number(), visits: z.number() }),
+    /** What the last change deleted, going down from "Per visitor". */
+    deleted: z.object({ visitors: z.number(), visits: z.number() }).nullable().optional(),
+  }),
+});
+
+export const countingBody = z.object({
+  level: z.enum(['off', 'counts', 'visitor']),
+  /** The owner's words; left out: as they are; null: the defaults everywhere. */
+  banner: bannerField.nullable().optional(),
 });

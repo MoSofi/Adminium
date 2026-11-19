@@ -69,6 +69,7 @@ import { eraseFormRows, findFormRows, formImageTargets } from './form-answers.js
 import { eraseChatRows, findChatRows, type TheirRow } from './chat-transcripts.js';
 import { eraseFoundPeopleRows, findFoundPeopleRows, type FoundPersonRows } from './found-people.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
+import { erasePageVisits, findPageVisits } from './page-visits.js';
 import type { ChatForget } from '../chat/transcripts.js';
 import type { AnswerFilesRemover } from '../forms/answers.js';
 import { personHash, personHashes } from './export.js';
@@ -163,7 +164,7 @@ async function withSoleTraders(deps: EraseDeps, rows: PersonRows, found: readonl
 }
 
 /** What goes, as the erase dialog counts it. */
-export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations' | 'found-people';
+export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations' | 'page-visits' | 'found-people';
 
 export interface GoesItem {
   kind: GoesKind;
@@ -291,6 +292,8 @@ export async function previewErasure(deps: EraseDeps, rawAddress: string, scope?
   }
   const consent = await consentIds(deps.consent, address, people, whole);
   if (consent > 0) goes.push({ kind: 'consent', count: consent });
+  const visits = whole ? (await findPageVisits(deps.meta, deps.secret, address, 0)).count : 0;
+  if (visits > 0) goes.push({ kind: 'page-visits', count: visits });
   const sends = (await campaignSendIds(deps.meta, address, people, whole)).length;
   if (sends > 0) goes.push({ kind: 'campaign-mail', count: sends });
   const files = new Set([...(await rowFileIds(deps.meta, people)), ...(await copyFileIds(deps.meta, copyRows(rows)))]).size;
@@ -395,6 +398,11 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: E
   // The people a source found: gone, but for the days they were told on.
   const found = await eraseFoundPeopleRows(foundPeople);
   Object.assign(counts, found.counts);
+  // "Pages they saw": the visitors joined to their address, with their visits.
+  if (whole) {
+    const gone = await erasePageVisits(meta, deps.secret, address);
+    if (gone.visits > 0 || gone.visitors > 0) Object.assign(counts, { 'page-visits': gone.visits, visitors: gone.visitors });
+  }
   // An entry written about one of their rows while this ran.
   audit += await scrubAuditImages(meta, targets, started);
   counts['audit'] = audit + swept.audit;

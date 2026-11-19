@@ -1,0 +1,497 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/*
+ * A landing page's blocks, as `render.tsx` draws them: plain CSS on the house
+ * design tokens (`@adminium/tokens`), no Tailwind, every class prefixed `lp-`.
+ *
+ * The host loads the tokens and the fonts (the stranger's page from its own
+ * `/x/` stylesheet, the editor from the dashboard's) and sets the theme: a
+ * published page is light only. Nothing here reads a colour of its own.
+ *
+ * Logical properties only, and the page is its own size container: the same
+ * rules lay it out at phone width (390) and at 1280, left to right and right
+ * to left.
+ */
+
+.lp {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  color: var(--fg);
+  background: var(--surface);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.lp *,
+.lp *::before,
+.lp *::after {
+  box-sizing: border-box;
+}
+
+/* Arabic: the house's Arabic face draws 400 to 700, and letters are never spaced apart. */
+.lp:lang(ar) {
+  font-family: "IBM Plex Sans Arabic", "Manrope", system-ui, sans-serif;
+}
+
+.lp:lang(ar) *,
+.lp:lang(zh) * {
+  letter-spacing: 0;
+}
+
+.lp-page {
+  display: flex;
+  flex-direction: column;
+  padding-block-start: max(20px, 2.4cqi);
+}
+
+/* The banner is first in reading order, and drawn docked under the page. */
+.lp-banner {
+  order: 1;
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 1;
+}
+
+.lp-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── A block's frame ─────────────────────────────────────────────────── */
+
+.lp-section {
+  inline-size: 100%;
+  max-inline-size: 960px;
+  margin-inline: auto;
+  padding-inline: max(16px, 4cqi);
+  padding-block: 12px;
+}
+
+/* A block drawn on a band of its own, the width of the page. */
+.lp-band {
+  background: var(--bg);
+}
+
+.lp-display {
+  margin: 0;
+  font-size: clamp(27px, 3.6cqi, 40px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.lp-title {
+  margin: 0;
+  font-size: clamp(21px, 2.4cqi, 26px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.lp:lang(ar) .lp-display,
+.lp:lang(ar) .lp-title {
+  font-weight: 700;
+}
+
+.lp-heading {
+  padding-block: 12px 4px;
+}
+
+.lp-text {
+  padding-block: 8px;
+}
+
+.lp-lead,
+.lp-body {
+  margin: 0;
+  max-inline-size: 64ch;
+  color: var(--fg-muted);
+  line-height: 1.65;
+  white-space: pre-line;
+  text-wrap: pretty;
+}
+
+.lp-lead + .lp-lead,
+.lp-body + .lp-body {
+  margin-block-start: 12px;
+}
+
+/* ── Hero ────────────────────────────────────────────────────────────── */
+
+.lp-hero {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 28px;
+  align-items: center;
+  padding-block: max(20px, 3cqi);
+}
+
+.lp-hero-words {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.lp-hero .lp-display {
+  line-height: 1.15;
+}
+
+.lp-hero .lp-lead {
+  line-height: 1.6;
+}
+
+/* ── Pictures ────────────────────────────────────────────────────────── */
+
+.lp-picture-block {
+  padding-block: 16px;
+}
+
+.lp-picture {
+  inline-size: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface-3);
+}
+
+.lp-picture[data-shape="card"] {
+  aspect-ratio: 4 / 3;
+}
+
+.lp-picture > img {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+/* No file yet, or none drawn: a quiet box with the description. */
+.lp-picture-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 100%;
+  block-size: 100%;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--fg-muted);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.lp-picture-empty > span {
+  max-inline-size: 36ch;
+}
+
+.lp-picture[data-shape="card"] .lp-picture-empty > span {
+  max-inline-size: 30ch;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────── */
+
+.lp-actions {
+  display: flex;
+  padding-block: 12px 20px;
+}
+
+.lp-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 48px;
+  max-inline-size: 100%;
+  padding-inline: 22px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: center;
+  text-decoration: none;
+}
+
+.lp-button[href]:hover {
+  background: var(--accent-hover);
+  color: var(--accent-fg);
+}
+
+.lp-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Columns ─────────────────────────────────────────────────────────── */
+
+.lp-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 24px 40px;
+  align-items: start;
+  padding-block: max(24px, 3cqi);
+}
+
+.lp-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Features ────────────────────────────────────────────────────────── */
+
+.lp-features {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-block: max(28px, 3.5cqi);
+}
+
+.lp-feature-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-feature {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lp-feature-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 40px;
+  block-size: 40px;
+  border-radius: 10px;
+  background: var(--accent-soft-solid);
+  color: var(--accent);
+}
+
+.lp-feature-icon:empty {
+  display: none;
+}
+
+.lp-feature-icon > svg {
+  inline-size: 19px;
+  block-size: 19px;
+}
+
+.lp-item-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.lp-item-text {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 15px;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
+/* ── Quote ───────────────────────────────────────────────────────────── */
+
+/* Centred under an accent quote mark, the words in the page's own quotation marks, then "— who". */
+.lp-quote {
+  margin: 0;
+  padding-block: max(28px, 3.5cqi);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+/* The mark is drawn, not said: its alternative text is empty. */
+.lp-quote::before {
+  content: "\201C" / "";
+  display: block;
+  block-size: 26px;
+  color: var(--accent);
+  font-size: 56px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.lp[dir="rtl"] .lp-quote::before {
+  transform: scaleX(-1);
+}
+
+.lp-quote-text {
+  margin: 0;
+  max-inline-size: 560px;
+  quotes: auto;
+}
+
+.lp-quote-line {
+  margin: 0;
+  font-size: clamp(18px, 2.6cqi, 22px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+  white-space: pre-line;
+  text-wrap: balance;
+}
+
+.lp-quote-line + .lp-quote-line {
+  margin-block-start: 10px;
+}
+
+.lp-quote-line:first-child::before {
+  content: open-quote;
+}
+
+.lp-quote-line:last-child::after {
+  content: close-quote;
+}
+
+.lp-quote-who {
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
+.lp-quote-who::before {
+  content: "\2014\00a0" / "";
+}
+
+/* ── Questions and answers ───────────────────────────────────────────── */
+
+.lp-questions {
+  display: flex;
+  flex-direction: column;
+  padding-block: max(28px, 3.5cqi);
+}
+
+.lp-questions > .lp-title {
+  margin-block-end: 10px;
+}
+
+.lp-question {
+  border-block-start: 1px solid var(--border);
+}
+
+.lp-question-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-block-size: 52px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.lp-question-summary::-webkit-details-marker {
+  display: none;
+}
+
+.lp-question-text {
+  flex: 1;
+}
+
+/* A chevron drawn from two borders: it points down, and up once open; it needs no turning right to left. */
+.lp-chevron {
+  flex: 0 0 auto;
+  inline-size: 8px;
+  block-size: 8px;
+  margin-inline: 5px;
+  border-block-end: 2px solid var(--fg-subtle);
+  border-inline-end: 2px solid var(--fg-subtle);
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.lp-question[open] .lp-chevron {
+  transform: translateY(2px) rotate(-135deg);
+}
+
+.lp-answer {
+  margin-block: 0 16px;
+  margin-inline: 0;
+  color: var(--fg-muted);
+  font-size: 15px;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+/* ── Spacer ──────────────────────────────────────────────────────────── */
+
+.lp-spacer {
+  block-size: 48px;
+}
+
+.lp-spacer[data-size="s"] {
+  block-size: 24px;
+}
+
+.lp-spacer[data-size="l"] {
+  block-size: 96px;
+}
+
+/* ── Form ────────────────────────────────────────────────────────────── */
+
+.lp-form {
+  padding-block: max(28px, 4cqi);
+  padding-inline: max(16px, 4cqi);
+}
+
+.lp-form-card {
+  max-inline-size: 560px;
+  margin-inline: auto;
+}
+
+/* ── The editor's canvas ─────────────────────────────────────────────── */
+
+.lp[data-mode="canvas"] .lp-block {
+  position: relative;
+}
+
+/* One button per block; it shows on hover and keyboard focus, and the host draws the selection. */
+.lp-edit {
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline-end: 8px;
+  z-index: 1;
+  min-block-size: 32px;
+  padding-inline: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.lp-block:hover > .lp-edit,
+.lp-edit:focus-visible {
+  opacity: 1;
+}
+
+.lp-edit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lp-edit {
+    transition: opacity 120ms ease-out;
+  }
+}

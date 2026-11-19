@@ -86,6 +86,7 @@ export type SourceKind =
   | 'chat-conversations'
   | 'chat-messages'
   | 'chat-choices'
+  | 'page-visits'
   | 'found-people'
   | 'found-people-mail'
   | 'found-people-fields';
@@ -143,7 +144,7 @@ export interface StaysItem {
   label?: string | undefined;
 }
 
-export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations' | 'found-people';
+export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations' | 'page-visits' | 'found-people';
 
 export interface GoesItem {
   kind: GoesKind;
@@ -289,4 +290,54 @@ export async function addWebsites(lines: string[]): Promise<WebsitesList> {
 
 export async function removeWebsite(origin: string): Promise<WebsitesList> {
   return (await api.post<{ data: WebsitesList }>('/api/v1/privacy/websites/remove', { origin })).data;
+}
+
+/** The rows a person may change: each one's months, all or none. */
+export async function putKeeping(rows: { key: string; months: number }[]): Promise<KeepingRow[]> {
+  return (await api.put<{ data: { rows: KeepingRow[] } }>('/api/v1/privacy/keeping', { rows })).data.rows;
+}
+
+// --- visitor counting ------------------------------------------------------------
+
+export type TrackingLevel = 'off' | 'counts' | 'visitor';
+
+/** The `/x/` pages' eight languages, as the banner's words are kept. */
+export const BANNER_LOCALES = ['en-US', 'de-DE', 'fr-FR', 'cs-CZ', 'da-DK', 'ar-EG', 'zh-CN', 'zh-TW'] as const;
+export type BannerLocale = (typeof BANNER_LOCALES)[number];
+
+export interface BannerWords {
+  title?: string;
+  text?: string;
+  yes?: string;
+  no?: string;
+}
+
+export interface CountingState {
+  level: TrackingLevel;
+  /** When counting last started (epoch ms). */
+  countingSince: number | null;
+  viewCountsMonths: number;
+  visitsMonths: number;
+  /** The owner's words per language; null: the defaults everywhere. */
+  banner: Partial<Record<BannerLocale, BannerWords>> | null;
+  /** The engine's default words per language (the editor's placeholders). */
+  defaults: Partial<Record<BannerLocale, Required<BannerWords>>>;
+  noticeReady: boolean;
+  /** What going down from Per visitor would delete now. */
+  kept: { visitors: number; visits: number };
+  /** What the last change deleted. */
+  deleted?: { visitors: number; visits: number } | null;
+}
+
+export const PRIVACY_COUNTING_QUERY_KEY = ['privacy', 'counting'] as const;
+
+export function countingQuery() {
+  return queryOptions({
+    queryKey: PRIVACY_COUNTING_QUERY_KEY,
+    queryFn: async () => (await api.get<{ data: CountingState }>('/api/v1/privacy/counting')).data,
+  });
+}
+
+export async function putCounting(body: { level: TrackingLevel; banner?: Partial<Record<BannerLocale, BannerWords>> | null }): Promise<CountingState> {
+  return (await api.put<{ data: CountingState }>('/api/v1/privacy/counting', body)).data;
 }

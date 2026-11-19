@@ -3,19 +3,22 @@
  * `/studio/privacy` — Privacy & public pages (comp `Privacy And Public
  * Pages.dc.html`, boards 2, 4a/4b, 7a-7d and 8).
  *
- * This release's four tabs, each with its own address (`?tab=`):
+ * This release's five tabs, each with its own address (`?tab=`):
  *
  *  - Privacy notice: the business's name and its privacy notice's address
  *    (https only, checked as typed and again by the server on save).
  *  - Your websites: the sites that may show a form in a frame, and the
  *    loader line to put on them (`WebsitesTab.tsx`).
+ *  - Visitor counting: Off, Counts only or Per visitor, the banner's words
+ *    and when counting started (`CountingTab.tsx`).
  *  - A person's data: find everything kept about one address, download it,
  *    erase it (`PersonDataTab.tsx`).
- *  - How long we keep things: the two rows this release has, both fixed.
+ *  - How long we keep things: the fixed rows, the add-ons' own, and the
+ *    counting rows (view counts, the pages a visitor saw), each a choice of
+ *    months with a Save.
  *
  * The first two open on "Can visitors reach your public pages?"
- * (`PublicReach.tsx`). "Visitor counting" comes with visitor counting; it is
- * not drawn, not even switched off.
+ * (`PublicReach.tsx`).
  *
  * Only a holder of `privacy.manage` reaches this page (the Super Admin,
  * unless granted on purpose): the route's guard says so, and so does every
@@ -25,7 +28,7 @@ import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-quer
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Clock, Lock, TriangleAlert } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
-import { Alert, Button, Card, FormField, Input, Skeleton, Spinner, Tabs, TabsContent, TabsList, TabsTrigger } from '@adminium/ui';
+import { Alert, Button, Card, FormField, Input, Select, Skeleton, Spinner, Tabs, TabsContent, TabsList, TabsTrigger } from '@adminium/ui';
 
 import { ApiError } from '../../app/api.js';
 import { bootstrapQuery, holdsSystemAction } from '../../app/bootstrap.js';
@@ -33,7 +36,7 @@ import { t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
-import { PRIVACY_NOTICE_QUERY_KEY, keepingQuery, privacyNoticeQuery, putPrivacyNotice, type KeepingRow, type PeopleFoundNotice as PeopleFoundNoticeItem } from './privacyApi.js';
+import { PRIVACY_COUNTING_QUERY_KEY, PRIVACY_NOTICE_QUERY_KEY, keepingQuery, privacyNoticeQuery, putKeeping, putPrivacyNotice, type KeepingRow, type PeopleFoundNotice as PeopleFoundNoticeItem } from './privacyApi.js';
 import { noticeUrlError } from './privacyWords.js';
 import { PublicReach } from './PublicReach.js';
 
@@ -49,7 +52,13 @@ const WebsitesTabLazy = lazy(async () => {
   return { default: mod.WebsitesTab };
 });
 
-const PRIVACY_TABS = ['notice', 'websites', 'person', 'keeping'] as const;
+// The counting tab (the levels, the banner's words and its preview) loads when it is first opened.
+const CountingTabLazy = lazy(async () => {
+  const mod = await import('./CountingTab.js');
+  return { default: mod.CountingTab };
+});
+
+const PRIVACY_TABS = ['notice', 'websites', 'counting', 'person', 'keeping'] as const;
 type PrivacyTab = (typeof PRIVACY_TABS)[number];
 
 function tabOf(value: unknown): PrivacyTab {
@@ -87,6 +96,11 @@ export function PrivacyPage(): ReactNode {
                 {t('studio:privacy.websites.tab', 'Your websites')}
               </TabsTrigger>
             ) : null}
+            {whole ? (
+              <TabsTrigger value="counting" className={TAB}>
+                {t('studio:privacy.counting.tab', 'Visitor counting')}
+              </TabsTrigger>
+            ) : null}
             <TabsTrigger value="person" className={TAB}>
               {t('studio:privacy.tab.person', 'A person’s data')}
             </TabsTrigger>
@@ -112,6 +126,19 @@ export function PrivacyPage(): ReactNode {
               <WebsitesTabLazy />
             </Suspense>
           </TabsContent>
+          {whole ? (
+            <TabsContent value="counting" className="pt-3.5">
+              <Suspense
+                fallback={
+                  <div className="flex justify-center p-10">
+                    <Spinner size="md" />
+                  </div>
+                }
+              >
+                <CountingTabLazy />
+              </Suspense>
+            </TabsContent>
+          ) : null}
           <TabsContent value="person" className="pt-3.5">
             <Suspense
               fallback={
@@ -357,12 +384,48 @@ const ADD_ON_KEEPING: Readonly<Record<string, (row: KeepingRow) => { what: strin
   'found-people': foundPeopleWords,
 };
 
+/** The rows a person may change, each a choice of months: visitor counting's two. */
+const CHANGEABLE_WORDS: Record<string, () => { what: string; why: string }> = {
+  'visitor-pages': () => ({
+    what: t('studio:privacy.keeping.visits', 'Pages a visitor saw'),
+    why: t('studio:privacy.keeping.visitsWhy', 'At Per visitor, the pages one visitor saw. Older visits are deleted each night, and all of them with the person.'),
+  }),
+  'view-counts': () => ({
+    what: t('studio:privacy.keeping.views', 'View counts'),
+    why: t('studio:privacy.keeping.viewsWhy', 'Views of your landing pages and forms, per day. Older days are deleted each night.'),
+  }),
+};
+
 function KeepingTab(): ReactNode {
   const keeping = useQuery(keepingQuery());
   if (keeping.isError) return <Alert tone="danger" title={t('studio:privacy.keeping.loadFailed', 'How long things are kept could not be loaded. Try again.')} />;
   if (keeping.data === undefined) return <Skeleton className="h-[180px] w-full" />;
+  return <KeepingTable rows={keeping.data} />;
+}
+
+function KeepingTable({ rows: all }: { rows: KeepingRow[] }): ReactNode {
+  const toasts = useAppToasts();
+  const queryClient = useQueryClient();
+  const [months, setMonths] = useState<Record<string, number>>(() => Object.fromEntries(all.filter((row) => !row.fixed && typeof row.keptFor === 'number').map((row) => [row.key, row.keptFor as number])));
+  const [busy, setBusy] = useState(false);
   // Only the rows this screen knows how to word: a later server's new row waits for a later screen.
-  const rows = keeping.data.filter((row) => KEEPING_WORDS[row.key] !== undefined || ADD_ON_KEEPING[row.key] !== undefined);
+  const rows = all.filter((row) => (row.fixed ? KEEPING_WORDS[row.key] !== undefined || ADD_ON_KEEPING[row.key] !== undefined : CHANGEABLE_WORDS[row.key] !== undefined));
+  const changes = rows.filter((row) => !row.fixed && months[row.key] !== undefined && months[row.key] !== row.keptFor);
+  const changeable = rows.some((row) => !row.fixed);
+
+  async function save(): Promise<void> {
+    setBusy(true);
+    try {
+      const next = await putKeeping(changes.map((row) => ({ key: row.key, months: months[row.key]! })));
+      queryClient.setQueryData(keepingQuery().queryKey, next);
+      void queryClient.invalidateQueries({ queryKey: PRIVACY_COUNTING_QUERY_KEY });
+      toasts.push({ variant: 'success', title: t('studio:privacy.keeping.viewsSaved', 'Saved') });
+    } catch {
+      toasts.push({ variant: 'error', title: t('studio:privacy.keeping.viewsSaveFailed', 'How long things are kept was not saved. Try again.') });
+    } finally {
+      setBusy(false);
+    }
+  }
   const cell = 'border-b border-border px-[var(--card-pad)] py-[var(--row-py,13px)] text-start align-top';
   return (
     <Card padded={false} className="overflow-hidden">
@@ -383,6 +446,35 @@ function KeepingTab(): ReactNode {
         </thead>
         <tbody>
           {rows.map((row) => {
+            const own = CHANGEABLE_WORDS[row.key];
+            if (!row.fixed && own !== undefined) {
+              const words = own();
+              return (
+                <tr key={row.key}>
+                  <th scope="row" className={`${cell} font-semibold`}>
+                    {words.what}
+                  </th>
+                  <td className={cell}>
+                    <Select
+                      mono
+                      wrapperClassName="w-auto min-w-[150px]"
+                      className="text-[12.5px]"
+                      value={String(months[row.key] ?? row.keptFor)}
+                      aria-label={t('studio:privacy.keeping.viewsKeptFor', 'Kept for: {what}', { what: words.what })}
+                      onChange={(event) => setMonths((all) => ({ ...all, [row.key]: Number(event.target.value) }))}
+                      data-testid={`privacy-keeping-${row.key}`}
+                    >
+                      {row.options.map((option) => (
+                        <option key={option} value={String(option)}>
+                          {t('studio:privacy.keeping.viewsMonths', '{count, plural, one {# month} other {# months}}', { count: option })}
+                        </option>
+                      ))}
+                    </Select>
+                    <div className="mt-1 text-caption text-fg-subtle">{words.why}</div>
+                  </td>
+                </tr>
+              );
+            }
             const byAddOn = ADD_ON_KEEPING[row.key];
             const answers = byAddOn !== undefined;
             const words = byAddOn !== undefined ? byAddOn(row) : KEEPING_WORDS[row.key]!();
@@ -403,6 +495,13 @@ function KeepingTab(): ReactNode {
           })}
         </tbody>
       </table>
+      {changeable ? (
+        <div className="flex justify-end rounded-b-lg bg-surface-2 px-[var(--card-pad)] py-3">
+          <Button disabled={changes.length === 0 || busy} loading={busy} onClick={() => void save()} data-testid="privacy-keeping-save">
+            {t('studio:privacy.keeping.viewsSave', 'Save')}
+          </Button>
+        </div>
+      ) : null}
     </Card>
   );
 }

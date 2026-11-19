@@ -2055,6 +2055,42 @@ export interface AdminiumChatAiAddressesTable {
   createdAt: Ts;
 }
 
+/** Wave 0096 — how many times strangers saw a page or a form on one day (the business's day), per install, kind, thing and place. */
+export interface AdminiumViewDaysTable {
+  installId: string;
+  /** `page`, `form-page`, `form-opened` or `form-sent`. */
+  kind: string;
+  /** The counted row's key, as text. */
+  thing: string;
+  /** The page key a form sat on; `''` for none. */
+  place: string;
+  /** `YYYY-MM-DD`, in the business's time zone. */
+  day: string;
+  views: number;
+}
+
+/** Wave 0097 — a visitor who said yes to "Per visitor": a keyed hash of their cookie's random id, never the id. */
+export interface AdminiumVisitorsTable {
+  id: string;
+  host: string;
+  saidYesAt: Ts;
+  wordingVersion: string;
+  /** The address of a form they sent, as the address keys hash it; null until they send one. */
+  addressHash: string | null;
+  keyVersion: number | null;
+  lastSeenAt: Ts;
+}
+
+/** Wave 0097 — one counted view of a visitor who said yes. */
+export interface AdminiumVisitsTable {
+  id: Id;
+  visitorId: string;
+  installId: string;
+  kind: string;
+  thing: string;
+  at: Ts;
+}
+
 /** Wave 0089 — a whole number the server counts for its operator, by name (operator AI tokens, the start prompt run). */
 export interface AdminiumOperatorTalliesTable {
   name: string;
@@ -2348,6 +2384,9 @@ export interface MetaDB {
   adminium_payment_readers: AdminiumPaymentReadersTable;
   adminium_chat_ai_days: AdminiumChatAiDaysTable;
   adminium_chat_ai_addresses: AdminiumChatAiAddressesTable;
+  adminium_view_days: AdminiumViewDaysTable;
+  adminium_visitors: AdminiumVisitorsTable;
+  adminium_visits: AdminiumVisitsTable;
   adminium_source_days: AdminiumSourceDaysTable;
 }
 
@@ -2460,5 +2499,8 @@ export const META_TABLE_NAMES = [
   'adminium_operator_tallies',
   'adminium_chat_ai_days',
   'adminium_chat_ai_addresses',
+  'adminium_view_days',
+  'adminium_visitors',
+  'adminium_visits',
   'adminium_source_days',
 ] as const satisfies readonly (keyof MetaDB)[];

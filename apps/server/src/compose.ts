@@ -92,6 +92,7 @@ import { registerIntrospectJob } from './connections/introspect.js';
 import { createLocalDatabases, localDatabasesMode } from './connections/local-databases.js';
 import type { ConnectionManager } from './connections/manager.js';
 import { privilegesOf } from './connections/privileges.js';
+import { addOnWriteJudges } from './crud/add-on-write-judges.js';
 import { UndoStore } from './crud/undo.js';
 import { seedBuiltinEmailTemplatesIfChanged } from './email/builtins.js';
 import { configureSmtpNetwork, emailSecretKey } from './email/config.js';
@@ -129,6 +130,9 @@ import { formsFilesRoutes } from './routes/forms-files/index.js';
 import { listedWebsitesOf } from './forms/websites.js';
 import { framingWebsites } from './trial/operator-hosts.js';
 import { formsDoorRoutes } from './routes/forms-door/index.js';
+import { xConsentRoutes } from './routes/x-consent/index.js';
+import { viewCountsRoutes } from './routes/view-counts/index.js';
+import { createCounting, registerCountingSchedules } from './views/wiring.js';
 import { chatDoorRoutes } from './routes/chat-door/index.js';
 import { capKey } from './public-api/anonymous-caps.js';
 import { chatAiFrom, type ChatAi } from './chat/ai.js';
@@ -144,8 +148,7 @@ import { chatSettingsLink, tellChatPaused } from './chat/notices.js';
 import { createChatStore, type ChatStore } from './chat/store.js';
 import { createChatStaff, type ChatStaff } from './chat/staff.js';
 import { createChatWaiting, type ChatWaiting } from './chat/waiting.js';
-import { chatOwnTable, sweepChatTranscripts } from './chat/transcripts.js';
-import { leadsOwnTable } from './leads/installs.js';
+import { sweepChatTranscripts } from './chat/transcripts.js';
 import { withLeadsGuard } from './leads/guard.js';
 import { isFoundPerson, keepFoundPeople, untoldAddress, type KeepFoundPeopleDeps, type KeepFoundPeopleInput, type KeptPeople } from './leads/people.js';
 import { sourceLanguages } from './leads/registers.js';
@@ -156,7 +159,14 @@ import { FOUND_PEOPLE_SWEEP_CRON, FOUND_PEOPLE_SWEEP_NAME, sweepFoundPeople, typ
 import { createTellMail } from './leads/tell.js';
 import { erasePerson, type EraseScope } from './privacy/erase.js';
 import { objectDoorRoutes } from './routes/mail-door/object.js';
+import { landingPagesTable } from './landing/seal.js';
+import { createLandingEndings } from './landing/ending.js';
+import { createLandingCatalog } from './landing/catalog.js';
+import { pagePictureOf } from './landing/pictures.js';
+import { pagesDoorRoutes } from './routes/pages-door/index.js';
+import { landingStaffRoutes } from './routes/landing/index.js';
 import { chatStaffRoutes } from './routes/chat/index.js';
+import { landingDraftAndReadsRoutes } from './routes/landing/draft-and-reads.js';
 import { createLedgerRuntime } from './ledgers/registry.js';
 import { announcePostings, tellPostings, type PostingsTold } from './ledgers/announce.js';
 import { createDocumentPipeline } from './documents/compose.js';
@@ -171,7 +181,7 @@ import {
   type AddOnStore,
 } from './add-ons/store.js';
 import { bindDeciderGates, installRejectionGuard } from './add-ons/decide.js';
-import { recordDeciderTrust, trustSources } from './add-ons/decider-trust.js';
+import { keptCopyTrust, recordDeciderTrust, trustSources } from './add-ons/decider-trust.js';
 import { createPackageCopies } from './add-ons/package-copies.js';
 import { createAppFiles } from './apps/app-files.js';
 import { createInstalledApps } from './apps/installed.js';
@@ -703,6 +713,8 @@ export interface ComposeServerOptions {
    * (`chat/door.ts`). There is no setting for this.
    */
   chatSeams?: { answerer?: ChatAnswerer | undefined; ai?: (() => Promise<ChatAi>) | undefined; drafts?: Pick<AiConnections, 'default' | 'refusal' | 'client'> | undefined } | undefined;
+  /** For tests only: the AI connections a landing page's draft is written with (`routes/landing`). There is no setting for this. */
+  landingSeams?: { drafts?: Pick<AiConnections, 'default' | 'refusal' | 'client'> | undefined } | undefined;
 }
 
 export interface ComposedServer {
@@ -1149,6 +1161,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     },
     store: appStore,
     appFiles,
+    // A sample row's `@rule` naming no rule here is written empty, and said in the log.
+    warn: (fields, message) => app.log.warn(fields, message),
     // An add-on's own sample is read from its package (made further down; read only when a sample is asked for).
     addOnFiles: { readVerifiedFile: (key, version, relativePath) => addOnStore.readVerifiedFile(key, version, relativePath) },
     // How a receipt names a table (the installs are kept further down; read only when sample rows are looked at).
@@ -1337,6 +1351,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     data: (connectionId) => manager.data(connectionId),
     vouched: doorVouched,
   });
+  // The landing pages add-ons' published pages, as strangers are served them (the pages door), vouched for as forms are.
+  const landingCatalog = createLandingCatalog({
+    meta,
+    installs: () => addOnInstalls.fresh(),
+    data: (connectionId) => manager.data(connectionId),
+    vouched: doorVouched,
+  });
+  // A form's `landing` ending: its page looked up as the form is served, under the same vouch as a door (`landing/ending.ts`).
+  const landingEndings = createLandingEndings({ meta, installs: () => addOnInstalls.fresh(), data: (connectionId) => manager.data(connectionId), vouched: doorVouched });
   /*
    * Files strangers send (a form's file question): taken by the forms door,
    * attached by the answer that names them, removed with it. The owner is
@@ -1410,10 +1433,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // A forms add-on's answers and their files are written by Adminium alone: staff read and delete them, never write them.
     // …and a chat add-on's conversations, messages and choices: staff act through the chat's own routes (`routes/chat`).
     // …and an add-on's people found and its fields' sources: the engine writes them as a person is kept, told and erased (`leads/`).
-    ownRecords: async (connectionId, tableId) =>
-      (await formsFiles.ownTable(connectionId, tableId)) || chatOwnTable(await addOnInstalls.fresh(), connectionId, tableId) || leadsOwnTable(await addOnInstalls.fresh(), connectionId, tableId),
     // …and those chat and found people tables are not a person's to delete either (a forms answer is): only the keeping sweeps and an erasure remove them.
-    sealedRecords: async (connectionId, tableId) => chatOwnTable(await addOnInstalls.fresh(), connectionId, tableId) || leadsOwnTable(await addOnInstalls.fresh(), connectionId, tableId),
+    // A landing pages add-on's pages: a page goes live, or its published copy is written, only whole, unmarked and at an address no other page holds.
+    // What is installed is read once per write for all of them (`crud/add-on-write-judges.ts`).
+    ...addOnWriteJudges(addOnInstalls),
     // A file column names only a file its writer uploaded and no record holds; a picture, one cleaned as it came in.
     // A page's file column too, when a person saves it: what it newly names is an upload of theirs.
     files: createFileColumnJudge({
@@ -2310,6 +2333,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       app.log.warn({ err: error }, 'public API request counts could not be written; this minute is dropped');
     },
   });
+  /*
+   * Visitor counting: views of landing pages and forms per day, and at "Per
+   * visitor" the pages one visitor saw. Counted in memory by the doors,
+   * flushed every minute and on shutdown (`views/counter.ts`).
+   */
+  const counting = await createCounting({ meta, secret: env.ADMINIUM_SECRET, log: app.log });
   const publicGate = createPublicApiGate({
     read: async () => {
       await watchPublicRevision();
@@ -2702,6 +2731,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           answerFiles: formsFiles.removeAnswerFiles,
           // …and makes the chat store forget their conversations, so a visitor's poll on one is told it is lost.
           chatForget: (place, id) => chatStore.forget(place, id),
+          // A new counting level is used by this process's counter at once.
+          counting: counting.counter,
         }),
       );
       // What the forms builder shows: whether mail a stranger causes goes, and its status read (reach, notice, address, websites, roles).
@@ -2737,6 +2768,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       );
       await api.register(i18nRoutes({ meta }));
       await api.register(viewsRoutes({ meta }));
+      // Strangers' views per day, for whoever may read what was counted (`views/counter.ts`).
+      await api.register(viewCountsRoutes({ meta }));
       await api.register(meViewsRoutes({ meta }));
       await api.register(onboardingRoutes({ meta }));
       // Managing the public surface. Always registered, even when the public
@@ -2783,7 +2816,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         }),
       );
       // The host editor's home picker lists the live forms' addresses.
-      await api.register(surfacesAdminRoutes({ meta, liveForms: () => formsCatalog.liveSlugs() }));
+      await api.register(surfacesAdminRoutes({ meta, liveForms: () => formsCatalog.liveSlugs(), livePages: () => landingCatalog.liveSlugs() }));
       // A file a stranger sent with a form, opened by staff who read its answer.
       await api.register(formsFilesRoutes({ uploads: publicUploads, storage, forms: formsFiles, reachesRecord: fileRecordCheck(meta, manager) }));
       // Installing an app. Registered on the same
@@ -3800,10 +3833,76 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       answers: answerDoor,
       invitations: surveyInvitations,
       uploads: publicUploads,
+      endings: landingEndings,
+      networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+      desktop: env.ADMINIUM_RUNTIME === 'desktop',
+      trustProxy: env.ADMINIUM_TRUST_PROXY,
+      // A live form's views and sends are counted; at "Per visitor" its own page asks first.
+      views: counting.counter,
+      visitors: counting.visitors,
+      // A form block's `?on=`: the live landing page that holds it.
+      landing: landingCatalog,
+    }),
+  );
+  // The visitor banner's "Yes" and "Cookie choice" (`/x/consent/visit`).
+  await app.register(
+    xConsentRoutes({
+      meta,
+      key: counting.visitors.key,
+      // Read again within the last few seconds: another process's change reaches this one's "yes" at once.
+      levelNow: () => counting.counter.levelNow(),
       networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
       desktop: env.ADMINIUM_RUNTIME === 'desktop',
       trustProxy: env.ADMINIUM_TRUST_PROXY,
     }),
+  );
+
+  /*
+   * THE PAGES DOOR (`/x/pages/`): a landing page, drawn by the engine from a
+   * landing pages add-on's own table, its head written by the server. Always
+   * registered, like the forms door, and gated per request by the same reach.
+   */
+  const pageHosts = async (): Promise<Readonly<Record<string, { home: string }>>> => (app.surfaceSettings === null ? ((await settingsRepo(meta).get('surfaces.pageHosts')) ?? {}) : ((await app.surfaceSettings.read()).pages ?? {}));
+  await app.register(
+    pagesDoorRoutes({
+      meta,
+      catalog: landingCatalog,
+      forms: formsCatalog,
+      storage,
+      pageHosts,
+      // A live page's views are counted, and at "Per visitor" its data says what the banner reads.
+      views: counting.counter,
+      visitors: counting.visitors,
+      networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+      desktop: env.ADMINIUM_RUNTIME === 'desktop',
+      trustProxy: env.ADMINIUM_TRUST_PROXY,
+    }),
+  );
+  // A write to a landing pages table or a forms table: what the pages door keeps of a page is read again (`crud/after-record-write.ts`).
+  app.decorate('landingDoor', {
+    onRecordEvent(event: { connectionId: string; table: { id: string } }) {
+      const installs = addOnInstalls.current();
+      if (landingPagesTable(installs, event.connectionId, event.table.id) || formsTablesOn(installs, event.connectionId).some((tables) => tables.forms === event.table.id)) landingCatalog.forget();
+    },
+  });
+  // Staff: a page's pictures, and where its pages answer (`routes/landing`).
+  await app.register(
+    async (api) => {
+      await api.register(
+        landingStaffRoutes({
+          meta,
+          catalog: landingCatalog,
+          storage,
+          pageHosts,
+          // Who may read a file of Files: the files routes' own rule.
+          hiddenFile: hiddenFileCheck(meta, manager),
+          reachesRecord: fileRecordCheck(meta, manager),
+          privateFile: privateFileCheck(meta, manager),
+          reach: { networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY },
+        }),
+      );
+    },
+    { prefix: API_PREFIX },
   );
 
   /*
@@ -3952,6 +4051,22 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           secret: env.ADMINIUM_SECRET,
           // The status read's reach answer is the doors' own, as the forms status reads it.
           reach: { networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY },
+        }),
+      );
+      /*
+       * Staff of a landing pages add-on: Milo's draft of a page, the live forms
+       * a Form block may name, a funnel's rule (`routes/landing`). A draft is a
+       * person's own work on their own key, so a trial lets it run (the
+       * operator's AI kept to dashboards does not).
+       */
+      await api.register(
+        landingDraftAndReadsRoutes({
+          meta,
+          installs: () => addOnInstalls.fresh(),
+          data: formsData,
+          catalog: formsCatalog,
+          endings: landingEndings,
+          ai: { connections: opts.landingSeams?.drafts ?? aiConnections, offHere: chatAiOffHere(() => false, env.ADMINIUM_AI_OPERATOR_SCOPE ?? null, (connectionId) => aiConnections.isOperator(connectionId)) },
         }),
       );
     },
@@ -4238,6 +4353,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         log: (level, message, data) => {
           app.log[level](data ?? {}, message);
         },
+        trust: keptCopyTrust(meta),
       });
 
       let restoredApp = false;
@@ -4484,6 +4600,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   app.addHook('onClose', async () => {
     await publicStats.flush();
   });
+  // Strangers' views and visits: written every minute and on shutdown, swept daily past their months.
+  registerCountingSchedules(jobs.scheduler, { meta, counting, log: app.log });
+  app.addHook('onClose', async () => {
+    await counting.counter.flush();
+  });
   // What has the project's folder, for whoever is about to stop this server (the desktop app asks before it does).
   if (!app.hasDecorator('designerBusy')) app.decorate('designerBusy', () => designer?.runner.busy() ?? null);
   // A Designer turn that runs is stopped, and its end written, before the store closes.
@@ -4664,9 +4785,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         log: (level, message, data) => {
           app.log[level](data ?? {}, message);
         },
+        trust: keptCopyTrust(meta),
       }).keep(installed),
     log: (message, data) => app.log.warn(data, message),
   });
+  // The live landing pages as the operator reads them: their words, the pictures they show and where their buttons lead.
+  const landingPublic = {
+    liveSlugs: () => landingCatalog.liveSlugs(),
+    find: (slug: string) => landingCatalog.find(slug),
+    picture: (owner: { connectionId: string; pagesTable: string; page: string }, file: string) => pagePictureOf(meta, owner, file),
+    forget: (slug?: string) => landingCatalog.forget(slug),
+  };
   // The operator endpoint, on a listener of its own and only with the operator's token (`operator/endpoint.ts`).
   const operatorToken = env.ADMINIUM_OPERATOR_TOKEN ?? operatorSecret('ADMINIUM_OPERATOR_TOKEN');
   const operatorListen = env.ADMINIUM_OPERATOR_LISTEN;
@@ -4678,7 +4807,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           token: operatorToken,
           holds: app.operatorHolds,
           status: () => operatorStatus({ meta, dataDir: env.ADMINIUM_DATA_DIR, projectRoot, publicPages: () => app.operatorHolds.publicPages() }),
-          publicContent: () => buildPublicContent({ surfaces: () => app.surfaces, forms: formsCatalog }),
+          publicContent: () => buildPublicContent({ surfaces: () => app.surfaces, forms: formsCatalog, pages: landingPublic }),
           reinstall: () => operatorReinstaller.reinstall(),
           logger: app.log.child({ listener: 'operator' }),
         });
@@ -4696,6 +4825,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     forms: formsCatalog,
     // What is kept of the add-ons' installs, read without a query: a write to a forms table may change a form.
     formsTable: async (connectionId: string, tableId: string) => formsTablesOn(addOnInstalls.current(), connectionId).some((tables) => tables.forms === tableId),
+    // ...and a write to a landing pages table, a page.
+    pages: landingPublic,
+    landingPagesTable: async (connectionId: string, tableId: string) => landingPagesTable(addOnInstalls.current(), connectionId, tableId),
     log: app.log,
   };
   registerOperatorEventsHandler(jobs.registry, operatorEventsOptions);

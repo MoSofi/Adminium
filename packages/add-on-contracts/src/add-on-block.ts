@@ -456,6 +456,20 @@ export const addOnBlockSchema = z
       })
       .optional(),
     /**
+     * Landing pages: which of the add-on's own tables hold its pages and its
+     * funnels. The engine draws a live page for a stranger and seals the
+     * columns that publish one; no add-on code runs for a stranger. Only the
+     * table refs are typed here: the columns each must have are the
+     * manifest's own vocabulary, so `@adminium/manifest` checks the whole of
+     * it. (`pages`, below, is the add-on's own staff screens.)
+     */
+    landing: z
+      .looseObject({
+        pages: z.string().regex(/^[a-z][a-z0-9_]*$/, 'a table ref'),
+        funnels: z.string().regex(/^[a-z][a-z0-9_]*$/, 'a table ref'),
+      })
+      .optional(),
+    /**
      * Steps the add-on gives to Automations: each a named write of one row of
      * one of its own tables (see `steps.ts`). Which table and columns they are
      * is `@adminium/manifest`'s to check.

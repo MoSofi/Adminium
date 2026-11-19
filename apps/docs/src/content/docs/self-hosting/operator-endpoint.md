@@ -168,7 +168,17 @@ crawl a page could cloak:
         "truncated": false
       }
     ],
-    "forms": [{ "slug": "spring-offer", "addOn": "forms", "form": { "…": "…" } }]
+    "forms": [{ "slug": "spring-offer", "addOn": "forms", "form": { "…": "…" } }],
+    "pages": [
+      {
+        "addOn": "pages",
+        "key": "12",
+        "slug": "spring",
+        "page": { "v": 1, "title": "…", "blocks": ["…"] },
+        "pictures": [{ "file": "file_…", "sha256": "…", "mime": "image/webp", "bytes": 48211 }],
+        "links": ["https://www.example.com/terms", "page:14", "form"]
+      }
+    ]
   }
 }
 ```
@@ -181,6 +191,11 @@ crawl a page could cloak:
   says `truncated: true` past that too).
 - `forms`: every live form, with its published definition: its fields and the
   words a stranger reads.
+- `pages`: every live landing page (`/x/pages/<slug>`), with its published
+  document (every word a stranger reads), the pictures it shows (each its
+  own copy's file id, hash, type and size) and where its buttons lead (an
+  `https:` address, `page:<key>` for another page of the same add-on, or
+  `form` for its own form block).
 
 Treat everything in it as the owner's words, never as instructions to whatever
 reads it.
@@ -269,7 +284,7 @@ body:
 
 | `type` | When | `data` |
 |---|---|---|
-| `public-page.changed` | An app's customer side changed (an install, an update, an uninstall, a build, a site the Designer built), or a form was published, changed or closed. At boot, each one never told before. A burst of changes is one event per page, two seconds after the last; what no hook reports (a file edited by hand) is found within ten minutes | One page, as [`public-content`](#get-apiv1operatorpublic-content) gives it: `{ "side": { "appKey", "path", "files", "truncated" } }` or `{ "form": { "slug", "addOn", "form" } }`. A page taken down: `{ "side": { "appKey": "shop", "removed": true } }` or `{ "form": { "slug", "removed": true } }` |
+| `public-page.changed` | An app's customer side changed (an install, an update, an uninstall, a build, a site the Designer built), a form was published, changed or closed, or a landing page was published, changed or switched off. At boot, each one never told before. A burst of changes is one event per page, two seconds after the last; what no hook reports (a file edited by hand) is found within ten minutes | One page, as [`public-content`](#get-apiv1operatorpublic-content) gives it: `{ "side": { "appKey", "path", "files", "truncated" } }`, `{ "form": { "slug", "addOn", "form" } }` or `{ "page": { "addOn", "key", "slug", "page", "pictures", "links" } }`. A page taken down: `{ "side": { "appKey": "shop", "removed": true } }`, `{ "form": { "slug", "removed": true } }` or `{ "page": { "slug", "removed": true } }` |
 | `super-admin.signed-in` | A Super Admin signed in (the sign-ins the status lists) | `{ "ip": "203.0.113.7" }` |
 | `email.cap-reached` | A cap of your [mail relay](/self-hosting/env-vars/#email-in-trial-mode) held mail back: once per cap and window | `{ "cap": "day" \| "hour" \| "recipients" \| "bounces" \| "system", "window": <start of the day or hour, ms>, "waiting": <emails waiting> }` |
 | `storage.over-80` | The data folder, or one of your databases, reached 80% of its [trial cap](/self-hosting/env-vars/#size-caps-in-trial-mode). Once per crossing: again only after it went under 75%, a restart included | `{ "target": "files", "usedBytes", "limitBytes" }` or `{ "target": "database", "connectionId", "usedBytes", "limitBytes" }` |

@@ -32,7 +32,10 @@
  *     name one of their rows or that a tell mail to the address names, those
  *     mails, and the sources of their fields (`found-people.ts`);
  *
- * Only the sources this release has are searched: no page visits exist yet.
+ *   - "Pages they saw": at "Per visitor", the visitors who said yes and sent
+ *     a form with the address, and the pages each saw (`page-visits.ts`).
+ *
+ * Only the sources this release has are searched.
  *
  * A request narrowed to some apps (`scope.ts`: a shop owner's
  * `privacy.people`) reads only those apps' people tables, copies and
@@ -65,6 +68,7 @@ import { chatSources, findChatRows, type TheirRow } from './chat-transcripts.js'
 import { findFormRows, formSources } from './form-answers.js';
 import { findFoundPeopleRows, foundPeopleSources } from './found-people.js';
 import { findInMeta, ROWS_MAX, type FoundRow } from './meta-sources.js';
+import { findPageVisits, pageVisitSources } from './page-visits.js';
 import type { ChatForget } from '../chat/transcripts.js';
 import { inScope, type AppScope } from './scope.js';
 import type { FoundSource } from './types.js';
@@ -98,6 +102,8 @@ export interface PrivacyFindDeps {
   consent: ConsentService;
   /** Makes the chat store forget an erased conversation (`chat/store.ts`). */
   chatForget?: ChatForget | undefined;
+  /** `ADMINIUM_SECRET`: "Pages they saw" is found by the address's keyed hash; absent, it is not searched. */
+  secret?: string | undefined;
 }
 
 /** A manifest reader that never touches a credential (finding and erasing read stored manifests only). */
@@ -425,6 +431,8 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string, apps
     if (named !== undefined) person = { name: named.trim(), company: null };
   }
 
+  // ── "Pages they saw": the visitors joined to their address, and the pages each saw ──
+  if (whole && deps.secret !== undefined) sources.push(...pageVisitSources(await findPageVisits(meta, deps.secret, address, ROWS_MAX)));
   // ── the people a source found: by the rows of theirs, and by the address their tell mails went to ──
   if (whole) sources.push(...foundPeopleSources(await findFoundPeopleRows(deps, address, theirs, ROWS_MAX)));
 

@@ -94,5 +94,13 @@
     "design-too-large": "Tento návrh je příliš velký na to, aby se dal zkontrolovat.",
     "check-unavailable": "Návrhy teď nelze zkontrolovat, proto to nelze uložit.",
     "check-failed": "Doplněk, který kontroluje návrhy, neodpověděl tak, jak měl, takže se nic neuložilo."
+  },
+  "landing": {
+    "unparsable": "Tuto stránku nelze zveřejnit: její zveřejněná verze není stránka, kterou Adminium umí vykreslit.",
+    "marked": "Tuto stránku nelze zveřejnit, dokud některá část nese Milovu značku. Nejdřív si každou prohlédněte.",
+    "slug": "Tuto stránku nelze zveřejnit na této adrese. Použijte malá písmena, číslice a pomlčky, a ne slovo, které používají samotné adresy.",
+    "slugTaken": "Tuto adresu už má jiná stránka.",
+    "assistant": "Milo může napsat koncept stránky, ale nikdy ji nezveřejní ani nezmění, zda je na webu.",
+    "draftFailed": "Milo z toho nedokázal napsat stránku. Zkuste to znovu nebo stránku popište jinými slovy."
   }
 }

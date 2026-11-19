@@ -5,7 +5,7 @@
  *  - who gets in: the Super Admin (`privacy.manage`); the built-in Admin, a
  *    marketer holding `settings.manage` and a rep get the house's no-access
  *    state and no request for anyone's data;
- *  - the four tabs, each with its own address, and nothing else;
+ *  - the five tabs, each with its own address, and nothing else;
  *  - the reach card first on "Privacy notice" and "Your websites": one line
  *    while reachable (and a line under it while the check cannot tell
  *    whether visitors come through a proxy), else the state's card ("Check again" reads again; "Set
@@ -23,7 +23,14 @@
  *    typed again (any case), sends it as `confirm`, and ends on "Erased";
  *    a 409 never repeats the address; the address never rides a URL;
  *  - How long we keep things: the two fixed rows in their words, and a row
- *    per forms add-on saying how long its own setting keeps the answers.
+ *    per forms add-on saying how long its own setting keeps the answers;
+ *    the counting rows each a choice of months, with a Save;
+ *  - Visitor counting: Counts only by default and said truly (landing pages
+ *    and forms, never the chat; known bots left out; when counting started;
+ *    no website consent line); a Save; Per visitor off while the notice is
+ *    not set, with a link to it; going down from Per visitor asks first and
+ *    says what was deleted; the banner's words per language over the
+ *    defaults, with a preview.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
@@ -35,7 +42,7 @@ import { createQueryClient } from '../../app/query.js';
 import { createAppRouter } from '../../app/router.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
-import type { ErasePreview, ListedWebsite, PersonFound, PrivacyExport, PrivacyNotice, PublicReach } from './privacyApi.js';
+import type { CountingState, ErasePreview, KeepingRow, ListedWebsite, PersonFound, PrivacyExport, PrivacyNotice, PublicReach } from './privacyApi.js';
 
 class FakeWebSocket {
   onopen: (() => void) | null = null;
@@ -69,6 +76,29 @@ let reach: PublicReach;
 let websites: ListedWebsite[];
 /** What the next add answers instead of adding (the server found the list changed). */
 let addRefusal: { lines: { line: string; code: string; origin: string | null }[]; tooMany: boolean } | null = null;
+/** The keeping table as the server answers it; null: the fixed rows and the add-ons' (the default fixture). */
+let keepingRows: KeepingRow[] | null = null;
+const DEFAULT_WORDS = {
+  title: 'Can we remember your visit?',
+  text: 'If you say yes, we remember which of our pages you look at, and if you then send us a form, we keep that with your message so we can answer you better. Nothing about your visit is remembered if you say no.',
+  yes: 'Yes',
+  no: 'No',
+};
+const GERMAN_WORDS = { title: 'Dürfen wir uns an Ihren Besuch erinnern?', text: 'Wenn Sie Ja sagen, merken wir uns, welche unserer Seiten Sie ansehen.', yes: 'Ja', no: 'Nein' };
+function countingAt(level: CountingState['level'], more: Partial<CountingState> = {}): CountingState {
+  return {
+    level,
+    countingSince: Date.UTC(2026, 6, 1, 9),
+    viewCountsMonths: 13,
+    visitsMonths: 6,
+    banner: null,
+    defaults: { 'en-US': DEFAULT_WORDS, 'de-DE': GERMAN_WORDS },
+    noticeReady: true,
+    kept: { visitors: 0, visits: 0 },
+    ...more,
+  };
+}
+let counting: CountingState = countingAt('counts');
 
 const TESSA = { id: 'usr_tessa', name: 'Tessa Marlow' };
 const JULY_2 = Date.UTC(2026, 6, 2, 12);
@@ -126,6 +156,20 @@ function stub(): Call[] {
         notice = { businessName: next.businessName, noticeUrl: next.noticeUrl, ready: next.businessName !== null && next.noticeUrl !== null, shownName: next.businessName ?? 'Meridian', dpoContact: next.dpoContact ?? null, peopleFound: notice.peopleFound };
         return ok({ data: notice });
       }
+      if (url === '/api/v1/privacy/counting' && method === 'GET') return ok({ data: counting });
+      if (url === '/api/v1/privacy/counting' && method === 'PUT') {
+        const next = body as { level: CountingState['level']; banner?: CountingState['banner'] };
+        if (next.level === 'visitor' && !counting.noticeReady) return ok({ error: { code: 'PER_VISITOR_NEEDS_NOTICE', message: 'Set the privacy notice first.' } }, 409);
+        const deleted = counting.level === 'visitor' && next.level !== 'visitor' ? counting.kept : null;
+        counting = { ...counting, level: next.level, ...(next.banner === undefined ? {} : { banner: next.banner }), kept: deleted === null ? counting.kept : { visitors: 0, visits: 0 }, deleted };
+        return ok({ data: counting });
+      }
+      if (url === '/api/v1/privacy/keeping' && method === 'PUT' && keepingRows !== null) {
+        const asked = (body as { rows: { key: string; months: number }[] }).rows;
+        keepingRows = keepingRows.map((row) => ({ ...row, keptFor: asked.find((one) => one.key === row.key)?.months ?? row.keptFor }));
+        return ok({ data: { rows: keepingRows } });
+      }
+      if (url === '/api/v1/privacy/keeping' && keepingRows !== null) return ok({ data: { rows: keepingRows } });
       if (url === '/api/v1/privacy/keeping') {
         return ok({
           data: {
@@ -208,6 +252,8 @@ afterEach(() => {
   reach = { state: 'reachable', origin: 'https://crm.meridian.example', checkedAt: Date.now(), proxyUnchecked: false };
   websites = [];
   addRefusal = null;
+  keepingRows = null;
+  counting = countingAt('counts');
 });
 reach = { state: 'reachable', origin: 'https://crm.meridian.example', checkedAt: Date.now(), proxyUnchecked: false };
 websites = [];
@@ -286,11 +332,11 @@ describe('who opens the privacy page', () => {
     expect(calls.some((call) => call.url.startsWith('/api/v1/privacy'))).toBe(false);
   });
 
-  it('the Super Admin gets exactly the four tabs, each with its own address', async () => {
+  it('the Super Admin gets exactly the five tabs, each with its own address', async () => {
     asSuperAdmin();
     const { router } = await renderAt('/studio/privacy');
     const tabs = await screen.findAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Privacy notice', 'Your websites', 'A person’s data', 'How long we keep things']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Privacy notice', 'Your websites', 'Visitor counting', 'A person’s data', 'How long we keep things']);
     expect(screen.getByRole('tab', { name: 'Privacy notice' }).getAttribute('aria-selected')).toBe('true');
     await userEvent.click(screen.getByRole('tab', { name: 'Your websites' }));
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'websites' }));
@@ -675,3 +721,98 @@ describe('your websites', () => {
     expect(within(embed).getByText('Then add a form or the chat where you want it. Each form\'s Share tab has its own line.')).toBeDefined();
   });
 });
+
+describe('visitor counting', () => {
+  it('says what is counted and when counting started, offers no website consent line, and saves a level only with Save', async () => {
+    asSuperAdmin();
+    const { calls } = await renderAt('/studio/privacy?tab=counting');
+    const tab = await screen.findByTestId('privacy-counting');
+    expect(within(tab).getByText('On your landing pages and forms. The chat is not counted.')).toBeDefined();
+    expect(within(tab).getByRole('radio', { name: /Counts only/ }).getAttribute('aria-checked')).toBe('true');
+    expect(within(tab).getByRole('radio', { name: /Counts only/ }).textContent).toContain('known bots are left out');
+    expect(screen.getByTestId('privacy-counting-since').textContent).toMatch(/^Counting started on .*2026\.$/);
+    expect(within(tab).getByText('Kept: view counts 13 months.')).toBeDefined();
+    // The install's own banner only, never one for the owner's own website.
+    expect(tab.textContent).not.toContain('adminium.consent');
+    expect(tab.textContent).not.toContain('On your own website');
+    // No banner card below Per visitor.
+    expect(screen.queryByTestId('privacy-counting-banner')).toBeNull();
+    const save = screen.getByTestId('privacy-counting-save');
+    expect(save.hasAttribute('disabled')).toBe(true);
+    await userEvent.click(within(tab).getByRole('radio', { name: /^Off/ }));
+    expect(calls.some((call) => call.method === 'PUT')).toBe(false);
+    await userEvent.click(save);
+    await waitFor(() => expect(calls.find((call) => call.method === 'PUT' && call.url === '/api/v1/privacy/counting')?.body).toEqual({ level: 'off' }));
+    expect(await screen.findByText('Counting is off. What was counted stays until its time is up.')).toBeDefined();
+  });
+
+  it('keeps Per visitor off while the privacy notice is not set, with a link to it', async () => {
+    asSuperAdmin();
+    counting = countingAt('counts', { noticeReady: false });
+    const { router } = await renderAt('/studio/privacy?tab=counting');
+    const visitor = await screen.findByRole('radio', { name: /Per visitor/ });
+    expect(visitor.hasAttribute('disabled')).toBe(true);
+    const line = screen.getByTestId('privacy-counting-needs-notice');
+    expect(line.textContent).toContain('Set your privacy notice first: the banner links to it.');
+    await userEvent.click(within(line).getByRole('button', { name: 'Set the privacy notice' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'notice' }));
+  });
+
+  it('edits the banner per language over the default words, with a preview, and saves only what was written', async () => {
+    asSuperAdmin();
+    counting = countingAt('visitor');
+    const { calls } = await renderAt('/studio/privacy?tab=counting');
+    const card = await screen.findByTestId('privacy-counting-banner');
+    expect(within(card).getByText('Both buttons look the same, so saying no is as easy as saying yes.')).toBeDefined();
+    expect((screen.getByTestId('privacy-counting-title') as HTMLInputElement).placeholder).toBe(DEFAULT_WORDS.title);
+    expect(screen.getByTestId('privacy-counting-preview').textContent).toContain(DEFAULT_WORDS.text);
+    expect(screen.getByText('Kept: view counts 13 months; one visitor’s pages 6 months; removed with the person.')).toBeDefined();
+    await userEvent.click(screen.getByTestId('privacy-counting-language'));
+    await userEvent.click((await screen.findAllByTestId('privacy-counting-language-row')).find((row) => row.getAttribute('data-locale') === 'de-DE')!);
+    expect((screen.getByTestId('privacy-counting-yes') as HTMLInputElement).placeholder).toBe('Ja');
+    await userEvent.type(screen.getByTestId('privacy-counting-yes'), 'Gern');
+    // The two buttons stay the same in the preview: the owner's yes beside the default no.
+    const preview = screen.getByTestId('privacy-counting-preview');
+    expect(preview.textContent).toContain('Gern');
+    expect(preview.textContent).toContain('Nein');
+    await userEvent.click(screen.getByTestId('privacy-counting-save'));
+    await waitFor(() => expect(calls.find((call) => call.method === 'PUT' && call.url === '/api/v1/privacy/counting')?.body).toEqual({ level: 'visitor', banner: { 'de-DE': { yes: 'Gern' } } }));
+  });
+
+  it('asks before going down from Per visitor, and says what it deleted', async () => {
+    asSuperAdmin();
+    counting = countingAt('visitor', { kept: { visitors: 3, visits: 41 } });
+    const { calls } = await renderAt('/studio/privacy?tab=counting');
+    await userEvent.click(await screen.findByRole('radio', { name: /Counts only/ }));
+    await userEvent.click(screen.getByTestId('privacy-counting-save'));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog.textContent).toContain('This deletes 3 visitors’ page history now.');
+    expect(calls.some((call) => call.method === 'PUT')).toBe(false);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete and save' }));
+    await waitFor(() => expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ level: 'counts' }));
+    expect((await screen.findAllByText('Saved. 3 visitors’ page history was deleted.')).length).toBeGreaterThan(0);
+  });
+});
+
+describe('how long the counts are kept', () => {
+  it('offers each counting row\'s months and saves them with Save', async () => {
+    asSuperAdmin();
+    keepingRows = [
+      { key: 'consent-history', fixed: true, keptFor: 'until-erased', options: [] },
+      { key: 'view-counts', fixed: false, keptFor: 13, options: [3, 6, 12, 13, 24, 36] },
+      { key: 'visitor-pages', fixed: false, keptFor: 6, options: [3, 6, 12, 13, 24, 36] },
+    ];
+    const { calls } = await renderAt('/studio/privacy?tab=keeping');
+    const table = await screen.findByTestId('privacy-keeping');
+    expect(within(table).getAllByRole('rowheader').map((cell) => cell.textContent)).toEqual(['Consent history', 'View counts', 'Pages a visitor saw']);
+    const views = screen.getByTestId('privacy-keeping-view-counts') as HTMLSelectElement;
+    expect([...views.options].map((option) => option.textContent)).toEqual(['3 months', '6 months', '12 months', '13 months', '24 months', '36 months']);
+    expect(views.value).toBe('13');
+    const save = screen.getByTestId('privacy-keeping-save');
+    expect(save.hasAttribute('disabled')).toBe(true);
+    await userEvent.selectOptions(views, '24');
+    await userEvent.click(save);
+    await waitFor(() => expect(calls.find((call) => call.method === 'PUT' && call.url === '/api/v1/privacy/keeping')?.body).toEqual({ rows: [{ key: 'view-counts', months: 24 }] }));
+  });
+});
+

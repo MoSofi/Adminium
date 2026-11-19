@@ -94,5 +94,13 @@
     "design-too-large": "Ce design est trop volumineux pour être vérifié.",
     "check-unavailable": "Les designs ne peuvent pas être vérifiés pour le moment ; l’enregistrement est donc impossible.",
     "check-failed": "Le module qui vérifie les designs n’a pas répondu comme il le devait ; rien n’a été enregistré."
+  },
+  "landing": {
+    "unparsable": "Cette page ne peut pas être publiée : sa version publiée n’est pas une page qu’Adminium peut afficher.",
+    "marked": "Cette page ne peut pas être publiée tant qu’une section porte encore la marque de Milo. Relisez-les d’abord une par une.",
+    "slug": "Cette page ne peut pas être publiée à cette adresse. Utilisez des minuscules, des chiffres et des tirets, et pas un mot que les adresses utilisent déjà.",
+    "slugTaken": "Une autre page a déjà cette adresse.",
+    "assistant": "Milo peut rédiger le brouillon d’une page, mais jamais la publier ni changer si elle est en ligne.",
+    "draftFailed": "Milo n’a pas pu écrire de page à partir de cela. Réessayez, ou décrivez la page autrement."
   }
 }

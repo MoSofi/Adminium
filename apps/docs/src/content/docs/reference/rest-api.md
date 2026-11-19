@@ -140,6 +140,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/imports/*` | 7 | CSV/spreadsheet imports — upload, dry run, run, error report |
 | `/api/v1/invoices/*` | 10 | Invoice templates and invoices — the documents, their language variations, the starters, duplicates, and building an invoice from a template |
 | `/api/v1/jobs/*` | 4 | Background jobs — enqueue, poll, cancel |
+| `/api/v1/landing/*` | 7 | A landing pages add-on, for staff: a page drafted by Milo on the person’s own allowance (no rows, every block marked, never published); the live forms a Form block may show and the live pages a form may end on; the name and steps of the rule a funnel names; a page’s own pictures; and what the editor’s page settings say (reach, notice, the pages hosts and a page’s addresses). The install is named as the add-on kit names it: the X-Adminium-Install header, else ?connectionId= |
 | `/api/v1/leads/*` | 6 | Finding companies, for staff of an add-on that finds them: search a register, look up one company, add found companies, fill in a company's details, and find and keep the people who work there — every write made as the person asking |
 | `/api/v1/ledgers/*` | 4 | The rules that hand rows to an add-on's ledger (stock, gift cards) — which tables post into it, whether each rule runs, how many rows hold something under it and how many saves wait to be worked out; the tables and columns a new rule may be drawn from; making the ledger's items from a table's rows; and recording the saves let through while the add-on could not be asked. Reading needs a session and the connection; the two runs need the grant that changes what a table's columns mean. A rule itself is stored under /connections/:id/tables/:table/postings. |
 | `/api/v1/llm/*` | 16 | LLM assist — provider config, runs, prompts, diffs, apply, undo |
@@ -152,7 +153,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/people` | 1 | Names and ids of staff, for picking somebody (an owner, a hand-over) |
 | `/api/v1/permissions` | 1 | The permission catalog every role is built from |
 | `/api/v1/presence` | 1 | Someone is using this dashboard: an empty answer the dashboard asks for once a minute while its person is active, only where the operator set ADMINIUM_PRESENCE=on, for a proxy that counts any request as use |
-| `/api/v1/privacy/*` | 18 | A person’s data by their e-mail address — finding everything kept about them, downloading it as a .zip of JSON and CSV, erasing them in place (with a preview of what goes and what stays), and how long things are kept — plus the privacy notice (business name, notice address) and the sender’s postal address. Needs privacy.manage (only the Super Admin holds it unless granted) and a signed-in person; the postal address needs settings.manage. |
+| `/api/v1/privacy/*` | 21 | A person’s data by their e-mail address — finding everything kept about them, downloading it as a .zip of JSON and CSV, erasing them in place (with a preview of what goes and what stays), and how long things are kept — plus the privacy notice (business name, notice address), the sender’s postal address and visitor counting (Off, Counts only or Per visitor, and the visitor banner’s words). Needs privacy.manage (only the Super Admin holds it unless granted) and a signed-in person; the postal address needs settings.manage. |
 | `/api/v1/project/*` | 11 | A project folder on the server that runs one — which pages and schema customizations differ from the deployed files, settling a page changed on both sides, the changed copies `adminium pull --from` writes into the project, running the project’s actions, the built files of its own pages and widgets, and what Studio shows about the project |
 | `/api/v1/public/*` | 37 | The scoped public API for customer- and staff-facing pages (off by default) |
 | `/api/v1/public-api/*` | 3 | Turn the public API on or off, and see whether this instance opted in |
@@ -172,6 +173,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/system/*` | 2 | Version and instance information |
 | `/api/v1/teams/*` | 6 | Teams and who leads them: a lead reaches the rows of the people in the team |
 | `/api/v1/users/*` | 11 | People on the server — invite, suspend, delete, assign roles |
+| `/api/v1/views` | 1 | How many times strangers saw a landing page or a form, per day (views, known bots left out; opened and sent for a form on a page), with when counting started. For whoever may read the table the counted rows are in. |
 | `/api/v1/widget-data/*` | 3 | The queries widgets run, singly and in batches |
 | `/api/v1/words` | 1 | What staff are told of the rows a screen shows, in an add-on's stock words — in, low or out for up to sixty rows of a table named as it is stored, and for a caller who reads the add-on's stock tables the figure behind the word: the exact count, the batch and its expiry, the line that runs out first, and whether stock or the day's portions bind |
 | `/api/v1/workspaces/*` | 12 | Workspaces: named groups of the server’s databases, kept by whoever manages connections. A database may be in several workspaces or in none, and deleting a workspace leaves its databases where they are. Save workspace makes one app per database and downloads them as one file |
@@ -184,7 +186,8 @@ Three of these deserve a note, because the obvious guess is wrong:
   under the connection they belong to: `/connections/:id/schema/*`.
 - **There is no `/api/v1/generate/*`.** Generation is an action on a connection:
   `POST /connections/:id/generate`.
-- **There is no `/api/v1/views/*`.** Shared views belong to a page
+- **`/api/v1/views` is not a page's views.** It counts how many times strangers saw
+  a landing page or a form. Shared views belong to a page
   (`/pages/:pageId/views`); per-user saved layouts belong to you
   (`/me/views/:pageId/layout`).
 
@@ -714,6 +717,18 @@ GET /api/v1/jobs/{id}
 POST /api/v1/jobs/{id}/cancel
 ```
 
+### `/landing`
+
+```http
+POST /api/v1/landing/{addOn}/pictures
+GET /api/v1/landing/{addOn}/pictures/{file}
+GET /api/v1/landing/{addOn}/status
+POST /api/v1/landing/{addOn}/draft
+GET /api/v1/landing/{addOn}/forms
+GET /api/v1/landing/live-pages
+GET /api/v1/landing/{addOn}/funnels/{key}/rule
+```
+
 ### `/leads`
 
 ```http
@@ -914,6 +929,9 @@ PUT /api/v1/privacy/postal-address
 POST /api/v1/privacy/find
 POST /api/v1/privacy/what-stays
 GET /api/v1/privacy/keeping
+PUT /api/v1/privacy/keeping
+GET /api/v1/privacy/counting
+PUT /api/v1/privacy/counting
 GET /api/v1/privacy/exports
 POST /api/v1/privacy/exports
 GET /api/v1/privacy/exports/{id}
@@ -1159,6 +1177,12 @@ DELETE /api/v1/users/{id}
 POST /api/v1/users/{id}/invite/resend
 ```
 
+### `/views`
+
+```http
+GET /api/v1/views
+```
+
 ### `/widget-data`
 
 ```http
@@ -1204,7 +1228,7 @@ operator's own listener (`ADMINIUM_OPERATOR_LISTEN`), and only
 |---|---|
 | `GET /api/v1/operator/status` | Disk used, mail and AI spent, the Super Admins' last 20 sign-ins (time and address), the last sign-in, and whether the public pages are hidden |
 | `POST /api/v1/operator/public-pages` | `{ "hidden": true, "reason": "…" }` hides every public page at once (404 on every host); `{ "hidden": false }` shows them again |
-| `GET /api/v1/operator/public-content` | What the instance serves to anybody: every customer side's files, with their text, and every live form's fields |
+| `GET /api/v1/operator/public-content` | What the instance serves to anybody: every customer side's files, with their text, every live form's fields, and every live landing page with its pictures and links |
 | `POST /api/v1/operator/reinstall` | Downloads again every installed catalog app and add-on whose files are not on this server (after a restore, say), at its installed version and checked as Studio's Download checks it; answers what came back, what was already here, and what failed and why |
 
 They are for whoever runs the server, not for the people who use it, and a

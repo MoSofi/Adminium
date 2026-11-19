@@ -862,7 +862,7 @@ function DomainsCard({
                 <li key={index}>
                   {/* The server's own words are English: the codes this screen can cause are worded here. */}
                   {issue.code === 'invalid_home'
-                    ? t('studio:hostedApps.domains.invalidHome', 'The home page of {host} must be a live form’s page under /x/.', { host: issue.path })
+                    ? t('studio:hostedApps.domains.invalidHome', 'The home page of {host} must be a live form’s or page’s address under /x/.', { host: issue.path })
                     : issue.message}
                 </li>
               ))}
@@ -966,9 +966,9 @@ function DomainsCard({
                 </FormField>
                 {/*
                   THE HOME PAGE of a host that serves the add-on pages: where
-                  its `/` sends a visitor. Picked from the live forms'
-                  addresses; one no longer live stays listed so the row says
-                  what it is saved as.
+                  its `/` sends a visitor. Picked from the live forms' and
+                  landing pages' addresses; one no longer live stays listed so
+                  the row says what it is saved as, and that it is off.
                 */}
                 {row.kind === 'pages' && (
                   <FormField
@@ -977,7 +977,13 @@ function DomainsCard({
                     controlId={`hosted-domain-home-${String(row.key)}`}
                     error={
                       row.home === ''
-                        ? t('studio:hostedApps.domains.homeMissing', 'Publish a form first: this host needs a live form as its home page.')
+                        ? t('studio:hostedApps.domains.homeMissing', 'Publish a form or a page first: this host needs a live one as its home page.')
+                        : undefined
+                    }
+                    // A saved home that is no longer live (a page switched off): its `/` lands on "not available".
+                    helper={
+                      row.home !== '' && !pageHomes.includes(row.home)
+                        ? t('studio:hostedApps.domains.homeOff', 'This page isn’t live any more: visitors to {host} find nothing there.', { host: row.host })
                         : undefined
                     }
                   >
@@ -989,7 +995,7 @@ function DomainsCard({
                     >
                       {row.home === '' && (
                         <option value="" disabled>
-                          {t('studio:hostedApps.domains.homeNone', 'No live form yet')}
+                          {t('studio:hostedApps.domains.homeNone', 'No live form or page yet')}
                         </option>
                       )}
                       {(pageHomes.includes(row.home) || row.home === '' ? pageHomes : [row.home, ...pageHomes]).map((home) => (

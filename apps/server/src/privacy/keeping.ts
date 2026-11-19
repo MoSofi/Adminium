@@ -8,10 +8,10 @@
  * do-not-email list (an objection outlives the person who made it: kept for
  * good, as a code once they are erased). Neither can be shortened.
  *
- * Later releases add a row each for what they keep (chat transcripts, page
- * visits): a row with a `setting` is changed through that settings key, in
- * months, from its `options`; the sweep that erases past it reads the same
- * key.
+ * A row with a `setting` is changed through that settings key, in months,
+ * from its `options` (`PUT /privacy/keeping`); the sweep that erases past it
+ * reads the same key. Visitor counting has two: "View counts" (13 months)
+ * and "Pages a visitor saw" (6), swept daily (`views/tracking.ts`).
  *
  * A forms add-on's answers are a row each ({@link formAnswersKeeping}): how
  * long is the add-on's own setting (its settings table's `answers_months`),
@@ -32,7 +32,7 @@
  * told by their "tell by" day (`leads/sweep.ts`). The row is there, and
  * required, while people are on.
  */
-import type { MetaDb, SettingKey } from '@adminium/meta';
+import { KEEPING_MONTHS, type MetaDb, type SettingKey } from '@adminium/meta';
 import { sql } from 'kysely';
 
 import type { ConnectionManager } from '../connections/manager.js';
@@ -58,10 +58,17 @@ export interface KeepingRowDef {
   options?: readonly number[];
 }
 
+/** The keys of the counting rows. */
+export const VIEW_COUNTS_KEEPING = 'view-counts';
+export const VISITOR_PAGES_KEEPING = 'visitor-pages';
+
 /** The keeping table, in the order it is shown. Append; never reorder. */
 export const KEEPING_ROWS: readonly KeepingRowDef[] = [
   { key: 'consent-history', fixed: true, keptFor: 'until-erased' },
   { key: 'do-not-email', fixed: true, keptFor: 'forever' },
+  // Visitor counting: the views counted per day, and the pages one visitor saw (at "Per visitor"), swept daily (`views/tracking.ts`).
+  { key: VIEW_COUNTS_KEEPING, fixed: false, setting: 'privacy.viewCountsMonths', options: KEEPING_MONTHS },
+  { key: VISITOR_PAGES_KEEPING, fixed: false, setting: 'privacy.visitsMonths', options: KEEPING_MONTHS },
 ];
 
 export interface KeepingRow {

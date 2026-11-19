@@ -20,6 +20,7 @@ import { createAppRouter } from '../app/router.js';
 import { jsonResponse, makeBootstrap, makeCrudEnvelope, makeDashboardEnvelope } from '../test/fixtures.js';
 import { registerPageTemplate, type PageTemplateProps } from './templates.js';
 import { withAppPageNotice } from './appPageNotice.js';
+import { SAMPLE_BANNER_FRAME } from '../studio/apps/sampleBannerFrame.js';
 
 class FakeWebSocket {
   onopen: (() => void) | null = null;
@@ -92,6 +93,8 @@ interface Fixture {
   systemActions?: string[];
   /** Whether that app's sample data is loaded. */
   sampleLoaded?: boolean;
+  /** Holds the app's sample-data answer until it settles. */
+  sampleHeld?: Promise<void>;
   /** Trial mode, and what its size caps last measured. */
   trial?: { readings: { connectionId: string; usedBytes: number; limitBytes: number; measuredAt: string; held: boolean }[] };
 }
@@ -140,7 +143,7 @@ function stubFetch(fixture: Fixture = {}) {
       return Promise.resolve(jsonResponse(200, { tables: [{ ref: 'items', count: 12 }], kept: [], changed: [], total: 12 }));
     }
     if (url === '/api/v1/apps/pos/sample-data') {
-      return Promise.resolve(
+      return (fixture.sampleHeld ?? Promise.resolve()).then(() =>
         jsonResponse(200, {
           offered: true,
           loaded: fixture.sampleLoaded ?? false,
@@ -489,6 +492,50 @@ describe('never-crash cards', () => {
 describe('an app’s page with its sample data loaded', () => {
   const sampleCalls = (fetchMock: ReturnType<typeof vi.fn>) =>
     fetchMock.mock.calls.filter((call) => String(call[0]).includes('/sample-data'));
+
+  it('is known before the page draws, so the cards under it never move', async () => {
+    let release = (): void => undefined;
+    const sampleHeld = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    // What held the banner's place each time the page changed, and where it stood when the rows first showed.
+    const boxes = new Set<Element>();
+    let atFirstRows: Element | null | undefined;
+    const observer = new MutationObserver(() => {
+      const box = document.querySelector('[data-testid="app-sample-banner"], [data-testid="app-sample-banner-slot"]');
+      if (box !== null) boxes.add(box);
+      const rows = screen.queryByText('Northwind');
+      if (rows !== null && atFirstRows === undefined) {
+        atFirstRows = box !== null && (box.compareDocumentPosition(rows) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0 ? box : null;
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    try {
+      const { fetchMock } = await renderAt('/p/customers', { appKey: 'pos', sampleLoaded: true, systemActions: ['manifests.manage'], sampleHeld });
+      // Asked beside the page document, not after the page has drawn.
+      await waitFor(() => expect(sampleCalls(fetchMock)).toHaveLength(1));
+      await waitFor(() => expect(fetchMock.mock.calls.some((call) => String(call[0]).startsWith('/api/v1/pages/page_customers'))).toBe(true));
+      // While the answer is out, the template has not drawn: nothing it would then have to move for.
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      expect(screen.queryByText('Northwind')).toBeNull();
+      expect(fetchMock.mock.calls.some((call) => String(call[0]).startsWith('/api/v1/data/'))).toBe(false);
+      release();
+      // Recorded here too: the observer's last call may not have run yet on a loaded machine.
+      boxes.add(await screen.findByTestId('app-sample-banner'));
+      expect(await screen.findByText('Northwind')).toBeDefined();
+      // The banner, or the slot keeping its place, already stood above the rows when they first showed.
+      expect(atFirstRows).not.toBeNull();
+      expect(atFirstRows).toBeDefined();
+      // The banner's code and words were still on their way when the rows showed (this is the file's first
+      // test to draw the banner), so its slot held the place; every box that did is the banner's own frame.
+      expect([...boxes].map((box) => box.getAttribute('data-testid'))).toEqual(['app-sample-banner-slot', 'app-sample-banner']);
+      for (const box of boxes) expect(box.className).toBe(SAMPLE_BANNER_FRAME);
+      // One read: the banner mounts with the loader's answer instead of asking again.
+      expect(sampleCalls(fetchMock)).toHaveLength(1);
+    } finally {
+      observer.disconnect();
+    }
+  });
 
   it('says so to whoever manages apps, and Remove it opens the removal', async () => {
     await renderAt('/p/customers', { appKey: 'pos', sampleLoaded: true, systemActions: ['manifests.manage'] });

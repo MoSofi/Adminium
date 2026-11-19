@@ -35,8 +35,8 @@ export type XFileReply = { state: 'taken'; id: string; name: string; size: numbe
 const FILE_CODES = new Set(['too-big', 'kind', 'quota', 'cap']);
 
 /** Sends one file for a file question with a solved check; the body is the file itself. */
-export async function postFile(slug: string, question: string, file: Blob & { name: string }, proof: string, token: string | null = null): Promise<XFileReply> {
-  const search = new URLSearchParams({ q: question, name: file.name, ...(token === null ? {} : { t: token }) });
+export async function postFile(slug: string, question: string, file: Blob & { name: string }, proof: string, token: string | null = null, on: string | null = null): Promise<XFileReply> {
+  const search = new URLSearchParams({ q: question, name: file.name, ...(token === null ? {} : { t: token }), ...(on === null ? {} : { on }) });
   let response: Response;
   try {
     response = await fetch(`/x/forms/api/${encodeURIComponent(slug)}/files?${search.toString()}`, {
@@ -100,12 +100,13 @@ export function refusalBeforeSending(file: { name: string; size: number }, quest
 }
 
 /** Sends one file with its own check; one silent retry when the check expired on a slow phone. */
-export async function sendFile(slug: string, question: string, file: Blob & { name: string }, token: string | null = null): Promise<Awaited<ReturnType<typeof postFile>>> {
+export async function sendFile(slug: string, question: string, file: Blob & { name: string }, token: string | null = null, on: string | null = null): Promise<Awaited<ReturnType<typeof postFile>>> {
   let reply: Awaited<ReturnType<typeof postFile>> = { state: 'refused', code: 'proof' };
   for (let round = 0; round < 2 && reply.state === 'refused' && reply.code === 'proof'; round += 1) {
     try {
-      const challenge = await fetchChallenge(slug, token);
-      reply = await postFile(slug, question, file, `${challenge.id}.${solve(challenge.salt, challenge.difficulty)}`, token);
+      // A landing page's form block: its check and its file go by the block's own form (`on`).
+      const challenge = await fetchChallenge(slug, token, on);
+      reply = await postFile(slug, question, file, `${challenge.id}.${solve(challenge.salt, challenge.difficulty)}`, token, on);
     } catch {
       return { state: 'refused', code: 'failed' };
     }

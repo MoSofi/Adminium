@@ -290,7 +290,15 @@ for (const [dialect, reachable] of LEGS) {
         ]),
       );
       const keeping = await s.get('pia', '/api/v1/privacy/keeping');
-      expect(dataOf(keeping)).toEqual({ rows: [{ key: 'consent-history', fixed: true, keptFor: 'until-erased', options: [] }, { key: 'do-not-email', fixed: true, keptFor: 'forever', options: [] }] });
+      expect(dataOf(keeping)).toEqual({
+        rows: [
+          { key: 'consent-history', fixed: true, keptFor: 'until-erased', options: [] },
+          { key: 'do-not-email', fixed: true, keptFor: 'forever', options: [] },
+          // Visitor counting's two, each a choice of months.
+          { key: 'view-counts', fixed: false, keptFor: 13, options: [3, 6, 12, 13, 24, 36] },
+          { key: 'visitor-pages', fixed: false, keptFor: 6, options: [3, 6, 12, 13, 24, 36] },
+        ],
+      });
     });
 
     it('keeps the privacy notice: https only, read without signing in by the pages strangers see', async () => {

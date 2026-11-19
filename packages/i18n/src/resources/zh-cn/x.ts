@@ -106,5 +106,22 @@ export default {
   },
   "chat": {
     "noScript": "此对话需要 JavaScript。"
+  },
+  "pages": {
+    "noScript": "此页面需要 JavaScript。",
+    "loading": "正在加载页面…",
+    "tooManyTitle": "此处发送次数过多。",
+    "tooManyWrite": "请{when}再试，或写信至 {email}。",
+    "tooManyLater": "请{when}再试。"
+  },
+  "banner": {
+    "title": "我们可以记住您的访问吗？",
+    "text": "如果您选择“是”，我们会记住您浏览了我们的哪些页面；如果您之后给我们发送表单，我们会将这些信息与您的留言一起保存，以便更好地答复您。如果您选择“否”，我们不会记住您访问的任何信息。",
+    "yes": "是",
+    "no": "否",
+    "savedYes": "已保存：是。您可以随时在“Cookie 选择”中更改。",
+    "savedNo": "已保存：否。您可以随时在“Cookie 选择”中更改。",
+    "cookieChoice": "Cookie 选择",
+    "failed": "无法保存您的选择。请重试。"
   }
 } as const;

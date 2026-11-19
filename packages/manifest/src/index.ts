@@ -71,6 +71,7 @@ export {
   formsEntriesOf,
   chatOf,
   chatEntriesOf,
+  landingOf,
   leadsOf,
   decidedColumnsOf,
   type FormsEntry,
@@ -363,6 +364,7 @@ export {
   type FormsPart,
   type FormsTableShape,
   contractColumns,
+  contractColumnIssues,
   describeContractColumn,
   type ContractColumn,
 } from './forms.js';
@@ -384,6 +386,20 @@ export {
   type ChatColumn,
   type ChatPart,
 } from './chat.js';
+export {
+  LANDING_CATEGORY,
+  LANDING_COLUMNS,
+  LANDING_FUNNEL_STEPS_MAX,
+  LANDING_PARTS,
+  LANDING_SLUG_MAX,
+  LANDING_STATES,
+  addOnLandingSchema,
+  landingBlockIssues,
+  type AddOnLanding,
+  type LandingAddOnShape,
+  type LandingColumn,
+  type LandingPart,
+} from './landing.js';
 export {
   FIELD_SOURCE_KEY,
   FOUND_PERSON_EMAIL_MAX,
@@ -582,6 +598,8 @@ export {
   sampleBundleSchema,
   sampleDirective,
   samplePeopleIn,
+  sampleJsonRefs,
+  SAMPLE_JSON_DEPTH,
   sampleRowSchema,
   sampleValueSchema,
   type ByClock,

@@ -197,7 +197,9 @@ describe('an installed app’s own section', () => {
 describe('the /a/ route', () => {
   it('frames the surface, titled by the active nav item', async () => {
     await renderAt('/a/clients/invoices');
-    const frame = await screen.findByTitle('Invoices');
+    // The top bar's heading carries the same title (its whole text), so the frame is picked by its tag.
+    const frame = (await screen.findAllByTitle('Invoices')).find((el) => el.tagName === 'IFRAME');
+    if (frame === undefined) throw new Error('no frame titled Invoices');
     expect(frame.getAttribute('src')).toBe('/apps/clients/staff/invoices');
     // No `sandbox`: the content is first-party code at this same origin, and
     // the minimum this needs is equivalent to none while reading as protection.
@@ -215,7 +217,9 @@ describe('the /a/ route', () => {
      * for a screen reader.
      */
     await renderAt('/a/clients');
-    const frame = await screen.findByTitle('Outline');
+    // The top bar's heading carries the same title (its whole text), so the frame is picked by its tag.
+    const frame = (await screen.findAllByTitle('Outline')).find((el) => el.tagName === 'IFRAME');
+    if (frame === undefined) throw new Error('no frame titled Outline');
     expect(frame.getAttribute('src')).toBe('/apps/clients/staff/');
   });
 

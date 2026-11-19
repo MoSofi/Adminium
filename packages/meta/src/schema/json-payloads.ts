@@ -2837,6 +2837,14 @@ export const fileKindSchema = z.enum([
    * other.
    */
   'stranger',
+  /*
+   * A landing page's own picture: a copy made for that page, cleaned (raster
+   * only, the camera's notes taken out) and attached to the page's row. Not
+   * `upload`: the files routes serve uploads to whoever reads their record,
+   * and a page's picture is served to strangers by the pages door alone,
+   * while a live page names it (`apps/server/src/landing/pictures.ts`).
+   */
+  'landing',
 ]);
 
 // --- storage destinations --------------------------------------

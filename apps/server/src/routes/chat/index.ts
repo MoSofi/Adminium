@@ -472,6 +472,7 @@ export function chatStaffRoutes(deps: ChatStaffRoutesDeps): FastifyPluginAsyncZo
           answers: await readAnswers(chat),
           messages: await store.since(chat, conversation.id, '0', 1000),
           at,
+          warn: (fields, message) => request.log.warn(fields, message),
         });
         if (!drafted.ok) {
           if (drafted.refused === 'allowance') throw new AppError(429, 'RATE_LIMITED', 'Your Milo allowance for today is used.', { reason: 'allowance', resetsAt: new Date(drafted.resetsAt).toISOString() });
