@@ -56,6 +56,7 @@ import {
   isoDurationMs,
   prefixFor,
   ROW_DIRECTIVES,
+  SAMPLE_JSON_DEPTH,
   sampleBundleIssues,
   sampleBundleSchema,
   sampleDirective,
@@ -70,6 +71,7 @@ import {
 import {
   appTablesRepo,
   auditRepo,
+  automationsRepo,
   connectionTenantConfig,
   documentSequencesRepo,
   filesRepo,
@@ -148,6 +150,8 @@ export interface SampleDataDeps {
    * the request and logs its own failures; it never undoes the removal.
    */
   onRowsRemoved?: ((connectionId: string, rows: readonly { table: ResolvedTable; pk: Row }[]) => Promise<void>) | undefined;
+  /** The server's log, for what an add lets pass but someone should hear of (a `@rule` naming no rule here). */
+  warn?: ((fields: Record<string, unknown>, message: string) => void) | undefined;
 }
 
 /** What an add is told. */
@@ -430,6 +434,10 @@ export interface ResolveContext {
   weekAnchor?: string | undefined;
   /** Sample person's key → the staff member made for it (`{"@person": "<key>"}`). */
   people?: ReadonlyMap<string, string> | undefined;
+  /** The rules the file's owner ships, as installed here: rule key → its id (`{"@rule": "<key>"}`). */
+  rules?: ReadonlyMap<string, string> | undefined;
+  /** Told of a `@rule` with no such rule here, written as null (the sample goes in all the same). */
+  noRule?: ((key: string) => void) | undefined;
   /**
    * The open times of a table's slot limits the sample's rows take, placed
    * before the rows are resolved, in row order, per table and earliest instant
@@ -563,8 +571,9 @@ function resolveValues(row: Readonly<Record<string, unknown>>, ctx: ResolveConte
     if (ROW_DIRECTIVES.has(column)) continue;
     const found = sampleDirective(value);
     if (found === null) {
-      // A json value may name a sample person anywhere inside it (a saved filter's rep).
-      out[column] = typeof value === 'object' && value !== null ? withPeople(value, ctx) : value;
+      // A json value may name a sample person (a saved filter's rep), a row (a funnel's step), words in the adding
+      // person's language (a page's blocks) or a rule anywhere inside it.
+      out[column] = typeof value === 'object' && value !== null ? withinJson(value, ctx, 0) : value;
       continue;
     }
     switch (found.kind) {
@@ -612,6 +621,9 @@ function resolveValues(row: Readonly<Record<string, unknown>>, ctx: ResolveConte
       case 't':
         out[column] = pickText(found.texts, ctx.locale);
         break;
+      case 'rule':
+        out[column] = ruleOf(found.key, ctx);
+        break;
       case 'asset': {
         const id = ctx.assets.get(found.label);
         if (id === undefined) throw new ValidationFailedError(`The sample asset "${found.label}" was not added.`);
@@ -630,6 +642,19 @@ function resolveValues(row: Readonly<Record<string, unknown>>, ctx: ResolveConte
   return out;
 }
 
+/**
+ * The id of the rule the owner ships under this key, as installed here: a
+ * rule's id is made at install, so a file names it by its key. A key with no
+ * such rule here (never shipped, or the owner removed it) is null, and the
+ * caller is told: a missing rule never stops the sample.
+ */
+function ruleOf(key: string, ctx: ResolveContext): string | null {
+  const id = ctx.rules?.get(key);
+  if (id !== undefined) return id;
+  ctx.noRule?.(key);
+  return null;
+}
+
 /** The staff member a sample person's key stands for. */
 function personOf(key: string, ctx: ResolveContext): string {
   const id = ctx.people?.get(key);
@@ -637,13 +662,36 @@ function personOf(key: string, ctx: ResolveContext): string {
   return id;
 }
 
-/** A json value with every `{"@person": "<key>"}` inside it replaced by that person's id. */
-function withPeople(value: unknown, ctx: ResolveContext): unknown {
+/**
+ * The key of an earlier row, as a json value names it: as text, for a json
+ * document names a row by a text key (a page's link, a funnel's step), and
+ * Postgres and MySQL hand some keys back as numbers and some as text.
+ */
+function keyTextOf(label: string, ctx: ResolveContext): string {
+  if (!ctx.labels.has(label)) throw new ValidationFailedError(`The sample row "${label}" was not written.`);
+  const key = ctx.labels.get(label);
+  if (typeof key === 'string' || typeof key === 'number' || typeof key === 'bigint') return String(key);
+  throw new ValidationFailedError(`The sample row "${label}" has a key of several columns, so a json value cannot name it.`);
+}
+
+/**
+ * A json value with every `{"@person": "<key>"}` inside it replaced by that
+ * person's id, every `{"@ref": "<label>"}` by that row's key as text, every
+ * `{"@t": {…}}` by its words in the adding person's language and every
+ * `{"@rule": "<key>"}` by that rule's id (or null), down to
+ * {@link SAMPLE_JSON_DEPTH} levels (the bundle's check refuses one deeper;
+ * past them, the value stays as written). Any other directive inside json is
+ * left as it is.
+ */
+function withinJson(value: unknown, ctx: ResolveContext, depth: number): unknown {
   const found = sampleDirective(value);
   if (found?.kind === 'person') return personOf(found.key, ctx);
-  if (found !== null) return value;
-  if (Array.isArray(value)) return value.map((item) => withPeople(item, ctx));
-  if (typeof value === 'object' && value !== null) return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, withPeople(item, ctx)]));
+  if (found?.kind === 'ref') return keyTextOf(found.label, ctx);
+  if (found?.kind === 't') return pickText(found.texts, ctx.locale);
+  if (found?.kind === 'rule') return ruleOf(found.key, ctx);
+  if (found !== null || depth >= SAMPLE_JSON_DEPTH) return value;
+  if (Array.isArray(value)) return value.map((item) => withinJson(item, ctx, depth + 1));
+  if (typeof value === 'object' && value !== null) return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, withinJson(item, ctx, depth + 1)]));
   return value;
 }
 
@@ -1794,6 +1842,10 @@ export function createSampleDataService(deps: SampleDataDeps) {
         const found = real === undefined ? undefined : tableOfReal(view.model, real);
         return found === undefined ? null : storedTableRef(refIndex, found.id);
       };
+      // The rules the owner ships, as installed on this database, by their keys: a row names one with `@rule`.
+      const shippedRules = new Map<string, string>();
+      for (const rule of await automationsRepo(deps.meta).listManagedBy(app.key, connectionId)) if (rule.templateKey !== null && !shippedRules.has(rule.templateKey)) shippedRules.set(rule.templateKey, rule.id);
+      const noRule = (key: string): void => deps.warn?.({ app: app.key, connectionId, rule: key }, `sample data: "${app.key}" ships no rule "${key}" here, so a row's @rule is written empty`);
       /*
        * What another installed app's sample already put in a table this app
        * shares with it (two apps on one menu; a copy beside its original),
@@ -2045,7 +2097,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
           const feeds = pass.section === undefined ? [] : (tableRulesFor({ view, table: resolved })?.rollupsInto ?? []);
           const keepsTotals = (tableRulesFor({ view, table: resolved })?.ownRollups?.length ?? 0) > 0 || feeds.length > 0;
           for (const row of table.rows) {
-            const ctx: ResolveContext = { now, timeZone, locale: opts.locale, labels, assets: fileIds, weekAnchor: bundle.weekAnchor, slotTimes, tableRef, people: staff.ids };
+            const ctx: ResolveContext = { now, timeZone, locale: opts.locale, labels, assets: fileIds, weekAnchor: bundle.weekAnchor, slotTimes, tableRef, people: staff.ids, rules: shippedRules, noRule };
             const chosen = chooseSampleRow(row, ctx);
             // Its `@byClock` set left it out: a payment for a visit that has not happened yet.
             if (chosen === null) {

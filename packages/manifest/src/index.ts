@@ -573,6 +573,8 @@ export {
   sampleBundleSchema,
   sampleDirective,
   samplePeopleIn,
+  sampleJsonRefs,
+  SAMPLE_JSON_DEPTH,
   sampleRowSchema,
   sampleValueSchema,
   type ByClock,

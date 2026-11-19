@@ -63,7 +63,8 @@ const { text, moment, json, choice } = contractColumns;
 /**
  * The columns each part has, which the engine reads (and, for a page's
  * publish columns, seals) by these names. A table may have more of its own,
- * each nullable or with a default: nothing the engine writes fills it.
+ * each nullable, with a default, decided by a rule, or a moment its role
+ * stamps (`created_at`, `updated_at`): nothing else the engine writes fills it.
  */
 export const LANDING_COLUMNS: Readonly<Record<LandingPart, Readonly<Record<string, LandingColumn>>>> = {
   pages: {
@@ -97,6 +98,17 @@ export interface LandingAddOnShape extends FormsAddOnShape {
   forms?: boolean | undefined;
   /** Whether the add-on declares chat too. */
   chat?: boolean | undefined;
+}
+
+/**
+ * Whether Adminium writes a column on every create by its role: a moment
+ * (a time or a date) whose role is `created_at` or `updated_at` is stamped
+ * with the moment its row is made, and an `updated_at` again at each change,
+ * through every door (the kit's writes included). A role on any other type
+ * stamps nothing.
+ */
+function stampedByRole(column: { type: string; role?: string | undefined }): boolean {
+  return (column.role === 'created_at' || column.role === 'updated_at') && (column.type === 'timestamptz' || column.type === 'date');
 }
 
 /** Everything wrong with an add-on's landing block, against its own tables and entries. */
@@ -135,9 +147,10 @@ export function landingBlockIssues(block: AddOnLanding, m: LandingAddOnShape): R
     if (key === undefined) out.push({ path: at(part), message: `"${ref}" holds the ${part}, so its rows are numbered: give it an int key (role "pk")` });
     else if (key.type !== 'int' && key.type !== 'bigint') out.push({ path: ['requiredSchema', 'tables', t, 'columns', k, 'type'], message: `"${ref}" holds the ${part}, so its rows are numbered: its key "${key.ref}" is an int or a bigint, not ${key.type}` });
 
-    // Every other column is one a write may leave out: nothing the engine writes fills it.
+    // Every other column is one a write may leave out: nothing the engine writes fills it, but for a moment it stamps.
     table.columns.forEach((column, c) => {
       if (contract[column.ref] !== undefined || column.role === 'pk' || column.nullable === true || column.default !== undefined || m.decided?.(ref, column.ref) === true) return;
+      if (stampedByRole(column)) return;
       out.push({ path: ['requiredSchema', 'tables', t, 'columns', c], message: `"${ref}" holds the ${part}, and Adminium never fills "${column.ref}": make it nullable or give it a default` });
     });
 
