@@ -121,9 +121,19 @@ function isMutating(method: string | undefined): boolean {
  */
 export const INSTALL_HEADER = 'x-adminium-install';
 
-/** Per-call options: today only extra headers. */
+/** Per-call options: extra headers, and a signal that cancels the request itself (an add-on's Stop). */
 export interface ApiOptions {
   headers?: Record<string, string>;
+  /** Aborting it cancels the fetch, so the server sees the request close and stops its own work. */
+  signal?: AbortSignal;
+}
+
+/** The fetch options a call's own options carry: its headers and its signal, when given. */
+function initOf(options: ApiOptions | undefined): RequestInit {
+  return {
+    ...(options?.headers === undefined ? {} : { headers: options.headers }),
+    ...(options?.signal === undefined ? {} : { signal: options.signal }),
+  };
 }
 
 /** The options that name one install, or none when there is no install to name. */
@@ -216,21 +226,11 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  get: <T>(path: string, options?: ApiOptions) => apiFetch<T>(path, options?.headers === undefined ? undefined : { headers: options.headers }),
+  get: <T>(path: string, options?: ApiOptions) => apiFetch<T>(path, initOf(options)),
   post: <T>(path: string, payload?: unknown, options?: ApiOptions) =>
-    apiFetch<T>(path, {
-      method: 'POST',
-      ...(payload === undefined ? {} : { body: JSON.stringify(payload) }),
-      ...(options?.headers === undefined ? {} : { headers: options.headers }),
-    }),
-  put: <T>(path: string, payload: unknown, options?: ApiOptions) =>
-    apiFetch<T>(path, { method: 'PUT', body: JSON.stringify(payload), ...(options?.headers === undefined ? {} : { headers: options.headers }) }),
-  patch: <T>(path: string, payload: unknown, options?: ApiOptions) =>
-    apiFetch<T>(path, { method: 'PATCH', body: JSON.stringify(payload), ...(options?.headers === undefined ? {} : { headers: options.headers }) }),
+    apiFetch<T>(path, { method: 'POST', ...(payload === undefined ? {} : { body: JSON.stringify(payload) }), ...initOf(options) }),
+  put: <T>(path: string, payload: unknown, options?: ApiOptions) => apiFetch<T>(path, { method: 'PUT', body: JSON.stringify(payload), ...initOf(options) }),
+  patch: <T>(path: string, payload: unknown, options?: ApiOptions) => apiFetch<T>(path, { method: 'PATCH', body: JSON.stringify(payload), ...initOf(options) }),
   delete: <T>(path: string, payload?: unknown, options?: ApiOptions) =>
-    apiFetch<T>(path, {
-      method: 'DELETE',
-      ...(payload === undefined ? {} : { body: JSON.stringify(payload) }),
-      ...(options?.headers === undefined ? {} : { headers: options.headers }),
-    }),
+    apiFetch<T>(path, { method: 'DELETE', ...(payload === undefined ? {} : { body: JSON.stringify(payload) }), ...initOf(options) }),
 };
