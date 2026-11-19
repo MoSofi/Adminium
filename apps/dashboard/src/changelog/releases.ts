@@ -69,7 +69,7 @@ const RAW: unknown = [
       'Add-ons can now carry landing pages: pages for an offer or an event, built from blocks, drawn by Adminium for visitors at their own address with a title and a sharing preview. Adminium now counts how often your public pages and forms are seen, with no cookie and nothing about the visitor kept.',
     changes: [
       { tag: 'New', text: 'A landing page lives at /x/pages/<address> on your public address, or as the home of a pages host. Adminium writes its title and sharing preview, serves its pictures and lets search engines find it once it is live.' },
-      { tag: 'New', text: 'Views of your landing pages and forms are counted at “Counts only”, the new default: no cookie, no banner, known bots left out. Privacy → Visitor counting turns it off, or to “Per visitor”, which asks first with a banner and keeps a visitor’s pages with what they send you.' },
+      { tag: 'New', text: 'Views of your landing pages and forms are counted at “Counts only”, the new default: no cookie, no banner, known bots left out. Studio → Privacy & public pages → Visitor counting turns it off, or to “Per visitor”, which asks first with a banner and keeps a visitor’s pages with what they send you.' },
       { tag: 'New', text: 'Milo can draft a landing page from a description. Every section it writes is marked, and the page cannot be published until a person has looked at each one.' },
       { tag: 'New', text: 'A form can end by sending the visitor to one of your landing pages.' },
       { tag: 'Improved', text: 'An app’s page no longer jumps when its “Sample data is loaded” banner appears.' },
