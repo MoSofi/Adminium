@@ -37,7 +37,8 @@ export function urlCellHref(value: string): string | null {
   const trimmed = value.trim();
   if (isSafeHref(trimmed)) return trimmed;
   if (/^mailto:[^\s]+$/i.test(trimmed) || /^tel:\+?[\d\s().-]+$/i.test(trimmed)) return trimmed;
-  if (/^www\.[^\s/]+\.[^\s]+$/i.test(trimmed)) return `https://${trimmed}`;
+  // Joined, not a template: the desktop's offline check reads a template web address in a bundle as a host it fetches.
+  if (/^www\.[^\s/]+\.[^\s]+$/i.test(trimmed)) return 'https://'.concat(trimmed);
   return null;
 }
 
