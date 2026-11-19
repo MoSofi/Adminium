@@ -370,6 +370,10 @@ describe.each(LEGS)('a company’s page — %s', (dialect, available) => {
       expect(valueHash(read['data'][column], kind), `${column}: ${JSON.stringify(raw[column])} / ${JSON.stringify(read['data'][column])}`).toBe(valueHash(raw[column], kind));
     }
 
+    // A mark the engine keeps beside the fields (a sole trader's `*person`) is not a field: never a note, even one
+    // whose hash the record would match (no such column reads as empty).
+    const markHash = valueHash('');
+    await db.insertInto(found.addOn.fieldSources!.id as never).values({ table_ref: 'crm:companies', row_key: '920', column_name: '*person', source: 'companies-house', found_at: bindWriteValue(found.addOn.fieldSources!.columns.get('found_at')!, new Date(at).toISOString(), dialect), value_hash: markHash } as never).execute();
     const columns = (notes: Doc[]) => notes.map((note) => note['column']).sort();
     const notes = await notesOf('dana', 920);
     expect(columns(notes)).toEqual(['checked_at', 'company_number', 'employees', 'founded', 'sector', 'website']);

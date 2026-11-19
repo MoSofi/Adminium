@@ -146,6 +146,8 @@ export function leadNotesRoute(app: FastifyInstance, deps: LeadNotesDeps): void 
       const notes: LeadNotesReply['notes'] = [];
       for (const one of noted) {
         const column = String(one.column_name);
+        // A row of the engine's own (`*person`, a sole trader's mark), not a field of the record.
+        if (column.startsWith('*')) continue;
         // A field whose value moved since the fill has no note; nor one the reader is not shown (it reads as empty, and an
         // empty value is never noted) or is shown masked.
         const kind = shownKindOf(companies.table.columns.get(column)?.logicalType);
