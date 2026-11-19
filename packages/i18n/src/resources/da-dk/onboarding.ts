@@ -90,6 +90,12 @@ export default {
       "generate": "Din server er klar. Nu vælger vi tabellerne og genererer dine sider.",
       "ready": "Din server er klar."
     },
+    "startPrompt": {
+      "failed": "Din første opbygning kunne ikke starte: {detail}",
+      "retry": "Prøv igen",
+      "skip": "Fortsæt uden den",
+      "waiting": "AI’en, der følger med denne server, er optaget lige nu. Din opbygning starter af sig selv kl. {time}."
+    },
     "storage": {
       "local": "Adminium gemmer sine egne data i en fil på denne maskine.",
       "sameDb": "Adminium gemmer sine egne data i den database, du forbandt.",

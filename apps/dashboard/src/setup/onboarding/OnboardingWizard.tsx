@@ -51,6 +51,10 @@ export interface OnboardingWizardProps {
   busy?: boolean | undefined;
   /** Rendered above the step body, in the comp's own error slot. */
   error?: string | null | undefined;
+  /** Rendered above the step body as news, not an error (the start prompt's wait). */
+  notice?: string | null | undefined;
+  /** A second way on, beside the main button (the start prompt's "Continue without it"). */
+  secondary?: { label: string; onClick: () => void } | undefined;
   /** The step's own body. */
   children: ReactNode;
 }
@@ -66,6 +70,8 @@ export function OnboardingWizard({
   nextDisabled = false,
   busy = false,
   error = null,
+  notice = null,
+  secondary,
   children,
 }: OnboardingWizardProps) {
   // The product name alone — see the module note.
@@ -186,6 +192,9 @@ export function OnboardingWizard({
             {error === null || error === undefined ? null : (
               <Alert className="mt-5" tone="danger" role="alert" title={error} />
             )}
+            {notice === null || notice === undefined ? null : (
+              <Alert className="mt-5" tone="info" role="status" title={notice} />
+            )}
 
             <div className="mt-[26px]">{children}</div>
 
@@ -201,6 +210,16 @@ export function OnboardingWizard({
                 </Button>
               )}
               <div className="ms-auto flex items-center gap-3">
+                {secondary === undefined ? null : (
+                  <Button
+                    variant="ghost"
+                    className="h-auto px-1 py-0 text-[13px] font-bold text-fg-muted"
+                    onClick={secondary.onClick}
+                    disabled={busy}
+                  >
+                    {secondary.label}
+                  </Button>
+                )}
                 {def.skippable ? (
                   <Button
                     variant="ghost"

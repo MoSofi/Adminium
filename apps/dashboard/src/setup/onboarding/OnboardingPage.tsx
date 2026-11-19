@@ -20,7 +20,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { engineForDsn } from '@adminium/widgets';
 
 import { api, ApiError } from '../../app/api.js';
-import { systemInfoQuery } from '../../app/capabilities.js';
+import { systemInfoQuery, type SystemInfo } from '../../app/capabilities.js';
 import { t } from '../../i18n/t.js';
 import { hasPendingBridgeTicket } from '../../studio/connect/bridgeTicket.js';
 import { studioApi, waitForRestart } from '../../studio/api.js';
@@ -30,7 +30,7 @@ import {
 } from '../../studio/connect/wizardState.js';
 import { setTelemetry } from '../../about/desktopAbout.js';
 import { offByOperatorText, useOperatorSwitch } from '../../settings/OffByOperator.js';
-import { adoptStore, probeStore } from '../setupApi.js';
+import { adoptStore, probeStore, takeWelcomeEmail } from '../setupApi.js';
 import {
   EMPTY_ACCOUNT,
   validateAccount,
@@ -79,10 +79,15 @@ export function OnboardingPage({
 }: OnboardingPageProps): ReactNode {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const steps = onboardingStepIds(databaseConnected);
+  // A trial leaves out storage and team (`wizardState.ts`): the operator fixes the one, the owner invites people later.
+  const trial = useQuery(systemInfoQuery()).data?.trial?.on === true;
+  const steps = onboardingStepIds(databaseConnected, trial);
   const [step, setStep] = useState<OnboardingStepId>(steps[0] ?? 'start');
   const [held, setHeld] = useState<HeldAnswers>(DEFAULT_HELD_ANSWERS);
-  const [account, setAccount] = useState<AccountValues>(EMPTY_ACCOUNT);
+  // The address the trial's welcome link was sent to, filled in for its owner.
+  const [account, setAccount] = useState<AccountValues>(() => ({ ...EMPTY_ACCOUNT, email: takeWelcomeEmail() ?? '' }));
+  /** The operator's start prompt at the last step: it could not start (Try again), or it waits for the AI's cap. */
+  const [prompt, setPrompt] = useState<{ kind: 'failed'; detail: string } | { kind: 'waiting'; until: number } | null>(null);
   const [accountErrors, setAccountErrors] = useState<AccountErrors>({});
   const [consent, setConsent] = useState<SetupConsent>(NO_CONSENT);
   const [invited, setInvited] = useState<readonly InvitedPerson[]>([]);
@@ -219,7 +224,7 @@ export function OnboardingPage({
     // The account step is behind us once it has run: a second submit would 409
     // against the instance's own admin. Anything aimed at it — Continue, Skip,
     // the rail — lands on the step after instead.
-    setStep(next === 'account' && accountCreated ? 'meta' : next);
+    setStep(next === 'account' && accountCreated ? (stepAfter('account', steps) ?? 'done') : next);
   }
 
   /**
@@ -249,7 +254,7 @@ export function OnboardingPage({
           setAccountCreated(true);
           setConnection(outcome.connection);
           setError(null);
-          setStep('meta');
+          setStep(stepAfter('account', steps) ?? 'done');
           return;
         }
         if (outcome.kind === 'account-failed') {
@@ -338,10 +343,25 @@ export function OnboardingPage({
       setBusy(false);
       router.history.push(to);
     };
+    setError(null);
     void setTelemetry({ telemetry: consent.telemetry, updateCheck: consent.updateCheck })
       .catch(() => undefined)
       .then(startPrompt)
-      .then(leave);
+      .then((started) => {
+        if ('to' in started) {
+          leave(started.to);
+          return;
+        }
+        // It could not start, or it waits: said here, and the person chooses.
+        setBusy(false);
+        setPrompt(started);
+        setError(started.kind === 'failed' ? t('onboarding:done.startPrompt.failed', 'Your first build could not start: {detail}', { detail: started.detail }) : null);
+      });
+  }
+
+  /** Leave without the start prompt: it stays for later where it can (the server keeps its wait). */
+  function leaveWithoutPrompt(): void {
+    router.history.push(handOffPath());
   }
 
   /**
@@ -349,14 +369,26 @@ export function OnboardingPage({
    * (`/system/info` says so): the Designer opens on the dashboard it starts building. Anywhere else nothing is asked,
    * and where it cannot start (no model) the server says no: the wizard lets go as it always does.
    */
-  async function startPrompt(): Promise<string> {
+  async function startPrompt(): Promise<{ to: string } | { kind: 'failed'; detail: string } | { kind: 'waiting'; until: number }> {
+    let info: SystemInfo;
     try {
-      const info = await queryClient.fetchQuery({ ...systemInfoQuery(), staleTime: 0 });
-      if (info.designer?.startPrompt !== true) return handOffPath();
-      const started = await api.post<{ sessionId: string }>('/api/v1/designer/start-prompt', {});
-      return `/design/${encodeURIComponent(started.sessionId)}`;
+      info = await queryClient.fetchQuery({ ...systemInfoQuery(), staleTime: 0 });
     } catch {
-      return handOffPath();
+      return { to: handOffPath() };
+    }
+    // Refused at the operator's AI cap: the server starts it by itself at its time.
+    const until = info.designer?.startPromptWaitsUntil;
+    if (typeof until === 'number') return { kind: 'waiting', until };
+    if (info.designer?.startPrompt !== true) return { to: handOffPath() };
+    try {
+      const started = await api.post<{ sessionId: string }>('/api/v1/designer/start-prompt', {});
+      return { to: `/design/${encodeURIComponent(started.sessionId)}` };
+    } catch (cause) {
+      const details = cause instanceof ApiError ? (cause.details as { reason?: unknown; until?: unknown } | null | undefined) : undefined;
+      if (details?.reason === 'START_PROMPT_WAITING' && typeof details.until === 'number') return { kind: 'waiting', until: details.until };
+      // Another tab started it: nothing to say.
+      if (details?.reason === 'START_PROMPT_RAN') return { to: handOffPath() };
+      return { kind: 'failed', detail: offByOperatorText(cause) ?? (cause instanceof Error ? cause.message : t('onboarding:error.connectionUnknown', 'the database did not answer')) };
     }
   }
 
@@ -455,6 +487,11 @@ export function OnboardingPage({
       return;
     }
     if (step === 'done') {
+      // Waiting for the AI's cap: on to the dashboard; the build starts by itself.
+      if (prompt?.kind === 'waiting') {
+        leaveWithoutPrompt();
+        return;
+      }
       finish();
       return;
     }
@@ -488,6 +525,19 @@ export function OnboardingPage({
       onBack={() => goto(stepBefore(step, steps))}
       onSkip={() => goto(stepAfter(step, steps))}
       onNext={onNext}
+      notice={
+        step === 'done' && prompt?.kind === 'waiting'
+          ? t('onboarding:done.startPrompt.waiting', 'The AI included with this server is busy for now. Your build starts by itself at {time}.', {
+              time: new Date(prompt.until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            })
+          : null
+      }
+      {...(step === 'done' && prompt?.kind === 'failed'
+        ? {
+            nextLabel: t('onboarding:done.startPrompt.retry', 'Try again'),
+            secondary: { label: t('onboarding:done.startPrompt.skip', 'Continue without it'), onClick: leaveWithoutPrompt },
+          }
+        : {})}
       {...(step === 'account'
         ? { nextLabel: t('onboarding:account.submit', 'Create account') }
         : {})}

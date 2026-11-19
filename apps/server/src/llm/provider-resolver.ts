@@ -107,7 +107,8 @@ export function createProviderResolver(deps: ProviderResolverDeps): ResolveRun {
       });
 
     if (deps.connections !== undefined) {
-      const resolved = await deps.connections.clientForProvider(provider, run.model);
+      // The schema assistant is a build: on the operator's gateway it goes with the build key (`ADMINIUM_AI_BUILD_API_KEY`).
+      const resolved = await deps.connections.clientForProvider(provider, run.model, { purpose: 'build' });
       return {
         client: resolved.client,
         provider,

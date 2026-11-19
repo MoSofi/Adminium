@@ -46,9 +46,14 @@ export type OnboardingStepId = (typeof ONBOARDING_STEP_IDS)[number];
 export const CONNECTED_STEP_IDS: readonly OnboardingStepId[] = ['account', 'meta', 'team', 'done'];
 
 /** The steps this instance walks through. */
-export function onboardingStepIds(databaseConnected: boolean): readonly OnboardingStepId[] {
-  return databaseConnected ? CONNECTED_STEP_IDS : ONBOARDING_STEP_IDS;
+export function onboardingStepIds(databaseConnected: boolean, trial = false): readonly OnboardingStepId[] {
+  const steps = databaseConnected ? CONNECTED_STEP_IDS : ONBOARDING_STEP_IDS;
+  // A trial: the operator fixes where Adminium keeps its data, and its owner invites people once they have seen it.
+  return trial ? steps.filter((id) => !TRIAL_LEAVES_OUT.has(id)) : steps;
 }
+
+/** The steps a trial's wizard leaves out: storage (the operator's) and the team (later, from Settings). */
+const TRIAL_LEAVES_OUT: ReadonlySet<OnboardingStepId> = new Set<OnboardingStepId>(['meta', 'team']);
 
 /**
  * Steps a person may pass without answering.

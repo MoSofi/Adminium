@@ -90,6 +90,12 @@ export default {
       "generate": "Váš server je připraven. Teď vybereme tabulky a vygenerujeme vaše stránky.",
       "ready": "Váš server je připraven."
     },
+    "startPrompt": {
+      "failed": "Vaše první sestavení se nepodařilo spustit: {detail}",
+      "retry": "Zkusit znovu",
+      "skip": "Pokračovat bez něj",
+      "waiting": "AI dodávaná s tímto serverem je teď vytížená. Vaše sestavení se spustí samo v {time}."
+    },
     "storage": {
       "local": "Adminium ukládá svá vlastní data do souboru na tomto počítači.",
       "sameDb": "Adminium ukládá svá vlastní data do databáze, kterou jste připojili.",

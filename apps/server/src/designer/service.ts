@@ -641,7 +641,8 @@ export function createDesigner(host: DesignerHost): Designer {
       return text === null ? null : { text, ...(image === undefined ? {} : { image }), ...(designs.length === 0 ? {} : { designs }), side: sight.side, path: sight.path ?? '/' };
     },
     runnerFor: async (session) => {
-      const resolved = await host.connections.runner(session.connectionId as ConnectionId, session.model);
+      // A Designer run is a build: on the operator's gateway it goes with the build key (`ADMINIUM_AI_BUILD_API_KEY`).
+      const resolved = await host.connections.runner(session.connectionId as ConnectionId, session.model, { purpose: 'build' });
       // The level the person chose goes only to a model that takes it: one kept from another model would cost the whole request.
       const effort = session.effort !== undefined && resolved.provider === 'anthropic' && anthropicEfforts(session.model).includes(session.effort) ? session.effort : undefined;
       return { runner: resolved.runner, maxTokens: DESIGNER_MAX_OUTPUT_TOKENS, ...(effort === undefined ? {} : { effort }) };

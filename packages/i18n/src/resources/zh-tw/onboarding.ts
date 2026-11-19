@@ -90,6 +90,12 @@ export default {
       "generate": "你的伺服器已就緒。接下來我們會挑選要包含的資料表並產生頁面。",
       "ready": "你的伺服器已就緒。"
     },
+    "startPrompt": {
+      "failed": "你的第一次建置無法開始：{detail}",
+      "retry": "再試一次",
+      "skip": "不使用它繼續",
+      "waiting": "此伺服器內附的 AI 目前忙碌中。你的建置將於 {time} 自動開始。"
+    },
     "storage": {
       "local": "Adminium 把自己的資料存放在這台機器的一個檔案裡。",
       "sameDb": "Adminium 把自己的資料存放在你剛連接的資料庫裡。",

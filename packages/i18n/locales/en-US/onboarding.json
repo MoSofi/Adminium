@@ -80,6 +80,12 @@
       "generate": "Your server is ready. Next we will pick the tables to include and generate your pages.",
       "ready": "Your server is ready."
     },
+    "startPrompt": {
+      "failed": "Your first build could not start: {detail}",
+      "retry": "Try again",
+      "skip": "Continue without it",
+      "waiting": "The AI included with this server is busy for now. Your build starts by itself at {time}."
+    },
     "storage": {
       "local": "Adminium keeps its own data in a file on this machine.",
       "sameDb": "Adminium keeps its own data in the database you connected.",

@@ -57,6 +57,42 @@ export async function checkSetupToken(token: string): Promise<void> {
   heldSetupToken = token;
 }
 
+/** The email a welcome link carried (`#setup-token=…&email=…`), once read. */
+let welcomeEmail: string | null = null;
+
+function fragmentEmailOf(hash: string): string | null {
+  const match = /(?:^#|&)email=([^&]+)/.exec(hash);
+  if (match?.[1] === undefined) return null;
+  try {
+    const email = decodeURIComponent(match[1]).trim();
+    // An address, or nothing: the account step's own check says the rest.
+    return email.length > 0 && email.length <= 254 && /^[^\s@]+@[^\s@]+$/.test(email) ? email : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Tests only: forget the email a welcome link carried. */
+export function forgetWelcomeEmail(): void {
+  welcomeEmail = null;
+}
+
+/**
+ * The address a trial's welcome link was sent to (`#setup-token=…&email=…`, operator-made), for the account step to
+ * fill in. Read from the fragment the token screen already took, else from the address bar now (wiping it there);
+ * null when the link carried none. The fragment never reaches the server.
+ */
+export function takeWelcomeEmail(): string | null {
+  if (welcomeEmail !== null || typeof window === 'undefined') return welcomeEmail;
+  const found = fragmentEmailOf(window.location.hash);
+  if (found !== null) {
+    welcomeEmail = found;
+    const rest = window.location.hash.replace(/(^#|&)email=[^&]*/, '$1').replace(/^#&/, '#').replace(/^#$/, '');
+    window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + rest);
+  }
+  return welcomeEmail;
+}
+
 /**
  * A token handed over in the URL fragment by `adminium try`, which opens this
  * browser itself (`#setup-token=…`). Read once and wiped from the address bar,
@@ -67,6 +103,8 @@ export function takeFragmentSetupToken(): string | null {
   if (typeof window === 'undefined') return null;
   const match = /(?:^#|&)setup-token=([^&]+)/.exec(window.location.hash);
   if (match?.[1] === undefined) return null;
+  // The address the welcome link was sent to rides beside the token: kept for the account step before the fragment goes.
+  welcomeEmail ??= fragmentEmailOf(window.location.hash);
   window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
   try {
     return decodeURIComponent(match[1]);

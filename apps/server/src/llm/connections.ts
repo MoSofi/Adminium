@@ -135,10 +135,14 @@ export interface AiConnections {
   selected(): string | null;
   shadowed(): AiEnvName[];
   refusal(connection: AiConnection | null): ConnectionRefusal | null;
-  /** A `complete()` client. `provider` picks the connection for a run that recorded which provider it was made for. */
-  client(id: ConnectionId, model?: string | null): Promise<ResolvedClient>;
-  clientForProvider(provider: ProviderId, model?: string | null): Promise<ResolvedClient>;
-  runner(id: ConnectionId, model: string): Promise<ResolvedRunner>;
+  /**
+   * A `complete()` client. `provider` picks the connection for a run that recorded which provider it was made for.
+   * `purpose: 'build'` (the Designer, the schema assistant): the operator gateway's build key when one is set
+   * ({@link AiConnectionsDeps.buildApiKey}).
+   */
+  client(id: ConnectionId, model?: string | null, opts?: CallPurpose): Promise<ResolvedClient>;
+  clientForProvider(provider: ProviderId, model?: string | null, opts?: CallPurpose): Promise<ResolvedClient>;
+  runner(id: ConnectionId, model: string, opts?: CallPurpose): Promise<ResolvedRunner>;
   models(id: ConnectionId): Promise<{ models: ModelInfo[]; source: 'live' | 'static' }>;
   /** Try what the form holds, without saving it. */
   test(draft: ConnectionDraft, opts?: { signal?: AbortSignal }): Promise<ConnectionTest>;
@@ -170,6 +174,14 @@ export interface AiConnections {
    * Designer turn on one is held to `ADMINIUM_AI_OPERATOR_SCOPE`.
    */
   isOperator(id: string): boolean;
+}
+
+/**
+ * What a call is for. `build`: a Designer run or the schema assistant (`POST /llm/runs` and its runs), which the
+ * operator meters apart (`ADMINIUM_AI_BUILD_API_KEY`). Anything else: `other`, the default.
+ */
+export interface CallPurpose {
+  purpose?: 'build' | 'other' | undefined;
 }
 
 export interface AiConnectionsDeps {
@@ -204,6 +216,13 @@ export interface AiConnectionsDeps {
    * operator set is handed out through it. Absent: nothing is counted.
    */
   operatorAi?: OperatorAiMeter | undefined;
+  /**
+   * `ADMINIUM_AI_BUILD_API_KEY`: the operator gateway's key for builds. A `build` call on the environment's
+   * OpenAI-compatible connection (`ADMINIUM_AI_COMPATIBLE_BASE_URL`, same address and model) sends it in place of
+   * `ADMINIUM_AI_COMPATIBLE_API_KEY`, and is counted on the same meter. The operator's own environment only: never
+   * read from a project's `.env` or a host's key store.
+   */
+  buildApiKey?: string | undefined;
 }
 
 const KEY_NAME: Record<EnvProvider, AiEnvName | null> = {
@@ -356,7 +375,7 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
   }
 
   /** What a provider is built with. The one place a key is read. */
-  async function configFor(id: ConnectionId, model: string | null | undefined): Promise<{ config: ProviderConfig; connection: AiConnection; maxOutputTokens: number }> {
+  async function configFor(id: ConnectionId, model: string | null | undefined, purpose: CallPurpose['purpose'] = 'other'): Promise<{ config: ProviderConfig; connection: AiConnection; maxOutputTokens: number }> {
     if (id === 'database') {
       const connection = await databaseConnection();
       if (connection === null) throw new ProviderNotConfiguredError();
@@ -381,7 +400,9 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
     if (!isEnvProvider(provider) || !envHas(values, provider)) throw new ProviderNotConfiguredError(`No model connection "${id}" is set in the environment.`);
     const connection = envConnection(values, provider);
     const keyName = KEY_NAME[provider];
-    const apiKey = keyName === null ? undefined : values[keyName];
+    // A build on the operator's gateway goes with the build key: the same address and model, metered apart by the gateway.
+    const buildKey = purpose === 'build' && provider === 'openai-compatible' && isOperator(id) ? deps.buildApiKey : undefined;
+    const apiKey = buildKey ?? (keyName === null ? undefined : values[keyName]);
     await guard(provider, connection.baseUrl, 'environment');
     return {
       connection,
@@ -396,8 +417,8 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
     };
   }
 
-  async function client(id: ConnectionId, model?: string | null): Promise<ResolvedClient> {
-    const { config, connection, maxOutputTokens } = await configFor(id, model);
+  async function client(id: ConnectionId, model?: string | null, opts: CallPurpose = {}): Promise<ResolvedClient> {
+    const { config, connection, maxOutputTokens } = await configFor(id, model, opts.purpose);
     return { client: metered.client(id, makeClient(config)), provider: connection.provider, model: config.model ?? '', baseUrl: connection.baseUrl, maxOutputTokens };
   }
 
@@ -445,15 +466,15 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
     shadowed: () => aiEnv.shadowed(),
     refusal,
     client,
-    async clientForProvider(provider, model) {
+    async clientForProvider(provider, model, opts = {}) {
       const database = await databaseConnection();
-      if (database?.provider === provider) return client('database', model);
-      if (isEnvProvider(provider) && envHas(aiEnv.read(), provider)) return client(`env:${provider}`, model);
+      if (database?.provider === provider) return client('database', model, opts);
+      if (isEnvProvider(provider) && envHas(aiEnv.read(), provider)) return client(`env:${provider}`, model, opts);
       // Nothing matches: the database's own error says what is missing.
-      return client('database', model);
+      return client('database', model, opts);
     },
-    async runner(id, model) {
-      const { config, connection } = await configFor(id, model);
+    async runner(id, model, opts = {}) {
+      const { config, connection } = await configFor(id, model, opts.purpose);
       return { runner: metered.runner(id, makeRunner(config)), provider: connection.provider, model, connectionId: connection.id };
     },
     async models(id) {

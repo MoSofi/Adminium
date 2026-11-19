@@ -466,6 +466,8 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
     let scope: Awaited<ReturnType<NonNullable<RunnerDeps['operatorScope']>>> = null;
     /** The fixed card the turn ends with: a request beyond the operator's scope, or the operator's AI used up. */
     let card: 'scope' | 'used-up' | null = null;
+    /** A failed turn's code: a provider's (`rate_limit`, `auth`, …), `unreadable`, or `internal`. For the turn's record, never shown. */
+    let failure: string | null = null;
 
     try {
       const { runner, maxTokens, effort } = await deps.runnerFor(session);
@@ -600,6 +602,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
                   : 'The model ended its reply twice without writing or doing anything. Try again, or pick another model.',
             });
             outcome = 'failed';
+            failure = 'empty';
             break;
           }
         }
@@ -617,6 +620,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
           if (result.stop === 'refused') {
             log.emit(turn, { kind: 'error', code: 'refused', message: 'The model declined to answer this.' });
             outcome = 'failed';
+            failure = 'refused';
             break;
           }
           // It says it is finished. A turn that only talked (a question, "this needs no app") is left to its words.
@@ -777,6 +781,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         if (unreadable > MAX_REPAIRS) {
           log.emit(turn, { kind: 'error', code: 'unreadable', message: 'The model keeps sending tool calls that cannot be read.' });
           outcome = 'failed';
+          failure = 'unreadable';
           break;
         }
       }
@@ -804,6 +809,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         log.emit(turn, { kind: 'stopped' });
       } else {
         outcome = 'failed';
+        failure = error instanceof ProviderError ? error.code : 'internal';
         const provider = error instanceof ProviderError ? { provider: error.provider, ...(error.status === undefined ? {} : { status: error.status }) } : {};
         log.emit(turn, {
           kind: 'error',
@@ -825,7 +831,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
           // The model finished its work on the files a person changed by hand: they are the app's now. A turn that stopped or failed is told of them again.
           ...((outcome === 'done' || outcome === 'not-applied') && (latest.handEdits ?? []).length > 0 ? { handEdits: [] } : {}),
         });
-        await deps.audit?.('designer.turn.finished', session, { turn, outcome, steps, tokens: tokensIn + tokensOut }).catch((error: unknown) => {
+        await deps.audit?.('designer.turn.finished', session, { turn, outcome, steps, tokens: tokensIn + tokensOut, ...(card === null ? {} : { card }), ...(failure === null ? {} : { failure }), ...(run.defaultNo ? { startPrompt: true } : {}) }).catch((error: unknown) => {
           deps.log?.('could not record the end of a Designer turn', error);
         });
       } finally {

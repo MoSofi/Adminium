@@ -90,6 +90,12 @@ export default {
       "generate": "Votre serveur est prêt. Nous allons maintenant choisir les tables à inclure et générer vos pages.",
       "ready": "Votre serveur est prêt."
     },
+    "startPrompt": {
+      "failed": "Votre première construction n’a pas pu démarrer : {detail}",
+      "retry": "Réessayer",
+      "skip": "Continuer sans elle",
+      "waiting": "L’IA incluse avec ce serveur est occupée pour le moment. Votre construction démarrera d’elle-même à {time}."
+    },
     "storage": {
       "local": "Adminium conserve ses propres données dans un fichier sur cette machine.",
       "sameDb": "Adminium conserve ses propres données dans la base que vous avez connectée.",

@@ -233,6 +233,30 @@ for (const engine of META_ENGINES) {
       expect(verifies({ ...heard!, body: heard!.body.replace('203.0.113.7', '203.0.113.8') }, T0)).toBe(false);
     });
 
+    it('the build box’s events: a Designer turn’s end, an assist run’s end, an own key, the user’s database; each signed, none carrying a host, a login or words', async () => {
+      const made = events();
+      made.designerTurnFinished({ sessionId: 'ses_1', turn: 1, outcome: 'done', steps: 7, tokens: 9_000, startPrompt: true });
+      made.designerTurnFinished({ sessionId: 'ses_1', turn: 2, outcome: 'failed', steps: 0, tokens: 0, failure: 'rate_limit' });
+      made.designerTurnFinished({ sessionId: 'ses_1', turn: 3, outcome: 'done', steps: 2, tokens: 10, card: 'used-up' });
+      made.designerTurnFinished({ sessionId: 'ses_1', turn: 4, outcome: 'stopped', steps: 1, tokens: 5 });
+      made.assistFinished({ runId: 'run_1', connectionId: 'con_yours', status: 'applied', tokens: 1_200, notes: true });
+      made.ownAiKeyAdded('anthropic');
+      made.sourceStatusChanged({ state: 'down', reason: 'auth' });
+      await made.settled();
+      await drain();
+      expect(recv.heard).toHaveLength(7);
+      for (const heard of recv.heard) expect(verifies(heard, T0)).toBe(true);
+      expect(recv.heard.map((heard) => [heard.headers['x-adminium-event'], (parsed(heard) as { data: unknown }).data])).toEqual([
+        ['designer.build-finished', { sessionId: 'ses_1', turn: 1, outcome: 'done', steps: 7, tokens: 9_000, startPrompt: true }],
+        ['designer.stopped', { sessionId: 'ses_1', turn: 2, reason: 'rate-limit', steps: 0, tokens: 0, startPrompt: false }],
+        ['designer.stopped', { sessionId: 'ses_1', turn: 3, reason: 'used-up', steps: 2, tokens: 10, startPrompt: false }],
+        ['designer.stopped', { sessionId: 'ses_1', turn: 4, reason: 'person', steps: 1, tokens: 5, startPrompt: false }],
+        ['assist.finished', { runId: 'run_1', connectionId: 'con_yours', status: 'applied', tokens: 1_200, notes: true }],
+        ['ai.own-key-added', { provider: 'anthropic' }],
+        ['source.status-changed', { state: 'down', reason: 'auth' }],
+      ]);
+    });
+
     it('a sign-in of anybody but a Super Admin is no event', async () => {
       const made = events();
       const clerk = await usersRepo(meta).create({ email: 'sam@hollisbakery.example', name: 'Sam Lee', status: 'active' });

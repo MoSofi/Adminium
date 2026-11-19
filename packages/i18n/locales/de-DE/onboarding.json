@@ -80,6 +80,12 @@
       "generate": "Ihr Server ist bereit. Als Nächstes wählen wir die Tabellen aus und generieren Ihre Seiten.",
       "ready": "Ihr Server ist bereit."
     },
+    "startPrompt": {
+      "failed": "Ihr erster Build konnte nicht starten: {detail}",
+      "retry": "Erneut versuchen",
+      "skip": "Ohne ihn fortfahren",
+      "waiting": "Die KI dieses Servers ist gerade ausgelastet. Ihr Build startet von selbst um {time}."
+    },
     "storage": {
       "local": "Adminium bewahrt seine eigenen Daten in einer Datei auf diesem Rechner auf.",
       "sameDb": "Adminium bewahrt seine eigenen Daten in der Datenbank auf, die Sie verbunden haben.",

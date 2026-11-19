@@ -11,6 +11,12 @@
  *   super-admin.signed-in   when, and from which address
  *   email.cap-reached       a cap of the operator's mail relay held mail back
  *   storage.over-80         the data folder, or a database, crossed 80% of its cap
+ *   designer.build-finished a Designer turn ended with its work checked (applied, not applied, or at a limit)
+ *   designer.stopped        a Designer turn ended without it: a person's stop, the operator's AI used up or
+ *                           out of scope, or the model failing (`reason`, a coarse code)
+ *   assist.finished         a schema-assistant run (`/llm/runs`) reached its end: applied, failed or discarded
+ *   ai.own-key-added        a person saved their own AI key in Settings → AI (the provider's name only)
+ *   source.status-changed   the user's own database (`yours`) became ready, or could not be reached (a class)
  *
  * Only to `ADMINIUM_OPERATOR_EVENTS_URL`, only with `ADMINIUM_OPERATOR_TOKEN`
  * (the boot refuses the one without the other), on any server that has both:
@@ -105,7 +111,36 @@ export const PUBLIC_CHECK_EVERY_MS = 10 * 60_000;
 /** Queued events read back at start, newest first, for what was told already. */
 const PRIME_ROWS = 5_000;
 
-export type OperatorEventType = 'public-page.changed' | 'super-admin.signed-in' | 'email.cap-reached' | 'storage.over-80';
+export type OperatorEventType =
+  | 'public-page.changed'
+  | 'super-admin.signed-in'
+  | 'email.cap-reached'
+  | 'storage.over-80'
+  | 'designer.build-finished'
+  | 'designer.stopped'
+  | 'assist.finished'
+  | 'ai.own-key-added'
+  | 'source.status-changed';
+
+/** Why a Designer turn ended without its work checked: a coarse code, never the model's or the provider's words. */
+export const DESIGNER_STOP_REASONS = ['person', 'used-up', 'scope', 'rate-limit', 'model-error', 'internal'] as const;
+export type DesignerStopReason = (typeof DESIGNER_STOP_REASONS)[number];
+
+/** A Designer turn's end, as the runner records it (`designer.turn.finished`). */
+export interface DesignerTurnEnd {
+  sessionId: string;
+  turn: number;
+  /** The runner's outcome: `done`, `not-applied`, `limit`, `stopped`, `failed`. */
+  outcome: string;
+  steps: number;
+  tokens: number;
+  /** The fixed card the turn ended with, if any. */
+  card?: 'scope' | 'used-up' | null;
+  /** A failed turn's error code (a provider's `rate_limit`, `auth`, …, or `internal`). */
+  failure?: string | null;
+  /** The start prompt's run. */
+  startPrompt?: boolean;
+}
 
 const publicItem = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('side'), appKey: z.string().min(1).max(200) }),
@@ -133,7 +168,73 @@ export const operatorEventPayloadSchema = z.discriminatedUnion('type', [
     usedBytes: z.number(),
     limitBytes: z.number(),
   }),
+  z.object({
+    type: z.literal('designer.build-finished'),
+    at: z.number(),
+    sessionId: z.string().max(80),
+    turn: z.number(),
+    outcome: z.enum(['done', 'not-applied', 'limit']),
+    steps: z.number(),
+    tokens: z.number(),
+    startPrompt: z.boolean(),
+  }),
+  z.object({
+    type: z.literal('designer.stopped'),
+    at: z.number(),
+    sessionId: z.string().max(80),
+    turn: z.number(),
+    reason: z.enum(DESIGNER_STOP_REASONS),
+    steps: z.number(),
+    tokens: z.number(),
+    startPrompt: z.boolean(),
+  }),
+  z.object({
+    type: z.literal('assist.finished'),
+    at: z.number(),
+    runId: z.string().max(80),
+    connectionId: z.string().max(80),
+    status: z.enum(['applied', 'partially_applied', 'failed', 'discarded']),
+    tokens: z.number(),
+    /** The run on `yours` the server started from the visitor's notes. */
+    notes: z.boolean(),
+  }),
+  z.object({ type: z.literal('ai.own-key-added'), at: z.number(), provider: z.string().max(40) }),
+  z.object({
+    type: z.literal('source.status-changed'),
+    at: z.number(),
+    state: z.enum(['connecting', 'ready', 'down']),
+    reason: z.string().max(40).nullable(),
+  }),
 ]);
+
+/** A `designer.turn.finished` audit detail read back as a turn's end; null when it is not one. */
+export function turnEndOf(detail: Record<string, unknown>): DesignerTurnEnd | null {
+  const { sessionId, turn, outcome, steps, tokens, card, failure, startPrompt } = detail;
+  if (typeof sessionId !== 'string' || typeof turn !== 'number' || typeof outcome !== 'string') return null;
+  return {
+    sessionId,
+    turn,
+    outcome,
+    steps: typeof steps === 'number' ? steps : 0,
+    tokens: typeof tokens === 'number' ? tokens : 0,
+    card: card === 'scope' || card === 'used-up' ? card : null,
+    failure: typeof failure === 'string' ? failure : null,
+    startPrompt: startPrompt === true,
+  };
+}
+
+/** A finished turn as its event: build-finished when its work was checked, stopped otherwise (with a coarse reason). */
+export function designerTurnEvent(end: DesignerTurnEnd, at: number): OperatorEventPayload | null {
+  const common = { at, sessionId: end.sessionId.slice(0, 80), turn: end.turn, steps: end.steps, tokens: end.tokens, startPrompt: end.startPrompt === true };
+  if (end.card === 'used-up' || end.card === 'scope') return { type: 'designer.stopped', ...common, reason: end.card };
+  if (end.outcome === 'done' || end.outcome === 'not-applied' || end.outcome === 'limit') return { type: 'designer.build-finished', ...common, outcome: end.outcome };
+  if (end.outcome === 'stopped') return { type: 'designer.stopped', ...common, reason: 'person' };
+  if (end.outcome === 'failed') {
+    const reason: DesignerStopReason = end.failure === 'rate_limit' ? 'rate-limit' : end.failure === 'internal' || end.failure === undefined || end.failure === null ? 'internal' : 'model-error';
+    return { type: 'designer.stopped', ...common, reason };
+  }
+  return null;
+}
 export type OperatorEventPayload = z.infer<typeof operatorEventPayloadSchema>;
 
 // --- the signature ------------------------------------------------------------------
@@ -230,6 +331,16 @@ async function eventData(opts: OperatorEventsOptions, payload: OperatorEventPayl
       return payload.target === 'files'
         ? { target: 'files', usedBytes: payload.usedBytes, limitBytes: payload.limitBytes }
         : { target: 'database', connectionId: payload.connectionId ?? null, usedBytes: payload.usedBytes, limitBytes: payload.limitBytes };
+    case 'designer.build-finished':
+      return { sessionId: payload.sessionId, turn: payload.turn, outcome: payload.outcome, steps: payload.steps, tokens: payload.tokens, startPrompt: payload.startPrompt };
+    case 'designer.stopped':
+      return { sessionId: payload.sessionId, turn: payload.turn, reason: payload.reason, steps: payload.steps, tokens: payload.tokens, startPrompt: payload.startPrompt };
+    case 'assist.finished':
+      return { runId: payload.runId, connectionId: payload.connectionId, status: payload.status, tokens: payload.tokens, notes: payload.notes };
+    case 'ai.own-key-added':
+      return { provider: payload.provider };
+    case 'source.status-changed':
+      return { state: payload.state, reason: payload.reason };
   }
 }
 
@@ -330,6 +441,14 @@ export interface OperatorEvents {
   onRecordEvent(event: { connectionId: string; table: { id: string } }): void;
   /** What strangers are served may have changed: look again, once the burst is over. */
   publicMayHaveChanged(): void;
+  /** A Designer turn ended (`designer.build-finished` or `designer.stopped`). */
+  designerTurnFinished(end: DesignerTurnEnd): void;
+  /** A schema-assistant run reached its end. */
+  assistFinished(run: { runId: string; connectionId: string; status: 'applied' | 'partially_applied' | 'failed' | 'discarded'; tokens: number; notes?: boolean }): void;
+  /** A person saved their own AI key: the provider's name, never the key. */
+  ownAiKeyAdded(provider: string): void;
+  /** The user's own database changed state: a state and a class, never its host or login. */
+  sourceStatusChanged(state: { state: 'connecting' | 'ready' | 'down'; reason: string | null }): void;
   /** Read what was told already, look at the public pages, and keep looking. */
   start(): Promise<void>;
   stop(): Promise<void>;
@@ -548,6 +667,23 @@ export function createOperatorEvents(opts: OperatorEventsOptions): OperatorEvent
       );
     },
     publicMayHaveChanged,
+    designerTurnFinished(end) {
+      if (stopped) return;
+      const payload = designerTurnEvent(end, now());
+      if (payload !== null) queue(async () => enqueue(payload));
+    },
+    assistFinished(run) {
+      if (stopped) return;
+      queue(async () => enqueue({ type: 'assist.finished', at: now(), runId: run.runId.slice(0, 80), connectionId: run.connectionId.slice(0, 80), status: run.status, tokens: run.tokens, notes: run.notes === true }));
+    },
+    ownAiKeyAdded(provider) {
+      if (stopped) return;
+      queue(async () => enqueue({ type: 'ai.own-key-added', at: now(), provider: provider.slice(0, 40) }));
+    },
+    sourceStatusChanged(state) {
+      if (stopped) return;
+      queue(async () => enqueue({ type: 'source.status-changed', at: now(), state: state.state, reason: state.reason }));
+    },
     async start() {
       if (stopped) return;
       await ready();

@@ -90,6 +90,12 @@ export default {
       "generate": "你的服务器已就绪。接下来我们会挑选要包含的表并生成页面。",
       "ready": "你的服务器已就绪。"
     },
+    "startPrompt": {
+      "failed": "你的第一次构建无法开始：{detail}",
+      "retry": "重试",
+      "skip": "不用它继续",
+      "waiting": "此服务器自带的 AI 目前繁忙。你的构建将在 {time} 自动开始。"
+    },
     "storage": {
       "local": "Adminium 把自己的数据保存在这台机器的一个文件里。",
       "sameDb": "Adminium 把自己的数据保存在你刚连接的数据库里。",

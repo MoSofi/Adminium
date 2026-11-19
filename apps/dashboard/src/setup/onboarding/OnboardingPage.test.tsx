@@ -17,6 +17,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { createQueryClient } from '../../app/query.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse } from '../../test/fixtures.js';
+import { forgetWelcomeEmail } from '../setupApi.js';
 import { OnboardingPage } from './OnboardingPage.js';
 
 const clear = vi.fn();
@@ -53,6 +54,12 @@ const realFetch = globalThis.fetch;
 let offerSupabase = false;
 /** The session the operator's start prompt runs in, where the server has one waiting. */
 let startPromptSession: string | null = null;
+/** What `POST /designer/start-prompt` answers instead of starting: a refusal. */
+let startPromptRefusal: { status: number; code: string; message: string; details?: unknown } | null = null;
+/** `/system/info`'s `designer.startPromptWaitsUntil`: the run waits for the operator's AI cap. */
+let startPromptWaitsUntil: number | null = null;
+/** `/system/info` says this is a trial. */
+let trialOn = false;
 beforeAll(() => {
   restoreI18n = installTestI18n();
   // Hermetic: once the account exists the page asks where the meta store is,
@@ -65,7 +72,22 @@ beforeAll(() => {
       });
     }
     if (url.includes('/api/v1/system/info')) {
-      return jsonResponse(200, { version: '0.3.57', designer: { mode: 'live', link: false, startPrompt: startPromptSession !== null }, node: 'v22', dialect: 'sqlite', runtime: 'self-host', smtpConfigured: false, networkFeaturesAllowed: true, lanShare: false, desktopDemo: false, connect: offerSupabase ? [{ provider: 'supabase' }] : [] });
+      return jsonResponse(200, {
+        version: '0.3.57',
+        designer: { mode: 'live', link: false, startPrompt: startPromptSession !== null && startPromptWaitsUntil === null, startPromptWaitsUntil },
+        node: 'v22',
+        dialect: 'sqlite',
+        runtime: 'self-host',
+        smtpConfigured: false,
+        networkFeaturesAllowed: true,
+        lanShare: false,
+        desktopDemo: false,
+        connect: offerSupabase ? [{ provider: 'supabase' }] : [],
+        ...(trialOn ? { trial: { on: true, endsAt: '2026-12-03T00:00:00Z', daysLeft: 14, upgradeUrl: null } } : {}),
+      });
+    }
+    if (url.includes('/api/v1/designer/start-prompt') && startPromptRefusal !== null) {
+      return jsonResponse(startPromptRefusal.status, { error: { code: startPromptRefusal.code, message: startPromptRefusal.message, requestId: 'req_x', details: startPromptRefusal.details } });
     }
     if (url.includes('/api/v1/designer/start-prompt') && startPromptSession !== null) {
       return jsonResponse(201, { sessionId: startPromptSession, turn: 1 });
@@ -90,6 +112,10 @@ afterEach(() => {
   pushed.length = 0;
   offerSupabase = false;
   startPromptSession = null;
+  startPromptRefusal = null;
+  startPromptWaitsUntil = null;
+  trialOn = false;
+  forgetWelcomeEmail();
 });
 
 function renderPage(): void {
@@ -353,6 +379,46 @@ describe('finishing', () => {
     expect(vi.mocked(globalThis.fetch).mock.calls.some(([input, init]) => String(input).includes('/api/v1/designer/start-prompt') && init?.method === 'POST')).toBe(true);
   });
 
+  it('a start prompt that cannot start says so, with Try again and Continue without it', async () => {
+    startPromptSession = 'ds_0123456789abcdef01234567';
+    startPromptRefusal = { status: 409, code: 'CONFLICT', message: 'There is no model to run the start prompt on.', details: { reason: 'NO_MODEL' } };
+    await walkToDone(null);
+    await userEvent.click(screen.getByRole('button', { name: /Go to dashboard/ }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Your first build could not start'));
+    expect(pushed).toEqual([]);
+    // Try again asks once more; still refused, still here.
+    const posts = (): number => vi.mocked(globalThis.fetch).mock.calls.filter(([input, init]) => String(input).includes('/api/v1/designer/start-prompt') && init?.method === 'POST').length;
+    const before = posts();
+    await userEvent.click(screen.getByRole('button', { name: /Try again/ }));
+    await waitFor(() => expect(posts()).toBe(before + 1));
+    expect(pushed).toEqual([]);
+    // It starts this time.
+    startPromptRefusal = null;
+    await userEvent.click(screen.getByRole('button', { name: /Try again/ }));
+    await waitFor(() => expect(pushed).toContain('/design/ds_0123456789abcdef01234567'));
+  });
+
+  it('Continue without it leaves for the dashboard', async () => {
+    startPromptSession = 'ds_0123456789abcdef01234567';
+    startPromptRefusal = { status: 502, code: 'PROVIDER_ERROR', message: 'The model could not be reached.' };
+    await walkToDone(null);
+    await userEvent.click(screen.getByRole('button', { name: /Go to dashboard/ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Continue without it' }));
+    expect(pushed).toEqual(['/']);
+  });
+
+  it('a start prompt waiting for the AI’s cap says when it starts, and starts nothing', async () => {
+    startPromptSession = 'ds_0123456789abcdef01234567';
+    startPromptWaitsUntil = Date.UTC(2026, 10, 20, 0, 15);
+    vi.mocked(globalThis.fetch).mockClear();
+    await walkToDone(null);
+    await userEvent.click(screen.getByRole('button', { name: /Go to dashboard/ }));
+    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Your build starts by itself at'));
+    expect(vi.mocked(globalThis.fetch).mock.calls.some(([input, init]) => String(input).includes('/api/v1/designer/start-prompt') && init?.method === 'POST')).toBe(false);
+    await userEvent.click(screen.getByRole('button', { name: /Go to dashboard/ }));
+    expect(pushed).toEqual(['/']);
+  });
+
   it('hands "Connect Supabase" to the Studio wizard, which starts the sign-in once the account exists', async () => {
     offerSupabase = true;
     submit.mockResolvedValue({ kind: 'ok', connection: null });
@@ -421,5 +487,27 @@ describe('finishing', () => {
         name: 'shop',
       }),
     );
+  });
+});
+
+describe('a trial', () => {
+  it('fills in the address the welcome link was sent to, and leaves out storage and the team', async () => {
+    trialOn = true;
+    window.history.replaceState(null, '', '/setup#email=ada%40example.com');
+    submit.mockResolvedValue({ kind: 'ok', connection: null });
+    renderPage();
+    await walkToAccount();
+    expect((screen.getByLabelText(/Email/) as HTMLInputElement).value).toBe('ada@example.com');
+    // The fragment is gone from the address bar.
+    expect(window.location.hash).toBe('');
+    await userEvent.type(screen.getByLabelText(/^Password/), 'correct-horse-1');
+    await userEvent.type(screen.getByLabelText(/Confirm password/), 'correct-horse-1');
+    await userEvent.click(screen.getByRole('button', { name: /Create account/ }));
+    // Straight to the last screen: no storage step, no team step.
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /You’re all set/ })).toBeDefined();
+    });
+    expect(screen.queryByText('Where Adminium keeps its own data')).toBeNull();
+    expect(screen.queryByText('Bring your team')).toBeNull();
   });
 });

@@ -112,6 +112,9 @@ describe('an instance that is already connected', () => {
   it('leaves out the starting point and the connect step, and opens on the account', () => {
     expect(onboardingStepIds(false)).toBe(ONBOARDING_STEP_IDS);
     expect([...onboardingStepIds(true)]).toEqual(['account', 'meta', 'team', 'done']);
+    // A trial: the operator fixes the storage, and the team comes later.
+    expect([...onboardingStepIds(true, true)]).toEqual(['account', 'done']);
+    expect([...onboardingStepIds(false, true)]).toEqual(['start', 'connect', 'account', 'done']);
     expect(stepBefore('account', CONNECTED_STEP_IDS)).toBeNull();
     expect(stepAfter('account', CONNECTED_STEP_IDS)).toBe('meta');
   });
