@@ -153,7 +153,8 @@ export async function recordActionsFor(deps: RecordActionsDeps, asker: RecordAct
       const manifest = installManifest(install);
       if (manifest === null) continue;
       const key = install.row.manifestKey;
-      const fills = (manifest.addOn.slots ?? []).filter((fill) => fill.slot === RECORD_ACTIONS_SLOT && fill.on === kind && fill.label !== undefined && fill.icon !== undefined);
+      // Only a fill that names this kind of table: one for apps' own screens names none, and is never drawn here.
+      const fills = (manifest.addOn.slots ?? []).filter((fill) => fill.slot === RECORD_ACTIONS_SLOT && fill.on === kind);
       const keepsSources = leadsOf(manifest) !== null;
       if (fills.length === 0 && !keepsSources) continue;
       if (!(await reach(install))) continue;
@@ -167,9 +168,10 @@ export async function recordActionsFor(deps: RecordActionsDeps, asker: RecordAct
           kind,
           table: await refOf(),
           // Named before any of the add-on's code runs, in the reader's language where the add-on wrote it.
-          label: readerWords(fill.labels, asker.locale ?? 'en-US') ?? fill.label!.fallback,
-          labelKey: fill.label!.key,
-          icon: fill.icon!,
+          // (The manifest's rules give a fill that names a kind its words and icon.)
+          label: readerWords(fill.labels, asker.locale ?? 'en-US') ?? fill.label?.fallback ?? key,
+          labelKey: fill.label?.key ?? '',
+          icon: fill.icon ?? 'square-mouse-pointer',
           client: fill.client,
           order: fill.order,
         });

@@ -153,6 +153,8 @@ function finder(): Doc {
     if (source['id'] === 'website') source['label'] = { key: 'company-finder.sources.website', fallback: 'the website' };
   }
   doc['addOn'].slots = [
+    // A fill for apps' own screens (a document for the record): it names no kind of table, and is never drawn here.
+    { slot: 'record.actions', client: 'dist/apps.js', order: 5 },
     {
       slot: 'record.actions',
       client: CLIENT,
@@ -221,7 +223,7 @@ describe.each(LEGS)('a company’s page — %s', (dialect, available) => {
     await h.stageApp(crm());
     const app = await h.install('crm', '1.0.0');
     expect(app.statusCode, app.body).toBe(200);
-    await h.stageAddOn(finder(), { bundled: true, files: { 'dist/server.js': SERVER_JS, 'pages/search.js': 'export default {};\n', [CLIENT]: CLIENT_JS } });
+    await h.stageAddOn(finder(), { bundled: true, files: { 'dist/server.js': SERVER_JS, 'pages/search.js': 'export default {};\n', [CLIENT]: CLIENT_JS, 'dist/apps.js': CLIENT_JS } });
     const added = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: KEY, version: '1.0.0', attachTo: ['crm'] } });
     expect(added.statusCode, added.body).toBe(200);
     installId = (await h.meta.db.selectFrom('adminium_manifests').select(['id']).where('manifestKey', '=', KEY).executeTakeFirstOrThrow()).id;
@@ -314,7 +316,7 @@ describe.each(LEGS)('a company’s page — %s', (dialect, available) => {
     // As a manager of add-ons, so only the add-on's state decides.
     const warned: unknown[] = [];
     const request = { can: async () => true, log: { warn: (details: unknown) => warned.push(details) } } as unknown as FastifyRequest;
-    const runtime = (problems: AddOnRuntimeState['problems'], fills = [{ addOnKey: KEY, slot: 'record.actions', client: CLIENT, order: 10 }]): AddOnRuntimeState => ({
+    const runtime = (problems: AddOnRuntimeState['problems'], fills = [{ addOnKey: KEY, slot: 'record.actions', client: 'dist/apps.js', order: 5 }, { addOnKey: KEY, slot: 'record.actions', client: CLIENT, order: 10 }]): AddOnRuntimeState => ({
       providers: new Map(),
       slots: new Map([['record.actions', fills]]),
       conflicts: [],
@@ -408,6 +410,10 @@ describe.each(LEGS)('a company’s page — %s', (dialect, available) => {
     expect(error['code']).toBe('FIELD_CHANGED');
     expect(error['details']).toMatchObject({ field: 'activity', column: 'sector', by: 'Wren Holt' });
     expect(error['message']).toBe('sector was changed by Wren Holt after you looked. Look up again.');
+    // Named as they are called now: a name changed since is the one said.
+    await usersRepo(h.meta).updateProfile(ids['wren']!, { name: 'Wren Holt-Achebe' });
+    const renamed = await door('dana', 'fill', { record: '921', fields: [{ field: 'activity', source: 'companies-house', now: null }] });
+    expect(((renamed.json() as Doc)['error'] as Doc)['details']).toMatchObject({ by: 'Wren Holt-Achebe' });
     // A field the log names nobody for (written in the database itself): the refusal says so without a name.
     const { db } = await h.manager.data(conn);
     await db.updateTable(table('crm', 'companies') as never).set({ website: 'https://typed.example' } as never).where('id' as never, '=', 921 as never).execute();
