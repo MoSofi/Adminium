@@ -116,7 +116,7 @@ describe('noAppTables: no app or add-on makes tables on `yours`', () => {
   it('a self-hosted project (no operator project) that names its own database `yours` is not held', async () => {
     expect(() => assertNoAppTables({ projectKey: YOURS_KEY, name: 'Yours' }, ['shop_orders'], false)).not.toThrow();
     // Past the guard, the install goes on to its next check (here: a meta store that is not there).
-    const past = await applyPlanTo({ meta: {} as MetaDb, manager: managerWith(YOURS_KEY, false) }, 'conn_1', plan, manifest).catch((error: unknown) => error as { details?: { code?: string } });
+    const past = (await applyPlanTo({ meta: {} as MetaDb, manager: managerWith(YOURS_KEY, false) }, 'conn_1', plan, manifest).catch((error: unknown) => error)) as { details?: { code?: string } } | undefined;
     expect(past?.details?.code).not.toBe('NO_APP_TABLES');
   });
 });

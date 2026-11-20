@@ -230,9 +230,9 @@ describe('the deny list reads an IPv4 address carried in IPv6', () => {
 
 describe('a refusal of the user host', () => {
   it('says why in the server log only, never in the reply', async () => {
-    const error = await checkDsn('postgres://me:pw@fleet.user.example:5432/shop', { lookup, userHost: userHostOf('fleet.user.example', 5432), denyAddresses: FLEET, hideAddresses: true }).catch(
-      (caught: unknown) => caught as Error & { details?: unknown; logged?: Record<string, unknown> },
-    );
+    const error = (await checkDsn('postgres://me:pw@fleet.user.example:5432/shop', { lookup, userHost: userHostOf('fleet.user.example', 5432), denyAddresses: FLEET, hideAddresses: true }).catch(
+      (caught: unknown) => caught,
+    )) as Error & { details?: unknown; logged?: Record<string, unknown> };
     expect(error).toMatchObject({ statusCode: 422, details: { host: 'fleet.user.example' }, logged: { host: 'fleet.user.example', reason: 'denied' } });
     expect(JSON.stringify(error.details)).not.toMatch(/denied|private|reserved/);
   });
