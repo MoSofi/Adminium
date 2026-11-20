@@ -143,7 +143,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/landing/*` | 7 | A landing pages add-on, for staff: a page drafted by Milo on the person’s own allowance (no rows, every block marked, never published); the live forms a Form block may show and the live pages a form may end on; the name and steps of the rule a funnel names; a page’s own pictures; and what the editor’s page settings say (reach, notice, the pages hosts and a page’s addresses). The install is named as the add-on kit names it: the X-Adminium-Install header, else ?connectionId= |
 | `/api/v1/leads/*` | 8 | Finding companies, for staff of an add-on that finds them: search a register, look up one company, add found companies, fill in a company's details, and find and keep the people who work there — every write made as the person asking; where each filled field of a company came from, while it still holds what was filled; and the mail a found person is sent, drawn for a made-up person and never sent |
 | `/api/v1/ledgers/*` | 4 | The rules that hand rows to an add-on's ledger (stock, gift cards) — which tables post into it, whether each rule runs, how many rows hold something under it and how many saves wait to be worked out; the tables and columns a new rule may be drawn from; making the ledger's items from a table's rows; and recording the saves let through while the add-on could not be asked. Reading needs a session and the connection; the two runs need the grant that changes what a table's columns mean. A rule itself is stored under /connections/:id/tables/:table/postings. |
-| `/api/v1/llm/*` | 16 | LLM assist — provider config, runs, prompts, diffs, apply, undo |
+| `/api/v1/llm/*` | 18 | LLM assist — provider config, runs, prompts, diffs, apply, undo |
 | `/api/v1/me/*` | 15 | The signed-in user — profile, preferences, notifications, saved layouts |
 | `/api/v1/meta/*` | 2 | Where the meta store lives, and relocating it |
 | `/api/v1/onboarding/*` | 2 | The first-run checklist |
@@ -769,6 +769,8 @@ GET /api/v1/llm/runs/{id}/prompt
 GET /api/v1/llm/runs/{id}/diff
 POST /api/v1/llm/runs/{id}/apply
 POST /api/v1/llm/runs/{id}/undo/{token}
+GET /api/v1/llm/yours-assist
+POST /api/v1/llm/yours-assist/undo
 ```
 
 ### `/me`

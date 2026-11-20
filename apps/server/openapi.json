@@ -224,12 +224,19 @@
                         },
                         "startPrompt": {
                           "type": "boolean"
+                        },
+                        "startPromptWaitsUntil": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
                         }
                       },
                       "required": [
                         "mode",
                         "link",
-                        "startPrompt"
+                        "startPrompt",
+                        "startPromptWaitsUntil"
                       ],
                       "additionalProperties": false
                     },
@@ -332,6 +339,56 @@
                         "upgradeUrl"
                       ],
                       "additionalProperties": false
+                    },
+                    "ownDatabase": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "connecting",
+                                "ready",
+                                "down"
+                              ]
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "auth",
+                                    "unreachable",
+                                    "dns",
+                                    "tls",
+                                    "refused-by-us",
+                                    "ipv6-only",
+                                    "no-database",
+                                    "no-permission",
+                                    "empty"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "readOnly": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "reason",
+                            "readOnly"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "offByOperator": {
                       "type": "object",
@@ -587,6 +644,7 @@
                     "desktopDemo",
                     "connect",
                     "trial",
+                    "ownDatabase",
                     "offByOperator"
                   ],
                   "additionalProperties": false
@@ -4244,6 +4302,71 @@
                           },
                           "required": [
                             "reason"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "ownDatabase": {
+                          "type": "object",
+                          "properties": {
+                            "host": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "connecting",
+                                "ready",
+                                "down"
+                              ]
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "auth",
+                                    "unreachable",
+                                    "dns",
+                                    "tls",
+                                    "refused-by-us",
+                                    "ipv6-only",
+                                    "no-database",
+                                    "no-permission",
+                                    "empty"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "readOnly": {
+                              "type": "boolean"
+                            },
+                            "editUrl": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "connectionId": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "host",
+                            "label",
+                            "state",
+                            "reason",
+                            "readOnly",
+                            "editUrl",
+                            "connectionId"
                           ],
                           "additionalProperties": false
                         }
@@ -177735,6 +177858,10 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 8000
                   }
                 },
                 "required": [
@@ -179529,6 +179656,130 @@
             "required": true
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "overrides": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "pages": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "overrides",
+                    "pages"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/llm/yours-assist": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "assist": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "running",
+                                "applied",
+                                "failed",
+                                "undone",
+                                "interrupted"
+                              ]
+                            },
+                            "runId": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "connectionId": {
+                              "type": "string"
+                            },
+                            "at": {
+                              "type": "number"
+                            },
+                            "counts": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {
+                                    "type": "number"
+                                  }
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "reason": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "undoable": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "runId",
+                            "connectionId",
+                            "at",
+                            "counts",
+                            "reason",
+                            "undoable"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "assist"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/llm/yours-assist/undo": {
+      "post": {
         "responses": {
           "200": {
             "description": "Default Response",
