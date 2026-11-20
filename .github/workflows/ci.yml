@@ -476,8 +476,11 @@ jobs:
     # suites (about 600 tests more, whole-server ones on three engines), so 60.
     # By 2026-11-03 it took 52-57 minutes and was cancelled at 60 twice with no
     # test red; the 0.3.43 tests (uploads, kinds, design checks, panels, three
-    # engines) took it past 60 on 2026-11-04, so 80.
-    timeout-minutes: 80
+    # engines) took it past 60 on 2026-11-04, so 80. By 2026-11-20 green runs
+    # took 53-63 minutes and five runs were cancelled at 80 with no test red
+    # (a812bc34f twice, 9f2740769, 43ea3228d twice); 0.3.69 adds the build
+    # box's three-engine tests, so 110 until the server suite is sharded.
+    timeout-minutes: 110
     strategy:
       # One red suite must not hide the state of the other two.
       fail-fast: false
