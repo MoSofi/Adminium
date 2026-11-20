@@ -200,6 +200,16 @@ describe.each(META.filter((leg) => leg.available))('an operator-project trial’
     expect(yoursRow?.[at('introspectDsnEncrypted')]).toBeNull();
     expect(Buffer.from(readFileSync(archive)).includes('her-password')).toBe(false);
 
+    // The nightly backup check: a dry run into a scratch data folder of its own (`/tmp/check` there).
+    const checkData = join(root, 'tmp', 'check');
+    const checkMeta = await leg.make();
+    drops.push(checkMeta.drop);
+    const dry = await cli(['archive', 'restore', archive, '--dry-run'], oneOffEnv(checkData, checkMeta.url));
+    expect(dry.code, dry.err).toBe(0);
+    expect(dry.out).toContain('Dry run — nothing was written.');
+    expect(dry.out).toContain(join(checkData, 'project'));
+    expect(existsSync(join(checkData, 'project', 'apps'))).toBe(false);
+
     // A fresh instance, restored by the same kind of one-off.
     const toData = join(root, 'to', 'data');
     const toMeta = await leg.make();

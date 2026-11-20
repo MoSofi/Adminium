@@ -1,22 +1,9 @@
 {
-  "admin": {
-    "ADMINIUM_OPERATOR_PROJECT": "on",
-    "ADMINIUM_YOUR_DATABASE": "{\"url\":\"postgres://ava:pw@db.example.com:5432/shop\",\"intent\":\"full-admin\",\"tables\":[\"public.orders\",\"public.customers\"],\"readOnly\":false,\"label\":\"Harbor books\",\"notes\":\"Orders ship from two warehouses.\"}",
-    "ADMINIUM_DATABASE_USER_HOST": "db.example.com:5432"
-  },
-  "analytics": {
-    "ADMINIUM_OPERATOR_PROJECT": "on",
-    "ADMINIUM_YOUR_DATABASE": "{\"url\":\"postgres://ava:pw@db.example.com:5432/shop\",\"intent\":\"read-only-analytics\",\"tables\":[\"public.orders\"],\"readOnly\":true,\"label\":\"Harbor books\"}",
-    "ADMINIUM_DATABASE_USER_HOST": "db.example.com:5432"
-  },
-  "crud": {
-    "ADMINIUM_OPERATOR_PROJECT": "on",
-    "ADMINIUM_YOUR_DATABASE": "{\"url\":\"postgres://ava:pw@db.example.com:5432/shop\",\"intent\":\"crud\",\"tables\":[],\"readOnly\":false,\"label\":\"Harbor books\"}",
-    "ADMINIUM_DATABASE_USER_HOST": "db.example.com:5432"
-  },
-  "support": {
-    "ADMINIUM_OPERATOR_PROJECT": "on",
-    "ADMINIUM_YOUR_DATABASE": "{\"url\":\"postgres://ava:pw@db.example.com:5432/shop\",\"intent\":\"support-console\",\"tables\":[\"public.customers\"],\"readOnly\":false,\"label\":\"Harbor books\"}",
-    "ADMINIUM_DATABASE_USER_HOST": "db.example.com:5432"
+  "about": "One ADMINIUM_YOUR_DATABASE value per intent, from adminium-app projectEnv(). The engine parses each with its boot parser (build-box G3 B2). Regenerate: UPDATE_FIXTURES=1 node --test test/build-box.test.ts",
+  "values": {
+    "full-admin": "{\"url\":\"postgresql://shop:secret@db.example.com:5432/shop\",\"intent\":\"full-admin\",\"tables\":[\"public.customers\",\"public.orders\"],\"readOnly\":false,\"label\":\"Your database\"}",
+    "read-only-analytics": "{\"url\":\"postgresql://shop:secret@db.example.com:5432/shop\",\"intent\":\"read-only-analytics\",\"tables\":[\"public.customers\",\"public.orders\"],\"readOnly\":true,\"label\":\"Your database\"}",
+    "crud": "{\"url\":\"postgresql://shop:secret@db.example.com:5432/shop\",\"intent\":\"crud\",\"tables\":[\"public.customers\",\"public.orders\"],\"readOnly\":false,\"label\":\"Your database\"}",
+    "support-console": "{\"url\":\"postgresql://shop:secret@db.example.com:5432/shop\",\"intent\":\"support-console\",\"tables\":[\"public.customers\",\"public.orders\"],\"readOnly\":false,\"label\":\"Your database\",\"notes\":\"Support sees customers and orders.\"}"
   }
 }

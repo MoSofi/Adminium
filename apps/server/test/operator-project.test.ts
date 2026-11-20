@@ -411,35 +411,27 @@ describe('the operator project variables at boot', () => {
 
   /**
    * The contract with adminium-app, which starts these trials: its `projectEnv()`
-   * output for each dashboard type, as it writes `test/fixtures/your-database.json`.
+   * value of `ADMINIUM_YOUR_DATABASE` for each dashboard type, copied as is from
+   * its `test/fixtures/your-database.json` (`{about, values: {<intent>: <value>}}`).
    * The same file sits in both repositories; each side's test fails when its own
-   * side drifts. Every `ADMINIUM_YOUR_DATABASE` in it boots, with its siblings.
+   * side drifts. Every value boots, with the user host it names.
    */
   it('boots every value adminium-app writes, and its read-only analytics comes out read-only', () => {
-    const fixture = JSON.parse(readFileSync(join(import.meta.dirname, 'fixtures', 'build-box', 'your-database.json'), 'utf8')) as unknown;
-    const found: Record<string, string>[] = [];
-    const walk = (node: unknown): void => {
-      if (Array.isArray(node)) for (const item of node) walk(item);
-      else if (node !== null && typeof node === 'object') {
-        const record = node as Record<string, unknown>;
-        if ('ADMINIUM_YOUR_DATABASE' in record) {
-          const env: Record<string, string> = {};
-          for (const [name, value] of Object.entries(record)) if (name.startsWith('ADMINIUM_')) env[name] = typeof value === 'string' ? value : JSON.stringify(value);
-          found.push(env);
-        } else for (const value of Object.values(record)) walk(value);
-      }
-    };
-    walk(fixture);
-    const intents = new Set<string>();
-    for (const env of found) {
-      const parsed = envSchema.safeParse({ ...base, ADMINIUM_OPERATOR_PROJECT: 'on', ...env });
-      expect(parsed.success ? [] : parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`)).toEqual([]);
+    const fixture = JSON.parse(readFileSync(join(import.meta.dirname, 'fixtures', 'build-box', 'your-database.json'), 'utf8')) as { values: Record<string, string> };
+    const intents: string[] = [];
+    for (const [named, value] of Object.entries(fixture.values)) {
+      const read = parseYourDatabase(value);
+      expect(read.ok ? null : read.problem, named).toBeNull();
+      if (!read.ok) continue;
+      const parsed = envSchema.safeParse({ ...base, ADMINIUM_OPERATOR_PROJECT: 'on', ADMINIUM_YOUR_DATABASE: value, ADMINIUM_DATABASE_USER_HOST: `${read.value.host}:${String(read.value.port)}` });
+      expect(parsed.success ? [] : parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`), named).toEqual([]);
       const yoursValue = parsed.data?.ADMINIUM_YOUR_DATABASE;
-      expect(yoursValue).toBeDefined();
-      intents.add(yoursValue!.intent);
-      if (yoursValue!.intent === 'read-only-analytics') expect(yoursValue!.readOnly).toBe(true);
+      expect(yoursValue?.intent, named).toBe(named);
+      intents.push(named);
+      if (named === 'read-only-analytics') expect(yoursValue?.readOnly).toBe(true);
+      if (named === 'support-console') expect(yoursValue?.notes).toBe('Support sees customers and orders.');
     }
     // One value per dashboard type, between them the engine's four.
-    expect([...intents].sort()).toEqual(['crud', 'full-admin', 'read-only-analytics', 'support-console']);
+    expect(intents.sort()).toEqual(['crud', 'full-admin', 'read-only-analytics', 'support-console']);
   });
 });
