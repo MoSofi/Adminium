@@ -737,10 +737,12 @@ jobs:
 
   # The server suite's whole result: the five shards' blob reports merged by
   # `vitest --merge-reports`, which lists every failed test again and applies
-  # apps/server's coverage floors to the merged coverage — the same numbers an
-  # unsharded run reports (checked on packages/config: 95.18% / 88.51% both
-  # ways). A shard that timed out or crashed leaves no blob, and the count
-  # check fails here rather than the floors passing on part of the suite.
+  # apps/server's coverage floors to the merged coverage. The merge equals an
+  # unsharded run only because apps/server remaps coverage from the AST (see
+  # its vitest.config.ts): with vitest's default remapping, merged shards
+  # overstated branches by 7 points on the same files. A shard that timed out
+  # or crashed leaves no blob, and the count check fails here rather than the
+  # floors passing on part of the suite.
   #
   # It keeps the name the unsharded leg had, so `suite (server)` still means
   # "the server suite passed". It waits for the whole `suite` matrix (a job can
