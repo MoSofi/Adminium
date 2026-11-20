@@ -1550,7 +1550,7 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
       if (ctx.local !== true) out.push({ path: at('methods'), message: `${method} is read only from a file made on an Adminium (publisher "local")` });
       else if (!claimed) out.push({ path: at('methods'), message: `${method} is allowed only with a claim` });
     }
-    // Pages are any file's to say from the release that opened them (A1): a page of at most a hundred.
+    // Pages are any file's to say from 0.3.67 on (a page of at most a hundred, checked with the shopper's lists).
     for (const field of ['path', 'rateLimit', 'response'] as const) {
       if (entry[field] !== undefined && ctx.local !== true) out.push({ path: at(field), message: `"${field}" is read only from a file made on an Adminium (publisher "local")` });
     }
