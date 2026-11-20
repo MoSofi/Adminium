@@ -4,6 +4,8 @@ dist/
 *.log
 .DS_Store
 coverage/
+# vitest's blob reports from a sharded run (`--reporter=blob`), merged by ci.yml.
+.vitest-reports/
 .env
 .env.*
 !.env.example
