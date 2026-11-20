@@ -3113,7 +3113,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       }
       // A trial's first boot: the operator's Designer switched on for its Super Admin, once, after the check above.
       if (live !== null) {
-        const first = await switchLiveOnFirstBoot({ live, meta, profile: app.trialPolicy.profile }).catch((error: unknown) => {
+        const first = await switchLiveOnFirstBoot({ live, meta, profile: app.trialPolicy.profile, wentOffThisBoot: wentOff }).catch((error: unknown) => {
           app.log.warn({ err: error }, 'the Designer could not be switched on at the trial’s first boot');
           return null;
         });

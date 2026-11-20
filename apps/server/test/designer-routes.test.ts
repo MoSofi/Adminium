@@ -14,7 +14,7 @@ import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 
 import BetterSqlite3 from 'better-sqlite3';
-import { createSqliteMetaDb, firstRun, permissionsRepo, rolesRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
+import { createSqliteMetaDb, firstRun, operatorTalliesRepo, permissionsRepo, rolesRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { addSide } from '../src/project/apps/scaffold-app.js';
@@ -1123,6 +1123,8 @@ describe.skipIf(!canBuildSides)('the live Designer', { timeout: 120_000 }, () =>
 
     // Off needs no password, and the routes are refused again.
     expect((await client.call('PUT', '/api/v1/designer/live', { on: false })).body).toMatchObject({ on: false });
+    // A person's own switch settles it: a trial's first boot never switches it on over them.
+    expect(await operatorTalliesRepo(client.meta).get('designer-live-first-boot')).not.toBeNull();
     expect((await client.call('GET', '/api/v1/designer/state')).status).toBe(403);
     const audit = await client.meta.db.selectFrom('adminium_audit_log').select('action').where('action', 'like', 'designer.live.%').execute();
     // The two refused tries are kept beside the switch itself.

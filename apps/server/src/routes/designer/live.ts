@@ -11,13 +11,14 @@
  * into the ability to have a model write code on this server, and a session
  * left open on a shared machine must not be enough.
  */
-import { auditRepo, usersRepo, type MetaDb } from '@adminium/meta';
+import { auditRepo, operatorTalliesRepo, usersRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
 import { auditExempt } from '../../audit/coverage.js';
 import { verifyPassword } from '../../auth/passwords.js';
 import type { Live, LiveReason } from '../../designer/live.js';
+import { LIVE_FIRST_BOOT_TALLY } from '../../designer/live-first-boot.js';
 import { AppError, ConflictError } from '../../errors.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { RATE_LIMIT_BUCKETS } from '../auth/index.js';
@@ -91,6 +92,8 @@ export function designerLiveRoutes(deps: DesignerLiveRoutesDeps): FastifyPluginA
         if (refused !== null) throw new ConflictError(WHY[refused], 'CONFLICT', { reason: refused });
         // Off is off now: a turn left running could no longer be stopped by anyone.
         if (!request.body.on) deps.stopRunning?.();
+        // A person's own switch settles it: a trial's first boot never switches it on over their choice.
+        await operatorTalliesRepo(deps.meta).claim(LIVE_FIRST_BOOT_TALLY);
         await auditRepo(deps.meta).append({
           actorKind: 'user',
           actorId: user.id,

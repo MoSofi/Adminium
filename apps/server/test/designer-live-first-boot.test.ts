@@ -55,8 +55,8 @@ describe.each(ENGINES)('a trial’s Designer at its first boot [%s]', { timeout:
 
   /** One boot: the check, then the first-boot switch, as `compose.ts` runs them. */
   const boot = async (live: Live, profile: 'trial' | 'hosted' | 'off' = 'trial') => {
-    await live.checkAtBoot();
-    return switchLiveOnFirstBoot({ live, meta, profile });
+    const wentOffThisBoot = await live.checkAtBoot();
+    return switchLiveOnFirstBoot({ live, meta, profile, wentOffThisBoot });
   };
 
   it('switches it on once, audited as the operator, and never again after a Super Admin’s off', async () => {
@@ -90,6 +90,16 @@ describe.each(ENGINES)('a trial’s Designer at its first boot [%s]', { timeout:
     expect(await boot(liveOf({ bundler: false }))).toEqual({ kind: 'refused', reason: 'no-bundler' });
     expect(await operatorTalliesRepo(meta).get(LIVE_FIRST_BOOT_TALLY)).toBeNull();
     expect(await boot(liveOf())).toEqual({ kind: 'switched-on' });
+  });
+
+  it('left off when this boot’s check switched it off (a folder that was not kept), and settled', async () => {
+    // On, for a folder whose ids are not here any more: the check switches it off.
+    stored = { on: true, id: 'a-folder-that-was-not-kept' };
+    expect(await boot(liveOf())).toEqual({ kind: 'skipped' });
+    expect(stored.on).toBe(false);
+    expect(await operatorTalliesRepo(meta).get(LIVE_FIRST_BOOT_TALLY)).not.toBeNull();
+    expect(await boot(liveOf())).toEqual({ kind: 'skipped' });
+    expect(stored.on).toBe(false);
   });
 
   it('already on: the claim is kept and nothing is switched or audited', async () => {

@@ -11,8 +11,9 @@
  * Once: an operator tally (`adminium_operator_tallies`, which no settings route, import or archive writes) is claimed
  * before the switch, so a Super Admin who switches it off later finds it off after every restart. A switch that could
  * not go on (no bundler, no project folder, a folder that cannot be written) gives the claim back, so a later boot
- * that can tries again. Trial mode only; it runs after `checkAtBoot`, so a switch that boot turned off for a folder
- * that was not kept is not turned on again.
+ * that can tries again. Trial mode only; it runs after `checkAtBoot`, and a switch that boot turned off for a folder
+ * that was not kept (`wentOffThisBoot`) is left off and the claim taken. A person who switches it, on or off
+ * (`routes/designer/live.ts`), takes the claim too: their choice is never switched over.
  */
 import { auditRepo, operatorTalliesRepo, type MetaDb } from '@adminium/meta';
 
@@ -33,13 +34,15 @@ export type FirstBootLive =
   /** Could not go on: the claim was given back. */
   | { kind: 'refused'; reason: LiveReason };
 
-export async function switchLiveOnFirstBoot(deps: { live: Live; meta: MetaDb; profile: Profile; now?: number }): Promise<FirstBootLive> {
+export async function switchLiveOnFirstBoot(deps: { live: Live; meta: MetaDb; profile: Profile; wentOffThisBoot?: boolean; now?: number }): Promise<FirstBootLive> {
   if (deps.profile !== 'trial') return { kind: 'skipped' };
   const state = await deps.live.state();
   if (!state.allowed) return { kind: 'skipped' };
   const tallies = operatorTalliesRepo(deps.meta);
   const at = deps.now ?? Date.now();
   if (!(await tallies.claim(LIVE_FIRST_BOOT_TALLY, at))) return { kind: 'skipped' };
+  // This boot's check switched it off (a folder that was not kept): left off, and settled.
+  if (deps.wentOffThisBoot === true) return { kind: 'skipped' };
   if (state.on) return { kind: 'already-on' };
   const reason = await deps.live.set(true);
   if (reason !== null) {
