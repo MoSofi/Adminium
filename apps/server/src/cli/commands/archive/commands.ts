@@ -215,6 +215,7 @@ export const archiveRestoreCommand: Command = {
         meta: store.meta,
         dataDir: env.ADMINIUM_DATA_DIR,
         projectRoot,
+        operatorProject: oneOff,
         secret: env.ADMINIUM_SECRET,
         dsnCrypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET),
         signing: archiveSigningKey(env),

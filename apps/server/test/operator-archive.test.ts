@@ -67,12 +67,33 @@ describe.each(ENGINES)('an operator project archived and restored, meta on %s', 
     const mainRow = rows.rows.find((row) => row[at('projectKey')] === 'main');
     expect(typeof mainRow?.[at('introspectDsnEncrypted')]).toBe('string');
 
+    // Any restore but an operator project's one-off keeps the rule: no project path inside the data dir.
+    const ordinary = await instance(engine, false);
+    await expect(
+      restoreArchive({
+        inPath: archive,
+        meta: ordinary.meta,
+        dataDir: ordinary.dirs.dataDir,
+        projectRoot: ordinary.projectRoot,
+        secret: SECRET,
+        dsnCrypto: CRYPTO,
+        signing: SIGNING,
+        expect: 'full',
+        blockLoopback: true,
+        blockPrivate: true,
+        databaseHosts: [{ host: 'pg-trials', port: 5432, wildcard: false }],
+        lookup: async () => ['203.0.113.10'],
+      }),
+    ).rejects.toThrow(/project path inside the data dir/);
+    expect(existsSync(join(ordinary.projectRoot, 'apps'))).toBe(false);
+
     const to = await instance(engine, false);
     const restored = await restoreArchive({
       inPath: archive,
       meta: to.meta,
       dataDir: to.dirs.dataDir,
       projectRoot: to.projectRoot,
+      operatorProject: true,
       secret: SECRET,
       dsnCrypto: CRYPTO,
       signing: SIGNING,

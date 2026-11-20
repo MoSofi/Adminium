@@ -119,6 +119,12 @@ export interface RestoreArchiveOptions {
   dataDir: string;
   /** Where the archive's project folder goes. Required when the archive has one. */
   projectRoot: string | null;
+  /**
+   * An operator project's one-off (`archive restore` beside a stopped trial): its folder is `<data>/project`,
+   * inside the data dir. Only then may the project folder be inside the data dir; otherwise no project path may
+   * land in it.
+   */
+  operatorProject?: boolean | undefined;
   /** This server's `ADMINIUM_SECRET`. */
   secret: string;
   dsnCrypto: DsnCrypto;
@@ -641,9 +647,9 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
         throw new ArchiveFormatError('This archive holds a project folder, and no place was given for it.', 'Pass --project-dir <folder> (a new or empty folder).');
       }
       const root = resolve(opts.projectRoot);
-      // An operator project's folder is inside the data dir (`<data>/project`): every path lands in it, never on the
-      // data dir's own files, which `assertPlainPath` below holds it to.
-      const dataInProject = !(root === dataDir || inside(root, dataDir));
+      // An operator project's one-off puts its folder inside the data dir (`<data>/project`): every path lands in it,
+      // never on the data dir's own files, which `assertPlainPath` below holds it to. Any other restore keeps the rule.
+      const dataInProject = !(opts.operatorProject === true && (root === dataDir || inside(root, dataDir)));
       for (const rel of projectFiles) {
         const final = join(root, ...rel.split('/'));
         // The data dir inside the project folder under another name than `data/`: its files are the instance's own.
