@@ -10,7 +10,14 @@ on:
   schedule:
     - cron: '0 3 * * *'
   # Lets a heavy local run fall back to GitHub on a pushed snapshot branch.
+  # `mysql` adds the nightly's MySQL legs to a dispatched run, so a branch can
+  # prove all three engines without waiting for 03:00 on main.
   workflow_dispatch:
+    inputs:
+      mysql:
+        description: Run the MySQL legs too, as the nightly does
+        type: boolean
+        default: false
 
 concurrency:
   # The event is in the group so a late nightly run never cancels a push run
@@ -291,7 +298,7 @@ jobs:
           # The service container above still starts on every run — a `services:`
           # block cannot be made conditional — but an idle container costs
           # seconds, and the scheduled run needs it.
-          TEST_MYSQL_URL: ${{ github.event_name == 'schedule' && 'mysql://root:root@127.0.0.1:3306' || '' }}
+          TEST_MYSQL_URL: ${{ (github.event_name == 'schedule' || inputs.mysql) && 'mysql://root:root@127.0.0.1:3306' || '' }}
           TEST_POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
           # The psql-driven harnesses (apps/server + adapter-postgres) shell out
           # to `psql -h 127.0.0.1` and authenticate from the ambient PG env.
@@ -462,11 +469,18 @@ jobs:
   # exactly that package's dependencies and nothing else; lint and typecheck
   # stay in `verify`, which still runs them for every workspace.
   #
+  # The server leg runs as five SHARDS, `suite (server 1/5)` .. `(server 5/5)`
+  # (vitest `--shard`). They are dealt by each file's measured duration, not by
+  # vitest's path hash, which on 2026-11-20 gave one of four shards 3,681 s of
+  # tests against ~2,100 s for the others: apps/server/test/shard-sequencer.ts.
+  # The job `suite (server)` below merges their reports, so it is the one that
+  # holds the server's whole result and its coverage floors.
+  #
   # NOT REQUIRED STATUS CHECKS YET. `verify` no longer covers these three, so
   # until `suite (meta)`, `suite (server)` and `suite (dashboard)` are added to
   # the branch's required list they run without gating anything.
   suite:
-    name: suite (${{ matrix.package }})
+    name: suite (${{ matrix.package }}${{ matrix.shard && format(' {0}/{1}', matrix.shard, matrix.shards) || '' }})
     runs-on: ubuntu-latest
     # The longest leg here is server: ~25 minutes on 2026-09-30, 33m26s on
     # 2026-10-08 (its three-engine tests grow with every rule), plus install
@@ -478,23 +492,65 @@ jobs:
     # test red; the 0.3.43 tests (uploads, kinds, design checks, panels, three
     # engines) took it past 60 on 2026-11-04, so 80. By 2026-11-20 green runs
     # took 53-63 minutes and five runs were cancelled at 80 with no test red
-    # (a812bc34f twice, 9f2740769, 43ea3228d twice); 0.3.69 adds the build
-    # box's three-engine tests, so 110 until the server suite is sharded.
-    timeout-minutes: 110
+    # (a812bc34f twice, 9f2740769, 43ea3228d twice); 0.3.69 added the build
+    # box's three-engine tests, and 110 held it until the server leg was split
+    # into five shards, each with its own limit:
+    #
+    #   server shards  40  a fifth of the test time, plus install and the
+    #                      dependency builds every shard repeats. With MySQL on
+    #                      (the nightly) a balanced shard is ~25 minutes.
+    #   meta/dashboard 80  unchanged: meta's nightly took 38 minutes on
+    #                      2026-11-20, dashboard about 12.
+    #
+    # If a server shard nears 40, first refresh the timings it is dealt by
+    # (scripts/shard-timings.mjs), then add a shard (a matrix entry, `shards`
+    # on every server entry, and SHARDS in `suite (server)`), not more minutes.
+    timeout-minutes: ${{ matrix.timeout }}
     strategy:
-      # One red suite must not hide the state of the other two.
+      # One red suite must not hide the state of the other legs.
       fail-fast: false
       matrix:
         include:
           - package: meta
             workspace: '@adminium/meta'
             s3: false
+            timeout: 80
+          # S3 starts on every server shard: which shard draws
+          # files-drivers.test.ts follows a hash of its path, not a choice.
           - package: server
             workspace: '@adminium/server'
             s3: true
+            shard: 1
+            shards: 5
+            timeout: 40
+          - package: server
+            workspace: '@adminium/server'
+            s3: true
+            shard: 2
+            shards: 5
+            timeout: 40
+          - package: server
+            workspace: '@adminium/server'
+            s3: true
+            shard: 3
+            shards: 5
+            timeout: 40
+          - package: server
+            workspace: '@adminium/server'
+            s3: true
+            shard: 4
+            shards: 5
+            timeout: 40
+          - package: server
+            workspace: '@adminium/server'
+            s3: true
+            shard: 5
+            shards: 5
+            timeout: 40
           - package: dashboard
             workspace: '@adminium/dashboard'
             s3: false
+            timeout: 80
     # Declared for every leg because a `services:` block cannot be made
     # conditional. dashboard touches neither; an idle container costs seconds.
     services:
@@ -542,7 +598,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .turbo/cache
-          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}-${{ matrix.package }}
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}-${{ matrix.package }}${{ matrix.shard }}
           restore-keys: |
             turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
             turbo-${{ runner.os }}-
@@ -622,13 +678,29 @@ jobs:
           fi
           echo "the S3 server refuses unsigned and wrongly signed requests"
 
+      # A server shard runs its share of the files and writes a blob report
+      # (apps/server/.vitest-reports/blob-<i>-<n>.json, a turbo output, so a cache
+      # hit restores it) for `suite (server)` to merge. Its coverage floors are
+      # zeroed HERE ONLY: a fifth of the files covers a fraction of the code,
+      # and the floors are enforced on the merged whole instead. A floor added
+      # later on another axis (functions, lines) must be zeroed here too.
+      #
+      # `--log-order=stream`: turbo otherwise buffers a task's output until it
+      # ends, so a run cancelled at its limit showed nothing at all.
       - name: Test
-        run: pnpm turbo run test --filter=${{ matrix.workspace }}
+        run: |
+          if [ -n "${{ matrix.shard }}" ]; then
+            pnpm turbo run test --filter=${{ matrix.workspace }} --log-order=stream -- \
+              --shard=${{ matrix.shard }}/${{ matrix.shards }} --reporter=blob --reporter=default \
+              --coverage.thresholds.statements=0 --coverage.thresholds.branches=0
+          else
+            pnpm turbo run test --filter=${{ matrix.workspace }} --log-order=stream
+          fi
         env:
           # Nightly, exactly as in verify — read the note there before changing
           # this one; the two must agree or a mysql leg runs on one runner and
           # not the other.
-          TEST_MYSQL_URL: ${{ github.event_name == 'schedule' && 'mysql://root:root@127.0.0.1:3306' || '' }}
+          TEST_MYSQL_URL: ${{ (github.event_name == 'schedule' || inputs.mysql) && 'mysql://root:root@127.0.0.1:3306' || '' }}
           TEST_POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
           # The grammar is `http://<key>:<secret>@<host>/<bucket>`; the suite
           # prints "SKIPPED (TEST_S3_URL is not set)" by name when it is
@@ -639,14 +711,118 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: postgres
 
+      # Uploaded whether the shard passed or failed: a failed test is in the
+      # blob too, and `suite (server)` reports it by name.
+      - name: Upload the shard's blob report
+        if: ${{ matrix.shard && !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: server-blob-${{ matrix.shard }}
+          path: apps/server/.vitest-reports/
+          include-hidden-files: true
+          # A re-run of a failed shard replaces its earlier report rather than
+          # failing on the name, so "Re-run failed jobs" merges the new one.
+          overwrite: true
+          retention-days: 7
+          if-no-files-found: error
+
       - name: Upload coverage summary
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: coverage-${{ matrix.package }}
+          name: coverage-${{ matrix.package }}${{ matrix.shard }}
           path: |
             apps/*/coverage/
             packages/*/coverage/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # The server suite's whole result: the five shards' blob reports merged by
+  # `vitest --merge-reports`, which lists every failed test again and applies
+  # apps/server's coverage floors to the merged coverage. The merge equals an
+  # unsharded run only because apps/server remaps coverage from the AST (see
+  # its vitest.config.ts): with vitest's default remapping, merged shards
+  # overstated branches by 7 points on the same files. A shard that timed out
+  # or crashed leaves no blob, and the count check fails here rather than the
+  # floors passing on part of the suite.
+  #
+  # It keeps the name the unsharded leg had, so `suite (server)` still means
+  # "the server suite passed". It waits for the whole `suite` matrix (a job can
+  # only need a job, not one leg), so it ends after meta and dashboard too.
+  suite-server:
+    name: suite (server)
+    needs: suite
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SHARDS: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Download the shards' blob reports
+        uses: actions/download-artifact@v7
+        with:
+          pattern: server-blob-*
+          path: apps/server/.vitest-reports
+          merge-multiple: true
+
+      - name: Every shard reported
+        run: |
+          found=$(find apps/server/.vitest-reports -name 'blob-*.json' 2>/dev/null | wc -l)
+          echo "blob reports: $found of $SHARDS"
+          ls -la apps/server/.vitest-reports 2>/dev/null || true
+          if [ "$found" -ne "$SHARDS" ]; then
+            echo "::error::$found of $SHARDS server shards left a report; a missing shard timed out or crashed (see its own log)"
+            exit 1
+          fi
+
+      # The JSON report is only for the timings below; it goes outside
+      # .vitest-reports, whose every file is read as a blob.
+      - name: Merge the reports and check coverage
+        working-directory: apps/server
+        run: pnpm exec vitest run --merge-reports --coverage --reporter=default --reporter=json --outputFile.json=${{ runner.temp }}/server-report.json
+
+      # Each file's duration in this run, as the shards are dealt by. Uploaded
+      # every time; committed by hand when the shards drift apart, ideally from
+      # a run with MySQL on (see apps/server/scripts/shard-timings.mjs).
+      - name: Write the shard timings
+        if: ${{ !cancelled() }}
+        working-directory: apps/server
+        run: |
+          if [ -f "${{ runner.temp }}/server-report.json" ]; then
+            node scripts/shard-timings.mjs "${{ runner.temp }}/server-report.json" "${{ runner.temp }}/shard-timings.json"
+          fi
+
+      - name: Upload the shard timings
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: server-shard-timings
+          path: ${{ runner.temp }}/shard-timings.json
+          overwrite: true
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Upload coverage summary
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-server
+          path: apps/server/coverage/
           retention-days: 7
           if-no-files-found: ignore
 

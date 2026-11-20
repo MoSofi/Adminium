@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { coverage, workers } from '@adminium/config/vitest';
 import { defineConfig } from 'vitest/config';
+import { ShardSequencer } from './test/shard-sequencer.js';
 
 /**
  * Several suites here exercise a live Postgres (Northwind) through per-suite
@@ -16,6 +17,9 @@ export default defineConfig({
     ...workers(),
     // No test reaches adminium.dev: the catalogue switches are on by default since 0.3.16.
     setupFiles: ['./test/no-adminium-dev.setup.ts'],
+    // CI runs this suite in shards (`--shard=i/n`); they are dealt by measured
+    // file durations rather than vitest's path hash. See test/shard-sequencer.ts.
+    sequence: { sequencer: ShardSequencer },
     // The quality bar asks 85 statements / 80 branches. The statements floor
     // keeps its existing 88 ratchet; branches move 79 -> 80 because 79 was the
     // one configured floor in the repo sitting BELOW its number, which is
@@ -33,7 +37,16 @@ export default defineConfig({
     // expand the total, which is the adapter-mysql effect in reverse. That is a
     // reasoned expectation, not a measurement: if `verify` reddens on coverage,
     // this line is the first place to look.
-    coverage: coverage({ statements: 88, branches: 80 }),
+    //
+    // AST-AWARE REMAPPING, since the suite runs in CI shards (2026-11-20). The
+    // default v8-to-istanbul conversion builds a file's branch map from the code
+    // that RAN, so each shard converts the same file to a different map, and
+    // merging the shards' maps overstated branches: 55.19% unsharded against
+    // 62.42% merged on the same 30 files. Remapped from the source AST, every
+    // shard builds the same map and the merge equals an unsharded run. Measured
+    // so in CI on 2026-11-20 (Postgres, no MySQL): 90.42% / 82.04%, so both
+    // floors still clear.
+    coverage: { ...coverage({ statements: 88, branches: 80 }), experimentalAstAwareRemapping: true },
     hookTimeout: 60_000,
     testTimeout: 30_000,
   },

@@ -59,7 +59,8 @@
         "PGPASSWORD"
       ],
       "outputs": [
-        "coverage/**"
+        "coverage/**",
+        ".vitest-reports/**"
       ]
     },
     "e2e": {

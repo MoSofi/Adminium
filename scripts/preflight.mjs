@@ -255,6 +255,15 @@ const NOT_COVERED = [
     why: 'CI shards the suites across runners by workspace; the local `test` step runs `turbo run test` over all of them in one pass, so the command shape differs but the coverage does not.',
   },
   {
+    /*
+     * The server suite's shards merged back into one result. Locally the `test`
+     * step runs the server suite whole, so its floors are checked on the same
+     * files in one pass; the merge exists only because CI split them.
+     */
+    match: /pnpm exec vitest run --merge-reports --coverage/,
+    why: 'CI runs the server suite in shards and merges their blob reports to check its coverage floors; the local `test` step runs the suite whole, which checks the same floors without a merge.',
+  },
+  {
     match: /pnpm install --frozen-lockfile/,
     why: 'a local tree is already installed; the lockfile is checked by CI on a clean checkout, where the claim actually means something.',
   },

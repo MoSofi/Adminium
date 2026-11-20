@@ -86,7 +86,7 @@ describe.each(LEGS)('a rule that asks an add-on whether stock is back — %s', (
   beforeAll(async () => {
     if (!available) return;
     w = await ledgerWorld(dialect, {
-      restock_requests: { columns: 'account_id INT NULL REFERENCES ledger_kit_accounts(id), email VARCHAR(200) NULL, notified_at VARCHAR(40) NULL', postings: [] },
+      restock_requests: { columns: 'account_id INT NULL, email VARCHAR(200) NULL, notified_at VARCHAR(40) NULL, FOREIGN KEY (account_id) REFERENCES ledger_kit_accounts(id)', postings: [] },
       sent_mails: { columns: 'request_id INT NULL', postings: [] },
     });
     // 1: sold out, then counted back to 6. 2: sold out and staying so. 3: at its reorder level, one left.
