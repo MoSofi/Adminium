@@ -23,6 +23,7 @@ import BetterSqlite3 from 'better-sqlite3';
 import { isManifestOnly, type AppManifest } from '@adminium/manifest';
 import { createFirstSuperAdmin, firstRun, settingsRepo } from '@adminium/meta';
 
+import { trustForThisRun } from '../../add-ons/dev-trust.js';
 import { hashPassword } from '../../auth/passwords.js';
 import { loadCliEnv, openRuntime as defaultOpenRuntime, type CliDeps } from '../../cli/runtime.js';
 import { composeServer } from '../../compose.js';
@@ -128,9 +129,10 @@ export async function tryApp(opts: TryOptions): Promise<TryResult> {
    * vouches for decides nothing, and a try that refused every save that needs
    * one would prove little. For this process and this run alone — the server
    * is a throwaway and never a production one — and put back when it ends.
+   * Trusted in process (`dev-trust.ts`), not through the environment, whose
+   * list a server reads only when NODE_ENV says test or development.
    */
-  const trustedBefore = process.env['ADMINIUM_ADD_ON_DEV_TRUST'];
-  if (tried.length > 0) process.env['ADMINIUM_ADD_ON_DEV_TRUST'] = [...new Set([...(trustedBefore ?? '').split(',').filter((entry) => entry.trim() !== ''), ...tried])].join(',');
+  const untrust = trustForThisRun(tried);
 
   try {
     runtime = await (opts.openRuntime ?? defaultOpenRuntime)(env, { blockLoopback: false });
@@ -373,8 +375,7 @@ export async function tryApp(opts: TryOptions): Promise<TryResult> {
     step(false, 'the try ran to its end', error instanceof Error ? (error.stack ?? error.message) : String(error));
     return done(kept);
   } finally {
-    if (trustedBefore === undefined) delete process.env['ADMINIUM_ADD_ON_DEV_TRUST'];
-    else process.env['ADMINIUM_ADD_ON_DEV_TRUST'] = trustedBefore;
+    untrust();
     if (app !== null) await app.close().catch(() => undefined);
     if (runtime !== null) await runtime.close().catch(() => undefined);
     if (opts.keep !== true) rmSync(dir, { recursive: true, force: true });

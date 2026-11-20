@@ -181,8 +181,9 @@ import {
   seedBundledPackages,
   type AddOnStore,
 } from './add-ons/store.js';
-import { bindDeciderGates, installRejectionGuard } from './add-ons/decide.js';
+import { bindDeciderGates, devTrustedKeys, installRejectionGuard } from './add-ons/decide.js';
 import { keptCopyTrust, recordDeciderTrust, trustSources } from './add-ons/decider-trust.js';
+import { DEV_TRUST_ENV, devTrustIgnoredKeys } from './add-ons/dev-trust.js';
 import { carryOverTrust, trustCarryOverCandidates } from './add-ons/trust-carry-over.js';
 import { createPackageCopies } from './add-ons/package-copies.js';
 import { createAppFiles } from './apps/app-files.js';
@@ -996,6 +997,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // The demo source seam answers lead sources with made-up companies: said once, loudly, so it is never a surprise.
   const demoSources = leadSourceDemoKeys();
   if (demoSources.length > 0) app.log.warn({ addOns: demoSources }, `${LEAD_SOURCE_DEMO_ENV} is on: these add-ons' sources answer with made-up companies and people, for tests only`);
+  // The developer's add-on list: said when it is read, and when production leaves it unread (a copy left in an env file).
+  const devTrusted = devTrustedKeys(process.env[DEV_TRUST_ENV], process.env['NODE_ENV']);
+  if (devTrusted.length > 0) app.log.warn({ addOns: devTrusted }, `${DEV_TRUST_ENV} is on: these add-ons' server code runs whatever its bytes, for test and development servers only`);
+  const devTrustIgnored = devTrustIgnoredKeys();
+  if (devTrustIgnored.length > 0) app.log.warn({ addOns: devTrustIgnored }, `${DEV_TRUST_ENV} is ignored: NODE_ENV is production, so these add-ons' code runs only from a package this server vouches for. Remove it.`);
   try {
     // Once per release and translation change, not on every start (see the function).
     await seedBuiltinEmailTemplatesIfChanged(meta, process.env['NODE_ENV'] === 'production' ? APP_VERSION : null, Date.now());

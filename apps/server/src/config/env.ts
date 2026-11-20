@@ -9,6 +9,7 @@ import { parseConnectUrl } from '../connect/providers.js';
 import { parseDatabaseHost, parseDsn, type DatabaseHost } from '../connections/dsn.js';
 import { addressKind } from '../net/address-guard.js';
 import { NETWORK_POLICIES } from '../net/outbound-check.js';
+import { DEV_TRUST_ENV, devTrustProblem } from '../add-ons/dev-trust.js';
 import { LEAD_SOURCE_DEMO_ENV, leadSourceDemoProblem } from '../lead-sources/demo-seam.js';
 import { invalidTrustedProxies } from '../security/trust-proxy.js';
 import { readSecretFiles, SECRET_FILE_SUFFIX, withHeldSecrets, type SecretFileProblem } from './operator-secrets.js';
@@ -1789,7 +1790,7 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_AI_OPERATOR_BUDGET_TOKENS: 'whole number of tokens operator AI may spend over the instance\'s life',
   ADMINIUM_DESIGNER_START_PROMPT_B64: `the Designer's first prompt after setup, base64, at most ${String(START_PROMPT_MAX_CHARS)} characters decoded`,
   ADMINIUM_DESIGNER_START_PROMPT_FILE: `absolute path to a read-only file holding the Designer's first prompt, at most ${String(START_PROMPT_MAX_CHARS)} characters`,
-  ADMINIUM_ADD_ON_DEV_TRUST: 'developer machines only; never with ADMINIUM_TRIAL_MODE or ADMINIUM_HOSTED_MODE',
+  ADMINIUM_ADD_ON_DEV_TRUST: 'developer machines only, with NODE_ENV=development or test; never with ADMINIUM_TRIAL_MODE or ADMINIUM_HOSTED_MODE',
   NODE_OPTIONS: 'never set with ADMINIUM_TRIAL_MODE or ADMINIUM_HOSTED_MODE',
   ADMINIUM_MAP_SERVER: `off, or the one origin map pictures come from (default ${DEFAULT_MAP_SERVER})`,
   ADMINIUM_ROUTING_SERVER: `off, or the origin of an OSRM routing server (default ${DEFAULT_ROUTING_SERVER}; asked only when routing is switched on)`,
@@ -1834,6 +1835,22 @@ export interface EnvWriter {
 }
 
 /**
+ * The variables for test and development servers only, refused where they
+ * may not be on: the demo source seam (anything but a test or development
+ * server) and the developer's add-on list (a server whose `NODE_ENV` says
+ * neither, and is not production, where it is ignored). `loadEnv` and the
+ * CLI's `loadCliEnv` both ask, so an npm install run as a service refuses too.
+ */
+export function testOnlyIssues(raw: Readonly<Record<string, string | undefined>>): ReturnType<typeof problemIssues> {
+  const demo = leadSourceDemoProblem(raw);
+  const devTrust = devTrustProblem(raw);
+  return problemIssues([
+    ...(demo === null ? [] : [{ variable: LEAD_SOURCE_DEMO_ENV, problem: demo }]),
+    ...(devTrust === null ? [] : [{ variable: DEV_TRUST_ENV, problem: devTrust }]),
+  ]);
+}
+
+/**
  * Parses and validates the process environment. On failure, prints the
  * problem table to stderr and throws `EnvValidationError`.
  */
@@ -1845,12 +1862,10 @@ export function loadEnv(
   // A secret given as a file (`<NAME>_FILE`) is read as if it had been set in `<NAME>`.
   const files = readSecretFiles(withHeldSecrets(env));
   const result = envSchema.safeParse(files.env);
-  // The demo source seam is for tests: refused where it may never be on (production, a trial, a hosted server).
-  const demo = leadSourceDemoProblem(files.env);
   const issues = [
     ...secretFileIssues(files.problems, result.success ? [] : result.error.issues),
     ...problemIssues(profileIssues(files.env)),
-    ...problemIssues(demo === null ? [] : [{ variable: LEAD_SOURCE_DEMO_ENV, problem: demo }]),
+    ...testOnlyIssues(files.env),
   ];
   if (!result.success || issues.length > 0) {
     const table = formatEnvErrorTable(issues);

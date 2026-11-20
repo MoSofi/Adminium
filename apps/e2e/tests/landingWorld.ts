@@ -241,6 +241,8 @@ const distUrl = (rel: string): string => pathToFileURL(join(repoRoot, 'apps', 's
 export async function startLandingWorld(): Promise<LandingWorld> {
   // The test packages are vouched for by name, as a developer's own would be.
   process.env['ADMINIUM_ADD_ON_DEV_TRUST'] = `${FORMS},${LANDING}`;
+  // A server reads that list only when NODE_ENV says test or development (`add-ons/dev-trust.ts`).
+  process.env['NODE_ENV'] ??= 'test';
   const dir = mkdtempSync(join(tmpdir(), 'adminium-pages-e2e-'));
   const sourceFile = join(dir, 'source.db');
   const BetterSqlite3 = createRequire(import.meta.url)('better-sqlite3') as SqliteModule;

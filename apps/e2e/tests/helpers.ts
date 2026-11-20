@@ -204,9 +204,10 @@ export function serverDataDir(): string {
  * {@link clearProvider} in `afterAll`, the way `llm-enrichment.spec.ts` does.
  *
  * A LOOPBACK `baseUrl` is accepted for `openai-compatible` only because the
- * e2e server runs with `NODE_ENV` unset — the outbound guard refuses one in
- * production. The assertion below names that, so the day somebody sets
- * `NODE_ENV` the failure explains itself instead of looking like a flake.
+ * e2e server runs with `NODE_ENV=test` (`scripts/e2e-server.mjs`), not
+ * production — the outbound guard refuses one in production. The assertion
+ * below names that, so the day somebody sets `NODE_ENV=production` the
+ * failure explains itself instead of looking like a flake.
  */
 export async function configureFakeProvider(page: Page): Promise<void> {
   const res = await page.request.put('/api/v1/llm/config', {
@@ -215,7 +216,7 @@ export async function configureFakeProvider(page: Page): Promise<void> {
   expect(
     res.ok(),
     `configuring the scripted provider → ${String(res.status())}. A 422 here usually means the ` +
-      `e2e server was started with NODE_ENV set: the outbound guard refuses a loopback baseUrl ` +
+      `e2e server was started with NODE_ENV=production: the outbound guard refuses a loopback baseUrl ` +
       `outside development.`,
   ).toBeTruthy();
 }

@@ -137,7 +137,7 @@ describe('an add-on\'s deciding file, at load', () => {
 
   it('is compiled once when one file answers both questions', async () => {
     const { installed } = await stage('kit', { 'dist/server.js': BOTH }, [...POSTS, { contract: 'price-adjust', version: 1, server: 'dist/server.js' }]);
-    const runtime = await buildAddOnRuntime({ store, installed, trust: { ...NOBODY, devKeys: 'kit' } });
+    const runtime = await buildAddOnRuntime({ store, installed, trust: { ...NOBODY, devKeys: 'kit', nodeEnv: 'test' } });
     expect(runtime.problems).toEqual([]);
     expect(runtime.deciders.get('kit')).toHaveLength(1);
     expect(deciderFor(runtime, 'kit', 'rows')).toBe(deciderFor(runtime, 'kit', 'adjust'));
@@ -145,7 +145,7 @@ describe('an add-on\'s deciding file, at load', () => {
 
   it('keeps two files apart when an add-on ships one for each question', async () => {
     const { installed } = await stage('kit', { 'dist/server.js': ROWS, 'dist/adjust.js': ADJUST }, [...POSTS, { contract: 'price-adjust', version: 1, server: 'dist/adjust.js' }]);
-    const runtime = await buildAddOnRuntime({ store, installed, trust: { ...NOBODY, devKeys: 'kit' } });
+    const runtime = await buildAddOnRuntime({ store, installed, trust: { ...NOBODY, devKeys: 'kit', nodeEnv: 'test' } });
     expect(runtime.problems).toEqual([]);
     expect(runtime.deciders.get('kit')).toHaveLength(2);
     expect(deciderFor(runtime, 'kit', 'rows')!.kinds).toEqual(['rows']);
@@ -154,7 +154,7 @@ describe('an add-on\'s deciding file, at load', () => {
 
   it('is a load problem when the file does not answer the question its contract asks', async () => {
     const { installed } = await stage('kit', { 'dist/server.js': ADJUST }, POSTS);
-    const runtime = await buildAddOnRuntime({ store, installed, trust: { ...NOBODY, devKeys: 'kit' } });
+    const runtime = await buildAddOnRuntime({ store, installed, trust: { ...NOBODY, devKeys: 'kit', nodeEnv: 'test' } });
     expect(runtime.problems).toMatchObject([{ addOnKey: 'kit', reason: 'IMPORT_FAILED' }]);
     expect(runtime.problems[0]!.message).toContain('exports no "rows"');
     expect(deciderFor(runtime, 'kit', 'rows')).toBeNull();
@@ -163,7 +163,7 @@ describe('an add-on\'s deciding file, at load', () => {
   it('is not loaded once its bytes on disk are not the ones that were installed', async () => {
     const { installed } = await stage('kit', { 'dist/server.js': ROWS }, POSTS);
     await writeFile(join(store.dirFor('kit', '1.0.0'), 'dist', 'server.js'), `${ROWS}\n// edited`);
-    const runtime = await buildAddOnRuntime({ store, installed, trust: { ...NOBODY, devKeys: 'kit' } });
+    const runtime = await buildAddOnRuntime({ store, installed, trust: { ...NOBODY, devKeys: 'kit', nodeEnv: 'test' } });
     expect(runtime.problems).toMatchObject([{ addOnKey: 'kit', reason: 'TREE_MODIFIED' }]);
     expect(deciderFor(runtime, 'kit', 'rows')).toBeNull();
   });

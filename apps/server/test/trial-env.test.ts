@@ -250,8 +250,8 @@ describe('a trial or hosted boot refuses what contradicts it', () => {
       refused({ ...TRIAL, [name]: value }, name);
       refused({ ...HOSTED, [name]: value }, name);
       expect(cliBoot({ ...TRIAL, [name]: value })).toMatchObject({ ok: false, message: expect.stringContaining(name) });
-      // Without either profile each is an ordinary value.
-      if (name !== 'ADMINIUM_RUNTIME' && name !== 'ADMINIUM_DEMO_SEED_SCRIPT') booted({ ADMINIUM_SECRET: TEST_SECRET, [name]: value });
+      // Without either profile each is an ordinary value (the developer's add-on list on a development server).
+      if (name !== 'ADMINIUM_RUNTIME' && name !== 'ADMINIUM_DEMO_SEED_SCRIPT') booted({ ADMINIUM_SECRET: TEST_SECRET, [name]: value, ...(name === 'ADMINIUM_ADD_ON_DEV_TRUST' ? { NODE_ENV: 'development' } : {}) });
     });
   }
 

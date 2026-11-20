@@ -56,7 +56,9 @@ const dashboardDist = join(repoRoot, 'apps', 'dashboard', 'dist');
 const FIRST_RUN = process.env.E2E_FIRST_RUN === '1';
 // The specs upload add-ons built here (the invoicing spec's `e2e-invoices` draws documents). A package that provides a
 // contract loads only from one Adminium vouches for, so this server names them as a developer's own: read from the
-// environment at each upload, ignored whenever NODE_ENV is production. Keys a run already set are kept.
+// environment at each upload, and only while NODE_ENV says test or development (the server refuses to boot with the
+// list and no NODE_ENV). Keys a run already set are kept; a NODE_ENV the run set is kept too.
+process.env.NODE_ENV ??= 'test';
 process.env.ADMINIUM_ADD_ON_DEV_TRUST = [process.env.ADMINIUM_ADD_ON_DEV_TRUST, 'e2e-invoices']
   .filter((key) => key !== undefined && key !== '')
   .join(',');

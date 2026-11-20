@@ -11,6 +11,7 @@
 import { settingsRepo, type MetaDb } from '@adminium/meta';
 
 import { BUNDLED_PINS } from './bundled-pins.js';
+import { runTrustedKeys } from './dev-trust.js';
 import { deciderTrusted, type TrustSources, type TrustedPackage } from './decide.js';
 import { AddOnStoreError, type AddOnStore } from './store.js';
 
@@ -23,13 +24,18 @@ export async function recordDeciderTrust(meta: MetaDb, pkg: TrustedPackage): Pro
   await settings.set('addOns.deciderTrust', { ...recorded, [id]: pkg.integrity });
 }
 
-/** Everything the judgement reads, as it stands now. */
+/**
+ * Everything the judgement reads, as it stands now. A try run's own keys are
+ * read with this process's environment only: a judgement of the bytes (an
+ * empty `env`) never counts them, as it never counts the developer's list.
+ */
 export async function trustSources(meta: MetaDb, env: Readonly<Record<string, string | undefined>> = process.env): Promise<TrustSources> {
   return {
     bundled: BUNDLED_PINS,
     recorded: await settingsRepo(meta).get('addOns.deciderTrust'),
     devKeys: env['ADMINIUM_ADD_ON_DEV_TRUST'],
     nodeEnv: env['NODE_ENV'],
+    ...(env === process.env ? { runKeys: runTrustedKeys() } : {}),
     kept: await settingsRepo(meta).get('addOns.keptCopyTrust'),
   };
 }

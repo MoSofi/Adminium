@@ -708,9 +708,16 @@ release, or downloaded from the catalogue — and a package uploaded by hand ins
 code left out (a save that would ask deciding code is refused; a document kind it would draw is
 not there), and the Add-ons page says so on its row. A test that uploads an add-on it built
 itself (an app's contract run, say) sets this to that add-on's key, for example
-`ADMINIUM_ADD_ON_DEV_TRUST='invoices'`. The variable is **ignored when `NODE_ENV` is
-`production`**, and refused on a trial or a hosted server: it is not a way to run unreleased code
-on a live server.
+`ADMINIUM_ADD_ON_DEV_TRUST='invoices'`.
+
+It works only on a server that says it is for tests or development: set `NODE_ENV=test` or
+`NODE_ENV=development` with it. The server **refuses to start** with it set and `NODE_ENV` unset
+or any other value, since an npm install run as a service and the desktop app set no `NODE_ENV`,
+and a copy left in an env file must not run unvouched code there. With `NODE_ENV=production` (the
+Docker image sets it) it is **ignored**, and the server says so in its log at every start. On a
+trial or a hosted server it is refused whatever `NODE_ENV` says: it is not a way to run unreleased
+code on a live server. While it is read, the server names the add-ons it trusts in its log at every
+start. `adminium app try` needs none of this: it trusts the packages it tries for its own run.
 
 ## `ADMINIUM_LEAD_SOURCE_DEMO`
 

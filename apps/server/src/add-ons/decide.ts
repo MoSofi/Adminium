@@ -31,6 +31,7 @@ import vm from 'node:vm';
 import type { z } from 'zod';
 
 import { ConflictError } from '../errors.js';
+import { devTrustHonoured, devTrustListKeys } from './dev-trust.js';
 
 /** The hard limit of one call, and when a slow one is worth a line in the log. */
 export const DECIDER_TIMEOUT_MS = 250;
@@ -262,31 +263,31 @@ export interface TrustSources {
   recorded: Readonly<Record<string, string>>;
   /** `ADMINIUM_ADD_ON_DEV_TRUST`: keys a developer's own server runs whatever their bytes. */
   devKeys?: string | undefined;
-  /** `NODE_ENV`: the developer's list is ignored in production. */
+  /** `NODE_ENV`: the developer's list is read only when it is `test` or `development` (`dev-trust.ts`). */
   nodeEnv?: string | undefined;
+  /** Keys `adminium app try` trusts for its own run in this process (`dev-trust.ts`); never read in production. */
+  runKeys?: readonly string[] | undefined;
   /** The kept copies of packages whose own bytes were trusted when the copy was packed, by `<key>@<version>`. */
   kept?: Readonly<Record<string, string>> | undefined;
 }
 
-/** The keys of the developer's list; none in production. */
+/** The keys of the developer's list; none but on a test or development server (`NODE_ENV`). */
 export function devTrustedKeys(devKeys: string | undefined, nodeEnv: string | undefined): string[] {
-  if (nodeEnv === 'production' || devKeys === undefined) return [];
-  return devKeys
-    .split(',')
-    .map((key) => key.trim())
-    .filter((key) => key !== '');
+  return devTrustHonoured(nodeEnv) ? devTrustListKeys(devKeys) : [];
 }
 
 /**
  * Whether a package's deciding code may run here: its tarball is the one this
  * build bundles, or the one the catalogue named when it was downloaded, or
  * the copy kept of one of those (put back after a redeploy emptied the disk),
- * or its key is on a developer's list outside production.
+ * or its key is on a developer's list on a test or development server, or a
+ * try run trusts it for itself outside production.
  */
 export function deciderTrusted(pkg: TrustedPackage, sources: TrustSources): boolean {
   if (sources.bundled.some((pin) => pin.key === pkg.key && pin.version === pkg.version && pin.integrity === pkg.integrity)) return true;
   if (sources.recorded[`${pkg.key}@${pkg.version}`] === pkg.integrity) return true;
   if (sources.kept?.[`${pkg.key}@${pkg.version}`] === pkg.integrity) return true;
+  if (sources.runKeys?.includes(pkg.key) === true && (sources.nodeEnv ?? '').trim().toLowerCase() !== 'production') return true;
   return devTrustedKeys(sources.devKeys, sources.nodeEnv).includes(pkg.key);
 }
 

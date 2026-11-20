@@ -253,6 +253,8 @@ const distUrl = (rel: string): string => pathToFileURL(join(repoRoot, 'apps', 's
 
 export async function startCompanyWorld(): Promise<CompanyWorld> {
   process.env['ADMINIUM_ADD_ON_DEV_TRUST'] = KEY;
+  // A server reads that list only when NODE_ENV says test or development (`add-ons/dev-trust.ts`).
+  process.env['NODE_ENV'] ??= 'test';
   const dir = mkdtempSync(join(tmpdir(), 'adminium-company-e2e-'));
   const sourceFile = join(dir, 'source.db');
   new BetterSqlite3(sourceFile).close();

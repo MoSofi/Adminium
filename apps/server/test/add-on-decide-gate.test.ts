@@ -39,9 +39,12 @@ describe('whether a package\'s deciding code may run', () => {
     expect(deciderTrusted(PKG, { ...none, recorded: { 'kit@1.0.1': 'sha512-AAAA' } })).toBe(false);
   });
 
-  it('yes for a key on the developer\'s list, never in production', () => {
+  it('yes for a key on the developer\'s list on a test or development server only', () => {
     expect(deciderTrusted(PKG, { ...none, devKeys: 'other, kit', nodeEnv: 'development' })).toBe(true);
-    expect(deciderTrusted(PKG, { ...none, devKeys: 'kit' })).toBe(true);
+    expect(deciderTrusted(PKG, { ...none, devKeys: 'kit', nodeEnv: ' Test ' })).toBe(true);
+    // No NODE_ENV (an npm install run as a service, the desktop app) or another value: the list is not read.
+    expect(deciderTrusted(PKG, { ...none, devKeys: 'kit' })).toBe(false);
+    expect(deciderTrusted(PKG, { ...none, devKeys: 'kit', nodeEnv: 'staging' })).toBe(false);
     expect(deciderTrusted(PKG, { ...none, devKeys: 'kit', nodeEnv: 'production' })).toBe(false);
     expect(deciderTrusted(PKG, { ...none, devKeys: 'kitchen', nodeEnv: 'test' })).toBe(false);
     expect(deciderTrusted(PKG, { ...none, devKeys: '' })).toBe(false);

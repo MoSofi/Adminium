@@ -157,6 +157,8 @@ function solve(salt: string, difficulty: number): string {
 
 export async function startStaffWorld(): Promise<StaffWorld> {
   process.env['ADMINIUM_ADD_ON_DEV_TRUST'] = KEY;
+  // A server reads that list only when NODE_ENV says test or development (`add-ons/dev-trust.ts`).
+  process.env['NODE_ENV'] ??= 'test';
   const dir = mkdtempSync(join(tmpdir(), 'adminium-chat-staff-e2e-'));
   const sourceFile = join(dir, 'source.db');
   new BetterSqlite3(sourceFile).close();

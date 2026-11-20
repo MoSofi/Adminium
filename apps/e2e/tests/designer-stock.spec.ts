@@ -131,7 +131,7 @@ test.describe('the Designer builds a supplies app on Inventory', () => {
     });
     await new Promise<void>((resolve) => model.listen(0, '127.0.0.1', resolve));
     const modelUrl = `http://127.0.0.1:${String((model.address() as AddressInfo).port)}`;
-    link = await project.design({ ADMINIUM_AI_OLLAMA_BASE_URL: modelUrl, ADMINIUM_AI_MODEL: 'ollama/fake', ADMINIUM_BUNDLED_ADD_ONS: bundle, ADMINIUM_ADD_ON_DEV_TRUST: KEY });
+    link = await project.design({ ADMINIUM_AI_OLLAMA_BASE_URL: modelUrl, ADMINIUM_AI_MODEL: 'ollama/fake', ADMINIUM_BUNDLED_ADD_ONS: bundle, ADMINIUM_ADD_ON_DEV_TRUST: KEY, NODE_ENV: 'development' });
   });
 
   test.afterAll(async () => {
