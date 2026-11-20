@@ -13,7 +13,7 @@
 | `references/guides/phone-app--what-it-does-not-do-yet.md` | What it does not do yet | 646 |
 | `references/guides/public-access--overview.md` | An app's public access | 539 |
 | `references/guides/public-access--what-the-install-shows-first.md` | What the install shows first | 1590 |
-| `references/guides/public-access--what-the-install-makes.md` | What the install makes | 1820 |
+| `references/guides/public-access--what-the-install-makes.md` | What the install makes | 2035 |
 | `references/guides/public-access--orders-with-their-lines.md` | Orders with their lines | 592 |
 | `references/guides/public-access--guests-finding-their-own-booking.md` | Guests finding their own booking | 1498 |
 | `references/guides/public-access--a-person-s-own-rows.md` | A person's own rows | 3259 |
@@ -31,7 +31,7 @@
 | `references/guides/public-access--when-it-stops-answering.md` | When it stops answering | 710 |
 | `references/guides/public-access--origins.md` | Origins | 853 |
 | `references/guides/public-access--the-customer-domain.md` | The customer domain | 464 |
-| `references/guides/public-access--rate-limits.md` | Rate limits | 984 |
+| `references/guides/public-access--rate-limits.md` | Rate limits | 1102 |
 | `references/guides/identity-and-own-links--overview.md` | Guests, their details and their own links | 1192 |
 | `references/guides/identity-and-own-links--a-person-found-by-address.md` | A person found by address | 5924 |
 | `references/guides/identity-and-own-links--a-row-s-own-link.md` | A row's own link | 4207 |

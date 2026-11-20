@@ -49,5 +49,9 @@ Some of these have a guide of their own:
   browser loads.
 - [Guests' uploads](https://docs.adminium.dev/guides/apps/guest-uploads/): a `file` column a customer uploads into from the
   app's public pages (from 0.3.43).
+- [Filters, search and sort on public lists](https://docs.adminium.dev/guides/apps/shopper-lists/): what a shopper may
+  filter, search, sort and count on a list anyone reads, and filter through another list (from 0.3.68).
+- [Customer reviews](https://docs.adminium.dev/guides/apps/reviews/): a `review` word on the table of the rows customers review,
+  kept by an add-on, with totals Adminium keeps (from 0.3.68).
 
 Reference: [Column rules](https://docs.adminium.dev/reference/manifest/#column-rules).

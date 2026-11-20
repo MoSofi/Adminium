@@ -1,7 +1,7 @@
 ---
-'@adminium/manifest': minor
-'@adminium/meta': minor
-'@adminium/server': minor
+'@adminium/manifest': patch
+'@adminium/meta': patch
+'@adminium/server': patch
 '@adminium/dashboard': patch
 ---
 

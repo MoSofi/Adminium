@@ -24,7 +24,7 @@
 | `references/guides/manifest-by-task--build-on-an-add-on.md` | Build on an add-on | 1236 |
 | `references/guides/manifest-by-task--stock-from-the-inventory-add-on.md` | Stock from the Inventory add-on | 2189 |
 | `references/guides/manifest-by-task--discounts-codes-and-gift-cards-from-the-offers-add-on.md` | Discounts, codes and gift cards from the Offers add-on | 2174 |
-| `references/guides/manifest-by-task--values-adminium-fills-in.md` | Values Adminium fills in | 3615 |
+| `references/guides/manifest-by-task--values-adminium-fills-in.md` | Values Adminium fills in | 4030 |
 | `references/guides/manifest-by-task--things-a-manifest-cannot-do.md` | Things a manifest cannot do | 1146 |
 | `references/guides/sample-data--overview.md` | Sample data | 414 |
 | `references/guides/sample-data--adding-it.md` | Adding it | 4036 |

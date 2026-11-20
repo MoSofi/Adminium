@@ -5,6 +5,7 @@
 | What | Limit |
 |---|---|
 | Each endpoint the install makes | 60 requests a minute per visitor |
+| A search on a list that lets shoppers search | 30 a minute per visitor, counted apart from the list's other reads |
 | A claim | 5 tries a minute per visitor, and 60 a minute across the whole key |
 | Asking for a code and typing one | 10 a minute per session, never counted across the whole key |
 | A claim at a kiosk | 30 a minute per staff sign-in, and the whole key's 60 |

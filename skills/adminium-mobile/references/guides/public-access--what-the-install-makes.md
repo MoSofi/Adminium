@@ -6,7 +6,9 @@ For each line, one public endpoint on the app's real table:
 
 - **A records endpoint**, named after the table, with the methods the app asked for. It exposes
   the columns the app lists, or else every column it declares for that table, and the writable
-  columns and fixed filters the app names. It returns 50 rows by default and at most 200.
+  columns and fixed filters the app names. It returns 50 rows by default and at most 200, or the
+  page size the app sets. A list anyone reads may also let a shopper filter, search, sort and count
+  it: see [Filters, search and sort on public lists](https://docs.adminium.dev/guides/apps/shopper-lists/).
 - **An availability endpoint**, named *table*`_availability`, when the app takes bookings against
   a limit per time slot or a [booking rule](https://docs.adminium.dev/guides/apps/booking-rules/). It answers only whether
   each time is **free** or **full**, and never returns a row, a name or a count. See
