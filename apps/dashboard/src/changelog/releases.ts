@@ -62,6 +62,17 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.67',
+    date: '2026-11-20',
+    title: 'A developer’s add-on list stays on developer machines',
+    summary:
+      'The list of add-ons a developer trusts by name now works only on a server that says it is for tests or development, and a campaign’s send log names a person who has not been told yet.',
+    changes: [
+      { tag: 'Fixed', text: 'A campaign’s send log now names a person a lead source found, and who has not been told yet where their details came from, as “found person, not told yet”, not as someone who hasn’t agreed.' },
+      { tag: 'Security', text: 'ADMINIUM_ADD_ON_DEV_TRUST now works only with NODE_ENV set to test or development. Set anywhere else, the server refuses to start and says how to fix it; in production it is ignored, and the log says so at every start.' },
+    ],
+  },
+  {
     version: '0.3.66',
     date: '2026-11-20',
     title: 'Finding companies, and telling the people you keep',

@@ -1,5 +1,18 @@
 # @adminium/dashboard
 
+## 0.3.67
+
+### Patch Changes
+
+- 9ad9213: A campaign's send log names a person a lead source found and has not told yet as "Skipped — found person, not told yet", not as someone who hasn't agreed.
+- @adminium/add-on-contracts@0.3.67
+  - @adminium/charts@0.3.67
+  - @adminium/engine@0.3.67
+  - @adminium/i18n@0.3.67
+  - @adminium/tokens@0.3.67
+  - @adminium/ui@0.3.67
+  - @adminium/widgets@0.3.67
+
 ## 0.3.66
 
 ### Patch Changes

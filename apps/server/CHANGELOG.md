@@ -1,5 +1,21 @@
 # @adminium/server
 
+## 0.3.67
+
+### Patch Changes
+
+- 67acc32: `ADMINIUM_ADD_ON_DEV_TRUST` now works only on a server whose `NODE_ENV` is `test` or `development`. With it set and `NODE_ENV` unset or any other value, the server refuses to start and says to set `NODE_ENV=development`: an npm install run as a service and the desktop app set no `NODE_ENV`, and a copy left in an env file could otherwise run add-on code no catalogue vouched for. With `NODE_ENV=production` it stays ignored, and the log now says so at every start. `adminium app try` trusts the packages it tries for its own run, as before. `adminium start` also refuses `ADMINIUM_LEAD_SOURCE_DEMO` outside a test or development server now, as the boot already did elsewhere.
+- @adminium/adapter-mysql@0.3.67
+  - @adminium/adapter-postgres@0.3.67
+  - @adminium/adapter-sqlite@0.3.67
+  - @adminium/add-on-contracts@0.3.67
+  - @adminium/engine@0.3.67
+  - @adminium/i18n@0.3.67
+  - @adminium/llm@0.3.67
+  - @adminium/manifest@0.3.67
+  - @adminium/meta@0.3.67
+  - @adminium/schema-import@0.3.67
+
 ## 0.3.66
 
 ### Patch Changes
