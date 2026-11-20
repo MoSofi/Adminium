@@ -9959,6 +9959,10 @@
     "status": "mt",
     "srcHash": "304a2e603144"
   },
+  "common.trial.ownDatabaseReason.locked": {
+    "status": "mt",
+    "srcHash": "a4de43973636"
+  },
   "common.trial.ownDatabaseReason.noDatabase": {
     "status": "mt",
     "srcHash": "b5fb7f090ec6"

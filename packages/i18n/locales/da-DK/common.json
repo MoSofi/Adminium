@@ -2235,6 +2235,7 @@
       "dns": "dens adresse kan ikke findes",
       "tls": "den sikre forbindelse mislykkedes",
       "refusedByUs": "denne server forbinder ikke til den adresse",
+      "locked": "login blev afvist for mange gange, så der ventes op til en time",
       "ipv6Only": "den kan kun nås over IPv6",
       "noDatabase": "databasen findes ikke",
       "noPermission": "dette login må ikke læse den",

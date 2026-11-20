@@ -126,6 +126,8 @@ export function ownDatabaseReasonWords(reason: OwnDatabaseReason | null): string
       return t('trial.ownDatabaseReason.tls', 'the secure connection failed');
     case 'refused-by-us':
       return t('trial.ownDatabaseReason.refusedByUs', 'this server does not connect to that address');
+    case 'locked':
+      return t('trial.ownDatabaseReason.locked', 'its login was refused too often, so it waits up to an hour');
     case 'ipv6-only':
       return t('trial.ownDatabaseReason.ipv6Only', 'it can be reached over IPv6 only');
     case 'no-database':

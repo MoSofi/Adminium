@@ -152,11 +152,12 @@ describe.each(META_ENGINES.filter((engine) => engine.available))('an existing tr
 });
 
 describe('a failure as a coarse reason', () => {
-  it('reads a missing database before a refused login, and the lockout as ours', () => {
+  it('reads a missing database before a refused login, and the lockout as its own reason', () => {
     expect(reasonOf({ code: 'AUTH', message: 'database "shop" does not exist' })).toBe('no-database');
     expect(reasonOf({ code: 'AUTH', message: "Unknown database 'shop'" })).toBe('no-database');
     expect(reasonOf({ code: 'AUTH', message: 'password authentication failed for user "ava"' })).toBe('auth');
-    expect(reasonOf({ code: 'SOURCE_LOGIN_LOCKED', message: 'too many refused logins' })).toBe('refused-by-us');
+    expect(reasonOf({ code: 'SOURCE_LOGIN_LOCKED', message: 'too many refused logins' })).toBe('locked');
+    expect(reasonOf({ code: 'VALIDATION_FAILED', message: 'does not connect to' })).toBe('refused-by-us');
     expect(reasonOf({ code: 'HOST_LOOKUP_FAILED', message: 'Could not look up db.invalid.' })).toBe('dns');
     expect(reasonOf({ code: 'TIMEOUT', message: 'The database did not answer in time.' })).toBe('unreachable');
   });

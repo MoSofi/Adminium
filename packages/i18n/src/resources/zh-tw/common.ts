@@ -2245,6 +2245,7 @@ export default {
       "dns": "找不到它的位址",
       "tls": "安全連線失敗",
       "refusedByUs": "此伺服器不連線到該位址",
+      "locked": "登入被拒絕的次數過多，因此最多等待一小時",
       "ipv6Only": "只能透過 IPv6 連線",
       "noDatabase": "資料庫不存在",
       "noPermission": "此登入無權讀取",

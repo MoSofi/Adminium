@@ -162,11 +162,16 @@ export interface ConnectionManagerOptions {
   now?: (() => number) | undefined;
 }
 
-/** Login failures against one host and port that lock it, in trial and hosted mode, for {@link LOGIN_LOCKOUT_MS}. */
+/**
+ * Login failures against one host, port and user that lock that login, in trial and hosted mode, for
+ * {@link LOGIN_LOCKOUT_MS}. A successful login clears its count. The installation's own source
+ * (`ADMINIUM_SOURCE_URL`, the operator's `main`) is never counted or locked: a person's bad tries against its
+ * host must not stop the instance reading its own database.
+ */
 export const LOGIN_LOCKOUT_FAILURES = 5;
 export const LOGIN_LOCKOUT_MS = 60 * 60 * 1000;
 
-/** 429 `SOURCE_LOGIN_LOCKED`: too many failed logins against one database host lately. */
+/** 429 `SOURCE_LOGIN_LOCKED`: too many failed logins with one user against one database host lately. */
 export class SourceLoginLockedError extends AppError {
   override readonly name = 'SourceLoginLockedError';
 
@@ -213,6 +218,7 @@ export class ConnectionManager {
   readonly #now: () => number;
   /** Refused logins per `host:port`, in trial and hosted mode: when each happened. */
   readonly #loginFailures = new Map<string, number[]>();
+  readonly #ownLogin: string | null;
   /** The last source added in a trial, which the next waits for. */
   #roomTurn: Promise<unknown> = Promise.resolve();
   /** Trial mode's size cap (`trial/size-cap.ts`): what holds a source's growth, and hears of every write. */
@@ -234,6 +240,7 @@ export class ConnectionManager {
     this.#pool = opts.sourcePoolMax === undefined ? {} : { poolMax: opts.sourcePoolMax };
     this.#lookup = opts.lookup;
     this.#trialRules = { policy, hosts: this.#databaseHosts, operatorLogin: operatorLoginOf(opts.operatorSourceUrl), userHost: opts.userHost ?? null };
+    this.#ownLogin = this.#ownLoginKey(opts.operatorSourceUrl);
     this.#denyAddresses = opts.denyAddresses;
     this.#now = opts.now ?? Date.now;
     this.connections = connectionsRepo(opts.meta, opts.crypto);
@@ -382,10 +389,36 @@ export class ConnectionManager {
     return checked.endpoint === null ? { dsn } : { endpoint: checked.endpoint };
   }
 
-  /** `host:port` as the lockout counts it; null for SQLite or no host. */
-  #lockoutKey(parsed: Pick<ParsedDsn, 'scheme' | 'host' | 'port'>): string | null {
+  /**
+   * `host:port:user` as the lockout counts it; null for SQLite, no host, or the installation's own source
+   * (`ADMINIUM_SOURCE_URL`), which is never locked.
+   */
+  #lockoutKey(parsed: Pick<ParsedDsn, 'scheme' | 'host' | 'port' | 'user'>): string | null {
     if (parsed.scheme === 'sqlite' || parsed.host === null) return null;
-    return `${canonicalHost(parsed.host).replace(/\.$/, '')}:${String(parsed.port ?? '')}`;
+    const key = `${canonicalHost(parsed.host).replace(/\.$/, '')}:${String(parsed.port ?? '')}:${parsed.user ?? ''}`;
+    return key === this.#ownLogin ? null : key;
+  }
+
+  /** The lockout key of `ADMINIUM_SOURCE_URL`, which is never counted. */
+  #ownLoginKey(sourceUrl: string | undefined): string | null {
+    if (sourceUrl === undefined || sourceUrl === '') return null;
+    try {
+      const parsed = parseDsn(sourceUrl);
+      if (parsed.scheme === 'sqlite' || parsed.host === null) return null;
+      return `${canonicalHost(parsed.host).replace(/\.$/, '')}:${String(parsed.port ?? '')}:${parsed.user ?? ''}`;
+    } catch {
+      return null;
+    }
+  }
+
+  /** A login that worked: its count starts again. */
+  #loginWorked(dsn: string): void {
+    try {
+      const key = this.#lockoutKey(parseDsn(dsn));
+      if (key !== null) this.#loginFailures.delete(key);
+    } catch {
+      // Nothing was counted for a DSN that does not parse.
+    }
   }
 
   /** The refused logins against one target still inside the hour, oldest first. */
@@ -440,7 +473,8 @@ export class ConnectionManager {
       // AdapterProvider.create() receives the config and owns the dial.
       adapter = await provider.create({ role: 'introspect', ...target, ...this.#pool });
       const test: TestResult = await adapter.test();
-      if (!test.ok) this.#noteLogin(dsn, test.error);
+      if (test.ok) this.#loginWorked(dsn);
+      else this.#noteLogin(dsn, test.error);
       if (!test.ok) {
         return {
           ok: false,

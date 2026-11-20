@@ -148,7 +148,7 @@ export interface OperatorSwitch {
 }
 
 /** Why the user's own database cannot be reached: the classes `adminium check-source` prints. */
-export type OwnDatabaseReason = 'auth' | 'unreachable' | 'dns' | 'tls' | 'refused-by-us' | 'ipv6-only' | 'no-database' | 'no-permission' | 'empty';
+export type OwnDatabaseReason = 'auth' | 'unreachable' | 'dns' | 'tls' | 'refused-by-us' | 'locked' | 'ipv6-only' | 'no-database' | 'no-permission' | 'empty';
 
 export interface OwnDatabaseInfo {
   state: 'connecting' | 'ready' | 'down';

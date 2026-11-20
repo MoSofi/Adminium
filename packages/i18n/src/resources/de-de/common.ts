@@ -2245,6 +2245,7 @@ export default {
       "dns": "ihre Adresse wurde nicht gefunden",
       "tls": "die sichere Verbindung ist fehlgeschlagen",
       "refusedByUs": "dieser Server verbindet sich nicht mit dieser Adresse",
+      "locked": "die Anmeldung wurde zu oft abgelehnt, daher wird bis zu einer Stunde gewartet",
       "ipv6Only": "sie ist nur über IPv6 erreichbar",
       "noDatabase": "die Datenbank existiert nicht",
       "noPermission": "diese Anmeldung darf sie nicht lesen",

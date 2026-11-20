@@ -2235,6 +2235,7 @@
       "dns": "找不到它的地址",
       "tls": "安全连接失败",
       "refusedByUs": "此服务器不连接该地址",
+      "locked": "登录被拒绝的次数过多，因此最多等待一小时",
       "ipv6Only": "只能通过 IPv6 访问",
       "noDatabase": "数据库不存在",
       "noPermission": "此登录无权读取",

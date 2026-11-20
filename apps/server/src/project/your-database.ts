@@ -82,8 +82,9 @@ export function yoursDataDsn(yours: YourDatabase): string | null {
 export function reasonOf(error: { code?: string | undefined; message?: string | undefined } | null | undefined): YourDatabaseReason {
   const code = error?.code ?? '';
   const message = error?.message ?? '';
-  // The lockout after repeated refused logins (`SOURCE_LOGIN_LOCKED`) is ours, as every refusal before a dial is.
-  if (code === 'OFF_BY_OPERATOR' || code === 'VALIDATION_FAILED' || code === 'REFUSED' || code === 'SOURCE_LOGIN_LOCKED') return 'refused-by-us';
+  // The lockout after repeated refused logins: its own reason, so the owner looks at the login, not the address.
+  if (code === 'SOURCE_LOGIN_LOCKED') return 'locked';
+  if (code === 'OFF_BY_OPERATOR' || code === 'VALIDATION_FAILED' || code === 'REFUSED') return 'refused-by-us';
   if (code === 'HOST_LOOKUP_FAILED' || code === 'ENOTFOUND' || /ENOTFOUND|getaddrinfo|could not be looked up/i.test(message)) return 'dns';
   // Before `auth`: the adapters report a missing database as an AUTH failure (Postgres 3D000, MySQL ER_BAD_DB_ERROR).
   if (/database .* does not exist|unknown database|3D000|ER_BAD_DB_ERROR|ER_DBACCESS_DENIED_ERROR/i.test(message)) return 'no-database';

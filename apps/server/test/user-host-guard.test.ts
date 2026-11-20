@@ -8,7 +8,7 @@
  * private, reserved or metadata address, nothing on the fleet's deny list);
  * its port is a database's; its TLS defaults to verifying; a refusal never
  * repeats an address in trial or hosted mode; and five refused logins in an
- * hour lock the target.
+ * hour lock that login (host, port and user), never the installation's own source.
  *
  * Every name is answered by an injected lookup and every adapter is a fake that
  * records what it was handed: nothing here dials a network.
@@ -387,6 +387,34 @@ describe('the login lockout', () => {
     await expect(m.testDsn('postgres', OPERATOR_URL)).resolves.toMatchObject({ ok: true });
     clock += LOGIN_LOCKOUT_MS;
     await expect(m.testDsn('postgres', 'postgres://me:right@db.user.example:5432/shop')).resolves.toMatchObject({ ok: true });
+  });
+
+  it('locks one login, not the host: another user on the same host is tried', async () => {
+    const m = manager({ outcome: refused, now: () => 1_000_000 });
+    for (let i = 0; i < 5; i += 1) await m.testDsn('postgres', 'postgres://me:wrong@db.user.example:5432/shop');
+    await expect(m.testDsn('postgres', 'postgres://me:wrong@db.user.example:5432/shop')).rejects.toBeInstanceOf(SourceLoginLockedError);
+    expect((await m.testDsn('postgres', 'postgres://someone:pw@db.user.example:5432/shop')).ok).toBe(false);
+  });
+
+  it('a login that works clears its count', async () => {
+    let outcome: AdapterError | null = refused();
+    const m = manager({ outcome: () => outcome, now: () => 1_000_000 });
+    const dsn = 'postgres://me:pw@db.user.example:5432/shop';
+    for (let i = 0; i < 4; i += 1) await m.testDsn('postgres', dsn);
+    outcome = null;
+    expect((await m.testDsn('postgres', dsn)).ok).toBe(true);
+    outcome = refused();
+    // Four more refusals: four in the count, not nine.
+    for (let i = 0; i < 4; i += 1) expect((await m.testDsn('postgres', dsn)).ok).toBe(false);
+    expect((await m.testDsn('postgres', dsn)).ok).toBe(false);
+    await expect(m.testDsn('postgres', dsn)).rejects.toBeInstanceOf(SourceLoginLockedError);
+  });
+
+  it('never locks the installation’s own source (ADMINIUM_SOURCE_URL), in trial or hosted mode', async () => {
+    for (const profile of ['trial', 'hosted'] as const) {
+      const m = manager({ profile, outcome: refused, now: () => 1_000_000 });
+      for (let i = 0; i < 8; i += 1) expect((await m.testDsn('postgres', OPERATOR_URL)).ok).toBe(false);
+    }
   });
 
   it('a missing database is not a refused login', async () => {

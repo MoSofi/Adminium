@@ -2245,6 +2245,7 @@ export default {
       "dns": "son adresse est introuvable",
       "tls": "la connexion sécurisée a échoué",
       "refusedByUs": "ce serveur ne se connecte pas à cette adresse",
+      "locked": "la connexion a été refusée trop souvent, elle attend donc jusqu’à une heure",
       "ipv6Only": "elle n’est joignable qu’en IPv6",
       "noDatabase": "la base de données n’existe pas",
       "noPermission": "cet identifiant ne peut pas la lire",

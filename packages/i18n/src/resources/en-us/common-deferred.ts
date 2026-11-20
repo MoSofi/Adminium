@@ -1563,6 +1563,7 @@ export default {
       "dns": "its address cannot be found",
       "tls": "the secure connection failed",
       "refusedByUs": "this server does not connect to that address",
+      "locked": "its login was refused too often, so it waits up to an hour",
       "ipv6Only": "it can be reached over IPv6 only",
       "noDatabase": "the database does not exist",
       "noPermission": "this login may not read it",

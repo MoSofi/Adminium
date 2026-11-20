@@ -561,7 +561,7 @@ export const bootstrapReply = z.object({
         host: z.string(),
         label: z.string(),
         state: z.enum(['connecting', 'ready', 'down']),
-        reason: z.enum(['auth', 'unreachable', 'dns', 'tls', 'refused-by-us', 'ipv6-only', 'no-database', 'no-permission', 'empty']).nullable(),
+        reason: z.enum(['auth', 'unreachable', 'dns', 'tls', 'refused-by-us', 'locked', 'ipv6-only', 'no-database', 'no-permission', 'empty']).nullable(),
         readOnly: z.boolean(),
         editUrl: z.string().nullable(),
         /** Its connection, so Studio offers "Change on your account" in place of Rename and Delete; null before it exists. */

@@ -26,7 +26,7 @@ import { ShortcutsProvider } from '../shell/ShortcutsProvider.js';
 import { Topbar } from '../shell/Topbar.js';
 import { jsonResponse, makeBootstrap } from '../test/fixtures.js';
 import { TrialMount } from './TrialMount.js';
-import { daysLeftAt } from './TrialStrips.js';
+import { daysLeftAt, ownDatabaseReasonWords } from './TrialStrips.js';
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-router')>();
@@ -173,6 +173,13 @@ describe('the trial strips', () => {
     render(withInfo({ on: false, endsAt: null, daysLeft: null, upgradeUrl: null }, <TrialMount shell />));
     expect(screen.queryByRole('note')).toBeNull();
     expect(screen.queryByRole('status')).toBeNull();
+  });
+});
+
+describe('why your database cannot be reached, in words', () => {
+  it('says a locked login as that, not as an address this server refuses', () => {
+    expect(ownDatabaseReasonWords('locked')).toBe('its login was refused too often, so it waits up to an hour');
+    expect(ownDatabaseReasonWords('refused-by-us')).toBe('this server does not connect to that address');
   });
 });
 

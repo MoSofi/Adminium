@@ -2245,6 +2245,7 @@ export default {
       "dns": "její adresu nelze najít",
       "tls": "zabezpečené připojení selhalo",
       "refusedByUs": "tento server se k této adrese nepřipojuje",
+      "locked": "přihlášení bylo odmítnuto příliš často, proto se čeká až hodinu",
       "ipv6Only": "je dostupná pouze přes IPv6",
       "noDatabase": "databáze neexistuje",
       "noPermission": "tento účet ji nesmí číst",

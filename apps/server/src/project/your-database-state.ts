@@ -19,12 +19,14 @@ export type YourDatabaseReason =
   | 'dns'
   | 'tls'
   | 'refused-by-us'
+  /** Its login was refused too often lately (`SOURCE_LOGIN_LOCKED`): not tried again for up to an hour. */
+  | 'locked'
   | 'ipv6-only'
   | 'no-database'
   | 'no-permission'
   | 'empty';
 
-export const YOUR_DATABASE_REASONS: readonly YourDatabaseReason[] = ['auth', 'unreachable', 'dns', 'tls', 'refused-by-us', 'ipv6-only', 'no-database', 'no-permission', 'empty'];
+export const YOUR_DATABASE_REASONS: readonly YourDatabaseReason[] = ['auth', 'unreachable', 'dns', 'tls', 'refused-by-us', 'locked', 'ipv6-only', 'no-database', 'no-permission', 'empty'];
 
 export interface YourDatabaseState {
   state: 'connecting' | 'ready' | 'down';
