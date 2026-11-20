@@ -58,7 +58,7 @@ import { markRunning, refuseIfRunning } from '../../project/running.js';
 import { withDefaults } from '../../project/config.js';
 import { syncProjectDatabases } from '../../project/databases.js';
 import { adoptSeededMain } from '../../project/operator-adopt.js';
-import { registerYourDatabase, startYourDatabase, type YourDatabaseJob } from '../../project/your-database.js';
+import { registerYourDatabase, startYourDatabase, YOURS_KEY, type YourDatabaseJob } from '../../project/your-database.js';
 import { YOUR_DATABASE_STATUS } from '../../project/your-database-state.js';
 import { diskFileStore } from '../../project/file-store.js';
 import { databasesWithPageFiles } from '../../project/project-files.js';
@@ -498,6 +498,7 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
         root: project.project.root,
         databases: project.databases.ready,
         missing: project.databases.missing,
+        elsewhere: project.operator && env.ADMINIUM_YOUR_DATABASE !== undefined ? [YOURS_KEY] : [],
         hasPageFiles: (key) => withPageFiles.has(key),
         log: (message) => {
           io.out(message);

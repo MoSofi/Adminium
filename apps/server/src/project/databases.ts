@@ -38,6 +38,12 @@ export interface SyncProjectDatabasesOptions {
   databases: ReadonlyMap<string, string>;
   /** Configured keys whose URL is empty. */
   missing: readonly string[];
+  /**
+   * Keys connected by the server outside the project config: an operator project's
+   * `yours` (`project/your-database.ts`), which is added after the server listens.
+   * Neither synced here nor called "no longer in the project config".
+   */
+  elsewhere?: readonly string[] | undefined;
   log: (message: string) => void;
   warn: (message: string) => void;
   /**
@@ -155,7 +161,7 @@ export async function syncProjectDatabases(opts: SyncProjectDatabasesOptions): P
     }
   }
 
-  const configured = new Set([...opts.databases.keys(), ...opts.missing]);
+  const configured = new Set([...opts.databases.keys(), ...opts.missing, ...(opts.elsewhere ?? [])]);
   for (const connection of await manager.connections.list()) {
     if (connection.projectKey !== null && !configured.has(connection.projectKey)) {
       log(
