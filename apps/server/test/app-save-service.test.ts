@@ -85,7 +85,8 @@ async function serve(h: Harness, dialect: Dialect, files: FileStore, people: Peo
 
 async function shopTables(h: Harness): Promise<void> {
   await h.run('CREATE TABLE customers (id INTEGER PRIMARY KEY, name VARCHAR(80) NOT NULL)');
-  await h.run('CREATE TABLE orders (id INTEGER PRIMARY KEY, customer_id INTEGER REFERENCES customers(id), note VARCHAR(200))');
+  // A table-level FOREIGN KEY: MySQL 8.4 parses a column's inline REFERENCES and ignores it.
+  await h.run('CREATE TABLE orders (id INTEGER PRIMARY KEY, customer_id INTEGER, note VARCHAR(200), FOREIGN KEY (customer_id) REFERENCES customers(id))');
   await runIntrospection({ manager: h.manager, meta: h.meta, connectionId: h.connectionId });
   // The pages Adminium generates for them: an app needs at least one.
   await runGeneration({ manager: h.manager, meta: h.meta, connectionId: h.connectionId, createdBy: null });
