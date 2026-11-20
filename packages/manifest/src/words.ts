@@ -328,6 +328,10 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'publicAccess.appPagination',
   // A rule's condition that asks an add-on's words about a row the record links to.
   'automations.words',
+  // A customer's review of a row, kept by an add-on; the add-on's tables of reviews; an app's role held to its app's rows.
+  'table.review',
+  'addOn.reviews',
+  'appGrants.appColumn',
   // A new row that moves the earlier rows sharing its link on (a proof sent again).
   'states.supersedes',
   // Words of a sample FILE, not of the manifest: an app's rows for an add-on that ship files of their own, and
@@ -688,6 +692,9 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'publicAccess.count': '0.3.67',
   'publicAccess.appPagination': '0.3.67',
   'automations.words': '0.3.67',
+  'table.review': '0.3.67',
+  'addOn.reviews': '0.3.67',
+  'appGrants.appColumn': '0.3.67',
 };
 
 /** The kinds of file a column takes from the release that cleans SVG and reads models and fonts whole (`ASSET_FILE_KINDS`). */
@@ -728,6 +735,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (block['forms'] !== undefined) out.push({ word: 'addOn.forms', path: 'addOn.forms' });
     if (block['chat'] !== undefined) out.push({ word: 'addOn.chat', path: 'addOn.chat' });
     if (block['landing'] !== undefined) out.push({ word: 'addOn.landing', path: 'addOn.landing' });
+    if (block['reviews'] !== undefined) out.push({ word: 'addOn.reviews', path: 'addOn.reviews' });
     if (block['scope'] !== undefined) out.push({ word: 'addOn.scope', path: 'addOn.scope' });
     if (block['sources'] !== undefined) out.push({ word: 'addOn.sources', path: 'addOn.sources' });
     if (block['leads'] !== undefined) out.push({ word: 'addOn.leads', path: 'addOn.leads' });
@@ -868,6 +876,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (table['postings'] !== undefined) out.push({ word: 'table.postings', path: `${at}.postings` });
     if (table['adjust'] !== undefined) out.push({ word: 'table.adjust', path: `${at}.adjust` });
     if (table['check'] !== undefined) out.push({ word: 'table.check', path: `${at}.check` });
+    if (table['review'] !== undefined) out.push({ word: 'table.review', path: `${at}.review` });
     if (table['belongs'] !== undefined) out.push({ word: 'table.belongs', path: `${at}.belongs` });
     list(table['belongs']).forEach((way, w) => {
       if (isDoc(way) && isDoc(way['through']) && way['through']['while'] !== undefined) out.push({ word: 'listing.while', path: `${at}.belongs.${String(w)}.through.while` });
@@ -882,6 +891,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     });
     if (table['builtOn'] !== undefined && isDoc(table['states']) && table['states']['create'] !== undefined) out.push({ word: 'shape.create', path: `${at}.states.create` });
     if (table['appGrants'] !== undefined) out.push({ word: 'table.appGrants', path: `${at}.appGrants` });
+    if (isDoc(table['appGrants']) && table['appGrants']['appColumn'] !== undefined) out.push({ word: 'appGrants.appColumn', path: `${at}.appGrants.appColumn` });
     if (isDoc(table['appGrants'])) {
       const actions = list(table['appGrants']['actions']);
       // A table a ledger's code writes, by the add-on's own ledgers.

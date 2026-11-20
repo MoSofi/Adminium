@@ -507,6 +507,21 @@ export const addOnBlockSchema = z
       })
       .optional(),
     /**
+     * Reviews: which of the add-on's own tables hold the reviews customers
+     * leave on an app's rows (a shipped order line, a visit) and the totals
+     * the engine keeps of the published ones. The engine writes every review
+     * through the app's `review` word and keeps the totals; staff move a
+     * review's state and reply. Only the table refs are typed here: the
+     * columns each must have are the manifest's own vocabulary, so
+     * `@adminium/manifest` checks the whole of it.
+     */
+    reviews: z
+      .looseObject({
+        reviews: z.string().regex(/^[a-z][a-z0-9_]*$/, 'a table ref'),
+        totals: z.string().regex(/^[a-z][a-z0-9_]*$/, 'a table ref'),
+      })
+      .optional(),
+    /**
      * Steps the add-on gives to Automations: each a named write of one row of
      * one of its own tables (see `steps.ts`). Which table and columns they are
      * is `@adminium/manifest`'s to check.

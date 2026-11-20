@@ -136,3 +136,35 @@ export function linkFreeText(value: unknown, rule: PlainTextRule = NAME_RULE): b
   }
   return true;
 }
+
+/**
+ * A REVIEW'S WORDS: what a customer writes about what they bought, shown to
+ * every visitor of the shop. Letters, digits, line breaks and the punctuation
+ * an opinion is written with ("10/10", "size 9.5", "50% lighter") — and,
+ * as {@link linkFreeText} holds a name, no web address, no e-mail address and
+ * no handle ("evil.com", "www.", "://", "@"), however its letters are
+ * dressed. No control character but a line break or a tab. Always shown as
+ * text, never as HTML. `max` characters at most; the text is judged as sent,
+ * line endings made one kind first. Null when it is refused.
+ */
+export function reviewText(value: unknown, max: number): string | null {
+  if (typeof value !== 'string') return null;
+  const text = value.replace(/\r\n?/g, '\n').trim();
+  if ([...text].length > max) return null;
+  if (/[\p{Cc}]/u.test(text.replace(/[\n\t]/g, ''))) return null;
+  const shown = asShown(text);
+  const lower = shown.toLowerCase();
+  if (lower.includes('://') || lower.includes('www.') || shown.includes('@') || shown.includes('＠')) return null;
+  for (const [dotted] of shown.matchAll(DOTTED)) {
+    const parts = dotted.split('.').map(trimmed).filter((part) => part !== '');
+    if (parts.length < 2) continue;
+    const last = parts[parts.length - 1]!;
+    const ending = last.toLowerCase();
+    if (!KNOWN_TLDS.has(ending)) continue;
+    if (initialsName(parts) && !ALWAYS_ADDRESS.has(ending)) continue;
+    // A sentence begun with no space after a full stop ("warm.It's great"): a capital starts it, and a review is read before it is shown.
+    if (/^\p{Lu}/u.test(last) && !ALWAYS_ADDRESS.has(ending)) continue;
+    return null;
+  }
+  return text;
+}

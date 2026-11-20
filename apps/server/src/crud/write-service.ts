@@ -95,6 +95,7 @@ import { columnGranted, refuseUngrantedColumns } from '../connections/privileges
 import { getPrincipal } from '../rbac/principal.js';
 import { negotiateLocale } from '../plugins/surfaces.js';
 import { landingSlugLockName, sealLandingWrite, slugTakenRefusal } from '../landing/seal.js';
+import { applyTotals, hiddenHasReason, refusePersonReviewWrite, staffReviewValues, type ReviewTables } from '../reviews/tables.js';
 import { capacityLockNames, touchesCapacity } from './capacity/judge.js';
 import { batchNeedsGuard, judgeRows, withLimitLocks } from './capacity/door.js';
 import { bookingColumn, bookingCounts, bookingDay, bookingLockName, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
@@ -2021,6 +2022,13 @@ export interface WriteServiceOptions {
    */
   landingPages?: ((connectionId: string, tableId: string, askedJustNow?: boolean) => Promise<boolean>) | undefined;
   /**
+   * Whether a table is a reviews add-on's reviews or totals (`reviews/tables.ts`):
+   * a person creates neither, changes a review's state, hide reason and reply
+   * alone and one at a time, and every change of a review's state moves the
+   * totals in its own transaction. Without it, no table is.
+   */
+  reviewTables?: ((connectionId: string, tableId: string) => Promise<{ kind: 'reviews' | 'totals'; tables: ReviewTables } | null>) | undefined;
+  /**
    * Whether a table is a payable's payments table, and which of its columns
    * name a payment taken online (`payments/payment-rows.ts`). A row that
    * carries the reference is the provider's record: no person, key, rule or
@@ -2328,6 +2336,42 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     if (opts.sealedRecords === undefined || writtenByAdminium(context)) return;
     if (!(await opts.sealedRecords(target.connectionId, target.table.id))) return;
     throw new ForbiddenError('Only Adminium writes and removes these rows. You can read them.', 'TABLE_FORBIDDEN', { table: target.table.id, reason: 'adminium-keeps' });
+  };
+
+  /** Which reviews table a target is, if any ({@link WriteServiceOptions.reviewTables}). */
+  const reviewKindOf = async (target: Pick<WriteTarget, 'connectionId' | 'table'>) => (opts.reviewTables === undefined ? null : await opts.reviewTables(target.connectionId, target.table.id));
+
+  /** A person's create of a review, or a write of many reviews at once: refused, by name (`reviews/tables.ts`). */
+  const refuseReviewWrite = async (target: Pick<WriteTarget, 'connectionId' | 'table'>, context: WriteContext, action: 'create' | 'bulk' | 'delete'): Promise<void> => {
+    if (opts.reviewTables === undefined || writtenByAdminium(context) || action === 'delete') return;
+    const reviewed = await reviewKindOf(target);
+    if (reviewed !== null) refusePersonReviewWrite(target.table.id, reviewed.kind, action);
+  };
+
+  /**
+   * A change of a review, written with the totals it moves: in one transaction
+   * (the caller's, else its own), the review read and locked first, the
+   * totals moved after, a review hidden only with its reason.
+   */
+  const reviewTotalled = <T>(target: Pick<WriteTarget, 'view' | 'table' | 'dialect' | 'committedReads'>, reviewed: { kind: 'reviews' | 'totals'; tables: ReviewTables } | null, pk: Record<string, unknown>, write: (db: Db) => Promise<T>): ((db: Db) => Promise<T>) => {
+    if (reviewed?.kind !== 'reviews') return write;
+    const totals = target.view.linkTable(reviewed.tables.totals);
+    return (db) =>
+      withNamedLocks(
+        { db, dialect: target.dialect, ...(target.committedReads === true ? { committedReads: true as const } : {}) },
+        [],
+        async (trx) => {
+          let read = trx.selectFrom(target.table.id).selectAll();
+          for (const [column, value] of Object.entries(pk)) read = read.where(trx.dynamic.ref(column), '=', value as never);
+          const before = ((await (target.dialect === 'sqlite' ? read : read.forUpdate()).executeTakeFirst()) as Row | undefined) ?? null;
+          const result = await write(trx);
+          const after = (await fetchByPk(trx, target.table, pk)) ?? null;
+          hiddenHasReason(target.table.id, after);
+          if (totals !== null) await applyTotals(trx, target.dialect, totals, before, after);
+          return result;
+        },
+        { openTransaction: 'run' },
+      );
   };
 
   /**
@@ -3875,6 +3919,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     refuseUnbuiltTable(target);
     await refuseHeldWrite(target.db, 'create');
     await refuseOwnRecords(target, context);
+    await refuseReviewWrite(target, context, 'create');
     await refusePaymentRows('create', target, context, [{ values: input.values, stored: async () => null }]);
     const given = await sealLanding('create', target, context, input.values, async () => null);
     refuseEarly(target, 'create', given, mapError);
@@ -4401,6 +4446,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       await refuseHeldWrite(target.db, action);
       if (action !== 'delete') await refuseOwnRecords(target, context);
       else await refuseSealedDelete(target, context);
+      await refuseReviewWrite(target, context, action === 'delete' ? 'delete' : 'bulk');
       const heldOf = (values: Row, index: number) => async () => checkOpts?.stored?.[index] ?? (action === 'create' ? null : await fetchMatched(target, values));
       await refusePaymentRows(action, target, context, given.map((values, index) => ({ values, stored: heldOf(values, index) })));
       const rows: Row[] = [];
@@ -4731,6 +4777,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       // A table only Adminium writes takes no row of a person's tree, at its root or below.
       for (const row of everyRow) await refuseHeldWrite(row.target.db, 'create');
       for (const row of everyRow) await refuseOwnRecords(row.target, context);
+      for (const row of everyRow) await refuseReviewWrite(row.target, context, 'create');
       for (const row of everyRow) await refusePaymentRows('create', row.target, context, [{ values: row.node.values, stored: async () => null }]);
       // A child table a before hook runs for cannot take rows here: a hook may write through its own connection, which waits on this transaction.
       for (const row of everyRow.slice(1)) {
@@ -5193,10 +5240,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       refuseUnbuiltTable(target);
       await refuseHeldWrite(target.db, 'update');
       await refuseOwnRecords(target, context);
+      // A review: a person changes its state, hide reason and reply alone; its totals move with it, whoever changes it.
+      const reviewed = await reviewKindOf(target);
+      const offered = reviewed?.kind === 'reviews' && !writtenByAdminium(context) ? staffReviewValues(target.table.id, input.values, new Date()) : input.values;
       await refusePaymentRows('update', target, context, [
-        { values: input.values, stored: async () => (input.before !== undefined ? input.before : input.load !== undefined ? await input.load() : ((await fetchByPk(target.db, target.table, pk)) ?? null)) },
+        { values: offered, stored: async () => (input.before !== undefined ? input.before : input.load !== undefined ? await input.load() : ((await fetchByPk(target.db, target.table, pk)) ?? null)) },
       ]);
-      const given = await sealLanding('update', target, context, input.values, async () => (input.before !== undefined ? input.before : input.load !== undefined ? await input.load() : ((await fetchByPk(target.db, target.table, pk)) ?? null)));
+      const given = await sealLanding('update', target, context, offered, async () => (input.before !== undefined ? input.before : input.load !== undefined ? await input.load() : ((await fetchByPk(target.db, target.table, pk)) ?? null)));
       refuseEarly(target, 'update', given, input.mapError);
       await freshCodes(target);
       const hooks = current();
@@ -5502,7 +5552,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         return changed;
       };
       // A page published at an address: written under that address's lock, judged again there (`landing/seal.ts`).
-      const write = slugLocked(target, given, writeRow);
+      // A review: written with the totals it moves (`reviews/tables.ts`).
+      const write = reviewTotalled(target, reviewed, pk, slugLocked(target, given, writeRow));
       let count: number;
       try {
         count = await conflicted(async () => {
@@ -5757,6 +5808,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       await refuseHeldWrite(target.db, action);
       if (action !== 'delete') await refuseOwnRecords(target, context);
       else await refuseSealedDelete(target, context);
+      await refuseReviewWrite(target, context, action === 'delete' ? 'delete' : 'bulk');
       const heldOf = (row: (typeof givenRows)[number]) => async () => (row.record !== undefined ? row.record : row.match === undefined ? null : ((await fetchByPk(target.db, target.table, row.match)) ?? null));
       await refusePaymentRows(
         action,

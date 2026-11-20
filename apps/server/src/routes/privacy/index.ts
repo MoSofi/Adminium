@@ -62,6 +62,7 @@
  * a second time (the house's type-to-confirm), and its one audit entry keeps
  * the counts and the keyed hash, never the address.
  */
+import type { AddOnInstalls } from '../../apps/table-ref.js';
 import { WEBSITES_MAX } from '@adminium/add-on-contracts/forms/websites';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -134,6 +135,8 @@ export interface PrivacyRoutesDeps {
   answerFiles?: AnswerFilesRemover | undefined;
   /** Makes the chat store forget an erased conversation (`chat/store.ts`). */
   chatForget?: ChatForget | undefined;
+  /** What is installed: a person's reviews keep their words and lose their name (`reviews/erase.ts`). */
+  reviewInstalls?: (() => Promise<AddOnInstalls>) | undefined;
   /** The view counter of this process: told a new level at once (`views/counter.ts`). */
   counting?: { setLevel: (level: TrackingLevel) => void } | undefined;
 }
@@ -162,7 +165,7 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
   const { meta, secret } = deps;
   const settings = settingsRepo(meta);
   const exports = privacyExportsRepo(meta);
-  const eraseDeps = { meta, manager: deps.manager, consent: deps.consent, storage: deps.storage, secret, signIns: deps.signIns, answerFiles: deps.answerFiles, chatForget: deps.chatForget };
+  const eraseDeps = { meta, manager: deps.manager, consent: deps.consent, storage: deps.storage, secret, signIns: deps.signIns, answerFiles: deps.answerFiles, chatForget: deps.chatForget, reviewInstalls: deps.reviewInstalls };
 
   /** Locked keys refused rather than read as "nothing found" (or, for an erasure, half done). */
   async function unlocked<T>(work: () => Promise<T>): Promise<T> {

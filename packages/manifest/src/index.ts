@@ -424,6 +424,24 @@ export {
 export { CUSTOMER_KEY, claimKind, claimSchema, codeSchemaOf, codeWhereSchema, hiddenFromStaff, ownLinksOfPerson, personalColumn, publicKeySchema, shareCodeColumns, type Claim, type CodeSchema, type PersonOwnLink, type PublicKey } from './public-access.js';
 export { resendAddressOf, type ResendAddress, type ResendColumns, type ResendOutbox } from './public-access.js';
 export {
+  addOnReviewsSchema,
+  claimChains,
+  pathOf,
+  REVIEW_BODY_MAX,
+  REVIEW_COLUMNS,
+  REVIEW_HIDE_REASONS,
+  REVIEW_SHOWN_NAME_MAX,
+  REVIEW_STAFF_COLUMNS,
+  REVIEW_STATES,
+  REVIEW_TITLE_MAX,
+  REVIEW_TOTALS_COLUMNS,
+  REVIEW_TOTALS_UNIQUE,
+  REVIEW_UNIQUE,
+  reviewSchema,
+  type AddOnReviews,
+  type Review,
+} from './review.js';
+export {
   SHOPPER_COUNT_MOST,
   SHOPPER_DEFAULT_OPS,
   SHOPPER_FILTERABLE_MOST,

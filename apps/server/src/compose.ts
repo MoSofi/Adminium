@@ -263,6 +263,7 @@ import { importVouchedEventHalves, registerAddOnEventHandlers } from './jobs/add
 import { registerJobsAndRealtime, type JobsAndRealtime } from './jobs/register.js';
 import { stepLookupOf } from './automations/add-on-steps.js';
 import { registerAutomationRunHandler } from './jobs/automation-run.js';
+import { recountReviewsOf } from './reviews/recount.js';
 import { registerDigestSendHandler } from './automations/digest.js';
 import { automationsRoutes } from './routes/automations/index.js';
 import { automationRunsRoutes } from './routes/automations/runs.js';
@@ -2748,6 +2749,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           answerFiles: formsFiles.removeAnswerFiles,
           // …and makes the chat store forget their conversations, so a visitor's poll on one is told it is lost.
           chatForget: (place, id) => chatStore.forget(place, id),
+          // …and blanks the name on their reviews, keeping the words.
+          reviewInstalls: () => addOnInstalls.fresh(),
           // A new counting level is used by this process's counter at once.
           counting: counting.counter,
         }),
@@ -2848,6 +2851,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         meta,
         store: addOnStore,
         credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
+        // A reviews add-on's totals, worked out again once it is installed or updated.
+        recountReviews: (connectionId: string, addOnKey: string) => recountReviewsOf({ meta, manager, installs: () => addOnInstalls.fresh() }, connectionId, addOnKey),
         // Where an add-on's tables are planned against and created.
         schemaTarget: createAddOnSchemaTarget({
           meta,
@@ -3792,6 +3797,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         signIns: (event) => app.publicIdentities.onRecordEvent(event),
         answerFiles: formsFiles.removeAnswerFiles,
         chatForget: (place, id) => chatStore.forget(place, id),
+        reviewInstalls: () => addOnInstalls.fresh(),
       },
       address,
       scope,
@@ -4111,6 +4117,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         storage,
         writes: recordWrites,
         ledgers,
+        // A customer's review of a row: the app's word and the add-on that keeps it, as installed now (`reviews/`).
+        reviews: { installs: () => addOnInstalls.fresh() },
         pay: publicPay,
         cardTesting,
         // A rehearsal's rows go in their app's list of sample rows (made first when there is none).

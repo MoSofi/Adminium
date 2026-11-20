@@ -615,6 +615,9 @@ export const PUBLIC_ERROR_CODES = [
   'SURFACE_OFF',
   /** A sign-in or shared link that opens nothing any more: used, expired, stopped or taken back (410). */
   'LINK_EXPIRED',
+  // A customer's review (`reviews/`): the row was reviewed already; it cannot be reviewed yet (the order is not shipped).
+  'PUBLIC_REVIEW_DONE',
+  'PUBLIC_REVIEW_NOT_YET',
 ] as const;
 export type PublicErrorCode = (typeof PUBLIC_ERROR_CODES)[number];
 
@@ -704,3 +707,12 @@ export const tokenClaimBody = z.object({ token: z.string().min(8).max(40) }).str
 
 /** A resend always answers the same: nothing about the link or its person. */
 export const linkResendReply = z.object({ data: z.object({}) });
+
+/** A customer's review of a row they read (`POST /public/records/:ref/:id/review`): whole stars, and plain words. */
+export const publicReviewBody = z
+  .object({ stars: z.number().int().min(1).max(5), title: z.string().max(400).nullable().optional(), body: z.string().max(8_000).nullable().optional() })
+  .strict();
+/** Whether a row may be reviewed now, when it was, and the name its review shows (`GET …/review`). */
+export const publicReviewStateReply = z.object({ data: z.object({ open: z.boolean(), reviewedAt: z.string().nullable(), shownName: z.string() }) });
+/** A review taken: the moment the row was stamped. */
+export const publicReviewTakenReply = z.object({ data: z.object({ reviewedAt: z.string() }) });

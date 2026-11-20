@@ -73,6 +73,7 @@ import { automationIssues, manifestAutomationsSchema, type AutomationTableShape,
 import { changeGuardIssues, changeGuardsSchema } from './change-guards.js';
 import { adjustDecidedColumns, adjustIssues, adjustSchema, adjusterIssues, adjusterSchema, type Adjuster, type AdjustTableShape } from './adjust.js';
 import { checkIssues, checkSchema, checkerIssues, checkerSchema, type Checker, type CheckTableShape } from './check.js';
+import { addOnReviewsSchema, reviewIssues, reviewSchema, reviewsBlockIssues, type ReviewHostEntryShape, type ReviewHostTableShape, type ReviewTableShape } from './review.js';
 import { ledgerIssues, ledgersSchema, postingIssues, postingsSchema, receiptTableIssues, wordsIssues, wordsListSchema, type Ledger, type LedgerScopeTable, type LedgerTableShape, type StockWords } from './ledgers.js';
 import { addOnFormsSchema, formsBlockIssues, type AddOnForms, type FormsTableShape } from './forms.js';
 import { addOnChatSchema, chatBlockIssues, type AddOnChat } from './chat.js';
@@ -1311,6 +1312,8 @@ export const requiredTableSchema = z
     adjust: adjustSchema.optional(),
     /** Whether an order line's design may be ordered, asked of an add-on (see `check.ts`). */
     check: checkSchema.optional(),
+    /** What a customer's review of a row is about, kept by an add-on (see `review.ts`). */
+    review: reviewSchema.optional(),
     /** How a person belongs to a row, so a role's rows can be limited to their own or their team's (see `roles.ts`). */
     belongs: belongsSchema.optional(),
     /** Rows read by the people they belong to and by nobody and nothing else: no rule, public entry, document or export. */
@@ -3152,6 +3155,22 @@ export function appReferenceIssues(
         ),
       );
     }
+    if (table.review !== undefined) {
+      out.push(
+        ...reviewIssues(
+          table as unknown as ReviewHostTableShape,
+          table.review,
+          {
+            kind: shapeOf !== undefined || m.kind === 'add-on' ? 'add-on' : 'app',
+            tables: tables as unknown as ReadonlyMap<string, ReviewHostTableShape>,
+            named: new Set([...(m.addOns?.requires ?? []), ...(m.addOns?.suggests ?? [])].map((need) => need.key)),
+            features: new Map((m.addOns?.features ?? []).map((feature) => [feature.id, feature.requires])),
+            entries: (m.publicAccess ?? []) as unknown as readonly ReviewHostEntryShape[],
+          },
+          at,
+        ),
+      );
+    }
     if (table.postings !== undefined) {
       // What a posting makes Adminium's own: how long a hold lasts, and an amount its ledger decides — on the row, or on the parent its lines belong to.
       for (const [p, posting] of table.postings.entries()) {
@@ -3883,6 +3902,7 @@ export interface RequiredTableShape {
   postings?: z.infer<typeof postingsSchema> | undefined;
   adjust?: z.infer<typeof adjustSchema> | undefined;
   check?: z.infer<typeof checkSchema> | undefined;
+  review?: z.infer<typeof reviewSchema> | undefined;
   belongs?: z.infer<typeof belongsSchema> | undefined;
   private?: true | undefined;
   module?: string | undefined;
@@ -4553,6 +4573,23 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
           steps: m.addOn.steps,
           decided: (table, column) => decidedByRules(byRef.get(table)?.columns.find((candidate) => candidate.ref === column)?.rules),
           settingsTable: m.addOn.settingsTable,
+        }),
+      );
+    }
+  }
+
+  // Reviews: typed loosely in the contracts package; its two tables, their columns and who may hold them are checked here.
+  if (m.addOn.reviews !== undefined) {
+    const parsed = addOnReviewsSchema.safeParse(m.addOn.reviews);
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) out.push({ path: ['addOn', 'reviews', ...issue.path.map((part) => (typeof part === 'symbol' ? String(part) : part))], message: issue.message });
+    } else {
+      out.push(
+        ...reviewsBlockIssues(parsed.data, {
+          tables: tables as unknown as readonly ReviewTableShape[],
+          roles: m.roles,
+          publicAccess: m.publicAccess,
+          steps: m.addOn.steps,
         }),
       );
     }

@@ -87,6 +87,8 @@ export interface AddOnInstallerDeps {
    * null, an add-on that needs it is refused, by name.
    */
   core?: (() => InstallCore | null) | undefined;
+  /** A reviews add-on's totals, worked out again from its published reviews once it is installed or updated (`reviews/recount.ts`). */
+  recountReviews?: ((connectionId: string, addOnKey: string) => Promise<void>) | undefined;
 }
 
 /** Who did it, for the audit rows. */
@@ -839,6 +841,12 @@ async function installLikeAnApp(
     } catch (error) {
       where.log.warn({ err: error, addOn: key }, 'the add-on is installed, but its document profiles were not made');
     }
+    // Its reviews' totals, from the published reviews. Never what stops an install.
+    try {
+      await deps.recountReviews?.(connectionId, key);
+    } catch (error) {
+      where.log.warn({ err: error, addOn: key }, 'the add-on is installed, but its reviews\' totals were not worked out again');
+    }
     return { ...row, row: { ...row.row, status: 'installed' } };
   };
 
@@ -1311,6 +1319,12 @@ export async function updateAddOn(deps: AddOnInstallerDeps, input: UpdateAddOnIn
       if (documents !== undefined) written = { ...written, documents };
     } catch (error) {
       where.log.warn({ err: error, addOn: key }, 'the add-on is updated, but its document profiles were not brought up to date');
+    }
+    // Its reviews' totals, from the published reviews. Never what stops an update.
+    try {
+      await deps.recountReviews?.(connectionId, key);
+    } catch (error) {
+      where.log.warn({ err: error, addOn: key }, 'the add-on is updated, but its reviews\' totals were not worked out again');
     }
   };
 

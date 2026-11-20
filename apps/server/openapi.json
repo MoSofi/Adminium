@@ -25606,6 +25606,24 @@
                                                 "count"
                                               ],
                                               "additionalProperties": false
+                                            },
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "words": {
+                                                  "type": "string",
+                                                  "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                },
+                                                "of": {
+                                                  "type": "string",
+                                                  "maxLength": 128
+                                                }
+                                              },
+                                              "required": [
+                                                "words",
+                                                "of"
+                                              ],
+                                              "additionalProperties": false
                                             }
                                           ]
                                         },
@@ -25921,6 +25939,24 @@
                                                   },
                                                   "required": [
                                                     "count"
+                                                  ],
+                                                  "additionalProperties": false
+                                                },
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "words": {
+                                                      "type": "string",
+                                                      "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                    },
+                                                    "of": {
+                                                      "type": "string",
+                                                      "maxLength": 128
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "words",
+                                                    "of"
                                                   ],
                                                   "additionalProperties": false
                                                 }
@@ -26801,6 +26837,24 @@
                                                                         "count"
                                                                       ],
                                                                       "additionalProperties": false
+                                                                    },
+                                                                    {
+                                                                      "type": "object",
+                                                                      "properties": {
+                                                                        "words": {
+                                                                          "type": "string",
+                                                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                        },
+                                                                        "of": {
+                                                                          "type": "string",
+                                                                          "maxLength": 128
+                                                                        }
+                                                                      },
+                                                                      "required": [
+                                                                        "words",
+                                                                        "of"
+                                                                      ],
+                                                                      "additionalProperties": false
                                                                     }
                                                                   ]
                                                                 },
@@ -27563,6 +27617,24 @@
                                                         "count"
                                                       ],
                                                       "additionalProperties": false
+                                                    },
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "words": {
+                                                          "type": "string",
+                                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                        },
+                                                        "of": {
+                                                          "type": "string",
+                                                          "maxLength": 128
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "words",
+                                                        "of"
+                                                      ],
+                                                      "additionalProperties": false
                                                     }
                                                   ]
                                                 },
@@ -27837,6 +27909,24 @@
                                                       },
                                                       "required": [
                                                         "count"
+                                                      ],
+                                                      "additionalProperties": false
+                                                    },
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "words": {
+                                                          "type": "string",
+                                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                        },
+                                                        "of": {
+                                                          "type": "string",
+                                                          "maxLength": 128
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "words",
+                                                        "of"
                                                       ],
                                                       "additionalProperties": false
                                                     }
@@ -28653,6 +28743,24 @@
                                                                                               "count"
                                                                                             ],
                                                                                             "additionalProperties": false
+                                                                                          },
+                                                                                          {
+                                                                                            "type": "object",
+                                                                                            "properties": {
+                                                                                              "words": {
+                                                                                                "type": "string",
+                                                                                                "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                                              },
+                                                                                              "of": {
+                                                                                                "type": "string",
+                                                                                                "maxLength": 128
+                                                                                              }
+                                                                                            },
+                                                                                            "required": [
+                                                                                              "words",
+                                                                                              "of"
+                                                                                            ],
+                                                                                            "additionalProperties": false
                                                                                           }
                                                                                         ]
                                                                                       },
@@ -29413,6 +29521,24 @@
                                                                             },
                                                                             "required": [
                                                                               "count"
+                                                                            ],
+                                                                            "additionalProperties": false
+                                                                          },
+                                                                          {
+                                                                            "type": "object",
+                                                                            "properties": {
+                                                                              "words": {
+                                                                                "type": "string",
+                                                                                "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                              },
+                                                                              "of": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              }
+                                                                            },
+                                                                            "required": [
+                                                                              "words",
+                                                                              "of"
                                                                             ],
                                                                             "additionalProperties": false
                                                                           }
@@ -30338,6 +30464,24 @@
                                                                                               "count"
                                                                                             ],
                                                                                             "additionalProperties": false
+                                                                                          },
+                                                                                          {
+                                                                                            "type": "object",
+                                                                                            "properties": {
+                                                                                              "words": {
+                                                                                                "type": "string",
+                                                                                                "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                                              },
+                                                                                              "of": {
+                                                                                                "type": "string",
+                                                                                                "maxLength": 128
+                                                                                              }
+                                                                                            },
+                                                                                            "required": [
+                                                                                              "words",
+                                                                                              "of"
+                                                                                            ],
+                                                                                            "additionalProperties": false
                                                                                           }
                                                                                         ]
                                                                                       },
@@ -31100,6 +31244,24 @@
                                                                               "count"
                                                                             ],
                                                                             "additionalProperties": false
+                                                                          },
+                                                                          {
+                                                                            "type": "object",
+                                                                            "properties": {
+                                                                              "words": {
+                                                                                "type": "string",
+                                                                                "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                              },
+                                                                              "of": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              }
+                                                                            },
+                                                                            "required": [
+                                                                              "words",
+                                                                              "of"
+                                                                            ],
+                                                                            "additionalProperties": false
                                                                           }
                                                                         ]
                                                                       },
@@ -31723,6 +31885,23 @@
                                       "required": [
                                         "count"
                                       ]
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "words": {
+                                          "type": "string",
+                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                        },
+                                        "of": {
+                                          "type": "string",
+                                          "maxLength": 128
+                                        }
+                                      },
+                                      "required": [
+                                        "words",
+                                        "of"
+                                      ]
                                     }
                                   ]
                                 },
@@ -32026,6 +32205,23 @@
                                           },
                                           "required": [
                                             "count"
+                                          ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "words": {
+                                              "type": "string",
+                                              "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                            },
+                                            "of": {
+                                              "type": "string",
+                                              "maxLength": 128
+                                            }
+                                          },
+                                          "required": [
+                                            "words",
+                                            "of"
                                           ]
                                         }
                                       ]
@@ -32869,6 +33065,23 @@
                                                               "required": [
                                                                 "count"
                                                               ]
+                                                            },
+                                                            {
+                                                              "type": "object",
+                                                              "properties": {
+                                                                "words": {
+                                                                  "type": "string",
+                                                                  "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                },
+                                                                "of": {
+                                                                  "type": "string",
+                                                                  "maxLength": 128
+                                                                }
+                                                              },
+                                                              "required": [
+                                                                "words",
+                                                                "of"
+                                                              ]
                                                             }
                                                           ]
                                                         },
@@ -33587,6 +33800,23 @@
                                               "required": [
                                                 "count"
                                               ]
+                                            },
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "words": {
+                                                  "type": "string",
+                                                  "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                },
+                                                "of": {
+                                                  "type": "string",
+                                                  "maxLength": 128
+                                                }
+                                              },
+                                              "required": [
+                                                "words",
+                                                "of"
+                                              ]
                                             }
                                           ]
                                         },
@@ -33850,6 +34080,23 @@
                                               },
                                               "required": [
                                                 "count"
+                                              ]
+                                            },
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "words": {
+                                                  "type": "string",
+                                                  "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                },
+                                                "of": {
+                                                  "type": "string",
+                                                  "maxLength": 128
+                                                }
+                                              },
+                                              "required": [
+                                                "words",
+                                                "of"
                                               ]
                                             }
                                           ]
@@ -34632,6 +34879,23 @@
                                                                                     "required": [
                                                                                       "count"
                                                                                     ]
+                                                                                  },
+                                                                                  {
+                                                                                    "type": "object",
+                                                                                    "properties": {
+                                                                                      "words": {
+                                                                                        "type": "string",
+                                                                                        "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                                      },
+                                                                                      "of": {
+                                                                                        "type": "string",
+                                                                                        "maxLength": 128
+                                                                                      }
+                                                                                    },
+                                                                                    "required": [
+                                                                                      "words",
+                                                                                      "of"
+                                                                                    ]
                                                                                   }
                                                                                 ]
                                                                               },
@@ -35349,6 +35613,23 @@
                                                                     },
                                                                     "required": [
                                                                       "count"
+                                                                    ]
+                                                                  },
+                                                                  {
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                      "words": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                      },
+                                                                      "of": {
+                                                                        "type": "string",
+                                                                        "maxLength": 128
+                                                                      }
+                                                                    },
+                                                                    "required": [
+                                                                      "words",
+                                                                      "of"
                                                                     ]
                                                                   }
                                                                 ]
@@ -36235,6 +36516,23 @@
                                                                                     "required": [
                                                                                       "count"
                                                                                     ]
+                                                                                  },
+                                                                                  {
+                                                                                    "type": "object",
+                                                                                    "properties": {
+                                                                                      "words": {
+                                                                                        "type": "string",
+                                                                                        "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                                      },
+                                                                                      "of": {
+                                                                                        "type": "string",
+                                                                                        "maxLength": 128
+                                                                                      }
+                                                                                    },
+                                                                                    "required": [
+                                                                                      "words",
+                                                                                      "of"
+                                                                                    ]
                                                                                   }
                                                                                 ]
                                                                               },
@@ -36953,6 +37251,23 @@
                                                                     "required": [
                                                                       "count"
                                                                     ]
+                                                                  },
+                                                                  {
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                      "words": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                      },
+                                                                      "of": {
+                                                                        "type": "string",
+                                                                        "maxLength": 128
+                                                                      }
+                                                                    },
+                                                                    "required": [
+                                                                      "words",
+                                                                      "of"
+                                                                    ]
                                                                   }
                                                                 ]
                                                               },
@@ -37444,6 +37759,24 @@
                                           "count"
                                         ],
                                         "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "words": {
+                                            "type": "string",
+                                            "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                          },
+                                          "of": {
+                                            "type": "string",
+                                            "maxLength": 128
+                                          }
+                                        },
+                                        "required": [
+                                          "words",
+                                          "of"
+                                        ],
+                                        "additionalProperties": false
                                       }
                                     ]
                                   },
@@ -37759,6 +38092,24 @@
                                             },
                                             "required": [
                                               "count"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "words": {
+                                                "type": "string",
+                                                "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                              },
+                                              "of": {
+                                                "type": "string",
+                                                "maxLength": 128
+                                              }
+                                            },
+                                            "required": [
+                                              "words",
+                                              "of"
                                             ],
                                             "additionalProperties": false
                                           }
@@ -38639,6 +38990,24 @@
                                                                   "count"
                                                                 ],
                                                                 "additionalProperties": false
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "words": {
+                                                                    "type": "string",
+                                                                    "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                  },
+                                                                  "of": {
+                                                                    "type": "string",
+                                                                    "maxLength": 128
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "words",
+                                                                  "of"
+                                                                ],
+                                                                "additionalProperties": false
                                                               }
                                                             ]
                                                           },
@@ -39401,6 +39770,24 @@
                                                   "count"
                                                 ],
                                                 "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "words": {
+                                                    "type": "string",
+                                                    "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                  },
+                                                  "of": {
+                                                    "type": "string",
+                                                    "maxLength": 128
+                                                  }
+                                                },
+                                                "required": [
+                                                  "words",
+                                                  "of"
+                                                ],
+                                                "additionalProperties": false
                                               }
                                             ]
                                           },
@@ -39675,6 +40062,24 @@
                                                 },
                                                 "required": [
                                                   "count"
+                                                ],
+                                                "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "words": {
+                                                    "type": "string",
+                                                    "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                  },
+                                                  "of": {
+                                                    "type": "string",
+                                                    "maxLength": 128
+                                                  }
+                                                },
+                                                "required": [
+                                                  "words",
+                                                  "of"
                                                 ],
                                                 "additionalProperties": false
                                               }
@@ -40491,6 +40896,24 @@
                                                                                         "count"
                                                                                       ],
                                                                                       "additionalProperties": false
+                                                                                    },
+                                                                                    {
+                                                                                      "type": "object",
+                                                                                      "properties": {
+                                                                                        "words": {
+                                                                                          "type": "string",
+                                                                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                                        },
+                                                                                        "of": {
+                                                                                          "type": "string",
+                                                                                          "maxLength": 128
+                                                                                        }
+                                                                                      },
+                                                                                      "required": [
+                                                                                        "words",
+                                                                                        "of"
+                                                                                      ],
+                                                                                      "additionalProperties": false
                                                                                     }
                                                                                   ]
                                                                                 },
@@ -41251,6 +41674,24 @@
                                                                       },
                                                                       "required": [
                                                                         "count"
+                                                                      ],
+                                                                      "additionalProperties": false
+                                                                    },
+                                                                    {
+                                                                      "type": "object",
+                                                                      "properties": {
+                                                                        "words": {
+                                                                          "type": "string",
+                                                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                        },
+                                                                        "of": {
+                                                                          "type": "string",
+                                                                          "maxLength": 128
+                                                                        }
+                                                                      },
+                                                                      "required": [
+                                                                        "words",
+                                                                        "of"
                                                                       ],
                                                                       "additionalProperties": false
                                                                     }
@@ -42176,6 +42617,24 @@
                                                                                         "count"
                                                                                       ],
                                                                                       "additionalProperties": false
+                                                                                    },
+                                                                                    {
+                                                                                      "type": "object",
+                                                                                      "properties": {
+                                                                                        "words": {
+                                                                                          "type": "string",
+                                                                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                                        },
+                                                                                        "of": {
+                                                                                          "type": "string",
+                                                                                          "maxLength": 128
+                                                                                        }
+                                                                                      },
+                                                                                      "required": [
+                                                                                        "words",
+                                                                                        "of"
+                                                                                      ],
+                                                                                      "additionalProperties": false
                                                                                     }
                                                                                   ]
                                                                                 },
@@ -42936,6 +43395,24 @@
                                                                       },
                                                                       "required": [
                                                                         "count"
+                                                                      ],
+                                                                      "additionalProperties": false
+                                                                    },
+                                                                    {
+                                                                      "type": "object",
+                                                                      "properties": {
+                                                                        "words": {
+                                                                          "type": "string",
+                                                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                        },
+                                                                        "of": {
+                                                                          "type": "string",
+                                                                          "maxLength": 128
+                                                                        }
+                                                                      },
+                                                                      "required": [
+                                                                        "words",
+                                                                        "of"
                                                                       ],
                                                                       "additionalProperties": false
                                                                     }
@@ -44336,6 +44813,24 @@
                                           "count"
                                         ],
                                         "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "words": {
+                                            "type": "string",
+                                            "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                          },
+                                          "of": {
+                                            "type": "string",
+                                            "maxLength": 128
+                                          }
+                                        },
+                                        "required": [
+                                          "words",
+                                          "of"
+                                        ],
+                                        "additionalProperties": false
                                       }
                                     ]
                                   },
@@ -44651,6 +45146,24 @@
                                             },
                                             "required": [
                                               "count"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "words": {
+                                                "type": "string",
+                                                "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                              },
+                                              "of": {
+                                                "type": "string",
+                                                "maxLength": 128
+                                              }
+                                            },
+                                            "required": [
+                                              "words",
+                                              "of"
                                             ],
                                             "additionalProperties": false
                                           }
@@ -45531,6 +46044,24 @@
                                                                   "count"
                                                                 ],
                                                                 "additionalProperties": false
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "words": {
+                                                                    "type": "string",
+                                                                    "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                  },
+                                                                  "of": {
+                                                                    "type": "string",
+                                                                    "maxLength": 128
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "words",
+                                                                  "of"
+                                                                ],
+                                                                "additionalProperties": false
                                                               }
                                                             ]
                                                           },
@@ -46293,6 +46824,24 @@
                                                   "count"
                                                 ],
                                                 "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "words": {
+                                                    "type": "string",
+                                                    "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                  },
+                                                  "of": {
+                                                    "type": "string",
+                                                    "maxLength": 128
+                                                  }
+                                                },
+                                                "required": [
+                                                  "words",
+                                                  "of"
+                                                ],
+                                                "additionalProperties": false
                                               }
                                             ]
                                           },
@@ -46567,6 +47116,24 @@
                                                 },
                                                 "required": [
                                                   "count"
+                                                ],
+                                                "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "words": {
+                                                    "type": "string",
+                                                    "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                  },
+                                                  "of": {
+                                                    "type": "string",
+                                                    "maxLength": 128
+                                                  }
+                                                },
+                                                "required": [
+                                                  "words",
+                                                  "of"
                                                 ],
                                                 "additionalProperties": false
                                               }
@@ -47383,6 +47950,24 @@
                                                                                         "count"
                                                                                       ],
                                                                                       "additionalProperties": false
+                                                                                    },
+                                                                                    {
+                                                                                      "type": "object",
+                                                                                      "properties": {
+                                                                                        "words": {
+                                                                                          "type": "string",
+                                                                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                                        },
+                                                                                        "of": {
+                                                                                          "type": "string",
+                                                                                          "maxLength": 128
+                                                                                        }
+                                                                                      },
+                                                                                      "required": [
+                                                                                        "words",
+                                                                                        "of"
+                                                                                      ],
+                                                                                      "additionalProperties": false
                                                                                     }
                                                                                   ]
                                                                                 },
@@ -48143,6 +48728,24 @@
                                                                       },
                                                                       "required": [
                                                                         "count"
+                                                                      ],
+                                                                      "additionalProperties": false
+                                                                    },
+                                                                    {
+                                                                      "type": "object",
+                                                                      "properties": {
+                                                                        "words": {
+                                                                          "type": "string",
+                                                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                        },
+                                                                        "of": {
+                                                                          "type": "string",
+                                                                          "maxLength": 128
+                                                                        }
+                                                                      },
+                                                                      "required": [
+                                                                        "words",
+                                                                        "of"
                                                                       ],
                                                                       "additionalProperties": false
                                                                     }
@@ -49068,6 +49671,24 @@
                                                                                         "count"
                                                                                       ],
                                                                                       "additionalProperties": false
+                                                                                    },
+                                                                                    {
+                                                                                      "type": "object",
+                                                                                      "properties": {
+                                                                                        "words": {
+                                                                                          "type": "string",
+                                                                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                                        },
+                                                                                        "of": {
+                                                                                          "type": "string",
+                                                                                          "maxLength": 128
+                                                                                        }
+                                                                                      },
+                                                                                      "required": [
+                                                                                        "words",
+                                                                                        "of"
+                                                                                      ],
+                                                                                      "additionalProperties": false
                                                                                     }
                                                                                   ]
                                                                                 },
@@ -49830,6 +50451,24 @@
                                                                         "count"
                                                                       ],
                                                                       "additionalProperties": false
+                                                                    },
+                                                                    {
+                                                                      "type": "object",
+                                                                      "properties": {
+                                                                        "words": {
+                                                                          "type": "string",
+                                                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                        },
+                                                                        "of": {
+                                                                          "type": "string",
+                                                                          "maxLength": 128
+                                                                        }
+                                                                      },
+                                                                      "required": [
+                                                                        "words",
+                                                                        "of"
+                                                                      ],
+                                                                      "additionalProperties": false
                                                                     }
                                                                   ]
                                                                 },
@@ -50440,6 +51079,23 @@
                                       "required": [
                                         "count"
                                       ]
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "words": {
+                                          "type": "string",
+                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                        },
+                                        "of": {
+                                          "type": "string",
+                                          "maxLength": 128
+                                        }
+                                      },
+                                      "required": [
+                                        "words",
+                                        "of"
+                                      ]
                                     }
                                   ]
                                 },
@@ -50743,6 +51399,23 @@
                                           },
                                           "required": [
                                             "count"
+                                          ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "words": {
+                                              "type": "string",
+                                              "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                            },
+                                            "of": {
+                                              "type": "string",
+                                              "maxLength": 128
+                                            }
+                                          },
+                                          "required": [
+                                            "words",
+                                            "of"
                                           ]
                                         }
                                       ]
@@ -51586,6 +52259,23 @@
                                                               "required": [
                                                                 "count"
                                                               ]
+                                                            },
+                                                            {
+                                                              "type": "object",
+                                                              "properties": {
+                                                                "words": {
+                                                                  "type": "string",
+                                                                  "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                },
+                                                                "of": {
+                                                                  "type": "string",
+                                                                  "maxLength": 128
+                                                                }
+                                                              },
+                                                              "required": [
+                                                                "words",
+                                                                "of"
+                                                              ]
                                                             }
                                                           ]
                                                         },
@@ -52304,6 +52994,23 @@
                                               "required": [
                                                 "count"
                                               ]
+                                            },
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "words": {
+                                                  "type": "string",
+                                                  "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                },
+                                                "of": {
+                                                  "type": "string",
+                                                  "maxLength": 128
+                                                }
+                                              },
+                                              "required": [
+                                                "words",
+                                                "of"
+                                              ]
                                             }
                                           ]
                                         },
@@ -52567,6 +53274,23 @@
                                               },
                                               "required": [
                                                 "count"
+                                              ]
+                                            },
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "words": {
+                                                  "type": "string",
+                                                  "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                },
+                                                "of": {
+                                                  "type": "string",
+                                                  "maxLength": 128
+                                                }
+                                              },
+                                              "required": [
+                                                "words",
+                                                "of"
                                               ]
                                             }
                                           ]
@@ -53349,6 +54073,23 @@
                                                                                     "required": [
                                                                                       "count"
                                                                                     ]
+                                                                                  },
+                                                                                  {
+                                                                                    "type": "object",
+                                                                                    "properties": {
+                                                                                      "words": {
+                                                                                        "type": "string",
+                                                                                        "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                                      },
+                                                                                      "of": {
+                                                                                        "type": "string",
+                                                                                        "maxLength": 128
+                                                                                      }
+                                                                                    },
+                                                                                    "required": [
+                                                                                      "words",
+                                                                                      "of"
+                                                                                    ]
                                                                                   }
                                                                                 ]
                                                                               },
@@ -54066,6 +54807,23 @@
                                                                     },
                                                                     "required": [
                                                                       "count"
+                                                                    ]
+                                                                  },
+                                                                  {
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                      "words": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                      },
+                                                                      "of": {
+                                                                        "type": "string",
+                                                                        "maxLength": 128
+                                                                      }
+                                                                    },
+                                                                    "required": [
+                                                                      "words",
+                                                                      "of"
                                                                     ]
                                                                   }
                                                                 ]
@@ -54952,6 +55710,23 @@
                                                                                     "required": [
                                                                                       "count"
                                                                                     ]
+                                                                                  },
+                                                                                  {
+                                                                                    "type": "object",
+                                                                                    "properties": {
+                                                                                      "words": {
+                                                                                        "type": "string",
+                                                                                        "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                                      },
+                                                                                      "of": {
+                                                                                        "type": "string",
+                                                                                        "maxLength": 128
+                                                                                      }
+                                                                                    },
+                                                                                    "required": [
+                                                                                      "words",
+                                                                                      "of"
+                                                                                    ]
                                                                                   }
                                                                                 ]
                                                                               },
@@ -55670,6 +56445,23 @@
                                                                     "required": [
                                                                       "count"
                                                                     ]
+                                                                  },
+                                                                  {
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                      "words": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                      },
+                                                                      "of": {
+                                                                        "type": "string",
+                                                                        "maxLength": 128
+                                                                      }
+                                                                    },
+                                                                    "required": [
+                                                                      "words",
+                                                                      "of"
+                                                                    ]
                                                                   }
                                                                 ]
                                                               },
@@ -56166,6 +56958,24 @@
                                           "count"
                                         ],
                                         "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "words": {
+                                            "type": "string",
+                                            "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                          },
+                                          "of": {
+                                            "type": "string",
+                                            "maxLength": 128
+                                          }
+                                        },
+                                        "required": [
+                                          "words",
+                                          "of"
+                                        ],
+                                        "additionalProperties": false
                                       }
                                     ]
                                   },
@@ -56481,6 +57291,24 @@
                                             },
                                             "required": [
                                               "count"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "words": {
+                                                "type": "string",
+                                                "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                              },
+                                              "of": {
+                                                "type": "string",
+                                                "maxLength": 128
+                                              }
+                                            },
+                                            "required": [
+                                              "words",
+                                              "of"
                                             ],
                                             "additionalProperties": false
                                           }
@@ -57361,6 +58189,24 @@
                                                                   "count"
                                                                 ],
                                                                 "additionalProperties": false
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "words": {
+                                                                    "type": "string",
+                                                                    "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                  },
+                                                                  "of": {
+                                                                    "type": "string",
+                                                                    "maxLength": 128
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "words",
+                                                                  "of"
+                                                                ],
+                                                                "additionalProperties": false
                                                               }
                                                             ]
                                                           },
@@ -58123,6 +58969,24 @@
                                                   "count"
                                                 ],
                                                 "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "words": {
+                                                    "type": "string",
+                                                    "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                  },
+                                                  "of": {
+                                                    "type": "string",
+                                                    "maxLength": 128
+                                                  }
+                                                },
+                                                "required": [
+                                                  "words",
+                                                  "of"
+                                                ],
+                                                "additionalProperties": false
                                               }
                                             ]
                                           },
@@ -58397,6 +59261,24 @@
                                                 },
                                                 "required": [
                                                   "count"
+                                                ],
+                                                "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "words": {
+                                                    "type": "string",
+                                                    "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                  },
+                                                  "of": {
+                                                    "type": "string",
+                                                    "maxLength": 128
+                                                  }
+                                                },
+                                                "required": [
+                                                  "words",
+                                                  "of"
                                                 ],
                                                 "additionalProperties": false
                                               }
@@ -59213,6 +60095,24 @@
                                                                                         "count"
                                                                                       ],
                                                                                       "additionalProperties": false
+                                                                                    },
+                                                                                    {
+                                                                                      "type": "object",
+                                                                                      "properties": {
+                                                                                        "words": {
+                                                                                          "type": "string",
+                                                                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                                        },
+                                                                                        "of": {
+                                                                                          "type": "string",
+                                                                                          "maxLength": 128
+                                                                                        }
+                                                                                      },
+                                                                                      "required": [
+                                                                                        "words",
+                                                                                        "of"
+                                                                                      ],
+                                                                                      "additionalProperties": false
                                                                                     }
                                                                                   ]
                                                                                 },
@@ -59973,6 +60873,24 @@
                                                                       },
                                                                       "required": [
                                                                         "count"
+                                                                      ],
+                                                                      "additionalProperties": false
+                                                                    },
+                                                                    {
+                                                                      "type": "object",
+                                                                      "properties": {
+                                                                        "words": {
+                                                                          "type": "string",
+                                                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                        },
+                                                                        "of": {
+                                                                          "type": "string",
+                                                                          "maxLength": 128
+                                                                        }
+                                                                      },
+                                                                      "required": [
+                                                                        "words",
+                                                                        "of"
                                                                       ],
                                                                       "additionalProperties": false
                                                                     }
@@ -60898,6 +61816,24 @@
                                                                                         "count"
                                                                                       ],
                                                                                       "additionalProperties": false
+                                                                                    },
+                                                                                    {
+                                                                                      "type": "object",
+                                                                                      "properties": {
+                                                                                        "words": {
+                                                                                          "type": "string",
+                                                                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                                        },
+                                                                                        "of": {
+                                                                                          "type": "string",
+                                                                                          "maxLength": 128
+                                                                                        }
+                                                                                      },
+                                                                                      "required": [
+                                                                                        "words",
+                                                                                        "of"
+                                                                                      ],
+                                                                                      "additionalProperties": false
                                                                                     }
                                                                                   ]
                                                                                 },
@@ -61658,6 +62594,24 @@
                                                                       },
                                                                       "required": [
                                                                         "count"
+                                                                      ],
+                                                                      "additionalProperties": false
+                                                                    },
+                                                                    {
+                                                                      "type": "object",
+                                                                      "properties": {
+                                                                        "words": {
+                                                                          "type": "string",
+                                                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                        },
+                                                                        "of": {
+                                                                          "type": "string",
+                                                                          "maxLength": 128
+                                                                        }
+                                                                      },
+                                                                      "required": [
+                                                                        "words",
+                                                                        "of"
                                                                       ],
                                                                       "additionalProperties": false
                                                                     }
@@ -62345,6 +63299,24 @@
                                           "count"
                                         ],
                                         "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "words": {
+                                            "type": "string",
+                                            "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                          },
+                                          "of": {
+                                            "type": "string",
+                                            "maxLength": 128
+                                          }
+                                        },
+                                        "required": [
+                                          "words",
+                                          "of"
+                                        ],
+                                        "additionalProperties": false
                                       }
                                     ]
                                   },
@@ -62660,6 +63632,24 @@
                                             },
                                             "required": [
                                               "count"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "words": {
+                                                "type": "string",
+                                                "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                              },
+                                              "of": {
+                                                "type": "string",
+                                                "maxLength": 128
+                                              }
+                                            },
+                                            "required": [
+                                              "words",
+                                              "of"
                                             ],
                                             "additionalProperties": false
                                           }
@@ -63540,6 +64530,24 @@
                                                                   "count"
                                                                 ],
                                                                 "additionalProperties": false
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "words": {
+                                                                    "type": "string",
+                                                                    "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                  },
+                                                                  "of": {
+                                                                    "type": "string",
+                                                                    "maxLength": 128
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "words",
+                                                                  "of"
+                                                                ],
+                                                                "additionalProperties": false
                                                               }
                                                             ]
                                                           },
@@ -64302,6 +65310,24 @@
                                                   "count"
                                                 ],
                                                 "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "words": {
+                                                    "type": "string",
+                                                    "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                  },
+                                                  "of": {
+                                                    "type": "string",
+                                                    "maxLength": 128
+                                                  }
+                                                },
+                                                "required": [
+                                                  "words",
+                                                  "of"
+                                                ],
+                                                "additionalProperties": false
                                               }
                                             ]
                                           },
@@ -64576,6 +65602,24 @@
                                                 },
                                                 "required": [
                                                   "count"
+                                                ],
+                                                "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "words": {
+                                                    "type": "string",
+                                                    "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                  },
+                                                  "of": {
+                                                    "type": "string",
+                                                    "maxLength": 128
+                                                  }
+                                                },
+                                                "required": [
+                                                  "words",
+                                                  "of"
                                                 ],
                                                 "additionalProperties": false
                                               }
@@ -65392,6 +66436,24 @@
                                                                                         "count"
                                                                                       ],
                                                                                       "additionalProperties": false
+                                                                                    },
+                                                                                    {
+                                                                                      "type": "object",
+                                                                                      "properties": {
+                                                                                        "words": {
+                                                                                          "type": "string",
+                                                                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                                        },
+                                                                                        "of": {
+                                                                                          "type": "string",
+                                                                                          "maxLength": 128
+                                                                                        }
+                                                                                      },
+                                                                                      "required": [
+                                                                                        "words",
+                                                                                        "of"
+                                                                                      ],
+                                                                                      "additionalProperties": false
                                                                                     }
                                                                                   ]
                                                                                 },
@@ -66152,6 +67214,24 @@
                                                                       },
                                                                       "required": [
                                                                         "count"
+                                                                      ],
+                                                                      "additionalProperties": false
+                                                                    },
+                                                                    {
+                                                                      "type": "object",
+                                                                      "properties": {
+                                                                        "words": {
+                                                                          "type": "string",
+                                                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                        },
+                                                                        "of": {
+                                                                          "type": "string",
+                                                                          "maxLength": 128
+                                                                        }
+                                                                      },
+                                                                      "required": [
+                                                                        "words",
+                                                                        "of"
                                                                       ],
                                                                       "additionalProperties": false
                                                                     }
@@ -67077,6 +68157,24 @@
                                                                                         "count"
                                                                                       ],
                                                                                       "additionalProperties": false
+                                                                                    },
+                                                                                    {
+                                                                                      "type": "object",
+                                                                                      "properties": {
+                                                                                        "words": {
+                                                                                          "type": "string",
+                                                                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                                        },
+                                                                                        "of": {
+                                                                                          "type": "string",
+                                                                                          "maxLength": 128
+                                                                                        }
+                                                                                      },
+                                                                                      "required": [
+                                                                                        "words",
+                                                                                        "of"
+                                                                                      ],
+                                                                                      "additionalProperties": false
                                                                                     }
                                                                                   ]
                                                                                 },
@@ -67839,6 +68937,24 @@
                                                                         "count"
                                                                       ],
                                                                       "additionalProperties": false
+                                                                    },
+                                                                    {
+                                                                      "type": "object",
+                                                                      "properties": {
+                                                                        "words": {
+                                                                          "type": "string",
+                                                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                        },
+                                                                        "of": {
+                                                                          "type": "string",
+                                                                          "maxLength": 128
+                                                                        }
+                                                                      },
+                                                                      "required": [
+                                                                        "words",
+                                                                        "of"
+                                                                      ],
+                                                                      "additionalProperties": false
                                                                     }
                                                                   ]
                                                                 },
@@ -68446,6 +69562,23 @@
                                       "required": [
                                         "count"
                                       ]
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "words": {
+                                          "type": "string",
+                                          "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                        },
+                                        "of": {
+                                          "type": "string",
+                                          "maxLength": 128
+                                        }
+                                      },
+                                      "required": [
+                                        "words",
+                                        "of"
+                                      ]
                                     }
                                   ]
                                 },
@@ -68749,6 +69882,23 @@
                                           },
                                           "required": [
                                             "count"
+                                          ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "words": {
+                                              "type": "string",
+                                              "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                            },
+                                            "of": {
+                                              "type": "string",
+                                              "maxLength": 128
+                                            }
+                                          },
+                                          "required": [
+                                            "words",
+                                            "of"
                                           ]
                                         }
                                       ]
@@ -69592,6 +70742,23 @@
                                                               "required": [
                                                                 "count"
                                                               ]
+                                                            },
+                                                            {
+                                                              "type": "object",
+                                                              "properties": {
+                                                                "words": {
+                                                                  "type": "string",
+                                                                  "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                },
+                                                                "of": {
+                                                                  "type": "string",
+                                                                  "maxLength": 128
+                                                                }
+                                                              },
+                                                              "required": [
+                                                                "words",
+                                                                "of"
+                                                              ]
                                                             }
                                                           ]
                                                         },
@@ -70310,6 +71477,23 @@
                                               "required": [
                                                 "count"
                                               ]
+                                            },
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "words": {
+                                                  "type": "string",
+                                                  "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                },
+                                                "of": {
+                                                  "type": "string",
+                                                  "maxLength": 128
+                                                }
+                                              },
+                                              "required": [
+                                                "words",
+                                                "of"
+                                              ]
                                             }
                                           ]
                                         },
@@ -70573,6 +71757,23 @@
                                               },
                                               "required": [
                                                 "count"
+                                              ]
+                                            },
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "words": {
+                                                  "type": "string",
+                                                  "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                },
+                                                "of": {
+                                                  "type": "string",
+                                                  "maxLength": 128
+                                                }
+                                              },
+                                              "required": [
+                                                "words",
+                                                "of"
                                               ]
                                             }
                                           ]
@@ -71355,6 +72556,23 @@
                                                                                     "required": [
                                                                                       "count"
                                                                                     ]
+                                                                                  },
+                                                                                  {
+                                                                                    "type": "object",
+                                                                                    "properties": {
+                                                                                      "words": {
+                                                                                        "type": "string",
+                                                                                        "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                                      },
+                                                                                      "of": {
+                                                                                        "type": "string",
+                                                                                        "maxLength": 128
+                                                                                      }
+                                                                                    },
+                                                                                    "required": [
+                                                                                      "words",
+                                                                                      "of"
+                                                                                    ]
                                                                                   }
                                                                                 ]
                                                                               },
@@ -72072,6 +73290,23 @@
                                                                     },
                                                                     "required": [
                                                                       "count"
+                                                                    ]
+                                                                  },
+                                                                  {
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                      "words": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                      },
+                                                                      "of": {
+                                                                        "type": "string",
+                                                                        "maxLength": 128
+                                                                      }
+                                                                    },
+                                                                    "required": [
+                                                                      "words",
+                                                                      "of"
                                                                     ]
                                                                   }
                                                                 ]
@@ -72958,6 +74193,23 @@
                                                                                     "required": [
                                                                                       "count"
                                                                                     ]
+                                                                                  },
+                                                                                  {
+                                                                                    "type": "object",
+                                                                                    "properties": {
+                                                                                      "words": {
+                                                                                        "type": "string",
+                                                                                        "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                                      },
+                                                                                      "of": {
+                                                                                        "type": "string",
+                                                                                        "maxLength": 128
+                                                                                      }
+                                                                                    },
+                                                                                    "required": [
+                                                                                      "words",
+                                                                                      "of"
+                                                                                    ]
                                                                                   }
                                                                                 ]
                                                                               },
@@ -73675,6 +74927,23 @@
                                                                     },
                                                                     "required": [
                                                                       "count"
+                                                                    ]
+                                                                  },
+                                                                  {
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                      "words": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$"
+                                                                      },
+                                                                      "of": {
+                                                                        "type": "string",
+                                                                        "maxLength": 128
+                                                                      }
+                                                                    },
+                                                                    "required": [
+                                                                      "words",
+                                                                      "of"
                                                                     ]
                                                                   }
                                                                 ]
@@ -181498,6 +182767,74 @@
                                 "minimum": -9007199254740991,
                                 "maximum": 9007199254740991
                               },
+                              "shopper": {
+                                "type": "object",
+                                "properties": {
+                                  "ops": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "enum": [
+                                          "eq",
+                                          "in",
+                                          "gte",
+                                          "lte",
+                                          "gt",
+                                          "lt"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "via": {
+                                    "type": "object",
+                                    "properties": {
+                                      "ref": {
+                                        "type": "string"
+                                      },
+                                      "ops": {
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string"
+                                        },
+                                        "additionalProperties": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string",
+                                            "enum": [
+                                              "eq",
+                                              "in",
+                                              "gte",
+                                              "lte",
+                                              "gt",
+                                              "lt"
+                                            ]
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "ref",
+                                      "ops"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "count": {
+                                    "type": "boolean",
+                                    "enum": [
+                                      true
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "ops"
+                                ],
+                                "additionalProperties": false
+                              },
                               "response": {
                                 "type": "object",
                                 "properties": {
@@ -181867,6 +183204,15 @@
           },
           {
             "schema": {
+              "type": "string",
+              "maxLength": 4096
+            },
+            "in": "query",
+            "name": "via",
+            "required": false
+          },
+          {
+            "schema": {
               "type": "integer",
               "minimum": 0,
               "maximum": 9007199254740991
@@ -181969,6 +183315,24 @@
                           },
                           "required": [
                             "next"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "count": {
+                          "type": "object",
+                          "properties": {
+                            "rows": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "atLeast": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "rows",
+                            "atLeast"
                           ],
                           "additionalProperties": false
                         }
@@ -193082,6 +194446,638 @@
                   },
                   "required": [
                     "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/records/{ref}/{id}/review": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "ref",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "open": {
+                          "type": "boolean"
+                        },
+                        "reviewedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "shownName": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "open",
+                        "reviewedAt",
+                        "shownName"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "stars": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  "title": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 400
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "body": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 8000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "stars"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "ref",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "reviewedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "reviewedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
                   ],
                   "additionalProperties": false
                 }

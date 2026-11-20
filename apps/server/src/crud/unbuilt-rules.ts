@@ -482,6 +482,10 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'publicAccess.appPagination',
   // A rule's condition or branch step that asks an add-on's words about a link of the record (automations/words-condition.ts).
   'automations.words',
+  // A customer's review of a row, kept by an add-on (routes/public review, reviews/); its tables; an app's role held to its app's rows.
+  'table.review',
+  'addOn.reviews',
+  'appGrants.appColumn',
 ];
 
 /**

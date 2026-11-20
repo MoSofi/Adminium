@@ -66,6 +66,10 @@ import type { FileStore } from '../files/store.js';
 import { blankCampaignSends, campaignSendIds, copyFileIds, purgeRowFiles, rowFileIds, scrubAuditImages, scrubRemovedRows, sweepAddress, sweepMailAddress, type CopyLink, type CopyRowFiles, type ImageTarget, type PersonRowRef } from './erase-meta.js';
 import { blankRow, findPersonRows, pkOf, writePersonRows, type ErasedSource, type LeftColumn, type PersonRows } from './erase-rows.js';
 import { eraseFormRows, findFormRows, formImageTargets } from './form-answers.js';
+import { blankReviews, findPersonReviews, type PersonReviews } from '../reviews/erase.js';
+import type { AddOnInstalls } from '../apps/table-ref.js';
+import type { Kysely } from 'kysely';
+import type { SourceDatabase } from '../connections/manager.js';
 import { eraseChatRows, findChatRows, type TheirRow } from './chat-transcripts.js';
 import { eraseFoundPeopleRows, findFoundPeopleRows, type FoundPersonRows } from './found-people.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
@@ -93,6 +97,8 @@ export interface EraseDeps {
    * its address, and sends nothing (`public-api/identity-email-watch.ts`).
    */
   signIns?: ((event: RecordWriteEvent) => Promise<void>) | undefined;
+  /** What is installed: a reviews add-on's reviews of theirs keep their stars and words and lose their name (`reviews/erase.ts`). */
+  reviewInstalls?: (() => Promise<AddOnInstalls>) | undefined;
   now?: (() => number) | undefined;
 }
 
@@ -384,8 +390,29 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: E
   counts['files'] = files.purged;
   filesFailed += files.failed;
 
+  // Their reviews, found while their rows still name them: blanked with their rows, and scrubbed from the log with them.
+  const reviewed: { db: Kysely<SourceDatabase>; found: PersonReviews }[] = [];
+  if (deps.reviewInstalls !== undefined && people.length > 0) {
+    const installs = await deps.reviewInstalls();
+    for (const connectionId of [...new Set(people.map((one) => one.connectionId))]) {
+      const view = await loadSnapshotView(meta, connectionId);
+      const { db } = await deps.manager.data(connectionId);
+      const theirs = people.flatMap((one) => {
+        if (one.connectionId !== connectionId) return [];
+        const table = view.linkTable(one.table);
+        return table === null ? [] : [{ table, key: one.key }];
+      });
+      for (const found of await findPersonReviews({ meta, installs, view, db: db as Kysely<SourceDatabase> }, theirs, apps === null ? null : [...apps])) reviewed.push({ db: db as Kysely<SourceDatabase>, found });
+    }
+  }
+
   // 5. The audit log and the removed-row history.
-  const targets = [...rows.databases.flatMap((database) => database.sources.map(imageTarget)), ...formImageTargets(forms)];
+  const targets = [
+    ...rows.databases.flatMap((database) => database.sources.map(imageTarget)),
+    ...formImageTargets(forms),
+    // A review's name and whose it is, in what the log kept of it.
+    ...reviewed.map(({ found }): ImageTarget => ({ connectionId: found.connectionId, table: found.table.id, keys: found.keys, columns: new Map(found.keys.map((key) => [key, ['shown_name', 'person_table', 'person_key']])), own: false })),
+  ];
   const removed = await scrubRemovedRows(meta, targets, copyLinks(rows));
   let audit = await scrubAuditImages(meta, [...targets, ...removed.copies]);
   const swept = await sweepAddress(meta, address);
@@ -394,6 +421,9 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: E
   // 6. Their rows.
   Object.assign(counts, await writePersonRows(rows));
   Object.assign(counts, await eraseFormRows(forms, erasedName, deps.answerFiles));
+  let blanked = 0;
+  for (const { db, found } of reviewed) blanked += await blankReviews(db, found);
+  if (blanked > 0) counts['reviews'] = blanked;
   Object.assign(counts, await eraseChatRows(chats, deps.chatForget));
   // The people a source found: gone, but for the days they were told on.
   const found = await eraseFoundPeopleRows(foundPeople);

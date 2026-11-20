@@ -804,6 +804,8 @@ Some of these have a guide of their own:
   app's public pages (from 0.3.43).
 - [Filters, search and sort on public lists](/guides/apps/shopper-lists/): what a shopper may
   filter, search, sort and count on a list anyone reads, and filter through another list (from 0.3.67).
+- [Customer reviews](/guides/apps/reviews/): a `review` word on the table of the rows customers review,
+  kept by an add-on, with totals Adminium keeps (from 0.3.67).
 
 Reference: [Column rules](/reference/manifest/#column-rules).
 

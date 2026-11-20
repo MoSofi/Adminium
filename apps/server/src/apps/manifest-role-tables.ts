@@ -335,7 +335,28 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
       const create: UpdateLimit | undefined = limit?.creatable === undefined || !asks('create') ? undefined : { writable: [...limit.creatable], ...(limit.creatableValues === undefined ? {} : { writableValues: limit.creatableValues }) };
       // Which rows the read and the update reach: kept for the actions the entry asks for, as the limits above are.
       const wholeRows = limit?.rows === undefined ? {} : storedRowLimit(limit.rows);
-      const rows = Object.fromEntries(Object.entries(wholeRows).filter(([action]) => asks(action as Action)));
+      const rows: Record<string, unknown> = Object.fromEntries(Object.entries(wholeRows).filter(([action]) => asks(action as Action)));
+      /*
+       * A table the add-on shares among the apps it is attached to (`appGrants.appColumn`, a review's app): an app's
+       * role reaches only its own app's rows, whatever else it is given — written every time, as every limit is. A
+       * reach the app gave already is held to the app's rows too; one already held to another column cannot be, and
+       * then the action is not given.
+       */
+      const appColumn = (manifest.requiredSchema?.tables.find((table) => table.ref === entry.table)?.appGrants as { appColumn?: string } | undefined)?.appColumn;
+      if (appColumn !== undefined) {
+        const ownApp = { column: appColumn, in: [app.key] };
+        for (const action of ['read', 'update', 'delete'] as const) {
+          if (!asks(action)) continue;
+          const given = rows[action] as Record<string, unknown> | Record<string, unknown>[] | undefined;
+          const reaches = given === undefined ? [{ reach: 'all' }] : Array.isArray(given) ? given : [given];
+          if (reaches.some((reach) => reach['while'] !== undefined)) {
+            next[action] = false;
+            continue;
+          }
+          const held = reaches.map((reach) => ({ ...reach, while: ownApp }));
+          rows[action] = held.length === 1 ? held[0] : held;
+        }
+      }
       const rowLimit = Object.keys(rows).length === 0 ? undefined : rows;
       const anyLeft = Object.values(next).some((value) => value === true);
       // The actions and their limits, one row, one statement.

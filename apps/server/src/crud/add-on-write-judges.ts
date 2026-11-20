@@ -16,22 +16,27 @@ import { chatOwnTable } from '../chat/transcripts.js';
 import { formsOwnTable } from '../forms/files.js';
 import { landingPagesTable } from '../landing/seal.js';
 import { leadsOwnTable } from '../leads/installs.js';
+import { reviewTableKind } from '../reviews/tables.js';
 import type { WriteServiceOptions } from './write-service.js';
 
-export function addOnWriteJudges(installs: Pick<AddOnInstallsKeeper, 'fresh' | 'current'>): Required<Pick<WriteServiceOptions, 'ownRecords' | 'sealedRecords' | 'landingPages'>> {
+export function addOnWriteJudges(installs: Pick<AddOnInstallsKeeper, 'fresh' | 'current'>): Required<Pick<WriteServiceOptions, 'ownRecords' | 'sealedRecords' | 'landingPages' | 'reviewTables'>> {
   return {
     // A forms add-on's answers and their files, a chat add-on's own tables, and an add-on's people found and its
     // fields' sources (the engine writes them as a person is kept, told and erased, `leads/`): written by Adminium alone.
     ownRecords: async (connectionId, tableId) => {
       const now = await installs.fresh();
-      return formsOwnTable(now, connectionId, tableId) || chatOwnTable(now, connectionId, tableId) || leadsOwnTable(now, connectionId, tableId);
+      // A reviews add-on's totals too: the engine keeps them (`reviews/tables.ts`).
+      return formsOwnTable(now, connectionId, tableId) || chatOwnTable(now, connectionId, tableId) || leadsOwnTable(now, connectionId, tableId) || reviewTableKind(now, connectionId, tableId)?.kind === 'totals';
     },
     // The chat and found people tables are not a person's to delete either: only the keeping sweeps and an erasure remove them.
     sealedRecords: async (connectionId, tableId) => {
       const now = await installs.fresh();
-      return chatOwnTable(now, connectionId, tableId) || leadsOwnTable(now, connectionId, tableId);
+      // Nobody deletes a review or a total either: staff hide a review.
+      return chatOwnTable(now, connectionId, tableId) || leadsOwnTable(now, connectionId, tableId) || reviewTableKind(now, connectionId, tableId) !== null;
     },
     // A landing pages add-on's pages: what `ownRecords` read on this write is asked again, else what is installed is read now.
     landingPages: async (connectionId, tableId, askedJustNow) => landingPagesTable(askedJustNow === true ? installs.current() : await installs.fresh(), connectionId, tableId),
+    // A reviews add-on's tables: a person moderates a review, one at a time; the totals move with it.
+    reviewTables: async (connectionId, tableId) => reviewTableKind(await installs.fresh(), connectionId, tableId),
   };
 }
