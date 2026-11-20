@@ -45,6 +45,11 @@ advice: check what applies to your shop.
 Making pay links and recording payments by hand follow the record: whoever may edit the record may
 do it.
 
+The Payment panel follows what a person may read of the record. Someone whose role reads the record
+but not its total, or not what is due (a packer who sees an order's items and address, and nothing of
+what it cost), gets no Payment panel on it and no paid or unpaid badge beside it in a list, and may
+not record a payment by hand on it.
+
 ## Set it up
 
 Open **Studio → Payments**. The page has five tabs: **Setup**, **Ways to pay**, **What can be
