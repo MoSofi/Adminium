@@ -4995,6 +4995,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     });
     app.addHook('onClose', async () => {
       stopYoursAssist?.();
+      yoursAssist.stop();
     });
   }
 

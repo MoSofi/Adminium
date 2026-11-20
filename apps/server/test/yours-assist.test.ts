@@ -7,12 +7,30 @@
  * On every meta engine (SQLite always; Postgres and MySQL with TEST_POSTGRES_URL / TEST_MYSQL_URL): the claim is a
  * row in `adminium_operator_tallies`, the record and its undo image a JSON setting, and the apply a transaction.
  */
-import { connectionsRepo, operatorTalliesRepo, settingsRepo, snapshotsRepo, usersRepo, type DsnCrypto, type MetaDb } from '@adminium/meta';
-import { type LlmKeyCrypto } from '@adminium/llm';
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+
+import BetterSqlite3 from 'better-sqlite3';
+import {
+  connectionsRepo,
+  createSqliteMetaDb,
+  firstRun,
+  operatorTalliesRepo,
+  rolesRepo,
+  settingsRepo,
+  snapshotsRepo,
+  usersRepo,
+  type DsnCrypto,
+  type MetaDb,
+} from '@adminium/meta';
+import { createProviderClient, ProviderError, type LlmKeyCrypto, type ProviderClient } from '@adminium/llm';
 import type { InstallPlan, Manifest } from '@adminium/manifest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { applyPlanTo } from '../src/add-ons/schema-target.js';
+import { buildServer } from '../src/app.js';
+import { rbacPlugin } from '../src/plugins/rbac.js';
+import { llmRoutes } from '../src/routes/llm/index.js';
 import { assertNoAppTables, YOURS_KEY } from '../src/connections/no-app-tables.js';
 import { cleanNotes, YOUR_DATABASE_NOTES_MAX_CHARS } from '../src/config/your-database.js';
 import type { ConnectionManager } from '../src/connections/manager.js';
@@ -20,9 +38,20 @@ import { createApplyService } from '../src/llm/apply-service.js';
 import { createPromptService } from '../src/llm/prompt-service.js';
 import { createProviderResolver } from '../src/llm/provider-resolver.js';
 import { createRunService } from '../src/llm/run-service.js';
-import { createYoursAssist, hasOperatorBuildKey, undoYoursAssist, YOURS_ASSIST_TALLY, type YoursAssistDeps } from '../src/llm/yours-assist.js';
+import {
+  createYoursAssist,
+  hasOperatorBuildKey,
+  refusedBeforeAnswer,
+  undoYoursAssist,
+  waitFor,
+  YOURS_ASSIST_CAP_WAIT_MS,
+  YOURS_ASSIST_TALLY,
+  YOURS_ASSIST_WAIT_TALLY,
+  type YoursAssistDeps,
+} from '../src/llm/yours-assist.js';
 import { yourDatabaseStatus, type YourDatabaseStatus } from '../src/project/your-database-state.js';
-import { ALLOWED, makeScriptedClient, ordersSchema, validOrdersResponse, type ScriptedClient } from './llm-fixtures.js';
+import { ALLOWED, makeScriptedClient, ordersSchema, validOrdersResponse, type ScriptedClient, type ScriptStep } from './llm-fixtures.js';
+import { makeEnv } from './helpers.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 
 const testCrypto: DsnCrypto = {
@@ -82,6 +111,53 @@ describe('noAppTables: no app or add-on makes tables on `yours`', () => {
   });
 });
 
+describe('how long a run refused by the operator’s AI waits', () => {
+  it('the Retry-After it was given, at least 5 s; 30 s when it said nothing', () => {
+    expect(waitFor(30_000, 0)).toEqual({ ms: 30_000, reason: 'busy', short: true });
+    expect(waitFor(0, 0)).toEqual({ ms: 5_000, reason: 'busy', short: true });
+    expect(waitFor(undefined, 0)).toEqual({ ms: 30_000, reason: 'busy', short: true });
+  });
+
+  it('a longer one is the daily cap, and too many in a row are a busy server: 15 minutes either way', () => {
+    // The gateway's cap says "until midnight UTC".
+    expect(waitFor(6 * 3_600_000, 0)).toEqual({ ms: YOURS_ASSIST_CAP_WAIT_MS, reason: 'cap', short: false });
+    expect(waitFor(30_000, 10)).toEqual({ ms: YOURS_ASSIST_CAP_WAIT_MS, reason: 'busy', short: false });
+    expect(YOURS_ASSIST_CAP_WAIT_MS).toBe(15 * 60_000);
+  });
+
+  it('only a 429 before any answer is a refusal; a run the model answered keeps its tally', () => {
+    const refused = { status: 'failed' as const, tokensIn: null, tokensOut: null, chunksReceived: 0, validationErrors: [{ kind: 'provider', code: 'rate_limit', retryAfterMs: 30_000 }] };
+    expect(refusedBeforeAnswer(refused)).toEqual({ retryAfterMs: 30_000 });
+    expect(refusedBeforeAnswer({ ...refused, validationErrors: [{ kind: 'provider', code: 'rate_limit' }] })).toEqual({ retryAfterMs: undefined });
+    expect(refusedBeforeAnswer({ ...refused, chunksReceived: 1 })).toBeNull();
+    expect(refusedBeforeAnswer({ ...refused, tokensIn: 900 })).toBeNull();
+    expect(refusedBeforeAnswer({ ...refused, validationErrors: [{ kind: 'provider', code: 'server' }] })).toBeNull();
+    expect(refusedBeforeAnswer({ ...refused, validationErrors: [] })).toBeNull();
+    expect(refusedBeforeAnswer({ ...refused, status: 'validated' as never })).toBeNull();
+  });
+});
+
+/** The operator gateway's answer when the server's build slots are full (adminium-app `lib/ai.ts`). */
+const busy = (retryAfterMs?: number): ScriptStep => ({
+  throw: new ProviderError({
+    provider: 'openai-compatible',
+    code: 'rate_limit',
+    status: 429,
+    message: 'openai-compatible: HTTP 429 — Other builds are running on this server. This one starts in a moment.',
+    ...(retryAfterMs === undefined ? {} : { retryAfterMs }),
+  }),
+});
+
+async function until<T>(read: () => Promise<T>, done: (value: T) => boolean, ms = 10_000): Promise<T> {
+  const deadline = Date.now() + ms;
+  let value = await read();
+  while (!done(value) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    value = await read();
+  }
+  return value;
+}
+
 for (const engine of META_ENGINES) {
   describe.skipIf(!engine.available)(`yours-assist on ${engine.name}`, () => {
     // One database per engine (a fresh one per test costs MySQL its migrations each time); each test starts clean.
@@ -117,15 +193,17 @@ for (const engine of META_ENGINES) {
       finished: unknown[];
     }
 
-    async function fixture(opts: { owner?: boolean; key?: boolean; ready?: boolean } = {}): Promise<Fixture> {
+    async function fixture(opts: { owner?: boolean; key?: boolean; ready?: boolean; script?: readonly ScriptStep[]; client?: ProviderClient } = {}): Promise<Fixture> {
       const meta = handle!.meta;
-      // A clean slate: no claim, no record, no owner; what earlier runs applied is left (the run re-applies over it).
+      // A clean slate: no claim, no wait, no record, no owner; what earlier runs applied is left (the run re-applies over it).
       await operatorTalliesRepo(meta).release(YOURS_ASSIST_TALLY);
+      await operatorTalliesRepo(meta).release(YOURS_ASSIST_WAIT_TALLY);
       await settingsRepo(meta).set('llm.yoursAssist', null);
       await meta.db.deleteFrom('adminium_users').execute();
       if (opts.owner !== false) await usersRepo(meta).create({ email: 'owner@adminium.test', name: 'Owner' });
 
-      const scripted = makeScriptedClient([{ text: validOrdersResponse(), usage: { inputTokens: 900, outputTokens: 200 } }]);
+      const scripted = makeScriptedClient(opts.script ?? [{ text: validOrdersResponse(), usage: { inputTokens: 900, outputTokens: 200 } }]);
+      const client = opts.client ?? scripted.client;
       const runService = createRunService({ meta });
       const status = yourDatabaseStatus();
       if (opts.ready !== false) status.set({ state: 'ready', reason: null, host: 'db.acme.io', label: 'Harbor books', readOnly: false });
@@ -139,7 +217,7 @@ for (const engine of META_ENGINES) {
         promptService: createPromptService({ meta, runService, allowed: ALLOWED, defaultModel: async () => ({ provider: 'anthropic', model: 'claude-x' }) }),
         runService,
         applyService: createApplyService({ meta, runService }),
-        resolve: createProviderResolver({ meta, keyCrypto, allowedTemplates: ALLOWED.templates, allowedWidgets: ALLOWED.widgets, createClient: () => scripted.client }),
+        resolve: createProviderResolver({ meta, keyCrypto, allowedTemplates: ALLOWED.templates, allowedWidgets: ALLOWED.widgets, createClient: () => client }),
         onFinished: (outcome) => finished.push(outcome),
       };
       return { meta, status, connectionId, scripted, deps, finished };
@@ -205,6 +283,117 @@ for (const engine of META_ENGINES) {
       }
     });
 
+    it('a 429 before any answer: the tally goes back, it waits, then runs once and applies', async () => {
+      const valid = { text: validOrdersResponse(), usage: { inputTokens: 900, outputTokens: 200 } };
+      const f = await fixture({ script: [busy(60), valid] });
+      const assist = createYoursAssist({ ...f.deps, waits: { minMs: 10 } });
+      try {
+        const before = Date.now();
+        const first = await assist.maybeStart();
+        expect(first.started).toBe(true);
+        expect(first.started ? await first.done : null).toMatchObject({ state: 'waiting', reason: 'busy', tokens: 0 });
+
+        // Nothing kept, the time said, nobody told it finished.
+        const tallies = operatorTalliesRepo(f.meta);
+        expect(await tallies.get(YOURS_ASSIST_TALLY)).toBeNull();
+        const held = await settingsRepo(f.meta).get('llm.yoursAssist');
+        expect(held).toMatchObject({ state: 'waiting', reason: 'busy', connectionId: f.connectionId });
+        expect(held?.until).toBeGreaterThanOrEqual(before + 60);
+        expect(held?.until).toBeLessThan(Date.now() + 60 + 1_000);
+        expect((await tallies.get(YOURS_ASSIST_WAIT_TALLY))?.amount).toBe(held?.until);
+        expect(f.finished).toHaveLength(0);
+
+        // Asked again before its time: it waits, it does not call.
+        expect(await assist.maybeStart()).toEqual({ started: false, reason: 'waiting' });
+        expect(f.scripted.calls).toHaveLength(1);
+
+        // At its time it starts again by itself, and applies.
+        const done = await until(() => settingsRepo(f.meta).get('llm.yoursAssist'), (value) => value?.state === 'applied');
+        expect(done).toMatchObject({ state: 'applied', connectionId: f.connectionId });
+        expect(f.scripted.calls).toHaveLength(2);
+        expect((await tallies.get(YOURS_ASSIST_TALLY))?.amount).toBe(1);
+        expect(await tallies.get(YOURS_ASSIST_WAIT_TALLY)).toBeNull();
+        expect(f.finished).toEqual([expect.objectContaining({ state: 'applied', tokens: 1100 })]);
+        expect(await assist.maybeStart()).toEqual({ started: false, reason: 'taken' });
+      } finally {
+        assist.stop();
+      }
+    });
+
+    it('a 429 forever: no tally kept, waiting, and the short tries bounded (no tight loop)', async () => {
+      const f = await fixture({ script: [busy(20)] });
+      const assist = createYoursAssist({ ...f.deps, waits: { minMs: 0, shortTries: 2 } });
+      try {
+        const first = await assist.maybeStart();
+        expect(first.started).toBe(true);
+        // Two short waits, then the third refusal waits the long wait.
+        const held = await until(() => settingsRepo(f.meta).get('llm.yoursAssist'), (value) => (value?.until ?? 0) > Date.now() + 10 * 60_000);
+        expect(held).toMatchObject({ state: 'waiting', reason: 'busy' });
+        expect(held?.until).toBeLessThanOrEqual(Date.now() + YOURS_ASSIST_CAP_WAIT_MS);
+        expect(f.scripted.calls).toHaveLength(3);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        expect(f.scripted.calls).toHaveLength(3);
+        expect(await operatorTalliesRepo(f.meta).get(YOURS_ASSIST_TALLY)).toBeNull();
+        expect(f.finished).toHaveLength(0);
+      } finally {
+        assist.stop();
+      }
+    });
+
+    it('at the operator’s daily cap it waits 15 minutes, and a boot meanwhile starts it again at its time', async () => {
+      const valid = { text: validOrdersResponse(), usage: { inputTokens: 900, outputTokens: 200 } };
+      const f = await fixture({ script: [busy(6 * 3_600_000), valid] });
+      const first = createYoursAssist(f.deps);
+      const started = await first.maybeStart();
+      expect(started.started ? await started.done : null).toMatchObject({ state: 'waiting', reason: 'cap' });
+      first.stop();
+      const held = await settingsRepo(f.meta).get('llm.yoursAssist');
+      expect(held?.until).toBeGreaterThan(Date.now() + YOURS_ASSIST_CAP_WAIT_MS - 60_000);
+      expect(held?.until).toBeLessThanOrEqual(Date.now() + YOURS_ASSIST_CAP_WAIT_MS);
+
+      // A restart before its time: it waits.
+      const booted = createYoursAssist(f.deps);
+      expect(await booted.maybeStart()).toEqual({ started: false, reason: 'waiting' });
+      booted.stop();
+      expect(f.scripted.calls).toHaveLength(1);
+
+      // A restart after it: it runs.
+      const tallies = operatorTalliesRepo(f.meta);
+      await tallies.release(YOURS_ASSIST_WAIT_TALLY);
+      await tallies.raise(YOURS_ASSIST_WAIT_TALLY, Date.now() - 1_000);
+      const later = await createYoursAssist(f.deps).maybeStart();
+      expect(later.started ? await later.done : null).toMatchObject({ state: 'applied' });
+      expect(await tallies.get(YOURS_ASSIST_WAIT_TALLY)).toBeNull();
+    });
+
+    it('a real gateway’s 429 with Retry-After: 30 waits 30 seconds', async () => {
+      let asked = 0;
+      const gateway: Server = createServer((request, response) => {
+        asked += 1;
+        request.resume();
+        response.writeHead(429, { 'content-type': 'application/json', 'retry-after': '30' });
+        response.end(JSON.stringify({ error: { message: 'Other builds are running on this server. This one starts in a moment.', type: 'rate_limit_exceeded' } }));
+      });
+      await new Promise<void>((resolve) => gateway.listen(0, '127.0.0.1', resolve));
+      const port = (gateway.address() as AddressInfo).port;
+      const client = createProviderClient({ provider: 'openai-compatible', apiKey: 'sk-operator', baseUrl: `http://127.0.0.1:${String(port)}/v1` });
+      const f = await fixture({ client });
+      const assist = createYoursAssist(f.deps);
+      try {
+        const before = Date.now();
+        const started = await assist.maybeStart();
+        expect(started.started ? await started.done : null).toMatchObject({ state: 'waiting', reason: 'busy', tokens: 0 });
+        expect(asked).toBe(1);
+        const held = await settingsRepo(f.meta).get('llm.yoursAssist');
+        expect(held?.until).toBeGreaterThanOrEqual(before + 30_000);
+        expect(held?.until).toBeLessThan(Date.now() + 31_000);
+        expect(await operatorTalliesRepo(f.meta).get(YOURS_ASSIST_TALLY)).toBeNull();
+      } finally {
+        assist.stop();
+        await new Promise<void>((resolve) => gateway.close(() => resolve()));
+      }
+    });
+
     it('gives the tally back when no run could be made (no model)', async () => {
       const f = await fixture();
       const result = await createYoursAssist({ ...f.deps, promptService: createPromptService({ meta: f.meta, runService: f.deps.runService, allowed: ALLOWED, defaultModel: async () => null }) }).maybeStart();
@@ -214,3 +403,37 @@ for (const engine of META_ENGINES) {
     });
   });
 }
+
+describe('GET /llm/yours-assist while it waits', () => {
+  it('says waiting, with the time it starts again', async () => {
+    const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+    await firstRun(meta);
+    const roles = rolesRepo(meta);
+    const adminRole = await roles.findBySlug('admin');
+    const admin = await usersRepo(meta).create({ email: 'owner@adminium.test', name: 'Owner', passwordHash: 'test-hash', status: 'active' });
+    await roles.assignToUser(admin.id, adminRole!.id);
+    const runService = createRunService({ meta });
+    const app = await buildServer({ env: makeEnv(), logger: false });
+    app.addHook('onRequest', async (request) => {
+      if (request.headers['x-test-user-id'] === admin.id) (request as unknown as { user: unknown }).user = { id: admin.id, name: admin.name, email: admin.email };
+    });
+    await app.register(rbacPlugin, { meta });
+    await app.register(async (api) => api.register(llmRoutes({ meta, runService, applyService: createApplyService({ meta, runService }), keyCrypto, allowed: ALLOWED })), { prefix: '/api/v1' });
+    await app.ready();
+    try {
+      const at = Date.now();
+      await settingsRepo(meta).set('llm.yoursAssist', { state: 'waiting', runId: 'run_1', connectionId: 'conn_1', at, counts: null, undo: null, reason: 'busy', until: at + 30_000 });
+      const waiting = await app.inject({ method: 'GET', url: '/api/v1/llm/yours-assist', headers: { 'x-test-user-id': admin.id } });
+      expect(waiting.statusCode, waiting.body).toBe(200);
+      expect(waiting.json()).toEqual({ assist: { state: 'waiting', runId: 'run_1', connectionId: 'conn_1', at, counts: null, reason: 'busy', until: at + 30_000, undoable: false } });
+
+      // A record from before `until` existed, and every other state: null.
+      await settingsRepo(meta).set('llm.yoursAssist', { state: 'failed', runId: 'run_1', connectionId: 'conn_1', at, counts: null, undo: null, reason: 'provider' });
+      const failed = await app.inject({ method: 'GET', url: '/api/v1/llm/yours-assist', headers: { 'x-test-user-id': admin.id } });
+      expect(failed.json()).toMatchObject({ assist: { state: 'failed', until: null } });
+    } finally {
+      await app.close();
+      await meta.db.destroy();
+    }
+  });
+});

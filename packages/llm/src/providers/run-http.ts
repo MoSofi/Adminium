@@ -14,7 +14,7 @@
  * broken stream's message, an error the provider wrote into the stream) goes
  * through `scrubSecret` before it is thrown.
  */
-import { codeForStatus, outboundFetch, readBounded, scrubCause, scrubSecret } from './http.js';
+import { codeForStatus, outboundFetch, readBounded, retryAfterOf, scrubCause, scrubSecret } from './http.js';
 import { ProviderError, type ProviderId } from './types.js';
 
 export interface StreamRequestOptions {
@@ -42,7 +42,7 @@ export function streamError(
   code: ProviderError['code'],
   message: string,
   apiKey: string | undefined,
-  extra: { status?: number; cause?: unknown } = {},
+  extra: { status?: number; cause?: unknown; retryAfterMs?: number } = {},
 ): ProviderError {
   return new ProviderError({
     provider,
@@ -50,6 +50,7 @@ export function streamError(
     message: `${provider}: ${scrubSecret(message, apiKey)}`,
     ...(extra.status === undefined ? {} : { status: extra.status }),
     ...(extra.cause === undefined ? {} : { cause: scrubCause(extra.cause, apiKey) }),
+    ...(extra.retryAfterMs === undefined ? {} : { retryAfterMs: extra.retryAfterMs }),
   });
 }
 
@@ -116,7 +117,7 @@ export async function* streamRequest(opts: StreamRequestOptions): AsyncGenerator
         // The status says enough.
       }
       const snippet = raw.length === 0 ? '' : ` — ${raw.slice(0, 500)}`;
-      throw streamError(provider, codeForStatus(res.status), `HTTP ${String(res.status)}${snippet}`, apiKey, { status: res.status });
+      throw streamError(provider, codeForStatus(res.status), `HTTP ${String(res.status)}${snippet}`, apiKey, { status: res.status, ...retryAfterOf(res) });
     }
     if (res.body === null) throw streamError(provider, 'bad_response', 'the reply had no body', apiKey, { status: res.status });
 

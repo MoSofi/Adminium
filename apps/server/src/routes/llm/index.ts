@@ -800,7 +800,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
         const held = await settingsRepo(meta).get('llm.yoursAssist');
         if (held === null) return { assist: null };
         const { undo, ...rest } = held;
-        return { assist: { ...rest, undoable: held.state === 'applied' && undo !== null } };
+        return { assist: { ...rest, until: held.state === 'waiting' ? (held.until ?? null) : null, undoable: held.state === 'applied' && undo !== null } };
       },
     );
 

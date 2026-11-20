@@ -65,15 +65,18 @@ const P: DefOptions = { portable: true };
  * server): ids and the rows an apply replaced, kept as JSON.
  */
 const yoursAssistSchema = z.object({
-  state: z.enum(['running', 'applied', 'failed', 'undone', 'interrupted']),
+  /** `waiting`: the operator's AI refused it before answering (a 429); it starts again by itself at `until`. */
+  state: z.enum(['running', 'waiting', 'applied', 'failed', 'undone', 'interrupted']),
   runId: z.string().nullable(),
   connectionId: z.string(),
   at: z.number(),
   /** What was applied, by kind. */
   counts: z.record(z.string(), z.number()).nullable(),
   undo: z.unknown().nullable(),
-  /** Why it failed, as a short code (`no-model`, `provider`, `invalid`, `apply`). */
+  /** Why it failed or waits, as a short code (`no-model`, `provider`, `invalid`, `apply`; `busy`, `cap`). */
   reason: z.string().max(60).nullable(),
+  /** While it waits: when it starts again (ms since the epoch). */
+  until: z.number().nullable().optional(),
 });
 export type YoursAssistRecord = z.infer<typeof yoursAssistSchema>;
 

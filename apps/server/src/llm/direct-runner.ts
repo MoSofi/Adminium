@@ -62,6 +62,8 @@ export interface ProviderRunError {
   /** {@link ProviderError.code} — `network` / `timeout` / `auth` / … */
   code: string;
   message: string;
+  /** The provider's `Retry-After`, in ms, when its refusal said when to ask again ({@link ProviderError.retryAfterMs}). */
+  retryAfterMs?: number;
 }
 
 /** A failed-run error entry: a validation failure OR a provider transport error. */
@@ -327,7 +329,13 @@ async function runChunk(
 /** Map an unknown thrown value to a key-scrubbed {@link ProviderRunError}. */
 function toProviderRunError(error: unknown, provider: string): ProviderRunError {
   if (error instanceof ProviderError) {
-    return { kind: 'provider', provider: error.provider, code: error.code, message: error.message };
+    return {
+      kind: 'provider',
+      provider: error.provider,
+      code: error.code,
+      message: error.message,
+      ...(error.retryAfterMs === undefined ? {} : { retryAfterMs: error.retryAfterMs }),
+    };
   }
   return {
     kind: 'provider',

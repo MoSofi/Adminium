@@ -158,6 +158,11 @@ export interface ProviderErrorInit {
    * asked for, and a caller that can say so (the assistant) asks again.
    */
   toolCalls?: readonly string[];
+  /**
+   * With a 429 (or a 503) that said when to ask again (`Retry-After`): that wait, in ms. A caller that
+   * waits (the schema assistant's run on the user's database) waits this long; nothing retries by itself.
+   */
+  retryAfterMs?: number;
 }
 
 export class ProviderError extends Error {
@@ -166,6 +171,7 @@ export class ProviderError extends Error {
   readonly code: ProviderErrorCode;
   readonly status?: number;
   readonly toolCalls?: readonly string[];
+  readonly retryAfterMs?: number;
 
   constructor(init: ProviderErrorInit) {
     super(init.message, init.cause === undefined ? undefined : { cause: init.cause });
@@ -173,6 +179,7 @@ export class ProviderError extends Error {
     this.code = init.code;
     if (init.status !== undefined) this.status = init.status;
     if (init.toolCalls !== undefined && init.toolCalls.length > 0) this.toolCalls = [...init.toolCalls];
+    if (init.retryAfterMs !== undefined) this.retryAfterMs = init.retryAfterMs;
   }
 }
 

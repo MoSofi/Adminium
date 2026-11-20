@@ -398,12 +398,15 @@ export type RunUndoReply = z.infer<typeof runUndoReply>;
 export const yoursAssistReply = z.object({
   assist: z
     .object({
-      state: z.enum(['running', 'applied', 'failed', 'undone', 'interrupted']),
+      /** `waiting`: the operator's AI was busy or at its cap; it starts again by itself at `until`. */
+      state: z.enum(['running', 'waiting', 'applied', 'failed', 'undone', 'interrupted']),
       runId: z.string().nullable(),
       connectionId: z.string(),
       at: z.number(),
       counts: z.record(z.string(), z.number()).nullable(),
       reason: z.string().nullable(),
+      /** While it waits: when it starts again (ms since the epoch); null otherwise. */
+      until: z.number().nullable(),
       /** An apply is kept and can be undone. */
       undoable: z.boolean(),
     })

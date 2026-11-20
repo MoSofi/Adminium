@@ -564,6 +564,12 @@ describe('a run against an OpenAI-compatible server', () => {
     `data: ${JSON.stringify({ choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`;
   const DONE = 'data: [DONE]\n\n';
 
+  it('a 429 that says when to ask again carries the wait on its error', async () => {
+    serve(new Response('{"error":{"type":"rate_limit_exceeded"}}', { status: 429, headers: { 'retry-after': '30' } }));
+    const error = await COMPATIBLE().run(request()).catch((caught: unknown) => caught);
+    expect(error).toMatchObject({ code: 'rate_limit', status: 429, retryAfterMs: 30_000 });
+  });
+
   it('sends max_tokens, and a key only when it has one', async () => {
     const sent = serve(fixture('openai-text'));
     await COMPATIBLE().run(request());

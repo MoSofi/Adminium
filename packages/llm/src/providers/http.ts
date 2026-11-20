@@ -54,6 +54,26 @@ export function codeForStatus(status: number): ProviderErrorCode {
   return 'http';
 }
 
+/**
+ * A `Retry-After` header as a wait in ms: whole seconds, or an HTTP date (measured from `now`). Undefined when
+ * there is none or it cannot be read; never below zero.
+ */
+export function retryAfterMs(header: string | null | undefined, now: number = Date.now()): number | undefined {
+  if (header === null || header === undefined) return undefined;
+  const value = header.trim();
+  if (value === '') return undefined;
+  if (/^\d+$/.test(value)) return Number(value) * 1000;
+  const at = Date.parse(value);
+  return Number.isNaN(at) ? undefined : Math.max(0, at - now);
+}
+
+/** The `retryAfterMs` an error answer carries, for a status that may say when to ask again. */
+export function retryAfterOf(res: Response): { retryAfterMs?: number } {
+  if (res.status !== 429 && res.status !== 503) return {};
+  const wait = retryAfterMs(res.headers.get('retry-after'));
+  return wait === undefined ? {} : { retryAfterMs: wait };
+}
+
 export interface RequestJsonOptions {
   provider: ProviderId;
   url: string;
@@ -206,6 +226,7 @@ export async function requestJson<T>(opts: RequestJsonOptions): Promise<T> {
       code: codeForStatus(res.status),
       status: res.status,
       message: `${provider}: HTTP ${String(res.status)}${snippet ? ` — ${snippet}` : ''}`,
+      ...retryAfterOf(res),
     });
   }
 

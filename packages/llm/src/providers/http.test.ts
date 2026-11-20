@@ -6,7 +6,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { outboundFetch, requestJson, RESPONSE_MAX_BYTES, scrubCause, scrubSecret, setOutboundFetch } from './http.js';
+import { outboundFetch, requestJson, RESPONSE_MAX_BYTES, retryAfterMs, scrubCause, scrubSecret, setOutboundFetch } from './http.js';
 import { ProviderError } from './types.js';
 
 afterEach(() => {
@@ -81,6 +81,35 @@ describe('requestJson error mapping', () => {
     const causeStack = cause instanceof Error ? (cause.stack ?? '') : '';
     expect(causeMessage).not.toContain(SECRET);
     expect(causeStack).not.toContain(SECRET);
+  });
+});
+
+describe('Retry-After', () => {
+  it('reads whole seconds and an HTTP date, and nothing else', () => {
+    expect(retryAfterMs('30')).toBe(30_000);
+    expect(retryAfterMs(' 0 ')).toBe(0);
+    const now = Date.parse('2026-11-20T12:00:00Z');
+    expect(retryAfterMs('Fri, 20 Nov 2026 12:00:45 GMT', now)).toBe(45_000);
+    expect(retryAfterMs('Fri, 20 Nov 2026 11:00:00 GMT', now)).toBe(0);
+    expect(retryAfterMs('soon')).toBeUndefined();
+    expect(retryAfterMs('')).toBeUndefined();
+    expect(retryAfterMs(null)).toBeUndefined();
+  });
+
+  it('rides on a 429’s error, and on no other status', async () => {
+    const body = JSON.stringify({ error: { message: 'Other builds are running on this server. This one starts in a moment.', type: 'rate_limit_exceeded' } });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(body, { status: 429, headers: { 'retry-after': '30', 'content-type': 'application/json' } })));
+    const busy = await requestJson({ provider: 'openai-compatible', method: 'POST', url: 'https://gw.example/v1/chat/completions', body: {} }).catch((caught: unknown) => caught);
+    expect(busy).toMatchObject({ code: 'rate_limit', status: 429, retryAfterMs: 30_000 });
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 429 })));
+    const unsaid = await requestJson({ provider: 'openai-compatible', method: 'POST', url: 'https://gw.example/v1/chat/completions', body: {} }).catch((caught: unknown) => caught);
+    expect(unsaid).toMatchObject({ code: 'rate_limit' });
+    expect((unsaid as ProviderError).retryAfterMs).toBeUndefined();
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 400, headers: { 'retry-after': '30' } })));
+    const other = await requestJson({ provider: 'openai-compatible', method: 'POST', url: 'https://gw.example/v1/chat/completions', body: {} }).catch((caught: unknown) => caught);
+    expect((other as ProviderError).retryAfterMs).toBeUndefined();
   });
 });
 

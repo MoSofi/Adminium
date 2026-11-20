@@ -179706,6 +179706,7 @@
                               "type": "string",
                               "enum": [
                                 "running",
+                                "waiting",
                                 "applied",
                                 "failed",
                                 "undone",
@@ -179746,6 +179747,12 @@
                                 "null"
                               ]
                             },
+                            "until": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
                             "undoable": {
                               "type": "boolean"
                             }
@@ -179757,6 +179764,7 @@
                             "at",
                             "counts",
                             "reason",
+                            "until",
                             "undoable"
                           ],
                           "additionalProperties": false

@@ -26,10 +26,19 @@
  * not even be made (no snapshot, no model) gives the tally back; one the model
  * answered keeps it, whatever came of it: the operator paid for it.
  *
+ * A run the operator's AI refused before it answered anything (a 429: the
+ * server's build slots are full, or the operator's daily cap is reached) has
+ * spent nothing, as the Designer's start prompt refused at the cap
+ * (`designer/start-prompt.ts`). The tally is given back and the run waits
+ * (`waiting`, with `until`; {@link waitFor}): the refusal's `Retry-After`, a
+ * longer one (the daily cap) or too many in a row {@link YOURS_ASSIST_CAP_WAIT_MS}.
+ * The time is kept in a tally ({@link YOURS_ASSIST_WAIT_TALLY}), so a server
+ * restarted meanwhile starts it again at its next boot, at that time.
+ *
  * It never makes tables: LLM-assist writes overrides and pages only, and no
  * table is ever created on `yours` (`connections/no-app-tables.ts`).
  */
-import { isBootstrapRequired, operatorTalliesRepo, settingsRepo, type MetaDb, type YoursAssistRecord } from '@adminium/meta';
+import { isBootstrapRequired, operatorTalliesRepo, settingsRepo, type LlmRun, type MetaDb, type YoursAssistRecord } from '@adminium/meta';
 
 import { selectAcceptedByConfidence, type ApplyService } from './apply-service.js';
 import { executeLlmRun, type ResolveRun } from '../jobs/llm-run.js';
@@ -40,15 +49,74 @@ import { onSuperAdminCreated } from '../setup/service.js';
 
 /** The tally that says the run has been taken. */
 export const YOURS_ASSIST_TALLY = 'yours-assist';
+/** The tally that holds when a run refused by the operator's AI starts again (ms since the epoch); none when nothing waits. */
+export const YOURS_ASSIST_WAIT_TALLY = 'yours-assist-wait';
+
+/** How long a run waits when the refusal did not say: the operator gateway's own `Retry-After` for full build slots. */
+export const YOURS_ASSIST_RETRY_MS = 30_000;
+/** The shortest wait: a `Retry-After: 0` is never a tight loop. */
+export const YOURS_ASSIST_MIN_WAIT_MS = 5_000;
+/** The longest `Retry-After` waited as it is. A longer one is the operator's daily cap (until midnight UTC). */
+export const YOURS_ASSIST_MAX_SHORT_WAIT_MS = 5 * 60_000;
+/** Short waits in a row before every later one is {@link YOURS_ASSIST_CAP_WAIT_MS}. */
+export const YOURS_ASSIST_SHORT_TRIES = 10;
+/** The long wait: the operator's cap, or a server busy for too long. The start prompt's (`START_PROMPT_RETRY_MS`). */
+export const YOURS_ASSIST_CAP_WAIT_MS = 15 * 60_000;
+
+/** The waits, for a test to shorten. */
+export interface YoursAssistWaits {
+  defaultMs: number;
+  minMs: number;
+  maxShortMs: number;
+  shortTries: number;
+  capMs: number;
+}
+
+const WAITS: YoursAssistWaits = {
+  defaultMs: YOURS_ASSIST_RETRY_MS,
+  minMs: YOURS_ASSIST_MIN_WAIT_MS,
+  maxShortMs: YOURS_ASSIST_MAX_SHORT_WAIT_MS,
+  shortTries: YOURS_ASSIST_SHORT_TRIES,
+  capMs: YOURS_ASSIST_CAP_WAIT_MS,
+};
+
+/**
+ * How long a refused run waits, and why: the refusal's `Retry-After` (or the default), at least the shortest wait;
+ * the long wait for one past the short bound (`cap`) or once the short tries are spent (`busy`).
+ */
+export function waitFor(retryAfterMs: number | undefined, shortTriesSoFar: number, waits: YoursAssistWaits = WAITS): { ms: number; reason: 'busy' | 'cap'; short: boolean } {
+  const asked = retryAfterMs ?? waits.defaultMs;
+  if (asked > waits.maxShortMs) return { ms: waits.capMs, reason: 'cap', short: false };
+  if (shortTriesSoFar >= waits.shortTries) return { ms: waits.capMs, reason: 'busy', short: false };
+  return { ms: Math.max(waits.minMs, asked), reason: 'busy', short: true };
+}
+
+/**
+ * A run the operator's AI refused before the model answered anything: failed on a rate limit (429), with no token
+ * and no chunk received. Its `Retry-After`, when it gave one. Null for any other run.
+ */
+export function refusedBeforeAnswer(run: Pick<LlmRun, 'status' | 'tokensIn' | 'tokensOut' | 'chunksReceived' | 'validationErrors'>): { retryAfterMs: number | undefined } | null {
+  if (run.status !== 'failed' || (run.tokensIn ?? 0) + (run.tokensOut ?? 0) > 0 || run.chunksReceived > 0) return null;
+  const errors = Array.isArray(run.validationErrors) ? (run.validationErrors as unknown[]) : [];
+  if (errors.length === 0) return null;
+  let retryAfterMs: number | undefined;
+  for (const error of errors) {
+    if (typeof error !== 'object' || error === null) return null;
+    const entry = error as { kind?: unknown; code?: unknown; retryAfterMs?: unknown };
+    if (entry.kind !== 'provider' || entry.code !== 'rate_limit') return null;
+    if (retryAfterMs === undefined && typeof entry.retryAfterMs === 'number' && Number.isFinite(entry.retryAfterMs)) retryAfterMs = entry.retryAfterMs;
+  }
+  return { retryAfterMs };
+}
 
 export { YOURS_KEY } from '../connections/no-app-tables.js';
 
 /** Suggestions applied without a person: this sure, or more. */
 export const AUTO_ACCEPT_CONFIDENCE = 0.5;
 
-/** What the run ended as, for the operator's `assist.finished` event. */
+/** What the run ended as, for the operator's `assist.finished` event (`waiting`: it has not ended, and nothing is told). */
 export interface YoursAssistOutcome {
-  state: 'applied' | 'failed';
+  state: 'applied' | 'failed' | 'waiting';
   runId: string | null;
   connectionId: string;
   counts: Record<string, number> | null;
@@ -75,10 +143,12 @@ export interface YoursAssistDeps {
   onFinished?: ((outcome: YoursAssistOutcome) => void) | undefined;
   log?: ((message: string, data?: Record<string, unknown>) => void) | undefined;
   now?: () => number;
+  /** The waits after a refusal; a test shortens them. */
+  waits?: Partial<YoursAssistWaits> | undefined;
 }
 
 export type YoursAssistStart =
-  | { started: false; reason: 'not-ready' | 'no-owner' | 'no-key' | 'no-connection' | 'taken' | 'running' }
+  | { started: false; reason: 'not-ready' | 'no-owner' | 'no-key' | 'no-connection' | 'taken' | 'running' | 'waiting' }
   | { started: true; done: Promise<YoursAssistOutcome> };
 
 export interface YoursAssist {
@@ -86,6 +156,8 @@ export interface YoursAssist {
   maybeStart(): Promise<YoursAssistStart>;
   /** Listen for what it waits for (the database ready, an owner made), and check once now. */
   watch(): () => void;
+  /** Stop a timer set for a refused run (server close). A later boot starts it again at its time. */
+  stop(): void;
 }
 
 /** Whether the operator gave this server an AI key builds may run on. */
@@ -103,7 +175,33 @@ export function createYoursAssist(deps: YoursAssistDeps): YoursAssist {
   const tallies = operatorTalliesRepo(deps.meta);
   const settings = settingsRepo(deps.meta);
   const log = deps.log ?? (() => undefined);
+  const waits: YoursAssistWaits = { ...WAITS, ...deps.waits };
   let inFlight: Promise<YoursAssistOutcome> | null = null;
+  let timer: NodeJS.Timeout | null = null;
+  let stopped = false;
+  /** Short waits in a row in this process: bounded, then every wait is the long one. */
+  let shortTries = 0;
+
+  /** Start again at `at`: the wait is over once the timer fires, whatever the clock says. */
+  const schedule = (at: number): void => {
+    if (stopped) return;
+    if (timer !== null) clearTimeout(timer);
+    timer = setTimeout(
+      () => {
+        timer = null;
+        void (async () => {
+          // The run that set this wait may still be closing.
+          if (inFlight !== null) await inFlight.catch(() => undefined);
+          await tallies.release(YOURS_ASSIST_WAIT_TALLY);
+          await maybeStart();
+        })().catch((error: unknown) => {
+          log('yours-assist: could not start again', { error: error instanceof Error ? error.message : String(error) });
+        });
+      },
+      Math.max(0, at - now()),
+    );
+    timer.unref();
+  };
 
   const record = async (value: YoursAssistRecord): Promise<void> => {
     await settings.set('llm.yoursAssist', value, { at: value.at });
@@ -156,6 +254,20 @@ export function createYoursAssist(deps: YoursAssistDeps): YoursAssist {
     );
     const done = await deps.runService.getRun(runId);
     const tokens = (done?.tokensIn ?? 0) + (done?.tokensOut ?? 0);
+    const refused = done === null ? null : refusedBeforeAnswer(done);
+    if (refused !== null) {
+      // Refused before the model answered anything: nothing was spent. The tally goes back, and the run waits.
+      const wait = waitFor(refused.retryAfterMs, shortTries, waits);
+      shortTries = wait.short ? shortTries + 1 : 0;
+      const until = now() + wait.ms;
+      await tallies.release(YOURS_ASSIST_WAIT_TALLY);
+      await tallies.raise(YOURS_ASSIST_WAIT_TALLY, until);
+      await tallies.release(YOURS_ASSIST_TALLY);
+      await record({ state: 'waiting', runId, connectionId, at: now(), counts: null, undo: null, reason: wait.reason, until }).catch(() => undefined);
+      log('yours-assist: the operator AI is busy; it starts again later', { runId, reason: wait.reason, until, retryAfterMs: refused.retryAfterMs ?? null });
+      schedule(until);
+      return { state: 'waiting', runId, connectionId, counts: null, reason: wait.reason, tokens: 0 };
+    }
     if (done === null || done.status !== 'validated') {
       return finish({ state: 'failed', runId, connectionId, counts: null, reason: done?.status === 'failed' ? 'provider' : 'invalid', tokens });
     }
@@ -179,6 +291,15 @@ export function createYoursAssist(deps: YoursAssistDeps): YoursAssist {
     if (!deps.operatorKey) return { started: false, reason: 'no-key' };
     const connectionId = await deps.yoursConnectionId();
     if (connectionId === null) return { started: false, reason: 'no-connection' };
+    const waiting = await tallies.get(YOURS_ASSIST_WAIT_TALLY);
+    if (waiting !== null) {
+      if (waiting.amount > now()) {
+        // Refused earlier (this process, or one before a restart): it starts again at its time, not before.
+        if (timer === null) schedule(waiting.amount);
+        return { started: false, reason: 'waiting' };
+      }
+      await tallies.release(YOURS_ASSIST_WAIT_TALLY);
+    }
     if (!(await tallies.claim(YOURS_ASSIST_TALLY, now()))) {
       // Taken before: a run this process never finished (a restart mid-run) is said to have stopped, not left "running".
       const held = await settings.get('llm.yoursAssist');
@@ -197,6 +318,12 @@ export function createYoursAssist(deps: YoursAssistDeps): YoursAssist {
     return { started: true, done };
   }
 
+  function stop(): void {
+    stopped = true;
+    if (timer !== null) clearTimeout(timer);
+    timer = null;
+  }
+
   return {
     maybeStart,
     watch() {
@@ -211,8 +338,10 @@ export function createYoursAssist(deps: YoursAssistDeps): YoursAssist {
       return () => {
         offStatus();
         offOwner();
+        stop();
       };
     },
+    stop,
   };
 }
 
