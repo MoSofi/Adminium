@@ -1,5 +1,17 @@
 # @adminium/dashboard
 
+## 0.3.69
+
+### Patch Changes
+
+- @adminium/add-on-contracts@0.3.69
+  - @adminium/charts@0.3.69
+  - @adminium/engine@0.3.69
+  - @adminium/i18n@0.3.69
+  - @adminium/tokens@0.3.69
+  - @adminium/ui@0.3.69
+  - @adminium/widgets@0.3.69
+
 ## 0.3.68
 
 ### Patch Changes

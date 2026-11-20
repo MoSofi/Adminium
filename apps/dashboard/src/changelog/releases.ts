@@ -62,6 +62,20 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.69',
+    date: '2026-11-20',
+    title: 'Trials built from your own database',
+    summary:
+      'A hosted trial can now be made from the visitor’s own Postgres or MySQL database: checked first, reached only at the one address it allows, and set up with the visitor’s notes. The Designer can make a trial’s first build on the host’s AI.',
+    changes: [
+      { tag: 'New', text: 'A host can start a trial on the visitor’s own database. Its pages are made from the tables they pick, for the kind of dashboard they chose, and the schema assistant then reads their notes once and names, groups and lays out what it is sure of. You can undo that later.' },
+      { tag: 'New', text: '`adminium check-source` reads a database address and says whether this server would connect to it, and if not, why: the login was refused, it could not be reached, the certificate did not match, it has no tables, and so on. It never shows the database’s own message or a row.' },
+      { tag: 'New', text: '`adminium archive create --without-your-database` leaves the visitor’s address out of an archive. After a restore, that database waits as a draft until its address is given again.' },
+      { tag: 'New', text: 'The Designer can run a trial’s first build from the visitor’s idea, once, on the host’s AI. It waits by itself when the AI server is busy.' },
+      { tag: 'Security', text: 'A trial reaches the visitor’s database only at the one host it was given, never at the host’s own servers, a private or reserved address, or a port it does not allow. Five refused logins lock that one login for an hour, never the server’s own database.' },
+    ],
+  },
+  {
     version: '0.3.68',
     date: '2026-11-20',
     title: 'Reviews, shop filters, and rules that ask about stock',
