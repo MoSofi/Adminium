@@ -186,6 +186,17 @@ async function expectRoundTrip(src: Source, to: { meta: MetaDb; dirs: Dirs }): P
 }
 
 const ENGINES: EngineName[] = ['sqlite', 'postgres', 'mysql'];
+
+/**
+ * A test's time limit, by the MySQL meta databases it migrates. Migrating a
+ * fresh one takes ~11 s on a quiet machine (the offload PC, 2026-11-20), and
+ * a round trip migrates two: the source, and the empty target the restore
+ * migrates itself. That is 22 s against the 30 s default, so on a CI runner
+ * ~35% slower than the others mysql → mysql and the MySQL export timed out
+ * with nothing wrong (run 44807476030), while postgres → mysql, one migration,
+ * passed beside them. The limit follows the work instead of the default.
+ */
+const budget = (...engines: EngineName[]): number => 30_000 + 45_000 * engines.filter((engine) => engine === 'mysql').length;
 const PAIRS: [EngineName, EngineName][] = [
   ['sqlite', 'sqlite'],
   ['postgres', 'postgres'],
@@ -207,7 +218,7 @@ describe('archive round trip', () => {
       expect(result.warnings.some((w) => w.includes('Warehouse'))).toBe(true);
       expect(result.warnings.some((w) => w.includes('bad host'))).toBe(true);
       await expectRoundTrip(src, dest);
-    });
+    }, budget(from, to));
   }
 });
 
@@ -553,7 +564,7 @@ describe('the export variant through import-zip', () => {
       const remote = await connectionsRepo(dest.meta, dsnCryptoFromSecret(OTHER_SECRET)).findById(src.seeded.remoteConnectionId);
       expect(remote?.status).toBe('unconfigured');
       expect((await connectionsRepo(dest.meta, dsnCryptoFromSecret(OTHER_SECRET)).findById(src.seeded.sqliteConnectionId))?.status).not.toBe('unconfigured');
-    });
+    }, budget(engine, engine));
   }
 });
 
