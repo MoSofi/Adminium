@@ -131447,7 +131447,8 @@
                                   "page-visits",
                                   "found-people",
                                   "found-people-mail",
-                                  "found-people-fields"
+                                  "found-people-fields",
+                                  "reviews"
                                 ]
                               },
                               "group": {
@@ -132709,7 +132710,8 @@
                                   "form-files",
                                   "chat-conversations",
                                   "page-visits",
-                                  "found-people"
+                                  "found-people",
+                                  "reviews"
                                 ]
                               },
                               "count": {

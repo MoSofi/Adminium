@@ -62,6 +62,20 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.68',
+    date: '2026-11-20',
+    title: 'Reviews, shop filters, and rules that ask about stock',
+    summary:
+      'Customers can review what they bought, a shop’s catalogue can be filtered, searched and sorted by its shoppers, a rule can wait for stock to come back, and money stays hidden from a role that may not read it.',
+    changes: [
+      { tag: 'New', text: 'Customers can review what they bought once it has shipped (or a visit once it is done). Each review waits until your staff publish it, hide it for one of four reasons, or reply. The totals count published reviews only, and a forgotten customer’s reviews keep their words without their name.' },
+      { tag: 'New', text: 'A public list can let shoppers filter it, search it, sort it and count it, and filter products by their variants: “Slate and M” finds only a product with one variant that is both.' },
+      { tag: 'New', text: 'A rule can ask an add-on whether the stock a record names is back. It never goes ahead while the add-on is off or cannot answer.' },
+      { tag: 'Security', text: 'Someone whose role reads a record but not its money no longer sees its Payment panel, its paid or unpaid badge, or its total on a pay link, and cannot record a payment or take a card payment on it.' },
+      { tag: 'Fixed', text: 'Searching for “100%” or a word with an underscore finds that text as typed. On SQLite, such a search used to find nothing.' },
+    ],
+  },
+  {
     version: '0.3.67',
     date: '2026-11-20',
     title: 'A developer’s add-on list stays on developer machines',

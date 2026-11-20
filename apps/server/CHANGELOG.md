@@ -1,5 +1,29 @@
 # @adminium/server
 
+## 0.3.68
+
+### Patch Changes
+
+- 9a830ce: Customers can now review what they bought. An app puts a `review` word on the table of the rows reviewed (an order line once its order is shipped, a visit once it is done): the add-on that keeps them, what the row is about and its name, when it may be reviewed, the person the row's claim reaches, how their name is shown, and the column Adminium stamps. A customer who reads the row through their own sign-in or the row's own link asks `GET /public/records/:ref/:id/review` whether it may be reviewed and sends `POST` with whole stars and plain words; Adminium fills everything else, refuses another customer's row, one not yet ready and a second review, and starts the review waiting. An add-on keeps the reviews and their totals (`addOn.reviews`, two tables held to the columns Adminium writes). Staff, the Super Admin included, only move a review's state, give one of four reasons to hide it, and reply, one at a time; nobody creates or deletes one. Adminium keeps the totals of the published reviews in the same transaction as every change, and works them out again when the add-on is installed or updated. A table an add-on shares among its apps may hold an app's role to its own app's rows (`appGrants.appColumn`). A forgotten person's reviews keep their stars and words and lose their name; a person's data lists their reviews, "Download everything" writes them, and the erasure's preview says how many keep their words without the name. Needs 0.3.68.
+- 178d2de: The Payment panel now follows what a person may read of a record. Someone whose role reads a record but not its total, or not what is due (a packer who sees an order's items and address and nothing of what it cost), gets no Payment panel on that record and no paid or unpaid badge beside it in an app's list, and may not record a payment by hand on it, since that answer says what is still due. Before, the panel told them the total, what was paid and what was due, whatever their role left out.
+- 055ad41: An app's rule may now ask an add-on's stock words about the row a link of its record names, in an "Only continue if" or "If / else" step: `{ "left": { "words": "inventory:stock", "of": "variant_id" }, "op": "is", "right": "in" }`, with `in`, `low` or `out`. `in` holds when the add-on counts the row and at least one whole unit is left. The condition is false, `is not` too, while the add-on is off for the app or cannot answer, when the link is empty, and when the add-on does not count the row: a rule never mails someone because an add-on was off. The words are asked as the staff's and the public pages' are, with nothing written and no step of the add-on run. A trigger's conditions and a schedule's "For each record" cannot ask them. The rule builder shows such a condition as a sentence. Needs 0.3.68.
+- cdb8762: A list anyone reads may now let a shopper filter, search, sort, page and count it, declared on the app's own public entry: `filterable` (up to 8 columns, each with the operators it takes: `eq`, `in`, `gte`, `lte`, `gt`, `lt`), `searchable` (up to 4 text columns), `orderable` (up to 5 columns that are never empty), `via` (conditions on another list's rows that point at this one, a product's variants, all held by one of those rows under that list's own filters) and `count` (the first page says how many rows match, to 1,000). An `or`, a pattern of the shopper's own and an `in` of more than 50 values are refused; a search is at least two characters and counted on its own, 30 a minute; an offset goes up to 1,000. Only a list anyone reads may say them, never of a person's table, a code, a secret, personal data, a file or JSON, nor an add-on's app column. Any app may now set its entries' page size and order (`pagination`, at most 100 a page). Needs 0.3.68.
+  
+  The quick search (`q`) now finds `%` and `_` as typed on every database, the dashboard's search included: on SQLite a search for "100%" found nothing.
+- Updated dependencies [9a830ce]
+- Updated dependencies [055ad41]
+- Updated dependencies [cdb8762]
+  - @adminium/manifest@0.3.68
+  - @adminium/add-on-contracts@0.3.68
+  - @adminium/meta@0.3.68
+  - @adminium/adapter-mysql@0.3.68
+  - @adminium/adapter-postgres@0.3.68
+  - @adminium/adapter-sqlite@0.3.68
+  - @adminium/engine@0.3.68
+  - @adminium/i18n@0.3.68
+  - @adminium/llm@0.3.68
+  - @adminium/schema-import@0.3.68
+
 ## 0.3.67
 
 ### Patch Changes
