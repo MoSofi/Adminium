@@ -27,7 +27,7 @@
  * answered keeps it, whatever came of it: the operator paid for it.
  *
  * It never makes tables: LLM-assist writes overrides and pages only, and no
- * table is ever created on `yours` (`apps/no-app-tables.ts`).
+ * table is ever created on `yours` (`connections/no-app-tables.ts`).
  */
 import { isBootstrapRequired, operatorTalliesRepo, settingsRepo, type MetaDb, type YoursAssistRecord } from '@adminium/meta';
 
@@ -41,7 +41,7 @@ import { onSuperAdminCreated } from '../setup/service.js';
 /** The tally that says the run has been taken. */
 export const YOURS_ASSIST_TALLY = 'yours-assist';
 
-export { YOURS_KEY } from '../apps/no-app-tables.js';
+export { YOURS_KEY } from '../connections/no-app-tables.js';
 
 /** Suggestions applied without a person: this sure, or more. */
 export const AUTO_ACCEPT_CONFIDENCE = 0.5;

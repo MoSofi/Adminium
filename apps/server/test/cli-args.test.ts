@@ -103,7 +103,10 @@ describe('--help', () => {
   it('lists every registered command and exits 0', async () => {
     const io = fakeIo();
     await expect(runCli(['--help'], { io, version: '1.2.3' })).resolves.toBe(0);
-    for (const command of COMMANDS) expect(io.stdout()).toContain(command.name);
+    for (const command of COMMANDS) {
+      if (command.hidden === true) expect(io.stdout()).not.toMatch(new RegExp(`^\\s+${command.name}\\s`, 'm'));
+      else expect(io.stdout()).toContain(command.name);
+    }
   });
 
   it('documents ADMINIUM_SECRET, the one variable with no default', async () => {
@@ -144,7 +147,7 @@ describe('help text is derived from the flag specs', () => {
 
   it('renders the root help without a command missing its summary', () => {
     const help = renderRootHelp(COMMANDS, '9.9.9');
-    for (const command of COMMANDS) expect(help).toContain(command.summary);
+    for (const command of COMMANDS) if (command.hidden !== true) expect(help).toContain(command.summary);
   });
 });
 
@@ -167,6 +170,7 @@ describe('command registry', () => {
       'try',
       'migrate',
       'introspect',
+      'check-source',
       'generate-prompt',
       'apply-llm-response',
       'export-zip',

@@ -53,7 +53,7 @@ import { csrfSigningKey, issueCsrfToken } from '../../security/csrf.js';
 import { toUserView } from '../auth/handlers.js';
 import { APP_VERSION } from '../../version.js';
 import { YOUR_DATABASE_STATUS } from '../../project/your-database-state.js';
-import { YOURS_KEY } from '../../apps/no-app-tables.js';
+import { YOURS_KEY } from '../../connections/no-app-tables.js';
 import { resolveLabel, SURFACES_URL_ROOT, type HostedSurface } from '../../cli/surfaces-root.js';
 import {
   addressForMount,

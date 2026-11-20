@@ -313,6 +313,7 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'POST /api/v1/llm/runs/:id/response': audited('rbac'), // llm.run.response
   'POST /api/v1/llm/runs/:id/apply': audited('rbac'), // llm.run.apply
   'POST /api/v1/llm/runs/:id/undo/:token': audited('rbac'), // llm.run.undo
+  'POST /api/v1/llm/yours-assist/undo': audited('rbac'), // llm.run.undo
 
   // ── Background jobs. The generic enqueue/cancel door; the
   // per-domain enqueues (exports, imports, introspect, reports) audit in their

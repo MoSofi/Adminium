@@ -39,8 +39,8 @@ import { runGeneration } from '../generate/run.js';
 import type { YourDatabaseReason, YourDatabaseStatus } from './your-database-state.js';
 
 /** The project key the user's database is stored under (one constant, with the guard that keeps tables off it). */
-export { YOURS_KEY } from '../apps/no-app-tables.js';
-import { YOURS_KEY } from '../apps/no-app-tables.js';
+export { YOURS_KEY } from '../connections/no-app-tables.js';
+import { YOURS_KEY } from '../connections/no-app-tables.js';
 
 /** The tally holding a fingerprint of the choice last applied (an operator tally holds a whole number). */
 export const YOURS_CHOICE_TALLY = 'yours-choice';

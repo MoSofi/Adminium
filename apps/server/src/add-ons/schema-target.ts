@@ -47,7 +47,7 @@ import type { ConnectionManager } from '../connections/manager.js';
 import { runIntrospection } from '../connections/introspect.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { applyInstall, type ApplyInstallResult, type ExistingTable } from './install-ddl.js';
-import { assertNoAppTables } from '../apps/no-app-tables.js';
+import { assertNoAppTables } from '../connections/no-app-tables.js';
 
 export interface AddOnSchemaTarget {
   /**

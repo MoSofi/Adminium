@@ -2,7 +2,7 @@
 /**
  * Build box W4: the schema assistant's one run on the user's own database (`llm/yours-assist.ts`), the notes it
  * reads (`config/your-database.ts` `cleanNotes`, `POST /llm/runs` `notes`), and the key-based guard that keeps
- * app and add-on tables off `yours` (`apps/no-app-tables.ts`).
+ * app and add-on tables off `yours` (`connections/no-app-tables.ts`).
  *
  * On every meta engine (SQLite always; Postgres and MySQL with TEST_POSTGRES_URL / TEST_MYSQL_URL): the claim is a
  * row in `adminium_operator_tallies`, the record and its undo image a JSON setting, and the apply a transaction.
@@ -13,7 +13,7 @@ import type { InstallPlan, Manifest } from '@adminium/manifest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { applyPlanTo } from '../src/add-ons/schema-target.js';
-import { assertNoAppTables, YOURS_KEY } from '../src/apps/no-app-tables.js';
+import { assertNoAppTables, YOURS_KEY } from '../src/connections/no-app-tables.js';
 import { cleanNotes, YOUR_DATABASE_NOTES_MAX_CHARS } from '../src/config/your-database.js';
 import type { ConnectionManager } from '../src/connections/manager.js';
 import { createApplyService } from '../src/llm/apply-service.js';

@@ -417,6 +417,8 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'GET /api/v1/llm/runs/:id/prompt': rows(['all', 'own'], 'Another person\'s run is opened only by someone no table of that connection limits.'),
   'POST /api/v1/llm/runs/:id/response': rows(['all', 'system'], 'A run changes the schema and its pages under the schema grant; its figures are as when it was made.'),
   'POST /api/v1/llm/runs/:id/undo/:token': rows(['all', 'system'], 'A run changes the schema and its pages under the schema grant; its figures are as when it was made.'),
+  'GET /api/v1/llm/yours-assist': noRows('The schema assistant\'s one run on the user\'s own database: its state and what it changed, no row.'),
+  'POST /api/v1/llm/yours-assist/undo': rows(['all', 'system'], 'A run changes the schema and its pages under the schema grant; its figures are as when it was made.'),
   // --- /me
   'GET /api/v1/me': noRows('A person\'s own profile, preferences, notices and layouts.'),
   'PATCH /api/v1/me': noRows('A person\'s own profile, preferences, notices and layouts.'),

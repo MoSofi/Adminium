@@ -26,7 +26,7 @@ import { DsnSecretMismatchError } from '../../connections/crypto.js';
 import { maskDsn } from '../../connections/dsn.js';
 import { OffByOperatorError, policyOf } from '../../trial/refuse.js';
 import type { TrialPolicy } from '../../trial/policy.js';
-import { YOURS_KEY } from '../../apps/no-app-tables.js';
+import { YOURS_KEY } from '../../connections/no-app-tables.js';
 import { connectionTestBudget } from '../../trial/test-budget.js';
 import {
   INTROSPECT_JOB_KIND,

@@ -34,7 +34,7 @@ import {
 } from '../add-ons/schema-target.js';
 import type { ApplyInstallResult, ExistingTable } from '../add-ons/install-ddl.js';
 import { runIntrospection } from '../connections/introspect.js';
-import { assertNoAppTables } from './no-app-tables.js';
+import { assertNoAppTables } from '../connections/no-app-tables.js';
 import { applyServerEdit, planServerEdit, type EditBody, type ServerEditDeps } from '../schema-ddl/programmatic.js';
 import type { ApplyResult, SchemaPlan } from '../schema-ddl/service.js';
 import type { DatabaseModel } from '@adminium/engine';
@@ -111,7 +111,7 @@ export interface AppSchemaTarget {
 export function createAppSchemaTarget(deps: SchemaTargetCoreDeps & Pick<ServerEditDeps, 'crypto'>): AppSchemaTarget {
   return {
     edit: async (connectionId, build, opts) => {
-      // An app never changes the tables of the user's own database (`apps/no-app-tables.ts`).
+      // An app never changes the tables of the user's own database (`connections/no-app-tables.ts`).
       assertNoAppTables(await deps.manager.mustFind(connectionId), ['(an edit of existing tables)']);
       await runIntrospection({ manager: deps.manager, meta: deps.meta, connectionId });
       const result = await applyServerEdit(deps, connectionId, build, opts);
