@@ -1,0 +1,22 @@
+{
+  "admin": {
+    "ADMINIUM_OPERATOR_PROJECT": "on",
+    "ADMINIUM_YOUR_DATABASE": "{\"url\":\"postgres://ava:pw@db.example.com:5432/shop\",\"intent\":\"full-admin\",\"tables\":[\"public.orders\",\"public.customers\"],\"readOnly\":false,\"label\":\"Harbor books\",\"notes\":\"Orders ship from two warehouses.\"}",
+    "ADMINIUM_DATABASE_USER_HOST": "db.example.com:5432"
+  },
+  "analytics": {
+    "ADMINIUM_OPERATOR_PROJECT": "on",
+    "ADMINIUM_YOUR_DATABASE": "{\"url\":\"postgres://ava:pw@db.example.com:5432/shop\",\"intent\":\"read-only-analytics\",\"tables\":[\"public.orders\"],\"readOnly\":true,\"label\":\"Harbor books\"}",
+    "ADMINIUM_DATABASE_USER_HOST": "db.example.com:5432"
+  },
+  "crud": {
+    "ADMINIUM_OPERATOR_PROJECT": "on",
+    "ADMINIUM_YOUR_DATABASE": "{\"url\":\"postgres://ava:pw@db.example.com:5432/shop\",\"intent\":\"crud\",\"tables\":[],\"readOnly\":false,\"label\":\"Harbor books\"}",
+    "ADMINIUM_DATABASE_USER_HOST": "db.example.com:5432"
+  },
+  "support": {
+    "ADMINIUM_OPERATOR_PROJECT": "on",
+    "ADMINIUM_YOUR_DATABASE": "{\"url\":\"postgres://ava:pw@db.example.com:5432/shop\",\"intent\":\"support-console\",\"tables\":[\"public.customers\"],\"readOnly\":false,\"label\":\"Harbor books\"}",
+    "ADMINIUM_DATABASE_USER_HOST": "db.example.com:5432"
+  }
+}

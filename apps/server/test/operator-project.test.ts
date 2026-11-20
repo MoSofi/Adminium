@@ -10,7 +10,7 @@
  * allowed): what is proved is the project's behaviour, not the trial's hosts,
  * which `trial` tests and the guard's own suite prove.
  */
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -31,7 +31,7 @@ import { loadProjectConfig } from '../src/project/build.js';
 import { syncProjectDatabases } from '../src/project/databases.js';
 import { findProject } from '../src/project/locate.js';
 import { adoptSeededMain } from '../src/project/operator-adopt.js';
-import { forgetOperatorProjects, isOperatorLocation, OPERATOR_CONFIG_NAME, operatorProjectOn } from '../src/project/operator-project.js';
+import { forgetOperatorProjects, isOperatorLocation, OPERATOR_CONFIG_NAME, operatorOneOff, operatorProjectOn, withoutOperatorProjectEnv } from '../src/project/operator-project.js';
 import { connectYourDatabase, reasonOf, registerYourDatabase, startYourDatabase, YOURS_CHOICE_TALLY, yoursDataDsn } from '../src/project/your-database.js';
 import { yourDatabaseStatus } from '../src/project/your-database-state.js';
 import { META_ENGINES } from './meta-dialects.js';
@@ -54,6 +54,16 @@ describe('the operator project switch', () => {
     expect(operatorProjectOn(TRIAL_ENV)).toBe(true);
     expect(operatorProjectOn({ ADMINIUM_HOSTED_MODE: 'on', ADMINIUM_OPERATOR_PROJECT: 'on' })).toBe(true);
     expect(operatorProjectOn({ ADMINIUM_TRIAL_MODE: 'on' })).toBe(false);
+  });
+
+  it('holds without either mode only for an archive one-off, which asks for it', () => {
+    const oneOff = { ADMINIUM_OPERATOR_PROJECT: 'on', ADMINIUM_PROJECT_DIR: '/data/project' };
+    expect(operatorOneOff(oneOff)).toBe(true);
+    expect(operatorProjectOn(oneOff, { oneOff: true })).toBe(true);
+    expect(operatorProjectOn(oneOff)).toBe(false);
+    expect(operatorOneOff(TRIAL_ENV)).toBe(false);
+    expect(operatorProjectOn({ ADMINIUM_PROJECT_DIR: '/data/project' }, { oneOff: true })).toBe(false);
+    expect(withoutOperatorProjectEnv({ ...oneOff, ADMINIUM_YOUR_DATABASE: '{}', ADMINIUM_SECRET: 's' })).toEqual({ ADMINIUM_PROJECT_DIR: '/data/project', ADMINIUM_SECRET: 's' });
   });
 });
 
@@ -123,6 +133,17 @@ describe.each(META_ENGINES.filter((engine) => engine.available))('an existing tr
       expect((await pagesRepo(handle.meta).listForConnection(seeded.connectionId)).length).toBe(pagesBefore);
       // Idempotent: the next boot finds it already.
       expect(await adoptSeededMain(manager, handle.meta)).toBe('already');
+
+      // A restart with the user's database: `yours` is connected after listen, outside the
+      // config the sync is given, and is not called "no longer in the project config".
+      await manager.connections.create({ name: 'Harbor books', engine: 'postgres', sourceKind: 'dsn', introspectDsn: 'postgres://ava:pw@db.example.com:5432/shop', dataDsn: null, readOnly: false, settings: {}, status: 'connected', projectKey: 'yours', createdBy: null });
+      const said: string[] = [];
+      const sync = { manager, meta: handle.meta, root: dir, databases: new Map([['main', url]]), missing: [], log: (line: string) => said.push(line), warn: (line: string) => said.push(line) };
+      await syncProjectDatabases({ ...sync, elsewhere: ['yours'] });
+      expect(said.join('\n')).not.toMatch(/no longer in the project config/);
+      // Without it, the line this guards against.
+      await syncProjectDatabases(sync);
+      expect(said.join('\n')).toMatch(/Database "yours" is no longer in the project config/);
     } finally {
       await manager.disposeAll().catch(() => undefined);
       await handle.destroy();
@@ -378,5 +399,47 @@ describe('the operator project variables at boot', () => {
     expect(bad.join('\n')).toMatch(/ADMINIUM_YOUR_DATABASE/);
     expect(JSON.stringify(bad)).not.toContain('her-secret');
     expect(problems({ ...base, ADMINIUM_DATABASE_DENY_ADDRESSES: '203.0.113.7,not-an-ip' }).join('\n')).toMatch(/"not-an-ip" is not an IP address or CIDR range/);
+  });
+
+  it('names the four accepted intents when one is not among them', () => {
+    // adminium-app's own short names, which it maps before they reach the engine.
+    for (const intent of ['admin', 'analytics', 'support', 'nope']) {
+      const said = problems({ ...base, ADMINIUM_OPERATOR_PROJECT: 'on', ADMINIUM_YOUR_DATABASE: JSON.stringify({ url: 'postgres://ava:pw@db.example.com:6543/shop', intent }), ADMINIUM_DATABASE_USER_HOST: 'db.example.com:6543' }).join('\n');
+      expect(said).toContain('ADMINIUM_YOUR_DATABASE: has an "intent" that is not one of full-admin, read-only-analytics, crud, support-console');
+    }
+  });
+
+  /**
+   * The contract with adminium-app, which starts these trials: its `projectEnv()`
+   * output for each dashboard type, as it writes `test/fixtures/your-database.json`.
+   * The same file sits in both repositories; each side's test fails when its own
+   * side drifts. Every `ADMINIUM_YOUR_DATABASE` in it boots, with its siblings.
+   */
+  it('boots every value adminium-app writes, and its read-only analytics comes out read-only', () => {
+    const fixture = JSON.parse(readFileSync(join(import.meta.dirname, 'fixtures', 'build-box', 'your-database.json'), 'utf8')) as unknown;
+    const found: Record<string, string>[] = [];
+    const walk = (node: unknown): void => {
+      if (Array.isArray(node)) for (const item of node) walk(item);
+      else if (node !== null && typeof node === 'object') {
+        const record = node as Record<string, unknown>;
+        if ('ADMINIUM_YOUR_DATABASE' in record) {
+          const env: Record<string, string> = {};
+          for (const [name, value] of Object.entries(record)) if (name.startsWith('ADMINIUM_')) env[name] = typeof value === 'string' ? value : JSON.stringify(value);
+          found.push(env);
+        } else for (const value of Object.values(record)) walk(value);
+      }
+    };
+    walk(fixture);
+    const intents = new Set<string>();
+    for (const env of found) {
+      const parsed = envSchema.safeParse({ ...base, ADMINIUM_OPERATOR_PROJECT: 'on', ...env });
+      expect(parsed.success ? [] : parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`)).toEqual([]);
+      const yoursValue = parsed.data?.ADMINIUM_YOUR_DATABASE;
+      expect(yoursValue).toBeDefined();
+      intents.add(yoursValue!.intent);
+      if (yoursValue!.intent === 'read-only-analytics') expect(yoursValue!.readOnly).toBe(true);
+    }
+    // One value per dashboard type, between them the engine's four.
+    expect([...intents].sort()).toEqual(['crud', 'full-admin', 'read-only-analytics', 'support-console']);
   });
 });
