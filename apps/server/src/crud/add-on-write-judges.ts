@@ -37,6 +37,6 @@ export function addOnWriteJudges(installs: Pick<AddOnInstallsKeeper, 'fresh' | '
     // A landing pages add-on's pages: what `ownRecords` read on this write is asked again, else what is installed is read now.
     landingPages: async (connectionId, tableId, askedJustNow) => landingPagesTable(askedJustNow === true ? installs.current() : await installs.fresh(), connectionId, tableId),
     // A reviews add-on's tables: a person moderates a review, one at a time; the totals move with it.
-    reviewTables: async (connectionId, tableId) => reviewTableKind(await installs.fresh(), connectionId, tableId),
+    reviewTables: async (connectionId, tableId, askedJustNow) => reviewTableKind(askedJustNow === true ? installs.current() : await installs.fresh(), connectionId, tableId),
   };
 }

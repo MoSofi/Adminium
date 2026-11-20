@@ -2027,7 +2027,7 @@ export interface WriteServiceOptions {
    * alone and one at a time, and every change of a review's state moves the
    * totals in its own transaction. Without it, no table is.
    */
-  reviewTables?: ((connectionId: string, tableId: string) => Promise<{ kind: 'reviews' | 'totals'; tables: ReviewTables } | null>) | undefined;
+  reviewTables?: ((connectionId: string, tableId: string, askedJustNow?: boolean) => Promise<{ kind: 'reviews' | 'totals'; tables: ReviewTables } | null>) | undefined;
   /**
    * Whether a table is a payable's payments table, and which of its columns
    * name a payment taken online (`payments/payment-rows.ts`). A row that
@@ -2339,12 +2339,14 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   };
 
   /** Which reviews table a target is, if any ({@link WriteServiceOptions.reviewTables}). */
-  const reviewKindOf = async (target: Pick<WriteTarget, 'connectionId' | 'table'>) => (opts.reviewTables === undefined ? null : await opts.reviewTables(target.connectionId, target.table.id));
+  // A person's write has just asked {@link refuseOwnRecords}, which read what is installed: asked again of that read.
+  const reviewKindOf = async (target: Pick<WriteTarget, 'connectionId' | 'table'>, context: WriteContext) =>
+    opts.reviewTables === undefined ? null : await opts.reviewTables(target.connectionId, target.table.id, opts.ownRecords !== undefined && !writtenByAdminium(context));
 
   /** A person's create of a review, or a write of many reviews at once: refused, by name (`reviews/tables.ts`). */
   const refuseReviewWrite = async (target: Pick<WriteTarget, 'connectionId' | 'table'>, context: WriteContext, action: 'create' | 'bulk' | 'delete'): Promise<void> => {
     if (opts.reviewTables === undefined || writtenByAdminium(context) || action === 'delete') return;
-    const reviewed = await reviewKindOf(target);
+    const reviewed = await reviewKindOf(target, context);
     if (reviewed !== null) refusePersonReviewWrite(target.table.id, reviewed.kind, action);
   };
 
@@ -2353,8 +2355,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    * file brought in with its stamps): the add-on's totals worked out again
    * from the published reviews. A person's write never makes or removes one.
    */
-  const recountAfter = async (target: Pick<WriteTarget, 'connectionId' | 'view' | 'db' | 'dialect' | 'table'>): Promise<void> => {
-    const reviewed = await reviewKindOf(target);
+  const recountAfter = async (target: Pick<WriteTarget, 'connectionId' | 'view' | 'db' | 'dialect' | 'table'>, context: WriteContext): Promise<void> => {
+    if (opts.reviewTables === undefined || !writtenByAdminium(context)) return;
+    const reviewed = await reviewKindOf(target, context);
     if (reviewed?.kind !== 'reviews') return;
     const reviews = target.view.linkTable(reviewed.tables.reviews);
     const totals = target.view.linkTable(reviewed.tables.totals);
@@ -4739,7 +4742,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (await hooks.wants('after', 'create', target, context)) {
         await hooks.after({ action: 'create', target, record: row, before: null, context });
       }
-      await recountAfter(target);
+      await recountAfter(target, context);
       return row;
     },
 
@@ -5255,7 +5258,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       await refuseHeldWrite(target.db, 'update');
       await refuseOwnRecords(target, context);
       // A review: a person changes its state, hide reason and reply alone; its totals move with it, whoever changes it.
-      const reviewed = await reviewKindOf(target);
+      const reviewed = await reviewKindOf(target, context);
       const offered = reviewed?.kind !== 'reviews' ? input.values : writtenByAdminium(context) ? engineReviewValues(target.table.id, input.values) : staffReviewValues(target.table.id, input.values, new Date());
       await refusePaymentRows('update', target, context, [
         { values: offered, stored: async () => (input.before !== undefined ? input.before : input.load !== undefined ? await input.load() : ((await fetchByPk(target.db, target.table, pk)) ?? null)) },
@@ -5803,7 +5806,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (count > 0 && before !== null && (await hooks.wants('after', 'delete', target, context))) {
         await hooks.after({ action: 'delete', target, record: before, before: null, context });
       }
-      if (count > 0) await recountAfter(target);
+      if (count > 0) await recountAfter(target, context);
       return count;
     },
 
@@ -5989,7 +5992,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     async afterEach(action, target, context, rows) {
       if (rows.length === 0) return;
       await settle(action, target, rows, { by: { context, clock: writeClock(context) } });
-      if (action !== 'update') await recountAfter(target);
+      if (action !== 'update') await recountAfter(target, context);
       if (action !== 'delete') for (const row of rows) await toldPeople(action, target, context, row.record, row.before);
       const hooks = current();
       if (!(await hooks.wants('after', action, target, context))) return;

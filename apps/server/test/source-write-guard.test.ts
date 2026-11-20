@@ -20,6 +20,12 @@ const SRC = join(import.meta.dirname, '..', 'src');
 
 const ALLOWED: Record<string, string> = {
   'crud/write-service.ts': 'the write service itself',
+  'reviews/take.ts':
+    "a customer's review, written by Adminium into the add-on's own reviews table with the row's stamp, in one transaction under the row's lock: every column the server's own, the add-on's table one no person, hook or rule writes, and the stamp the reviewed row's only change, told to the rules as a change of that row after it commits",
+  'reviews/tables.ts':
+    "a reviews add-on's totals, kept by Adminium alone inside the write of the review whose state moved (or worked out again from the published reviews): a table no person, hook or rule writes",
+  'reviews/erase.ts':
+    "a forgotten person's reviews losing their name and whose they are, inside the forgetting or the erasure: Adminium's own columns of the add-on's table, as an erasure empties a person's other rows",
   'crud/band.ts':
     "a total's band picked again inside the write service's own settle (`settleParent`): the link and what is copied through it, Adminium's own columns of the parent row it already holds, written as the settle writes its totals and formulas — no rule of the table decides them and no hook or live frame is owed for a value nobody typed",
   'schema-ddl/sqlite-rebuild.ts': 'a schema change: rows are copied into the rebuilt table unchanged',
