@@ -718,6 +718,9 @@ jobs:
           name: server-blob-${{ matrix.shard }}
           path: apps/server/.vitest-reports/
           include-hidden-files: true
+          # A re-run of a failed shard replaces its earlier report rather than
+          # failing on the name, so "Re-run failed jobs" merges the new one.
+          overwrite: true
           retention-days: 7
           if-no-files-found: error
 
@@ -806,6 +809,7 @@ jobs:
         with:
           name: server-shard-timings
           path: ${{ runner.temp }}/shard-timings.json
+          overwrite: true
           retention-days: 30
           if-no-files-found: ignore
 
