@@ -1306,7 +1306,8 @@ function shopperListIssues(entries: readonly PublicAccess[], ctx: PublicAccessCo
     const via = entry.via;
     if (via !== undefined) {
       const key = entry.key ?? CUSTOMER_KEY;
-      const lists = entries.filter((other) => other.table === via.entry && (other.key ?? CUSTOMER_KEY) === key && other.methods.includes('GET'));
+      // A stock-words entry on the same table answers words, never rows: it is no list to filter through (the server skips it too).
+      const lists = entries.filter((other) => other.table === via.entry && (other.key ?? CUSTOMER_KEY) === key && other.methods.includes('GET') && other.kind !== 'availability');
       const through = lists[0];
       if (via.entry === entry.table) out.push({ path: at('via', 'entry'), message: 'a filter through another list names another table' });
       else if (lists.length !== 1 || through === undefined) {

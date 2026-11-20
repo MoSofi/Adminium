@@ -106,6 +106,12 @@ describe("a shopper's lists on a list anyone reads", () => {
     expect(issuesText(shop({ via: { entry: 'customers', on: 'id', columns: ['name'] } }))).toContain('customers');
   });
 
+  it('filter through a list that also answers stock words: the words are no second list', () => {
+    const m = shop();
+    (m['publicAccess'] as Doc[]).push({ table: 'modifier_groups', kind: 'availability', methods: ['GET'] });
+    expect(issuesText(m)).not.toContain('a filter through "modifier_groups" names the one entry');
+  });
+
   it('page at most a hundred from a file not made on an Adminium, by a column the list shows', () => {
     expect(issuesText(shop({ pagination: { defaultLimit: 24, maxLimit: 101, order: 'price.asc' } }))).toContain('a page holds at most 100 rows');
     expect(issuesText(shop({ pagination: { defaultLimit: 24, maxLimit: 48, order: 'available.asc' } }))).toContain('"available" is not shown by the entry, and an order says what a column holds');
