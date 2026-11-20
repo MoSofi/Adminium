@@ -492,12 +492,37 @@ for (const engine of META_ENGINES) {
       expect(await createYoursAssist(f.deps).maybeStart()).toEqual({ started: false, reason: 'taken' });
       expect(f.scripted.calls).toHaveLength(0);
 
-      // A wait (nothing spent) restored: it runs.
+      // A wait (nothing spent) restored: it waits for its time, then runs.
       await tallies.release(YOURS_ASSIST_TALLY);
       await settings.set('llm.yoursAssist', { state: 'waiting', runId: 'run_before', connectionId: f.connectionId, at, counts: null, undo: null, reason: 'busy', until: at + 30_000 });
+      const ahead = createYoursAssist(f.deps);
+      expect(await ahead.maybeStart()).toEqual({ started: false, reason: 'waiting' });
+      ahead.stop();
+      await settings.set('llm.yoursAssist', { state: 'waiting', runId: 'run_before', connectionId: f.connectionId, at, counts: null, undo: null, reason: 'busy', until: at - 1 });
       const waited = await createYoursAssist(f.deps).maybeStart();
       expect(waited.started ? await waited.done : null).toMatchObject({ state: 'applied' });
       expect(f.scripted.calls).toHaveLength(1);
+    });
+
+    it('a stop between the wait’s record and its tallies: the record says when, and the run is not lost', async () => {
+      const f = await fixture();
+      const settings = settingsRepo(f.meta);
+      const tallies = operatorTalliesRepo(f.meta);
+      const at = Date.now();
+      // Written: the record. Not yet: the wait's tally, and the run's tally given back.
+      await tallies.claim(YOURS_ASSIST_TALLY);
+      await settings.set('llm.yoursAssist', { state: 'waiting', runId: 'run_before', connectionId: f.connectionId, at, counts: null, undo: null, reason: 'busy', until: at + 60_000 });
+      const early = createYoursAssist(f.deps);
+      expect(await early.maybeStart()).toEqual({ started: false, reason: 'waiting' });
+      early.stop();
+      expect(f.scripted.calls).toHaveLength(0);
+
+      // Its time over: the tally is given back and it runs, once.
+      await settings.set('llm.yoursAssist', { state: 'waiting', runId: 'run_before', connectionId: f.connectionId, at, counts: null, undo: null, reason: 'busy', until: at - 1 });
+      const due = await createYoursAssist(f.deps).maybeStart();
+      expect(due.started ? await due.done : null).toMatchObject({ state: 'applied' });
+      expect(f.scripted.calls).toHaveLength(1);
+      expect((await tallies.get(YOURS_ASSIST_TALLY))?.amount).toBe(1);
     });
 
     it('gives the tally back when no run could be made (no model)', async () => {

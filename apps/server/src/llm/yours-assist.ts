@@ -241,7 +241,7 @@ export function createYoursAssist(deps: YoursAssistDeps): YoursAssist {
           // The run that set this wait may still be closing.
           if (inFlight !== null) await inFlight.catch(() => undefined);
           await tallies.release(YOURS_ASSIST_WAIT_TALLY);
-          await maybeStart();
+          await start(true);
         })().catch((error: unknown) => {
           log('yours-assist: could not start again', { error: error instanceof Error ? error.message : String(error) });
         });
@@ -308,10 +308,12 @@ export function createYoursAssist(deps: YoursAssistDeps): YoursAssist {
       const wait = waitFor(refused.retryAfterMs, shortTries, waits);
       shortTries = wait.short ? shortTries + 1 : 0;
       const until = now() + wait.ms;
+      // The record first: a stop between these writes leaves `waiting`, which the next start reads as a wait
+      // (`maybeStart`), never a `running` it would take for a run that happened.
+      await record({ state: 'waiting', runId, connectionId, at: now(), counts: null, undo: null, reason: wait.reason, until });
       await tallies.release(YOURS_ASSIST_WAIT_TALLY);
       await tallies.raise(YOURS_ASSIST_WAIT_TALLY, until);
       await tallies.release(YOURS_ASSIST_TALLY);
-      await record({ state: 'waiting', runId, connectionId, at: now(), counts: null, undo: null, reason: wait.reason, until }).catch(() => undefined);
       log('yours-assist: the operator AI is busy; it starts again later', { runId, reason: wait.reason, until, retryAfterMs: refused.retryAfterMs ?? null });
       schedule(until);
       return { state: 'waiting', runId, connectionId, counts: null, reason: wait.reason, tokens: 0 };
@@ -333,22 +335,29 @@ export function createYoursAssist(deps: YoursAssistDeps): YoursAssist {
   }
 
   async function maybeStart(): Promise<YoursAssistStart> {
+    return start(false);
+  }
+
+  /** `due`: the wait's timer fired, so its time has come whatever a clock says. */
+  async function start(due: boolean): Promise<YoursAssistStart> {
     if (inFlight !== null) return { started: false, reason: 'running' };
     if (deps.status.current()?.state !== 'ready') return { started: false, reason: 'not-ready' };
     if (await isBootstrapRequired(deps.meta)) return { started: false, reason: 'no-owner' };
     if (!deps.operatorKey) return { started: false, reason: 'no-key' };
     const connectionId = await deps.yoursConnectionId();
     if (connectionId === null) return { started: false, reason: 'no-connection' };
-    const waiting = await tallies.get(YOURS_ASSIST_WAIT_TALLY);
-    if (waiting !== null) {
-      if (waiting.amount > now()) {
-        // Refused earlier (this process, or one before a restart): it starts again at its time, not before.
-        if (timer === null) schedule(waiting.amount);
-        return { started: false, reason: 'waiting' };
-      }
-      await tallies.release(YOURS_ASSIST_WAIT_TALLY);
-    }
     const before = await settings.get('llm.yoursAssist');
+    const waiting = await tallies.get(YOURS_ASSIST_WAIT_TALLY);
+    // The wait's time: its tally, or the record's when a stop came before the tally was written.
+    const waitsUntil = waiting?.amount ?? (before?.state === 'waiting' ? (before.until ?? null) : null);
+    if (!due && waitsUntil !== null && waitsUntil > now()) {
+      // Refused earlier (this process, or one before a restart): it starts again at its time, not before.
+      if (timer === null) schedule(waitsUntil);
+      return { started: false, reason: 'waiting' };
+    }
+    if (waiting !== null) await tallies.release(YOURS_ASSIST_WAIT_TALLY);
+    // A wait recorded whose tally was not given back yet (a stop between the two writes): it is given back now.
+    if (before?.state === 'waiting') await tallies.release(YOURS_ASSIST_TALLY);
     if (ranBefore(before)) {
       // It ran. Restored from an archive, the record came back and the tally did not: take it again.
       if (await tallies.claim(YOURS_ASSIST_TALLY, now())) log('yours-assist: ran before this store was restored; not run again', { runId: before.runId, state: before.state });
