@@ -423,6 +423,24 @@ export {
 } from './leads.js';
 export { CUSTOMER_KEY, claimKind, claimSchema, codeSchemaOf, codeWhereSchema, hiddenFromStaff, ownLinksOfPerson, personalColumn, publicKeySchema, shareCodeColumns, type Claim, type CodeSchema, type PersonOwnLink, type PublicKey } from './public-access.js';
 export { resendAddressOf, type ResendAddress, type ResendColumns, type ResendOutbox } from './public-access.js';
+export {
+  SHOPPER_COUNT_MOST,
+  SHOPPER_DEFAULT_OPS,
+  SHOPPER_FILTERABLE_MOST,
+  SHOPPER_IN_MOST,
+  SHOPPER_OFFSET_MOST,
+  SHOPPER_OPS,
+  SHOPPER_ORDERABLE_MOST,
+  SHOPPER_PAGE_MOST,
+  SHOPPER_SEARCHABLE_MOST,
+  SHOPPER_SEARCHES_A_MINUTE,
+  SHOPPER_SEARCH_MIN,
+  shopperFilterColumn,
+  shopperFilterOps,
+  shopperLists,
+  type ShopperFilter,
+  type ShopperOp,
+} from './public-access.js';
 export { PLAIN_TEXT_DIGITS_MOST, PLAIN_TEXT_LONGEST, PLAIN_TEXT_MAX, plainTextMax, plainTextRef, type PlainTextColumnRef } from './public-access.js';
 
 export {

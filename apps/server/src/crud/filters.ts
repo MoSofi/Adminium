@@ -6,7 +6,7 @@
  * a parameter — by construction.
  */
 
-import type { DynamicModule, Expression, ExpressionBuilder, ReferenceExpression, SqlBool } from 'kysely';
+import { sql, type DynamicModule, type Expression, type ExpressionBuilder, type ReferenceExpression, type SqlBool } from 'kysely';
 import { z } from 'zod';
 
 import type { Dialect } from '@adminium/engine';
@@ -319,9 +319,27 @@ export function compileFilter(eb: Eb, ctx: CompileFilterContext, filter: RecordF
   return compileCondition(eb, ctx, filter);
 }
 
-/** Escape LIKE wildcards in user text for the `q=` quick search. */
+/** Escape LIKE wildcards in user text with a backslash (an automation's `ilike` value, read as each engine reads it). */
 export function escapeLike(text: string): string {
   return text.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+}
+
+/**
+ * Escape LIKE wildcards with `!`, for a pattern written with `escape '!'`:
+ * the one spelling all three engines read alike. A backslash is no escape on
+ * SQLite (its LIKE has none unless told), nor on MySQL under
+ * NO_BACKSLASH_ESCAPES, so `100%` searched with one matched any row holding
+ * "100\" and more; and a backslash cannot even be written as the escape in a
+ * MySQL literal both ways. `!` needs no escaping anywhere.
+ */
+export function escapeLikeBang(text: string): string {
+  return text.replace(/[!%_]/g, (ch) => `!${ch}`);
+}
+
+/** A case-insensitive substring match of a `!`-escaped pattern, as {@link compileILike} folds case, with the escape said. */
+function compileILikeEscaped(dialect: Dialect, target: Expression<unknown>, pattern: string): Expression<SqlBool> {
+  if (dialect === 'postgres') return sql<SqlBool>`${target} ilike ${pattern} escape '!'`;
+  return sql<SqlBool>`lower(${target}) like lower(${pattern}) escape '!'`;
 }
 
 /**
@@ -348,7 +366,8 @@ export function compileQuickSearch(
    */
   searchable?: readonly string[],
 ): Expression<SqlBool> | null {
-  const pattern = `%${escapeLike(q)}%`;
+  // Literal text: `%` and `_` typed are found as they are, on every engine (`escape '!'`).
+  const pattern = `%${escapeLikeBang(q)}%`;
   const allow = searchable === undefined ? null : new Set(searchable);
   const targets = [...ctx.table.columns.values()].filter(
     (column) =>
@@ -358,7 +377,7 @@ export function compileQuickSearch(
       (allow === null || allow.has(column.name)),
   );
   if (targets.length === 0) return null;
-  return eb.or(targets.map((column) => compileILike(eb, ctx.dialect, ctx.dynamic.ref(column.name), pattern)));
+  return eb.or(targets.map((column) => compileILikeEscaped(ctx.dialect, ctx.dynamic.ref(column.name) as unknown as Expression<unknown>, pattern)));
 }
 
 /** Re-exported for routes that need the masked-column rejection directly. */

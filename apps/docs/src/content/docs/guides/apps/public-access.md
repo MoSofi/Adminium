@@ -43,7 +43,9 @@ For each line, one public endpoint on the app's real table:
 
 - **A records endpoint**, named after the table, with the methods the app asked for. It exposes
   the columns the app lists, or else every column it declares for that table, and the writable
-  columns and fixed filters the app names. It returns 50 rows by default and at most 200.
+  columns and fixed filters the app names. It returns 50 rows by default and at most 200, or the
+  page size the app sets. A list anyone reads may also let a shopper filter, search, sort and count
+  it: see [Filters, search and sort on public lists](/guides/apps/shopper-lists/).
 - **An availability endpoint**, named *table*`_availability`, when the app takes bookings against
   a limit per time slot or a [booking rule](/guides/apps/booking-rules/). It answers only whether
   each time is **free** or **full**, and never returns a row, a name or a count. See
@@ -480,6 +482,7 @@ of the admin panel. Because the pages and the API share that domain, `self` cove
 | What | Limit |
 |---|---|
 | Each endpoint the install makes | 60 requests a minute per visitor |
+| A search on a list that lets shoppers search | 30 a minute per visitor, counted apart from the list's other reads |
 | A claim | 5 tries a minute per visitor, and 60 a minute across the whole key |
 | Asking for a code and typing one | 10 a minute per session, never counted across the whole key |
 | A claim at a kiosk | 30 a minute per staff sign-in, and the whole key's 60 |

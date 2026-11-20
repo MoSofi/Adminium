@@ -802,6 +802,8 @@ Some of these have a guide of their own:
   browser loads.
 - [Guests' uploads](/guides/apps/guest-uploads/): a `file` column a customer uploads into from the
   app's public pages (from 0.3.43).
+- [Filters, search and sort on public lists](/guides/apps/shopper-lists/): what a shopper may
+  filter, search, sort and count on a list anyone reads, and filter through another list (from 0.3.67).
 
 Reference: [Column rules](/reference/manifest/#column-rules).
 

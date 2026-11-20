@@ -117,6 +117,28 @@ for (const [dialect, available] of ENGINES) {
       expect(Object.values(JSON.parse(minted[0]!.access as string) as Doc).sort()).toEqual([['GET'], ['GET'], ['GET']]);
     });
 
+    it("a shopper's lists travel whole: the operators, the count, and nothing narrowed", async () => {
+      const h = await handMadeShop(dialect);
+      open.push(h);
+      await h.meta.db.updateTable('adminium_connections').set({ timezone: 'Europe/London' }).where('id', '=', h.connectionId).execute();
+      const model = (await sourceOf(h)).model;
+      const id = (name: string) => model.tables.find((table) => table.name === name)!.id;
+      const svc = service(h);
+      // As a manifest's catalogue entry makes it: each filter with its operators, a capped count.
+      const catalogue = { ...common('/open_orders', id('orders'), 'number.asc'), methods: ['GET'], select: ['number', 'total'], filters: [{ column: 'status', op: 'eq', value: 'open' }], auth: { role: 'anon' }, filterable: ['total'], shopper: { ops: { total: ['gte', 'lte'] }, count: true } };
+      await svc.saveEndpoint({ connectionId: h.connectionId, ref: 'open_orders', definition: catalogue as never, origin: 'custom', actorId: h.owner.id });
+      const browser = generatePublishableKey('browser');
+      await svc.createKey({ connectionId: h.connectionId, name: 'Shop site', access: [{ ref: 'open_orders', methods: ['GET'] }], secret: { prefix: browser.prefix, tokenHash: browser.tokenHash, tokenEncrypted: sealPublishableKey(crypto, browser.token) }, actorId: h.owner.id });
+
+      const result = await convertToApp(await sourceOf(h), choices());
+      const doc = withOtherParts(result);
+      expect(doc['publicAccess']).toEqual([
+        expect.objectContaining({ table: 'orders', path: '/open_orders', filterable: [{ column: 'total', ops: ['gte', 'lte'] }], count: true }),
+      ]);
+      expect(result.check.map((item) => item.code)).not.toContain('PUBLIC_ENDPOINT_NARROWED');
+      expectValid(doc);
+    });
+
     it('an entry that would not install as it is here is left out, with what it needs', async () => {
       const h = await handMadeShop(dialect);
       open.push(h);

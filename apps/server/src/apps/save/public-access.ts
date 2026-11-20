@@ -25,7 +25,7 @@
  * one stored here, field for field, and must have no issue. Anything else is
  * left out and said, so a save never widens what a stranger may do.
  */
-import { CUSTOMER_KEY, publicAccessSchema, publicKeySchema, type Manifest, type PublicAccess, type PublicKey } from '@adminium/manifest';
+import { CUSTOMER_KEY, publicAccessSchema, publicKeySchema, SHOPPER_DEFAULT_OPS, type Manifest, type PublicAccess, type PublicKey, type ShopperFilter, type ShopperOp } from '@adminium/manifest';
 import { publicEndpointsRepo, publicKeysRepo, publicScopesRepo, rolesRepo, keyEnabledBy, keyStaffBinding, type PublicEndpoint } from '@adminium/meta';
 
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
@@ -139,6 +139,32 @@ function claimOf(identity: Rec): PublicAccess['claim'] {
 }
 
 /** One stored endpoint, as the key `keyName` holds it, → an entry. */
+/**
+ * A shopper's lists as a file says them: each filterable column with the
+ * operators it takes (bare when they are the default four), a filter through
+ * another entry's rows by that entry's table, and the count. Only from an
+ * endpoint that keeps them as a shopper's (one a manifest made, or saved).
+ */
+function shopperEntryOf(inv: Inverse, def: Def): Partial<PublicAccess> {
+  const shopper = def.shopper;
+  if (shopper === undefined) return {};
+  const filterOf = (column: string, ops: readonly string[]): ShopperFilter =>
+    ops.length === SHOPPER_DEFAULT_OPS.length && SHOPPER_DEFAULT_OPS.every((op) => ops.includes(op)) ? column : { column, ops: [...ops] as ShopperOp[] };
+  let via: PublicAccess['via'];
+  if (shopper.via !== undefined) {
+    const through = inv.tableOfRef(shopper.via.ref);
+    if (through === null) throw new LeftOut('the entry its shoppers filter through is not saved');
+    via = { entry: tab(inv, through), on: shopper.via.on, columns: Object.entries(shopper.via.ops).map(([column, ops]) => filterOf(column, ops)) };
+  }
+  return {
+    ...opt('filterable', def.filterable === undefined || def.filterable.length === 0 ? undefined : def.filterable.map((column) => filterOf(column, shopper.ops[column] ?? SHOPPER_DEFAULT_OPS))),
+    ...opt('searchable', def.searchable === undefined || def.searchable.length === 0 ? undefined : [...def.searchable]),
+    ...opt('orderable', def.orderable === undefined || def.orderable.length === 0 ? undefined : [...def.orderable]),
+    ...opt('via', via),
+    ...opt('count', shopper.count),
+  };
+}
+
 function entryOf(inv: Inverse, endpoint: PublicEndpoint, def: Def, keyName: string, methods: PublicAccess['methods']): PublicAccess {
   const table = tab(inv, def.source);
   const base = { table, methods, path: `/${endpoint.ref}`, ...(keyName === CUSTOMER_KEY ? {} : { key: keyName }) };
@@ -199,6 +225,7 @@ function entryOf(inv: Inverse, endpoint: PublicEndpoint, def: Def, keyName: stri
     select: [...def.select],
     ...(def.filters.length === 0 ? {} : { filters: def.filters.map((filter) => ({ ...filter })) as PublicAccess['filters'] }),
     pagination: { defaultLimit: def.pagination.default_limit, maxLimit: def.pagination.max_limit, order: def.pagination.order },
+    ...shopperEntryOf(inv, def),
     rateLimit: { requests: def.rate_limit.requests, window: def.rate_limit.window },
     response: def.response.shape === 'array' ? 'array' : def.response.shape === 'single' ? 'single' : 'wrapped',
     ...opt('writable', def.writable === undefined ? undefined : [...def.writable]),
@@ -391,7 +418,8 @@ export const convertPublicAccess: ConvertPart = async (ctx) => {
       const next = kept.filter((candidate, i) => {
         const plan = planned[i];
         const stored = { ...candidate.def } as Rec;
-        const narrowing = NARROWING_ONLY.filter((field) => stored[field] !== undefined);
+        // A shopper's lists are said in a file (they round-trip whole); a designer-made endpoint's lists are not.
+        const narrowing = NARROWING_ONLY.filter((field) => stored[field] !== undefined && (stored['shopper'] === undefined || field === 'allow_cascade'));
         for (const field of narrowing) delete stored[field];
         const rebuilt = plan === undefined || plan.definition === null ? null : parseDefinition(plan.definition);
         const same = plan !== undefined && plan.issues.length === 0 && rebuilt !== null && rebuilt.ok && canonical(rebuilt.definition) === canonical(stored);

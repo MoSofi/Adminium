@@ -318,6 +318,14 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'publicAccess.pagination',
   'publicAccess.rateLimit',
   'publicAccess.response',
+  // A shopper's lists on a list anyone reads: filters, search, order, a filter through another list, a count; and an
+  // entry's own pages from any file, not only one made on an Adminium.
+  'publicAccess.filterable',
+  'publicAccess.searchable',
+  'publicAccess.orderable',
+  'publicAccess.via',
+  'publicAccess.count',
+  'publicAccess.appPagination',
   // A new row that moves the earlier rows sharing its link on (a proof sent again).
   'states.supersedes',
   // Words of a sample FILE, not of the manifest: an app's rows for an add-on that ship files of their own, and
@@ -670,6 +678,13 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'addOn.leads': '0.3.66',
   'people.lead': '0.3.66',
   'addOn.slots.on': '0.3.66',
+  // A release before refuses the keys (and pages from a file not made on an Adminium).
+  'publicAccess.filterable': '0.3.67',
+  'publicAccess.searchable': '0.3.67',
+  'publicAccess.orderable': '0.3.67',
+  'publicAccess.via': '0.3.67',
+  'publicAccess.count': '0.3.67',
+  'publicAccess.appPagination': '0.3.67',
 };
 
 /** The kinds of file a column takes from the release that cleans SVG and reads models and fonts whole (`ASSET_FILE_KINDS`). */
@@ -1204,6 +1219,14 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     }
     for (const [key, word] of [['path', 'publicAccess.path'], ['pagination', 'publicAccess.pagination'], ['rateLimit', 'publicAccess.rateLimit'], ['response', 'publicAccess.response']] as const) {
       if (isDoc(entry) && entry[key] !== undefined) out.push({ word, path: `publicAccess.${String(e)}.${key}` });
+    }
+    // A shopper's lists, and pages said by a file not made on an Adminium.
+    for (const key of ['filterable', 'searchable', 'orderable', 'via', 'count'] as const) {
+      if (isDoc(entry) && entry[key] !== undefined) out.push({ word: `publicAccess.${key}`, path: `publicAccess.${String(e)}.${key}` });
+    }
+    const publisher = isDoc(document['publisher']) ? document['publisher']['id'] : undefined;
+    if (isDoc(entry) && entry['pagination'] !== undefined && publisher !== 'local') {
+      out.push({ word: 'publicAccess.appPagination', path: `publicAccess.${String(e)}.pagination` });
     }
   });
   return out;

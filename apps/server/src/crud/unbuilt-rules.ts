@@ -472,6 +472,14 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // A record action the generated record page shows on a kind of declared table, and the notes under the fields a
   // source filled (leads/record-actions.ts, routes/leads/notes.ts).
   'addOn.slots.on',
+  // A shopper's lists on a list anyone reads (each filter's operators, a search on its own counter, an order by a column
+  // never empty, a filter through another list's rows as ONE EXISTS, a capped count), and pages from any file.
+  'publicAccess.filterable',
+  'publicAccess.searchable',
+  'publicAccess.orderable',
+  'publicAccess.via',
+  'publicAccess.count',
+  'publicAccess.appPagination',
 ];
 
 /**

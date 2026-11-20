@@ -224,6 +224,7 @@ export default defineConfig({
                   label: 'Guests, their details and their own links',
                   link: '/guides/apps/identity-and-own-links/',
                 },
+                { label: 'Filters, search and sort on public lists', link: '/guides/apps/shopper-lists/' },
                 { label: 'Pictures on public pages', link: '/guides/apps/public-pictures/' },
                 { label: 'Models, fonts and SVG pieces on public pages', link: '/guides/apps/public-assets/' },
                 { label: 'Guests’ uploads', link: '/guides/apps/guest-uploads/' },

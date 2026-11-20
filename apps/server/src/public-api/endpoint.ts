@@ -27,7 +27,7 @@
  * order, methods in GET POST PATCH PUT DELETE BATCH order, two-space indent.
  */
 
-import { ASSET_FILE_KINDS, formulaColumns, linkedConditionSchema, SELF_UNLOCK_MIN_LENGTH, stateConditionSchema } from '@adminium/manifest';
+import { ASSET_FILE_KINDS, formulaColumns, linkedConditionSchema, SELF_UNLOCK_MIN_LENGTH, SHOPPER_OPS, stateConditionSchema } from '@adminium/manifest';
 import { z } from 'zod';
 
 import type { EffectiveColumn, EffectiveModel } from '../connections/effective-schema.js';
@@ -305,6 +305,23 @@ export const publicEndpointDefinitionSchema = z
     filterable: z.array(columnSchema).optional(),
     searchable: z.array(columnSchema).optional(),
     orderable: z.array(columnSchema).optional(),
+    /**
+     * A manifest's catalogue entry: each filterable column's operators, a
+     * filter through another endpoint's rows (`via`: its path's ref, its
+     * link to this table, what may be asked of it), and a capped count.
+     * Absent on an endpoint made on the endpoints page: its lists as before.
+     */
+    shopper: z
+      .object({
+        ops: z.record(columnSchema, z.array(z.enum(SHOPPER_OPS)).min(1).max(SHOPPER_OPS.length)),
+        via: z
+          .object({ ref: z.string().min(1).max(REF_MAX), on: columnSchema, ops: z.record(columnSchema, z.array(z.enum(SHOPPER_OPS)).min(1).max(SHOPPER_OPS.length)) })
+          .strict()
+          .optional(),
+        count: z.literal(true).optional(),
+      })
+      .strict()
+      .optional(),
     claim: claimSchema.optional(),
     /** Readable only with a parent endpoint's row (a draft's lines stay as hidden as the draft). */
     visible_with: visibleWithSchema.optional(),
@@ -570,6 +587,7 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
   if (def.filterable !== undefined) out['filterable'] = [...def.filterable];
   if (def.searchable !== undefined) out['searchable'] = [...def.searchable];
   if (def.orderable !== undefined) out['orderable'] = [...def.orderable];
+  if (def.shopper !== undefined) out['shopper'] = structuredClone(def.shopper);
   if (def.claim !== undefined) {
     const claim: Record<string, unknown> = {};
     if (def.claim.column !== undefined) claim['column'] = def.claim.column;
@@ -963,6 +981,7 @@ export function definitionToResource(
     filterable: [...(def.filterable ?? [])],
     searchable: [...(def.searchable ?? [])],
     orderable: [...(def.orderable ?? [])],
+    ...(def.shopper === undefined ? {} : { shopper: structuredClone(def.shopper) }),
     where: def.filters.map(filterOf) as PublicScopeResource['where'],
     /*
      * Nothing is writable through a door that takes no write. The default —
@@ -2005,7 +2024,7 @@ function agreePathIssues(
  * a key, not of this endpoint, and is checked when a key's document is
  * derived.
  */
-const KEY_LEVEL_CODES = new Set(['SCOPE_CLAIM_VIA_UNKNOWN_REF', 'SCOPE_VISIBLE_WITH_UNKNOWN_REF', 'SCOPE_TIMEZONE_INVALID']);
+const KEY_LEVEL_CODES = new Set(['SCOPE_CLAIM_VIA_UNKNOWN_REF', 'SCOPE_VISIBLE_WITH_UNKNOWN_REF', 'SCOPE_SHOPPER_VIA_UNKNOWN_REF', 'SCOPE_TIMEZONE_INVALID']);
 
 function scopeIssuesOf(
   ref: string,

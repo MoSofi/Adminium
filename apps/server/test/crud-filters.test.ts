@@ -24,6 +24,7 @@ import {
   compileFilter,
   compileQuickSearch,
   escapeLike,
+  escapeLikeBang,
   MAX_WHERE_BYTES,
   MAX_WHERE_DEPTH,
   parseWhereParam,
@@ -329,11 +330,14 @@ describe('quick search (q=)', () => {
       .where((eb) => compileQuickSearch(eb as never, ctx(), 'a%b_c')!)
       .compile();
     // company_name + customer_id are text-ish; phone is masked; password_hash secret.
-    expect(compiled.sql).toContain('"customer_id" ilike $1');
-    expect(compiled.sql).toContain('"company_name" ilike $2');
+    // `escape '!'`: the one escape all three engines read alike, so `%` and `_` are found as typed.
+    expect(compiled.sql).toContain(`"customer_id" ilike $1 escape '!'`);
+    expect(compiled.sql).toContain(`"company_name" ilike $2 escape '!'`);
     expect(compiled.sql).not.toContain('phone');
     expect(compiled.sql).not.toContain('password_hash');
-    expect(compiled.parameters?.[0]).toBe('%a\\%b\\_c%');
+    expect(compiled.parameters?.[0]).toBe('%a!%b!_c%');
+    expect(escapeLikeBang('100%_!')).toBe('100!%!_!!');
+    // The backslash escape stays for an automation's `ilike` value.
     expect(escapeLike('100%_\\')).toBe('100\\%\\_\\\\');
   });
 

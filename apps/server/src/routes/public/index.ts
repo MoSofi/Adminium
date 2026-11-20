@@ -48,7 +48,7 @@ import { availabilityOf } from '../../surfaces/settings.js';
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import type { Dialect } from '@adminium/engine';
-import { sql, type Kysely } from 'kysely';
+import { sql, type Expression, type Kysely, type SqlBool } from 'kysely';
 import { runList } from '../../crud/list.js';
 import { renewedBy } from '../../crud/code-renew.js';
 import { opensByLongOwnCode } from '../../crud/code-lookup.js';
@@ -61,6 +61,7 @@ import type { FileReconciler } from '../../files/reconcile.js';
 import { registerAssets } from './assets.js';
 import { cardInputs, CODE_HEADER, GuessesSpent, guessRung, treeRung, writeRung, type WriteRung, rungOf, treeTypesCode, typedCodeOf, typesCode, unlockedByRow, unlockedKeys } from './code-guesses.js';
 import { compileFilter, parseWhereParam, type RecordFilter } from '../../crud/filters.js';
+import { shopperAsks, throughCondition } from '../../public-api/shopper.js';
 import type { PublicKeyResolver, ResolvedKey } from '../../public-api/resolve.js';
 import {
   createPublicResolver,
@@ -76,7 +77,7 @@ import { priceAnswer, type AppliedReply, type PriceAnswer } from '../../crud/adj
 import { DesignRefused } from '../../crud/check/step.js';
 import type { AdjustedOrder } from '../../crud/adjust/step.js';
 import { paymentOf } from '../../ledgers/payment.js';
-import { ratioText, sameDecimal, toRatio } from '@adminium/manifest';
+import { ratioText, sameDecimal, SHOPPER_COUNT_MOST, SHOPPER_IN_MOST, SHOPPER_OFFSET_MOST, SHOPPER_SEARCH_MIN, SHOPPER_SEARCHES_A_MINUTE, toRatio } from '@adminium/manifest';
 import { CLIENT_KEY_FORMAT, childValues, clientKeyHash, clientKeySecret, hiddenInQuote, placeOf, placeheldTexts, placesOfColumn, quotePlaceholders, treeShape } from './tree.js';
 import { afterNow, aheadWithin, beforeToday, fromToday, isMomentWindow, isTimeWindow, mandatoryAt } from '../../public-api/relative-filters.js';
 import { publicWindows, withPublicWindows } from '../../public-api/moment-windows.js';
@@ -1252,6 +1253,13 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
        * never spends what a save needs.
        */
       bucket?: string;
+      /**
+       * A search (`q=`): on a shopper's list it is counted in its own bucket
+       * (`<ref>#search`), at its own rate — thirty a minute — so typing never
+       * spends what browsing needs, and searching costs the database no more
+       * than that.
+       */
+      search?: boolean;
     } = {},
   ): Promise<{ key: ResolvedKey; session: PublicSessionContext | null } | null> => {
     /*
@@ -1473,7 +1481,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * without — every scope written before endpoints existed — by its class, as always.
      * The claim bucket is never replaced: it is the brute-force guard.
      */
-    const rated = typeof ref === 'string' && limit !== 'public-claim' ? key.scope.byRef.get(ref)?.rate ?? null : null;
+    const named = typeof ref === 'string' && limit !== 'public-claim' ? key.scope.byRef.get(ref) : undefined;
+    const searching = opts.search === true && named?.shopper !== null && named?.shopper !== undefined;
+    const rated = searching ? { max: SHOPPER_SEARCHES_A_MINUTE, windowMs: 60_000 } : (named?.rate ?? null);
+    const bucket = searching && typeof ref === 'string' ? `${ref}#search` : opts.bucket;
     if (rated !== null && typeof ref === 'string') {
       const cost = opts.cost ?? 1;
       // A request that could never fit is a refusal, not a wait: answered
@@ -1484,7 +1495,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         });
         return null;
       }
-      if (!admit(reply, limiter.hitEndpoint({ ...counted, ref: opts.bucket ?? ref, kind: key.kind }, rated, cost))) return null;
+      if (!admit(reply, limiter.hitEndpoint({ ...counted, ref: bucket ?? ref, kind: key.kind }, rated, cost))) return null;
     } else if (!admit(reply, limiter.hit(counts, counted))) {
       return null;
     }
@@ -2141,13 +2152,16 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         },
       },
       async (request, reply) => {
-        const ok = await gate(request, reply, 'public-read');
+        // A search on a shopper's list is counted in its own bucket, at its own rate.
+        const ok = await gate(request, reply, 'public-read', { search: typeof request.query.q === 'string' && request.query.q.length > 0 });
         if (ok === null) return reply;
 
         const found = await resolveResource(request, reply, ok, request.params.ref, 'read');
         if (found === null) return reply;
         const { resource, view, table, db, dialect, predicate } = found;
         const single = resource.response.shape === 'single';
+        // A shopper's list: its operators, its filter through another list, its count (null: an endpoint's lists as before).
+        const shopper = resource.shopper ?? null;
 
         const q = request.query;
         // A code travels in a header: a URL is kept by every log and proxy on the way.
@@ -2165,19 +2179,53 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (q.q !== undefined && q.q.length > 0 && searchable.length === 0) {
           return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', REFUSED_SEARCH, { parameter: 'q' });
         }
+        // A shopper searches from two characters: one letter matches nearly every row, at a full scan's cost.
+        if (shopper !== null && q.q !== undefined && q.q.length > 0 && [...q.q.trim()].length < SHOPPER_SEARCH_MIN) {
+          return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', `A search is at least ${String(SHOPPER_SEARCH_MIN)} characters.`, { parameter: 'q' });
+        }
+        // Deep pages are read by cursor: an offset sorts and skips every row before it, on every request.
+        if (shopper !== null && q.offset !== undefined && q.offset > SHOPPER_OFFSET_MOST) {
+          return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', `An offset is at most ${String(SHOPPER_OFFSET_MOST)}: page further by cursor.`, { parameter: 'offset' });
+        }
         let where: string | undefined;
         if (q.where !== undefined) {
           try {
             const parsed = parseWhereParam(q.where);
             const named = collectFilterColumns(parsed);
             const outside = named.filter((c) => !resource.filterable.has(c) || withheld.columns.has(c));
-            if (outside.length > 0) {
+            // A shopper's filter asks each column only what it takes, ANDed: no `or`, no pattern, a short `in`.
+            if (outside.length > 0 || (shopper !== null && !shopperAsks(parsed, shopper.ops))) {
               return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', REFUSED_WHERE, { parameter: 'where' });
             }
             where = q.where;
           } catch {
             return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', REFUSED_WHERE, { parameter: 'where' });
           }
+        }
+        /*
+         * A filter through another list's rows: ONE EXISTS on that list's
+         * table, under its own fixed filters, asking only what the list names.
+         */
+        let through: ((outer: string) => Expression<SqlBool>) | undefined;
+        if (q.via !== undefined) {
+          const via = shopper?.via ?? null;
+          const other = via === null ? undefined : ok.key.scope.byRef.get(via.ref);
+          let asked: RecordFilter | null = null;
+          try {
+            asked = parseWhereParam(q.via);
+          } catch {
+            asked = null;
+          }
+          if (via === null || other === undefined || asked === null || !shopperAsks(asked, via.ops)) {
+            return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', REFUSED_WHERE, { parameter: 'via' });
+          }
+          let otherTable: ResolvedTable;
+          try {
+            otherTable = view.table(other.table);
+          } catch {
+            return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', REFUSED_WHERE, { parameter: 'via' });
+          }
+          through = throughCondition({ db, dialect, view, table, through: otherTable, on: via.on, fixed: mandatoryAt(other.where, otherTable, ok.key.scope.timezone), asked });
         }
         if (q.order !== undefined) {
           const named = q.order
@@ -2217,6 +2265,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             ...(q.cursor === undefined ? {} : { cursor: q.cursor }),
             count: 'none',
           },
+          ...(through === undefined ? {} : { through }),
+          // A shopper's list that counts: its first page says how many rows it holds, to a thousand.
+          ...(shopper?.count === true && !single ? { countCap: SHOPPER_COUNT_MOST } : {}),
           // Anonymous callers never see PII-masked columns, whatever the scope
           // says: masking is a second line and the allow-list is the boundary.
           // A person who proved their mailbox reads their OWN row as it is.

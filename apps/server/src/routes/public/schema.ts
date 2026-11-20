@@ -13,6 +13,7 @@
  * to translate later — and it avoids serving translation bundles to anonymous
  * callers, which `routes/i18n/index.ts` refuses in writing.
  */
+import { SHOPPER_OPS } from '@adminium/manifest';
 import { z } from 'zod';
 
 import { PUBLIC_ACTIONS, PUBLIC_RESPONSE_SHAPES } from '../../public-api/scope.js';
@@ -31,6 +32,8 @@ export const publicListQuery = z.object({
   q: z.string().max(256).optional(),
   order: z.string().max(256).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
+  /** On a shopper's list that filters through another ref's rows: the conditions ONE of those rows must hold, in `where`'s grammar (AND only). */
+  via: z.string().max(4096).optional(),
   offset: z.coerce.number().int().min(0).optional(),
   cursor: z.string().max(2048).optional(),
   // No `count`: the vocabulary is `none` and nothing else.
@@ -159,6 +162,19 @@ export const publicConfigReply = z.object({
         orderable: z.array(z.string()),
         writable: z.array(z.string()),
         limit: z.number().int(),
+        /**
+         * A shopper's list: the operators each filterable column takes (no
+         * `or`, no pattern); what may be asked of another ref's rows through
+         * `via` (sent as `via=`, all of it held by ONE of those rows); and
+         * whether the first page says how many rows there are (`count`).
+         */
+        shopper: z
+          .object({
+            ops: z.record(z.string(), z.array(z.enum(SHOPPER_OPS))),
+            via: z.object({ ref: z.string(), ops: z.record(z.string(), z.array(z.enum(SHOPPER_OPS))) }).optional(),
+            count: z.literal(true).optional(),
+          })
+          .optional(),
         /** How a list of this ref answers. */
         response: z.object({ shape: z.enum(PUBLIC_RESPONSE_SHAPES) }),
         /** Present on an availability ref: ask `/availability/<ref>`, never `/records`. */
@@ -191,6 +207,8 @@ export const publicListReply = z.object({
     })
     .optional(),
   cursor: z.object({ next: z.string().nullable() }).optional(),
+  /** A shopper's list that counts: on its first page, the rows it holds, to a thousand (`atLeast`: a thousand or more). */
+  count: z.object({ rows: z.number().int(), atLeast: z.boolean() }).optional(),
 });
 
 /**

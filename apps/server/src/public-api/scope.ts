@@ -21,7 +21,7 @@
  * here is in service of that sentence.
  */
 
-import { linkedConditionSchema, SELF_UNLOCK_MIN_LENGTH, stateConditionSchema, type StateCondition } from '@adminium/manifest';
+import { linkedConditionSchema, SELF_UNLOCK_MIN_LENGTH, SHOPPER_OPS, stateConditionSchema, type ShopperOp, type StateCondition } from '@adminium/manifest';
 import { ANONYMOUS_PER_IP_HOUR, plainColumns, plainTextListSchema, type AnonymousCaps } from './anonymous-caps.js';
 import type { WithholdWhen } from './withhold-when.js';
 import { z } from 'zod';
@@ -324,6 +324,25 @@ const resourceSchema = z
     /** Columns `q=` may search. Absent ⇒ `q=` is refused. */
     searchable: z.array(columnSchema).default([]),
     orderable: z.array(columnSchema).default([]),
+    /**
+     * A shopper's list (a manifest's catalogue entry): each filterable
+     * column's operators — no `or`, no pattern, an `in` of at most fifty —
+     * a search from two characters on its own counter, offsets no deeper than
+     * a thousand; a filter through another resource's rows (`via`, ONE EXISTS
+     * on that resource's table, under its own filters); and a capped count on
+     * the first page. Absent: the lists as a designer-made endpoint has them.
+     */
+    shopper: z
+      .object({
+        ops: z.record(columnSchema, z.array(z.enum(SHOPPER_OPS)).min(1).max(SHOPPER_OPS.length)),
+        via: z
+          .object({ ref: refSchema, on: columnSchema, ops: z.record(columnSchema, z.array(z.enum(SHOPPER_OPS)).min(1).max(SHOPPER_OPS.length)) })
+          .strict()
+          .optional(),
+        count: z.literal(true).optional(),
+      })
+      .strict()
+      .optional(),
     /** ANDed server-side, always. */
     where: z.array(mandatoryConditionSchema).default([]),
     /** Writable columns for create/update. Empty ⇒ the action is declared but inert. */
@@ -677,6 +696,13 @@ export class ScopeCompileError extends Error {
 }
 
 /** What the request path is handed. Every field is already checked. */
+/** What a shopper may ask of a list (see the resource's `shopper`). */
+export interface CompiledShopper {
+  ops: ReadonlyMap<string, ReadonlySet<ShopperOp>>;
+  via: { ref: string; on: string; ops: ReadonlyMap<string, ReadonlySet<ShopperOp>> } | null;
+  count: boolean;
+}
+
 export interface CompiledResource {
   ref: string;
   table: string;
@@ -685,6 +711,8 @@ export interface CompiledResource {
   filterable: ReadonlySet<string>;
   searchable: readonly string[];
   orderable: ReadonlySet<string>;
+  /** A shopper's list: the operators each column takes, a filter through another resource, a capped count; null for a designer-made endpoint's lists (absent in a resource built by hand: the same). */
+  shopper?: CompiledShopper | null | undefined;
   writable: ReadonlySet<string>;
   defaults: Readonly<Record<string, unknown>>;
   /**
@@ -1516,6 +1544,7 @@ export function compileScope(
   }
 
   issues.push(...visibleWithIssues(doc, columnsOf));
+  issues.push(...shopperIssues(doc, columnsOf));
 
   if (issues.length > 0) throw new ScopeCompileError(issues);
 
@@ -1541,6 +1570,14 @@ export function compileScope(
       filterable: new Set(r.filterable),
       searchable: [...r.searchable],
       orderable: new Set(r.orderable),
+      shopper:
+        r.shopper === undefined
+          ? null
+          : {
+              ops: new Map(Object.entries(r.shopper.ops).map(([column, ops]) => [column, new Set(ops)])),
+              via: r.shopper.via === undefined ? null : { ref: r.shopper.via.ref, on: r.shopper.via.on, ops: new Map(Object.entries(r.shopper.via.ops).map(([column, ops]) => [column, new Set(ops)])) },
+              count: r.shopper.count === true,
+            },
       writable: new Set(r.writable),
       defaults: { ...r.defaults },
       where: {
@@ -1652,6 +1689,55 @@ export function compileScope(
  */
 function sameTable(a: string, b: string): boolean {
   return a === b || a.slice(a.lastIndexOf('.') + 1) === b.slice(b.lastIndexOf('.') + 1);
+}
+
+/**
+ * A shopper's list, checked against the scope it sits in: the operators
+ * name filterable columns; a filter through another resource reads one that
+ * anyone reads (records, no claim, no parent, no level, no code, nothing
+ * withheld), on another table, whose `on` column points here, and asks only
+ * of columns it shows.
+ */
+function shopperIssues(doc: PublicScopeDocument, columnsOf: TableColumnLookup | undefined): ScopeIssue[] {
+  const issues: ScopeIssue[] = [];
+  const byRef = new Map(doc.resources.map((r) => [r.ref, r]));
+  for (const r of doc.resources) {
+    const shopper = r.shopper;
+    if (shopper === undefined) continue;
+    const push = (code: string, message: string, column?: string): void => {
+      issues.push({ code, message, ref: r.ref, ...(column === undefined ? {} : { column }) });
+    };
+    for (const column of Object.keys(shopper.ops)) {
+      if (!r.filterable.includes(column)) push('SCOPE_SHOPPER_NOT_FILTERABLE', `"${column}" has operators but is not filterable`, column);
+    }
+    for (const column of r.filterable) {
+      if (shopper.ops[column] === undefined) push('SCOPE_SHOPPER_NO_OPS', `"${column}" is filterable on a shopper's list, so it names its operators`, column);
+    }
+    const via = shopper.via;
+    if (via === undefined) continue;
+    const through = byRef.get(via.ref);
+    if (through === undefined) {
+      push('SCOPE_SHOPPER_VIA_UNKNOWN_REF', `ref "${r.ref}" filters through "${via.ref}", which this scope does not declare`);
+      continue;
+    }
+    const anyone =
+      through.ref !== r.ref &&
+      !sameTable(through.table, r.table) &&
+      through.actions.includes('read') &&
+      (through.kind ?? 'records') === 'records' &&
+      through.claim === undefined &&
+      through.visibleWith === undefined &&
+      through.level === undefined &&
+      through.unlockBy === undefined &&
+      through.withhold === undefined;
+    if (!anyone) push('SCOPE_SHOPPER_VIA_NOT_OPEN', `ref "${r.ref}" filters through "${via.ref}", which is not a list of another table anyone reads`);
+    const known = columnsOf?.(through.table) ?? null;
+    if (known !== null && !known.has(via.on)) push('SCOPE_SHOPPER_VIA_UNKNOWN_COLUMN', `"${via.on}" is not a column of ${through.table}`, via.on);
+    for (const column of Object.keys(via.ops)) {
+      if (!through.expose.includes(column)) push('SCOPE_SHOPPER_VIA_NOT_EXPOSED', `"${column}" is asked of "${via.ref}", which does not show it`, column);
+    }
+  }
+  return issues;
 }
 
 function visibleWithIssues(doc: PublicScopeDocument, columnsOf: TableColumnLookup | undefined): ScopeIssue[] {
@@ -1907,6 +1993,8 @@ function projectResource(r: CompiledResource): {
   orderable: string[];
   writable: string[];
   limit: number;
+  /** A shopper's list: what each column may be asked, what may be asked through another ref's rows, and whether its first page counts. */
+  shopper?: { ops: Record<string, ShopperOp[]>; via?: { ref: string; ops: Record<string, ShopperOp[]> }; count?: true };
   /**
    * How a list of this ref answers. A page detects it here rather than by
    * version: `version` is the constant 1.
@@ -1938,6 +2026,15 @@ function projectResource(r: CompiledResource): {
     // fixed still lists columns on its read-only resources.
     writable: [...r.actions].some((action) => WRITING_ACTIONS.has(action)) ? [...r.writable] : [],
     limit: r.limit,
+    ...(r.shopper === null || r.shopper === undefined
+      ? {}
+      : {
+          shopper: {
+            ops: Object.fromEntries([...r.shopper.ops].map(([column, ops]) => [column, [...ops]])),
+            ...(r.shopper.via === null ? {} : { via: { ref: r.shopper.via.ref, ops: Object.fromEntries([...r.shopper.via.ops].map(([column, ops]) => [column, [...ops]])) } }),
+            ...(r.shopper.count ? { count: true as const } : {}),
+          },
+        }),
     response: { shape: r.response.shape },
     ...(r.kind === 'availability' ? { kind: 'availability' as const } : {}),
     ...(r.kind === 'availability' && r.capacity !== undefined ? { capacity: r.capacity } : {}),

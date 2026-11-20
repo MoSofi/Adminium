@@ -6,7 +6,7 @@
  * cursors (mutually exclusive with `offset`).
  */
 
-import { sql, type Kysely, type SelectQueryBuilder } from 'kysely';
+import { sql, type Expression, type Kysely, type SelectQueryBuilder, type SqlBool } from 'kysely';
 
 import { STATS_EXACT_COUNT_THRESHOLD, type Dialect } from '@adminium/engine';
 import type { DerivedField } from '@adminium/engine/config';
@@ -59,6 +59,8 @@ export interface ListResult {
   data: Row[];
   page?: { limit: number; offset: number; total: number | null };
   cursor?: { next: string | null };
+  /** With `countCap`, on the first page: the rows the list holds, counted no further than the cap (`atLeast`: more than it). */
+  count?: { rows: number; atLeast: boolean };
 }
 
 /** `col.desc,col2.asc` → validated sort keys; a PK tiebreaker is always appended. */
@@ -252,6 +254,18 @@ export interface RunListOptions {
   /** Columns `q=` may search; see `compileQuickSearch` (b). */
   searchColumns?: readonly string[] | undefined;
   /**
+   * One more condition every row must pass, written against the table as it
+   * is selected (its own name): a filter through another table's rows (a
+   * product found by its variants). ANDed with the rest, the count included.
+   */
+  through?: ((outer: string) => Expression<SqlBool>) | undefined;
+  /**
+   * Count the rows on the FIRST page only (no cursor, no offset), stopping at
+   * this many: one scan of at most `countCap + 1` rows, never a whole table.
+   * Answered as `count`, beside the page; on every later page, nothing.
+   */
+  countCap?: number | undefined;
+  /**
    * Resolved cross-table lookups (`crud/lookups.ts`) — each compiles to a
    * correlated scalar subquery aliased into the SELECT list, so filters,
    * search, sort, cursors and the count query keep their single-table
@@ -349,6 +363,7 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
       out = out.where((eb) => compileQuickSearch(eb as never, fixed, fixedSearch, undefined) ?? eb(eb.val(1), '=', 0));
     }
     if (filter !== null) out = out.where((eb) => compileFilter(eb as never, ctx, filter));
+    if (opts.through !== undefined) out = out.where(opts.through(table.name));
     if (params.q !== undefined && params.q.length > 0) {
       out = out.where((eb) => {
         const search = compileQuickSearch(eb as never, ctx, params.q as string, searchColumns);
@@ -421,6 +436,24 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
     }
   }
 
+  /*
+   * The capped count: the first page of a list says how many rows it holds,
+   * up to the cap, as one more query over at most cap + 1 rows (a subquery
+   * with a limit, so the database stops there on every engine).
+   */
+  const firstPage = (params.cursor === undefined || params.cursor.length === 0) && offset === 0;
+  const capped = async (): Promise<ListResult['count']> => {
+    const cap = opts.countCap;
+    if (cap === undefined || !firstPage) return undefined;
+    const inner = applyFilters(db.selectFrom(table.id).select(sql.lit(1).as('one')) as unknown as Qb).limit(cap + 1);
+    const counted = await db
+      .selectFrom(inner.as('adm_capped') as never)
+      .select((eb) => eb.fn.countAll().as('total'))
+      .executeTakeFirst();
+    const rows = Number((counted as { total?: unknown } | undefined)?.total ?? 0);
+    return rows > cap ? { rows: cap, atLeast: true } : { rows, atLeast: false };
+  };
+
   const cursorMode = params.cursor !== undefined;
   // Keyset cursors carry the sort tuple — including the primary-key tiebreaker
   // parseOrder() always appends — encoded in the cursor and read from the RAW,
@@ -483,12 +516,14 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
     const last = pageRows.at(-1);
     const next =
       hasMore && last !== undefined ? encodeCursor(sortKeys.map((key) => last[key.column])) : null;
+    const count = await capped();
     return {
       data: applyDerivedFields(
         applyMeasureMask(applyLookupMask(maskRows(pageRows, table, canReadPii), applied), measures),
         derivedFields,
       ),
       cursor: { next },
+      ...(count === undefined ? {} : { count }),
     };
   }
 
@@ -528,11 +563,13 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
       total = Number((countRow as { total?: unknown } | undefined)?.total ?? 0);
     }
   }
+  const count = await capped();
   return {
     data: applyDerivedFields(
       applyMeasureMask(applyLookupMask(maskRows(rows, table, canReadPii), applied), measures),
       derivedFields,
     ),
     page: { limit, offset, total },
+    ...(count === undefined ? {} : { count }),
   };
 }

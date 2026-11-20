@@ -24,7 +24,7 @@
  * stop the key working — the public API off, no `self` in the origin list,
  * a database with no time zone — before anything is written.
  */
-import { CHAT_KEY, chatKeyReserved, doorKeysOf, hasPhoneSide, LOCAL_PUBLISHER_ID, ownLinksOfPerson, type Manifest } from '@adminium/manifest';
+import { CHAT_KEY, chatKeyReserved, doorKeysOf, hasPhoneSide, LOCAL_PUBLISHER_ID, ownLinksOfPerson, SHOPPER_PAGE_MOST, shopperFilterColumn, shopperFilterOps, shopperLists, type Manifest, type ShopperFilter, type ShopperOp } from '@adminium/manifest';
 import {
   CUSTOMER_KEY_PURPOSE,
   connectionTenantConfig,
@@ -196,6 +196,8 @@ function definitionOf(
   parent?: { ref: string; localColumn: string; foreignColumn: string },
   /** A create that finds its person by address: the ref of the endpoint they sign in through, and the key an own link opens by. */
   person?: { identityRef?: string | undefined; shareKey?: string | undefined },
+  /** A shopper's filter through another entry's rows: that entry's endpoint ref. */
+  viaRef?: string,
 ): PublicEndpointDefinition {
   const declared = manifest.requiredSchema?.tables.find((table) => table.ref === entry.table);
   const key = primaryKey[0] ?? 'id';
@@ -228,9 +230,12 @@ function definitionOf(
   // Ordered by the key when it is shown, else by the first column shown: an
   // order never reveals a column the endpoint does not.
   const order = select.includes(key) || select.length === 0 ? key : (select[0] as string);
-  // A file made on an Adminium says its own pages, rate and reply; every other entry has Adminium's.
+  // Any file says its own pages (a file not made on an Adminium, at most a hundred a page); a file made on an Adminium, its rate and reply too.
   const pages = entry.pagination;
   const rate = entry.rateLimit;
+  // A shopper's list pages a hundred at most, whatever else is said.
+  const shopper = shopperLists(entry);
+  const opsOf = (filters: readonly ShopperFilter[]): Record<string, ShopperOp[]> => Object.fromEntries(filters.map((filter) => [shopperFilterColumn(filter), [...shopperFilterOps(filter)]]));
   return {
     path: `/${ref}`,
     source: tableId,
@@ -239,7 +244,23 @@ function definitionOf(
     // Passed on whole: a relative filter (`today`) is worked out on every
     // request, on the venue's clock.
     filters: (entry.filters ?? []).map((filter) => ({ ...filter })),
-    pagination: pages === undefined ? { default_limit: 50, max_limit: 200, order: `${order}.asc` } : { default_limit: pages.defaultLimit, max_limit: pages.maxLimit, order: pages.order ?? `${order}.asc` },
+    pagination:
+      pages === undefined
+        ? { default_limit: 50, max_limit: shopper ? SHOPPER_PAGE_MOST : 200, order: `${order}.asc` }
+        : { default_limit: pages.defaultLimit, max_limit: pages.maxLimit, order: pages.order ?? `${order}.asc` },
+    // A shopper's lists: the columns, each filter's operators, a filter through another entry's rows, a count.
+    ...(entry.filterable === undefined ? {} : { filterable: entry.filterable.map(shopperFilterColumn) }),
+    ...(entry.searchable === undefined ? {} : { searchable: [...entry.searchable] }),
+    ...(entry.orderable === undefined ? {} : { orderable: [...entry.orderable] }),
+    ...(shopper
+      ? {
+          shopper: {
+            ops: opsOf(entry.filterable ?? []),
+            ...(entry.via === undefined || viaRef === undefined ? {} : { via: { ref: viaRef, on: entry.via.on, ops: opsOf(entry.via.columns) } }),
+            ...(entry.count === true ? { count: true as const } : {}),
+          },
+        }
+      : {}),
     // Signed in to reach it — except a create a session is optional on. A read for a session alone needs one too.
     auth: {
       role:
@@ -567,6 +588,13 @@ export function planPublicEndpoints(
     }
     return out;
   };
+  /** A shopper's filter through another entry's rows: the one GET entry reading rows of that table on the same key. */
+  const viaRefOf = (entry: PublicAccessEntry): string | undefined => {
+    const via = entry.via;
+    if (via === undefined) return undefined;
+    const at = entries.findIndex((other) => other !== entry && other.table === via.entry && (other.key ?? 'customer') === (entry.key ?? 'customer') && other.methods.includes('GET') && other.kind !== 'availability');
+    return at === -1 ? undefined : refs[at];
+  };
   /** The table the key's person is claimed on: what a child's denormalised copy points at. */
   const identityTableOf = (entry: PublicAccessEntry) =>
     entries.find((other) => other.claim !== undefined && (other.key ?? 'customer') === (entry.key ?? 'customer'))?.table;
@@ -592,7 +620,7 @@ export function planPublicEndpoints(
     };
     if (pending) return planned;
     // What the app's own key may hold is known from the entry alone.
-    const safety = managedGrantIssues(ref, definitionOf(manifest, entry, ref, real, ['id'], undefined, identityRefOf(entry), parent, personOf(entry)), entry.methods, new Set(), {
+    const safety = managedGrantIssues(ref, definitionOf(manifest, entry, ref, real, ['id'], undefined, identityRefOf(entry), parent, personOf(entry), viaRefOf(entry)), entry.methods, new Set(), {
       wider: (manifest.publisher as { id?: string } | undefined)?.id === LOCAL_PUBLISHER_ID,
     }).map(
       (issue) => issue.message,
@@ -644,7 +672,7 @@ export function planPublicEndpoints(
     const idOf = (short: string) => found(short) ?? short;
     // The live-model check every nested table gets: named, but not here, is an issue.
     const unfound = nestedRefs(entry, found).missing.map((short) => `"${entry.table}" names "${short}", which this app does not have here`);
-    const definition = definitionOf(manifest, entry, ref, table.id, table.primaryKey, idOf, identityRefOf(entry), parent, personOf(entry));
+    const definition = definitionOf(manifest, entry, ref, table.id, table.primaryKey, idOf, identityRefOf(entry), parent, personOf(entry), viaRefOf(entry));
     const later = opts.columnsMadeLater?.get(entry.table);
     const issues = [
       ...endpointIssues(definition, { ref, view, grantedToAppBoundKey: true })
