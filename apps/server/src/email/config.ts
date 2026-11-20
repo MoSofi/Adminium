@@ -162,9 +162,9 @@ export async function checkSmtpHost(host: string, network: SmtpNetwork = smtpNet
   const check = await checkHost(host, { blockLoopback: true, blockPrivate: true, failClosed: true, lookup: network.lookup });
   if (check.ok) return check.addresses[0] ?? null;
   const at = check.address === undefined || check.address === check.host ? '' : ` (${check.address})`;
+  // `reserved` and `denied` are asked only by the source-database guard: a blocked range all the same.
   switch (check.reason) {
     case 'metadata':
-    // Asked only by the source-database guard: a blocked range all the same.
     case 'reserved':
     case 'denied':
       throw new ValidationFailedError('SMTP host resolves to a blocked address range.', { host: check.host, address: check.address });
