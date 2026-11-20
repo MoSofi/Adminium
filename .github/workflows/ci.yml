@@ -469,16 +469,18 @@ jobs:
   # exactly that package's dependencies and nothing else; lint and typecheck
   # stay in `verify`, which still runs them for every workspace.
   #
-  # The server leg runs as four SHARDS, `suite (server 1/4)` .. `(server 4/4)`,
-  # each a quarter of its test files (vitest `--shard`, split by file). The
-  # job `suite (server)` below merges their reports, so it is the one that
+  # The server leg runs as five SHARDS, `suite (server 1/5)` .. `(server 5/5)`
+  # (vitest `--shard`). They are dealt by each file's measured duration, not by
+  # vitest's path hash, which on 2026-11-20 gave one of four shards 3,681 s of
+  # tests against ~2,100 s for the others: apps/server/test/shard-sequencer.ts.
+  # The job `suite (server)` below merges their reports, so it is the one that
   # holds the server's whole result and its coverage floors.
   #
   # NOT REQUIRED STATUS CHECKS YET. `verify` no longer covers these three, so
   # until `suite (meta)`, `suite (server)` and `suite (dashboard)` are added to
   # the branch's required list they run without gating anything.
   suite:
-    name: suite (${{ matrix.package }}${{ matrix.shard && format(' {0}/4', matrix.shard) || '' }})
+    name: suite (${{ matrix.package }}${{ matrix.shard && format(' {0}/{1}', matrix.shard, matrix.shards) || '' }})
     runs-on: ubuntu-latest
     # The longest leg here is server: ~25 minutes on 2026-09-30, 33m26s on
     # 2026-10-08 (its three-engine tests grow with every rule), plus install
@@ -490,16 +492,17 @@ jobs:
     # test red; the 0.3.43 tests (uploads, kinds, design checks, panels, three
     # engines) took it past 60 on 2026-11-04, so 80. By 2026-11-20 green runs
     # took 53-63 minutes and five were cancelled at 80 with no test red, so the
-    # server leg was split into four shards and each gets its own limit:
+    # server leg was split into five shards and each gets its own limit:
     #
-    #   server shards  40  a quarter of the files, plus install and the
-    #                      dependency builds every shard repeats; the nightly's
-    #                      MySQL legs are the longest of them.
+    #   server shards  40  a fifth of the test time, plus install and the
+    #                      dependency builds every shard repeats. With MySQL on
+    #                      (the nightly) a balanced shard is ~25 minutes.
     #   meta/dashboard 80  unchanged: meta's nightly took 38 minutes on
     #                      2026-11-20, dashboard about 12.
     #
-    # If a server shard nears 40, add a fifth (`shard: 5` and `/5` below, in
-    # the job's name, and SHARDS in `suite (server)`), not more minutes.
+    # If a server shard nears 40, first refresh the timings it is dealt by
+    # (scripts/shard-timings.mjs), then add a shard (a matrix entry, `shards`
+    # on every server entry, and SHARDS in `suite (server)`), not more minutes.
     timeout-minutes: ${{ matrix.timeout }}
     strategy:
       # One red suite must not hide the state of the other legs.
@@ -516,21 +519,31 @@ jobs:
             workspace: '@adminium/server'
             s3: true
             shard: 1
+            shards: 5
             timeout: 40
           - package: server
             workspace: '@adminium/server'
             s3: true
             shard: 2
+            shards: 5
             timeout: 40
           - package: server
             workspace: '@adminium/server'
             s3: true
             shard: 3
+            shards: 5
             timeout: 40
           - package: server
             workspace: '@adminium/server'
             s3: true
             shard: 4
+            shards: 5
+            timeout: 40
+          - package: server
+            workspace: '@adminium/server'
+            s3: true
+            shard: 5
+            shards: 5
             timeout: 40
           - package: dashboard
             workspace: '@adminium/dashboard'
@@ -663,10 +676,10 @@ jobs:
           fi
           echo "the S3 server refuses unsigned and wrongly signed requests"
 
-      # A server shard runs its quarter of the files and writes a blob report
-      # (apps/server/.vitest-reports/blob-<i>-4.json, a turbo output, so a cache
+      # A server shard runs its share of the files and writes a blob report
+      # (apps/server/.vitest-reports/blob-<i>-<n>.json, a turbo output, so a cache
       # hit restores it) for `suite (server)` to merge. Its coverage floors are
-      # zeroed HERE ONLY: a quarter of the files covers a fraction of the code,
+      # zeroed HERE ONLY: a fifth of the files covers a fraction of the code,
       # and the floors are enforced on the merged whole instead. A floor added
       # later on another axis (functions, lines) must be zeroed here too.
       #
@@ -676,7 +689,7 @@ jobs:
         run: |
           if [ -n "${{ matrix.shard }}" ]; then
             pnpm turbo run test --filter=${{ matrix.workspace }} --log-order=stream -- \
-              --shard=${{ matrix.shard }}/4 --reporter=blob --reporter=default \
+              --shard=${{ matrix.shard }}/${{ matrix.shards }} --reporter=blob --reporter=default \
               --coverage.thresholds.statements=0 --coverage.thresholds.branches=0
           else
             pnpm turbo run test --filter=${{ matrix.workspace }} --log-order=stream
@@ -719,12 +732,12 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  # The server suite's whole result: the four shards' blob reports merged by
+  # The server suite's whole result: the five shards' blob reports merged by
   # `vitest --merge-reports`, which lists every failed test again and applies
   # apps/server's coverage floors to the merged coverage — the same numbers an
   # unsharded run reports (checked on packages/config: 95.18% / 88.51% both
   # ways). A shard that timed out or crashed leaves no blob, and the count
-  # check fails here rather than the floors passing on three quarters.
+  # check fails here rather than the floors passing on part of the suite.
   #
   # It keeps the name the unsharded leg had, so `suite (server)` still means
   # "the server suite passed". It waits for the whole `suite` matrix (a job can
@@ -736,7 +749,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      SHARDS: 4
+      SHARDS: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -770,9 +783,31 @@ jobs:
             exit 1
           fi
 
+      # The JSON report is only for the timings below; it goes outside
+      # .vitest-reports, whose every file is read as a blob.
       - name: Merge the reports and check coverage
         working-directory: apps/server
-        run: pnpm exec vitest run --merge-reports --coverage
+        run: pnpm exec vitest run --merge-reports --coverage --reporter=default --reporter=json --outputFile.json=${{ runner.temp }}/server-report.json
+
+      # Each file's duration in this run, as the shards are dealt by. Uploaded
+      # every time; committed by hand when the shards drift apart, ideally from
+      # a run with MySQL on (see apps/server/scripts/shard-timings.mjs).
+      - name: Write the shard timings
+        if: ${{ !cancelled() }}
+        working-directory: apps/server
+        run: |
+          if [ -f "${{ runner.temp }}/server-report.json" ]; then
+            node scripts/shard-timings.mjs "${{ runner.temp }}/server-report.json" "${{ runner.temp }}/shard-timings.json"
+          fi
+
+      - name: Upload the shard timings
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: server-shard-timings
+          path: ${{ runner.temp }}/shard-timings.json
+          retention-days: 30
+          if-no-files-found: ignore
 
       - name: Upload coverage summary
         if: failure()

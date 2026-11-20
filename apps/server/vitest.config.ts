@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { coverage, workers } from '@adminium/config/vitest';
 import { defineConfig } from 'vitest/config';
+import { ShardSequencer } from './test/shard-sequencer.js';
 
 /**
  * Several suites here exercise a live Postgres (Northwind) through per-suite
@@ -16,6 +17,9 @@ export default defineConfig({
     ...workers(),
     // No test reaches adminium.dev: the catalogue switches are on by default since 0.3.16.
     setupFiles: ['./test/no-adminium-dev.setup.ts'],
+    // CI runs this suite in shards (`--shard=i/n`); they are dealt by measured
+    // file durations rather than vitest's path hash. See test/shard-sequencer.ts.
+    sequence: { sequencer: ShardSequencer },
     // The quality bar asks 85 statements / 80 branches. The statements floor
     // keeps its existing 88 ratchet; branches move 79 -> 80 because 79 was the
     // one configured floor in the repo sitting BELOW its number, which is
