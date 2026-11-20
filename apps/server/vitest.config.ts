@@ -37,7 +37,14 @@ export default defineConfig({
     // expand the total, which is the adapter-mysql effect in reverse. That is a
     // reasoned expectation, not a measurement: if `verify` reddens on coverage,
     // this line is the first place to look.
-    coverage: coverage({ statements: 88, branches: 80 }),
+    //
+    // AST-AWARE REMAPPING, since the suite runs in CI shards (2026-11-20). The
+    // default v8-to-istanbul conversion builds a file's branch map from the code
+    // that RAN, so each shard converts the same file to a different map, and
+    // merging the shards' maps overstated branches: 55.19% unsharded against
+    // 62.42% merged on the same 30 files. Remapped from the source AST, every
+    // shard builds the same map and the merge equals an unsharded run.
+    coverage: { ...coverage({ statements: 88, branches: 80 }), experimentalAstAwareRemapping: true },
     hookTimeout: 60_000,
     testTimeout: 30_000,
   },
