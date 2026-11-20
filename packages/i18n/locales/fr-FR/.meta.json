@@ -2411,6 +2411,30 @@
     "status": "mt",
     "srcHash": "46148cc3b4d2"
   },
+  "automations.insp.wordsIn": {
+    "status": "mt",
+    "srcHash": "59aa9f0204fb"
+  },
+  "automations.insp.wordsIs": {
+    "status": "mt",
+    "srcHash": "32ed4118f281"
+  },
+  "automations.insp.wordsLow": {
+    "status": "mt",
+    "srcHash": "36a883e762d4"
+  },
+  "automations.insp.wordsNot": {
+    "status": "mt",
+    "srcHash": "13b52febd670"
+  },
+  "automations.insp.wordsNote": {
+    "status": "mt",
+    "srcHash": "e8ae586cdcf1"
+  },
+  "automations.insp.wordsOut": {
+    "status": "mt",
+    "srcHash": "717dd036ce84"
+  },
   "automations.kind.action": {
     "status": "src",
     "srcHash": "2b9f1cf5c4d3"

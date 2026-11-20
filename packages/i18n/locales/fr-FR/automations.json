@@ -203,7 +203,13 @@
     "delete": "Supprimer",
     "close": "Fermer",
     "settings": "Réglages",
-    "documentNote": "Cette étape appartient à un mappage de document. Modifiez ce qu’elle génère, et à qui elle l’envoie, dans Studio › Mappages de documents."
+    "documentNote": "Cette étape appartient à un mappage de document. Modifiez ce qu’elle génère, et à qui elle l’envoie, dans Studio › Mappages de documents.",
+    "wordsIs": "{link} : {addOn} indique {state}",
+    "wordsNot": "{link} : {addOn} n’indique pas {state}",
+    "wordsIn": "en stock",
+    "wordsLow": "stock bas",
+    "wordsOut": "en rupture",
+    "wordsNote": "Un module complémentaire répond à cette condition. Elle est fausse tant que le module est désactivé ou ne peut pas répondre."
   },
   "op": {
     "is": "est",

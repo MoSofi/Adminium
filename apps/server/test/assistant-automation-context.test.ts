@@ -53,8 +53,9 @@ describe('the rule format the assistant is told', () => {
     // About four characters a token for this notation; the JSON Schema it replaced was 25,000 characters.
     expect(whole.length).toBeLessThan(2_500 * 4);
     // 7,100 since a rule's e-mail to a contact says marketing or service (`class`), which the assistant writes too;
-    // 7,200 since a rule may fill in a company from free registers (`company.fill`).
-    expect(whole.length).toBeLessThan(7_200);
+    // 7,200 since a rule may fill in a company from free registers (`company.fill`);
+    // 7,300 since a condition may ask an add-on's words about a link of the record (`words`, `of`).
+    expect(whole.length).toBeLessThan(7_300);
   });
 });
 

@@ -265,3 +265,83 @@ describe('the floor', () => {
     expect(issuesOf({ ...app, compatibility: { minAdminiumVersion: ADD_ON_INSTALL_FLOOR } })).toEqual([]);
   });
 });
+
+describe("a condition that asks an add-on's words", () => {
+  /** A shop whose restock requests link to a variant, and a rule that tells them when it is back. */
+  const shop = (condition: Doc, where: 'step' | 'when' | 'scan' = 'step', addOns: Doc = { suggests: [{ key: 'inventory', range: '^1.0.0', reason: { 'en-US': 'Stock.' } }] }): Doc => ({
+    kind: 'app',
+    manifestVersion: 1,
+    key: 'shop',
+    name: 'Shop',
+    version: '0.3.0',
+    publisher: { id: 'adminium', name: 'Adminium' },
+    license: 'MIT',
+    description: { key: 'd', fallback: 'A shop' },
+    categories: ['commerce'],
+    compatibility: { minAdminiumVersion: '0.3.67' },
+    pages: [{ ref: 'requests', template: 'page-crud', title: { key: 't', fallback: 'Requests' }, nav: { group: 'manage', icon: 'list', order: 1 } }],
+    frontends: [{ side: 'staff', kind: 'none' }],
+    roles: [{ key: 'desk', name: 'Desk' }],
+    addOns,
+    requiredSchema: {
+      tables: [
+        { ref: 'variants', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'sku', type: 'text', maxLength: 40 }] },
+        {
+          ref: 'requests',
+          columns: [
+            { ref: 'id', type: 'int', role: 'pk' },
+            { ref: 'variant_id', type: 'fk', references: 'variants', nullable: true },
+            { ref: 'email', type: 'text', maxLength: 200, nullable: true },
+            { ref: 'notified_at', type: 'timestamptz', nullable: true },
+          ],
+        },
+      ],
+    },
+    automations: [
+      {
+        key: 'shop-back',
+        name: 'Back in stock',
+        enabled: true,
+        trigger:
+          where === 'when'
+            ? { kind: 'record', event: 'updated', table: 'requests', when: [condition] }
+            : { kind: 'schedule', schedule: { kind: 'interval', everyMinutes: '15' }, forEach: { table: 'requests', where: [{ left: { field: 'notified_at' }, op: 'is_empty' }, ...(where === 'scan' ? [condition] : [])], once: false } },
+        graph: {
+          version: 1,
+          nodes: [
+            node('t', 'trigger'),
+            ...(where === 'step' ? [node('c', 'condition', { condition })] : []),
+            node('n', 'action', { action: { kind: 'notification', to: { roles: ['desk'] }, title: 'Back: {{record.id}}' } }),
+          ],
+        },
+      },
+    ],
+  });
+  const BACK = { left: { words: 'inventory:stock', of: 'variant_id' }, op: 'is', right: 'in' };
+  const text = (doc: Doc) => issuesOf(doc).join('\n');
+
+  it('is asked in a condition step about a link, and carries the floor', () => {
+    expect(issuesOf(shop(BACK))).toEqual([]);
+    expect(installFloorWords(shop(BACK)).map((found) => found.word)).toContain('automations.words');
+    const older = shop(BACK);
+    older['compatibility'] = { minAdminiumVersion: '0.3.66' };
+    expect(text(older)).toContain('0.3.67');
+  });
+
+  it('is never a trigger\'s when nor a scan\'s filter', () => {
+    expect(text(shop(BACK, 'when'))).toContain("an add-on's words are asked in a rule's condition or branch step");
+    expect(text(shop(BACK, 'scan'))).toContain("an add-on's words are asked in a rule's condition or branch step");
+  });
+
+  it('names an add-on the app names, and a link of the record', () => {
+    expect(text(shop(BACK, 'step', {}))).toContain('"inventory" is not an add-on this manifest names');
+    expect(text(shop({ ...BACK, left: { words: 'inventory:stock', of: 'email' } }))).toContain('"requests.email" is not a link');
+    expect(text(shop({ ...BACK, left: { words: 'inventory:stock', of: 'nothing' } }))).toContain('"requests" has no column "nothing"');
+  });
+
+  it('is is or is_not, and in, low or out', () => {
+    expect(text(shop({ ...BACK, op: 'gt' }))).toContain("an add-on's words are compared with is or is_not");
+    expect(text(shop({ ...BACK, right: 'plenty' }))).toContain("an add-on's words are in, low, out");
+    expect(issuesOf(shop({ ...BACK, op: 'is_not', right: 'out' }))).toEqual([]);
+  });
+});

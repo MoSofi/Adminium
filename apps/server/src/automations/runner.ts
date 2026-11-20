@@ -76,6 +76,9 @@ import { dryRunCompanyFillAction, runCompanyFillAction } from './actions/company
 import type { RenderDeps } from '../documents/render.js';
 import { ActionFailure, type ActionContext, type ActionSource } from './actions/types.js';
 import { evaluateCondition, type ConditionContext } from './conditions.js';
+import { askWords } from './words-condition.js';
+import type { LedgerRuntime } from '../ledgers/registry.js';
+import { connectionTenantConfig } from '@adminium/meta';
 import { countRelatedRows } from './related-count.js';
 import { loadRelated, relatedUses } from './related.js';
 import { staffNamesOf } from './staff-recipient.js';
@@ -114,6 +117,11 @@ export interface RunnerDeps {
   steps?: (() => Promise<StepLookup>) | undefined;
   /** How a `company.fill` step reaches a lead source add-on (`actions/company-fill.ts`). */
   leadSources?: ActionContext['leadSources'];
+  /**
+   * The installed add-ons' ledgers, for a condition step that asks an
+   * add-on's words (`words-condition.ts`). Absent: such a condition is false.
+   */
+  ledgers?: LedgerRuntime | undefined;
   progress?: ((pct: number, message: string) => void) | undefined;
 }
 
@@ -278,6 +286,21 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
     row: source?.row ?? null,
     table: source?.table ?? null,
     now,
+    // An add-on's words about a link of the record, asked as the step reaches them, on the venue's clock.
+    askWords:
+      source === null
+        ? undefined
+        : async (ask) =>
+            askWords(ask, {
+              ledgers: deps.ledgers,
+              view: source.view,
+              db: source.db,
+              timezone: (await connectionTenantConfig(deps.meta, source.connectionId))?.timezone ?? 'UTC',
+              app: input.rule.managedBy,
+              table: source.table,
+              row: source.row,
+              now: new Date(now),
+            }),
     countRelated:
       source === null
         ? undefined

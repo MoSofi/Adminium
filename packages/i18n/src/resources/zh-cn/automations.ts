@@ -213,7 +213,13 @@ export default {
     "delete": "删除",
     "close": "关闭",
     "settings": "设置",
-    "documentNote": "此步骤属于某个文档映射。要更改它生成的内容和发送对象，请前往 Studio › 文档映射。"
+    "documentNote": "此步骤属于某个文档映射。要更改它生成的内容和发送对象，请前往 Studio › 文档映射。",
+    "wordsIs": "{link}：{addOn} 显示{state}",
+    "wordsNot": "{link}：{addOn} 未显示{state}",
+    "wordsIn": "有货",
+    "wordsLow": "库存不多",
+    "wordsOut": "缺货",
+    "wordsNote": "此条件由附加组件回答。附加组件关闭或无法回答时，此条件不成立。"
   },
   "op": {
     "is": "等于",

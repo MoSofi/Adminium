@@ -213,7 +213,13 @@ export default {
     "delete": "Slet",
     "close": "Luk",
     "settings": "Indstillinger",
-    "documentNote": "Dette trin hører til en dokumenttilknytning. Ret, hvad det opretter, og hvem det sendes til, i Studio › Dokumenttilknytninger."
+    "documentNote": "Dette trin hører til en dokumenttilknytning. Ret, hvad det opretter, og hvem det sendes til, i Studio › Dokumenttilknytninger.",
+    "wordsIs": "{link}: {addOn} siger {state}",
+    "wordsNot": "{link}: {addOn} siger ikke {state}",
+    "wordsIn": "på lager",
+    "wordsLow": "lavt",
+    "wordsOut": "udsolgt",
+    "wordsNote": "Et tilføjelsesprogram svarer på dette. Det er falsk, så længe tilføjelsesprogrammet er slået fra eller ikke kan svare."
   },
   "op": {
     "is": "er",

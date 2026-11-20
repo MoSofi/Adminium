@@ -2064,6 +2064,19 @@ const automationCountLeftSchema = z.object({
   }),
 });
 
+/**
+ * An add-on's words about the row a link of the record names (`words`:
+ * `<add-on key>:<words id>`; `of`: the link column), compared with `is` or
+ * `is_not` and `in`, `low` or `out`. An app's shipped rule asks them in a
+ * condition or branch step; the runner answers false when the add-on cannot
+ * (see `automations/words-condition.ts`).
+ */
+const automationWordsLeftSchema = z.object({
+  words: z.string().regex(/^[a-z][a-z0-9-]{1,79}:[a-z][a-z0-9-]{0,39}$/),
+  of: z.string().max(128),
+});
+export const AUTOMATION_WORDS_STATES = ['in', 'low', 'out'] as const;
+
 function refineOperandShape(
   condition: { left: unknown; op: AutomationConditionOp; right?: unknown },
   ctx: z.RefinementCtx,
@@ -2089,12 +2102,16 @@ function refineOperandShape(
 
 export const automationConditionSchema = z
   .object({
-    left: z.union([automationFieldLeftSchema, automationCountLeftSchema]),
+    left: z.union([automationFieldLeftSchema, automationCountLeftSchema, automationWordsLeftSchema]),
     op: automationConditionOpSchema,
     right: automationOperandSchema.optional(),
   })
   .superRefine((condition, ctx) => {
     refineOperandShape(condition, ctx);
+    if ('words' in condition.left) {
+      if (condition.op !== 'is' && condition.op !== 'is_not') ctx.addIssue({ code: 'custom', path: ['op'], message: `an add-on's words are compared with is or is_not, not ${condition.op}` });
+      if (condition.right !== undefined && !(AUTOMATION_WORDS_STATES as readonly unknown[]).includes(condition.right)) ctx.addIssue({ code: 'custom', path: ['right'], message: `an add-on's words are ${AUTOMATION_WORDS_STATES.join(', ')}` });
+    }
     if ('count' in condition.left) {
       if (!(COUNT_OPS as readonly string[]).includes(condition.op)) {
         ctx.addIssue({ code: 'custom', path: ['op'], message: `${condition.op} cannot compare a count` });

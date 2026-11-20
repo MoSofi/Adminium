@@ -26,6 +26,7 @@ export function isConditionComplete(condition: Condition): boolean {
     const { table, matchColumn, equalsField } = condition.left.count;
     return table !== '' && matchColumn !== '' && equalsField !== '';
   }
+  if ('words' in condition.left) return condition.left.of !== '';
   return condition.left.field !== '';
 }
 

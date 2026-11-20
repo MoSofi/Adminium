@@ -34,6 +34,7 @@ import {
   opNeedsOperand,
 } from '../../model/vocabulary.js';
 import { Card } from './primitives.js';
+import { wordsSentence } from '../../model/summaries.js';
 
 export interface ConditionCardProps {
   condition: Condition;
@@ -63,6 +64,19 @@ function unitLabel(unit: DurationUnit, count: number): string {
 
 export function ConditionCard({ condition, columns, tables, onChange }: ConditionCardProps): ReactNode {
   const left = condition.left;
+  // An add-on's words come with the app's rule: shown as they are, never changed here.
+  if ('words' in left) {
+    return (
+      <Card title={t('automations:insp.condition', 'Condition')}>
+        <p className="text-[13px] text-fg" data-testid="cond-words">
+          {wordsSentence(condition, { columns } as unknown as SourceTable)}
+        </p>
+        <p className="text-[12px] text-fg-muted">
+          {t('automations:insp.wordsNote', 'An add-on answers this. It is false while the add-on is off or cannot answer.')}
+        </p>
+      </Card>
+    );
+  }
   const isCount = 'count' in left;
   const field = 'count' in left ? '' : left.field;
   const column = columns.find((candidate) => candidate.name === field);

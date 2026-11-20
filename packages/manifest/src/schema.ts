@@ -3324,6 +3324,7 @@ export function appReferenceIssues(
         templates: m.emailTemplates ?? [],
         decided: (table) => decided.get(table) ?? new Set<string>(),
         ...(ownSteps === undefined ? {} : { steps: ownSteps }),
+        addOns: new Set([...(m.kind === 'add-on' ? [m.key] : []), ...[...(m.addOns?.requires ?? []), ...(m.addOns?.suggests ?? [])].map((need) => need.key)]),
       }),
     );
   }

@@ -1871,6 +1871,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // inside the renderer.
     documents,
     leadSources: companyFillDeps,
+    // A condition step that asks an add-on's words reads them as the staff's and the public pages' do.
+    ledgers,
     hub: jobs.hub,
     marketing: marketingMail,
     enqueue: (input: EnqueueJobInput) => jobs.enqueue(input),
@@ -2501,7 +2503,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           policy: app.trialPolicy,
           enqueue: (input: EnqueueJobInput) => jobs.enqueue(input),
           onRulesChanged: () => automations.matcher.onRulesChanged(),
-          runner: { storage, hub: jobs.hub, writes: recordWrites, leadSources: companyFillDeps },
+          runner: { storage, hub: jobs.hub, writes: recordWrites, leadSources: companyFillDeps, ledgers },
           // The steps installed add-ons give: offered in the builder, judged at the save, read again by a test run.
           installs: () => addOnInstalls.fresh(),
         }),

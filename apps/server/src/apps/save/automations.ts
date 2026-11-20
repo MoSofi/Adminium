@@ -222,6 +222,9 @@ class RuleWriter {
           ...(where === undefined ? {} : { where: { left: { field: where.left.field }, op: where.op, ...(where.right === undefined ? {} : { right: this.operand(where.right) }) } }),
         },
       };
+    } else if ('words' in left) {
+      // An add-on's words about a link of the record: said in a file as they are.
+      written['left'] = { words: left.words, of: left.of };
     } else {
       written['left'] = { field: left.field };
     }

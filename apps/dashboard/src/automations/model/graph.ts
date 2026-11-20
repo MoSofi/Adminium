@@ -52,8 +52,14 @@ export interface CountLeft {
   };
 }
 
+/** An add-on's words about the row a link of the record names (`inventory:stock` of `variant_id`): written by an app, shown, never built here. */
+export interface WordsLeft {
+  words: string;
+  of: string;
+}
+
 export interface Condition {
-  left: FieldLeft | CountLeft;
+  left: FieldLeft | CountLeft | WordsLeft;
   op: ConditionOp;
   right?: ConditionOperand | undefined;
 }

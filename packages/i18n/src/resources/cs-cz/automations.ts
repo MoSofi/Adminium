@@ -213,7 +213,13 @@ export default {
     "delete": "Smazat",
     "close": "Zavřít",
     "settings": "Nastavení",
-    "documentNote": "Tento krok patří k mapování dokumentu. Co vytváří a komu se posílá, změníte ve Studiu › Mapování dokumentů."
+    "documentNote": "Tento krok patří k mapování dokumentu. Co vytváří a komu se posílá, změníte ve Studiu › Mapování dokumentů.",
+    "wordsIs": "{link}: {addOn} hlásí {state}",
+    "wordsNot": "{link}: {addOn} nehlásí {state}",
+    "wordsIn": "skladem",
+    "wordsLow": "dochází",
+    "wordsOut": "vyprodáno",
+    "wordsNote": "Na tuto podmínku odpovídá doplněk. Dokud je doplněk vypnutý nebo nemůže odpovědět, neplatí."
   },
   "op": {
     "is": "je",

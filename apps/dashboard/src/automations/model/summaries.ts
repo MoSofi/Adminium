@@ -61,6 +61,18 @@ export function triggerSentence(trigger: Trigger, table: SourceTable | null = nu
   });
 }
 
+/** What an add-on's words are asked: "Variant · Inventory says in stock". */
+export function wordsSentence(condition: Condition, table: SourceTable | null): string {
+  if (!('words' in condition.left)) return '';
+  const { words, of } = condition.left;
+  const link = table?.columns.find((candidate) => candidate.name === of)?.label ?? of;
+  const addOn = words.slice(0, words.indexOf(':'));
+  const state = condition.right === 'low' ? t('automations:insp.wordsLow', 'low') : condition.right === 'out' ? t('automations:insp.wordsOut', 'out of stock') : t('automations:insp.wordsIn', 'in stock');
+  return condition.op === 'is_not'
+    ? t('automations:insp.wordsNot', '{link}: {addOn} does not say {state}', { link, addOn, state })
+    : t('automations:insp.wordsIs', '{link}: {addOn} says {state}', { link, addOn, state });
+}
+
 function conditionSentence(condition: Condition, table: SourceTable | null): string {
   const op = t(OP_LABELS[condition.op].key, OP_LABELS[condition.op].fallback);
   const right =
@@ -74,6 +86,7 @@ function conditionSentence(condition: Condition, table: SourceTable | null): str
     if (counted.table === '') return t('automations:node.condition.empty', 'Set a condition');
     return `${t('automations:insp.countOf', 'Count of')} ${tableLabel(counted.table, table)} ${op} ${right}`.trim();
   }
+  if ('words' in condition.left) return wordsSentence(condition, table);
   const field = condition.left.field;
   if (field === '') return t('automations:node.condition.empty', 'Set a condition');
   const column = table?.columns.find((candidate) => candidate.name === field)?.label ?? field;

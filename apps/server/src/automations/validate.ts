@@ -262,6 +262,8 @@ function checkCondition(
   where: string,
   /** An amount may be read from a setting here: a schedule's scan, a condition step. */
   settingsOk = false,
+  /** An add-on's words may be asked here: a condition or branch step, never a trigger's `when` or a scan. */
+  wordsOk = false,
 ): void {
   const right = condition.right;
   if (typeof right === 'object' && right !== null && right.setting !== undefined) {
@@ -279,6 +281,18 @@ function checkCondition(
     if (column.logicalType !== 'integer' && column.logicalType !== 'bigint') {
       throw new ValidationFailedError(`${where}: ${held.id}.${right.setting.column} is not a whole-number column, so it holds no amount of time.`, { column: right.setting.column, reason: 'setting-not-a-number' });
     }
+  }
+  if ('words' in condition.left) {
+    if (!wordsOk) {
+      throw new ValidationFailedError(`${where}: an add-on's words are asked in a condition or branch step, never in a trigger or the rows a schedule visits.`, { reason: 'words-not-here' });
+    }
+    const of = condition.left.of;
+    if (of === '') return; // unfinished, which a draft may be
+    if (readColumn(table, of, where) === undefined) throw new ValidationFailedError(`${where}: ${table.id} has no column ${of}.`, { column: of });
+    if (ctx.view === null || relatedTarget(ctx.view, table, of) === null) {
+      throw new ValidationFailedError(`${where}: ${of} is not a link, so there is no row to ask an add-on about.`, { column: of, reason: 'words-not-a-link' });
+    }
+    return;
   }
   if ('count' in condition.left) {
     const counted = tableOrThrow(ctx, condition.left.count.table, where);
@@ -721,7 +735,7 @@ export function resolveRule(
     const where = `Step “${node.title}”`;
     if (node.kind === 'action') checkAction(node.action, table, ctx, where);
     else if ((node.kind === 'condition' || node.kind === 'branch') && table !== null) {
-      checkCondition(node.condition, table, ctx, where, true);
+      checkCondition(node.condition, table, ctx, where, true, true);
     }
   }
   // A row a step makes, read by a later one (`{{steps.deal.id}}`): made before it is read, and only what its author is shown.

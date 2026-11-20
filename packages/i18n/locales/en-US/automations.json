@@ -203,7 +203,13 @@
     "delete": "Delete",
     "close": "Close",
     "settings": "Settings",
-    "documentNote": "This step belongs to a document mapping. Change what it draws, and who it is emailed to, in Studio › Document mappings."
+    "documentNote": "This step belongs to a document mapping. Change what it draws, and who it is emailed to, in Studio › Document mappings.",
+    "wordsIs": "{link}: {addOn} says {state}",
+    "wordsNot": "{link}: {addOn} does not say {state}",
+    "wordsIn": "in stock",
+    "wordsLow": "low",
+    "wordsOut": "out of stock",
+    "wordsNote": "An add-on answers this. It is false while the add-on is off or cannot answer."
   },
   "op": {
     "is": "is",

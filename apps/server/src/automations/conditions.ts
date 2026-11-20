@@ -43,6 +43,8 @@ import { automationDurationMs, isRelativeAutomationOp } from '@adminium/meta';
 import type { ResolvedTable } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import { serverDay } from './relative-time.js';
+import type { WordsLine } from '../crud/ledger-write.js';
+import { wordsHold, type WordsAsk } from './words-condition.js';
 
 /** What "count the related rows" needs; the caller owns the query. */
 export interface RelatedCountSpec {
@@ -64,6 +66,12 @@ export interface ConditionContext {
   table?: Pick<ResolvedTable, 'columns'> | null | undefined;
   /** Absent ⇒ a count condition cannot be answered and evaluates false. */
   countRelated?: ((spec: RelatedCountSpec) => Promise<number>) | undefined;
+  /**
+   * An add-on's words about the row a link of the record names (a rule's
+   * condition or branch step; `words-condition.ts`). Absent, or answering
+   * null ⇒ the condition evaluates false, `is_not` too.
+   */
+  askWords?: ((ask: WordsAsk) => Promise<WordsLine | null>) | undefined;
 }
 
 function asNumber(value: unknown): number | null {
@@ -222,6 +230,11 @@ export async function evaluateCondition(
 ): Promise<boolean> {
   const { op } = condition;
 
+  if ('words' in condition.left) {
+    if (ctx.askWords === undefined || ctx.row === null) return false;
+    return wordsHold(condition, await ctx.askWords(condition.left));
+  }
+
   if ('count' in condition.left) {
     if (!ctx.countRelated || ctx.row === null) return false;
     const spec = condition.left.count;
@@ -272,5 +285,6 @@ export function isConditionComplete(condition: AutomationCondition): boolean {
     const { table, matchColumn, equalsField } = condition.left.count;
     return table !== '' && matchColumn !== '' && equalsField !== '';
   }
+  if ('words' in condition.left) return condition.left.of !== '';
   return condition.left.field !== '';
 }

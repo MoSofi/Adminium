@@ -213,7 +213,13 @@ export default {
     "delete": "Löschen",
     "close": "Schließen",
     "settings": "Einstellungen",
-    "documentNote": "Dieser Schritt gehört zu einer Dokumentzuordnung. Was er erstellt und an wen es gesendet wird, ändern Sie unter Studio › Dokumentzuordnungen."
+    "documentNote": "Dieser Schritt gehört zu einer Dokumentzuordnung. Was er erstellt und an wen es gesendet wird, ändern Sie unter Studio › Dokumentzuordnungen.",
+    "wordsIs": "{link}: {addOn} meldet {state}",
+    "wordsNot": "{link}: {addOn} meldet nicht {state}",
+    "wordsIn": "vorrätig",
+    "wordsLow": "knapp",
+    "wordsOut": "ausverkauft",
+    "wordsNote": "Ein Add-on beantwortet das. Solange das Add-on aus ist oder nicht antworten kann, ist es falsch."
   },
   "op": {
     "is": "ist",

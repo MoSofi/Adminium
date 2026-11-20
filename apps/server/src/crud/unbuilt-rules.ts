@@ -480,6 +480,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'publicAccess.via',
   'publicAccess.count',
   'publicAccess.appPagination',
+  // A rule's condition or branch step that asks an add-on's words about a link of the record (automations/words-condition.ts).
+  'automations.words',
 ];
 
 /**

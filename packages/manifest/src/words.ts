@@ -326,6 +326,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'publicAccess.via',
   'publicAccess.count',
   'publicAccess.appPagination',
+  // A rule's condition that asks an add-on's words about a row the record links to.
+  'automations.words',
   // A new row that moves the earlier rows sharing its link on (a proof sent again).
   'states.supersedes',
   // Words of a sample FILE, not of the manifest: an app's rows for an add-on that ship files of their own, and
@@ -685,6 +687,7 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'publicAccess.via': '0.3.67',
   'publicAccess.count': '0.3.67',
   'publicAccess.appPagination': '0.3.67',
+  'automations.words': '0.3.67',
 };
 
 /** The kinds of file a column takes from the release that cleans SVG and reads models and fonts whole (`ASSET_FILE_KINDS`). */
@@ -1161,6 +1164,8 @@ export function installFloorWords(document: unknown): ManifestWord[] {
           if (isDoc(value) && value['setting'] !== undefined && value['else'] !== undefined) out.push({ word: 'automations.settingElse', path: `${at}.${String(n)}.action.values.${ref}` });
           if (isDoc(value) && value['daysAfter'] !== undefined) out.push({ word: 'automations.daysAfter', path: `${at}.${String(n)}.action.values.${ref}` });
         }
+        // A condition or branch step that asks an add-on's words.
+        if (isDoc(node['condition']) && isDoc(node['condition']['left']) && node['condition']['left']['words'] !== undefined) out.push({ word: 'automations.words', path: `${at}.${String(n)}.condition.left.words` });
         list(node['branches']).forEach((branch, b) => steps(isDoc(branch) ? branch['nodes'] : undefined, `${at}.${String(n)}.branches.${String(b)}.nodes`));
       });
     };

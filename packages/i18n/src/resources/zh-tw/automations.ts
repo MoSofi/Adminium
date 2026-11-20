@@ -213,7 +213,13 @@ export default {
     "delete": "刪除",
     "close": "關閉",
     "settings": "設定",
-    "documentNote": "此步驟屬於某個文件對應。要變更它產生的內容和寄送對象，請前往 Studio › 文件對應。"
+    "documentNote": "此步驟屬於某個文件對應。要變更它產生的內容和寄送對象，請前往 Studio › 文件對應。",
+    "wordsIs": "{link}：{addOn} 顯示{state}",
+    "wordsNot": "{link}：{addOn} 未顯示{state}",
+    "wordsIn": "有貨",
+    "wordsLow": "庫存不多",
+    "wordsOut": "缺貨",
+    "wordsNote": "此條件由附加元件回答。附加元件關閉或無法回答時，此條件不成立。"
   },
   "op": {
     "is": "等於",

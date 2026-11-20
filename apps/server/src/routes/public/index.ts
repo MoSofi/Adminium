@@ -77,7 +77,7 @@ import { priceAnswer, type AppliedReply, type PriceAnswer } from '../../crud/adj
 import { DesignRefused } from '../../crud/check/step.js';
 import type { AdjustedOrder } from '../../crud/adjust/step.js';
 import { paymentOf } from '../../ledgers/payment.js';
-import { ratioText, sameDecimal, SHOPPER_COUNT_MOST, SHOPPER_IN_MOST, SHOPPER_OFFSET_MOST, SHOPPER_SEARCH_MIN, SHOPPER_SEARCHES_A_MINUTE, toRatio } from '@adminium/manifest';
+import { ratioText, sameDecimal, SHOPPER_COUNT_MOST, SHOPPER_OFFSET_MOST, SHOPPER_SEARCH_MIN, SHOPPER_SEARCHES_A_MINUTE, toRatio } from '@adminium/manifest';
 import { CLIENT_KEY_FORMAT, childValues, clientKeyHash, clientKeySecret, hiddenInQuote, placeOf, placeheldTexts, placesOfColumn, quotePlaceholders, treeShape } from './tree.js';
 import { afterNow, aheadWithin, beforeToday, fromToday, isMomentWindow, isTimeWindow, mandatoryAt } from '../../public-api/relative-filters.js';
 import { publicWindows, withPublicWindows } from '../../public-api/moment-windows.js';

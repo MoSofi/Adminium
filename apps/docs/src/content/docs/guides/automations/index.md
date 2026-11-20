@@ -112,6 +112,28 @@ the last*, *was more than … ago*, *is more than … from now*.
 That is how a rule asks "did they claim it?" or "has this patient missed an
 appointment before?".
 
+**What an add-on says** — an app's rule may ask an add-on's [stock words](/reference/manifest/#stock-words)
+about the row a link of the record names: "is the variant this request is about back in stock?". It
+comes with the app (you see it on the step, and cannot change it there):
+
+```json
+{ "left": { "words": "inventory:stock", "of": "variant_id" }, "op": "is", "right": "in" }
+```
+
+- `in`: the add-on counts the row and at least one whole unit is left. "Low" with one or more left
+  is in.
+- `low`: the add-on says it is low. `out`: it counts the row and none is left.
+- It is **false** — `is not` too — while the add-on is off for the app or cannot answer, when the
+  record's link is empty, and when the add-on does not count the row at all (a variant linked to no
+  stock item). A rule never mails someone because an add-on was off.
+- It is asked only in an *Only continue if* or *If / else* step, never in a trigger's conditions or
+  in **For each record**. Nothing of the add-on is written, and none of its steps runs.
+- It needs Adminium 0.3.67 or later.
+
+A "tell me when it's back" rule visits the waiting requests every 15 minutes (**For each record**,
+not *once*), asks this, then stamps the request before it sends the mail, so the next visit passes
+it by.
+
 On a yes/no column only `is` and `is not` apply, and the value is yes or no; it compares the same
 on every database. A count of related records cannot be used in the conditions of **For each
 record** on a schedule: keep the count in a column of the row and compare that.

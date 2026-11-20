@@ -104,6 +104,10 @@ export function toRecordFilter(
     // scanner evaluates those per row after the scan has narrowed the set.
     throw new ValidationFailedError('A related-records count cannot be scanned in SQL.', {});
   }
+  if ('words' in condition.left) {
+    // An add-on's answer is no column: it is asked in a step, never in a scan.
+    throw new ValidationFailedError("An add-on's words cannot be scanned in SQL.", {});
+  }
   const name = condition.left.field;
   const column = ctx.table.columns.get(name);
   if (column === undefined) {
