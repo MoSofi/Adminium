@@ -51,4 +51,5 @@ file. Every file is 8 KB or less.
 | `references/cli/apply-llm-response.md` | `apply-llm-response` | 1251 |
 | `references/cli/export-zip.md` | `export-zip` | 1077 |
 | `references/cli/import-zip.md` | `import-zip` | 3981 |
-| `references/cli/archive.md` | `archive` | 1487 |
+| `references/cli/archive.md` | `archive` | 2229 |
+| `references/cli/check-source.md` | `check-source` | 1480 |
