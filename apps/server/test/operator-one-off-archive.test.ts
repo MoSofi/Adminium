@@ -12,7 +12,9 @@
  * On each meta engine: `--without-your-database` leaves `yours`' string out,
  * the restore brings it back as a draft, and the next boot's registration fills
  * the same row from `ADMINIUM_YOUR_DATABASE` and connects it (a real Postgres
- * when TEST_POSTGRES_URL is set).
+ * when TEST_POSTGRES_URL is set). The schema assistant's notes run, which ran
+ * on the trial, does not run again: no archive carries its tally, but its
+ * record comes back and says it ran.
  */
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -20,7 +22,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter';
-import { connectionsRepo, firstRun } from '@adminium/meta';
+import { connectionsRepo, firstRun, operatorTalliesRepo, settingsRepo, usersRepo } from '@adminium/meta';
 import { unzipSync } from 'fflate';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -29,6 +31,7 @@ import { parseYourDatabase } from '../src/config/your-database.js';
 import { defaultCliDeps } from '../src/cli/runtime.js';
 import { runCli } from '../src/cli/run.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
+import { createYoursAssist, YOURS_ASSIST_TALLY, type YoursAssistDeps } from '../src/llm/yours-assist.js';
 import { ConnectionManager } from '../src/connections/manager.js';
 import { registerAdapters } from '../src/connections/register-adapters.js';
 import { openMetaStore } from '../src/meta/store.js';
@@ -170,7 +173,11 @@ describe.each(META.filter((leg) => leg.available))('an operator-project trial’
       await firstRun(before.meta);
       const connections = connectionsRepo(before.meta, CRYPTO);
       await connections.create({ name: 'main', engine: 'postgres', sourceKind: 'dsn', introspectDsn: MAIN_URL, dataDsn: null, readOnly: false, settings: {}, status: 'connected', projectKey: 'main', createdBy: null });
-      await connections.create({ name: 'Harbor books', engine: 'postgres', sourceKind: 'dsn', introspectDsn: YOURS_URL, dataDsn: null, readOnly: false, settings: { intent: 'full-admin' }, status: 'connected', projectKey: YOURS_KEY, createdBy: null });
+      const yours = await connections.create({ name: 'Harbor books', engine: 'postgres', sourceKind: 'dsn', introspectDsn: YOURS_URL, dataDsn: null, readOnly: false, settings: { intent: 'full-admin' }, status: 'connected', projectKey: YOURS_KEY, createdBy: null });
+      // The owner, and the notes run the trial made and applied.
+      await usersRepo(before.meta).create({ email: 'ava@harbor.test', name: 'Ava' });
+      expect(await operatorTalliesRepo(before.meta).claim(YOURS_ASSIST_TALLY)).toBe(true);
+      await settingsRepo(before.meta).set('llm.yoursAssist', { state: 'applied', runId: 'run_trial', connectionId: yours.id, at: Date.now(), counts: { overrides: 4, pages: 2, navGroupUpdates: 1 }, undo: { insertedOverrideIds: [] }, reason: null });
     } finally {
       await before.close();
     }
@@ -243,6 +250,32 @@ describe.each(META.filter((leg) => leg.available))('an operator-project trial’
         expect(await connectYourDatabase(opts, registered!)).toBe(true);
         expect(opts.status.current()).toMatchObject({ state: 'ready' });
       }
+
+      // The notes run on the restored deployment (hosted, `ADMINIUM_YOUR_DATABASE` without notes), once the database is
+      // back: the tally did not travel, the record did, and it says the run happened. Nothing is asked of the model.
+      const tallies = operatorTalliesRepo(after.meta);
+      expect(await tallies.get(YOURS_ASSIST_TALLY)).toBeNull();
+      expect(await settingsRepo(after.meta).get('llm.yoursAssist')).toMatchObject({ state: 'applied', runId: 'run_trial' });
+      const ready = yourDatabaseStatus();
+      ready.set({ state: 'ready', reason: null, host: 'db.example.com', label: 'Harbor books', readOnly: false });
+      const never = (): never => {
+        throw new Error('the notes run ran again');
+      };
+      const assist = createYoursAssist({
+        meta: after.meta,
+        yoursConnectionId: async () => draft!.id,
+        notes: null,
+        operatorKey: true,
+        status: ready,
+        promptService: { createRunForConnection: never },
+        runService: {} as YoursAssistDeps['runService'],
+        applyService: { applyRun: never, buildPlanForRun: never },
+        resolve: never,
+      });
+      expect(await assist.maybeStart()).toEqual({ started: false, reason: 'taken' });
+      expect((await tallies.get(YOURS_ASSIST_TALLY))?.amount).toBe(1);
+      expect(await settingsRepo(after.meta).get('llm.yoursAssist')).toMatchObject({ state: 'applied', runId: 'run_trial' });
+      assist.stop();
     } finally {
       await manager.disposeAll();
       await after.close();

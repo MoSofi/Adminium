@@ -41,6 +41,7 @@ import { createRunService } from '../src/llm/run-service.js';
 import {
   createYoursAssist,
   hasOperatorBuildKey,
+  ranBefore,
   refusedBeforeAnswer,
   undoYoursAssist,
   waitFor,
@@ -108,6 +109,17 @@ describe('noAppTables: no app or add-on makes tables on `yours`', () => {
     expect(() => assertNoAppTables({ projectKey: 'main', name: 'Main' }, ['shop_orders'])).not.toThrow();
     expect(() => assertNoAppTables({ projectKey: null, name: 'Shop' }, ['shop_orders'])).not.toThrow();
     expect(() => assertNoAppTables({ projectKey: YOURS_KEY, name: 'Yours' }, [])).not.toThrow();
+  });
+});
+
+describe('whether a record says the run happened', () => {
+  const base = { runId: 'r', connectionId: 'c', at: 1, counts: null, undo: null, reason: null };
+  it('anything but none, a wait, or a run that could not be made', () => {
+    expect(ranBefore(null)).toBe(false);
+    expect(ranBefore({ ...base, state: 'waiting', reason: 'busy' })).toBe(false);
+    expect(ranBefore({ ...base, state: 'failed', reason: 'no-model' })).toBe(false);
+    for (const state of ['running', 'applied', 'undone', 'interrupted'] as const) expect(ranBefore({ ...base, state })).toBe(true);
+    for (const reason of ['provider', 'invalid', 'apply']) expect(ranBefore({ ...base, state: 'failed', reason })).toBe(true);
   });
 });
 
@@ -392,6 +404,33 @@ for (const engine of META_ENGINES) {
         assist.stop();
         await new Promise<void>((resolve) => gateway.close(() => resolve()));
       }
+    });
+
+    it('restored from an archive (the record back, the tally not): it ran, and it does not run again', async () => {
+      const f = await fixture();
+      const settings = settingsRepo(f.meta);
+      const tallies = operatorTalliesRepo(f.meta);
+      const at = Date.now();
+      for (const state of ['applied', 'undone', 'interrupted', 'running'] as const) {
+        await tallies.release(YOURS_ASSIST_TALLY);
+        await settings.set('llm.yoursAssist', { state, runId: 'run_before', connectionId: f.connectionId, at, counts: null, undo: null, reason: null });
+        expect(await createYoursAssist(f.deps).maybeStart()).toEqual({ started: false, reason: 'taken' });
+        expect((await tallies.get(YOURS_ASSIST_TALLY))?.amount).toBe(1);
+      }
+      // One archived mid-run is said to have stopped.
+      expect((await settings.get('llm.yoursAssist'))?.state).toBe('interrupted');
+      // One the model answered and that failed: the operator paid for it, so it is taken too.
+      await tallies.release(YOURS_ASSIST_TALLY);
+      await settings.set('llm.yoursAssist', { state: 'failed', runId: 'run_before', connectionId: f.connectionId, at, counts: null, undo: null, reason: 'invalid' });
+      expect(await createYoursAssist(f.deps).maybeStart()).toEqual({ started: false, reason: 'taken' });
+      expect(f.scripted.calls).toHaveLength(0);
+
+      // A wait (nothing spent) restored: it runs.
+      await tallies.release(YOURS_ASSIST_TALLY);
+      await settings.set('llm.yoursAssist', { state: 'waiting', runId: 'run_before', connectionId: f.connectionId, at, counts: null, undo: null, reason: 'busy', until: at + 30_000 });
+      const waited = await createYoursAssist(f.deps).maybeStart();
+      expect(waited.started ? await waited.done : null).toMatchObject({ state: 'applied' });
+      expect(f.scripted.calls).toHaveLength(1);
     });
 
     it('gives the tally back when no run could be made (no model)', async () => {

@@ -35,6 +35,12 @@
  * The time is kept in a tally ({@link YOURS_ASSIST_WAIT_TALLY}), so a server
  * restarted meanwhile starts it again at its next boot, at that time.
  *
+ * No archive carries the tally (`archive/policy.ts`: the operator's tallies are
+ * never set back by a file), but every archive carries the run's record
+ * (`llm.yoursAssist`). So a store restored from one (an upgrade and restore,
+ * then the owner reconnecting their database) knows from the record that the
+ * run happened ({@link ranBefore}): the tally is taken again and nothing runs.
+ *
  * It never makes tables: LLM-assist writes overrides and pages only, and no
  * table is ever created on `yours` (`connections/no-app-tables.ts`).
  */
@@ -161,6 +167,15 @@ export interface YoursAssist {
 }
 
 /** Whether the operator gave this server an AI key builds may run on. */
+/**
+ * Whether a record says the run already happened: anything but none, a wait (refused before an answer) or a run
+ * that could not be made (`no-model`). Both of those gave the tally back, so they may run.
+ */
+export function ranBefore(held: YoursAssistRecord | null): held is YoursAssistRecord {
+  if (held === null || held.state === 'waiting') return false;
+  return !(held.state === 'failed' && held.reason === 'no-model');
+}
+
 export function hasOperatorBuildKey(env: {
   ADMINIUM_AI_BUILD_API_KEY?: string | undefined;
   ADMINIUM_AI_COMPATIBLE_API_KEY?: string | undefined;
@@ -300,12 +315,16 @@ export function createYoursAssist(deps: YoursAssistDeps): YoursAssist {
       }
       await tallies.release(YOURS_ASSIST_WAIT_TALLY);
     }
-    if (!(await tallies.claim(YOURS_ASSIST_TALLY, now()))) {
-      // Taken before: a run this process never finished (a restart mid-run) is said to have stopped, not left "running".
-      const held = await settings.get('llm.yoursAssist');
-      if (held !== null && held.state === 'running') await record({ ...held, state: 'interrupted', at: now() }).catch(() => undefined);
+    const before = await settings.get('llm.yoursAssist');
+    if (ranBefore(before)) {
+      // It ran. Restored from an archive, the record came back and the tally did not: take it again.
+      if (await tallies.claim(YOURS_ASSIST_TALLY, now())) log('yours-assist: ran before this store was restored; not run again', { runId: before.runId, state: before.state });
+      // A run this process never finished (a restart mid-run, or an archive made mid-run) is said to have stopped.
+      if (before.state === 'running') await record({ ...before, state: 'interrupted', at: now() }).catch(() => undefined);
       return { started: false, reason: 'taken' };
     }
+    // Taken with no record yet: a run starting elsewhere.
+    if (!(await tallies.claim(YOURS_ASSIST_TALLY, now()))) return { started: false, reason: 'taken' };
     const done = run(connectionId)
       .catch(async (error: unknown) => {
         log('yours-assist: stopped', { error: error instanceof Error ? error.message : String(error) });
