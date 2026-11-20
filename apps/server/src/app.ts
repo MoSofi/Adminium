@@ -517,6 +517,7 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     const requestId = request.id;
 
     if (error instanceof AppError) {
+      if (error.logged !== undefined) request.log.info({ refused: error.logged, code: error.code }, error.message);
       void reply
         .status(error.statusCode)
         .send(errorEnvelope(error.code, error.message, requestId, error.details));

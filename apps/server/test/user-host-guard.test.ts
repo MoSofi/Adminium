@@ -19,7 +19,7 @@ import { describe, expect, it } from 'vitest';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { addressRechecker, checkDsn, parseDatabaseHost, parseDsn, userHostPolicy, userHostTlsParams, type DatabaseHost } from '../src/connections/dsn.js';
 import { ConnectionManager, LOGIN_LOCKOUT_MS, SourceLoginLockedError } from '../src/connections/manager.js';
-import { DENIED_USER_PORTS, parseDenyAddresses, parseUserHost, userPortRefusal, type DenyRange, type UserHost } from '../src/connections/user-host.js';
+import { addressDenied, DENIED_USER_PORTS, parseDenyAddresses, parseUserHost, userHostOf, userPortRefusal, type DenyRange, type UserHost } from '../src/connections/user-host.js';
 import { checkHost, isReservedAddress, type HostLookup } from '../src/net/address-guard.js';
 import { ORDINARY_POLICY, trialPolicy, type TrialPolicy } from '../src/trial/policy.js';
 import { assertTrialSourceAllowed, assertUserHostNotOperator, operatorLoginOf, type TrialSourceRules } from '../src/trial/sources.js';
@@ -187,7 +187,7 @@ describe('reserved and special-purpose ranges', () => {
     expect(isReservedAddress(address)).toBe(false);
   });
 
-  it('refused only where asked: strict sources and the user host, never a listed host', async () => {
+  it('refused only where asked: the user host and check-source, never a listed host', async () => {
     expect((await checkHost('192.0.2.9', {})).ok).toBe(true);
     expect(await checkHost('192.0.2.9', { blockReserved: true })).toMatchObject({ ok: false, reason: 'reserved' });
     expect((await checkHost('192.0.2.9', { blockReserved: true, listed: true })).ok).toBe(true);
@@ -195,12 +195,46 @@ describe('reserved and special-purpose ranges', () => {
     expect(await checkHost('192.0.0.192', { blockReserved: true, listed: true })).toMatchObject({ ok: false, reason: 'metadata' });
   });
 
-  it('a strict source on a reserved range is refused, unless listed', async () => {
-    await expect(checkDsn('postgres://u@testnet.user.example:5432/app', { blockPrivate: true, lookup })).rejects.toThrow('reserved address range');
-    const ok = await checkDsn('postgres://u@testnet.user.example:5432/app', { blockPrivate: true, lookup, databaseHosts: listed('testnet.user.example:5432') });
-    expect(ok.endpoint?.addresses).toEqual(['192.0.2.9']);
-    // Open: as before.
+  it('another source on a reserved range is not refused, strict or open; only when asked (check-source), unless listed', async () => {
+    expect((await checkDsn('postgres://u@testnet.user.example:5432/app', { blockPrivate: true, lookup })).endpoint?.addresses).toEqual(['192.0.2.9']);
     expect((await checkDsn('postgres://u@testnet.user.example:5432/app', { lookup })).endpoint?.addresses).toEqual(['192.0.2.9']);
+    await expect(checkDsn('postgres://u@testnet.user.example:5432/app', { blockPrivate: true, blockReserved: true, lookup })).rejects.toThrow('reserved address range');
+    const ok = await checkDsn('postgres://u@testnet.user.example:5432/app', { blockPrivate: true, blockReserved: true, lookup, databaseHosts: listed('testnet.user.example:5432') });
+    expect(ok.endpoint?.addresses).toEqual(['192.0.2.9']);
+  });
+});
+
+describe('the user host however it is written', () => {
+  it('is held as the resolver reads it', () => {
+    expect(userHostOf('DB.User.Example.', 5432)).toEqual({ host: 'db.user.example', port: 5432 });
+    expect(userHostOf('[2606:4700::1111]', 5432)).toEqual({ host: '2606:4700::1111', port: 5432 });
+    expect(userHostOf('0xcb007105', 5432)).toEqual({ host: '203.0.113.5', port: 5432 });
+    expect(userHostOf('203.0.113.005', 5432)).toEqual({ host: '203.0.113.5', port: 5432 });
+  });
+
+  it('gets the user host’s TLS default when written with a trailing dot', async () => {
+    const checked = await checkDsn('postgres://me:pw@db.user.example.:5432/shop', { lookup: async () => ['93.184.215.40'], userHost: userHostOf('db.user.example', 5432), denyAddresses: FLEET });
+    expect(checked.endpoint?.params['sslmode']).toBe('verify-full');
+  });
+});
+
+describe('the deny list reads an IPv4 address carried in IPv6', () => {
+  it.each(['::ffff:203.0.113.250', '::203.0.113.250', '64:ff9b::cb00:71fa', '2002:cb00:71fa::1'])('%s is the fleet’s 203.0.113.250', (address) => {
+    expect(addressDenied(address, FLEET)).toBe(true);
+  });
+
+  it('and nothing else', () => {
+    for (const address of ['::ffff:93.184.215.40', '64:ff9b::5db8:d728', '2002:5db8:d728::1', '2606:4700::1111']) expect(addressDenied(address, FLEET)).toBe(false);
+  });
+});
+
+describe('a refusal of the user host', () => {
+  it('says why in the server log only, never in the reply', async () => {
+    const error = await checkDsn('postgres://me:pw@fleet.user.example:5432/shop', { lookup, userHost: userHostOf('fleet.user.example', 5432), denyAddresses: FLEET, hideAddresses: true }).catch(
+      (caught: unknown) => caught as Error & { details?: unknown; logged?: Record<string, unknown> },
+    );
+    expect(error).toMatchObject({ statusCode: 422, details: { host: 'fleet.user.example' }, logged: { host: 'fleet.user.example', reason: 'denied' } });
+    expect(JSON.stringify(error.details)).not.toMatch(/denied|private|reserved/);
   });
 });
 

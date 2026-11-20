@@ -15,7 +15,7 @@ import { isIP } from 'node:net';
 
 import { databaseEndpointFromDsn, type DatabaseEndpoint } from '@adminium/engine/adapter';
 
-import { AppError, HostLookupFailedError, ValidationFailedError } from '../errors.js';
+import { AppError, HostLookupFailedError, ValidationFailedError, withLogged } from '../errors.js';
 import { addressKind, canonicalHost, checkHost, hostSpelling, METADATA_NAME, type HostCheck, type HostLookup, type HostPolicy } from '../net/address-guard.js';
 import { addressDenied, isUserHost, type DenyRange, type UserHost } from './user-host.js';
 
@@ -371,6 +371,11 @@ export interface DsnCheckOptions extends DsnGuardOptions {
   /** `ADMINIUM_DATABASE_DENY_ADDRESSES`: addresses the user host may never resolve to. */
   denyAddresses?: readonly DenyRange[] | undefined;
   /**
+   * Refuse reserved and special-purpose ranges for a host that is not the user host (`adminium check-source`).
+   * The user host always refuses them; other sources, under `strict` too, are not held to it.
+   */
+  blockReserved?: boolean | undefined;
+  /**
    * Trial and hosted mode: a refusal never repeats the address a name resolved
    * to (the person reading it is not the operator), in its message or details.
    */
@@ -578,8 +583,7 @@ export async function checkDsn(dsn: string, opts: DsnResolveOptions = {}): Promi
         // "Allow databases on this server" lets any loopback address through; private and metadata are still checked.
         blockLoopback: opts.blockLoopback === true && opts.localDatabases !== true,
         blockPrivate,
-        // Under strict, a source on a reserved or special-purpose range is refused too, unless listed.
-        blockReserved: blockPrivate,
+        blockReserved: opts.blockReserved === true,
         listed: databaseHostListed(opts.databaseHosts, parsed),
         failClosed: opts.blockLoopback === true || blockPrivate,
         lookup: opts.lookup,
@@ -599,9 +603,9 @@ export async function checkDsn(dsn: string, opts: DsnResolveOptions = {}): Promi
   if (user) {
     // The user's own host: one refusal, in words that name no address and no operator variable.
     if (check.reason === 'unresolved') throw new HostLookupFailedError(check.host);
-    throw new ValidationFailedError(`The host ${check.host} resolves to an address this server does not connect to.`, {
+    // Why (denied, private, reserved…) is the operator's to read, in the server log; the person is told only that.
+    throw withLogged(new ValidationFailedError(`The host ${check.host} resolves to an address this server does not connect to.`, { host: check.host, ...address }), {
       host: check.host,
-      ...address,
       reason: check.reason,
     });
   }
@@ -610,11 +614,8 @@ export async function checkDsn(dsn: string, opts: DsnResolveOptions = {}): Promi
     case 'denied':
       throw new ValidationFailedError('Host resolves to a blocked address range.', { host: check.host, ...address });
     case 'reserved':
-      throw new ValidationFailedError(`The host ${check.host} resolves to a reserved address range${at}, which ADMINIUM_NETWORK_POLICY=strict does not connect to.`, {
-        host: check.host,
-        ...address,
-        policy: 'strict',
-      });
+      // Asked for by `check-source` only (`blockReserved`).
+      throw new ValidationFailedError(`The host ${check.host} resolves to a reserved address range${at}, which this server does not connect to.`, { host: check.host, ...address });
     case 'loopback': {
       const entry = databaseHostEntry(parsed);
       throw new ValidationFailedError(

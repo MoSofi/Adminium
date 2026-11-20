@@ -19,7 +19,7 @@
  */
 import { isIP } from 'node:net';
 
-import { canonicalHost, hostSpelling } from '../net/address-guard.js';
+import { canonicalHost, embeddedIpv4, hostSpelling } from '../net/address-guard.js';
 
 /**
  * Ports a user host may never name, though they are ≥ 1024: Docker's API (2375, 2376), etcd (2379), Redis (6379),
@@ -59,6 +59,14 @@ export function parseUserHost(raw: string): { ok: true; entry: UserHost } | { ok
   const spelled = hostSpelling(rawHost);
   if (spelled.metadata || spelled.loopback) return { ok: false, problem: 'names an address this server never connects to' };
   return { ok: true, entry: { host: spelled.host.replace(/\.$/, ''), port } };
+}
+
+/**
+ * A host as {@link UserHost} holds it, however it is written: lower case, IPv6 without brackets, no trailing dot,
+ * an old IPv4 spelling (`0xcb007105`, `203.0.113.005`) read as its address, as {@link isUserHost} compares.
+ */
+export function userHostOf(host: string, port: number): UserHost {
+  return { host: canonicalHost(host).replace(/\.$/, ''), port };
 }
 
 /** Whether a parsed DSN's host and port are the user host. */
@@ -140,12 +148,19 @@ export function parseDenyAddresses(raw: string): { ok: true; ranges: DenyRange[]
   return refused.length > 0 ? { ok: false, refused } : { ok: true, ranges };
 }
 
-/** Whether an address is on the deny list. An IPv4-mapped IPv6 address is read as its IPv4 address too. */
+/**
+ * Whether an address is on the deny list. An IPv6 address that carries an IPv4 one (mapped `::ffff:a.b.c.d`,
+ * compatible `::a.b.c.d`, NAT64 `64:ff9b::/96`, 6to4 `2002::/16`) is read as that IPv4 address too.
+ */
 export function addressDenied(address: string, ranges: readonly DenyRange[] | undefined): boolean {
   if (ranges === undefined || ranges.length === 0) return false;
   const bytes = addressBytes(address);
   if (bytes === null) return false;
   const forms = [bytes];
-  if (bytes.length === 16 && bytes.slice(0, 10).every((byte) => byte === 0) && bytes[10] === 255 && bytes[11] === 255) forms.push(bytes.slice(12));
+  if (bytes.length === 16) {
+    const v4 = embeddedIpv4(address.toLowerCase().replace(/^\[|\]$/g, '').replace(/%.*$/, ''));
+    const v4Form = v4 === null ? null : addressBytes(v4);
+    if (v4Form !== null) forms.push(v4Form);
+  }
   return forms.some((form) => ranges.some((range) => inRange(form, range)));
 }

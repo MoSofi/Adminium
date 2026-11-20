@@ -97,8 +97,8 @@ function ipv4Kind(address: string): AddressKind {
  * site-local fec0::/10 and multicast ff00::/8.
  *
  * Apart from {@link addressKind} on purpose: a webhook or a storage endpoint
- * keeps its reading, and only the source-database guard under `strict` and the
- * user's own host refuse these ({@link HostPolicy.blockReserved}). Metadata
+ * keeps its reading, and only the user's own host and `adminium check-source`
+ * refuse these ({@link HostPolicy.blockReserved}), not other sources. Metadata
  * and loopback are read first, so `192.0.0.192` stays metadata and 0/8 stays
  * this machine.
  */
@@ -199,8 +199,8 @@ export interface HostPolicy {
   /** The operator named this host (and port) as allowed: loopback and private pass. Metadata never does. */
   listed?: boolean | undefined;
   /**
-   * Refuse reserved and special-purpose ranges ({@link isReservedAddress}): the source-database guard under
-   * `strict`, and always for the user's own host. A listed host passes.
+   * Refuse reserved and special-purpose ranges ({@link isReservedAddress}): always for the user's own host, and
+   * in `adminium check-source`. A listed host passes.
    */
   blockReserved?: boolean | undefined;
   /** Addresses never to dial whatever else says (the fleet's own, `ADMINIUM_DATABASE_DENY_ADDRESSES`). Not skipped by `listed`. */

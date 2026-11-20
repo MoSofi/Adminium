@@ -40,7 +40,7 @@ import { HostLookupFailedError } from '../errors.js';
 import type { HostLookup } from '../net/address-guard.js';
 import type { YourDatabaseReason } from '../project/your-database-state.js';
 import { checkDsn, parseDsn, type DatabaseHost, type ParsedDsn } from './dsn.js';
-import { userPortRefusal, type DenyRange } from './user-host.js';
+import { userHostOf, userPortRefusal, type DenyRange } from './user-host.js';
 
 export const CHECK_DEADLINE_MS = 15_000;
 export const CHECK_STATEMENT_TIMEOUT_MS = 5_000;
@@ -333,8 +333,8 @@ export async function checkSource(dsn: string, opts: CheckSourceOptions = {}): P
         hideAddresses: true,
         lookup: opts.lookup,
         ...(testListed === undefined
-          ? { userHost: { host: parsed.host.toLowerCase(), port: parsed.port }, denyAddresses: opts.denyAddresses }
-          : { databaseHosts: testListed }),
+          ? { userHost: userHostOf(parsed.host, parsed.port), denyAddresses: opts.denyAddresses }
+          : { databaseHosts: testListed, blockReserved: true }),
       });
       if (checked.endpoint === null) return answer('refused-by-us', scheme);
       endpoint = checked.endpoint;

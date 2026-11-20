@@ -97,6 +97,8 @@ export class AppError extends Error {
   readonly statusCode: number;
   readonly code: string;
   readonly details: unknown;
+  /** For the server log only, never the reply ({@link withLogged}). */
+  logged?: Record<string, unknown>;
 
   constructor(statusCode: number, code: string, message: string, details?: unknown) {
     super(message);
@@ -104,6 +106,12 @@ export class AppError extends Error {
     this.code = code;
     this.details = details;
   }
+}
+
+/** Give an error what the server log says of it and the reply does not: the error handler logs it. */
+export function withLogged<T extends AppError>(error: T, logged: Record<string, unknown>): T {
+  error.logged = logged;
+  return error;
 }
 
 /** 404 — resource or record absent. */

@@ -33,7 +33,8 @@ const lookup: HostLookup = async (host) => {
     'fleet.user.example': ['203.0.113.250'],
     'lan.user.example': ['10.1.2.3'],
   };
-  const answer = answers[host];
+  // A name with its trailing dot is the same name, as the resolver reads it.
+  const answer = answers[host.replace(/\.$/, '')];
   if (answer === undefined) throw Object.assign(new Error(`getaddrinfo ENOTFOUND ${host}`), { code: 'ENOTFOUND' });
   return answer;
 };
@@ -85,6 +86,19 @@ describe('refused before any dial', () => {
     if (!deny.ok) throw new Error('deny');
     const result = await checkSource(dsn, { lookup, denyAddresses: deny.ranges });
     expect(result).toMatchObject({ ok: false, class: 'refused-by-us', tables: [], schemas: [] });
+  });
+
+  // However the host is written, it is the user host: the deny list and the user host's rules hold.
+  it.each([
+    ['a trailing dot', 'postgres://u:p@db.user.example.:5432/app'],
+    ['upper case and a trailing dot', 'postgres://u:p@DB.User.Example.:5432/app'],
+    ['an IPv4 address in hex', 'postgres://u:p@0x5db8d728:5432/app'],
+    ['an IPv4 address with an octal part', 'postgres://u:p@93.184.215.050:5432/app'],
+    ['an IPv6 address in brackets', 'postgres://u:p@[2606:4700::1111]:5432/app'],
+  ])('a deny-listed host written as %s is refused-by-us', async (_what, dsn) => {
+    const deny = parseDenyAddresses('93.184.215.40,2606:4700::1111');
+    if (!deny.ok) throw new Error('deny');
+    expect(await checkSource(dsn, { lookup, denyAddresses: deny.ranges })).toMatchObject({ ok: false, class: 'refused-by-us' });
   });
 
   it('a name that does not resolve is dns', async () => {
