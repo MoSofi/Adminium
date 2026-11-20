@@ -317,6 +317,9 @@ export function adjustRuleRoutes(deps: AdjustRuleDeps): FastifyPluginAsyncZod {
           // A review that found nothing to make reviewed nothing that is made now.
           if (!empty && checksum === NOTHING_TO_MAKE) throw new ConflictError('The database changed since this change was reviewed. Review it again.', 'SCHEMA_DRIFT', { expected: checksum });
           if (!empty) {
+            // Not held by `assertNoAppTables`, on purpose, `yours` included: this is a person's own change to their own
+            // table, reviewed first (the dry run's checksum) under `system:schema:remap`, as Studio's schema editor is; the
+            // rule keeps apps and add-ons from changing the user's database by themselves (`connections/no-app-tables.ts`).
             await applyServerEdit(edit, connectionId, () => plan.edit, { superAdmin, createdBy: by(request), ...(checksum === undefined ? {} : { expectedChecksum: checksum }) });
             // …and the tables read again: the rule is held to what is there now, and every page reads the snapshot. (Tried once more
             // where it fails: what was made is made, and the rule below is judged on the tables as they are read.)

@@ -11,8 +11,9 @@
  * and the one place an app's edit changes existing tables (`apps/schema-target.ts`)
  * refuse a connection with the project key `yours`, by its key alone, while
  * `ADMINIUM_OPERATOR_PROJECT` is on: a self-hosted project that names one of its
- * own databases `yours` is not held. A person in Studio editing their own schema
- * is not an app, and is not held here.
+ * own databases `yours` is not held. A person changing their own schema, in
+ * Studio or by a price rule they review (`routes/rules/adjust.ts`), is not an
+ * app, and is not held here.
  */
 import { ForbiddenError } from '../errors.js';
 
