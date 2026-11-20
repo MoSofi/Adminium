@@ -128,7 +128,7 @@ comes with the app (you see it on the step, and cannot change it there):
   stock item). A rule never mails someone because an add-on was off.
 - It is asked only in an *Only continue if* or *If / else* step, never in a trigger's conditions or
   in **For each record**. Nothing of the add-on is written, and none of its steps runs.
-- It needs Adminium 0.3.67 or later.
+- It needs Adminium 0.3.68 or later.
 
 A "tell me when it's back" rule visits the waiting requests every 15 minutes (**For each record**,
 not *once*), asks this, then stamps the request before it sends the mail, so the next visit passes

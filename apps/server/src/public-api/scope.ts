@@ -1729,10 +1729,13 @@ function shopperIssues(doc: PublicScopeDocument, columnsOf: TableColumnLookup | 
       through.visibleWith === undefined &&
       through.level === undefined &&
       through.unlockBy === undefined &&
-      through.withhold === undefined;
+      through.withhold === undefined &&
+      through.sessionOnly !== true;
     if (!anyone) push('SCOPE_SHOPPER_VIA_NOT_OPEN', `ref "${r.ref}" filters through "${via.ref}", which is not a list of another table anyone reads`);
     const known = columnsOf?.(through.table) ?? null;
     if (known !== null && !known.has(via.on)) push('SCOPE_SHOPPER_VIA_UNKNOWN_COLUMN', `"${via.on}" is not a column of ${through.table}`, via.on);
+    // The link it is joined by says which row of this list a row of that one belongs to: shown by that list, or no filter goes through it.
+    if (!through.expose.includes(via.on)) push('SCOPE_SHOPPER_VIA_NOT_EXPOSED', `"${via.on}" joins "${via.ref}" to this list, and "${via.ref}" does not show it`, via.on);
     for (const column of Object.keys(via.ops)) {
       if (!through.expose.includes(column)) push('SCOPE_SHOPPER_VIA_NOT_EXPOSED', `"${column}" is asked of "${via.ref}", which does not show it`, column);
     }

@@ -24,7 +24,7 @@ refused.
 }
 ```
 
-These words need Adminium 0.3.67 or later: set `compatibility.minAdminiumVersion` to it.
+These words need Adminium 0.3.68 or later: set `compatibility.minAdminiumVersion` to it.
 
 ## Which lists may say them
 

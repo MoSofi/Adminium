@@ -33,8 +33,8 @@ describe("a table's review word", () => {
   it('validates as the shop writes it, and carries the floor', () => {
     expect(text(shop())).toBe('');
     expect(installFloorWords(shop()).map((found) => found.word)).toContain('table.review');
-    expect(WORD_FLOORS['table.review']).toBe('0.3.67');
-    expect(text(shop((m) => (m['compatibility'] = { minAdminiumVersion: '0.3.66' })))).toContain('0.3.67');
+    expect(WORD_FLOORS['table.review']).toBe('0.3.68');
+    expect(text(shop((m) => (m['compatibility'] = { minAdminiumVersion: '0.3.67' })))).toContain('0.3.68');
   });
 
   it("names the person the row's claim reaches, never another link", () => {
@@ -84,6 +84,10 @@ describe("an add-on's reviews and their totals", () => {
   it('a stranger only reads them, held to the app', () => {
     expect(text(kit((m) => (m.publicAccess[0]!['methods'] = ['GET', 'POST'])))).toContain('which a stranger only reads');
     expect(text(kit((m) => (m.publicAccess[1]!['appColumn'] = undefined)))).toContain('an entry on it is held to its app');
+    // The reviews: published ones, never whose they are, the row reviewed, or why one was hidden.
+    expect(text(kit((m) => (m.publicAccess[0]!['filters'] = [])))).toContain('a fixed filter "state" eq "published"');
+    expect(text(kit((m) => ((m.publicAccess[0]!['select'] as string[]).push('person_key'))))).toContain('a stranger never reads person_key of a review');
+    expect(text(kit((m) => ((reviews(m)['appGrants'] as Doc)['readable'] = undefined)))).toContain('named in "readable"');
   });
 
   it("appColumn: a text column, which no app's role writes", () => {

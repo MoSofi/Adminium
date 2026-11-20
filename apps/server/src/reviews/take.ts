@@ -103,8 +103,8 @@ export interface TakeInput {
   refOf: (table: ResolvedTable) => string;
   /** The keeper's reviews table. */
   reviews: ResolvedTable;
-  /** The person the session is, when the session is a person's own sign-in on the people's table: their key must be the one reached. */
-  sessionPerson: { table: string; key: string } | null;
+  /** The person the session is, when it signed in on the people's table: the row reached must hold the session's value in the claim's column. */
+  sessionPerson: { table: string; column: string; value: string } | null;
   /** A column of the people's table that is set once a person asked to be forgotten. */
   forgottenStamp: string | null;
   sent: ReviewSent;
@@ -139,7 +139,7 @@ export async function takeReview(input: TakeInput): Promise<TakeOutcome> {
       const person = await follow(trx, view, table, row, word.person, 'row');
       if (person === null || person.table.primaryKey.length !== 1) throw new Stop({ kind: 'refused' });
       const personKey = textOf(person.row[person.table.primaryKey[0]!]);
-      if (input.sessionPerson !== null && (input.sessionPerson.table !== person.table.id || input.sessionPerson.key !== personKey)) throw new Stop({ kind: 'refused' });
+      if (input.sessionPerson !== null && (input.sessionPerson.table !== person.table.id || textOf(person.row[input.sessionPerson.column]) !== input.sessionPerson.value)) throw new Stop({ kind: 'refused' });
       if (input.forgottenStamp !== null) {
         const forgotten = person.row[input.forgottenStamp];
         if (forgotten !== null && forgotten !== undefined && forgotten !== '') throw new Stop({ kind: 'refused' });

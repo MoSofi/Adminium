@@ -1318,6 +1318,7 @@ function shopperListIssues(entries: readonly PublicAccess[], ctx: PublicAccessCo
         const link = index.column(via.entry, via.on);
         if (link === undefined) out.push({ path: at('via', 'on'), message: `"${via.entry}" has no column "${via.on}"` });
         else if (link.type !== 'fk' || link.references !== entry.table) out.push({ path: at('via', 'on'), message: `"${via.entry}.${via.on}" is not a link to "${entry.table}"` });
+        else if (!shownColumns(through, index).includes(via.on)) out.push({ path: at('via', 'on'), message: `"${via.on}" joins "${via.entry}" to this list: the "${via.entry}" list shows it, or a filter through it would say what it hides` });
         const named = new Set<string>();
         via.columns.forEach((filter, f) => {
           const column = shopperFilterColumn(filter);
@@ -1550,7 +1551,7 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
       if (ctx.local !== true) out.push({ path: at('methods'), message: `${method} is read only from a file made on an Adminium (publisher "local")` });
       else if (!claimed) out.push({ path: at('methods'), message: `${method} is allowed only with a claim` });
     }
-    // Pages are any file's to say from 0.3.67 on (a page of at most a hundred, checked with the shopper's lists).
+    // Pages are any file's to say from 0.3.68 on (a page of at most a hundred, checked with the shopper's lists).
     for (const field of ['path', 'rateLimit', 'response'] as const) {
       if (entry[field] !== undefined && ctx.local !== true) out.push({ path: at(field), message: `"${field}" is read only from a file made on an Adminium (publisher "local")` });
     }

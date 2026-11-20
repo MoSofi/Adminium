@@ -13,7 +13,7 @@ import { entryOf, issuesText, kitchen, messages, type Doc } from './orders-stays
 /** The kitchen, on the release that reads the words, its menu a list anyone reads with a shopper's lists. */
 function shop(lists: Doc = {}): Doc {
   const m = kitchen();
-  m['compatibility'] = { minAdminiumVersion: '0.3.67' };
+  m['compatibility'] = { minAdminiumVersion: '0.3.68' };
   Object.assign(entryOf(m, 'menu_items', 'GET'), {
     filterable: ['price', { column: 'name', ops: ['eq', 'in'] }],
     searchable: ['name'],
@@ -37,14 +37,14 @@ describe("a shopper's lists on a list anyone reads", () => {
     const words = installFloorWords(shop()).map((found) => found.word);
     for (const word of ['publicAccess.filterable', 'publicAccess.searchable', 'publicAccess.orderable', 'publicAccess.via', 'publicAccess.count', 'publicAccess.appPagination'] as const) {
       expect(words).toContain(word);
-      expect(WORD_FLOORS[word]).toBe('0.3.67');
+      expect(WORD_FLOORS[word]).toBe('0.3.68');
     }
   });
 
   it('are refused by a manifest that says an older Adminium', () => {
     const m = shop();
-    m['compatibility'] = { minAdminiumVersion: '0.3.66' };
-    expect(issuesText(m)).toContain('0.3.67');
+    m['compatibility'] = { minAdminiumVersion: '0.3.67' };
+    expect(issuesText(m)).toContain('0.3.68');
   });
 
   it('take no pattern and no operator outside the six', () => {
@@ -56,7 +56,7 @@ describe("a shopper's lists on a list anyone reads", () => {
   it('are said only of a list anyone reads, GET alone, of no person', () => {
     // A person's own rows (claimed), and a table people sign in on.
     const claimed = kitchen();
-    claimed['compatibility'] = { minAdminiumVersion: '0.3.67' };
+    claimed['compatibility'] = { minAdminiumVersion: '0.3.68' };
     const own = (claimed['publicAccess'] as Doc[]).find((entry) => entry['table'] === 'orders' && entry['claimedBy'] !== undefined && (entry['methods'] as string[]).includes('GET'))!;
     own['searchable'] = ['status'];
     expect(issuesText(claimed)).toContain("a shopper's searchable is said only of a list anyone reads, with no sign-in");
@@ -98,6 +98,10 @@ describe("a shopper's lists on a list anyone reads", () => {
     expect(issuesText(shop({ via: { entry: 'modifiers', on: 'group_id', columns: ['name'] } }))).toContain('"modifiers.group_id" is not a link to "menu_items"');
     expect(issuesText(shop({ via: { entry: 'menu_items', on: 'id', columns: ['name'] } }))).toContain('a filter through another list names another table');
     expect(issuesText(shop({ via: { entry: 'modifier_groups', on: 'item_id', columns: ['min_people'] } }))).toContain('"modifier_groups" has no column "min_people"');
+    // The link must be one the other list shows, or the filter says what it hides.
+    const hidden = shop();
+    entryOf(hidden, 'modifier_groups', 'GET')['select'] = ['id', 'name', 'min', 'max'];
+    expect(issuesText(hidden)).toContain('"item_id" joins "modifier_groups" to this list');
     // The other list is a person's: closed to it.
     expect(issuesText(shop({ via: { entry: 'customers', on: 'id', columns: ['name'] } }))).toContain('customers');
   });

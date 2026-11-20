@@ -278,7 +278,7 @@ describe("a condition that asks an add-on's words", () => {
     license: 'MIT',
     description: { key: 'd', fallback: 'A shop' },
     categories: ['commerce'],
-    compatibility: { minAdminiumVersion: '0.3.67' },
+    compatibility: { minAdminiumVersion: '0.3.68' },
     pages: [{ ref: 'requests', template: 'page-crud', title: { key: 't', fallback: 'Requests' }, nav: { group: 'manage', icon: 'list', order: 1 } }],
     frontends: [{ side: 'staff', kind: 'none' }],
     roles: [{ key: 'desk', name: 'Desk' }],
@@ -324,8 +324,8 @@ describe("a condition that asks an add-on's words", () => {
     expect(issuesOf(shop(BACK))).toEqual([]);
     expect(installFloorWords(shop(BACK)).map((found) => found.word)).toContain('automations.words');
     const older = shop(BACK);
-    older['compatibility'] = { minAdminiumVersion: '0.3.66' };
-    expect(text(older)).toContain('0.3.67');
+    older['compatibility'] = { minAdminiumVersion: '0.3.67' };
+    expect(text(older)).toContain('0.3.68');
   });
 
   it('is never a trigger\'s when nor a scan\'s filter', () => {

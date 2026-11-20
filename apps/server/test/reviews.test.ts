@@ -28,7 +28,8 @@ import { RealtimeHub } from '../src/realtime/hub.js';
 import { readLimitedFrames } from '../src/realtime/read-frames.js';
 import { blankReviews, findPersonReviews, forgetReviews } from '../src/reviews/erase.js';
 import { keepAddOnInstalls } from '../src/apps/table-ref.js';
-import { shownNameOf, shownNameOfFull } from '../src/reviews/tables.js';
+import { engineReviewValues, shownNameOf, shownNameOfFull } from '../src/reviews/tables.js';
+import { recountReviewsOf } from '../src/reviews/recount.js';
 import { reviewText } from '../src/public-api/plain-text.js';
 import { ADMIN_PASSWORD, adminPasswordHash, sessionCookie } from './auth-helpers.js';
 import { addOnHarness, type Harness } from './app-add-ons.helpers.js';
@@ -36,7 +37,7 @@ import { REVIEWS_KIT, REVIEWS_TABLE, reviewedShopManifest, reviewsKitManifest, T
 import { LEGS } from './invoicing-install.helpers.js';
 import { servePublic, type Served } from './public-lane.helpers.js';
 
-vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.67' }));
+vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.68' }));
 
 describe('the name a review shows, and the words it takes', () => {
   it('first name and the last name\'s initial; empty when there is none', () => {
@@ -235,6 +236,19 @@ describe.each(LEGS)("a customer's review of a shipped order line — %s", (diale
     expect(await filter!(frame({ id: mine, app: 'shop', state: 'published' }))).not.toBeNull();
   });
 
+  it.skipIf(!available)('the totals are worked out again from the published reviews, and stars never change once taken', async () => {
+    const view = await loadSnapshotView(h.meta, h.connectionId);
+    const installs = await keepAddOnInstalls(h.meta, async () => view.model as never).fresh();
+    const at = dialect === 'mysql' ? "'2026-11-20 10:00:00'" : "'2026-11-20T10:00:00Z'";
+    // A published review written around Adminium: no total moved.
+    await h.rows(`INSERT INTO ${REVIEWS_TABLE} (app, subject_table, subject_key, about_table, about_key, about_name, stars, shown_name, state, submitted_at) VALUES ('shop', 'order_lines', '77', 'products', '9', 'Summit Pack', 5, 'Mo S.', 'published', ${at})`);
+    expect((await totals()).find((row) => row['about_key'] === '9')).toBeUndefined();
+    await recountReviewsOf({ meta: h.meta, manager: h.manager, installs: async () => installs }, h.connectionId, REVIEWS_KIT);
+    expect((await totals()).find((row) => row['about_key'] === '9')).toMatchObject({ count: 1, sum: 5, c5: 1 });
+    expect(() => engineReviewValues('reviews', { stars: 1 })).toThrow(/never change/);
+    expect(engineReviewValues('reviews', { shown_name: '' })).toEqual({ shown_name: '' });
+  });
+
   it.skipIf(!available)("a forgotten person's reviews keep their stars and words, and lose their name", async () => {
     const view = await loadSnapshotView(h.meta, h.connectionId);
     const { db } = await h.manager.data(h.connectionId);
@@ -247,11 +261,16 @@ describe.each(LEGS)("a customer's review of a shipped order line — %s", (diale
     expect(row).toMatchObject({ shown_name: '', person_table: null, person_key: null, body: 'Kept me dry for 3 days.' });
     expect(Number(row['stars'])).toBe(4);
     expect(await totals()).toEqual(before);
-    // Staff erasure finds a person's reviews by any name their table is known by, and blanks them.
-    await h.rows(`UPDATE ${REVIEWS_TABLE} SET person_table = 'shop_customers', person_key = '2', shown_name = 'Ben C.' WHERE app = 'studio'`);
+    // Staff erasure finds a person's reviews within the apps that keep their table, by that app's ref for it — never
+    // another app's review whose person carries the same key in a table of the same name.
+    const at = dialect === 'mysql' ? "'2026-11-20 10:00:00'" : "'2026-11-20T10:00:00Z'";
+    await h.rows(`UPDATE ${REVIEWS_TABLE} SET person_table = 'customers', person_key = '2', shown_name = 'Ava R.' WHERE app = 'studio'`);
+    await h.rows(`INSERT INTO ${REVIEWS_TABLE} (app, subject_table, subject_key, about_table, about_key, about_name, stars, shown_name, state, submitted_at, person_table, person_key) VALUES ('shop', 'order_lines', '99', 'products', '1', 'Ridge Shell', 3, 'Ben C.', 'waiting', ${at}, 'customers', '2')`);
     const ben = await findPersonReviews({ meta: h.meta, installs, view, db: db as never }, [{ table: customers, key: '2' }], null);
     expect(ben.flatMap((one) => one.keys)).toHaveLength(1);
     for (const one of ben) await blankReviews(db as never, one);
-    expect((await h.rows(`SELECT shown_name, person_key FROM ${REVIEWS_TABLE} WHERE app = 'studio'`))[0]).toEqual({ shown_name: '', person_key: null });
+    expect((await h.rows(`SELECT shown_name, person_key FROM ${REVIEWS_TABLE} WHERE app = 'shop' AND subject_key = '99'`))[0]).toEqual({ shown_name: '', person_key: null });
+    // The studio's customer 2 is somebody else: untouched.
+    expect((await h.rows(`SELECT shown_name, person_key FROM ${REVIEWS_TABLE} WHERE app = 'studio'`))[0]).toEqual({ shown_name: 'Ava R.', person_key: '2' });
   });
 });

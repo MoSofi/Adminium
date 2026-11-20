@@ -1509,6 +1509,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         });
         return null;
       }
+      // A search spends the list's own counter as well as its own: never more reads of the list than the list allows.
+      if (searching && named?.rate !== null && named?.rate !== undefined && !admit(reply, limiter.hitEndpoint({ ...counted, ref, kind: key.kind }, named.rate, cost))) return null;
       if (!admit(reply, limiter.hitEndpoint({ ...counted, ref: bucket ?? ref, kind: key.kind }, rated, cost))) return null;
     } else if (!admit(reply, limiter.hit(counts, counted))) {
       return null;
@@ -5957,6 +5959,16 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           }
         }
+        // Their reviews keep their stars and words and lose their name (`reviews/erase.ts`): first, so a person told they are forgotten is.
+        if (deps.reviews !== undefined && found.table.primaryKey.length === 1) {
+          try {
+            await forgetReviews({ meta, installs: await deps.reviews.installs(), view: found.view, db: found.db }, { table: found.table, key: String(row[found.table.primaryKey[0]!]), app: ok.key.managedBy });
+          } catch (error) {
+            request.log.warn({ err: error }, 'a forgotten person\'s reviews could not lose their name');
+            if (lostRace(error)) return busy(reply);
+            return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+          }
+        }
         // A yes they gave is withdrawn, by them, before the column that held it is emptied: the log never says yes for a forgotten person.
         await deps.peopleConsent?.withdrawOnForget({ connectionId: ok.key.connectionId, view: found.view, table: found.table, row, columns: forget.columns });
         try {
@@ -5982,14 +5994,6 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (lostRace(error)) return busy(reply);
           if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
           throw error;
-        }
-        // Their reviews keep their stars and words, and lose their name and whose they are (`reviews/erase.ts`).
-        if (deps.reviews !== undefined && found.table.primaryKey.length === 1) {
-          try {
-            await forgetReviews({ meta, installs: await deps.reviews.installs(), view: found.view, db: found.db }, { table: found.table, key: String(row[found.table.primaryKey[0]!]), app: ok.key.managedBy });
-          } catch (error) {
-            request.log.warn({ err: error }, 'a forgotten person\'s reviews could not all lose their name');
-          }
         }
         await sessions.endBySubject(person.subject, 'forgotten', now);
         if (typeof oldAddress === 'string' && oldAddress !== '') {
@@ -6390,7 +6394,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (body === false) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', 'A review is plain words, with no web or e-mail address.', { column: 'body' });
         // The person the session is, when it signed in on the people's table itself: the row's person must be them.
         const grantTable = ok.key.scope.byRef.get(session.grant.ref)?.table;
-        const sessionPerson = session.kind === 'token' || grantTable === undefined ? null : { table: found.view.linkTable(grantTable)?.id ?? grantTable, key: String(session.grant.value) };
+        const sessionPerson = session.kind === 'token' || grantTable === undefined ? null : { table: found.view.linkTable(grantTable)?.id ?? grantTable, column: session.grant.column, value: String(session.grant.value) };
         const forgottenStamp = [...ok.key.scope.byRef.values()].find((resource) => resource.claim !== null && resource.forget?.stamp !== undefined && resource.ref === session.grant.ref)?.forget?.stamp ?? null;
 
         let taken: Awaited<ReturnType<typeof takeReview>>;

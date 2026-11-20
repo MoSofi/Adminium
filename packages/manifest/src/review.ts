@@ -137,7 +137,7 @@ export interface ReviewTableShape extends FormsTableShape {
 export interface ReviewsAddOnShape {
   tables: readonly ReviewTableShape[];
   roles?: readonly { key: string; cloneFrom?: string | undefined; permissions?: readonly string[] | undefined }[] | undefined;
-  publicAccess?: readonly { table: string; methods: readonly string[]; appColumn?: string | undefined }[] | undefined;
+  publicAccess?: readonly { table: string; methods: readonly string[]; appColumn?: string | undefined; select?: readonly string[] | undefined; filters?: readonly unknown[] | undefined }[] | undefined;
   steps?: readonly { key: string; writes: { table: string } }[] | undefined;
 }
 
@@ -188,6 +188,9 @@ export function reviewsBlockIssues(block: AddOnReviews, m: ReviewsAddOnShape): R
         if (!(REVIEW_STAFF_COLUMNS as readonly string[]).includes(column)) out.push({ path: ['requiredSchema', 'tables', t, 'appGrants', 'writable', w], message: `staff change a review's ${REVIEW_STAFF_COLUMNS.join(', ')}, and Adminium the rest: "${column}" is not writable` });
       });
       if (grants.appColumn !== 'app') out.push({ path: ['requiredSchema', 'tables', t, 'appGrants', 'appColumn'], message: `"${ref}" is shared by every app it is attached to: its grants are held to the app's own rows ("appColumn": "app")` });
+      if (part === 'reviews' && grants.readable === undefined) {
+        out.push({ path: ['requiredSchema', 'tables', t, 'appGrants'], message: 'an app\'s role reads the columns a review shows staff, named in "readable": never whose a review is' });
+      }
       if (part === 'reviews' && (grants.readable ?? []).some((column) => column === 'person_table' || column === 'person_key')) {
         out.push({ path: ['requiredSchema', 'tables', t, 'appGrants', 'readable'], message: 'whose a review is, is erasure\'s to read: person_table and person_key are not readable by an app\'s role' });
       }
@@ -209,6 +212,20 @@ export function reviewsBlockIssues(block: AddOnReviews, m: ReviewsAddOnShape): R
       if (entry.table !== ref) return;
       if (entry.methods.some((method) => method !== 'GET')) out.push({ path: ['publicAccess', e, 'methods'], message: `"${ref}" holds ${holds}, which a stranger only reads: Adminium takes a review through the app's own review word` });
       if (entry.appColumn !== 'app') out.push({ path: ['publicAccess', e, 'appColumn'], message: `"${ref}" holds every app's ${part}: an entry on it is held to its app ("appColumn": "app")` });
+      if (part === 'reviews') {
+        // A stranger reads published reviews, and never whose they are, the row reviewed, or why one was hidden.
+        const published = (entry.filters ?? []).some((filter) => {
+          const f = filter as { column?: unknown; op?: unknown; value?: unknown };
+          return f.column === 'state' && f.op === 'eq' && f.value === 'published';
+        });
+        if (!published) out.push({ path: ['publicAccess', e, 'filters'], message: `a stranger reads the published reviews only: a fixed filter "state" eq "published"` });
+        const hidden = ['person_table', 'person_key', 'subject_table', 'subject_key', 'hide_reason'];
+        if (entry.select === undefined) out.push({ path: ['publicAccess', e, 'select'], message: `an entry on "${ref}" names what it shows: never ${hidden.join(', ')}` });
+        else {
+          const shown = entry.select.filter((column) => hidden.includes(column));
+          if (shown.length > 0) out.push({ path: ['publicAccess', e, 'select'], message: `a stranger never reads ${shown.join(', ')} of a review` });
+        }
+      }
     });
   }
   return out;

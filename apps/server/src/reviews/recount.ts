@@ -22,6 +22,6 @@ export async function recountReviewsOf(deps: { meta: MetaDb; manager: Pick<Conne
   const reviews = view.linkTable(keeper.reviews);
   const totals = view.linkTable(keeper.totals);
   if (reviews === null || totals === null) return;
-  const { db } = await deps.manager.data(connectionId);
-  await recountTotals(db as Kysely<SourceDatabase>, reviews, totals);
+  const { db, dialect } = await deps.manager.data(connectionId);
+  await recountTotals(db as Kysely<SourceDatabase>, dialect, reviews, totals);
 }

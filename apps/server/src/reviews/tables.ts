@@ -34,6 +34,7 @@ import type { SourceDatabase } from '../connections/manager.js';
 import type { ResolvedTable } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import { randomUUID } from 'node:crypto';
+import { withNamedLocks } from '../crud/capacity/locks.js';
 import { ForbiddenError, ValidationFailedError } from '../errors.js';
 
 type Db = Kysely<SourceDatabase>;
@@ -92,6 +93,16 @@ export function staffReviewValues(table: string, values: Row, now: Date): Row {
     throw new ForbiddenError(`Only a review's state, the reason it is hidden and the reply can be changed. ${other.join(', ')} cannot.`, 'TABLE_FORBIDDEN', { table, reason: 'review-column', columns: other });
   }
   return 'reply' in values ? { ...values, replied_at: now.toISOString() } : values;
+}
+
+/** What Adminium itself fills on a review when it is taken: never changed by anything after (a total would no longer be its sum). */
+const FIXED: ReadonlySet<string> = new Set(['app', 'subject_table', 'subject_key', 'about_table', 'about_key', 'stars']);
+
+/** An engine's change of a review (an undo, a file brought in with its stamps): anything but what fixes its totals and its row. */
+export function engineReviewValues(table: string, values: Row): Row {
+  const fixed = Object.keys(values).filter((column) => FIXED.has(column));
+  if (fixed.length > 0) throw new ForbiddenError(`A review's ${fixed.join(', ')} never change once it is taken.`, 'TABLE_FORBIDDEN', { table, reason: 'review-fixed', columns: fixed });
+  return values;
 }
 
 /** A person's create of a review, or a write of a total: refused, by name. */
@@ -170,12 +181,28 @@ export function hiddenHasReason(table: string, after: Row | null): void {
  * A repair, run when the add-on is installed or updated; it reads every
  * published review once.
  */
-export async function recountTotals(db: Db, reviews: ResolvedTable, totals: ResolvedTable): Promise<void> {
-  const rows = (await db
-    .selectFrom(reviews.id as never)
-    .select(['app', 'about_table', 'about_key', 'stars'] as never)
-    .where('state' as never, '=', 'published' as never)
-    .execute()) as Row[];
+export async function recountTotals(db: Db, dialect: Dialect, reviews: ResolvedTable, totals: ResolvedTable): Promise<void> {
+  // One transaction: its own, or the caller's when one is open.
+  await withNamedLocks({ db, dialect }, [], async (trx) => {
+    // The old totals first: their rows stay locked until this commits, so a change of a review's state that lands now waits,
+    // and adds its delta to the new totals — or committed before the read below, and is in them.
+    await trx.deleteFrom(totals.id as never).execute();
+    const rows = (await trx
+      .selectFrom(reviews.id as never)
+      .select(['app', 'about_table', 'about_key', 'stars'] as never)
+      .where('state' as never, '=', 'published' as never)
+      .execute()) as Row[];
+    for (const one of sumsOf(rows).values()) {
+      await trx
+        .insertInto(totals.id as never)
+        .values({ ...keyOf(totals), app: one.app, about_table: one.about_table, about_key: one.about_key, count: one.count, sum: one.sum, c1: one.c[0], c2: one.c[1], c3: one.c[2], c4: one.c[3], c5: one.c[4] } as never)
+        .execute();
+    }
+  });
+}
+
+/** The totals of these published reviews: per thing, and per app. */
+function sumsOf(rows: readonly Row[]): Map<string, { app: string; about_table: string; about_key: string; count: number; sum: number; c: number[] }> {
   const sums = new Map<string, { app: string; about_table: string; about_key: string; count: number; sum: number; c: number[] }>();
   const add = (app: string, about_table: string, about_key: string, stars: number) => {
     const key = JSON.stringify([app, about_table, about_key]);
@@ -192,15 +219,7 @@ export async function recountTotals(db: Db, reviews: ResolvedTable, totals: Reso
     add(app, String(row['about_table'] ?? ''), String(row['about_key'] ?? ''), stars);
     add(app, '', '', stars);
   }
-  await db.transaction().execute(async (trx) => {
-    await trx.deleteFrom(totals.id as never).execute();
-    for (const one of sums.values()) {
-      await trx
-        .insertInto(totals.id as never)
-        .values({ ...keyOf(totals), app: one.app, about_table: one.about_table, about_key: one.about_key, count: one.count, sum: one.sum, c1: one.c[0], c2: one.c[1], c3: one.c[2], c4: one.c[3], c5: one.c[4] } as never)
-        .execute();
-    }
-  });
+  return sums;
 }
 
 /**

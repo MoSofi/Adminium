@@ -26,7 +26,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { installInvoicing, invoicingManifest, LEGS, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { servePublic, type Served } from './public-lane.helpers.js';
 
-vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.67' }));
+vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.68' }));
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
 
@@ -56,7 +56,7 @@ function shop(): Record<string, unknown> {
     },
   ]);
   manifest['key'] = 'outdoor';
-  manifest['compatibility'] = { minAdminiumVersion: '0.3.67' };
+  manifest['compatibility'] = { minAdminiumVersion: '0.3.68' };
   (manifest['pages'] as { bindings: Record<string, string> }[])[0]!.bindings = { rows: 'products' };
   manifest['frontends'] = [
     { side: 'staff', kind: 'spa', entry: 'index.html' },

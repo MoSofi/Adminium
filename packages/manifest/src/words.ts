@@ -685,16 +685,16 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'people.lead': '0.3.66',
   'addOn.slots.on': '0.3.66',
   // A release before refuses the keys (and pages from a file not made on an Adminium).
-  'publicAccess.filterable': '0.3.67',
-  'publicAccess.searchable': '0.3.67',
-  'publicAccess.orderable': '0.3.67',
-  'publicAccess.via': '0.3.67',
-  'publicAccess.count': '0.3.67',
-  'publicAccess.appPagination': '0.3.67',
-  'automations.words': '0.3.67',
-  'table.review': '0.3.67',
-  'addOn.reviews': '0.3.67',
-  'appGrants.appColumn': '0.3.67',
+  'publicAccess.filterable': '0.3.68',
+  'publicAccess.searchable': '0.3.68',
+  'publicAccess.orderable': '0.3.68',
+  'publicAccess.via': '0.3.68',
+  'publicAccess.count': '0.3.68',
+  'publicAccess.appPagination': '0.3.68',
+  'automations.words': '0.3.68',
+  'table.review': '0.3.68',
+  'addOn.reviews': '0.3.68',
+  'appGrants.appColumn': '0.3.68',
 };
 
 /** The kinds of file a column takes from the release that cleans SVG and reads models and fonts whole (`ASSET_FILE_KINDS`). */

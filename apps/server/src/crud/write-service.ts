@@ -95,7 +95,7 @@ import { columnGranted, refuseUngrantedColumns } from '../connections/privileges
 import { getPrincipal } from '../rbac/principal.js';
 import { negotiateLocale } from '../plugins/surfaces.js';
 import { landingSlugLockName, sealLandingWrite, slugTakenRefusal } from '../landing/seal.js';
-import { applyTotals, hiddenHasReason, refusePersonReviewWrite, staffReviewValues, type ReviewTables } from '../reviews/tables.js';
+import { applyTotals, engineReviewValues, hiddenHasReason, recountTotals, refusePersonReviewWrite, staffReviewValues, type ReviewTables } from '../reviews/tables.js';
 import { capacityLockNames, touchesCapacity } from './capacity/judge.js';
 import { batchNeedsGuard, judgeRows, withLimitLocks } from './capacity/door.js';
 import { bookingColumn, bookingCounts, bookingDay, bookingLockName, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
@@ -2346,6 +2346,19 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     if (opts.reviewTables === undefined || writtenByAdminium(context) || action === 'delete') return;
     const reviewed = await reviewKindOf(target);
     if (reviewed !== null) refusePersonReviewWrite(target.table.id, reviewed.kind, action);
+  };
+
+  /**
+   * After a write that made or removed reviews as Adminium (sample rows, a
+   * file brought in with its stamps): the add-on's totals worked out again
+   * from the published reviews. A person's write never makes or removes one.
+   */
+  const recountAfter = async (target: Pick<WriteTarget, 'connectionId' | 'view' | 'db' | 'dialect' | 'table'>): Promise<void> => {
+    const reviewed = await reviewKindOf(target);
+    if (reviewed?.kind !== 'reviews') return;
+    const reviews = target.view.linkTable(reviewed.tables.reviews);
+    const totals = target.view.linkTable(reviewed.tables.totals);
+    if (reviews !== null && totals !== null) await recountTotals(target.db, target.dialect, reviews, totals);
   };
 
   /**
@@ -4726,6 +4739,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (await hooks.wants('after', 'create', target, context)) {
         await hooks.after({ action: 'create', target, record: row, before: null, context });
       }
+      await recountAfter(target);
       return row;
     },
 
@@ -5242,7 +5256,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       await refuseOwnRecords(target, context);
       // A review: a person changes its state, hide reason and reply alone; its totals move with it, whoever changes it.
       const reviewed = await reviewKindOf(target);
-      const offered = reviewed?.kind === 'reviews' && !writtenByAdminium(context) ? staffReviewValues(target.table.id, input.values, new Date()) : input.values;
+      const offered = reviewed?.kind !== 'reviews' ? input.values : writtenByAdminium(context) ? engineReviewValues(target.table.id, input.values) : staffReviewValues(target.table.id, input.values, new Date());
       await refusePaymentRows('update', target, context, [
         { values: offered, stored: async () => (input.before !== undefined ? input.before : input.load !== undefined ? await input.load() : ((await fetchByPk(target.db, target.table, pk)) ?? null)) },
       ]);
@@ -5789,6 +5803,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (count > 0 && before !== null && (await hooks.wants('after', 'delete', target, context))) {
         await hooks.after({ action: 'delete', target, record: before, before: null, context });
       }
+      if (count > 0) await recountAfter(target);
       return count;
     },
 
@@ -5974,6 +5989,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     async afterEach(action, target, context, rows) {
       if (rows.length === 0) return;
       await settle(action, target, rows, { by: { context, clock: writeClock(context) } });
+      if (action !== 'update') await recountAfter(target);
       if (action !== 'delete') for (const row of rows) await toldPeople(action, target, context, row.record, row.before);
       const hooks = current();
       if (!(await hooks.wants('after', action, target, context))) return;

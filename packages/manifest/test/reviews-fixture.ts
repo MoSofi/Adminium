@@ -16,7 +16,7 @@
 const pk = { ref: 'id', type: 'int', role: 'pk' } as const;
 
 export const REVIEWS_KIT = 'reviews-kit';
-export const REVIEWS_FLOOR = '0.3.67';
+export const REVIEWS_FLOOR = '0.3.68';
 export const REVIEWS_TABLE = 'reviews_kit_reviews';
 export const TOTALS_TABLE = 'reviews_kit_review_totals';
 const IDENTITY = { manifestVersion: 1, publisher: { id: 'adminium', name: 'Adminium' }, license: 'MIT' } as const;

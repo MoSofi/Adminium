@@ -10,9 +10,9 @@
  * stars, the words and the totals stay: the words are about the product,
  * the name was the personal part.
  *
- * Matched on the person, by any name their table is known by (its ref in
- * the app, and its name here), and — for "delete my details" and an erasure
- * held to one app — on that app too.
+ * Matched on the person within each app that keeps their table, by that
+ * app's ref for it: never across two apps that name their tables alike. For
+ * "delete my details" and an erasure held to some apps, those apps alone.
  */
 import { appTablesRepo, realTableOf, type MetaDb } from '@adminium/meta';
 import type { Kysely } from 'kysely';
@@ -22,9 +22,15 @@ import type { SourceDatabase } from '../connections/manager.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { reviewTablesOn } from './tables.js';
 
-/** Every name a people's table is known by in reviews: the refs its apps give it, and its name here. */
-async function namesOf(meta: MetaDb, view: SnapshotView, people: ResolvedTable): Promise<string[]> {
-  const out = new Set<string>([people.name, people.id]);
+/**
+ * The (app, ref) pairs a people's table is known by in reviews: each app that
+ * keeps a record of the table, with its own ref for it. A review names its
+ * person's table by the reviewing app's ref, so a person is matched only
+ * within the apps that hold their table — two apps that each call their own
+ * table "customers" never match each other's people.
+ */
+async function pairsOf(meta: MetaDb, view: SnapshotView, people: ResolvedTable): Promise<{ app: string; ref: string }[]> {
+  const out: { app: string; ref: string }[] = [];
   for (const record of await appTablesRepo(meta).forConnection(view.connectionId)) {
     let id: string | null;
     try {
@@ -32,9 +38,17 @@ async function namesOf(meta: MetaDb, view: SnapshotView, people: ResolvedTable):
     } catch {
       id = view.linkTable(realTableOf(record))?.id ?? null;
     }
-    if (id === people.id) out.add(record.ref);
+    if (id === people.id && !out.some((pair) => pair.app === record.appKey && pair.ref === record.ref)) out.push({ app: record.appKey, ref: record.ref });
   }
-  return [...out];
+  return out;
+}
+
+/** The condition "a review of this person": one of the pairs, and the key. */
+function ofPerson<Q extends { where: (...args: never[]) => Q }>(query: Q, pairs: readonly { app: string; ref: string }[], key: string): Q {
+  return (query.where as (factory: (eb: never) => unknown) => Q)((eb: never) => {
+    const b = eb as unknown as { and: (parts: unknown[]) => unknown; or: (parts: unknown[]) => unknown; (column: string, op: string, value: unknown): unknown };
+    return b.and([b('person_key', '=', key), b.or(pairs.map((pair) => b.and([b('app', '=', pair.app), b('person_table', '=', pair.ref)])))]);
+  });
 }
 
 /**
@@ -48,44 +62,17 @@ export async function forgetReviews(
 ): Promise<number> {
   const keepers = reviewTablesOn(input.installs, input.view.connectionId);
   if (keepers.length === 0) return 0;
-  const names = await namesOf(input.meta, input.view, person.table);
+  const pairs = (await pairsOf(input.meta, input.view, person.table)).filter((pair) => person.app === null || pair.app === person.app);
+  if (pairs.length === 0) return 0;
   let count = 0;
   for (const keeper of keepers) {
     const reviews = input.view.linkTable(keeper.reviews);
     if (reviews === null) continue;
-    let change = input.db
-      .updateTable(reviews.id as never)
-      .set({ shown_name: '', person_table: null, person_key: null } as never)
-      .where('person_table' as never, 'in', names as never)
-      .where('person_key' as never, '=', person.key as never);
-    if (person.app !== null) change = change.where('app' as never, '=', person.app as never);
+    const change = ofPerson(input.db.updateTable(reviews.id as never).set({ shown_name: '', person_table: null, person_key: null } as never) as never, pairs, person.key) as unknown as { executeTakeFirst: () => Promise<{ numUpdatedRows?: bigint }> };
     const result = await change.executeTakeFirst();
     count += Number(result.numUpdatedRows ?? 0);
   }
   return count;
-}
-
-/** One person's reviews, as their data is listed and downloaded: what they wrote, about what, and when. */
-export async function reviewsOfPerson(
-  input: { meta: MetaDb; installs: AddOnInstalls; view: SnapshotView; db: Kysely<SourceDatabase> },
-  person: { table: ResolvedTable; key: string },
-): Promise<Record<string, unknown>[]> {
-  const keepers = reviewTablesOn(input.installs, input.view.connectionId);
-  if (keepers.length === 0) return [];
-  const names = await namesOf(input.meta, input.view, person.table);
-  const out: Record<string, unknown>[] = [];
-  for (const keeper of keepers) {
-    const reviews = input.view.linkTable(keeper.reviews);
-    if (reviews === null) continue;
-    const rows = (await input.db
-      .selectFrom(reviews.id as never)
-      .select(['app', 'about_name', 'stars', 'title', 'body', 'state', 'submitted_at', 'reply'] as never)
-      .where('person_table' as never, 'in', names as never)
-      .where('person_key' as never, '=', person.key as never)
-      .execute()) as Record<string, unknown>[];
-    out.push(...rows);
-  }
-  return out;
 }
 
 /** One person's reviews in one reviews table, by key: what an erasure staff run blanks, and scrubs from the audit log. */
@@ -112,13 +99,10 @@ export async function findPersonReviews(
     if (reviews === null || key === undefined || reviews.primaryKey.length !== 1) continue;
     const keys = new Set<string>();
     for (const person of people) {
-      let read = input.db
-        .selectFrom(reviews.id as never)
-        .select(key as never)
-        .where('person_table' as never, 'in', (await namesOf(input.meta, input.view, person.table)) as never)
-        .where('person_key' as never, '=', person.key as never);
-      if (apps !== null) read = read.where('app' as never, 'in', (apps.length === 0 ? [''] : apps) as never);
-      for (const row of (await read.execute()) as Record<string, unknown>[]) keys.add(String(row[key]));
+      const pairs = (await pairsOf(input.meta, input.view, person.table)).filter((pair) => apps === null || apps.includes(pair.app));
+      if (pairs.length === 0) continue;
+      const read = ofPerson(input.db.selectFrom(reviews.id as never).select(key as never) as never, pairs, person.key) as unknown as { execute: () => Promise<Record<string, unknown>[]> };
+      for (const row of await read.execute()) keys.add(String(row[key]));
     }
     if (keys.size > 0) out.push({ connectionId: input.view.connectionId, table: reviews, keys: [...keys] });
   }

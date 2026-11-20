@@ -10,7 +10,7 @@
  *
  * And it tells no money to someone whose read of the record leaves the money
  * out: a packer who reads a quote's number and nothing of its total or what
- * is due sees no panel, no row state in a list, and may not record a payment.
+ * is due sees no panel, no row state in a list, and may not record a payment, make a pay link or take a charge on a card reader.
  */
 import { paymentAttemptsRepo, payableProfilesRepo, type PaymentAttempt } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -164,6 +164,9 @@ for (const [dialect, available] of LEGS) {
       });
       expect(recorded.statusCode, recorded.body).toBe(403);
       expect(await s.rows(`SELECT id FROM ${real('quote_payments')} WHERE quote_id = 2`)).toEqual([]);
+      // A pay link's page shows what is due: none is made for the packer.
+      const linked = await s.send('packer', 'POST', '/api/v1/payments/links', { kind: 'profile', connectionId: s.connectionId, tableName: s.t('quotes'), rowKey: '2' });
+      expect(linked.statusCode, linked.body).toBe(403);
     });
   });
 }

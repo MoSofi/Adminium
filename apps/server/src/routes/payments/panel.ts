@@ -62,7 +62,7 @@ import { isTestPayable } from '../../payments/test-payables.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { createPublicViews } from '../../public-api/runtime.js';
 import type { PermissionSet } from '../../rbac/resolver.js';
-import { readLimitOf } from '../../rbac/read-limits.js';
+import { labelHidden, moneyHidden } from '../../payments/money-hidden.js';
 import { refundNamesOf, refundView, refundViewOf, toldRefundViewOf } from './refunds.js';
 import { HAND_REFERENCE_PREFIX } from '../../crud/write-service.js';
 import { mayRefundPayment } from '../../payments/app-refund-queue.js';
@@ -289,28 +289,6 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
     return (await appTablesRepo(meta).forConnection(connectionId)).some((record) => /^invoices\/invoice@\d+#document$/.test(record.builtOn ?? ''));
   }
 
-  /**
-   * Whether this person's read limit on the table hides its money: the
-   * columns the panel's figures are read from (an invoice shape's `total` and
-   * `balance`; a payable's amount and due columns). Without a resolution to
-   * judge by, it is hidden: never a figure read past a limit.
-   */
-  async function moneyHidden(request: FastifyRequest, connectionId: string, table: { id: string; columns: ReadonlyMap<string, unknown> }, kind: 'shape' | 'profile'): Promise<boolean> {
-    const set = (request as unknown as { rbacResolution?: PermissionSet }).rbacResolution;
-    if (set === undefined) return true;
-    const limit = readLimitOf(set, connectionId, table.id);
-    if (limit === null) return false;
-    let columns: string[];
-    if (kind === 'shape') columns = ['total', 'balance'];
-    else {
-      const mapping = (await sources.profile(connectionId, table.id))?.mapping ?? null;
-      // A payable with no mapping shows no figures anyway; one we cannot read is hidden.
-      if (mapping === null) return true;
-      columns = [mapping.amount.column, ...(mapping.due === null ? [] : [mapping.due.column])];
-    }
-    return columns.some((column) => table.columns.has(column) && !limit.has(column));
-  }
-
   /** Which kind of payable the table is, or null when it is none. */
   async function kindOf(connectionId: string, tableId: string): Promise<'shape' | 'profile' | null> {
     if ((await sources.shapeOf(connectionId, tableId)) !== null) return 'shape';
@@ -475,12 +453,14 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
     const kind = await kindOf(input.connectionId, found.table.id);
     if (kind === null) return null;
     // Money the person's read of the record leaves out is not told here either: no panel, as for a table that takes no payments.
-    if (await moneyHidden(request, input.connectionId, found.table, kind)) return null;
+    if (await moneyHidden(request, sources, input.connectionId, found.table)) return null;
     const ref: PayableRef = { kind, connectionId: input.connectionId, tableName: found.table.id, rowKey };
     const payable = await resolvePayable(sources, ref);
     if (payable === null) return null;
     const mayChange = await request.can(`table:${input.connectionId}:${found.table.id}:update`);
-    return viewOf(request, ref, payable, mayChange, await tablePayments(request, payable));
+    // A label read from a column the person does not read (a customer's name): the record's key instead.
+    const named = (await labelHidden(request, sources, input.connectionId, found.table)) ? { ...payable, label: rowKey } : payable;
+    return viewOf(request, ref, named, mayChange, await tablePayments(request, named));
   }
 
   /** A key's claim: a counters row in a day-long window that only one insert can make. */
@@ -617,7 +597,7 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
           const kind = await kindOf(body.connectionId, found.table.id);
           if (kind === null) throw new NotFoundError('This record takes no payments.');
           // Its answer says what is still due: not for someone whose read of the record leaves its money out.
-          if (await moneyHidden(request, body.connectionId, found.table, kind)) throw new ForbiddenError('You may not record a payment on this record.', 'TABLE_FORBIDDEN');
+          if (await moneyHidden(request, sources, body.connectionId, found.table)) throw new ForbiddenError('You may not record a payment on this record.', 'TABLE_FORBIDDEN');
           ref = { kind, connectionId: body.connectionId, tableName: found.table.id, rowKey };
         }
         const payable = await resolvePayable(sources, ref);

@@ -6,7 +6,7 @@ description: How an app lets customers review what they bought, how an add-on ke
 A shop's customer reviews a jacket from an order line once the order has shipped; a studio's customer
 reviews a visit once it is done. The review is kept by an add-on (Forms & surveys), written by
 Adminium from what the app says, and moderated by the app's own staff. These words need Adminium
-0.3.67 or later.
+0.3.68 or later.
 
 ## The app: what may be reviewed
 

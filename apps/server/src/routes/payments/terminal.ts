@@ -19,6 +19,7 @@
  *   PATCH  /payments/readers/:id              rename
  *   DELETE /payments/readers/:id              unpair at the service, and forget it
  */
+import { moneyHidden } from '../../payments/money-hidden.js';
 import { DEMO_TERMINAL_KEY, isProviderError } from '@adminium/add-on-contracts';
 import { paymentAttemptsRepo, paymentReadersRepo, type MetaDb, type PaymentReader } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
@@ -130,6 +131,8 @@ export function paymentTerminalRoutes(deps: TerminalRoutesDeps): FastifyPluginAs
         ? await found.target.db.selectFrom(table.id).selectAll().where((eb) => eb.and(Object.entries(pk).map(([column, value]) => eb(found.target.db.dynamic.ref(column), '=', value)))).executeTakeFirst()
         : await fetchVisible(context, found.target.db, table, pk, 'read');
     if (row === undefined) throw new NotFoundError('No such record.');
+    // A charge is for what is due: not taken, nor followed, by someone whose read of the record leaves its money out.
+    if (await moneyHidden(request, sources, input.connectionId, table)) throw new ForbiddenError('You may not take a payment on this record.', 'TABLE_FORBIDDEN');
     return { tableId: table.id, rowKey: rowKeyOf(table, row as Record<string, unknown>) };
   }
 
@@ -140,6 +143,11 @@ export function paymentTerminalRoutes(deps: TerminalRoutesDeps): FastifyPluginAs
     const { connectionId, tableName } = attempt.payable;
     const mine = attempt.createdBy === (request as unknown as { user?: { id?: string } }).user?.id;
     if (!mine && (connectionId === null || tableName === null || !(await request.can(`table:${connectionId}:${tableName}:read`)))) throw new NotFoundError('No such charge.');
+    // A charge says its amount: not to someone else whose read of the record leaves its money out.
+    if (!mine && connectionId !== null && tableName !== null) {
+      const found = await sources.table(connectionId, tableName);
+      if (found === null || (await moneyHidden(request, sources, connectionId, found.table))) throw new NotFoundError('No such charge.');
+    }
     return attempt;
   }
 

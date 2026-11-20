@@ -15,6 +15,7 @@
  * someone who may manage payments). No link is made while customers cannot
  * reach the pay address.
  */
+import { moneyHidden } from '../../payments/money-hidden.js';
 import { paymentLinksRepo, paymentSettingsRepo, settingsRepo, PAYABLE_KINDS, type MetaDb, type PayableRef } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -110,6 +111,8 @@ export function createLinkRights(deps: Pick<PaymentLinksDeps, 'meta' | 'sources'
         : await fetchVisible(context, found.target.db, found.table, pk, 'read');
     // A row this person cannot see answers as one that is not there.
     if (row === undefined) throw new NotFoundError('No such record.');
+    // Its page shows what is due: not made, nor emailed, by someone whose read of the record leaves its money out.
+    if (await moneyHidden(request, deps.sources, connectionId, found.table)) throw new ForbiddenError('You may not make a pay link for this record.', 'TABLE_FORBIDDEN');
   }
   return assertMayLink;
 }
