@@ -24,6 +24,8 @@ import { publicKeysRepo, rolesRepo, usersRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { loadSnapshotView } from '../src/data-io/snapshot-view.js';
+import { RealtimeHub } from '../src/realtime/hub.js';
+import { readLimitedFrames } from '../src/realtime/read-frames.js';
 import { blankReviews, findPersonReviews, forgetReviews } from '../src/reviews/erase.js';
 import { keepAddOnInstalls } from '../src/apps/table-ref.js';
 import { shownNameOf, shownNameOfFull } from '../src/reviews/tables.js';
@@ -222,6 +224,15 @@ describe.each(LEGS)("a customer's review of a shipped order line — %s", (diale
     // Its own: moved.
     const mine = (await reviewRow(4))!['id'];
     expect((await patch(shopOwner, mine, { state: 'published' })).statusCode).toBe(200);
+    // Live updates: a change of another app's review tells the shop's role nothing; one of the shop's own does.
+    const sam = (await usersRepo(h.meta).findByEmail('sam@shop.dev'))!;
+    const channel = `widget-data:${h.connectionId}:${reviewsTable}`;
+    const frame = (row: Record<string, unknown>) =>
+      new RealtimeHub().publish(channel, 'record.update', { type: 'record.update', pk: { id: row['id'] }, row }, 0, { private: false, columns: [], before: null, after: row });
+    const filter = await readLimitedFrames(h.meta)({ id: sam.id }, channel);
+    expect(filter).not.toBeNull();
+    expect(await filter!(frame({ id: studioId, app: 'studio', state: 'published' }))).toBeNull();
+    expect(await filter!(frame({ id: mine, app: 'shop', state: 'published' }))).not.toBeNull();
   });
 
   it.skipIf(!available)("a forgotten person's reviews keep their stars and words, and lose their name", async () => {

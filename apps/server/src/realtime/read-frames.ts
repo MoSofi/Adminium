@@ -138,6 +138,8 @@ function forRowsReached(event: RealtimeEvent, permissions: PermissionSet, user: 
   /** Whether a role's reach holds an image of the row: by who is in its staff columns, whatever else the reach asks. */
   const holds = (one: RowReach, image: Readonly<Record<string, unknown>> | null): boolean => {
     if (image === null) return false;
+    // A reach held to a value (an app's role on an add-on's shared table, held to its own app): a row the image shows outside it is no one's here.
+    if (one.while !== undefined && Object.prototype.hasOwnProperty.call(image, one.while.column) && !one.while.in.some((value) => String(value) === String(image[one.while!.column]))) return false;
     if (one.reach === 'all') return true;
     // Judged by a person of the row it hangs off (`via`): nothing in this row's own columns says it is theirs.
     if (one.via !== undefined) return false;
