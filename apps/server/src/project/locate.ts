@@ -12,7 +12,7 @@ import { existsSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 
 import { CliError } from '../cli/exit.js';
-import { operatorProjectAt } from './operator-project.js';
+import { operatorProjectAt, type OperatorProjectMode } from './operator-project.js';
 
 import { CONFIG_FILES, type ProjectLocation } from './config-files.js';
 
@@ -41,8 +41,9 @@ export function findProject(
   start: string,
   env: Readonly<Record<string, string | undefined>>,
   exists: Exists = existsSync,
+  mode: OperatorProjectMode = {},
 ): ProjectLocation | null {
-  const operator = operatorProjectAt(start, env);
+  const operator = operatorProjectAt(start, env, mode);
   if (operator !== null) return operator;
   const named = env.ADMINIUM_PROJECT_DIR?.trim() ?? '';
   if (named !== '') {

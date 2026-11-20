@@ -21,6 +21,7 @@ import { storageRootPolicyFor } from '../../../files/root-guard.js';
 import { envVarFor } from '../../../project/adopt.js';
 import { PROJECT_KEY_PATTERN } from '../../../project/config.js';
 import { prepareProject } from '../../../project/boot.js';
+import { operatorOneOff, operatorProjectRoot, withoutOperatorProjectEnv } from '../../../project/operator-project.js';
 import { addToDotEnv, oneLine, type DotEnvEntry } from '../../../project/dotenv.js';
 import { APP_VERSION } from '../../../version.js';
 import { boolFlag, parseFlags, stringFlag } from '../../args.js';
@@ -82,9 +83,11 @@ export const archiveCreateCommand: Command = {
     const out = resolve(deps.cwd, onePath(positionals, 'archive create'));
     const dataDir = stringFlag(values['data-dir']);
     const metaUrl = stringFlag(values['meta-url']);
-    const project = await prepareProject({ cwd: deps.cwd, env: deps.env, version: APP_VERSION });
+    // A stopped operator-project trial's one-off: its project from the environment, with no server mode.
+    const oneOff = operatorOneOff(deps.env);
+    const project = await prepareProject({ cwd: deps.cwd, env: deps.env, version: APP_VERSION, operator: { oneOff } });
     const env = loadCliEnv(
-      project?.env ?? deps.env,
+      oneOff ? withoutOperatorProjectEnv(project?.env ?? deps.env) : (project?.env ?? deps.env),
       { ...(dataDir === undefined ? {} : { dataDir }), ...(metaUrl === undefined ? {} : { metaUrl }) },
       project?.sources,
     );
@@ -194,14 +197,17 @@ export const archiveRestoreCommand: Command = {
   async run({ io, deps, argv }) {
     const { values, positionals } = parseFlags(argv, archiveRestoreCommand.flags, 'archive restore');
     const file = resolve(deps.cwd, onePath(positionals, 'archive restore'));
+    // An operator-project trial's one-off: its folder is the one the trial will boot from.
+    const oneOff = operatorOneOff(deps.env);
     const named = stringFlag(values['project-dir']) ?? deps.env.ADMINIUM_PROJECT_DIR;
-    const projectRoot = named === undefined || named.trim() === '' ? null : resolve(deps.cwd, named);
+    const projectRoot =
+      named === undefined || named.trim() === '' ? (oneOff ? operatorProjectRoot(deps.env, deps.cwd) : null) : resolve(deps.cwd, named);
     const dataDirFlag = stringFlag(values['data-dir']);
     const metaUrl = stringFlag(values['meta-url']);
     // Beside a restored project, its data dir is where the project expects it.
     const dataDir =
-      dataDirFlag ?? (projectRoot !== null && (deps.env.ADMINIUM_DATA_DIR ?? '') === '' ? join(projectRoot, 'data') : undefined);
-    const env = loadCliEnv(deps.env, { ...(dataDir === undefined ? {} : { dataDir }), ...(metaUrl === undefined ? {} : { metaUrl }) });
+      dataDirFlag ?? (!oneOff && projectRoot !== null && (deps.env.ADMINIUM_DATA_DIR ?? '') === '' ? join(projectRoot, 'data') : undefined);
+    const env = loadCliEnv(oneOff ? withoutOperatorProjectEnv(deps.env) : deps.env, { ...(dataDir === undefined ? {} : { dataDir }), ...(metaUrl === undefined ? {} : { metaUrl }) });
     const store = await openMetaStore({ metaUrl: env.ADMINIUM_META_URL, dataDir: env.ADMINIUM_DATA_DIR, secret: env.ADMINIUM_SECRET, poolSize: env.ADMINIUM_META_POOL_MAX });
     try {
       const result = await restoreArchive({

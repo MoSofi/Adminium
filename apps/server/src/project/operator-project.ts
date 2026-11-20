@@ -38,11 +38,39 @@ const TRUTHY = new Set(['on', 'true', '1']);
 
 type RawEnv = Readonly<Record<string, string | undefined>>;
 
-/** Whether the raw environment asks for an operator project: the switch, in trial or hosted mode. */
-export function operatorProjectOn(env: RawEnv): boolean {
-  if (!TRUTHY.has((env['ADMINIUM_OPERATOR_PROJECT'] ?? '').trim().toLowerCase())) return false;
-  const on = (name: string): boolean => TRUTHY.has((env[name] ?? '').trim().toLowerCase());
-  return on('ADMINIUM_TRIAL_MODE') || on('ADMINIUM_HOSTED_MODE');
+const on = (env: RawEnv, name: string): boolean => TRUTHY.has((env[name] ?? '').trim().toLowerCase());
+
+/** How a command opens an operator project. */
+export interface OperatorProjectMode {
+  /**
+   * The archive one-offs only (`adminium archive create` and `archive restore`): the switch
+   * counts without trial or hosted mode, since the operator runs them beside a stopped trial
+   * with no server's environment. The server and every other command never pass it.
+   */
+  oneOff?: boolean | undefined;
+}
+
+/** Whether the raw environment asks for an operator project: the switch, in trial or hosted mode (or a one-off's). */
+export function operatorProjectOn(env: RawEnv, mode: OperatorProjectMode = {}): boolean {
+  if (!on(env, 'ADMINIUM_OPERATOR_PROJECT')) return false;
+  return mode.oneOff === true || on(env, 'ADMINIUM_TRIAL_MODE') || on(env, 'ADMINIUM_HOSTED_MODE');
+}
+
+/** An archive one-off's environment: the switch on, with neither trial nor hosted mode. */
+export function operatorOneOff(env: RawEnv): boolean {
+  return on(env, 'ADMINIUM_OPERATOR_PROJECT') && !on(env, 'ADMINIUM_TRIAL_MODE') && !on(env, 'ADMINIUM_HOSTED_MODE');
+}
+
+/**
+ * The environment an archive one-off validates: without the operator project's own
+ * variables, which the boot rules keep to a trial or hosted server. The one-off reads
+ * neither: the project is opened by {@link operatorProjectAt}, and `yours` travels as it
+ * is stored (or blanked by `--without-your-database`).
+ */
+export function withoutOperatorProjectEnv(env: RawEnv): Record<string, string | undefined> {
+  const out: Record<string, string | undefined> = { ...env };
+  for (const name of ['ADMINIUM_OPERATOR_PROJECT', 'ADMINIUM_YOUR_DATABASE', 'ADMINIUM_YOUR_DATABASE_FILE', 'ADMINIUM_DATABASE_USER_HOST']) delete out[name];
+  return out;
 }
 
 /** The operator project's folder: `ADMINIUM_PROJECT_DIR` when given, else `<ADMINIUM_DATA_DIR>/project`. */
@@ -80,8 +108,8 @@ export function isOperatorLocation(project: Pick<ProjectLocation, 'configFile'>)
  * names (switch on), else a registered root that `start` is at or under. Never
  * reads the folder.
  */
-export function operatorProjectAt(start: string, env: RawEnv): ProjectLocation | null {
-  if (operatorProjectOn(env)) {
+export function operatorProjectAt(start: string, env: RawEnv, mode: OperatorProjectMode = {}): ProjectLocation | null {
+  if (operatorProjectOn(env, mode)) {
     const root = operatorProjectRoot(env, start);
     registerOperatorProject(root);
     return locationOf(root);

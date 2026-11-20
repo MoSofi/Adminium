@@ -967,6 +967,13 @@ start.
 | `--data-dir <path>` | | Data directory |
 | `--meta-url <dsn>` | | Meta store DSN |
 
+For a trial run as an operator project (`ADMINIUM_OPERATOR_PROJECT=on`), these two
+commands also run with the switch and `ADMINIUM_PROJECT_DIR` but neither
+`ADMINIUM_TRIAL_MODE` nor `ADMINIUM_HOSTED_MODE`, beside the stopped trial: the project
+comes from the environment, and nothing in its folder is read or run. `restore` then
+puts the folder at `ADMINIUM_PROJECT_DIR` (or `<ADMINIUM_DATA_DIR>/project`). Every other
+command, `start` included, refuses the switch outside trial and hosted mode.
+
 → [Back up and move an instance](/self-hosting/archive/)
 
 ---

@@ -18,7 +18,7 @@ import { DOTENV_FILE, KEPT_OUT_OF_THE_ENVIRONMENT, loadDotEnv, readDotEnv } from
 import { loadProjectConfig, type LoadBundler, type LoadedProjectConfig } from './build.js';
 import { configFileName, findProject, type ProjectLocation } from './locate.js';
 import { allowsIn, rawProfile } from '../trial/policy.js';
-import { isOperatorLocation, operatorProjectConfig, prepareOperatorFolder } from './operator-project.js';
+import { isOperatorLocation, operatorProjectConfig, prepareOperatorFolder, type OperatorProjectMode } from './operator-project.js';
 
 export interface PreparedProject {
   project: ProjectLocation;
@@ -93,15 +93,18 @@ export async function prepareProject(opts: {
   refuse?: readonly string[];
   /** Where a note about the folder goes (an operator project's folder holding a config file it does not read). */
   warn?: (message: string) => void;
+  /** An archive one-off's operator project (`OperatorProjectMode.oneOff`). The server never passes it. */
+  operator?: OperatorProjectMode;
 }): Promise<PreparedProject | null> {
-  const project = findProject(opts.cwd, opts.env);
+  const project = findProject(opts.cwd, opts.env, undefined, opts.operator);
   if (project === null) return null;
   // An operator project: the folder is made here, before anything reads it, and its config is the environment's.
   const operator = isOperatorLocation(project);
   if (operator) prepareOperatorFolder(project.root, opts.version, opts.warn);
   // Trial and hosted mode: the Super Admin is a stranger who can write the folder, so its `.env`
   // is not read at all (their own AI key lives in Settings → AI), and its config decides nothing the host does.
-  const dotEnv = allowsIn(rawProfile(opts.env), 'projectDotEnv').allowed;
+  // An operator project's folder is never read as configuration, its `.env` included, in any mode.
+  const dotEnv = !operator && allowsIn(rawProfile(opts.env), 'projectDotEnv').allowed;
   // A secret a folder may not set, it may not set as a file either (`<NAME>_FILE`).
   const named = [...(opts.refuse ?? []), ...(dotEnv ? [] : HOST_DECIDED_ENV), ...NEVER_FROM_A_FOLDER];
   const refuse = [...new Set([...named, ...named.filter((name) => isOperatorSecretName(name)).map((name) => `${name}${SECRET_FILE_SUFFIX}`)])];
