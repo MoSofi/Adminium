@@ -247,6 +247,7 @@ export async function openRuntime(env: Env, opts: OpenRuntimeOptions = {}): Prom
     // The user's own host, only while their database is set: then held to public addresses, never the fleet's.
     userHost: env.ADMINIUM_YOUR_DATABASE === undefined ? null : (env.ADMINIUM_DATABASE_USER_HOST ?? null),
     denyAddresses: env.ADMINIUM_DATABASE_DENY_ADDRESSES,
+    operatorProject: env.ADMINIUM_OPERATOR_PROJECT,
   });
 
   // The placement pre-flight, and it has to be HERE — before `start`/`init` call

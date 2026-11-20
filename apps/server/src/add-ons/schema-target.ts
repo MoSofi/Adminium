@@ -345,7 +345,7 @@ export async function applyPlanTo(
   // recorded as read-only, and failed with whatever the engine said.
   const connection = await deps.manager.mustFind(connectionId);
   // Never on the user's own database (an operator project's `yours`), whoever asks: before any other check says why.
-  assertNoAppTables(connection, plan.create.map((table) => table.ref));
+  assertNoAppTables(connection, plan.create.map((table) => table.ref), deps.manager.operatorProject);
   if (connection.readOnly) {
     throw new ForbiddenError(
       `"${manifest.key}" needs to create tables, but this connection uses a read-only role.`,

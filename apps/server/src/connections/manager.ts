@@ -158,6 +158,11 @@ export interface ConnectionManagerOptions {
   userHost?: UserHost | null | undefined;
   /** `ADMINIUM_DATABASE_DENY_ADDRESSES`: addresses the user host may never resolve to. */
   denyAddresses?: readonly DenyRange[] | undefined;
+  /**
+   * `ADMINIUM_OPERATOR_PROJECT`: the connection keyed `yours` is the user's own database, which no app or add-on
+   * changes (`connections/no-app-tables.ts`). Off, a project's own database named `yours` is an ordinary one.
+   */
+  operatorProject?: boolean | undefined;
   /** Test seam: the clock the login lockout counts on. */
   now?: (() => number) | undefined;
 }
@@ -219,6 +224,7 @@ export class ConnectionManager {
   /** Refused logins per `host:port`, in trial and hosted mode: when each happened. */
   readonly #loginFailures = new Map<string, number[]>();
   readonly #ownLogin: string | null;
+  readonly #operatorProject: boolean;
   /** The last source added in a trial, which the next waits for. */
   #roomTurn: Promise<unknown> = Promise.resolve();
   /** Trial mode's size cap (`trial/size-cap.ts`): what holds a source's growth, and hears of every write. */
@@ -241,6 +247,7 @@ export class ConnectionManager {
     this.#lookup = opts.lookup;
     this.#trialRules = { policy, hosts: this.#databaseHosts, operatorLogin: operatorLoginOf(opts.operatorSourceUrl), userHost: opts.userHost ?? null };
     this.#ownLogin = this.#ownLoginKey(opts.operatorSourceUrl);
+    this.#operatorProject = opts.operatorProject === true;
     this.#denyAddresses = opts.denyAddresses;
     this.#now = opts.now ?? Date.now;
     this.connections = connectionsRepo(opts.meta, opts.crypto);
@@ -252,6 +259,11 @@ export class ConnectionManager {
    */
   get blockLoopback(): boolean {
     return this.#blockLoopback;
+  }
+
+  /** `ADMINIUM_OPERATOR_PROJECT` is on: `yours` is the user's own database. */
+  get operatorProject(): boolean {
+    return this.#operatorProject;
   }
 
   /** `ADMINIUM_NETWORK_POLICY`: `strict` refuses the server's own network for sources, webhooks and storage. */

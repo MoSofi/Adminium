@@ -74,8 +74,9 @@ export interface ConnectionsRoutesDeps {
  * account page, which re-checks it and starts the server again with the new environment. A rename
  * or a new intent here would be undone on the next start, so it is refused, with the reason, instead.
  */
-function refuseYourDatabaseEdit(policy: Pick<TrialPolicy, 'allows'>, connection: Pick<Connection, 'projectKey'>): void {
-  if (connection.projectKey !== YOURS_KEY) return;
+function refuseYourDatabaseEdit(policy: Pick<TrialPolicy, 'allows'>, connection: Pick<Connection, 'projectKey'>, operatorProject: boolean): void {
+  // Only an operator project's `yours` is the user's own database; any other project may name a database so.
+  if (!operatorProject || connection.projectKey !== YOURS_KEY) return;
   const answer = policy.allows('yourDatabaseEdits');
   if (answer.allowed) return;
   throw new OffByOperatorError('yourDatabaseEdits', answer.reason ?? 'trial-mode', 'Your database is changed on your account page, where it was connected.');
@@ -285,7 +286,7 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
       async (request) => {
         const connection = await manager.mustFind(request.params.id);
         // The user's own database in an operator project: its name and settings are the operator's environment's.
-        if (request.body.name !== undefined || request.body.settings !== undefined) refuseYourDatabaseEdit(policyOf(app), connection);
+        if (request.body.name !== undefined || request.body.settings !== undefined) refuseYourDatabaseEdit(policyOf(app), connection, manager.operatorProject);
         /*
          * Pause/resume is applied through its own repo writer BEFORE the field
          * patch, and audited under its own action.
@@ -378,7 +379,7 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
       async (request) => {
         const connection = await manager.mustFind(request.params.id);
         // The user's own database comes back from the environment on the next start: it is removed where it was added.
-        refuseYourDatabaseEdit(policyOf(app), connection);
+        refuseYourDatabaseEdit(policyOf(app), connection, manager.operatorProject);
         // Type-to-confirm contract: the submitted name must match.
         if (request.body.confirmName !== connection.name) {
           throw new ConflictError('Type the connection name to confirm deletion.', 'CONFLICT', {

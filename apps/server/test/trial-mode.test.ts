@@ -183,6 +183,7 @@ async function serve(env: Record<string, string>, opts: ServeOptions = {}): Prom
       lookup: NOTHING_RESOLVES,
       policy: trialPolicy(parsed),
       operatorSourceUrl: parsed.ADMINIUM_SOURCE_URL,
+      operatorProject: parsed.ADMINIUM_OPERATOR_PROJECT,
     }),
     runService,
     applyService: createApplyService({ meta: store, runService }),
@@ -963,7 +964,7 @@ describe('E4 the user’s own database is changed where it was connected', { tim
     ['hosted', HOSTED, 'hosted-mode'],
   ] as const) {
     it(`${profile}: renaming, re-setting or deleting \`yours\` is refused with the reason; its zone and other databases are not`, async () => {
-      const server = await serve(env, { before: seed });
+      const server = await serve({ ...env, ADMINIUM_OPERATOR_PROJECT: 'on' }, { before: seed });
       for (const payload of [{ name: 'Mine now' }, { settings: { intent: 'crud' } }]) {
         const res = await server.api('PATCH', `/api/v1/connections/${yoursId}`, payload);
         expect(res.status, JSON.stringify(res.body)).toBe(403);
@@ -979,6 +980,11 @@ describe('E4 the user’s own database is changed where it was connected', { tim
 
   it('on an ordinary server a database keyed `yours` is an ordinary database', async () => {
     const server = await serve(ORDINARY, { before: seed });
+    expect((await server.api('PATCH', `/api/v1/connections/${yoursId}`, { name: 'Mine' })).status).toBe(200);
+  });
+
+  it('in trial mode without an operator project, a database keyed `yours` is an ordinary database too', async () => {
+    const server = await serve(TRIAL, { before: seed });
     expect((await server.api('PATCH', `/api/v1/connections/${yoursId}`, { name: 'Mine' })).status).toBe(200);
   });
 

@@ -112,7 +112,7 @@ export function createAppSchemaTarget(deps: SchemaTargetCoreDeps & Pick<ServerEd
   return {
     edit: async (connectionId, build, opts) => {
       // An app never changes the tables of the user's own database (`connections/no-app-tables.ts`).
-      assertNoAppTables(await deps.manager.mustFind(connectionId), ['(an edit of existing tables)']);
+      assertNoAppTables(await deps.manager.mustFind(connectionId), ['(an edit of existing tables)'], deps.manager.operatorProject);
       await runIntrospection({ manager: deps.manager, meta: deps.meta, connectionId });
       const result = await applyServerEdit(deps, connectionId, build, opts);
       // …and after: pages, endpoints and the next plan read the snapshot.

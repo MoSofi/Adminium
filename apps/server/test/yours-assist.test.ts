@@ -96,11 +96,11 @@ describe('hasOperatorBuildKey', () => {
 describe('noAppTables: no app or add-on makes tables on `yours`', () => {
   const plan = { create: [{ ref: 'shop_orders' }] } as unknown as InstallPlan;
   const manifest = { key: 'shop' } as unknown as Manifest;
-  const managerWith = (projectKey: string | null) =>
-    ({ mustFind: async () => ({ id: 'conn_1', name: 'Yours', projectKey, readOnly: false, canDdl: true }) }) as unknown as ConnectionManager;
+  const managerWith = (projectKey: string | null, operatorProject = true) =>
+    ({ operatorProject, mustFind: async () => ({ id: 'conn_1', name: 'Yours', projectKey, readOnly: false, canDdl: true }) }) as unknown as ConnectionManager;
 
-  it('refuses by the key alone, before any other check', async () => {
-    expect(() => assertNoAppTables({ projectKey: YOURS_KEY, name: 'Yours' }, ['shop_orders'])).toThrow(/do not make or change tables in your own database/);
+  it('refuses by the key alone in an operator project, before any other check', async () => {
+    expect(() => assertNoAppTables({ projectKey: YOURS_KEY, name: 'Yours' }, ['shop_orders'], true)).toThrow(/do not make or change tables in your own database/);
     await expect(applyPlanTo({ meta: {} as MetaDb, manager: managerWith(YOURS_KEY) }, 'conn_1', plan, manifest)).rejects.toMatchObject({
       statusCode: 403,
       details: { code: 'NO_APP_TABLES', tables: ['shop_orders'] },
@@ -108,9 +108,16 @@ describe('noAppTables: no app or add-on makes tables on `yours`', () => {
   });
 
   it('lets every other database be, and a plan that makes nothing', () => {
-    expect(() => assertNoAppTables({ projectKey: 'main', name: 'Main' }, ['shop_orders'])).not.toThrow();
-    expect(() => assertNoAppTables({ projectKey: null, name: 'Shop' }, ['shop_orders'])).not.toThrow();
-    expect(() => assertNoAppTables({ projectKey: YOURS_KEY, name: 'Yours' }, [])).not.toThrow();
+    expect(() => assertNoAppTables({ projectKey: 'main', name: 'Main' }, ['shop_orders'], true)).not.toThrow();
+    expect(() => assertNoAppTables({ projectKey: null, name: 'Shop' }, ['shop_orders'], true)).not.toThrow();
+    expect(() => assertNoAppTables({ projectKey: YOURS_KEY, name: 'Yours' }, [], true)).not.toThrow();
+  });
+
+  it('a self-hosted project (no operator project) that names its own database `yours` is not held', async () => {
+    expect(() => assertNoAppTables({ projectKey: YOURS_KEY, name: 'Yours' }, ['shop_orders'], false)).not.toThrow();
+    // Past the guard, the install goes on to its next check (here: a meta store that is not there).
+    const past = await applyPlanTo({ meta: {} as MetaDb, manager: managerWith(YOURS_KEY, false) }, 'conn_1', plan, manifest).catch((error: unknown) => error as { details?: { code?: string } });
+    expect(past?.details?.code).not.toBe('NO_APP_TABLES');
   });
 });
 
