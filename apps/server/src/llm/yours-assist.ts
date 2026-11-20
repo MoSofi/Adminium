@@ -47,6 +47,7 @@
 import { isBootstrapRequired, operatorTalliesRepo, settingsRepo, type LlmRun, type MetaDb, type YoursAssistRecord } from '@adminium/meta';
 
 import { selectAcceptedByConfidence, type ApplyService } from './apply-service.js';
+import { YOURS_KEY } from '../connections/no-app-tables.js';
 import { executeLlmRun, type ResolveRun } from '../jobs/llm-run.js';
 import type { PromptService } from './prompt-service.js';
 import type { RunService } from './run-service.js';
@@ -115,7 +116,7 @@ export function refusedBeforeAnswer(run: Pick<LlmRun, 'status' | 'tokensIn' | 't
   return { retryAfterMs };
 }
 
-export { YOURS_KEY } from '../connections/no-app-tables.js';
+export { YOURS_KEY };
 
 /** Suggestions applied without a person: this sure, or more. */
 export const AUTO_ACCEPT_CONFIDENCE = 0.5;
@@ -167,6 +168,38 @@ export interface YoursAssist {
 }
 
 /** Whether the operator gave this server an AI key builds may run on. */
+/** An `assist.finished` event as the operator receives it (`operator/events.ts`). */
+export interface AssistFinishedEvent {
+  runId: string;
+  connectionId: string;
+  status: 'applied' | 'partially_applied' | 'failed' | 'discarded';
+  tokens: number;
+  notes: boolean;
+}
+
+/**
+ * The run service's end listener for the operator's `assist.finished`: one event per schema-assistant run that ends.
+ * Not for the notes run's own runs (on `yours`, started by nobody): a refused try ends `failed` and is tried again, so
+ * the notes run says once how it ended ({@link YoursAssistDeps.onFinished}), never each try.
+ */
+export function assistEndedReporter(deps: {
+  projectKeyOf: (connectionId: string) => Promise<string | null>;
+  assistFinished: (event: AssistFinishedEvent) => void;
+}): (run: Pick<LlmRun, 'id' | 'connectionId' | 'status' | 'tokensIn' | 'tokensOut' | 'createdBy'>) => void {
+  return (run) => {
+    if (run.status !== 'applied' && run.status !== 'partially_applied' && run.status !== 'failed' && run.status !== 'discarded') return;
+    const status = run.status;
+    void deps
+      .projectKeyOf(run.connectionId)
+      .catch(() => null)
+      .then((projectKey) => {
+        const onYours = projectKey === YOURS_KEY;
+        if (onYours && run.createdBy === null) return;
+        deps.assistFinished({ runId: run.id, connectionId: run.connectionId, status, tokens: (run.tokensIn ?? 0) + (run.tokensOut ?? 0), notes: onYours });
+      });
+  };
+}
+
 /**
  * Whether a record says the run already happened: anything but none, a wait (refused before an answer) or a run
  * that could not be made (`no-model`). Both of those gave the tally back, so they may run.

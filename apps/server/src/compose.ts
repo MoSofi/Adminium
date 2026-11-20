@@ -368,7 +368,7 @@ import { importsRoutes } from './routes/imports/index.js';
 import { invoicesRoutes } from './routes/invoices/index.js';
 import { reportDocumentsRoutes } from './routes/report-documents/index.js';
 import { llmRoutes } from './routes/llm/index.js';
-import { createYoursAssist, hasOperatorBuildKey, YOURS_KEY } from './llm/yours-assist.js';
+import { assistEndedReporter, createYoursAssist, hasOperatorBuildKey, YOURS_KEY } from './llm/yours-assist.js';
 import { createPromptService } from './llm/prompt-service.js';
 import { YOUR_DATABASE_STATUS } from './project/your-database-state.js';
 import { meViewsRoutes } from './routes/me-views/index.js';
@@ -4928,15 +4928,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     const stopCaps = onEmailCapReached((event) => operatorEvents.emailCapReached(event));
     const stopReadings = sizeCap?.listen((event) => operatorEvents.storageReading(event)) ?? null;
     // A schema-assistant run's end; the run on the user's own database (`yours`) is the one started from their notes.
-    const stopAssist = opts.runService.onEnded((run) => {
-      if (run.status !== 'applied' && run.status !== 'partially_applied' && run.status !== 'failed' && run.status !== 'discarded') return;
-      const status = run.status;
-      void manager.connections
-        .findById(run.connectionId)
-        .then((connection) => connection?.projectKey === 'yours')
-        .catch(() => false)
-        .then((notes) => operatorEvents.assistFinished({ runId: run.id, connectionId: run.connectionId, status, tokens: (run.tokensIn ?? 0) + (run.tokensOut ?? 0), notes }));
-    });
+    // The notes run on `yours` says how it ended itself, once (below), never once per try.
+    const stopAssist = opts.runService.onEnded(
+      assistEndedReporter({
+        projectKeyOf: async (connectionId) => (await manager.connections.findById(connectionId))?.projectKey ?? null,
+        assistFinished: (event) => operatorEvents.assistFinished(event),
+      }),
+    );
     // The user's own database changing state: a state and a class, never its host or login.
     const stopSource = YOUR_DATABASE_STATUS.onChange((state) => operatorEvents.sourceStatusChanged({ state: state.state, reason: state.reason }));
     app.addHook('onReady', async () => {

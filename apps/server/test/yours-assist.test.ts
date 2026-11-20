@@ -39,6 +39,7 @@ import { createPromptService } from '../src/llm/prompt-service.js';
 import { createProviderResolver } from '../src/llm/provider-resolver.js';
 import { createRunService } from '../src/llm/run-service.js';
 import {
+  assistEndedReporter,
   createYoursAssist,
   hasOperatorBuildKey,
   ranBefore,
@@ -48,6 +49,7 @@ import {
   YOURS_ASSIST_CAP_WAIT_MS,
   YOURS_ASSIST_TALLY,
   YOURS_ASSIST_WAIT_TALLY,
+  type AssistFinishedEvent,
   type YoursAssistDeps,
 } from '../src/llm/yours-assist.js';
 import { yourDatabaseStatus, type YourDatabaseStatus } from '../src/project/your-database-state.js';
@@ -109,6 +111,38 @@ describe('noAppTables: no app or add-on makes tables on `yours`', () => {
     expect(() => assertNoAppTables({ projectKey: 'main', name: 'Main' }, ['shop_orders'])).not.toThrow();
     expect(() => assertNoAppTables({ projectKey: null, name: 'Shop' }, ['shop_orders'])).not.toThrow();
     expect(() => assertNoAppTables({ projectKey: YOURS_KEY, name: 'Yours' }, [])).not.toThrow();
+  });
+});
+
+describe('the run service’s assist.finished', () => {
+  const events: AssistFinishedEvent[] = [];
+  const report = assistEndedReporter({
+    projectKeyOf: async (connectionId) => (connectionId === 'con_yours' ? YOURS_KEY : connectionId === 'con_gone' ? null : 'main'),
+    assistFinished: (event) => events.push(event),
+  });
+  const run = { id: 'run_1', connectionId: 'con_main', status: 'applied' as const, tokensIn: 900, tokensOut: 200, createdBy: 'usr_1' };
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  it('one per run that ends, with `notes` for a run on yours', async () => {
+    events.length = 0;
+    report(run);
+    report({ ...run, id: 'run_2', connectionId: 'con_yours', status: 'failed' });
+    report({ ...run, id: 'run_3', connectionId: 'con_gone', status: 'discarded' });
+    report({ ...run, id: 'run_4', status: 'validated' as never });
+    await settle();
+    expect(events).toEqual([
+      { runId: 'run_1', connectionId: 'con_main', status: 'applied', tokens: 1100, notes: false },
+      { runId: 'run_2', connectionId: 'con_yours', status: 'failed', tokens: 1100, notes: true },
+      { runId: 'run_3', connectionId: 'con_gone', status: 'discarded', tokens: 1100, notes: false },
+    ]);
+  });
+
+  it('none for the notes run’s own tries (on yours, started by nobody): the notes run says how it ended', async () => {
+    events.length = 0;
+    report({ ...run, connectionId: 'con_yours', createdBy: null, status: 'failed', tokensIn: null, tokensOut: null });
+    report({ ...run, connectionId: 'con_yours', createdBy: null });
+    await settle();
+    expect(events).toEqual([]);
   });
 });
 
@@ -328,6 +362,32 @@ for (const engine of META_ENGINES) {
         expect(f.finished).toEqual([expect.objectContaining({ state: 'applied', tokens: 1100 })]);
         expect(await assist.maybeStart()).toEqual({ started: false, reason: 'taken' });
       } finally {
+        assist.stop();
+      }
+    });
+
+    it('one assist.finished per notes run, however many tries it waited for', async () => {
+      const valid = { text: validOrdersResponse(), usage: { inputTokens: 900, outputTokens: 200 } };
+      const f = await fixture({ script: [busy(30), busy(30), valid] });
+      // Wired as compose wires the operator's events: the run service's end listener, and the notes run's own end.
+      const events: AssistFinishedEvent[] = [];
+      const connections = connectionsRepo(f.meta, testCrypto);
+      const stopEnded = f.deps.runService.onEnded(
+        assistEndedReporter({ projectKeyOf: async (id) => (await connections.findById(id))?.projectKey ?? null, assistFinished: (event) => events.push(event) }),
+      );
+      const assist = createYoursAssist({
+        ...f.deps,
+        waits: { minMs: 10 },
+        onFinished: (outcome) => events.push({ runId: outcome.runId ?? 'none', connectionId: outcome.connectionId, status: outcome.state === 'applied' ? 'applied' : 'failed', tokens: outcome.tokens, notes: true }),
+      });
+      try {
+        await assist.maybeStart();
+        await until(() => settingsRepo(f.meta).get('llm.yoursAssist'), (value) => value?.state === 'applied');
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        expect(f.scripted.calls).toHaveLength(3);
+        expect(events).toEqual([expect.objectContaining({ status: 'applied', tokens: 1100, notes: true })]);
+      } finally {
+        stopEnded();
         assist.stop();
       }
     });
