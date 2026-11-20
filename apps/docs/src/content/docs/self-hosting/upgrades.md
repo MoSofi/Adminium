@@ -153,7 +153,7 @@ compares them — and read
 A release sometimes refuses a setting an earlier one took, when the setting
 could send Adminium somewhere it should not go. The setting is kept, but what
 depends on it stops working until you change it. After an upgrade to 0.3.67,
-check two things:
+check three things:
 
 - **Database connection strings.** A string that carries a parameter the
   release refuses (`?host=`, `?port=`, `?sslrootcert=`, `?socketPath=` and
@@ -165,8 +165,15 @@ check two things:
   redirect fails its test and every read and write. Set it to the address it
   redirects to: see
   [An endpoint that redirects](/guides/files/storage-destinations/#an-endpoint-that-redirects).
+- **The developer's add-on list.** `ADMINIUM_ADD_ON_DEV_TRUST` is now
+  read only with `NODE_ENV` set to `test` or `development`. Left set on a
+  server whose `NODE_ENV` is unset or says anything else, such as an npm
+  install run as a service, it stops the server from starting, and the error
+  names it. Remove it: see
+  [`ADMINIUM_ADD_ON_DEV_TRUST`](/self-hosting/env-vars/#adminium_add_on_dev_trust). The Docker image sets
+  `NODE_ENV=production`, which ignores it.
 
-Rehearsing the upgrade (below) shows both before production does.
+Rehearsing the upgrade (below) shows all three before production does.
 
 ## Rehearse it
 
