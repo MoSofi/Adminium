@@ -9,8 +9,8 @@
  *  - `production` (the Docker image sets it): ignored, and the boot says so in
  *    its log, so a copy left in an env file never stops a live server;
  *  - unset, or any other value: the boot refuses. An npm install run as a
- *    service and the desktop app set no `NODE_ENV`, and a copy left in an env
- *    file must not run unvouched add-on code there;
+ *    service sets no `NODE_ENV`, and a copy left in an env file must not run
+ *    unvouched add-on code there;
  *  - a trial or a hosted server: refused whatever `NODE_ENV` says
  *    (`config/env.ts`, `profileIssues`).
  *
