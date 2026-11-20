@@ -279,6 +279,14 @@ function decrypt(stored: string | null, keyCrypto: LlmKeyCrypto): string | null 
   return stored.startsWith('enc:') ? keyCrypto.decrypt(stored) : stored;
 }
 
+/** How long a model check's refusal is kept before the model is asked again. */
+export const REFUSAL_KEPT_MS = 10 * 60_000;
+
+/** What a model check was asked under: the address, key and model, hashed. Never the key itself. */
+function configPrint(config: ProviderConfig): string {
+  return createHash('sha256').update(`${config.provider}\u0000${config.baseUrl ?? ''}\u0000${config.apiKey ?? ''}\u0000${config.model}`).digest('hex');
+}
+
 export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
   // Every request a provider makes to a name that was checked here goes to the address that was checked.
   setOutboundFetch(checkedFetch);
@@ -304,7 +312,22 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
   /** A draft names an address of its own, where the operator allows none. */
   const typedAddressRefused = (draft: ConnectionDraft): boolean =>
     draft.baseUrl !== undefined && draft.baseUrl !== '' && !policy.allows('aiBaseUrl').allowed;
-  const verdicts = new Map<string, CanBuild>();
+  /**
+   * Model checks kept, by connection and model. A pass is kept for the process; a refusal for
+   * {@link REFUSAL_KEPT_MS} only, and only while the connection is the one that refused: `of`
+   * fingerprints its address, key and model, so a fixed model or a new key is asked again at once.
+   */
+  const verdicts = new Map<string, { verdict: CanBuild; at: number; of: string }>();
+  const keptVerdict = (key: string, of?: string): CanBuild | null => {
+    const kept = verdicts.get(key);
+    if (kept === undefined) return null;
+    if (kept.verdict.canBuild) return kept.verdict;
+    if (Date.now() - kept.at >= REFUSAL_KEPT_MS || (of !== undefined && kept.of !== of)) {
+      verdicts.delete(key);
+      return null;
+    }
+    return kept.verdict;
+  };
   const pictures = new Map<string, boolean>();
   /** When a model could not be asked whether it reads pictures, or its server refused the picture, and what that said. */
   const unasked = new Map<string, { at: number; verdict: boolean | null }>();
@@ -499,7 +522,7 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
         const verdict = await canBuild(tried, draft.model, opts.signal === undefined ? {} : { signal: opts.signal });
         // The model could not be asked (a refused key shows here: the list above falls back to a built-in one): the test failed.
         if (!verdict.canBuild && verdict.reason === 'error') return { ok: false, models: [], canBuild: null, error: testError(verdict.code, verdict.message) };
-        verdicts.set(`env:${draft.provider}\u0000${draft.model}`, verdict);
+        verdicts.set(`env:${draft.provider}\u0000${draft.model}`, { verdict, at: Date.now(), of: configPrint(config) });
         return { ok: true, models, canBuild: verdict, error: null };
       } catch (error) {
         if (error instanceof ProviderError) return { ok: false, models: [], canBuild: null, error: testError(error.code, error.message) };
@@ -540,14 +563,17 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
       }
       return envConnection(now, draft.provider);
     },
-    verdict: (id, model) => verdicts.get(`${id}\u0000${model}`) ?? null,
+    verdict: (id, model) => keptVerdict(`${id}\u0000${model}`),
     async canBuildWith(id, model) {
-      const known = verdicts.get(`${id}\u0000${model}`);
-      if (known !== undefined) return known;
-      const { config } = await configFor(id, model);
+      // Asked as a build: on the operator's gateway it goes with the build key, as the Designer's runs do.
+      const { config } = await configFor(id, model, 'build');
+      const key = `${id}\u0000${model}`;
+      const of = configPrint(config);
+      const known = keptVerdict(key, of);
+      if (known !== null) return known;
       const verdict = await canBuild(metered.runner(id, makeRunner(config)), model);
       // An error is not kept: the next try may reach the server.
-      if (verdict.canBuild || verdict.reason !== 'error') verdicts.set(`${id}\u0000${model}`, verdict);
+      if (verdict.canBuild || verdict.reason !== 'error') verdicts.set(key, { verdict, at: Date.now(), of });
       return verdict;
     },
     async readsImages(id, model) {
@@ -557,7 +583,8 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
       // A model that could not be asked is not asked again at every step of a turn: once in five minutes.
       const failed = unasked.get(key);
       if (failed !== undefined && Date.now() - failed.at < 5 * 60_000) return failed.verdict;
-      const { config, connection } = await configFor(id, model);
+      // Asked for the Designer: a build, on the build key where there is one.
+      const { config, connection } = await configFor(id, model, 'build');
       // Every Claude model the catalogue lists reads pictures.
       if (connection.provider === 'anthropic') {
         pictures.set(key, true);

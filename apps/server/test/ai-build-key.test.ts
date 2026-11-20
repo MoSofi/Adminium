@@ -9,11 +9,11 @@
  */
 import { llmKeyCryptoFromSecret, type ProviderClient, type ProviderConfig, type ProviderRunner } from '@adminium/llm';
 import { operatorTalliesRepo, settingsRepo, type MetaDb } from '@adminium/meta';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { decryptSecret, deriveKey, encryptSecret } from '../src/config/secrets.js';
 import { createAiEnv } from '../src/llm/ai-env.js';
-import { createAiConnections } from '../src/llm/connections.js';
+import { createAiConnections, REFUSAL_KEPT_MS } from '../src/llm/connections.js';
 import { AI_TOKENS_TALLY, createOperatorAiMeter } from '../src/llm/operator-ai.js';
 import { createProviderResolver } from '../src/llm/provider-resolver.js';
 import { AVAILABLE, makeStore, type EngineName } from './archive.helpers.js';
@@ -101,6 +101,75 @@ describe.each((['sqlite', 'postgres', 'mysql'] as EngineName[]).filter((engine) 
     const resolved = await ai.clientForProvider('openai-compatible', 'house-model', { purpose: 'build' });
     await resolved.client.complete({ system: 'x', messages: [{ role: 'user', content: 'hello' }], maxTokens: 50 } as never);
     expect((await operatorTalliesRepo(meta).get(AI_TOKENS_TALLY))?.amount).toBe(15);
+  });
+
+  describe('the Designer’s model check', () => {
+    /** A gateway whose model refuses the tool (`refuse`) or makes the round trip (`pass`). */
+    let model: 'refuse' | 'pass';
+    const checking = (config: ProviderConfig): ProviderRunner => {
+      configs.push(config);
+      return {
+        id: config.provider,
+        run: async (request: { messages: unknown[] }) =>
+          ({
+            blocks: model === 'refuse' ? [{ type: 'text', text: 'echo adminium' }] : request.messages.length === 1 ? [{ type: 'tool_call', id: 'c1', name: 'echo', input: { word: 'adminium' } }] : [{ type: 'text', text: 'done' }],
+            malformed: [],
+            stopReason: 'end',
+            usage: { inputTokens: 1, outputTokens: 1 },
+          }) as never,
+      } as ProviderRunner;
+    };
+    const checker = (environment: Record<string, string | undefined>, buildApiKey: string | undefined) =>
+      createAiConnections({
+        settings: settingsRepo(meta),
+        keyCrypto: llmKeyCryptoFromSecret(TEST_SECRET, { deriveKey, encryptSecret, decryptSecret }),
+        aiEnv: createAiEnv({ root: null, fromEnvironment: environment }),
+        networkFeatures: true,
+        production: false,
+        createClient: fakeClient,
+        createRunner: checking,
+        resolve: async () => ['93.184.216.34'],
+        operatorAi: createOperatorAiMeter(meta, { only: true, scope: 'dashboard', budget: 1_000_000, trial: true }),
+        buildApiKey,
+      });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('asks on the build key when one is set', async () => {
+      model = 'pass';
+      const ai = checker({ ...GATEWAY }, 'sk-build');
+      expect(await ai.canBuildWith('env:openai-compatible', 'house-model')).toMatchObject({ canBuild: true });
+      expect(configs.map((config) => config.apiKey)).toEqual(['sk-build']);
+      // A pass is kept: not asked again.
+      await ai.canBuildWith('env:openai-compatible', 'house-model');
+      expect(configs).toHaveLength(1);
+    });
+
+    it('keeps a refusal for ten minutes only: a fixed model passes after, with no restart', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      model = 'refuse';
+      const ai = checker({ ...GATEWAY }, 'sk-build');
+      expect(await ai.canBuildWith('env:openai-compatible', 'house-model')).toMatchObject({ canBuild: false, reason: 'no-tool-call' });
+      model = 'pass';
+      vi.advanceTimersByTime(REFUSAL_KEPT_MS - 1_000);
+      expect(await ai.canBuildWith('env:openai-compatible', 'house-model')).toMatchObject({ canBuild: false });
+      expect(ai.verdict('env:openai-compatible', 'house-model')).toMatchObject({ canBuild: false });
+      vi.advanceTimersByTime(2_000);
+      expect(ai.verdict('env:openai-compatible', 'house-model')).toBeNull();
+      expect(await ai.canBuildWith('env:openai-compatible', 'house-model')).toMatchObject({ canBuild: true });
+    });
+
+    it('asks again at once when the key or the address changes', async () => {
+      model = 'refuse';
+      const environment: Record<string, string | undefined> = { ...GATEWAY };
+      const ai = checker(environment, undefined);
+      expect(await ai.canBuildWith('env:openai-compatible', 'house-model')).toMatchObject({ canBuild: false });
+      model = 'pass';
+      environment['ADMINIUM_AI_COMPATIBLE_API_KEY'] = 'sk-fixed';
+      expect(await ai.canBuildWith('env:openai-compatible', 'house-model')).toMatchObject({ canBuild: true });
+      expect(configs.at(-1)?.apiKey).toBe('sk-fixed');
+    });
   });
 
   it('the person’s own saved key is never swapped for the build key', async () => {
