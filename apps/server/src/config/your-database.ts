@@ -74,7 +74,15 @@ export function cleanNotes(raw: string): string | null {
   return chars.length > YOUR_DATABASE_NOTES_MAX_CHARS ? chars.slice(0, YOUR_DATABASE_NOTES_MAX_CHARS).join('').trimEnd() : text;
 }
 
-const TABLE_ID = /^[^.\s]{1,128}\.[^\s]{1,128}$/;
+/**
+ * A table id as the engine's snapshot writes it, `schema.table` with neither part quoted: a space (`public.Order
+ * Items`) or a dotted schema (`sales.eu.orders`) is legal, and `check-source` returns it as it is. A dot inside,
+ * no control character, 257 characters at most. An id the snapshot does not have is skipped at boot, never refused.
+ */
+const TABLE_ID_MAX = 257;
+// eslint-disable-next-line no-control-regex
+const TABLE_ID = /^[^\u0000-\u001f\u007f-\u009f]+$/;
+const tableId = (id: unknown): id is string => typeof id === 'string' && id.length <= TABLE_ID_MAX && TABLE_ID.test(id) && id.slice(1, -1).includes('.');
 
 /** Parse the variable's JSON, or say what is wrong with it without repeating the URL. */
 export function parseYourDatabase(raw: string): { ok: true; value: YourDatabase } | { ok: false; problem: string } {
@@ -106,7 +114,7 @@ export function parseYourDatabase(raw: string): { ok: true; value: YourDatabase 
   }
   const intent = intentRaw as GenerateIntent;
   const tablesRaw = object['tables'] ?? [];
-  if (!Array.isArray(tablesRaw) || !tablesRaw.every((id): id is string => typeof id === 'string' && TABLE_ID.test(id))) {
+  if (!Array.isArray(tablesRaw) || !tablesRaw.every(tableId)) {
     return { ok: false, problem: 'has "tables" that are not a list of schema.table ids' };
   }
   if (tablesRaw.length > YOUR_DATABASE_MAX_TABLES) return { ok: false, problem: `names more than ${String(YOUR_DATABASE_MAX_TABLES)} tables` };

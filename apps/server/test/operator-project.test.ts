@@ -173,6 +173,15 @@ describe('ADMINIUM_YOUR_DATABASE', () => {
     }
   });
 
+  it('takes any table id the engine writes: a space, a dotted schema; never a control character or one with no dot', () => {
+    const url = 'postgres://u:secret@db.example.com:6543/shop';
+    const parsed = parseYourDatabase(JSON.stringify({ url, tables: ['public.Order Items', 'sales.eu.orders', 'public.orders'] }));
+    expect(parsed.ok && parsed.value.tables).toEqual(['public.Order Items', 'sales.eu.orders', 'public.orders']);
+    for (const bad of ['orders', '.orders', 'public.', 'public.or\u0000ders', 'public.or\nders', `public.${'x'.repeat(260)}`, 7]) {
+      expect(parseYourDatabase(JSON.stringify({ url, tables: [bad] })).ok, String(bad)).toBe(false);
+    }
+  });
+
   it('cleans the notes: no address, password or control character, 2,000 characters at most', () => {
     const notes = cleanNotes('orders link to customers\u0007. url postgres://ava:pw@db.acme.io:5432/shop password=hunter2 also 10.0.0.5:5432 and db.acme.io:6543');
     expect(notes).toBe('orders link to customers. url [address removed] password: [removed] also [address removed] and [address removed]');
@@ -379,6 +388,13 @@ describe('the operator project variables at boot', () => {
     expect(
       problems({ ...base, ADMINIUM_OPERATOR_PROJECT: 'on', ADMINIUM_YOUR_DATABASE: yours, ADMINIUM_DATABASE_USER_HOST: 'db.example.com:6543', ADMINIUM_DATABASE_DENY_ADDRESSES: '203.0.113.7,10.0.0.0/8,2001:db8::/32', ADMINIUM_AI_BUILD_API_KEY: 'k' }),
     ).toEqual([]);
+  });
+
+  it('boots with table ids that hold a space or a dotted schema', () => {
+    for (const tables of [['public.Order Items'], ['sales.eu.orders'], ['public.Order Items', 'sales.eu.orders']]) {
+      const value = JSON.stringify({ url: 'postgres://ava:her-secret@db.example.com:6543/shop', tables });
+      expect(problems({ ...base, ADMINIUM_OPERATOR_PROJECT: 'on', ADMINIUM_YOUR_DATABASE: value, ADMINIUM_DATABASE_USER_HOST: 'db.example.com:6543' })).toEqual([]);
+    }
   });
 
   it('refuses a user host on a port below 1024 or a fleet service port, and one that is not the user database’s', () => {
