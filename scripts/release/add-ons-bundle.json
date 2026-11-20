@@ -4,83 +4,83 @@
   "addOns": [
     {
       "key": "barcode-labels",
-      "version": "1.0.31",
-      "integrity": "sha512-xymv10Grik1NvhXLdy+eRR7ADn8w0Loenx9hhIZ/5NSbXPvF97wPsDE4sY03rJf50BD5ht2fGIcnsyWxA+hLiw=="
+      "version": "1.0.33",
+      "integrity": "sha512-cWKs5LkEnV1x8AWSDyXeP8T09NkO0T9R6+CbTcpJDPmGJLDS9SDx8iWb34iRZE77vCXxmtFzfsFZ+qkUWavdRA=="
     },
     {
       "key": "customiser",
-      "version": "1.0.31",
-      "integrity": "sha512-mcf7SJb/NNMETAU0yKAQw5inzngfdZm4/xssjiC5A9BHQOICamDhoZP1OFYyd1MUIxFOdZE1qKmTATmEJoyTkA=="
+      "version": "1.0.33",
+      "integrity": "sha512-JIwCvnlPpZvR+o/tgY8ixzdRISRjSkwGXef7eHRhIyu0D52DWqRnHSsR6VN+nD16AMX8aHcAUZkl8PplQhe+8w=="
     },
     {
       "key": "design-studio",
-      "version": "1.0.31",
-      "integrity": "sha512-l2/f0cNKwYzTs7F1Z4zHJH1AhR95hPVOLOoAQDgdLFVgT/5TS69z86bC6wOLVIvAAmFefC9diR0e11elNu+rvw=="
+      "version": "1.0.33",
+      "integrity": "sha512-jqX6UG6AvlkqdfC+Et7g3vk/XTflfPcRGv1fFhWK8zecjvg8W7pTG1d8RiBHPjGr4dcm403HrwCGijvUw2lY+g=="
     },
     {
       "key": "forms",
-      "version": "1.0.31",
-      "integrity": "sha512-baKHKs+j64SCeYxoO5DGKoBZlkwW52JhUIb8hXJCeeviYcB0aL+3q2dP6aym0hkb6FdgVbBcsms7ajwAPMDHOA=="
+      "version": "1.0.33",
+      "integrity": "sha512-p2DPST0ldai01Y3Y5AWv0zK9UFoTR0bdaRCSXu5JxiIrgjdY9Yg0WZun/X95ywIQL16Qg4peQ6oyePAqwxTGeA=="
     },
     {
       "key": "holiday-calendars",
-      "version": "1.0.31",
-      "integrity": "sha512-rFSHt5CmpyKUI4VcvzjLABPHwQDXk2oBNz7SlawyD+5CUmv3PGEhanuR67kktrN2sS10htEYy01jys/+9nzj7w=="
+      "version": "1.0.33",
+      "integrity": "sha512-ZyZkM46IubDyHprZTUifiBT/+rsXNsJ7WWGdnzMG8w1esU6RANy0oUUSV8itr3jdyNSHEOifAfDD438/Iq6tjw=="
     },
     {
       "key": "import-canva",
-      "version": "1.0.31",
-      "integrity": "sha512-KoFsHhc5T3JqHQSEKcfDiPdlvuRpPA/zCD4yTs+ks5gawkd1RwJUBwHHmoFBN3DabSyLhnpsW8FGicYSz5NMeQ=="
+      "version": "1.0.33",
+      "integrity": "sha512-G46SFIcEAsE17J0ZZPadPcL0D1G8HrBq3XqPlZK7sarpTsHuNN5r2daulzs966Nw8DLxlqsBPQuTDu4t/auzyg=="
     },
     {
       "key": "inventory",
-      "version": "1.0.31",
-      "integrity": "sha512-cSSXmoqHPYAHpDOibLUHTfzqYafeyHxdKwGOroeFhALjg9I2ZoTB1v/jZh/CKbc5lPGc/yRhiS7+91lCNfUI7w=="
+      "version": "1.0.33",
+      "integrity": "sha512-5GNKKMag75HlOa6H5f/bBTB7MC11ALc+6bvFXgUTzEidRAMIDQlpH6Dx2eH36mgHuUlH9b/kv2930rn9+nVbgw=="
     },
     {
       "key": "invoices",
-      "version": "1.0.31",
-      "integrity": "sha512-PjBFw/88V39O1UZeoQ5HXKNVFRmCTVIwqHTHwZvuAPwxRy4PbGTpop8YMcgSaDYFAossaPvLDkRqCK5WGlWKAA=="
+      "version": "1.0.33",
+      "integrity": "sha512-kbiQtkKTv+BaT+E1uQVGBV5H09XVheSR+8NWpkrDNNCYZk57hnjc5o7go2X0S4Gkw+OiW5+Bt2guIBpqJ8CnMg=="
     },
     {
       "key": "live-chat",
-      "version": "1.0.31",
-      "integrity": "sha512-k//UagcReYmoNXPllxgS4HxpDox52SJE3/AGq1pd0CMC55q0V65HIMOouIvpJaTrcn8ok7C8hIRGV7Sv1nrhyg=="
+      "version": "1.0.33",
+      "integrity": "sha512-nW+ecDNbkugx5+Xkp+Nrr6B5Ltd9FhU5sLmsI63iZREIkraJQ1Z9MYBCwYGztQULiCY6vRDWr6ugZbgsn/PoQg=="
     },
     {
       "key": "offers",
-      "version": "1.0.31",
-      "integrity": "sha512-o2MRSE6iQxiMGTAioTRhLnObPg/+yEGFCdREjQjOeFD3+rrRGQ95pBz1Owx2B8hX49OukQ0X6tmRfUiYWYvE7w=="
+      "version": "1.0.33",
+      "integrity": "sha512-A7kLC8DTd2oWRtHwpz8GSSaCR7PD4pWQz65xcArKbyS+lXjdy3wT5HYnUSnV2tbn1To4fnzElUuBDBDXsb+N6w=="
     },
     {
       "key": "pages",
-      "version": "1.0.31",
-      "integrity": "sha512-/R3pcirOYoST++sSVgFWuvR0aOhMelxS0bkMs1WTkWO1QK0xt5YPqYBISZn6KlewrIeZkzC4kAPUPWE5oXSLxA=="
+      "version": "1.0.33",
+      "integrity": "sha512-q04d2KZTwYNQ5GllLshq4Tgo2jWLwz0VbPS1KSIw2ycvbzjXJZ/xFMSEGWtjmoFi15XejOvP8bBLxT8Ta3cP0g=="
     },
     {
       "key": "payments-paypal",
-      "version": "1.0.31",
-      "integrity": "sha512-tEcnIqGt2UTtdcFZb8gO0eGIntPpspdzXdpIUoQeDvCq7xvO8IDanKA8u4TWB+On9xL0Oia3UclP3z2MWXomQA=="
+      "version": "1.0.33",
+      "integrity": "sha512-JXbdwjtcQ62+3UodPO5owiM5OFmUvogqX6oT+rE25E0Zc8ouaWMhFzidqAMX9vZrhbseeqxDyfgGA8BZUOC+1w=="
     },
     {
       "key": "payments-square",
-      "version": "1.0.31",
-      "integrity": "sha512-O/8y0qBZ0rahFhSiXJ04CVqEGvMQnh/D4k4jaDPY93s0a3h0/jxuFtClIv2Em1NelFtfjXPz3JLQDnwmf3tvRg=="
+      "version": "1.0.33",
+      "integrity": "sha512-aEovYVc/QuiM6e1CYlu5rRC31IP0Is4IKMiyA1mPMHYDNIO76isFsseiAkxgtf+6dxpczonH0hwawRHp3pUz4g=="
     },
     {
       "key": "payments-stripe",
-      "version": "1.0.31",
-      "integrity": "sha512-OzSFaDVdo7QRV6xnDAb96W9n/livFbAwJZ355adrJoVidAzZE/96h5R0tYQrqRC0hkcIH2uQ/it+Aw1lIGPgXw=="
+      "version": "1.0.33",
+      "integrity": "sha512-02NnMyM23M6nhmlRRGO104tq10GFgLf0NPtNHqfP3Pdh6Nonav31EgZ2sYUgSCbkENgzttq7vutjiKQbe6IfeQ=="
     },
     {
       "key": "personalizer",
-      "version": "1.0.31",
-      "integrity": "sha512-90FXKOt/j6V5toiNyDtdbp2LEii29qq5g5t1meORRPrvAlNvpgf7qSt5oToNiJQYyAGEFNstB+7xotqrtDNu+A=="
+      "version": "1.0.33",
+      "integrity": "sha512-wNMaJgGlMtr8hY9LyXkE5mftxS9DQ3kLrGth13VxHFmXVWcm82fMk2NdOLsDjmPboFHvsfd0J7rhbjvFpY19+A=="
     },
     {
       "key": "shipping-dhl",
-      "version": "1.0.31",
-      "integrity": "sha512-b9p1WpeO2oZX36VnBFt2PwRf9vE+qorBYWkV4k0A9UJZQ8jU4JtJVxHFHpw5MPIvw04K5r7LibHPCAlDLU1kGw=="
+      "version": "1.0.33",
+      "integrity": "sha512-ZJW8pkfAc9RS/W73ZmQa8H6SPqs5xO7TrjvMyoQauTj69me9DHiTMAZsnS4Qougtgc+Xauy5pL1uQv8IpYFs5A=="
     }
   ]
 }
