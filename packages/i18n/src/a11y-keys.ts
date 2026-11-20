@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3828 entries. */
+/** `namespace:key` — 3829 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -2089,6 +2089,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:email.log.state.skippedMailOff',
   'studio:email.log.state.skippedNotAgreed',
   'studio:email.log.state.skippedNotMarked',
+  'studio:email.log.state.skippedNotTold',
   'studio:email.log.state.skippedOutOfReach',
   'studio:email.log.state.skippedReserved',
   'studio:email.log.state.skippedReview',

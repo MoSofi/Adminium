@@ -5131,6 +5131,7 @@ export default {
         "skippedNotAgreed": "تم تخطيه — لم يوافق",
         "skippedNotMarked": "تم تخطيه — لم تُعرض عليه طريقة للرفض",
         "skippedOutOfReach": "تم تخطيه — لم يعد في المتناول",
+        "skippedNotTold": "تم تخطيه — شخص عُثر عليه، لم يُبلَّغ بعد",
         "skippedReserved": "تم تخطيه — عنوان اختبار",
         "skippedReview": "تم تخطيه — بانتظار المراجعة",
         "skippedSample": "تم تخطيه — صف تجريبي",

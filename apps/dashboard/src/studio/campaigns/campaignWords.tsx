@@ -168,6 +168,9 @@ function skippedLabel(reason: string | null): string {
       return t('studio:email.log.state.skippedReserved', 'Skipped — test address');
     case 'out-of-reach':
       return t('studio:email.log.state.skippedOutOfReach', 'Skipped — no longer in reach');
+    case 'not-told':
+      // A person a lead source found, not yet told where their details came from: only that mail reaches them.
+      return t('studio:email.log.state.skippedNotTold', 'Skipped — found person, not told yet');
     case 'address-changed':
       return t('studio:email.log.state.skippedAddressChanged', 'Skipped — address changed');
     case 'campaign-mail-off':

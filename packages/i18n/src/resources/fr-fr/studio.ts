@@ -5131,6 +5131,7 @@ export default {
         "skippedNotAgreed": "Ignoré — n’a pas accepté",
         "skippedNotMarked": "Ignoré — aucun moyen de refuser proposé",
         "skippedOutOfReach": "Ignoré — plus accessible",
+        "skippedNotTold": "Ignoré — personne trouvée, pas encore informée",
         "skippedReserved": "Ignoré — adresse de test",
         "skippedReview": "Ignoré — en attente de vérification",
         "skippedSample": "Ignoré — ligne d’exemple",

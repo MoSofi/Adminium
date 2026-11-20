@@ -5131,6 +5131,7 @@ export default {
         "skippedNotAgreed": "Přeskočeno — nesouhlasil(a)",
         "skippedNotMarked": "Přeskočeno — nebyla nabídnuta možnost odmítnout",
         "skippedOutOfReach": "Přeskočeno — už není v dosahu",
+        "skippedNotTold": "Přeskočeno — nalezená osoba, zatím nebyla informována",
         "skippedReserved": "Přeskočeno — testovací adresa",
         "skippedReview": "Přeskočeno — čeká na kontrolu",
         "skippedSample": "Přeskočeno — ukázkový řádek",

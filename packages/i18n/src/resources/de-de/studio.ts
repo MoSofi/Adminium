@@ -5131,6 +5131,7 @@ export default {
         "skippedNotAgreed": "Übersprungen — nicht zugestimmt",
         "skippedNotMarked": "Übersprungen — keine Widerspruchsmöglichkeit angeboten",
         "skippedOutOfReach": "Übersprungen — nicht mehr erreichbar",
+        "skippedNotTold": "Übersprungen — gefundene Person, noch nicht informiert",
         "skippedReserved": "Übersprungen — Testadresse",
         "skippedReview": "Übersprungen — wartet auf Prüfung",
         "skippedSample": "Übersprungen — Beispielzeile",

@@ -29,6 +29,7 @@ import { createQueryClient } from '../../app/query.js';
 import { createAppRouter } from '../../app/router.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
+import { sendStateBadge } from './campaignWords.js';
 import type { EmailAudienceBreakdown, EmailAudienceTable, EmailDocumentDetail, EmailRunView, EmailSendLogRow } from '../../email/api.js';
 
 vi.mock('../../app/ws.js', () => ({
@@ -488,5 +489,12 @@ describe('the locked footer', () => {
     await screen.findByTestId('email-footer-panel');
     expect(screen.queryByTestId('email-locked-footer')).toBeNull();
     expect(screen.queryByTestId('email-locked-rows')).toBeNull();
+  });
+});
+
+describe('the send log’s skip reasons', () => {
+  it('a found person not told yet reads as that, not as someone who hasn’t agreed', () => {
+    expect(sendStateBadge({ state: 'skipped-consent', reason: 'not-told', retrying: false }).label).toBe('Skipped — found person, not told yet');
+    expect(sendStateBadge({ state: 'skipped-consent', reason: 'not-agreed', retrying: false }).label).toBe('Skipped — hasn’t agreed');
   });
 });

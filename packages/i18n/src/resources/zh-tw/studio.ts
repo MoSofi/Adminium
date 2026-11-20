@@ -5131,6 +5131,7 @@ export default {
         "skippedNotAgreed": "已略過 — 未同意",
         "skippedNotMarked": "已略過 — 未提供拒絕方式",
         "skippedOutOfReach": "已略過 — 已不在可及範圍內",
+        "skippedNotTold": "已略過 — 找到的聯絡人，尚未告知",
         "skippedReserved": "已略過 — 測試地址",
         "skippedReview": "已略過 — 等待審核",
         "skippedSample": "已略過 — 範例列",

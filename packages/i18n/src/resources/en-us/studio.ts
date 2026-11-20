@@ -5131,6 +5131,7 @@ export default {
         "skippedNotAgreed": "Skipped — hasn’t agreed",
         "skippedNotMarked": "Skipped — not offered a way to say no",
         "skippedOutOfReach": "Skipped — no longer in reach",
+        "skippedNotTold": "Skipped — found person, not told yet",
         "skippedReserved": "Skipped — test address",
         "skippedReview": "Skipped — waiting for review",
         "skippedSample": "Skipped — sample row",

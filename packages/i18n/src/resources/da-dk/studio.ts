@@ -5131,6 +5131,7 @@ export default {
         "skippedNotAgreed": "Sprunget over — har ikke givet samtykke",
         "skippedNotMarked": "Sprunget over — fik ikke mulighed for at sige nej",
         "skippedOutOfReach": "Sprunget over — ikke længere inden for rækkevidde",
+        "skippedNotTold": "Sprunget over — fundet person, endnu ikke informeret",
         "skippedReserved": "Sprunget over — testadresse",
         "skippedReview": "Sprunget over — venter på gennemgang",
         "skippedSample": "Sprunget over — eksempelrække",

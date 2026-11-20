@@ -28247,6 +28247,10 @@
     "status": "mt",
     "srcHash": "8118e6b56d56"
   },
+  "studio.email.log.state.skippedNotTold": {
+    "status": "mt",
+    "srcHash": "ca5ff5cbc66e"
+  },
   "studio.email.log.state.skippedOutOfReach": {
     "status": "mt",
     "srcHash": "c51bd512495e"
