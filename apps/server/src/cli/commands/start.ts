@@ -58,7 +58,7 @@ import { markRunning, refuseIfRunning } from '../../project/running.js';
 import { withDefaults } from '../../project/config.js';
 import { syncProjectDatabases } from '../../project/databases.js';
 import { adoptSeededMain } from '../../project/operator-adopt.js';
-import { registerYourDatabase, startYourDatabase, YOURS_KEY, type YourDatabaseJob } from '../../project/your-database.js';
+import { forgetYourDatabase, registerYourDatabase, startYourDatabase, YOURS_KEY, type YourDatabaseJob } from '../../project/your-database.js';
 import { YOUR_DATABASE_STATUS } from '../../project/your-database-state.js';
 import { diskFileStore } from '../../project/file-store.js';
 import { databasesWithPageFiles } from '../../project/project-files.js';
@@ -539,6 +539,13 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
         };
         const registered = await registerYourDatabase(yoursOptions);
         if (registered !== null) yoursAfterListen = () => startYourDatabase(yoursOptions, registered);
+      } else if (project.operator) {
+        await forgetYourDatabase({
+          manager: runtime.manager,
+          log: (message) => {
+            io.out(message);
+          },
+        });
       }
       const boot = createProjectService({ meta: runtime.metaStore.meta, ...projectServer, pollMs: 0, watchFiles: false });
       try {

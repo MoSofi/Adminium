@@ -32,7 +32,7 @@ import { syncProjectDatabases } from '../src/project/databases.js';
 import { findProject } from '../src/project/locate.js';
 import { adoptSeededMain } from '../src/project/operator-adopt.js';
 import { forgetOperatorProjects, isOperatorLocation, OPERATOR_CONFIG_NAME, operatorOneOff, operatorProjectOn, withoutOperatorProjectEnv } from '../src/project/operator-project.js';
-import { connectYourDatabase, reasonOf, registerYourDatabase, startYourDatabase, YOURS_CHOICE_TALLY, yoursDataDsn } from '../src/project/your-database.js';
+import { connectYourDatabase, forgetYourDatabase, reasonOf, registerYourDatabase, startYourDatabase, YOURS_CHOICE_TALLY, yoursDataDsn } from '../src/project/your-database.js';
 import { yourDatabaseStatus } from '../src/project/your-database-state.js';
 import { META_ENGINES } from './meta-dialects.js';
 
@@ -261,6 +261,47 @@ const yoursOf = (url: string, more: Record<string, unknown> = {}): YourDatabase 
 };
 
 const LEGS = META_ENGINES.filter((engine) => engine.available).flatMap((meta) => SOURCES.map((source) => ({ meta, source, label: `${source.name} on ${meta.name} meta` })));
+
+describe.each(META_ENGINES.filter((engine) => engine.available))('yours taken away, meta on $name', (metaEngine) => {
+  it('a boot without ADMINIUM_YOUR_DATABASE blanks its address and leaves a draft; the next boot with it fills the same row', async () => {
+    const handle = await metaEngine.make();
+    const manager = await managerFor(handle.meta);
+    try {
+      const said: string[] = [];
+      const yours = yoursOf('postgres://ava:her-password@db.example.com:6543/shop');
+      const opts = { manager, meta: handle.meta, yours, status: yourDatabaseStatus(), log: () => undefined, warn: () => undefined };
+      const registered = await registerYourDatabase(opts);
+      expect((await manager.connections.getDsns(registered!.connectionId))?.introspectDsn).toBe(yours.url);
+
+      expect(await forgetYourDatabase({ manager, log: (message) => said.push(message) })).toBe(true);
+      const row = await manager.connections.findByProjectKey('yours');
+      expect(row).toMatchObject({ id: registered!.connectionId, status: 'unconfigured' });
+      expect(await manager.connections.getDsns(row!.id)).toMatchObject({ introspectDsn: null, dataDsn: null });
+      expect(said.join('\n')).toContain('no longer set');
+      expect(said.join('\n')).not.toContain('her-password');
+      // Once: a second boot without it has nothing to forget.
+      expect(await forgetYourDatabase({ manager, log: () => undefined })).toBe(false);
+
+      const back = await registerYourDatabase(opts);
+      expect(back?.connectionId).toBe(registered!.connectionId);
+      expect((await manager.connections.getDsns(back!.connectionId))?.introspectDsn).toBe(yours.url);
+    } finally {
+      await manager.disposeAll();
+      await handle.destroy();
+    }
+  });
+
+  it('without a yours row, there is nothing to forget', async () => {
+    const handle = await metaEngine.make();
+    const manager = await managerFor(handle.meta);
+    try {
+      expect(await forgetYourDatabase({ manager, log: () => undefined })).toBe(false);
+    } finally {
+      await manager.disposeAll();
+      await handle.destroy();
+    }
+  });
+});
 
 describe.each(LEGS)('yours: $label', ({ meta: metaEngine, source }) => {
   const run = source.base === undefined ? it.skip : it;

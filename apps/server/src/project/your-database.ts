@@ -109,6 +109,23 @@ export interface YourDatabaseOptions {
  * environment. No dial. Returns the connection id and whether the choice
  * changed since the last boot (which means introspect and generate again).
  */
+/**
+ * An operator project booted without `ADMINIUM_YOUR_DATABASE`: the user took their database away (or the trial
+ * ended and was restored without it). Its address is not kept past that: the row's connection strings are blanked
+ * and it waits as a Draft, as an archive made `--without-your-database` leaves it, so nobody holds a login for a
+ * database that is no longer offered, and in trial or hosted mode nobody could delete it. Its pages and settings
+ * stay, and a later boot with the variable fills the same row. True when something was blanked.
+ */
+export async function forgetYourDatabase(opts: { manager: ConnectionManager; log: (message: string) => void; now?: () => number }): Promise<boolean> {
+  const existing = await opts.manager.connections.findByProjectKey(YOURS_KEY);
+  if (existing === null) return false;
+  const stored = await opts.manager.connections.getDsns(existing.id);
+  if ((stored?.introspectDsn ?? null) === null && (stored?.dataDsn ?? null) === null && existing.status === 'unconfigured') return false;
+  await opts.manager.connections.update(existing.id, { introspectDsn: null, dataDsn: null, status: 'unconfigured', lastError: null, lastErrorHint: null }, (opts.now ?? Date.now)());
+  opts.log('Your database: ADMINIUM_YOUR_DATABASE is no longer set, so its address is forgotten; it waits as a draft.');
+  return true;
+}
+
 export async function registerYourDatabase(opts: YourDatabaseOptions): Promise<{ connectionId: string; changed: boolean } | null> {
   const { manager, meta, yours } = opts;
   const at = (opts.now ?? Date.now)();
