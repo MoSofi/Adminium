@@ -1944,7 +1944,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   peopleConsent = createPeopleConsent({ meta, consent, tables: consentTables, viewFor: (connectionId) => publicViews.viewFor(connectionId), log: app.log });
   const consentMirror = peopleConsent;
   // A person's data downloaded for them ("Download everything"): written by a job, deleted once its time is up.
-  registerPrivacyExportHandler(jobs.registry, { meta, manager, consent, storage, secret: env.ADMINIUM_SECRET });
+  // "Download everything": their reviews among their data too.
+  registerPrivacyExportHandler(jobs.registry, { meta, manager, consent, storage, secret: env.ADMINIUM_SECRET, reviewInstalls: () => addOnInstalls.fresh() });
   // Files strangers sent that no write took: gone once their time is up. First, a guest's file a write held and did
   // not adopt (the process stopped between): made its row's own where the row names it, let go where none does.
   jobs.scheduler.registerSchedule(PUBLIC_UPLOADS_SWEEP_NAME, PUBLIC_UPLOADS_SWEEP_CRON, async () => {

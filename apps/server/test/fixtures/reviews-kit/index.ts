@@ -129,6 +129,7 @@ export function reviewedShopManifest(key: 'shop' | 'studio', over: Record<string
       { side: 'customer', kind: 'spa', entry: 'index.html', routes: { shop: '/' } },
     ],
     addOns: { requires: [{ key: REVIEWS_KIT, range: '^1.0.0', reason: { 'en-US': 'Customers review what they bought.' } }] },
+    people: [{ table: 'customers', kind: 'people', email: 'email', name: 'first_name' }],
     roles: [{ key: 'owner', name: 'Owner', permissions: ['app:@:staff', 'table:@orders:read'], tables: [{ addOn: REVIEWS_KIT, table: 'reviews', actions: ['read', 'update'] }, { addOn: REVIEWS_KIT, table: 'review_totals', actions: ['read'] }] }],
     publicKeys: { link: {} },
     publicAccess: [

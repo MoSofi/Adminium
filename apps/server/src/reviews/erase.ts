@@ -78,6 +78,8 @@ export async function forgetReviews(
 /** One person's reviews in one reviews table, by key: what an erasure staff run blanks, and scrubs from the audit log. */
 export interface PersonReviews {
   connectionId: string;
+  /** The add-on that keeps them. */
+  addOn: string;
   table: ResolvedTable;
   keys: string[];
 }
@@ -104,7 +106,7 @@ export async function findPersonReviews(
       const read = ofPerson(input.db.selectFrom(reviews.id as never).select(key as never) as never, pairs, person.key) as unknown as { execute: () => Promise<Record<string, unknown>[]> };
       for (const row of await read.execute()) keys.add(String(row[key]));
     }
-    if (keys.size > 0) out.push({ connectionId: input.view.connectionId, table: reviews, keys: [...keys] });
+    if (keys.size > 0) out.push({ connectionId: input.view.connectionId, addOn: keeper.addOn, table: reviews, keys: [...keys] });
   }
   return out;
 }

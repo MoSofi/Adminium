@@ -4717,7 +4717,8 @@ export default {
         "appRows": "应用中的行",
         "answers": "表单回答",
         "invitations": "调查邀请",
-        "answerFiles": "随表单回答发送的文件"
+        "answerFiles": "随表单回答发送的文件",
+        "reviews": "评价"
       },
       "onList": "是",
       "rows": "{count, plural, other {# 行}}",
@@ -4748,7 +4749,8 @@ export default {
       "invitations": "{count, plural, other {# 份邀请}}",
       "files": "{count, plural, other {# 个文件}}",
       "chats": "{count, plural, other {# 个对话}}",
-      "chatMessages": "{count, plural, other {# 条消息}}"
+      "chatMessages": "{count, plural, other {# 条消息}}",
+      "reviews": "{count, plural, other {# 条评价}}"
     },
     "erase": {
       "goes": {
@@ -4762,7 +4764,8 @@ export default {
         "invitations": "{label} 中的 {count, plural, other {# 份调查邀请}}，保留但不含地址",
         "answerFiles": "{label} 中随表单回答发送的 {count, plural, other {# 个文件}}",
         "chats": "{label} 中的 {count, plural, other {# 个聊天对话}}，连同其消息",
-        "foundPeople": "{label} 中关于其被找到之处的 {count, plural, other {# 条记录}}，以及告知其本人的邮件"
+        "foundPeople": "{label} 中关于其被找到之处的 {count, plural, other {# 条记录}}，以及告知其本人的邮件",
+        "reviews": "{label} 中的 {count, plural, other {# 条评价}}，保留但不含姓名"
       },
       "stays": {
         "forGood": "永久保留。",

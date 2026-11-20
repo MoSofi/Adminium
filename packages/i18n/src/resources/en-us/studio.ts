@@ -4717,7 +4717,8 @@ export default {
         "appRows": "Rows in an app",
         "answers": "Form answers",
         "invitations": "Survey invitations",
-        "answerFiles": "Files sent with form answers"
+        "answerFiles": "Files sent with form answers",
+        "reviews": "Reviews"
       },
       "onList": "yes",
       "rows": "{count, plural, one {# row} other {# rows}}",
@@ -4748,7 +4749,8 @@ export default {
       "invitations": "{count, plural, one {# invitation} other {# invitations}}",
       "files": "{count, plural, one {# file} other {# files}}",
       "chats": "{count, plural, one {# conversation} other {# conversations}}",
-      "chatMessages": "{count, plural, one {# message} other {# messages}}"
+      "chatMessages": "{count, plural, one {# message} other {# messages}}",
+      "reviews": "{count, plural, one {# review} other {# reviews}}"
     },
     "erase": {
       "goes": {
@@ -4762,7 +4764,8 @@ export default {
         "invitations": "{count, plural, one {# survey invitation} other {# survey invitations}} in {label}, kept without their address",
         "answerFiles": "{count, plural, one {# file} other {# files}} sent with form answers in {label}",
         "chats": "{count, plural, one {# chat conversation} other {# chat conversations}} in {label}, with their messages",
-        "foundPeople": "{count, plural, one {# record} other {# records}} of where they were found in {label}, with the mails that told them"
+        "foundPeople": "{count, plural, one {# record} other {# records}} of where they were found in {label}, with the mails that told them",
+        "reviews": "{count, plural, one {# review} other {# reviews}} in {label}, kept without their name"
       },
       "stays": {
         "forGood": "Kept for good.",

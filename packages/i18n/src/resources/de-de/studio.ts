@@ -4717,7 +4717,8 @@ export default {
         "appRows": "Zeilen in einer App",
         "answers": "Formularantworten",
         "invitations": "Umfrageeinladungen",
-        "answerFiles": "Mit Formularantworten gesendete Dateien"
+        "answerFiles": "Mit Formularantworten gesendete Dateien",
+        "reviews": "Bewertungen"
       },
       "onList": "ja",
       "rows": "{count, plural, one {# Zeile} other {# Zeilen}}",
@@ -4748,7 +4749,8 @@ export default {
       "invitations": "{count, plural, one {# Einladung} other {# Einladungen}}",
       "files": "{count, plural, one {# Datei} other {# Dateien}}",
       "chats": "{count, plural, one {# Unterhaltung} other {# Unterhaltungen}}",
-      "chatMessages": "{count, plural, one {# Nachricht} other {# Nachrichten}}"
+      "chatMessages": "{count, plural, one {# Nachricht} other {# Nachrichten}}",
+      "reviews": "{count, plural, one {# Bewertung} other {# Bewertungen}}"
     },
     "erase": {
       "goes": {
@@ -4762,7 +4764,8 @@ export default {
         "invitations": "{count, plural, one {# Umfrageeinladung} other {# Umfrageeinladungen}} in {label}, ohne ihre Adresse aufbewahrt",
         "answerFiles": "{count, plural, one {# Datei} other {# Dateien}} aus Formularantworten in {label}",
         "chats": "{count, plural, one {# Chat-Unterhaltung} other {# Chat-Unterhaltungen}} in {label}, mit ihren Nachrichten",
-        "foundPeople": "{count, plural, one {# Eintrag} other {# Einträge}} darüber, wo die Person gefunden wurde, in {label}, mit den E-Mails, die es ihr sagten"
+        "foundPeople": "{count, plural, one {# Eintrag} other {# Einträge}} darüber, wo die Person gefunden wurde, in {label}, mit den E-Mails, die es ihr sagten",
+        "reviews": "{count, plural, one {# Bewertung} other {# Bewertungen}} in {label}, behalten ohne ihren Namen"
       },
       "stays": {
         "forGood": "Dauerhaft aufbewahrt.",

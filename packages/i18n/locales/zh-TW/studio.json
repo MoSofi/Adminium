@@ -4707,7 +4707,8 @@
         "appRows": "應用程式中的列",
         "answers": "表單回覆",
         "invitations": "問卷邀請",
-        "answerFiles": "隨表單回覆傳送的檔案"
+        "answerFiles": "隨表單回覆傳送的檔案",
+        "reviews": "評價"
       },
       "onList": "是",
       "rows": "{count, plural, other {# 列}}",
@@ -4738,7 +4739,8 @@
       "invitations": "{count, plural, other {# 份邀請}}",
       "files": "{count, plural, other {# 個檔案}}",
       "chats": "{count, plural, other {# 個對話}}",
-      "chatMessages": "{count, plural, other {# 則訊息}}"
+      "chatMessages": "{count, plural, other {# 則訊息}}",
+      "reviews": "{count, plural, other {# 則評價}}"
     },
     "erase": {
       "goes": {
@@ -4752,7 +4754,8 @@
         "invitations": "{label} 中的 {count, plural, other {# 份問卷邀請}}，保留但不含地址",
         "answerFiles": "{label} 中隨表單回覆傳送的 {count, plural, other {# 個檔案}}",
         "chats": "{label} 中的 {count, plural, other {# 個聊天對話}}，連同其訊息",
-        "foundPeople": "{label} 中關於其被找到之處的 {count, plural, other {# 筆紀錄}}，以及告知其本人的電子郵件"
+        "foundPeople": "{label} 中關於其被找到之處的 {count, plural, other {# 筆紀錄}}，以及告知其本人的電子郵件",
+        "reviews": "{label} 中的 {count, plural, other {# 則評價}}，保留但不含姓名"
       },
       "stays": {
         "forGood": "永久保留。",

@@ -66,6 +66,8 @@ import { copyFileIds, type CopyRowFiles } from './erase-meta.js';
 import { erasedColumns, parsedJson } from './erase-values.js';
 import { chatSources, findChatRows, type TheirRow } from './chat-transcripts.js';
 import { findFormRows, formSources } from './form-answers.js';
+import { reviewSources } from './reviews.js';
+import type { AddOnInstalls } from '../apps/table-ref.js';
 import { findFoundPeopleRows, foundPeopleSources } from './found-people.js';
 import { findInMeta, ROWS_MAX, type FoundRow } from './meta-sources.js';
 import { findPageVisits, pageVisitSources } from './page-visits.js';
@@ -104,6 +106,8 @@ export interface PrivacyFindDeps {
   chatForget?: ChatForget | undefined;
   /** `ADMINIUM_SECRET`: "Pages they saw" is found by the address's keyed hash; absent, it is not searched. */
   secret?: string | undefined;
+  /** What is installed: a reviews add-on's reviews their people rows left (`reviews.ts`); absent, they are not searched. */
+  reviewInstalls?: (() => Promise<AddOnInstalls>) | undefined;
 }
 
 /** A manifest reader that never touches a credential (finding and erasing read stored manifests only). */
@@ -430,6 +434,9 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string, apps
     const named = chats.filter((one) => one.kind === 'chat-conversations').flatMap((one) => one.rows).map((row) => row['name']).find((name): name is string => typeof name === 'string' && name.trim() !== '');
     if (named !== undefined) person = { name: named.trim(), company: null };
   }
+
+  // ── the reviews add-ons: the reviews their people rows left, within the apps searched ──
+  sources.push(...(await reviewSources(deps, peopleRows, apps ?? null, ROWS_MAX)));
 
   // ── "Pages they saw": the visitors joined to their address, and the pages each saw ──
   if (whole && deps.secret !== undefined) sources.push(...pageVisitSources(await findPageVisits(meta, deps.secret, address, ROWS_MAX)));

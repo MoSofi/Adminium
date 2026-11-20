@@ -89,7 +89,9 @@ export type SourceKind =
   | 'page-visits'
   | 'found-people'
   | 'found-people-mail'
-  | 'found-people-fields';
+  | 'found-people-fields'
+  /** A reviews add-on's reviews one of their rows left. */
+  | 'reviews';
 
 export type KeptByLawReason = 'tax' | 'health' | 'contract' | 'safety';
 
@@ -144,7 +146,7 @@ export interface StaysItem {
   label?: string | undefined;
 }
 
-export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations' | 'page-visits' | 'found-people';
+export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations' | 'page-visits' | 'found-people' | 'reviews';
 
 export interface GoesItem {
   kind: GoesKind;

@@ -36,6 +36,8 @@ export const SOURCE_KINDS = [
   'found-people',
   'found-people-mail',
   'found-people-fields',
+  // A reviews add-on's reviews one of their people rows left (`reviews.ts`): kept, without their name, by an erasure.
+  'reviews',
 ] as const;
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 

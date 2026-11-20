@@ -37431,6 +37431,10 @@
     "status": "mt",
     "srcHash": "08131ab98dff"
   },
+  "studio.privacy.erase.goes.reviews": {
+    "status": "mt",
+    "srcHash": "9faa73c8c231"
+  },
   "studio.privacy.erase.goesLabel": {
     "status": "mt",
     "srcHash": "2082eb13ae8d"
@@ -37887,6 +37891,10 @@
     "status": "mt",
     "srcHash": "44357ae55a21"
   },
+  "studio.privacy.person.kind.reviews": {
+    "status": "mt",
+    "srcHash": "b83c4cdafef5"
+  },
   "studio.privacy.person.kind.stopList": {
     "status": "mt",
     "srcHash": "3abaa313fc52"
@@ -37926,6 +37934,10 @@
   "studio.privacy.person.q": {
     "status": "mt",
     "srcHash": "394c80265735"
+  },
+  "studio.privacy.person.reviews": {
+    "status": "mt",
+    "srcHash": "1686d1f354ec"
   },
   "studio.privacy.person.rows": {
     "status": "mt",

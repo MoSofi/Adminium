@@ -4717,7 +4717,8 @@ export default {
         "appRows": "Rækker i en app",
         "answers": "Formularsvar",
         "invitations": "Invitationer til undersøgelser",
-        "answerFiles": "Filer sendt med formularsvar"
+        "answerFiles": "Filer sendt med formularsvar",
+        "reviews": "Anmeldelser"
       },
       "onList": "ja",
       "rows": "{count, plural, one {# række} other {# rækker}}",
@@ -4748,7 +4749,8 @@ export default {
       "invitations": "{count, plural, one {# invitation} other {# invitationer}}",
       "files": "{count, plural, one {# fil} other {# filer}}",
       "chats": "{count, plural, one {# samtale} other {# samtaler}}",
-      "chatMessages": "{count, plural, one {# besked} other {# beskeder}}"
+      "chatMessages": "{count, plural, one {# besked} other {# beskeder}}",
+      "reviews": "{count, plural, one {# anmeldelse} other {# anmeldelser}}"
     },
     "erase": {
       "goes": {
@@ -4762,7 +4764,8 @@ export default {
         "invitations": "{count, plural, one {# invitation til en undersøgelse} other {# invitationer til undersøgelser}} i {label}, gemt uden adressen",
         "answerFiles": "{count, plural, one {# fil} other {# filer}} sendt med formularsvar i {label}",
         "chats": "{count, plural, one {# chatsamtale} other {# chatsamtaler}} i {label}, med deres beskeder",
-        "foundPeople": "{count, plural, one {# post} other {# poster}} om, hvor de blev fundet, i {label}, med de e-mails, der fortalte dem det"
+        "foundPeople": "{count, plural, one {# post} other {# poster}} om, hvor de blev fundet, i {label}, med de e-mails, der fortalte dem det",
+        "reviews": "{count, plural, one {# anmeldelse} other {# anmeldelser}} i {label}, beholdt uden navn"
       },
       "stays": {
         "forGood": "Gemmes for altid.",

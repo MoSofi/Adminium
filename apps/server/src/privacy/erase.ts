@@ -66,10 +66,9 @@ import type { FileStore } from '../files/store.js';
 import { blankCampaignSends, campaignSendIds, copyFileIds, purgeRowFiles, rowFileIds, scrubAuditImages, scrubRemovedRows, sweepAddress, sweepMailAddress, type CopyLink, type CopyRowFiles, type ImageTarget, type PersonRowRef } from './erase-meta.js';
 import { blankRow, findPersonRows, pkOf, writePersonRows, type ErasedSource, type LeftColumn, type PersonRows } from './erase-rows.js';
 import { eraseFormRows, findFormRows, formImageTargets } from './form-answers.js';
-import { blankReviews, findPersonReviews, type PersonReviews } from '../reviews/erase.js';
+import { blankReviews } from '../reviews/erase.js';
+import { findReviewsOf } from './reviews.js';
 import type { AddOnInstalls } from '../apps/table-ref.js';
-import type { Kysely } from 'kysely';
-import type { SourceDatabase } from '../connections/manager.js';
 import { eraseChatRows, findChatRows, type TheirRow } from './chat-transcripts.js';
 import { eraseFoundPeopleRows, findFoundPeopleRows, type FoundPersonRows } from './found-people.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
@@ -170,7 +169,7 @@ async function withSoleTraders(deps: EraseDeps, rows: PersonRows, found: readonl
 }
 
 /** What goes, as the erase dialog counts it. */
-export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations' | 'page-visits' | 'found-people';
+export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations' | 'page-visits' | 'found-people' | 'reviews';
 
 export interface GoesItem {
   kind: GoesKind;
@@ -296,6 +295,10 @@ export async function previewErasure(deps: EraseDeps, rawAddress: string, scope?
     const table = one.addOn.foundPeople;
     if (table !== null && one.found.length > 0) goes.push({ kind: 'found-people', count: one.found.length, connectionId: one.connectionId, table: table.id, app: one.addOn.key, label: table.table.label ?? table.name });
   }
+  // Their reviews: kept, without their name or whose they are.
+  for (const { found } of await findReviewsOf(deps, people, apps)) {
+    goes.push({ kind: 'reviews', count: found.keys.length, connectionId: found.connectionId, table: found.table.id, app: found.addOn, label: found.table.table.label ?? found.table.name });
+  }
   const consent = await consentIds(deps.consent, address, people, whole);
   if (consent > 0) goes.push({ kind: 'consent', count: consent });
   const visits = whole ? (await findPageVisits(deps.meta, deps.secret, address, 0)).count : 0;
@@ -391,20 +394,7 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: E
   filesFailed += files.failed;
 
   // Their reviews, found while their rows still name them: blanked with their rows, and scrubbed from the log with them.
-  const reviewed: { db: Kysely<SourceDatabase>; found: PersonReviews }[] = [];
-  if (deps.reviewInstalls !== undefined && people.length > 0) {
-    const installs = await deps.reviewInstalls();
-    for (const connectionId of [...new Set(people.map((one) => one.connectionId))]) {
-      const view = await loadSnapshotView(meta, connectionId);
-      const { db } = await deps.manager.data(connectionId);
-      const theirs = people.flatMap((one) => {
-        if (one.connectionId !== connectionId) return [];
-        const table = view.linkTable(one.table);
-        return table === null ? [] : [{ table, key: one.key }];
-      });
-      for (const found of await findPersonReviews({ meta, installs, view, db: db as Kysely<SourceDatabase> }, theirs, apps === null ? null : [...apps])) reviewed.push({ db: db as Kysely<SourceDatabase>, found });
-    }
-  }
+  const reviewed = await findReviewsOf(deps, people, apps);
 
   // 5. The audit log and the removed-row history.
   const targets = [

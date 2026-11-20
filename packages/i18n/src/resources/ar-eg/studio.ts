@@ -4717,7 +4717,8 @@ export default {
         "appRows": "صفوف في تطبيق",
         "answers": "إجابات النماذج",
         "invitations": "دعوات الاستبيانات",
-        "answerFiles": "ملفات أُرسلت مع إجابات النماذج"
+        "answerFiles": "ملفات أُرسلت مع إجابات النماذج",
+        "reviews": "التقييمات"
       },
       "onList": "نعم",
       "rows": "{count, plural, zero {لا صفوف} one {صف واحد} two {صفّان} few {# صفوف} many {# صفًا} other {# صف}}",
@@ -4748,7 +4749,8 @@ export default {
       "invitations": "{count, plural, zero {لا دعوات} one {دعوة واحدة} two {دعوتان} few {# دعوات} many {# دعوة} other {# دعوة}}",
       "files": "{count, plural, zero {لا ملفات} one {ملف واحد} two {ملفان} few {# ملفات} many {# ملفًا} other {# ملف}}",
       "chats": "{count, plural, zero {لا محادثات} one {محادثة واحدة} two {محادثتان} few {# محادثات} many {# محادثة} other {# محادثة}}",
-      "chatMessages": "{count, plural, zero {لا رسائل} one {رسالة واحدة} two {رسالتان} few {# رسائل} many {# رسالة} other {# رسالة}}"
+      "chatMessages": "{count, plural, zero {لا رسائل} one {رسالة واحدة} two {رسالتان} few {# رسائل} many {# رسالة} other {# رسالة}}",
+      "reviews": "{count, plural, zero {لا تقييمات} one {تقييم واحد} two {تقييمان} few {# تقييمات} many {# تقييمًا} other {# تقييم}}"
     },
     "erase": {
       "goes": {
@@ -4762,7 +4764,8 @@ export default {
         "invitations": "{count, plural, zero {لا دعوات استبيان} one {دعوة استبيان واحدة} two {دعوتا استبيان} few {# دعوات استبيان} many {# دعوة استبيان} other {# دعوة استبيان}} في {label}، تُحفظ دون عنوانها",
         "answerFiles": "{count, plural, zero {لا ملفات} one {ملف واحد} two {ملفان} few {# ملفات} many {# ملفًا} other {# ملف}} أُرسلت مع إجابات النماذج في {label}",
         "chats": "{count, plural, zero {لا محادثات دردشة} one {محادثة دردشة واحدة} two {محادثتا دردشة} few {# محادثات دردشة} many {# محادثة دردشة} other {# محادثة دردشة}} في {label}، مع رسائلها",
-        "foundPeople": "{count, plural, zero {لا سجلات} one {سجل واحد} two {سجلان} few {# سجلات} many {# سجلًا} other {# سجل}} عن مكان العثور عليهم في {label}، مع الرسائل التي أخبرتهم"
+        "foundPeople": "{count, plural, zero {لا سجلات} one {سجل واحد} two {سجلان} few {# سجلات} many {# سجلًا} other {# سجل}} عن مكان العثور عليهم في {label}، مع الرسائل التي أخبرتهم",
+        "reviews": "{count, plural, zero {لا تقييمات} one {تقييم واحد} two {تقييمان} few {# تقييمات} many {# تقييمًا} other {# تقييم}} في {label}، محفوظة دون الاسم"
       },
       "stays": {
         "forGood": "يُحتفظ به إلى الأبد.",

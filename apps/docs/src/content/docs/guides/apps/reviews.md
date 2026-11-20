@@ -120,3 +120,8 @@ or updated, every total is worked out again from the published reviews.
 
 When a person uses "Delete my details", or staff erase them, each of their reviews keeps its stars,
 words and totals, and loses its name and whose it is. The page shows "A customer".
+
+Their reviews are part of their data: **Privacy → Person data** lists them under "What they gave
+you", **Download everything** writes them (what each is about, the stars, the words, the name shown,
+its state, the reply and when it was sent), and the erasure's preview says how many will be kept
+without their name. A search or an erasure held to some apps finds those apps' reviews only.

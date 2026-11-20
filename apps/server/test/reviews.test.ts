@@ -24,6 +24,12 @@ import { publicKeysRepo, rolesRepo, usersRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { loadSnapshotView } from '../src/data-io/snapshot-view.js';
+import { unzipSync } from 'fflate';
+import { createConsentService } from '../src/consent/service.js';
+import { previewErasure } from '../src/privacy/erase.js';
+import { personZip } from '../src/privacy/export.js';
+import { findPerson } from '../src/privacy/sources.js';
+import { TEST_SECRET } from './helpers.js';
 import { RealtimeHub } from '../src/realtime/hub.js';
 import { readLimitedFrames } from '../src/realtime/read-frames.js';
 import { blankReviews, findPersonReviews, forgetReviews } from '../src/reviews/erase.js';
@@ -234,6 +240,23 @@ describe.each(LEGS)("a customer's review of a shipped order line — %s", (diale
     expect(filter).not.toBeNull();
     expect(await filter!(frame({ id: studioId, app: 'studio', state: 'published' }))).toBeNull();
     expect(await filter!(frame({ id: mine, app: 'shop', state: 'published' }))).not.toBeNull();
+  });
+
+  it.skipIf(!available)("a person's data lists their reviews, and the erasure says what becomes of them", async () => {
+    const consent = createConsentService({ meta: h.meta, secret: TEST_SECRET });
+    const reviewInstalls = async () => keepAddOnInstalls(h.meta, async () => (await loadSnapshotView(h.meta, h.connectionId)).model as never).fresh();
+    const found = await findPerson({ meta: h.meta, manager: h.manager, consent, reviewInstalls }, 'priya@example.com');
+    const theirs = found.sources.find((source) => source.kind === 'reviews');
+    expect(theirs).toMatchObject({ group: 'gave', app: REVIEWS_KIT, count: 2 });
+    expect(theirs!.rows.map((row) => row['about_name']).sort()).toEqual(['Ridge Shell', 'Trail Fleece']);
+    expect(theirs!.rows[0]).not.toHaveProperty('person_key');
+    // Ben's are not hers.
+    expect(theirs!.rows.every((row) => row['shown_name'] === 'Priya R.')).toBe(true);
+    // In the download: one file of them.
+    const files = Object.keys(unzipSync(personZip(found, Date.now())));
+    expect(files.some((name) => name.startsWith(theirs!.id))).toBe(true);
+    const preview = await previewErasure({ meta: h.meta, manager: h.manager, consent, storage: null as never, secret: TEST_SECRET, reviewInstalls }, 'priya@example.com');
+    expect(preview.goes.find((item) => item.kind === 'reviews')).toMatchObject({ count: 2, app: REVIEWS_KIT });
   });
 
   it.skipIf(!available)('the totals are worked out again from the published reviews, and stars never change once taken', async () => {

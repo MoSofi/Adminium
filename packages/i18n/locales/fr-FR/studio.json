@@ -4707,7 +4707,8 @@
         "appRows": "Lignes dans une app",
         "answers": "Réponses aux formulaires",
         "invitations": "Invitations aux enquêtes",
-        "answerFiles": "Fichiers envoyés avec les réponses aux formulaires"
+        "answerFiles": "Fichiers envoyés avec les réponses aux formulaires",
+        "reviews": "Avis"
       },
       "onList": "oui",
       "rows": "{count, plural, one {# ligne} other {# lignes}}",
@@ -4738,7 +4739,8 @@
       "invitations": "{count, plural, one {# invitation} other {# invitations}}",
       "files": "{count, plural, one {# fichier} other {# fichiers}}",
       "chats": "{count, plural, one {# conversation} other {# conversations}}",
-      "chatMessages": "{count, plural, one {# message} other {# messages}}"
+      "chatMessages": "{count, plural, one {# message} other {# messages}}",
+      "reviews": "{count, plural, one {# avis} other {# avis}}"
     },
     "erase": {
       "goes": {
@@ -4752,7 +4754,8 @@
         "invitations": "{count, plural, one {# invitation à une enquête} other {# invitations à des enquêtes}} dans {label}, conservées sans l’adresse",
         "answerFiles": "{count, plural, one {# fichier envoyé} other {# fichiers envoyés}} avec des réponses à des formulaires dans {label}",
         "chats": "{count, plural, one {# conversation de chat} other {# conversations de chat}} dans {label}, avec leurs messages",
-        "foundPeople": "{count, plural, one {# fiche} other {# fiches}} indiquant où la personne a été trouvée dans {label}, avec les e-mails qui l’en ont informée"
+        "foundPeople": "{count, plural, one {# fiche} other {# fiches}} indiquant où la personne a été trouvée dans {label}, avec les e-mails qui l’en ont informée",
+        "reviews": "{count, plural, one {# avis} other {# avis}} dans {label}, conservés sans leur nom"
       },
       "stays": {
         "forGood": "Conservé pour toujours.",
