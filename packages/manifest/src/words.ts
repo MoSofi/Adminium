@@ -375,6 +375,11 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'people.lead',
   // A record action Adminium's own record page shows on a kind of declared table (a companies table's "Fill in details").
   'addOn.slots.on',
+  // An add-on whose people each connect their own outside account, and the app's table those people are rows of.
+  'addOn.connect.accounts',
+  'table.connectedAccounts',
+  // An app role that connects, sends a link for or disconnects a row's outside account.
+  'roles.accounts',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -686,6 +691,9 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'addOn.leads': '0.3.66',
   'people.lead': '0.3.66',
   'addOn.slots.on': '0.3.66',
+  'addOn.connect.accounts': '0.3.71',
+  'table.connectedAccounts': '0.3.71',
+  'roles.accounts': '0.3.71',
   // A release before refuses the keys (and pages from a file not made on an Adminium).
   'publicAccess.filterable': '0.3.68',
   'publicAccess.searchable': '0.3.68',
@@ -741,6 +749,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (block['reviews'] !== undefined) out.push({ word: 'addOn.reviews', path: 'addOn.reviews' });
     if (block['scope'] !== undefined) out.push({ word: 'addOn.scope', path: 'addOn.scope' });
     if (block['sources'] !== undefined) out.push({ word: 'addOn.sources', path: 'addOn.sources' });
+    if (isDoc(block['connect']) && block['connect']['accounts'] !== undefined) out.push({ word: 'addOn.connect.accounts', path: 'addOn.connect.accounts' });
     if (block['leads'] !== undefined) out.push({ word: 'addOn.leads', path: 'addOn.leads' });
     // A fill the generated record page draws: the kind of table it acts on, and its words and icon.
     list(block['slots']).forEach((fill, f) => {
@@ -814,6 +823,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
         if (ref !== undefined && !ownPages.has(ref)) out.push({ word: 'roles.addOnPages', path: `roles.${String(r)}.permissions.${String(g)}` });
         if (grant === 'privacy:@:people') out.push({ word: 'roles.privacyPeople', path: `roles.${String(r)}.permissions.${String(g)}` });
         if (grant === 'payments:@:refund') out.push({ word: 'roles.paymentsRefund', path: `roles.${String(r)}.permissions.${String(g)}` });
+        if (typeof grant === 'string' && grant.startsWith('accounts:@:')) out.push({ word: 'roles.accounts', path: `roles.${String(r)}.permissions.${String(g)}` });
       });
     });
     // What only a file made on an Adminium carries.
@@ -894,6 +904,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       if (isDoc(parent) && parent['private'] !== undefined) out.push({ word: 'belongs.throughPrivate', path: `${at}.belongs.${String(w)}.person` });
     });
     if (table['builtOn'] !== undefined && isDoc(table['states']) && table['states']['create'] !== undefined) out.push({ word: 'shape.create', path: `${at}.states.create` });
+    if (table['connectedAccounts'] !== undefined) out.push({ word: 'table.connectedAccounts', path: `${at}.connectedAccounts` });
     if (table['appGrants'] !== undefined) out.push({ word: 'table.appGrants', path: `${at}.appGrants` });
     if (isDoc(table['appGrants']) && table['appGrants']['appColumn'] !== undefined) out.push({ word: 'appGrants.appColumn', path: `${at}.appGrants.appColumn` });
     if (isDoc(table['appGrants'])) {

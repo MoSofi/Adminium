@@ -20,6 +20,8 @@
  *                              everything the workspace keeps about one address
  *                              (`system:privacy:people`); never the privacy
  *                              notice or the websites. Shown on the install check.
+ *   `accounts:@:connect|send-link|disconnect`  a row's connected account, for
+ *                              the rows this role reaches
  *   `payments:@:refund`        give back the money paid online for THIS app's
  *                              records (`payments:<appKey>:refund`, D20); never
  *                              the install's refund right. Shown on the install
@@ -50,7 +52,7 @@ import { parseDatabaseModel } from '@adminium/engine';
 import type { Manifest, RowReach } from '@adminium/manifest';
 import { pagesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type RowLimit, type RowReach as StoredRowReach, type TableActions, type UpdateLimit } from '@adminium/meta';
 
-import { matrixRowsFromGrants, appRefundPermission } from '../rbac/permissions.js';
+import { matrixRowsFromGrants, appAccountsPermission, appRefundPermission, type AccountAction } from '../rbac/permissions.js';
 import type { RoleTableResult } from '@adminium/manifest';
 import { grantKeyOf, installRoleSlug, type InstallAddress } from '../installs/resolve.js';
 import type { AfterInstallItem } from './after-install.js';
@@ -81,6 +83,8 @@ const PRIVACY_PEOPLE = /^privacy:@:people$/;
 const PRIVACY_PEOPLE_GRANT = 'system:privacy:people';
 /** Giving back the money paid online for the app's own records: the one payments right an app's role may carry. */
 const PAYMENTS_REFUND = /^payments:@:refund$/;
+/** What a role may do about a row's connected account: connect it, send a link for it, or end it. */
+const ACCOUNTS = /^accounts:@:(connect|send-link|disconnect)$/;
 
 /**
  * An app role's slug: `<key>-<role>` for the install holding the bare
@@ -269,6 +273,9 @@ export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIE
       } else if (PAYMENTS_REFUND.test(grant)) {
         // The money an app takes is its own business's: an add-on's role is never given it.
         if ((manifest as Manifest).kind === 'add-on') refuse(`"${grant}" is given by an app's role, never an add-on's`);
+      } else if (ACCOUNTS.test(grant)) {
+        // Whose outside account is connected is the business's to say, through its own app's roles.
+        if ((manifest as Manifest).kind === 'add-on') refuse(`"${grant}" is given by an app's role, never an add-on's`);
       } else if (PRIVACY_PEOPLE.test(grant)) {
         // An add-on's role is never given people's data: it is the business's to give, through its own apps' roles.
         if ((manifest as Manifest).kind === 'add-on') refuse(`"${grant}" is given by an app's role, never an add-on's`);
@@ -280,7 +287,7 @@ export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIE
         const theirs = /([a-z][a-z0-9_]*):(?:read|create|update)$/.exec(grant);
         refuse(
           named === undefined
-            ? `"${grant}" is not a grant an app can give (table:@…, page:@…, app:@:staff, privacy:@:people or payments:@:refund)`
+            ? `"${grant}" is not a grant an app can give (table:@…, page:@…, app:@:staff, privacy:@:people, payments:@:refund or accounts:@:connect|send-link|disconnect)`
             : `"${grant}" is not a grant an app can give. A table of the add-on "${named.key}" is granted beside "permissions", on the role itself: "tables": [{ "addOn": "${named.key}", "table": "${theirs?.[1] ?? '<its table>'}", "actions": ["read"] }]`,
         );
       }
@@ -504,6 +511,9 @@ export async function writeManifestRoles(input: {
     } else if (PAYMENTS_REFUND.test(grant)) {
       const row = matrixRowsFromGrants([appRefundPermission(manifest.key)]).rows[0];
       if (row !== undefined) await permissions.revoke(roleId, row.resourceKind, row.resourceRef);
+    } else if (ACCOUNTS.test(grant)) {
+      const row = matrixRowsFromGrants([appAccountsPermission(manifest.key, ACCOUNTS.exec(grant)![1] as AccountAction)]).rows[0];
+      if (row !== undefined) await permissions.revoke(roleId, row.resourceKind, row.resourceRef);
     } else if (ADD_ON_SETTINGS.test(grant)) {
       const row = matrixRowsFromGrants([grant]).rows[0];
       if (row !== undefined) await permissions.revoke(roleId, row.resourceKind, row.resourceRef);
@@ -614,6 +624,11 @@ export async function writeManifestRoles(input: {
           if (row === undefined) continue;
           await permissions.grant(role.id, row.resourceKind, row.resourceRef, row.actions);
         }
+      } else if (ACCOUNTS.test(grant)) {
+        if (manifest.kind !== 'app') continue;
+        const row = matrixRowsFromGrants([appAccountsPermission(manifest.key, ACCOUNTS.exec(grant)![1] as AccountAction)]).rows[0];
+        if (row === undefined) continue;
+        await permissions.grant(role.id, row.resourceKind, row.resourceRef, row.actions);
       } else if (ADD_ON_SETTINGS.test(grant)) {
         const row = matrixRowsFromGrants([grant]).rows[0];
         if (row === undefined) continue;

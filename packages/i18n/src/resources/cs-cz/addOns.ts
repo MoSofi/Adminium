@@ -38,5 +38,13 @@ export default {
   "tooOld": {
     "title": "Tato stránka potřebuje novější Adminium",
     "body": "Stránka tohoto doplňku byla vytvořena pro novější verzi Adminia, než je tato. Otevře ji aktualizace Adminia; nic ze stránky nebylo spuštěno."
+  },
+  "accounts": {
+    "notice": {
+      "connectedTitle": "{person} připojil(a) účet",
+      "connectedBody": "{person} je teď připojen(a) ke službě {provider} jako {account}.",
+      "refusedTitle": "{provider} odmítl aplikaci tohoto serveru",
+      "refusedBody": "Zkontrolujte ID klienta a tajný klíč uložené pro {provider}. Nikdo se nemusí znovu připojovat: připojení se obnoví, jakmile bude aplikace přijata."
+    }
   }
 } as const;

@@ -28,5 +28,13 @@
   "tooOld": {
     "title": "Denne side kræver en nyere Adminium",
     "body": "Denne tilføjelses side er bygget til en nyere version af Adminium end denne. En opdatering af Adminium åbner den; intet fra siden er blevet kørt."
+  },
+  "accounts": {
+    "notice": {
+      "connectedTitle": "{person} forbandt en konto",
+      "connectedBody": "{person} er nu forbundet til {provider} som {account}.",
+      "refusedTitle": "{provider} afviste denne servers app",
+      "refusedBody": "Tjek klient-id og hemmelighed gemt for {provider}. Ingen behøver at forbinde igen: Forbindelserne fortsætter, når appen bliver accepteret."
+    }
   }
 }

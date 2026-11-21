@@ -28,5 +28,13 @@
   "tooOld": {
     "title": "Diese Seite braucht ein neueres Adminium",
     "body": "Die Seite dieses Add-ons wurde für eine neuere Version von Adminium gebaut als diese. Ein Update von Adminium öffnet sie; von der Seite wurde nichts ausgeführt."
+  },
+  "accounts": {
+    "notice": {
+      "connectedTitle": "{person} hat ein Konto verbunden",
+      "connectedBody": "{person} ist jetzt als {account} mit {provider} verbunden.",
+      "refusedTitle": "{provider} hat die App dieses Servers abgelehnt",
+      "refusedBody": "Prüfen Sie die für {provider} gespeicherte Client-ID und das Secret. Niemand muss sich neu verbinden: Die Verbindungen laufen weiter, sobald die App akzeptiert wird."
+    }
   }
 }

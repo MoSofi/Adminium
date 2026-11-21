@@ -62,6 +62,10 @@ export const SENSITIVE_QUERY_PARAMS: readonly string[] = [
   // with a 400, but the request is logged before the refusal. It travels in
   // the `x-adminium-code` header, which `REDACT_PATHS` covers.
   'code',
+  // An OAuth sign-in coming back (`routes/connect-door`): the state opens the
+  // flow for whoever also holds the browser's cookie, and is no one's to read in a log.
+  'state',
+  'session_state',
 ];
 
 const SENSITIVE_LOWER = new Set(SENSITIVE_QUERY_PARAMS.map((name) => name.toLowerCase()));

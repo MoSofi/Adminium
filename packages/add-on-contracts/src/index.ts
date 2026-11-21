@@ -75,6 +75,10 @@ export {
   type BuiltinNavGroupKey,
   type ConnectKind,
   type I18nMessage,
+  CONNECT_ACCOUNTS,
+  OAUTH_RESERVED_PARAMS,
+  OAUTH_TENANT,
+  OAUTH_TENANT_SLOT,
 } from './add-on-block.js';
 
 export {

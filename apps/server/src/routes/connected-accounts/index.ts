@@ -1,0 +1,348 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * The staff doors of connected accounts.
+ *
+ * ─── ON A ROW (`/connected-accounts…`) ──────────────────────────────────────
+ * One rule, asked on every route, as the person's own role reaches the row:
+ *
+ *   read the state         read on the row
+ *   connect, reconnect     `accounts:<app>:connect` and update on the row
+ *   disconnect             `accounts:<app>:disconnect` and update on the row
+ *   send a link            `accounts:<app>:send-link` and read on the row;
+ *                          it goes to the row's own address, never a typed one
+ *   copy a link            `accounts:<app>:send-link` and update on the row
+ *
+ * So a front desk that reads the team sends links and copies none, an owner
+ * does both, and a specialist reaches only their own row. A row a person does
+ * not reach answers as one that is not there. An API key acts for nobody here.
+ *
+ * ─── ON THE INSTALL (`/add-ons/:key/connect/…`) ─────────────────────────────
+ * The app registration (client id and secret) and install-level accounts are
+ * `manifests.manage`, like every other add-on connection.
+ */
+import { auditRepo, manifestsRepo, type CredentialCrypto, type MetaDb } from '@adminium/meta';
+import type { FastifyRequest } from 'fastify';
+import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import { z } from 'zod';
+
+import { OAUTH_TENANT } from '@adminium/add-on-contracts';
+
+import { audited } from '../../audit/coverage.js';
+import { accountSpecOf, callbackPath, type AppRegistration } from '../../connected-accounts/spec.js';
+import { ConnectRefusedError, parseAddOn, type AccountTable, type ConnectedAccounts } from '../../connected-accounts/service.js';
+import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
+import { forwardedOf } from '../../forms/reach.js';
+import { installOnConnection, requireInstall, selectorOf } from '../../installs/resolve.js';
+import { appAccountsPermission, PERMISSIONS } from '../../rbac/permissions.js';
+
+const rowRef = z.object({
+  connection: z.string().min(1).max(36),
+  table: z.string().min(1).max(128),
+  row: z.string().min(1).max(191),
+});
+const withAddOn = rowRef.extend({ addOn: z.string().regex(/^[a-z][a-z0-9-]{1,79}$/) });
+const linkBody = rowRef.extend({ copy: z.boolean().optional() });
+const addOnKey = z.object({ key: z.string().min(1).max(160) });
+const accountParams = addOnKey.extend({ id: z.string().min(1).max(36) });
+
+const registrationBody = z
+  .object({
+    clientId: z.string().min(1).max(512),
+    /** Left out: the saved secret stays. */
+    clientSecret: z.string().min(1).max(4096).optional(),
+    /** The provider's directory, for a registration kept to one. Null clears it. */
+    tenant: z.string().regex(OAUTH_TENANT).nullable().optional(),
+  })
+  .strict();
+
+const accountDto = z.object({
+  id: z.string(),
+  provider: z.string(),
+  providerName: z.string(),
+  /** `setup` is the install's: the provider refused its app, and the person has nothing to do. */
+  state: z.enum(['connecting', 'connected', 'partial', 'reconnect', 'disconnecting', 'setup']),
+  since: z.number(),
+  address: z.string().nullable(),
+  /** The connected address is not the one on the row: shown, not refused. */
+  addressDiffers: z.boolean(),
+  /** The provider will end this grant on this date (an app still in testing). */
+  grantEndsAt: z.number().nullable(),
+});
+
+const rowReply = z.object({
+  accounts: z.array(accountDto),
+  providers: z.array(z.object({ key: z.string(), name: z.string() })),
+  reach: z.enum(['cannot-connect', 'poll-only', 'push']),
+  may: z.object({ connect: z.boolean(), sendLink: z.boolean(), copyLink: z.boolean(), disconnect: z.boolean() }),
+});
+
+const installReply = z.object({
+  key: z.string(),
+  per: z.enum(['install', 'row']),
+  registered: z.boolean(),
+  clientId: z.string().nullable(),
+  tenant: z.string().nullable(),
+  /** The address to register at the provider. Null until this server knows its public address. */
+  redirectUri: z.string().nullable(),
+  /** The public address moved since the registration was saved: the provider needs the new redirect address. */
+  redirectMoved: z.boolean(),
+  reach: z.enum(['cannot-connect', 'poll-only', 'push']),
+  /** `secret-refused`: the provider refused the app. `cannot-read-keys`: sealed under another server secret. */
+  install: z.enum(['ready', 'not-set-up', 'secret-refused', 'cannot-read-keys']),
+  accounts: z.number(),
+});
+
+export interface ConnectedAccountRoutesDeps {
+  meta: MetaDb;
+  crypto: CredentialCrypto;
+  accounts: ConnectedAccounts;
+  /** The row as this person reaches it, under their row limits, with its canonical key; null when they do not. */
+  reachedRow(request: FastifyRequest, connectionId: string, table: string, row: string, action: 'read' | 'update'): Promise<{ rowKey: string } | null>;
+}
+
+function personId(request: FastifyRequest): string {
+  if (request.apiKeyPrincipal != null) throw new ForbiddenError('A connected account is handled by a signed-in person, never with an API key.', 'FORBIDDEN', { reason: 'api-key' });
+  const id = request.user?.id;
+  if (id === undefined) throw new UnauthorizedError();
+  return id;
+}
+
+function asRefusal(error: unknown): never {
+  if (error instanceof ConnectRefusedError) throw new ValidationFailedError(error.message, { reason: error.code });
+  throw error;
+}
+
+export function connectedAccountRoutes(deps: ConnectedAccountRoutesDeps): FastifyPluginAsyncZod {
+  const { meta, accounts } = deps;
+  const manifests = manifestsRepo(meta, deps.crypto);
+  const audit = auditRepo(meta);
+
+  /** The row's table, and the row as this person reaches it for `action`. A row out of reach is not there. */
+  async function reach(request: FastifyRequest, input: z.infer<typeof rowRef>, action: 'read' | 'update'): Promise<{ table: AccountTable; rowKey: string }> {
+    const missing = () => new NotFoundError('No such record.');
+    const table = await accounts.tableOf(input.connection, input.table);
+    if (table === null) throw missing();
+    if (!(await request.can(`table:${input.connection}:${input.table}:read`))) throw missing();
+    if (action === 'update' && !(await request.can(`table:${input.connection}:${input.table}:update`))) throw new ForbiddenError('You may not change this record.', 'TABLE_FORBIDDEN');
+    const reached = await deps.reachedRow(request, input.connection, input.table, input.row, action);
+    if (reached === null) throw missing();
+    return { table, rowKey: reached.rowKey };
+  }
+
+  const holds = (request: FastifyRequest, table: AccountTable, action: 'connect' | 'send-link' | 'disconnect') => request.can(appAccountsPermission(table.appKey, action));
+
+  async function need(request: FastifyRequest, table: AccountTable, action: 'connect' | 'send-link' | 'disconnect'): Promise<void> {
+    if (!(await holds(request, table, action))) throw new ForbiddenError('Your role may not do this.', 'FORBIDDEN', { action });
+  }
+
+  const record = (request: FastifyRequest, action: string, after: Record<string, unknown>) =>
+    audit.append({ actorKind: 'user', actorId: request.user?.id ?? null, actorLabel: request.user?.email ?? 'unknown', category: 'add-on', action, changes: { after } });
+
+  return async (app) => {
+    app.get('/connected-accounts', { preHandler: app.requireAuth, schema: { querystring: rowRef, response: { 200: rowReply } } }, async (request) => {
+      personId(request);
+      const input = request.query;
+      const { table, rowKey } = await reach(request, input, 'read');
+      const target = { connectionId: input.connection, tableName: input.table, rowKey };
+      const row = await accountsRow(accounts, target);
+      const onFile = accounts.personOf(row, table.rule).address?.toLowerCase() ?? null;
+      const providers: { key: string; name: string }[] = [];
+      const names = new Map<string, { key: string; name: string }>();
+      for (const key of table.rule.from) {
+        const install = await installOnConnection(manifests, key, input.connection);
+        const manifest = install === null ? null : parseAddOn(install.document);
+        if (install === null || manifest === null) continue;
+        const named = { key, name: manifest.name };
+        providers.push(named);
+        names.set(install.row.id, named);
+      }
+      const list = [];
+      for (const account of await accounts.repo.forTarget(target)) {
+        const refused = (await accounts.repo.refusedOf(account.manifestId)) !== null;
+        const state: z.infer<typeof accountDto>['state'] = account.state === 'disconnecting' ? account.state : refused ? 'setup' : account.hasTokens ? account.state : 'reconnect';
+        const named = names.get(account.manifestId);
+        list.push({
+          id: account.id,
+          provider: named?.key ?? '',
+          providerName: named?.name ?? '',
+          state,
+          since: account.stateSince,
+          address: account.address,
+          addressDiffers: onFile !== null && account.address !== null && account.address.toLowerCase() !== onFile,
+          grantEndsAt: account.refreshExpiresAt,
+        });
+      }
+      const canUpdate = (await request.can(`table:${input.connection}:${input.table}:update`)) && (await deps.reachedRow(request, input.connection, input.table, input.row, 'update')) !== null;
+      const [connect, sendLink, disconnect] = await Promise.all([holds(request, table, 'connect'), holds(request, table, 'send-link'), holds(request, table, 'disconnect')]);
+      return {
+        accounts: list,
+        providers,
+        reach: await accounts.reachNow(forwardedOf(request)),
+        may: { connect: connect && canUpdate, sendLink, copyLink: sendLink && canUpdate, disconnect: disconnect && canUpdate },
+      };
+    });
+
+    /** Connect or reconnect, now, in this browser: a short link the page opens at once. */
+    app.post('/connected-accounts/connect', { preHandler: app.requireAuth, config: { audit: audited('rbac') }, schema: { body: withAddOn, response: { 200: z.object({ url: z.string() }) } } }, async (request) => {
+      const by = personId(request);
+      const input = request.body;
+      const { table, rowKey } = await reach(request, input, 'update');
+      await need(request, table, 'connect');
+      const target = { connectionId: input.connection, tableName: input.table, rowKey };
+      const minted = await accounts.linkForRow(target, table, { createdBy: by, forwarded: forwardedOf(request), self: true, only: input.addOn }).catch(asRefusal);
+      await record(request, 'connected-account.connect-started', { addOn: input.addOn, table: input.table, row: rowKey });
+      return { url: minted.url };
+    });
+
+    /** Sends a link to the address on the row, or hands it back to someone who may copy it. */
+    app.post(
+      '/connected-accounts/link',
+      { preHandler: app.requireAuth, config: { audit: audited('rbac') }, schema: { body: linkBody, response: { 200: z.object({ sentTo: z.string().nullable(), url: z.string().nullable() }) } } },
+      async (request) => {
+        const by = personId(request);
+        const input = request.body;
+        const { table, rowKey } = await reach(request, input, input.copy === true ? 'update' : 'read');
+        await need(request, table, 'send-link');
+        const target = { connectionId: input.connection, tableName: input.table, rowKey };
+        if (input.copy === true) {
+          const minted = await accounts.linkForRow(target, table, { createdBy: by, forwarded: forwardedOf(request) }).catch(asRefusal);
+          await record(request, 'connected-account.link-copied', { table: input.table, row: rowKey });
+          return { sentTo: null, url: minted.url };
+        }
+        const sent = await accounts.sendLink(target, table, { createdBy: by, forwarded: forwardedOf(request) }).catch(asRefusal);
+        await record(request, 'connected-account.link-sent', { table: input.table, row: rowKey });
+        return { sentTo: sent.sentTo, url: null };
+      },
+    );
+
+    app.post(
+      '/connected-accounts/disconnect',
+      {
+        preHandler: app.requireAuth,
+        config: { audit: audited('rbac') },
+        schema: { body: withAddOn, response: { 200: z.object({ removed: z.number(), incomplete: z.boolean(), revoked: z.boolean().nullable() }) } },
+      },
+      async (request) => {
+        personId(request);
+        const input = request.body;
+        const { table, rowKey } = await reach(request, input, 'update');
+        await need(request, table, 'disconnect');
+        const target = { connectionId: input.connection, tableName: input.table, rowKey };
+        const install = await installOnConnection(manifests, input.addOn, input.connection);
+        const account = install === null ? null : await accounts.repo.onTarget(install.row.id, target);
+        if (account === null) throw new NotFoundError('No connected account here.');
+        const ended = await accounts.end(account.id);
+        if (ended === null) throw new NotFoundError('No connected account here.');
+        await record(request, 'connected-account.disconnected', { addOn: input.addOn, table: input.table, row: rowKey, ...ended });
+        return ended;
+      },
+    );
+
+    // ─── The install ────────────────────────────────────────────────────────
+
+    const installOf = async (request: FastifyRequest, key: string) => {
+      const installed = await requireInstall(manifests, key, selectorOf(request), { kind: 'add-on' });
+      const manifest = parseAddOn(installed.document);
+      const spec = manifest === null ? null : accountSpecOf(manifest);
+      if (spec === null) throw new ValidationFailedError(`"${key}" does not keep connected accounts.`, { reason: 'no-accounts' });
+      return { installed, spec };
+    };
+
+    app.get(
+      '/add-ons/:key/connect/accounts',
+      { preHandler: app.rbac.require(PERMISSIONS.manifestsManage), schema: { params: addOnKey, response: { 200: installReply } } },
+      async (request) => {
+        const { installed, spec } = await installOf(request, request.params.key);
+        let registration: AppRegistration | null = null;
+        let keys = true;
+        const status = await manifests.credentialStatus(installed.row.id);
+        if (status !== null) {
+          const held = await accounts.installOf(installed.row.id);
+          registration = held?.registration ?? null;
+          keys = registration !== null;
+        }
+        const refused = await accounts.repo.refusedOf(installed.row.id);
+        const redirectUri = await accounts.redirectUri(spec.key);
+        return {
+          key: spec.key,
+          per: spec.per,
+          registered: registration !== null,
+          clientId: registration?.clientId ?? null,
+          tenant: registration?.tenant ?? null,
+          redirectUri,
+          redirectMoved: registration?.redirectOrigin != null && redirectUri !== null && !redirectUri.startsWith(`${registration.redirectOrigin}/`),
+          reach: await accounts.reachNow(forwardedOf(request)),
+          install: status === null ? ('not-set-up' as const) : !keys ? ('cannot-read-keys' as const) : refused !== null ? ('secret-refused' as const) : ('ready' as const),
+          accounts: (await accounts.repo.forInstall(installed.row.id)).length,
+        };
+      },
+    );
+
+    app.put(
+      '/add-ons/:key/connect/app',
+      { preHandler: app.rbac.require(PERMISSIONS.manifestsManage), config: { audit: audited('rbac') }, schema: { params: addOnKey, body: registrationBody, response: { 200: z.object({ key: z.string(), redirectPath: z.string() }) } } },
+      async (request) => {
+        const { installed, spec } = await installOf(request, request.params.key);
+        const { clientId, clientSecret, tenant } = request.body;
+        let secret = clientSecret;
+        let keptTenant: string | null = null;
+        if (secret === undefined || tenant === undefined) {
+          const held = await accounts.installOf(installed.row.id);
+          secret ??= held?.registration?.clientSecret;
+          keptTenant = held?.registration?.tenant ?? null;
+        }
+        if (secret === undefined) throw new ValidationFailedError('Enter the client secret.', { reason: 'no-secret' });
+        const redirectUri = await accounts.redirectUri(spec.key);
+        const next: AppRegistration = {
+          oauthApp: 1,
+          clientId,
+          clientSecret: secret,
+          tenant: tenant === undefined ? keptTenant : tenant,
+          // Saved with the address it was registered for, so a later move of the public address can say so.
+          redirectOrigin: redirectUri === null ? null : new URL(redirectUri).origin,
+        };
+        await manifests.setCredential(installed.row.id, { kind: 'oauth2', secret: next });
+        // A new secret is a new answer: the provider is asked again at the next refresh.
+        await accounts.repo.clearRefused(installed.row.id);
+        await record(request, 'add-on.app-registered', { key: spec.key, clientId, tenant: next.tenant, secretChanged: clientSecret !== undefined });
+        return { key: spec.key, redirectPath: callbackPath(spec.key) };
+      },
+    );
+
+    app.post(
+      '/add-ons/:key/connect/accounts/link',
+      { preHandler: app.rbac.require(PERMISSIONS.manifestsManage), config: { audit: audited('rbac') }, schema: { params: addOnKey, response: { 200: z.object({ url: z.string() }) } } },
+      async (request) => {
+        const by = personId(request);
+        const { installed, spec } = await installOf(request, request.params.key);
+        const minted = await accounts.linkForInstall(installed.row.id, spec.key, { createdBy: by, forwarded: forwardedOf(request) }).catch(asRefusal);
+        await record(request, 'connected-account.connect-started', { addOn: spec.key, install: true });
+        return { url: minted.url };
+      },
+    );
+
+    app.post(
+      '/add-ons/:key/connect/accounts/:id/disconnect',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        config: { audit: audited('rbac') },
+        schema: { params: accountParams, response: { 200: z.object({ removed: z.number(), incomplete: z.boolean(), revoked: z.boolean().nullable() }) } },
+      },
+      async (request) => {
+        personId(request);
+        const { installed, spec } = await installOf(request, request.params.key);
+        const account = await accounts.repo.find(request.params.id);
+        if (account === null || account.manifestId !== installed.row.id) throw new NotFoundError('No connected account here.');
+        const ended = await accounts.end(account.id);
+        if (ended === null) throw new NotFoundError('No connected account here.');
+        await record(request, 'connected-account.disconnected', { addOn: spec.key, account: account.id, ...ended });
+        return ended;
+      },
+    );
+  };
+}
+
+/** The row, read as the engine, for what its rule names. */
+function accountsRow(accounts: ConnectedAccounts, target: { connectionId: string; tableName: string; rowKey: string }) {
+  return accounts.readRow(target);
+}

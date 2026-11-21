@@ -27,6 +27,7 @@ import { addOnNeedsIssues, addOnsSchema, requiresAddOn, type AddOnNeeds } from '
 import { NAV_LINK_SCREENS, RECORD_ADDRESS_MESSAGE, SIDE_PATH_MESSAGE, isRecordAddress, isSidePath, railIssues } from './rail.js';
 import { addOnModuleIssues, moduleIdSchema, moduleIssues, modulesSchema, optionalShapeAddOns, roleNamesSchema, shapeIsOptional, withoutModules } from './modules.js';
 import { bookingIssues, bookingSchema } from './booking.js';
+import { connectedAccountsIssues, connectedAccountsSchema, type ConnectedAccountsRule } from './connected-accounts.js';
 import { occupiesIssues, occupiesSchema } from './occupies.js';
 import { columnHistorySchema, removalIssues, removalSchema } from './removal.js';
 import { capacityIssues, capacitySchema, isLegacyCapacity, kindOf, rulesOf, viaIndexIssues, type Capacity } from './capacity.js';
@@ -1268,6 +1269,8 @@ export const requiredTableSchema = z
     booking: bookingSchema.optional(),
     /** A row takes a resource for a time: no two overlap, and it lies within the resource's hours (see `occupies.ts`). */
     occupies: occupiesSchema.optional(),
+    /** Each row may connect its own outside account through the named add-ons (see `connected-accounts.ts`). */
+    connectedAccounts: connectedAccountsSchema.optional(),
     /** States, the moves between them, locks and no-delete (see `states.ts`). */
     states: statesSchema.optional(),
     /**
@@ -3226,6 +3229,9 @@ export function appReferenceIssues(
       // The late flag is Adminium's to set.
       if (table.booking.cancel?.flag !== undefined) decide(table.ref, table.booking.cancel.flag);
     }
+    if (table.connectedAccounts !== undefined) {
+      out.push(...connectedAccountsIssues(table, table.connectedAccounts, index, new Set([...(m.addOns?.requires ?? []), ...(m.addOns?.suggests ?? [])].map((need) => need.key)), at));
+    }
     if (table.occupies !== undefined) {
       out.push(...occupiesIssues(table, table.occupies, index, at));
       // One lock a write: a table's rows are placed by one of the three rules, never two.
@@ -3897,6 +3903,7 @@ export interface RequiredTableShape {
   capacity?: Capacity | undefined;
   booking?: z.infer<typeof bookingSchema> | undefined;
   occupies?: z.infer<typeof occupiesSchema> | undefined;
+  connectedAccounts?: ConnectedAccountsRule | undefined;
   states?: States | undefined;
   builtOn?: string | undefined;
   postings?: z.infer<typeof postingsSchema> | undefined;

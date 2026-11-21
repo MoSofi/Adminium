@@ -156,6 +156,18 @@ const PAYMENT_ROUTES: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * A row's connected account, from their app's own screens: a specialist
+ * connecting their calendar, a front desk sending a link. Each route asks the
+ * person's rights on that row and the app's named action.
+ */
+const ACCOUNT_ROUTES: ReadonlySet<string> = new Set([
+  'GET /connected-accounts',
+  'POST /connected-accounts/connect',
+  'POST /connected-accounts/link',
+  'POST /connected-accounts/disconnect',
+]);
+
+/**
  * Whether a screens-only person may make this API call, judged by the ROUTE
  * it matched (`/api/v1/connections/:id/schema`) and its decoded parameters —
  * never by the request line, which can spell the same route another way
@@ -216,6 +228,7 @@ export function allowedForScreensOnly(
   if (FILE_ROUTES.has(`${method} ${rest}`)) return true;
   if (CONSENT_ROUTES.has(`${method} ${rest}`)) return true;
   if (PAYMENT_ROUTES.has(`${method} ${rest}`)) return true;
+  if (ACCOUNT_ROUTES.has(`${method} ${rest}`)) return true;
   // The public API has its own gate, and a kiosk's staff-bound key rides it.
   if (rest.startsWith('/public/')) return true;
   if (rest === '/me' || rest.startsWith('/me/')) return true;

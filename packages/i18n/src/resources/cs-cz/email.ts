@@ -1029,5 +1029,21 @@ export default {
     "object": "Vznést námitku",
     "questions": "Máte otázky? Napište na {contact}. {who}.",
     "keptBy": "Uchovává {who}."
+  },
+  "connectLink": {
+    "name": "Připojení účtu",
+    "subject": "{business} vás žádá o připojení účtu",
+    "preheader": "Odkaz platí {days} dní.",
+    "heading": "Připojte svůj účet",
+    "intro": "Dobrý den, {name}, {business} vás žádá o připojení vašeho vlastního účtu. Použijte prosím účet, který je váš.",
+    "action": "Připojit můj účet",
+    "notice": "Odkaz funguje jednou a platí {days} dní. Pokud jste ho nečekali, můžete tento e-mail ignorovat: dokud se nepřihlásíte, nic se nepřipojí."
+  },
+  "accountConnected": {
+    "name": "Účet připojen",
+    "subject": "Váš účet byl připojen u {business}",
+    "heading": "Váš účet byl připojen",
+    "intro": "Dobrý den, {name}, služba {provider} je teď u {business} připojena jako {account}.",
+    "notice": "Pokud jste to nebyli vy, ihned to sdělte {business}."
   }
 } as const;

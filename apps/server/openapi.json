@@ -122688,6 +122688,646 @@
         }
       }
     },
+    "/api/v1/connected-accounts": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "query",
+            "name": "connection",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "in": "query",
+            "name": "table",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            },
+            "in": "query",
+            "name": "row",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accounts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "provider": {
+                            "type": "string"
+                          },
+                          "providerName": {
+                            "type": "string"
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "connecting",
+                              "connected",
+                              "partial",
+                              "reconnect",
+                              "disconnecting",
+                              "setup"
+                            ]
+                          },
+                          "since": {
+                            "type": "number"
+                          },
+                          "address": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "addressDiffers": {
+                            "type": "boolean"
+                          },
+                          "grantEndsAt": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "provider",
+                          "providerName",
+                          "state",
+                          "since",
+                          "address",
+                          "addressDiffers",
+                          "grantEndsAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "providers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "reach": {
+                      "type": "string",
+                      "enum": [
+                        "cannot-connect",
+                        "poll-only",
+                        "push"
+                      ]
+                    },
+                    "may": {
+                      "type": "object",
+                      "properties": {
+                        "connect": {
+                          "type": "boolean"
+                        },
+                        "sendLink": {
+                          "type": "boolean"
+                        },
+                        "copyLink": {
+                          "type": "boolean"
+                        },
+                        "disconnect": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "connect",
+                        "sendLink",
+                        "copyLink",
+                        "disconnect"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "accounts",
+                    "providers",
+                    "reach",
+                    "may"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connected-accounts/connect": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connection": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "row": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "addOn": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                  }
+                },
+                "required": [
+                  "connection",
+                  "table",
+                  "row",
+                  "addOn"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "url"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connected-accounts/link": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connection": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "row": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "copy": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "connection",
+                  "table",
+                  "row"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sentTo": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "url": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "sentTo",
+                    "url"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connected-accounts/disconnect": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connection": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "row": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "addOn": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                  }
+                },
+                "required": [
+                  "connection",
+                  "table",
+                  "row",
+                  "addOn"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "removed": {
+                      "type": "number"
+                    },
+                    "incomplete": {
+                      "type": "boolean"
+                    },
+                    "revoked": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "removed",
+                    "incomplete",
+                    "revoked"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/connect/accounts": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "per": {
+                      "type": "string",
+                      "enum": [
+                        "install",
+                        "row"
+                      ]
+                    },
+                    "registered": {
+                      "type": "boolean"
+                    },
+                    "clientId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "tenant": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "redirectUri": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "redirectMoved": {
+                      "type": "boolean"
+                    },
+                    "reach": {
+                      "type": "string",
+                      "enum": [
+                        "cannot-connect",
+                        "poll-only",
+                        "push"
+                      ]
+                    },
+                    "install": {
+                      "type": "string",
+                      "enum": [
+                        "ready",
+                        "not-set-up",
+                        "secret-refused",
+                        "cannot-read-keys"
+                      ]
+                    },
+                    "accounts": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "per",
+                    "registered",
+                    "clientId",
+                    "tenant",
+                    "redirectUri",
+                    "redirectMoved",
+                    "reach",
+                    "install",
+                    "accounts"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/connect/app": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "clientSecret": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  },
+                  "tenant": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,126}[A-Za-z0-9])?$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "clientId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "redirectPath": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "redirectPath"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/connect/accounts/link": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "url"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/connect/accounts/{id}/disconnect": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "removed": {
+                      "type": "number"
+                    },
+                    "incomplete": {
+                      "type": "boolean"
+                    },
+                    "revoked": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "removed",
+                    "incomplete",
+                    "revoked"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/payments/attempts/{id}/refund": {
       "get": {
         "parameters": [

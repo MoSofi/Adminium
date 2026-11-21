@@ -28,5 +28,13 @@
   "tooOld": {
     "title": "此页面需要更新版本的 Adminium",
     "body": "此附加组件的页面是为比当前更新的 Adminium 版本构建的。更新 Adminium 后即可打开；页面中的任何内容都未运行。"
+  },
+  "accounts": {
+    "notice": {
+      "connectedTitle": "{person} 连接了一个账户",
+      "connectedBody": "{person} 现已以 {account} 连接到 {provider}。",
+      "refusedTitle": "{provider} 拒绝了此服务器的应用",
+      "refusedBody": "请检查为 {provider} 保存的客户端 ID 和密钥。无需任何人重新连接：应用被接受后，连接会自动恢复。"
+    }
   }
 }
