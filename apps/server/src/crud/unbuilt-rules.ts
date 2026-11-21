@@ -484,6 +484,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'automations.words',
   // A customer's review of a row, kept by an add-on (routes/public review, reviews/); its tables; an app's role held to its app's rows.
   'table.review',
+  // Who proved who they are on a reviewed row: a row's own link reviews only a proved one (routes/public review, reviews/take.ts).
+  'table.review.proved',
   'addOn.reviews',
   'appGrants.appColumn',
 ];
