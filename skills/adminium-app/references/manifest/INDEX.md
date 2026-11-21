@@ -58,7 +58,7 @@
 | `references/manifest/pages--navgroups.md` | Pages — navGroups | 789 |
 | `references/manifest/pages--a-page-kept-off-the-sidebar.md` | Pages — A page kept off the sidebar | 1236 |
 | `references/manifest/pages--navlinks.md` | Pages — navLinks | 2645 |
-| `references/manifest/frontends.md` | Frontends | 6174 |
+| `references/manifest/frontends.md` | Frontends | 6600 |
 | `references/manifest/whose-a-row-is.md` | Whose a row is | 7636 |
 | `references/manifest/whose-a-row-is-2.md` | Whose a row is (part 2) | 7680 |
 | `references/manifest/whose-a-row-is-3.md` | Whose a row is (part 3) | 1960 |

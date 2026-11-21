@@ -109,7 +109,7 @@ function scopeWord(scope: string): string {
 
 /**
  * The permissions asked for and not given. A reply that names no scopes at all
- * means "what you asked" (RFC 6749 §5.1).
+ * means "what you asked", as OAuth 2.0's token response defines it (RFC 6749).
  */
 export function missingScopes(required: readonly string[], granted: readonly string[] | null): string[] {
   if (granted === null) return [];
