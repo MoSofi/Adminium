@@ -124,7 +124,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/connected-accounts/*` | 4 | A person’s own outside account on a row of an app (a team member’s calendar): its state, connecting it, a one-time link sent to the address on the row or copied, and ending the connection. Each route asks the person’s reach on that row and the app’s named action, and an API key acts for nobody here |
 | `/api/v1/connections/*` | 30 | Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation |
 | `/api/v1/consent/*` | 7 | Consent and the do-not-email list — the list itself (search, add, remove), and a record's consent: its standing per purpose, its history, recording a yes, "Replied" and "They said no" |
-| `/api/v1/data/*` | 25 | Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references |
+| `/api/v1/data/*` | 26 | Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references |
 | `/api/v1/designer/*` | 2 | Adminium Designer on a server people reach — whether it is allowed and switched on, and the switch itself (a Super Admin, with their password). The Designer’s own routes exist only while the server runs it |
 | `/api/v1/documents/*` | 14 | Documents drawn from your own records — the register of what was issued, the bytes behind each one, and the mappings that say which columns make which document. A document keeps a frozen copy of what it was drawn from, so editing or deleting the source row never changes an invoice somebody already has. Reading one needs read access to every table its mapping uses; a caller without all of them is told the document exists and not what is in it. |
 | `/api/v1/email/*` | 9 | The marketing mail settings — each sender’s DKIM key and DNS checks, where replies go, and the addresses a mail service calls to report bounces and spam (no reply ever carries a key or a secret) |
@@ -524,6 +524,7 @@ PATCH /api/v1/data/{connectionId}/{table}/{recordId}
 DELETE /api/v1/data/{connectionId}/{table}/{recordId}
 GET /api/v1/data/{connectionId}/{table}/availability
 GET /api/v1/data/{connectionId}/{table}/booking-slots
+GET /api/v1/data/{connectionId}/{table}/public-cap-reached
 GET /api/v1/data/{connectionId}/{table}/capacity-counts
 GET /api/v1/data/{connectionId}/{table}/{recordId}/nightly
 GET /api/v1/data/{connectionId}/{table}/{recordId}/links/{relationId}
