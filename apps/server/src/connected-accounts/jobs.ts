@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The engine's one tick and one job kind for connected accounts (cT17).
+ * The engine's one tick and one job kind for connected accounts.
  *
  * Nothing here is registered per add-on: the runtime is rebuilt on every
  * install, update and switch, and a schedule or job kind cannot be registered

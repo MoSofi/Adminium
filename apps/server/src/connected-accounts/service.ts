@@ -419,7 +419,7 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
     /** The row, read as the engine. */
     readRow: (target: AccountTarget) => deps.rows.read(target.connectionId, target.tableName, target.rowKey),
 
-    /** A later piece's step at the end of a connection (T08: stop channels, delete future events). */
+    /** A later piece's step at the end of a connection (stopping channels, deleting future events). */
     addCleanup(cleanup: AccountCleanup): void {
       cleanups.push(cleanup);
     },

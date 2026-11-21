@@ -3,15 +3,15 @@
  * THE CALENDAR FILE: one visit as an invitation, a cancellation or a line of a
  * feed, and the two links that add it to Google or Outlook.
  *
- * Times are UTC instants (RFC 5545 §3.3.5, form 2). A booking is one visit that
+ * Times are UTC instants (the UTC form of RFC 5545). A booking is one visit that
  * never repeats, so a UTC time is exact on both sides of a clock change, needs
  * no `VTIMEZONE`, and every calendar shows it in its reader's own zone.
  *
  * An invitation is METHOD:REQUEST with the studio as ORGANIZER and the guest as
  * the one ATTENDEE, already accepted and asked for no reply. A cancellation is
  * METHOD:CANCEL with the same UID and a SEQUENCE no lower than the last sent
- * (RFC 5546 §3.2.5). How Gmail, Outlook and Apple Mail treat either is not
- * something this file can promise: T16's walk proves it.
+ * (RFC 5546's CANCEL). How Gmail, Outlook and Apple Mail treat either is not
+ * something this file can promise.
  *
  * Everything put in a line goes through {@link icsText} (escaped) and
  * {@link foldLine} (75 octets, never inside a UTF-8 character), so a value
@@ -36,19 +36,19 @@ export interface CalendarEvent {
 
 const CRLF = '\r\n';
 const PRODID = '-//Adminium//Bookings//EN';
-/** The most octets a line holds before it is folded (RFC 5545 §3.1). */
+/** The most octets a line holds before it is folded (RFC 5545's content lines). */
 const LINE_OCTETS = 75;
 
 /** A value's control characters gone: a line break is the one kept, and only {@link icsText} spells it. */
 // eslint-disable-next-line no-control-regex -- the control characters are what this removes
 const withoutControls = (value: string): string => value.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ');
 
-/** A TEXT value (RFC 5545 §3.3.11). */
+/** A TEXT value, escaped as RFC 5545 asks. */
 export function icsText(value: string): string {
   return withoutControls(value).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
 }
 
-/** A parameter value, quoted: a double quote has no spelling there (RFC 5545 §3.2), and neither has a line break. */
+/** A parameter value, quoted: a double quote has no spelling there (RFC 5545's parameters), and neither has a line break. */
 export function icsParam(value: string): string {
   return `"${withoutControls(value).replace(/\n/g, ' ').replace(/"/g, "'")}"`;
 }
@@ -108,7 +108,7 @@ const file = (lines: readonly string[]): string => `${lines.map(foldLine).join(C
 /**
  * An invitation, or its cancellation. Null when either address is not one
  * plain address: an ORGANIZER and an ATTENDEE are what make it an invitation
- * (RFC 5546 §3.2.2), so there is no file without them.
+ * (RFC 5546's REQUEST), so there is no file without them.
  */
 export function invitationFile(input: { method: CalendarMethod; event: CalendarEvent; stamp: Date; organizer: { name: string; email: string }; attendee: string }): string | null {
   const organizer = mailto(input.organizer.email);
@@ -143,7 +143,7 @@ export function feedFile(input: { name: string; uid: string; events: readonly Ca
     'CALSCALE:GREGORIAN',
     `X-WR-CALNAME:${icsText(input.name)}`,
     ...input.events.flatMap((event) => [...eventLines(event, input.stamp, 'CONFIRMED'), 'END:VEVENT']),
-    // A calendar holds at least one component (RFC 5545 §3.6): a person with no visits has one that shows nothing.
+    // A calendar holds at least one component (as RFC 5545 requires): a person with no visits has one that shows nothing.
     ...(input.events.length > 0 ? [] : ['BEGIN:VFREEBUSY', `UID:${icsText(input.uid)}`, `DTSTAMP:${icsInstant(input.stamp)}`, 'END:VFREEBUSY']),
     'END:VCALENDAR',
   ]);
