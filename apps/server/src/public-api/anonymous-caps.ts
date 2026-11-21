@@ -164,6 +164,13 @@ export function keySubject(keyId: string): string {
   return `anon-key:${keyId}`;
 }
 
+/** What the desk reads: this table's public creates were refused because everyone's hour through the key was full. */
+export const CAP_REACHED_PURPOSE = 'anonymous-cap-reached';
+
+export function capReachedSubject(connectionId: string, table: string): string {
+  return `anon-cap:${createHmac('sha256', 'cap-reached').update(JSON.stringify([connectionId, table])).digest('hex')}`;
+}
+
 /** Where one visitor's creates through a key are counted: never the address itself, a keyed hash of it. */
 export function ipSubject(key: Buffer, keyId: string, ip: string): string {
   return `anon-ip:${createHmac('sha256', key).update(JSON.stringify([keyId, rateAddress(ip)])).digest('hex')}`;
@@ -204,7 +211,7 @@ export async function chargeAnonymous(
   input: { caps: AnonymousCaps; key: Buffer; keyId: string; connectionId: string; table: string; ref: string; values: Record<string, unknown>; now: number; ip?: string | undefined },
 ): Promise<CapCharge> {
   const { caps } = input;
-  const charges: { subject: string; limit: number; since: number; visitor?: true }[] = [];
+  const charges: { subject: string; limit: number; since: number; visitor?: true; everyone?: true }[] = [];
   // One visitor first, then everyone through the key: a visitor over their own hour never counts as the key's.
   if (input.ip !== undefined) {
     if (caps.perIpHour !== undefined && caps.perIpHour < ANONYMOUS_PER_IP_HOUR) {
@@ -212,7 +219,7 @@ export async function chargeAnonymous(
     }
     charges.push({ subject: ipSubject(input.key, input.keyId, input.ip), limit: ANONYMOUS_PER_IP_HOUR, since: input.now - HOUR_MS });
   }
-  if (caps.perKeyHour !== undefined) charges.push({ subject: keySubject(input.keyId), limit: caps.perKeyHour, since: input.now - HOUR_MS });
+  if (caps.perKeyHour !== undefined) charges.push({ subject: keySubject(input.keyId), limit: caps.perKeyHour, since: input.now - HOUR_MS, everyone: true });
   const perValue = caps.perValue;
   if (perValue !== undefined) {
     for (const column of perValue.columns) {
@@ -237,6 +244,13 @@ export async function chargeAnonymous(
   for (const charge of charges) {
     if ((await repo.sentSince(charge.subject, charge.since, ANONYMOUS_PURPOSE)) > charge.limit) {
       await release();
+      if (charge.everyone === true) {
+        // One mark a minute at most: a flood must not grow the table it is being counted in.
+        const subject = capReachedSubject(input.connectionId, input.table);
+        if ((await repo.sentSince(subject, input.now - 60_000, CAP_REACHED_PURPOSE)) === 0) {
+          await repo.mark({ keyId: input.keyId, ref: input.ref, sessionId: null, subject, purpose: CAP_REACHED_PURPOSE }, input.now);
+        }
+      }
       return { ok: false };
     }
   }

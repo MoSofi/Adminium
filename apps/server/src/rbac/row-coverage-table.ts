@@ -34,6 +34,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'GET /api/v1/calendar-sync/busy': rows('visible', 'A person\'s busy times, read as the system from the table only Adminium keeps, for a row the reader reaches through its row limits.'),
   'POST /api/v1/calendar-sync/row/choices': rows('visible', 'A person\'s calendar choices, on a row the reader may update through its row limits.'),
   'POST /api/v1/calendar-sync/row/sync-now': rows('visible', 'Asks for a read of a person\'s calendar, on a row the reader may update through its row limits.'),
+  'POST /api/v1/calendar-sync/row/demo': rows('visible', 'A demo calendar on a developer\'s or a test\'s server, on a row the reader may update through its row limits.'),
   'GET /api/v1/calendar-sync/clashes': rows('visible', 'Each clash is answered only for a booking the reader reaches through its row limits.'),
   'POST /api/v1/calendar-sync/clashes/keep': rows('visible', 'Keeps a clash on a booking the reader may update through its row limits.'),
   'GET /api/v1/connected-accounts': rows('visible', 'The connected account of a row the person reads, through its row limits.'),

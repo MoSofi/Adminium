@@ -487,6 +487,9 @@ export const bookingSlotsQuery = z
   })
   .strict();
 
+/** Minutes of the last hour in which a public create was refused because the key's hour was full. */
+export const publicCapReachedReply = z.object({ data: z.object({ lastHour: z.number() }) });
+
 export const bookingSlotsReply = z.object({
   data: z.union([
     z.array(

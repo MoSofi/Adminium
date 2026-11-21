@@ -25,6 +25,7 @@ import {
   type DemoCalendarBackend,
   type HookAnswer,
   type HookDelivery,
+  createDemoCalendarBackend,
 } from '@adminium/add-on-contracts';
 import type { ConnectedAccount } from '@adminium/meta';
 
@@ -51,6 +52,15 @@ function factoryOf(module: unknown): CreateCalendarProvider | null {
   if (typeof direct === 'function') return direct as CreateCalendarProvider;
   const viaDefault = ((module as { default?: Record<string, unknown> } | null)?.default ?? null)?.[CALENDAR_PROVIDER_FACTORY];
   return typeof viaDefault === 'function' ? (viaDefault as CreateCalendarProvider) : null;
+}
+
+/**
+ * The built-in demo calendar, only where the server says it is a developer's or
+ * a test's. An npm install run as a service often has no `NODE_ENV` at all, so
+ * unset, `production` and any other spelling get none.
+ */
+export function demoCalendarFor(nodeEnv: string | undefined): DemoCalendarBackend | null {
+  return nodeEnv === 'test' || nodeEnv === 'development' ? createDemoCalendarBackend() : null;
 }
 
 function factoryByKey(deps: CalendarProviderDeps, key: string): CreateCalendarProvider | null {

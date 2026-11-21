@@ -168,6 +168,22 @@ const ACCOUNT_ROUTES: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * A person's calendar from their app's own screens: the desk's busy blocks and clashes, "Keep it", and a person's own
+ * choices and feed link. Each route asks the person's rights on that row, under their row limits (`routes/calendar-sync`,
+ * `routes/calendar-feed`). A busy block is a time and nothing else.
+ */
+const CALENDAR_ROUTES: ReadonlySet<string> = new Set([
+  'GET /calendar-sync/row',
+  'GET /calendar-sync/busy',
+  'POST /calendar-sync/row/choices',
+  'POST /calendar-sync/row/sync-now',
+  'GET /calendar-sync/clashes',
+  'POST /calendar-sync/clashes/keep',
+  'GET /calendar-feed',
+  'POST /calendar-feed/renew',
+]);
+
+/**
  * Whether a screens-only person may make this API call, judged by the ROUTE
  * it matched (`/api/v1/connections/:id/schema`) and its decoded parameters —
  * never by the request line, which can spell the same route another way
@@ -229,6 +245,7 @@ export function allowedForScreensOnly(
   if (CONSENT_ROUTES.has(`${method} ${rest}`)) return true;
   if (PAYMENT_ROUTES.has(`${method} ${rest}`)) return true;
   if (ACCOUNT_ROUTES.has(`${method} ${rest}`)) return true;
+  if (CALENDAR_ROUTES.has(`${method} ${rest}`)) return true;
   // The public API has its own gate, and a kiosk's staff-bound key rides it.
   if (rest.startsWith('/public/')) return true;
   if (rest === '/me' || rest.startsWith('/me/')) return true;

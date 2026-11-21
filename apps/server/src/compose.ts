@@ -439,7 +439,7 @@ import { endPaymentsForRows } from './payments/going-live.js';
 import { pickUpRefunds, registerPaymentsRefundHandler } from './payments/refunds.js';
 import { paymentRefundRoutes } from './routes/payments/refunds.js';
 import { anyLiveOn, paymentAddOnKeys, readerOnlyAddOnKeys, readyInMode } from './payments/ready.js';
-import { CARD_TERMINAL_CONTRACT, CARD_TERMINAL_VERSION, DEMO_PAYMENT_ORIGIN, PAYMENT_MODES, createDemoCalendarBackend, createDemoPaymentBackend, createDemoTerminalBackend, type PaymentMode } from '@adminium/add-on-contracts';
+import { CARD_TERMINAL_CONTRACT, CARD_TERMINAL_VERSION, DEMO_PAYMENT_ORIGIN, PAYMENT_MODES, createDemoPaymentBackend, createDemoTerminalBackend, type PaymentMode } from '@adminium/add-on-contracts';
 import { registerPaymentsSettleHandler } from './payments/webhook.js';
 import { PAYMENTS_SWEEP_PLAN_CRON, PAYMENTS_SWEEP_PLAN_NAME, planSweeps, registerPaymentsSweepHandler } from './payments/sweep.js';
 import { createRowLeftWatch, endLeftPages, registerRowLeftHandler } from './payments/row-left.js';
@@ -449,6 +449,7 @@ import { createConnectedAccounts } from './connected-accounts/service.js';
 import { connectCallbackRoutes, connectDoorRoutes } from './routes/connect-door/index.js';
 import { connectedAccountRoutes } from './routes/connected-accounts/index.js';
 import { calendarDeskRoutes, calendarHookRoutes } from './routes/calendar-sync/index.js';
+import { demoCalendarFor } from './calendar-sync/provider.js';
 import { createCalendarSync, type CalendarSync } from './calendar-sync/service.js';
 import { CALENDAR_DAILY_CRON, CALENDAR_DAILY_NAME, CALENDAR_PLAN_CRON, CALENDAR_PLAN_NAME, CALENDAR_SWEEP_CRON, CALENDAR_SWEEP_NAME, registerCalendarSyncJobs } from './calendar-sync/jobs.js';
 import { paymentActivityRoutes } from './routes/payments/activity.js';
@@ -2214,7 +2215,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       return { view, db, dialect, timezone: (await connectionTenantConfig(meta, connectionId))?.timezone ?? 'UTC' };
     },
     runtime: () => addOnRuntime,
-    demo: process.env['NODE_ENV'] === 'production' ? null : createDemoCalendarBackend(),
+    demo: demoCalendarFor(process.env['NODE_ENV']),
     enqueue: (input) => jobs.enqueue(input),
     publicOrigin: () => storedPublicOrigin(meta),
     reach: async () =>

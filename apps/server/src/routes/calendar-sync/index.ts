@@ -107,6 +107,11 @@ const choicesBody = rowRef
   })
   .strict();
 
+/** A demo calendar for a person's row, with its busy times: what a walk or a contract connects where no outside account exists. */
+const demoBody = rowRef
+  .extend({ busy: z.array(z.object({ start: z.string().datetime(), end: z.string().datetime() })).max(100).optional() })
+  .strict();
+
 const clashReply = z.object({
   clashes: z.array(z.object({ row: z.string(), resource: z.string(), overlapStart: z.number(), overlapEnd: z.number(), kept: z.boolean() })),
 });
@@ -203,6 +208,29 @@ export function calendarDeskRoutes(deps: CalendarDeskDeps): FastifyPluginAsyncZo
         return { ok: true as const };
       },
     );
+
+    /*
+     * THE BUILT-IN DEMO CALENDAR, only on a server that says it is a developer's or a test's (`demoCalendarFor`).
+     * Anywhere else this route does not exist. The same rule as a real connect: update on the person's row.
+     */
+    const demo = sync.demo;
+    if (demo !== null) {
+      app.post(
+        '/calendar-sync/row/demo',
+        { preHandler: app.requireAuth, config: { audit: audited('rbac') }, schema: { hide: true, body: demoBody, response: { 200: z.object({ ok: z.literal(true) }) } } },
+        async (request) => {
+          personId(request);
+          const { busy, ...ref } = request.body;
+          const target = await person(request, ref, 'update');
+          const account = await sync.attachDemo(target);
+          if (account === null) throw new NotFoundError('This row cannot connect a calendar.');
+          if (busy !== undefined) demo.setBusy(account.subject, 'primary', busy.map((one) => ({ allDay: false as const, start: one.start, end: one.end, kind: 'busy' as const })));
+          await sync.readAccount(account.id);
+          await record(request, 'calendar-sync.demo-attached', { table: target.tableName, row: target.rowKey });
+          return { ok: true as const };
+        },
+      );
+    }
 
     app.get(
       '/calendar-sync/clashes',
