@@ -405,6 +405,47 @@ export {
 } from './lead-source.js';
 
 export {
+  BUSY_KINDS,
+  CALENDAR_ANSWER_SCHEMAS,
+  CALENDAR_ERROR_CODES,
+  CALENDAR_PROVIDER_CONTRACT,
+  CALENDAR_PROVIDER_FACTORY,
+  CALENDAR_PROVIDER_VERSION,
+  HOOK_NOTICE_KINDS,
+  calendarError,
+  calendarErrorSchema,
+  guardCalendarProvider,
+  isCalendarError,
+  type BusyInterval as CalendarBusyInterval,
+  type BusyKind,
+  type CalendarAnswer,
+  type CalendarCall,
+  type CalendarEntry,
+  type CalendarError,
+  type CalendarErrorCode,
+  type CalendarProvider,
+  type CalendarProviderInput,
+  type CalendarTraits,
+  type ChannelRef,
+  type CreateCalendarProvider,
+  type HookAnswer,
+  type HookDelivery,
+  type HookNoticeKind,
+  type OwnEvent,
+  type UpsertEventInput,
+  type WatchInput,
+} from './calendar-provider.js';
+export {
+  DEMO_CALENDAR_KEY,
+  DEMO_CALENDAR_SECRET_HEADER,
+  DEMO_CALENDAR_SUBJECT_PREFIX,
+  DEMO_CALENDAR_TRAITS,
+  createDemoCalendarBackend,
+  readDemoHook,
+  type DemoCalendarBackend,
+} from './calendar-demo.js';
+
+export {
   RECORD_TABS_MAX,
   RECORD_TAB_COLUMNS_MAX,
   recordTabIssues,

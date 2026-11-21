@@ -80,3 +80,4 @@ export * from './visitors.js';
 export * from './source-days.js';
 export * from './connected-accounts.js';
 export * from './calendar-feeds.js';
+export * from './calendar-sync.js';

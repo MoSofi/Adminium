@@ -29,6 +29,7 @@
  */
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
+import { DEMO_CALENDAR_SUBJECT_PREFIX } from '@adminium/add-on-contracts';
 import { connectedAccountsSchema, isAddOnManifest, validateManifest, type AddOnManifest, type ConnectedAccountsRule } from '@adminium/manifest';
 import {
   appTablesRepo,
@@ -184,6 +185,7 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
   const now = deps.now ?? Date.now;
   const noticeDeps: AccountNoticeDeps = { meta, secret: deps.secret, ...deps.notices, ...(deps.now === undefined ? {} : { now: deps.now }) };
   const cleanups: AccountCleanup[] = [];
+  const onConnected: ((account: ConnectedAccount) => Promise<void>)[] = [];
 
   /**
    * The table's rule, from the installed app that declares it. `unsure`: an app
@@ -374,7 +376,9 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
       const found = await lookUpTable(account.connectionId, account.tableName);
       if (found.table === null) return found.unsure ? 'unknown' : 'gone';
       const install = await manifests.findById(account.manifestId);
-      if (install === null || !found.table.rule.from.includes(install.row.manifestKey)) return 'gone';
+      // A demo calendar hangs off the app itself, having no add-on (`calendar-sync/`).
+      const demo = account.subject.startsWith(DEMO_CALENDAR_SUBJECT_PREFIX) && install?.row.manifestKey === found.table.appKey;
+      if (!demo && (install === null || !found.table.rule.from.includes(install.row.manifestKey))) return 'gone';
       const row = await deps.rows.read(account.connectionId, account.tableName, account.rowKey);
       return rowIsLive(row, found.table.rule) ? 'live' : 'gone';
     } catch {
@@ -423,6 +427,14 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
     addCleanup(cleanup: AccountCleanup): void {
       cleanups.push(cleanup);
     },
+
+    /** A later piece's step when an account connects or reconnects. */
+    addOnConnected(hook: (account: ConnectedAccount) => Promise<void>): void {
+      onConnected.push(hook);
+    },
+
+    /** The crypto the account store seals with, for a piece that shares it. */
+    crypto,
 
     /** Whether people can connect through this server at all. */
     async reachNow(forwarded: boolean): Promise<ConnectReach> {
@@ -620,6 +632,8 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
         return { outcome: 'nothing' };
       }
       await repo.clearRefused(flow.manifestId);
+      // A later piece's first steps for a new connection (T08: the first read). Never undoes the connect.
+      for (const hook of onConnected) await hook(account).catch(() => undefined);
 
       // The door runs as nobody, so the record says what was connected, for which row, through which link.
       await auditRepo(meta)

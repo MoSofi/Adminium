@@ -246,6 +246,7 @@ the database.
 | `part` | with `builtOn` | snake_case: which part of the shape the table is (`document`, `lines`, `payments`). Only a table with `builtOn` has one. |
 | `capacity` | no | A limit on how much of a pool the table's rows may take (a time slot, a ticket type, a room type's nights), or a list of up to three; see [Capacity](#capacity). |
 | `booking` | no | Rows that book a person's time, never overlapping; see [Booking](#booking). A table has `capacity` or `booking`, not both. |
+| `connectedAccounts` | no | Each row may connect its own outside account (a team member's calendar) through the add-ons it names: `{ "from", "address"?, "name"?, "active"? }`. `from` lists add-ons the app requires or suggests, `address` is the column a connect link is sent to, `name` the column naming the person, and `active` a bool whose row, switched off, has its connection ended. A role's `accounts:@:connect`, `send-link` and `disconnect` grants name who may act. Needs Adminium 0.3.71. |
 | `occupies` | no | Rows that take a resource for a time (a room for an hour, a van for a day), never overlapping; see [A resource and a time](#a-resource-and-a-time). A table has one of `capacity`, `booking` and `occupies`. Needs Adminium 0.3.28. |
 | `states` | no | The states a row moves through, what is locked in each, and the child tables tied to them; see [States](#states). |
 | `unique` | no | 1–8 sets of 2–4 columns no two rows may hold the same values in together; see [Columns unique together](#columns-unique-together). |
@@ -1672,6 +1673,7 @@ pieces fit together, see [Booking rules](/guides/apps/booking-rules/).
 | `closures` | no | Dated closures: `{ "table", "from", "to", "resource"?, "active"? }`. `from` and `to` are `date` columns. `resource` must be nullable: an empty one closes for everyone. `active` is a bool. |
 | `busy` | no | Up to four tables of times a person is away: `{ "table", "resource", "start", "end", "countWhere"?, "engine"? }`. See below. Needs Adminium 0.3.71. |
 | `anyone` | no | How "anyone" is given a person: `{ "pick", "made"?, "flag"? }`. See below. Without it, the first free person in the order. Needs Adminium 0.3.71. |
+| `sync` | no | Bookings out to, and busy times in from, each person's connected calendar: `{ "when", "calendarName", "title", "detail"? }`. See below. Needs Adminium 0.3.71. |
 | `grid` | yes | The minutes between bookable starts, counted from the opening time. At least 1. |
 | `windowDays` | no | How many working days ahead a booking may be made. |
 | `windowFor` | no | Who the window holds: `"everyone"` (the default) or `"guests"`, which leaves staff free to book further ahead. Needs Adminium 0.3.71. |
@@ -1691,6 +1693,20 @@ booking already there: a counted row that keeps its start and person is held onl
 newly takes. With `engine: { "account": <text column> }` the rows are Adminium's own, a connected
 calendar's: the table must be `"private": true`, needs no `belongs`, and no person can write it.
 One source at most may say `engine`.
+
+`sync` needs a `busy` source with `engine`, and a resource table with
+[`connectedAccounts`](#tables). An event carries a title, a start, an end and the venue's zone, and
+nothing else: no attendee, place, description or reminder, and the buffer stays out.
+
+- `when` is `{ "column", "values" }`: the states that go out. Name them, because a counted state may
+  not be one for a calendar: a booking still being paid for holds its time and is on nobody's phone.
+- `calendarName` is the calendar Adminium makes, as text or `{ "table", "column" }` of the settings
+  row.
+- `title` is `{ "service", "person"? }`, each a text column or `fk.column` one link away.
+- `detail` is `{ "default", "max" }`, each `"first-name+initial"` or `"none"`. `max` is the most a
+  person's own setting may choose. Without it, first name and initial ("Ava R.", or "Cher" for a
+  one-word name). The morning after a visit the title becomes the service alone, and when a person
+  is forgotten or erased, every event of theirs is written again without the name.
 
 `anyone.pick` is `"order"`, `"even"`, or `{ "column" }`, an enum of those two on the kind's table,
 so each kind can choose. `even` gives the time to the free person with the fewest counted rows that

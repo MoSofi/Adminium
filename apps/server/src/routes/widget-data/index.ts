@@ -20,7 +20,7 @@ import { createHash } from 'node:crypto';
 
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { connectionTenantConfig, overridesRepo, snapshotsRepo, userPrefsRepo, type MetaDb } from '@adminium/meta';
+import { appTablesRepo, connectionTenantConfig, overridesRepo, realTableOf, snapshotsRepo, userPrefsRepo, type MetaDb } from '@adminium/meta';
 import type { DatabaseModel } from '@adminium/engine';
 import type { QueryDescriptor } from '@adminium/engine/config';
 
@@ -29,6 +29,7 @@ import { AppError, ForbiddenError, NotFoundError, ValidationFailedError } from '
 import { applyOverrides } from '../../connections/effective-schema.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import { SnapshotView } from '../../crud/identifiers.js';
+import { tableOfReal } from '../../installs/table-id.js';
 import { resolveLookups } from '../../crud/lookups.js';
 import { staffInstants } from '../../crud/instants.js';
 import { canReadPii, piiCheckFor } from '../../crud/mask.js';
@@ -40,6 +41,7 @@ import { WidgetDataCache, cacheKeyOf } from '../../widget-data/cache.js';
 import { readViewFor } from '../../crud/read-view.js';
 import { venueClock } from '../../crud/venue-time.js';
 import { answerBookingOccupancy, type ShapedOccupancy } from '../../widget-data/booking-occupancy.js';
+import { answerCalendarConnections, type CalendarConnectionCounts } from '../../widget-data/calendar-connections.js';
 import { answerCapacityCounts, countsAccessFor, type ShapedCapacity } from '../../widget-data/capacity.js';
 import { compileWidgetQuery, resolveSource } from '../../widget-data/compiler.js';
 import { countsTablesOf, joinCounts, limitTablesOf } from '../../widget-data/counts-join.js';
@@ -67,6 +69,22 @@ export interface WidgetDataRoutesDeps {
   cache?: WidgetDataCache | undefined;
   /** Injectable clock for `window` bounds (tests). */
   now?: (() => Date) | undefined;
+  /** How many of a table's people have a connected calendar (`calendar-sync/`). */
+  calendarCounts?: ((connectionId: string, tableId: string) => Promise<CalendarConnectionCounts | null>) | undefined;
+}
+
+/**
+ * A card's source named by its add-on, with the real table in its place. Only
+ * a table that add-on holds on this database now: left behind by an uninstall,
+ * or not there yet, it answers as a table that is not there.
+ */
+async function withAddOnTable(meta: MetaDb, view: SnapshotView, descriptor: QueryDescriptor): Promise<QueryDescriptor> {
+  const { addOn, name } = descriptor.source;
+  const held = (await appTablesRepo(meta).forConnection(descriptor.connectionId)).find((record) => record.appKey === addOn && record.ref === name && record.state !== 'released' && record.state !== 'dropped' && record.state !== 'pending');
+  const table = held === undefined ? undefined : tableOfReal(view.model, realTableOf(held));
+  if (table === undefined) throw new NotFoundError('That add-on is not here.', { reason: 'ADD_ON_NOT_HERE', addOn, table: name });
+  const { addOn: _named, schema: _schema, ...rest } = descriptor.source;
+  return { ...descriptor, source: { ...rest, name: table.name, ...(view.model.dialect === 'postgres' && table.schema !== null ? { schema: table.schema } : {}) } };
 }
 
 interface QueryOutcome {
@@ -147,6 +165,9 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
       // As this person reads it: a column their role does not show is refused by name, and never a card's.
       const view = await readViewFor(request, await viewFor(connectionId, locale));
 
+      // A table named by its add-on is made real here, so what follows judges it like any other.
+      if (descriptor.source.addOn !== undefined) descriptor = await withAddOnTable(deps.meta, view, descriptor);
+
       // Identifier resolution FIRST, then RBAC on the resolved name.
       const table = resolveSource(view, descriptor);
       const permission = `table:${connectionId}:${table.id}:read`;
@@ -226,6 +247,13 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
         });
         cache.set(key, result, connectionId, table.id, limitTablesOf(view, table));
         return { result, cached: false };
+      }
+
+      /* How many of a table's people have a connected calendar: whole or refused (`widget-data/calendar-connections.ts`). */
+      if (descriptor.kind === 'calendar-connections') {
+        const shaped = await answerCalendarConnections({ descriptor, connectionId, table, reach: rowsCtx, counts: deps.calendarCounts ?? (() => Promise.resolve(null)) });
+        cache.set(key, shaped, connectionId, table.id, [table.id]);
+        return { result: shaped as unknown as ShapedPayload, cached: false };
       }
 
       /*

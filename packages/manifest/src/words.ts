@@ -346,6 +346,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'emailTemplate.calendar',
   'publicAccess.consent.no',
   'payments.refundOnStaff',
+  // Bookings out to, and busy times in from, each person's connected calendar.
+  'table.booking.sync',
   'addOn.reviews',
   'appGrants.appColumn',
   // A new row that moves the earlier rows sharing its link on (a proof sent again).
@@ -730,6 +732,7 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'emailTemplate.calendar': '0.3.71',
   'publicAccess.consent.no': '0.3.71',
   'payments.refundOnStaff': '0.3.71',
+  'table.booking.sync': '0.3.71',
   'addOn.reviews': '0.3.68',
   'appGrants.appColumn': '0.3.68',
 };
@@ -925,7 +928,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (isDoc(table['review']) && table['review']['proved'] !== undefined) out.push({ word: 'table.review.proved', path: `${at}.review.proved` });
     if (isDoc(table['booking'])) {
       const booking = table['booking'];
-      for (const [name, word] of [['buffer', 'table.booking.buffer'], ['busy', 'table.booking.busy'], ['anyone', 'table.booking.anyone'], ['windowFor', 'table.booking.windowFor']] as const) {
+      for (const [name, word] of [['buffer', 'table.booking.buffer'], ['busy', 'table.booking.busy'], ['anyone', 'table.booking.anyone'], ['windowFor', 'table.booking.windowFor'], ['sync', 'table.booking.sync']] as const) {
         if (booking[name] !== undefined) out.push({ word, path: `${at}.booking.${name}` });
       }
       if (isDoc(booking['hours']) && isDoc(booking['hours']['own']) && booking['hours']['own']['within'] !== undefined) out.push({ word: 'table.booking.hours.within', path: `${at}.booking.hours.own.within` });

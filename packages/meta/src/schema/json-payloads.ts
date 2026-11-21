@@ -1605,6 +1605,14 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
           flag: bookingName.optional(),
         })
         .optional(),
+      sync: z
+        .object({
+          when: z.object({ column: bookingName, values: z.array(z.string().min(1)).min(1).max(16) }),
+          calendarName: z.union([z.string().min(1).max(100), z.object({ table: bookingTable, column: bookingName })]),
+          title: z.object({ service: z.string().min(1).max(256), person: z.string().min(1).max(256).optional() }),
+          detail: z.object({ default: z.enum(['first-name+initial', 'none']), max: z.enum(['first-name+initial', 'none']) }).optional(),
+        })
+        .optional(),
       grid: capacityNumber,
       windowDays: capacityNumber.optional(),
       windowFor: z.enum(['everyone', 'guests']).optional(),

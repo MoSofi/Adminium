@@ -75,6 +75,37 @@ const anyoneSchema = z
   })
   .strict();
 
+/** A column of the row, or `fk.column` one link away. */
+const columnPathSchema = z.string().regex(/^[A-Za-z_][A-Za-z0-9_]{0,127}(\.[A-Za-z_][A-Za-z0-9_]{0,127})?$/);
+
+/** How much of a person's name goes into a staff member's own calendar. */
+export const BOOKING_SYNC_DETAILS = ['first-name+initial', 'none'] as const;
+
+/**
+ * Each booking goes out to its person's connected calendar, and their busy
+ * times come back into the rule's kept `busy` table. An event is a title, a
+ * start, an end and the venue's zone, and nothing else: no attendee, no place,
+ * no description, and the buffer stays out.
+ *
+ *  - `when`: the states that go out. Not every counted state: a booking still
+ *    being paid for holds its time and is not on anyone's phone;
+ *  - `calendarName`: the calendar Adminium makes, literal or from the settings row;
+ *  - `title`: the service and the person, each a column or `fk.column`;
+ *  - `detail`: how much of the name is written; `max` is the most a person's own
+ *    setting may choose. Without this word, first name and initial.
+ *
+ * The people who may connect are the `connectedAccounts` of the resource's table.
+ */
+const bookingSyncSchema = z
+  .object({
+    when: z.object({ column: refSchema, values: z.array(z.string().min(1)).min(1).max(16) }).strict(),
+    calendarName: z.union([z.string().min(1).max(100), settingRefSchema]),
+    title: z.object({ service: columnPathSchema, person: columnPathSchema.optional() }).strict(),
+    detail: z.object({ default: z.enum(BOOKING_SYNC_DETAILS), max: z.enum(BOOKING_SYNC_DETAILS) }).strict().optional(),
+  })
+  .strict();
+export type BookingSyncRule = z.infer<typeof bookingSyncSchema>;
+
 export const bookingSchema = z
   .object({
     /** When the row starts: a `timestamptz`, read in the venue's zone. */
@@ -146,6 +177,8 @@ export const bookingSchema = z
     busy: z.array(busySourceSchema).min(1).max(4).optional(),
     /** How "anyone" is given a person (see {@link anyoneSchema}). */
     anyone: anyoneSchema.optional(),
+    /** Bookings out to, and busy times in from, each person's connected calendar (see {@link bookingSyncSchema}). */
+    sync: bookingSyncSchema.optional(),
     /** The minutes between bookable starts. */
     grid: numberOrSetting,
     /** How many working days ahead a booking may be made. */
@@ -336,6 +369,33 @@ export function bookingIssues(
       if (column !== undefined && (column.enum ?? []).some((value) => value !== 'even' && value !== 'order')) {
         out.push({ path: here('anyone', 'pick', 'column'), message: `"${kindTable}.${column.ref}" must be an enum of even, order` });
       }
+    }
+  }
+
+  if (rule.sync !== undefined) {
+    const sync = rule.sync;
+    const path = (...rest: (string | number)[]) => here('sync', ...rest);
+    if (!sources.some((source) => source.engine !== undefined)) out.push({ path: path(), message: 'a synced calendar needs a busy source Adminium keeps: name one with "engine"' });
+    const people = resourceTable === undefined ? undefined : (index.table(resourceTable) as { connectedAccounts?: unknown } | undefined);
+    if (resourceTable !== undefined && people !== undefined && people.connectedAccounts === undefined) {
+      out.push({ path: path(), message: `"${resourceTable}" does not say who may connect a calendar: give it "connectedAccounts"` });
+    }
+    const when = index.column(table.ref, sync.when.column);
+    if (when === undefined) out.push({ path: path('when', 'column'), message: `"${table.ref}" has no column "${sync.when.column}"` });
+    else for (const value of sync.when.values) if (!valueFits(when, value)) out.push({ path: path('when', 'values'), message: `"${value}" is not a value of "${table.ref}.${when.ref}"` });
+    if (typeof sync.calendarName === 'object') want(sync.calendarName.table, sync.calendarName.column, ['text'], path('calendarName'), 'a text column');
+    for (const [name, written] of [['service', sync.title.service], ['person', sync.title.person]] as const) {
+      if (written === undefined) continue;
+      const [first, second] = written.split('.') as [string, string | undefined];
+      if (second === undefined) {
+        want(table.ref, first, ['text'], path('title', name), 'a text column');
+        continue;
+      }
+      const link = wantFk(table.ref, first, undefined, path('title', name));
+      if (link?.references !== undefined) want(link.references, second, ['text'], path('title', name), 'a text column');
+    }
+    if (sync.detail?.default === 'first-name+initial' && sync.detail.max === 'none') {
+      out.push({ path: path('detail'), message: 'the default cannot show more of a name than the most allowed' });
     }
   }
 

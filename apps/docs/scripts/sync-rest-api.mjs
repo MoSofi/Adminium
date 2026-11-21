@@ -100,6 +100,10 @@ const DESCRIPTIONS = {
     'Consent and the do-not-email list — the list itself (search, add, remove), and a record\'s consent: its standing per purpose, its history, recording a yes, "Replied" and "They said no"',
   connect:
     'Connect Supabase: the one-time hand-off from an operator\'s connect service (ADMINIUM_SUPABASE_CONNECT_URL). Start, the return with its one-time code, and the password for an existing project',
+  'calendar-sync':
+    'A person’s connected calendar as the desk uses it: its state, the calendars read, busy times with no words, ' +
+    '"Sync now", and clashes with a booking and keeping them. Each route asks the person’s reach on the row, and an ' +
+    'API key acts for nobody here',
   'connected-accounts':
     'A person’s own outside account on a row of an app (a team member’s calendar): its state, connecting it, ' +
     'a one-time link sent to the address on the row or copied, and ending the connection. Each route asks the ' +

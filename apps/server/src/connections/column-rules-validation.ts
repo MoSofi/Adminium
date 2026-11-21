@@ -1540,6 +1540,19 @@ export function bookingRuleIssue(raw: unknown, table: TableModel, model: Databas
       if (name !== undefined && held?.columns.some((c) => c.name === name) !== true) return `${held?.name ?? String(source['table'])} has no column ${JSON.stringify(name)} for the busy times.`;
     }
   }
+  const sync = value['sync'] as Value | undefined;
+  if (sync !== undefined) {
+    if (own((sync['when'] as Value)['column']) === undefined) return `${table.name} has no column ${JSON.stringify((sync['when'] as Value)['column'])} for what goes to a calendar.`;
+    const name = sync['calendarName'];
+    if (typeof name === 'object' && name !== null) {
+      const issue = elsewhere(name, 'calendar name');
+      if (issue !== null) return issue;
+    }
+    for (const written of Object.values(sync['title'] as Value)) {
+      const [first] = String(written).split('.');
+      if (own(first) === undefined) return `${table.name} has no column ${JSON.stringify(first)} for a calendar event's title.`;
+    }
+  }
   const pick = anyone?.['pick'];
   if (typeof pick === 'object' && pick !== null) {
     const link = model.relations.find((r) => r.through === null && r.from.tableId === table.id && r.from.columns.length === 1 && r.from.columns[0] === value['kind']);

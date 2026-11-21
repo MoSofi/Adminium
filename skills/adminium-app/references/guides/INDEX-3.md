@@ -4,6 +4,7 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/guides/public-access--when-it-stops-answering.md` | When it stops answering | 710 |
 | `references/guides/public-access--origins.md` | Origins | 853 |
 | `references/guides/public-access--the-customer-domain.md` | The customer domain | 464 |
 | `references/guides/public-access--rate-limits.md` | Rate limits | 1102 |

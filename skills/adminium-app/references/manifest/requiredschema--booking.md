@@ -51,6 +51,7 @@ pieces fit together, see [Booking rules](https://docs.adminium.dev/guides/apps/b
 | `closures` | no | Dated closures: `{ "table", "from", "to", "resource"?, "active"? }`. `from` and `to` are `date` columns. `resource` must be nullable: an empty one closes for everyone. `active` is a bool. |
 | `busy` | no | Up to four tables of times a person is away: `{ "table", "resource", "start", "end", "countWhere"?, "engine"? }`. See below. Needs Adminium 0.3.71. |
 | `anyone` | no | How "anyone" is given a person: `{ "pick", "made"?, "flag"? }`. See below. Without it, the first free person in the order. Needs Adminium 0.3.71. |
+| `sync` | no | Bookings out to, and busy times in from, each person's connected calendar: `{ "when", "calendarName", "title", "detail"? }`. See below. Needs Adminium 0.3.71. |
 | `grid` | yes | The minutes between bookable starts, counted from the opening time. At least 1. |
 | `windowDays` | no | How many working days ahead a booking may be made. |
 | `windowFor` | no | Who the window holds: `"everyone"` (the default) or `"guests"`, which leaves staff free to book further ahead. Needs Adminium 0.3.71. |
@@ -71,13 +72,6 @@ newly takes. With `engine: { "account": <text column> }` the rows are Adminium's
 calendar's: the table must be `"private": true`, needs no `belongs`, and no person can write it.
 One source at most may say `engine`.
 
-`anyone.pick` is `"order"`, `"even"`, or `{ "column" }`, an enum of those two on the kind's table,
-so each kind can choose. `even` gives the time to the free person with the fewest counted rows that
-day, then the one whose last row was made longest ago (`made`, a `timestamptz` of this table,
-required unless the pick is `"order"`), then the order. `flag` is a bool of this table that Adminium
-sets: true when it picked the person, false once a write names one. No writer can set it. A booking
-moved with its person emptied keeps that person when they are free.
-
-Nothing may start in the past, with one exception: staff may create a walk-in in the slot that
-holds the current time, when its status is a counted value other than the first in `countWhere`
-(`checked_in` rather than `booked`).
+`sync` needs a `busy` source with `engine`, and a resource table with
+[`connectedAccounts`](https://docs.adminium.dev/reference/manifest/#tables). An event carries a title, a start, an end and the venue's zone, and
+nothing else: no attendee, place, description or reminder, and the buffer stays out.

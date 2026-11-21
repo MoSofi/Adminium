@@ -505,6 +505,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'emailTemplate.calendar',
   'publicAccess.consent.no',
   'payments.refundOnStaff',
+  // Bookings out to, and busy times in from, each person's connected calendar (calendar-sync/).
+  'table.booking.sync',
   'addOn.reviews',
   'appGrants.appColumn',
 ];

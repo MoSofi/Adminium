@@ -91,8 +91,12 @@ export interface AccountClient {
 export interface TokenService {
   /** A usable access token, refreshed if needed. Core-only: never pass it to add-on code. */
   accessToken(accountId: string): Promise<string>;
-  /** A client that adds the bearer header, refreshes once on a 401, and never shows the token. */
-  clientFor(accountId: string): Promise<AccountClient>;
+  /**
+   * A client that adds the bearer header, refreshes once on a 401, and never
+   * shows the token. `ending`: for the steps that end a connection, which need
+   * the token after the account is marked `disconnecting`.
+   */
+  clientFor(accountId: string, options?: { ending?: boolean }): Promise<AccountClient>;
 }
 
 export function createTokenService(deps: TokenServiceDeps): TokenService {
@@ -212,10 +216,10 @@ export function createTokenService(deps: TokenServiceDeps): TokenService {
     return started;
   }
 
-  async function usable(id: string): Promise<ConnectedAccount> {
+  async function usable(id: string, ending = false): Promise<ConnectedAccount> {
     const account = await repo.find(id);
     if (account === null) throw new AccountTokenError('unavailable');
-    if (account.state === 'disconnecting') throw new AccountTokenError('unavailable');
+    if (account.state === 'disconnecting' && !ending) throw new AccountTokenError('unavailable');
     if (!account.hasTokens || account.state === 'reconnect') throw new AccountTokenError('reconnect');
     return account;
   }
@@ -228,8 +232,8 @@ export function createTokenService(deps: TokenServiceDeps): TokenService {
     if (at - refused.at < REFUSED_RETRY_MS || !(await repo.retryRefused(manifestId, refused.at, at))) throw new AccountTokenError('setup');
   }
 
-  async function accessToken(id: string): Promise<string> {
-    const account = await usable(id);
+  async function accessToken(id: string, ending = false): Promise<string> {
+    const account = await usable(id, ending);
     // No stated expiry: unknown, so it is used until a call answers 401.
     if (account.expiresAt === null || account.expiresAt - now() > REFRESH_MARGIN_MS) {
       const tokens = await tokensOf(id);
@@ -241,8 +245,8 @@ export function createTokenService(deps: TokenServiceDeps): TokenService {
   }
 
   /** After a 401: refresh, unless someone already replaced the token that was refused. */
-  async function replaced(id: string, refused: string): Promise<string> {
-    const account = await usable(id);
+  async function replaced(id: string, refused: string, ending = false): Promise<string> {
+    const account = await usable(id, ending);
     const tokens = await tokensOf(id);
     if (tokens === null) throw await gone(account);
     if (tokens.accessToken !== refused) return tokens.accessToken;
@@ -251,10 +255,11 @@ export function createTokenService(deps: TokenServiceDeps): TokenService {
   }
 
   return {
-    accessToken,
+    accessToken: (id) => accessToken(id),
 
-    async clientFor(id) {
-      const account = await usable(id);
+    async clientFor(id, options) {
+      const ending = options?.ending === true;
+      const account = await usable(id, ending);
       const install = await deps.installOf(account.manifestId);
       if (install === null) throw new AccountTokenError('unavailable');
 
@@ -264,14 +269,14 @@ export function createTokenService(deps: TokenServiceDeps): TokenService {
         return install.http(input, { ...init, headers });
       };
       const http = (async (input, init) => {
-        const token = await accessToken(id);
+        const token = await accessToken(id, ending);
         const first = await send(input, init, token);
         if (first.status !== 401) return first;
         // A body already read cannot be sent twice: only a call that can be repeated is retried.
         if (init?.body !== undefined && init.body !== null && typeof init.body !== 'string') return first;
         await first.body?.cancel().catch(() => undefined);
         // Told as it came. A second 401 is not the token endpoint's word, so it moves no state: an API outage must not tell everyone to reconnect.
-        return send(input, init, await replaced(id, token));
+        return send(input, init, await replaced(id, token, ending));
       }) as AddOnHttpClient;
 
       return { http, account: { id: account.id, address: account.address } };

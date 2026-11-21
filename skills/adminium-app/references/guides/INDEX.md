@@ -71,6 +71,7 @@
 | `references/guides/booking-rules--late-cancellations.md` | Late cancellations | 963 |
 | `references/guides/booking-rules--what-availability-answers.md` | What availability answers | 2708 |
 | `references/guides/booking-rules--what-a-writer-is-told.md` | What a writer is told | 1503 |
+| `references/guides/booking-rules--connected-calendars.md` | Connected calendars | 2190 |
 | `references/guides/booking-rules--booking-rules-and-capacity.md` | Booking rules and capacity | 779 |
 | `references/guides/booking-rules--limits.md` | Limits | 1061 |
 | `references/guides/booking-rules--limits--slot-limits.md` | Limits — Slot limits | 3137 |
@@ -85,6 +86,5 @@
 | `references/guides/timed-moves--a-timed-move.md` | A timed move | 1877 |
 | `references/guides/timed-moves--moments.md` | Moments | 3425 |
 | `references/guides/timed-moves--the-venue-s-clock.md` | The venue's clock | 560 |
-| `references/guides/timed-moves--the-job-that-makes-the-moves.md` | The job that makes the moves | 2092 |
 
 More: `references/guides/INDEX-2.md`

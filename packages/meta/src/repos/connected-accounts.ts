@@ -329,6 +329,18 @@ export function connectedAccountsRepo(meta: MetaDb, crypto: CredentialCrypto) {
       return affected(res.numUpdatedRows) === 1;
     },
 
+    /** Moves an account on only from the state it was read in, so an older answer never overwrites a newer state. */
+    async moveState(id: string, from: ConnectedAccountState, to: ConnectedAccountState, at: number): Promise<boolean> {
+      const res = await db.updateTable('adminium_connected_accounts').set({ state: to, stateSince: at, updatedAt: at }).where('id', '=', id).where('state', '=', from).executeTakeFirst();
+      return affected(res.numUpdatedRows) === 1;
+    },
+
+    /** The accounts on one table of a database. */
+    async forTable(connectionId: string, tableName: string): Promise<ConnectedAccount[]> {
+      const rows = await accounts().where('connectionId', '=', connectionId).where('tableName', '=', tableName).orderBy('id').execute();
+      return rows.map((row) => accountOf(row as AccountRow));
+    },
+
     /**
      * The provider said this grant is gone: true when that still describes the
      * row. A reconnect that landed meanwhile moved the version, and stands.
