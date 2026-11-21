@@ -55,6 +55,8 @@ export const NEVER_ARCHIVED_TABLES: readonly string[] = [
   'adminium_visits',
   // What each source of a lead source add-on was asked today: never set back by a file.
   'adminium_source_days',
+  // Which calendar link is live: a file must never bring back a link someone renewed because it got out.
+  'adminium_calendar_feeds',
 ];
 
 /** Staff API keys and the public API's keys. */

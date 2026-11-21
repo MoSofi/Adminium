@@ -332,6 +332,13 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'table.review',
   // Whether a reviewed row's person proved who they are: a row's own link reviews only a proved one.
   'table.review.proved',
+  // A review link only the review mails carry; a calendar entry on a booking and on a mail; a public box that says no;
+  // a studio's cancel refunded whoever pressed it.
+  'outbox.reviewLinks',
+  'table.booking.calendar',
+  'emailTemplate.calendar',
+  'publicAccess.consent.no',
+  'payments.refundOnStaff',
   'addOn.reviews',
   'appGrants.appColumn',
   // A new row that moves the earlier rows sharing its link on (a proof sent again).
@@ -696,6 +703,11 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'automations.words': '0.3.68',
   'table.review': '0.3.68',
   'table.review.proved': '0.3.70',
+  'outbox.reviewLinks': '0.3.71',
+  'table.booking.calendar': '0.3.71',
+  'emailTemplate.calendar': '0.3.71',
+  'publicAccess.consent.no': '0.3.71',
+  'payments.refundOnStaff': '0.3.71',
   'addOn.reviews': '0.3.68',
   'appGrants.appColumn': '0.3.68',
 };
@@ -837,6 +849,10 @@ export function installFloorWords(document: unknown): ManifestWord[] {
         (payments !== null && payments['kind'] === 'table' && (payments['date'] === undefined || PAYMENT_EXTRAS.some((key) => payments[key] !== undefined)));
       if (extra) out.push({ word: 'payments.payableExtras', path: `payments.payables.${String(p)}` });
       if (status !== null && status['set'] !== undefined) out.push({ word: 'payments.statusSet', path: `payments.payables.${String(p)}.status.set` });
+      const refundOn = isDoc(payable['refundOn']) ? payable['refundOn'] : null;
+      if (refundOn !== null && ((isDoc(refundOn['before']) && refundOn['before']['binds'] !== undefined) || list(refundOn['moves']).some((move) => isDoc(move) && list(move['by']).includes('staff')))) {
+        out.push({ word: 'payments.refundOnStaff', path: `payments.payables.${String(p)}.refundOn` });
+      }
     });
     // A row removed through a public entry of an app (an add-on's own link says `publicAccess.ownDelete`).
     list(document['publicAccess']).forEach((entry, e) => {
@@ -857,6 +873,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
   // An agreement on a text's length, on an entry or on its child rows (two levels).
   list(document['publicAccess']).forEach((entry, e) => {
     if (isDoc(entry) && entry['pay'] !== undefined) out.push({ word: 'publicAccess.pay', path: `publicAccess.${String(e)}.pay` });
+    if (isDoc(entry) && isDoc(entry['consent']) && entry['consent']['means'] !== undefined) out.push({ word: 'publicAccess.consent.no', path: `publicAccess.${String(e)}.consent.means` });
     if (isDoc(entry) && entry['requirePayments'] !== undefined) out.push({ word: 'publicAccess.requirePayments', path: `publicAccess.${String(e)}.requirePayments` });
     // A choice in the settings row that must hold one of some values.
     list(isDoc(entry) ? entry['requireSetting'] : undefined).forEach((setting, r) => {
@@ -881,6 +898,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (table['check'] !== undefined) out.push({ word: 'table.check', path: `${at}.check` });
     if (table['review'] !== undefined) out.push({ word: 'table.review', path: `${at}.review` });
     if (isDoc(table['review']) && table['review']['proved'] !== undefined) out.push({ word: 'table.review.proved', path: `${at}.review.proved` });
+    if (isDoc(table['booking']) && table['booking']['calendar'] !== undefined) out.push({ word: 'table.booking.calendar', path: `${at}.booking.calendar` });
     if (table['belongs'] !== undefined) out.push({ word: 'table.belongs', path: `${at}.belongs` });
     list(table['belongs']).forEach((way, w) => {
       if (isDoc(way) && isDoc(way['through']) && way['through']['while'] !== undefined) out.push({ word: 'listing.while', path: `${at}.belongs.${String(w)}.through.while` });
@@ -1040,6 +1058,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     });
   }
   list(document['emailTemplates']).forEach((template, t) => {
+    if (isDoc(template) && template['calendar'] !== undefined) out.push({ word: 'emailTemplate.calendar', path: `emailTemplates.${String(t)}.calendar` });
     for (const key of ['kind', 'category', 'brand', 'attachments'] as const) {
       if (isDoc(template) && template[key] !== undefined) out.push({ word: `email.${key}`, path: `emailTemplates.${String(t)}.${key}` });
     }
@@ -1095,6 +1114,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
   if (outbox['classes'] !== undefined) out.push({ word: 'outbox.classes', path: 'outbox.classes' });
   if (outbox['purposes'] !== undefined) out.push({ word: 'outbox.purposes', path: 'outbox.purposes' });
   if (outbox['surveyLinks'] !== undefined) out.push({ word: 'outbox.surveyLinks', path: 'outbox.surveyLinks' });
+  if (outbox['reviewLinks'] !== undefined) out.push({ word: 'outbox.reviewLinks', path: 'outbox.reviewLinks' });
   if (list(outbox['producers']).length > OUTBOX_PRODUCERS_BEFORE) out.push({ word: 'outbox.manyProducers', path: 'outbox.producers' });
   list(outbox['producers']).forEach((producer, p) => {
     if (isDoc(producer) && producer['payments'] !== undefined) out.push({ word: 'outbox.producerPayments', path: `outbox.producers.${String(p)}.payments` });

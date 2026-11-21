@@ -40,6 +40,9 @@ const check = process.argv.includes('--check');
  * how the API is actually namespaced — not by a hoped-for grouping.
  */
 const DESCRIPTIONS = {
+  'calendar-feed':
+    'A person’s private calendar link on a booking table: whether you may renew it, the link itself for its own ' +
+    'person only, and a new link that ends the old one. Each route asks your reach on that person’s row',
   about: 'Build version, edition, and the update check',
   chat:
     'A website chat, for staff: whether its automatic answers can call an AI service and a question tried ' +

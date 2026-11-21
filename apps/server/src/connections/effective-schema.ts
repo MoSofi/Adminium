@@ -18,7 +18,7 @@ import type {
   SemanticTag,
   TableModel,
 } from '@adminium/engine';
-import { isLegacyCapacity, type CapacityKind, type CapacityRule, type FormulaExpr } from '@adminium/manifest';
+import { isLegacyCapacity, type BookingCalendar, type CapacityKind, type CapacityRule, type FormulaExpr } from '@adminium/manifest';
 import { isChangeEffect, type CreateRequires, type LateMove, type Moment, type StateEffect, type TimedMove, type LinkedCondition, type SettingCondition, type StateCondition, type TimeCondition } from '@adminium/manifest';
 import type { SchemaOverride, StoredAdjust, StoredCheck, StoredPosting } from '@adminium/meta';
 
@@ -566,6 +566,8 @@ export interface TableBookingRule {
     flag?: string;
     when: { column: string; to: string };
   };
+  /** The booking as a calendar entry (`calendar/`): its tables mapped like the rest of the rule. */
+  calendar?: BookingCalendar;
 }
 
 /** `column.validation`: the checks an admin asked for, beyond the column's type. */

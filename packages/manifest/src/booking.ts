@@ -26,6 +26,7 @@ import {
   type TableIndex,
   type TableShape,
 } from './refs.js';
+import { bookingCalendarIssues, bookingCalendarSchema } from './booking-calendar.js';
 
 /** The weekday values an hours table's weekday enum must hold, in this order. */
 export const BOOKING_WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
@@ -113,6 +114,8 @@ export const bookingSchema = z
         path: ['flag'],
       })
       .optional(),
+    /** The booking as a calendar entry: its invitation, its links and a person's private feed. */
+    calendar: bookingCalendarSchema.optional(),
   })
   .strict();
 export type BookingRule = z.infer<typeof bookingSchema>;
@@ -257,5 +260,6 @@ export function bookingIssues(
       }
     }
   }
+  if (rule.calendar !== undefined) out.push(...bookingCalendarIssues(table, rule.calendar, resourceTable, index, here));
   return out;
 }

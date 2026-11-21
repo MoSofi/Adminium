@@ -73,7 +73,7 @@
 | `references/manifest/documents--a-list-of-an-add-on-s-rows.md` | Documents — A list of an add-on's rows | 1524 |
 | `references/manifest/documents--documents-that-print-a-money-code.md` | Documents — Documents that print a money code | 987 |
 | `references/manifest/emails.md` | Emails | 850 |
-| `references/manifest/emails--outbox.md` | Emails — outbox | 7347 |
+| `references/manifest/emails--outbox.md` | Emails — outbox | 7593 |
 | `references/manifest/emails--outbox-2.md` | Emails — outbox (part 2) | 4433 |
 | `references/manifest/emails--outbox-3.md` | Emails — outbox (part 3) | 7593 |
 | `references/manifest/emails--outbox-4.md` | Emails — outbox (part 4) | 1158 |

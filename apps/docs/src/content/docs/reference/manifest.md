@@ -4005,6 +4005,7 @@ there for the same kind and source is what stops a second send.
 | `classes` | from 0.3.38 | Each kind's class, `marketing` or `service`; see [Marketing or service](#marketing-or-service). Needs Adminium 0.3.38, and from that floor every kind has one. |
 | `purposes` | no | Each kind's consent purpose, `newsletter` or `surveys`; see [A kind's purpose](#a-kinds-purpose). Needs Adminium 0.3.40. |
 | `surveyLinks` | no | The kinds whose template prints `{{survey_link}}`: a forms add-on's survey invitations; see [A survey's link](#a-surveys-link). Needs Adminium 0.3.40. |
+| `reviewLinks` | no | `{ "kinds", "link", "page" }`: the kinds whose template prints `{{reviewLink}}`, a link that reviews one row; see [Bookings in a calendar](/guides/apps/booking-calendars/). Needs Adminium 0.3.71. |
 | `producers` | no | Up to 32 rules that queue rows by themselves (more than 24 needs Adminium 0.3.62). See below. |
 
 **`recipient`** is `{ "via", "table", "email", "name"?, "language"?, "optIn"?, "fallback"? }`.

@@ -57,10 +57,13 @@ that a route exists and what it answers.
 | `PATCH` | `/api/v1/public/records/{ref}/{id}` |  | 200, 400, 401, 404, 409, 429, 503 |
 | `PUT` | `/api/v1/public/records/{ref}/{id}` |  | 200, 400, 401, 404, 409, 429, 503 |
 | `DELETE` | `/api/v1/public/records/{ref}/{id}` |  | 200, 400, 401, 404, 429, 503 |
+| `GET` | `/api/v1/public/records/{ref}/{id}/calendar` |  | 200, 401, 403, 404, 429, 503 |
 | `POST` | `/api/v1/public/records/{ref}/{id}/dry-run` |  | 200, 400, 401, 404, 409, 429, 503 |
 | `POST` | `/api/v1/public/records/{ref}/{id}/new-link` |  | 202, 401, 403, 404, 409, 429, 503 |
 | `GET` | `/api/v1/public/records/{ref}/{id}/review` |  | 200, 401, 403, 404, 429, 503 |
 | `POST` | `/api/v1/public/records/{ref}/{id}/review` |  | 201, 400, 401, 403, 404, 409, 429, 503 |
+| `POST` | `/api/v1/public/review-link` |  | 200, 401, 403, 404, 429, 503 |
+| `POST` | `/api/v1/public/review-link/take` |  | 201, 400, 401, 403, 404, 409, 429, 503 |
 | `DELETE` | `/api/v1/public/session` |  | 200, 401, 429, 503 |
 | `POST` | `/api/v1/public/session/revoke-all` |  | 200, 401, 403, 404, 429, 503 |
 | `POST` | `/api/v1/public/uploads` |  | 200, 400, 401, 403, 404, 413, 415, 429, 503, 507 |

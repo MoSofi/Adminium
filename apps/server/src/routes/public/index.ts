@@ -22,6 +22,8 @@
  * is asserted by `public-api-isolation.test.ts` rather than restated here as a
  * runtime guard that could rot.
  */
+import { createHash } from 'node:crypto';
+
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
@@ -64,7 +66,14 @@ import { compileFilter, parseWhereParam, type RecordFilter } from '../../crud/fi
 import { shopperAsks, throughCondition } from '../../public-api/shopper.js';
 import { hostReviewOf } from '../../reviews/host.js';
 import { forgetReviews } from '../../reviews/erase.js';
-import { lostToAnother, reviewOpen, reviewProved, shownNameFor, takeReview } from '../../reviews/take.js';
+import { followPath, lostToAnother, reviewOpen, reviewProved, shownNameFor, takeReview } from '../../reviews/take.js';
+import { personOfLink, readReviewToken } from '../../reviews/link.js';
+import { forgetOf, forgetsOn, isForgotten } from '../../public-api/forgets-on.js';
+import { bookingEntry, calendarRuleOf } from '../../calendar/entry.js';
+import { downloadFile, googleCalendarLink, outlookCalendarLink } from '../../calendar/ics.js';
+import { mailLinkKeys } from '../../email/link-keys.js';
+import { settingReader } from '../../outbox/timing.js';
+import { pkOfRowKey } from '../../payments/payables.js';
 import { reviewText } from '../../public-api/plain-text.js';
 import type { AddOnInstalls } from '../../apps/table-ref.js';
 import type { PublicKeyResolver, ResolvedKey } from '../../public-api/resolve.js';
@@ -82,7 +91,7 @@ import { priceAnswer, type AppliedReply, type PriceAnswer } from '../../crud/adj
 import { DesignRefused } from '../../crud/check/step.js';
 import type { AdjustedOrder } from '../../crud/adjust/step.js';
 import { paymentOf } from '../../ledgers/payment.js';
-import { ratioText, REVIEW_BODY_MAX, REVIEW_TITLE_MAX, sameDecimal, SHOPPER_COUNT_MOST, SHOPPER_OFFSET_MOST, SHOPPER_SEARCH_MIN, SHOPPER_SEARCHES_A_MINUTE, toRatio } from '@adminium/manifest';
+import { pathOf, ratioText, REVIEW_BODY_MAX, REVIEW_TITLE_MAX, sameDecimal, SHOPPER_COUNT_MOST, SHOPPER_OFFSET_MOST, SHOPPER_SEARCH_MIN, SHOPPER_SEARCHES_A_MINUTE, toRatio } from '@adminium/manifest';
 import { CLIENT_KEY_FORMAT, childValues, clientKeyHash, clientKeySecret, hiddenInQuote, placeOf, placeheldTexts, placesOfColumn, quotePlaceholders, treeShape } from './tree.js';
 import { afterNow, aheadWithin, beforeToday, fromToday, isMomentWindow, isTimeWindow, mandatoryAt } from '../../public-api/relative-filters.js';
 import { publicWindows, withPublicWindows } from '../../public-api/moment-windows.js';
@@ -211,7 +220,7 @@ import {
   type WriteTarget,
 } from '../../crud/write-service.js';
 import { writeStores } from '../../crud/write-stores.js';
-import { audited } from '../../audit/coverage.js';
+import { auditExempt, audited } from '../../audit/coverage.js';
 import { OutboxMoveRefused } from '../../outbox/moves.js';
 import type { OutboxProducers } from '../../outbox/producers.js';
 import { quoteChildren } from '../../public-api/change-quote.js';
@@ -276,7 +285,11 @@ import {
   publicDocumentParams,
   publicDocumentReply,
   publicDocumentsReply,
+  publicCalendarReply,
   publicReviewBody,
+  publicReviewLinkBody,
+  publicReviewLinkReply,
+  publicReviewLinkTakeBody,
   publicReviewStateReply,
   publicReviewTakenReply,
 } from './schema.js';
@@ -6435,6 +6448,168 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         invalidateWidgetData(app, ok.key.connectionId, found.table.id);
         await emitRecordEvent(app, { connectionId: ok.key.connectionId, table: found.table, action: 'update', entity, before: taken.before, after: taken.after, origin: 'public' });
         return reply.code(201).send({ data: { reviewedAt: taken.reviewedAt } });
+      },
+    );
+
+    /*
+     * A REVIEW THROUGH A MAIL'S LINK (`reviews/link.ts`): the one row the link
+     * names, reviewed by whoever holds the mailbox it went to. It opens no
+     * session and reads nothing else. A link that is dead for any reason (made
+     * up, out of time, another app's, its person's address changed or their
+     * details deleted) gets the same 404.
+     */
+    const reviewLinkAt = async (request: FastifyRequest, reply: FastifyReply, ok: { key: ResolvedKey }, token: string) => {
+      const dead = () => {
+        fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'This link does not work.');
+        return null;
+      };
+      if (ok.key.managedBy === null || ok.key.requiresStaff !== null || deps.reviews === undefined) return dead();
+      const install = await settingsRepo(meta).get('system.instanceId');
+      const claim = readReviewToken(await mailLinkKeys(meta, deps.env.ADMINIUM_SECRET).reviewAll(), typeof install === 'string' ? install : '', token, Date.now());
+      if (claim === null || claim.app !== ok.key.managedBy || claim.connection !== ok.key.connectionId) return dead();
+      const view = await viewFor(ok.key.connectionId);
+      if (view === null) return dead();
+      let table: ResolvedTable;
+      try {
+        table = view.table(claim.table);
+      } catch {
+        return dead();
+      }
+      const pk = pkOfRowKey(table, claim.row);
+      if (pk === null) return dead();
+      const { db, dialect } = await manager.data(ok.key.connectionId);
+      const row = (await fetchByPk(db, table, pk)) ?? null;
+      if (row === null) return dead();
+      const installs = await deps.reviews.installs();
+      const host = await hostReviewOf(meta, installs, view, ok.key.managedBy, table.id);
+      if (host === null || host.keeper === null) return dead();
+      const person = await personOfLink(db, view, table, row, host.word, claim);
+      if (person === null) return dead();
+      // Declared on whichever key signs the person in, which need not be the key this page holds.
+      const forget = forgetOf(await forgetsOn(meta, ok.key.connectionId), person.table.id);
+      if (isForgotten(forget, person.row, claim.column)) return dead();
+      const forgottenStamp = forget?.stamp ?? null;
+      return { view, db, dialect, table, pk, row, host, keeper: host.keeper, forgottenStamp };
+    };
+
+    app.options('/public/review-link', { schema: { hide: true } }, preflight);
+    app.post(
+      '/public/review-link',
+      {
+        config: { rateLimitBucket: 'public', audit: auditExempt('reading what a review link is for changes nothing') },
+        schema: { body: publicReviewLinkBody, response: { 200: publicReviewLinkReply, 401: publicErrorReply, 403: publicErrorReply, 404: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply } },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-read');
+        if (ok === null) return reply;
+        const at = await reviewLinkAt(request, reply, ok, request.body.token);
+        if (at === null) return reply;
+        const { view, db, table, row, host } = at;
+        const stamped = row[host.word.stamp];
+        const reviewedAt = stamped === null || stamped === undefined || stamped === '' ? null : wallTimesAsInstants({ at: stamped }, new Map([['at', table.columns.get(host.word.stamp)!]]), at.dialect)['at'];
+        const about = await followPath(db, view, table, row, pathOf(host.word.about.name), 'column');
+        const detail = host.word.about.detail === undefined ? null : await followPath(db, view, table, row, pathOf(host.word.about.detail), 'column');
+        return reply.send({
+          data: {
+            open: await reviewOpen(db, view, table, row, host.word),
+            reviewedAt: reviewedAt === null || reviewedAt === undefined ? null : String(reviewedAt instanceof Date ? reviewedAt.toISOString() : reviewedAt),
+            shownName: (await shownNameFor(db, view, table, row, host.word)) ?? '',
+            about: about?.value === null || about?.value === undefined ? '' : String(about.value),
+            detail: detail?.value === null || detail?.value === undefined ? null : String(detail.value),
+          },
+        });
+      },
+    );
+    app.options('/public/review-link/take', { schema: { hide: true } }, preflight);
+    app.post(
+      '/public/review-link/take',
+      {
+        config: { rateLimitBucket: 'public', audit: audited('rbac') },
+        schema: { body: publicReviewLinkTakeBody, response: { 201: publicReviewTakenReply, 400: publicErrorReply, 401: publicErrorReply, 403: publicErrorReply, 404: publicErrorReply, 409: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply } },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-write');
+        if (ok === null) return reply;
+        const at = await reviewLinkAt(request, reply, ok, request.body.token);
+        if (at === null) return reply;
+        const { view, db, dialect, table, pk, host, keeper, forgottenStamp } = at;
+        const reviews = view.linkTable(keeper.reviews);
+        if (reviews === null) return fail(reply, 409, 'PUBLIC_SWITCHED_OFF', 'Reviews are not taken right now.');
+        const now = Date.now();
+        // So many tries an hour on one link, refused ones counted too.
+        const subject = `review-link:${createHash('sha256').update(request.body.token).digest('base64url')}`;
+        if ((await challenges.sentSince(subject, now - REVIEW_TRIES_WINDOW_MS, REVIEW_PURPOSE)) >= REVIEW_TRIES) return fail(reply, 429, 'PUBLIC_RATE_LIMITED', 'Too many requests.');
+        await challenges.mark({ keyId: ok.key.keyId, ref: 'review-link', sessionId: null, subject, purpose: REVIEW_PURPOSE }, now);
+        const words = (value: string | null | undefined, max: number): string | null | false => {
+          if (value === null || value === undefined || value.trim() === '') return null;
+          const judged = reviewText(value, max);
+          return judged === null ? false : judged === '' ? null : judged;
+        };
+        const title = words(request.body.title, REVIEW_TITLE_MAX);
+        const body = words(request.body.body, REVIEW_BODY_MAX);
+        if (title === false) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', 'A title is plain words, with no web or e-mail address.', { column: 'title' });
+        if (body === false) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', 'A review is plain words, with no web or e-mail address.', { column: 'body' });
+        let taken: Awaited<ReturnType<typeof takeReview>>;
+        try {
+          taken = await takeReview({ db, dialect, view, table, pk, app: host.app, word: host.word, tableRef: host.tableRef, refOf: host.refOf, reviews, sessionPerson: null, forgottenStamp, sent: { stars: request.body.stars, title, body }, now: new Date(now) });
+        } catch (error) {
+          if (lostToAnother(error) || lostRace(error) || heldBusy(error)) return busy(reply);
+          throw error;
+        }
+        if (taken.kind === 'done') return fail(reply, 409, 'PUBLIC_REVIEW_DONE', 'This has been reviewed already.');
+        if (taken.kind === 'not-yet') return fail(reply, 409, 'PUBLIC_REVIEW_NOT_YET', 'This cannot be reviewed yet.');
+        if (taken.kind !== 'taken') return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+        const entity: RecordRef = { connectionId: ok.key.connectionId, table: table.id, pk, label: pkLabel(table, pk) };
+        await auditWrite(request, ok, 'public.review.created', { ref: 'review-link' }, entity);
+        invalidateWidgetData(app, ok.key.connectionId, table.id);
+        await emitRecordEvent(app, { connectionId: ok.key.connectionId, table, action: 'update', entity, before: taken.before, after: taken.after, origin: 'public' });
+        return reply.code(201).send({ data: { reviewedAt: taken.reviewedAt } });
+      },
+    );
+
+    /*
+     * ONE BOOKING AS A CALENDAR ENTRY, for a page's "Add to calendar": a row the
+     * session reads as its own, through its entry. The plain file (no METHOD, no
+     * parties) and the two links, with the same fields as the invitation.
+     */
+    app.options('/public/records/:ref/:id/calendar', { schema: { hide: true } }, preflight);
+    app.get(
+      '/public/records/:ref/:id/calendar',
+      {
+        config: { rateLimitBucket: 'public' },
+        schema: { params: publicRecordParams, response: { 200: publicCalendarReply, 401: publicErrorReply, 403: publicErrorReply, 404: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply } },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-read');
+        if (ok === null) return reply;
+        const none = () => fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
+        if (ok.key.managedBy === null || ok.session === null) return none();
+        const found = await resolveResource(request, reply, ok, request.params.ref, 'read');
+        if (found === null) return reply;
+        if (found.resource.claim === null && parentOf(found.resource) === null) return none();
+        const rule = calendarRuleOf(found.table);
+        if (rule === null) return none();
+        let pk: Row;
+        try {
+          pk = parseRecordId(found.table, request.params.id);
+        } catch {
+          return none();
+        }
+        const byKey: RecordFilter[] = Object.entries(pk).map(([column, value]) => ({ column, op: 'eq', value }) as RecordFilter);
+        const only = combinePredicates(found.predicate, byKey.length === 1 ? byKey[0]! : { and: byKey })!;
+        const reader = readerFor(found, found.table, found.visibility);
+        const row = ((await reader
+          .selectFrom(found.table.id)
+          .selectAll()
+          .where((eb) => compileFilter(eb as never, { view: found.view, table: found.table, canReadPii: true, dynamic: reader.dynamic, dialect: found.dialect }, only))
+          .executeTakeFirst()) as Row | undefined) ?? null;
+        const install = await settingsRepo(meta).get('system.instanceId');
+        if (row === null || typeof install !== 'string' || install === '') return none();
+        const read = settingReader(meta, found.db, found.view, ok.key.connectionId);
+        const language = (request.headers['accept-language'] ?? '').split(',')[0]?.split(';')[0]?.trim() || 'en-US';
+        const entry = await bookingEntry({ db: found.db, view: found.view, table: found.table, rule, appKey: ok.key.managedBy, install, locale: language, setting: (source) => read(source) }, row);
+        if (entry === null || !entry.takesTime) return none();
+        return reply.send({ data: { ics: downloadFile({ event: entry.event, stamp: new Date() }), google: googleCalendarLink(entry.event), outlook: outlookCalendarLink(entry.event) } });
       },
     );
 

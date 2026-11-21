@@ -486,6 +486,13 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'table.review',
   // Who proved who they are on a reviewed row: a row's own link reviews only a proved one (routes/public review, reviews/take.ts).
   'table.review.proved',
+  // The review link only the review mails carry (outbox/review-link.ts); a booking's calendar entry, on its mail and its
+  // feed (calendar/); a public box that says no (people/consent-writes.ts); a studio's cancel refunded (payments/refund-moves.ts).
+  'outbox.reviewLinks',
+  'table.booking.calendar',
+  'emailTemplate.calendar',
+  'publicAccess.consent.no',
+  'payments.refundOnStaff',
   'addOn.reviews',
   'appGrants.appColumn',
 ];

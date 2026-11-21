@@ -142,7 +142,10 @@ import {
   mailPurposeOf,
   printsSurveyLink,
   SURVEY_LINK_VARIABLE,
+  REVIEW_LINK_VARIABLE,
+  STOP_LINK_VARIABLE,
   type AppManifest,
+  type Outbox,
   type OutboxProducer,
 } from '@adminium/manifest';
 import { CUSTOMER_KEY_PURPOSE, addOnSettingsRepo, appOutboxesRepo, appTablesRepo, connectionTenantConfig, filesRepo, jobsRepo, overridesRepo, settingsRepo, usersRepo, type MetaDb, type RecordRef } from '@adminium/meta';
@@ -178,7 +181,8 @@ import {
 } from '../email/marketing.js';
 import { PLAIN_RECIPIENT } from '../email/plain-address.js';
 import { existingCustomer, invitedPerson, recipientPerson } from './marketing.js';
-import type { EmailSendAttachmentRef } from '../email/types.js';
+import { bareAddress } from '../email/document.js';
+import type { EmailCalendarPart, EmailSendAttachmentRef } from '../email/types.js';
 import { AppError } from '../errors.js';
 import { bcp47, formatTag, proseNumber } from '../i18n/bcp47.js';
 import { recipientLocale } from '../i18n/server-i18n.js';
@@ -193,6 +197,8 @@ import { isSampleRow, verdictsFor, type LiveOutbox, type OutboxLogger } from './
 import { addressFor, plausibleAddress, referenced, rowOf, type Addressed } from './recipient.js';
 import { columnRecipientOf } from './column-recipient.js';
 import { staffReplyTo } from './staff-reply-to.js';
+import { CALENDAR_GOOGLE_VARIABLE, CALENDAR_OUTLOOK_VARIABLE, calendarPartFor } from './calendar-part.js';
+import { reviewLinkFor } from './review-link.js';
 import { invitationOf, invitationPerson, keepSurveyToken, SURVEY_LINK_SKIPS, surveyLinkFor, type SurveyLink } from './survey-link.js';
 import { peopleNames } from '../widget-data/people-names.js';
 import type { SignInLinkMinter } from './sign-in-link.js';
@@ -226,6 +232,8 @@ interface AppFacts {
   routes: Record<string, string>;
   /** The document each of its templates carries, by template key; `optional`: sent without it when no add-on draws its kind. */
   attach: Record<string, { kind: string; link: string; optional?: true }>;
+  /** The outbox link naming the booking each template's calendar entry is of, by template key. */
+  calendar: Record<string, string>;
   /** The manifest as installed, for whether a document is switched on. */
   manifest: AppManifest | null;
 }
@@ -946,7 +954,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const customer = ((manifest?.['frontends'] as { side?: unknown; routes?: unknown }[] | undefined) ?? []).find((frontend) => frontend.side === 'customer');
     const routes = typeof customer?.routes === 'object' && customer.routes !== null ? (customer.routes as Record<string, unknown>) : {};
     const attach: AppFacts['attach'] = {};
-    for (const template of (manifest?.['emailTemplates'] as { key?: unknown; attach?: { kind?: unknown; link?: unknown; optional?: unknown } }[] | undefined) ?? []) {
+    const calendar: AppFacts['calendar'] = {};
+    for (const template of (manifest?.['emailTemplates'] as { key?: unknown; attach?: { kind?: unknown; link?: unknown; optional?: unknown }; calendar?: { link?: unknown } }[] | undefined) ?? []) {
+      if (typeof template.key === 'string' && typeof template.calendar?.link === 'string') calendar[template.key] = template.calendar.link;
       const wanted = template.attach;
       if (typeof template.key === 'string' && typeof wanted?.kind === 'string' && typeof wanted.link === 'string') {
         attach[template.key] = { kind: wanted.kind, link: wanted.link, ...(wanted.optional === true ? { optional: true as const } : {}) };
@@ -956,6 +966,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       requires: needs.flatMap((need) => (typeof need.key === 'string' ? [need.key] : [])),
       routes: Object.fromEntries(Object.entries(routes).filter((entry): entry is [string, string] => typeof entry[1] === 'string')),
       attach,
+      calendar,
       // An app's, or an add-on's that sends its own mail: both say which documents their templates carry and who draws them.
       manifest: manifest?.['kind'] === 'app' || manifest?.['kind'] === 'add-on' ? (manifest as unknown as AppManifest) : null,
     };
@@ -1745,6 +1756,53 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       vars[SURVEY_LINK_VARIABLE] = made.link;
       surveyKeep = made.keep;
     }
+    // A service mail sent for a purpose carries that purpose's stop link and the two list headers: never a column's value of that name.
+    delete vars[STOP_LINK_VARIABLE];
+    let listHeaders: Record<string, string> | undefined;
+    if (objection !== undefined) {
+      const stop = await marketing()
+        .serviceStop({ to, purpose: objection.purpose, locale: template.locale ?? locale })
+        .catch((error: unknown) => {
+          deps.logger?.warn({ err: error, appKey: box.appKey }, 'a service mail\'s stop link could not be made');
+          return null;
+        });
+      if (stop !== null) {
+        vars[STOP_LINK_VARIABLE] = stop.url;
+        listHeaders = stop.headers;
+      }
+    }
+    // A review's link, made now and only for a kind that prints one (`review-link.ts`); never a column's value of that name.
+    delete vars[REVIEW_LINK_VARIABLE];
+    const reviewLinks = (manifest as { outbox?: { reviewLinks?: NonNullable<Outbox['reviewLinks']> } }).outbox?.reviewLinks;
+    if (reviewLinks !== undefined && reviewLinks.kinds.includes(kind) && reads.has(REVIEW_LINK_VARIABLE)) {
+      const base = await guestBase(box.appKey, await slugOfInstall(box.row.manifestId));
+      const secret = deps.secret ?? emailRuntimeSecret();
+      if (secret === null || secret === undefined || secret === '') return { status: 'failed', error: 'Email is not set up on this server' };
+      const made = await reviewLinkFor({ meta: deps.meta, secret, db: ctx.db, view: ctx.view, now: ctx.now, base }, { appKey: box.appKey, connectionId: box.connectionId, block: reviewLinks, definition: box.definition, message: row, to });
+      if ('skip' in made) return { status: 'skipped', error: sentence(made.skip) };
+      vars[REVIEW_LINK_VARIABLE] = made.link;
+    }
+    // A reply goes to the person the row's staff column names, when the producer says so and somebody who signs in is there;
+    // else to the house's own address, when its settings name one that is an address; else to its sender's reply-to.
+    const house = await houseReplyTo(box, ctx.db);
+    const replyTo = (await staffReplyTo({ meta: deps.meta, db: ctx.db, view: ctx.view, outboxId: ctx.outbox.id }, producer, row)) ?? house ?? sender.replyTo;
+    // The calendar entry the template carries, and the two links that add it: never a column's value of those names.
+    delete vars[CALENDAR_GOOGLE_VARIABLE];
+    delete vars[CALENDAR_OUTLOOK_VARIABLE];
+    let calendarPart: EmailCalendarPart | undefined;
+    const calendarLink = (await appFacts(box.row.manifestId)).calendar[templateKey];
+    if (calendarLink !== undefined) {
+      // The studio, on every mail of the visit: a calendar ties an update to its organiser, so never the staff member a reply may go to.
+      const organizer = house ?? sender.replyTo ?? bareAddress((await fromOf(deps.meta, template.brand, sender)) ?? '');
+      const made = await calendarPartFor({ meta: deps.meta, db: ctx.db, view: ctx.view, now: ctx.now }, { appKey: box.appKey, connectionId: box.connectionId, definition: box.definition, link: calendarLink, message: row, to, locale: template.locale ?? locale, organizer: { name: vars['appName'] ?? sender.name ?? '', email: organizer } }).catch((error: unknown) => {
+        // The confirmation still goes: the entry is a convenience beside it.
+        deps.logger?.warn({ err: error, appKey: box.appKey }, 'the calendar entry of an app email could not be made; it goes without one');
+        return null;
+      });
+      calendarPart = made?.part;
+      vars[CALENDAR_GOOGLE_VARIABLE] = made?.google ?? '';
+      vars[CALENDAR_OUTLOOK_VARIABLE] = made?.outlook ?? '';
+    }
     // Every name the email will print has its value — or it does not go, rather than go with `{{…}}` in it.
     // First, the blocks whose own condition is not met leave: nothing below asks for what only they print.
     const shown = withConditionsSettled(withoutUnmetBlocks(template, vars, withheld), vars, withheld);
@@ -1780,9 +1838,6 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const shownPictures = await rowPictures({ meta: deps.meta, connectionId: box.connectionId, view: ctx.view, blocks: sent.blocks, vars, withheld, rows: read });
     if (shownPictures.refused !== null) return { status: 'failed', error: sentence(shownPictures.refused) };
     const written = typeof row[cols.to] === 'string' ? (row[cols.to] as string).trim() : null;
-    // A reply goes to the person the row's staff column names, when the producer says so and somebody who signs in is there;
-    // else to the house's own address, when its settings name one that is an address; else to its sender's reply-to.
-    const replyTo = (await staffReplyTo({ meta: deps.meta, db: ctx.db, view: ctx.view, outboxId: ctx.outbox.id }, producer, row)) ?? (await houseReplyTo(box, ctx.db)) ?? sender.replyTo;
     // What a marketing mail carries: the unsubscribe link (a mail on the existing-customers basis has no purpose), its two
     // headers and the locked footer, in the template's language, naming the business as the mail's own banner does.
     const carry =
@@ -1823,6 +1878,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         ...(marketingBasis === null ? {} : { standing: { purpose: purpose ?? DEFAULT_MARKETING_PURPOSE, basis: marketingBasis, person: marketingPerson } }),
         // A service mail's purpose, likewise asked again at the hand-over.
         ...(objection === undefined ? {} : { objection }),
+        ...(listHeaders === undefined ? {} : { listHeaders }),
+        ...(calendarPart === undefined ? {} : { calendar: calendarPart }),
       },
       ...(surveyKeep === null ? {} : { survey: surveyKeep }),
       ...(written === to ? {} : { recordTo: to }),

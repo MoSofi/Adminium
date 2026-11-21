@@ -76,7 +76,7 @@ import {
 } from './render.js';
 import type { MarketingCarry } from './marketing-carry.js';
 import { PLAIN_DOTTED, PLAIN_RECIPIENT } from './plain-address.js';
-import type { EmailRenderSource, EmailSendAttachmentRef, EmailSendInlineRef } from './types.js';
+import type { EmailCalendarPart, EmailRenderSource, EmailSendAttachmentRef, EmailSendInlineRef } from './types.js';
 import { resolveMailSender, SERVER_SENDER, type MailSender, type SendAbout } from './workspace-sender.js';
 import { configureTrialMail, queueThroughRelay, relayInUse, shownName, trialMailOn } from './trial-relay.js';
 
@@ -363,6 +363,10 @@ export interface EnqueueEmailInput {
    */
   mailClass?: EmailMailClass | undefined;
   /** What a marketing mail carries (`marketing.ts`): its list headers and its locked footer, drawn last. */
+  /** A service mail's stop link headers (`List-Unsubscribe`), when it is sent for a consent purpose. */
+  listHeaders?: Record<string, string> | undefined;
+  /** The calendar entry this message carries, as the text of its `text/calendar` part. */
+  calendar?: EmailCalendarPart | undefined;
   marketing?: MarketingCarry | undefined;
   /** What a marketing mail was judged on, asked again at the hand-over. */
   standing?: MarketingStanding | undefined;
@@ -458,6 +462,8 @@ interface EmailEnvelope {
   standing?: MarketingStanding | undefined;
   /** A service mail's consent purpose when queued, asked again at the hand-over. */
   objection?: ServiceObjection | undefined;
+  /** The calendar entry the mail carries: an older server drops it and sends the mail without. */
+  calendar?: EmailCalendarPart | undefined;
   /** Sent by one of the server's account flows ({@link EnqueueEmailInput.account}): sealed, so a row cannot claim it. */
   account?: true | undefined;
 }
@@ -677,6 +683,8 @@ export interface EnqueueRenderedEmailInput {
   standing?: MarketingStanding | undefined;
   /** A service mail's consent purpose, asked again at the hand-over (service mail only). */
   objection?: ServiceObjection | undefined;
+  /** The calendar entry the mail carries. */
+  calendar?: EmailCalendarPart | undefined;
 }
 
 /**
@@ -758,6 +766,7 @@ async function queueEnvelope(deps: EnqueueEmailDeps, secret: string, input: Enqu
     ...(input.headers === undefined || Object.keys(input.headers).length === 0 ? {} : { headers: input.headers }),
     ...(input.mailClass !== 'marketing' || input.standing === undefined ? {} : { standing: input.standing }),
     ...(input.mailClass !== 'service' || input.objection === undefined ? {} : { objection: input.objection }),
+    ...(input.calendar === undefined ? {} : { calendar: input.calendar }),
     ...(account ? { account: true as const } : {}),
   };
   const inline = inlineRefs(input.rendered as RenderedEmail);
@@ -880,7 +889,8 @@ export async function enqueueEmail(
       report: input.report,
       ...(input.dedupeKey === undefined ? {} : { dedupeKey: input.dedupeKey }),
       ...(input.mailClass === undefined ? {} : { mailClass: input.mailClass }),
-      ...(input.marketing === undefined ? {} : { headers: input.marketing.headers }),
+      ...(input.marketing !== undefined ? { headers: input.marketing.headers } : input.listHeaders === undefined ? {} : { headers: input.listHeaders }),
+      ...(input.calendar === undefined ? {} : { calendar: input.calendar }),
       ...(input.standing === undefined ? {} : { standing: input.standing }),
       ...(input.objection === undefined ? {} : { objection: input.objection }),
     },
