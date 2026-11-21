@@ -37,7 +37,7 @@
 | `references/guides/identity-and-own-links--a-row-s-own-link.md` | A row's own link | 4207 |
 | `references/guides/identity-and-own-links--keeping-a-session.md` | Keeping a session | 2225 |
 | `references/guides/identity-and-own-links--sign-out-everywhere.md` | Sign out everywhere | 992 |
-| `references/guides/identity-and-own-links--delete-my-details.md` | Delete my details | 3397 |
+| `references/guides/identity-and-own-links--delete-my-details.md` | Delete my details | 4424 |
 | `references/guides/identity-and-own-links--when-a-session-was-ended.md` | When a session was ended | 1139 |
 | `references/guides/identity-and-own-links--make-a-new-link.md` | Make a new link | 6391 |
 | `references/guides/identity-and-own-links--withheld-columns.md` | Withheld columns | 4012 |
