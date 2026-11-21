@@ -160,6 +160,12 @@ export const BUILTIN_EMAIL_TEMPLATE_KEYS = [
    * conversation, never a link back into it.
    */
   'chat-reply',
+  /*
+   * A one-time link for a person to connect their own outside account, and the
+   * note saying which account was connected (`connected-accounts/notices.ts`).
+   */
+  'connect-link',
+  'account-connected',
 ] as const;
 
 export type BuiltinEmailTemplateKey = (typeof BUILTIN_EMAIL_TEMPLATE_KEYS)[number];
@@ -221,6 +227,8 @@ export const BUILTIN_EMAIL_TEMPLATE_VARS: Readonly<
    * sender's postal address, else the business's name. Nothing of the visitor.
    */
   'chat-reply': ['business', 'reply', 'postal'],
+  'connect-link': ['business', 'name', 'link', 'days'],
+  'account-connected': ['business', 'name', 'provider', 'account'],
 };
 
 /**
@@ -266,6 +274,9 @@ const VAR = {
   phoneLine: '{{phoneLine}}',
   contactLine: '{{contactLine}}',
   link: '{{link}}',
+  days: '{{days}}',
+  provider: '{{provider}}',
+  account: '{{account}}',
   revisedLine: '{{revisedLine}}',
   keptLine: '{{keptLine}}',
   stoppedLine: '{{stoppedLine}}',
@@ -279,7 +290,6 @@ const VAR = {
   balanceLine: '{{balanceLine}}',
   greeting: '{{greeting}}',
   purposeLine: '{{purposeLine}}',
-  days: '{{days}}',
   postal: '{{postal}}',
   reply: '{{reply}}',
 } as const;
@@ -899,6 +909,44 @@ function chatReplyTemplate(t: Translate): BuiltinEmailTemplate {
   };
 }
 
+/**
+ * A person's one-time link to connect their own account. It says who asks and
+ * that nothing happens until they sign in, because a link like this is what a
+ * phishing mail would imitate.
+ */
+function connectLinkTemplate(t: Translate): BuiltinEmailTemplate {
+  return {
+    key: 'connect-link',
+    name: t('email:connectLink.name', { defaultValue: 'Connect your account' }),
+    subject: t('email:connectLink.subject', { business: VAR.business, defaultValue: '{business} asks you to connect your account' }),
+    preheader: t('email:connectLink.preheader', { days: VAR.days, defaultValue: 'The link works for {days} days.' }),
+    category: 'transactional',
+    blocks: [
+      heading(t('email:connectLink.heading', { defaultValue: 'Connect your account' })),
+      paragraph('intro', t('email:connectLink.intro', { name: VAR.name, business: VAR.business, defaultValue: 'Hi {name}, {business} asks you to connect your own account. Please use the account that is yours.' })),
+      button(t('email:connectLink.action', { defaultValue: 'Connect my account' }), VAR.link),
+      paragraph('notice', t('email:connectLink.notice', { days: VAR.days, defaultValue: 'The link works once, for {days} days. If you weren’t expecting it, you can ignore this email: nothing is connected until you sign in.' })),
+    ],
+    footer: VAR.business,
+  };
+}
+
+/** Told at the address on file, so a connection made by someone else does not go unnoticed. */
+function accountConnectedTemplate(t: Translate): BuiltinEmailTemplate {
+  return {
+    key: 'account-connected',
+    name: t('email:accountConnected.name', { defaultValue: 'Account connected' }),
+    subject: t('email:accountConnected.subject', { business: VAR.business, defaultValue: 'Your account was connected at {business}' }),
+    category: 'transactional',
+    blocks: [
+      heading(t('email:accountConnected.heading', { defaultValue: 'Your account was connected' })),
+      paragraph('intro', t('email:accountConnected.intro', { name: VAR.name, provider: VAR.provider, business: VAR.business, account: VAR.account, defaultValue: 'Hi {name}, {provider} is now connected for you at {business} as {account}.' })),
+      paragraph('notice', t('email:accountConnected.notice', { business: VAR.business, defaultValue: 'If this wasn’t you, tell {business} straight away.' })),
+    ],
+    footer: VAR.business,
+  };
+}
+
 export function builtinEmailTemplates(t: Translate): BuiltinEmailTemplate[] {
   return [
     passwordResetTemplate(t),
@@ -914,6 +962,8 @@ export function builtinEmailTemplates(t: Translate): BuiltinEmailTemplate[] {
     paymentReceiptTemplate(t),
     signUpConfirmTemplate(t),
     chatReplyTemplate(t),
+    connectLinkTemplate(t),
+    accountConnectedTemplate(t),
   ];
 }
 

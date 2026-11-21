@@ -28,5 +28,13 @@
   "tooOld": {
     "title": "Cette page demande un Adminium plus récent",
     "body": "La page de ce module a été conçue pour une version d'Adminium plus récente que celle-ci. Mettre Adminium à jour l'ouvrira ; rien de cette page n'a été exécuté."
+  },
+  "accounts": {
+    "notice": {
+      "connectedTitle": "{person} a connecté un compte",
+      "connectedBody": "{person} est maintenant connecté à {provider} avec le compte {account}.",
+      "refusedTitle": "{provider} a refusé l’application de ce serveur",
+      "refusedBody": "Vérifiez l’ID client et le secret enregistrés pour {provider}. Personne n’a besoin de se reconnecter : les connexions reprendront dès que l’application sera acceptée."
+    }
   }
 }

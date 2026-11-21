@@ -1,4 +1,20 @@
 {
+  "addOns.accounts.notice.connectedBody": {
+    "status": "mt",
+    "srcHash": "f075114b652e"
+  },
+  "addOns.accounts.notice.connectedTitle": {
+    "status": "mt",
+    "srcHash": "8cc99d540ed2"
+  },
+  "addOns.accounts.notice.refusedBody": {
+    "status": "mt",
+    "srcHash": "c569bb70c52d"
+  },
+  "addOns.accounts.notice.refusedTitle": {
+    "status": "mt",
+    "srcHash": "1e5c3c4e69d9"
+  },
   "addOns.crashed.body": {
     "status": "mt",
     "srcHash": "009bc13b9030"
@@ -17195,6 +17211,26 @@
     "status": "mt",
     "srcHash": "9760e265be93"
   },
+  "email.accountConnected.heading": {
+    "status": "mt",
+    "srcHash": "a4a9b2fd521d"
+  },
+  "email.accountConnected.intro": {
+    "status": "mt",
+    "srcHash": "830c70706677"
+  },
+  "email.accountConnected.name": {
+    "status": "mt",
+    "srcHash": "4d04eece64a7"
+  },
+  "email.accountConnected.notice": {
+    "status": "mt",
+    "srcHash": "9fc1408ea897"
+  },
+  "email.accountConnected.subject": {
+    "status": "mt",
+    "srcHash": "2f5532777597"
+  },
   "email.actions.archived": {
     "status": "mt",
     "srcHash": "eddc813f35b1"
@@ -17946,6 +17982,34 @@
   "email.chat.waitingTitle": {
     "status": "mt",
     "srcHash": "26cd776257f8"
+  },
+  "email.connectLink.action": {
+    "status": "mt",
+    "srcHash": "6e549e0320e1"
+  },
+  "email.connectLink.heading": {
+    "status": "mt",
+    "srcHash": "9f431f77c7da"
+  },
+  "email.connectLink.intro": {
+    "status": "mt",
+    "srcHash": "08e31914cb5c"
+  },
+  "email.connectLink.name": {
+    "status": "mt",
+    "srcHash": "9f431f77c7da"
+  },
+  "email.connectLink.notice": {
+    "status": "mt",
+    "srcHash": "e6ca1a0d644d"
+  },
+  "email.connectLink.preheader": {
+    "status": "mt",
+    "srcHash": "87704ca23f99"
+  },
+  "email.connectLink.subject": {
+    "status": "mt",
+    "srcHash": "a32aa6633c3f"
   },
   "email.copySuffix": {
     "status": "mt",
@@ -51234,6 +51298,14 @@
   "x.chat.noScript": {
     "status": "mt",
     "srcHash": "2e0cd1025972"
+  },
+  "x.connect.noScript": {
+    "status": "mt",
+    "srcHash": "0570a6c12eb0"
+  },
+  "x.connect.unavailable": {
+    "status": "mt",
+    "srcHash": "95ce6dd6c2ef"
   },
   "x.ending.already": {
     "status": "mt",

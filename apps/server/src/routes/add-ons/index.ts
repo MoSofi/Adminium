@@ -878,6 +878,10 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           `"${manifest.addOn.connect.kind}".`,
       );
     }
+    // People connect their own accounts through the connect door, and the registration is saved on its own route.
+    if (manifest.addOn.connect.accounts !== undefined) {
+      throw new ValidationFailedError(`"${key}" keeps an account per person. Save its app registration, then connect from its connected accounts.`, { reason: 'accounts' });
+    }
     return { installed, manifest };
   }
 
@@ -2229,6 +2233,12 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         }
         if (read.ok && isAddOnManifest(read.manifest) && speaksForSources(read.manifest)) {
           throw new ValidationFailedError(`"${key}" keeps a key for each of its sources. Remove them on its own Sources screen.`, { reason: 'sources' });
+        }
+
+        // A registration people are connected through: they are disconnected first, each with what that undoes at the provider.
+        if (read.ok && isAddOnManifest(read.manifest) && read.manifest.addOn.connect.accounts !== undefined) {
+          const held = await deps.meta.db.selectFrom('adminium_connected_accounts').select('id').where('manifestId', '=', installed.row.id).limit(1).execute();
+          if (held.length > 0) throw new ValidationFailedError(`"${key}" still has connected accounts. Disconnect them first.`, { reason: 'accounts' });
         }
 
         // And the whole of it: ONE delete, against a table that holds only

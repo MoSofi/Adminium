@@ -38,5 +38,13 @@ export default {
   "tooOld": {
     "title": "This page needs a newer Adminium",
     "body": "This add-on's page was built for a newer version of Adminium than this one. Updating Adminium is what opens it; nothing from the page has been run."
+  },
+  "accounts": {
+    "notice": {
+      "connectedTitle": "{person} connected an account",
+      "connectedBody": "{person} is now connected to {provider} as {account}.",
+      "refusedTitle": "{provider} refused this server’s app",
+      "refusedBody": "Check the client ID and secret saved for {provider}. Nobody needs to reconnect: connections resume once the app is accepted."
+    }
   }
 } as const;

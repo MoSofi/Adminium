@@ -123,5 +123,9 @@ export default {
     "savedNo": "Enregistré : non. Vous pouvez le changer à tout moment dans « Choix des cookies ».",
     "cookieChoice": "Choix des cookies",
     "failed": "Votre choix n’a pas pu être enregistré. Réessayez."
+  },
+  "connect": {
+    "noScript": "La connexion d’un compte nécessite JavaScript.",
+    "unavailable": "Ce lien ne fonctionne plus. Demandez-en un nouveau."
   }
 } as const;

@@ -123,5 +123,9 @@ export default {
     "savedNo": "Saved: no. Change it any time under Cookie choice.",
     "cookieChoice": "Cookie choice",
     "failed": "Your choice could not be saved. Try again."
+  },
+  "connect": {
+    "noScript": "Connecting an account needs JavaScript.",
+    "unavailable": "This link doesn’t work any more. Ask for a new one."
   }
 } as const;

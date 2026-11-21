@@ -38,5 +38,13 @@ export default {
   "tooOld": {
     "title": "此頁面需要較新版本的 Adminium",
     "body": "此附加元件的頁面是為比目前更新的 Adminium 版本所建置。更新 Adminium 後即可開啟；頁面中的任何內容都未執行。"
+  },
+  "accounts": {
+    "notice": {
+      "connectedTitle": "{person} 連接了一個帳戶",
+      "connectedBody": "{person} 現已以 {account} 連接到 {provider}。",
+      "refusedTitle": "{provider} 拒絕了此伺服器的應用程式",
+      "refusedBody": "請檢查為 {provider} 儲存的用戶端 ID 和密鑰。無需任何人重新連接：應用程式被接受後，連線會自動恢復。"
+    }
   }
 } as const;

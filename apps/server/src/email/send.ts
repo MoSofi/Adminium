@@ -215,6 +215,10 @@ export const PAYMENT_RECEIPT_TEMPLATE_KEY = 'payment-receipt';
 export const SIGN_UP_CONFIRM_TEMPLATE_KEY = 'sign-up-confirm';
 /** A staff member's reply in a website chat, to the address the visitor left (`chat/reply-mail.ts`). */
 export const CHAT_REPLY_TEMPLATE_KEY = 'chat-reply';
+/** A one-time link for a person to connect their own outside account (`connected-accounts/notices.ts`). */
+export const CONNECT_LINK_TEMPLATE_KEY = 'connect-link';
+/** Tells a person, at the address on file, which outside account was connected for them. */
+export const ACCOUNT_CONNECTED_TEMPLATE_KEY = 'account-connected';
 
 /**
  * The templates of the server's own mail to its staff: getting in and keeping

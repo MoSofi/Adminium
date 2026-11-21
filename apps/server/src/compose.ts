@@ -101,6 +101,7 @@ import { operatorMailSetupOf, trialMailSetupOf } from './email/trial-mail-setup.
 import { configureTrialMail, onEmailCapReached } from './email/trial-relay.js';
 import { CATALOG_ENABLED_SETTING, createCatalogClient } from './add-ons/catalog.js';
 import { addOnCredentialCryptoFromSecret } from './add-ons/credential-crypto.js';
+import { addOnVisibleCredential } from './add-ons/oauth.js';
 import { addOnHttpClientFor } from './add-ons/egress.js';
 import {
   buildAddOnRuntime,
@@ -329,6 +330,10 @@ import { factsViewFor } from './routes/pages/column-facts.js';
 import { fetchByPk, parseRecordId } from './crud/records.js';
 import { rowLimitContextOf } from './crud/row-limit-context.js';
 import { fetchVisible } from './crud/row-limit.js';
+import { rowKeyOf } from './payments/payables.js';
+import { tableIdOrNull } from './installs/table-id.js';
+import { reachability } from './payments/reachability.js';
+import { storedPublicOrigin } from './email/door-reach.js';
 import { addOnKitRoutes } from './routes/add-ons/kit.js';
 import { formSummaryRoutes } from './routes/add-ons/form-summary.js';
 import { addOnCodesRoutes } from './routes/add-ons/codes.js';
@@ -437,6 +442,10 @@ import { registerPaymentsSettleHandler } from './payments/webhook.js';
 import { PAYMENTS_SWEEP_PLAN_CRON, PAYMENTS_SWEEP_PLAN_NAME, planSweeps, registerPaymentsSweepHandler } from './payments/sweep.js';
 import { createRowLeftWatch, endLeftPages, registerRowLeftHandler } from './payments/row-left.js';
 import { paymentWebhookRoutes } from './routes/payments/webhook.js';
+import { CONNECTED_ACCOUNTS_TICK_CRON, CONNECTED_ACCOUNTS_TICK_NAME, registerConnectedAccountJobs, runConnectedAccountsTick } from './connected-accounts/jobs.js';
+import { createConnectedAccounts } from './connected-accounts/service.js';
+import { connectCallbackRoutes, connectDoorRoutes } from './routes/connect-door/index.js';
+import { connectedAccountRoutes } from './routes/connected-accounts/index.js';
 import { paymentActivityRoutes } from './routes/payments/activity.js';
 import { keyAppRoutes } from './routes/payments/key-app.js';
 import { testPaymentsRoutes } from './routes/payments/test-payments.js';
@@ -2136,6 +2145,52 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       warn: (fields, message) => app.log.warn(fields, message),
     }),
   );
+  /*
+   * CONNECTED ACCOUNTS: one person's outside account per row of an app (or per
+   * install). The engine runs every sign-in and refresh; an add-on's code is
+   * handed a client that adds the token, never the token (`connected-accounts/`).
+   */
+  const connectedAccounts = createConnectedAccounts({
+    meta,
+    crypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
+    secret: env.ADMINIUM_SECRET,
+    httpFor: (manifest) => addOnHttpClientFor(meta, manifest, { policy: app.trialPolicy }),
+    rows: {
+      read: async (connectionId, tableId, rowKey) => {
+        const view = await factsViewFor(meta, connectionId);
+        if (view === null) throw new Error('This database has no schema snapshot to read a row with.');
+        // Not "the row is gone": a re-sync under a role that lost its rights drops a table from the snapshot too.
+        if (!view.model.tables.some((one) => one.id === tableId)) throw new Error('This table is not in the schema snapshot.');
+        const table = view.table(tableId);
+        const { db } = await manager.data(connectionId);
+        return (await fetchByPk(db, table, parseRecordId(table, rowKey))) as Record<string, unknown> | undefined;
+      },
+      tableId: async (connectionId, real) => {
+        const view = await factsViewFor(meta, connectionId);
+        return view === null ? null : tableIdOrNull(view.model, real);
+      },
+    },
+    publicOrigin: () => storedPublicOrigin(meta),
+    reach: async (forwarded) =>
+      reachability({
+        networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+        desktop: env.ADMINIUM_RUNTIME === 'desktop',
+        trustProxy: env.ADMINIUM_TRUST_PROXY,
+        forwarded,
+        publicOrigin: await storedPublicOrigin(meta),
+      }),
+    notices: { hub: paymentWatchDeps.hub, logger: app.log },
+  });
+  registerConnectedAccountJobs(jobs.registry, connectedAccounts);
+  jobs.scheduler.registerSchedule(
+    CONNECTED_ACCOUNTS_TICK_NAME,
+    CONNECTED_ACCOUNTS_TICK_CRON,
+    async () => {
+      const done = await runConnectedAccountsTick(connectedAccounts, (input) => jobs.enqueue(input));
+      if (done.ending > 0) app.log.info({ ending: done.ending }, 'connected accounts: ending connections whose row went away');
+    },
+    { jitterMs: 60_000 },
+  );
   jobs.scheduler.registerSchedule(PAYMENTS_WATCH_NAME, PAYMENTS_WATCH_CRON, async () => {
     await runPaymentWatch(paymentWatchDeps);
     const queued = await pickUpRefunds(paymentRefundDeps);
@@ -2680,6 +2735,31 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           policy: app.trialPolicy,
         }),
       );
+      // Connected accounts: the staff doors on a row and on an install, and the fixed address a provider sends a person back to.
+      await api.register(
+        connectedAccountRoutes({
+          meta,
+          crypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
+          accounts: connectedAccounts,
+          reachedRow: async (request, connectionId, tableId, row, action) => {
+            const view = await factsViewFor(meta, connectionId);
+            if (view === null || !view.model.tables.some((one) => one.id === tableId)) return null;
+            const table = view.table(tableId);
+            if (table.primaryKey.length !== 1) return null;
+            let pk;
+            try {
+              pk = parseRecordId(table, row);
+            } catch {
+              return null;
+            }
+            const limits = await rowLimitContextOf(meta, await app.rbac.resolve(request), connectionId, view.model);
+            const { db } = await manager.data(connectionId);
+            const found = limits === null ? await fetchByPk(db, table, pk) : await fetchVisible(limits, db, table, pk, action);
+            return found === undefined ? null : { rowKey: rowKeyOf(table, found as Record<string, unknown>) };
+          },
+        }),
+      );
+      await api.register(connectCallbackRoutes());
       // Where a payment service calls back: no session, the signature is the gate.
       await api.register(paymentWebhookRoutes({ meta, providerFor: paymentProviderLookup, enqueue: (input) => jobs.enqueue(input), notices: paymentNotices }));
       // Where a mail service tells of bounces, spam reports and its own unsubscribes: no session, its own proof is the gate.
@@ -3616,6 +3696,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
            * configuration is part of the add-on, not the customer's data.
            */
           onAddOnRemoved: async (install) => {
+            // Its connections end first, while the registration and tokens to undo them are still there.
+            await connectedAccounts.endInstall(install.row.id).catch((error: unknown) => app.log.warn({ err: error, addOn: install.row.manifestKey }, 'connected accounts: could not end all of an add-on\'s connections'));
             // One install's: another database's copy of the add-on keeps rendering, firing and its settings.
             // A profile made before the add-on was there carries no install: it is the copy's on its own database.
             const copies = await manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET)).listByKey(install.row.manifestKey);
@@ -3907,6 +3989,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       landing: landingCatalog,
     }),
   );
+  // Where a person connects their own outside account (`/x/connect`), signed in or not.
+  await app.register(connectDoorRoutes({ meta, accounts: connectedAccounts }));
   // The visitor banner's "Yes" and "Cookie choice" (`/x/consent/visit`).
   await app.register(
     xConsentRoutes({
@@ -4366,7 +4450,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         http: addOnHttpClientFor(meta, manifest, { policy: app.trialPolicy }),
         credential: async (installId: string | undefined) => {
           const install = await installOfRecord(repo, manifest.key, installId);
-          return install === null ? null : ((await repo.getCredential(install.row.id))?.secret ?? null);
+          if (install === null) return null;
+          // Never the whole envelope: an OAuth one holds the client secret and the refresh token.
+          const held = await repo.getCredential(install.row.id);
+          return held === null ? null : addOnVisibleCredential(held);
         },
       };
     });

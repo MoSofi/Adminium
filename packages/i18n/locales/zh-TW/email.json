@@ -1019,5 +1019,21 @@
     "object": "提出反對",
     "questions": "有疑問？請寫信至 {contact}。{who}。",
     "keptBy": "由 {who} 保留。"
+  },
+  "connectLink": {
+    "name": "連接您的帳戶",
+    "subject": "{business} 請您連接帳戶",
+    "preheader": "此連結 {days} 天內有效。",
+    "heading": "連接您的帳戶",
+    "intro": "{name} 您好，{business} 請您連接您自己的帳戶。請使用屬於您本人的帳戶。",
+    "action": "連接我的帳戶",
+    "notice": "此連結只能使用一次，{days} 天內有效。如果您沒有預期收到此郵件，可以忽略：在您登入之前不會連接任何內容。"
+  },
+  "accountConnected": {
+    "name": "帳戶已連接",
+    "subject": "您的帳戶已在 {business} 連接",
+    "heading": "您的帳戶已連接",
+    "intro": "{name} 您好，您在 {business} 的 {provider} 現已連接為 {account}。",
+    "notice": "如果這不是您本人的操作，請立即告知 {business}。"
   }
 }
