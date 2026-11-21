@@ -381,26 +381,25 @@ test.describe('trial mode', () => {
     await page.getByLabel(/^Confirm password/).fill(OWNER.password);
     await page.getByRole('button', { name: /Create account/ }).click();
 
-    // The meta store is the operator's: whatever that step says, there is nothing to choose.
-    const team = page.getByRole('heading', { name: 'Bring your team' });
-    const meta = page.getByRole('heading', { name: 'Where Adminium keeps its own data' });
-    await expect(team.or(meta)).toBeVisible({ timeout: 30_000 });
-    if (await meta.isVisible()) await page.getByRole('button', { name: /Continue/ }).click();
+    // A trial's wizard leaves out storage (the operator's) and the team (invited later, from Settings).
+    await expect(page.getByRole('heading', { name: /You’re all set/ })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('heading', { name: 'Where Adminium keeps its own data' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Bring your team' })).toHaveCount(0);
+    await page.getByRole('button', { name: /Go to dashboard/ }).click();
+    await expect(page).not.toHaveURL(/\/setup/, { timeout: 30_000 });
 
     // An invitation is account mail: it goes out through the operator's relay, From pinned.
-    await expect(team).toBeVisible();
-    await page.getByLabel(/Teammate/).fill(TEAMMATE);
-    await page.getByRole('button', { name: 'Invite' }).click();
-    await expect(page.getByText(TEAMMATE)).toBeVisible();
+    await page.goto('/settings/team');
+    await page.getByRole('button', { name: 'Invite teammate' }).click();
+    const invite = page.getByRole('dialog', { name: 'Invite a teammate' });
+    await invite.getByLabel(/^Email/).fill(TEAMMATE);
+    await invite.getByLabel(/^Name/).fill('Trial Teammate');
+    await invite.getByRole('button', { name: 'Create invitation' }).click();
+    await expect(page.getByTestId('team-invite-emailed')).toBeVisible();
     await expect.poll(async () => (await sinkFor(TEAMMATE)).length, { timeout: 30_000 }).toBe(1);
     const [invitation] = await sinkFor(TEAMMATE);
     expect(invitation?.envelope.from).toBe(RELAY_FROM);
     expect(invitation?.from).toContain(RELAY_FROM);
-    await page.getByRole('button', { name: /Continue/ }).click();
-
-    await expect(page.getByRole('heading', { name: /You’re all set/ })).toHaveCount(1);
-    await page.getByRole('button', { name: /Go to dashboard/ }).click();
-    await expect(page).not.toHaveURL(/\/setup/, { timeout: 30_000 });
   });
 
   test('the shell and the sign-in page carry both strips, the whole sentence on a phone', async ({ browser }) => {
