@@ -245,3 +245,265 @@ describe('the website loader: a chat', () => {
     expect(api.unread).toBe(2);
   });
 });
+
+describe('the website loader: an app’s screen', () => {
+  const app = (attributes: Record<string, string>, tag = 'div', words = 'Book online'): HTMLElement => {
+    const box = document.createElement(tag);
+    for (const [name, value] of Object.entries(attributes)) box.setAttribute(name, value);
+    if (tag === 'div') {
+      const link = document.createElement('a');
+      link.href = 'https://forms.meridian.example/apps/bookings/customer/book';
+      link.textContent = words;
+      box.append(link);
+    } else box.textContent = words;
+    document.body.append(box);
+    return box;
+  };
+  const framesOf = (): HTMLIFrameElement[] => frames().filter((frame) => frame.src.includes('/apps/'));
+  const api = () => (window as unknown as { adminium: { app: { open: () => void; close: () => void }; forms: { scan: () => void } } }).adminium;
+
+  beforeEach(() => {
+    document.body.replaceChildren();
+  });
+
+  afterEach(() => {
+    document.documentElement.style.overflow = '';
+  });
+
+  it('draws an inline frame at no height, on the app’s own address, in the page’s language', () => {
+    app({ 'data-adminium-app': 'bookings', 'data-path': '/book?service=gel', 'data-title': 'Book a visit' });
+    run();
+    const [frame] = framesOf();
+    expect(frame!.getAttribute('src')).toBe(`${ORIGIN}/apps/bookings/customer/book?service=gel&frame=1&lang=de-DE&mode=inline`);
+    expect(frame!.title).toBe('Book a visit');
+    expect(frame!.style.height).toBe('0px');
+    expect(frame!.getAttribute('referrerpolicy')).toBe('no-referrer');
+  });
+
+  it('opens at the app’s root by default, names a later copy, and carries a dark theme', () => {
+    app({ 'data-adminium-app': 'bookings' });
+    app({ 'data-adminium-app': 'bookings~north', 'data-path': '/reviews', 'data-theme': 'dark' });
+    app({ 'data-adminium-app': 'bookings~south', 'data-theme': 'neon' });
+    run();
+    expect(framesOf().map((frame) => frame.getAttribute('src'))).toEqual([
+      `${ORIGIN}/apps/bookings/customer/?frame=1&lang=de-DE&mode=inline`,
+      `${ORIGIN}/apps/bookings/north/customer/reviews?frame=1&lang=de-DE&mode=inline&theme=dark`,
+      `${ORIGIN}/apps/bookings/south/customer/?frame=1&lang=de-DE&mode=inline`,
+    ]);
+  });
+
+  it('draws nothing for a name or path outside the grammar: the path can never reach another site or leave the app', () => {
+    const bad: Record<string, string>[] = [
+      { 'data-adminium-app': '../x' },
+      { 'data-adminium-app': 'a~b~c' },
+      { 'data-adminium-app': 'a~B' },
+      { 'data-adminium-app': '' },
+      ...['//evil.example/x', 'book', 'https://evil.example', '/a//b', '/..', '/.', '/../../login', '/a/../b', '/a/./b', '/a/..?x=1', '/a b', '/a"b', '/a\\b', '/a?x=<y>', '/a#b'].map((path) => ({ 'data-adminium-app': 'bookings', 'data-path': path })),
+      { 'data-adminium-app': 'bookings', 'data-mode': 'popup' },
+    ];
+    for (const attributes of bad) app(attributes);
+    run();
+    expect(framesOf()).toEqual([]);
+  });
+
+  it('keeps the element’s own link until the frame is ready, then shows the frame alone', () => {
+    const box = app({ 'data-adminium-app': 'bookings', 'data-label': 'x'.repeat(40) });
+    run();
+    const [frame] = framesOf();
+    const [win] = windowsOf([frame!]);
+    const link = box.querySelector('a')!;
+    // A frame that is refused never says ready: the plain link stays.
+    expect(link.hidden).toBe(false);
+    message({ type: 'adminium:ready' }, 'https://evil.example', win);
+    message({ type: 'adminium:ready' }, ORIGIN, fakeWindow());
+    expect(link.hidden).toBe(false);
+    expect(win!.sent).toEqual([]);
+    message({ type: 'adminium:ready' }, ORIGIN, win);
+    expect(win!.sent).toEqual([{ message: { type: 'adminium:hello', mode: 'inline', label: 'x'.repeat(28) }, origin: ORIGIN }]);
+    // Ready is not enough: a frame that never gets a height would leave an empty space and no way to book.
+    expect(link.hidden).toBe(false);
+    message({ type: 'adminium:height', h: 300 }, ORIGIN, win);
+    expect(link.hidden).toBe(true);
+    expect(frame!.hidden).toBe(false);
+  });
+
+  it('sizes an inline frame from its own messages only, and ignores a size meant for a frame over the page', () => {
+    app({ 'data-adminium-app': 'bookings' });
+    run();
+    const [frame] = framesOf();
+    const [win] = windowsOf([frame!]);
+    message({ type: 'adminium:height', h: 900.2 }, ORIGIN, win);
+    expect(frame!.style.height).toBe('901px');
+    for (const bad of [{ type: 'adminium:height', h: 20000 }, { type: 'adminium:height', h: '9' }, { type: 'height', h: 10 }, { type: 7, h: 10 }, { type: 'adminium:size', w: 10, h: 10 }, 'adminium:height']) {
+      message(bad, ORIGIN, win);
+    }
+    message({ type: 'adminium:height', h: 50 }, 'https://evil.example', win);
+    expect(frame!.style.height).toBe('901px');
+    expect(frame!.style.position).toBe('');
+  });
+
+  it('tells the site one thing, on the element: that it was booked, with a plain code and nothing else', () => {
+    const box = app({ 'data-adminium-app': 'bookings' });
+    run();
+    const [win] = windowsOf(framesOf());
+    const heard: unknown[] = [];
+    document.addEventListener('adminium:booked', (event) => heard.push([(event.target as Element) === box, (event as CustomEvent).detail]), { once: false });
+    message({ type: 'adminium:done', code: 'LS-1042', name: 'Dana', email: 'dana@example.com' }, ORIGIN, win);
+    message({ type: 'adminium:done', code: 'dana@example.com' }, ORIGIN, win);
+    message({ type: 'adminium:done' }, ORIGIN, win);
+    message({ type: 'adminium:done', code: 'LS-1' }, 'https://evil.example', win);
+    expect(heard).toEqual([[true, { code: 'LS-1042' }], [true, {}], [true, {}]]);
+  });
+
+  it('brings the frame into view on a step change, from its own message', () => {
+    app({ 'data-adminium-app': 'bookings' });
+    run();
+    const [frame] = framesOf();
+    const [win] = windowsOf([frame!]);
+    const scroll = vi.fn();
+    frame!.scrollIntoView = scroll;
+    message({ type: 'adminium:scroll' }, 'https://evil.example', win);
+    expect(scroll).not.toHaveBeenCalled();
+    message({ type: 'adminium:scroll' }, ORIGIN, win);
+    expect(scroll).toHaveBeenCalledTimes(1);
+  });
+
+  it('floating: one frame over the page at no size, sized by the frame, a sheet that holds the page still', () => {
+    const box = app({ 'data-adminium-app': 'bookings', 'data-mode': 'floating', 'data-label': 'Book now' });
+    app({ 'data-adminium-app': 'bookings', 'data-mode': 'floating' });
+    app({ 'data-adminium-app': 'bookings', 'data-mode': 'button' }, 'a');
+    run();
+    expect(framesOf()).toHaveLength(1);
+    const [frame] = framesOf();
+    expect(frame!.parentElement).toBe(document.body);
+    expect([frame!.style.position, frame!.style.width, frame!.style.height]).toEqual(['fixed', '0px', '0px']);
+    expect(frame!.getAttribute('src')).toContain('mode=floating');
+    const [win] = windowsOf([frame!]);
+    message({ type: 'adminium:ready' }, ORIGIN, win);
+    expect(box.querySelector('a')!.hidden).toBe(false);
+    expect((win!.sent[0]!.message as { label: string }).label).toBe('Book now');
+    message({ type: 'adminium:size', w: 180, h: 56 }, ORIGIN, win);
+    expect(box.querySelector('a')!.hidden).toBe(true);
+    expect([frame!.style.width, frame!.style.height]).toEqual(['180px', '56px']);
+    message({ type: 'adminium:height', h: 900 }, ORIGIN, win);
+    expect(frame!.style.height).toBe('56px');
+    message({ type: 'adminium:size', w: 1, h: 1, sheet: true }, ORIGIN, win);
+    expect([frame!.style.width, frame!.style.height, frame!.style.top]).toEqual(['100%', '100%', '0px']);
+    const focus = vi.spyOn(frame!, 'focus');
+    message({ type: 'adminium:open', sheet: true }, ORIGIN, win);
+    expect(document.documentElement.style.overflow).toBe('hidden');
+    expect(focus).toHaveBeenCalled();
+    message({ type: 'adminium:size', w: 180, h: 56 }, ORIGIN, win);
+    message({ type: 'adminium:close' }, ORIGIN, win);
+    expect(document.documentElement.style.overflow).toBe('');
+    expect(frame!.style.width).toBe('180px');
+    window.dispatchEvent(new Event('resize'));
+    expect(win!.sent.at(-1)!.message).toEqual({ type: 'adminium:viewport', w: window.innerWidth, h: window.innerHeight, side: 'right' });
+  });
+
+  it('button: the element stays a plain link until ready, then opens the sheet, and focus comes back to it', () => {
+    const box = app({ 'data-adminium-app': 'bookings', 'data-mode': 'button', 'data-path': '/book', href: `${ORIGIN}/apps/bookings/customer/book` }, 'a', 'Book now');
+    run();
+    const [frame] = framesOf();
+    const [win] = windowsOf([frame!]);
+    const early = new MouseEvent('click', { bubbles: true, cancelable: true });
+    box.dispatchEvent(early);
+    expect(early.defaultPrevented).toBe(false);
+    expect(win!.sent).toEqual([]);
+    message({ type: 'adminium:ready' }, ORIGIN, win);
+    // The element is the site's own button: it is not hidden.
+    expect(box.hidden).toBe(false);
+    const press = new MouseEvent('click', { bubbles: true, cancelable: true });
+    box.dispatchEvent(press);
+    expect(press.defaultPrevented).toBe(true);
+    expect(win!.sent.at(-1)).toEqual({ message: { type: 'adminium:open' }, origin: ORIGIN });
+    message({ type: 'adminium:size', w: 1, h: 1, sheet: true }, ORIGIN, win);
+    message({ type: 'adminium:open', sheet: true }, ORIGIN, win);
+    message({ type: 'adminium:close' }, ORIGIN, win);
+    expect([frame!.style.width, frame!.style.height]).toEqual(['0px', '0px']);
+    expect(document.activeElement).toBe(box);
+  });
+
+  it('lets the site open and close the sheet itself', () => {
+    app({ 'data-adminium-app': 'bookings', 'data-mode': 'floating' });
+    run();
+    const [win] = windowsOf(framesOf());
+    api().app.open();
+    api().app.close();
+    expect(win!.sent.map((sent) => sent.message)).toEqual([{ type: 'adminium:open' }, { type: 'adminium:close' }]);
+    expect(win!.sent.every((sent) => sent.origin === ORIGIN)).toBe(true);
+  });
+
+  it('with no sheet on the page, open and close do nothing', () => {
+    app({ 'data-adminium-app': 'bookings' });
+    run();
+    const [win] = windowsOf(framesOf());
+    api().app.open();
+    api().app.close();
+    expect(win!.sent).toEqual([]);
+  });
+
+  it('a sheet closed with no launcher size does not stay over the page taking its clicks', () => {
+    app({ 'data-adminium-app': 'bookings', 'data-mode': 'floating' });
+    run();
+    const [frame] = framesOf();
+    const [win] = windowsOf([frame!]);
+    message({ type: 'adminium:size', w: 1, h: 1, sheet: true }, ORIGIN, win);
+    message({ type: 'adminium:open', sheet: true }, ORIGIN, win);
+    message({ type: 'adminium:close' }, ORIGIN, win);
+    expect([frame!.style.width, frame!.style.height]).toEqual(['0px', '0px']);
+  });
+
+  it('beside a chat, a launcher takes the other corner, so neither covers the other', () => {
+    app({ 'data-adminium-app': 'bookings', 'data-mode': 'floating' });
+    run({ 'data-adminium-chat': 'live-chat' });
+    const frame = framesOf()[0]!;
+    expect(frame.style.right).toBe('0px');
+    const [win] = windowsOf([frame]);
+    message({ type: 'adminium:size', w: 180, h: 56 }, ORIGIN, win);
+    expect([frame.style.left, frame.style.right]).toEqual(['0px', '']);
+    const chat = frames().find((one) => one.src.includes('/x/chat/'))!;
+    expect(chat.style.right).toBe('0px');
+  });
+
+  it('a site that drew its button again gets a working one, and one frame', () => {
+    const first = app({ 'data-adminium-app': 'bookings', 'data-mode': 'button' }, 'a');
+    run();
+    first.remove();
+    const second = app({ 'data-adminium-app': 'bookings', 'data-mode': 'button' }, 'a');
+    api().forms.scan();
+    expect(framesOf()).toHaveLength(1);
+    const [win] = windowsOf(framesOf());
+    message({ type: 'adminium:ready' }, ORIGIN, win);
+    const press = new MouseEvent('click', { bubbles: true, cancelable: true });
+    second.dispatchEvent(press);
+    expect(press.defaultPrevented).toBe(true);
+  });
+
+  it('takes a code only as text', () => {
+    const box = app({ 'data-adminium-app': 'bookings' });
+    run();
+    const [win] = windowsOf(framesOf());
+    const heard: unknown[] = [];
+    box.addEventListener('adminium:booked', (event) => heard.push((event as CustomEvent).detail));
+    message({ type: 'adminium:done', code: ['LS-1'] }, ORIGIN, win);
+    message({ type: 'adminium:done', code: 12 }, ORIGIN, win);
+    expect(heard).toEqual([{}, {}]);
+  });
+
+  it('draws an element added later on a new scan, once', () => {
+    run();
+    expect(framesOf()).toHaveLength(0);
+    app({ 'data-adminium-app': 'bookings' });
+    api().forms.scan();
+    api().forms.scan();
+    expect(framesOf()).toHaveLength(1);
+  });
+
+  it('loaded twice, draws each element once', () => {
+    app({ 'data-adminium-app': 'bookings' });
+    run();
+    run();
+    expect(framesOf()).toHaveLength(1);
+  });
+});

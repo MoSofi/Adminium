@@ -132,6 +132,26 @@ describe('the pay page', () => {
     }
   });
 
+  it('in a tab opened beside a frame on the website: says it can be closed, with no way back', async () => {
+    answers['/pay/api/back/abcdefghijklmnop'] = pageOf({ state: 'paid', ways: [], back: null, beside: true, attempt: { provider: 'payments-stripe', amount: '120.00', at: 1, receiptSent: true } });
+    await show({ kind: 'back', nonce: 'abcdefghijklmnop', left: false });
+    expect((await screen.findByTestId('pay-beside')).textContent).toBe('You can close this tab and go back to the website you came from.');
+    expect(screen.queryByTestId('pay-back')).toBeNull();
+    cleanup();
+    // A declined card can try again here: it is not told to leave.
+    answers['/pay/api/back/abcdefghijklmnop'] = pageOf({ state: 'failed', ways: [], back: null, beside: true, attempt: { provider: 'payments-stripe', amount: '120.00', at: 1, receiptSent: false } });
+    await show({ kind: 'back', nonce: 'abcdefghijklmnop', left: false });
+    await screen.findAllByText(/./);
+    expect(screen.queryByTestId('pay-beside')).toBeNull();
+    cleanup();
+    // Still to be paid: the ways to pay, and nothing about closing it.
+    answers['/pay/api/back/abcdefghijklmnop'] = pageOf({ state: 'ready', back: null, beside: true, attempt: null });
+    await show({ kind: 'back', nonce: 'abcdefghijklmnop', left: false });
+    await screen.findAllByText(/./);
+    expect(screen.queryByTestId('pay-beside')).toBeNull();
+    cleanup();
+  });
+
   it('offers the way back to the app the record was paid in, once the visit is over, and only then', async () => {
     const back = { url: 'https://order.crumbandco.de/orders', app: 'Online Ordering' };
     answers['/pay/api/back/abcdefghijklmnop'] = pageOf({ state: 'paid', ways: [], back, attempt: { provider: 'payments-stripe', amount: '120.00', at: 1, receiptSent: true } });

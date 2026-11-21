@@ -260,6 +260,7 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'addOn.scope',
   // A side that serves every install of its app (it sends the install it is).
   'frontend.instances',
+  'frontend.embed',
   // A self-made app's page as a person arranged it, its shared views, and where the file was saved.
   'page.envelope',
   'page.views',
@@ -609,6 +610,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'config.columns': '0.3.47',
   'addOn.scope': '0.3.49',
   'frontend.instances': '0.3.49',
+  // Screens a listed website may frame: a release before refuses the key.
+  'frontend.embed': '0.3.71',
   // What a file saved from a dashboard carries, and the fields its tables and mails need: a release before refuses each key.
   'page.envelope': '0.3.49',
   'page.views': '0.3.49',
@@ -803,6 +806,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       if (isDoc(frontend) && frontend['records'] !== undefined) out.push({ word: 'frontend.records', path: `frontends.${String(f)}.records` });
       // A side that serves every install of its app.
       if (isDoc(frontend) && frontend['instances'] !== undefined) out.push({ word: 'frontend.instances', path: `frontends.${String(f)}.instances` });
+      if (isDoc(frontend) && frontend['embed'] !== undefined) out.push({ word: 'frontend.embed', path: `frontends.${String(f)}.embed` });
     });
     // An entry of the app's section that is not a page.
     if (document['navLinks'] !== undefined) out.push({ word: 'navLinks', path: 'navLinks' });

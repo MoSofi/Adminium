@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3832 entries. */
+/** `namespace:key` — 3845 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -2813,6 +2813,19 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:privacy.websites.added',
   'studio:privacy.websites.copyLabel',
   'studio:privacy.websites.loadFailed',
+  'studio:privacy.websites.maker.app',
+  'studio:privacy.websites.maker.button',
+  'studio:privacy.websites.maker.choice',
+  'studio:privacy.websites.maker.copyLabel',
+  'studio:privacy.websites.maker.floating',
+  'studio:privacy.websites.maker.inline',
+  'studio:privacy.websites.maker.linkWords',
+  'studio:privacy.websites.maker.notListed',
+  'studio:privacy.websites.maker.preview',
+  'studio:privacy.websites.maker.screen',
+  'studio:privacy.websites.maker.site',
+  'studio:privacy.websites.maker.way',
+  'studio:privacy.websites.maker.words',
   'studio:privacy.websites.reach.loadFailed',
   'studio:privacy.websites.removeFailed',
   'studio:privacy.websites.removeLabel',

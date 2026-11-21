@@ -1225,7 +1225,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     // delete's; PUT replaces a record. A browser refuses to send
     // any method this list does not name.
     reply.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, DELETE, OPTIONS');
-    reply.header('Access-Control-Allow-Headers', `authorization, content-type, x-adminium-public-session, x-adminium-proof, ${CODE_HEADER}`);
+    reply.header('Access-Control-Allow-Headers', `authorization, content-type, x-adminium-public-session, x-adminium-proof, x-adminium-framed, ${CODE_HEADER}`);
     reply.header('Access-Control-Max-Age', '600');
     return reply.code(204).send();
   };
@@ -2644,7 +2644,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (!sample && deps.cardTesting !== undefined && !(await deps.cardTesting.countStart(startAddressOf(deps.env.ADMINIUM_SECRET, request.ip)))) {
           return fail(reply, 429, 'PUBLIC_RATE_LIMITED', 'Too many requests.');
         }
-        const started = sample ? await deps.pay.startTest(entity, ok.key.managedBy, originOf(request), by!) : await deps.pay.start(entity, ok.key.managedBy);
+        const started = sample ? await deps.pay.startTest(entity, ok.key.managedBy, originOf(request), by!, framedStart(request)) : await deps.pay.start(entity, ok.key.managedBy, framedStart(request));
         await touchKey(ok.key.keyId);
         if (!started.ok) return fail(reply, 409, 'PUBLIC_PAY_REFUSED', 'This record cannot be paid online now.', { reason: started.reason });
         return reply.send({ data: { payUrl: started.payUrl } });
@@ -2760,6 +2760,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     const rehearsing = (request: FastifyRequest): Promise<string | null> =>
       rehearsingPerson(request, meta, { sameOrigin: isSameOriginRequest, csrfOk: (one) => csrfHeaderMatches(one, csrfKey) });
     const originOf = (request: FastifyRequest): string => `${request.protocol}://${request.host}`;
+    /** Whether this start came from a frame on the owner's website: its pay tab then ends with "you can close this tab". */
+    const framedStart = (request: FastifyRequest): boolean => request.headers['x-adminium-framed'] === '1';
 
     /**
      * The new row's pay link, on an entry that says `pay`, when its app takes
@@ -2773,7 +2775,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       // A real start is counted as the start call is: one too many answers no link (the row is made all the same).
       if (rehearsedBy === null && deps.cardTesting !== undefined && !(await deps.cardTesting.countStart(startAddressOf(deps.env.ADMINIUM_SECRET, request.ip)))) return null;
       // A rehearsal's order (a sample row from the start): a test link on the address the person is on.
-      const started = await (rehearsedBy !== null ? deps.pay.startTest(entity, ok.key.managedBy, originOf(request), rehearsedBy) : deps.pay.start(entity, ok.key.managedBy)).catch((error: unknown) => {
+      const started = await (rehearsedBy !== null ? deps.pay.startTest(entity, ok.key.managedBy, originOf(request), rehearsedBy, framedStart(request)) : deps.pay.start(entity, ok.key.managedBy, framedStart(request))).catch((error: unknown) => {
         request.log.warn({ err: error, table: table.id }, 'public create: the pay link could not be made');
         return null;
       });

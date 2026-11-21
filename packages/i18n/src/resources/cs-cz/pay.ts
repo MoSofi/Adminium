@@ -171,5 +171,6 @@ export default {
   },
   "shopFallback": "obchod",
   "shopFallbackStart": "Obchod",
-  "back": "Zpět do {app}"
+  "back": "Zpět do {app}",
+  "beside": "Tuto kartu můžete zavřít a vrátit se na web, ze kterého jste přišli."
 } as const;

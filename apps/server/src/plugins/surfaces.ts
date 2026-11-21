@@ -76,7 +76,7 @@ import {
   roleNameFor,
 } from '@adminium/meta';
 
-import type { Manifest } from '@adminium/manifest';
+import { embedOfDocument, type Manifest } from '@adminium/manifest';
 
 import { kitOf } from '../apps/kit.js';
 import { sharedTablesOf } from '../apps/shared-tables.js';
@@ -86,6 +86,7 @@ import { auditAuth } from '../auth/audit.js';
 import { clearSessionCookie } from '../auth/sessions.js';
 import { resolveLabel, type HostedSurface, type SurfaceSide } from '../cli/surfaces-root.js';
 import { AppError, AppUnavailableError, ForbiddenError, NotFoundError } from '../errors.js';
+import { listedWebsitesOf } from '../forms/websites.js';
 import { MAPS_OFF } from '../geo/map-policy.js';
 import { bcp47, sameLanguage } from '../i18n/bcp47.js';
 import { loadAppParts, offeredRoles, partsOfOwner } from '../rbac/app-parts.js';
@@ -109,6 +110,7 @@ import { installReachOf } from '../installs/reach.js';
 import { rehearsalConfig } from '../payments/rehearsal-state.js';
 import { installsOf } from '../installs/resolve.js';
 import { renderMovedPage, renderNotFoundPage, renderUnavailablePage, type MovedPageInput } from '../surfaces/unavailable-page.js';
+import { asksForFrame, createSurfaceFraming } from './surface-frame.js';
 import { sendSurfaceIndex, type SurfaceAssistant } from './surface-index.js';
 import { tagRoutes } from '../security/route-audience.js';
 
@@ -545,6 +547,28 @@ async function installConnectionOf(meta: MetaDb, appKey: string): Promise<string
   return row?.connectionId ?? null;
 }
 
+/** What an install's stored manifest lets a website frame, or null. */
+async function embedOfInstall(meta: MetaDb, installId: string): Promise<ReturnType<typeof embedOfDocument>> {
+  const row = await meta.db.selectFrom('adminium_manifests').select('manifest').where('id', '=', installId).executeTakeFirst();
+  if (row === undefined) return null;
+  try {
+    return embedOfDocument(typeof row.manifest === 'string' ? JSON.parse(row.manifest) : row.manifest);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The websites a framed screen may talk to, handed only to a read that says
+ * `frame=1`, of an install that declares screens for a website: the frame's
+ * handshake takes a hello from these origins alone.
+ */
+async function frameOriginsOf(meta: MetaDb, installId: string | null, request: FastifyRequest): Promise<{ frameOrigins?: readonly string[] }> {
+  if (installId === null || !asksForFrame(request.url)) return {};
+  if ((await embedOfInstall(meta, installId)) === null) return {};
+  return { frameOrigins: await listedWebsitesOf(meta)() };
+}
+
 /**
  * WHERE AN APP IS NOW, for its plain address once the copy that had it is
  * gone: each copy still installed, by its database's name and its own
@@ -676,7 +700,26 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       configFor((await app.surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS, appKey, 'customer', null, request),
     );
 
-    app.decorate('sendSurfaceIndex', (request: FastifyRequest, reply: FastifyReply, surface: HostedSurface) => sendSurfaceIndex(request, reply, surface, opts.assistant));
+    /*
+     * A customer page asked with `?frame=1`: which websites may frame it, on
+     * the one door every way to the page goes through (`surface-frame.ts`).
+     */
+    const framing = createSurfaceFraming({
+      websites: opts.metaDb === undefined ? async () => [] : listedWebsitesOf(opts.metaDb),
+      declaredPaths: async (request, surface) => {
+        if (opts.metaDb === undefined) return null;
+        const settings = (await app.surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS;
+        const path = pathOf(request.url);
+        const slug = path.startsWith('/apps/') ? (parseInstancePath(path)?.slug ?? null) : (domainMappingFor(settings, request.host, normalizeHost)?.instance ?? null);
+        const install = await installOfMount(opts.metaDb, settings, surface.appKey, slug);
+        return install === null ? null : ((await embedOfInstall(opts.metaDb, install.id))?.screens.map((screen) => screen.path) ?? null);
+      },
+    });
+    app.addHook('onSend', framing.onSend);
+    app.decorate('sendSurfaceIndex', async (request: FastifyRequest, reply: FastifyReply, surface: HostedSurface) => {
+      await framing.mark(request, reply, surface);
+      return sendSurfaceIndex(request, reply, surface, opts.assistant);
+    });
 
     app.decorate(
       'surfaceGate',
@@ -956,6 +999,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         ...(values === null ? {} : { settings: values }),
         ...(await partsOf(appKey, install?.id ?? null)),
         ...(await rehearsalConfig(metaDb, request)),
+        ...(await frameOriginsOf(metaDb, install?.id ?? null, request)),
         now: new Date().toISOString(),
       };
     }

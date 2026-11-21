@@ -253,6 +253,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // An add-on kept once per server (installs/resolve.ts addOnIsServerWide); a side that serves every install of its app (its config names its install).
   'addOn.scope',
   'frontend.instances',
+  // The screens a listed website may frame: read when the page is served and when the snippet maker lists them (plugins/surface-frame.ts, privacy/embeds.ts).
+  'frontend.embed',
   // A page kept off the sidebar, and an entry of the app's section that is not a page: both read when the menu is built.
   'nav.offRail',
   'navLinks',

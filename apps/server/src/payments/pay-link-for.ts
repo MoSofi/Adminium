@@ -61,17 +61,17 @@ export function createPayLinkWithExpiryFor(deps: PayLinkForDeps): (entity: Recor
  * public link locked by its declines is not replaced: `locked`, so a card
  * tester cannot buy a fresh five declines by starting again.
  */
-export function createPublicLinkFor(deps: PayLinkForDeps): (entity: RecordRef) => Promise<string | 'locked' | null> {
+export function createPublicLinkFor(deps: PayLinkForDeps): (entity: RecordRef, beside?: boolean) => Promise<string | 'locked' | null> {
   const linkFor = createLinkFor(deps);
-  return async (entity) => {
-    const made = await linkFor(entity, 'public');
+  return async (entity, beside = false) => {
+    const made = await linkFor(entity, 'public', beside);
     return made === null || made === 'locked' ? made : made.url;
   };
 }
 
-function createLinkFor(deps: PayLinkForDeps): (entity: RecordRef, audience: 'staff' | 'public') => Promise<PayLinkWithExpiry | 'locked' | null> {
+function createLinkFor(deps: PayLinkForDeps): (entity: RecordRef, audience: 'staff' | 'public', beside?: boolean) => Promise<PayLinkWithExpiry | 'locked' | null> {
   const seal = linkSealFromSecret(deps.secret);
-  return async (entity, audience) => {
+  return async (entity, audience, beside = false) => {
     const at = (deps.now ?? Date.now)();
     const keys = Object.keys(entity.pk);
     if (keys.length !== 1) return null;
@@ -95,9 +95,11 @@ function createLinkFor(deps: PayLinkForDeps): (entity: RecordRef, audience: 'sta
     const current = await paymentLinksRepo(deps.meta).currentFor(ref, audience);
     if (current !== null && current.mode === 'live' && linkOpens(current, at)) {
       if (audience === 'public' && (await paymentCountersRepo(deps.meta).read(linkFailBucket(current.id), at)) >= LINK_FAILURES_TO_LOCK) return 'locked';
+      // The same link, opened this time from a frame or not: its ending follows the last start.
+      if (audience === 'public' && (current.beside === true) !== beside) await paymentLinksRepo(deps.meta).setBeside(current.id, beside);
       return { url: payUrl(address, seal.unseal(current.tokenSealed)), expiresAt: current.expiresAt };
     }
-    const minted = await mintLink(deps.meta, seal, { payable: ref, mode: 'live', createdBy: null, ...(audience === 'public' ? { audience, lifetimeMs: PUBLIC_LINK_LIFETIME_MS } : {}) }, at);
+    const minted = await mintLink(deps.meta, seal, { payable: ref, mode: 'live', createdBy: null, ...(audience === 'public' ? { audience, beside, lifetimeMs: PUBLIC_LINK_LIFETIME_MS } : {}) }, at);
     return { url: payUrl(address, minted.token), expiresAt: minted.link.expiresAt };
   };
 }

@@ -171,5 +171,6 @@ export default {
   },
   "shopFallback": "商家",
   "shopFallbackStart": "商家",
-  "back": "返回 {app}"
+  "back": "返回 {app}",
+  "beside": "您可以關閉此分頁，返回原來的網站。"
 } as const;

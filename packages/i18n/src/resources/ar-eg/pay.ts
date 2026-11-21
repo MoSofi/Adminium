@@ -171,5 +171,6 @@ export default {
   },
   "shopFallback": "المتجر",
   "shopFallbackStart": "المتجر",
-  "back": "العودة إلى {app}"
+  "back": "العودة إلى {app}",
+  "beside": "يمكنك إغلاق علامة التبويب هذه والعودة إلى الموقع الذي جئت منه."
 } as const;

@@ -217,6 +217,7 @@ export default defineConfig({
                 { label: 'Building an app’s screens', link: '/guides/apps/building-a-side/' },
                 { label: 'A website template as a working app', link: '/guides/apps/from-a-template/' },
                 { label: 'Adminium’s own parts on an app’s screen', link: '/guides/apps/kit-parts/' },
+                { label: 'An app’s screens on your website', link: '/guides/apps/on-your-website/' },
                 { label: 'A phone app for an app', link: '/guides/apps/phone-app/' },
                 { label: 'An app’s public access', link: '/guides/apps/public-access/' },
                 { label: 'An order with its lines', link: '/guides/apps/orders-with-lines/' },
