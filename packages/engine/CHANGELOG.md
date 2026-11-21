@@ -1,5 +1,11 @@
 # @adminium/engine
 
+## 0.3.70
+
+### Patch Changes
+
+- @adminium/widgets@0.3.70
+
 ## 0.3.69
 
 ### Patch Changes

@@ -1,5 +1,27 @@
 # @adminium/server
 
+## 0.3.70
+
+### Patch Changes
+
+- a978210: The add-ons that come with Adminium are now 1.0.33: Inventory answers stock words for a hold, Offers & gift cards sells e-gift cards online and recalls one with its sale, Invoices & Receipts prints packing slips and a receipt's delivery and payments, Forms & surveys keeps customers' reviews, and DHL and Barcode labels attach to the online shop's 0.2 line.
+- 28dc008: A customer's "first order" offers count only the orders they proved they placed: a guest's order typed in their address no longer spends their first-order code.
+- 8128bc3: A payment that lands tells what its save set off, as every other door does: what the app handed an add-on's ledger (an e-gift card sold online made active when its order is paid, and its mail to the recipient) and the rows its move moved.
+- 30bbdf2: A guest order placed in somebody else's address no longer gives its link holder that person's name, or a review in it: an app's review word may say who proved who they are (`proved`), and a row's own link then reviews only a proved row. A row made under a parent through a person's own link may name a row the key does not read when Adminium itself filled that link by a copy (a returned piece's variant, copied from its order line).
+- 348ea4f: An app's mail to an address its settings hold (a new order told to the shop) is written in the workspace's language, never in the language of the customer whose order it is about.
+- Updated dependencies [30bbdf2]
+- Updated dependencies [e795cc6]
+  - @adminium/manifest@0.3.70
+  - @adminium/adapter-mysql@0.3.70
+  - @adminium/adapter-postgres@0.3.70
+  - @adminium/adapter-sqlite@0.3.70
+  - @adminium/add-on-contracts@0.3.70
+  - @adminium/engine@0.3.70
+  - @adminium/i18n@0.3.70
+  - @adminium/llm@0.3.70
+  - @adminium/meta@0.3.70
+  - @adminium/schema-import@0.3.70
+
 ## 0.3.69
 
 ### Patch Changes

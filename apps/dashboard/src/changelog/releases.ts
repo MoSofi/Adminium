@@ -62,6 +62,22 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.70',
+    date: '2026-11-21',
+    title: 'Ready for the online shop',
+    summary:
+      'The add-ons that come with Adminium are now 1.0.33, with e-gift cards sold online, packing slips and customer reviews. Guest orders typed in somebody else’s address no longer act in their name.',
+    changes: [
+      { tag: 'New', text: 'The add-ons that come with Adminium are now 1.0.33: Inventory tells a shopper how many are left when an order is refused, Offers & gift cards sells e-gift cards online and calls one back with its sale, Invoices & Receipts prints packing slips and a receipt’s delivery and payments, and Forms & surveys keeps customers’ reviews.' },
+      { tag: 'New', text: 'An app’s review word can say who proved who they are (`proved`). An order’s own link then reviews only an order placed signed in.' },
+      { tag: 'Fixed', text: 'An e-gift card sold online is mailed to its recipient when its order is paid. A payment that lands now tells the add-ons what its order’s move set off, as every other save does.' },
+      { tag: 'Fixed', text: 'A return asked through an order’s own link can add its pieces, even when Adminium copies a link onto each piece that the link’s key does not read.' },
+      { tag: 'Fixed', text: 'A shop’s own e-mail to its staff, such as a new order, is written in the workspace’s language, not the customer’s.' },
+      { tag: 'Fixed', text: 'A catalogue can filter its products through their variants while the variants also answer stock words.' },
+      { tag: 'Security', text: 'A guest order typed in somebody else’s address no longer gives its link holder that person’s name, nor a review in it, and no longer spends their first-order code.' },
+    ],
+  },
+  {
     version: '0.3.69',
     date: '2026-11-20',
     title: 'Trials built from your own database',

@@ -1,5 +1,13 @@
 # @adminium/manifest
 
+## 0.3.70
+
+### Patch Changes
+
+- 30bbdf2: A guest order placed in somebody else's address no longer gives its link holder that person's name, or a review in it: an app's review word may say who proved who they are (`proved`), and a row's own link then reviews only a proved row. A row made under a parent through a person's own link may name a row the key does not read when Adminium itself filled that link by a copy (a returned piece's variant, copied from its order line).
+- e795cc6: A shop's catalogue may filter its products through their variants (`via`) while the variants also answer stock words: the stock-words entry on the same table is no second list, as the server already read it.
+- @adminium/add-on-contracts@0.3.70
+
 ## 0.3.69
 
 ### Patch Changes
