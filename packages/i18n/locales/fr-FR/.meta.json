@@ -21855,6 +21855,10 @@
     "status": "mt",
     "srcHash": "ff1d79c5055b"
   },
+  "pay.beside": {
+    "status": "mt",
+    "srcHash": "bab2c4022f1b"
+  },
   "pay.cancelled.body": {
     "status": "mt",
     "srcHash": "6e684ae688ee"
@@ -38142,6 +38146,106 @@
   "studio.privacy.websites.loadFailed": {
     "status": "mt",
     "srcHash": "910548d82020"
+  },
+  "studio.privacy.websites.maker.add": {
+    "status": "mt",
+    "srcHash": "036779da3ed6"
+  },
+  "studio.privacy.websites.maker.any": {
+    "status": "mt",
+    "srcHash": "322444d3bb52"
+  },
+  "studio.privacy.websites.maker.app": {
+    "status": "mt",
+    "srcHash": "fc4a695f02a8"
+  },
+  "studio.privacy.websites.maker.button": {
+    "status": "mt",
+    "srcHash": "794145f030ff"
+  },
+  "studio.privacy.websites.maker.buttonHelp": {
+    "status": "mt",
+    "srcHash": "7f59dcbcbf3a"
+  },
+  "studio.privacy.websites.maker.choice": {
+    "status": "mt",
+    "srcHash": "a265e5f53362"
+  },
+  "studio.privacy.websites.maker.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "studio.privacy.websites.maker.copyLabel": {
+    "status": "mt",
+    "srcHash": "7b75b807707b"
+  },
+  "studio.privacy.websites.maker.floating": {
+    "status": "mt",
+    "srcHash": "ab224b519653"
+  },
+  "studio.privacy.websites.maker.floatingHelp": {
+    "status": "mt",
+    "srcHash": "64670089c737"
+  },
+  "studio.privacy.websites.maker.heading": {
+    "status": "mt",
+    "srcHash": "91696039b3d9"
+  },
+  "studio.privacy.websites.maker.inline": {
+    "status": "mt",
+    "srcHash": "2e347f4ceb23"
+  },
+  "studio.privacy.websites.maker.inlineHelp": {
+    "status": "mt",
+    "srcHash": "c1680ea1844a"
+  },
+  "studio.privacy.websites.maker.linkWords": {
+    "status": "mt",
+    "srcHash": "5688e0cdb508"
+  },
+  "studio.privacy.websites.maker.notListed": {
+    "status": "mt",
+    "srcHash": "b0fd92cf4dc6"
+  },
+  "studio.privacy.websites.maker.nothing": {
+    "status": "mt",
+    "srcHash": "721efd0e772a"
+  },
+  "studio.privacy.websites.maker.nothingWhy": {
+    "status": "mt",
+    "srcHash": "12347006869d"
+  },
+  "studio.privacy.websites.maker.preview": {
+    "status": "mt",
+    "srcHash": "f1fbb2b43dca"
+  },
+  "studio.privacy.websites.maker.screen": {
+    "status": "mt",
+    "srcHash": "5cc847f94fce"
+  },
+  "studio.privacy.websites.maker.show": {
+    "status": "mt",
+    "srcHash": "830d23907beb"
+  },
+  "studio.privacy.websites.maker.site": {
+    "status": "mt",
+    "srcHash": "39e1c0f6ac00"
+  },
+  "studio.privacy.websites.maker.snippet": {
+    "status": "mt",
+    "srcHash": "67356e0be396"
+  },
+  "studio.privacy.websites.maker.strict": {
+    "status": "mt",
+    "srcHash": "497098d374d4"
+  },
+  "studio.privacy.websites.maker.way": {
+    "status": "mt",
+    "srcHash": "c218666e53d5"
+  },
+  "studio.privacy.websites.maker.words": {
+    "status": "mt",
+    "srcHash": "28ba063aacc8"
   },
   "studio.privacy.websites.none": {
     "status": "mt",

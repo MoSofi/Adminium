@@ -91,7 +91,7 @@ export interface PublicPay {
   takesPaymentsFor(connectionId: string, appKey: string, table: string): Promise<boolean>;
   /** Whether the app has a payable on this table, switched on or not: what a rehearsal of it walks. */
   hasPayableOn(connectionId: string, appKey: string, table: string): Promise<boolean>;
-  start(entity: RecordRef, appKey: string): Promise<{ ok: true; payUrl: string } | { ok: false; reason: StartRefusal }>;
+  start(entity: RecordRef, appKey: string, beside?: boolean): Promise<{ ok: true; payUrl: string } | { ok: false; reason: StartRefusal }>;
   /**
    * How the newest online payment of the app's own payable record stands
    * (`none` for a record of any other table). Asked whether or not the app is
@@ -105,7 +105,7 @@ export interface PublicPay {
    * is on (`origin`), for the app's own payable, whether the app is switched on
    * or not. The caller has made sure the row is a sample row.
    */
-  startTest(entity: RecordRef, appKey: string, origin: string, by: string): Promise<{ ok: true; payUrl: string } | { ok: false; reason: StartRefusal }>;
+  startTest(entity: RecordRef, appKey: string, origin: string, by: string, beside?: boolean): Promise<{ ok: true; payUrl: string } | { ok: false; reason: StartRefusal }>;
   /**
    * A rehearsal mail's `{{pay_url}}`: a test link for the app's own payable
    * row, on the server's own address (where the person rehearsing is signed
@@ -149,7 +149,7 @@ export function createPublicPay(deps: PublicPayDeps & { meta: MetaDb; sources: P
       return profile !== null && profile.ownerApp === appKey && (profile.mapping !== null || profile.shape !== null);
     },
 
-    async start(entity, appKey) {
+    async start(entity, appKey, beside = false) {
       const keys = Object.keys(entity.pk);
       if (keys.length !== 1) return { ok: false, reason: 'not-payable' };
       const found = await deps.sources.table(entity.connectionId, entity.table);
@@ -165,7 +165,7 @@ export function createPublicPay(deps: PublicPayDeps & { meta: MetaDb; sources: P
         const code = payable.refusal.code;
         return { ok: false, reason: code === 'NOTHING_DUE' ? 'nothing-due' : code === 'NOT_NOW' ? 'not-now' : 'not-payable' };
       }
-      const payUrl = await linkFor(entity);
+      const payUrl = await linkFor(entity, beside);
       if (payUrl === 'locked') return { ok: false, reason: 'not-now' };
       return payUrl === null ? { ok: false, reason: 'off' } : { ok: true, payUrl };
     },
@@ -187,11 +187,11 @@ export function createPublicPay(deps: PublicPayDeps & { meta: MetaDb; sources: P
       return (await payableProfilesRepo(deps.meta).list(connectionId)).some((profile) => profile.ownerApp === appKey && (profile.mapping !== null || profile.shape !== null));
     },
 
-    async startTest(entity, appKey, origin, by) {
+    async startTest(entity, appKey, origin, by, beside = false) {
       const payable = await testPayableOf(entity, appKey);
       if ('reason' in payable) return { ok: false, reason: payable.reason };
       // A public start's own link (beside the shop's, never in its place), in test mode.
-      const minted = await mintLink(deps.meta, seal, { payable: payable.ref, mode: 'test', createdBy: by, lifetimeMs: TEST_LINK_LIFETIME_MS, audience: 'public' }, (deps.now ?? Date.now)());
+      const minted = await mintLink(deps.meta, seal, { payable: payable.ref, mode: 'test', createdBy: by, lifetimeMs: TEST_LINK_LIFETIME_MS, audience: 'public', beside }, (deps.now ?? Date.now)());
       return { ok: true, payUrl: payUrlOf(origin, minted.token) };
     },
 

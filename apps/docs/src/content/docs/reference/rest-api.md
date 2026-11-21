@@ -927,6 +927,7 @@ GET /api/v1/privacy/reach
 GET /api/v1/privacy/websites
 POST /api/v1/privacy/websites
 POST /api/v1/privacy/websites/remove
+GET /api/v1/privacy/embeds
 GET /api/v1/privacy/postal-address
 PUT /api/v1/privacy/postal-address
 POST /api/v1/privacy/find

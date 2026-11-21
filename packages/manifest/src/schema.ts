@@ -41,6 +41,7 @@ import { CHAT_KEY, FORMS_KEY, chatKeyReserved, codeWhereSchema, personalColumn, 
 import { appGrantsIssues, appGrantsSchema, roleTableHold, type AppGrantTableShape, type RoleTableHold } from './app-grants.js';
 import { belongsIssues, belongsSchema, privateTableIssues, roleAddOnTableIssues, roleAddOnTablesSchema, type RoleAddOnTable, roleLimitIssues, roleLimitsSchema, rowTablesOf, type RoleShape, privateShapeIssues, storedTotalIssues } from './roles.js';
 import { conditionIssues, stateConditionSchema, statesIssues, statesSchema, type States } from './states.js';
+import { embedIssues, frontendEmbedSchema } from './embed.js';
 import { MOMENT_LIMITS, clockTimeSchema, momentIssues, momentSchema, settingRefSchema } from './refs.js';
 import {
   NUMERIC_TYPES,
@@ -1808,6 +1809,8 @@ export const frontendSchema = z
       .record(z.string().regex(/^[a-z][a-z0-9_]*$/, 'a table ref'), z.string().max(200).refine(isRecordAddress, RECORD_ADDRESS_MESSAGE))
       .refine((value) => Object.keys(value).length > 0, 'name at least one table')
       .optional(),
+    /** The screens of a customer side a listed website may show in a frame (`embed.ts`). */
+    embed: frontendEmbedSchema.optional(),
   })
   .strict();
 
@@ -4044,6 +4047,7 @@ export const appManifestSchema = z
   .refine(sidesAreDistinct, { ...SIDES_MESSAGE, path: [...SIDES_MESSAGE.path] })
   .superRefine((m, ctx) => {
     for (const issue of phoneSideIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    for (const issue of embedIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of railIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of installFloorIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of mailClassFloorIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });

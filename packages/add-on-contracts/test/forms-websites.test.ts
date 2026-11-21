@@ -17,6 +17,32 @@ const here = dirname(fileURLToPath(import.meta.url));
 const ctx = { self: 'https://crm.meridian.example', listed: ['https://www.meridian.example'] };
 const code = (line: string) => checkWebsiteLine(line, ctx).code;
 
+describe('a host a content policy cannot name', () => {
+  const ctx = { self: null, listed: [] };
+
+  it('is refused, so a line can never add a directive to the policy it is written into', () => {
+    for (const line of ['https://a;sandbox', 'https://a;script-src', "https://$'.example", 'https://a$&b.example', "https://it's.example", 'https://my_site.example', 'https://[::1]', 'https://a!b.example', 'https://a(b).example']) {
+      expect(checkWebsiteLine(line, ctx), line).toMatchObject({ code: 'address', origin: null });
+      expect(isWebsiteOrigin(line), line).toBe(false);
+    }
+  });
+
+  it('still takes every ordinary website', () => {
+    for (const [line, origin] of [
+      ['https://shop.example', 'https://shop.example'],
+      ['https://SHOP.Example/', 'https://shop.example'],
+      ['https://www.my-shop.co.uk:8443', 'https://www.my-shop.co.uk:8443'],
+      ['https://bücher.example', 'https://xn--bcher-kva.example'],
+      ['https://localhost', 'https://localhost'],
+      ['https://192.168.2.10', 'https://192.168.2.10'],
+      ['https://shop.example.', 'https://shop.example.'],
+    ] as const) {
+      expect(checkWebsiteLine(line, ctx), line).toMatchObject({ code: 'ok', origin });
+      expect(isWebsiteOrigin(origin), origin).toBe(true);
+    }
+  });
+});
+
 describe('one line of "Your websites"', () => {
   it('refuses a blank line, a space, a comma or a star first', () => {
     for (const line of ['', '   ', 'https://a.example https://b.example', 'https://a.example,https://b.example', 'https://*.meridian.example', '*', 'http://a.example b']) {

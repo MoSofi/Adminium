@@ -171,5 +171,6 @@ export default {
   },
   "shopFallback": "the shop",
   "shopFallbackStart": "The shop",
-  "back": "Back to {app}"
+  "back": "Back to {app}",
+  "beside": "You can close this tab and go back to the website you came from."
 } as const;

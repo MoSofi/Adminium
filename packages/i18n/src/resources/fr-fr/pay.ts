@@ -171,5 +171,6 @@ export default {
   },
   "shopFallback": "la boutique",
   "shopFallbackStart": "La boutique",
-  "back": "Retour à {app}"
+  "back": "Retour à {app}",
+  "beside": "Vous pouvez fermer cet onglet et revenir sur le site d’où vous venez."
 } as const;

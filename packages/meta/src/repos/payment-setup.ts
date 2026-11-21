@@ -50,6 +50,12 @@ export interface PaymentLink {
   createdAt: number;
   /** Who it was made for: a public start's own link, or one staff or the system made. */
   audience: LinkAudience;
+  /**
+   * A public start made from a frame on the owner's website: the pay tab was
+   * opened beside that frame, so it ends with "you can close this tab" and no
+   * way "back". Kept in `audience` (`framed`), read as a public link everywhere.
+   */
+  beside?: true;
 }
 
 /** A link a public start made (`public`), or one staff or the system made (`staff`). */
@@ -64,7 +70,12 @@ export interface MintLinkInput {
   createdBy: string | null;
   /** `public` for a public start's own link; staff's when not said. */
   audience?: LinkAudience;
+  /** A public start made from a frame on the owner's website. */
+  beside?: boolean;
 }
+
+/** The stored `audience` of a public start made from a frame (see {@link PaymentLink.beside}). */
+const FRAMED = 'framed';
 
 /** The key a payable's current link of one audience is held under. */
 function currentKeyOf(payable: PayableRef, audience: LinkAudience): string {
@@ -84,7 +95,8 @@ function decodeLink(row: Selectable<AdminiumPaymentLinksTable>): PaymentLink {
     revokeReason: row.revokeReason ?? null,
     createdBy: row.createdBy,
     createdAt: Number(row.createdAt),
-    audience: row.audience === 'public' ? 'public' : 'staff',
+    audience: row.audience === 'public' || row.audience === FRAMED ? 'public' : 'staff',
+    ...(row.audience === FRAMED ? { beside: true as const } : {}),
   };
 }
 
@@ -125,7 +137,7 @@ export function paymentLinksRepo(meta: MetaDb) {
         revokeReason: null,
         createdBy: input.createdBy,
         createdAt: at,
-        audience: audience === 'public' ? 'public' : null,
+        audience: audience === 'public' ? (input.beside === true ? FRAMED : 'public') : null,
       };
       let replaced = (await retireKey(key)) > 0;
       try {
@@ -157,6 +169,16 @@ export function paymentLinksRepo(meta: MetaDb) {
         .where('currentKey', '=', currentKeyOf(payable, audience))
         .executeTakeFirst();
       return row === undefined ? null : decodeLink(row);
+    },
+
+    /** Says how a public link was last opened: from a frame on the owner's website, or not. The last start decides. */
+    async setBeside(id: string, beside: boolean): Promise<void> {
+      await db
+        .updateTable('adminium_payment_links')
+        .set({ audience: beside ? FRAMED : 'public' })
+        .where('id', '=', id)
+        .where('audience', 'in', ['public', FRAMED])
+        .execute();
     },
 
     /** Revokes a link. It stops being current at once. */

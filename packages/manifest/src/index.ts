@@ -673,6 +673,7 @@ export {
   type ComposeResult,
   type PartOrigin,
 } from './compose.js';
+export { EMBED_MAX_PATHS, EMBED_MODES, embedOfDocument, frontendEmbedSchema, isEmbedPath, type EmbedMode, type EmbedScreen, type FrontendEmbed } from './embed.js';
 export { ADD_ON_INSTALL_BLOCKS, FILE_COLUMN_EARLIER_MAX_BYTES, INSTALL_FLOOR_WORD_NAMES, WORD_FLOORS, installFloorWords, type ManifestWord, type ManifestWordName } from './words.js';
 export {
   LEDGERS_MAX,

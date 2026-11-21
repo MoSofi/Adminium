@@ -343,6 +343,20 @@ describe.each(LEGS)('the forms door on the real server — %s', (dialect, availa
     }
   });
 
+  it.skipIf(!available)('a line saved before the check refused it adds nothing to the page’s policy, and is not handed to a frame', async () => {
+    await settingsRepo(h.meta).set('publicPages.websites', [{ origin: 'https://shop.example', addedBy: null, addedAt: 1 }, { origin: 'https://a;sandbox', addedBy: null, addedAt: 2 }], { updatedBy: null });
+    forgetListedWebsites(h.meta);
+    try {
+      const policy = String((await get('/x/forms/showroom-visit?frame=1', NAVIGATE)).headers['content-security-policy']);
+      expect(policy).toContain('frame-ancestors https://shop.example;');
+      expect(policy).not.toContain('sandbox');
+      expect(((await get('/x/forms/api/showroom-visit?frame=1')).json() as Doc).frameOrigins).toEqual(['https://shop.example']);
+    } finally {
+      await settingsRepo(h.meta).set('publicPages.websites', [], { updatedBy: null });
+      forgetListedWebsites(h.meta);
+    }
+  });
+
   it.skipIf(!available)('a host mapped to the add-on pages sends / to its home page, serves the pages, and refuses the dashboard', async () => {
     const PAGES_HOST = 'go.meridian.example';
     await settingsRepo(h.meta).set('surfaces.pageHosts', { [PAGES_HOST]: { home: '/x/forms/showroom-visit' } }, { updatedBy: null });

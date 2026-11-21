@@ -3174,6 +3174,7 @@ there and is not declared.
 | `enabled` | no | Whether the side starts switched on. Absent means on. |
 | `records` | no | Staff side only: where a record opens on this side, from a table ref to a path with one `{id}`; see [Where a record opens](#where-a-record-opens). Needs Adminium 0.3.28. |
 | `instances` | no | `true`: the side reads its instance base and sends the `X-Adminium-Install` header, so every copy of the app (one per database) opens it. Without it, only the first copy's screens open; a later copy brings its pages, tables, roles and rules, and says its screens open for the first install only. See [An app on several databases](/self-hosting/apps-per-database/#screens-of-a-later-copy). Needs Adminium 0.3.49. |
+| `embed` | no | Customer side only: the screens a website on "Your websites" may show in a frame, as `{ "paths": [...], "modes": ["inline", "button", "floating"] }`. A path is `/book`, or `{ "path", "label", "choose" }` where `choose` names a query and a table's two shown columns for the snippet maker. See [An app's screens on your website](/guides/apps/on-your-website/). Needs Adminium 0.3.71. |
 
 ### Where a record opens
 

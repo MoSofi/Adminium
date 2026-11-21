@@ -710,6 +710,12 @@ export interface PublicClientOptions {
    * reload (in `sessionStorage`, say) and hand it back as `session`.
    */
   onSessionChange?: (session: HeldSession | null) => void;
+  /**
+   * This page runs in a frame on the owner's website (`./frame`): a payment
+   * started here opens in a tab beside the frame, and that tab ends with "you
+   * can close this tab" instead of a way back.
+   */
+  framed?: boolean;
 }
 
 /** How far a claim session reaches: `lookup` found the person, `verified` proved their mailbox. */
@@ -1377,6 +1383,7 @@ export function createPublicClient(
       authorization: `Bearer ${key}`,
       ...(init.body === undefined ? {} : { 'content-type': 'application/json' }),
       ...(session === null ? {} : { [SESSION_HEADER]: session.token }),
+      ...(options?.framed === true ? { 'x-adminium-framed': '1' } : {}),
       // Only on a write: the server checks it only there, and a token in every
       // read is one more place for it to be logged.
       ...(writes && typeof csrf === 'string' && csrf !== '' ? { [CSRF_HEADER]: csrf } : {}),

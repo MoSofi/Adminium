@@ -83,7 +83,7 @@ export interface MintedLink {
 export async function mintLink(
   meta: MetaDb,
   seal: LinkSeal,
-  input: { payable: PayableRef; mode: 'test' | 'live'; createdBy: string | null; lifetimeMs?: number; audience?: LinkAudience },
+  input: { payable: PayableRef; mode: 'test' | 'live'; createdBy: string | null; lifetimeMs?: number; audience?: LinkAudience; beside?: boolean },
   at: number = Date.now(),
 ): Promise<MintedLink> {
   const token = randomBytes(16).toString('base64url');
@@ -96,6 +96,7 @@ export async function mintLink(
       expiresAt: at + (input.lifetimeMs ?? LINK_LIFETIME_MS),
       createdBy: input.createdBy,
       ...(input.audience === undefined ? {} : { audience: input.audience }),
+      ...(input.beside === true ? { beside: true } : {}),
     },
     at,
   );
