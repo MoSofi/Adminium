@@ -139,6 +139,10 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'rows.pair',
   // A row opened by its own code: a code of another length is refused before the lookup, and a miss is held against the cards' count.
   'unlockBy.self',
+  // An add-on whose people each connect their own outside account, the table they are rows of, and what a role may do about it (`connected-accounts/`).
+  'addOn.connect.accounts',
+  'table.connectedAccounts',
+  'roles.accounts',
   // An add-on's public entries, served through the key of an app that names it, and its one link key of its own.
   'publicAccess',
   'publicKeys',

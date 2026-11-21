@@ -106,7 +106,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | Group | Ops | |
 |---|---:|---|
 | `/api/v1/about/*` | 2 | Build version, edition, and the update check |
-| `/api/v1/add-ons/*` | 41 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
+| `/api/v1/add-ons/*` | 45 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
 | `/api/v1/api-docs` | 1 | The public API catalogue behind /api-docs — what live keys can call; 404 while the page is off |
 | `/api/v1/api-keys/*` | 3 | Issue, list and revoke API keys |
 | `/api/v1/apps/*` | 49 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), rename an older install’s tables to the app’s prefix, change one app’s settings, switch it off and on, set its domains and instances, add and remove its sample data, discard a staged version, uninstall, and upload, review and install a workspace file (several apps in one), finishing a stopped one with Install the rest |
@@ -119,6 +119,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/branding/*` | 4 | Instance name, colours and logo (read is public; writes are admin) |
 | `/api/v1/chat/*` | 12 | A website chat, for staff: whether its automatic answers can call an AI service and a question tried on them; the visitor on the page or gone; taking, replying (also mailed to a visitor who left an address and the page), closing and reopening a conversation; an enquiry made from it under the person’s own create; a reply drafted by Milo; everything its settings page shows; and the breaker’s pause on new chats |
 | `/api/v1/connect/*` | 3 | Connect Supabase: the one-time hand-off from an operator's connect service (ADMINIUM_SUPABASE_CONNECT_URL). Start, the return with its one-time code, and the password for an existing project |
+| `/api/v1/connected-accounts/*` | 4 | A person’s own outside account on a row of an app (a team member’s calendar): its state, connecting it, a one-time link sent to the address on the row or copied, and ending the connection. Each route asks the person’s reach on that row and the app’s named action, and an API key acts for nobody here |
 | `/api/v1/connections/*` | 30 | Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation |
 | `/api/v1/consent/*` | 7 | Consent and the do-not-email list — the list itself (search, add, remove), and a record's consent: its standing per purpose, its history, recording a yes, "Replied" and "They said no" |
 | `/api/v1/data/*` | 25 | Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references |
@@ -213,6 +214,10 @@ POST /api/v1/add-ons/{key}/codes/make
 GET /api/v1/add-ons/{key}/kit
 GET /api/v1/add-ons/{key}/forms/{id}/summary
 POST /api/v1/add-ons/{key}/documents/render
+GET /api/v1/add-ons/{key}/connect/accounts
+PUT /api/v1/add-ons/{key}/connect/app
+POST /api/v1/add-ons/{key}/connect/accounts/link
+POST /api/v1/add-ons/{key}/connect/accounts/{id}/disconnect
 GET /api/v1/add-ons/catalog
 PUT /api/v1/add-ons/catalog
 POST /api/v1/add-ons/catalog/refresh
@@ -420,6 +425,15 @@ POST /api/v1/chat/{addOn}/resume
 POST /api/v1/connect/start
 POST /api/v1/connect/return
 POST /api/v1/connect/complete
+```
+
+### `/connected-accounts`
+
+```http
+GET /api/v1/connected-accounts
+POST /api/v1/connected-accounts/connect
+POST /api/v1/connected-accounts/link
+POST /api/v1/connected-accounts/disconnect
 ```
 
 ### `/connections`

@@ -123,5 +123,9 @@ export default {
     "savedNo": "Uloženo: ne. Změnit to můžete kdykoli v části Volba cookies.",
     "cookieChoice": "Volba cookies",
     "failed": "Vaši volbu se nepodařilo uložit. Zkuste to znovu."
+  },
+  "connect": {
+    "noScript": "Připojení účtu vyžaduje JavaScript.",
+    "unavailable": "Tento odkaz už nefunguje. Požádejte o nový."
   }
 } as const;

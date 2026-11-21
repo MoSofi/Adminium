@@ -123,5 +123,9 @@ export default {
     "savedNo": "Gespeichert: Nein. Sie können das jederzeit unter „Cookie-Auswahl“ ändern.",
     "cookieChoice": "Cookie-Auswahl",
     "failed": "Ihre Auswahl konnte nicht gespeichert werden. Versuchen Sie es erneut."
+  },
+  "connect": {
+    "noScript": "Zum Verbinden eines Kontos wird JavaScript benötigt.",
+    "unavailable": "Dieser Link funktioniert nicht mehr. Bitten Sie um einen neuen."
   }
 } as const;

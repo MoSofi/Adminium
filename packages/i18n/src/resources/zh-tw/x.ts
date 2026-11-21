@@ -123,5 +123,9 @@ export default {
     "savedNo": "已儲存：否。您可以隨時在「Cookie 選擇」中變更。",
     "cookieChoice": "Cookie 選擇",
     "failed": "無法儲存您的選擇。請再試一次。"
+  },
+  "connect": {
+    "noScript": "連接帳戶需要 JavaScript。",
+    "unavailable": "此連結已失效，請索取新的連結。"
   }
 } as const;

@@ -156,6 +156,7 @@ export {
 } from './validate.js';
 
 export { BOOKING_WEEKDAYS, bookingSchema, type BookingRule } from './booking.js';
+export { connectedAccountsSchema, type ConnectedAccountsRule } from './connected-accounts.js';
 export { occupiesSchema, type OccupiesRule } from './occupies.js';
 export { REMOVAL_REASON_MAX, auditOnlyColumns, columnHistorySchema, removalIssues, removalSchema, type RemovalRule } from './removal.js';
 export {

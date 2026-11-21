@@ -210,6 +210,12 @@ export const convertRoles: ConvertPart = async (ctx) => {
         give('payments:@:refund');
         continue;
       }
+      // So do what its roles may do about a row's connected account.
+      const accounts = /^accounts-(connect|send-link|disconnect)\//.exec(row.resourceRef);
+      if (accounts !== null) {
+        give(`accounts:@:${accounts[1]!}`);
+        continue;
+      }
       if (row.resourceRef.startsWith(ADD_ON_SETTINGS_REF)) {
         const addOn = row.resourceRef.slice(ADD_ON_SETTINGS_REF.length);
         if (addOns.has(addOn)) give(`addOn:${addOn}:settings`);

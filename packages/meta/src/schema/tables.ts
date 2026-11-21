@@ -1143,8 +1143,63 @@ export interface AdminiumAddOnCredentialsTable {
   payload: string;
   expiresAt: Ts | null;
   scopes: JsonColumn | null;
+  /** The provider refused this install's client (wave 0100): the install's state, not each person's. */
+  refusedCode: string | null;
+  refusedAt: Ts | null;
   createdAt: Ts;
   updatedAt: Ts;
+}
+
+/** One person's outside account on an add-on install (wave 0100). Tokens are sealed in `payload`. */
+export interface AdminiumConnectedAccountsTable {
+  id: Id;
+  manifestId: Id;
+  connectionId: string;
+  tableName: string;
+  rowKey: string;
+  subject: string;
+  address: string | null;
+  /** AES-256-GCM ciphertext. NULL after an export or a restore under another secret. */
+  payload: string | null;
+  expiresAt: Ts | null;
+  refreshExpiresAt: Ts | null;
+  scopes: JsonColumn | null;
+  state: string;
+  stateSince: Ts;
+  version: number;
+  leaseUntil: Ts | null;
+  connectedAt: Ts;
+  updatedAt: Ts;
+}
+
+/** A one-time connect link (wave 0100): its hash, what it may connect, until when. */
+export interface AdminiumConnectLinksTable {
+  id: Id;
+  connectionId: string;
+  tableName: string;
+  rowKey: string;
+  providers: JsonColumn;
+  purpose: string;
+  tokenHash: string;
+  createdBy: string | null;
+  expiresAt: Ts;
+  createdAt: Ts;
+}
+
+/** A sign-in in progress (wave 0100). Never holds the client secret. */
+export interface AdminiumOauthFlowsTable {
+  id: Id;
+  stateHash: string;
+  nonceHash: string;
+  manifestId: Id;
+  connectionId: string;
+  tableName: string;
+  rowKey: string;
+  linkId: string;
+  verifierSealed: string;
+  redirectUri: string;
+  expiresAt: Ts;
+  createdAt: Ts;
 }
 
 /** drives the sidebar "what's new" badge. PK user_id. */
@@ -2325,6 +2380,9 @@ export interface MetaDB {
   adminium_app_outboxes: AdminiumAppOutboxesTable;
   adminium_manifest_attachments: AdminiumManifestAttachmentsTable;
   adminium_add_on_credentials: AdminiumAddOnCredentialsTable;
+  adminium_connected_accounts: AdminiumConnectedAccountsTable;
+  adminium_connect_links: AdminiumConnectLinksTable;
+  adminium_oauth_flows: AdminiumOauthFlowsTable;
   adminium_changelog_seen: AdminiumChangelogSeenTable;
   adminium_locales: AdminiumLocalesTable;
   adminium_translations: AdminiumTranslationsTable;
@@ -2443,6 +2501,9 @@ export const META_TABLE_NAMES = [
   'adminium_app_outboxes',
   'adminium_manifest_attachments',
   'adminium_add_on_credentials',
+  'adminium_connected_accounts',
+  'adminium_connect_links',
+  'adminium_oauth_flows',
   'adminium_changelog_seen',
   'adminium_locales',
   'adminium_translations',

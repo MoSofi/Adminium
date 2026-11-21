@@ -40,14 +40,28 @@
  * named, never a silent no-op.
  */
 
+import { createHash } from 'node:crypto';
+
 import { z } from 'zod';
 
 import type { AddOnHttpClient } from '../add-ons/egress.js';
 import type { JobHandlerContext, JobRegistry } from './registry.js';
 
-/** `add-on:<key>:<event>` — see the header on why this is namespaced. */
+/** The prefix every add-on event's job kind carries. */
+const ADD_ON_EVENT_PREFIX = 'add-on:';
+/** The longest job kind the registry takes. */
+const JOB_KIND_MAX = 60;
+
+/**
+ * `add-on:<key>:<event>` — see the header on why this is namespaced. A key and
+ * an event may each be 80 characters and a job kind 60: past that the kind is
+ * the key's start and a hash of the pair, the same in every process.
+ */
 export function addOnEventKind(addOnKey: string, event: string): string {
-  return `add-on:${addOnKey}:${event}`;
+  const plain = `${ADD_ON_EVENT_PREFIX}${addOnKey}:${event}`;
+  if (plain.length <= JOB_KIND_MAX) return plain;
+  const hash = createHash('sha256').update(`${addOnKey}\u0000${event}`).digest('hex').slice(0, 32);
+  return `${ADD_ON_EVENT_PREFIX}${addOnKey.slice(0, JOB_KIND_MAX - ADD_ON_EVENT_PREFIX.length - hash.length - 1)}:${hash}`;
 }
 
 /**
@@ -167,9 +181,16 @@ export function registerAddOnEventHandlers(
         ctx.progress(100, { step: 'done' });
         return result;
       },
-      { internal: true },
+      // The runtime is rebuilt on every install, update and switch: the new code takes the kind.
+      { internal: true, replace: true },
     );
     registered.push(kind);
+  }
+
+  // A kind no installed add-on provides now is gone with it, so a job still queued fails as unknown.
+  const current = new Set(registered);
+  for (const kind of registry.kinds()) {
+    if (kind.startsWith(ADD_ON_EVENT_PREFIX) && !current.has(kind)) registry.unregister(kind);
   }
 
   return { registered, refused };

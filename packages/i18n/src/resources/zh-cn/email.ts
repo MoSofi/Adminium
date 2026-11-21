@@ -1029,5 +1029,21 @@ export default {
     "object": "提出反对",
     "questions": "有疑问？请写信至 {contact}。{who}。",
     "keptBy": "由 {who} 保留。"
+  },
+  "connectLink": {
+    "name": "连接您的账户",
+    "subject": "{business} 请您连接账户",
+    "preheader": "此链接 {days} 天内有效。",
+    "heading": "连接您的账户",
+    "intro": "{name} 您好，{business} 请您连接您自己的账户。请使用属于您本人的账户。",
+    "action": "连接我的账户",
+    "notice": "此链接只能使用一次，{days} 天内有效。如果您没有预期收到此邮件，可以忽略：在您登录之前不会连接任何内容。"
+  },
+  "accountConnected": {
+    "name": "账户已连接",
+    "subject": "您的账户已在 {business} 连接",
+    "heading": "您的账户已连接",
+    "intro": "{name} 您好，您在 {business} 的 {provider} 现已连接为 {account}。",
+    "notice": "如果这不是您本人的操作，请立即告知 {business}。"
   }
 } as const;

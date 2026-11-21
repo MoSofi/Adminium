@@ -1029,5 +1029,21 @@ export default {
     "object": "اعتراض",
     "questions": "أسئلة؟ اكتب إلى {contact}. {who}.",
     "keptBy": "يحتفظ بها {who}."
+  },
+  "connectLink": {
+    "name": "ربط حسابك",
+    "subject": "يطلب منك {business} ربط حسابك",
+    "preheader": "يعمل الرابط لمدة {days} أيام.",
+    "heading": "اربط حسابك",
+    "intro": "مرحبًا {name}، يطلب منك {business} ربط حسابك الخاص. يُرجى استخدام الحساب الذي يخصك.",
+    "action": "ربط حسابي",
+    "notice": "يعمل الرابط مرة واحدة خلال {days} أيام. إذا لم تكن تتوقعه، فيمكنك تجاهل هذه الرسالة: لن يُربط شيء حتى تسجّل الدخول."
+  },
+  "accountConnected": {
+    "name": "تم ربط الحساب",
+    "subject": "تم ربط حسابك لدى {business}",
+    "heading": "تم ربط حسابك",
+    "intro": "مرحبًا {name}، أصبح {provider} مربوطًا لك لدى {business} بالحساب {account}.",
+    "notice": "إذا لم تكن أنت من فعل ذلك، فأخبر {business} فورًا."
   }
 } as const;
