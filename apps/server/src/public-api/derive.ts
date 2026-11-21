@@ -352,6 +352,10 @@ function treeLoosened(before: PublicScopeResource, after: PublicScopeResource): 
     });
   if (grew(before.children, after.children)) return true;
   if (before.sessionOnly === true && after.sessionOnly !== true) return true;
+  // Held to another column, or to none: other people's rows.
+  if (before.heldBy !== undefined && before.heldBy !== after.heldBy) return true;
+  // A row that waited for its day shown sooner.
+  if (before.heldFrom !== undefined && before.heldFrom !== after.heldFrom) return true;
   return (after.forget?.columns ?? []).some((c) => !(before.forget?.columns ?? []).includes(c));
 }
 

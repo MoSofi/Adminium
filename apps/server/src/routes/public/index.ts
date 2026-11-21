@@ -1855,6 +1855,20 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       fail(reply, 403, 'PUBLIC_CLAIM_LEVEL', 'Confirm the code we emailed you first.');
       return null;
     }
+    /*
+     * The rows a person holds, by the one address they proved. No proved
+     * address (a row's own link, a session that only found them) is the one
+     * answer an unknown ref gets, and never every row.
+     */
+    let held: RecordFilter | null = null;
+    if (resource.heldBy !== undefined) {
+      const address = provedAddressOf(ok.key.scope, ok.session, await claimedRowOf(ok));
+      if (address === null) {
+        fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        return null;
+      }
+      held = { column: resource.heldBy, op: 'eq', value: address, exact: true };
+    }
 
     const view = await viewFor(ok.key.connectionId);
     if (view === null) {
@@ -1867,6 +1881,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     } catch {
       fail(reply, 503, 'PUBLIC_UPSTREAM_UNAVAILABLE', 'The resource is unavailable.');
       return null;
+    }
+    // A row dated for a later day (a gift card kept for a birthday) is not shown before it.
+    if (held !== null && resource.heldFrom !== undefined) {
+      const zone = ok.key.scope.timezone;
+      const day = mandatoryAt({ fixed: null, relative: [{ column: resource.heldFrom, op: 'today' }] }, table, zone);
+      held = { and: [held, { or: [{ column: resource.heldFrom, op: 'is_null' }, beforeToday(table, resource.heldFrom, zone), ...(day === null ? [] : [day])] }] };
     }
     /*
      * Rows visible with a parent: reachable only while every parent up the
@@ -1932,9 +1952,16 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       /** Switched off in the app's settings, told only to a caller that deferred it: a retry may still replay. */
       switchedOff,
       // A calendar filter (`today`) is worked out now, on the venue's clock.
-      predicate: combinePredicates(combinePredicates(mandatoryAt(resource.where, table, ok.key.scope.timezone), claim.reachable ? claim.predicate : null), unlocked),
+      predicate: combinePredicates(combinePredicates(combinePredicates(mandatoryAt(resource.where, table, ok.key.scope.timezone), claim.reachable ? claim.predicate : null), unlocked), held),
     };
   };
+
+  /**
+   * The rows a person holds are chosen by an address column no reader of this
+   * door may see: the server decides them, and the reply still shows only the
+   * entry's own columns.
+   */
+  const heldAs = (resource: { heldBy?: string | undefined }) => (resource.heldBy === undefined ? {} : { mandatoryAs: { canReadPii: true } });
 
   /** Codes typed: a guess reserved before the lookup, kept for a miss, handed back when the reply has gone (`code-guesses.ts`). */
   const guesses = guessRung(limiter, admit);
@@ -2305,6 +2332,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           // Scope predicate AND session predicate, both mandatory, neither
           // removable by any combination of query parameters.
           ...(predicate === null ? {} : { mandatory: predicate }),
+          ...heldAs(resource),
           exposeColumns: withheld.expose,
           searchColumns: searchable,
         });
@@ -2564,6 +2592,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           dialect: found.dialect,
           // Never null: the key condition is always there.
           mandatory: combinePredicates(found.predicate, keyFilter) ?? keyFilter,
+          ...heldAs(found.resource),
           exposeColumns: withheld.expose,
           searchColumns: found.resource.searchable,
         });
@@ -2643,6 +2672,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           canReadPii: false,
           dialect: found.dialect,
           mandatory: combinePredicates(found.predicate, keyFilter) ?? keyFilter,
+          ...heldAs(found.resource),
           // Whether the row is there for this caller, and nothing of it: its key alone.
           exposeColumns: [...found.table.primaryKey],
           searchColumns: found.resource.searchable,
@@ -2700,6 +2730,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           canReadPii: false,
           dialect: found.dialect,
           mandatory: combinePredicates(found.predicate, keyFilter) ?? keyFilter,
+          ...heldAs(found.resource),
           // Whether the row is there for this caller, and nothing of it: its key alone.
           exposeColumns: [...found.table.primaryKey],
           searchColumns: found.resource.searchable,
@@ -5320,6 +5351,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             canReadPii: readsOwnPii(ok.key.scope, found.resource, ok.session, found.table),
             dialect: found.dialect,
             mandatory: combinePredicates(found.predicate, keyFilter) ?? keyFilter,
+          ...heldAs(found.resource),
             // The holder columns a rule reads beside it; only the file column leaves.
             exposeColumns: [...new Set([column, ...withheld.expose])],
           });

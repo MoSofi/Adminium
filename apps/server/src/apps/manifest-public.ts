@@ -388,6 +388,7 @@ function definitionOf(
     ...(entry.assets === undefined ? {} : { assets: [...entry.assets] }),
     // An add-on's entry held to the app whose key serves it.
     ...(entry.appColumn === undefined ? {} : { app_column: entry.appColumn }),
+    ...(entry.heldBy === undefined ? {} : { held_by: entry.heldBy.address, ...(entry.heldBy.from === undefined ? {} : { held_from: entry.heldBy.from }) }),
     // A create with its child rows, and what it checks.
     ...(entry.children === undefined ? {} : { children: childDefinitions(entry.children, idOf) }),
     ...(entry.agrees === undefined ? {} : { agrees: structuredClone(entry.agrees) }),

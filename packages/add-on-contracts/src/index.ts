@@ -480,3 +480,4 @@ export { ADD_ON_COLUMN_NOTE_MAX, ADD_ON_QUESTIONS_MAX, ADD_ON_TABLE_NOTE_MAX, ad
 
 /** The forms vocabulary, also at its own subpath `@adminium/add-on-contracts/forms` (see `forms/index.ts`). */
 export * from './forms/index.js';
+export { framedPageHtml, framedPagePath, framedPagePolicy, framedPageSchema, framedScriptPath, type FramedPage } from './framed-page.js';

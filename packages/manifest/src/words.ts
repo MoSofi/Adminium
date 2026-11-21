@@ -78,6 +78,9 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'column.customerKey',
   'column.codeLast4',
   'code.givenByLedger',
+  'addOn.framedPage',
+  'lookup.held',
+  'adjuster.vouchers.held',
   'rollup.capUnless',
   'rollup.latest',
   'roles.tables',
@@ -209,6 +212,7 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   // An add-on's entry held to the rows of the app whose key serves it; a copy of a person on an add-on's table; an add-on's
   // own rows let go some days after a moment of theirs.
   'publicAccess.appColumn',
+  'publicAccess.heldBy',
   'people.addOnCopies',
   'table.expire',
   // A link filled with the band a number falls in; a date so many working days on; a formula rounded up or down.
@@ -588,6 +592,10 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   // rows that expire. The release that reads them is the one that holds an add-on's foreign keys to its own tables
   // (`HOST_REFERENCES_FLOOR` in `schema.ts`, moved with it at the release).
   'publicAccess.appColumn': '0.3.43',
+  'publicAccess.heldBy': '0.3.71',
+  'addOn.framedPage': '0.3.71',
+  'lookup.held': '0.3.71',
+  'adjuster.vouchers.held': '0.3.71',
   'people.addOnCopies': '0.3.43',
   'table.expire': '0.3.43',
   // The band a number falls in, a date counted in working days, and a formula's ceil and floor: read by the same release.
@@ -761,8 +769,10 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (schema['prefixed'] === true) out.push({ word: 'requiredSchema.prefixed', path: 'requiredSchema.prefixed' });
     const block = isDoc(document['addOn']) ? document['addOn'] : {};
     if (block['settingsTable'] !== undefined) out.push({ word: 'addOn.settingsTable', path: 'addOn.settingsTable' });
+    if (block['framedPage'] !== undefined) out.push({ word: 'addOn.framedPage', path: 'addOn.framedPage' });
     if (block['ledgers'] !== undefined) out.push({ word: 'addOn.ledgers', path: 'addOn.ledgers' });
     if (block['adjuster'] !== undefined) out.push({ word: 'addOn.adjuster', path: 'addOn.adjuster' });
+    if (isDoc(block['adjuster']) && isDoc(block['adjuster']['vouchers']) && block['adjuster']['vouchers']['held'] !== undefined) out.push({ word: 'adjuster.vouchers.held', path: 'addOn.adjuster.vouchers.held' });
     if (block['checker'] !== undefined) out.push({ word: 'addOn.checker', path: 'addOn.checker' });
     if (block['panels'] !== undefined) out.push({ word: 'addOn.panels', path: 'addOn.panels' });
     if (block['words'] !== undefined) out.push({ word: 'addOn.words', path: 'addOn.words' });
@@ -1008,6 +1018,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
         if (rules[key] !== undefined) out.push({ word: `column.${key}`, path: `${here}.${key}` });
       }
       if (isDoc(rules['code']) && rules['code']['givenByLedger'] !== undefined) out.push({ word: 'code.givenByLedger', path: `${here}.code.givenByLedger` });
+      if (isDoc(rules['lookup']) && rules['lookup']['held'] !== undefined) out.push({ word: 'lookup.held', path: `${here}.lookup.held` });
       if (isDoc(rules['rollup']) && rules['rollup']['capUnless'] !== undefined) out.push({ word: 'rollup.capUnless', path: `${here}.rollup.capUnless` });
       if (isDoc(rules['sequence']) && rules['sequence']['sample'] !== undefined) out.push({ word: 'sequence.sample', path: `${here}.sequence.sample` });
       if (isDoc(rules['rollup']) && rules['rollup']['latest'] !== undefined) out.push({ word: 'rollup.latest', path: `${here}.rollup.latest` });
@@ -1279,6 +1290,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (isDoc(entry) && entry['key'] === 'chat') out.push({ word: 'publicAccess.chat', path: `publicAccess.${String(e)}.key` });
     if (isDoc(entry) && entry['source'] !== undefined) out.push({ word: 'publicAccess.forms.source', path: `publicAccess.${String(e)}.source` });
     if (isDoc(entry) && entry['appColumn'] !== undefined) out.push({ word: 'publicAccess.appColumn', path: `publicAccess.${String(e)}.appColumn` });
+    if (isDoc(entry) && entry['heldBy'] !== undefined) out.push({ word: 'publicAccess.heldBy', path: `publicAccess.${String(e)}.heldBy` });
     // A guest's uploads, on the entry or on any level of its child rows.
     const uploadsIn = (node: unknown, path: string): void => {
       if (!isDoc(node)) return;

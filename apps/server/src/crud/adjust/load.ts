@@ -21,7 +21,7 @@ import { sql } from 'kysely';
 
 import type { SourceDatabase } from '../../connections/manager.js';
 import type { ResolvedAdjuster } from '../../ledgers/registry.js';
-import { canonicalCode, findByCode, plausibleCode, routeTypedCode, spellingOf, type CodeKind } from '../code-lookup.js';
+import { canonicalCode, findByCode, heldKeyOf, plausibleCode, routeTypedCode, spellingOf, type CodeKind } from '../code-lookup.js';
 import type { ResolvedTable, SnapshotView } from '../identifiers.js';
 import { LEDGER_READ_ROWS, rowOut, type ScalarRow } from '../ledger-reads.js';
 import type { Row } from '../mask.js';
@@ -209,6 +209,14 @@ export async function findCodes(db: Db, adjuster: ResolvedAdjuster, typed: reado
   const out: LoadedCode[] = [];
   for (const value of typed) {
     const none: LoadedCode = { typed: value, kind: null, table: null, found: null, id: null, row: null };
+    // A voucher named by the person who holds it. Only a row with a holder: the add-on then holds it to the proved customer, and answers anyone else as it answers a code nobody knows.
+    const heldKey = vouchers.held === undefined ? null : heldKeyOf(value);
+    if (heldKey !== null) {
+      const key = vouchersTable.table.primaryKey[0];
+      const found = key === undefined ? undefined : ((await db.selectFrom(vouchersTable.id as never).selectAll().where(sql.ref(key), '=', heldKey as never).where(sql.ref(vouchers.held!), 'is not', null).limit(1).executeTakeFirst()) as Row | undefined);
+      out.push(found === undefined ? none : { typed: value, kind: 'voucher', table: vouchersTable, found, id: keyOf(vouchersTable, found), row: null });
+      continue;
+    }
     const canonical = canonicalCode(value);
     if (!plausibleCode(canonical)) {
       out.push(none);

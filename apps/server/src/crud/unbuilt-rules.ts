@@ -79,6 +79,11 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'column.codeLast4',
   // A code a ledger's own answer brings on a row it adds (an older card, under the code its holder has): kept as given, after its checks.
   'code.givenByLedger',
+  // A row named by a signed-in person who holds it (crud/code-lookup.ts, crud/adjust/load.ts).
+  'lookup.held',
+  // Served in its own sandbox (routes/add-on-frame).
+  'addOn.framedPage',
+  'adjuster.vouchers.held',
   // A column that keeps a table's name: a rename of that table rewrites its rows.
   'column.tableRef',
   // The rows an add-on's tables start with, its one settings row, and an index a table declares over a set of columns.
@@ -331,6 +336,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // (public-api/derive.ts); a person's copy on an add-on's table, found, exported and blanked with them (privacy/copy-rows.ts);
   // an add-on's rows let go when they expire (add-ons/expire.ts, run daily by the job runner).
   'publicAccess.appColumn',
+  // Filtered to the address the session proved (routes/public, public-api/proved-address.ts).
+  'publicAccess.heldBy',
   'people.addOnCopies',
   'table.expire',
   // A band link picked by the write (crud/band.ts), a stamp counted in working days (crud/working-days.ts), and a

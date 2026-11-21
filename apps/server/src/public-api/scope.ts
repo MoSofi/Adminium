@@ -503,6 +503,10 @@ const resourceSchema = z
     shareLink: z.object({ column: columnSchema, key: z.string().min(1).max(64), addOn: z.string().min(1).max(80).optional() }).strict().optional(),
     /** Read only by the holder of a live session. */
     sessionOnly: z.literal(true).optional(),
+    /** Of those, only the rows this column holds the session's proved address in. */
+    heldBy: columnSchema.optional(),
+    /** A date column: until that day a held row is not shown yet. */
+    heldFrom: columnSchema.optional(),
     /** On the identity: what "delete my details" empties, and the time it stamps. */
     forget: z
       .object({
@@ -794,6 +798,8 @@ export interface CompiledResource {
   findOrCreate?: { identityRef: string; email: string; link: string; fill: Readonly<Record<string, string>>; on?: { column: string; to: string } | undefined } | null | undefined;
   shareLink?: { column: string; key: string; addOn?: string | undefined } | null | undefined;
   sessionOnly?: boolean | undefined;
+  heldBy?: string | undefined;
+  heldFrom?: string | undefined;
   forget?: { columns: readonly string[]; stamp?: string | undefined; flags?: readonly string[] | undefined; links?: readonly { table: string; column: string; people: readonly string[] }[] | undefined } | null | undefined;
   /** "Make a new link" for a signed-in person's row: the own link's code column, and the outbox kind that emails it. */
   newLink?: { column: string; kind: string; when?: { where: readonly StateCondition[] } | undefined; stopped?: string | undefined } | null | undefined;
@@ -1626,6 +1632,8 @@ export function compileScope(
       findOrCreate: r.findOrCreate === undefined ? null : { ...r.findOrCreate, fill: { ...(r.findOrCreate.fill ?? {}) } },
       shareLink: r.shareLink === undefined ? null : { ...r.shareLink },
       sessionOnly: r.sessionOnly === true,
+      ...(r.heldBy === undefined ? {} : { heldBy: r.heldBy }),
+      ...(r.heldFrom === undefined ? {} : { heldFrom: r.heldFrom }),
       forget:
         r.forget === undefined
           ? null

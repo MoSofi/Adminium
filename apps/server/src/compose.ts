@@ -134,6 +134,7 @@ import { formsDoorRoutes } from './routes/forms-door/index.js';
 import { xConsentRoutes } from './routes/x-consent/index.js';
 import { viewCountsRoutes } from './routes/view-counts/index.js';
 import { createCounting, registerCountingSchedules } from './views/wiring.js';
+import { addOnFrameRoutes } from './routes/add-on-frame/index.js';
 import { chatDoorRoutes } from './routes/chat-door/index.js';
 import { capKey } from './public-api/anonymous-caps.js';
 import { chatAiFrom, type ChatAi } from './chat/ai.js';
@@ -4227,6 +4228,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // "Came from" keeps a page's path only on one of the business's own listed websites.
     websites: formsWebsites,
   });
+  await app.register(addOnFrameRoutes({ meta, store: addOnStore, vouched: doorVouched, websites: formsWebsites }));
   await app.register(
     chatDoorRoutes({
       meta,

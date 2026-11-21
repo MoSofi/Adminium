@@ -109,6 +109,8 @@ export interface ColumnLookupRule {
   table: string;
   column: string;
   where?: CodeLookupWhere[];
+  /** The address column a row named `held:<key>` is held to. */
+  held?: string;
   scope?: { column: string; equals: string; orEmpty?: true }[];
 }
 

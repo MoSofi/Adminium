@@ -478,6 +478,10 @@ export const publicEndpointDefinitionSchema = z
      * served nothing of it.
      */
     app_column: columnSchema.optional(),
+    /** Only the rows whose address column holds the address this session proved (`publicAccess.heldBy`). */
+    held_by: columnSchema.optional(),
+    /** A date column: until that day a held row is not shown yet. */
+    held_from: columnSchema.optional(),
     /* ── a create with its child rows ─────────────────────────────────────── */
     /** The rows a create carries, by the name the wire uses (see `endpointChildSchema`). */
     children: childMap(endpointChildSchema).optional(),
@@ -664,6 +668,8 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
   if (def.pictures !== undefined) out['pictures'] = [...def.pictures];
   if (def.assets !== undefined) out['assets'] = [...def.assets];
   if (def.app_column !== undefined) out['app_column'] = def.app_column;
+  if (def.held_by !== undefined) out['held_by'] = def.held_by;
+  if (def.held_from !== undefined) out['held_from'] = def.held_from;
   if (def.children !== undefined) out['children'] = orderedChildren(def.children);
   if (def.agrees !== undefined) out['agrees'] = def.agrees.map(orderedAgree);
   if (def.dry_run !== undefined) out['dry_run'] = def.dry_run;
@@ -1057,6 +1063,8 @@ export function definitionToResource(
   }
   if (def.share_link !== undefined) resource.shareLink = { column: def.share_link.column, key: def.share_link.key, ...(def.share_link.add_on === undefined ? {} : { addOn: def.share_link.add_on }) };
   if (def.session_only !== undefined) resource.sessionOnly = true;
+  if (def.held_by !== undefined) resource.heldBy = def.held_by;
+  if (def.held_from !== undefined) resource.heldFrom = def.held_from;
   if (def.forget !== undefined) {
     resource.forget = {
       columns: [...def.forget.columns],
@@ -1867,6 +1875,13 @@ function treeAndPersonIssues(
   // A change's limits count each change as it is made: a single change, never a batch of them, and never a create.
   if (def.limits !== undefined && (methods.has('BATCH') || !(methods.has('PATCH') || methods.has('PUT')))) {
     push('ENDPOINT_LIMITS_SHAPE', 'limits count the changes a guest makes one at a time: a PATCH, never a batch');
+  }
+  if (def.held_by !== undefined) {
+    const column = table.columns.get(def.held_by);
+    if (column === undefined) push('ENDPOINT_HELD_BY', `"${def.held_by}" is not a column of ${def.source}`, 'held_by');
+    else if (column.logicalType !== 'text' && column.logicalType !== 'varchar') push('ENDPOINT_HELD_BY', `${def.source}.${def.held_by} is not a text column, so it cannot hold an address`, 'held_by');
+    if (def.session_only !== true) push('ENDPOINT_HELD_BY', 'the rows a person holds are read by the holder of a session alone', 'held_by');
+    if (def.held_from !== undefined && table.columns.get(def.held_from)?.logicalType !== 'date') push('ENDPOINT_HELD_BY', `${def.source}.${def.held_from} is not a date column`, 'held_from');
   }
   if (def.session_only === true) {
     if (def.methods.some((m) => m !== 'GET') || def.claim !== undefined || def.identity !== undefined || def.visible_with !== undefined || def.auth.role !== 'authenticated') {

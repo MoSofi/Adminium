@@ -764,6 +764,12 @@ export const columnRulesSchema = z
         table: z.union([refSchema, addOnTableSchema]),
         column: refSchema,
         where: codeWhereSchema.optional(),
+        /**
+         * The address column of the codes table: a signed-in person may name a
+         * row they hold as `held:<key>` in place of its code, and it is found
+         * only when this column holds the address their session proved.
+         */
+        held: refSchema.optional(),
         scope: z
           .array(z.object({ column: refSchema, equals: refSchema, orEmpty: z.literal(true).optional() }).strict())
           .min(1)
@@ -3665,6 +3671,9 @@ function codeLookupIssues(
   } else if (column.type !== 'fk' || column.nullable !== true || column.references !== into) {
     out.push({ path: [...path, 'table'], message: `a lookup fills this table's link to "${into}": the column is a nullable foreign key to it` });
   }
+  if (lookup.held !== undefined && lookup.scope !== undefined) {
+    out.push({ path: [...path, 'held'], message: 'a row named by the person who holds it is found by its key and their address: a lookup with a scope cannot say held' });
+  }
   const typed = table.columns.find((c) => c.ref === lookup.from);
   if (typed === undefined) {
     out.push({ path: [...path, 'from'], message: `"${table.ref}" has no column "${lookup.from}"` });
@@ -3946,13 +3955,14 @@ export const HOST_REFERENCES_FLOOR = '0.3.43';
  * entry held to the app whose key serves it. An app's rows are its owner's to
  * keep, and its entries serve its own key only.
  */
-function addOnOnlyWordIssues(m: { requiredSchema: { tables: readonly { expire?: unknown }[] }; publicAccess?: readonly { appColumn?: string | undefined }[] | undefined }): { path: (string | number)[]; message: string }[] {
+function addOnOnlyWordIssues(m: { requiredSchema: { tables: readonly { expire?: unknown }[] }; publicAccess?: readonly { appColumn?: string | undefined; heldBy?: unknown }[] | undefined }): { path: (string | number)[]; message: string }[] {
   const out: { path: (string | number)[]; message: string }[] = [];
   m.requiredSchema.tables.forEach((table, t) => {
     if (table.expire !== undefined) out.push({ path: ['requiredSchema', 'tables', t, 'expire'], message: "only an add-on's own table expires: an app's rows are its owner's to keep" });
   });
   (m.publicAccess ?? []).forEach((entry, e) => {
     if (entry.appColumn !== undefined) out.push({ path: ['publicAccess', e, 'appColumn'], message: "an app's entry serves its own key and its own rows: appColumn is said by an add-on's entry" });
+    if (entry.heldBy !== undefined) out.push({ path: ['publicAccess', e, 'heldBy'], message: "an app's rows name their person by a link: heldBy is said by an add-on's entry" });
   });
   return out;
 }
@@ -4794,7 +4804,7 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
      * (a design's code, which the order's lines hold) and nothing else. Never
      * a list: everyone the app signs in would read every row.
      */
-    if (entry.key === undefined && entry.level !== undefined && entry.claim === undefined && entry.claimedBy === undefined && entry.visibleWith === undefined) {
+    if (entry.key === undefined && entry.level !== undefined && entry.claim === undefined && entry.claimedBy === undefined && entry.visibleWith === undefined && entry.heldBy === undefined) {
       if (entry.unlockBy === undefined || !('self' in entry.unlockBy)) {
         out.push({ path: ['publicAccess', e, 'unlockBy'], message: "an add-on's read for whoever an app signed in opens one row by its own code: give it unlockBy {\"header\": true, \"column\": …, \"self\": true, \"length\": …}" });
       }

@@ -6394,6 +6394,7 @@ An add-on manifest has `"kind": "add-on"` and shares the identity fields, `compa
 | `recordTabs` | no | 1–6 tabs of its rows shown on another table's record. See [A tab on another table's record](#a-tab-on-another-tables-record). |
 | `checker` | no | What the add-on reads to say whether a design may be ordered. See [The design question](#the-design-question). |
 | `panels` | no | 1–6 of its own screens drawn on the record pages of tables that link into one of its tables. See [A panel on another table's record](#a-panel-on-another-tables-record). |
+| `framedPage` | no | One small page of the add-on's own, for an outside script that must never run in an app's page. Served at `/x/add-on-frame/<key>` in its own sandbox, with the hosts it names. See below. Needs 0.3.71. |
 | `shapes` | no | 1–8 shapes apps build their tables on. See below. |
 | `scope` | no | `"server"`: the add-on is installed once for the whole server, not once per database. Payment providers say so: two businesses on one server share one provider account. Without it, an add-on installs on its host app's database (or the one chosen), once per database. Needs Adminium 0.3.49. |
 | `chat` | no | A live chat's four tables: `conversations`, `messages`, `answers` and `choices`. See [Live chat](#live-chat). Needs Adminium 0.3.64. |
@@ -6452,6 +6453,36 @@ Adminium 0.3.43.
 A table anyone may add to through an entry is never one anyone may read through another on the
 same key: ready-made designs a shop offers live in a table of their own, apart from the designs
 shoppers save.
+
+
+#### The rows a signed-in customer holds (`heldBy`)
+
+An add-on keeps some rows for a person by their address, never by a key of the app's table: a pack,
+a gift card. `claimedBy` cannot reach those. `heldBy` is a read of exactly the rows held in the
+address the session **proved by reading mail**:
+
+```json
+{ "table": "vouchers", "methods": ["GET"], "level": "verified",
+  "heldBy": { "address": "holder_email" },
+  "select": ["id", "public_name", "uses_left", "expires_on", "code_last4"] }
+```
+
+The entry is an add-on's, on the app's `customer` key, `GET` only, at level `verified`, with a
+`select`. Its column keeps an address in one spelling (`normalize: "email"`). A session that only
+found the person, a row's own link, and no session at all are answered as an unknown ref. The address
+is what chooses the rows, compared byte for byte on every engine, and is not shown unless the entry
+selects it. `from` names a date column: a row dated for a later day is not listed before that day.
+Needs 0.3.71.
+
+**Spending what you hold, with no code in the browser.** A read like this shows only a code's last
+characters. The holder names a row instead, by typing `held:<key>` where a code goes:
+
+- on a price rule's codes, when the add-on's `adjuster.vouchers.held` names the voucher's holder
+  column. Only a row with a holder is found, and the add-on holds it to the proved customer;
+- on a `lookup` that names `held`, the address column of the codes table. The row is found only when
+  that column holds the address this session proved.
+
+Every miss is the answer an unknown code gets. Both need 0.3.71.
 
 #### A shopper's own link
 
@@ -6662,6 +6693,37 @@ One row a phase, written by Adminium: `id`, `source_table` and `line_table` (tex
 `rows` (a whole number), `add_on_version`, `origin` (`staff`, `public`, `system`), `by` (text), `at`
 (a date and time) and `held_until` (a date and time that may be empty). Adminium makes its unique
 key and its indexes itself.
+
+
+#### An add-on's own page in a sandbox (`addOn.framedPage`)
+
+Some services can only be used by loading their script in the visitor's browser. Such a script must
+never run in an app's page, which holds a guest's session and whose policy allows its own host alone.
+The add-on names one script of its package, and the outside hosts that page may reach:
+
+```json
+"framedPage": {
+  "script": "dist/frame.js",
+  "title": "Google reviews",
+  "evalScripts": true,
+  "hosts": { "script": ["https://maps.googleapis.com"], "connect": ["https://*.googleapis.com"] }
+}
+```
+
+Adminium serves it at `/x/add-on-frame/<key>`, and its script at `…/frame.js`, while the add-on is
+attached to an installed app and switched on there; otherwise both are a 404. The page's own policy:
+
+- **sandboxes it however it is opened** (`allow-scripts allow-popups allow-popups-to-escape-sandbox`),
+  so it has no origin, none of the app's storage and no reach into the page around it;
+- allows its one script and the listed `https` hosts, by directive (`script`, `style`, `img`, `font`,
+  `connect`, `frame`). A host is a name with at most one leading `*.`, and `evalScripts` adds
+  `'unsafe-eval'` and `blob:` workers inside the sandbox only;
+- lets only this host and the listed websites frame it;
+- has no origin of its own, so **a browser sends no `Referer` from it**. A service that checks a key
+  against the page's address may refuse it.
+
+The app's own pages keep their policy. The app makes the frame with the same `sandbox` attribute, and
+speaks to it by `postMessage`, checking `event.source`.
 
 #### Code that decides
 

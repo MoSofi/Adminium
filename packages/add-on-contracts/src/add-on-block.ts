@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { i18nMessageSchema, wordsByLanguageSchema } from './common.js';
 import { contractIdSchema, hasContractVersion } from './contracts.js';
 import { RECORD_ACTION_KINDS } from './record-actions.js';
+import { framedPageSchema } from './framed-page.js';
 import { recordPanelsSchema } from './record-panels.js';
 import { recordTabsSchema } from './record-tabs.js';
 import { slotIdSchema } from './slots.js';
@@ -439,6 +440,8 @@ export const addOnBlockSchema = z
       .optional(),
     /** The only settings the client bundle may read. */
     publicSettings: z.array(z.string().min(1)).optional(),
+    /** One small page of its own, served in a sandbox with its own outside hosts (see `framed-page.ts`). */
+    framedPage: framedPageSchema.optional(),
     /** Required to ship a demo that makes no real third-party call. */
     demoTransport: z.string().min(1).optional(),
     /**

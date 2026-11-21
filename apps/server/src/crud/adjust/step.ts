@@ -35,6 +35,7 @@ import type { SourceDatabase } from '../../connections/manager.js';
 import { AdjustRefusedError, PostingRefusedError, ValidationFailedError } from '../../errors.js';
 import type { LedgerRuntime, ResolvedAdjuster } from '../../ledgers/registry.js';
 import type { CustomerKeyOf } from '../../public-api/customer-key.js';
+import { heldKeyOf } from '../code-lookup.js';
 import type { TableRules } from '../column-rules.js';
 import { readDbRefusal, writeConflict } from '../db-errors.js';
 import { isUniqueViolation } from '../decided-columns.js';
@@ -275,6 +276,8 @@ interface AskInput {
   /** The order as it stands. */
   order: Row;
   origin: 'staff' | 'public' | 'system';
+  /** The address this save's session proved by reading mail: what a voucher named by its row is held to. */
+  provedAddress?: string | null | undefined;
   mode: AdjustInput['mode'];
   point: 'line' | 'post';
   /** The moment the question is judged at. */
@@ -608,6 +611,23 @@ export function createAdjuster(kit: AdjustKit) {
       if (error instanceof AdjustTooLarge) throw tooLarge();
       throw error;
     }
+    /*
+     * A voucher a stranger names by its row, with no code. They name it only as
+     * the holder: the address their session proved by reading mail is the one
+     * on the row. A row's own link or a found session proves no mailbox. What
+     * this order already took (its codes row holds the voucher, which no writer
+     * fills) stays its own, so a later change of the order does not lose it.
+     */
+    if (origin === 'public' && adjuster.declared.vouchers.held !== undefined) {
+      const heldColumn = adjuster.declared.vouchers.held;
+      const address = input.provedAddress ?? null;
+      const provedKey = address === null || kit.customerKey === undefined ? null : kit.customerKey(target.connectionId, address);
+      codes = codes.map((code) => {
+        if (heldKeyOf(code.typed) === null || code.found === null) return code;
+        const kept = adjust.codes !== undefined && code.row !== null && !empty(code.row[adjust.codes.voucher]) && String(code.row[adjust.codes.voucher]) === String(code.id);
+        return kept || (provedKey !== null && code.found[heldColumn] === provedKey) ? code : { ...code, kind: null, table: null, found: null, id: null };
+      });
+    }
     // A code typed longer than any code is: no code, said by Adminium — the add-on is never asked to say it back.
     const long = codes.filter((code) => code.typed.length > TYPED_MAX);
     if (long.length > 0 && adjust.codes !== undefined && input.mode !== 'try') throw refusalOf(origin, { typed: long[0]!.typed.slice(0, TYPED_MAX), reason: 'unknown' }, adjust.codes.typed, codeAt(view, adjust, long[0]!));
@@ -764,6 +784,7 @@ export function createAdjuster(kit: AdjustKit) {
       for: input.for,
       order,
       origin,
+      provedAddress: input.context.provedAddress ?? null,
       mode: input.mode,
       // (What an order used is recorded once: priced again after that, it is asked about as a line is.)
       point: closed ? 'line' : (input.point ?? 'line'),

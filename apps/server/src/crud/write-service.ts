@@ -3353,7 +3353,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         await fillLinksFromElsewhere(rules, action, target, localize(rules, target, fill(rules, action, target, context, withoutTypedCodes(rules, context, values), now), await zoneFor(rules, target)), settingsReaderOn(opts.settings, target.connectionId)),
         memo,
         context.origin === 'undo',
-        { origin: context.origin, zone: await zoneFor(rules, target), now, stored, rights: target.rights },
+        { origin: context.origin, provedAddress: context.provedAddress ?? null, zone: await zoneFor(rules, target), now, stored, rights: target.rights },
       ),
       settingsReaderOn(opts.settings, target.connectionId),
     );
@@ -3959,7 +3959,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       'create',
       target,
       // A code a person typed is found here: a miss is the caller's to word.
-      await guardedValue(() => resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo', { origin: context.origin, zone, now: clock.startedAt, rights: target.rights }), mapError),
+      await guardedValue(() => resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo', { origin: context.origin, provedAddress: context.provedAddress ?? null, zone, now: clock.startedAt, rights: target.rights }), mapError),
       settingsReaderOn(opts.settings, target.connectionId),
     );
     // DECIDE: what creating the row makes Adminium write (a stamp), before the hooks and CHECK.
@@ -3998,7 +3998,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const rules = rulesOf(target);
       const zone = await zoneFor(rules, target);
       const filled = await fillLinksFromElsewhere(rules, 'create', target, localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, values), clock.startedAt), zone), settingsReaderOn(opts.settings, target.connectionId));
-      const resolved = await fillFromElsewhere(rules, 'create', target, await resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo', { origin: context.origin, zone, now: clock.startedAt, rights: target.rights }), settingsReaderOn(opts.settings, target.connectionId));
+      const resolved = await fillFromElsewhere(rules, 'create', target, await resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo', { origin: context.origin, provedAddress: context.provedAddress ?? null, zone, now: clock.startedAt, rights: target.rights }), settingsReaderOn(opts.settings, target.connectionId));
       const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, stampNow(clock), zone, await peopleDecide(rules, target, context)));
       return await daysAfterFormulas(rules, 'create', target, context, await formulate(rules, 'create', target, decided, null, context.origin), null, clock, zone);
     } catch {

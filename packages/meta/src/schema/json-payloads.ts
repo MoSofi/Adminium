@@ -1328,6 +1328,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
         table: z.union([ruleTable, addOnTable]),
         column: ruleColumn,
         where: codeWhere.optional(),
+        /** The address column a row named `held:<key>` is held to. */
+        held: ruleColumn.optional(),
         scope: z
           .array(z.object({ column: ruleColumn, equals: ruleColumn, orEmpty: z.literal(true).optional() }).strict())
           .min(1)
