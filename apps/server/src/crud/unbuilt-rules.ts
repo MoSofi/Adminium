@@ -505,6 +505,7 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'table.booking.anyone',
   'table.booking.hours.within',
   'table.booking.windowFor',
+  'table.booking.placedFrom',
   // The review link only the review mails carry (outbox/review-link.ts); a booking's calendar entry, on its mail and its
   // feed (calendar/); a public box that says no (people/consent-writes.ts); a studio's cancel refunded (payments/refund-moves.ts).
   'outbox.reviewLinks',

@@ -1677,6 +1677,7 @@ pieces fit together, see [Booking rules](/guides/apps/booking-rules/).
 | `grid` | yes | The minutes between bookable starts, counted from the opening time. At least 1. |
 | `windowDays` | no | How many working days ahead a booking may be made. |
 | `windowFor` | no | Who the window holds: `"everyone"` (the default) or `"guests"`, which leaves staff free to book further ahead. Needs Adminium 0.3.71. |
+| `placedFrom` | no | Up to eight states that take no time, such as an offer. A row moving from one of them into a counted state is judged as a new booking: hours, closures, who is offered, the window and a guest's notice. Without it, a row counted again is asked only about overlap. Needs Adminium 0.3.71. |
 | `noticeMinutes` | no | How far ahead a public booking must be. Staff are never held to it. |
 | `cancel` | no | Late cancellation: `{ "hours", "mode", "flag"?, "when" }`. See below. |
 

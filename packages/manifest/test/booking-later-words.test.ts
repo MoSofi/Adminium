@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The later words of a booking rule: a buffer, the times a person is away, how
- * "anyone" is given a person, hours capped by the practice's, and a window for
- * guests only. One studio uses them all and validates; each test breaks one
+ * "anyone" is given a person, hours capped by the practice's, a window for
+ * guests only, and the states a row is judged from as a new booking. One studio uses them all and validates; each test breaks one
  * and reads the sentence that names it. An engine before them refuses the
  * manifest by release, so each is a word with a floor.
  */
@@ -25,6 +25,7 @@ function rule(): Doc {
     resource: 'team_id',
     kind: 'service_id',
     countWhere: { column: 'state', values: ['booked'] },
+    placedFrom: ['offered'],
     eligible: { table: 'team_services', resource: 'team_id', kind: 'service_id', order: { table: 'team', column: 'position' } },
     hours: {
       practice: { table: 'opening_hours', weekday: 'weekday', opens: 'opens', closes: 'closes' },
@@ -61,7 +62,7 @@ function studio(change: (booking: Doc, tables: Doc[]) => void = () => undefined)
         at('starts_at'),
         { ref: 'minutes', type: 'int', rules: { copy: { via: 'service_id', from: 'minutes', mode: 'always' } } },
         { ref: 'buffer_min', type: 'int', rules: { copy: { via: 'service_id', from: 'buffer_min', mode: 'always' } } },
-        { ref: 'state', type: 'enum', enum: ['booked', 'cancelled'], default: 'booked' },
+        { ref: 'state', type: 'enum', enum: ['offered', 'booked', 'cancelled'], default: 'booked' },
         at('made_at'),
         { ref: 'picked_by_anyone', type: 'bool', default: false },
       ],
@@ -158,15 +159,26 @@ describe('the later words of a booking rule', () => {
     expect(messages(doc).join(' ')).toContain('no window');
   });
 
+  it('places only from a state the table has, and that takes no time', () => {
+    const unknown = studio((booking) => {
+      booking['placedFrom'] = ['waiting'];
+    });
+    expect(messages(unknown).join(' ')).toContain('"waiting" is not a value');
+    const counted = studio((booking) => {
+      booking['placedFrom'] = ['booked'];
+    });
+    expect(messages(counted).join(' ')).toContain('already counts');
+  });
+
   it('names each word, with the release that first runs it', () => {
     const words = installFloorWords(studio()).map((one) => one.word).filter((word) => word.startsWith('table.booking.'));
-    expect(words.sort()).toEqual(['table.booking.anyone', 'table.booking.buffer', 'table.booking.busy', 'table.booking.hours.within', 'table.booking.windowFor']);
+    expect(words.sort()).toEqual(['table.booking.anyone', 'table.booking.buffer', 'table.booking.busy', 'table.booking.hours.within', 'table.booking.placedFrom', 'table.booking.windowFor']);
     for (const word of words) expect(WORD_FLOORS[word]).toBe('0.3.71');
   });
 
   it('adds none of them to a rule that does not use them', () => {
     const plain = studio((booking, tables) => {
-      for (const word of ['buffer', 'busy', 'anyone', 'windowFor']) delete booking[word];
+      for (const word of ['buffer', 'busy', 'anyone', 'windowFor', 'placedFrom']) delete booking[word];
       delete (booking['hours'] as { own: Doc }).own['within'];
       delete tableOf(tables, 'calendar_busy')['private'];
     });

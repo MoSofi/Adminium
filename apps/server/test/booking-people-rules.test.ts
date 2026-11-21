@@ -187,6 +187,7 @@ async function serving(dialect: Dialect, opts: { textKey?: boolean } = {}) {
       grid: { table: settings, column: 'grid' },
       windowDays: { table: settings, column: 'window_days' },
       windowFor: 'guests',
+      placedFrom: ['offered'],
       noticeMinutes: { table: settings, column: 'notice' },
       cancel: { hours: { table: settings, column: 'cancel_hours' }, mode: 'refuse', when: { column: 'state', to: 'cancelled' } },
     },
@@ -621,6 +622,50 @@ for (const [dialect, available] of legs) {
       expect(errorOf(late).code).toBe('PUBLIC_TOO_LATE');
       const fine = await p.guestChange(session, later, { team_id: RAFA });
       expect(fine.statusCode, fine.body).toBe(200);
+    });
+
+    it('judges a row taken from a state it is placed from as a new booking', async () => {
+      const p = await serving(dialect);
+      const inState = async (id: number, state: string) => {
+        await sql.raw(`update bookings set state = '${state}' where id = ${String(id)}`).execute(p.db);
+      };
+      // Rafa starts at 10:00: an offer at 08:00 is outside his hours, and is refused when it is taken.
+      const early = await p.seed(RAFA, GEL, WED, '08:00');
+      await inState(early, 'offered');
+      const outside = await p.change(early, { state: 'booked' });
+      expect(outside.statusCode, outside.body).toBe(422);
+      expect(errorOf(outside).details).toMatchObject({ reason: 'BOOKING_OUT_OF_HOURS' });
+      // A cancelled visit counted again is asked about overlap only, as it always was.
+      await inState(early, 'cancelled');
+      const again = await p.change(early, { state: 'booked' });
+      expect(again.statusCode, again.body).toBe(200);
+      // A day that closed after the offer was made.
+      const closed = await p.seed(RAFA, GEL, FRI, '11:00');
+      await inState(closed, 'offered');
+      await sql.raw(`insert into closures (team_id, from_date, to_date) values (${RAFA}, '${FRI}', '${FRI}')`).execute(p.db);
+      const shut = await p.change(closed, { state: 'booked' });
+      expect(shut.statusCode, shut.body).toBe(409);
+      expect(errorOf(shut).code).toBe('BOOKING_CLOSED');
+      // A time someone else took meanwhile.
+      const taken = await p.seed(ELIN, GEL, FRI, '11:00');
+      await inState(taken, 'offered');
+      await p.seed(ELIN, GEL, FRI, '11:30');
+      const clash = await p.change(taken, { state: 'booked' });
+      expect(clash.statusCode, clash.body).toBe(409);
+      expect(errorOf(clash).code).toBe('BOOKING_TAKEN');
+      // Inside a guest's notice: refused to the guest, and the desk is never held to it.
+      const soon = await p.seed(ELIN, GEL, '2026-09-15', '11:30', undefined, 1);
+      await inState(soon, 'offered');
+      const session = await p.claim('07700900001');
+      const guest = await p.guestChange(session, soon, { state: 'booked' });
+      expect(guest.statusCode, guest.body).toBeGreaterThanOrEqual(400);
+      const desk = await p.change(soon, { state: 'booked' });
+      expect(desk.statusCode, desk.body).toBe(200);
+      // And a good one is simply booked.
+      const fine = await p.seed(ELIN, GEL, SAT, '10:00');
+      await inState(fine, 'offered');
+      const booked = await p.change(fine, { state: 'booked' });
+      expect(booked.statusCode, booked.body).toBe(200);
     });
 
     it('works out booked time against working time, for a dashboard', async () => {

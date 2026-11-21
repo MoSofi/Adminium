@@ -26,7 +26,7 @@
 | `references/guides/orders-with-lines--at-the-desk.md` | At the desk | 810 |
 | `references/guides/booking-rules--overview.md` | Booking rules and limits | 1232 |
 | `references/guides/booking-rules--what-a-rule-reads.md` | What a rule reads | 1259 |
-| `references/guides/booking-rules--when-a-time-can-be-booked.md` | When a time can be booked | 3981 |
+| `references/guides/booking-rules--when-a-time-can-be-booked.md` | When a time can be booked | 4451 |
 | `references/guides/booking-rules--the-venue-s-clock.md` | The venue's clock | 398 |
 | `references/guides/booking-rules--late-cancellations.md` | Late cancellations | 963 |
 | `references/guides/booking-rules--what-availability-answers.md` | What availability answers | 2708 |

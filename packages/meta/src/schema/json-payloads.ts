@@ -1618,6 +1618,7 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       grid: capacityNumber,
       windowDays: capacityNumber.optional(),
       windowFor: z.enum(['everyone', 'guests']).optional(),
+      placedFrom: z.array(z.string().min(1)).min(1).max(8).optional(),
       noticeMinutes: capacityNumber.optional(),
       cancel: z
         .object({

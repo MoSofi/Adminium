@@ -343,6 +343,7 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'table.booking.anyone',
   'table.booking.hours.within',
   'table.booking.windowFor',
+  'table.booking.placedFrom',
   // A review link only the review mails carry; a calendar entry on a booking and on a mail; a public box that says no;
   // a studio's cancel refunded whoever pressed it.
   'outbox.reviewLinks',
@@ -735,6 +736,7 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'table.booking.anyone': '0.3.71',
   'table.booking.hours.within': '0.3.71',
   'table.booking.windowFor': '0.3.71',
+  'table.booking.placedFrom': '0.3.71',
   'outbox.reviewLinks': '0.3.71',
   'table.booking.calendar': '0.3.71',
   'emailTemplate.calendar': '0.3.71',
@@ -938,7 +940,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (isDoc(table['review']) && table['review']['proved'] !== undefined) out.push({ word: 'table.review.proved', path: `${at}.review.proved` });
     if (isDoc(table['booking'])) {
       const booking = table['booking'];
-      for (const [name, word] of [['buffer', 'table.booking.buffer'], ['busy', 'table.booking.busy'], ['anyone', 'table.booking.anyone'], ['windowFor', 'table.booking.windowFor'], ['sync', 'table.booking.sync']] as const) {
+      for (const [name, word] of [['buffer', 'table.booking.buffer'], ['busy', 'table.booking.busy'], ['anyone', 'table.booking.anyone'], ['windowFor', 'table.booking.windowFor'], ['sync', 'table.booking.sync'], ['placedFrom', 'table.booking.placedFrom']] as const) {
         if (booking[name] !== undefined) out.push({ word, path: `${at}.booking.${name}` });
       }
       if (isDoc(booking['hours']) && isDoc(booking['hours']['own']) && booking['hours']['own']['within'] !== undefined) out.push({ word: 'table.booking.hours.within', path: `${at}.booking.hours.own.within` });

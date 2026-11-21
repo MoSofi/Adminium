@@ -116,8 +116,11 @@ export function bookingNeed(rule: TableBookingRule | PlainRule, values: Row, bef
   if (before === null) return { placement: true };
   const placement = placing(rule).some((column) => moved(rule, column, values, before));
   if (placement) return { placement: true };
+  if (bookingCounts(rule, before)) return null;
+  // Moved in from a state the rule places from (an offer taken): judged as a new booking.
+  if (!isPlain(rule) && (rule.placedFrom ?? []).includes(String(before[rule.countWhere.column]))) return { placement: true };
   // Counted again (a cancelled visit re-booked): only the overlap is asked.
-  return bookingCounts(rule, before) ? null : { placement: false };
+  return { placement: false };
 }
 
 /** Whether a write could need the guard at all, before the stored row is read. */

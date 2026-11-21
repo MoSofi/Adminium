@@ -589,6 +589,8 @@ export interface TableBookingRule {
   windowDays?: number | CapacitySetting;
   /** `guests`: the window holds guests only. Absent: everyone. */
   windowFor?: 'everyone' | 'guests';
+  /** States that take no time, whose row is judged as a new booking when it moves into a counted one. */
+  placedFrom?: string[];
   noticeMinutes?: number | CapacitySetting;
   cancel?: {
     hours: number | CapacitySetting;

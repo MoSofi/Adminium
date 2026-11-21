@@ -50,6 +50,14 @@ slot that holds the current time: at 09:35 on a 15-minute grid, that is the 09:3
 as a walk-in when it is created with a counted status other than the first, for example
 `checked_in` rather than `booked`.
 
+### An offer that is taken later
+
+A row in a state that takes no time holds nothing, so nothing judges it when it is made. A row
+that comes back into a counted state is normally asked only whether the time is still free. List
+such a state in `placedFrom` when the row was never booked, such as a time offered to someone on a
+waiting list. Taking it is then judged as a new booking: the person's hours, closures, who is
+offered, the window and, for a guest, the notice.
+
 ### Moving and changing a visit
 
 The rule runs on a create, and on a change that **moves** the visit: its start, length, person or

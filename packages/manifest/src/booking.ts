@@ -124,6 +124,12 @@ export const bookingSchema = z
     kind: refSchema,
     /** Only rows whose column holds one of these take time (a cancelled visit takes none). */
     countWhere: z.object({ column: refSchema, values: z.array(z.string().min(1)).min(1) }).strict(),
+    /**
+     * States that take no time, and whose row is judged as a NEW booking when it moves into a counted one: hours, closures,
+     * who is offered, the window and a guest's notice (an offer a guest takes later). Without it, a row counted again is asked
+     * only about overlap.
+     */
+    placedFrom: z.array(z.string().min(1)).min(1).max(8).optional(),
     /** Who does what: a link table of (resource, kind), and the resources' own order and switches. */
     eligible: z
       .object({
@@ -282,6 +288,11 @@ export function bookingIssues(
         out.push({ path: here('countWhere', 'values'), message: `"${value}" is not a value of "${table.ref}.${counted.ref}"` });
       }
     }
+  }
+
+  for (const value of rule.placedFrom ?? []) {
+    if (counted !== undefined && !valueFits(counted, value)) out.push({ path: here('placedFrom'), message: `"${value}" is not a value of "${table.ref}.${counted.ref}"` });
+    if (rule.countWhere.values.includes(value)) out.push({ path: here('placedFrom'), message: `"${value}" already counts, so nothing moves into counting from it` });
   }
 
   const eligible = rule.eligible;
