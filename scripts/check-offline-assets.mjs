@@ -279,6 +279,10 @@ const BLOCKED_HOSTS = [
  */
 const ALLOWED_HOSTS = [
   {
+    test: /^\[a-z0-9-\]\+$/,
+    why: 'not an address: the pattern that checks a website an owner typed for a frame\'s policy (`forms/websites.ts`). A pattern is never fetched',
+  },
+  {
     test: /^www\.w3\.org$/,
     why: 'XML namespace URIs (SVG, MathML, xlink) — identifiers React and every icon write into the DOM. A namespace is never dereferenced',
   },
