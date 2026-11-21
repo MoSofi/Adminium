@@ -152,8 +152,32 @@ export const countsJoinSchema = z.object({
   param: paramNameSchema.default('day'),
 });
 
+/**
+ * `kind: 'booking-occupancy'` — how much of each person's working time was
+ * booked, on a table with a booking rule. `source` is that table.
+ *
+ * The days: `days` of them, ending `offset` days before today on the venue's
+ * clock (28 ending yesterday unless said). `states`: the row states that count
+ * as time used, the rule's counted states unless said (a past window may want
+ * `done` and `no_show`). Buffers are not booked time; working time is the
+ * person's hours less breaks, time off and closures.
+ *
+ * Answered only to a reader no row limit holds on any table it reads
+ * (`403 TEAM_FIGURE_WHOLE_ONLY`), as `categorical` (a share per person, 0.45
+ * for 45 %), `record-list` (`name`, `booked`, `working`, `occupancy`, with the
+ * team's line under `totals`), or a `single-metric` of the team (`metric`).
+ */
+export const bookingOccupancySchema = z
+  .object({
+    days: z.number().int().min(1).max(92).default(28),
+    offset: z.number().int().min(0).max(366).default(1),
+    states: z.array(z.string().min(1).max(64)).min(1).max(16).optional(),
+    metric: z.enum(['occupancy', 'booked', 'working']).optional(),
+  })
+  .strict();
+
 export const queryDescriptorSchema = z.object({
-  kind: z.enum(['table-query', 'capacity-counts', 'team-figures']).default('table-query'),
+  kind: z.enum(['table-query', 'capacity-counts', 'team-figures', 'booking-occupancy']).default('table-query'),
   connectionId: z.string(), // adminium_connections.id
   source: z.object({
     schema: z.string().optional(), // pg schema; omitted for MySQL/SQLite
@@ -249,6 +273,8 @@ export const queryDescriptorSchema = z.object({
   capacity: capacityCountsSchema.optional(),
   /** A `record-list` only: what a table's limit has taken from each row listed. */
   counts: countsJoinSchema.optional(),
+  /** `kind: 'booking-occupancy'` only: which days, and which states count. */
+  occupancy: bookingOccupancySchema.optional(),
   /**
    * `kind: 'team-figures'` — figures of a WHOLE team: what every person owns
    * of a table, added up, with a target from a second table and the cover of

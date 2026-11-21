@@ -125,8 +125,11 @@ export interface CreateTreeInput {
    * lock, judged by the rule inside the transaction. The desk's create with a
    * retry key asks for it. Absent, such a root is refused as it always was
    * (`CAPACITY_ONE_AT_A_TIME`); with rows below it, or as a quote, it still is.
+   * `with-rows` (the public door) also places it with rows below it, whose own
+   * tables take no time, and answers a quote: judged by the same rule, with no
+   * lock, because a quote holds nothing.
    */
-  placeRoot?: boolean | undefined;
+  placeRoot?: boolean | 'with-rows' | undefined;
   /** The person found or created by address, as the root's link values (a save only; never in a quote). */
   identity?: ((db: Db) => Promise<Row>) | undefined;
   /** Named locks of the door's own taken with the write's (a person's address on MySQL), a save only. */

@@ -75,7 +75,8 @@ function ddl(dialect: Dialect): string[] {
     `create table clinician_visit_types (id ${key}, clinician_id integer not null, visit_type_id integer not null, foreign key (clinician_id) references clinicians (id), foreign key (visit_type_id) references visit_types (id))`,
     `create table closures (id ${key}, clinician_id integer, from_date date not null, to_date date not null, foreign key (clinician_id) references clinicians (id))`,
     `create table patients (id ${key}, name varchar(40) not null, mobile varchar(20) not null)`,
-    `create table visits (id ${key}, patient_id integer, clinician_id integer, visit_type_id integer not null, starts_at ${at} not null, minutes integer not null default 15, status varchar(16) not null default 'booked', late_cancel ${bool} not null default ${no}, foreign key (patient_id) references patients (id), foreign key (clinician_id) references clinicians (id), foreign key (visit_type_id) references visit_types (id))`,
+    `create table visits (id ${key}, patient_id integer, clinician_id integer, visit_type_id integer not null, starts_at ${at} not null, minutes integer not null default 15, status varchar(16) not null default 'booked', late_cancel ${bool} not null default ${no}, door_key varchar(64) unique, foreign key (patient_id) references patients (id), foreign key (clinician_id) references clinicians (id), foreign key (visit_type_id) references visit_types (id))`,
+    `create table visit_notes (id ${key}, visit_id integer not null, note varchar(40) not null, foreign key (visit_id) references visits (id))`,
     'insert into settings (slot_minutes, booking_days, notice_minutes, cancel_hours) values (15, 5, 60, 24)',
     ...['mon', 'tue', 'wed', 'thu', 'fri'].map(
       (weekday) => `insert into opening_hours (weekday, opens, closes, break_start, break_end) values ('${weekday}', '08:30', '17:30', '12:30', '13:15')`,
@@ -264,6 +265,32 @@ async function serving(dialect: Dialect, opts: { handMade?: boolean } = {}) {
       auth: { role: 'authenticated' },
       claim: { column: 'patient_id' },
     },
+    // What a guest may name on the door below: a row a read of this key shows.
+    visit_types: { ...base, source: idOf('visit_types'), methods: ['GET'], select: ['id', 'name'], auth: { role: 'anon' } },
+    clinicians: { ...base, source: idOf('clinicians'), methods: ['GET'], select: ['id', 'name'], auth: { role: 'anon' } },
+    // A door with what a real booking page uses: a retry key, a quote, and rows below the visit.
+    visits_door: {
+      ...base,
+      source: visits,
+      methods: ['POST'],
+      select: ['id', 'clinician_id', 'starts_at'],
+      writable: ['clinician_id', 'visit_type_id', 'starts_at', 'door_key'],
+      auth: { role: 'authenticated' },
+      claim: { column: 'patient_id' },
+      dry_run: true,
+      client_key: 'door_key',
+      children: { visit_notes: { source: idOf('visit_notes'), via: 'visit_id', writable: ['note'], max: 2 } },
+    },
+    // A visit made under a row its reader can see.
+    visits_under: {
+      ...base,
+      source: visits,
+      methods: ['GET', 'POST'],
+      select: ['id', 'clinician_id', 'starts_at'],
+      writable: ['patient_id', 'clinician_id', 'visit_type_id', 'starts_at'],
+      auth: { role: 'authenticated' },
+      visible_with: { ref: 'patients', localColumn: 'patient_id', foreignColumn: 'id' },
+    },
   };
   for (const [ref, definition] of Object.entries(endpoints)) {
     await service.saveEndpoint({ connectionId: connection.id, ref, definition: { path: `/${ref}`, ...definition } as PublicEndpointDefinition, origin: 'custom', managedBy: 'clinic' });
@@ -279,6 +306,10 @@ async function serving(dialect: Dialect, opts: { handMade?: boolean } = {}) {
       { ref: 'visits_availability', methods: ['GET'] },
       { ref: 'visits_today', methods: ['GET'] },
       { ref: 'visits_limited', methods: ['GET', 'PATCH'] },
+      { ref: 'visit_types', methods: ['GET'] },
+      { ref: 'clinicians', methods: ['GET'] },
+      { ref: 'visits_door', methods: ['POST'] },
+      { ref: 'visits_under', methods: ['GET', 'POST'] },
       ...(opts.handMade === true ? [{ ref: 'visits_proved', methods: ['POST', 'BATCH'] as ('POST' | 'BATCH')[] }] : []),
     ],
     secret: { prefix: generated.prefix, tokenHash: generated.tokenHash, tokenEncrypted: sealPublishableKey(dsnCryptoFromSecret(TEST_SECRET), generated.token) },
@@ -331,6 +362,11 @@ async function serving(dialect: Dialect, opts: { handMade?: boolean } = {}) {
       app.inject({ method: 'POST', url: `/api/v1/public/records/${ref}/batch`, headers: headers(), payload: { rows } }),
     limited: (session: string, id: unknown, values: Record<string, unknown>) =>
       app.inject({ method: 'PATCH', url: `/api/v1/public/records/visits_limited/${String(id)}`, headers: headers(session), payload: { values } }),
+    door: (session: string, values: Record<string, unknown>, notes: string[] = []) =>
+      app.inject({ method: 'POST', url: '/api/v1/public/records/visits_door', headers: headers(session), payload: { values, children: { visit_notes: notes.map((note) => ({ values: { note } })) } } }),
+    quote: (session: string, values: Record<string, unknown>, notes: string[] = []) =>
+      app.inject({ method: 'POST', url: '/api/v1/public/records/visits_door/dry-run', headers: headers(session), payload: { values, children: { visit_notes: notes.map((note) => ({ values: { note } })) } } }),
+    under: (session: string, values: Record<string, unknown>) => app.inject({ method: 'POST', url: '/api/v1/public/records/visits_under', headers: headers(session), payload: { values } }),
     staff: async (query: string) => {
       const res = await app.inject({ method: 'GET', url: `/api/v1/data/${connection.id}/${visits}/booking-slots?${query}`, headers: { cookie: cookie ?? '' } });
       expect(res.statusCode, res.body).toBe(200);
@@ -455,6 +491,60 @@ for (const [dialect, available] of legs) {
       expect((await p.raw('kind=1')).statusCode).toBe(400);
       expect((await p.raw(`date=${WED}&party=2`)).statusCode).toBe(400);
     }, 90_000);
+
+    it('places a visit through a door with a retry key, a quote and rows below it, under the rule', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(wallTimeToInstant(`${TUE} 08:20`, ZONE)!);
+      const p = await serving(dialect);
+      const session = await p.claim('07700900001');
+      const count = async (table: string) => Number((await sql.raw<{ n: unknown }>(`select count(*) as n from ${table}`).execute(p.db)).rows[0]!.n);
+      const visit = { clinician_id: 1, visit_type_id: 1, starts_at: at(WED, '09:00') };
+      const key = (letter: string) => letter.repeat(24);
+
+      // A quote answers, and makes nothing.
+      const quoted = await p.quote(session, { visit_type_id: 1, starts_at: at(WED, '09:00') }, ['first visit']);
+      expect(quoted.statusCode, quoted.body).toBe(200);
+      expect([await count('visits'), await count('visit_notes')]).toEqual([0, 0]);
+
+      // A save, with its row below, under one retry key, sent twice: one visit.
+      const made = await p.door(session, { ...visit, door_key: key('a') }, ['first visit']);
+      expect(made.statusCode, made.body).toBe(201);
+      const id = (made.json() as { data: { id: unknown } }).data.id;
+      const again = await p.door(session, { ...visit, door_key: key('a') }, ['first visit']);
+      expect(again.statusCode, again.body).toBeLessThan(300);
+      expect((again.json() as { data: { id: unknown } }).data.id).toBe(id);
+      expect([await count('visits'), await count('visit_notes')]).toEqual([1, 1]);
+      const owner = await sql.raw<{ patient_id: unknown }>('select patient_id from visits').execute(p.db);
+      expect(Number(owner.rows[0]!.patient_id)).toBe(1);
+
+      // The time is taken: a quote says so, and a save under another key leaves nothing behind, its row below included.
+      const late = await p.quote(session, visit);
+      expect(late.statusCode, late.body).toBe(409);
+      expect(errorOf(late).code).toBe('PUBLIC_SLOT_FULL');
+      const taken = await p.door(session, { ...visit, door_key: key('b') }, ['second']);
+      expect(taken.statusCode, taken.body).toBe(409);
+      expect(errorOf(taken).code).toBe('PUBLIC_SLOT_FULL');
+      expect([await count('visits'), await count('visit_notes')]).toEqual([1, 1]);
+
+      // The rule's other answers, on a quote and on a save alike.
+      for (const send of [p.quote, p.door]) {
+        const closed = await send(session, { clinician_id: 1, visit_type_id: 1, starts_at: at(FRI, '10:00'), door_key: key('c') });
+        expect(closed.statusCode, closed.body).toBe(400);
+        expect(errorOf(closed)).toMatchObject({ code: 'PUBLIC_WRITE_REFUSED', params: { column: 'starts_at', reason: 'closed' } });
+      }
+
+      // Two guests for the last free moment, at once: one has it.
+      const raced = await Promise.all(['d', 'e'].map((letter) => p.door(session, { clinician_id: 1, visit_type_id: 1, starts_at: at(WED, '10:00'), door_key: key(letter) }, [letter])));
+      expect(raced.map((res) => res.statusCode).sort()).toEqual([201, 409]);
+      expect([await count('visits'), await count('visit_notes')]).toEqual([2, 2]);
+
+      // A visit made under a row the reader can see is placed by the same rule.
+      const under = await p.under(session, { patient_id: 1, clinician_id: 1, visit_type_id: 1, starts_at: at(WED, '11:00') });
+      expect(under.statusCode, under.body).toBe(201);
+      const underTaken = await p.under(session, { patient_id: 1, clinician_id: 1, visit_type_id: 1, starts_at: at(WED, '11:00') });
+      expect(underTaken.statusCode, underTaken.body).toBe(409);
+      expect(await count('visits')).toBe(3);
+    }, 120_000);
 
     it('lets a claimed patient move their visit past itself, and nobody else’s', async () => {
       vi.useFakeTimers({ toFake: ['Date'] });

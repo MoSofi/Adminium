@@ -66,11 +66,11 @@
 | `references/guides/orders-with-lines--at-the-desk.md` | At the desk | 810 |
 | `references/guides/booking-rules--overview.md` | Booking rules and limits | 1232 |
 | `references/guides/booking-rules--what-a-rule-reads.md` | What a rule reads | 1259 |
-| `references/guides/booking-rules--when-a-time-can-be-booked.md` | When a time can be booked | 2730 |
+| `references/guides/booking-rules--when-a-time-can-be-booked.md` | When a time can be booked | 3981 |
 | `references/guides/booking-rules--the-venue-s-clock.md` | The venue's clock | 398 |
 | `references/guides/booking-rules--late-cancellations.md` | Late cancellations | 963 |
-| `references/guides/booking-rules--what-availability-answers.md` | What availability answers | 2521 |
-| `references/guides/booking-rules--what-a-writer-is-told.md` | What a writer is told | 1372 |
+| `references/guides/booking-rules--what-availability-answers.md` | What availability answers | 2708 |
+| `references/guides/booking-rules--what-a-writer-is-told.md` | What a writer is told | 1503 |
 | `references/guides/booking-rules--booking-rules-and-capacity.md` | Booking rules and capacity | 779 |
 | `references/guides/booking-rules--limits.md` | Limits | 1061 |
 | `references/guides/booking-rules--limits--slot-limits.md` | Limits — Slot limits | 3137 |

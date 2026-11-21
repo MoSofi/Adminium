@@ -39,6 +39,7 @@ import { ROW_ACTIONS } from '../../rbac/row-limits.js';
 import { WidgetDataCache, cacheKeyOf } from '../../widget-data/cache.js';
 import { readViewFor } from '../../crud/read-view.js';
 import { venueClock } from '../../crud/venue-time.js';
+import { answerBookingOccupancy, type ShapedOccupancy } from '../../widget-data/booking-occupancy.js';
 import { answerCapacityCounts, countsAccessFor, type ShapedCapacity } from '../../widget-data/capacity.js';
 import { compileWidgetQuery, resolveSource } from '../../widget-data/compiler.js';
 import { countsTablesOf, joinCounts, limitTablesOf } from '../../widget-data/counts-join.js';
@@ -69,7 +70,7 @@ export interface WidgetDataRoutesDeps {
 }
 
 interface QueryOutcome {
-  result: ShapedPayload | ShapedCapacity | ShapedTeam;
+  result: ShapedPayload | ShapedCapacity | ShapedTeam | ShapedOccupancy;
   cached: boolean;
 }
 
@@ -225,6 +226,29 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
         });
         cache.set(key, result, connectionId, table.id, limitTablesOf(view, table));
         return { result, cached: false };
+      }
+
+      /*
+       * How much of each person's working time was booked: like a team's
+       * figures, whole or refused (`widget-data/booking-occupancy.ts`).
+       */
+      if (descriptor.kind === 'booking-occupancy') {
+        const { db, dialect } = await manager.data(connectionId);
+        const tenant = await connectionTenantConfig(deps.meta, connectionId);
+        const { shaped, tables } = await answerBookingOccupancy({
+          descriptor,
+          connectionId,
+          view,
+          table,
+          db,
+          dialect,
+          timezone: tenant?.timezone ?? undefined,
+          now: deps.now?.() ?? new Date(),
+          reach: rowsCtx,
+          canReadTable: (tableId) => request.can(`table:${connectionId}:${tableId}:read`),
+        });
+        cache.set(key, shaped, connectionId, table.id, tables);
+        return { result: shaped, cached: false };
       }
 
       /*

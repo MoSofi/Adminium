@@ -734,6 +734,8 @@ export interface DayAvailability {
   /** How many of the day's times are free. */
   open: number;
   state: 'open' | 'full' | 'closed';
+  /** The last day the booking window reaches (itself closed, if it ends on a weekend): a "later" control stops here. */
+  lastBookable?: true;
 }
 
 /** What a booking availability read asks, whichever form. */

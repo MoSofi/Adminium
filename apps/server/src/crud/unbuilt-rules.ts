@@ -486,6 +486,12 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'table.review',
   // Who proved who they are on a reviewed row: a row's own link reviews only a proved one (routes/public review, reviews/take.ts).
   'table.review.proved',
+  // A booking's buffer, busy sources, "anyone" pick, capped hours and guests-only window (crud/booking-guard.ts).
+  'table.booking.buffer',
+  'table.booking.busy',
+  'table.booking.anyone',
+  'table.booking.hours.within',
+  'table.booking.windowFor',
   'addOn.reviews',
   'appGrants.appColumn',
 ];

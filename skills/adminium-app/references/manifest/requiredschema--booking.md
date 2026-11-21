@@ -39,16 +39,21 @@ pieces fit together, see [Booking rules](https://docs.adminium.dev/guides/apps/b
 |---|---|---|
 | `start` | yes | A `timestamptz` column: when the row starts, read in the venue's time zone. |
 | `minutes` | yes | An `int` column: how long the row lasts. Usually a `copy` from the kind. |
-| `resource` | yes | A foreign key: whose time the row takes. Left empty on a create, it means anyone: Adminium picks the first free person in `eligible.order`. |
+| `buffer` | no | An `int` column: minutes kept clear after the row, such as clean-up. It must be a `copy` from the kind with `"mode": "always"`. Two rows' times and buffers never overlap. Hours ask only of `minutes`, so a buffer may run past closing or into a break. Needs Adminium 0.3.71. |
+| `resource` | yes | A foreign key: whose time the row takes. Left empty on a create, it means anyone: Adminium picks a free person, by `anyone` or else the first in `eligible.order`. |
 | `kind` | yes | A foreign key: what the row is, which decides who may be booked for it. |
 | `countWhere` | yes | `{ "column", "values" }`: only rows whose column holds one of these values take time (a cancelled visit takes none). Each value must fit the column. |
 | `eligible` | yes | Who does what: `{ "table", "resource", "kind", "order"? }`, a link table whose two foreign keys point where the row's `resource` and `kind` point. A person with no link row for a kind is never booked for it. |
 | `eligible.order` | no | `{ "table", "column", "active"?, "public"? }`, kept on the table `resource` points at. `column` is a number: the order in which "anyone" picks. A person whose `active` bool is false is never booked; one whose `public` bool is false is never booked through the public API. |
 | `hours.practice` | yes | Weekly hours: `{ "table", "weekday", "opens", "closes", "breakStart"?, "breakEnd"?, "open"? }`, one row per weekday. `weekday` is an enum of exactly `mon`, `tue`, `wed`, `thu`, `fri`, `sat`, `sun`, in that order. The times are `text` columns holding `HH:MM`. A break names both its start and its end. `open` is a bool. |
 | `hours.own` | no | A person's own weekly hours, the same shape plus `resource`, a foreign key to the person. A person with rows here follows them every day, and a weekday with no row is a day off. A person with none follows the practice's hours. |
+| `hours.own.within` | no | `"practice"`: the practice's hours cap the person's own. The later opening and the earlier closing apply, both breaks hold, and a day the practice is shut is shut. Without it, a person's own hours replace the practice's. Needs Adminium 0.3.71. |
 | `closures` | no | Dated closures: `{ "table", "from", "to", "resource"?, "active"? }`. `from` and `to` are `date` columns. `resource` must be nullable: an empty one closes for everyone. `active` is a bool. |
+| `busy` | no | Up to four tables of times a person is away: `{ "table", "resource", "start", "end", "countWhere"?, "engine"? }`. See below. Needs Adminium 0.3.71. |
+| `anyone` | no | How "anyone" is given a person: `{ "pick", "made"?, "flag"? }`. See below. Without it, the first free person in the order. Needs Adminium 0.3.71. |
 | `grid` | yes | The minutes between bookable starts, counted from the opening time. At least 1. |
 | `windowDays` | no | How many working days ahead a booking may be made. |
+| `windowFor` | no | Who the window holds: `"everyone"` (the default) or `"guests"`, which leaves staff free to book further ahead. Needs Adminium 0.3.71. |
 | `noticeMinutes` | no | How far ahead a public booking must be. Staff are never held to it. |
 | `cancel` | no | Late cancellation: `{ "hours", "mode", "flag"?, "when" }`. See below. |
 
@@ -56,14 +61,23 @@ pieces fit together, see [Booking rules](https://docs.adminium.dev/guides/apps/b
 value that does not count. Inside `hours` of the start, `mode: "refuse"` turns a guest's
 cancellation away, and `mode: "flag"` lets it through and sets `flag`, a bool column of the table,
 whoever cancels. `flag` is required with `"flag"` and not allowed with `"refuse"`. A guest can never
-move a booking inside the window, in either mode. Staff are never refused.
+move a booking, or change its person, inside the window, in either mode. Staff are never refused.
+
+A `busy` source is a table of times a person is away, such as part-day time off. `resource` is a
+foreign key to the person, and `start` and `end` are `timestamptz` columns, so one row may run for
+days. A new time may not touch one, for staff or guests. A busy time never moves or refuses a
+booking already there: a counted row that keeps its start and person is held only to any time it
+newly takes. With `engine: { "account": <text column> }` the rows are Adminium's own, a connected
+calendar's: the table must be `"private": true`, needs no `belongs`, and no person can write it.
+One source at most may say `engine`.
+
+`anyone.pick` is `"order"`, `"even"`, or `{ "column" }`, an enum of those two on the kind's table,
+so each kind can choose. `even` gives the time to the free person with the fewest counted rows that
+day, then the one whose last row was made longest ago (`made`, a `timestamptz` of this table,
+required unless the pick is `"order"`), then the order. `flag` is a bool of this table that Adminium
+sets: true when it picked the person, false once a write names one. No writer can set it. A booking
+moved with its person emptied keeps that person when they are free.
 
 Nothing may start in the past, with one exception: staff may create a walk-in in the slot that
 holds the current time, when its status is a counted value other than the first in `countWhere`
 (`checked_in` rather than `booked`).
-
-The public API answers a clash with `PUBLIC_SLOT_FULL`; a time outside hours, on a closure,
-beyond the window or with nobody offered for the kind with `PUBLIC_WRITE_REFUSED`; and a guest's
-late move, or a late cancellation in `refuse` mode, with `PUBLIC_TOO_LATE`. An
-[`availability`](https://docs.adminium.dev/reference/manifest/#public-access) entry on a booking table lists the free times of a day, or a
-strip of days, for a kind.

@@ -3225,6 +3225,8 @@ export function appReferenceIssues(
       out.push(...bookingIssues(table, table.booking, index, at));
       // The late flag is Adminium's to set.
       if (table.booking.cancel?.flag !== undefined) decide(table.ref, table.booking.cancel.flag);
+      // So is whether it picked the person.
+      if (table.booking.anyone?.flag !== undefined) decide(table.ref, table.booking.anyone.flag);
     }
     if (table.occupies !== undefined) {
       out.push(...occupiesIssues(table, table.occupies, index, at));

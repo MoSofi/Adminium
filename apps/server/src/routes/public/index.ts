@@ -3308,6 +3308,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           root,
           context,
           mode,
+          // A booking through a door that finds a person, keeps a retry key, answers a link or a quote, or carries rows.
+          placeRoot: 'with-rows',
           checks: async (db, node, row, parent) => {
             const of = node.target.table;
             // The order as prepared: the code it carries unlocks what its rows may name.
@@ -3565,6 +3567,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                         root: { name: request.params.ref, target, values, at: [], children: [], lists: [] },
                         context,
                         mode: 'save',
+                        placeRoot: true,
                         checks: async (db, _node, row) => {
                           if (!(await allowed(db, row))) throw new PublicWriteRefused();
                         },

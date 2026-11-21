@@ -492,7 +492,7 @@ export const bookingSlotsReply = z.object({
     z.array(
       z.object({ time: z.string(), state: z.enum(['free', 'full']), resource: z.union([z.string(), z.number()]).optional() }),
     ),
-    z.array(z.object({ date: z.string(), open: z.number().int(), state: z.enum(['open', 'full', 'closed']) })),
+    z.array(z.object({ date: z.string(), open: z.number().int(), state: z.enum(['open', 'full', 'closed']), lastBookable: z.literal(true).optional() })),
   ]),
 });
 

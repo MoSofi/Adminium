@@ -534,6 +534,16 @@ export interface TableOccupiesRule {
   hours?: { table: string; resource: string; weekday: string; opens?: string; closes?: string };
 }
 
+/** One table of times a person is away (`table.booking.busy`); `table` is an id in the snapshot. */
+export interface BookingBusySource {
+  table: string;
+  resource: string;
+  start: string;
+  end: string;
+  countWhere?: { column: string; values: string[] };
+  engine?: { account: string };
+}
+
 /**
  * `table.booking`: booking PEOPLE. No two counted rows of one resource may
  * overlap, inside its weekly hours and outside its closures. Every nested
@@ -543,6 +553,8 @@ export interface TableOccupiesRule {
 export interface TableBookingRule {
   start: string;
   minutes: string;
+  /** Minutes kept clear after the row: an int column, copied always from the kind. */
+  buffer?: string;
   resource: string;
   kind: string;
   countWhere: { column: string; values: string[] };
@@ -554,11 +566,17 @@ export interface TableBookingRule {
   };
   hours: {
     practice: BookingHoursTable & { open?: string };
-    own?: BookingHoursTable & { resource: string };
+    own?: BookingHoursTable & { resource: string; within?: 'practice' };
   };
   closures?: { table: string; from: string; to: string; resource?: string; active?: string };
+  /** Tables of times a person is away. `engine`: Adminium's own rows, replaced per account. */
+  busy?: BookingBusySource[];
+  /** How "anyone" is given a person. Absent: the resources' order. */
+  anyone?: { pick: 'order' | 'even' | { column: string }; made?: string; flag?: string };
   grid: number | CapacitySetting;
   windowDays?: number | CapacitySetting;
+  /** `guests`: the window holds guests only. Absent: everyone. */
+  windowFor?: 'everyone' | 'guests';
   noticeMinutes?: number | CapacitySetting;
   cancel?: {
     hours: number | CapacitySetting;
