@@ -643,7 +643,9 @@ async function decideLate(rule: TableBookingRule, values: Row, before: Row, cont
 
   // Inside the window. A guest moving it is turned away, in either mode.
   const moved = has(values, rule.start) && slotInstant(values[rule.start])?.getTime() !== held.getTime();
-  if (guest && moved) {
+  // Another person at the same time is a move too: a guest may not swap who they see inside the window.
+  const swapped = has(values, rule.resource) && String(values[rule.resource] ?? '') !== String(before[rule.resource] ?? '');
+  if (guest && (moved || swapped)) {
     throw new ConflictError('It is too late to change this online.', 'BOOKING_TOO_LATE', { column: rule.start });
   }
 

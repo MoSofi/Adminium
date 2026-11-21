@@ -332,6 +332,12 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'table.review',
   // Whether a reviewed row's person proved who they are: a row's own link reviews only a proved one.
   'table.review.proved',
+  // A booking's clean-up time, the times a person is away, how "anyone" is given a person, whose hours cap whose, and who the window holds.
+  'table.booking.buffer',
+  'table.booking.busy',
+  'table.booking.anyone',
+  'table.booking.hours.within',
+  'table.booking.windowFor',
   'addOn.reviews',
   'appGrants.appColumn',
   // A new row that moves the earlier rows sharing its link on (a proof sent again).
@@ -696,6 +702,11 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'automations.words': '0.3.68',
   'table.review': '0.3.68',
   'table.review.proved': '0.3.70',
+  'table.booking.buffer': '0.3.71',
+  'table.booking.busy': '0.3.71',
+  'table.booking.anyone': '0.3.71',
+  'table.booking.hours.within': '0.3.71',
+  'table.booking.windowFor': '0.3.71',
   'addOn.reviews': '0.3.68',
   'appGrants.appColumn': '0.3.68',
 };
@@ -881,6 +892,13 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (table['check'] !== undefined) out.push({ word: 'table.check', path: `${at}.check` });
     if (table['review'] !== undefined) out.push({ word: 'table.review', path: `${at}.review` });
     if (isDoc(table['review']) && table['review']['proved'] !== undefined) out.push({ word: 'table.review.proved', path: `${at}.review.proved` });
+    if (isDoc(table['booking'])) {
+      const booking = table['booking'];
+      for (const [name, word] of [['buffer', 'table.booking.buffer'], ['busy', 'table.booking.busy'], ['anyone', 'table.booking.anyone'], ['windowFor', 'table.booking.windowFor']] as const) {
+        if (booking[name] !== undefined) out.push({ word, path: `${at}.booking.${name}` });
+      }
+      if (isDoc(booking['hours']) && isDoc(booking['hours']['own']) && booking['hours']['own']['within'] !== undefined) out.push({ word: 'table.booking.hours.within', path: `${at}.booking.hours.own.within` });
+    }
     if (table['belongs'] !== undefined) out.push({ word: 'table.belongs', path: `${at}.belongs` });
     list(table['belongs']).forEach((way, w) => {
       if (isDoc(way) && isDoc(way['through']) && way['through']['while'] !== undefined) out.push({ word: 'listing.while', path: `${at}.belongs.${String(w)}.through.while` });

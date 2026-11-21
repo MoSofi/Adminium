@@ -375,6 +375,35 @@ A role that should see these cards needs the table rights with no row limit (`ro
 its grant) on both tables. A manager whose role reads "their team's rows" is held by a limit, and
 is shown no figure: give such a manager cards of the ordinary kind, which answer her own reach.
 
+## How booked a team is
+
+On a table with a [booking rule](/guides/apps/booking-rules/), a binding of
+`"kind": "booking-occupancy"` works out how much of each person's working time was booked. Like a
+team's figures, it is answered **whole or not at all**: only to a reader whose roles read every
+table it is worked out from, with no row limit on any of them.
+
+```json
+"binding": {
+  "kind": "booking-occupancy",
+  "source": { "name": "bookings" },
+  "shape": "record-list",
+  "occupancy": { "days": 28, "offset": 1, "states": ["done", "no_show"] }
+}
+```
+
+- `days` (1 to 92, 28 by default) ending `offset` days before today on the venue's clock (1 by
+  default: yesterday).
+- `states` are the row states that count as time used: the rule's counted states unless said. A
+  past window may want a state the rule no longer counts, such as `no_show`.
+- **Booked** is the rows' `minutes`, without their buffers. **Working** is the person's hours, less
+  breaks and their time off, with none on a day they or the business are closed. A connected
+  calendar's busy times are private and change neither.
+
+As `record-list` the answer is a line a person, in the rule's order: `name`, `booked`, `working` and
+`occupancy` (0.45 for 45 %, none when they worked no time), with the team's line under `totals` and
+the days under `period`. As `categorical` it is a share per person. As `single-metric` it is one
+figure for the team: `"metric"` is `occupancy` (the default), `booked` or `working`.
+
 ## A chart's figures as a table
 
 Every chart and map card also carries its figures as a table: hidden from sight, read by a screen
@@ -545,7 +574,7 @@ A card's refusal is its own: in a batch, the other cards are answered. Codes are
 | `TABLE_FORBIDDEN` | 403 | The reader may not read the card's table, a table a filter or an order reaches, the limited table, a pools' table, or the rates behind earnings. |
 | `COLUMN_FORBIDDEN` | 403 | A column one link away, a column asked `under`, or the price behind earnings is masked for the reader or outside their role's columns. |
 | `NOT_FOUND` | 404 | A `capacity-counts` binding over a table with no limit. |
-| `TEAM_FIGURE_WHOLE_ONLY` | 403 | A `team-figures` binding asked by somebody a row limit holds on the rows' table or the targets' table. The card says the figure is the whole team's. |
+| `TEAM_FIGURE_WHOLE_ONLY` | 403 | A `booking-occupancy` binding asked by somebody a row limit holds on a table it reads, or a `team-figures` binding asked by somebody a row limit holds on the rows' table or the targets' table. The card says the figure is the whole team's. |
 
 For the rules a limit counts by, see [Capacity](/reference/manifest/#capacity); for a booking that
 takes a person's time rather than a seat, see [Booking rules](/guides/apps/booking-rules/).

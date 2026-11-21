@@ -26,7 +26,9 @@ curl 'https://admin.example.com/api/v1/public/availability/appointments_availabi
   otherwise. A time in the past or inside the notice reads full.
 - **A strip** gives each day's number of free times and a state: **open** when any time is free;
   **full** when people work that day and nothing is free; **closed** when nobody in question
-  works, the day is shut, past or beyond the window.
+  works, the day is shut, past or beyond the window. The last day the window reaches carries
+  `"lastBookable": true`, so a page knows where its "later" control stops. When the window ends
+  before a weekend, that day can itself be closed.
 
 The answer is worked out by the same checks as a booking, so a time shown free is a time the
 booking takes, unless someone takes it first. A guest's answer never names a person or counts

@@ -201,6 +201,8 @@ export interface ColumnCheck {
   weekdays?: true;
   /** A time of day a moment reads from the row (`time: {column}`): `HH:MM`, or no moment at all. */
   clock?: true;
+  /** A booking rule's weekly hours: `HH:MM`, or `24:00` for a day that runs to midnight. */
+  hoursClock?: true;
 }
 
 /** `column.copy`, resolved against the snapshot: where the value comes from. */
@@ -1003,6 +1005,12 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     if (found !== undefined) found.clock = true;
     else checks.push({ column: name, logicalType: target.table.columns.get(name)?.logicalType ?? 'text', clock: true });
   }
+  // The hours a booking rule reads: a typo would otherwise read as a closed day, with no word to anyone.
+  for (const name of bookingHoursColumns(target)) {
+    const found = checks.find((check) => check.column === name);
+    if (found !== undefined) found.hoursClock = true;
+    else checks.push({ column: name, logicalType: target.table.columns.get(name)?.logicalType ?? 'text', hoursClock: true });
+  }
   // The totals this table's rows feed, read off the parents that name it.
   const rollupsInto: RollupInto[] = [];
   // Built once per model, so each total knows the totals above it that climb from it.
@@ -1412,10 +1420,18 @@ function rollupOf(
  * An import is history, and keeps the numbers it brings: a studio moving its
  * past invoices keeps INV-0042 as INV-0042.
  */
-export function withoutReadOnly(rules: TableRules | null, values: Row, origin?: WriteOrigin): Row {
+export function withoutReadOnly(rules: TableRules | null, values: Row, origin?: WriteOrigin, stamps?: 'left-out'): Row {
   // An import brings in history: a stay's price as it was charged, not today's rates.
   const imported = origin === 'import' && rules?.perNight !== undefined ? rules.perNight.column : null;
-  const dropped = [...(rules?.readOnly ?? []).filter((column) => column !== imported), ...(origin === 'import' ? (rules?.attested ?? []) : [...(rules?.numbered ?? []), ...(rules?.priced ?? [])])];
+  // Whether "anyone" picked the person is the guard's to say. Only history keeps it: an undo, or an app's sample rows (not a person's file).
+  const booking = rules?.booking;
+  const pickFlag = booking === undefined || 'plain' in booking ? undefined : booking.anyone?.flag;
+  const history = origin === 'undo' || (origin === 'import' && stamps !== 'left-out');
+  const dropped = [
+    ...(rules?.readOnly ?? []).filter((column) => column !== imported),
+    ...(origin === 'import' ? (rules?.attested ?? []) : [...(rules?.numbered ?? []), ...(rules?.priced ?? [])]),
+    ...(pickFlag === undefined || history ? [] : [pickFlag]),
+  ];
   if (!dropped.some((column) => Object.prototype.hasOwnProperty.call(values, column))) return values;
   const out = { ...values };
   for (const column of dropped) delete out[column];
@@ -1570,6 +1586,7 @@ function issueFor(check: ColumnCheck, value: unknown, dialect: Dialect): FieldIs
   if (check.plainText !== undefined && value !== '' && !linkFreeText(value, check.plainText)) return { code: 'plain-text' };
   if (check.weekdays === true && weekdaysOf(value) === null) return { code: 'format' };
   if (check.clock === true && value !== '' && clockOf(value) === null) return { code: 'format' };
+  if (check.hoursClock === true && value !== '' && clockOf(value) === null && !(typeof value === 'string' && /^24:00(:00)?$/.test(value.trim()))) return { code: 'format' };
   if (check.validation !== undefined) {
     const issue = validationIssue(check.validation, value);
     if (issue !== null) return issue;
@@ -2031,6 +2048,18 @@ function weekdayColumns(target: { view: SnapshotView; table: ResolvedTable }): s
  * — in any table's states (a move's window, a new row's, a late rule, a timed
  * move) or stamps, on its own row or through a link to this one.
  */
+function bookingHoursColumns(target: { view: SnapshotView; table: ResolvedTable }): string[] {
+  const out = new Set<string>();
+  for (const table of target.view?.model?.tables ?? []) {
+    const hours = table.booking?.hours;
+    for (const spec of [hours?.practice, hours?.own]) {
+      if (spec?.table !== target.table.id) continue;
+      for (const column of [spec.opens, spec.closes, spec.breakStart, spec.breakEnd]) if (column !== undefined) out.add(column);
+    }
+  }
+  return [...out];
+}
+
 function clockColumns(target: { view: SnapshotView; table: ResolvedTable }): string[] {
   const out = new Set<string>();
   const model = target.view?.model;

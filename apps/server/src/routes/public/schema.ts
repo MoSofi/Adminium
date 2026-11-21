@@ -88,7 +88,7 @@ export const publicAvailabilityReply = z.object({
   data: z.union([
     // A paused time is a slot limit's with pauses; a released one says free or full only.
     z.array(z.object({ time: z.string(), state: z.enum(['free', 'full', 'paused']) })),
-    z.array(z.object({ date: z.string(), open: z.number().int(), state: z.enum(['open', 'full', 'closed']) })),
+    z.array(z.object({ date: z.string(), open: z.number().int(), state: z.enum(['open', 'full', 'closed']), lastBookable: z.literal(true).optional() })),
     // A parent limit's rows (ticket types), and a night limit's pools (room types): `left` only when the entry shows it.
     z.array(z.object({ id: z.string(), state: z.enum(['on', 'soon', 'ended', 'soldout']), left: z.number().int().optional() })),
     z.array(

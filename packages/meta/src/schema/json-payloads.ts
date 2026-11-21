@@ -1565,6 +1565,7 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
     value: z.object({
       start: bookingName,
       minutes: bookingName,
+      buffer: bookingName.optional(),
       resource: bookingName,
       kind: bookingName,
       countWhere: z.object({ column: bookingName, values: z.array(z.string().min(1)).min(1) }),
@@ -1578,13 +1579,35 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       }),
       hours: z.object({
         practice: z.object({ table: bookingTable, open: bookingName.optional(), ...bookingHours }),
-        own: z.object({ table: bookingTable, resource: bookingName, ...bookingHours }).optional(),
+        own: z.object({ table: bookingTable, resource: bookingName, ...bookingHours, within: z.literal('practice').optional() }).optional(),
       }),
       closures: z
         .object({ table: bookingTable, from: bookingName, to: bookingName, resource: bookingName.optional(), active: bookingName.optional() })
         .optional(),
+      busy: z
+        .array(
+          z.object({
+            table: bookingTable,
+            resource: bookingName,
+            start: bookingName,
+            end: bookingName,
+            countWhere: z.object({ column: bookingName, values: z.array(z.string().min(1)).min(1) }).optional(),
+            engine: z.object({ account: bookingName }).optional(),
+          }),
+        )
+        .min(1)
+        .max(4)
+        .optional(),
+      anyone: z
+        .object({
+          pick: z.union([z.enum(['order', 'even']), z.object({ column: bookingName })]),
+          made: bookingName.optional(),
+          flag: bookingName.optional(),
+        })
+        .optional(),
       grid: capacityNumber,
       windowDays: capacityNumber.optional(),
+      windowFor: z.enum(['everyone', 'guests']).optional(),
       noticeMinutes: capacityNumber.optional(),
       cancel: z
         .object({

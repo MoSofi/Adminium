@@ -32,7 +32,8 @@
 | `references/manifest/requiredschema--moments.md` | requiredSchema — Moments | 2748 |
 | `references/manifest/requiredschema--capacity.md` | requiredSchema — Capacity | 7647 |
 | `references/manifest/requiredschema--capacity-2.md` | requiredSchema — Capacity (part 2) | 5558 |
-| `references/manifest/requiredschema--booking.md` | requiredSchema — Booking | 5565 |
+| `references/manifest/requiredschema--booking.md` | requiredSchema — Booking | 7415 |
+| `references/manifest/requiredschema--booking-2.md` | requiredSchema — Booking (part 2) | 595 |
 | `references/manifest/requiredschema--a-resource-and-a-time.md` | requiredSchema — A resource and a time | 5609 |
 | `references/manifest/requiredschema--states.md` | requiredSchema — States | 7604 |
 | `references/manifest/requiredschema--states-2.md` | requiredSchema — States (part 2) | 7489 |
@@ -91,6 +92,5 @@
 | `references/manifest/public-access-2.md` | Public access (part 2) | 7550 |
 | `references/manifest/public-access-3.md` | Public access (part 3) | 7679 |
 | `references/manifest/public-access--filters.md` | Public access — Filters | 835 |
-| `references/manifest/public-access--windows-on-a-moment.md` | Public access — Windows on a moment | 2049 |
 
 More: `references/manifest/INDEX-2.md`
