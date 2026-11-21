@@ -29,7 +29,8 @@ export function sealLink(key: string, kind: string, claim: Readonly<Record<strin
 export function openLink(keys: readonly string[], kind: string, token: unknown): Record<string, unknown> | null {
   if (typeof token !== 'string' || !TOKEN.test(token)) return null;
   const bytes = Buffer.from(token, 'base64url');
-  if (bytes.length < 29) return null;
+  // One token, one spelling: base64's spare last bits must not make a second link that opens the same claim.
+  if (bytes.length < 29 || bytes.toString('base64url') !== token) return null;
   for (const key of keys) {
     try {
       const decipher = createDecipheriv('aes-256-gcm', keyOf(key, kind), bytes.subarray(0, 12));
