@@ -41,6 +41,8 @@ import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
 import { afterRecordWrite } from '../crud/after-record-write.js';
+import { tellPostings } from '../ledgers/announce.js';
+import { announceEffects } from '../states/effects.js';
 import { isWriteConflict } from '../crud/db-errors.js';
 import { isUniqueViolation } from '../crud/decided-columns.js';
 import { pkLabel } from '../crud/records.js';
@@ -415,7 +417,7 @@ export async function writePaymentRow(deps: RecordDeps, payable: ResolvedPayable
     target: found.target,
     values: prepared,
     context,
-    announce: async (created) => {
+    announce: async (created, _values, postings) => {
       if (deps.app === undefined) return;
       const pk = Object.fromEntries(found.table.primaryKey.map((column) => [column, created[column]]));
       await afterRecordWrite(deps.app, {
@@ -430,6 +432,8 @@ export async function writePaymentRow(deps: RecordDeps, payable: ResolvedPayable
         after: created,
         origin: 'payment',
       });
+      // What the payment's own row handed an add-on's ledger (a gift card's spend), told as every door tells it.
+      await tellPostings(deps.app, { connectionId: found.target.connectionId, view: found.target.view, postings, origin: 'payment', request: write.request, actor: write.actor });
     },
   });
   return `row:${into.tableName}:${rowKeyOf(found.table, row)}`;
@@ -539,6 +543,13 @@ async function setPaidStatusOnce(deps: RecordDeps, ref: PayableRef, before: Reso
         after: outcome.after,
         origin: 'payment',
       });
+      /*
+       * The move to paid may set off what the app hands an add-on (a gift card sold online made active, and its
+       * mail queued, when its order is paid) and move rows it links: told as every door tells them, or nothing
+       * listening to those tables ever hears of it.
+       */
+      await announceEffects(deps.app, { connectionId: found.target.connectionId, view: found.target.view, effects: outcome.effects, origin: 'payment', request, actor });
+      await tellPostings(deps.app, { connectionId: found.target.connectionId, view: found.target.view, postings: outcome.postings, origin: 'payment', request, actor });
     },
   });
 }
