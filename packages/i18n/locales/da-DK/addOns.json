@@ -34,7 +34,17 @@
       "connectedTitle": "{person} forbandt en konto",
       "connectedBody": "{person} er nu forbundet til {provider} som {account}.",
       "refusedTitle": "{provider} afviste denne servers app",
-      "refusedBody": "Tjek klient-id og hemmelighed gemt for {provider}. Ingen behøver at forbinde igen: Forbindelserne fortsætter, når appen bliver accepteret."
+      "refusedBody": "Tjek klient-id og hemmelighed gemt for {provider}. Ingen behøver at forbinde igen: Forbindelserne fortsætter, når appen bliver accepteret.",
+      "clashTitle": "{person} har en kalenderkonflikt",
+      "clashBody": "En optaget tid i {person}s kalender overlapper nu en booking. Åbn bookingen for at flytte eller beholde den.",
+      "staleTitle": "{person}s optagede tider blev fjernet",
+      "staleBody": "{person} har ikke genforbundet i 7 dage, så kalenderen blokerer ikke længere tider.",
+      "removedTitle": "{person} fjernede kalenderen {calendar}",
+      "removedBody": "Den blev slettet to gange på en uge, så bookinger går ikke længere til {person}s kalender, før vedkommende slår det til igen.",
+      "remadeTitle": "Kalenderen {calendar} blev oprettet igen",
+      "remadeBody": "Den blev slettet fra {person}s konto, så den blev oprettet igen med de kommende bookinger.",
+      "silentTitle": "Ændringer fra {person}s kalender kommer forsinket",
+      "silentBody": "De øjeblikkelige opdateringer er stoppet, så ændringer kommer med den faste kontrol, inden for cirka 12 minutter."
     }
   }
 }

@@ -496,6 +496,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'table.booking.anyone',
   'table.booking.hours.within',
   'table.booking.windowFor',
+  // Bookings out to, and busy times in from, each person's connected calendar (calendar-sync/).
+  'table.booking.sync',
   'addOn.reviews',
   'appGrants.appColumn',
 ];

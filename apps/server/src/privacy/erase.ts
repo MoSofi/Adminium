@@ -98,6 +98,8 @@ export interface EraseDeps {
   signIns?: ((event: RecordWriteEvent) => Promise<void>) | undefined;
   /** What is installed: a reviews add-on's reviews of theirs keep their stars and words and lose their name (`reviews/erase.ts`). */
   reviewInstalls?: (() => Promise<AddOnInstalls>) | undefined;
+  /** The calendar sync: their events in staff calendars lose their name, and a connected account at this address ends. */
+  calendars?: { onErased(input: { address: string; rows: readonly { connectionId: string; table: string; key: string }[] }): Promise<{ events: number; accounts: number }> } | undefined;
   now?: (() => number) | undefined;
 }
 
@@ -422,6 +424,17 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: E
   if (whole) {
     const gone = await erasePageVisits(meta, deps.secret, address);
     if (gone.visits > 0 || gone.visitors > 0) Object.assign(counts, { 'page-visits': gone.visits, visitors: gone.visitors });
+  }
+  // Written without an announcement, so the sync is told: what their rows put in staff calendars is written again, nameless.
+  if (deps.calendars !== undefined) {
+    const told = await deps.calendars
+      .onErased({
+        address: whole ? address : '',
+        rows: rows.databases.flatMap((database) => database.sources.flatMap((source) => source.rows.map((row) => ({ connectionId: source.connectionId, table: source.table.id, key: row.key })))),
+      })
+      .catch(() => ({ events: 0, accounts: 0 }));
+    if (told.events > 0) counts['calendar-events'] = told.events;
+    if (told.accounts > 0) counts['calendar-accounts'] = told.accounts;
   }
   // An entry written about one of their rows while this ran.
   audit += await scrubAuditImages(meta, targets, started);

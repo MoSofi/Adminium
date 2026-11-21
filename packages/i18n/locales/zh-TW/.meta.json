@@ -1,4 +1,12 @@
 {
+  "addOns.accounts.notice.clashBody": {
+    "status": "mt",
+    "srcHash": "c9a317f7169b"
+  },
+  "addOns.accounts.notice.clashTitle": {
+    "status": "mt",
+    "srcHash": "a4caa9135143"
+  },
   "addOns.accounts.notice.connectedBody": {
     "status": "mt",
     "srcHash": "f075114b652e"
@@ -14,6 +22,38 @@
   "addOns.accounts.notice.refusedTitle": {
     "status": "mt",
     "srcHash": "1e5c3c4e69d9"
+  },
+  "addOns.accounts.notice.remadeBody": {
+    "status": "mt",
+    "srcHash": "e904cc4f8c65"
+  },
+  "addOns.accounts.notice.remadeTitle": {
+    "status": "mt",
+    "srcHash": "5ef4df3f32e3"
+  },
+  "addOns.accounts.notice.removedBody": {
+    "status": "mt",
+    "srcHash": "33d60f3b7303"
+  },
+  "addOns.accounts.notice.removedTitle": {
+    "status": "mt",
+    "srcHash": "b7fa89433e1d"
+  },
+  "addOns.accounts.notice.silentBody": {
+    "status": "mt",
+    "srcHash": "67e1ff8e1a69"
+  },
+  "addOns.accounts.notice.silentTitle": {
+    "status": "mt",
+    "srcHash": "e6364e975071"
+  },
+  "addOns.accounts.notice.staleBody": {
+    "status": "mt",
+    "srcHash": "ae71e7b89c2f"
+  },
+  "addOns.accounts.notice.staleTitle": {
+    "status": "mt",
+    "srcHash": "9e52b900131c"
   },
   "addOns.crashed.body": {
     "status": "mt",

@@ -44,7 +44,17 @@ export default {
       "connectedTitle": "{person} 連接了一個帳戶",
       "connectedBody": "{person} 現已以 {account} 連接到 {provider}。",
       "refusedTitle": "{provider} 拒絕了此伺服器的應用程式",
-      "refusedBody": "請檢查為 {provider} 儲存的用戶端 ID 和密鑰。無需任何人重新連接：應用程式被接受後，連線會自動恢復。"
+      "refusedBody": "請檢查為 {provider} 儲存的用戶端 ID 和密鑰。無需任何人重新連接：應用程式被接受後，連線會自動恢復。",
+      "clashTitle": "{person} 的行事曆有衝突",
+      "clashBody": "{person} 行事曆中的忙碌時間現在與一筆預約重疊。開啟該預約以改期或保留。",
+      "staleTitle": "已移除 {person} 的忙碌時間",
+      "staleBody": "{person} 已 7 天未重新連線，因此其行事曆不再佔用時間。",
+      "removedTitle": "{person} 刪除了行事曆 {calendar}",
+      "removedBody": "該行事曆在一週內被刪除兩次，因此預約不再寫入 {person} 的行事曆，直到其重新開啟。",
+      "remadeTitle": "已重新建立行事曆 {calendar}",
+      "remadeBody": "該行事曆已從 {person} 的帳戶中刪除，因此已連同即將到來的預約重新建立。",
+      "silentTitle": "{person} 行事曆的變更延遲到達",
+      "silentBody": "即時更新已停止，變更將隨定期檢查到達，大約在 12 分鐘內。"
     }
   }
 } as const;

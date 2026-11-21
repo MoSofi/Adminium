@@ -79,7 +79,7 @@ import { formsReach, proxyUncheckedOf, type FormsReachFacts } from '../../forms/
 import { addWebsites, readWebsites, removeWebsite, type ListedWebsite } from '../../forms/websites.js';
 import { refuseUnlistedWebsites } from '../../trial/operator-hosts.js';
 import { businessName, privacyNoticeOf, senderPostalAddress } from '../../privacy/business.js';
-import { erasePerson, previewErasure } from '../../privacy/erase.js';
+import { erasePerson, previewErasure, type EraseDeps } from '../../privacy/erase.js';
 import { peopleFoundNotice } from '../../leads/notice.js';
 import type { AnswerFilesRemover } from '../../forms/answers.js';
 import { countsOf, PRIVACY_EXPORT_KIND, personHash } from '../../privacy/export.js';
@@ -137,6 +137,8 @@ export interface PrivacyRoutesDeps {
   chatForget?: ChatForget | undefined;
   /** What is installed: a person's reviews keep their words and lose their name (`reviews/erase.ts`). */
   reviewInstalls?: (() => Promise<AddOnInstalls>) | undefined;
+  /** The calendar sync, told of what an erasure wrote. */
+  calendars?: EraseDeps['calendars'];
   /** The view counter of this process: told a new level at once (`views/counter.ts`). */
   counting?: { setLevel: (level: TrackingLevel) => void } | undefined;
 }
@@ -165,7 +167,7 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
   const { meta, secret } = deps;
   const settings = settingsRepo(meta);
   const exports = privacyExportsRepo(meta);
-  const eraseDeps = { meta, manager: deps.manager, consent: deps.consent, storage: deps.storage, secret, signIns: deps.signIns, answerFiles: deps.answerFiles, chatForget: deps.chatForget, reviewInstalls: deps.reviewInstalls };
+  const eraseDeps = { meta, manager: deps.manager, consent: deps.consent, storage: deps.storage, secret, signIns: deps.signIns, answerFiles: deps.answerFiles, chatForget: deps.chatForget, reviewInstalls: deps.reviewInstalls, calendars: deps.calendars };
 
   /** Locked keys refused rather than read as "nothing found" (or, for an erasure, half done). */
   async function unlocked<T>(work: () => Promise<T>): Promise<T> {

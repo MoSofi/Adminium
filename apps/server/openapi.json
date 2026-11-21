@@ -19084,6 +19084,12 @@
                                   "full",
                                   "closed"
                                 ]
+                              },
+                              "lastBookable": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
                               }
                             },
                             "required": [
@@ -108124,7 +108130,9 @@
                         "enum": [
                           "table-query",
                           "capacity-counts",
-                          "team-figures"
+                          "team-figures",
+                          "booking-occupancy",
+                          "calendar-connections"
                         ]
                       },
                       "connectionId": {
@@ -108133,6 +108141,10 @@
                       "source": {
                         "type": "object",
                         "properties": {
+                          "addOn": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                          },
                           "schema": {
                             "type": "string"
                           },
@@ -108819,6 +108831,42 @@
                           "table"
                         ]
                       },
+                      "occupancy": {
+                        "type": "object",
+                        "properties": {
+                          "days": {
+                            "default": 28,
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 92
+                          },
+                          "offset": {
+                            "default": 1,
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 366
+                          },
+                          "states": {
+                            "minItems": 1,
+                            "maxItems": 16,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 64
+                            }
+                          },
+                          "metric": {
+                            "type": "string",
+                            "enum": [
+                              "occupancy",
+                              "booked",
+                              "working"
+                            ]
+                          }
+                        },
+                        "additionalProperties": false
+                      },
                       "team": {
                         "type": "object",
                         "propertyNames": {
@@ -109042,7 +109090,9 @@
                               "enum": [
                                 "table-query",
                                 "capacity-counts",
-                                "team-figures"
+                                "team-figures",
+                                "booking-occupancy",
+                                "calendar-connections"
                               ]
                             },
                             "connectionId": {
@@ -109051,6 +109101,10 @@
                             "source": {
                               "type": "object",
                               "properties": {
+                                "addOn": {
+                                  "type": "string",
+                                  "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                                },
                                 "schema": {
                                   "type": "string"
                                 },
@@ -109736,6 +109790,42 @@
                               "required": [
                                 "table"
                               ]
+                            },
+                            "occupancy": {
+                              "type": "object",
+                              "properties": {
+                                "days": {
+                                  "default": 28,
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 92
+                                },
+                                "offset": {
+                                  "default": 1,
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 366
+                                },
+                                "states": {
+                                  "minItems": 1,
+                                  "maxItems": 16,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 64
+                                  }
+                                },
+                                "metric": {
+                                  "type": "string",
+                                  "enum": [
+                                    "occupancy",
+                                    "booked",
+                                    "working"
+                                  ]
+                                }
+                              },
+                              "additionalProperties": false
                             },
                             "team": {
                               "type": "object",
@@ -123319,6 +123409,628 @@
                     "removed",
                     "incomplete",
                     "revoked"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calendar-sync/row": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "query",
+            "name": "connection",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "in": "query",
+            "name": "table",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            },
+            "in": "query",
+            "name": "row",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "calendar": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "accountId": {
+                              "type": "string"
+                            },
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "connecting",
+                                "connected",
+                                "partial",
+                                "reconnect",
+                                "disconnecting"
+                              ]
+                            },
+                            "address": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "demo": {
+                              "type": "boolean"
+                            },
+                            "lastSyncedAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "busyAsOf": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "busyDropped": {
+                              "type": "boolean"
+                            },
+                            "paused": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "readCalendars": {
+                              "anyOf": [
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "countAllDay": {
+                              "type": "boolean"
+                            },
+                            "detail": {
+                              "type": "string",
+                              "enum": [
+                                "first-name+initial",
+                                "none"
+                              ]
+                            },
+                            "traits": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "listsCalendars": {
+                                      "type": "boolean"
+                                    },
+                                    "allDayKnown": {
+                                      "type": "boolean"
+                                    },
+                                    "busyPush": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": [
+                                    "listsCalendars",
+                                    "allDayKnown",
+                                    "busyPush"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "calendars": {
+                              "anyOf": [
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "name": {
+                                        "type": "string"
+                                      },
+                                      "primary": {
+                                        "type": "boolean"
+                                      },
+                                      "writable": {
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "name",
+                                      "primary",
+                                      "writable"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "push": {
+                              "type": "object",
+                              "properties": {
+                                "channels": {
+                                  "type": "number"
+                                },
+                                "lastNoticeAt": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "channels",
+                                "lastNoticeAt"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "accountId",
+                            "state",
+                            "address",
+                            "demo",
+                            "lastSyncedAt",
+                            "busyAsOf",
+                            "busyDropped",
+                            "paused",
+                            "readCalendars",
+                            "countAllDay",
+                            "detail",
+                            "traits",
+                            "calendars",
+                            "push"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "calendar"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calendar-sync/busy": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "query",
+            "name": "connection",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "in": "query",
+            "name": "table",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            },
+            "in": "query",
+            "name": "row",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "from",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "to",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "busy": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "start": {
+                            "type": "number"
+                          },
+                          "end": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "start",
+                          "end"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "busy"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calendar-sync/row/choices": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connection": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "row": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "readCalendars": {
+                    "anyOf": [
+                      {
+                        "minItems": 1,
+                        "maxItems": 50,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 512
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "countAllDay": {
+                    "type": "boolean"
+                  },
+                  "detail": {
+                    "type": "string",
+                    "enum": [
+                      "first-name+initial",
+                      "none"
+                    ]
+                  },
+                  "resume": {
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ]
+                  }
+                },
+                "required": [
+                  "connection",
+                  "table",
+                  "row"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calendar-sync/row/sync-now": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connection": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "row": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  }
+                },
+                "required": [
+                  "connection",
+                  "table",
+                  "row"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calendar-sync/clashes": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "query",
+            "name": "connection",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "in": "query",
+            "name": "table",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "clashes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "row": {
+                            "type": "string"
+                          },
+                          "resource": {
+                            "type": "string"
+                          },
+                          "overlapStart": {
+                            "type": "number"
+                          },
+                          "overlapEnd": {
+                            "type": "number"
+                          },
+                          "kept": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "row",
+                          "resource",
+                          "overlapStart",
+                          "overlapEnd",
+                          "kept"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "clashes"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calendar-sync/clashes/keep": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connection": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "row": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "overlapStart": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "overlapEnd": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "connection",
+                  "table",
+                  "row",
+                  "overlapStart",
+                  "overlapEnd"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok"
                   ],
                   "additionalProperties": false
                 }
@@ -185399,6 +186111,12 @@
                                   "open",
                                   "full",
                                   "closed"
+                                ]
+                              },
+                              "lastBookable": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
                                 ]
                               }
                             },

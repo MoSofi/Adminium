@@ -44,7 +44,17 @@ export default {
       "connectedTitle": "{person} connected an account",
       "connectedBody": "{person} is now connected to {provider} as {account}.",
       "refusedTitle": "{provider} refused this server’s app",
-      "refusedBody": "Check the client ID and secret saved for {provider}. Nobody needs to reconnect: connections resume once the app is accepted."
+      "refusedBody": "Check the client ID and secret saved for {provider}. Nobody needs to reconnect: connections resume once the app is accepted.",
+      "clashTitle": "{person} has a calendar clash",
+      "clashBody": "A busy time in {person}’s calendar now overlaps a booking. Open the booking to move it or keep it.",
+      "staleTitle": "{person}’s busy times were dropped",
+      "staleBody": "{person} has not reconnected for 7 days, so their calendar no longer blocks times.",
+      "removedTitle": "{person} removed the {calendar} calendar",
+      "removedBody": "It was deleted twice in a week, so bookings no longer go to {person}’s calendar until they turn it back on.",
+      "remadeTitle": "The {calendar} calendar was made again",
+      "remadeBody": "It was deleted from {person}’s account, so it was made again with their coming bookings.",
+      "silentTitle": "Changes from {person}’s calendar are arriving late",
+      "silentBody": "Its instant updates have stopped, so changes arrive with the regular check, within about 12 minutes."
     }
   }
 } as const;

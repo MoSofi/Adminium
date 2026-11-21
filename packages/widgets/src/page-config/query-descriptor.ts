@@ -176,10 +176,23 @@ export const bookingOccupancySchema = z
   })
   .strict();
 
+/**
+ * `kind: 'calendar-connections'` — how many people of a table have a connected
+ * calendar, by state; `source` is the table whose rows may connect. Answered
+ * only to a reader no row limit holds on it (`403 TEAM_FIGURE_WHOLE_ONLY`), as
+ * `categorical` (`connected`, `reconnect`, `connecting`, `partial`,
+ * `not-connected`) or as a `single-metric` of those connected.
+ */
 export const queryDescriptorSchema = z.object({
-  kind: z.enum(['table-query', 'capacity-counts', 'team-figures', 'booking-occupancy']).default('table-query'),
+  kind: z.enum(['table-query', 'capacity-counts', 'team-figures', 'booking-occupancy', 'calendar-connections']).default('table-query'),
   connectionId: z.string(), // adminium_connections.id
   source: z.object({
+    /**
+     * `name` is a table of this add-on, one the app names (`addOns`), read as
+     * the reader's own grants on it allow. Resolved when read, so a card works
+     * from the moment the add-on is there, and says so while it is not.
+     */
+    addOn: z.string().regex(/^[a-z][a-z0-9-]{1,79}$/).optional(),
     schema: z.string().optional(), // pg schema; omitted for MySQL/SQLite
     name: z.string(),
     type: z.enum(['table', 'view']).default('table'),

@@ -18,7 +18,7 @@ import { ACCOUNT_CONNECTED_TEMPLATE_KEY, CONNECT_LINK_TEMPLATE_KEY, enqueueEmail
 import { recipientLocale, translatorFor } from '../i18n/server-i18n.js';
 import { notify, type NotificationPublisher } from '../notifications/notify.js';
 
-export const ACCOUNT_NOTICE_KINDS = ['accounts.connected', 'accounts.setup-refused'] as const;
+export const ACCOUNT_NOTICE_KINDS = ['accounts.connected', 'accounts.setup-refused', 'calendar.clash', 'calendar.stale-dropped', 'calendar.removed', 'calendar.remade', 'calendar.push-silent'] as const;
 export type AccountNoticeKind = (typeof ACCOUNT_NOTICE_KINDS)[number];
 
 export interface AccountNoticeDeps {
@@ -55,7 +55,8 @@ export async function accountManagers(meta: MetaDb, appKey: string | null): Prom
   return active.sort();
 }
 
-async function tell(
+/** Tells whoever manages an app's connections. Never throws. */
+export async function tellAccountManagers(
   deps: AccountNoticeDeps,
   appKey: string | null,
   kind: AccountNoticeKind,
@@ -80,7 +81,7 @@ async function tell(
 }
 
 export function tellConnected(deps: AccountNoticeDeps, input: { appKey: string | null; provider: string; person: string; account: string }): Promise<void> {
-  return tell(deps, input.appKey, 'accounts.connected', {
+  return tellAccountManagers(deps, input.appKey, 'accounts.connected', {
     title: { key: 'connectedTitle', fallback: '{person} connected an account' },
     body: { key: 'connectedBody', fallback: '{person} is now connected to {provider} as {account}.' },
     values: { person: input.person, provider: input.provider, account: input.account },
@@ -88,7 +89,7 @@ export function tellConnected(deps: AccountNoticeDeps, input: { appKey: string |
 }
 
 export function tellClientRefused(deps: AccountNoticeDeps, input: { appKey: string | null; provider: string }): Promise<void> {
-  return tell(deps, input.appKey, 'accounts.setup-refused', {
+  return tellAccountManagers(deps, input.appKey, 'accounts.setup-refused', {
     title: { key: 'refusedTitle', fallback: '{provider} refused this server’s app' },
     body: { key: 'refusedBody', fallback: 'Check the client ID and secret saved for {provider}. Nobody needs to reconnect: connections resume once the app is accepted.' },
     values: { provider: input.provider },

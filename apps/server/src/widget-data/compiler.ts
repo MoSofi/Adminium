@@ -1137,6 +1137,9 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
   if (descriptor.capacity !== undefined) {
     reject('`capacity` belongs to a `capacity-counts` binding.', { kind: descriptor.kind });
   }
+  if (descriptor.kind === 'calendar-connections') {
+    reject('A `calendar-connections` binding is answered from the connected accounts, not compiled into a query.', { kind: descriptor.kind });
+  }
   if (descriptor.kind === 'booking-occupancy' || descriptor.occupancy !== undefined) {
     reject('`occupancy` belongs to a `booking-occupancy` binding, answered from the table\'s booking rule.', { kind: descriptor.kind });
   }

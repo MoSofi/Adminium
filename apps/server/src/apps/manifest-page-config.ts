@@ -63,6 +63,11 @@ export function pagePlanProblems(manifest: Manifest): { page: string; message: s
         for (const name of layoutTables(parsed.data)) {
           if (!declared.has(name)) issues.push(`its layout reads "${name}", which is not a table of the app`);
         }
+        // A table of an add-on: only one the app names, so an install knows what the page leans on.
+        const named = new Set([...(manifest.addOns?.requires ?? []), ...(manifest.addOns?.suggests ?? [])].map((need) => need.key));
+        for (const { addOn, name } of layoutAddOnTables(parsed.data)) {
+          if (!named.has(addOn)) issues.push(`its layout reads "${name}" of the add-on "${addOn}", which the app neither requires nor suggests`);
+        }
         issues.push(...layoutQueryProblems(parsed.data, manifest));
       }
     }
@@ -266,8 +271,12 @@ export function bindLayout(
     if (node['shape'] !== undefined && typeof source === 'object' && source !== null && typeof (source as { name?: unknown }).name === 'string') {
       const short = (source as { name: string }).name;
       const real = names[short] ?? short;
-      const table = tableOfReal(model, real);
-      if (table === undefined) {
+      const onAddOn = typeof (source as { addOn?: unknown }).addOn === 'string';
+      const table = onAddOn ? undefined : tableOfReal(model, real);
+      if (onAddOn) {
+        // Named by the add-on and made real when read: the add-on may arrive after the app.
+        node['connectionId'] = connectionId;
+      } else if (table === undefined) {
         problem ??= `"${short}" is not a table of this connection`;
       } else {
         node['connectionId'] = connectionId;
@@ -307,9 +316,9 @@ export function layoutTables(layout: PageLayout): string[] {
     if (Array.isArray(value)) return value.forEach(visit);
     if (typeof value !== 'object' || value === null) return;
     const node = value as Record<string, unknown>;
-    const source = node['source'] as { name?: unknown } | undefined;
+    const source = node['source'] as { name?: unknown; addOn?: unknown } | undefined;
     if (node['shape'] !== undefined && typeof source?.name === 'string') {
-      out.add(source.name);
+      if (source.addOn === undefined) out.add(source.name);
       const counts = node['counts'] as { table?: unknown } | undefined;
       if (typeof counts?.table === 'string') out.add(counts.table);
       const goals = (node['team'] as { target?: { table?: unknown } } | undefined)?.target;
@@ -319,6 +328,21 @@ export function layoutTables(layout: PageLayout): string[] {
   };
   visit(layout.items);
   return [...out];
+}
+
+/** Every table of an add-on a layout's widget queries name. */
+export function layoutAddOnTables(layout: PageLayout): { addOn: string; name: string }[] {
+  const out: { addOn: string; name: string }[] = [];
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) return value.forEach(visit);
+    if (typeof value !== 'object' || value === null) return;
+    const node = value as Record<string, unknown>;
+    const source = node['source'] as { name?: unknown; addOn?: unknown } | undefined;
+    if (node['shape'] !== undefined && typeof source?.name === 'string' && typeof source.addOn === 'string') out.push({ addOn: source.addOn, name: source.name });
+    for (const child of Object.values(node)) visit(child);
+  };
+  visit(layout.items);
+  return out;
 }
 
 /**

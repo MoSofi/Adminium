@@ -94,6 +94,11 @@ export const ID_PREFIXES = {
   cac: 'adminium_connected_accounts',
   clk: 'adminium_connect_links',
   ofl: 'adminium_oauth_flows',
+  /** Calendar sync: its event mirror, rows waiting to go out, push channels and clashes (wave 0102). */
+  cev: 'adminium_calendar_events',
+  cdr: 'adminium_calendar_dirty',
+  chn: 'adminium_calendar_channels',
+  ccl: 'adminium_calendar_clashes',
   /** One table an installed app uses (wave 0039). */
   atb: 'adminium_app_tables',
   /** An installed app's outbox (wave 0042). */

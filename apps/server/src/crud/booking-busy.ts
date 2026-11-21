@@ -59,6 +59,8 @@ export interface ReplaceBusyInput {
   from: Date;
   to: Date;
   rows: readonly BusyInterval[];
+  /** Whatever ended by this moment goes too: it blocks nothing, and would be read on every pass. */
+  forgetBefore?: Date;
 }
 
 /** Every venue day a time touches, its last moment excluded. */
@@ -119,10 +121,11 @@ export async function replaceBusyRows(rule: TableBookingRule, target: GuardTarge
   await withNamedLocks(target, locks, async (db: Kysely<SourceDatabase>) => {
     // Read and judged here, not in SQL: SQLite compares a stored moment as text, and a seeded row may be spelled otherwise.
     const held = (await db.selectFrom(busyTable.id).selectAll().where((eb) => eb(db.dynamic.ref(account), '=', input.account)).execute()) as Row[];
+    const forget = input.forgetBefore?.getTime();
     const gone = held.filter((row) => {
       const start = slotInstant(row[source.start])?.getTime();
       const end = slotInstant(row[source.end])?.getTime();
-      return start === undefined || end === undefined || (start < to && end > from);
+      return start === undefined || end === undefined || (start < to && end > from) || (forget !== undefined && end <= forget);
     });
     // What a stored row holds outside this window is not this pass's to say: those parts stay.
     const outside = gone.flatMap((row) => {
@@ -130,7 +133,7 @@ export async function replaceBusyRows(rule: TableBookingRule, target: GuardTarge
       const end = slotInstant(row[source.end])?.getTime();
       if (start === undefined || end === undefined) return [];
       return [
-        ...(start < from ? [{ resource: row[source.resource], start, end: Math.min(end, from) }] : []),
+        ...(start < from && (forget === undefined || Math.min(end, from) > forget) ? [{ resource: row[source.resource], start, end: Math.min(end, from) }] : []),
         ...(end > to ? [{ resource: row[source.resource], start: Math.max(start, to), end }] : []),
       ];
     });
@@ -145,4 +148,16 @@ export async function replaceBusyRows(rule: TableBookingRule, target: GuardTarge
     }
   });
   return { written: cut.length };
+}
+
+/**
+ * Every busy time of an account goes: a disconnect, a row that went away, or
+ * times too old to trust. It takes no lock: it only ever frees time.
+ */
+export async function dropBusyRows(rule: TableBookingRule, target: Pick<GuardTarget, 'db'>, busyTable: ResolvedTable, account: string): Promise<{ removed: number }> {
+  const source = keptBusySource(rule);
+  if (source === undefined || source.table !== busyTable.id) return { removed: 0 };
+  const { db } = target;
+  const done = await db.deleteFrom(busyTable.id).where((eb) => eb(db.dynamic.ref(source.engine!.account), '=', account)).executeTakeFirst();
+  return { removed: Number(done.numDeletedRows ?? 0) };
 }

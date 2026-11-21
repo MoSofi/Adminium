@@ -117,6 +117,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/automations/*` | 9 | Automation rules — the trigger, the steps and the branches between them; the tables, columns, templates and roles a rule can name; the 30-day counters the cards show; and a dry run that walks the flow without executing anything |
 | `/api/v1/bootstrap` | 1 | Everything the dashboard needs on first paint, in one call |
 | `/api/v1/branding/*` | 4 | Instance name, colours and logo (read is public; writes are admin) |
+| `/api/v1/calendar-sync/*` | 6 | A person’s connected calendar as the desk uses it: its state, the calendars read, busy times with no words, "Sync now", and clashes with a booking and keeping them. Each route asks the person’s reach on the row, and an API key acts for nobody here |
 | `/api/v1/chat/*` | 12 | A website chat, for staff: whether its automatic answers can call an AI service and a question tried on them; the visitor on the page or gone; taking, replying (also mailed to a visitor who left an address and the page), closing and reopening a conversation; an enquiry made from it under the person’s own create; a reply drafted by Milo; everything its settings page shows; and the breaker’s pause on new chats |
 | `/api/v1/connect/*` | 3 | Connect Supabase: the one-time hand-off from an operator's connect service (ADMINIUM_SUPABASE_CONNECT_URL). Start, the return with its one-time code, and the password for an existing project |
 | `/api/v1/connected-accounts/*` | 4 | A person’s own outside account on a row of an app (a team member’s calendar): its state, connecting it, a one-time link sent to the address on the row or copied, and ending the connection. Each route asks the person’s reach on that row and the app’s named action, and an API key acts for nobody here |
@@ -400,6 +401,17 @@ GET /api/v1/branding
 GET /api/v1/branding/logo
 POST /api/v1/branding/logo
 DELETE /api/v1/branding/logo
+```
+
+### `/calendar-sync`
+
+```http
+GET /api/v1/calendar-sync/row
+GET /api/v1/calendar-sync/busy
+POST /api/v1/calendar-sync/row/choices
+POST /api/v1/calendar-sync/row/sync-now
+GET /api/v1/calendar-sync/clashes
+POST /api/v1/calendar-sync/clashes/keep
 ```
 
 ### `/chat`

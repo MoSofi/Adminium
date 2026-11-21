@@ -544,6 +544,14 @@ export interface BookingBusySource {
   engine?: { account: string };
 }
 
+/** `table.booking.sync`; `calendarName`'s table is an id in the snapshot. */
+export interface BookingSyncRule {
+  when: { column: string; values: string[] };
+  calendarName: string | CapacitySetting;
+  title: { service: string; person?: string };
+  detail?: { default: 'first-name+initial' | 'none'; max: 'first-name+initial' | 'none' };
+}
+
 /**
  * `table.booking`: booking PEOPLE. No two counted rows of one resource may
  * overlap, inside its weekly hours and outside its closures. Every nested
@@ -573,6 +581,8 @@ export interface TableBookingRule {
   busy?: BookingBusySource[];
   /** How "anyone" is given a person. Absent: the resources' order. */
   anyone?: { pick: 'order' | 'even' | { column: string }; made?: string; flag?: string };
+  /** Bookings out to, and busy times in from, each person's connected calendar (`calendar-sync/`). */
+  sync?: BookingSyncRule;
   grid: number | CapacitySetting;
   windowDays?: number | CapacitySetting;
   /** `guests`: the window holds guests only. Absent: everyone. */

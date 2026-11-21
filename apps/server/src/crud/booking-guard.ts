@@ -429,6 +429,43 @@ async function loadBookingRange(rule: TableBookingRule, target: GuardTarget, fro
   };
 }
 
+/** How far a calendar is read when the rule names no window, or holds only guests to it. */
+const SYNC_READ_DAYS = 92;
+
+/**
+ * The last day anyone can book, on the venue's calendar: what a connected
+ * calendar's read has to cover. With no window, or one that binds guests alone
+ * (staff may book past it), at least {@link SYNC_READ_DAYS} days.
+ */
+export async function lastBookableDay(rule: TableBookingRule, target: GuardTarget, now: Date): Promise<string> {
+  const { db } = target;
+  const zone = target.timezone ?? 'UTC';
+  const today = venueClock(now, zone).day;
+  const floor = addDays(today, SYNC_READ_DAYS);
+  const windowDays = await numberOf(db, rule.windowDays);
+  if (windowDays === null) return floor;
+  const spec = rule.hours.practice;
+  const week = (await db.selectFrom(spec.table).selectAll().execute()) as Row[];
+  const far = addDays(today, 400);
+  const closed = new Set<string>();
+  for (const row of await closureRows(rule, db, today, far)) {
+    if (rule.closures?.resource !== undefined && keyOf(row[rule.closures.resource]) !== '') continue;
+    const end = dateOf(row[rule.closures!.to]);
+    for (let d = dateOf(row[rule.closures!.from]); d <= end && d <= far; d = addDays(d, 1)) closed.add(d);
+  }
+  let last = far;
+  let working = 0;
+  for (let d = today; d <= far; d = addDays(d, 1)) {
+    if (hoursOf(spec, week.find((row) => String(row[spec.weekday]) === weekdayOf(d))) === null || closed.has(d)) continue;
+    working += 1;
+    if (working >= windowDays) {
+      last = d;
+      break;
+    }
+  }
+  return rule.windowFor === 'guests' && last < floor ? floor : last;
+}
+
 /** One day of a range, as the checks read it. */
 function dayOfRange(rule: TableBookingRule, range: BookingRange, day: string): BookingDayContext {
   const weekday = weekdayOf(day);

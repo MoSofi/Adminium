@@ -13,7 +13,7 @@
 | `references/manifest/requiredschema.md` | requiredSchema | 720 |
 | `references/manifest/requiredschema--table-names-and-prefixed.md` | requiredSchema — Table names and `prefixed` | 1246 |
 | `references/manifest/requiredschema--what-the-plan-does-with-each-table.md` | requiredSchema — What the plan does with each table | 3104 |
-| `references/manifest/requiredschema--tables.md` | requiredSchema — Tables | 4982 |
+| `references/manifest/requiredschema--tables.md` | requiredSchema — Tables | 5479 |
 | `references/manifest/requiredschema--columns.md` | requiredSchema — Columns | 7389 |
 | `references/manifest/requiredschema--columns-2.md` | requiredSchema — Columns (part 2) | 3978 |
 | `references/manifest/requiredschema--column-rules.md` | requiredSchema — Column rules | 7394 |
@@ -32,8 +32,8 @@
 | `references/manifest/requiredschema--moments.md` | requiredSchema — Moments | 2748 |
 | `references/manifest/requiredschema--capacity.md` | requiredSchema — Capacity | 7647 |
 | `references/manifest/requiredschema--capacity-2.md` | requiredSchema — Capacity (part 2) | 5558 |
-| `references/manifest/requiredschema--booking.md` | requiredSchema — Booking | 7415 |
-| `references/manifest/requiredschema--booking-2.md` | requiredSchema — Booking (part 2) | 595 |
+| `references/manifest/requiredschema--booking.md` | requiredSchema — Booking | 7101 |
+| `references/manifest/requiredschema--booking-2.md` | requiredSchema — Booking (part 2) | 2165 |
 | `references/manifest/requiredschema--a-resource-and-a-time.md` | requiredSchema — A resource and a time | 5609 |
 | `references/manifest/requiredschema--states.md` | requiredSchema — States | 7604 |
 | `references/manifest/requiredschema--states-2.md` | requiredSchema — States (part 2) | 7489 |

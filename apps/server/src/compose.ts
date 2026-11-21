@@ -437,7 +437,7 @@ import { endPaymentsForRows } from './payments/going-live.js';
 import { pickUpRefunds, registerPaymentsRefundHandler } from './payments/refunds.js';
 import { paymentRefundRoutes } from './routes/payments/refunds.js';
 import { anyLiveOn, paymentAddOnKeys, readerOnlyAddOnKeys, readyInMode } from './payments/ready.js';
-import { CARD_TERMINAL_CONTRACT, CARD_TERMINAL_VERSION, DEMO_PAYMENT_ORIGIN, PAYMENT_MODES, createDemoPaymentBackend, createDemoTerminalBackend, type PaymentMode } from '@adminium/add-on-contracts';
+import { CARD_TERMINAL_CONTRACT, CARD_TERMINAL_VERSION, DEMO_PAYMENT_ORIGIN, PAYMENT_MODES, createDemoCalendarBackend, createDemoPaymentBackend, createDemoTerminalBackend, type PaymentMode } from '@adminium/add-on-contracts';
 import { registerPaymentsSettleHandler } from './payments/webhook.js';
 import { PAYMENTS_SWEEP_PLAN_CRON, PAYMENTS_SWEEP_PLAN_NAME, planSweeps, registerPaymentsSweepHandler } from './payments/sweep.js';
 import { createRowLeftWatch, endLeftPages, registerRowLeftHandler } from './payments/row-left.js';
@@ -446,6 +446,9 @@ import { CONNECTED_ACCOUNTS_TICK_CRON, CONNECTED_ACCOUNTS_TICK_NAME, registerCon
 import { createConnectedAccounts } from './connected-accounts/service.js';
 import { connectCallbackRoutes, connectDoorRoutes } from './routes/connect-door/index.js';
 import { connectedAccountRoutes } from './routes/connected-accounts/index.js';
+import { calendarDeskRoutes, calendarHookRoutes } from './routes/calendar-sync/index.js';
+import { createCalendarSync, type CalendarSync } from './calendar-sync/service.js';
+import { CALENDAR_DAILY_CRON, CALENDAR_DAILY_NAME, CALENDAR_PLAN_CRON, CALENDAR_PLAN_NAME, CALENDAR_SWEEP_CRON, CALENDAR_SWEEP_NAME, registerCalendarSyncJobs } from './calendar-sync/jobs.js';
 import { paymentActivityRoutes } from './routes/payments/activity.js';
 import { keyAppRoutes } from './routes/payments/key-app.js';
 import { testPaymentsRoutes } from './routes/payments/test-payments.js';
@@ -737,6 +740,8 @@ export interface ComposeServerOptions {
 }
 
 export interface ComposedServer {
+  /** The calendar sync (`calendar-sync/`): its demo calendar and its passes, for a contract or a sample. */
+  calendarSync: CalendarSync;
   app: AdminiumServer;
   /**
    * The live chat's engine: what finds a chat, the one writer of its
@@ -2191,6 +2196,49 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     },
     { jitterMs: 60_000 },
   );
+  /*
+   * CALENDAR SYNC: bookings out to each person's connected calendar, their busy
+   * times in. One planner, one sweep and fixed job kinds (`calendar-sync/`).
+   * The demo calendar is never offered on a production server.
+   */
+  const calendarSync = createCalendarSync({
+    meta,
+    crypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
+    accounts: connectedAccounts,
+    source: async (connectionId) => {
+      const view = await factsViewFor(meta, connectionId);
+      if (view === null) return null;
+      const { db, dialect } = await manager.data(connectionId);
+      return { view, db, dialect, timezone: (await connectionTenantConfig(meta, connectionId))?.timezone ?? 'UTC' };
+    },
+    runtime: () => addOnRuntime,
+    demo: process.env['NODE_ENV'] === 'production' ? null : createDemoCalendarBackend(),
+    enqueue: (input) => jobs.enqueue(input),
+    publicOrigin: () => storedPublicOrigin(meta),
+    reach: async () =>
+      reachability({
+        networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+        desktop: env.ADMINIUM_RUNTIME === 'desktop',
+        trustProxy: env.ADMINIUM_TRUST_PROXY,
+        forwarded: false,
+        publicOrigin: await storedPublicOrigin(meta),
+      }),
+    connectionIds: async () => (await manager.connections.list()).map((connection) => connection.id),
+    notices: { hub: paymentWatchDeps.hub, logger: app.log },
+    log: (message, fields) => app.log.warn(fields, message),
+  });
+  connectedAccounts.addOnConnected((account) => calendarSync.onConnected(account));
+  app.decorate('calendarRows', { onRecordEvent: (event: Parameters<typeof calendarSync.onRecordEvent>[0]) => calendarSync.onRecordEvent(event) });
+  registerCalendarSyncJobs(jobs.registry, calendarSync);
+  jobs.scheduler.registerSchedule(CALENDAR_PLAN_NAME, CALENDAR_PLAN_CRON, async () => {
+    await calendarSync.plan();
+  }, { jitterMs: 5_000 });
+  jobs.scheduler.registerSchedule(CALENDAR_SWEEP_NAME, CALENDAR_SWEEP_CRON, async () => {
+    await calendarSync.sweep();
+  }, { jitterMs: 30_000 });
+  jobs.scheduler.registerSchedule(CALENDAR_DAILY_NAME, CALENDAR_DAILY_CRON, async () => {
+    await calendarSync.daily();
+  }, { jitterMs: 60_000 });
   jobs.scheduler.registerSchedule(PAYMENTS_WATCH_NAME, PAYMENTS_WATCH_CRON, async () => {
     await runPaymentWatch(paymentWatchDeps);
     const queued = await pickUpRefunds(paymentRefundDeps);
@@ -2630,7 +2678,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(searchRoutes({ manager, meta }));
       // Towns by name from the list this server ships, and the way between stops.
       await api.register(geoRoutes({ meta }));
-      await api.register(widgetDataRoutes({ manager, meta, cache: widgetDataCache }));
+      await api.register(widgetDataRoutes({ manager, meta, cache: widgetDataCache, calendarCounts: (connectionId, tableId) => calendarSync.connectionCounts(connectionId, tableId) }));
       await api.register(
         // `emailKey` is passed explicitly rather than letting the route derive it
         // from `process.env`: the composition root already holds the parsed env,
@@ -2760,6 +2808,31 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         }),
       );
       await api.register(connectCallbackRoutes());
+      // The calendar sync: where a calendar service calls, and what the desk asks.
+      await api.register(calendarHookRoutes({ sync: calendarSync }));
+      await api.register(
+        calendarDeskRoutes({
+          meta,
+          sync: calendarSync,
+          accounts: connectedAccounts,
+          reachedRow: async (request, connectionId, tableId, row, action) => {
+            const view = await factsViewFor(meta, connectionId);
+            if (view === null || !view.model.tables.some((one) => one.id === tableId)) return null;
+            const table = view.table(tableId);
+            if (table.primaryKey.length !== 1) return null;
+            let pk;
+            try {
+              pk = parseRecordId(table, row);
+            } catch {
+              return null;
+            }
+            const limits = await rowLimitContextOf(meta, await app.rbac.resolve(request), connectionId, view.model);
+            const { db } = await manager.data(connectionId);
+            const found = limits === null ? await fetchByPk(db, table, pk) : await fetchVisible(limits, db, table, pk, action);
+            return found === undefined ? null : { rowKey: rowKeyOf(table, found as Record<string, unknown>) };
+          },
+        }),
+      );
       // Where a payment service calls back: no session, the signature is the gate.
       await api.register(paymentWebhookRoutes({ meta, providerFor: paymentProviderLookup, enqueue: (input) => jobs.enqueue(input), notices: paymentNotices }));
       // Where a mail service tells of bounces, spam reports and its own unsubscribes: no session, its own proof is the gate.
@@ -2839,6 +2912,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           chatForget: (place, id) => chatStore.forget(place, id),
           // …and blanks the name on their reviews, keeping the words.
           reviewInstalls: () => addOnInstalls.fresh(),
+        calendars: calendarSync,
           // A new counting level is used by this process's counter at once.
           counting: counting.counter,
         }),
@@ -3920,6 +3994,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         answerFiles: formsFiles.removeAnswerFiles,
         chatForget: (place, id) => chatStore.forget(place, id),
         reviewInstalls: () => addOnInstalls.fresh(),
+        calendars: calendarSync,
       },
       address,
       scope,
@@ -5099,5 +5174,6 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     addOnsLoaded,
     chat: { catalog: chatCatalog, store: chatStore, caps: chatCaps, door: chatDoor, staff: chatStaff, waiting: chatWaiting },
     leads: { deps: leadsPeopleDeps, keep: (input) => keepFoundPeople(leadsPeopleDeps, input), sweep: sweepLeads, step: companyFillDeps },
+    calendarSync,
   };
 }

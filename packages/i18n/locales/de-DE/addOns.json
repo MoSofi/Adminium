@@ -34,7 +34,17 @@
       "connectedTitle": "{person} hat ein Konto verbunden",
       "connectedBody": "{person} ist jetzt als {account} mit {provider} verbunden.",
       "refusedTitle": "{provider} hat die App dieses Servers abgelehnt",
-      "refusedBody": "Prüfen Sie die für {provider} gespeicherte Client-ID und das Secret. Niemand muss sich neu verbinden: Die Verbindungen laufen weiter, sobald die App akzeptiert wird."
+      "refusedBody": "Prüfen Sie die für {provider} gespeicherte Client-ID und das Secret. Niemand muss sich neu verbinden: Die Verbindungen laufen weiter, sobald die App akzeptiert wird.",
+      "clashTitle": "{person} hat eine Kalenderüberschneidung",
+      "clashBody": "Eine belegte Zeit im Kalender von {person} überschneidet sich jetzt mit einer Buchung. Öffnen Sie die Buchung, um sie zu verschieben oder beizubehalten.",
+      "staleTitle": "Die belegten Zeiten von {person} wurden entfernt",
+      "staleBody": "{person} hat sich seit 7 Tagen nicht neu verbunden, daher blockiert dieser Kalender keine Zeiten mehr.",
+      "removedTitle": "{person} hat den Kalender {calendar} entfernt",
+      "removedBody": "Er wurde zweimal innerhalb einer Woche gelöscht. Buchungen gehen daher nicht mehr in den Kalender von {person}, bis die Person sie wieder einschaltet.",
+      "remadeTitle": "Der Kalender {calendar} wurde neu angelegt",
+      "remadeBody": "Er wurde aus dem Konto von {person} gelöscht und daher mit den kommenden Buchungen neu angelegt.",
+      "silentTitle": "Änderungen aus dem Kalender von {person} kommen verspätet an",
+      "silentBody": "Die sofortigen Aktualisierungen haben aufgehört. Änderungen kommen jetzt mit der regelmäßigen Prüfung, innerhalb von etwa 12 Minuten."
     }
   }
 }

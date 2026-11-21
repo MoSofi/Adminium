@@ -31,6 +31,7 @@
 | `references/guides/booking-rules--late-cancellations.md` | Late cancellations | 963 |
 | `references/guides/booking-rules--what-availability-answers.md` | What availability answers | 2708 |
 | `references/guides/booking-rules--what-a-writer-is-told.md` | What a writer is told | 1503 |
+| `references/guides/booking-rules--connected-calendars.md` | Connected calendars | 2190 |
 | `references/guides/booking-rules--booking-rules-and-capacity.md` | Booking rules and capacity | 779 |
 | `references/guides/booking-rules--limits.md` | Limits | 1061 |
 | `references/guides/booking-rules--limits--slot-limits.md` | Limits — Slot limits | 3137 |
