@@ -198,6 +198,16 @@ export async function shownNameFor(db: Db, view: SnapshotView, table: ResolvedTa
 }
 
 /** Whether a row may be reviewed now: not stamped, and its `when` holds. */
+/**
+ * Whether the person of a row proved who they are when it was made, by the word's `proved` path: true when the
+ * word names none (every row's person counts as proved, as before the word had one).
+ */
+export async function reviewProved(db: Db, view: SnapshotView, table: ResolvedTable, row: Row, word: Review): Promise<boolean> {
+  if (word.proved === undefined) return true;
+  const found = await follow(db, view, table, row, word.proved, 'column');
+  return found !== null && yesNo(found.value) === true;
+}
+
 export async function reviewOpen(db: Db, view: SnapshotView, table: ResolvedTable, row: Row, word: Review): Promise<boolean> {
   const stamped = row[word.stamp];
   if (stamped !== null && stamped !== undefined && stamped !== '') return false;

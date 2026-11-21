@@ -20,6 +20,7 @@ The app puts a `review` word on the table of the rows reviewed:
     "about": { "link": "product_id", "name": "product_name" },
     "when": { "path": ["order_id", "status"], "in": ["shipped", "returned", "refunded"] },
     "person": ["order_id", "customer_id"],
+    "proved": ["order_id", "customer_proved"],
     "shownName": { "first": "first_name", "last": "last_name" },
     "stamp": "reviewed_at"
   }
@@ -34,6 +35,7 @@ The app puts a `review` word on the table of the rows reviewed:
 | `about.name`, `about.detail` | The thing's name, and an optional second line, copied when the review is taken: a column, or links then a column. |
 | `when` | The row may be reviewed only while the value along `path` is one of `in`. |
 | `person` | The links from the row to the person whose review it is. It must be the way the app's own entries reach that person: a person's own rows (`claimedBy`), or rows seen with a parent that is (`visibleWith`). |
+| `proved` | Optional: the yes/no along links that says the person proved who they are when the row was made (a guest's typed address proves nothing). With it, the row's own link may review only a proved row, and is never told the name of an unproved one's person; a person signed in on their own row always may. Needs Adminium 0.3.70. |
 | `shownName` | How the name is shown: `first` and `last`, or `full`. |
 | `stamp` | A nullable moment Adminium sets when the review is taken. No entry writes it. |
 

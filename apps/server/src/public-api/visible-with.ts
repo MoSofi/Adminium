@@ -280,6 +280,13 @@ export async function referencesAllowed(input: {
   for (const relation of outgoing) {
     const columns = relation.from.columns;
     if (columns.some((column) => absent(values[column]))) continue;
+    /*
+     * A reference the caller did not send is Adminium's own: a copy rule filled it from a row the parent
+     * already reaches (a returned piece's variant, copied from its order line), or the entry's defaults did.
+     * Nothing the person chose is in it, so it is not theirs to be allowed: a key that reads no variants may
+     * still make a row that names one by copy.
+     */
+    if (!columns.some((column) => input.supplied.has(column))) continue;
     if (identityTable !== null && relation.to.tableId === identityTable && columns.some((column) => input.supplied.has(column))) return false;
     const target = view.linkTable(relation.to.tableId);
     if (target === null) return false;

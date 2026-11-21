@@ -17,6 +17,8 @@ const pk = { ref: 'id', type: 'int', role: 'pk' } as const;
 
 export const REVIEWS_KIT = 'reviews-kit';
 export const REVIEWS_FLOOR = '0.3.68';
+/** The shop's floor: its review word says who proved who they are (`proved`), read from 0.3.70. */
+export const SHOP_FLOOR = '0.3.70';
 export const REVIEWS_TABLE = 'reviews_kit_reviews';
 export const TOTALS_TABLE = 'reviews_kit_review_totals';
 const IDENTITY = { manifestVersion: 1, publisher: { id: 'adminium', name: 'Adminium' }, license: 'MIT' } as const;
@@ -94,7 +96,7 @@ export function reviewedShopManifest(key: 'shop' | 'studio', over: Record<string
     version: '1.0.0',
     description: { key: `mft.${key}.desc`, fallback: 'A shop.' },
     categories: ['commerce'],
-    compatibility: { minAdminiumVersion: REVIEWS_FLOOR, engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: SHOP_FLOOR, engines: ['postgres', 'mysql', 'sqlite'] },
     requiredSchema: {
       prefixed: true,
       tables: [
@@ -107,6 +109,8 @@ export function reviewedShopManifest(key: 'shop' | 'studio', over: Record<string
             { ref: 'customer_id', type: 'fk', references: 'customers', nullable: true },
             { ref: 'status', type: 'enum', enum: ['new', 'shipped', 'cancelled'], default: 'new' },
             text('link_token', 16, { nullable: true, rules: { code: { length: 16, hiddenFromStaff: true } } }),
+            // Whether the customer was signed in when ordering: a guest's typed address proves nothing.
+            { ref: 'customer_proved', type: 'bool', nullable: true },
           ],
         },
         {
@@ -116,6 +120,7 @@ export function reviewedShopManifest(key: 'shop' | 'studio', over: Record<string
             about: { link: 'product_id', name: 'product_name' },
             when: { path: ['order_id', 'status'], in: ['shipped'] },
             person: ['order_id', 'customer_id'],
+            proved: ['order_id', 'customer_proved'],
             shownName: { first: 'first_name', last: 'last_name' },
             stamp: 'reviewed_at',
           },

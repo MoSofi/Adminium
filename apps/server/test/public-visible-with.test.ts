@@ -43,6 +43,8 @@ const fk = (ref: string, references: string, nullable = false) => ({ ref, type: 
 function portalTables(): Record<string, unknown>[] {
   return [
     { ref: 'clients', columns: [id, { ...text('email'), unique: true }, text('name')] },
+    // The studio a deliverable is made in: no key reads it.
+    { ref: 'studios', columns: [id, text('name')] },
     { ref: 'terms_versions', columns: [id, text('title')] },
     { ref: 'terms_clauses', columns: [id, fk('terms_version_id', 'terms_versions'), text('body')] },
     {
@@ -57,10 +59,21 @@ function portalTables(): Record<string, unknown>[] {
       ],
     },
     { ref: 'proposal_lines', columns: [id, fk('proposal_id', 'proposals'), fk('client_id', 'clients', true), text('label')] },
-    { ref: 'deliverables', columns: [id, fk('client_id', 'clients'), { ref: 'status', type: 'enum', enum: ['unshared', 'pending', 'approved'], default: 'unshared' }] },
+    { ref: 'deliverables', columns: [id, fk('client_id', 'clients'), { ref: 'status', type: 'enum', enum: ['unshared', 'pending', 'approved'], default: 'unshared' }, fk('studio_id', 'studios', true)] },
     { ref: 'deliverable_versions', columns: [id, fk('deliverable_id', 'deliverables'), { ref: 'v', type: 'int', default: 1 }] },
     // `deliverable_id` may be empty, so only the create's own check keeps a note from being made with no parent.
-    { ref: 'deliverable_notes', columns: [id, fk('deliverable_id', 'deliverables', true), fk('version_id', 'deliverable_versions', true), fk('client_id', 'clients', true), text('body')] },
+    // A note keeps its deliverable's studio, copied by Adminium: a link the person never chose, to a table no key reads.
+    {
+      ref: 'deliverable_notes',
+      columns: [
+        id,
+        fk('deliverable_id', 'deliverables', true),
+        fk('version_id', 'deliverable_versions', true),
+        fk('client_id', 'clients', true),
+        text('body'),
+        { ...fk('studio_id', 'studios', true), rules: { copy: { via: 'deliverable_id', from: 'studio_id', mode: 'always' } } },
+      ],
+    },
   ];
 }
 
@@ -126,7 +139,8 @@ async function seed(h: InvoicingHarness): Promise<void> {
   await run(`insert into ${t('proposal_lines')} (proposal_id, client_id, label) values (2, 1, 'draft line')`);
   await run(`insert into ${t('proposal_lines')} (proposal_id, client_id, label) values (3, 2, 'ben line')`);
   await run(`insert into ${t('proposal_lines')} (proposal_id, client_id, label) values (1, 2, 'mislabelled')`);
-  await run(`insert into ${t('deliverables')} (client_id, status) values (1, 'pending')`);
+  await run(`insert into ${t('studios')} (name) values ('North studio')`);
+  await run(`insert into ${t('deliverables')} (client_id, status, studio_id) values (1, 'pending', 1)`);
   await run(`insert into ${t('deliverables')} (client_id, status) values (1, 'unshared')`);
   await run(`insert into ${t('deliverables')} (client_id, status) values (2, 'pending')`);
   await run(`insert into ${t('deliverables')} (client_id, status) values (1, 'approved')`);
@@ -258,6 +272,8 @@ describe.each(LEGS)('rows visible with their parent — %s', (dialect, available
     const made = await make({ deliverable_id: 1, version_id: 1, body: 'looks good' });
     expect(made.statusCode, made.body).toBe(201);
     const noteId = Number((made.json() as { data: { id: unknown } }).data.id);
+    // Its studio came by copy from the deliverable: no key reads studios, and the note is made all the same.
+    expect(Number((await h.rows(`select studio_id from ${h.real('deliverable_notes')} where id = ${String(noteId)}`))[0]!['studio_id'])).toBe(1);
     expect(ids(await served.get(`/records/${ref('deliverable_notes')}`, ada))).toContain(noteId);
     // …and Ben never sees it.
     expect((await served.get(`/records/${ref('deliverable_notes')}/${String(noteId)}`, ben)).statusCode).toBe(404);

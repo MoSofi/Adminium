@@ -43,6 +43,12 @@ describe("a table's review word", () => {
     expect(text(shop((m) => (m.publicAccess = m.publicAccess.filter((entry) => entry['table'] === 'products'))))).toContain("as a person's own rows");
   });
 
+  it('says whether the person proved who they are by a yes/no along links', () => {
+    expect(text(shop((m) => (word(m)['proved'] = ['order_id', 'status'])))).toContain('"orders.status" says whether the person proved who they are: a yes/no column');
+    expect(text(shop((m) => (word(m)['proved'] = ['order_id', 'nothing'])))).toContain('"orders" has no column "nothing"');
+    expect(text(shop((m) => delete word(m)['proved']))).toBe('');
+  });
+
   it('is stamped by Adminium alone, on a nullable moment', () => {
     expect(text(shop((m) => (m.publicAccess.find((entry) => entry['table'] === 'order_lines')!['writable'] = ['reviewed_at'])))).toContain("is Adminium's to stamp");
     expect(text(shop((m) => (word(m)['stamp'] = 'product_name')))).toContain('a nullable timestamptz');

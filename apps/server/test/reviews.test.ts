@@ -74,11 +74,12 @@ describe.each(LEGS)("a customer's review of a shipped order line — %s", (diale
     return `10.9.${String((ip >> 8) & 255)}.${String(ip & 255)}`;
   };
   const yes = dialect === 'postgres' ? 'true' : '1';
+  const no = dialect === 'postgres' ? 'false' : '0';
   void yes;
   /** The lines as the order's own link reads them: the second entry on the table, so its ref carries `_2`. */
   const LINES = 'shop_order_lines_verified_2';
-  const tokens = { mine: 'AAAABBBBCCCCDDDD', theirs: 'EEEEFFFFGGGGHHHH', unshipped: 'JJJJKKKKMMMMNNNN' };
-  const sessions: Record<keyof typeof tokens, string> = { mine: '', theirs: '', unshipped: '' };
+  const tokens = { mine: 'AAAABBBBCCCCDDDD', theirs: 'EEEEFFFFGGGGHHHH', unshipped: 'JJJJKKKKMMMMNNNN', stranger: 'PPPPQQQQRRRRSSSS' };
+  const sessions: Record<keyof typeof tokens, string> = { mine: '', theirs: '', unshipped: '', stranger: '' };
 
   const review = (line: number, session: string, payload: Record<string, unknown> = { stars: 4, title: 'Warm', body: 'Kept me dry for 3 days.' }) =>
     link.composed.app.inject({ method: 'POST', url: `/api/v1/public/records/${LINES}/${String(line)}/review`, remoteAddress: fresh(), headers: link.headers(session), payload });
@@ -102,8 +103,10 @@ describe.each(LEGS)("a customer's review of a shipped order line — %s", (diale
 
     await h.rows(`INSERT INTO shop_customers (id, first_name, last_name, email) VALUES (1, 'Priya', 'Rao', 'priya@example.com'), (2, 'Ben', 'Cole', 'ben@example.com')`);
     await h.rows(`INSERT INTO shop_products (id, name) VALUES (1, 'Ridge Shell'), (2, 'Trail Fleece')`);
-    await h.rows(`INSERT INTO shop_orders (id, customer_id, status, link_token) VALUES (1, 1, 'shipped', '${tokens.mine}'), (2, 2, 'shipped', '${tokens.theirs}'), (3, 1, 'new', '${tokens.unshipped}')`);
-    await h.rows(`INSERT INTO shop_order_lines (id, order_id, product_id, product_name) VALUES (1, 1, 1, 'Ridge Shell'), (2, 2, 1, 'Ridge Shell'), (3, 3, 2, 'Trail Fleece'), (4, 1, 2, 'Trail Fleece')`);
+    await h.rows(`INSERT INTO shop_orders (id, customer_id, status, link_token, customer_proved) VALUES (1, 1, 'shipped', '${tokens.mine}', ${yes}), (2, 2, 'shipped', '${tokens.theirs}', ${yes}), (3, 1, 'new', '${tokens.unshipped}', ${yes})`);
+    // A guest's order in Priya's address, never signed in: its link holder is not Priya.
+    await h.rows(`INSERT INTO shop_orders (id, customer_id, status, link_token, customer_proved) VALUES (4, 1, 'shipped', '${tokens.stranger}', ${no})`);
+    await h.rows(`INSERT INTO shop_order_lines (id, order_id, product_id, product_name) VALUES (1, 1, 1, 'Ridge Shell'), (2, 2, 1, 'Ridge Shell'), (3, 3, 2, 'Trail Fleece'), (4, 1, 2, 'Trail Fleece'), (5, 4, 1, 'Ridge Shell')`);
 
     const linkKey = (await publicKeysRepo(h.meta).listManagedBy('shop')).find((key) => key.purpose === 'link' && key.revokedAt === null);
     expect(linkKey, "the shop's link key").toBeDefined();
@@ -138,6 +141,17 @@ describe.each(LEGS)("a customer's review of a shipped order line — %s", (diale
     expect(state.statusCode, state.body).toBe(200);
     expect(state.json()).toEqual({ data: { open: true, reviewedAt: null, shownName: 'Priya R.' } });
     expect((await reviewState(3, sessions.unshipped)).json()).toMatchObject({ data: { open: false, reviewedAt: null } });
+  });
+
+  it.skipIf(!available)("never tells a guest order's link holder the name, nor takes their review in it", async () => {
+    // Order 4 was placed by a guest in Priya's address: its link is not proof of Priya.
+    const state = await reviewState(5, sessions.stranger);
+    expect(state.statusCode, state.body).toBe(200);
+    expect(state.json()).toEqual({ data: { open: false, reviewedAt: null, shownName: '' } });
+    const taken = await review(5, sessions.stranger);
+    expect(taken.statusCode, taken.body).toBe(409);
+    expect(codeOf(taken)).toBe('PUBLIC_REVIEW_NOT_YET');
+    expect(await h.rows(`SELECT id FROM ${REVIEWS_TABLE}`)).toEqual([]);
   });
 
   it.skipIf(!available)("refuses another customer's line, a line not shipped, and words with an address", async () => {

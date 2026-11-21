@@ -64,7 +64,7 @@ import { compileFilter, parseWhereParam, type RecordFilter } from '../../crud/fi
 import { shopperAsks, throughCondition } from '../../public-api/shopper.js';
 import { hostReviewOf } from '../../reviews/host.js';
 import { forgetReviews } from '../../reviews/erase.js';
-import { lostToAnother, reviewOpen, shownNameFor, takeReview } from '../../reviews/take.js';
+import { lostToAnother, reviewOpen, reviewProved, shownNameFor, takeReview } from '../../reviews/take.js';
 import { reviewText } from '../../public-api/plain-text.js';
 import type { AddOnInstalls } from '../../apps/table-ref.js';
 import type { PublicKeyResolver, ResolvedKey } from '../../public-api/resolve.js';
@@ -6347,13 +6347,16 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const { found, row, host } = at;
         // Reviews off for the app: nothing to offer, and the page hides its reviews.
         if (host.keeper === null) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
+        // A row's own link, on a row whose person never proved who they are (a guest's typed address), is not told
+        // that person's name, nor offered the review: it would be written in their name.
+        const linkOnly = at.session.kind === 'token' && !(await reviewProved(found.db, found.view, found.table, row, host.word));
         const stamped = row[host.word.stamp];
         const reviewedAt = stamped === null || stamped === undefined || stamped === '' ? null : wallTimesAsInstants({ at: stamped }, new Map([['at', found.table.columns.get(host.word.stamp)!]]), found.dialect)['at'];
         return reply.send({
           data: {
-            open: await reviewOpen(found.db, found.view, found.table, row, host.word),
+            open: !linkOnly && (await reviewOpen(found.db, found.view, found.table, row, host.word)),
             reviewedAt: reviewedAt === null || reviewedAt === undefined ? null : String(reviewedAt instanceof Date ? reviewedAt.toISOString() : reviewedAt),
-            shownName: (await shownNameFor(found.db, found.view, found.table, row, host.word)) ?? '',
+            shownName: linkOnly ? '' : ((await shownNameFor(found.db, found.view, found.table, row, host.word)) ?? ''),
           },
         });
       },
@@ -6380,6 +6383,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if ((await challenges.sentSince(subject, now - REVIEW_TRIES_WINDOW_MS, REVIEW_PURPOSE)) >= REVIEW_TRIES) return fail(reply, 429, 'PUBLIC_RATE_LIMITED', 'Too many requests.');
         await challenges.mark({ keyId: ok.key.keyId, ref: request.params.ref, sessionId: session.id, subject, purpose: REVIEW_PURPOSE }, now);
         if (host.keeper === null) return fail(reply, 409, 'PUBLIC_SWITCHED_OFF', 'Reviews are not taken right now.');
+        // Through a row's own link, only a row whose person proved who they are: never a review in a stranger's name.
+        if (session.kind === 'token' && !(await reviewProved(found.db, found.view, found.table, at.row, host.word))) {
+          return fail(reply, 409, 'PUBLIC_REVIEW_NOT_YET', 'This can be reviewed once you sign in.');
+        }
         const reviews = found.view.linkTable(host.keeper.reviews);
         if (reviews === null) return fail(reply, 409, 'PUBLIC_SWITCHED_OFF', 'Reviews are not taken right now.');
         // The words: plain text, never an address; empty is none.
