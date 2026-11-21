@@ -100,6 +100,7 @@ import { capacityLockNames, touchesCapacity } from './capacity/judge.js';
 import { batchNeedsGuard, judgeRows, withLimitLocks } from './capacity/door.js';
 import { isKeptBusyTable } from './booking-busy.js';
 import { bookingColumn, bookingCounts, bookingDay, bookingLockName, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
+import { raisedRevision } from './booking-revision.js';
 import { decideRow, hasStampsAfterFormulas, needsStored, stampFires, stampYields, workingDaysAfterFormulas, workingDaysAfterSettle, type DecideContext } from './decide.js';
 import { judgeChangeGuards } from './change-guards.js';
 import { renewedColumns, withRenewRetry } from './code-renew.js';
@@ -614,7 +615,7 @@ export async function updateRows(
     values,
     match,
     async (tx) => {
-      const count = await statement(tx, set);
+      const count = await statement(tx, await raisedRevision(tx, table, values, match, set));
       // Another writer changed the row since it was judged: refused as the check would refuse it now.
       if (count === 0 && required !== undefined && (await present(tx)) && !(await answers(tx))) throw requiredRefusal(required);
       if (count === 0 && expected !== undefined && (await present(tx))) throw rowMoved(expected, values);
@@ -3619,7 +3620,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       write: async (table, pk, set) => {
         if (dry && !written) return;
         const bound = Object.fromEntries(Object.entries(set).map(([column, value]) => [column, bindValue(target.dialect, value)]));
-        let update = target.db.updateTable(table.id).set(bound as never);
+        // A booking whose length follows its service: a calendar must hear of that too.
+        let update = target.db.updateTable(table.id).set((await raisedRevision(target.db, table, set, pk, bound)) as never);
         for (const [column, value] of Object.entries(pk)) update = update.where((eb) => eb(target.db.dynamic.ref(column), '=', value));
         await update.execute();
       },

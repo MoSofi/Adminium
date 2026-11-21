@@ -303,8 +303,8 @@ export const refundRowsMappingSchema = z
   .strict();
 export type RefundRowsMapping = z.infer<typeof refundRowsMappingSchema>;
 
-/** Who made a move that may refund by itself: the customer through the app's public side, Adminium's timed move, or staff holding the refund right. */
-export const REFUND_ON_WHO = ['customer', 'system', 'refund-right'] as const;
+/** Who made a move that may refund by itself: the customer through the app's public side, Adminium's timed move, staff holding the refund right, or any signed-in person at the studio (`staff`). */
+export const REFUND_ON_WHO = ['customer', 'system', 'refund-right', 'staff'] as const;
 
 /**
  * The moves after which the full refund starts by itself (`refundOn`): a
@@ -314,13 +314,21 @@ export const REFUND_ON_WHO = ['customer', 'system', 'refund-right'] as const;
 export const refundOnSchema = z
   .object({
     moves: z
-      .array(z.object({ from: z.array(stateValue).min(1).max(16).optional(), to: stateValue, by: z.array(z.enum(REFUND_ON_WHO)).min(1).max(3) }).strict())
+      .array(z.object({ from: z.array(stateValue).min(1).max(16).optional(), to: stateValue, by: z.array(z.enum(REFUND_ON_WHO)).min(1).max(4) }).strict())
       .min(1)
       .max(8),
     /** The app's own switch ("Refund free cancellations automatically"), a boolean column of its one-row settings table, read at the move. */
     switch: z.object({ table: column, column }).strict().optional(),
     /** Only while the moment in this column is still this many hours ahead (a clinic's late-cancel window), read from the settings row. */
-    before: z.object({ column, hours: z.object({ table: column, column }).strict() }).strict().optional(),
+    before: z
+      .object({
+        column,
+        hours: z.object({ table: column, column }).strict(),
+        /** Whose moves the window holds to; absent, everyone's. */
+        binds: z.array(z.enum(['customer', 'system', 'staff'])).min(1).max(3).optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 export type RefundOn = z.infer<typeof refundOnSchema>;

@@ -1617,6 +1617,29 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
           when: z.object({ column: bookingName, to: z.string().min(1) }),
         })
         .optional(),
+      // The booking as a calendar entry: what its invitation and a person's feed may say (`calendar/`).
+      calendar: z
+        .object({
+          revision: bookingName,
+          title: z.array(bookingName).min(1).max(3),
+          code: bookingName.optional(),
+          person: z.array(bookingName).min(1).max(3).optional(),
+          studio: z.object({
+            name: z.object({ table: bookingTable, column: bookingName }),
+            address: z.object({ table: bookingTable, column: bookingName }).optional(),
+            website: z.object({ table: bookingTable, column: bookingName }).optional(),
+          }),
+          notice: z.record(z.string().min(2).max(35), z.string().min(1).max(200)),
+          feed: z
+            .object({
+              own: bookingName,
+              active: bookingName.optional(),
+              detail: z.object({ table: bookingTable, column: bookingName }).optional(),
+              customer: z.array(bookingName).min(1).max(3).optional(),
+            })
+            .optional(),
+        })
+        .optional(),
     }),
   }),
   /*

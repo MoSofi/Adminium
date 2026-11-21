@@ -9,13 +9,18 @@
  *  - `customer`: the customer's own move, through the app's public side;
  *  - `system`: Adminium's own timed move (an unpaid hold lapsing);
  *  - `refund-right`: a staff member who may refund (the install's right, or
- *    the app's own).
+ *    the app's own);
+ *  - `staff`: any signed-in person's own move at the studio, whether or not
+ *    they may refund (a front desk cancelling for the studio: the customer
+ *    did nothing wrong, and is owed it whoever pressed the button).
  *
  * Anyone else's move (a kitchen cancelling, a rule) refunds nothing: the
  * payment is flagged "Refund owed" for someone who may refund. So is a move
  * while the app's own switch ("Refund free cancellations automatically") is
  * off. A move past the app's late window (`before`, a clinic) refunds nothing
- * and owes nothing: the app's own rules keep that money. Moves the mapping
+ * and owes nothing: the app's own rules keep that money. With `before.binds`
+ * the window holds only those movers to it (a customer's late cancel keeps
+ * the deposit; the studio's own cancel never does). Moves the mapping
  * does not name (`from`) never refund: a row once handed over, checked in or
  * seen is never in a state such a move starts from.
  *
@@ -55,7 +60,7 @@ export const PAYMENTS_AUTO_REFUND_JOB = 'payments.auto-refund';
 export const REFUND_OWED = 'REFUND_OWED';
 
 /** Who made a move, as `refundOn` reads it. */
-export type Mover = 'customer' | 'system' | 'refund-right' | 'other';
+export type Mover = 'customer' | 'system' | 'refund-right' | 'staff' | 'other';
 
 /** Who made the write an event tells of: the customer, a timed move, a staff member who may refund, or anyone else. */
 export async function moverOf(event: RecordWriteEvent, ownerApp: string | null): Promise<Mover> {
@@ -70,7 +75,14 @@ export async function moverOf(event: RecordWriteEvent, ownerApp: string | null):
   } catch {
     return 'other';
   }
-  return 'other';
+  // A person's own move on a staff screen: never a rule or a hook that ran inside their request.
+  return event.origin === 'dashboard' || event.origin === 'bulk' ? 'staff' : 'other';
+}
+
+/** Whether the late window holds this mover to it: everyone, unless `binds` names whose moves it is about. */
+function heldToWindow(binds: readonly ('customer' | 'system' | 'staff')[] | undefined, mover: Mover): boolean {
+  if (binds === undefined) return true;
+  return binds.some((who) => who === mover || (who === 'staff' && mover === 'refund-right'));
 }
 
 /** The money a payment still holds that a refund may give back: recorded, taken, not refunded in full. */
@@ -85,14 +97,15 @@ export interface RefundMoveDeps extends RefundDeps {
 
 /** Whether a move refunds, owes, or does nothing. */
 async function judge(deps: RefundMoveDeps, connectionId: string, on: RefundOn, move: RefundOn['moves'][number], mover: Mover, after: Record<string, unknown>): Promise<'refund' | 'owed' | 'none'> {
-  if (on.before !== undefined) {
+  if (on.before !== undefined && heldToWindow(on.before.binds, mover)) {
     const at = after[on.before.column];
     const moment = at instanceof Date ? at.getTime() : typeof at === 'string' || typeof at === 'number' ? new Date(at).getTime() : Number.NaN;
     const hours = Number((await deps.setting?.(connectionId, on.before.hours.table, on.before.hours.column)) ?? 0);
     // Past the late window: the app's own rules keep the money, and nothing is owed.
     if (Number.isNaN(moment) || moment - (deps.now ?? Date.now)() < (Number.isFinite(hours) ? hours : 0) * 3_600_000) return 'none';
   }
-  if (!(move.by as readonly string[]).includes(mover)) return 'owed';
+  // Who holds the refund right is staff too: a move open to all of them is open to them.
+  if (!(move.by as readonly string[]).includes(mover) && !(mover === 'refund-right' && (move.by as readonly string[]).includes('staff'))) return 'owed';
   if (on.switch !== undefined) {
     const value = await deps.setting?.(connectionId, on.switch.table, on.switch.column);
     if (!(value === true || value === 1 || value === '1' || value === 'true')) return 'owed';

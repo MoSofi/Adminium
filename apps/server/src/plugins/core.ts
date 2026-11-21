@@ -373,6 +373,9 @@ export const RATE_BUCKETS = {
   // and a busy office or a phone network puts many visitors behind one
   // address. Generous; each form's own caps on what is sent are the gate.
   'forms-door': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
+  // A person's private calendar feed (`/x/cal/`): a genuine link is counted by a digest of itself (calendar services
+  // fetch from a few shared addresses), anything else by network address.
+  'calendar-feed': { max: 60, timeWindowMs: 60_000, keyBy: 'ip' },
   // The pages door (`/x/pages/`): whoever opens a landing page, by network
   // address. A page load is its HTML, its files, its data and its pictures;
   // a campaign link puts many visitors behind one phone network's address.

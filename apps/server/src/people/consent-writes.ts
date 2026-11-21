@@ -11,8 +11,8 @@
  *    statement and before the after hooks): a signed-in staff member's save,
  *    a bulk edit or an undo as theirs (`staff`); a file brought in as
  *    `import`; a person's own page as `person`; a rule, the owner's code or
- *    an API key as `system`. A create that leaves the column at no says
- *    nothing (nobody was asked). When the log already says what the column
+ *    an API key as `system`. A create that leaves the column at no, or at
+ *    its own default of yes, says nothing (nobody was asked). When the log already says what the column
  *    now says (an unsubscribe or a forget wrote the log first) nothing more
  *    is written: no change is ever logged twice, and nothing loops.
  *  - A LOG EVENT from anywhere else (an unsubscribe, the first-send review,
@@ -36,6 +36,10 @@
  *    already standing for that person or address, in the log or on the
  *    do-not-email list: it writes nothing and changes no column. A public
  *    write that sets the consent column itself is held to the same rule.
+ *  - A BOX THAT SAYS NO ("Don't send me a review request", `consent.means:
+ *    no`) writes the person's no the same way. Anybody may give it, proved or
+ *    not: a no can only stop mail, and the person switches it back on where
+ *    they are signed in. A person who already said no is not logged again.
  *  - "DELETE MY DETAILS" that empties a declared consent column first
  *    appends a withdrawal from the person (`withdrawOnForget`).
  *
@@ -47,10 +51,12 @@
  */
 import type { ConsentEvent, ConsentPerson, ConsentSource, MetaDb } from '@adminium/meta';
 
+import { applyConsentToColumn } from '../consent/apply-column.js';
 import { looksLikeAddress, type ConsentService, type ConsentTableSource, type StaffMember } from '../consent/index.js';
 import type { EffectiveModel } from '../connections/effective-schema.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
+import { literalDefault } from '../crud/column-rules.js';
 import { fetchByPk } from '../crud/records.js';
 import type { PeopleWrite, PublicConsentTick, WriteContext } from '../crud/write-context.js';
 import { booleanOf } from '../crud/write-values.js';
@@ -244,13 +250,18 @@ export function createPeopleConsent(deps: PeopleConsentDeps): PeopleConsent {
     const language = wordingLanguage(given.wording.text, declared?.language == null ? null : row[declared.language], given.acceptLanguage);
     const person: ConsentPerson = { connectionId: target.connectionId, table: held.table.id, key };
     const address = declared?.email == null ? null : addressIn(row[declared.email]);
-    // A tick from anybody but this address's proved owner never overrules a "no": nothing is written, no column changes.
-    if ((await standingNo(write.context, person, address, given.purpose)) !== null) return;
+    if (given.means === 'no') {
+      // Already their answer: the log is not told twice.
+      if ((await consent.stateFor({ person, address }, given.purpose)).state === 'no') return;
+    } else if ((await standingNo(write.context, person, address, given.purpose)) !== null) {
+      // A tick from anybody but this address's proved owner never overrules a "no": nothing is written, no column changes.
+      return;
+    }
     const event = await consent.record({
       person,
       address,
       purpose: given.purpose,
-      state: 'yes',
+      state: given.means,
       source: 'form',
       detail: given.form,
       wording: { text: given.wording.text[language]!, version: `v${String(given.wording.version)} ${language}` },
@@ -272,6 +283,21 @@ export function createPeopleConsent(deps: PeopleConsentDeps): PeopleConsent {
     if (now === was) return;
     const person: ConsentPerson = { connectionId: target.connectionId, table: target.table.id, key: rowKeyOf(target.table, record) };
     const address = declared.email === null ? null : addressIn(record[declared.email]);
+    // A new row holding the column's own default of yes: nobody was asked, so the log hears no yes nobody gave. A "no"
+    // this person already gave stands, whoever made the row, and the column says so.
+    if (action === 'create' && now) {
+      const model = target.table.table?.columns.find((one) => one.name === column);
+      if (model !== undefined && booleanOf(literalDefault(model.default, model.logicalType)) === true) {
+        const standing = await consent.stateFor({ person, address }, declared.consent.purpose);
+        const no = standing.state === 'no' ? (standing.event ?? stopListNo(person, declared.consent.purpose)) : address !== null && (await consent.stop.has(address)) ? stopListNo(person, declared.consent.purpose) : null;
+        // On the write's own handle: a row made inside a larger save (a guest's first booking) is not yet there for any other.
+        if (no !== null) {
+          const own = { table: () => Promise.resolve({ view: target.view, table: target.table, db: target.db, dialect: target.dialect }) };
+          await applyConsentToColumn(meta, own, { connectionId: declared.connectionId, table: declared.table, key: person.key, column, keep: declared.optOutMark === null ? [] : [declared.optOutMark] }, no);
+        }
+        return;
+      }
+    }
     const state = now ? 'yes' : 'no';
     // Already so in the log (an unsubscribe, a forget, a tick wrote it first): nothing more.
     if ((await consent.stateFor({ person, address }, declared.consent.purpose)).state === state) return;

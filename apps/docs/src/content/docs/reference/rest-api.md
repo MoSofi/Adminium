@@ -117,6 +117,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/automations/*` | 9 | Automation rules — the trigger, the steps and the branches between them; the tables, columns, templates and roles a rule can name; the 30-day counters the cards show; and a dry run that walks the flow without executing anything |
 | `/api/v1/bootstrap` | 1 | Everything the dashboard needs on first paint, in one call |
 | `/api/v1/branding/*` | 4 | Instance name, colours and logo (read is public; writes are admin) |
+| `/api/v1/calendar-feed/*` | 2 | A person’s private calendar link on a booking table: whether you may renew it, the link itself for its own person only, and a new link that ends the old one. Each route asks your reach on that person’s row |
 | `/api/v1/chat/*` | 12 | A website chat, for staff: whether its automatic answers can call an AI service and a question tried on them; the visitor on the page or gone; taking, replying (also mailed to a visitor who left an address and the page), closing and reopening a conversation; an enquiry made from it under the person’s own create; a reply drafted by Milo; everything its settings page shows; and the breaker’s pause on new chats |
 | `/api/v1/connect/*` | 3 | Connect Supabase: the one-time hand-off from an operator's connect service (ADMINIUM_SUPABASE_CONNECT_URL). Start, the return with its one-time code, and the password for an existing project |
 | `/api/v1/connected-accounts/*` | 4 | A person’s own outside account on a row of an app (a team member’s calendar): its state, connecting it, a one-time link sent to the address on the row or copied, and ending the connection. Each route asks the person’s reach on that row and the app’s named action, and an API key acts for nobody here |
@@ -156,7 +157,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/presence` | 1 | Someone is using this dashboard: an empty answer the dashboard asks for once a minute while its person is active, only where the operator set ADMINIUM_PRESENCE=on, for a proxy that counts any request as use |
 | `/api/v1/privacy/*` | 21 | A person’s data by their e-mail address — finding everything kept about them, downloading it as a .zip of JSON and CSV, erasing them in place (with a preview of what goes and what stays), and how long things are kept — plus the privacy notice (business name, notice address), the sender’s postal address and visitor counting (Off, Counts only or Per visitor, and the visitor banner’s words). Needs privacy.manage (only the Super Admin holds it unless granted) and a signed-in person; the postal address needs settings.manage. |
 | `/api/v1/project/*` | 11 | A project folder on the server that runs one — which pages and schema customizations differ from the deployed files, settling a page changed on both sides, the changed copies `adminium pull --from` writes into the project, running the project’s actions, the built files of its own pages and widgets, and what Studio shows about the project |
-| `/api/v1/public/*` | 39 | The scoped public API for customer- and staff-facing pages (off by default) |
+| `/api/v1/public/*` | 42 | The scoped public API for customer- and staff-facing pages (off by default) |
 | `/api/v1/public-api/*` | 3 | Turn the public API on or off, and see whether this instance opted in |
 | `/api/v1/public-endpoints/*` | 5 | Build the endpoints a key can be granted — source, columns, filters, methods and limits |
 | `/api/v1/public-keys/*` | 5 | Issue, reveal, rotate and revoke the browser-safe keys your pages use |
@@ -400,6 +401,13 @@ GET /api/v1/branding
 GET /api/v1/branding/logo
 POST /api/v1/branding/logo
 DELETE /api/v1/branding/logo
+```
+
+### `/calendar-feed`
+
+```http
+GET /api/v1/calendar-feed
+POST /api/v1/calendar-feed/renew
 ```
 
 ### `/chat`
@@ -1015,6 +1023,9 @@ DELETE /api/v1/public/account
 POST /api/v1/public/records/{ref}/{id}/new-link
 GET /api/v1/public/records/{ref}/{id}/review
 POST /api/v1/public/records/{ref}/{id}/review
+POST /api/v1/public/review-link
+POST /api/v1/public/review-link/take
+GET /api/v1/public/records/{ref}/{id}/calendar
 DELETE /api/v1/public/session
 ```
 

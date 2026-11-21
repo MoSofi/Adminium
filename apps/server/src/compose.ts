@@ -409,6 +409,7 @@ import { paymentPanelRoutes } from './routes/payments/panel.js';
 import { consentRoutes, emailColumnOf } from './routes/consent/index.js';
 import { queuePaymentReceipt, receiptSentFor } from './payments/emails.js';
 import { mailDoorRoutes } from './routes/mail-door/index.js';
+import { calendarFeedDoor, calendarFeedRoutes } from './routes/calendar-feed/index.js';
 import { privacyRoutes } from './routes/privacy/index.js';
 import { formsStaffRoutes } from './routes/forms/index.js';
 import { mailSettingsRoutes } from './routes/mail-settings/index.js';
@@ -2434,6 +2435,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
 
   await app.register(
     async (api) => {
+      await api.register(calendarFeedRoutes({ meta, secret: env.ADMINIUM_SECRET, manager, viewFor: (connectionId) => factsViewFor(meta, connectionId) }));
       if (desktopSession !== null) {
         await api.register(desktopSessionRoutes({ meta, ...desktopSession }));
       }
@@ -3900,6 +3902,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     if (expired > 0 || pruned > 0) app.log.info({ expired, pruned }, 'forms sweep');
   });
 
+  await app.register(calendarFeedDoor({ meta, secret: env.ADMINIUM_SECRET, manager, viewFor: (connectionId) => factsViewFor(meta, connectionId) }));
   await app.register(
     mailDoorRoutes({ meta, secret: env.ADMINIUM_SECRET, consent, mirror: (event, address) => consentMirror.mirrorEvent(event, address), networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY, confirm: formsConfirm }),
   );

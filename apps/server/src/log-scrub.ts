@@ -120,6 +120,12 @@ const PAY_PATH_SECRETS: readonly RegExp[] = [
 const MAIL_PATH_SECRET = /^(\/m\/[cul]\/)[^?#]+/;
 
 /**
+ * A person's private calendar feed (`/x/cal/<token>.ics`): a calendar service
+ * fetches it for as long as it lives, and the token is all that opens it.
+ */
+const CALENDAR_FEED_SECRET = /^(\/x\/cal\/)[^?#]+/;
+
+/**
  * Query parameters whose value is a credential only on the stranger pages
  * under `/x/`: a named survey's one-use token (`?t=`), which answers the
  * survey as its invitee. Elsewhere `t` is an ordinary name.
@@ -129,6 +135,7 @@ const STRANGER_QUERY_PARAMS: ReadonlySet<string> = new Set(['t']);
 /** The path with a pay link's token (or a way back's nonce), or a mail link's token, replaced by {@link REDACTED}. */
 export function scrubPathForLog(path: string): string {
   if (MAIL_PATH_SECRET.test(path)) return path.replace(MAIL_PATH_SECRET, `$1${REDACTED}`);
+  if (CALENDAR_FEED_SECRET.test(path)) return path.replace(CALENDAR_FEED_SECRET, `$1${REDACTED}`);
   if (!path.startsWith('/pay/')) return path;
   for (const pattern of PAY_PATH_SECRETS) {
     if (pattern.test(path)) return path.replace(pattern, `$1${REDACTED}`);

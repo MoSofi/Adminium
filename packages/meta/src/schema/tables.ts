@@ -2081,6 +2081,17 @@ export interface AdminiumChatAiDaysTable {
 }
 
 /** Wave 0099 — the calls one source of a lead source add-on was asked on one UTC day, per spender (a staff id, `step`, or `*` for the day's total). */
+/** A person's private calendar feed: the nonce its link carries (0101). */
+export interface AdminiumCalendarFeedsTable {
+  connectionId: string;
+  appKey: string;
+  tableName: string;
+  rowKey: string;
+  nonce: string;
+  changedAt: Ts;
+  changedBy: string | null;
+}
+
 export interface AdminiumSourceDaysTable {
   installId: string;
   source: string;
@@ -2446,6 +2457,7 @@ export interface MetaDB {
   adminium_visitors: AdminiumVisitorsTable;
   adminium_visits: AdminiumVisitsTable;
   adminium_source_days: AdminiumSourceDaysTable;
+  adminium_calendar_feeds: AdminiumCalendarFeedsTable;
 }
 
 /**
@@ -2564,4 +2576,5 @@ export const META_TABLE_NAMES = [
   'adminium_visitors',
   'adminium_visits',
   'adminium_source_days',
+  'adminium_calendar_feeds',
 ] as const satisfies readonly (keyof MetaDB)[];

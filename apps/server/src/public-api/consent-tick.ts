@@ -129,6 +129,7 @@ export function createConsentTicks(meta: MetaDb, now: () => number = Date.now): 
         table: table.id,
         column: consent.column,
         purpose: consent.purpose,
+        means: consent.means ?? 'yes',
         wording: { version: consent.wording.version, text: consent.wording.text },
         person,
         form: `${key.managedBy}:${entry.table}`.slice(0, 255),

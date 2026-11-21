@@ -21,6 +21,8 @@ import { addressKeyRing } from '../consent/keys.js';
 
 const UNSUBSCRIBE = 'mail-link:unsubscribe:v1';
 const CLICK = 'mail-link:click:v1';
+const REVIEW = 'mail-link:review:v1';
+const FEED = 'mail-link:calendar-feed:v1';
 
 export interface MailLinkKeys {
   /** The key a new unsubscribe link is signed with. */
@@ -31,6 +33,14 @@ export interface MailLinkKeys {
   click(): Promise<string>;
   /** Every key a click link may have been signed with, newest first. */
   clickAll(): Promise<string[]>;
+  /** The key a new review link is sealed with. */
+  review(): Promise<string>;
+  /** Every key a review link may have been sealed with, newest first. */
+  reviewAll(): Promise<string[]>;
+  /** The key a new calendar feed link is sealed with. */
+  feed(): Promise<string>;
+  /** Every key a calendar feed link may have been sealed with, newest first. */
+  feedAll(): Promise<string[]>;
 }
 
 export function mailLinkKeys(meta: MetaDb, secret: string): MailLinkKeys {
@@ -40,5 +50,9 @@ export function mailLinkKeys(meta: MetaDb, secret: string): MailLinkKeys {
     unsubscribeAll: () => ring.derivedAll(UNSUBSCRIBE),
     click: () => ring.derivedForWrite(CLICK),
     clickAll: () => ring.derivedAll(CLICK),
+    review: () => ring.derivedForWrite(REVIEW),
+    reviewAll: () => ring.derivedAll(REVIEW),
+    feed: () => ring.derivedForWrite(FEED),
+    feedAll: () => ring.derivedAll(FEED),
   };
 }

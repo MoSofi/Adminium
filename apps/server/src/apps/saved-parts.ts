@@ -384,7 +384,7 @@ function storedMapping(payable: SavedPayable, realId: (ref: string) => string | 
     refundOn = {
       moves: on.moves.map((move) => ({ ...(move.from === undefined ? {} : { from: [...move.from] }), to: move.to, by: [...move.by] })),
       ...(toggle === undefined ? {} : { switch: toggle }),
-      ...(hours === undefined || on.before === undefined ? {} : { before: { column: on.before.column, hours } }),
+      ...(hours === undefined || on.before === undefined ? {} : { before: { column: on.before.column, hours, ...(on.before.binds === undefined ? {} : { binds: on.before.binds }) } }),
     };
   }
   let currency: PayableMapping['currency'];
