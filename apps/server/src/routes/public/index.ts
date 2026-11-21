@@ -48,6 +48,8 @@ import { csrfHeaderMatches, csrfSigningKey, isSameOriginRequest } from '../../se
 import { NulInRequest } from '../../security/nul-bytes.js';
 import { availabilityOf } from '../../surfaces/settings.js';
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
+import { blankOwnCopies, ownCopyTables } from '../../privacy/forget-copies.js';
+import { erasedNameOf } from '../../privacy/sources.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import type { Dialect } from '@adminium/engine';
 import { sql, type Expression, type Kysely, type SqlBool } from 'kysely';
@@ -6021,11 +6023,21 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         }
         // A yes they gave is withdrawn, by them, before the column that held it is emptied: the log never says yes for a forgotten person.
         await deps.peopleConsent?.withdrawOnForget({ connectionId: ok.key.connectionId, view: found.view, table: found.table, row, columns: forget.columns });
+        // The app's word: their copies on the rows linked to them go in the same transaction as their own row.
+        const ownCopies = forget.copies === true && found.table.primaryKey.length === 1 ? await ownCopyTables(meta, ok.key.connectionId, found.view, found.table) : [];
+        const erasedName = ownCopies.length === 0 ? '' : await erasedNameOf(meta);
         try {
           await writes.update({
             target: { connectionId: ok.key.connectionId, view: found.view, table: found.table, db: found.db, dialect: found.dialect, timezone: ok.key.scope.timezone },
             pk,
             values,
+            ...(ownCopies.length === 0
+              ? {}
+              : {
+                  inside: async (db: Kysely<SourceDatabase>) => {
+                    await blankOwnCopies(db, found.dialect, ownCopies, row[found.table.primaryKey[0]!], erasedName);
+                  },
+                }),
             // The row as read: the rules hear what was forgotten, and the address watch leaves a forgetting to this route.
             before: row,
             context: await publicWriteContext(request, ok),

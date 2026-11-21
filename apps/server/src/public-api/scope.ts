@@ -520,6 +520,8 @@ const resourceSchema = z
           .min(1)
           .max(8)
           .optional(),
+        /** Also blanked: the person's copies on the rows linked to them. */
+        copies: z.literal(true).optional(),
       })
       .strict()
       .optional(),
@@ -800,7 +802,7 @@ export interface CompiledResource {
   sessionOnly?: boolean | undefined;
   heldBy?: string | undefined;
   heldFrom?: string | undefined;
-  forget?: { columns: readonly string[]; stamp?: string | undefined; flags?: readonly string[] | undefined; links?: readonly { table: string; column: string; people: readonly string[] }[] | undefined } | null | undefined;
+  forget?: { columns: readonly string[]; stamp?: string | undefined; flags?: readonly string[] | undefined; copies?: true | undefined; links?: readonly { table: string; column: string; people: readonly string[] }[] | undefined } | null | undefined;
   /** "Make a new link" for a signed-in person's row: the own link's code column, and the outbox kind that emails it. */
   newLink?: { column: string; kind: string; when?: { where: readonly StateCondition[] } | undefined; stopped?: string | undefined } | null | undefined;
   /** Columns left out of rows read through a parent unless the row's holder is the session's own person. */
@@ -1641,6 +1643,7 @@ export function compileScope(
               columns: [...r.forget.columns],
               ...(r.forget.stamp === undefined ? {} : { stamp: r.forget.stamp }),
               ...(r.forget.flags === undefined ? {} : { flags: [...r.forget.flags] }),
+              ...(r.forget.copies === true ? { copies: true as const } : {}),
               ...(r.forget.links === undefined ? {} : { links: r.forget.links.map((link) => ({ ...link, people: [...link.people] })) }),
             },
       newLink: r.newLink === undefined ? null : { column: r.newLink.column, kind: r.newLink.kind, ...(r.newLink.when === undefined ? {} : { when: structuredClone(r.newLink.when) as { where: StateCondition[] } }), ...(r.newLink.stopped === undefined ? {} : { stopped: r.newLink.stopped }) },

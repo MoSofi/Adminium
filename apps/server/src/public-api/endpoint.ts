@@ -510,6 +510,8 @@ export const publicEndpointDefinitionSchema = z
         stamp: columnSchema.optional(),
         /** Of `columns`, the yes/no ones the database keeps as a number (SQLite): emptied to no, as a boolean column is. */
         flags: z.array(columnSchema).min(1).max(16).optional(),
+        /** Also blanked: the person's copies on the rows linked to them. */
+        copies: z.literal(true).optional(),
         /** Also stopped: the own links of the person's rows — each table, its code column, and the columns that point at the person. */
         links: z
           .array(z.object({ table: z.string().min(1).max(256), column: columnSchema, people: z.array(columnSchema).min(1).max(8) }).strict())
@@ -692,6 +694,7 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
       columns: [...def.forget.columns],
       ...(def.forget.stamp === undefined ? {} : { stamp: def.forget.stamp }),
       ...(def.forget.flags === undefined ? {} : { flags: [...def.forget.flags] }),
+      ...(def.forget.copies === true ? { copies: true as const } : {}),
       ...(def.forget.links === undefined ? {} : { links: def.forget.links.map((link) => ({ table: link.table, column: link.column, people: [...link.people] })) }),
     };
   }
@@ -1070,6 +1073,7 @@ export function definitionToResource(
       columns: [...def.forget.columns],
       ...(def.forget.stamp === undefined ? {} : { stamp: def.forget.stamp }),
       ...(def.forget.flags === undefined ? {} : { flags: [...def.forget.flags] }),
+      ...(def.forget.copies === true ? { copies: true as const } : {}),
       ...(def.forget.links === undefined ? {} : { links: def.forget.links.map((link) => ({ ...link, people: [...link.people] })) }),
     };
   }

@@ -583,7 +583,7 @@ const withholdSchema = z
  * stamps. `links`: it also stops the person's rows' own links (each gets a
  * new code, which closes every session its old one opened) — an app's choice.
  */
-const forgetSchema = z.object({ columns: z.array(refSchema).min(1).max(16), stamp: refSchema.optional(), links: z.literal(true).optional() }).strict();
+const forgetSchema = z.object({ columns: z.array(refSchema).min(1).max(16), stamp: refSchema.optional(), links: z.literal(true).optional(), copies: z.literal(true).optional() }).strict();
 
 /**
  * "Make a new link" for a signed-in person's row: its own link (`column`)

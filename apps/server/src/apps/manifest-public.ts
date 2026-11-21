@@ -419,6 +419,7 @@ function definitionOf(
           forget: {
             columns: [...entry.forget.columns],
             ...(entry.forget.stamp === undefined ? {} : { stamp: entry.forget.stamp }),
+            ...(entry.forget.copies === true ? { copies: true as const } : {}),
             // The app's yes/no columns: SQLite keeps them as numbers, and a forgetting sets them to no.
             ...(boolsOf(manifest, entry.table, entry.forget.columns).length === 0 ? {} : { flags: boolsOf(manifest, entry.table, entry.forget.columns) }),
             // The own links of the person's rows, stopped too: each table by its real id.

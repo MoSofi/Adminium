@@ -2432,6 +2432,20 @@ function perNightIssues(
   return out;
 }
 
+/** `forget.copies` blanks the copies reached by a link to the person: the people entry must declare at least one. */
+function forgetCopiesIssues(m: { publicAccess?: readonly PublicAccess[] | undefined; people?: readonly unknown[] | undefined }): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  (m.publicAccess ?? []).forEach((entry, e) => {
+    if (entry.forget?.copies !== true) return;
+    const linked = (m.people ?? []).some((one) => {
+      const person = one as { table?: unknown; copies?: readonly { via?: unknown }[] };
+      return person.table === entry.table && (person.copies ?? []).some((copy) => copy.via !== undefined);
+    });
+    if (!linked) out.push({ path: ['publicAccess', e, 'forget', 'copies'], message: `"${entry.table}" declares no copy kept through a link to the person, so "copies" has nothing to blank` });
+  });
+  return out;
+}
+
 /**
  * Every name a manifest's own blocks use must name something the manifest
  * declares: a rule's columns, a capacity's or a booking's columns and tables,
@@ -3290,6 +3304,7 @@ export function appReferenceIssues(
   out.push(...rollupChainIssues(m.requiredSchema.tables));
 
   out.push(
+    ...forgetCopiesIssues(m),
     ...publicAccessIssues(m.publicAccess ?? [], {
       index,
       appKey: m.key,

@@ -213,6 +213,7 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   // own rows let go some days after a moment of theirs.
   'publicAccess.appColumn',
   'publicAccess.heldBy',
+  'publicAccess.forget.copies',
   'people.addOnCopies',
   'table.expire',
   // A link filled with the band a number falls in; a date so many working days on; a formula rounded up or down.
@@ -594,6 +595,7 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   // (`HOST_REFERENCES_FLOOR` in `schema.ts`, moved with it at the release).
   'publicAccess.appColumn': '0.3.43',
   'publicAccess.heldBy': '0.3.71',
+  'publicAccess.forget.copies': '0.3.71',
   'addOn.framedPage': '0.3.71',
   'lookup.held': '0.3.71',
   'adjuster.vouchers.held': '0.3.71',
@@ -1293,6 +1295,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (isDoc(entry) && entry['source'] !== undefined) out.push({ word: 'publicAccess.forms.source', path: `publicAccess.${String(e)}.source` });
     if (isDoc(entry) && entry['appColumn'] !== undefined) out.push({ word: 'publicAccess.appColumn', path: `publicAccess.${String(e)}.appColumn` });
     if (isDoc(entry) && entry['heldBy'] !== undefined) out.push({ word: 'publicAccess.heldBy', path: `publicAccess.${String(e)}.heldBy` });
+    if (isDoc(entry) && isDoc(entry['forget']) && entry['forget']['copies'] !== undefined) out.push({ word: 'publicAccess.forget.copies', path: `publicAccess.${String(e)}.forget.copies` });
     // A guest's uploads, on the entry or on any level of its child rows.
     const uploadsIn = (node: unknown, path: string): void => {
       if (!isDoc(node)) return;

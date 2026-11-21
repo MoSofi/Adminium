@@ -5170,6 +5170,13 @@ nothing is forgotten. A message about a forgotten person is not sent, even one q
 asked. Every session the person holds can also be ended without forgetting anything:
 `POST /api/v1/public/session/revoke-all`.
 
+With `"copies": true` (Adminium 0.3.71 or later), the same delete also empties the person's copies
+that [`people[].copies`](#people) declares with a `via` link to them, in the transaction that empties
+their own row. A row is found by that link alone, so a row that merely holds the same typed address
+stays as it is. A table with `keep` stays whole. The rows are written directly: no state moves, no
+booking is judged again, and no mail or rule runs. The manifest is refused when no copy of the person
+has a `via`.
+
 ### Reads for a signed-in guest
 
 An entry with a `level` and no `claim`, `claimedBy` or `visibleWith` reads its table's rows (within
