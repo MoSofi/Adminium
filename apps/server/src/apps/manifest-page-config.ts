@@ -35,7 +35,7 @@ import { filterProblem, type DayColumnKind } from '../widget-data/filter-checks.
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { linkableRelations } from '../crud/links.js';
 import { tableOfReal } from '../installs/table-id.js';
-import { ownsBlocks } from './owns-blocks.js';
+import { namedAddOnKeys, ownsBlocks } from './owns-blocks.js';
 
 type ManifestPage = NonNullable<Extract<Manifest, { kind: 'app' }>['pages']>[number];
 
@@ -64,7 +64,7 @@ export function pagePlanProblems(manifest: Manifest): { page: string; message: s
           if (!declared.has(name)) issues.push(`its layout reads "${name}", which is not a table of the app`);
         }
         // A table of an add-on: only one the app names, so an install knows what the page leans on.
-        const named = new Set([...(manifest.addOns?.requires ?? []), ...(manifest.addOns?.suggests ?? [])].map((need) => need.key));
+        const named = namedAddOnKeys(manifest);
         for (const { addOn, name } of layoutAddOnTables(parsed.data)) {
           if (!named.has(addOn)) issues.push(`its layout reads "${name}" of the add-on "${addOn}", which the app neither requires nor suggests`);
         }

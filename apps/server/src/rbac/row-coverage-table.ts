@@ -28,6 +28,8 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/add-ons/:key/connect/accounts/:id/disconnect': noRows('An install-level account: tied to the add-on, no source row.'),
   'GET /api/v1/add-ons/:key/oauth/callback': noRows('Changes nothing and reads no row: hands a provider\'s answer to the door page.'),
   'POST /api/v1/calendars/hook/:provider/:channel': noRows('A calendar service calling back: finds a channel by its id and asks for a read. No source row.'),
+  'GET /api/v1/calendar-feed': rows('visible', 'A person\'s feed link, on a row the reader may update through its row limits.'),
+  'POST /api/v1/calendar-feed/renew': rows('visible', 'Renews a person\'s feed link, on a row the reader may update through its row limits.'),
   'GET /api/v1/calendar-sync/row': rows('visible', 'A person\'s calendar state, on a row the reader reaches through its row limits.'),
   'GET /api/v1/calendar-sync/busy': rows('visible', 'A person\'s busy times, read as the system from the table only Adminium keeps, for a row the reader reaches through its row limits.'),
   'POST /api/v1/calendar-sync/row/choices': rows('visible', 'A person\'s calendar choices, on a row the reader may update through its row limits.'),
