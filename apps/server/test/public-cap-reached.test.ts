@@ -28,7 +28,8 @@ const table = (ref: string) => ({
 function manifest(): Record<string, unknown> {
   const open = (name: string, anonymous: Record<string, unknown>) => ({ table: name, methods: ['POST'], writable: ['name'], anonymous: { plainText: ['name'], ...anonymous } });
   return {
-    ...invoicingManifest([table('requests'), table('notes'), table('visits')]),
+    // A private table puts a row context on every reader: the count must still reach one this table does not limit.
+    ...invoicingManifest([table('requests'), table('notes'), table('visits'), { ...table('diary'), private: true }]),
     compatibility: { minAdminiumVersion: '0.3.71' },
     pages: [{ ref: 'studio-requests', template: 'page-crud', title: { key: 't', fallback: 'Requests' }, nav: { group: 'library', icon: 'list', order: 1 }, bindings: { rows: 'requests' } }],
     publicAccess: [open('requests', { perKeyHour: 1 }), open('notes', { perKeyHour: 1 }), open('visits', { perKeyHour: 1000, perIpHour: 1 })],

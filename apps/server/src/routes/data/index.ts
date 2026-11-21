@@ -3373,7 +3373,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       { schema: { params: dataTableParams, response: { 200: publicCapReachedReply } } },
       async (request) => {
         const ctx = asReader(await contextFor(request, 'read'));
-        if (ctx.rows !== null) return { data: { lastHour: 0 } };
+        if (rowTestOf(ctx.rows, ctx.table.id, 'read') !== null) return { data: { lastHour: 0 } };
         const subject = capReachedSubject(ctx.connectionId, ctx.table.id);
         return { data: { lastHour: await publicChallengesRepo(meta).sentSince(subject, Date.now() - 3_600_000, CAP_REACHED_PURPOSE) } };
       },
