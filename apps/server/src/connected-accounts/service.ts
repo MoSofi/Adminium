@@ -33,6 +33,7 @@ import { DEMO_CALENDAR_SUBJECT_PREFIX } from '@adminium/add-on-contracts';
 import { connectedAccountsSchema, isAddOnManifest, validateManifest, type AddOnManifest, type ConnectedAccountsRule } from '@adminium/manifest';
 import {
   appTablesRepo,
+  usersRepo,
   auditRepo,
   connectedAccountsRepo,
   installTarget,
@@ -52,7 +53,7 @@ import { AddOnOAuthError, exchangeAuthorizationCode } from '../add-ons/oauth.js'
 import { strangerBusiness } from '../forms/view.js';
 import { installOnConnection } from '../installs/resolve.js';
 import type { Reachability } from '../payments/reachability.js';
-import { mailConnected, mailConnectLink, tellClientRefused, tellConnected, type AccountNoticeDeps } from './notices.js';
+import { mailConnected, mailConnectLink, tellClientRefused, tellConnected, tellSecretEnding, type AccountNoticeDeps } from './notices.js';
 import {
   accountSpecOf,
   connectReachOf,
@@ -86,7 +87,18 @@ export interface AccountRows {
   read(connectionId: string, table: string, rowKey: string): Promise<Row | undefined>;
   /** The id the database's snapshot gives a table of an app's record (`realTableOf`), or null when it has none. */
   tableId(connectionId: string, real: string): Promise<string | null>;
+  /** Up to `limit` rows of a table with their keys, read as the engine. A caller judges who may see each. */
+  list(connectionId: string, table: string, limit: number): Promise<{ rowKey: string; row: Row }[]>;
 }
+
+/** What "Check my setup" can truly know about the client ID and secret, with nobody signed in. */
+export type AppCheck = 'accepted' | 'refused' | 'expired' | 'not-set-up' | 'unknown' | 'unreachable';
+
+/** A code no provider ever issued: a right ID and secret get `invalid_grant` for it, a wrong pair `invalid_client`. */
+const SETUP_CHECK_CODE = 'adminium-setup-check';
+/** Microsoft's own number for a client secret past its end date. */
+const SECRET_EXPIRED_CODE = 7000222;
+const SECRET_NOTICE_MS = 30 * 86_400_000;
 
 /** A table whose rows may connect. */
 export interface AccountTable {
@@ -123,7 +135,13 @@ export type DoorOutcome =
 export interface OpenedLink {
   link: ConnectLink;
   business: string;
+  /** Where the person may write to the business. */
+  contact: string | null;
   person: string | null;
+  /** The address the link was made for, shown so a person can see it is theirs. */
+  address: string | null;
+  /** Who sent it, by name. */
+  sentBy: string | null;
   providers: { key: string; name: string }[];
 }
 
@@ -215,6 +233,22 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
   }
 
   const tableOf = async (connectionId: string, table: string): Promise<AccountTable | null> => (await lookUpTable(connectionId, table)).table;
+
+  /** Every table on a database whose rows may connect through this add-on. */
+  async function tablesFrom(connectionId: string, addOnKey: string): Promise<{ id: string; table: AccountTable }[]> {
+    const records = (await appTablesRepo(meta).forConnection(connectionId)).filter((record) => record.role === 'app' && record.state !== 'released' && record.state !== 'dropped' && record.state !== 'pending');
+    const out: { id: string; table: AccountTable }[] = [];
+    for (const record of records) {
+      const app = record.manifestId === null ? await manifests.findInScope(record.appKey, connectionId) : await manifests.findById(record.manifestId);
+      if (app === null || app.row.kind !== 'app') continue;
+      const tables = (app.document as { requiredSchema?: { tables?: { ref?: unknown; connectedAccounts?: unknown }[] } }).requiredSchema?.tables ?? [];
+      const parsed = connectedAccountsSchema.safeParse(tables.find((one) => one.ref === record.ref)?.connectedAccounts);
+      if (!parsed.success || !parsed.data.from.includes(addOnKey)) continue;
+      const id = await deps.rows.tableId(connectionId, realTableOf(record));
+      if (id !== null) out.push({ id, table: { appKey: record.appKey, rule: parsed.data } });
+    }
+    return out;
+  }
 
   /** The add-on install a row's connection goes through: named by the rule, attached to the app and switched on. */
   async function providerOn(target: AccountTarget, table: AccountTable, addOnKey: string): Promise<{ install: InstalledManifest; manifest: AddOnManifest; spec: AccountSpec } | null> {
@@ -386,6 +420,19 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
     }
   }
 
+  /** Thirty days before the client secret's written end date: one notice, per date. */
+  async function warnSecretEnding(manifestId: string): Promise<void> {
+    const held = await installOf(manifestId);
+    const date = held?.registration?.secretEndsOn ?? null;
+    if (held === null || held.registration === null || date === null || held.registration.secretToldFor === date) return;
+    if (Date.parse(`${date}T00:00:00Z`) - now() > SECRET_NOTICE_MS) return;
+    // Marked first: a second process must not tell everyone again.
+    await manifests.setCredential(manifestId, { kind: 'oauth2', secret: { ...held.registration, secretToldFor: date } });
+    const install = await manifests.findById(manifestId);
+    const appKeys = new Set((install?.attachments ?? []).map((attachment) => attachment.attachedTo));
+    for (const appKey of appKeys.size === 0 ? [null] : appKeys) await tellSecretEnding(noticeDeps, { appKey, provider: providerName(held.manifest), date });
+  }
+
   async function end(accountId: string): Promise<EndResult | null> {
     const account = await repo.find(accountId);
     if (account === null) return null;
@@ -431,6 +478,54 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
     /** A later piece's step when an account connects or reconnects. */
     addOnConnected(hook: (account: ConnectedAccount) => Promise<void>): void {
       onConnected.push(hook);
+    },
+
+    tablesFrom,
+
+    /** Up to `limit` rows of a table that may connect, with their keys. */
+    listRows: (connectionId: string, table: string, limit: number) => deps.rows.list(connectionId, table, limit),
+
+    /**
+     * "Check my setup": whether the provider accepts this ID and secret, and
+     * nothing else. Only the `error` word and the numbered codes are read from
+     * its answer, and any token it hands back is dropped unread.
+     */
+    async checkApp(manifestId: string, input: { grant: 'pair' | 'app'; scope?: string | undefined }): Promise<AppCheck> {
+      const held = await installOf(manifestId);
+      if (held === null || held.registration === null) return 'not-set-up';
+      const { registration, spec } = held;
+      const directory = registration.tenant ?? spec.tenantDefault;
+      // An app's own sign-in needs a named directory: Microsoft refuses it on `common`.
+      if (input.grant === 'app' && (directory === null || ['common', 'organizations', 'consumers'].includes(directory.toLowerCase()) || input.scope === undefined)) return 'unknown';
+      const origin = await deps.publicOrigin();
+      const form: Record<string, string> =
+        input.grant === 'app'
+          ? { grant_type: 'client_credentials', client_id: registration.clientId, client_secret: registration.clientSecret, scope: input.scope ?? '' }
+          : { grant_type: 'authorization_code', client_id: registration.clientId, client_secret: registration.clientSecret, code: SETUP_CHECK_CODE, redirect_uri: redirectUriFor(origin ?? 'https://adminium.invalid', spec.key) };
+      let response: Response;
+      try {
+        response = await held.http(endpointsFor(spec, registration).tokenUrl, {
+          method: 'POST',
+          headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' },
+          body: new URLSearchParams(form).toString(),
+        });
+      } catch {
+        return 'unreachable';
+      }
+      if (response.ok) {
+        await response.body?.cancel().catch(() => undefined);
+        return 'accepted';
+      }
+      if (response.status >= 500) {
+        await response.body?.cancel().catch(() => undefined);
+        return 'unreachable';
+      }
+      const body = (await response.json().catch(() => null)) as { error?: unknown; error_codes?: unknown } | null;
+      const codes = Array.isArray(body?.error_codes) ? body.error_codes : [];
+      if (codes.includes(SECRET_EXPIRED_CODE)) return 'expired';
+      if (body?.error === 'invalid_client' || body?.error === 'unauthorized_client') return 'refused';
+      if (input.grant === 'pair' && body?.error === 'invalid_grant') return 'accepted';
+      return 'unknown';
     },
 
     /** The crypto the account store seals with, for a piece that shares it. */
@@ -498,7 +593,16 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
       const resolved = await resolveLink(link).catch(() => null);
       if (resolved === null || resolved.providers.length === 0) return null;
       const { business } = await strangerBusiness(meta);
-      return { link, business: business.name, person: resolved.person, providers: resolved.providers.map(({ key, name }) => ({ key, name })) };
+      const sender = link.createdBy === null ? null : await usersRepo(meta).findById(link.createdBy).catch(() => null);
+      return {
+        link,
+        business: business.name,
+        contact: business.email,
+        person: resolved.person,
+        address: resolved.address,
+        sentBy: sender?.name ?? null,
+        providers: resolved.providers.map(({ key, name }) => ({ key, name })),
+      };
     },
 
     /** Starts a sign-in from the door page. Returns where to send the browser and the nonce for its cookie. */
@@ -700,16 +804,19 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
     async sweep(): Promise<{ flows: number; links: number; ending: string[] }> {
       const cleared = await repo.sweep(now());
       const ending: string[] = [];
+      const installs = new Set<string>();
       let after: string | null = null;
       for (;;) {
         const page: ConnectedAccount[] = await repo.page(after, 200);
         if (page.length === 0) break;
         for (const account of page) {
           after = account.id;
+          installs.add(account.manifestId);
           if (account.state === 'disconnecting' || (await standingOf(account)) === 'gone') ending.push(account.id);
         }
         if (page.length < 200) break;
       }
+      for (const manifestId of installs) await warnSecretEnding(manifestId).catch(() => undefined);
       return { ...cleared, ending };
     },
   };

@@ -351,6 +351,8 @@ export const RATE_BUCKETS = {
   'calendar-hook': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
   // The connect door: whoever holds a connect link, by network address. A person presses it a few times at most.
   'connect-door': { max: 60, timeWindowMs: 60_000, keyBy: 'ip' },
+  // "Check my setup": each press is a call to a provider's token endpoint with the install's secret.
+  'connect-check': { max: 10, timeWindowMs: 60_000, keyBy: 'principal' },
   // The mail door (`/m/`): whoever holds a mail's link, by network address.
   // Generous on purpose; the signed link is the gate, and a press twice
   // changes nothing. Many readers share one address: the one-click comes from

@@ -44,7 +44,9 @@
       "remadeTitle": "Kalendář {calendar} byl vytvořen znovu",
       "remadeBody": "Byl smazán z účtu osoby {person}, takže byl vytvořen znovu s nadcházejícími rezervacemi.",
       "silentTitle": "Změny z kalendáře osoby {person} přicházejí opožděně",
-      "silentBody": "Okamžité aktualizace se zastavily, takže změny přicházejí s pravidelnou kontrolou, přibližně do 12 minut."
+      "silentBody": "Okamžité aktualizace se zastavily, takže změny přicházejí s pravidelnou kontrolou, přibližně do 12 minut.",
+      "secretEndingTitle": "Tajný klíč klienta {provider} končí {date}",
+      "secretEndingBody": "Před tímto dnem vytvořte nový tajný klíč a vložte ho do průvodce nastavením, jinak se všechna připojení k {provider} zastaví. Nikdo se nemusí znovu připojovat."
     }
   }
 }

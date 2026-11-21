@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * GENERATED MIRROR of ../../../locales/en-US/xConnect.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle;
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "sentBy": "Sent by {name} at {business}. You don’t need an account for this.",
+  "yourAccount": "calendar",
+  "titleReconnect": "Reconnect your calendar to {business}",
+  "title": "Connect your calendar to {business}",
+  "titleReconnectBy": "{sender} asked you to reconnect your calendar to {business}",
+  "titleBy": "{sender} asked you to connect your calendar to {business}",
+  "hi": "Hi {name},",
+  "willHeading": "What it will and won’t do",
+  "will1": "Your {business} bookings appear in a calendar called {business} in your {account} account, and move or disappear when a booking changes.",
+  "will2": "When you’re busy in your own calendar, you can’t be booked then. The desk sees a grey Busy block, never what it is.",
+  "will3": "Only “busy” is read — never what an event is called.",
+  "button": "Connect with {provider}",
+  "signInOne": "{provider} asks you to sign in on its own page. {business} never sees your password.",
+  "signInMany": "{providers} asks you to sign in on its own page. {business} never sees your password.",
+  "or": " or ",
+  "worksOnce": "This link works once, for 7 days.",
+  "linkFor": "This link is for {address} and works once, for 7 days.",
+  "theProvider": "the provider",
+  "whoSent": "whoever sent it",
+  "tryAgain": "Try again",
+  "nothingTitle": "Nothing was connected",
+  "doneTitle": "Done — your {business} bookings will appear in a calendar called {business}.",
+  "doneClose": "You can close this page.",
+  "doneAs": "Connected as {address}. You can close this page.",
+  "doneDiffers": "That isn’t the address {business} has for you, so they have been told. If it’s the wrong account, ask {who} for a new link.",
+  "doneLater": "To disconnect later, ask {who}, or remove {business}’s access in your {provider} account.",
+  "deniedBody": "You didn’t allow access on {provider}’s page, so your calendar is unchanged and {business} can’t see it.",
+  "partialTitle": "One box was left unticked",
+  "partialBody": "{business} needs every box on {provider}’s page, or your bookings or busy times would silently go missing. Nothing was connected.",
+  "differentTitle": "That’s a different account",
+  "differentBody": "This link reconnects the account you used before. Sign in with that one, or ask {who} for a new link.",
+  "otherTitle": "You’re already connected another way",
+  "otherBody": "One calendar is connected for you already. Ask {who} to disconnect it first.",
+  "adminTitle": "Your Microsoft 365 admin has to approve this app first",
+  "adminBody": "Your organisation doesn’t let people approve calendar access themselves. Nothing was connected.",
+  "adminWhat": "Ask your admin to open Microsoft Entra, go to App registrations → this app → API permissions, and press “Grant admin consent”. Then open this link again.",
+  "setupTitle": "This can’t be connected yet",
+  "setupBody": "{business} still has to finish setting this up. Nothing is wrong on your side, and you don’t need to do anything. Ask {who} to check the setup.",
+  "theBusiness": "The business",
+  "cannotTitle": "This can’t be connected here",
+  "cannotBody": "This address isn’t reachable from the internet, so {provider} can’t send you back to it.",
+  "deadTitle": "This link doesn’t work any more",
+  "deadBody": "It may have been used already, or be more than 7 days old. Nothing was changed. Ask whoever sent it for a new one.",
+  "nothingBody": "That sign-in couldn’t be finished, so your calendar is unchanged. Try again from this page."
+} as const;

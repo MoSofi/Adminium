@@ -39,6 +39,14 @@
     "status": "mt",
     "srcHash": "b7fa89433e1d"
   },
+  "addOns.accounts.notice.secretEndingBody": {
+    "status": "mt",
+    "srcHash": "9fffd81246c0"
+  },
+  "addOns.accounts.notice.secretEndingTitle": {
+    "status": "mt",
+    "srcHash": "77f150b8822e"
+  },
   "addOns.accounts.notice.silentBody": {
     "status": "mt",
     "srcHash": "67e1ff8e1a69"
@@ -51946,5 +51954,181 @@
   "xChat.write": {
     "status": "mt",
     "srcHash": "24bf2a34e6f4"
+  },
+  "xConnect.adminBody": {
+    "status": "mt",
+    "srcHash": "011a17e4e951"
+  },
+  "xConnect.adminTitle": {
+    "status": "mt",
+    "srcHash": "e5791d149cc7"
+  },
+  "xConnect.adminWhat": {
+    "status": "mt",
+    "srcHash": "9ecaae96accc"
+  },
+  "xConnect.button": {
+    "status": "mt",
+    "srcHash": "a508bee3c2f5"
+  },
+  "xConnect.cannotBody": {
+    "status": "mt",
+    "srcHash": "7da23f0132b9"
+  },
+  "xConnect.cannotTitle": {
+    "status": "mt",
+    "srcHash": "c6b9db5a9f09"
+  },
+  "xConnect.deadBody": {
+    "status": "mt",
+    "srcHash": "d463943cc731"
+  },
+  "xConnect.deadTitle": {
+    "status": "mt",
+    "srcHash": "69c12bafdf0a"
+  },
+  "xConnect.deniedBody": {
+    "status": "mt",
+    "srcHash": "3a3f0c919b5e"
+  },
+  "xConnect.differentBody": {
+    "status": "mt",
+    "srcHash": "f218bc8376ba"
+  },
+  "xConnect.differentTitle": {
+    "status": "mt",
+    "srcHash": "6be81eeda615"
+  },
+  "xConnect.doneAs": {
+    "status": "mt",
+    "srcHash": "5de90df8331a"
+  },
+  "xConnect.doneClose": {
+    "status": "mt",
+    "srcHash": "78bccd89d470"
+  },
+  "xConnect.doneDiffers": {
+    "status": "mt",
+    "srcHash": "da2db83b88e4"
+  },
+  "xConnect.doneLater": {
+    "status": "mt",
+    "srcHash": "d283fe1345d3"
+  },
+  "xConnect.doneTitle": {
+    "status": "mt",
+    "srcHash": "6220e647798d"
+  },
+  "xConnect.hi": {
+    "status": "mt",
+    "srcHash": "2a73e11c64b5"
+  },
+  "xConnect.linkFor": {
+    "status": "mt",
+    "srcHash": "1661f75503cd"
+  },
+  "xConnect.nothingBody": {
+    "status": "mt",
+    "srcHash": "c080af677cfb"
+  },
+  "xConnect.nothingTitle": {
+    "status": "mt",
+    "srcHash": "bffa659046e1"
+  },
+  "xConnect.or": {
+    "status": "mt",
+    "srcHash": "439ac6327d9e"
+  },
+  "xConnect.otherBody": {
+    "status": "mt",
+    "srcHash": "8276f1f750e3"
+  },
+  "xConnect.otherTitle": {
+    "status": "mt",
+    "srcHash": "1589e71dca15"
+  },
+  "xConnect.partialBody": {
+    "status": "mt",
+    "srcHash": "74dbb4b6323f"
+  },
+  "xConnect.partialTitle": {
+    "status": "mt",
+    "srcHash": "cb15fdb9b4ca"
+  },
+  "xConnect.sentBy": {
+    "status": "mt",
+    "srcHash": "9b1146553da2"
+  },
+  "xConnect.setupBody": {
+    "status": "mt",
+    "srcHash": "19b256605fbc"
+  },
+  "xConnect.setupTitle": {
+    "status": "mt",
+    "srcHash": "3998ccfe5ca6"
+  },
+  "xConnect.signInMany": {
+    "status": "mt",
+    "srcHash": "5ee9cf2656ba"
+  },
+  "xConnect.signInOne": {
+    "status": "mt",
+    "srcHash": "e13055d18265"
+  },
+  "xConnect.theBusiness": {
+    "status": "mt",
+    "srcHash": "055af646bcf5"
+  },
+  "xConnect.theProvider": {
+    "status": "mt",
+    "srcHash": "cc7b45160cc2"
+  },
+  "xConnect.title": {
+    "status": "mt",
+    "srcHash": "13caddcc9dba"
+  },
+  "xConnect.titleBy": {
+    "status": "mt",
+    "srcHash": "af3cc16267a3"
+  },
+  "xConnect.titleReconnect": {
+    "status": "mt",
+    "srcHash": "0b575a92062c"
+  },
+  "xConnect.titleReconnectBy": {
+    "status": "mt",
+    "srcHash": "b9f74e3001a2"
+  },
+  "xConnect.tryAgain": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "xConnect.whoSent": {
+    "status": "mt",
+    "srcHash": "a9941a98d40a"
+  },
+  "xConnect.will1": {
+    "status": "mt",
+    "srcHash": "2b625a62276f"
+  },
+  "xConnect.will2": {
+    "status": "mt",
+    "srcHash": "f11b096b956a"
+  },
+  "xConnect.will3": {
+    "status": "mt",
+    "srcHash": "8fe83e9bb35a"
+  },
+  "xConnect.willHeading": {
+    "status": "mt",
+    "srcHash": "ec222cd49076"
+  },
+  "xConnect.worksOnce": {
+    "status": "mt",
+    "srcHash": "dd4b88996827"
+  },
+  "xConnect.yourAccount": {
+    "status": "mt",
+    "srcHash": "e4ffacba5591"
   }
 }

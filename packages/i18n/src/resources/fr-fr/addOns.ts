@@ -54,7 +54,9 @@ export default {
       "remadeTitle": "L’agenda {calendar} a été recréé",
       "remadeBody": "Il a été supprimé du compte de {person} : il a donc été recréé avec ses prochaines réservations.",
       "silentTitle": "Les changements de l’agenda de {person} arrivent en retard",
-      "silentBody": "Les mises à jour instantanées se sont arrêtées : les changements arrivent avec la vérification régulière, sous 12 minutes environ."
+      "silentBody": "Les mises à jour instantanées se sont arrêtées : les changements arrivent avec la vérification régulière, sous 12 minutes environ.",
+      "secretEndingTitle": "Le secret client {provider} expire le {date}",
+      "secretEndingBody": "Créez un nouveau secret client et collez-le dans le guide de configuration avant cette date, sinon toutes les connexions {provider} s’arrêteront. Personne n’aura à se reconnecter."
     }
   }
 } as const;

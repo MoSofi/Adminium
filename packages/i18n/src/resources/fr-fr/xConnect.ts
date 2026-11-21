@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * GENERATED MIRROR of ../../../locales/fr-FR/xConnect.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle;
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "sentBy": "Envoyé par {name} de {business}. Vous n’avez pas besoin de compte pour cela.",
+  "yourAccount": "agenda",
+  "titleReconnect": "Reconnectez votre agenda à {business}",
+  "title": "Connectez votre agenda à {business}",
+  "titleReconnectBy": "{sender} vous demande de reconnecter votre agenda à {business}",
+  "titleBy": "{sender} vous demande de connecter votre agenda à {business}",
+  "hi": "Bonjour {name},",
+  "willHeading": "Ce que cela fait et ne fait pas",
+  "will1": "Vos réservations {business} apparaissent dans un agenda appelé {business} de votre compte {account}, et sont déplacées ou retirées quand une réservation change.",
+  "will2": "Quand vous êtes occupé dans votre propre agenda, on ne peut pas vous réserver. L’accueil voit un bloc gris « Occupé », jamais ce que c’est.",
+  "will3": "Seul « occupé » est lu, jamais le nom d’un événement.",
+  "button": "Se connecter avec {provider}",
+  "signInOne": "{provider} vous demande de vous connecter sur sa propre page. {business} ne voit jamais votre mot de passe.",
+  "signInMany": "{providers} vous demande de vous connecter sur sa propre page. {business} ne voit jamais votre mot de passe.",
+  "or": " ou ",
+  "worksOnce": "Ce lien fonctionne une fois, pendant 7 jours.",
+  "linkFor": "Ce lien est destiné à {address} et fonctionne une fois, pendant 7 jours.",
+  "theProvider": "le fournisseur",
+  "whoSent": "la personne qui l’a envoyé",
+  "tryAgain": "Réessayer",
+  "nothingTitle": "Rien n’a été connecté",
+  "doneTitle": "C’est fait : vos réservations {business} apparaîtront dans un agenda appelé {business}.",
+  "doneClose": "Vous pouvez fermer cette page.",
+  "doneAs": "Connecté en tant que {address}. Vous pouvez fermer cette page.",
+  "doneDiffers": "Ce n’est pas l’adresse que {business} a pour vous, {business} en a donc été informé. Si ce n’est pas le bon compte, demandez un nouveau lien à {who}.",
+  "doneLater": "Pour vous déconnecter plus tard, demandez à {who}, ou retirez l’accès de {business} dans votre compte {provider}.",
+  "deniedBody": "Vous n’avez pas autorisé l’accès sur la page de {provider} : votre agenda est inchangé et {business} ne peut pas le voir.",
+  "partialTitle": "Une case n’a pas été cochée",
+  "partialBody": "{business} a besoin de toutes les cases de la page de {provider}, sinon des réservations ou des heures occupées manqueraient sans prévenir. Rien n’a été connecté.",
+  "differentTitle": "C’est un autre compte",
+  "differentBody": "Ce lien reconnecte le compte utilisé auparavant. Connectez-vous avec celui-ci ou demandez un nouveau lien à {who}.",
+  "otherTitle": "Vous êtes déjà connecté autrement",
+  "otherBody": "Un agenda est déjà connecté pour vous. Demandez d’abord à {who} de le déconnecter.",
+  "adminTitle": "Votre administrateur Microsoft 365 doit d’abord approuver cette application",
+  "adminBody": "Votre organisation ne permet pas d’approuver soi-même l’accès à l’agenda. Rien n’a été connecté.",
+  "adminWhat": "Demandez à votre administrateur d’ouvrir Microsoft Entra, d’aller dans App registrations → cette application → API permissions et d’appuyer sur « Grant admin consent ». Puis rouvrez ce lien.",
+  "setupTitle": "Ce n’est pas encore possible",
+  "setupBody": "{business} doit encore terminer la configuration. Tout va bien de votre côté, vous n’avez rien à faire. Demandez à {who} de vérifier la configuration.",
+  "theBusiness": "L’entreprise",
+  "cannotTitle": "Impossible de connecter ici",
+  "cannotBody": "Cette adresse n’est pas accessible depuis Internet, {provider} ne peut donc pas vous y renvoyer.",
+  "deadTitle": "Ce lien ne fonctionne plus",
+  "deadBody": "Il a peut-être déjà servi ou date de plus de 7 jours. Rien n’a été modifié. Demandez-en un nouveau à la personne qui l’a envoyé.",
+  "nothingBody": "Cette connexion n’a pas pu aboutir, votre agenda est inchangé. Réessayez depuis cette page."
+} as const;

@@ -40,13 +40,18 @@ async function start(): Promise<void> {
   const i18n = await initXWords(locale);
   const container = document.getElementById('x-root');
   if (container === null) return;
-  // A chat's window and a landing page are chunks of their own: a form's page never loads either.
+  // A chat's window, a landing page and the connect page are chunks of their own: a form's page never loads any.
   const page =
     route.kind === 'chat'
       ? await import('./chat/ChatApp.js').then(({ ChatApp }) => <ChatApp route={route} />)
       : route.kind === 'page'
         ? await import('./pages/LandingApp.js').then(({ LandingApp }) => <LandingApp route={route} />)
-        : <XApp route={route} />;
+        : route.kind === 'connect'
+          ? await import('./connect/ConnectApp.js').then(async ({ ConnectApp, addConnectWords }) => {
+              await addConnectWords(i18n, language.tag);
+              return <ConnectApp />;
+            })
+          : <XApp route={route} />;
   createRoot(container).render(
     <StrictMode>
       <I18nProvider i18n={i18n}>{page}</I18nProvider>

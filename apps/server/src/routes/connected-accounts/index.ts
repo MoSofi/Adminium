@@ -20,7 +20,7 @@
  * The app registration (client id and secret) and install-level accounts are
  * `manifests.manage`, like every other add-on connection.
  */
-import { auditRepo, manifestsRepo, type CredentialCrypto, type MetaDb } from '@adminium/meta';
+import { appModulesOf, auditRepo, manifestsRepo, type ConnectedAccount, type CredentialCrypto, type MetaDb } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -52,6 +52,16 @@ const registrationBody = z
     clientSecret: z.string().min(1).max(4096).optional(),
     /** The provider's directory, for a registration kept to one. Null clears it. */
     tenant: z.string().regex(OAUTH_TENANT).nullable().optional(),
+    /** The day the secret ends, if the studio wrote it down. Left out: kept, unless the secret changed. */
+    secretEndsOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  })
+  .strict();
+
+const checkBody = z
+  .object({
+    /** `pair`: a made-up code at the token endpoint. `app`: the app's own sign-in, on a named directory. */
+    grant: z.enum(['pair', 'app']),
+    scope: z.string().regex(/^https:\/\/[a-z0-9.-]+\/\.default$/).optional(),
   })
   .strict();
 
@@ -90,7 +100,24 @@ const installReply = z.object({
   /** `secret-refused`: the provider refused the app. `cannot-read-keys`: sealed under another server secret. */
   install: z.enum(['ready', 'not-set-up', 'secret-refused', 'cannot-read-keys']),
   accounts: z.number(),
+  secretEndsOn: z.string().nullable(),
 });
+
+/** One person who may connect through this add-on, for its page. */
+const personDto = z.object({
+  connection: z.string(),
+  table: z.string(),
+  row: z.string(),
+  name: z.string().nullable(),
+  address: z.string().nullable(),
+  account: accountDto.nullable(),
+  lastSyncedAt: z.number().nullable(),
+  /** Connected through another calendar add-on, so not offered a link here. */
+  elsewhere: z.boolean(),
+});
+
+/** The most people one add-on page lists. */
+const PEOPLE_MAX = 200;
 
 export interface ConnectedAccountRoutesDeps {
   meta: MetaDb;
@@ -98,6 +125,8 @@ export interface ConnectedAccountRoutesDeps {
   accounts: ConnectedAccounts;
   /** The row as this person reaches it, under their row limits, with its canonical key; null when they do not. */
   reachedRow(request: FastifyRequest, connectionId: string, table: string, row: string, action: 'read' | 'update'): Promise<{ rowKey: string } | null>;
+  /** When an account's calendar was last read. */
+  lastSyncedOf?(accountId: string): Promise<number | null>;
 }
 
 function personId(request: FastifyRequest): string {
@@ -105,6 +134,19 @@ function personId(request: FastifyRequest): string {
   const id = request.user?.id;
   if (id === undefined) throw new UnauthorizedError();
   return id;
+}
+
+function accountOut(account: ConnectedAccount, refused: boolean, named: { key: string; name: string } | undefined, onFile: string | null): z.infer<typeof accountDto> {
+  return {
+    id: account.id,
+    provider: named?.key ?? '',
+    providerName: named?.name ?? '',
+    state: account.state === 'disconnecting' ? account.state : refused ? 'setup' : account.hasTokens ? account.state : 'reconnect',
+    since: account.stateSince,
+    address: account.address,
+    addressDiffers: onFile !== null && account.address !== null && account.address.toLowerCase() !== onFile,
+    grantEndsAt: account.refreshExpiresAt,
+  };
 }
 
 function asRefusal(error: unknown): never {
@@ -159,18 +201,7 @@ export function connectedAccountRoutes(deps: ConnectedAccountRoutesDeps): Fastif
       const list = [];
       for (const account of await accounts.repo.forTarget(target)) {
         const refused = (await accounts.repo.refusedOf(account.manifestId)) !== null;
-        const state: z.infer<typeof accountDto>['state'] = account.state === 'disconnecting' ? account.state : refused ? 'setup' : account.hasTokens ? account.state : 'reconnect';
-        const named = names.get(account.manifestId);
-        list.push({
-          id: account.id,
-          provider: named?.key ?? '',
-          providerName: named?.name ?? '',
-          state,
-          since: account.stateSince,
-          address: account.address,
-          addressDiffers: onFile !== null && account.address !== null && account.address.toLowerCase() !== onFile,
-          grantEndsAt: account.refreshExpiresAt,
-        });
+        list.push(accountOut(account, refused, names.get(account.manifestId), onFile));
       }
       const canUpdate = (await request.can(`table:${input.connection}:${input.table}:update`)) && (await deps.reachedRow(request, input.connection, input.table, input.row, 'update')) !== null;
       const [connect, sendLink, disconnect] = await Promise.all([holds(request, table, 'connect'), holds(request, table, 'send-link'), holds(request, table, 'disconnect')]);
@@ -274,7 +305,74 @@ export function connectedAccountRoutes(deps: ConnectedAccountRoutesDeps): Fastif
           reach: await accounts.reachNow(forwardedOf(request)),
           install: status === null ? ('not-set-up' as const) : !keys ? ('cannot-read-keys' as const) : refused !== null ? ('secret-refused' as const) : ('ready' as const),
           accounts: (await accounts.repo.forInstall(installed.row.id)).length,
+          secretEndsOn: registration?.secretEndsOn ?? null,
         };
+      },
+    );
+
+    /**
+     * Everyone who may connect through this add-on, as this person reaches
+     * them. It serves the add-on's page, so a row out of their reach is left out.
+     */
+    app.get(
+      '/add-ons/:key/connect/people',
+      { preHandler: app.rbac.require(PERMISSIONS.manifestsManage), schema: { params: addOnKey, response: { 200: z.object({ people: z.array(personDto), more: z.boolean() }) } } },
+      async (request) => {
+        personId(request);
+        const { installed, spec } = await installOf(request, request.params.key);
+        const appKeys = installed.attachments.map((attachment) => attachment.attachedTo).filter((key) => key !== '*');
+        const apps = await appModulesOf(meta, appKeys.length > 0 ? appKeys : undefined);
+        const own = installed.row.connectionId;
+        const connections = own != null ? [own] : [...new Set(apps.flatMap((one) => (one.connectionId === null ? [] : [one.connectionId])))];
+        const refused = (await accounts.repo.refusedOf(installed.row.id)) !== null;
+        const named = { key: spec.key, name: parseAddOn(installed.document)?.name ?? spec.key };
+        const people: z.infer<typeof personDto>[] = [];
+        let more = false;
+        for (const connection of connections) {
+          for (const { id: table, table: rule } of await accounts.tablesFrom(connection, spec.key)) {
+            if (!(await request.can(`table:${connection}:${table}:read`))) continue;
+            const rows = await accounts.listRows(connection, table, PEOPLE_MAX + 1);
+            if (rows.length > PEOPLE_MAX) more = true;
+            for (const { rowKey, row } of rows.slice(0, PEOPLE_MAX)) {
+              if (people.length >= PEOPLE_MAX) {
+                more = true;
+                break;
+              }
+              if (!accounts.rowIsLive(row, rule.rule) || (await deps.reachedRow(request, connection, table, rowKey, 'read')) === null) continue;
+              const person = accounts.personOf(row, rule.rule);
+              const held = await accounts.repo.forTarget({ connectionId: connection, tableName: table, rowKey });
+              const mine = held.find((account) => account.manifestId === installed.row.id);
+              people.push({
+                connection,
+                table,
+                row: rowKey,
+                name: person.name,
+                address: person.address,
+                account: mine === undefined ? null : accountOut(mine, refused, named, person.address?.toLowerCase() ?? null),
+                lastSyncedAt: mine === undefined ? null : ((await deps.lastSyncedOf?.(mine.id)) ?? null),
+                elsewhere: held.some((account) => account.manifestId !== installed.row.id),
+              });
+            }
+          }
+        }
+        return { people, more };
+      },
+    );
+
+    /** "Check my setup": what the provider says of the saved ID and secret. Never its words. */
+    app.post(
+      '/add-ons/:key/connect/check',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        config: { rateLimitBucket: 'connect-check', audit: audited('rbac') },
+        schema: { params: addOnKey, body: checkBody, response: { 200: z.object({ result: z.enum(['accepted', 'refused', 'expired', 'not-set-up', 'unknown', 'unreachable']) }) } },
+      },
+      async (request) => {
+        personId(request);
+        const { installed, spec } = await installOf(request, request.params.key);
+        const result = await accounts.checkApp(installed.row.id, request.body);
+        await record(request, 'add-on.app-checked', { key: spec.key, grant: request.body.grant, result });
+        return { result };
       },
     );
 
@@ -283,14 +381,13 @@ export function connectedAccountRoutes(deps: ConnectedAccountRoutesDeps): Fastif
       { preHandler: app.rbac.require(PERMISSIONS.manifestsManage), config: { audit: audited('rbac') }, schema: { params: addOnKey, body: registrationBody, response: { 200: z.object({ key: z.string(), redirectPath: z.string() }) } } },
       async (request) => {
         const { installed, spec } = await installOf(request, request.params.key);
-        const { clientId, clientSecret, tenant } = request.body;
-        let secret = clientSecret;
-        let keptTenant: string | null = null;
-        if (secret === undefined || tenant === undefined) {
-          const held = await accounts.installOf(installed.row.id);
-          secret ??= held?.registration?.clientSecret;
-          keptTenant = held?.registration?.tenant ?? null;
-        }
+        const { clientId, clientSecret, tenant, secretEndsOn } = request.body;
+        const before = (await accounts.installOf(installed.row.id))?.registration ?? null;
+        const secret = clientSecret ?? before?.clientSecret;
+        const keptTenant = before?.tenant ?? null;
+        // A new secret has its own end date: the old one's must not warn about it.
+        const secretChanged = clientSecret !== undefined && clientSecret !== before?.clientSecret;
+        const endsOn = secretEndsOn !== undefined ? secretEndsOn : secretChanged ? null : (before?.secretEndsOn ?? null);
         if (secret === undefined) throw new ValidationFailedError('Enter the client secret.', { reason: 'no-secret' });
         const redirectUri = await accounts.redirectUri(spec.key);
         const next: AppRegistration = {
@@ -300,6 +397,8 @@ export function connectedAccountRoutes(deps: ConnectedAccountRoutesDeps): Fastif
           tenant: tenant === undefined ? keptTenant : tenant,
           // Saved with the address it was registered for, so a later move of the public address can say so.
           redirectOrigin: redirectUri === null ? null : new URL(redirectUri).origin,
+          secretEndsOn: endsOn,
+          secretToldFor: endsOn !== null && endsOn === before?.secretEndsOn && !secretChanged ? (before.secretToldFor ?? null) : null,
         };
         await manifests.setCredential(installed.row.id, { kind: 'oauth2', secret: next });
         // A new secret is a new answer: the provider is asked again at the next refresh.

@@ -44,7 +44,9 @@
       "remadeTitle": "Der Kalender {calendar} wurde neu angelegt",
       "remadeBody": "Er wurde aus dem Konto von {person} gelöscht und daher mit den kommenden Buchungen neu angelegt.",
       "silentTitle": "Änderungen aus dem Kalender von {person} kommen verspätet an",
-      "silentBody": "Die sofortigen Aktualisierungen haben aufgehört. Änderungen kommen jetzt mit der regelmäßigen Prüfung, innerhalb von etwa 12 Minuten."
+      "silentBody": "Die sofortigen Aktualisierungen haben aufgehört. Änderungen kommen jetzt mit der regelmäßigen Prüfung, innerhalb von etwa 12 Minuten.",
+      "secretEndingTitle": "Das Client-Secret von {provider} endet am {date}",
+      "secretEndingBody": "Erstellen Sie vor diesem Tag ein neues Client-Secret und fügen Sie es in die Einrichtungsanleitung ein, sonst stoppt jede Verbindung zu {provider}. Niemand muss sich neu verbinden."
     }
   }
 }

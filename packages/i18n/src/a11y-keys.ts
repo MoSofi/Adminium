@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3845 entries. */
+/** `namespace:key` — 3858 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -3858,6 +3858,19 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'xChat:send',
   'xChat:with',
   'xChat:withNew',
+  'xConnect:adminTitle',
+  'xConnect:cannotTitle',
+  'xConnect:deadTitle',
+  'xConnect:differentTitle',
+  'xConnect:doneTitle',
+  'xConnect:nothingTitle',
+  'xConnect:otherTitle',
+  'xConnect:partialTitle',
+  'xConnect:setupTitle',
+  'xConnect:title',
+  'xConnect:titleBy',
+  'xConnect:titleReconnect',
+  'xConnect:titleReconnectBy',
 ]);
 
 /** Is blanking this key forbidden? `namespace` + dotted `key`. */

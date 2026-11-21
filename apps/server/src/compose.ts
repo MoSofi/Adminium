@@ -2177,6 +2177,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         const view = await factsViewFor(meta, connectionId);
         return view === null ? null : tableIdOrNull(view.model, real);
       },
+      list: async (connectionId, tableId, limit) => {
+        const view = await factsViewFor(meta, connectionId);
+        if (view === null || !view.model.tables.some((one) => one.id === tableId)) return [];
+        const table = view.table(tableId);
+        if (table.primaryKey.length !== 1) return [];
+        const { db } = await manager.data(connectionId);
+        const rows = (await db.selectFrom(table.id).selectAll().orderBy(db.dynamic.ref(table.primaryKey[0]!)).limit(limit).execute()) as Record<string, unknown>[];
+        return rows.map((row) => ({ rowKey: rowKeyOf(table, row), row }));
+      },
     },
     publicOrigin: () => storedPublicOrigin(meta),
     reach: async (forwarded) =>
@@ -2793,6 +2802,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           meta,
           crypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
           accounts: connectedAccounts,
+          lastSyncedOf: (accountId) => calendarSync.lastSyncedOf(accountId),
           reachedRow: async (request, connectionId, tableId, row, action) => {
             const view = await factsViewFor(meta, connectionId);
             if (view === null || !view.model.tables.some((one) => one.id === tableId)) return null;

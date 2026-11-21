@@ -1470,6 +1470,8 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
     daily,
     receiveHook,
     stateOfRow,
+    /** When this account's calendar was last read, for the add-on's page. */
+    lastSyncedOf: async (accountId: string): Promise<number | null> => (await repo.state(accountId))?.lastSyncedAt ?? null,
     busyOfRow,
     setChoices,
     syncNow,

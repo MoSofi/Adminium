@@ -37,6 +37,8 @@ export const NAMESPACES = [
   'mailDoor',
   'x',
   'xChat',
+  // The connect page's words: its own chunk, so a form's page never carries them.
+  'xConnect',
 ] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
@@ -219,6 +221,8 @@ export const DEFERRED_NAMESPACES = [
    * form's page, whose first load carries `x`, never carries the chat's words.
    */
   'xChat',
+  // The connect page's words: its own chunk, so a form's page never carries them.
+  'xConnect',
 ] as const;
 export type DeferredNamespace = (typeof DEFERRED_NAMESPACES)[number];
 

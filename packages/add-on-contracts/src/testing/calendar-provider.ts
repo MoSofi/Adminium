@@ -50,6 +50,11 @@ export interface CalendarConformanceOptions {
   mainCalendar: string;
   /** Words a provider's busy answer must never hold. */
   forbiddenWords?: readonly string[];
+  /**
+   * `false`: this service's permissions cannot name a person's calendars, so a
+   * calendar whose id was lost cannot be found again and a new one is made.
+   */
+  findsLostCalendar?: boolean;
 }
 
 function answered<T>(call: CalendarCall, answer: CalendarAnswer<T>): T {
@@ -107,7 +112,7 @@ export function calendarProviderConformance(options: CalendarConformanceOptions)
       const again = answered('ensureCalendar', await make().ensureCalendar({ name: 'Conformance renamed', knownId: first.calendarId }));
       expect(again.calendarId).toBe(first.calendarId);
       const lost = answered('ensureCalendar', await make().ensureCalendar({ name: 'Conformance renamed', knownId: null }));
-      expect(lost.calendarId).toBe(first.calendarId);
+      if (options.findsLostCalendar !== false) expect(lost.calendarId).toBe(first.calendarId);
     });
 
     it('the same key gives the same event', async () => {

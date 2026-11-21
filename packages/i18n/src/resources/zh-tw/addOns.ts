@@ -54,7 +54,9 @@ export default {
       "remadeTitle": "已重新建立行事曆 {calendar}",
       "remadeBody": "該行事曆已從 {person} 的帳戶中刪除，因此已連同即將到來的預約重新建立。",
       "silentTitle": "{person} 行事曆的變更延遲到達",
-      "silentBody": "即時更新已停止，變更將隨定期檢查到達，大約在 12 分鐘內。"
+      "silentBody": "即時更新已停止，變更將隨定期檢查到達，大約在 12 分鐘內。",
+      "secretEndingTitle": "{provider} 用戶端密碼將於 {date} 到期",
+      "secretEndingBody": "請在此日期前建立新的用戶端密碼並貼到設定指南中，否則所有 {provider} 連線都會停止。不需要任何人重新連結。"
     }
   }
 } as const;

@@ -9,8 +9,10 @@
  * studio's expired secret read as six people's problem, a token in a log.
  */
 import {
+  auditRepo,
   connectedAccountsRepo,
   manifestsRepo,
+  notificationsRepo,
   permissionsRepo,
   rolesRepo,
   settingsRepo,
@@ -135,7 +137,7 @@ interface Grant {
 function fakeProvider() {
   const codes = new Map<string, Grant>();
   const calls: { url: string; form: URLSearchParams; headers: Headers }[] = [];
-  const state = { tokenStatus: 200, tokenError: null as string | null, apiStatus: [] as number[], counter: 0, delayMs: 0 };
+  const state = { tokenStatus: 200, tokenError: null as string | null, tokenCodes: null as number[] | null, apiStatus: [] as number[], counter: 0, delayMs: 0 };
   const fetchImpl = (async (input: unknown, init?: RequestInit) => {
     const url = String(input);
     const form = new URLSearchParams(typeof init?.body === 'string' ? init.body : '');
@@ -144,12 +146,13 @@ function fakeProvider() {
     if (url.endsWith('/revoke')) return json({});
     if (url.startsWith('https://api.cal.example/')) return json({ ok: true }, state.apiStatus.shift() ?? 200);
     if (state.delayMs > 0) await new Promise((resolve) => setTimeout(resolve, state.delayMs));
-    if (state.tokenError !== null) return json({ error: state.tokenError, error_description: `leaked ${form.get('client_secret') ?? ''}` }, state.tokenStatus);
+    if (state.tokenError !== null) return json({ error: state.tokenError, error_description: `leaked ${form.get('client_secret') ?? ''}`, ...(state.tokenCodes === null ? {} : { error_codes: state.tokenCodes }) }, state.tokenStatus);
     if (state.tokenStatus !== 200) return json({}, state.tokenStatus);
     state.counter += 1;
     if (form.get('grant_type') === 'refresh_token') {
       return json({ access_token: `at-refreshed-${String(state.counter)}`, expires_in: 3600, scope: 'openid email cal.read cal.write' });
     }
+    if (form.get('grant_type') === 'client_credentials') return json({ access_token: 'at-app', expires_in: 3600 });
     const grant = codes.get(form.get('code') ?? '');
     if (grant === undefined) return json({ error: 'invalid_grant' }, 400);
     return json({
@@ -234,6 +237,7 @@ for (const [dialect, reachable] of LEGS) {
             return rows[0];
           },
           tableId: (_connection, name) => Promise.resolve(name === h.real('team') ? table : null),
+          list: () => Promise.resolve([]),
         },
         publicOrigin: () => Promise.resolve(ORIGIN),
         reach: () => Promise.resolve(reachability({ networkFeatures: true, desktop: false, trustProxy: false, forwarded: false, publicOrigin: ORIGIN })),
@@ -289,6 +293,7 @@ for (const [dialect, reachable] of LEGS) {
     beforeEach(() => {
       provider.state.tokenStatus = 200;
       provider.state.tokenError = null;
+      provider.state.tokenCodes = null;
       provider.state.apiStatus = [];
       provider.state.delayMs = 0;
     });
@@ -723,7 +728,7 @@ for (const [dialect, reachable] of LEGS) {
         crypto: addOnCredentialCryptoFromSecret(TEST_SECRET),
         secret: TEST_SECRET,
         httpFor: () => provider.fetchImpl as never,
-        rows: { read: () => Promise.reject(new Error('the database is away')), tableId: (_connection, name) => Promise.resolve(name === h.real('team') ? table : null) },
+        rows: { read: () => Promise.reject(new Error('the database is away')), tableId: (_connection, name) => Promise.resolve(name === h.real('team') ? table : null) , list: () => Promise.resolve([]) },
         publicOrigin: () => Promise.resolve(ORIGIN),
         reach: () => Promise.resolve(reachability({ networkFeatures: true, desktop: false, trustProxy: false, forwarded: false, publicOrigin: ORIGIN })),
       });
@@ -735,7 +740,7 @@ for (const [dialect, reachable] of LEGS) {
         crypto: addOnCredentialCryptoFromSecret(TEST_SECRET),
         secret: TEST_SECRET,
         httpFor: () => provider.fetchImpl as never,
-        rows: { read: () => Promise.reject(new Error('not in the snapshot')), tableId: () => Promise.resolve(null) },
+        rows: { read: () => Promise.reject(new Error('not in the snapshot')), tableId: () => Promise.resolve(null) , list: () => Promise.resolve([]) },
         publicOrigin: () => Promise.resolve(ORIGIN),
         reach: () => Promise.resolve(reachability({ networkFeatures: true, desktop: false, trustProxy: false, forwarded: false, publicOrigin: ORIGIN })),
       });
@@ -852,6 +857,145 @@ for (const [dialect, reachable] of LEGS) {
       expect(ended.statusCode, ended.body).toBe(200);
       expect(await repo().forInstall(install.row.id)).toEqual([]);
       await manifests.uninstall(install.row.id);
+    });
+
+    // ─── The add-on's page ─────────────────────────────────────────────────
+
+    const check = (who: string, payload: Record<string, unknown>) => app.inject({ method: 'POST', url: `/api/v1/add-ons/${KEY}/connect/check`, headers: { cookie: cookies[who]! }, payload, remoteAddress: `10.9.0.${String(++checkCalls)}` });
+    let checkCalls = 0;
+    const putApp = (payload: Record<string, unknown>) => app.inject({ method: 'PUT', url: `/api/v1/add-ons/${KEY}/connect/app`, headers: { cookie: cookies['admin']! }, payload });
+    const day = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+
+    it('"Check my setup" reads only the provider\'s word, and never echoes it', async () => {
+      provider.calls.length = 0;
+      const good = await check('admin', { grant: 'pair' });
+      expect(good.statusCode, good.body).toBe(200);
+      expect(good.json()).toEqual({ result: 'accepted' });
+      const sent = tokenCalls(provider).at(-1)!.form;
+      expect(sent.get('grant_type')).toBe('authorization_code');
+      expect(sent.get('code')).toBe('adminium-setup-check');
+      expect(sent.get('client_id')).toBe('client-1');
+
+      provider.state.tokenStatus = 401;
+      provider.state.tokenError = 'invalid_client';
+      const refused = await check('admin', { grant: 'pair' });
+      expect(refused.json()).toEqual({ result: 'refused' });
+      expect(refused.body).not.toContain('client-secret-1');
+      expect(refused.body).not.toContain('leaked');
+
+      provider.state.tokenCodes = [7000222];
+      expect((await check('admin', { grant: 'pair' })).json()).toEqual({ result: 'expired' });
+
+      provider.state.tokenCodes = null;
+      provider.state.tokenError = null;
+      provider.state.tokenStatus = 500;
+      expect((await check('admin', { grant: 'pair' })).json()).toEqual({ result: 'unreachable' });
+    });
+
+    it('an app\'s own sign-in is asked only on a named directory', async () => {
+      provider.calls.length = 0;
+      expect((await check('admin', { grant: 'app', scope: 'https://api.cal.example/.default' })).json()).toEqual({ result: 'unknown' });
+      expect(tokenCalls(provider)).toEqual([]);
+      expect((await putApp({ clientId: 'client-1', tenant: 'contoso.example' })).statusCode).toBe(200);
+      expect((await check('admin', { grant: 'app', scope: 'https://api.cal.example/.default' })).json()).toEqual({ result: 'accepted' });
+      const call = tokenCalls(provider).at(-1)!;
+      expect(call.url).toContain('/contoso.example/token');
+      expect(call.form.get('grant_type')).toBe('client_credentials');
+      expect((await putApp({ clientId: 'client-1', tenant: null })).statusCode).toBe(200);
+      const wrong = await check('admin', { grant: 'app', scope: 'https://evil.example/not-default' });
+      expect(wrong.statusCode).toBe(422);
+    });
+
+    it('lets only whoever manages add-ons check the setup or list the people', async () => {
+      for (const who of ['owner', 'desk', 'elin']) {
+        expect((await check(who, { grant: 'pair' })).statusCode, who).toBe(403);
+        expect((await staff(who, 'GET', `/add-ons/${KEY}/connect/people`)).statusCode, who).toBe(403);
+      }
+    });
+
+    it('keeps the secret out of every reply and audit row of a check, and counts each person\'s presses', async () => {
+      provider.state.tokenStatus = 401;
+      provider.state.tokenError = 'invalid_client';
+      const replies: string[] = [];
+      let limited = false;
+      for (let press = 0; press < 12 && !limited; press += 1) {
+        const reply = await check('admin', { grant: 'pair' });
+        replies.push(reply.body);
+        limited = reply.statusCode === 429;
+      }
+      expect(limited).toBe(true);
+      for (const body of replies) {
+        expect(body).not.toContain('client-secret');
+        expect(body).not.toContain('leaked');
+      }
+      const audit = await auditRepo(h.meta).list({ limit: 200 });
+      const rows = JSON.stringify(audit);
+      expect(rows).toContain('add-on.app-checked');
+      expect(rows).not.toContain('client-secret');
+      expect(rows).not.toContain('leaked');
+    });
+
+    it('lists only the people a reader\'s own row access allows, with no token in the reply', async () => {
+      const specialist = (await rolesRepo(h.meta).findBySlug('studio-specialist'))!;
+      await permissionsRepo(h.meta).grant(specialist.id, 'system', 'manifests.manage', { allowed: true });
+      try {
+        const reply = await staff('elin', 'GET', `/add-ons/${KEY}/connect/people`);
+        expect(reply.statusCode, reply.body).toBe(200);
+        const seen = (reply.json() as { people: { row: string }[] }).people.map((one) => one.row);
+        expect(seen).toEqual([rowOf['elin']]);
+        for (const word of ['client-secret', 'rt-', 'at-sub', 'refreshToken', 'accessToken']) expect(reply.body).not.toContain(word);
+      } finally {
+        await permissionsRepo(h.meta).revoke(specialist.id, 'system', 'manifests.manage');
+      }
+      expect((await staff('elin', 'GET', `/add-ons/${KEY}/connect/people`)).statusCode).toBe(403);
+    });
+
+    it('lists the people who may connect, with their state, and leaves out a row that is off', async () => {
+      await h.rows(`UPDATE ${real} SET active = ${dialect === 'postgres' ? 'FALSE' : '0'} WHERE name = 'off'`);
+      const reply = await staff('admin', 'GET', `/add-ons/${KEY}/connect/people`);
+      expect(reply.statusCode, reply.body).toBe(200);
+      const { people: listed } = reply.json() as { people: { row: string; name: string; address: string; account: { state: string; provider: string } | null; elsewhere: boolean }[] };
+      const names = listed.map((one) => one.name);
+      expect(names).toContain('june');
+      expect(names).not.toContain('off');
+      expect(listed.find((one) => one.name === 'june')).toMatchObject({ address: 'june@studio.dev', account: null, elsewhere: false, row: rowOf['june'] });
+      const noor = listed.find((one) => one.name === 'noor');
+      if (noor?.account != null) expect(noor.account.provider).toBe(KEY);
+      expect(reply.body).not.toContain('rt-');
+      await h.rows(`UPDATE ${real} SET active = ${dialect === 'postgres' ? 'TRUE' : '1'} WHERE name = 'off'`);
+    });
+
+    it('tells the link\'s holder who sent it and who it is for', async () => {
+      const token = await linkFor('june');
+      const opened = (await door('open', { token })).json() as Record<string, unknown>;
+      expect(opened).toMatchObject({ person: 'june', address: 'june@studio.dev', sentBy: 'owner' });
+      expect('contact' in opened).toBe(true);
+    });
+
+    it('keeps the secret\'s end date, drops it with the secret, and warns once, 30 days ahead', async () => {
+      await connectAs('ivy', { subject: 'sub-ivy-secret', email: 'ivy@studio.dev' });
+      const inbox = async () => (await notificationsRepo(h.meta).listForUser(people['admin']!.id)).filter((one) => one.kind === 'accounts.secret-ending');
+      const before = (await inbox()).length;
+
+      expect((await putApp({ clientId: 'client-1', secretEndsOn: day(90) })).statusCode).toBe(200);
+      expect((await staff('admin', 'GET', `/add-ons/${KEY}/connect/accounts`)).json()).toMatchObject({ secretEndsOn: day(90) });
+      await engine().sweep();
+      expect((await inbox()).length).toBe(before);
+
+      expect((await putApp({ clientId: 'client-1', secretEndsOn: day(10) })).statusCode).toBe(200);
+      await engine().sweep();
+      await engine().sweep();
+      const told = await inbox();
+      expect(told.length).toBe(before + 1);
+      expect(told[0]!.title).toContain(day(10));
+
+      // The same date saved again is not news; a new secret has no date until one is given.
+      expect((await putApp({ clientId: 'client-1', secretEndsOn: day(10) })).statusCode).toBe(200);
+      await engine().sweep();
+      expect((await inbox()).length).toBe(before + 1);
+      expect((await putApp({ clientId: 'client-1', clientSecret: 'client-secret-1b' })).statusCode).toBe(200);
+      expect((await staff('admin', 'GET', `/add-ons/${KEY}/connect/accounts`)).json()).toMatchObject({ secretEndsOn: null });
+      expect((await putApp({ clientId: 'client-1', clientSecret: 'client-secret-1' })).statusCode).toBe(200);
     });
 
     it('OUT-11: an install cannot lose its registration while people are connected through it', async () => {

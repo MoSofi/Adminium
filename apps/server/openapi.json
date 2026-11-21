@@ -123424,6 +123424,12 @@
                     },
                     "accounts": {
                       "type": "number"
+                    },
+                    "secretEndsOn": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -123436,7 +123442,228 @@
                     "redirectMoved",
                     "reach",
                     "install",
-                    "accounts"
+                    "accounts",
+                    "secretEndsOn"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/connect/people": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "people": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "connection": {
+                            "type": "string"
+                          },
+                          "table": {
+                            "type": "string"
+                          },
+                          "row": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "address": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "account": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "provider": {
+                                    "type": "string"
+                                  },
+                                  "providerName": {
+                                    "type": "string"
+                                  },
+                                  "state": {
+                                    "type": "string",
+                                    "enum": [
+                                      "connecting",
+                                      "connected",
+                                      "partial",
+                                      "reconnect",
+                                      "disconnecting",
+                                      "setup"
+                                    ]
+                                  },
+                                  "since": {
+                                    "type": "number"
+                                  },
+                                  "address": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "addressDiffers": {
+                                    "type": "boolean"
+                                  },
+                                  "grantEndsAt": {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "provider",
+                                  "providerName",
+                                  "state",
+                                  "since",
+                                  "address",
+                                  "addressDiffers",
+                                  "grantEndsAt"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "lastSyncedAt": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "elsewhere": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "connection",
+                          "table",
+                          "row",
+                          "name",
+                          "address",
+                          "account",
+                          "lastSyncedAt",
+                          "elsewhere"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "more": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "people",
+                    "more"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/connect/check": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "grant": {
+                    "type": "string",
+                    "enum": [
+                      "pair",
+                      "app"
+                    ]
+                  },
+                  "scope": {
+                    "type": "string",
+                    "pattern": "^https:\\/\\/[a-z0-9.-]+\\/\\.default$"
+                  }
+                },
+                "required": [
+                  "grant"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "string",
+                      "enum": [
+                        "accepted",
+                        "refused",
+                        "expired",
+                        "not-set-up",
+                        "unknown",
+                        "unreachable"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "result"
                   ],
                   "additionalProperties": false
                 }
@@ -123470,6 +123697,17 @@
                       {
                         "type": "string",
                         "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,126}[A-Za-z0-9])?$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "secretEndsOn": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                       },
                       {
                         "type": "null"
@@ -137728,7 +137966,8 @@
                 "payments",
                 "mailDoor",
                 "x",
-                "xChat"
+                "xChat",
+                "xConnect"
               ]
             },
             "in": "path",
@@ -137870,7 +138109,8 @@
                 "payments",
                 "mailDoor",
                 "x",
-                "xChat"
+                "xChat",
+                "xConnect"
               ]
             },
             "in": "query",
@@ -138071,7 +138311,8 @@
                       "payments",
                       "mailDoor",
                       "x",
-                      "xChat"
+                      "xChat",
+                      "xConnect"
                     ]
                   },
                   "key": {
@@ -138220,7 +138461,8 @@
                 "payments",
                 "mailDoor",
                 "x",
-                "xChat"
+                "xChat",
+                "xConnect"
               ]
             },
             "in": "query",
@@ -138373,7 +138615,8 @@
                             "payments",
                             "mailDoor",
                             "x",
-                            "xChat"
+                            "xChat",
+                            "xConnect"
                           ]
                         },
                         "key": {

@@ -54,7 +54,9 @@ export default {
       "remadeTitle": "The {calendar} calendar was made again",
       "remadeBody": "It was deleted from {person}’s account, so it was made again with their coming bookings.",
       "silentTitle": "Changes from {person}’s calendar are arriving late",
-      "silentBody": "Its instant updates have stopped, so changes arrive with the regular check, within about 12 minutes."
+      "silentBody": "Its instant updates have stopped, so changes arrive with the regular check, within about 12 minutes.",
+      "secretEndingTitle": "The {provider} client secret ends on {date}",
+      "secretEndingBody": "Make a new client secret and paste it into the setup guide before that day, or every {provider} connection stops. Nobody needs to reconnect."
     }
   }
 } as const;

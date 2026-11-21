@@ -44,7 +44,9 @@
       "remadeTitle": "已重新创建日历 {calendar}",
       "remadeBody": "该日历已从 {person} 的账户中删除，因此已连同即将到来的预约重新创建。",
       "silentTitle": "{person} 日历的更改到达延迟",
-      "silentBody": "即时更新已停止，更改将随定期检查到达，大约在 12 分钟内。"
+      "silentBody": "即时更新已停止，更改将随定期检查到达，大约在 12 分钟内。",
+      "secretEndingTitle": "{provider} 客户端密钥将于 {date} 到期",
+      "secretEndingBody": "请在此日期前创建新的客户端密钥并粘贴到设置指南中，否则所有 {provider} 连接都会停止。无需任何人重新连接。"
     }
   }
 }

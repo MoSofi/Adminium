@@ -1,0 +1,154 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* The connect page: `Calendars and Embeds`, part 3, on the /x/ shell's tokens. */
+
+.x-connect {
+  max-width: 520px;
+  gap: 18px;
+}
+
+.x-connect-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.x-connect-hi {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-muted);
+}
+
+.x-connect-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.28;
+  text-wrap: balance;
+}
+
+.x-connect-title:focus {
+  outline: none;
+}
+
+.x-connect-title:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.x-connect-card {
+  padding: 18px;
+  gap: 12px;
+}
+
+.x-connect-eyebrow {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+}
+
+.x-connect-lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.x-connect-lines li {
+  display: flex;
+  gap: 10px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.x-connect-mark {
+  display: flex;
+  flex-shrink: 0;
+  margin-block-start: 2px;
+  color: var(--fg-muted);
+}
+
+.x-connect-mark[data-tone='pos'] {
+  color: var(--pos);
+}
+
+.x-connect-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.x-connect-buttons .x-button {
+  min-height: 50px;
+  border-radius: 12px;
+  font-size: 14.5px;
+  font-weight: 800;
+}
+
+.x-connect-note,
+.x-connect-fine {
+  margin: 0;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.x-connect-note {
+  font-size: 12.5px;
+  color: var(--fg-muted);
+}
+
+.x-connect-fine {
+  font-size: 12px;
+  color: var(--fg-subtle);
+  overflow-wrap: anywhere;
+}
+
+.x-connect-ending {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.x-connect-tile {
+  width: 52px;
+  height: 52px;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tone-bg);
+  color: var(--tone);
+}
+
+.x-connect-body {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--fg-muted);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+.x-connect-action {
+  width: auto;
+  min-height: 44px;
+  padding-inline: 16px;
+}
+
+.x-connect-sent {
+  margin: 0 auto;
+  max-width: 520px;
+  padding: 0 16px 12px;
+  font-size: 11.5px;
+  color: var(--fg-subtle);
+  text-align: center;
+}

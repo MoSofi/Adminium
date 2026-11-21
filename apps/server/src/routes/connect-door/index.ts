@@ -139,7 +139,7 @@ export function connectDoorRoutes(deps: ConnectDoorDeps): FastifyPluginAsync {
       if (!sameSite(request) || !(await open(request))) return unavailable(reply);
       const opened = await accounts.open(request.body.token);
       if (opened === null) return unavailable(reply);
-      return { business: opened.business, person: opened.person, purpose: opened.link.purpose, providers: opened.providers };
+      return { business: opened.business, contact: opened.contact, person: opened.person, address: opened.address, sentBy: opened.sentBy, purpose: opened.link.purpose, providers: opened.providers };
     });
 
     app.post('/x/connect/api/start', { config: { rateLimitBucket: 'connect-door', csrf: 'exempt', audit }, schema: { hide: true, body: startBody } }, async (request, reply) => {

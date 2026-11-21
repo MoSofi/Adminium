@@ -203,7 +203,8 @@ export type HookNoticeKind = (typeof HOOK_NOTICE_KINDS)[number];
  */
 export const hookAnswerSchema = z
   .object({
-    handshake: z.string().min(1).max(512).regex(/^[\x21-\x7e]+$/).nullable(),
+    // Printable text with spaces, as Microsoft's opaque token may hold, and none of the characters markup needs.
+    handshake: z.string().min(1).max(512).regex(/^[ !#-%(-;=?-_a-~]+$/).nullable(),
     notices: z
       .array(
         z

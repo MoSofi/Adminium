@@ -18,7 +18,7 @@ import { ACCOUNT_CONNECTED_TEMPLATE_KEY, CONNECT_LINK_TEMPLATE_KEY, enqueueEmail
 import { recipientLocale, translatorFor } from '../i18n/server-i18n.js';
 import { notify, type NotificationPublisher } from '../notifications/notify.js';
 
-export const ACCOUNT_NOTICE_KINDS = ['accounts.connected', 'accounts.setup-refused', 'calendar.clash', 'calendar.stale-dropped', 'calendar.removed', 'calendar.remade', 'calendar.push-silent'] as const;
+export const ACCOUNT_NOTICE_KINDS = ['accounts.connected', 'accounts.setup-refused', 'accounts.secret-ending', 'calendar.clash', 'calendar.stale-dropped', 'calendar.removed', 'calendar.remade', 'calendar.push-silent'] as const;
 export type AccountNoticeKind = (typeof ACCOUNT_NOTICE_KINDS)[number];
 
 export interface AccountNoticeDeps {
@@ -93,6 +93,14 @@ export function tellClientRefused(deps: AccountNoticeDeps, input: { appKey: stri
     title: { key: 'refusedTitle', fallback: '{provider} refused this server’s app' },
     body: { key: 'refusedBody', fallback: 'Check the client ID and secret saved for {provider}. Nobody needs to reconnect: connections resume once the app is accepted.' },
     values: { provider: input.provider },
+  });
+}
+
+export function tellSecretEnding(deps: AccountNoticeDeps, input: { appKey: string | null; provider: string; date: string }): Promise<void> {
+  return tellAccountManagers(deps, input.appKey, 'accounts.secret-ending', {
+    title: { key: 'secretEndingTitle', fallback: 'The {provider} client secret ends on {date}' },
+    body: { key: 'secretEndingBody', fallback: 'Make a new client secret and paste it into the setup guide before that day, or every {provider} connection stops. Nobody needs to reconnect.' },
+    values: { provider: input.provider, date: input.date },
   });
 }
 

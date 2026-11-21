@@ -77,13 +77,25 @@ export interface AppRegistration extends Record<string, unknown> {
   tenant: string | null;
   /** The public address the redirect was given for: when it moves, the provider needs the new one. */
   redirectOrigin: string | null;
+  /** The day the client secret ends, when the studio wrote it down (`YYYY-MM-DD`). */
+  secretEndsOn: string | null;
+  /** The end date the managers were last told about, so they are told once. */
+  secretToldFor: string | null;
 }
 
 export function registrationOf(held: { kind: string; secret: Record<string, unknown> } | null): AppRegistration | null {
   if (held === null || held.kind !== 'oauth2' || held.secret['oauthApp'] !== 1) return null;
-  const { clientId, clientSecret, tenant, redirectOrigin } = held.secret;
+  const { clientId, clientSecret, tenant, redirectOrigin, secretEndsOn, secretToldFor } = held.secret;
   if (typeof clientId !== 'string' || typeof clientSecret !== 'string') return null;
-  return { oauthApp: 1, clientId, clientSecret, tenant: typeof tenant === 'string' ? tenant : null, redirectOrigin: typeof redirectOrigin === 'string' ? redirectOrigin : null };
+  return {
+    oauthApp: 1,
+    clientId,
+    clientSecret,
+    tenant: typeof tenant === 'string' ? tenant : null,
+    redirectOrigin: typeof redirectOrigin === 'string' ? redirectOrigin : null,
+    secretEndsOn: typeof secretEndsOn === 'string' ? secretEndsOn : null,
+    secretToldFor: typeof secretToldFor === 'string' ? secretToldFor : null,
+  };
 }
 
 /** The two addresses for this registration, with its directory in the slot, each on a host the manifest declares. */

@@ -44,7 +44,9 @@
       "remadeTitle": "Kalenderen {calendar} blev oprettet igen",
       "remadeBody": "Den blev slettet fra {person}s konto, så den blev oprettet igen med de kommende bookinger.",
       "silentTitle": "Ændringer fra {person}s kalender kommer forsinket",
-      "silentBody": "De øjeblikkelige opdateringer er stoppet, så ændringer kommer med den faste kontrol, inden for cirka 12 minutter."
+      "silentBody": "De øjeblikkelige opdateringer er stoppet, så ændringer kommer med den faste kontrol, inden for cirka 12 minutter.",
+      "secretEndingTitle": "Klienthemmeligheden til {provider} udløber den {date}",
+      "secretEndingBody": "Lav en ny klienthemmelighed, og indsæt den i opsætningsguiden før den dag, ellers stopper alle forbindelser til {provider}. Ingen behøver at forbinde igen."
     }
   }
 }
