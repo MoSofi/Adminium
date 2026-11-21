@@ -401,6 +401,8 @@ export async function loadPerson(
       .where(sql.ref(customer.link), '=', link as never)
       .where(sql.ref(adjust.key), '<>', order[adjust.key] as never);
     if (customer.counts !== undefined) query = query.where(sql.ref(customer.counts.column), 'in', customer.counts.in as never);
+    // Only orders they proved they placed: a guest's order typed in their address is somebody else's, and spends none of their "first order".
+    query = query.where(sql<boolean>`${sql.ref(customer.proved)} = ${sql.lit(true)}`);
     facts.orders = Number(((await query.executeTakeFirst()) as { n?: unknown } | undefined)?.n ?? 0);
   }
   return facts;

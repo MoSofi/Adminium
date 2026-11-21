@@ -276,6 +276,8 @@ describe.each(LEGS)('what a price question asks about — %s', (dialect, availab
     for (const status of ['placed', 'paid', 'cancelled']) await w.insert('market_orders', { status, customer_id: ada, customer_proved: true });
     const tomas = await w.insert('market_customers', { name: 'Tomas', email: 'tomas@example.com' });
     await w.insert('market_orders', { status: 'placed', customer_id: tomas, customer_proved: true });
+    // A guest's paid order typed in her address: not hers to have spent her first order on.
+    await w.insert('market_orders', { status: 'paid', customer_id: ada, customer_proved: false });
 
     const stored = (await loadOrder(w.db, w.table('market_orders'), adjust, order))!;
     const facts = await loadPerson(w.db, w.view(), adjust, w.adjuster(), stored, { orderTable: w.table('market_orders'), keyOf: key });
