@@ -206,6 +206,12 @@ describe.each(LEGS)('emails that list rows — %s', (dialect, available) => {
       });
       return (await h.rows(`SELECT language, status FROM ${h.real('messages')} WHERE order_id = ${String(made['id'])} AND kind = 'order'`))[0];
     };
+    // The venue's own mail about an order placed in German is the venue's: written in the workspace's language.
+    await h.rows(`INSERT INTO ${h.real('settings')} (id, email) VALUES (1, 'desk@waveform.dev')`);
+    const german = await place('WV-8817', 'de-DE');
+    expect(german).toMatchObject({ language: 'de-DE', status: 'queued' });
+    const staff = await h.rows(`SELECT language, to_address, status FROM ${h.real('messages')} WHERE kind = 'staff' ORDER BY id DESC`);
+    expect(staff[0]).toMatchObject({ language: null, to_address: 'desk@waveform.dev', status: 'queued' });
     // This outbox reads its language from the order alone: without one, the message is written in the workspace's.
     expect(await place('WV-8818', 'xx')).toMatchObject({ language: null, status: 'queued' });
     expect(await place('WV-8819', 'de, en;q=0.5')).toMatchObject({ language: null, status: 'queued' });

@@ -15,7 +15,7 @@ const text = (ref: string, maxLength = 120, more: Record<string, unknown> = {}) 
 const fk = (ref: string, references: string) => ({ ref, type: 'fk', references, nullable: true });
 const money = (ref: string) => ({ ref, type: 'decimal', scale: 2, nullable: true, semantic: 'money' });
 
-export const KINDS = ['e1', 'order', 'stay', 'list', 'leak', 'receipt', 'override', 'link'] as const;
+export const KINDS = ['e1', 'order', 'stay', 'list', 'leak', 'receipt', 'override', 'link', 'staff'] as const;
 
 const TICKET_ROWS = {
   link: 'order',
@@ -48,6 +48,8 @@ export function eventsManifest(): Record<string, unknown> {
   return {
     ...invoicingManifest([
       { ref: 'customers', columns: [id, { ref: 'email', type: 'text', maxLength: 254, unique: true }, text('name'), text('language', 16)] },
+      // The venue's own address: where its staff mail goes.
+      { ref: 'settings', columns: [id, text('email', 254)] },
       { ref: 'ticket_types', columns: [id, text('name', 60), money('price')] },
       {
         ref: 'orders',
@@ -118,6 +120,8 @@ export function eventsManifest(): Record<string, unknown> {
       producers: [
         { kind: 'receipt', link: 'order_id', gate: { feature: 'receipts' }, onChange: { table: 'orders', column: 'paid_method', to: ['card', 'cash'] } },
         { kind: 'order', link: 'order_id', onCreate: { table: 'orders' } },
+        // The venue told of an order, at its own address: written in the workspace's language, never the order's.
+        { kind: 'staff', link: 'order_id', recipient: { setting: { table: 'settings', column: 'email' } }, onCreate: { table: 'orders' } },
       ],
     },
     emailTemplates: [
@@ -140,6 +144,7 @@ export function eventsManifest(): Record<string, unknown> {
       ]),
       template('leak', 'Holders', [{ block: 'email.rows', data: { from: TICKET_ROWS, row: { title: '{{row.holder_email}}' } } }]),
       template('receipt', 'Receipt {{order.ref}}', [{ block: 'email.text', data: { text: 'Paid.' } }]),
+      template('staff', 'New order {{order.ref}}', [{ block: 'email.text', data: { text: 'A new order.' } }]),
       template('override', 'Tickets', [e1Rows]),
       template('link', 'Your links', [{ block: 'email.rows', data: { from: TICKET_ROWS, row: { title: '{{row.holder_name}}', meta: '{{row.link_token}}', note: 'Read out: {{row.link_token.grouped}}', image: '{{row.link_token.qr}}' } } }]),
     ],

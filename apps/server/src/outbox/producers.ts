@@ -593,8 +593,10 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       const rehearsing = rehearser === null ? null : ((await usersRepo(deps.meta).findById(rehearser))?.email ?? null);
       values[cols.to] = rehearser === null ? addressed.address : rehearsing;
       // The row the message is about may say its language (an order placed in German): it wins over the person's.
+      // A message to an address a setting holds is the business's own (a new order told to the shop): it is written in
+      // the workspace's language, never in the language of the customer whose row it is about.
       const width = cols.language === undefined ? null : (outbox.table.columns.find((column) => column.name === cols.language)?.maxLength ?? null);
-      const language = producedLanguage(box.definition, producer, about.row, width) ?? addressed.language;
+      const language = addressed.bySetting ? null : (producedLanguage(box.definition, producer, about.row, width) ?? addressed.language);
       if (cols.language !== undefined && language !== null) values[cols.language] = language;
       // A held message waits for a person whatever its address: it is looked up again when approved.
       values[cols.status] = producer.hold === true ? 'held' : addressed.address !== null ? 'queued' : 'skipped';
