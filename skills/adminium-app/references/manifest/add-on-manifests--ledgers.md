@@ -75,6 +75,37 @@ One row a phase, written by Adminium: `id`, `source_table` and `line_table` (tex
 (a date and time) and `held_until` (a date and time that may be empty). Adminium makes its unique
 key and its indexes itself.
 
+
+#### An add-on's own page in a sandbox (`addOn.framedPage`)
+
+Some services can only be used by loading their script in the visitor's browser. Such a script must
+never run in an app's page, which holds a guest's session and whose policy allows its own host alone.
+The add-on names one script of its package, and the outside hosts that page may reach:
+
+```json
+"framedPage": {
+  "script": "dist/frame.js",
+  "title": "Google reviews",
+  "evalScripts": true,
+  "hosts": { "script": ["https://maps.googleapis.com"], "connect": ["https://*.googleapis.com"] }
+}
+```
+
+Adminium serves it at `/x/add-on-frame/<key>`, and its script at `…/frame.js`, while the add-on is
+attached to an installed app and switched on there; otherwise both are a 404. The page's own policy:
+
+- **sandboxes it however it is opened** (`allow-scripts allow-popups allow-popups-to-escape-sandbox`),
+  so it has no origin, none of the app's storage and no reach into the page around it;
+- allows its one script and the listed `https` hosts, by directive (`script`, `style`, `img`, `font`,
+  `connect`, `frame`). A host is a name with at most one leading `*.`, and `evalScripts` adds
+  `'unsafe-eval'` and `blob:` workers inside the sandbox only;
+- lets only this host and the listed websites frame it;
+- has no origin of its own, so **a browser sends no `Referer` from it**. A service that checks a key
+  against the page's address may refuse it.
+
+The app's own pages keep their policy. The app makes the frame with the same `sandbox` attribute, and
+speaks to it by `postMessage`, checking `event.source`.
+
 #### Code that decides
 
 The add-on's package provides the contract `posting-rows`, version 1, as one self-contained

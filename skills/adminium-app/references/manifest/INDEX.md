@@ -32,7 +32,7 @@
 | `references/manifest/requiredschema--moments.md` | requiredSchema — Moments | 2748 |
 | `references/manifest/requiredschema--capacity.md` | requiredSchema — Capacity | 7647 |
 | `references/manifest/requiredschema--capacity-2.md` | requiredSchema — Capacity (part 2) | 5558 |
-| `references/manifest/requiredschema--booking.md` | requiredSchema — Booking | 7101 |
+| `references/manifest/requiredschema--booking.md` | requiredSchema — Booking | 7410 |
 | `references/manifest/requiredschema--booking-2.md` | requiredSchema — Booking (part 2) | 2165 |
 | `references/manifest/requiredschema--a-resource-and-a-time.md` | requiredSchema — A resource and a time | 5609 |
 | `references/manifest/requiredschema--states.md` | requiredSchema — States | 7604 |

@@ -53,6 +53,36 @@ A table anyone may add to through an entry is never one anyone may read through 
 same key: ready-made designs a shop offers live in a table of their own, apart from the designs
 shoppers save.
 
+
+#### The rows a signed-in customer holds (`heldBy`)
+
+An add-on keeps some rows for a person by their address, never by a key of the app's table: a pack,
+a gift card. `claimedBy` cannot reach those. `heldBy` is a read of exactly the rows held in the
+address the session **proved by reading mail**:
+
+```json
+{ "table": "vouchers", "methods": ["GET"], "level": "verified",
+  "heldBy": { "address": "holder_email" },
+  "select": ["id", "public_name", "uses_left", "expires_on", "code_last4"] }
+```
+
+The entry is an add-on's, on the app's `customer` key, `GET` only, at level `verified`, with a
+`select`. Its column keeps an address in one spelling (`normalize: "email"`). A session that only
+found the person, a row's own link, and no session at all are answered as an unknown ref. The address
+is what chooses the rows, compared byte for byte on every engine, and is not shown unless the entry
+selects it. `from` names a date column: a row dated for a later day is not listed before that day.
+Needs 0.3.71.
+
+**Spending what you hold, with no code in the browser.** A read like this shows only a code's last
+characters. The holder names a row instead, by typing `held:<key>` where a code goes:
+
+- on a price rule's codes, when the add-on's `adjuster.vouchers.held` names the voucher's holder
+  column. Only a row with a holder is found, and the add-on holds it to the proved customer;
+- on a `lookup` that names `held`, the address column of the codes table. The row is found only when
+  that column holds the address this session proved.
+
+Every miss is the answer an unknown code gets. Both need 0.3.71.
+
 #### A shopper's own link
 
 The add-on's link key may open a row as the row's own link (`"own": true`): a link mailed only to
@@ -76,29 +106,3 @@ The create through each app's key answers the new row's own link once (`shareLin
 the add-on's key name, and a session already open on the row through that key, so the page that
 saved the design changes it with no claim. The mailed link opens the same row from any device
 (`POST /api/v1/public/claim/token`).
-
-A change through the link writes only the columns its entry names, and only while the row holds
-one of the values `writableWhen` lists for a column: every such entry names one (an ordered design
-is the order's, never the shopper's to change). The column an entry holds to its app
-(`appColumn`), the link's own code, its end, its stop and the address it is mailed to are never
-written through it, and an `enum` it may set lists its values (`writableValues`). The link makes
-no row (`POST`), reaches no row but its own, and a column it does not name is refused `400`. The
-human check and a change's `limits` work as on an app's entries. Needs Adminium 0.3.43.
-
-The same entry may also remove its row (`"methods": ["GET", "PATCH", "DELETE"]`): a shopper deletes
-their own saved draft (`DELETE /api/v1/public/records/<ref>/<id>`, with the link's session). It is
-held to the same `writableWhen` states (an ordered design answers `404`, as a design that is not
-there), asks no reason, and reaches no row but its own. The row's files go to the bin as a staff
-delete sends them, and a message about it lets go of it (a mailed link stays in the log as sent).
-Only an add-on's own link removes a row: `DELETE` on any other entry is refused. Needs Adminium
-0.3.43.
-
-#### A row read by its code, by whoever the app signed in
-
-An add-on's entry on each app's key may be read by a session of that app's own sign-in alone
-(`level`), and then opens one row by its own code (`unlockBy` with `self`), never a list:
-
-```json
-{ "table": "designs", "methods": ["GET"], "select": ["id", "values", "state"], "appColumn": "app",
-  "level": "lookup", "unlockBy": { "header": true, "column": "code", "self": true, "length": 16 } }
-```
