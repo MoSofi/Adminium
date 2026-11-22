@@ -415,9 +415,11 @@ export async function resetPasswordHandler(
     throw invalidCredentials('Invalid or expired reset token.');
   }
 
-  await users.updatePassword(user.id, await hashPassword(body.newPassword), now);
-  // Invite-activation path: first password set activates the account.
-  if (user.status === 'invited') await users.updateStatus(user.id, 'active', now);
+  const passwordHash = await hashPassword(body.newPassword);
+  // Invite-activation path: first password set activates the account, unless it was stopped while that was hashed.
+  if (user.status === 'invited') {
+    if (!(await users.activateInvited(user.id, passwordHash, now))) throw invalidCredentials('Invalid or expired reset token.');
+  } else await users.updatePassword(user.id, passwordHash, now);
   // Credential change revokes every existing session.
   await sessionsRepo(ctx.meta).revokeAllForUser(user.id, now);
   await auditAuth(ctx.meta, request, {

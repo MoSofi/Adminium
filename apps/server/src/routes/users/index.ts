@@ -23,6 +23,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { FastifyRequest } from 'fastify';
 import {
   emailChangesRepo,
+  passwordResetsRepo,
   rolesRepo,
   sessionsRepo,
   settingsRepo,
@@ -114,6 +115,23 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
       const held = trx.selectFrom('adminium_users').select('id').where('id', '=', user.id);
       await (meta.dialect === 'sqlite' ? held : held.forUpdate()).execute();
       const keys = await revokeAccountKeys(inTransaction, user.id, at);
+      // What they could still use or hand on: their own reset links, invitations they issued, and connect links they made.
+      const resets = passwordResetsRepo(inTransaction);
+      await resets.retireFor([user.id], at);
+      const invited = await trx
+        .selectFrom('adminium_user_roles as granted')
+        .innerJoin('adminium_users as person', 'person.id', 'granted.userId')
+        .select('person.id')
+        .where('granted.grantedBy', '=', user.id)
+        .where('person.status', '=', 'invited')
+        .execute();
+      await resets.retireFor([...new Set(invited.map((person) => person.id))], at, 'invite');
+      const links = await trx.selectFrom('adminium_connect_links').select('id').where('createdBy', '=', user.id).execute();
+      if (links.length > 0) {
+        const ids = links.map((link) => link.id);
+        await trx.deleteFrom('adminium_oauth_flows').where('linkId', 'in', ids).execute();
+        await trx.deleteFrom('adminium_connect_links').where('id', 'in', ids).execute();
+      }
       if (how === 'delete') await trx.deleteFrom('adminium_users').where('id', '=', user.id).execute();
       else {
         await usersRepo(inTransaction).updateStatus(user.id, 'suspended', at);
@@ -489,7 +507,11 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
       if (patch.email !== undefined) await emailChangesRepo(meta).clear(user.id);
       // A suspended user must stop being logged in immediately, on what is already open and with their API keys too.
       if (status === 'suspended') await stopAccount(request, user, 'suspend', now);
-      else if (status !== null) await users.updateStatus(user.id, status, now);
+      else if (status !== null) {
+        await users.updateStatus(user.id, status, now);
+        // A sign-in that raced the stop wrote its session after the stop's sweep: it stays dead when the account comes back.
+        if (status === 'active') await sessionsRepo(meta).revokeAllForUser(user.id, now);
+      }
 
       const updated = await mustFindUser(user.id);
       await app.rbac.audit(request, {
