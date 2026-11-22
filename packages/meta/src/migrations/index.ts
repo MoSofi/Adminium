@@ -119,6 +119,7 @@ import { up as up0099 } from './0099_source_days.js';
 import { up as up0100 } from './0100_connected_accounts.js';
 import { up as up0101 } from './0101_calendar_feeds.js';
 import { up as up0102 } from './0102_calendar_sync.js';
+import { up as up0103 } from './0103_connect_link_address.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -225,4 +226,5 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0100_connected_accounts', up: up0100 },
   { name: '0101_calendar_feeds', up: up0101 },
   { name: '0102_calendar_sync', up: up0102 },
+  { name: '0103_connect_link_address', up: up0103 },
 ];

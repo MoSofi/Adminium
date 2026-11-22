@@ -71,6 +71,8 @@ export interface ConnectLink extends AccountTarget {
   providers: string[];
   purpose: ConnectPurpose;
   createdBy: string | null;
+  /** A digest of the address on the row when the link was made; null when it had none. */
+  addressDigest: string | null;
   expiresAt: number;
   createdAt: number;
 }
@@ -139,6 +141,7 @@ function linkOf(row: Selectable<AdminiumConnectLinksTable>): ConnectLink {
     providers: readJson<string[]>(row.providers),
     purpose: row.purpose as ConnectPurpose,
     createdBy: row.createdBy,
+    addressDigest: row.addressDigest ?? null,
     expiresAt: Number(row.expiresAt),
     createdAt: Number(row.createdAt),
   };
@@ -402,7 +405,7 @@ export function connectedAccountsRepo(meta: MetaDb, crypto: CredentialCrypto) {
     // ─── Links ──────────────────────────────────────────────────────────────
 
     /** A new link for a target. The target's earlier link, and any sign-in it started, end here. */
-    async mintLink(input: AccountTarget & { providers: string[]; purpose: ConnectPurpose; tokenHash: string; createdBy: string | null; expiresAt: number }, at: number): Promise<ConnectLink> {
+    async mintLink(input: AccountTarget & { providers: string[]; purpose: ConnectPurpose; tokenHash: string; createdBy: string | null; addressDigest?: string | null; expiresAt: number }, at: number): Promise<ConnectLink> {
       const id = newId('clk');
       const write = () => db.transaction().execute(async (trx) => {
         const old = await trx
@@ -428,6 +431,7 @@ export function connectedAccountsRepo(meta: MetaDb, crypto: CredentialCrypto) {
             purpose: input.purpose,
             tokenHash: input.tokenHash,
             createdBy: input.createdBy,
+            addressDigest: input.addressDigest ?? null,
             expiresAt: input.expiresAt,
             createdAt: at,
           })

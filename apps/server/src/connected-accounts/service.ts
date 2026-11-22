@@ -53,6 +53,7 @@ import { AddOnOAuthError, exchangeAuthorizationCode } from '../add-ons/oauth.js'
 import { strangerBusiness } from '../forms/view.js';
 import { installOnConnection } from '../installs/resolve.js';
 import type { Reachability } from '../payments/reachability.js';
+import { addressDigest } from '../reviews/link.js';
 import { mailConnected, mailConnectLink, tellClientRefused, tellConnected, tellSecretEnding, type AccountNoticeDeps } from './notices.js';
 import {
   accountSpecOf,
@@ -339,6 +340,8 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
     createdBy: string | null,
     origin: string,
     manifestIds: readonly string[],
+    /** The address on the row now: the link opens only while the row still holds it. */
+    onFile: string | null,
     deliver?: (url: string, about: string) => Promise<boolean>,
   ): Promise<{ url: string; link: ConnectLink }> {
     const token = randomBytes(32).toString('base64url');
@@ -351,7 +354,7 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
     const held = await repo.forTarget(target);
     const purpose = held.some((account) => manifestIds.includes(account.manifestId)) ? 'reconnect' : 'connect';
     const at = now();
-    const link = await repo.mintLink({ ...target, providers, purpose, tokenHash, createdBy, expiresAt: at + lifetime }, at);
+    const link = await repo.mintLink({ ...target, providers, purpose, tokenHash, createdBy, addressDigest: onFile === null ? null : addressDigest(onFile), expiresAt: at + lifetime }, at);
     return { url, link };
   }
 
@@ -397,6 +400,8 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
     const row = await deps.rows.read(link.connectionId, link.tableName, link.rowKey);
     if (!rowIsLive(row, table.rule)) return null;
     const person = personOf(row, table.rule);
+    // A row that came to hold someone else: an address corrected, or a deleted row's key used again.
+    if (link.addressDigest !== null && (person.address === null || addressDigest(person.address) !== link.addressDigest)) return null;
     const providers: { key: string; name: string; manifestId: string }[] = [];
     for (const key of link.providers) {
       const found = await providerOn(link, table, key);
@@ -612,8 +617,8 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
         const found = await providerOn(target, table, key);
         if (found !== null) ids.push(found.install.row.id);
       }
-      const minted = await mint(target, providers, input.self === true ? SELF_LINK_LIFETIME_MS : LINK_LIFETIME_MS, input.createdBy, origin, ids, input.deliver);
       const person = personOf(row, table.rule);
+      const minted = await mint(target, providers, input.self === true ? SELF_LINK_LIFETIME_MS : LINK_LIFETIME_MS, input.createdBy, origin, ids, person.address, input.deliver);
       return { ...minted, address: person.address, person: person.name };
     },
 
@@ -623,7 +628,7 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
       const held = await installOf(manifestId);
       if (held === null || held.spec.per !== 'install') throw new ConnectRefusedError('NO_PROVIDER', `"${addOnKey}" keeps no install-level account.`);
       if (held.registration === null) throw new ConnectRefusedError('NOT_SET_UP', `"${addOnKey}" has no app registration yet.`);
-      return mint(installTarget(manifestId), [addOnKey], SELF_LINK_LIFETIME_MS, input.createdBy, origin, [manifestId]);
+      return mint(installTarget(manifestId), [addOnKey], SELF_LINK_LIFETIME_MS, input.createdBy, origin, [manifestId], null);
     },
 
     /** Sends a row's link to the row's own address. Never to one typed by whoever asks. */

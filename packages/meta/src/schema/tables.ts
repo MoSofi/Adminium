@@ -1268,6 +1268,8 @@ export interface AdminiumConnectLinksTable {
   purpose: string;
   tokenHash: string;
   createdBy: string | null;
+  /** Wave 0103: a digest of the address on the row when the link was made. */
+  addressDigest: string | null;
   expiresAt: Ts;
   createdAt: Ts;
 }

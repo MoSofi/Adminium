@@ -284,7 +284,7 @@ for (const [dialect, reachable] of LEGS) {
         rowOf[name] = String(rows[0]!['id']);
       };
       await insert('elin', people['elin']!.id);
-      for (const name of ['noor', 'rafa', 'ivy', 'ivy2', 'june', 'june2', 'marco', 'gone', 'off']) await insert(name, null);
+      for (const name of ['noor', 'rafa', 'ivy', 'ivy2', 'june', 'june2', 'wes', 'marco', 'gone', 'off']) await insert(name, null);
       const put = await app.inject({ method: 'PUT', url: `/api/v1/add-ons/${KEY}/connect/app`, headers: { cookie: cookies['admin']! }, payload: { clientId: 'client-1', clientSecret: 'client-secret-1' } });
       expect(put.statusCode, put.body).toBe(200);
     }, 240_000);
@@ -390,6 +390,19 @@ for (const [dialect, reachable] of LEGS) {
       expect(done).toMatchObject({ outcome: 'connected', address: null, addressDiffers: true });
       const read = await staff('owner', 'GET', `/connected-accounts?connection=${h.connectionId}&table=${table}&row=${rowOf['june2']!}`);
       expect(read.json()).toMatchObject({ accounts: [{ address: null, addressDiffers: true }] });
+    });
+
+    it('a link dies when its row comes to hold someone else', async () => {
+      const corrected = await linkFor('wes');
+      await h.rows(`UPDATE ${real} SET email = 'wes.corrected@studio.dev' WHERE id = ${rowOf['wes']!}`);
+      expect((await door('open', { token: corrected })).statusCode).toBe(404);
+      expect((await door('start', { token: corrected, provider: KEY })).statusCode).toBe(404);
+
+      const reused = await linkFor('wes');
+      expect((await door('open', { token: reused })).statusCode).toBe(200);
+      await h.rows(`DELETE FROM ${real} WHERE id = ${rowOf['wes']!}`);
+      await h.rows(`INSERT INTO ${real} (id, name, email, active, user_id) VALUES (${rowOf['wes']!}, 'New Hire', 'new.hire@studio.dev', ${dialect === 'postgres' ? 'TRUE' : '1'}, NULL)`);
+      expect((await door('open', { token: reused })).statusCode).toBe(404);
     });
 
     it('takes a code once', async () => {
