@@ -79,6 +79,8 @@ export interface PermissionMatrixProps
   categoryIcons?: Readonly<Record<string, React.ReactNode>> | undefined;
   /** Disables all editing (viewer role / save in flight). */
   disabled?: boolean | undefined;
+  /** Why this one cell cannot be changed (the person does not hold it), or null when it can. */
+  getCellUnavailable?: ((roleId: string, permissionKey: PermissionGrant) => string | null) | undefined;
 }
 
 const slug = (value: string): string =>
@@ -115,6 +117,7 @@ export function PermissionMatrix({
   rowHeader,
   categoryIcons,
   disabled = false,
+  getCellUnavailable,
   className,
   ...props
 }: PermissionMatrixProps) {
@@ -169,6 +172,11 @@ export function PermissionMatrix({
       getCellState={getCellState}
       isDirty={isDirty}
       disabled={disabled}
+      getUnavailable={
+        getCellUnavailable === undefined
+          ? undefined
+          : (rowId, columnId) => getCellUnavailable(columnId, rowId as PermissionGrant)
+      }
       onToggle={(rowId, columnId, next) => {
         onChange?.({ roleId: columnId, permissionKey: rowId as PermissionGrant, granted: next });
       }}

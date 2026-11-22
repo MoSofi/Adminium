@@ -1867,7 +1867,9 @@ export default {
       }
     },
     "roles": {
-      "unavailable": "Role nejsou pro váš účet viditelné, takže zde žádnou nelze přiřadit."
+      "unavailable": "Role nejsou pro váš účet viditelné, takže zde žádnou nelze přiřadit.",
+      "above": "Role s oprávněními, která nemáte, zde nelze udělit ani odebrat.",
+      "refused": "Můžete udělit jen role, jejichž oprávnění sami máte, a nemůžete odebrat roli, která má víc oprávnění než vy."
     },
     "rolesDialog": {
       "description": "Uživatel dostane sjednocení všech rolí, které má.",

@@ -190,5 +190,12 @@ export default {
   "partsOff": "Its part of the app is switched off: it gives nothing until that part is on.",
   "people": {
     "unnamed": "Unnamed person"
+  },
+  "limits": {
+    "note": "You can give only the permissions you hold yourself. Anything else is shown but cannot be changed.",
+    "notHeld": "You do not hold this permission, so you cannot give it.",
+    "roleAbove": "This role holds permissions you do not, so you cannot change it.",
+    "refused": "You can give only permissions you hold yourself, and cannot change a role that holds more than you do.",
+    "noTargets": "There is no role you can give that these members could move to, so this role cannot be deleted yet."
   }
 } as const;

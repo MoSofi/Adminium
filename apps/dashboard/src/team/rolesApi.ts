@@ -24,7 +24,7 @@
 import { queryOptions } from '@tanstack/react-query';
 import type { PermissionGrant, PermissionMatrixPermission } from '@adminium/ui';
 
-import { api } from '../app/api.js';
+import { ApiError, api } from '../app/api.js';
 
 /** The role whose column is hard-locked: `PUT /roles/:id/permissions` 409s. */
 export const SUPER_ADMIN_SLUG = 'super-admin';
@@ -43,6 +43,25 @@ export interface RoleListItem {
   appKey?: string;
   /** Every part of its app the role belongs to is switched off: it gives nothing now, and is offered to nobody new. */
   partsOff?: true;
+  /** Whether the viewer holds all of it, and so may change, delete, give or take it. The server decides each save. */
+  mayChange?: boolean;
+}
+
+/** What the viewer could give a role: everything, or these grants. */
+export interface RoleGrantable {
+  all: boolean;
+  grants: string[];
+}
+
+/** May the viewer tick this permission on a role? Not known yet reads as yes: the server still decides. */
+export function mayGrant(grantable: RoleGrantable | undefined, key: string): boolean {
+  if (grantable === undefined || grantable.all || grantable.grants.includes(key)) return true;
+  return /^app:[^:]+:staff$/.test(key) && grantable.grants.includes('app:*:staff');
+}
+
+/** The server's refusal of a role or permission above the person asking. */
+export function isRoleRefusal(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 403 && (error.details as { reason?: unknown } | null | undefined)?.reason === 'role-above-you';
 }
 
 /** Row-header grouping (presentation only) — mirrors `permissionCategory`. */
@@ -289,6 +308,13 @@ export function rolesQuery() {
   return queryOptions({
     queryKey: ROLES_QUERY_KEY,
     queryFn: async () => (await api.get<{ roles: RoleListItem[] }>('/api/v1/roles')).roles,
+  });
+}
+
+export function roleGrantableQuery() {
+  return queryOptions({
+    queryKey: ['roles', 'grantable'] as const,
+    queryFn: () => api.get<RoleGrantable>('/api/v1/roles/grantable'),
   });
 }
 

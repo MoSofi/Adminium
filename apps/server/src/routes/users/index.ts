@@ -38,6 +38,7 @@ import { PERMISSIONS } from '../../rbac/permissions.js';
 import { SUPER_ADMIN_SLUG } from '../../rbac/resolver.js';
 import { linkOrigin } from '../../security/public-origin.js';
 import { toUserView } from '../auth/handlers.js';
+import { roleGiving } from '../roles/role-giving.js';
 import { accountKeyAuditEntries, revokeAccountKeys } from './account-keys.js';
 import { INVITE_TOKEN_TTL_MS, mintInvite, type MintedInvite } from './invite.js';
 import { cursorText } from '../../security/nul-bytes.js';
@@ -195,6 +196,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
     }
   }
 
+  const giving = roleGiving(app);
   const guarded = { preHandler: app.rbac.require(PERMISSIONS.usersManage) };
   /** Role assignment is a `roles:manage` power even on a users route. */
   const roleGuarded = {
@@ -254,35 +256,13 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
   }
 
   /**
-   * Minting guard, as `POST /users/:id/roles` carries it: only a session user
-   * who HOLDS super-admin may hand it out, so a `roles:manage` holder cannot
-   * promote itself to allow-all. An API-key principal never qualifies.
-   */
-  async function assertMayMintSuperAdmin(
-    request: FastifyRequest,
-    before: readonly Role[],
-    after: readonly Role[],
-  ): Promise<void> {
-    const held = before.some((role) => role.slug === SUPER_ADMIN_SLUG);
-    const keeps = after.some((role) => role.slug === SUPER_ADMIN_SLUG);
-    if (held || !keeps) return;
-    const actorId = actingUserId(request);
-    const actorIsSuperAdmin =
-      actorId !== null &&
-      (await roles.rolesForUser(actorId)).some((role) => role.slug === SUPER_ADMIN_SLUG);
-    if (!actorIsSuperAdmin) {
-      throw new ForbiddenError('Only a Super Admin can grant the Super Admin role.');
-    }
-  }
-
-  /**
    * A Super Admin's account is changed only by a Super Admin.
    *
    * `users.manage` is the Admin role's key, and without this it let an Admin
    * suspend, delete, re-role or re-invite a Super Admin — and PATCH their email,
    * which hands the password reset for an allow-all account to whoever owns the
    * new address. The last-super-admin guard only stopped the LAST one. This is
-   * the same asymmetry {@link assertMayMintSuperAdmin} encodes for granting the
+   * the same asymmetry `role-giving.ts` holds for giving the
    * role; an API-key principal never qualifies. Refusing is a 403, not the 409
    * the invariants below throw: it is about who is asking, not about state.
    */
@@ -402,7 +382,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
       }
       const granted = await resolveRoles(roleIds);
       // Checked before the row exists — a refused invite leaves nothing behind.
-      await assertMayMintSuperAdmin(request, [], granted);
+      for (const role of granted) await giving.assertMayHandle(request, role);
 
       const now = app.rbac.now();
       // NULL passwordHash + status 'invited': there is no credential to set
@@ -586,7 +566,9 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
       assertNotSample(user);
       const after = await resolveRoles(request.body.roleIds);
       const before = await roles.rolesForUser(user.id);
-      await assertMayMintSuperAdmin(request, before, after);
+      // What this changes, in either direction: a role somebody keeps is not handed out again.
+      const moved = [...after.filter((role) => !before.some((held) => held.id === role.id)), ...before.filter((role) => !after.some((kept) => kept.id === role.id))];
+      for (const role of moved) await giving.assertMayHandle(request, role);
       await assertKeepsLastSuperAdmin(user, before, after);
 
       const now = app.rbac.now();

@@ -180,5 +180,12 @@
   "partsOff": "Sein Teil der App ist ausgeschaltet: Die Rolle gewährt nichts, bis dieser Teil eingeschaltet ist.",
   "people": {
     "unnamed": "Unbenannte Person"
+  },
+  "limits": {
+    "note": "Sie können nur Berechtigungen vergeben, die Sie selbst haben. Alles andere wird angezeigt, lässt sich aber nicht ändern.",
+    "notHeld": "Sie haben diese Berechtigung nicht und können sie daher nicht vergeben.",
+    "roleAbove": "Diese Rolle hat Berechtigungen, die Sie nicht haben, daher können Sie sie nicht ändern.",
+    "refused": "Sie können nur Berechtigungen vergeben, die Sie selbst haben, und keine Rolle ändern, die mehr Berechtigungen hat als Sie.",
+    "noTargets": "Es gibt keine Rolle, die Sie vergeben können und zu der diese Mitglieder wechseln könnten. Diese Rolle kann daher noch nicht gelöscht werden."
   }
 }

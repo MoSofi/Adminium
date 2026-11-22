@@ -182,6 +182,14 @@ for (const [dialect, reachable] of LEGS) {
       // Given the read, the count is theirs to see.
       await permissionsRepo(h.meta).grant(editsRoles.id, 'table', `${h.connectionId}/${tableId('deals')}`, { read: true, create: false, update: false, delete: false, export: false, import: false });
       expect((await ask(rm, { reach: 'own' })).statusCode).toBe(200);
+      // Held to some of its columns or rows, a count under a reach would tell them about the rest.
+      const deals = `${h.connectionId}/${tableId('deals')}`;
+      const reading = { read: true, create: false, update: false, delete: false, export: false, import: false };
+      await permissionsRepo(h.meta).grant(editsRoles.id, 'table', deals, { ...reading, readLimit: { readable: ['id', 'name'] } });
+      expect((await ask(rm, { reach: 'all', while: { column: 'state', in: ['won'] } })).statusCode).toBe(403);
+      await permissionsRepo(h.meta).grant(editsRoles.id, 'table', deals, { ...reading, rowLimit: { read: { reach: 'own' } } });
+      expect((await ask(rm, { reach: 'all', while: { column: 'state', in: ['won'] } })).statusCode).toBe(403);
+      await permissionsRepo(h.meta).grant(editsRoles.id, 'table', deals, reading);
       // Nobody, a Super Admin included, is counted rows by a secret column: the count would tell its values.
       const secret = await ask(cookie, { reach: 'all', while: { column: 'api_token', in: ['abc'] } });
       expect([secret.statusCode, secret.body.includes('hidden-column')]).toEqual([422, true]);

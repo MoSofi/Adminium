@@ -17,7 +17,7 @@
  * somebody with no limit on any table under it. Holding the very role always
  * counts, so those cases are refused only for a role somebody does not have.
  */
-import type { ReadLimit, RolePermission, UpdateLimit } from '@adminium/meta';
+import type { ReadLimit, RolePermission, TableActions, UpdateLimit } from '@adminium/meta';
 
 import { grantMatches, grantsFromMatrixRows, parseGrant, type ParsedGrant } from './permissions.js';
 import { readLimitOf, readLimitOfRow } from './read-limits.js';
@@ -131,14 +131,88 @@ function tableGrantWithin(held: PermissionSet, row: RolePermission, grant: Table
   }
 }
 
+/** A matrix row, stored or about to be. */
+export type GrantRow = Pick<RolePermission, 'resourceKind' | 'resourceRef' | 'actions'>;
+
+const asStored = (row: GrantRow): RolePermission => ({ id: '', roleId: '', ...row });
+
+function holdsGrant(held: PermissionSet, row: RolePermission, grant: string): boolean {
+  if (![...held.grants].some((own) => grantCovers(own, grant))) return false;
+  const parsed = parseGrant(grant);
+  return parsed?.kind !== 'table' || tableGrantWithin(held, row, parsed);
+}
+
+/**
+ * Does this permission set hold everything these rows give, as it stands now?
+ * What to ask of rows that are not a role's yet: a clone, or an edit. Holding
+ * the role they come from says nothing about them.
+ */
+export function holdsRows(held: PermissionSet, rows: readonly GrantRow[]): boolean {
+  if (held.superAdmin) return true;
+  return rows.every((given) => {
+    const row = asStored(given);
+    return grantsFromMatrixRows([row]).every((grant) => holdsGrant(held, row, grant));
+  });
+}
+
 /** Does this permission set already hold everything the role's stored rows give? */
-export function holdsRole(held: PermissionSet, roleId: string, rows: readonly RolePermission[]): boolean {
-  if (held.superAdmin || held.roleIds.includes(roleId)) return true;
-  return rows.every((row) =>
-    grantsFromMatrixRows([row]).every((grant) => {
-      if (![...held.grants].some((own) => grantCovers(own, grant))) return false;
-      const parsed = parseGrant(grant);
-      return parsed?.kind !== 'table' || tableGrantWithin(held, row, parsed);
-    }),
-  );
+export function holdsRole(held: PermissionSet, roleId: string, rows: readonly GrantRow[]): boolean {
+  return held.superAdmin || held.roleIds.includes(roleId) || holdsRows(held, rows);
+}
+
+const TABLE_ROW_ACTIONS = ['read', 'create', 'update', 'delete', 'export', 'import', 'read_pii'] as const;
+type TableRowAction = (typeof TABLE_ROW_ACTIONS)[number];
+
+/** The limits on a row that bear on one action: a read's, on every action, and the action's own. */
+function limitsOn(row: GrantRow, action: TableRowAction): readonly unknown[] {
+  const actions = row.actions as TableActions;
+  const own =
+    action === 'update' ? [actions.updateLimit, actions.rowLimit?.update]
+    : action === 'delete' ? [actions.rowLimit?.delete]
+    : action === 'create' || action === 'import' ? [actions.createLimit]
+    : [];
+  return [actions.readLimit, actions.rowLimit?.read, ...own].filter((limit) => limit !== undefined);
+}
+
+/** Would this save leave a wider grant reaching what a limited row of the role held back? */
+function limitWouldLift(next: readonly GrantRow[], stored: readonly GrantRow[]): boolean {
+  const wider = (other: GrantRow, ref: string): boolean => {
+    const [theirConnection = '', ...theirTable] = other.resourceRef.split('/');
+    const [connection = '', ...table] = ref.split('/');
+    return other.resourceRef !== ref && segmentHeld(theirConnection, connection) && segmentHeld(theirTable.join('/'), table.join('/'));
+  };
+  return stored.some((row) => {
+    if (row.resourceKind !== 'table') return false;
+    const kept = next.find((other) => other.resourceKind === 'table' && other.resourceRef === row.resourceRef);
+    return TABLE_ROW_ACTIONS.some((action) => {
+      if ((row.actions as TableActions)[action] !== true || limitsOn(row, action).length === 0) return false;
+      if (kept !== undefined && (kept.actions as TableActions)[action] === true) return false;
+      return next.some((other) => other.resourceKind === 'table' && (other.actions as TableActions)[action] === true && wider(other, row.resourceRef));
+    });
+  });
+}
+
+/**
+ * May this person save these rows over the role's stored ones, having been
+ * found to hold the role as it is? Asked only of what the save adds or
+ * un-limits: taking a permission off, or leaving a row as it was, needs
+ * nothing more. Unless a limit goes and a wider grant of the role would then
+ * reach what it held back: then every row the role would keep is asked about.
+ */
+export function holdsEdit(held: PermissionSet, next: readonly GrantRow[], stored: readonly GrantRow[]): boolean {
+  if (held.superAdmin) return true;
+  if (limitWouldLift(next, stored)) return holdsRows(held, next);
+  return next.every((given) => {
+    const row = asStored(given);
+    const was = stored.find((other) => other.resourceKind === given.resourceKind && other.resourceRef === given.resourceRef);
+    const had = new Set(was === undefined ? [] : grantsFromMatrixRows([asStored(was)]));
+    return grantsFromMatrixRows([row]).every((grant) => {
+      if (had.has(grant)) {
+        const parsed = parseGrant(grant);
+        if (parsed?.kind !== 'table' || parsed.action === '*') return true;
+        if (canonical(limitsOn(was!, parsed.action)) === canonical(limitsOn(given, parsed.action))) return true;
+      }
+      return holdsGrant(held, row, grant);
+    });
+  });
 }
