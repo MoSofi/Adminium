@@ -12,8 +12,8 @@
  * The audit log says who made each key. A removal for good empties the key's
  * `created_by`, so that entry is what is left to say whose it was.
  *
- * Keys of somebody suspended before this existed are not touched here: they
- * go when that account is deleted, or reactivated and suspended again.
+ * Keys of somebody suspended before this existed are revoked once, by the
+ * upgrade (meta wave 0105).
  */
 import { apiKeysRepo, type ApiKey, type MetaDb, type User } from '@adminium/meta';
 
