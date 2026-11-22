@@ -47,6 +47,8 @@ export interface ShippingQuote extends ShippingSlot {
   carrierKey: string;
   /** The account this was priced under. Null: from before accounts were recorded, so it cannot be bought. */
   accountFingerprint: string | null;
+  /** What was weighed and measured, as stored; the engine parses it. */
+  parcel: unknown;
   detailsHash: string;
   /** As stored; the engine parses it. */
   rates: unknown;
@@ -55,7 +57,7 @@ export interface ShippingQuote extends ShippingSlot {
   expiresAt: number;
 }
 
-export type NewShippingQuote = Omit<ShippingQuote, 'id' | 'createdAt' | 'accountFingerprint'> & { accountFingerprint?: string | null };
+export type NewShippingQuote = Omit<ShippingQuote, 'id' | 'createdAt' | 'accountFingerprint' | 'parcel'> & { accountFingerprint?: string | null; parcel?: unknown };
 
 export type ShippingKeyMode = 'live' | 'test';
 export type ShippingAccountState = 'ok' | 'refused';
@@ -156,7 +158,7 @@ export function shippingRepo(meta: MetaDb) {
       if (input.carrierKey.length === 0 || input.carrierKey.length > SHIPPING_CARRIER_WIDTH) throw new Error('A carrier key is empty or longer than its column.');
       if (input.detailsHash.length !== SHIPPING_HASH_WIDTH) throw new Error('A quote holds a full details hash.');
       if (input.accountFingerprint != null && input.accountFingerprint.length !== SHIPPING_HASH_WIDTH) throw new Error('A quote holds a full account fingerprint.');
-      const quote: ShippingQuote = { ...input, accountFingerprint: input.accountFingerprint ?? null, id: newId('shq'), createdAt: at };
+      const quote: ShippingQuote = { ...input, accountFingerprint: input.accountFingerprint ?? null, parcel: input.parcel ?? null, id: newId('shq'), createdAt: at };
       const write = () =>
         db.transaction().execute(async (trx) => {
           await trx.deleteFrom('adminium_shipping_quotes').where('expiresAt', '<=', at).execute();
@@ -181,6 +183,7 @@ export function shippingRepo(meta: MetaDb) {
               parcelNumber: input.parcelNumber,
               carrierKey: input.carrierKey,
               accountFingerprint: quote.accountFingerprint,
+              parcel: quote.parcel === null ? null : packJson(quote.parcel),
               detailsHash: input.detailsHash,
               rates: packJson(input.rates),
               createdBy: input.createdBy,
@@ -214,12 +217,18 @@ export function shippingRepo(meta: MetaDb) {
         parcelNumber: Number(row.parcelNumber),
         carrierKey: row.carrierKey,
         accountFingerprint: row.accountFingerprint,
+        parcel: readJsonOrNull(row.parcel),
         detailsHash: row.detailsHash,
         rates: readJson(row.rates),
         createdBy: row.createdBy,
         createdAt: Number(row.createdAt),
         expiresAt: Number(row.expiresAt),
       };
+    },
+
+    /** A quote that has been bought from: never bought from twice. */
+    async deleteQuote(id: string): Promise<void> {
+      await db.deleteFrom('adminium_shipping_quotes').where('id', '=', id).execute();
     },
 
     /** Every quote of an install goes: the address they were given from, or the carrier, changed. Answers how many. */
@@ -335,6 +344,21 @@ export function shippingRepo(meta: MetaDb) {
         }
       }
       return false;
+    },
+
+    /** A label that turned out to be paid after its count was given back: counted whatever the limit, because it was bought. */
+    async addDayLabel(installId: string, day: string): Promise<void> {
+      for (let attempt = 1; attempt <= WRITE_ATTEMPTS; attempt += 1) {
+        try {
+          const updated = await db.updateTable('adminium_shipping_day_labels').set((eb) => ({ labels: eb('labels', '+', 1) })).where('installId', '=', installId).where('day', '=', day).executeTakeFirst();
+          if (affected(updated.numUpdatedRows) > 0) return;
+          await db.insertInto('adminium_shipping_day_labels').values({ installId, day, labels: 1 }).execute();
+          return;
+        } catch (error) {
+          if (attempt >= WRITE_ATTEMPTS || !gaveWay(error)) throw error;
+          await new Promise((resolve) => setTimeout(resolve, attempt * 15 + Math.random() * 25));
+        }
+      }
     },
 
     /** A reserved label that was clearly not bought goes back. Never below none. */

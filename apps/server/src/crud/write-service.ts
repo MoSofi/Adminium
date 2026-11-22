@@ -2098,6 +2098,7 @@ export function writtenByAdminium(context: Pick<WriteContext, 'origin' | 'stamps
     case 'undo':
     case 'ledger':
     case 'payment':
+    case 'shipping':
       return true;
     case 'import':
       return context.stamps !== 'left-out';

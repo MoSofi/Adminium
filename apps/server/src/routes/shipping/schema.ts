@@ -7,7 +7,7 @@
  * change it. A bad weight or size is refused, never replaced with a guess.
  */
 import { HANDOVER_KINDS, SHIPMENT_PURPOSES } from '@adminium/add-on-contracts';
-import { SHIPPING_ROW_WIDTH, SHIPPING_TABLE_WIDTH } from '@adminium/meta';
+import { SHIPPING_ID_WIDTH, SHIPPING_ROW_WIDTH, SHIPPING_TABLE_WIDTH } from '@adminium/meta';
 import { z } from 'zod';
 
 import { shipFromBodySchema, shipFromSchema } from '../../shipping/addresses.js';
@@ -136,6 +136,76 @@ const offeredRate = z
     tracked: z.boolean().optional(),
   })
   .strict();
+
+export const bookingIdParams = z.object({ key: z.string().min(1).max(120), id: z.string().min(1).max(64) });
+
+export const bookingQuery = z.object({
+  /** Which install of the app this means, when it is on several databases. */
+  connectionId: z.string().min(1).max(SHIPPING_ID_WIDTH).optional(),
+  table: z.string().min(1).max(SHIPPING_TABLE_WIDTH),
+  id: z.string().min(1).max(SHIPPING_ROW_WIDTH),
+  purpose: z.enum(SHIPMENT_PURPOSES).optional(),
+  parcelNumber: z.coerce.number().int().min(1).max(99).optional(),
+});
+
+/** A purchase names a stored quote and one of its rates. The order, parcel and price are the server's. */
+export const bookBody = z
+  .object({
+    quoteId: z.string().min(1).max(64),
+    rateId: z.string().min(1).max(64),
+    /** Someone who manages shipping saw that an earlier attempt cannot be looked up, and means to buy anyway. */
+    confirmEarlier: z.boolean().optional(),
+  })
+  .strict();
+
+/** What a person declares, in so many words, to free an order whose purchase has no known result. */
+export const releaseBody = z.object({ declaration: z.literal('no-label-exists') }).strict();
+
+const bookingView = z
+  .object({
+    id: z.string(),
+    state: z.enum(['reserved', 'calling', 'booked', 'refused', 'unknown', 'released']),
+    test: z.boolean(),
+    purpose: z.string(),
+    parcelNumber: z.number(),
+    carrier: z.string(),
+    service: z.string(),
+    tracking: z.string().nullable(),
+    carrierName: z.string().nullable(),
+    reason: z.string().nullable(),
+    duplicates: z.number(),
+    createdAt: z.number(),
+    calledAt: z.number().nullable(),
+    checkedAt: z.number().nullable(),
+    releaseAfter: z.number().nullable(),
+    applied: z.boolean(),
+    amount: z.string().optional(),
+    currency: z.string().optional(),
+    chargeDiffers: z.boolean().optional(),
+  })
+  .strict();
+
+export const bookingReply = z.object({ data: bookingView });
+
+export const bookingsReply = z.object({
+  data: z
+    .object({
+      bookings: z.array(bookingView),
+      /** True only on a positive "no booking": anything unsure is false, and says why. */
+      bookable: z.boolean(),
+      blockedBy: z.enum(['booking', 'label-on-order', 'no-carrier']).nullable(),
+    })
+    .strict(),
+});
+
+export const lookUpReply = z.object({
+  data: z
+    .object({
+      outcome: z.enum(['found', 'not-bought', 'no-match', 'no-answer', 'cannot-check', 'other-account', 'other-rate']),
+      booking: bookingView,
+    })
+    .strict(),
+});
 
 /** A rate for someone who cannot see money: no amount, no currency, and listed in no price order. */
 const pricelessRate = offeredRate.omit({ amountDecimal: true, currency: true }).extend({ withinLimit: z.boolean() }).strict();

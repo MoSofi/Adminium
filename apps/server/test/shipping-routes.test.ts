@@ -14,14 +14,16 @@
  *  - a carrier key is checked before it is saved, says test or live from the
  *    carrier's answer, and reaches no reply, log, audit row or plain column;
  *  - booking is a per-person, per-install right inside the owner's limits, and
- *    someone who cannot see money gets no price, no price order and no carrier words.
+ *    someone who cannot see money gets no price, no price order and no carrier words;
+ *  - a label is bought once from a stored quote, by a person, and what follows
+ *    it writes the tracking number once and moves no status.
  */
 import { randomBytes } from 'node:crypto';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { apiKeysRepo, manifestsRepo, permissionsRepo, rolesRepo, settingsRepo, shippingRepo, usersRepo, type ManifestsRepo, type ShippingSlot } from '@adminium/meta';
+import { apiKeysRepo, appTablesRepo, manifestsRepo, permissionsRepo, rolesRepo, settingsRepo, shippingBookingsRepo, shippingRepo, usersRepo, type ManifestsRepo, type ShippingSlot } from '@adminium/meta';
 import pino from 'pino';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -32,11 +34,16 @@ import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import { generateApiKey } from '../src/rbac/api-keys.js';
 import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
+import { collectKnownSecrets } from '../src/apps/save/gates/secrets.js';
 import { readReachedRow } from '../src/crud/row-reached.js';
-import type { PayableSources } from '../src/payments/payables.js';
+import { createWriteService, HookRejectedError } from '../src/crud/write-service.js';
+import { writeStores } from '../src/crud/write-stores.js';
+import { createPayableSources, type PayableSources } from '../src/payments/payables.js';
 import { shippingRoutes } from '../src/routes/shipping/index.js';
 import { orderAddress, shipFromAddress } from '../src/shipping/addresses.js';
 import { accountFingerprintOf, credentialHash } from '../src/shipping/fingerprint.js';
+import { applyBooking, type ApplyDeps } from '../src/shipping/apply.js';
+import { RELEASE_QUIET_MS } from '../src/shipping/bookings.js';
 import { QUOTE_LIFE_MS, readQuoteForBooking } from '../src/shipping/quotes.js';
 import { addOnHarness, addOnManifest, type Dialect, type Harness } from './app-add-ons.helpers.js';
 import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
@@ -55,7 +62,11 @@ const EMAIL = 'ada@quill.example';
 const NAME = 'Ada Quill';
 const SHIP_FROM = { name: 'Marlow Press', lines: ['1 Mill Yard'], city: 'Marlow', postcode: 'SL7 1AA', country: 'GB', phone: '+44 1628 000000' };
 const PARCEL = { weightKg: 1.25, lengthCm: 30, widthCm: 20, heightCm: 10, contents: 'Printed books' };
+const LABEL_ID = 'carrier-label-id-do-not-show';
+const SHIPMENT_ID = 'carrier-shipment-id-do-not-show';
 const RATE = { code: 'evri-48', service: 'Evri 48', amount: 3.1, amountDecimal: '3.10', currency: 'GBP', ref: REF, carrierToken: TOKEN, carrier: 'Evri', handover: 'drop-off', tracked: true };
+
+const SHIPMENT = { id: SHIPMENT_ID, tracking: 'TRK-1001', labelFileId: LABEL_ID, carrier: 'Evri', rate: { code: 'evri-48', service: 'Evri 48', amount: 3.1, amountDecimal: '3.10', currency: 'GBP', ref: REF } };
 
 /** What each made carrier was handed, and what a test makes `quote` do. */
 interface Fake {
@@ -65,6 +76,10 @@ interface Fake {
   /** What `checkCredentials` answers; a test key that sells everywhere unless a test says otherwise. */
   check?: (key: string, credentials: Record<string, string>, query: Doc) => unknown;
   checks: { key: string; query: Doc }[];
+  /** What `book` answers, and every purchase it was asked for. */
+  book?: (key: string) => unknown;
+  books: { key: string; rate: Doc; order: Doc; details: Doc }[];
+  recover?: (key: string, order: Doc) => unknown;
 }
 const globals = globalThis as unknown as { __shippingFake?: Fake };
 const fake = (): Fake => globals.__shippingFake!;
@@ -78,7 +93,11 @@ const serverJs = (key: string) => `export function createShippingCarrier(context
       fake.quotes.push({ key: ${JSON.stringify(key)}, parcel, from, to, options });
       return fake.quote(${JSON.stringify(key)});
     },
-    book: async () => { throw new Error('never in these tests'); },
+    book: async (rate, order, details) => {
+      fake.books.push({ key: ${JSON.stringify(key)}, rate, order, details });
+      return fake.book(${JSON.stringify(key)});
+    },
+    recover: async (order) => fake.recover(${JSON.stringify(key)}, order),
     track: async () => [],
     label: async () => { throw new Error('never in these tests'); },
     cancel: async () => undefined,
@@ -123,6 +142,9 @@ function shopDoc(key: string, shipping: boolean): Record<string, unknown> {
             text('ship_phone', 40),
             text('ship_email'),
             text('ship_company'),
+            text('tracking', 64),
+            text('carrier_name', 80),
+            { ref: 'status', type: 'text', maxLength: 20, nullable: true },
             { ...text('owner_id', 36), rules: { staff: true } },
           ],
           belongs: [{ column: 'owner_id', set: 'team' }],
@@ -151,6 +173,8 @@ function shopDoc(key: string, shipping: boolean): Record<string, unknown> {
               {
                 table: 'orders',
                 reference: 'number',
+                tracking: 'tracking',
+                carrier: 'carrier_name',
                 address: { name: 'ship_name', lines: ['ship_line1', 'ship_line2'], city: 'ship_city', region: 'ship_region', postcode: 'ship_postcode', country: 'ship_country', phone: 'ship_phone', email: 'ship_email', company: 'ship_company' },
               },
             ],
@@ -278,7 +302,7 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
 
   beforeAll(async () => {
     if (!available) return;
-    globals.__shippingFake = { made: [], quotes: [], checks: [] };
+    globals.__shippingFake = { made: [], quotes: [], checks: [], books: [] };
     h = await addOnHarness(dialect, { unbuiltWords: {} });
     conn = h.connectionId;
     repo = manifestsRepo(h.meta, addOnCredentialCryptoFromSecret(TEST_SECRET));
@@ -334,6 +358,7 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
       // Every line the server logs, so a test can say what never reaches one.
       logger: pino({ level: 'trace' }, { write: (line: string) => void logs.push(line) }),
       telemetry: false,
+      shippingQuotesPerMinute: 100_000,
     });
     await composed.app.ready();
     await composed.addOnsLoaded;
@@ -368,6 +393,10 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
     state.made.length = 0;
     state.quotes.length = 0;
     state.checks.length = 0;
+    state.books.length = 0;
+    state.book = () => SHIPMENT;
+    state.recover = () => ({ outcome: 'no-match' });
+    await h.meta.db.deleteFrom('adminium_shipping_bookings').execute();
     state.quote = () => [RATE];
     state.check = () => ({ outcome: 'ok', mode: 'live', carriers: ['Evri', 'DPD'] });
     for (const id of Object.values(installs)) await settings().forgetInstall(id);
@@ -1226,6 +1255,466 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
     installs['gone'] = (await repo.findInScope('gone', conn))!.row.id;
   });
 
+  // ── Buying a label ──────────────────────────────────────────────────────
+
+  const bookings = () => shippingBookingsRepo(h.meta);
+  const quoted = async (id: string, who = 'boss') => {
+    const res = await quote('shop', body(id), who);
+    expect(res.statusCode, res.body).toBe(200);
+    return (res.json() as Doc)['data'] as Doc;
+  };
+  const buy = (q: Doc, who = 'boss', rate = 0) => call(who, 'POST', 'shop/shipping/bookings', { quoteId: q['quoteId'], rateId: q['rates'][rate]['rateId'] });
+  const stand = async (id: string, who = 'boss') => {
+    const res = await composed.app.inject({ method: 'GET', url: `/api/v1/apps/shop/shipping/bookings?connectionId=${encodeURIComponent(conn)}&table=orders&id=${id}`, headers: { cookie: cookies[who]! } });
+    expect(res.statusCode, res.body).toBe(200);
+    return (res.json() as Doc)['data'] as Doc;
+  };
+  const rowOf = async (id: string) => {
+    const { db } = await h.manager.data(conn);
+    return (await db.selectFrom(tables[`${conn}:shop`]! as never).selectAll().where('id' as never, '=', Number(id) as never).executeTakeFirstOrThrow()) as Doc;
+  };
+  const applyDeps = (faults?: ApplyDeps['faults']): ApplyDeps => ({ meta: h.meta, manifests: repo, sources: createPayableSources({ meta: h.meta, manager: h.manager }), writes: createWriteService(writeStores(h.meta)), ...(faults === undefined ? {} : { faults }) });
+  const unclear = () => {
+    throw new Error('socket hang up');
+  };
+
+  it.skipIf(!available)('buys one label from a stored quote, and a second press, a reload and a replay buy nothing', async () => {
+    const id = await order('shop');
+    expect(await stand(id)).toMatchObject({ bookings: [], bookable: true, blockedBy: null });
+    const q = await quoted(id);
+    const res = await buy(q);
+    expect(res.statusCode, res.body).toBe(200);
+    expect((res.json() as Doc)['data']).toMatchObject({ state: 'booked', test: false, tracking: 'TRK-1001', carrier: 'carrier-one', amount: '3.10', currency: 'GBP', applied: false });
+    expect(fake().books).toHaveLength(1);
+    // The carrier is told who it needs, and the customer's phone and email stay here.
+    expect(fake().books[0]!.details['to']).toMatchObject({ name: NAME, postcode: 'LS1 4AB' });
+    expect(fake().books[0]!.details['to']).not.toHaveProperty('phone');
+    expect(fake().books[0]!.details['to']).not.toHaveProperty('email');
+    expect(fake().books[0]!.rate).toMatchObject({ ref: REF, carrierToken: TOKEN });
+    expect(fake().books[0]!.order).toMatchObject({ reference: `MP-${id}`, purpose: 'outbound', parcel: 1 });
+
+    // The quote it was bought from is gone, so pressing again cannot replay it.
+    expect(await settings().quote(q['quoteId'])).toBeNull();
+    expect(code(await buy(q))).toBe('QUOTE_NOT_FOUND');
+    const again = await quoted(id);
+    const second = await buy(again);
+    expect(second.statusCode, second.body).toBe(409);
+    expect((second.json() as Doc)['error']).toMatchObject({ code: 'BOOKING_EXISTS', details: { booking: { state: 'booked' } } });
+    expect(fake().books).toHaveLength(1);
+    expect(await stand(id)).toMatchObject({ bookable: false, blockedBy: 'booking' });
+  });
+
+  it.skipIf(!available)('names only a quote and a rate: an address, a price or another rate in the body is refused', async () => {
+    const id = await order('shop');
+    const q = await quoted(id);
+    for (const extra of [{ to: { name: 'Mallory' } }, { amount: '0.01' }, { parcel: PARCEL }, { source: { table: 'orders', id } }]) {
+      const res = await call('boss', 'POST', 'shop/shipping/bookings', { quoteId: q['quoteId'], rateId: q['rates'][0]['rateId'], ...extra });
+      expect(res.statusCode, JSON.stringify(extra)).toBe(422);
+    }
+    expect(code(await call('boss', 'POST', 'shop/shipping/bookings', { quoteId: q['quoteId'], rateId: 'rate_nope' }))).toBe('RATE_NOT_IN_QUOTE');
+    expect(code(await call('boss', 'POST', 'shop/shipping/bookings', { quoteId: 'shq_nope', rateId: 'rate_nope' }))).toBe('QUOTE_NOT_FOUND');
+    expect(fake().books).toEqual([]);
+  });
+
+  it.skipIf(!available)('refuses a quote when the order, Ship from or carrier changed since, and buys nothing', async () => {
+    const id = await order('shop');
+    const edited = await quoted(id);
+    await editOrder('shop', id, { ship_line1: '13 Kiln Lane' });
+    expect(code(await buy(edited))).toBe('QUOTE_STALE');
+    await editOrder('shop', id, { ship_line1: STREET });
+
+    const moved = await quoted(id);
+    expect((await call('boss', 'PUT', 'shop/shipping/ship-from', { ...SHIP_FROM, postcode: 'SL7 9ZZ' })).statusCode).toBe(200);
+    expect(code(await buy(moved))).toBe('QUOTE_NOT_FOUND');
+    expect(fake().books).toEqual([]);
+  });
+
+  it.skipIf(!available)('writes the tracking number onto the order once, moves no status, and survives a crash at each step', async () => {
+    const id = await order('shop', { status: 'packed' });
+    const res = await buy(await quoted(id));
+    const bookingId = (res.json() as Doc)['data']['id'] as string;
+    expect((await rowOf(id))['tracking']).toBeNull();
+
+    await expect(applyBooking(applyDeps({ afterCopy: () => { throw new Error('died after the copy'); } }), bookingId)).rejects.toThrow('died after the copy');
+    expect(await bookings().byId(bookingId)).toMatchObject({ appliedAt: null });
+    expect((await bookings().byId(bookingId))?.copiedAt).not.toBeNull();
+    expect((await rowOf(id))['tracking']).toBeNull();
+
+    await expect(applyBooking(applyDeps({ afterWrite: () => { throw new Error('died after the write'); } }), bookingId)).rejects.toThrow('died after the write');
+    expect(await rowOf(id)).toMatchObject({ tracking: 'TRK-1001', carrier_name: 'Evri', status: 'packed' });
+    expect((await bookings().byId(bookingId))?.appliedAt).toBeNull();
+
+    expect(await applyBooking(applyDeps(), bookingId)).toEqual({ state: 'applied', already: false });
+    expect(await applyBooking(applyDeps(), bookingId)).toEqual({ state: 'applied', already: true });
+    expect(await rowOf(id)).toMatchObject({ tracking: 'TRK-1001', status: 'packed' });
+  });
+
+  it.skipIf(!available)('copies a label into the carrier\'s own table once, keyed by the booking', async () => {
+    const copies = `carrier_copies_${String(nextId)}`;
+    const { db } = await h.manager.data(conn);
+    await db.schema
+      .createTable(copies)
+      .addColumn('id', 'varchar(36)', (col) => col.primaryKey())
+      .addColumn('order_reference', 'varchar(191)')
+      .addColumn('carrier', 'varchar(191)')
+      .addColumn('service', 'varchar(191)')
+      .addColumn('tracking', 'varchar(191)')
+      .addColumn('label_file', 'varchar(191)')
+      .addColumn('amount', 'varchar(24)')
+      .addColumn('currency', 'varchar(3)')
+      .addColumn('status', 'varchar(20)')
+      .execute();
+    await h.introspect();
+    const carrier = (await repo.findInScope('carrier-solo', conn))!;
+    await appTablesRepo(h.meta).record({ appKey: 'carrier-solo', manifestId: carrier.row.id, connectionId: conn, ref: 'shipments', tableName: copies, owned: true, state: 'created' });
+    await settings().setActiveCarrier(installs['solo']!, 'carrier-solo', null, 2);
+    const id = await order('solo');
+    const q = ((await quote('solo', body(id))).json() as Doc)['data'] as Doc;
+    const res = await call('boss', 'POST', 'solo/shipping/bookings', { quoteId: q['quoteId'], rateId: q['rates'][0]['rateId'] });
+    expect(res.statusCode, res.body).toBe(200);
+    const bookingId = (res.json() as Doc)['data']['id'] as string;
+    await applyBooking(applyDeps(), bookingId);
+    await h.meta.db.updateTable('adminium_shipping_bookings').set({ appliedAt: null, copiedAt: null }).where('id', '=', bookingId).execute();
+    await applyBooking(applyDeps(), bookingId);
+    const rows = await db.selectFrom(copies as never).selectAll().execute();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: bookingId, order_reference: `MP-${id}`, tracking: 'TRK-1001', status: 'booked' });
+
+    // The copy is a write like any other: a shop rule that refuses it does not hold the booking's other steps back.
+    const buyAnother = async () => {
+      const other = await order('solo');
+      const offered = ((await quote('solo', body(other))).json() as Doc)['data'] as Doc;
+      const bought = await call('boss', 'POST', 'solo/shipping/bookings', { quoteId: offered['quoteId'], rateId: offered['rates'][0]['rateId'] });
+      expect(bought.statusCode, bought.body).toBe(200);
+      return (bought.json() as Doc)['data']['id'] as string;
+    };
+    const failing = (error: Error): ApplyDeps => {
+      const deps = applyDeps();
+      return { ...deps, writes: { ...deps.writes, create: () => Promise.reject(error) } };
+    };
+    const refused = await buyAnother();
+    await expect(applyBooking(failing(new HookRejectedError('not today', 'beforeCreate')), refused)).resolves.toMatchObject({ state: 'applied' });
+    expect((await bookings().byId(refused))?.appliedAt).not.toBeNull();
+    // A database that could not answer is tried again, and nothing says the copy was made.
+    const dropped = await buyAnother();
+    await expect(applyBooking(failing(new Error('connection lost')), dropped)).rejects.toThrow('connection lost');
+    expect((await bookings().byId(dropped))?.copiedAt).toBeNull();
+    await applyBooking(applyDeps(), dropped);
+    expect(await db.selectFrom(copies as never).selectAll().execute()).toHaveLength(2);
+    await h.meta.db.deleteFrom('adminium_app_tables').where('appKey', '=', 'carrier-solo').execute();
+    await db.schema.dropTable(copies).execute();
+    await h.introspect();
+  });
+
+  it.skipIf(!available)('a carrier handle sealed in a quote or a booking is one Save as app asks about', async () => {
+    const id = await order('shop');
+    const held = await quoted(id);
+    const known = async (value: string) => (await collectKnownSecrets(h.meta, TEST_SECRET)).find((one) => one.value === value);
+    expect(await known(REF)).toMatchObject({ shape: 'whole', soft: true });
+    expect(await known(TOKEN)).toMatchObject({ shape: 'whole', soft: true });
+    expect((await buy(held)).statusCode).toBe(200);
+    await h.meta.db.deleteFrom('adminium_shipping_quotes').execute();
+    expect(await known(REF)).toMatchObject({ shape: 'whole', soft: true });
+    expect(await known(TOKEN)).toMatchObject({ shape: 'whole', soft: true });
+  });
+
+  it.skipIf(!available)('a test key\'s label is marked, and never reaches the order', async () => {
+    const install = (await repo.findInScope('carrier-one', conn))!.row.id;
+    await saveChecked(install, 'carrier-one', KEY_ONE, 'test');
+    const id = await order('shop');
+    const res = await buy(await quoted(id));
+    expect((res.json() as Doc)['data']).toMatchObject({ state: 'booked', test: true });
+    const bookingId = (res.json() as Doc)['data']['id'] as string;
+    await applyBooking(applyDeps(), bookingId);
+    expect((await rowOf(id))['tracking']).toBeNull();
+    expect((await bookings().byId(bookingId))?.appliedAt).not.toBeNull();
+
+    // Going live, the real label has its own place.
+    await saveChecked(install, 'carrier-one', KEY_ONE, 'live');
+    fake().book = () => ({ ...SHIPMENT, id: 'tx_live', tracking: 'TRK-LIVE' });
+    const live = await buy(await quoted(id));
+    expect(live.statusCode, live.body).toBe(200);
+    expect((live.json() as Doc)['data']).toMatchObject({ state: 'booked', test: false, tracking: 'TRK-LIVE' });
+  });
+
+  it.skipIf(!available)('holds an order that already shows a label nobody recorded, as unknown, and buys nothing', async () => {
+    const id = await order('shop', { tracking: 'TYPED-BY-HAND' });
+    expect(await stand(id)).toMatchObject({ bookable: false, blockedBy: 'label-on-order' });
+    const res = await buy(await quoted(id));
+    expect(res.statusCode, res.body).toBe(409);
+    expect((res.json() as Doc)['error']).toMatchObject({ code: 'BOOKING_EXISTS', details: { booking: { state: 'unknown', reason: 'label-on-order' } } });
+    expect(fake().books).toEqual([]);
+  });
+
+  it.skipIf(!available)('once someone has looked at an unrecorded label and released it, that number stops holding the order', async () => {
+    const id = await order('shop', { tracking: 'TYPED-BY-HAND' });
+    const held = (((await buy(await quoted(id))).json() as Doc)['error']['details']['booking']) as Doc;
+    expect(held).toMatchObject({ state: 'unknown', tracking: 'TYPED-BY-HAND' });
+    await h.meta.db.updateTable('adminium_shipping_bookings').set({ createdAt: Date.now() - RELEASE_QUIET_MS - 1000 }).where('id', '=', held['id'] as string).execute();
+    const released = await call('boss', 'POST', `shop/shipping/bookings/${String(held['id'])}/release`, { declaration: 'no-label-exists' });
+    expect(released.statusCode, released.body).toBe(200);
+    expect(await stand(id)).toMatchObject({ bookable: true, blockedBy: null });
+    expect((await buy(await quoted(id))).statusCode).toBe(200);
+    expect(fake().books).toHaveLength(1);
+    // A different number typed in later is a new question.
+    const other = await order('shop', { tracking: 'ANOTHER-NUMBER' });
+    expect(await stand(other)).toMatchObject({ blockedBy: 'label-on-order' });
+  });
+
+  it.skipIf(!available)('two apps that both call their table `orders` keep their own places on one database', async () => {
+    const id = await order('shop');
+    expect((await buy(await quoted(id))).statusCode).toBe(200);
+    await settings().setActiveCarrier(installs['solo']!, 'carrier-solo', null, 2);
+    const { db } = await h.manager.data(conn);
+    await db.insertInto(tables[`${conn}:solo`]! as never).values({ id: Number(id), number: `SOLO-${id}`, ship_name: NAME, ship_line1: STREET, ship_city: 'Leeds', ship_postcode: 'LS1 4AB', ship_country: 'GB' } as never).execute();
+    const q = ((await quote('solo', body(id))).json() as Doc)['data'] as Doc;
+    const res = await call('boss', 'POST', 'solo/shipping/bookings', { quoteId: q['quoteId'], rateId: q['rates'][0]['rateId'] });
+    expect(res.statusCode, res.body).toBe(200);
+    expect(fake().books).toHaveLength(2);
+  });
+
+  it.skipIf(!available)('a look-up under a key nobody checked asks the carrier nothing', async () => {
+    const id = await order('shop');
+    fake().book = unclear;
+    const booking = ((await buy(await quoted(id))).json() as Doc)['data'] as Doc;
+    const install = (await repo.findInScope('carrier-one', conn))!.row.id;
+    await repo.setCredential(install, { kind: 'api-key', secret: { api_key: 'swapped-behind-the-door' } });
+    fake().recover = () => ({ outcome: 'not-bought' });
+    const res = await call('boss', 'POST', `shop/shipping/bookings/${String(booking['id'])}/check`);
+    expect(code(res)).toBe('CARRIER_NOT_CHECKED');
+    expect((await bookings().byId(booking['id'] as string))?.state).toBe('unknown');
+    await saveChecked(install, 'carrier-one', KEY_ONE);
+  });
+
+  it.skipIf(!available)('a timed-out purchase shows unknown, blocks a rebook, and only someone who manages shipping can release it', async () => {
+    const id = await order('shop');
+    await setLimits('25.00', 20);
+    fake().book = unclear;
+    const res = await buy(await quoted(id, 'picker'), 'picker');
+    expect(res.statusCode, res.body).toBe(200);
+    const booking = (res.json() as Doc)['data'] as Doc;
+    expect(booking).toMatchObject({ state: 'unknown', reason: 'carrier-unclear' });
+    expect(booking['releaseAfter']).toBeGreaterThan(Date.now());
+    expect(await stand(id, 'picker')).toMatchObject({ bookable: false, blockedBy: 'booking' });
+    fake().book = () => SHIPMENT;
+    expect(code(await buy(await quoted(id, 'picker'), 'picker'))).toBe('BOOKING_EXISTS');
+    expect(fake().books).toHaveLength(1);
+
+    const release = (who: string) => call(who, 'POST', `shop/shipping/bookings/${String(booking['id'])}/release`, { declaration: 'no-label-exists' });
+    expect((await release('picker')).statusCode).toBe(403);
+    expect((await call('boss', 'POST', `shop/shipping/bookings/${String(booking['id'])}/release`, {})).statusCode).toBe(422);
+    expect(code(await release('boss'))).toBe('RELEASE_TOO_SOON');
+
+    const past = Date.now() - RELEASE_QUIET_MS - 1000;
+    await h.meta.db.updateTable('adminium_shipping_bookings').set({ calledAt: past }).where('id', '=', booking['id'] as string).execute();
+    const done = await release('boss');
+    expect(done.statusCode, done.body).toBe(200);
+    expect((done.json() as Doc)['data']['state']).toBe('released');
+    const audit = await h.meta.db.selectFrom('adminium_audit_log').select(['actorId', 'changes']).where('action', '=', 'shipping.booking.released').execute();
+    expect(audit.at(-1)?.actorId).toBe(ids['boss']);
+    expect(JSON.stringify(audit.at(-1)?.changes)).toContain('no-label-exists');
+    expect(await stand(id)).toMatchObject({ bookable: true });
+  });
+
+  it.skipIf(!available)('one order is one place, however its id is spelled', async () => {
+    const id = await order('shop');
+    fake().book = unclear;
+    const first = await buy(await quoted(id));
+    expect((first.json() as Doc)['data']['state']).toBe('unknown');
+    fake().book = () => SHIPMENT;
+    const respelled = await quoted(`0${id}`);
+    expect(code(await buy(respelled))).toBe('BOOKING_EXISTS');
+    expect(fake().books).toHaveLength(1);
+  });
+
+  it.skipIf(!available)('checks for a label on the order even when a dead process left the place held', async () => {
+    const id = await order('shop');
+    const q = await quoted(id);
+    const place = { installId: installs['shop']!, connectionId: conn, tableRef: 'orders', tableName: await (async () => { const { table } = (await createPayableSources({ meta: h.meta, manager: h.manager }).table(conn, tables[`${conn}:shop`]!))!; return table.id; })(), rowKey: id, purpose: 'outbound', parcelNumber: 1 };
+    const account = (await settings().account((await repo.findInScope('carrier-one', conn))!.row.id))!;
+    await bookings().reserve({ ...place, carrierInstallId: account.carrierInstallId, carrierKey: 'carrier-one', reference: `MP-${id}`, mode: 'live', accountFingerprint: account.fingerprint, detailsHash: 'd'.repeat(64), service: 'Evri', rateCode: 'evri', handleSealed: null, quotedAmount: '3.10', quotedCurrency: 'GBP', createdBy: null }, Date.now() - 120_000);
+    await editOrder('shop', id, { tracking: 'TYPED-AFTER' });
+    const res = await buy(q);
+    expect((res.json() as Doc)['error']).toMatchObject({ code: 'BOOKING_EXISTS', details: { booking: { reason: 'label-on-order' } } });
+    expect(fake().books).toEqual([]);
+  });
+
+  it.skipIf(!available)('writes only the first outbound parcel\'s number onto the order, and never over one already there', async () => {
+    const id = await order('shop');
+    const q2 = ((await quote('shop', body(id, { parcelNumber: 2 }))).json() as Doc)['data'] as Doc;
+    fake().book = () => ({ ...SHIPMENT, id: 'tx_p2', tracking: 'TRK-PARCEL-2' });
+    const second = ((await buy(q2)).json() as Doc)['data']['id'] as string;
+    await applyBooking(applyDeps(), second);
+    expect((await rowOf(id))['tracking']).toBeNull();
+
+    fake().book = () => SHIPMENT;
+    const first = ((await buy(await quoted(id))).json() as Doc)['data']['id'] as string;
+    await editOrder('shop', id, { tracking: 'TYPED-MEANWHILE' });
+    await applyBooking(applyDeps(), first);
+    expect((await rowOf(id))['tracking']).toBe('TYPED-MEANWHILE');
+  });
+
+  it.skipIf(!available)('someone who manages shipping can still settle a booking whose order was deleted; nobody else can', async () => {
+    const id = await order('shop');
+    await setLimits('25.00', 20);
+    fake().book = unclear;
+    const booking = ((await buy(await quoted(id, 'picker'), 'picker')).json() as Doc)['data'] as Doc;
+    const { db } = await h.manager.data(conn);
+    await db.deleteFrom(tables[`${conn}:shop`]! as never).where('id' as never, '=', Number(id) as never).execute();
+    expect((await call('picker', 'POST', `shop/shipping/bookings/${String(booking['id'])}/check`)).statusCode).toBe(404);
+    expect(((await call('boss', 'POST', `shop/shipping/bookings/${String(booking['id'])}/check`)).json() as Doc)['data']).toMatchObject({ outcome: 'no-match' });
+    await h.meta.db.updateTable('adminium_shipping_bookings').set({ calledAt: Date.now() - RELEASE_QUIET_MS - 1000 }).where('id', '=', booking['id'] as string).execute();
+    const released = await call('boss', 'POST', `shop/shipping/bookings/${String(booking['id'])}/release`, { declaration: 'no-label-exists' });
+    expect(released.statusCode, released.body).toBe(200);
+    expect(await bookings().unresolved((await repo.findInScope('carrier-one', conn))!.row.id)).toEqual([]);
+  });
+
+  it.skipIf(!available)('an app with an unresolved label cannot be uninstalled', async () => {
+    const id = await order('shop');
+    fake().book = unclear;
+    await buy(await quoted(id));
+    const res = await composed.app.inject({ method: 'DELETE', url: `/api/v1/apps/shop?connectionId=${encodeURIComponent(conn)}`, headers: { cookie: cookies['boss']! }, payload: {} });
+    expect(res.statusCode, res.body).toBe(409);
+    expect((res.json() as Doc)['error']).toMatchObject({ code: 'SHIPPING_UNRESOLVED', details: { orders: [`MP-${id}`] } });
+  });
+
+  it.skipIf(!available)('a person\'s look-up settles an unknown purchase on a clear match', async () => {
+    const id = await order('shop');
+    fake().book = unclear;
+    const booking = ((await buy(await quoted(id))).json() as Doc)['data'] as Doc;
+    const check = () => call('boss', 'POST', `shop/shipping/bookings/${String(booking['id'])}/check`);
+    expect(((await check()).json() as Doc)['data']).toMatchObject({ outcome: 'no-match', booking: { state: 'unknown' } });
+    fake().recover = () => ({ outcome: 'found', shipment: SHIPMENT });
+    const found = await check();
+    expect(found.statusCode, found.body).toBe(200);
+    expect((found.json() as Doc)['data']).toMatchObject({ outcome: 'found', booking: { state: 'booked', tracking: 'TRK-1001' } });
+    expect(code(await check())).toBe('BOOKING_NOT_UNKNOWN');
+    expect(fake().books).toHaveLength(1);
+  });
+
+  it.skipIf(!available)('a packer buys inside the limits with no price in sight, and a refusal gives the day\'s count back', async () => {
+    const id = await order('shop');
+    await setLimits('25.00', 20);
+    fake().quote = () => [RATE, { code: 'dear', service: 'Dear', amount: 90, amountDecimal: '90.00', currency: 'GBP' }];
+    const q = await quoted(id, 'packer');
+    const dear = (q['rates'] as Doc[]).findIndex((rate) => rate['code'] === 'dear');
+    const cheap = (q['rates'] as Doc[]).findIndex((rate) => rate['code'] === 'evri-48');
+    const over = await buy(q, 'packer', dear);
+    expect(over.statusCode, over.body).toBe(403);
+    expect((over.json() as Doc)['error']).toMatchObject({ code: 'OWNER_BOOKS', details: { reason: 'over-limit' } });
+    expect(fake().books).toEqual([]);
+
+    fake().book = () => {
+      throw { name: 'CarrierError', code: 'BALANCE_4_20', carrierMessage: 'Your balance of 4.20 GBP is too low', outcome: 'refused', reason: 'payment' };
+    };
+    const refused = await buy(q, 'packer', cheap);
+    expect(refused.statusCode, refused.body).toBe(422);
+    expect((refused.json() as Doc)['error']).toMatchObject({ code: 'CARRIER_REFUSED', details: { reason: 'payment' } });
+    for (const hidden of ['4.20', 'BALANCE', '3.10']) expect(refused.body).not.toContain(hidden);
+    const day = await (await import('../src/crud/row-limit-context.js')).venueDayOf(h.meta, conn);
+    expect(await settings().dayLabels(installs['shop']!, day)).toBe(0);
+
+    fake().book = () => SHIPMENT;
+    const again = await quoted(id, 'packer');
+    const res = await buy(again, 'packer', (again['rates'] as Doc[]).findIndex((rate) => rate['code'] === 'evri-48'));
+    expect(res.statusCode, res.body).toBe(200);
+    const data = (res.json() as Doc)['data'] as Doc;
+    expect(data['state']).toBe('booked');
+    for (const field of ['amount', 'currency', 'chargeDiffers']) expect(data).not.toHaveProperty(field);
+    expect(res.body).not.toContain('3.10');
+    expect(await settings().dayLabels(installs['shop']!, day)).toBe(1);
+    const shown = await stand(id, 'packer');
+    expect(JSON.stringify(shown)).not.toContain('3.10');
+    // The owner sees what it cost.
+    expect((await stand(id))['bookings'].find((one: Doc) => one['state'] === 'booked')).toMatchObject({ amount: '3.10', currency: 'GBP' });
+  });
+
+  it.skipIf(!available)('stops a booker at the daily limit when buying, not only when quoting', async () => {
+    await setLimits('25.00', 1);
+    const first = await order('shop');
+    const second = await order('shop');
+    const q1 = await quoted(first, 'picker');
+    const q2 = await quoted(second, 'picker');
+    expect((await buy(q1, 'picker')).statusCode).toBe(200);
+    const res = await buy(q2, 'picker');
+    expect(res.statusCode, res.body).toBe(403);
+    expect((res.json() as Doc)['error']).toMatchObject({ code: 'OWNER_BOOKS', details: { reason: 'daily-limit' } });
+    expect(fake().books).toHaveLength(1);
+    // The owner is not bound.
+    expect((await buy(await quoted(second))).statusCode).toBe(200);
+  });
+
+  it.skipIf(!available)('a bench can book and look up, and never release; a right on another install reaches nothing here', async () => {
+    const id = await order('shop');
+    await setLimits('25.00', 20);
+    fake().book = unclear;
+    const res = await buy(await quoted(id, 'bench'), 'bench');
+    expect(res.statusCode, res.body).toBe(200);
+    const bookingId = (res.json() as Doc)['data']['id'] as string;
+    expect((await call('bench', 'POST', `shop/shipping/bookings/${bookingId}/check`)).statusCode).toBe(200);
+    const release = await call('bench', 'POST', `shop/shipping/bookings/${bookingId}/release`, { declaration: 'no-label-exists' });
+    expect(release.statusCode).toBe(403);
+    expect(code(release)).toBe('APP_SCREENS_ONLY');
+    // A role with no right on labels sees none of it.
+    for (const who of ['nobody', 'admin']) {
+      expect((await composed.app.inject({ method: 'GET', url: `/api/v1/apps/shop/shipping/bookings?connectionId=${encodeURIComponent(conn)}&table=orders&id=${id}`, headers: { cookie: cookies[who]! } })).statusCode).toBe(403);
+      expect((await call(who, 'POST', `shop/shipping/bookings/${bookingId}/check`)).statusCode).toBe(403);
+    }
+    expect((await call('refunder', 'POST', 'shop/shipping/bookings', { quoteId: 'shq_x', rateId: 'rate_x' })).statusCode).toBe(403);
+  });
+
+  it.skipIf(!available)('refuses an API key on every booking route', async () => {
+    const token = generateApiKey();
+    await apiKeysRepo(h.meta).create({ name: `book-${String(nextId)}`, tokenHash: token.tokenHash, prefix: token.prefix, roleId: (await rolesRepo(h.meta).findBySlug('super-admin'))!.id, createdBy: ids['boss']! });
+    for (const [method, path, payload] of [
+      ['GET', 'shop/shipping/bookings', undefined],
+      ['POST', 'shop/shipping/bookings', { quoteId: 'shq_x', rateId: 'rate_x' }],
+      ['POST', 'shop/shipping/bookings/shb_x/check', undefined],
+      ['POST', 'shop/shipping/bookings/shb_x/release', { declaration: 'no-label-exists' }],
+    ] as const) {
+      const query = method === 'GET' ? '&table=orders&id=1' : '';
+      const res = await composed.app.inject({ method, url: `/api/v1/apps/${path}?connectionId=${encodeURIComponent(conn)}${query}`, headers: { authorization: `Bearer ${token.key}` }, ...(payload === undefined ? {} : { payload }) });
+      expect(res.statusCode, `${path}: ${res.body}`).toBe(403);
+    }
+    expect(fake().books).toEqual([]);
+  });
+
+  it.skipIf(!available)('a key with an unresolved purchase cannot be replaced, removed or uninstalled', async () => {
+    const id = await order('shop');
+    fake().book = unclear;
+    const booking = ((await buy(await quoted(id))).json() as Doc)['data'] as Doc;
+    const replaced = await saveKey('carrier-one', { api_key: FRESH_KEY }, { confirmAccountChange: true });
+    expect(replaced.statusCode, replaced.body).toBe(409);
+    expect((replaced.json() as Doc)['error']).toMatchObject({ code: 'KEY_IN_USE', details: { count: 1, orders: [`MP-${id}`] } });
+    const removed = await composed.app.inject({ method: 'DELETE', url: `/api/v1/apps/shop/shipping/carriers/carrier-one/key?connectionId=${encodeURIComponent(conn)}`, headers: { cookie: cookies['boss']! } });
+    expect(code(removed)).toBe('KEY_IN_USE');
+    expect(await savedKey('carrier-one')).toBe(KEY_ONE);
+    const gone = await composed.app.inject({ method: 'DELETE', url: `/api/v1/add-ons/carrier-one?connectionId=${encodeURIComponent(conn)}`, headers: { cookie: cookies['boss']! }, payload: {} });
+    expect(gone.statusCode, gone.body).toBe(409);
+    expect((gone.json() as Doc)['error']).toMatchObject({ code: 'ADD_ON_IN_USE', details: { bookings: [`MP-${id}`] } });
+    expect(await repo.findInScope('carrier-one', conn)).not.toBeNull();
+    expect(booking['state']).toBe('unknown');
+  });
+
+  it.skipIf(!available)('holds no carrier handle, address or key in a booking reply, its row, a log line or an audit row', async () => {
+    logs.length = 0;
+    const id = await order('shop');
+    const res = await buy(await quoted(id));
+    const bookingId = (res.json() as Doc)['data']['id'] as string;
+    const shown = await stand(id);
+    for (const secret of [REF, TOKEN, SHIPMENT_ID, LABEL_ID, KEY_ONE, STREET, PHONE, EMAIL]) {
+      expect(res.body).not.toContain(secret);
+      expect(JSON.stringify(shown)).not.toContain(secret);
+    }
+    const row = JSON.stringify(await h.meta.db.selectFrom('adminium_shipping_bookings').selectAll().where('id', '=', bookingId).executeTakeFirstOrThrow());
+    for (const secret of [REF, TOKEN, KEY_ONE, NAME, STREET, PHONE, EMAIL, 'LS1 4AB']) expect(row).not.toContain(secret);
+    const lines = logs.join('\n');
+    for (const secret of [REF, TOKEN, KEY_ONE, NAME, STREET, PHONE, EMAIL]) expect(lines).not.toContain(secret);
+    const audit = JSON.stringify(await h.meta.db.selectFrom('adminium_audit_log').selectAll().where('action', 'like', 'shipping.booking.%').execute());
+    expect(audit).toContain('shipping.booking.made');
+    for (const secret of [REF, TOKEN, SHIPMENT_ID, KEY_ONE, NAME, STREET, PHONE, EMAIL]) expect(audit).not.toContain(secret);
+  });
+
   // ── Several databases ───────────────────────────────────────────────────
 
   it.skipIf(!available)('keeps two databases apart: each its own install of the carrier, its key, its choice and its Ship from', async () => {
@@ -1308,6 +1797,7 @@ describe('a server with network features off', () => {
             networkFeatures: () => false,
             sources: NO_PAYABLES,
             openBookings: async () => [],
+            enqueueApply: async () => undefined,
             readRow: (request, connectionId, tableId, row) => readReachedRow({ meta, data: (id) => manager.data(id), resolve: (one) => request.server.rbac.resolve(one) }, request, connectionId, tableId, row),
           }),
         ],
@@ -1350,6 +1840,7 @@ describe('the door of a key still in use, and the pace of quotes', () => {
             networkFeatures: () => true,
             sources: NO_PAYABLES,
             openBookings: async () => open,
+            enqueueApply: async () => undefined,
             quotesPerMinute: 2,
             readRow: (request, connectionId, tableId, row) => readReachedRow({ meta, data: (id) => manager.data(id), resolve: (one) => request.server.rbac.resolve(one) }, request, connectionId, tableId, row),
           }),

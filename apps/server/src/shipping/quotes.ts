@@ -81,6 +81,20 @@ export interface OfferedRate {
   tracked?: boolean;
 }
 
+/** A rate's carrier handles, sealed for a booking to keep. */
+export function sealRateHandle(secret: string, handle: z.infer<typeof handleSchema>): string {
+  return encryptSecret(JSON.stringify(handle), sealKeyOf(secret));
+}
+
+/** The handles again, or null when they were sealed under another secret. */
+export function openRateHandle(secret: string, sealed: string): z.infer<typeof handleSchema> | null {
+  try {
+    return handleSchema.parse(JSON.parse(decryptSecret(sealed, sealKeyOf(secret))));
+  } catch {
+    return null;
+  }
+}
+
 function toStored(secret: string, rate: Rate): StoredRate {
   const { ref, carrierToken, amountDecimal, ...plain } = rate;
   const handle = { ...(ref === undefined ? {} : { ref }), ...(carrierToken === undefined ? {} : { carrierToken }) };
@@ -121,7 +135,7 @@ export async function storeQuote(meta: MetaDb, secret: string, input: { slot: Sh
   const expiresAt = Math.min(input.now + QUOTE_LIFE_MS, ...stated);
   const rates = input.rates.map((rate) => toStored(secret, rate));
   const quote = await shippingRepo(meta).replaceQuote(
-    { ...input.slot, carrierKey: input.carrierKey, accountFingerprint: input.accountFingerprint, detailsHash: detailsHash(secret, input.details), rates, createdBy: input.createdBy, expiresAt },
+    { ...input.slot, carrierKey: input.carrierKey, accountFingerprint: input.accountFingerprint, parcel: input.details.parcel, detailsHash: detailsHash(secret, input.details), rates, createdBy: input.createdBy, expiresAt },
     input.now,
   );
   return { quoteId: quote.id, carrier: input.carrierKey, expiresAt, rates: rates.map(toOffered) };
@@ -129,7 +143,7 @@ export async function storeQuote(meta: MetaDb, secret: string, input: { slot: Sh
 
 export type QuoteRefusalCode = 'QUOTE_NOT_FOUND' | 'QUOTE_EXPIRED' | 'QUOTE_STALE' | 'RATE_NOT_IN_QUOTE';
 
-export type QuoteForBooking = { ok: true; quoteId: string; carrierKey: string; rate: Rate } | { ok: false; code: QuoteRefusalCode };
+export type QuoteForBooking = { ok: true; quoteId: string; carrierKey: string; detailsHash: string; rate: Rate } | { ok: false; code: QuoteRefusalCode };
 
 function sameSlot(a: ShippingSlot, b: ShippingSlot): boolean {
   return a.installId === b.installId && a.connectionId === b.connectionId && a.tableRef === b.tableRef && a.rowKey === b.rowKey && a.purpose === b.purpose && a.parcelNumber === b.parcelNumber;
@@ -172,5 +186,5 @@ export async function readQuoteForBooking(meta: MetaDb, secret: string, input: {
       return { ok: false, code: 'QUOTE_NOT_FOUND' };
     }
   }
-  return { ok: true, quoteId: quote.id, carrierKey: quote.carrierKey, rate: { ...plain, ...handle } as Rate };
+  return { ok: true, quoteId: quote.id, carrierKey: quote.carrierKey, detailsHash: quote.detailsHash, rate: { ...plain, ...handle } as Rate };
 }

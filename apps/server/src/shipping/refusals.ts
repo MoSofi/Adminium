@@ -41,6 +41,20 @@ export const SHIPPING_REFUSAL_STATUS = {
   OWNER_BOOKS: 403,
   /** Too many quotes from one person in a minute. */
   QUOTES_TOO_FAST: 429,
+  QUOTE_NOT_FOUND: 404,
+  QUOTE_EXPIRED: 409,
+  /** The order, the carrier or the account is no longer what was quoted. */
+  QUOTE_STALE: 409,
+  RATE_NOT_IN_QUOTE: 409,
+  /** This parcel's place is held by a live booking, which the reply names. */
+  BOOKING_EXISTS: 409,
+  /** Before buying again, an earlier purchase for this parcel turned up. */
+  ALREADY_BOUGHT: 409,
+  BOOKING_NOT_UNKNOWN: 409,
+  /** An earlier attempt on this parcel cannot be looked up, and nobody who manages shipping confirmed. */
+  REBUY_UNCHECKED: 409,
+  /** The quiet period before a person may declare that no label exists. */
+  RELEASE_TOO_SOON: 409,
 } as const;
 
 export type ShippingRefusalCode = keyof typeof SHIPPING_REFUSAL_STATUS;

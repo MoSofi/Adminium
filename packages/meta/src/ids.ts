@@ -185,6 +185,8 @@ export const ID_PREFIXES = {
   vst: 'adminium_visits',
   /** One order slot's live quote (wave 0103). */
   shq: 'adminium_shipping_quotes',
+  /** One attempt to buy a label (wave 0105). */
+  shb: 'adminium_shipping_bookings',
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;

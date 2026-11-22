@@ -78,6 +78,7 @@ import {
   roleNameFor,
   realTableOf,
   type AppTableRecord,
+  shippingBookingsRepo,
   shippingRepo,
 } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
@@ -2554,6 +2555,11 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           throw new ValidationFailedError(`Type "${key}" to confirm deleting its tables and data.`, {
             reason: 'CONFIRM_KEY_MISMATCH',
           });
+        }
+        // A label with no known result: only this app's address can still settle it.
+        const unresolved = await shippingBookingsRepo(deps.meta).unresolvedOfInstall(row.row.id);
+        if (unresolved.length > 0) {
+          throw new AppError(409, 'SHIPPING_UNRESOLVED', `"${key}" can’t be removed while a label it was asked to buy has no known result. Settle those first.`, { orders: unresolved.map((booking) => booking.reference) });
         }
         const plan = await uninstallPlanOf(row);
         const superAdmin = await isSuperAdmin(request);

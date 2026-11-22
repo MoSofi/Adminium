@@ -168411,6 +168411,747 @@
         }
       }
     },
+    "/api/v1/apps/{key}/shipping/bookings": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "connectionId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "table",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            },
+            "in": "query",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "outbound",
+                "return",
+                "replacement"
+              ]
+            },
+            "in": "query",
+            "name": "purpose",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 99
+            },
+            "in": "query",
+            "name": "parcelNumber",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "bookings": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "state": {
+                                "type": "string",
+                                "enum": [
+                                  "reserved",
+                                  "calling",
+                                  "booked",
+                                  "refused",
+                                  "unknown",
+                                  "released"
+                                ]
+                              },
+                              "test": {
+                                "type": "boolean"
+                              },
+                              "purpose": {
+                                "type": "string"
+                              },
+                              "parcelNumber": {
+                                "type": "number"
+                              },
+                              "carrier": {
+                                "type": "string"
+                              },
+                              "service": {
+                                "type": "string"
+                              },
+                              "tracking": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "carrierName": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "reason": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "duplicates": {
+                                "type": "number"
+                              },
+                              "createdAt": {
+                                "type": "number"
+                              },
+                              "calledAt": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "checkedAt": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "releaseAfter": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "applied": {
+                                "type": "boolean"
+                              },
+                              "amount": {
+                                "type": "string"
+                              },
+                              "currency": {
+                                "type": "string"
+                              },
+                              "chargeDiffers": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "state",
+                              "test",
+                              "purpose",
+                              "parcelNumber",
+                              "carrier",
+                              "service",
+                              "tracking",
+                              "carrierName",
+                              "reason",
+                              "duplicates",
+                              "createdAt",
+                              "calledAt",
+                              "checkedAt",
+                              "releaseAfter",
+                              "applied"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "bookable": {
+                          "type": "boolean"
+                        },
+                        "blockedBy": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "booking",
+                                "label-on-order",
+                                "no-carrier"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "bookings",
+                        "bookable",
+                        "blockedBy"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "quoteId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "rateId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "confirmEarlier": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "quoteId",
+                  "rateId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "reserved",
+                            "calling",
+                            "booked",
+                            "refused",
+                            "unknown",
+                            "released"
+                          ]
+                        },
+                        "test": {
+                          "type": "boolean"
+                        },
+                        "purpose": {
+                          "type": "string"
+                        },
+                        "parcelNumber": {
+                          "type": "number"
+                        },
+                        "carrier": {
+                          "type": "string"
+                        },
+                        "service": {
+                          "type": "string"
+                        },
+                        "tracking": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "carrierName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "reason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "duplicates": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "number"
+                        },
+                        "calledAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "checkedAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "releaseAfter": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "applied": {
+                          "type": "boolean"
+                        },
+                        "amount": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "chargeDiffers": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "state",
+                        "test",
+                        "purpose",
+                        "parcelNumber",
+                        "carrier",
+                        "service",
+                        "tracking",
+                        "carrierName",
+                        "reason",
+                        "duplicates",
+                        "createdAt",
+                        "calledAt",
+                        "checkedAt",
+                        "releaseAfter",
+                        "applied"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/shipping/bookings/{id}/check": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "type": "string",
+                          "enum": [
+                            "found",
+                            "not-bought",
+                            "no-match",
+                            "no-answer",
+                            "cannot-check",
+                            "other-account",
+                            "other-rate"
+                          ]
+                        },
+                        "booking": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "reserved",
+                                "calling",
+                                "booked",
+                                "refused",
+                                "unknown",
+                                "released"
+                              ]
+                            },
+                            "test": {
+                              "type": "boolean"
+                            },
+                            "purpose": {
+                              "type": "string"
+                            },
+                            "parcelNumber": {
+                              "type": "number"
+                            },
+                            "carrier": {
+                              "type": "string"
+                            },
+                            "service": {
+                              "type": "string"
+                            },
+                            "tracking": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "carrierName": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "reason": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "duplicates": {
+                              "type": "number"
+                            },
+                            "createdAt": {
+                              "type": "number"
+                            },
+                            "calledAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "checkedAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "releaseAfter": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "applied": {
+                              "type": "boolean"
+                            },
+                            "amount": {
+                              "type": "string"
+                            },
+                            "currency": {
+                              "type": "string"
+                            },
+                            "chargeDiffers": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "state",
+                            "test",
+                            "purpose",
+                            "parcelNumber",
+                            "carrier",
+                            "service",
+                            "tracking",
+                            "carrierName",
+                            "reason",
+                            "duplicates",
+                            "createdAt",
+                            "calledAt",
+                            "checkedAt",
+                            "releaseAfter",
+                            "applied"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "outcome",
+                        "booking"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/shipping/bookings/{id}/release": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "declaration": {
+                    "type": "string",
+                    "enum": [
+                      "no-label-exists"
+                    ]
+                  }
+                },
+                "required": [
+                  "declaration"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "reserved",
+                            "calling",
+                            "booked",
+                            "refused",
+                            "unknown",
+                            "released"
+                          ]
+                        },
+                        "test": {
+                          "type": "boolean"
+                        },
+                        "purpose": {
+                          "type": "string"
+                        },
+                        "parcelNumber": {
+                          "type": "number"
+                        },
+                        "carrier": {
+                          "type": "string"
+                        },
+                        "service": {
+                          "type": "string"
+                        },
+                        "tracking": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "carrierName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "reason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "duplicates": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "number"
+                        },
+                        "calledAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "checkedAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "releaseAfter": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "applied": {
+                          "type": "boolean"
+                        },
+                        "amount": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "chargeDiffers": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "state",
+                        "test",
+                        "purpose",
+                        "parcelNumber",
+                        "carrier",
+                        "service",
+                        "tracking",
+                        "carrierName",
+                        "reason",
+                        "duplicates",
+                        "createdAt",
+                        "calledAt",
+                        "checkedAt",
+                        "releaseAfter",
+                        "applied"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/apps/{key}/shipping/access": {
       "get": {
         "parameters": [

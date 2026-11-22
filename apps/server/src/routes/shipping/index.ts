@@ -35,17 +35,17 @@ import type { AddOnRuntimeState } from '../../add-ons/runtime.js';
 import { auditExempt, audited } from '../../audit/coverage.js';
 import type { ResolvedTable } from '../../crud/identifiers.js';
 import type { Row } from '../../crud/mask.js';
-import { parseRecordId, pkLabel } from '../../crud/records.js';
 import { venueDayOf } from '../../crud/row-limit-context.js';
 import { ForbiddenError, NotFoundError } from '../../errors.js';
 import { installReachOf } from '../../installs/reach.js';
 import { grantKeyOf, installOnConnection, requireInstall, selectorOf, splitInstallKey } from '../../installs/resolve.js';
-import type { PayableSources } from '../../payments/payables.js';
+import { rowKeyOf, type PayableSources } from '../../payments/payables.js';
 import { appShippingPermission, PERMISSIONS } from '../../rbac/permissions.js';
 import { tagRoutes } from '../../security/route-audience.js';
 import { pricesHiddenFrom, readsPartOf, shippingPerson, shippingViewerOf, type ShippingViewer } from '../../shipping/access.js';
 import { cleanShipFrom, orderAddress, readShipFrom, recipientForRates, shipFromAddress, shipFromChanges } from '../../shipping/addresses.js';
 import { askForRates, carrierHttpFor, shippingCarrierFor, type ShippingCarrierDeps } from '../../shipping/carriers.js';
+import type { BookingFaults } from '../../shipping/bookings.js';
 import { checkedAccount, type OpenBooking } from '../../shipping/keys.js';
 import { bookingState, createQuoteGate, mayShipAbroad, rateWithinLimit } from '../../shipping/limits.js';
 import { carrierLocked } from '../../shipping/locks.js';
@@ -54,6 +54,7 @@ import { ShippingRefusal } from '../../shipping/refusals.js';
 import { attachedCarriers, carrierAccounts, shopShipping } from '../../shipping/shop.js';
 import { ORDINARY_POLICY, type TrialPolicy } from '../../trial/policy.js';
 import { factsViewFor } from '../pages/column-facts.js';
+import { shippingBookingRoutes, type ReachedOrder, type ShippableOrder } from './bookings.js';
 import { shippingKeyRoutes } from './keys.js';
 import { activeCarrierBody, quoteBody, quoteReply, shipFromBodySchema, shippingAccessReply, shippingParams, shippingStatusReply } from './schema.js';
 
@@ -74,6 +75,11 @@ export interface ShippingRoutesDeps {
   openBookings: (carrierInstallId: string) => Promise<readonly OpenBooking[]>;
   /** How many quotes one person may ask for in a minute. */
   quotesPerMinute?: number;
+  /** Queues the repeatable steps after a bought label. */
+  enqueueApply: (bookingId: string) => Promise<unknown>;
+  /** Test seams: a crash at a named step, and a shorter wait for a carrier's answer. */
+  bookingFaults?: BookingFaults;
+  bookAnswerMs?: number;
 }
 
 /** The record states in which an app still holds a table. */
@@ -168,6 +174,62 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
     return error;
   }
 
+  /** The order, as this person reaches it. Everything here is asked before anything else is read of it. */
+  async function reachOrder(request: FastifyRequest, install: InstalledManifest, connectionId: string, source: { table: string; id: string }): Promise<ReachedOrder> {
+    // An app released before real carriers sends a sample address, so it cannot reach one, whatever the client sends.
+    const orders = shippingOrders(install);
+    if (orders === null) throw new ShippingRefusal('APP_NOT_UPDATED', 'This app has not been updated for real carriers yet.', { app: install.row.manifestKey });
+    const mapping = orders.find((order) => order.table === source.table);
+    if (mapping === undefined) throw new ShippingRefusal('NOT_A_SHIPPING_TABLE', 'This app keeps no orders in that table.', { table: source.table });
+    const table = await orderTable(connectionId, install.row.manifestKey, mapping.table);
+    if (!(await request.can(`table:${connectionId}:${table.id}:read`))) throw new ForbiddenError('You may not read this table.', 'TABLE_FORBIDDEN', { table: source.table });
+    // A row they do not reach is a row that is not there.
+    const row = await deps.readRow(request, connectionId, table.id, source.id);
+    if (row === undefined) throw new NotFoundError('That order was not found.');
+    const reference = row[mapping.reference];
+    // The key as the row holds it, never as the client spelled it: `ABC` and `abc` can be one row, and must be one place.
+    return { mapping, table, row, rowKey: rowKeyOf(table, row), reference: reference === null || reference === undefined ? source.id : String(reference) };
+  }
+
+  /** The order, with everything a quote or a purchase refuses on already asked, and no carrier called or key read. */
+  async function shippableOrder(request: FastifyRequest, install: InstalledManifest, connectionId: string, viewer: ShippingViewer, source: { table: string; id: string }): Promise<ShippableOrder> {
+    const reached = await reachOrder(request, install, connectionId, source);
+    const { table, row } = reached;
+    const mapping = reached.mapping as ShippingOrder;
+
+    // Refused before a carrier is asked or a key read: a quote can cost the shop money.
+    const repo = shippingRepo(meta);
+    const limits = await repo.limits(install.row.id);
+    const venueDay = await venueDayOf(meta, connectionId);
+    const booking = bookingState(viewer.manages, limits, viewer.manages ? 0 : await repo.dayLabels(install.row.id, venueDay));
+    if (booking !== 'open') throw new ShippingRefusal('OWNER_BOOKS', 'The owner books this one.', { reason: booking });
+    const pricesHidden = await pricesHiddenFrom(request, viewer, deps.sources, connectionId, table);
+
+    const shop = await shopShipping(meta, manifests, install, connectionId);
+    const carrierKey = shop.activeCarrier;
+    if (carrierKey === null) throw new ShippingRefusal('NO_ACTIVE_CARRIER', 'Choose which carrier this shop uses.', { carriers: shop.carriers.map((one) => one.key) });
+    // Said before the address, which a demo carrier would never use anyway.
+    if (carrierLocked(carrierKey)) throw new ShippingRefusal('CARRIER_LOCKED', `"${carrierKey}" runs as a demo for now, so no real carrier is called.`, { carrier: carrierKey });
+    // Off for this app, though the add-on itself may be on: the resolver below only knows the second. A carrier not on this database is its refusal to make.
+    const chosen = shop.carriers.find((one) => one.key === carrierKey);
+    if (chosen?.on === false && (await installOnConnection(manifests, carrierKey, connectionId)) !== null) {
+      throw new ShippingRefusal('CARRIER_SWITCHED_OFF', `The carrier "${carrierKey}" is switched off.`, { carrier: carrierKey });
+    }
+
+    const from = shipFromAddress(shop.shipFrom);
+    let to: ReturnType<typeof orderAddress>;
+    try {
+      to = orderAddress(row, mapping.address, from);
+    } catch (error) {
+      throw !viewer.manages && readsPartOf(request, connectionId, table.id) ? withoutOrderValues(error) : error;
+    }
+    // Holds while parcels abroad are locked off, and is what stands once they are not.
+    if (to.country !== from.country && !mayShipAbroad(viewer, limits)) throw new ShippingRefusal('OWNER_BOOKS', 'The owner books parcels going abroad.', { reason: 'abroad' });
+
+    if (!deps.networkFeatures()) throw new ShippingRefusal('CARRIER_UNAVAILABLE', 'Network features are off on this server, so no carrier can be asked.', { carrier: carrierKey, reason: 'network-off' });
+    return { ...reached, carrierKey, from, to, limits, venueDay, pricesHidden };
+  }
+
   /** A refusal as someone who cannot see money is told it: what it was about, and none of the carrier's own words. */
   function withoutCarrierWords(error: unknown): unknown {
     if (!(error instanceof ShippingRefusal) || error.code !== 'CARRIER_REFUSED') return error;
@@ -190,6 +252,29 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
         appOf,
         statusOf: view,
         openBookings: deps.openBookings,
+      }),
+    );
+
+    await app.register(
+      shippingBookingRoutes({
+        meta,
+        manifests,
+        secret,
+        sources: deps.sources,
+        carrierDeps,
+        appOf,
+        reachOrder,
+        shippableOrder,
+        withoutCarrierWords,
+        bookingDeps: (request) => ({
+          meta,
+          secret,
+          now: () => app.rbac.now(),
+          enqueueApply: deps.enqueueApply,
+          log: (message, fields) => request.log.warn(fields, message),
+          ...(deps.bookingFaults === undefined ? {} : { faults: deps.bookingFaults }),
+          ...(deps.bookAnswerMs === undefined ? {} : { answerMs: deps.bookAnswerMs }),
+        }),
       }),
     );
 
@@ -301,49 +386,10 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
         const purpose: ShipmentPurpose = request.body.purpose ?? 'outbound';
         const parcelNumber = number ?? 1;
 
-        // An app released before real carriers sends a sample address, so it cannot reach one, whatever the client sends.
-        const orders = shippingOrders(install);
-        if (orders === null) throw new ShippingRefusal('APP_NOT_UPDATED', 'This app has not been updated for real carriers yet.', { app: install.row.manifestKey });
-        const mapping = orders.find((order) => order.table === source.table);
-        if (mapping === undefined) throw new ShippingRefusal('NOT_A_SHIPPING_TABLE', 'This app keeps no orders in that table.', { table: source.table });
-        const table = await orderTable(connectionId, install.row.manifestKey, mapping.table);
+        const order = await shippableOrder(request, install, connectionId, viewer, source);
+        const { rowKey, limits, pricesHidden, from, to, carrierKey, venueDay } = order;
+        const mapping = order.mapping;
 
-        if (!(await request.can(`table:${connectionId}:${table.id}:read`))) throw new ForbiddenError('You may not read this table.', 'TABLE_FORBIDDEN', { table: source.table });
-        // A row they do not reach is a row that is not there.
-        const row = await deps.readRow(request, connectionId, table.id, source.id);
-        if (row === undefined) throw new NotFoundError('That order was not found.');
-        const rowKey = pkLabel(table, parseRecordId(table, source.id));
-
-        // Refused before a carrier is asked or a key read: a quote can cost the shop money.
-        const repo = shippingRepo(meta);
-        const limits = await repo.limits(install.row.id);
-        const venueDay = await venueDayOf(meta, connectionId);
-        const booking = bookingState(viewer.manages, limits, viewer.manages ? 0 : await repo.dayLabels(install.row.id, venueDay));
-        if (booking !== 'open') throw new ShippingRefusal('OWNER_BOOKS', 'The owner books this one.', { reason: booking });
-        const pricesHidden = await pricesHiddenFrom(request, viewer, deps.sources, connectionId, table);
-
-        const shop = await shopShipping(meta, manifests, install, connectionId);
-        const carrierKey = shop.activeCarrier;
-        if (carrierKey === null) throw new ShippingRefusal('NO_ACTIVE_CARRIER', 'Choose which carrier this shop uses.', { carriers: shop.carriers.map((one) => one.key) });
-        // Said before the address, which a demo carrier would never use anyway.
-        if (carrierLocked(carrierKey)) throw new ShippingRefusal('CARRIER_LOCKED', `"${carrierKey}" runs as a demo for now, so no real carrier is called.`, { carrier: carrierKey });
-        // Off for this app, though the add-on itself may be on: the resolver below only knows the second. A carrier not on this database is its refusal to make.
-        const chosen = shop.carriers.find((one) => one.key === carrierKey);
-        if (chosen?.on === false && (await installOnConnection(manifests, carrierKey, connectionId)) !== null) {
-          throw new ShippingRefusal('CARRIER_SWITCHED_OFF', `The carrier "${carrierKey}" is switched off.`, { carrier: carrierKey });
-        }
-
-        const from = shipFromAddress(shop.shipFrom);
-        let to: ReturnType<typeof orderAddress>;
-        try {
-          to = orderAddress(row, mapping.address, from);
-        } catch (error) {
-          throw !viewer.manages && readsPartOf(request, connectionId, table.id) ? withoutOrderValues(error) : error;
-        }
-        // Holds while parcels abroad are locked off, and is what stands once they are not.
-        if (to.country !== from.country && !mayShipAbroad(viewer, limits)) throw new ShippingRefusal('OWNER_BOOKS', 'The owner books parcels going abroad.', { reason: 'abroad' });
-
-        if (!deps.networkFeatures()) throw new ShippingRefusal('CARRIER_UNAVAILABLE', 'Network features are off on this server, so no carrier can be asked.', { carrier: carrierKey, reason: 'network-off' });
         const room = quoteGate.take(by, app.rbac.now());
         if (!room.ok) throw new ShippingRefusal('QUOTES_TOO_FAST', 'Too many quotes in a minute. Try again shortly.', { retryAfterSeconds: room.retryAfterSeconds });
         const carrierSeam = carrierDeps(request);

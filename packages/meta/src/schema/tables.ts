@@ -2065,6 +2065,8 @@ export interface AdminiumShippingQuotesTable {
   carrierKey: string;
   /** Wave 0104: the account the quote was priced under. */
   accountFingerprint: ColumnType<string | null, string | null | undefined, string | null>;
+  /** Wave 0105: what was weighed and measured, so a purchase names only a quote and a rate. */
+  parcel: ColumnType<unknown, string | null | undefined, string | null>;
   detailsHash: string;
   rates: JsonColumn;
   createdBy: string | null;
@@ -2097,6 +2099,57 @@ export interface AdminiumShippingLimitsTable {
   dailyLabels: number | null;
   packersAbroad: ColumnType<unknown, boolean, boolean>;
   updatedBy: string | null;
+  updatedAt: Ts;
+}
+
+/**
+ * Wave 0105 — one attempt to buy a label, written before the carrier is
+ * called. Holds a keyed hash of the shipment, never a name or an address.
+ */
+export interface AdminiumShippingBookingsTable {
+  id: Id;
+  installId: string;
+  carrierInstallId: string;
+  carrierKey: string;
+  connectionId: string;
+  tableRef: string;
+  tableName: string;
+  rowKey: string;
+  purpose: string;
+  parcelNumber: number;
+  reference: string;
+  openKey: string | null;
+  state: string;
+  mode: string;
+  accountFingerprint: string;
+  detailsHash: string;
+  service: string;
+  rateCode: string;
+  handleSealed: string | null;
+  quotedAmount: string;
+  quotedCurrency: string;
+  amount: string | null;
+  currency: string | null;
+  chargeDiffers: ColumnType<unknown, boolean, boolean>;
+  carrierShipmentId: string | null;
+  tracking: string | null;
+  carrierName: string | null;
+  carrierToken: string | null;
+  trackingUrl: string | null;
+  labelRef: string | null;
+  countedDay: string | null;
+  countHeld: ColumnType<unknown, boolean, boolean>;
+  reason: string | null;
+  duplicates: number;
+  createdBy: string | null;
+  releasedBy: string | null;
+  createdAt: Ts;
+  calledAt: ColumnType<number | null, number | null | undefined, number | null>;
+  answeredAt: ColumnType<number | null, number | null | undefined, number | null>;
+  releasedAt: ColumnType<number | null, number | null | undefined, number | null>;
+  checkedAt: ColumnType<number | null, number | null | undefined, number | null>;
+  copiedAt: ColumnType<number | null, number | null | undefined, number | null>;
+  appliedAt: ColumnType<number | null, number | null | undefined, number | null>;
   updatedAt: Ts;
 }
 
@@ -2462,6 +2515,7 @@ export interface MetaDB {
   adminium_shipping_accounts: AdminiumShippingAccountsTable;
   adminium_shipping_limits: AdminiumShippingLimitsTable;
   adminium_shipping_day_labels: AdminiumShippingDayLabelsTable;
+  adminium_shipping_bookings: AdminiumShippingBookingsTable;
 }
 
 /**
@@ -2582,4 +2636,5 @@ export const META_TABLE_NAMES = [
   'adminium_shipping_accounts',
   'adminium_shipping_limits',
   'adminium_shipping_day_labels',
+  'adminium_shipping_bookings',
 ] as const satisfies readonly (keyof MetaDB)[];

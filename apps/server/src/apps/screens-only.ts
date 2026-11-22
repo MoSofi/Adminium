@@ -15,7 +15,7 @@
  * "Replied" and "They said no" on it), the add-ons connected to their apps, and the server's name and logo to head
  * their screens with, and the code of an add-on of their app that fills a place on those screens, and taking a payment
  * at their app's counter (its card readers, a charge, a pay link made or closed, a refund for whoever may give one),
- * and getting a carrier's services for an order of their app, for whoever may book its labels. Forty-odd routes
+ * and getting a carrier's services for an order of their app and buying its label, for whoever may book them. Forty-odd routes
  * check only that someone is signed in, so this
  * list — not those routes — is the boundary.
  */
@@ -157,6 +157,15 @@ const PAYMENT_ROUTES: ReadonlySet<string> = new Set([
   'POST /payments/refunds',
 ]);
 
+/** A packer's bench. Releasing an unknown purchase, keys and limits stay the dashboard's. */
+const SHIPPING_BENCH_ROUTES: ReadonlySet<string> = new Set([
+  'GET /apps/:key/shipping/access',
+  'POST /apps/:key/shipping/quotes',
+  'GET /apps/:key/shipping/bookings',
+  'POST /apps/:key/shipping/bookings',
+  'POST /apps/:key/shipping/bookings/:id/check',
+]);
+
 /**
  * Whether a screens-only person may make this API call, judged by the ROUTE
  * it matched (`/api/v1/connections/:id/schema`) and its decoded parameters —
@@ -191,7 +200,7 @@ export function allowedForScreensOnly(
   if (method === 'GET' && rest === '/apps/:key/rules' && typeof key === 'string' && appKeys.includes(key)) return true;
   // A packer at their app's bench: what they may do with its labels, and the services for one order. Each route asks the app
   // install's own `shipping:<install>:book` right, the table and the row, and never tells a price to someone who cannot see money.
-  if (((method === 'GET' && rest === '/apps/:key/shipping/access') || (method === 'POST' && rest === '/apps/:key/shipping/quotes')) && typeof key === 'string' && appKeys.includes(splitInstallKey(key).key)) return true;
+  if (SHIPPING_BENCH_ROUTES.has(`${method} ${rest}`) && typeof key === 'string' && appKeys.includes(splitInstallKey(key).key)) return true;
   // What an add-on of their app says of the rows their screen shows. The route still asks that they read the table asked about.
   const addOn = (params as { addOn?: unknown } | null)?.addOn;
   if (method === 'GET' && route === STAFF_WORDS_ROUTE && typeof addOn === 'string' && addOns.has(addOn)) return true;

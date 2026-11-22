@@ -20,7 +20,9 @@
  * address, and a real carrier would buy a label for it.
  *
  * `name`, `lines` (one to three), `city`, `postcode`, `country` and `reference`
- * are required, the rest optional, and a table is named once.
+ * are required, the rest optional, and a table is named once. `tracking` and
+ * `carrier` name text columns the engine fills once a real label is bought; it
+ * never moves the order's status.
  *
  * Pure.
  */
@@ -30,6 +32,8 @@ import { refSchema, type ReferenceIssue, type TableIndex } from './refs.js';
 
 /** What may hold a line of an address: words, or a fixed list (a country picked from one). */
 const ADDRESS_TYPES: readonly string[] = ['text', 'enum'];
+/** What a bought label's number and carrier are written into. */
+const TEXT_TYPES: readonly string[] = ['text'];
 /** What may hold an order's reference: `MP-4118`, or a plain number. */
 const REFERENCE_TYPES: readonly string[] = ['text', 'int', 'bigint', 'uuid'];
 
@@ -52,6 +56,10 @@ export const shippingOrderSchema = z
     table: refSchema,
     reference: refSchema,
     address: shippingAddressSchema,
+    /** Where a bought label's tracking number is written, for the order's own screens and mail. */
+    tracking: refSchema.optional(),
+    /** Where the name of the company moving the parcel is written. */
+    carrier: refSchema.optional(),
   })
   .strict();
 
@@ -83,6 +91,8 @@ export function shippingIssues<C extends { ref: string; type: string }>(m: { shi
       else if (!types.includes(found.type)) out.push({ path, message: `"${order.table}.${ref}" is a ${found.type} column, which cannot hold this` });
     };
     column(order.reference, REFERENCE_TYPES, at('reference'));
+    if (order.tracking !== undefined) column(order.tracking, TEXT_TYPES, at('tracking'));
+    if (order.carrier !== undefined) column(order.carrier, TEXT_TYPES, at('carrier'));
     const { lines, ...single } = order.address;
     for (const [field, ref] of Object.entries(single)) if (ref !== undefined) column(ref, ADDRESS_TYPES, at('address', field));
     lines.forEach((ref, l) => {

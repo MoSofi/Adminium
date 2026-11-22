@@ -70,7 +70,7 @@ const EXPORT_SKIPPED_TABLES: readonly string[] = ['adminium_jobs'];
  * owes its server's operator (`operator/events.ts`). Another server, or this
  * one restored elsewhere, must not send them, signed with its own token.
  */
-export const NEVER_ARCHIVED_JOB_KINDS: readonly string[] = ['operator.event'];
+export const NEVER_ARCHIVED_JOB_KINDS: readonly string[] = ['operator.event', 'shipping.apply'];
 
 export const NEVER_ARCHIVED_SETTINGS: readonly string[] = ['addOns.deciderTrust', 'designer.live', 'designer.liveId', 'connections.allowLocalDatabases', 'email.builtinsSeededFor', 'addOns.keptCopyTrust', 'addOns.trustCarriedOver'];
 
@@ -277,6 +277,19 @@ export function sanitizeDump(tables: Map<string, MetaTableDump>, opts: SanitizeO
     const kept = rows.filter((row) => !NEVER_ARCHIVED_JOB_KINDS.includes(String(row.kind)));
     if (kept.length !== rows.length) report.droppedRows.adminium_jobs = rows.length - kept.length;
     commitRows(jobs, kept);
+  }
+
+  /*
+   * A LABEL BEING BOUGHT AS THE BACKUP WAS MADE may or may not have been paid
+   * for. Nothing is still waiting for that answer once this file is opened, so
+   * it comes back as unknown, which holds the order until someone checks.
+   */
+  const bookings = tables.get('adminium_shipping_bookings');
+  if (bookings !== undefined) {
+    commitRows(
+      bookings,
+      rowsOf(bookings).map((row) => (row.state === 'reserved' || row.state === 'calling' ? { ...row, state: 'unknown', reason: 'restored' } : row)),
+    );
   }
 
   const settings = tables.get('adminium_settings');

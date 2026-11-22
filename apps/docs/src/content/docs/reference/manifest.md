@@ -4605,9 +4605,13 @@ or later. An app without it can never reach a real carrier: the engine refuses t
 | `address.name`, `.city`, `.postcode`, `.country` | yes | Text or enum columns. |
 | `address.lines` | yes | One to three text or enum columns, in order. |
 | `address.region`, `.phone`, `.email`, `.company` | no | Text or enum columns. |
+| `tracking` | no | A text column. A bought label's tracking number is written here, for the first outbound parcel, and only while it is empty. |
+| `carrier` | no | A text column, for the company moving that parcel. |
 
 The server reads the address from these columns, so a request can name an order but never where
 its parcel goes. The country must hold a two-letter ISO code; Adminium never guesses one.
+
+Buying a label never moves the order's status. A label bought with a test key reaches neither column.
 
 An app's role can be given three rights on this install's labels. They need the `shipping` block
 and Adminium 0.3.71 or later, and an update that adds one asks first.

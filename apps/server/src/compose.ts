@@ -72,6 +72,7 @@ import {
   snapshotsRepo,
   assistantSessionsRepo,
   type PayableRef,
+  shippingBookingsRepo,
   shippingRepo,
 } from '@adminium/meta';
 
@@ -394,6 +395,7 @@ import { schemaImportRoutes } from './routes/schema-import/index.js';
 import { searchRoutes } from './routes/search/index.js';
 import { geoRoutes } from './routes/geo/index.js';
 import { shippingRoutes } from './routes/shipping/index.js';
+import { SHIPPING_APPLY_PICKUP_CRON, SHIPPING_APPLY_PICKUP_NAME, enqueueApply, pickUpApplies, registerShippingApplyHandler } from './shipping/apply.js';
 import { paymentsRoutes } from './routes/payments/index.js';
 import { paymentPayablesRoutes } from './routes/payments/payables.js';
 import { paymentWaysRoutes } from './routes/payments/ways.js';
@@ -702,6 +704,8 @@ export interface ComposeServerOptions {
    * For tests only: how the free-picture sources are reached (Openverse, Pexels, Unsplash, Pixabay, and the
    * pictures they name), so a fake answers in their place. There is no setting for this either.
    */
+  /** Tests only: how many carrier quotes one person may ask for in a minute. */
+  shippingQuotesPerMinute?: number;
   pictureSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
   /** A test's own picture makers: given what the real one would be built with. */
   pictureMakerSeam?: import('./llm/connections.js').AiConnectionsDeps['createPictureMaker'] | undefined;
@@ -2145,6 +2149,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   jobs.scheduler.registerSchedule(PAYMENTS_INTEGRITY_NAME, PAYMENTS_INTEGRITY_CRON, async () => {
     await runPaymentIntegrity(paymentWatchDeps);
   }, { jitterMs: 60_000 });
+  // What follows a bought label: the copy and the order's tracking number. Calls no carrier.
+  registerShippingApplyHandler(jobs.registry, { meta, manifests: appManifests, sources: paymentSources, writes: recordWrites, app });
+  jobs.scheduler.registerSchedule(
+    SHIPPING_APPLY_PICKUP_NAME,
+    SHIPPING_APPLY_PICKUP_CRON,
+    async () => {
+      const queued = await pickUpApplies(meta, (input) => jobs.enqueue(input));
+      if (queued > 0) app.log.info({ queued }, 'shipping: bought labels picked up again');
+    },
+    { jitterMs: 30_000 },
+  );
   jobs.scheduler.registerSchedule(
     PAYMENTS_RECORD_PICKUP_NAME,
     PAYMENTS_RECORD_PICKUP_CRON,
@@ -3672,8 +3687,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           networkFeatures: () => addOnCatalog.networkFeaturesAllowed(),
           policy: app.trialPolicy,
           sources: paymentSources,
-          // No booking can be open yet: nothing buys a label until the booking table exists, and it answers here.
-          openBookings: async () => [],
+          openBookings: (carrierInstallId) => shippingBookingsRepo(meta).unresolved(carrierInstallId),
+          ...(opts.shippingQuotesPerMinute === undefined ? {} : { quotesPerMinute: opts.shippingQuotesPerMinute }),
+          enqueueApply: (bookingId) => enqueueApply((input) => jobs.enqueue(input), bookingId),
           readRow: (request, connectionId, tableId, row) => readReachedRow({ meta, data: (id) => manager.data(id), resolve: (one) => app.rbac.resolve(one) }, request, connectionId, tableId, row),
         }),
       );
