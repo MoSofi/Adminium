@@ -9,7 +9,7 @@
 | `references/guides/building-a-side--the-look.md` | The look | 2448 |
 | `references/guides/building-a-side--the-two-sides-are-not-alike.md` | The two sides are not alike | 792 |
 | `references/guides/building-a-side--a-staff-side.md` | A staff side | 6033 |
-| `references/guides/building-a-side--a-customer-side.md` | A customer side | 4018 |
+| `references/guides/building-a-side--a-customer-side.md` | A customer side | 4757 |
 | `references/guides/building-a-side--pages-and-their-addresses.md` | Pages and their addresses | 3134 |
 | `references/guides/building-a-side--every-copy-of-the-app.md` | Every copy of the app | 2535 |
 | `references/guides/building-a-side--the-venue-s-clock-and-money.md` | The venue's clock and money | 769 |
@@ -18,7 +18,7 @@
 | `references/guides/building-a-side--text-in-other-languages.md` | Text in other languages | 481 |
 | `references/guides/from-a-template--overview.md` | A website template as a working app | 1487 |
 | `references/guides/from-a-template--before-anything-the-licence-and-the-inventory.md` | Before anything: the licence and the inventory | 1663 |
-| `references/guides/from-a-template--the-feature-report-before-the-build.md` | The feature report, before the build | 5125 |
+| `references/guides/from-a-template--the-feature-report-before-the-build.md` | The feature report, before the build | 5162 |
 | `references/guides/from-a-template--the-side-s-folder.md` | The side's folder | 2628 |
 | `references/guides/from-a-template--pages-become-addresses.md` | Pages become addresses | 3285 |
 | `references/guides/from-a-template--the-stylesheets.md` | The stylesheets | 1760 |
