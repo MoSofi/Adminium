@@ -202,6 +202,7 @@ export {
   type PublicConsent,
 } from './people.js';
 export { EXPIRE_DAYS_MAX, EXPIRE_DAYS_MIN, expireIssues, expireSchema, type Expire } from './expire.js';
+export { holdersIssues, holdersSchema, type Holders } from './holders.js';
 export {
   MODULE_DEFAULTS,
   modulesSchema,

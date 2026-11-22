@@ -342,6 +342,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'publicAccess.forget.copies',
   'people.addOnCopies',
   'table.expire',
+  // What "delete my details" keeps on an add-on's row of value, and empties once its value ends (privacy/held-values.ts).
+  'table.holders',
   // A band link picked by the write (crud/band.ts), a stamp counted in working days (crud/working-days.ts), and a
   // formula's ceil and floor (worked out by the manifest's own evaluator).
   'column.band',

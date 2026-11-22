@@ -216,6 +216,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'publicAccess.forget.copies',
   'people.addOnCopies',
   'table.expire',
+  // Who holds a row of value: what "delete my details" keeps while it is worth something.
+  'table.holders',
   // A link filled with the band a number falls in; a date so many working days on; a formula rounded up or down.
   'column.band',
   'stamp.addWorkingDays',
@@ -601,6 +603,7 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'adjuster.vouchers.held': '0.3.71',
   'people.addOnCopies': '0.3.43',
   'table.expire': '0.3.43',
+  'table.holders': '0.3.71',
   // The band a number falls in, a date counted in working days, and a formula's ceil and floor: read by the same release.
   'column.band': '0.3.43',
   'stamp.addWorkingDays': '0.3.43',
@@ -974,6 +977,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (table['removal'] !== undefined) out.push({ word: 'table.removal', path: `${at}.removal` });
     if (table['keep'] !== undefined) out.push({ word: 'table.keep', path: `${at}.keep` });
     if (table['expire'] !== undefined) out.push({ word: 'table.expire', path: `${at}.expire` });
+    if (table['holders'] !== undefined) out.push({ word: 'table.holders', path: `${at}.holders` });
     if (isDoc(table['states']) && table['states']['actions'] !== undefined) out.push({ word: 'states.actions', path: `${at}.states.actions` });
     list(isDoc(table['states']) ? table['states']['actions'] : undefined).forEach((action, a) => {
       if (isDoc(action) && action['handOver'] !== undefined) out.push({ word: 'states.handOver', path: `${at}.states.actions.${String(a)}.handOver` });

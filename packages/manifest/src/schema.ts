@@ -71,6 +71,7 @@ import { tableNameIssue, tableSchemaIssue } from './table-names.js';
 import { mailClassFloorIssues } from './mail-class.js';
 import { keepSchema, peopleIssues, peopleSchema, publicConsentIssues } from './people.js';
 import { expireIssues, expireSchema } from './expire.js';
+import { holdersIssues, holdersSchema } from './holders.js';
 import { automationIssues, manifestAutomationsSchema, type AutomationTableShape, type ManifestAutomation } from './automations.js';
 import { changeGuardIssues, changeGuardsSchema } from './change-guards.js';
 import { adjustDecidedColumns, adjustIssues, adjustSchema, adjusterIssues, adjusterSchema, type Adjuster, type AdjustTableShape } from './adjust.js';
@@ -1350,6 +1351,8 @@ export const requiredTableSchema = z
     keep: keepSchema.optional(),
     /** An add-on's own rows let go some days after a moment of theirs, unless a column holds a value (see `expire.ts`). */
     expire: expireSchema.optional(),
+    /** Who holds a row of value, and when it stops being worth anything: what "delete my details" keeps and for how long (see `holders.ts`). */
+    holders: holdersSchema.optional(),
   })
   .strict()
   .refine(
@@ -1380,6 +1383,7 @@ export const requiredTableSchema = z
     for (const issue of uniqueSetIssues(t)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of indexSetIssues(t)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of expireIssues(t)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    for (const issue of holdersIssues(t)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
   });
 
 /**
@@ -3970,10 +3974,11 @@ export const HOST_REFERENCES_FLOOR = '0.3.43';
  * entry held to the app whose key serves it. An app's rows are its owner's to
  * keep, and its entries serve its own key only.
  */
-function addOnOnlyWordIssues(m: { requiredSchema: { tables: readonly { expire?: unknown }[] }; publicAccess?: readonly { appColumn?: string | undefined; heldBy?: unknown }[] | undefined }): { path: (string | number)[]; message: string }[] {
+function addOnOnlyWordIssues(m: { requiredSchema: { tables: readonly { expire?: unknown; holders?: unknown }[] }; publicAccess?: readonly { appColumn?: string | undefined; heldBy?: unknown }[] | undefined }): { path: (string | number)[]; message: string }[] {
   const out: { path: (string | number)[]; message: string }[] = [];
   m.requiredSchema.tables.forEach((table, t) => {
     if (table.expire !== undefined) out.push({ path: ['requiredSchema', 'tables', t, 'expire'], message: "only an add-on's own table expires: an app's rows are its owner's to keep" });
+    if (table.holders !== undefined) out.push({ path: ['requiredSchema', 'tables', t, 'holders'], message: "only an add-on's own table names holders: an app's people are declared in `people`" });
   });
   (m.publicAccess ?? []).forEach((entry, e) => {
     if (entry.appColumn !== undefined) out.push({ path: ['publicAccess', e, 'appColumn'], message: "an app's entry serves its own key and its own rows: appColumn is said by an add-on's entry" });
