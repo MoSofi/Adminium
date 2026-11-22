@@ -1055,7 +1055,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     request,
     claimed,
     ...(consentTick === undefined ? {} : { consentTick }),
-    provedAddress: provedAddressOf(ok.key.scope, ok.session, claimed),
+    provedAddress: provedAddressOf(ok.key.scope, ok.session, claimed, addressSecret),
     adjust: {
       ...(negotiateLocale(request.headers['accept-language']) === null ? {} : { locale: negotiateLocale(request.headers['accept-language'])! }),
       ...(entry === undefined || ok.session === null || ok.session.level !== 'verified' || entry.claim?.column === undefined || entry.claim.ref !== ok.session.grant.ref
@@ -1865,7 +1865,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      */
     let held: RecordFilter | null = null;
     if (resource.heldBy !== undefined) {
-      const address = provedAddressOf(ok.key.scope, ok.session, await claimedRowOf(ok));
+      const address = provedAddressOf(ok.key.scope, ok.session, await claimedRowOf(ok), addressSecret);
       if (address === null) {
         fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
         return null;
