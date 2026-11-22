@@ -376,6 +376,26 @@ for (const [dialect, available] of ENGINES) {
         const danas = await importDeals('dana', 'id,title\n1,Deal 1\n', { mode: 'upsert', matchColumn: 'id' });
         expect((await get('lena', `imports/${danas.id}`)).statusCode).toBe(200);
       });
+
+      it('and its report of refused rows are not there for a holder of the manage grant who does not read its table', async () => {
+        // A line the table refuses, so the import has a report that quotes it. Sam keeps imports and holds no grant on the deals.
+        const lenas = await importDeals('lena', 'id,amount\n3,not-a-number\n', { mode: 'upsert', matchColumn: 'id' });
+        expect(lenas.status, lenas.body).toBe('succeeded');
+        expect(json<{ data: { errorReportFileId: string | null } }>(await get('lena', `imports/${lenas.id}`)).data.errorReportFileId).not.toBeNull();
+        const code = (res: Reply) => [res.statusCode, json<{ error: { code: string } }>(res).error.code];
+        for (const door of ['', '/error-report']) {
+          expect(code(await get('sam', `imports/${lenas.id}${door}`)), door).toEqual(code(await get('sam', `imports/imp_nothing_here${door}`)));
+        }
+        expect(code(await post('sam', `imports/${lenas.id}/run`))).toEqual(code(await post('sam', 'imports/imp_nothing_here/run')));
+        expect(json<{ data: { id: string }[] }>(await get('sam', 'imports')).data.map((row) => row.id)).not.toContain(lenas.id);
+
+        // Sam's own import stays Sam's, and Lena, who reads the quotes, still looks after it.
+        const sams = await importDeals('sam', 'id,deal_id,total\n905,,1\n', { mode: 'insert' }, w.id('quotes'));
+        expect(sams.status, sams.body).toBe('succeeded');
+        expect((await get('sam', `imports/${sams.id}`)).statusCode).toBe(200);
+        expect((await get('lena', `imports/${sams.id}`)).statusCode).toBe(200);
+        await w.run('DELETE FROM quotes WHERE id > 900');
+      });
     });
 
     describe('a document', () => {
