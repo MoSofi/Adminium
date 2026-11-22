@@ -520,6 +520,17 @@ describe.each(LEGS)('a booking as a calendar entry — %s', (dialect, available)
       expect((await fetchFeed(path)).statusCode).toBe(404);
     });
 
+    it.skipIf(!available)('counts one person\'s links together, however many of them were asked for', async () => {
+      await h.rows(`INSERT INTO ${h.real('team')} (id, first_name, email, active, position) VALUES (8, 'Noa Hale', 'noa@lumen.example', ${yes}, 8)`);
+      const noa = await login('noa@lumen.example', 'super-admin');
+      const links = await Promise.all(Array.from({ length: 6 }, async () => pathOf(((await look(noa, 8)).json() as { data: { link: string } }).data.link)));
+      expect(new Set(links).size).toBe(6);
+      const codes: number[] = [];
+      for (let i = 0; i < 61; i += 1) codes.push((await fetchFeed(links[i % links.length]!)).statusCode);
+      expect(codes.slice(0, 60).every((code) => code === 200)).toBe(true);
+      expect(codes[60]).toBe(429);
+    });
+
     it.skipIf(!available)('is bound to the person: a row that comes to hold someone else opens nothing', async () => {
       await h.rows(`INSERT INTO ${h.real('team')} (id, first_name, email, active, position) VALUES (3, 'Lee Park', 'lee@lumen.example', ${yes}, 3)`);
       const lee = await login('lee@lumen.example', 'super-admin');

@@ -43,12 +43,18 @@ const tokenOf = (params: { '*': string }): string => (params['*'].endsWith('.ics
 export function calendarFeedDoor(deps: FeedDeps): FastifyPluginAsyncZod {
   return async (app) => {
     tagRoutes(app, 'public');
-    /** A genuine link is counted by a digest of itself; anything else by network address. */
+    /**
+     * A genuine link is counted by the feed it opens, not by its text: each ask
+     * for the link seals a new one, so a count per text would be a count per ask.
+     * Anything else by network address.
+     */
     const subject = async (request: FastifyRequest): Promise<string | null> => {
       const token = tokenOf(request.params as { '*': string });
       const install = await settingsRepo(deps.meta).get('system.instanceId');
-      if (token === '' || typeof install !== 'string' || readFeedToken(await mailLinkKeys(deps.meta, deps.secret).feedAll(), install, token) === null) return null;
-      return createHash('sha256').update(token).digest('base64url');
+      if (token === '' || typeof install !== 'string') return null;
+      const claim = readFeedToken(await mailLinkKeys(deps.meta, deps.secret).feedAll(), install, token);
+      if (claim === null) return null;
+      return createHash('sha256').update(JSON.stringify([claim.connection, claim.app, claim.table, claim.row, claim.nonce])).digest('base64url');
     };
     const none = (reply: FastifyReply) => reply.code(404).header('cache-control', 'no-store').header('x-robots-tag', 'noindex').header('referrer-policy', 'no-referrer').type('text/plain; charset=utf-8').send('Not found');
     app.route({
