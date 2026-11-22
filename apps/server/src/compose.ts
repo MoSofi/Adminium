@@ -1259,6 +1259,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
               .catch(() => undefined);
           },
         });
+  // Which stored row limits are an owner's, while the running version of each app can still say: before anything here installs.
+  app.addHook('onReady', async () => {
+    try {
+      const marked = await markOwnerRowLimits({ meta, onFailed: (installId, error) => app.log.warn({ err: error, installId }, 'could not sort the stored row limits of an install; trying again at the next start') });
+      if (marked > 0) app.log.info({ marked }, 'recorded the row limits owners set');
+    } catch (error) {
+      app.log.warn({ err: error }, 'could not record the row limits owners set; trying again at the next start');
+    }
+  });
   if (project !== null) {
     app.addHook('onResponse', async (request, reply) => {
       if (reply.statusCode < 400 && isConfigWrite(request.method, request.routeOptions.url)) {
@@ -3877,15 +3886,6 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(rowReachRoutes({ meta, manager }));
       // A person named in rows is not removed for good until those rows are somebody's: the users routes ask this.
       api.decorate('rowsNamingUser', (userId: string) => rowsNaming(meta, manager, userId));
-      // Once: which row limits already stored are an owner's, while the running version of each app can still say.
-      api.addHook('onReady', async () => {
-        try {
-          const marked = await markOwnerRowLimits({ meta, credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET) });
-          if (marked > 0) app.log.info({ marked }, 'recorded the row limits owners set');
-        } catch (error) {
-          app.log.warn({ err: error }, 'could not record the row limits owners set; trying again at the next start');
-        }
-      });
       api.decorate('handUserRows', (from: Parameters<typeof handOverRows>[1]['from'], toId: string, audit: Parameters<typeof handOverRows>[1]['audit'], by: Parameters<typeof handOverRows>[1]['by']) => handOverRows({ meta, manager }, { from, toId, audit, by }));
       await api.register(usersRoutes);
       await api.register(permissionsRoutes);

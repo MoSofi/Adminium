@@ -829,8 +829,8 @@ export const SETTINGS_REGISTRY = {
    * narrowing of an app role survives it.
    */
   'system.seededAppRoleGrants': def<string[]>(z.array(z.string()), [], 'App role (role, grant) pairs an install has already granted once'),
-  /** The one pass that records which stored row limits are an owner's has run. */
-  'system.ownerRowLimitsMarked': def<boolean>(z.boolean(), false, 'Stored row limits have been sorted into the app\'s and the owner\'s'),
+  /** Installs whose stored row limits are not sorted yet into the app's and the owner's: until then no update changes them. */
+  'system.ownerRowLimitsPending': def<string[]>(z.array(z.string()), [], 'Installs whose stored row limits are still to be sorted'),
   'system.sourceConnectionId': def<string | null>(z.string().nullable(), null, 'Connection id the first-boot source seed created'),
   'system.sourceSeededAt': def<number | null>(z.number().nullable(), null, 'First-boot source-connection seed claim, healthy probes only (epoch ms)'),
   /**

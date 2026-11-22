@@ -39,7 +39,7 @@
 import { parseDatabaseModel } from '@adminium/engine';
 import { splitTableName } from '@adminium/manifest';
 import type { MetaDb } from '@adminium/meta';
-import { appTablesRepo, connectionsRepo, overridesRepo, pagesRepo, permissionActionsSchemaFor, permissionsRepo, publicApiStateRepo, snapshotsRepo, type RowReach, type TableActions } from '@adminium/meta';
+import { appTablesRepo, connectionsRepo, overridesRepo, pagesRepo, permissionActionsSchemaFor, permissionsRepo, publicApiStateRepo, snapshotsRepo, type RowLimit, type RowReach, type TableActions } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 
 import { mapTableRefs } from '../apps/real-refs.js';
@@ -630,8 +630,8 @@ async function repairIn(input: RenameRepairInput): Promise<RenameRepairResult> {
   for (const row of limited) {
     const actions = permissionActionsSchemaFor('table').safeParse(typeof row.actions === 'string' ? JSON.parse(row.actions) : row.actions);
     if (!actions.success) continue;
-    const rowLimit = (actions.data as TableActions).rowLimit;
-    if (rowLimit === undefined) continue;
+    const { rowLimit, ownerRows } = actions.data as TableActions;
+    if (rowLimit === undefined && ownerRows === undefined) continue;
     let changed = false;
     const moved = (reach: RowReach): RowReach => {
       if (reach.notThrough === undefined) return reach;
@@ -641,9 +641,12 @@ async function repairIn(input: RenameRepairInput): Promise<RenameRepairResult> {
       changed = true;
       return { ...reach, notThrough: next };
     };
-    const next = Object.fromEntries(Object.entries(rowLimit).map(([action, written]) => [action, Array.isArray(written) ? written.map(moved) : moved(written as RowReach)]));
+    const movedAll = (limit: RowLimit): RowLimit => Object.fromEntries(Object.entries(limit).map(([action, written]) => [action, Array.isArray(written) ? written.map(moved) : moved(written as RowReach)]));
+    // The limit in force, and what the owner set of it: an update copies the second back over the first.
+    const next = rowLimit === undefined ? undefined : movedAll(rowLimit);
+    const nextOwner = ownerRows === undefined ? undefined : movedAll(ownerRows);
     if (!changed) continue;
-    await permissions.grant(row.roleId, 'table', row.resourceRef, { ...(actions.data as TableActions), rowLimit: next });
+    await permissions.grant(row.roleId, 'table', row.resourceRef, { ...(actions.data as TableActions), ...(next === undefined ? {} : { rowLimit: next }), ...(nextOwner === undefined ? {} : { ownerRows: nextOwner }) });
     result.grants += 1;
   }
 

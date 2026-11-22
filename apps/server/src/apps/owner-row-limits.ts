@@ -15,9 +15,12 @@
  * rows whatever else it is given. An owner's reach is held to them too; one
  * already held to another condition cannot be, and that action is not given.
  */
-import { rowReachList, type RowLimit, type RowReach } from '@adminium/meta';
+import { rowReachList, type RowLimit, type RowReach, type TableActions } from '@adminium/meta';
 
 import { canonical } from '../rbac/role-within.js';
+
+/** Installs whose stored row limits are not sorted yet into the app's and the owner's. */
+export const OWNER_ROW_LIMITS_PENDING_KEY = 'system.ownerRowLimitsPending';
 
 const ACTIONS = ['read', 'update', 'delete'] as const;
 type Action = (typeof ACTIONS)[number];
@@ -53,33 +56,56 @@ export function rowLimitWith(
   return { rows: Object.keys(rows).length === 0 ? undefined : rows, blocked };
 }
 
-/** What is the owner's after they save a table's limit: what they changed, and what was theirs already. */
-export function ownerRowsAfterEdit(stored: RowLimit | undefined, owner: RowLimit | undefined, written: RowLimit): RowLimit | undefined {
+/**
+ * What is the owner's after they save a table's limit: what they changed, what
+ * was theirs already, and what waits on an action the row does not give now,
+ * which a save of the row's other actions says nothing about.
+ */
+export function ownerRowsAfterEdit(
+  stored: RowLimit | undefined,
+  owner: RowLimit | undefined,
+  written: RowLimit,
+  gives: (action: Action) => boolean,
+): RowLimit | undefined {
   const out: RowLimit = {};
   for (const action of ACTIONS) {
     const now = written[action];
-    if (now === undefined) continue;
+    if (now === undefined) {
+      if (owner?.[action] !== undefined && !gives(action)) out[action] = owner[action];
+      continue;
+    }
     if (owner?.[action] !== undefined || !sameReach(now, stored?.[action])) out[action] = now;
   }
   return Object.keys(out).length === 0 ? undefined : out;
 }
 
 /**
- * Of a limit stored before owners' limits were recorded, what the running
- * version does not declare: the owner's. A shared table's own-app condition
- * is the engine's, and is left out of the comparison.
+ * The limits an update must keep on a row. While its install's stored limits
+ * are not sorted yet, all of them: nothing can say they are the app's.
  */
-export function ownerRowsIn(stored: RowLimit | undefined, declared: RowLimit | undefined, appKey: string): RowLimit | undefined {
-  const own = canonical([appKey]);
+export function ownerRowsOf(actions: Pick<TableActions, 'rowLimit' | 'ownerRows'>, unsorted: boolean): RowLimit | undefined {
+  if (!unsorted) return actions.ownerRows;
+  const kept = { ...(actions.rowLimit ?? {}), ...(actions.ownerRows ?? {}) };
+  return Object.keys(kept).length === 0 ? undefined : kept;
+}
+
+/**
+ * Of a limit stored before owners' limits were recorded, what the running
+ * version does not declare: the owner's. On a table shared among apps the
+ * condition the engine adds (`ownApp`) is left out of the comparison; any
+ * other condition is somebody's word and counts.
+ */
+export function ownerRowsIn(stored: RowLimit | undefined, declared: RowLimit | undefined, ownApp: { column: string; in: string[] } | null): RowLimit | undefined {
+  const engines = ownApp === null ? null : canonical(ownApp);
   const plain = (written: Written): string =>
     canonical(
       rowReachList(written)
         .map((reach): Partial<RowReach> => {
-          if (reach.while === undefined || canonical(reach.while.in) !== own) return reach;
+          if (reach.while === undefined || canonical(reach.while) !== engines) return reach;
           const { while: _while, ...rest } = reach;
           return rest;
         })
-        .filter((reach) => !(reach.reach === 'all' && Object.keys(reach).length === 1)),
+        .filter((reach) => engines === null || !(reach.reach === 'all' && Object.keys(reach).length === 1)),
     );
   const out: RowLimit = {};
   for (const action of ACTIONS) {
