@@ -22,7 +22,6 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { FastifyRequest } from 'fastify';
 import {
-  passwordResetsRepo,
   emailChangesRepo,
   passwordResetsRepo,
   rolesRepo,
