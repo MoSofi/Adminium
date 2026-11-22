@@ -105,6 +105,7 @@ function appManifest(): Record<string, unknown> {
     roles: [
       { key: 'owner', name: 'Owner', permissions: ['app:@:staff', ...tableGrants(['read', 'create', 'update']), 'accounts:@:connect', 'accounts:@:send-link', 'accounts:@:disconnect'] },
       { key: 'reader', name: 'Reader', permissions: ['app:@:staff', 'table:@team:read', 'table:@bookings:read'] },
+      { key: 'editor', name: 'Editor', permissions: ['app:@:staff', 'table:@team:read', 'table:@team:update', 'table:@bookings:read'] },
       {
         key: 'specialist',
         name: 'Specialist',
@@ -190,7 +191,7 @@ for (const [dialect, reachable] of LEGS) {
     /** Signs everyone in, for a test that moved the clock past their sessions. */
     let signIns = 0;
     async function signIn(): Promise<void> {
-      for (const who of ['admin', 'owner', 'elin', 'rafa', 'reader']) {
+      for (const who of ['admin', 'owner', 'elin', 'rafa', 'reader', 'editor']) {
         signIns += 1;
         const login = await composed.app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { email: people[who]!.email, password: ADMIN_PASSWORD }, remoteAddress: `10.9.${String(Math.floor(signIns / 250))}.${String((signIns % 250) + 1)}` });
         expect(login.statusCode, login.body).toBe(200);
@@ -283,6 +284,7 @@ for (const [dialect, reachable] of LEGS) {
       await make('elin', 'studio-specialist');
       await make('rafa', 'studio-specialist');
       await make('reader', 'studio-reader');
+      await make('editor', 'studio-editor');
       await signIn();
 
       const view = await loadSnapshotView(h.meta, h.connectionId);
@@ -1037,6 +1039,26 @@ for (const [dialect, reachable] of LEGS) {
       expect(refused.statusCode).toBe(422);
       expect(refused.body).toContain('UNKNOWN_CALENDAR');
       expect((await sync.repo.state((await accountOf('mina')).id))!.readCalendars).toBeNull();
+    });
+
+    it('lets only the person add a calendar typed by hand, or restart what they stopped', async () => {
+      const account = await connected('lena');
+      demo.setTraits(account.subject, { listsCalendars: false, allDayKnown: true, busyPush: false });
+      demo.addCalendar(account.subject, { id: 'ceo@studio.dev', name: 'CEO', primary: false, writable: false });
+      const body = { connection: h.connectionId, table: team, row: String(teamRow['lena']), readCalendars: ['primary', 'ceo@studio.dev'] };
+      const refused = await staff('admin', 'POST', '/calendar-sync/row/choices', body);
+      expect(refused.statusCode, refused.body).toBe(403);
+      expect((await sync.repo.state(account.id))!.readCalendars).toBeNull();
+      // Taking one away stays open to whoever may change the row.
+      await sync.repo.patch(account.id, { readCalendars: ['primary', 'work'] }, Date.now());
+      expect((await staff('admin', 'POST', '/calendar-sync/row/choices', { ...body, readCalendars: ['primary'] })).statusCode).toBe(200);
+      // Stopped after their calendar was deleted twice: a role with no say over connections cannot restart it.
+      await sync.repo.patch(account.id, { paused: 'calendar-deleted' }, Date.now());
+      const resume = { connection: h.connectionId, table: team, row: String(teamRow['lena']), resume: true };
+      expect((await staff('editor', 'POST', '/calendar-sync/row/choices', resume)).statusCode).toBe(403);
+      expect((await sync.repo.state(account.id))!.paused).toBe('calendar-deleted');
+      expect((await staff('owner', 'POST', '/calendar-sync/row/choices', resume)).statusCode).toBe(200);
+      demo.setTraits(account.subject, { listsCalendars: true, allDayKnown: true, busyPush: true });
     });
 
     it('lets go of busy times that are over', async () => {

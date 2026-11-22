@@ -29,6 +29,7 @@ import type { ConnectedAccounts } from '../../connected-accounts/service.js';
 import { canReadPii } from '../../crud/mask.js';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import { normaliseAddress } from '../../public-api/claim-code.js';
+import { appAccountsPermission } from '../../rbac/permissions.js';
 import { tagRoutes } from '../../security/route-audience.js';
 
 /** A service's notice is a few kilobytes; a Microsoft batch a little more. */
@@ -170,6 +171,13 @@ export function calendarDeskRoutes(deps: CalendarDeskDeps): FastifyPluginAsyncZo
     if (table === null) return false;
     const column = table.rule.address;
     if (column !== undefined && !(await deps.maskedColumns(target.connectionId, target.tableName)).has(column)) return true;
+    return isOwnRow(request, target);
+  }
+
+  /** Whether this row is the signed-in person's own: by the staff column that names them, or the address on it. */
+  async function isOwnRow(request: FastifyRequest, target: { connectionId: string; tableName: string; rowKey: string }): Promise<boolean> {
+    const table = await accounts.tableOf(target.connectionId, target.tableName);
+    if (table === null) return false;
     const row = await accounts.readRow(target);
     if (row === undefined) return false;
     const me = request.user?.id;
@@ -207,12 +215,20 @@ export function calendarDeskRoutes(deps: CalendarDeskDeps): FastifyPluginAsyncZo
         const target = await person(request, input, 'update');
         const account = (await accounts.repo.forTarget(target))[0];
         if (account === undefined) throw new NotFoundError('This row has no connected calendar.');
+        const own = await isOwnRow(request, target);
+        // Restarting what a person stopped is theirs, or for whoever may handle connections for this app.
+        if (input.resume === true && !own) {
+          const table = await accounts.tableOf(target.connectionId, target.tableName);
+          if (table === null || !(await request.can(appAccountsPermission(table.appKey, 'connect')))) throw new ForbiddenError('Only this person can turn their calendar back on.', 'FORBIDDEN', { reason: 'not-theirs' });
+        }
         const chosen = await sync.setChoices(account.id, {
           ...(input.readCalendars === undefined ? {} : { readCalendars: input.readCalendars }),
           ...(input.countAllDay === undefined ? {} : { countAllDay: input.countAllDay }),
           ...(input.detail === undefined ? {} : { detail: input.detail }),
           ...(input.resume === undefined ? {} : { resume: input.resume }),
+          byOwnPerson: own,
         });
+        if (chosen === 'not-theirs') throw new ForbiddenError('Only this person can add a calendar to their own account.', 'FORBIDDEN', { reason: 'not-theirs' });
         if (chosen === 'unknown-calendar') throw new ValidationFailedError('That is not one of this account\'s calendars.', { reason: 'UNKNOWN_CALENDAR' });
         await record(request, 'calendar-sync.choices', { table: target.tableName, row: target.rowKey });
         return { ok: true as const };

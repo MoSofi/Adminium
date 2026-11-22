@@ -1367,7 +1367,7 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
    * account lists, where the provider can list them; where it cannot (Google
    * with two permissions), ids are typed by hand, as ruled.
    */
-  async function setChoices(accountId: string, input: { readCalendars?: string[] | null; countAllDay?: boolean; detail?: Detail; resume?: boolean }): Promise<'ok' | 'unknown-calendar'> {
+  async function setChoices(accountId: string, input: { readCalendars?: string[] | null; countAllDay?: boolean; detail?: Detail; resume?: boolean; byOwnPerson?: boolean }): Promise<'ok' | 'unknown-calendar' | 'not-theirs'> {
     const account = await accountsRepo.find(accountId);
     if (account === null) return 'ok';
     if (input.readCalendars !== undefined && input.readCalendars !== null) {
@@ -1382,6 +1382,8 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
         const had = new Set((await repo.state(accountId))?.readCalendars ?? ['primary']);
         for (const id of input.readCalendars) {
           if (had.has(id)) continue;
+          // An ID nobody can check against a list reads with this person's grant: only they may aim it at a calendar.
+          if (input.byOwnPerson === false) return 'not-theirs';
           const tried = await lookup.provider.readBusy({ calendarIds: [id], from: new Date(now()).toISOString(), to: new Date(now() + 60_000).toISOString() });
           if (isCalendarError(tried) && CALENDAR_LOST.has(tried.calendarError)) return 'unknown-calendar';
         }
