@@ -55,6 +55,7 @@ import {
   pagesRepo,
   publicKeysRepo,
   passwordResetsRepo,
+  emailChangesRepo,
   publicApiStateRepo,
   publicRequestStatsRepo,
   publicChallengesRepo,
@@ -4712,6 +4713,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // audit trail of "you were logged out" survives the day it happened.
     const sessions = await sessionsRepo(meta).gc(at);
     const passwordResets = await passwordResetsRepo(meta).gc(at);
+    const emailChanges = await emailChangesRepo(meta).gc(at);
 
     const jobsDays = await settings.get('retention.jobsDays');
     const finishedJobs = await jobsRepo(meta).gc(at, jobsDays);
@@ -4793,6 +4795,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       {
         sessions,
         passwordResets,
+        emailChanges,
         jobs: finishedJobs,
         auditEntries,
         removedRows,

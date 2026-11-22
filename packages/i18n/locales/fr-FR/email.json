@@ -1019,5 +1019,13 @@
     "object": "Je m’oppose",
     "questions": "Des questions ? Écrivez à {contact}. {who}.",
     "keptBy": "Conservées par {who}."
+  },
+  "emailChangeConfirm": {
+    "action": "Confirmer cette adresse",
+    "heading": "Confirmez votre nouvelle adresse",
+    "intro": "Bonjour {name}, une personne connectée à {appName} en tant que {currentEmail} a demandé à se connecter désormais avec {email}.",
+    "name": "Confirmer une nouvelle adresse de connexion",
+    "notice": "Ouvrez ce lien en étant connecté à ce compte. Il ne fonctionne qu’une fois et expire dans {expiresInHours} heures. Si vous ne connaissez pas ce compte, ignorez cet e-mail : rien ne change.",
+    "subject": "Confirmez votre nouvelle adresse de connexion à {appName}"
   }
 }

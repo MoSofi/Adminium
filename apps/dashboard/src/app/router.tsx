@@ -124,6 +124,7 @@ const AppSurfacePageLazy = lazyRoute(
 const ChangelogPageLazy = lazyRoute(async () => (await import('../changelog/ChangelogPage.js')).ChangelogPage);
 const KnowledgeBasePageLazy = lazyRoute(async () => (await import('../kb/KnowledgeBasePage.js')).KnowledgeBasePage);
 const AccountPageLazy = lazyRoute(async () => (await import('../pages/AccountPage.js')).AccountPage);
+const ConfirmEmailPageLazy = lazyRoute(async () => (await import('../account/ConfirmEmailPage.js')).ConfirmEmailPage);
 const NotificationSettingsPageLazy = lazyRoute(async () => (await import('../account/NotificationSettingsPage.js')).NotificationSettingsPage);
 const PreferencesPageLazy = lazyRoute(async () => (await import('../account/PreferencesPage.js')).PreferencesPage);
 const DesktopSettingsPageLazy = lazyRoute(async () => (await import('../desktop/DesktopSettingsPage.js')).DesktopSettingsPage);
@@ -646,6 +647,13 @@ const accountRoute = createRoute({
   component: AccountPageLazy,
 });
 
+/** The link mailed to a new sign-in address. Inside the signed-in shell: only the account that asked can use it. */
+const confirmEmailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/account/confirm-email/$token',
+  component: ConfirmEmailPageLazy,
+});
+
 /** First-run onboarding surface; admin-gated in-component. */
 const welcomeRoute = createRoute({
   getParentRoute: () => appRoute,
@@ -1130,6 +1138,7 @@ const routeTree = rootRoute.addChildren([
     addOnSettingsRoute,
     appSurfaceRootRoute,
     accountRoute,
+    confirmEmailRoute,
     welcomeRoute,
     accountPreferencesRoute,
     accountNotificationsRoute,

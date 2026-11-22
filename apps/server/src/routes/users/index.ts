@@ -22,6 +22,7 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { FastifyRequest } from 'fastify';
 import {
+  emailChangesRepo,
   rolesRepo,
   sessionsRepo,
   settingsRepo,
@@ -101,12 +102,12 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
    */
   const emailSecret = app.authContext?.env.ADMINIUM_SECRET;
 
-  /**
   /** Ends a person's open sockets and streams (`jobs/register.ts`); a server with no realtime has none. */
   const closeConnections = (userId: string): void => {
     (app as unknown as { closeUserConnections?: (id: string) => number }).closeUserConnections?.(userId);
   };
 
+  /**
    * Queue the invitation mail. Returns whether it was QUEUED — not whether it
    * arrived; the relay owns that, and the job's retry/dead-letter state is
    * where an operator watches it. Never throws: the activation link in the
@@ -461,6 +462,8 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
 
       const now = app.rbac.now();
       if (Object.keys(patch).length > 0) await users.updateProfile(user.id, patch, now);
+      // An administrator set the address: a link the person was still waiting on no longer applies.
+      if (patch.email !== undefined) await emailChangesRepo(meta).clear(user.id);
       if (status !== null) {
         await users.updateStatus(user.id, status, now);
         // A suspended user must stop being logged in immediately, on what is already open too.
@@ -534,10 +537,10 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
         // and reset tokens with it, and `adminium_settings.updated_by` goes
         // NULL — audited under its own verb precisely because it is lossy.
         await meta.db.deleteFrom('adminium_users').where('id', '=', user.id).execute();
+        closeConnections(user.id);
         await app.rbac.audit(request, {
           category: 'rbac',
           action: 'user.delete',
-        closeConnections(user.id);
           changes: { before },
         });
         return { ok: true as const, permanent: true, user: null };
@@ -545,10 +548,10 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
 
       await users.updateStatus(user.id, 'suspended', now);
       await sessions.revokeAllForUser(user.id, now);
+      closeConnections(user.id);
       const suspended = await mustFindUser(user.id);
       await app.rbac.audit(request, {
         category: 'rbac',
-      closeConnections(user.id);
         action: 'user.suspend',
         changes: { before, after: { status: suspended.status } },
       });

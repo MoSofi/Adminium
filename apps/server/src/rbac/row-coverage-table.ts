@@ -422,6 +422,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   // --- /me
   'GET /api/v1/me': noRows('A person\'s own profile, preferences, notices and layouts.'),
   'PATCH /api/v1/me': noRows('A person\'s own profile, preferences, notices and layouts.'),
+  'POST /api/v1/me/email/confirm': noRows('A person\'s own sign-in address, moved by the link mailed to it.'),
   'GET /api/v1/me/notification-prefs': noRows('A person\'s own profile, preferences, notices and layouts.'),
   'GET /api/v1/me/notification-schedule': noRows('A person\'s own profile, preferences, notices and layouts.'),
   'PUT /api/v1/me/notification-schedule': noRows('A person\'s own profile, preferences, notices and layouts.'),

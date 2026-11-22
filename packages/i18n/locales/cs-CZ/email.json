@@ -1019,5 +1019,13 @@
     "object": "Vznést námitku",
     "questions": "Máte otázky? Napište na {contact}. {who}.",
     "keptBy": "Uchovává {who}."
+  },
+  "emailChangeConfirm": {
+    "action": "Potvrdit tuto adresu",
+    "heading": "Potvrďte svou novou adresu",
+    "intro": "Dobrý den, {name}, někdo přihlášený do {appName} jako {currentEmail} požádal o přihlašování adresou {email}.",
+    "name": "Potvrzení nové přihlašovací adresy",
+    "notice": "Otevřete tento odkaz, když jste přihlášeni k tomuto účtu. Funguje jen jednou a vyprší za {expiresInHours} h. Pokud tento účet neznáte, e-mail ignorujte: nic se nezmění.",
+    "subject": "Potvrďte svou novou přihlašovací adresu pro {appName}"
   }
 }

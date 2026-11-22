@@ -170,7 +170,7 @@ describe('email document routes', () => {
     // Thirteen built-ins × eight compiled locales (added `document-ready`, then `booking-confirmation`,
     // then `sign-in-code` and `email-changed`, then `sign-in-link`, `details-deleted`, then the
     // two payment emails, then `sign-up-confirm`, then `chat-reply`).
-    expect(body.counts).toEqual({ template: 104, campaign: 0, archived: 0 });
+    expect(body.counts).toEqual({ template: 112, campaign: 0, archived: 0 });
     const reset = body.items.filter((i) => i.key === 'password-reset');
     expect(reset).toHaveLength(8);
     expect(reset[0]?.locale).toBe('en_US');

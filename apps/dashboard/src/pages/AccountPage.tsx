@@ -20,7 +20,9 @@
  * password managers to fill — then save — a field that has nothing to do with
  * signing in. The server enforces this independently (`mePatchBody` refuses an
  * email change with no password); this only keeps the UI honest about which
- * of the two fields costs a re-authentication.
+ * of the two fields costs a re-authentication. Saving a new address moves
+ * nothing yet: a link goes to it, and the old one signs in until that link is
+ * opened (`account/ConfirmEmailPage.tsx`).
  *
  * ROLES AND TWO-FACTOR ARE NOT EDITED HERE, for two different reasons.
  * Roles are an administrative grant, not a self-service preference — a user
@@ -83,7 +85,7 @@ function ProfileCard({ user }: { user: SessionUser }): ReactNode {
 
   const save = useMutation({
     mutationFn: (patch: MePatch) => patchMe(patch),
-    onSuccess: (fresh) => {
+    onSuccess: ({ user: fresh }) => {
       // Seed rather than invalidate: the reply is the same `authUserView` the
       // bootstrap payload carries, so the topbar avatar and the menu's
       // name/email header update on this tick instead of after a refetch of
@@ -145,7 +147,7 @@ function ProfileCard({ user }: { user: SessionUser }): ReactNode {
           <FormField
             label={t('account.email', 'Email')}
             required
-            helper={t('account.emailHelper', 'Used to sign in. Changing it needs your password.')}
+            helper={t('account.emailHelperLink', 'Used to sign in. Changing it needs your password and a link sent to the new address.')}
           >
             <Input
               type="email"
@@ -184,15 +186,24 @@ function ProfileCard({ user }: { user: SessionUser }): ReactNode {
               data-testid="account-error"
             />
           )}
-          {save.isSuccess && !dirty ? (
+          {save.isSuccess && !dirty && save.data.emailChange !== undefined ? (
+            <Alert
+              role="status"
+              tone="info"
+              title={t('account.emailPendingTitle', 'Check your new address')}
+              body={t('account.emailPendingBody', 'We sent a link to {email}. Until you open it, keep signing in with {current}.', {
+                email: save.data.emailChange.pendingEmail,
+                current: save.data.user.email,
+              })}
+              data-testid="account-email-pending"
+            />
+          ) : null}
+          {save.isSuccess && !dirty && save.data.emailChange === undefined ? (
             <Alert
               role="status"
               tone="pos"
               title={t('account.saved', 'Profile updated')}
-              body={t(
-                'account.savedBody',
-                'Your new details are in use across this server. If you changed your email, sign in with the new address from now on.',
-              )}
+              body={t('account.savedProfileBody', 'Your new details are in use across this server.')}
               data-testid="account-saved"
             />
           ) : null}

@@ -1029,5 +1029,13 @@ export default {
     "object": "提出反對",
     "questions": "有疑問？請寫信至 {contact}。{who}。",
     "keptBy": "由 {who} 保留。"
+  },
+  "emailChangeConfirm": {
+    "action": "確認此地址",
+    "heading": "確認你的新地址",
+    "intro": "{name}，你好。有人以 {currentEmail} 的身分登入 {appName}，並申請今後使用 {email} 登入。",
+    "name": "確認新的登入地址",
+    "notice": "請在登入該帳戶的狀態下開啟此連結。連結只能使用一次，將在 {expiresInHours} 小時後失效。如果你不認識此帳戶，請忽略這封郵件，一切都不會改變。",
+    "subject": "確認你的 {appName} 新登入地址"
   }
 } as const;

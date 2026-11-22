@@ -1029,5 +1029,13 @@ export default {
     "object": "Gør indsigelse",
     "questions": "Spørgsmål? Skriv til {contact}. {who}.",
     "keptBy": "Gemt af {who}."
+  },
+  "emailChangeConfirm": {
+    "action": "Bekræft denne adresse",
+    "heading": "Bekræft din nye adresse",
+    "intro": "Hej {name}, en person, der er logget ind på {appName} som {currentEmail}, har bedt om at logge ind med {email} fra nu af.",
+    "name": "Bekræft en ny login-adresse",
+    "notice": "Åbn linket, mens du er logget ind på den konto. Det virker kun én gang og udløber om {expiresInHours} timer. Hvis du ikke kender kontoen, kan du ignorere denne e-mail: Intet ændres.",
+    "subject": "Bekræft din nye login-adresse til {appName}"
   }
 } as const;

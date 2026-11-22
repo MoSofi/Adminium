@@ -1029,5 +1029,13 @@ export default {
     "object": "Widersprechen",
     "questions": "Fragen? Schreiben Sie an {contact}. {who}.",
     "keptBy": "Aufbewahrt von {who}."
+  },
+  "emailChangeConfirm": {
+    "action": "Diese Adresse bestätigen",
+    "heading": "Neue Adresse bestätigen",
+    "intro": "Hallo {name}, jemand, der bei {appName} als {currentEmail} angemeldet ist, möchte sich ab jetzt mit {email} anmelden.",
+    "name": "Neue Anmeldeadresse bestätigen",
+    "notice": "Öffne diesen Link, während du in diesem Konto angemeldet bist. Er funktioniert nur einmal und läuft in {expiresInHours} Stunden ab. Wenn du dieses Konto nicht kennst, ignoriere diese E-Mail: Es ändert sich nichts.",
+    "subject": "Bestätige deine neue Anmeldeadresse für {appName}"
   }
 } as const;

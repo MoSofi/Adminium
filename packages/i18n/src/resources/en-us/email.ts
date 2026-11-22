@@ -1029,5 +1029,13 @@ export default {
     "object": "Object",
     "questions": "Questions? Write to {contact}. {who}.",
     "keptBy": "Kept by {who}."
+  },
+  "emailChangeConfirm": {
+    "action": "Confirm this address",
+    "heading": "Confirm your new address",
+    "intro": "Hi {name}, someone signed in to {appName} as {currentEmail} asked to sign in with {email} from now on.",
+    "name": "Confirm a new sign-in address",
+    "notice": "Open this link while signed in to that account. It works only once and expires in {expiresInHours} hours. If you don’t know this account, ignore this email: nothing changes.",
+    "subject": "Confirm your new {appName} sign-in address"
   }
 } as const;

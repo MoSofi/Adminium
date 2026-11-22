@@ -425,13 +425,11 @@ export default {
     "on": "已启用",
     "off": "未启用",
     "nameRequired": "请输入你的姓名。",
-    "emailHelper": "用于登录。修改需要输入密码。",
     "confirmPassword": "当前密码",
     "confirmPasswordHelper": "在更改登录地址前，请确认是你本人。",
     "save": "保存更改",
     "saveFailed": "无法保存你的个人资料",
     "saved": "个人资料已更新",
-    "savedBody": "新的信息已在整个服务器上生效。如果你更改了邮箱，今后请使用新地址登录。",
     "accessTitle": "访问权限",
     "accessSubtitle": "此账户可以做什么，以及它如何证明身份。",
     "rolesHelper": "角色由管理员授予，无法在自己的账户中更改。",
@@ -447,6 +445,21 @@ export default {
       "reset": "恢复为服务器默认值",
       "resetFailed": "无法重置此偏好。请重试。",
       "appliesInstantly": "更改会立即生效，并保存到你的个人资料。"
+    },
+    "emailHelperLink": "用于登录。更改时需要输入密码，并打开发送到新地址的链接。",
+    "savedProfileBody": "你的新资料已在此服务器上生效。",
+    "emailPendingTitle": "请查收新地址的邮件",
+    "emailPendingBody": "我们已向 {email} 发送链接。在打开链接之前，请继续使用 {current} 登录。",
+    "confirmEmail": {
+      "action": "确认地址",
+      "back": "返回你的账户",
+      "body": "这会把邮件中的地址设为此账户的登录地址。",
+      "doneBody": "今后请使用新地址登录。",
+      "doneTitle": "地址已更改",
+      "failedBody": "链接可能已过期、已被新链接取代，或属于其他账户。你可以在账户页面重新申请。",
+      "failedTitle": "此链接无法使用",
+      "takenBody": "该地址现已属于其他账户。请在账户页面选择其他地址。",
+      "title": "确认你的新地址"
     }
   },
   "settings": {

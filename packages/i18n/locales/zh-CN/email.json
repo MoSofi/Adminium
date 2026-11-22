@@ -1019,5 +1019,13 @@
     "object": "提出反对",
     "questions": "有疑问？请写信至 {contact}。{who}。",
     "keptBy": "由 {who} 保留。"
+  },
+  "emailChangeConfirm": {
+    "action": "确认此地址",
+    "heading": "确认你的新地址",
+    "intro": "{name}，你好。有人以 {currentEmail} 的身份登录 {appName}，并申请今后使用 {email} 登录。",
+    "name": "确认新的登录地址",
+    "notice": "请在登录该账户的状态下打开此链接。链接只能使用一次，将在 {expiresInHours} 小时后失效。如果你不认识此账户，请忽略这封邮件，一切都不会改变。",
+    "subject": "确认你的 {appName} 新登录地址"
   }
 }

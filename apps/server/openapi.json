@@ -1780,6 +1780,122 @@
                             "updatedAt"
                           ],
                           "additionalProperties": false
+                        },
+                        "emailChange": {
+                          "type": "object",
+                          "properties": {
+                            "pendingEmail": {
+                              "type": "string"
+                            },
+                            "expiresAt": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "pendingEmail",
+                            "expiresAt"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "user"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/email/confirm": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "token"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "email": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "active",
+                                "invited",
+                                "suspended",
+                                "sample"
+                              ]
+                            },
+                            "totpEnabled": {
+                              "type": "boolean"
+                            },
+                            "lastLoginAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "createdAt": {
+                              "type": "number"
+                            },
+                            "updatedAt": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "email",
+                            "name",
+                            "status",
+                            "totpEnabled",
+                            "lastLoginAt",
+                            "createdAt",
+                            "updatedAt"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [

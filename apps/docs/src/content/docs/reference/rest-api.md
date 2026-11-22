@@ -144,7 +144,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/leads/*` | 8 | Finding companies, for staff of an add-on that finds them: search a register, look up one company, add found companies, fill in a company's details, and find and keep the people who work there — every write made as the person asking; where each filled field of a company came from, while it still holds what was filled; and the mail a found person is sent, drawn for a made-up person and never sent |
 | `/api/v1/ledgers/*` | 4 | The rules that hand rows to an add-on's ledger (stock, gift cards) — which tables post into it, whether each rule runs, how many rows hold something under it and how many saves wait to be worked out; the tables and columns a new rule may be drawn from; making the ledger's items from a table's rows; and recording the saves let through while the add-on could not be asked. Reading needs a session and the connection; the two runs need the grant that changes what a table's columns mean. A rule itself is stored under /connections/:id/tables/:table/postings. |
 | `/api/v1/llm/*` | 18 | LLM assist — provider config, runs, prompts, diffs, apply, undo |
-| `/api/v1/me/*` | 15 | The signed-in user — profile, preferences, notifications, saved layouts |
+| `/api/v1/me/*` | 16 | The signed-in user — profile, preferences, notifications, saved layouts |
 | `/api/v1/meta/*` | 2 | Where the meta store lives, and relocating it |
 | `/api/v1/onboarding/*` | 2 | The first-run checklist |
 | `/api/v1/option-lists/*` | 5 | Named sets of answers a column accepts, written once and pointed at by as many columns as need them. Reading one needs only a session — a create dialog has to render the choices to anyone who may add a row — while writing needs the same grant that points a column at a list. The built-in lists live in code and are served with their labels in the caller's locale; editing one makes an ordinary copy rather than changing it. Deleting a list a column still names is refused with 409 and the columns using it. |
@@ -778,6 +778,7 @@ POST /api/v1/llm/yours-assist/undo
 ```http
 GET /api/v1/me
 PATCH /api/v1/me
+POST /api/v1/me/email/confirm
 GET /api/v1/me/prefs
 PATCH /api/v1/me/prefs
 GET /api/v1/me/notifications
