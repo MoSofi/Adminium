@@ -42,6 +42,7 @@ import { grantKeyOf, installOnConnection, requireInstall, selectorOf, splitInsta
 import { rowKeyOf, type PayableSources } from '../../payments/payables.js';
 import { appShippingPermission, PERMISSIONS } from '../../rbac/permissions.js';
 import { tagRoutes } from '../../security/route-audience.js';
+import { shippingTrackingRoutes } from './tracking.js';
 import { pricesHiddenFrom, readsPartOf, shippingPerson, shippingViewerOf, type ShippingViewer } from '../../shipping/access.js';
 import { cleanShipFrom, orderAddress, readShipFrom, recipientForRates, shipFromAddress, shipFromChanges } from '../../shipping/addresses.js';
 import { askForRates, carrierHttpFor, shippingCarrierFor, type ShippingCarrierDeps } from '../../shipping/carriers.js';
@@ -288,6 +289,7 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
     if (deps.storage !== undefined) {
       await app.register(shippingLabelRoutes({ meta, secret, storage: deps.storage, sources: deps.sources, carrierDeps, appOf, reachOrder }));
     }
+    await app.register(shippingTrackingRoutes({ meta, manifests, secret, networkFeatures: deps.networkFeatures, carrierDeps, appOf, reachOrder }));
 
     app.get(
       '/apps/:key/shipping/access',

@@ -347,6 +347,8 @@ export const RATE_BUCKETS = {
   // A payment service calling back: few addresses, many events at once (a
   // retry storm after an outage). Generous; the signature is the real gate.
   'payment-webhook': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
+  // A carrier calling back about parcels. The token in the address is the real gate.
+  'shipping-webhook': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
   // The mail door (`/m/`): whoever holds a mail's link, by network address.
   // Generous on purpose; the signed link is the gate, and a press twice
   // changes nothing. Many readers share one address: the one-click comes from

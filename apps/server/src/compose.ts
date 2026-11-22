@@ -395,6 +395,10 @@ import { schemaImportRoutes } from './routes/schema-import/index.js';
 import { searchRoutes } from './routes/search/index.js';
 import { geoRoutes } from './routes/geo/index.js';
 import { shippingRoutes } from './routes/shipping/index.js';
+import { shippingWebhookRoutes } from './routes/shipping/webhook.js';
+import { carrierHttpFor } from './shipping/carriers.js';
+import { registerShippingPolling } from './shipping/polling.js';
+import { registerShippingTracking } from './shipping/tracking.js';
 import { SHIPPING_APPLY_PICKUP_CRON, SHIPPING_APPLY_PICKUP_NAME, enqueueApply, pickUpApplies, registerShippingApplyHandler } from './shipping/apply.js';
 import { paymentsRoutes } from './routes/payments/index.js';
 import { paymentPayablesRoutes } from './routes/payments/payables.js';
@@ -2157,6 +2161,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   }, { jitterMs: 60_000 });
   // What follows a bought label: the copy and the order's tracking number. Calls no carrier.
   registerShippingApplyHandler(jobs.registry, { meta, manifests: appManifests, sources: paymentSources, writes: recordWrites, app });
+  // What a carrier's webhook said. Calls no carrier; polling registers nothing while its code lock is off.
+  const shippingTrackDeps = { meta, secret: env.ADMINIUM_SECRET, now: () => Date.now(), enqueueApply: (bookingId: string) => enqueueApply((input) => jobs.enqueue(input), bookingId), log: (message: string, fields: Record<string, unknown>) => app.log.warn(fields, message) };
+  registerShippingTracking(jobs, shippingTrackDeps);
+  registerShippingPolling({ registry: jobs.registry, scheduler: jobs.scheduler, enqueue: (input) => jobs.enqueue(input) }, { ...shippingTrackDeps, manifests: appManifests, carrierDeps: { runtime: () => addOnRuntime, manifests: appManifests, httpFor: (manifest) => carrierHttpFor(meta, manifest, app.trialPolicy) } });
   jobs.scheduler.registerSchedule(
     SHIPPING_APPLY_PICKUP_NAME,
     SHIPPING_APPLY_PICKUP_CRON,
@@ -2702,6 +2710,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       );
       // Where a payment service calls back: no session, the signature is the gate.
       await api.register(paymentWebhookRoutes({ meta, providerFor: paymentProviderLookup, enqueue: (input) => jobs.enqueue(input), notices: paymentNotices }));
+      // Where a carrier calls back about a parcel: no session, the token in its address is the gate.
+      await api.register(shippingWebhookRoutes({ meta, manifests: appManifests, secret: env.ADMINIUM_SECRET, enqueue: (input) => jobs.enqueue(input) }));
       // Where a mail service tells of bounces, spam reports and its own unsubscribes: no session, its own proof is the gate.
       await api.register(mailNoticeRoutes({ meta, secret: env.ADMINIUM_SECRET, consent, networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY }));
       // Refunding a payment: what the dialog shows, and the confirm step.

@@ -71,6 +71,12 @@ export const SHIPPING_REFUSAL_STATUS = {
   LABEL_OTHER_ACCOUNT: 409,
   /** The file store could not answer. Nothing was changed. */
   LABEL_UNREADABLE: 503,
+  /** This carrier has no webhook to point anywhere. */
+  TRACKING_NO_WEBHOOK: 409,
+  /** A webhook address needs this server's public https address, and there is none, or it is too long for the carrier. */
+  NO_PUBLIC_ADDRESS: 409,
+  /** Background tracking is locked in code until the carrier's terms are settled. */
+  POLLING_LOCKED: 409,
 } as const;
 
 export type ShippingRefusalCode = keyof typeof SHIPPING_REFUSAL_STATUS;

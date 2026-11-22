@@ -16,7 +16,7 @@
  * a carrier's handle, and someone who cannot see money is told none.
  */
 import type { Address, Parcel, ShipmentPurpose } from '@adminium/add-on-contracts';
-import { SHIPPING_CARRIER_TEXT_WIDTH, shippingBookingsRepo, shippingRepo, type InstalledManifest, type ManifestsRepo, type MetaDb, type ShippingBooking, type ShippingSlot } from '@adminium/meta';
+import { SHIPPING_CARRIER_TEXT_WIDTH, shippingBookingsRepo, shippingRepo, type InstalledManifest, type ManifestsRepo, type MetaDb, type ShippingBooking, type ShippingSlot, shippingTrackingRepo } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -31,6 +31,7 @@ import { appShippingPermission, PERMISSIONS } from '../../rbac/permissions.js';
 import { tagRoutes } from '../../security/route-audience.js';
 import { pricesHiddenFrom, shippingPerson, shippingViewerOf, type ShippingViewer } from '../../shipping/access.js';
 import { recipientForRates } from '../../shipping/addresses.js';
+import { trackViewOf } from '../../shipping/tracking.js';
 import { FOREIGN_LABEL_REASON, bookingView, buyLabel, foreignLabelOn, lookUpBooking, releaseBooking, settleStale, type BookingDeps } from '../../shipping/bookings.js';
 import { shippingCarrierFor, type ShippingCarrierDeps } from '../../shipping/carriers.js';
 import { checkedAccount } from '../../shipping/keys.js';
@@ -154,7 +155,8 @@ export function shippingBookingRoutes(deps: ShippingBookingRoutesDeps): FastifyP
           blockedBy = 'label-on-order';
         }
         const now = app.rbac.now();
-        return { data: { bookings: settled.map((one) => bookingView(one, now, hidden)), bookable: blockedBy === null && viewer.mayBook, blockedBy } };
+        const parcels = await shippingTrackingRepo(meta).parcels(settled.map((one) => one.id));
+        return { data: { bookings: settled.map((one) => ({ ...bookingView(one, now, hidden), track: trackViewOf(parcels.get(one.id)) })), bookable: blockedBy === null && viewer.mayBook, blockedBy } };
       },
     );
 

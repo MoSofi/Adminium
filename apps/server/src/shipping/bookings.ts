@@ -32,11 +32,11 @@ import {
 import {
   SHIPPING_CARRIER_TEXT_WIDTH,
   SHIPPING_MONEY_WIDTH,
-  SHIPPING_URL_WIDTH,
   appTablesRepo,
   realTableOf,
   shippingBookingsRepo,
   shippingRepo,
+  shippingTrackingRepo,
   type MetaDb,
   type ShippingAccount,
   type ShippingBooking,
@@ -51,6 +51,7 @@ import { labelView, type LabelView } from './labels.js';
 import { decimalAtMost } from './limits.js';
 import { openRateHandle, sealRateHandle } from './quotes.js';
 import { ShippingRefusal } from './refusals.js';
+import { safeTrackingUrl } from './tracking-readers.js';
 
 /** The longest a purchase waits for its answer. Past it, a `calling` row reads as unknown. */
 export const BOOK_ANSWER_MS = 2 * CARRIER_HTTP_TIMEOUT_MS;
@@ -215,7 +216,7 @@ function fieldsOf(booking: ShippingBooking, shipment: Shipment, at: number): Shi
     // `label_ref` is the file stored here (`labels.ts`). The carrier's own id for it may be a signed address, so it is not kept.
     carrierName: shipment.carrier ?? null,
     carrierToken: shipment.carrierToken ?? null,
-    trackingUrl: shipment.trackingUrl !== undefined && shipment.trackingUrl.length <= SHIPPING_URL_WIDTH ? shipment.trackingUrl : null,
+    trackingUrl: safeTrackingUrl(shipment.trackingUrl),
     amount,
     currency: currency.length === 3 ? currency : null,
     chargeDiffers: !same,
@@ -233,7 +234,7 @@ type Heard = { kind: 'answer'; value: unknown } | { kind: 'threw'; error: unknow
  * it, both are paid: the row keeps the label, and the holder is flagged for a
  * person to refund one.
  */
-async function recordBought(deps: BookingDeps, booking: ShippingBooking, fields: ShippingBookingFields, duplicates: number): Promise<ShippingBooking> {
+export async function recordBought(deps: BookingDeps, booking: ShippingBooking, fields: ShippingBookingFields, duplicates: number): Promise<ShippingBooking> {
   const repo = shippingBookingsRepo(deps.meta);
   const now = deps.now();
   const all = { ...fields, duplicates };
@@ -569,6 +570,9 @@ export async function foreignLabelOn(
 ): Promise<string | null> {
   const all = await shippingBookingsRepo(meta).forRow(order.connectionId, order.tableName, order.rowKey);
   const known = new Set(all.flatMap((one) => (one.tracking !== null && (one.state === 'booked' || (one.state === 'released' && one.reason === FOREIGN_LABEL_REASON)) ? [one.tracking] : [])));
+  // A number a booked label used to have is still that label: the order keeps showing it until staff act on the new one.
+  const parcels = await shippingTrackingRepo(meta).parcels(all.filter((one) => one.state === 'booked').map((one) => one.id));
+  for (const parcel of parcels.values()) for (const number of parcel.oldNumbers) known.add(number);
   if (order.tracking !== null && !known.has(order.tracking)) return order.tracking;
   const copies = await carrierCopyTable(meta, sources, order.connectionId, order.carrierKey);
   if (copies === null || !copies.table.columns.has('order_reference') || !copies.table.columns.has('status')) return null;
