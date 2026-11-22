@@ -375,12 +375,31 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
   }
 
   /**
-   * Whether this provider account is connected through the install on another
-   * row. A provider's revoke ends the account's whole grant to this app, so
+   * Whether this provider account is connected on another row, here or through
+   * another database's install of this add-on. A provider's revoke ends the account's whole grant to this app, so
    * giving one back would cut that other connection too.
    */
   async function subjectHeldElsewhere(manifestId: string, subject: string, except: string | null): Promise<boolean> {
-    return (await repo.forInstall(manifestId)).some((account) => account.subject === subject && account.id !== except);
+    if ((await repo.forInstall(manifestId)).some((account) => account.subject === subject && account.id !== except)) return true;
+    // The grant is the OAuth client's, so another database's install under the same client holds it too.
+    const clientOf = async (id: string): Promise<string | null> => {
+      try {
+        return registrationOf(await manifests.getCredential(id))?.clientId ?? null;
+      } catch {
+        return null;
+      }
+    };
+    const install = await manifests.findById(manifestId);
+    if (install === null) return false;
+    const mine = await clientOf(manifestId);
+    for (const other of await manifests.listByKey(install.row.manifestKey)) {
+      if (other.row.id === manifestId) continue;
+      const theirs = await clientOf(other.row.id);
+      // Unreadable reads as the same: a grant left standing can be removed, a colleague's cut connection cannot be put back.
+      if (mine !== null && theirs !== null && theirs !== mine) continue;
+      if ((await repo.forInstall(other.row.id)).some((account) => account.subject === subject)) return true;
+    }
+    return false;
   }
 
   /** A sign-in that connected nothing leaves no grant behind, unless that account is connected here already. */

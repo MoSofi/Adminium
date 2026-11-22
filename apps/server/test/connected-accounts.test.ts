@@ -284,7 +284,7 @@ for (const [dialect, reachable] of LEGS) {
         rowOf[name] = String(rows[0]!['id']);
       };
       await insert('elin', people['elin']!.id);
-      for (const name of ['noor', 'rafa', 'ivy', 'ivy2', 'june', 'june2', 'wes', 'lou', 'kit', 'marco', 'gone', 'off']) await insert(name, null);
+      for (const name of ['noor', 'rafa', 'ivy', 'ivy2', 'june', 'june2', 'wes', 'lou', 'kit', 'ana', 'marco', 'gone', 'off']) await insert(name, null);
       const put = await app.inject({ method: 'PUT', url: `/api/v1/add-ons/${KEY}/connect/app`, headers: { cookie: cookies['admin']! }, payload: { clientId: 'client-1', clientSecret: 'client-secret-1' } });
       expect(put.statusCode, put.body).toBe(200);
     }, 240_000);
@@ -743,6 +743,27 @@ for (const [dialect, reachable] of LEGS) {
       expect(revoke.form.get('token')).toBe('rt-sub-june');
       expect(await accountOf('june')).toBeNull();
       expect(seen).toEqual(['stop:connected']);
+    });
+
+    it('leaves the grant alone while the same account is connected on another database under the same client', async () => {
+      await connectAs('ana', { subject: 'sub-shared' });
+      const here = (await accountOf('ana'))!;
+      const manifests = manifestsRepo(h.meta, addOnCredentialCryptoFromSecret(TEST_SECRET));
+      const other = await manifests.install({ manifestKey: KEY, version: '1.0.0', kind: 'add-on', source: 'marketplace', document: addOnManifest(), scopeKey: 'another-database', instanceSlug: 'another', connectionId: h.connectionId });
+      try {
+        await manifests.setCredential(other.row.id, (await manifests.getCredential(installId))!);
+        const at = Date.now();
+        const link = await repo().mintLink({ connectionId: h.connectionId, tableName: 'elsewhere', rowKey: '1', providers: [KEY], purpose: 'connect', tokenHash: 'c'.repeat(64), createdBy: null, expiresAt: at + 60_000 }, at);
+        const twin = await repo().connect({ manifestId: other.row.id, target: { connectionId: h.connectionId, tableName: 'elsewhere', rowKey: '1' }, subject: 'sub-shared', address: null, tokens: { accessToken: 'at-twin', refreshToken: 'rt-twin' }, expiresAt: at + 3_600_000, refreshExpiresAt: null, scopes: ['cal.read', 'cal.write'], state: 'connected' }, link.id, at);
+        expect(twin).not.toBeNull();
+        const before = provider.calls.filter((call) => call.url.endsWith('/revoke')).length;
+        const ended = await engine().end(here.id);
+        expect(ended).toMatchObject({ revoked: false });
+        expect(provider.calls.filter((call) => call.url.endsWith('/revoke')).length).toBe(before);
+      } finally {
+        await h.meta.db.deleteFrom('adminium_connected_accounts').where('manifestId', '=', other.row.id).execute();
+        await manifests.uninstall(other.row.id);
+      }
     });
 
     it('OUT-11: disconnects through the route, as the owner, and says what it did', async () => {
