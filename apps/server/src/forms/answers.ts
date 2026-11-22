@@ -19,9 +19,15 @@
  * number of months; empty keeps them until somebody removes them). The engine
  * reads it, and once a day deletes every answer submitted longer ago than
  * that, through the same function. The add-on runs no timer of its own.
+ *
+ * THE SAME SWEEP PUTS OLD INVITATIONS RIGHT ({@link forgetUnlinkedAnswerTimes}).
+ * Before invitations stopped recording it, an answer with no name and its
+ * invitation were stamped with one instant, which could be matched.
  */
 import type { Dialect } from '@adminium/engine';
+import { ANSWER_INVITATION_COLUMN } from '@adminium/manifest';
 import type { MetaDb } from '@adminium/meta';
+import type { FastifyBaseLogger } from 'fastify';
 import { sql, type Kysely } from 'kysely';
 
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
@@ -107,6 +113,30 @@ export async function answersMonths(db: Kysely<SourceDatabase>, addOn: Pick<Form
   return row?.months === null || row?.months === undefined || !Number.isInteger(months) || months < 1 ? null : months;
 }
 
+/**
+ * Takes the answering time off every invitation whose `answered_at` is the
+ * very instant of an answer of the same form that names no invitation: the
+ * one pattern that ties an unlinked answer to a person. It becomes the time
+ * the invitation was sent, as a new one is spent (`invitation.ts`). A linked
+ * answer's invitation keeps its time, whatever the survey says today, and so
+ * does one whose answer is gone. Answers how many changed; a second pass
+ * changes none.
+ */
+export async function forgetUnlinkedAnswerTimes(db: Kysely<SourceDatabase>, invitations: ResolvedTable, answers: ResolvedTable): Promise<number> {
+  const needed = [invitations.columns.has('answered_at'), invitations.columns.has('invited_at'), invitations.columns.has('form_id'), answers.columns.has('form_id'), answers.columns.has('submitted_at')];
+  if (needed.includes(false)) return 0;
+  const unnamed = answers.columns.has(ANSWER_INVITATION_COLUMN) ? sql`and ${sql.ref(`unlinked.${ANSWER_INVITATION_COLUMN}`)} is null` : sql``;
+  const result = await db
+    .updateTable(invitations.id as never)
+    .set({ answered_at: sql.ref('invited_at') } as never)
+    .where(sql<boolean>`${sql.ref('answered_at')} is not null and ${sql.ref('answered_at')} <> ${sql.ref('invited_at')}`)
+    .where(
+      sql<boolean>`exists (select 1 from ${sql.table(answers.id)} as ${sql.id('unlinked')} where ${sql.ref('unlinked.form_id')} = ${sql.ref(`${invitations.id}.form_id`)} and ${sql.ref('unlinked.submitted_at')} = ${sql.ref(`${invitations.id}.answered_at`)} ${unnamed})`,
+    )
+    .executeTakeFirst();
+  return Number(result.numUpdatedRows);
+}
+
 export interface FormAnswersSweepDeps {
   meta: MetaDb;
   manager: Pick<ConnectionManager, 'data'>;
@@ -115,6 +145,7 @@ export interface FormAnswersSweepDeps {
   viewFor?: ((connectionId: string) => Promise<SnapshotView | null>) | undefined;
   /** The strangers' file store's remover: an old answer's files go with it. */
   answerFiles?: AnswerFilesRemover | undefined;
+  log?: Pick<FastifyBaseLogger, 'info' | 'warn'> | undefined;
 }
 
 /** Deletes the answers each forms add-on keeps no longer (see the header). Answers how many went, per add-on. */
@@ -142,6 +173,15 @@ export async function sweepFormAnswers(deps: FormAnswersSweepDeps): Promise<Reco
       const submitted = answers?.columns.get('submitted_at');
       const key = answers?.primaryKey[0];
       if (answers === null || submitted === undefined || key === undefined) continue;
+      // Before any answer is deleted below, and whatever the add-on keeps: a failure here never stops the keeping sweep.
+      if (addOn.invitations !== null) {
+        try {
+          const forgotten = await forgetUnlinkedAnswerTimes(handle.db, addOn.invitations, answers);
+          if (forgotten > 0) deps.log?.info({ addOn: addOn.key, connectionId, forgotten }, 'forms: took the answering time off invitations of unlinked answers');
+        } catch (err) {
+          deps.log?.warn({ err, addOn: addOn.key, connectionId }, 'forms: could not take the answering time off old invitations; tried again tomorrow');
+        }
+      }
       const months = await answersMonths(handle.db, addOn);
       if (months === null) continue;
       const before = bindWriteValue(submitted, new Date(monthsBefore(now, months)).toISOString(), handle.dialect);

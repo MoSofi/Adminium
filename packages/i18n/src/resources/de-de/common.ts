@@ -425,13 +425,11 @@ export default {
     "on": "Aktiviert",
     "off": "Aus",
     "nameRequired": "Geben Sie Ihren Namen ein.",
-    "emailHelper": "Dient zur Anmeldung. Für eine Änderung ist Ihr Passwort erforderlich.",
     "confirmPassword": "Aktuelles Passwort",
     "confirmPasswordHelper": "Bestätigen Sie, dass Sie es sind, bevor sich Ihre Anmeldeadresse ändert.",
     "save": "Änderungen speichern",
     "saveFailed": "Ihr Profil konnte nicht gespeichert werden",
     "saved": "Profil aktualisiert",
-    "savedBody": "Ihre neuen Angaben gelten ab sofort auf dem gesamten Server. Wenn Sie Ihre E-Mail-Adresse geändert haben, melden Sie sich künftig mit der neuen Adresse an.",
     "accessTitle": "Zugriff",
     "accessSubtitle": "Was dieses Konto darf und wie es seine Identität nachweist.",
     "rolesHelper": "Rollen werden von einer Administratorin oder einem Administrator vergeben und lassen sich nicht im eigenen Konto ändern.",
@@ -447,6 +445,21 @@ export default {
       "reset": "Auf den Server-Standard zurücksetzen",
       "resetFailed": "Diese Einstellung konnte nicht zurückgesetzt werden. Versuchen Sie es erneut.",
       "appliesInstantly": "Änderungen gelten sofort und werden in Ihrem Profil gespeichert."
+    },
+    "emailHelperLink": "Wird für die Anmeldung verwendet. Zum Ändern brauchst du dein Passwort und einen Link, der an die neue Adresse gesendet wird.",
+    "savedProfileBody": "Deine neuen Angaben gelten jetzt auf diesem Server.",
+    "emailPendingTitle": "Prüfe deine neue Adresse",
+    "emailPendingBody": "Wir haben einen Link an {email} gesendet. Bis du ihn öffnest, meldest du dich weiter mit {current} an.",
+    "confirmEmail": {
+      "action": "Adresse bestätigen",
+      "back": "Zurück zu deinem Konto",
+      "body": "Damit wird die Adresse aus deiner E-Mail zur Anmeldeadresse dieses Kontos.",
+      "doneBody": "Melde dich ab jetzt mit deiner neuen Adresse an.",
+      "doneTitle": "Adresse geändert",
+      "failedBody": "Er ist vielleicht abgelaufen, wurde durch einen neueren ersetzt oder gehört zu einem anderen Konto. Auf deiner Kontoseite kannst du einen neuen anfordern.",
+      "failedTitle": "Dieser Link funktioniert nicht",
+      "takenBody": "Diese Adresse gehört inzwischen zu einem anderen Konto. Wähle auf deiner Kontoseite eine andere.",
+      "title": "Neue Adresse bestätigen"
     }
   },
   "settings": {
@@ -1932,6 +1945,10 @@ export default {
       "body": "{name} kann sich nicht mehr anmelden und wird überall abgemeldet. Konto, Rollen und Verlauf bleiben erhalten, und Sie können die Sperre aufheben.",
       "failed": "Das Konto wurde nicht gesperrt",
       "confirmHand": "Übergeben und sperren"
+    },
+    "apiKeys": {
+      "revokedOnSuspend": "Alle API-Schlüssel, die {name} erstellt hat, werden jetzt widerrufen. Eine Reaktivierung von {name} bringt sie nicht zurück.",
+      "revokedOnRemove": "Alle API-Schlüssel, die {name} erstellt hat, werden widerrufen."
     }
   },
   "invoices": {

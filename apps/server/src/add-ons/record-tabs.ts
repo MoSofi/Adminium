@@ -19,7 +19,9 @@
  *  - on a table an app made, only while the add-on is attached to that app
  *    and switched on for it;
  *  - only to a caller who reads the tab's own table, with what they may do
- *    to its rows, and without the columns their read does not show.
+ *    to its rows, and without the columns their read does not show;
+ *  - a date column the tab names in `presence` is said as there or not, in the
+ *    add-on's words: the tab asks the list for that and never gets the date.
  *
  * Read from what is installed and from the rules as they stand; nothing of a
  * source database is read here.
@@ -51,6 +53,8 @@ export interface RecordTabFact {
   /** One row edited as a form (the record is the row a rule asks about), or a list. */
   mode: 'list' | 'form';
   columns: ColumnFact[];
+  /** Date columns shown only as there or not, with the words for each. Absent when the tab has none. */
+  presence?: { column: string; yes: string; yesKey: string; no: string; noKey: string }[];
   edit: string[];
   form: string[];
   /** What "Add" picks from: the tab table's link column, the table it picks a row of, and the column a row is shown by. */
@@ -195,6 +199,15 @@ export async function recordTabsFor(meta: MetaDb, installs: TabInstalls, asker: 
           const pickedKey = picked === null ? undefined : keyOf(picked);
           if (fk !== undefined && picked !== null && pickedKey !== undefined && (await may(picked, 'read'))) add.push({ fk, table: picked, key: pickedKey, label: pick.label });
         }
+        const presence = (tab.presence ?? [])
+          .filter((one) => shown.has(one.column))
+          .map((one) => ({
+            column: one.column,
+            yes: readerWords(one.yesLabels, asker.locale ?? 'en-US') ?? one.yes.fallback,
+            yesKey: one.yes.key,
+            no: readerWords(one.noLabels, asker.locale ?? 'en-US') ?? one.no.fallback,
+            noKey: one.no.key,
+          }));
         const actions: RecordTabFact['actions'] = [];
         for (const action of tab.actions ?? []) {
           const child = installs.tableOf(connectionId, key, action.child.table);
@@ -213,6 +226,7 @@ export async function recordTabsFor(meta: MetaDb, installs: TabInstalls, asker: 
           // One row, as a form, where the record is itself the row a rule asks about; a list where it is reached by a link.
           mode: tab.form !== undefined && ways?.has('row') === true ? 'form' : 'list',
           columns,
+          ...(presence.length === 0 ? {} : { presence }),
           edit: (tab.edit ?? []).filter((name) => shown.has(name)),
           form: (tab.form ?? []).filter((name) => shown.has(name)),
           add,

@@ -44,6 +44,14 @@ export interface PasswordResetDelivery {
   expiresAt: number;
 }
 
+/** A link for a new sign-in address, to the address it would become (the plaintext token, once). */
+export interface EmailChangeDelivery {
+  userId: string;
+  email: string;
+  token: string;
+  expiresAt: number;
+}
+
 export interface AuthContext {
   meta: MetaDb;
   env: Env;
@@ -51,12 +59,15 @@ export interface AuthContext {
   totpKey: Buffer;
   /** Test/email hook: receives plaintext reset tokens on `password/forgot`. */
   deliverResetToken: ((delivery: PasswordResetDelivery) => void) | undefined;
+  /** Test/embedder hook: receives the plaintext link token of a new sign-in address. */
+  deliverEmailChangeToken: ((delivery: EmailChangeDelivery) => void) | undefined;
 }
 
 export interface AuthPluginOptions {
   env: Env;
   metaDb?: MetaDb | null | undefined;
   deliverResetToken?: ((delivery: PasswordResetDelivery) => void) | undefined;
+  deliverEmailChangeToken?: ((delivery: EmailChangeDelivery) => void) | undefined;
 }
 
 /*
@@ -105,6 +116,7 @@ export const authPlugin = fp<AuthPluginOptions>(
             env: opts.env,
             totpKey: totpEncryptionKey(opts.env.ADMINIUM_SECRET),
             deliverResetToken: opts.deliverResetToken,
+            deliverEmailChangeToken: opts.deliverEmailChangeToken,
           };
 
     app.decorate('authContext', context);

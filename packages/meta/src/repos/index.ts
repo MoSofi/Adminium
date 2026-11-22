@@ -12,6 +12,7 @@ export * from './public-api.js';
 export * from './public-challenges.js';
 export * from './public-endpoints.js';
 export * from './password-resets.js';
+export * from './email-changes.js';
 export * from './jobs.js';
 export * from './connections.js';
 export * from './schema-changes.js';

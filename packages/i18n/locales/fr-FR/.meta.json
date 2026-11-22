@@ -3879,6 +3879,42 @@
     "status": "mt",
     "srcHash": "2f81a22de0af"
   },
+  "common.account.confirmEmail.action": {
+    "status": "mt",
+    "srcHash": "eea484c7d92c"
+  },
+  "common.account.confirmEmail.back": {
+    "status": "mt",
+    "srcHash": "1a5a961a69a1"
+  },
+  "common.account.confirmEmail.body": {
+    "status": "mt",
+    "srcHash": "d5ac227a452d"
+  },
+  "common.account.confirmEmail.doneBody": {
+    "status": "mt",
+    "srcHash": "3ed818f22c07"
+  },
+  "common.account.confirmEmail.doneTitle": {
+    "status": "mt",
+    "srcHash": "31fab26302f2"
+  },
+  "common.account.confirmEmail.failedBody": {
+    "status": "mt",
+    "srcHash": "d025f26553ad"
+  },
+  "common.account.confirmEmail.failedTitle": {
+    "status": "mt",
+    "srcHash": "642f49c6028c"
+  },
+  "common.account.confirmEmail.takenBody": {
+    "status": "mt",
+    "srcHash": "6755940a247e"
+  },
+  "common.account.confirmEmail.title": {
+    "status": "mt",
+    "srcHash": "34a486e63e97"
+  },
   "common.account.confirmPassword": {
     "status": "mt",
     "srcHash": "19dff4dad0a7"
@@ -3891,9 +3927,17 @@
     "srcHash": "84add5b29527",
     "status": "mt"
   },
-  "common.account.emailHelper": {
+  "common.account.emailHelperLink": {
     "status": "mt",
-    "srcHash": "d18a6efa0045"
+    "srcHash": "a8a8b56d8e48"
+  },
+  "common.account.emailPendingBody": {
+    "status": "mt",
+    "srcHash": "a0d0dec9a7ad"
+  },
+  "common.account.emailPendingTitle": {
+    "status": "mt",
+    "srcHash": "0685fc1b4c45"
   },
   "common.account.manageTwoFactor": {
     "status": "mt",
@@ -3975,9 +4019,9 @@
     "status": "mt",
     "srcHash": "9713530fa389"
   },
-  "common.account.savedBody": {
+  "common.account.savedProfileBody": {
     "status": "mt",
-    "srcHash": "c4a6a1dd14b8"
+    "srcHash": "fea900e01f8d"
   },
   "common.account.securityLink": {
     "status": "mt",
@@ -9138,6 +9182,14 @@
   "common.team.actionFailed": {
     "status": "mt",
     "srcHash": "8fd70858f7ff"
+  },
+  "common.team.apiKeys.revokedOnRemove": {
+    "status": "mt",
+    "srcHash": "65bf0d150baf"
+  },
+  "common.team.apiKeys.revokedOnSuspend": {
+    "status": "mt",
+    "srcHash": "c4b58e3d03c3"
   },
   "common.team.column.actions": {
     "status": "src",
@@ -18314,6 +18366,30 @@
   "email.editor.undo": {
     "status": "mt",
     "srcHash": "39fc72124884"
+  },
+  "email.emailChangeConfirm.action": {
+    "status": "mt",
+    "srcHash": "60560b4b2e3f"
+  },
+  "email.emailChangeConfirm.heading": {
+    "status": "mt",
+    "srcHash": "34a486e63e97"
+  },
+  "email.emailChangeConfirm.intro": {
+    "status": "mt",
+    "srcHash": "241ce2be4e0b"
+  },
+  "email.emailChangeConfirm.name": {
+    "status": "mt",
+    "srcHash": "e9164c16b7ba"
+  },
+  "email.emailChangeConfirm.notice": {
+    "status": "mt",
+    "srcHash": "e42f36213bfb"
+  },
+  "email.emailChangeConfirm.subject": {
+    "status": "mt",
+    "srcHash": "6a5143221d91"
   },
   "email.emailChanged.footer": {
     "status": "src",

@@ -415,13 +415,11 @@
     "on": "已啟用",
     "off": "未啟用",
     "nameRequired": "請輸入你的姓名。",
-    "emailHelper": "用於登入。變更時需要輸入密碼。",
     "confirmPassword": "目前密碼",
     "confirmPasswordHelper": "在變更登入地址前，請確認是你本人。",
     "save": "儲存變更",
     "saveFailed": "無法儲存你的個人資料",
     "saved": "個人資料已更新",
-    "savedBody": "新的資訊已在整台伺服器上生效。若你變更了電子郵件，日後請使用新地址登入。",
     "accessTitle": "存取權限",
     "accessSubtitle": "此帳戶可以做什麼，以及它如何證明身分。",
     "rolesHelper": "角色由管理員授予，無法在自己的帳戶中變更。",
@@ -437,6 +435,21 @@
       "reset": "還原為伺服器預設值",
       "resetFailed": "無法重設此偏好設定。請再試一次。",
       "appliesInstantly": "變更會立即生效，並儲存至你的個人資料。"
+    },
+    "emailHelperLink": "用於登入。變更時需要輸入密碼，並開啟寄到新地址的連結。",
+    "savedProfileBody": "你的新資料已在此伺服器上生效。",
+    "emailPendingTitle": "請查看新地址的郵件",
+    "emailPendingBody": "我們已將連結寄到 {email}。在開啟連結之前，請繼續使用 {current} 登入。",
+    "confirmEmail": {
+      "action": "確認地址",
+      "back": "返回你的帳戶",
+      "body": "這會將郵件中的地址設為此帳戶的登入地址。",
+      "doneBody": "今後請使用新地址登入。",
+      "doneTitle": "地址已變更",
+      "failedBody": "連結可能已過期、已被新連結取代，或屬於其他帳戶。你可以在帳戶頁面重新申請。",
+      "failedTitle": "此連結無法使用",
+      "takenBody": "該地址現已屬於其他帳戶。請在帳戶頁面選擇其他地址。",
+      "title": "確認你的新地址"
     }
   },
   "settings": {
@@ -1922,6 +1935,10 @@
       "body": "{name} 將無法再登入，並會在所有地方登出。其帳號、角色和歷史都會保留，你可以重新啟用。",
       "failed": "帳號未停權",
       "confirmHand": "移交並停權"
+    },
+    "apiKeys": {
+      "revokedOnSuspend": "{name} 建立的所有 API 金鑰現在都會被撤銷。重新啟用 {name} 不會恢復這些金鑰。",
+      "revokedOnRemove": "{name} 建立的所有 API 金鑰都會被撤銷。"
     }
   },
   "invoices": {

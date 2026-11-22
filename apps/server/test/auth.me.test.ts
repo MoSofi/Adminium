@@ -57,7 +57,7 @@ describe('GET/PATCH /me', () => {
   });
 
   it('changing email demands the current password (422 absent, 401 wrong, 200 right)', async () => {
-    fixture = await buildAuthApp();
+    fixture = await buildAuthApp({ onEmailChangeToken: () => undefined });
     const { cookie } = await login(fixture.app);
     const headers = { cookie: cookie ?? '' };
 
@@ -84,10 +84,10 @@ describe('GET/PATCH /me', () => {
       payload: { email: 'Ava.New@Example.com', password: ADMIN_PASSWORD },
     });
     expect(right.statusCode).toBe(200);
-    // Normalized to lowercase on the way in.
-    expect((right.json() as { data: { user: { email: string } } }).data.user.email).toBe(
-      'ava.new@example.com',
-    );
+    // Normalized to lowercase on the way in, and not in force until its link is opened.
+    const saved = right.json() as { data: { user: { email: string }; emailChange: { pendingEmail: string } } };
+    expect(saved.data.emailChange.pendingEmail).toBe('ava.new@example.com');
+    expect(saved.data.user.email).toBe(ADMIN_EMAIL);
   });
 });
 

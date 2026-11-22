@@ -137,6 +137,17 @@ export interface AdminiumPasswordResetsTable {
   createdAt: Ts;
 }
 
+/** A staff account's new sign-in address, waiting for the link mailed to it (wave 0103). */
+export interface AdminiumEmailChangesTable {
+  userId: Id;
+  newEmail: string;
+  tokenHash: string;
+  expiresAt: Ts;
+  sentCount: number;
+  windowAt: Ts;
+  createdAt: Ts;
+}
+
 // ---------------------------------------------------------------------------
 // wave 0002 — rbac
 // ---------------------------------------------------------------------------
@@ -2438,6 +2449,7 @@ export interface MetaDB {
   adminium_user_prefs: AdminiumUserPrefsTable;
   adminium_sessions: AdminiumSessionsTable;
   adminium_password_resets: AdminiumPasswordResetsTable;
+  adminium_email_changes: AdminiumEmailChangesTable;
   adminium_roles: AdminiumRolesTable;
   adminium_role_permissions: AdminiumRolePermissionsTable;
   adminium_user_roles: AdminiumUserRolesTable;
@@ -2564,6 +2576,7 @@ export const META_TABLE_NAMES = [
   'adminium_user_prefs',
   'adminium_sessions',
   'adminium_password_resets',
+  'adminium_email_changes',
   'adminium_settings',
   'adminium_storage_destinations',
   'adminium_files',

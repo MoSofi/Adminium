@@ -185,6 +185,42 @@ export async function authorizeChannel(
  */
 export class RealtimeHub {
   private readonly channels = new Map<string, Set<RealtimeSink>>();
+  /** Each person's open sockets and streams, by how to close them. */
+  private readonly connections = new Map<string, Set<() => void>>();
+
+  /** Registers one open connection of a person; returns what to call when it ends. */
+  holdConnection(userId: string, close: () => void): () => void {
+    let held = this.connections.get(userId);
+    if (held === undefined) {
+      held = new Set();
+      this.connections.set(userId, held);
+    }
+    held.add(close);
+    return () => {
+      const set = this.connections.get(userId);
+      if (set === undefined) return;
+      set.delete(close);
+      if (set.size === 0) this.connections.delete(userId);
+    };
+  }
+
+  /**
+   * Closes every socket and stream this process holds for a person: their
+   * account was suspended or removed. Another process's are refused by their
+   * next frame (`whileActive`). Answers how many were closed.
+   */
+  closeUserConnections(userId: string): number {
+    const held = [...(this.connections.get(userId) ?? [])];
+    this.connections.delete(userId);
+    for (const close of held) {
+      try {
+        close();
+      } catch {
+        // One connection already torn down must not keep the others open.
+      }
+    }
+    return held.length;
+  }
 
   /** Attach `sink` to `channel`; returns the matching unsubscribe function. */
   subscribe(channel: string, sink: RealtimeSink): () => void {
@@ -236,5 +272,6 @@ export class RealtimeHub {
   /** Drop every subscription (server shutdown). */
   close(): void {
     this.channels.clear();
+    this.connections.clear();
   }
 }

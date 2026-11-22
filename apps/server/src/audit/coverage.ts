@@ -131,7 +131,8 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'POST /api/v1/auth/desktop-session': audited('auth'),
 
   // ── /me — the caller's own account and their own UI state.
-  'PATCH /api/v1/me': audited('auth'), // me_updated, routes/me/handlers.ts
+  'PATCH /api/v1/me': audited('auth'), // me_updated, email_change_requested, routes/me/handlers.ts
+  'POST /api/v1/me/email/confirm': audited('auth'), // me_updated, routes/me/handlers.ts
   'PATCH /api/v1/me/prefs': auditExempt(
     'Per-user UI preference (adminium_user_prefs), not server state: nobody else can observe the change and there is nothing to hold an actor to.',
   ),

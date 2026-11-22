@@ -425,13 +425,11 @@ export default {
     "on": "Activée",
     "off": "Désactivée",
     "nameRequired": "Saisissez votre nom.",
-    "emailHelper": "Sert à vous connecter. La modifier requiert votre mot de passe.",
     "confirmPassword": "Mot de passe actuel",
     "confirmPasswordHelper": "Confirmez votre identité avant que votre adresse de connexion ne change.",
     "save": "Enregistrer les modifications",
     "saveFailed": "Impossible d’enregistrer votre profil",
     "saved": "Profil mis à jour",
-    "savedBody": "Vos nouvelles informations s’appliquent à tout le serveur. Si vous avez changé d’e-mail, connectez-vous désormais avec la nouvelle adresse.",
     "accessTitle": "Accès",
     "accessSubtitle": "Ce que ce compte peut faire, et comment il prouve son identité.",
     "rolesHelper": "Les rôles sont attribués par un administrateur et ne peuvent pas être modifiés depuis votre propre compte.",
@@ -447,6 +445,21 @@ export default {
       "reset": "Rétablir la valeur du serveur",
       "resetFailed": "Impossible de réinitialiser cette préférence. Réessayez.",
       "appliesInstantly": "Les changements s’appliquent immédiatement et sont enregistrés dans votre profil."
+    },
+    "emailHelperLink": "Sert à vous connecter. Pour la changer, il faut votre mot de passe et un lien envoyé à la nouvelle adresse.",
+    "savedProfileBody": "Vos nouvelles informations sont utilisées sur ce serveur.",
+    "emailPendingTitle": "Vérifiez votre nouvelle adresse",
+    "emailPendingBody": "Nous avons envoyé un lien à {email}. Tant que vous ne l’avez pas ouvert, continuez à vous connecter avec {current}.",
+    "confirmEmail": {
+      "action": "Confirmer l’adresse",
+      "back": "Retour à votre compte",
+      "body": "L’adresse de votre e-mail deviendra l’adresse de connexion de ce compte.",
+      "doneBody": "Connectez-vous désormais avec votre nouvelle adresse.",
+      "doneTitle": "Adresse modifiée",
+      "failedBody": "Il a peut-être expiré, été remplacé par un lien plus récent ou appartient à un autre compte. Vous pouvez en demander un nouveau sur la page de votre compte.",
+      "failedTitle": "Ce lien ne fonctionne pas",
+      "takenBody": "Cette adresse appartient désormais à un autre compte. Choisissez-en une autre sur la page de votre compte.",
+      "title": "Confirmer votre nouvelle adresse"
     }
   },
   "settings": {
@@ -1932,6 +1945,10 @@ export default {
       "body": "{name} ne peut plus se connecter et est déconnecté·e partout. Son compte, ses rôles et son historique restent, et vous pourrez le réactiver.",
       "failed": "Le compte n’a pas été suspendu",
       "confirmHand": "Confier et suspendre"
+    },
+    "apiKeys": {
+      "revokedOnSuspend": "Toutes les clés API créées par {name} sont révoquées maintenant. Réactiver {name} ne les rétablit pas.",
+      "revokedOnRemove": "Toutes les clés API créées par {name} sont révoquées."
     }
   },
   "invoices": {

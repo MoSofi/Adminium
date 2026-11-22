@@ -1035,5 +1035,13 @@
     "heading": "Váš účet byl připojen",
     "intro": "Dobrý den, {name}, služba {provider} je teď u {business} připojena jako {account}.",
     "notice": "Pokud jste to nebyli vy, ihned to sdělte {business}."
+  },
+  "emailChangeConfirm": {
+    "action": "Potvrdit tuto adresu",
+    "heading": "Potvrďte svou novou adresu",
+    "intro": "Dobrý den, {name}, někdo přihlášený do {appName} jako {currentEmail} požádal o přihlašování adresou {email}.",
+    "name": "Potvrzení nové přihlašovací adresy",
+    "notice": "Otevřete tento odkaz, když jste přihlášeni k tomuto účtu. Funguje jen jednou a vyprší za {expiresInHours} h. Pokud tento účet neznáte, e-mail ignorujte: nic se nezmění.",
+    "subject": "Potvrďte svou novou přihlašovací adresu pro {appName}"
   }
 }

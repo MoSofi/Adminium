@@ -62,6 +62,7 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'addOn.adjuster',
   'addOn.words',
   'addOn.recordTabs',
+  'recordTab.presence',
   'addOn.hostApi.2',
   'addOn.lookUp',
   'ledger.decides',
@@ -734,6 +735,7 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'table.review': '0.3.68',
   'table.review.proved': '0.3.70',
   'table.booking.buffer': '0.3.71',
+  'recordTab.presence': '0.3.71',
   'table.booking.busy': '0.3.71',
   'table.booking.anyone': '0.3.71',
   'table.booking.hours.within': '0.3.71',
@@ -781,6 +783,11 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (block['panels'] !== undefined) out.push({ word: 'addOn.panels', path: 'addOn.panels' });
     if (block['words'] !== undefined) out.push({ word: 'addOn.words', path: 'addOn.words' });
     if (block['recordTabs'] !== undefined) out.push({ word: 'addOn.recordTabs', path: 'addOn.recordTabs' });
+    if (Array.isArray(block['recordTabs'])) {
+      block['recordTabs'].forEach((tab: unknown, index) => {
+        if (isDoc(tab) && tab['presence'] !== undefined) out.push({ word: 'recordTab.presence', path: `addOn.recordTabs.${String(index)}.presence` });
+      });
+    }
     // Pages that also need the data kit.
     if (block['hostApi'] === 2) out.push({ word: 'addOn.hostApi.2', path: 'addOn.hostApi' });
     if (block['lookUp'] !== undefined) out.push({ word: 'addOn.lookUp', path: 'addOn.lookUp' });

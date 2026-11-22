@@ -60,6 +60,28 @@ describe('a record tab', () => {
     expect(one({ match: { table: 'host_table', row: 'account_id' } })).toContain('"links.account_id" holds the key of the row it belongs to: a text column');
   });
 
+  it('can show a date column only as there or not, from 0.3.71', () => {
+    const dated = { ...LINKS, columns: [...LINKS.columns, { ref: 'seen_at', type: 'timestamptz', nullable: true }, { ref: 'seen_on', type: 'date', nullable: true }] };
+    const said = (column: string) => ({ column, yes: label('Seen'), yesLabels: { 'de-DE': 'Gesehen' }, no: label('Not yet') });
+    const withPresence = (over: Doc) => {
+      const doc = kit([{ ...TAB, columns: ['account_id', 'seen_at', 'seen_on'], edit: undefined, add: undefined, remove: undefined, actions: undefined, summary: undefined, ...over }], [dated, USES, SETTINGS]) as { compatibility?: Doc };
+      doc.compatibility = { ...doc.compatibility, minAdminiumVersion: '0.3.71' };
+      return issuesOf(doc);
+    };
+    const good = kit([{ ...TAB, columns: ['account_id', 'seen_at'], edit: undefined, presence: [said('seen_at')] }], [dated, USES, SETTINGS]);
+    expect(installFloorWords(good).map((found) => found.word)).toContain('recordTab.presence');
+    expect(installFloorWords(kit([TAB])).map((found) => found.word)).not.toContain('recordTab.presence');
+    expect(withPresence({ edit: undefined, presence: [said('seen_at'), said('seen_on')] })).toBe('');
+    expect(withPresence({ edit: undefined, presence: [said('note')] })).toContain('"note" is shown as there or not: list it in "columns" too');
+    expect(withPresence({ edit: undefined, columns: ['account_id', 'note'], presence: [said('note')] })).toContain('only a date or time column is shown as there or not');
+    expect(withPresence({ edit: undefined, presence: [said('seen_at'), said('seen_at')] })).toContain('"seen_at" is named twice');
+    // A write's reply would carry the date, and a form would ask for it: such a tab only lists.
+    for (const over of [{ edit: ['account_id'] }, { form: ['account_id'] }, { add: TAB.add }, { remove: true }, { actions: TAB.actions }]) {
+      expect(withPresence({ ...over, presence: [said('seen_at')] })).toContain('only lists rows');
+    }
+    expect(recordTabsSchema.safeParse([{ ...TAB, presence: [{ column: 'seen_at', yes: label('Seen') }] }]).success).toBe(false);
+  });
+
   it('takes one to six tabs, each with its own id, of one to eight columns', () => {
     expect(recordTabsSchema.safeParse([TAB, TAB]).success).toBe(false);
     expect(recordTabsSchema.safeParse(Array.from({ length: 7 }, (_, i) => ({ ...TAB, id: `t${String(i)}` }))).success).toBe(false);

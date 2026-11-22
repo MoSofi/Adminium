@@ -11,6 +11,9 @@
  * Unauthenticated upgrades are rejected pre-handshake; channel authorization
  * runs at subscribe time via `authorizeChannel`. Hygiene: protocol-level ping
  * every 30 s (dropped after 2 missed pongs), ≤ 64 channels per socket.
+ * A socket lasts only as long as its account: suspending or removing the
+ * person closes it (`hub.closeUserConnections`), and each frame and each new
+ * subscription asks whether the account is still active (`isActive`).
  *
  * The `@fastify/websocket` plugin must be registered before this route —
  * `registerJobsAndRealtime` (jobs/register.ts) does both.
@@ -47,7 +50,7 @@ import {
   type RealtimeHub,
   type RealtimeUser,
 } from './hub.js';
-import { orderedSink } from './read-frames.js';
+import { orderedSink, whileActive } from './read-frames.js';
 
 /** Max concurrent channel subscriptions per socket. */
 export const WS_MAX_CHANNELS = 64;
@@ -66,6 +69,8 @@ export interface RealtimeGatewayDeps extends ChannelAuthDeps {
    * (e.g. `(req) => req.user ?? null`).
    */
   resolveUser(request: FastifyRequest): Promise<RealtimeUser | null> | RealtimeUser | null;
+  /** Whether the account may still receive anything. Wired in `registerJobsAndRealtime`; absent only in bare test harnesses. */
+  isActive?(user: RealtimeUser): Promise<boolean>;
   /** Heartbeat override for tests. */
   heartbeatIntervalMs?: number | undefined;
 }
@@ -123,6 +128,15 @@ export function registerWsRoute(app: FastifyInstance, deps: RealtimeGatewayDeps)
         if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(frame));
       };
 
+      // The account stopped: nothing more is delivered from this moment, and the socket closes.
+      const stop = (): void => {
+        for (const unsubscribe of subscriptions.values()) unsubscribe();
+        subscriptions.clear();
+        if (socket.readyState === socket.OPEN) socket.close(1008, 'account not active');
+      };
+      const release = deps.hub.holdConnection(user.id, stop);
+      const stillActive = deps.isActive === undefined ? null : () => deps.isActive!(user);
+
       // --- heartbeat -------------------------------------------------------------
       let missedPongs = 0;
       socket.on('pong', () => {
@@ -173,6 +187,11 @@ export function registerWsRoute(app: FastifyInstance, deps: RealtimeGatewayDeps)
         }
 
         // subscribe
+        if (stillActive !== null && !(await stillActive())) {
+          send({ op: 'error', code: 'FORBIDDEN', channel });
+          stop();
+          return;
+        }
         if (subscriptions.has(channel)) {
           send({ op: 'subscribed', channel });
           return;
@@ -189,9 +208,11 @@ export function registerWsRoute(app: FastifyInstance, deps: RealtimeGatewayDeps)
         }
         // As this subscriber reads the channel's table: the columns their role does not show taken out.
         const shown = (await deps.frameFor?.(user, heard)) ?? null;
+        // Closed while those were read (the account stopped): nothing is left listening.
+        if (socket.readyState !== socket.OPEN) return;
         subscriptions.set(
           channel,
-          deps.hub.subscribe(heard, orderedSink(shown, (event) => send(event))),
+          deps.hub.subscribe(heard, orderedSink(whileActive(stillActive, shown, stop), (event) => send(event))),
         );
         send({ op: 'subscribed', channel });
       };
@@ -205,6 +226,7 @@ export function registerWsRoute(app: FastifyInstance, deps: RealtimeGatewayDeps)
 
       socket.on('close', () => {
         clearInterval(heartbeat);
+        release();
         for (const unsubscribe of subscriptions.values()) unsubscribe();
         subscriptions.clear();
       });
