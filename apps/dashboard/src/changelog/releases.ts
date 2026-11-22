@@ -97,6 +97,7 @@ const RAW: unknown = [
       { tag: 'Security', text: 'Suspending or deleting someone closes their live connections at once and revokes every API key they made. Reactivating them does not bring the keys back.' },
       { tag: 'Security', text: 'An invitation link works only while the account is still invited, a new link retires the earlier ones, and using any link retires the rest. Password and invitation links no longer reach the request log.' },
       { tag: 'Security', text: 'Holding exports.manage no longer opens another person’s export of a table you cannot read.' },
+      { tag: 'Security', text: 'Holding imports.manage no longer opens another person’s import of a table you cannot read.' },
       { tag: 'Security', text: 'A survey with “Link answers to names” off no longer keeps a time that matches an answer to its invitation, and the daily sweep removes that time from invitations already stored.' },
       { tag: 'Security', text: 'Changing your own sign-in address now needs a link sent to the new address, opened while signed in. The old address keeps working until then.' },
     ],
