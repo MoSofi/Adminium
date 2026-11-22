@@ -28,6 +28,7 @@
  * small, and every entry is a parameter THIS product defines and can therefore
  * be sure about.
  */
+import { NOTICE_SERVICES } from './email/notices/types.js';
 
 /** The pino censor string used everywhere else (`app.ts` `REDACT_PATHS`). */
 export const REDACTED = '[REDACTED]';
@@ -99,31 +100,15 @@ function decodeParamName(raw: string): string {
  * Fast path: no `?`, nothing to do — which is every request in the product but
  * the handful that carry a query.
  */
-/**
- * Pay page paths whose next segment opens something: a pay link's token, the
- * nonce of a way back from a provider, a demo checkout's attempt. Anyone who
- * reads a log line with a live token holds a working pay link, so the segment
- * is replaced; the rest of the path (`/challenge`, `/checkout`) stays.
- */
-const PAY_PATH_SECRETS: readonly RegExp[] = [
-  /^(\/pay\/api\/(?:back|demo)\/)[^/?#]+/,
-  /^(\/pay\/(?:back|demo)\/)[^/?#]+/,
-  /^(\/pay\/api\/)(?!back\/|demo\/)[^/?#]+/,
-  /^(\/pay\/)(?!api\/|back\/|demo\/|assets\/)[^/?#]+/,
-];
+/** The pay paths whose next segment is a nonce or an attempt rather than a pay link's token. */
+const PAY_WAYS: ReadonlySet<string> = new Set(['back', 'demo']);
 
 /**
- * The mail door's links (`/m/u/<token>` unsubscribe, `/m/l/<token>` a counted
- * click, `/m/c/<token>` a sign-up's confirm): the token is the whole of what
- * opens the page, so everything after the door's letter is replaced.
+ * The mail door's links: `/m/u/<token>` unsubscribe, `/m/l/<token>` a counted
+ * click, `/m/c/<token>` a sign-up's confirm, `/m/o/<token>` a found person's
+ * objection, which erases them.
  */
-const MAIL_PATH_SECRET = /^(\/m\/[cul]\/)[^?#]+/;
-
-/**
- * A person's private calendar feed (`/x/cal/<token>.ics`): a calendar service
- * fetches it for as long as it lives, and the token is all that opens it.
- */
-const CALENDAR_FEED_SECRET = /^(\/x\/cal\/)[^?#]+/;
+const MAIL_DOORS: ReadonlySet<string> = new Set(['c', 'u', 'l', 'o']);
 
 /**
  * Query parameters whose value is a credential only on the stranger pages
@@ -132,15 +117,123 @@ const CALENDAR_FEED_SECRET = /^(\/x\/cal\/)[^?#]+/;
  */
 const STRANGER_QUERY_PARAMS: ReadonlySet<string> = new Set(['t']);
 
-/** The path with a pay link's token (or a way back's nonce), or a mail link's token, replaced by {@link REDACTED}. */
-export function scrubPathForLog(path: string): string {
-  if (MAIL_PATH_SECRET.test(path)) return path.replace(MAIL_PATH_SECRET, `$1${REDACTED}`);
-  if (CALENDAR_FEED_SECRET.test(path)) return path.replace(CALENDAR_FEED_SECRET, `$1${REDACTED}`);
-  if (!path.startsWith('/pay/')) return path;
-  for (const pattern of PAY_PATH_SECRETS) {
-    if (pattern.test(path)) return path.replace(pattern, `$1${REDACTED}`);
+/** The fixed segments of a mail service's notice address, `/api/v1/email/notices/<service>/<token>`. */
+const NOTICE_PATH = ['', 'api', 'v1', 'email', 'notices'] as const;
+
+/** An absolute-form request target (`POST http://host/path`), which `req.url` carries as sent. */
+const ABSOLUTE_TARGET = /^[a-z][a-z0-9+.-]*:\/\/[^/]*/i;
+
+/** One path segment as the router reads it, in lower case; as sent when it does not decode. */
+function segmentName(raw: string): string {
+  try {
+    return decodeURIComponent(raw).toLowerCase();
+  } catch {
+    return raw.toLowerCase();
   }
-  return path;
+}
+
+/**
+ * A mail link with its token replaced, or null when the path is not one. The
+ * token is the whole of what opens the page, so everything after the door's
+ * letter goes.
+ */
+function scrubMailPath(segments: readonly string[]): string | null {
+  if (segmentName(segments[1] ?? '') !== 'm' || !MAIL_DOORS.has(segmentName(segments[2] ?? ''))) return null;
+  if (segments.slice(3).join('/') === '') return null;
+  return `${segments.slice(0, 3).join('/')}/${REDACTED}`;
+}
+
+/**
+ * A person's private calendar feed (`/x/cal/<token>.ics`) with its token
+ * replaced, or null when the path is not one. A calendar service fetches it for
+ * as long as it lives, and the token is all that opens it.
+ */
+function scrubCalendarFeedPath(segments: readonly string[]): string | null {
+  if (segmentName(segments[1] ?? '') !== 'x' || segmentName(segments[2] ?? '') !== 'cal') return null;
+  if (segments.slice(3).join('/') === '') return null;
+  return `${segments.slice(0, 3).join('/')}/${REDACTED}`;
+}
+
+/**
+ * A pay path with its token replaced, or null when it holds none: a pay link's
+ * token, the nonce of a way back from a provider, a demo checkout's attempt.
+ * Anyone who reads a log line with a live token holds a working pay link, so
+ * the segment is replaced; the rest of the path (`/challenge`, `/checkout`)
+ * stays. Only the exact spelling of `assets` is passed over: a spelling the
+ * router would also read that way loses a file name from the log, nothing more.
+ */
+function scrubPayPath(segments: readonly string[]): string | null {
+  if (segmentName(segments[1] ?? '') !== 'pay') return null;
+  const hasNext = (index: number) => segments.length > index + 1;
+  if (segments[2] === 'assets' && hasNext(2)) return null;
+  let at = 2;
+  if (segmentName(segments[at] ?? '') === 'api' && hasNext(at)) at += 1;
+  if (PAY_WAYS.has(segmentName(segments[at] ?? '')) && hasNext(at)) at += 1;
+  if ((segments[at] ?? '') === '') return null;
+  return segments.map((segment, index) => (index === at ? REDACTED : segment)).join('/');
+}
+
+/**
+ * A notice address with its token replaced, or null when the path is not one.
+ * For the "other" service with no password that token is the only proof a call
+ * is genuine, so whoever reads it in a log could add addresses to the
+ * do-not-email list.
+ *
+ * The service stays readable when it is one of ours. Anything else in its place
+ * may be a token pasted one segment early, and everything after the service is
+ * replaced, so a stray slash cannot move the token out of reach.
+ */
+function scrubNoticePath(segments: readonly string[]): string | null {
+  if (segments.length <= NOTICE_PATH.length) return null;
+  if (!NOTICE_PATH.every((name, index) => segmentName(segments[index] ?? '') === name)) return null;
+  const service = segments[NOTICE_PATH.length] ?? '';
+  const known = (NOTICE_SERVICES as readonly string[]).includes(segmentName(service));
+  if (segments.length === NOTICE_PATH.length + 1 && (known || service === '')) return null;
+  return `${segments.slice(0, NOTICE_PATH.length + (known ? 1 : 0)).join('/')}/${REDACTED}`;
+}
+
+/**
+ * The signed-in doors whose next segment is a one-use code: a database
+ * hand-off, a print kept nowhere, an undo of a row's change or of an AI run's.
+ * `*` is any one segment (the run's id, which stays readable).
+ */
+const SESSION_CODE_PATHS: readonly (readonly string[])[] = [
+  ['', 'api', 'v1', 'bridge', 'seed'],
+  ['', 'api', 'v1', 'documents', 'print-once'],
+  ['', 'api', 'v1', 'data', 'undo'],
+  ['', 'api', 'v1', 'llm', 'runs', '*', 'undo'],
+];
+
+/** A signed-in door's path with its code, and whatever follows it, replaced; null when the path is not one. */
+function scrubSessionCodePath(segments: readonly string[]): string | null {
+  for (const route of SESSION_CODE_PATHS) {
+    if (segments.length <= route.length) continue;
+    if (!route.every((name, index) => name === '*' || segmentName(segments[index] ?? '') === name)) continue;
+    if (segments.slice(route.length).join('/') === '') return null;
+    return `${segments.slice(0, route.length).join('/')}/${REDACTED}`;
+  }
+  return null;
+}
+
+/**
+ * The path with a door's token replaced by {@link REDACTED}: a mail link's, a
+ * calendar feed's, a pay link's (or a way back's nonce), a notice address's, or a
+ * signed-in door's one-use code.
+ *
+ * Compared segment by segment, decoded, because the router also accepts
+ * `/p%61y/…` and `/m/%6F/…`. What is kept is kept as it was sent.
+ */
+export function scrubPathForLog(path: string): string {
+  const origin = ABSOLUTE_TARGET.exec(path)?.[0] ?? '';
+  const segments = path.slice(origin.length).split('/');
+  if (segments[0] !== '') return path;
+  const scrubbed =
+    scrubMailPath(segments) ??
+    scrubCalendarFeedPath(segments) ??
+    scrubPayPath(segments) ??
+    scrubNoticePath(segments) ??
+    scrubSessionCodePath(segments);
+  return scrubbed === null ? path : `${origin}${scrubbed}`;
 }
 
 export function scrubUrlForLog(url: string): string {

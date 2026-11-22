@@ -61,6 +61,7 @@ import {
   widgetQueryReply,
 } from './schema.js';
 import { tagRoutes } from '../../security/route-audience.js';
+import { scrubUrlForLog } from '../../log-scrub.js';
 
 export interface WidgetDataRoutesDeps {
   manager: ConnectionManager;
@@ -176,7 +177,7 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
           category: 'rbac',
           action: 'permission.denied',
           connectionId,
-          changes: { after: { permission, method: request.method, url: request.url } },
+          changes: { after: { permission, method: request.method, url: scrubUrlForLog(request.url) } },
         });
         throw new ForbiddenError('You do not have access to this table.', 'TABLE_FORBIDDEN', {
           permission,
@@ -476,7 +477,7 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
             category: 'rbac',
             action: 'permission.denied',
             connectionId,
-            changes: { after: { permission, method: request.method, url: request.url } },
+            changes: { after: { permission, method: request.method, url: scrubUrlForLog(request.url) } },
           });
           throw new ForbiddenError('You do not have access to this table.', 'TABLE_FORBIDDEN', { permission });
         }

@@ -23,6 +23,7 @@ import { audited } from '../../audit/coverage.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError } from '../../errors.js';
 import { ExportBusyError, type ExportBinding, type ExportEverything } from '../../export/everything.js';
 import { tagRoutes } from '../../security/route-audience.js';
+import { scrubUrlForLog } from '../../log-scrub.js';
 
 const exportView = z.discriminatedUnion('state', [
   z.object({ id: z.string(), state: z.literal('preparing'), percent: z.number().int().min(0).max(100) }),
@@ -56,7 +57,7 @@ export function exportEverythingRoutes(deps: ExportEverythingRoutesDeps): Fastif
     const superAdminSession = async (request: FastifyRequest): Promise<ExportBinding> => {
       const set = await app.rbac.resolve(request); // 401 when nobody is signed in
       if (!set.superAdmin) {
-        await app.rbac.audit(request, { category: 'rbac', action: 'permission.denied', changes: { after: { permission: 'super-admin', method: request.method, url: request.url } } });
+        await app.rbac.audit(request, { category: 'rbac', action: 'permission.denied', changes: { after: { permission: 'super-admin', method: request.method, url: scrubUrlForLog(request.url) } } });
         throw new ForbiddenError('Only a Super Admin exports everything.', 'FORBIDDEN', { reason: 'SUPER_ADMIN' });
       }
       if (request.user === null || request.session === null) {

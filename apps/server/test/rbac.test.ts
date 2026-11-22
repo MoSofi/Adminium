@@ -39,6 +39,18 @@ describe('permission matrix', () => {
     expect(denied[0]?.changes).toMatchObject({ after: { permission: 'system:users:manage' } });
   });
 
+  it('keeps a credential in the address out of the permission-denied audit row', async () => {
+    const res = await ctx.app.inject({
+      method: 'GET',
+      url: '/api/v1/probe/users-manage?token=S3cr3tDoorT0ken&tab=open',
+      headers: asUser(ctx.users.viewer),
+    });
+    expect(res.statusCode).toBe(403);
+    const denied = await auditRepo(ctx.meta).list({ actorId: ctx.users.viewer.id, category: 'rbac' });
+    expect(denied[0]?.changes).toMatchObject({ after: { url: '/api/v1/probe/users-manage?token=[REDACTED]&tab=open' } });
+    expect(JSON.stringify(denied)).not.toContain('S3cr3tDoorT0ken');
+  });
+
   it('allows an Admin system:users:manage', async () => {
     const res = await ctx.app.inject({
       method: 'GET',

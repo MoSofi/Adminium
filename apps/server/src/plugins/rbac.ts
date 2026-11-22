@@ -41,6 +41,7 @@ import {
   resolvePermissionSet,
   type PermissionSet,
 } from '../rbac/resolver.js';
+import { scrubUrlForLog } from '../log-scrub.js';
 
 /** Audit fields the caller provides; actor/ip/ua/request-id come from the request. */
 export type RequestAuditInput = Omit<
@@ -143,7 +144,7 @@ export const rbacPlugin = fp<RbacPluginOptions>(
         await auditFromRequest(request, {
           category: 'rbac',
           action: 'permission.denied',
-          changes: { after: { permission, method: request.method, url: request.url } },
+          changes: { after: { permission, method: request.method, url: scrubUrlForLog(request.url) } },
         });
         throw new ForbiddenError('You do not have the required permission.', 'FORBIDDEN', {
           permission,
