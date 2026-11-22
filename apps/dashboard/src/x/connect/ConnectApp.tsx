@@ -203,7 +203,7 @@ function Start({ opened, t, heading, leaving, onConnect }: { opened: ConnectOpen
         </h2>
         <ul className="x-connect-lines">
           <Line of={CalendarPlus} tone="pos">
-            {t('xConnect:will1', 'Your {business} bookings appear in a calendar called {business} in your {account} account, and move or disappear when a booking changes.', { business: opened.business, account })}
+            {t('xConnect:will1', 'Your {business} bookings appear in a calendar called {calendar} in your {account} account, and move or disappear when a booking changes.', { business: opened.business, calendar: opened.calendar ?? opened.business, account })}
           </Line>
           <Line of={CalendarX2} tone="pos">
             {t('xConnect:will2', 'When you’re busy in your own calendar, you can’t be booked then. The desk sees a grey Busy block, never what it is.')}
@@ -227,10 +227,10 @@ function Start({ opened, t, heading, leaving, onConnect }: { opened: ConnectOpen
           : t('xConnect:signInMany', '{providers} asks you to sign in on its own page. {business} never sees your password.', { providers: names.join(t('xConnect:or', ' or ')), business: opened.business })}
       </p>
       {opened.address === null ? (
-        <p className="x-connect-fine">{t('xConnect:worksOnce', 'This link works once, for 7 days.')}</p>
+        <p className="x-connect-fine">{t('xConnect:worksOnce', 'This link works once.')}</p>
       ) : (
         <p className="x-connect-fine">
-          {t('xConnect:linkFor', 'This link is for {address} and works once, for 7 days.', { address: '⁨' + opened.address + '⁩' })}
+          {t('xConnect:linkFor', 'This link is for {address} and works once.', { address: '⁨' + opened.address + '⁩' })}
         </p>
       )}
     </>
@@ -257,7 +257,7 @@ function Ending({ view, opened, provider, sender, t, heading, onAgain }: { view:
     case 'done':
       tone = 'positive';
       icon = Check;
-      title = t('xConnect:doneTitle', 'Done — your {business} bookings will appear in a calendar called {business}.', { business });
+      title = t('xConnect:doneTitle', 'Done — your {business} bookings will appear in a calendar called {calendar}.', { business, calendar: opened?.calendar ?? business });
       paras = [
         view.address === null ? t('xConnect:doneClose', 'You can close this page.') : t('xConnect:doneAs', 'Connected as {address}. You can close this page.', { address: '⁨' + view.address + '⁩' }),
         ...(view.addressDiffers ? [t('xConnect:doneDiffers', 'That isn’t the address {business} has for you, so they have been told. If it’s the wrong account, ask {who} for a new link.', { business, who: ask })] : []),
@@ -266,7 +266,11 @@ function Ending({ view, opened, provider, sender, t, heading, onAgain }: { view:
       break;
     case 'denied':
       title = t('xConnect:nothingTitle', 'Nothing was connected');
-      paras = [t('xConnect:deniedBody', 'You didn’t allow access on {provider}’s page, so your calendar is unchanged and {business} can’t see it.', { provider: who, business })];
+      paras = [
+        t('xConnect:deniedBody', 'You didn’t allow access on {provider}’s page, so your calendar is unchanged and {business} can’t see it.', { provider: who, business }),
+        // Microsoft's "Need admin approval" page may answer as a plain refusal.
+        ...(provider === 'Microsoft' ? [t('xConnect:adminWhat', 'Ask your admin to open Microsoft Entra, go to App registrations → this app → API permissions, and press “Grant admin consent”. Then open this link again.')] : []),
+      ];
       action = retry;
       break;
     case 'partial':

@@ -91,6 +91,7 @@ const stateReply = z.object({
       readCalendars: z.array(z.string()).nullable(),
       countAllDay: z.boolean(),
       detail: z.enum(['first-name+initial', 'none']),
+      calendarId: z.string().nullable(),
       traits: z.object({ listsCalendars: z.boolean(), allDayKnown: z.boolean(), busyPush: z.boolean() }).nullable(),
       calendars: z.array(calendarEntry).nullable(),
       push: z.object({ channels: z.number(), lastNoticeAt: z.number().nullable() }),

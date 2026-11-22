@@ -13,6 +13,7 @@ import {
   connectedAccountsRepo,
   manifestsRepo,
   notificationsRepo,
+  overridesRepo,
   permissionsRepo,
   rolesRepo,
   settingsRepo,
@@ -108,7 +109,7 @@ const appManifest = (): Record<string, unknown> => ({
   addOns: { suggests: [{ key: KEY, range: '>=1.0.0', reason: { 'en-US': 'Calendars.' } }] },
   pages: [{ ref: 'studio-team', template: 'page-crud', title: { key: 't', fallback: 'Team' }, nav: { group: 'library', icon: 'list', order: 1 }, bindings: { rows: 'team' } }],
   roles: [
-    { key: 'owner', name: 'Owner', permissions: ['app:@:staff', 'table:@team:read', 'table:@team:update', 'accounts:@:connect', 'accounts:@:send-link', 'accounts:@:disconnect'] },
+    { key: 'owner', name: 'Owner', permissions: ['app:@:staff', 'table:@team:read', 'table:@team:read_pii', 'table:@team:update', 'accounts:@:connect', 'accounts:@:send-link', 'accounts:@:disconnect'] },
     { key: 'desk', name: 'Desk', permissions: ['app:@:staff', 'table:@team:read', 'accounts:@:send-link'] },
     {
       key: 'specialist',
@@ -478,7 +479,7 @@ for (const [dialect, reachable] of LEGS) {
       try {
         const reply = await staff('desk', 'POST', '/connected-accounts/link', { ...ref('marco'), to: 'attacker@evil.example' });
         // The body is read for what the schema names: the mail goes to the row's own address or nowhere.
-        if (reply.statusCode === 200) expect(reply.json()).toEqual({ sentTo: 'marco@studio.dev', url: null });
+        if (reply.statusCode === 200) expect(reply.json()).toEqual({ sentTo: null, url: null });
         else expect(reply.statusCode).toBe(422);
       } finally {
         await settingsRepo(h.meta).unset('email.smtp');
@@ -490,7 +491,10 @@ for (const [dialect, reachable] of LEGS) {
       try {
         const sent = await staff('desk', 'POST', '/connected-accounts/link', ref('marco'));
         expect(sent.statusCode, sent.body).toBe(200);
-        expect(sent.json()).toEqual({ sentTo: 'marco@studio.dev', url: null });
+        // The desk may not read personal columns here, so it is not told the address it sent to.
+        expect(sent.json()).toEqual({ sentTo: null, url: null });
+        const byOwner = await staff('owner', 'POST', '/connected-accounts/link', ref('marco'));
+        expect(byOwner.json()).toEqual({ sentTo: 'marco@studio.dev', url: null });
         const jobs = await h.meta.db.selectFrom('adminium_jobs').select('kind').where('kind', '=', 'email.send').execute();
         expect(jobs.length).toBeGreaterThan(0);
       } finally {
@@ -910,6 +914,51 @@ for (const [dialect, reachable] of LEGS) {
       for (const who of ['owner', 'desk', 'elin']) {
         expect((await check(who, { grant: 'pair' })).statusCode, who).toBe(403);
         expect((await staff(who, 'GET', `/add-ons/${KEY}/connect/people`)).statusCode, who).toBe(403);
+      }
+    });
+
+    it('checks what is about to be saved without saving it', async () => {
+      provider.state.tokenStatus = 401;
+      provider.state.tokenError = 'invalid_client';
+      const reply = await check('admin', { grant: 'pair', clientId: 'client-typo', clientSecret: 'typo-secret' });
+      expect(reply.json()).toEqual({ result: 'refused' });
+      const sent = tokenCalls(provider).at(-1)!.form;
+      expect(sent.get('client_id')).toBe('client-typo');
+      expect(sent.get('client_secret')).toBe('typo-secret');
+      expect(reply.body).not.toContain('typo-secret');
+      expect((await staff('admin', 'GET', `/add-ons/${KEY}/connect/accounts`)).json()).toMatchObject({ clientId: 'client-1', install: 'ready' });
+    });
+
+    it('remembers the calendar a person left, across a re-save, and hands it back once', async () => {
+      const running = engine();
+      await running.rememberCalendar(installId, 'sub-left', 'calendar-left');
+      expect((await putApp({ clientId: 'client-1' })).statusCode).toBe(200);
+      expect(await running.takeCalendar(installId, 'sub-left')).toBe('calendar-left');
+      expect(await running.takeCalendar(installId, 'sub-left')).toBeNull();
+      expect((await staff('admin', 'GET', `/add-ons/${KEY}/connect/accounts`)).body).not.toContain('calendar-left');
+    });
+
+    it('leaves the sign-in cookie alone on an answer that took no flow', async () => {
+      const reply = await door('complete', { state: 'x'.repeat(20), code: 'stray' }, '__Host-adminium-connect=someone');
+      expect(reply.json()).toEqual({ outcome: 'nothing' });
+      expect(reply.headers['set-cookie']).toBeUndefined();
+    });
+
+    it('keeps a masked address and name from a reader who may not read personal data', async () => {
+      const specialist = (await rolesRepo(h.meta).findBySlug('studio-specialist'))!;
+      await permissionsRepo(h.meta).grant(specialist.id, 'system', 'manifests.manage', { allowed: true });
+      const masked = await overridesRepo(h.meta).create({ connectionId: h.connectionId, op: 'column.pii', tableName: table, columnName: 'email', value: { masked: true }, origin: 'user' } as never);
+      try {
+        const reply = await staff('elin', 'GET', `/add-ons/${KEY}/connect/people`);
+        expect(reply.statusCode, reply.body).toBe(200);
+        const [only] = (reply.json() as { people: { address: string | null; canEmail: boolean }[] }).people;
+        expect(only).toMatchObject({ address: null, canEmail: true });
+        expect(reply.body).not.toContain('elin@studio.dev');
+        const admin = await staff('admin', 'GET', `/add-ons/${KEY}/connect/people`);
+        expect(admin.body).toContain('elin@studio.dev');
+      } finally {
+        await overridesRepo(h.meta).delete((masked as { id: string }).id);
+        await permissionsRepo(h.meta).revoke(specialist.id, 'system', 'manifests.manage');
       }
     });
 

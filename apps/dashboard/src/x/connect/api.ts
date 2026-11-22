@@ -14,6 +14,8 @@ export interface ConnectOpened {
   person: string | null;
   address: string | null;
   sentBy: string | null;
+  /** What the calendar kept in their account is called. */
+  calendar: string | null;
   purpose: 'connect' | 'reconnect';
   providers: { key: string; name: string }[];
 }

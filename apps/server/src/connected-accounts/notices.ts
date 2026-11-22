@@ -18,7 +18,7 @@ import { ACCOUNT_CONNECTED_TEMPLATE_KEY, CONNECT_LINK_TEMPLATE_KEY, enqueueEmail
 import { recipientLocale, translatorFor } from '../i18n/server-i18n.js';
 import { notify, type NotificationPublisher } from '../notifications/notify.js';
 
-export const ACCOUNT_NOTICE_KINDS = ['accounts.connected', 'accounts.setup-refused', 'accounts.secret-ending', 'calendar.clash', 'calendar.stale-dropped', 'calendar.removed', 'calendar.remade', 'calendar.push-silent'] as const;
+export const ACCOUNT_NOTICE_KINDS = ['accounts.connected', 'accounts.setup-refused', 'accounts.secret-ending', 'calendar.clash', 'calendar.stale-dropped', 'calendar.removed', 'calendar.remade', 'calendar.push-silent', 'calendar.unreadable'] as const;
 export type AccountNoticeKind = (typeof ACCOUNT_NOTICE_KINDS)[number];
 
 export interface AccountNoticeDeps {

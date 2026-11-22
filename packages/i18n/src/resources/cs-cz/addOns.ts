@@ -56,7 +56,9 @@ export default {
       "silentTitle": "Změny z kalendáře osoby {person} přicházejí opožděně",
       "silentBody": "Okamžité aktualizace se zastavily, takže změny přicházejí s pravidelnou kontrolou, přibližně do 12 minut.",
       "secretEndingTitle": "Tajný klíč klienta {provider} končí {date}",
-      "secretEndingBody": "Před tímto dnem vytvořte nový tajný klíč a vložte ho do průvodce nastavením, jinak se všechna připojení k {provider} zastaví. Nikdo se nemusí znovu připojovat."
+      "secretEndingBody": "Před tímto dnem vytvořte nový tajný klíč a vložte ho do průvodce nastavením, jinak se všechna připojení k {provider} zastaví. Nikdo se nemusí znovu připojovat.",
+      "unreadableTitle": "Jeden kalendář osoby {person} už nelze číst",
+      "unreadableBody": "Byl smazán nebo už není sdílený, proto byl odebrán z kalendářů počítaných jako obsazené a už neblokuje časy osoby {person}. Ostatní kalendáře je blokují dál."
     }
   }
 } as const;

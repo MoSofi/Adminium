@@ -63,6 +63,14 @@
     "status": "mt",
     "srcHash": "9e52b900131c"
   },
+  "addOns.accounts.notice.unreadableBody": {
+    "status": "mt",
+    "srcHash": "4f424f49ed76"
+  },
+  "addOns.accounts.notice.unreadableTitle": {
+    "status": "mt",
+    "srcHash": "e2102643184f"
+  },
   "addOns.crashed.body": {
     "status": "mt",
     "srcHash": "009bc13b9030"
@@ -52017,7 +52025,7 @@
   },
   "xConnect.doneTitle": {
     "status": "mt",
-    "srcHash": "6220e647798d"
+    "srcHash": "299dedf6a369"
   },
   "xConnect.hi": {
     "status": "mt",
@@ -52025,7 +52033,7 @@
   },
   "xConnect.linkFor": {
     "status": "mt",
-    "srcHash": "1661f75503cd"
+    "srcHash": "6eb7f34adec0"
   },
   "xConnect.nothingBody": {
     "status": "mt",
@@ -52109,7 +52117,7 @@
   },
   "xConnect.will1": {
     "status": "mt",
-    "srcHash": "2b625a62276f"
+    "srcHash": "90693911087b"
   },
   "xConnect.will2": {
     "status": "mt",
@@ -52125,7 +52133,7 @@
   },
   "xConnect.worksOnce": {
     "status": "mt",
-    "srcHash": "dd4b88996827"
+    "srcHash": "58d6220efaed"
   },
   "xConnect.yourAccount": {
     "status": "mt",

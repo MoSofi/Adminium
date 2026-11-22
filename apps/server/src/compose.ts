@@ -2802,6 +2802,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           meta,
           crypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
           accounts: connectedAccounts,
+          maskedColumns: async (connectionId, tableId) => {
+            const view = await factsViewFor(meta, connectionId);
+            if (view === null || !view.model.tables.some((one) => one.id === tableId)) return new Set<string>();
+            return new Set([...view.table(tableId).columns.entries()].filter(([, column]) => column.masked === true).map(([name]) => name));
+          },
           lastSyncedOf: (accountId) => calendarSync.lastSyncedOf(accountId),
           reachedRow: async (request, connectionId, tableId, row, action) => {
             const view = await factsViewFor(meta, connectionId);

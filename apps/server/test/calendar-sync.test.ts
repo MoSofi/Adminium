@@ -543,6 +543,54 @@ for (const [dialect, reachable] of LEGS) {
       await drain();
     });
 
+    it('a counted calendar that is gone comes off the list, is told, and does not freeze the others', async () => {
+      const account = await accountOf('rafa');
+      demo.addCalendar(account.subject, { id: 'gone', name: 'Gone', primary: false, writable: true });
+      await sync.setChoices(account.id, { readCalendars: ['gone', 'primary'] });
+      await drain();
+      await setBusy('rafa', [[iso('2026-09-21', '10:00'), iso('2026-09-21', '11:00')]]);
+      // The read of both, then the one that is gone; the main calendar then answers.
+      demo.failNext(account.subject, 'readBusy', 'CALENDAR_MISSING');
+      demo.failNext(account.subject, 'readBusy', 'CALENDAR_MISSING');
+      expect(await sync.readAccount(account.id)).toEqual({ state: 'read' });
+      expect(await busyRows('rafa')).toBe(1);
+      const state = await staff('admin', 'GET', `/calendar-sync/row?connection=${h.connectionId}&table=${encodeURIComponent(team)}&row=${String(teamRow['rafa'])}`);
+      expect(state.json()).toMatchObject({ calendar: { readCalendars: ['primary'] } });
+      const told = await h.meta.db.selectFrom('adminium_notifications').select('id').where('kind', '=', 'calendar.unreadable').execute();
+      expect(told.length).toBeGreaterThan(0);
+      await setBusy('rafa', []);
+      await sync.setChoices(account.id, { readCalendars: null });
+      await sync.readAccount(account.id);
+      await drain();
+    });
+
+    it('the main calendar failing is a failed read, and keeps the busy times it had', async () => {
+      const account = await accountOf('rafa');
+      await setBusy('rafa', [[iso('2026-09-22', '10:00'), iso('2026-09-22', '11:00')]]);
+      await sync.readAccount(account.id);
+      expect(await busyRows('rafa')).toBe(1);
+      await setBusy('rafa', []);
+      demo.failNext(account.subject, 'readBusy', 'PERMISSION_MISSING');
+      demo.failNext(account.subject, 'readBusy', 'PERMISSION_MISSING');
+      expect(await sync.readAccount(account.id)).toEqual({ state: 'failed' });
+      expect(await busyRows('rafa')).toBe(1);
+      await sync.readAccount(account.id);
+      await drain();
+    });
+
+    it('a calendar typed by hand is tried once, and a mistyped one is refused', async () => {
+      const account = await accountOf('rafa');
+      demo.setTraits(account.subject, { listsCalendars: false, allDayKnown: true, busyPush: true });
+      demo.failNext(account.subject, 'readBusy', 'CALENDAR_MISSING');
+      expect(await sync.setChoices(account.id, { readCalendars: ['primary', 'typo@group.calendar.example'] })).toBe('unknown-calendar');
+      const state = await staff('admin', 'GET', `/calendar-sync/row?connection=${h.connectionId}&table=${encodeURIComponent(team)}&row=${String(teamRow['rafa'])}`);
+      expect((state.json() as { calendar: { readCalendars: string[] | null } }).calendar.readCalendars).toBeNull();
+      expect(await sync.setChoices(account.id, { readCalendars: ['primary', 'real@group.calendar.example'] })).toBe('ok');
+      await sync.setChoices(account.id, { readCalendars: null });
+      demo.setTraits(account.subject, { listsCalendars: true, allDayKnown: true, busyPush: true });
+      await drain();
+    });
+
     // ─── Clashes ────────────────────────────────────────────────────────────
 
     it('a busy time that lands on a booking is a clash, told once, and keeping it holds until the overlap changes', async () => {

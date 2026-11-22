@@ -8,7 +8,7 @@ import { tellAccountManagers, type AccountNoticeDeps } from '../connected-accoun
 
 export type CalendarNoticeDeps = AccountNoticeDeps;
 
-export const CALENDAR_NOTICE_KINDS = ['calendar.clash', 'calendar.stale-dropped', 'calendar.removed', 'calendar.remade', 'calendar.push-silent'] as const;
+export const CALENDAR_NOTICE_KINDS = ['calendar.clash', 'calendar.stale-dropped', 'calendar.removed', 'calendar.remade', 'calendar.push-silent', 'calendar.unreadable'] as const;
 export type CalendarNoticeKind = (typeof CALENDAR_NOTICE_KINDS)[number];
 
 const WORDS: Record<CalendarNoticeKind, { title: { key: string; fallback: string }; body: { key: string; fallback: string } }> = {
@@ -31,6 +31,10 @@ const WORDS: Record<CalendarNoticeKind, { title: { key: string; fallback: string
   'calendar.push-silent': {
     title: { key: 'silentTitle', fallback: 'Changes from {person}’s calendar are arriving late' },
     body: { key: 'silentBody', fallback: 'Its instant updates have stopped, so changes arrive with the regular check, within about 12 minutes.' },
+  },
+  'calendar.unreadable': {
+    title: { key: 'unreadableTitle', fallback: 'A calendar of {person}’s can no longer be read' },
+    body: { key: 'unreadableBody', fallback: 'It was deleted or is no longer shared, so it was taken off the calendars counted as busy and no longer blocks {person}’s slots. Their other calendars still do.' },
   },
 };
 

@@ -32,6 +32,7 @@ import { accountSpecOf, callbackPath, type AppRegistration } from '../../connect
 import { ConnectRefusedError, parseAddOn, type AccountTable, type ConnectedAccounts } from '../../connected-accounts/service.js';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import { forwardedOf } from '../../forms/reach.js';
+import { canReadPii } from '../../crud/mask.js';
 import { installOnConnection, requireInstall, selectorOf } from '../../installs/resolve.js';
 import { appAccountsPermission, PERMISSIONS } from '../../rbac/permissions.js';
 
@@ -62,6 +63,10 @@ const checkBody = z
     /** `pair`: a made-up code at the token endpoint. `app`: the app's own sign-in, on a named directory. */
     grant: z.enum(['pair', 'app']),
     scope: z.string().regex(/^https:\/\/[a-z0-9.-]+\/\.default$/).optional(),
+    /** What is about to be saved, checked first so a mistyped secret never replaces a working one. Kept nowhere. */
+    clientId: z.string().min(1).max(512).optional(),
+    clientSecret: z.string().min(1).max(4096).optional(),
+    tenant: z.string().regex(OAUTH_TENANT).nullable().optional(),
   })
   .strict();
 
@@ -110,6 +115,8 @@ const personDto = z.object({
   row: z.string(),
   name: z.string().nullable(),
   address: z.string().nullable(),
+  /** The row has an address a link can go to, whether or not this reader may see it. */
+  canEmail: z.boolean(),
   account: accountDto.nullable(),
   lastSyncedAt: z.number().nullable(),
   /** Connected through another calendar add-on, so not offered a link here. */
@@ -118,6 +125,8 @@ const personDto = z.object({
 
 /** The most people one add-on page lists. */
 const PEOPLE_MAX = 200;
+/** How many rows are looked through to find them: a reader's row limits are applied after the read. */
+const PEOPLE_SCAN_MAX = 5_000;
 
 export interface ConnectedAccountRoutesDeps {
   meta: MetaDb;
@@ -127,6 +136,8 @@ export interface ConnectedAccountRoutesDeps {
   reachedRow(request: FastifyRequest, connectionId: string, table: string, row: string, action: 'read' | 'update'): Promise<{ rowKey: string } | null>;
   /** When an account's calendar was last read. */
   lastSyncedOf?(accountId: string): Promise<number | null>;
+  /** The table's personal columns, shown only to whoever may read them. */
+  maskedColumns?(connectionId: string, table: string): Promise<ReadonlySet<string>>;
 }
 
 function personId(request: FastifyRequest): string {
@@ -136,14 +147,15 @@ function personId(request: FastifyRequest): string {
   return id;
 }
 
-function accountOut(account: ConnectedAccount, refused: boolean, named: { key: string; name: string } | undefined, onFile: string | null): z.infer<typeof accountDto> {
+function accountOut(account: ConnectedAccount, refused: boolean, named: { key: string; name: string } | undefined, onFile: string | null, addressHidden = false): z.infer<typeof accountDto> {
   return {
     id: account.id,
     provider: named?.key ?? '',
     providerName: named?.name ?? '',
     state: account.state === 'disconnecting' ? account.state : refused ? 'setup' : account.hasTokens ? account.state : 'reconnect',
     since: account.stateSince,
-    address: account.address,
+    address: addressHidden ? null : account.address,
+    // Says only that the two differ, which is what lets the desk notice a wrong account.
     addressDiffers: onFile !== null && account.address !== null && account.address.toLowerCase() !== onFile,
     grantEndsAt: account.refreshExpiresAt,
   };
@@ -171,6 +183,12 @@ export function connectedAccountRoutes(deps: ConnectedAccountRoutesDeps): Fastif
     return { table, rowKey: reached.rowKey };
   }
 
+  /** The columns of this table the reader may not see: an address or name there stays out of every reply. */
+  async function hiddenFrom(request: FastifyRequest, connection: string, table: string): Promise<ReadonlySet<string>> {
+    if (await canReadPii(request, connection, table)) return new Set();
+    return (await deps.maskedColumns?.(connection, table)) ?? new Set();
+  }
+
   const holds = (request: FastifyRequest, table: AccountTable, action: 'connect' | 'send-link' | 'disconnect') => request.can(appAccountsPermission(table.appKey, action));
 
   async function need(request: FastifyRequest, table: AccountTable, action: 'connect' | 'send-link' | 'disconnect'): Promise<void> {
@@ -188,6 +206,8 @@ export function connectedAccountRoutes(deps: ConnectedAccountRoutesDeps): Fastif
       const target = { connectionId: input.connection, tableName: input.table, rowKey };
       const row = await accountsRow(accounts, target);
       const onFile = accounts.personOf(row, table.rule).address?.toLowerCase() ?? null;
+      const hidden = await hiddenFrom(request, input.connection, input.table);
+      const addressHidden = table.rule.address !== undefined && hidden.has(table.rule.address);
       const providers: { key: string; name: string }[] = [];
       const names = new Map<string, { key: string; name: string }>();
       for (const key of table.rule.from) {
@@ -201,7 +221,7 @@ export function connectedAccountRoutes(deps: ConnectedAccountRoutesDeps): Fastif
       const list = [];
       for (const account of await accounts.repo.forTarget(target)) {
         const refused = (await accounts.repo.refusedOf(account.manifestId)) !== null;
-        list.push(accountOut(account, refused, names.get(account.manifestId), onFile));
+        list.push(accountOut(account, refused, names.get(account.manifestId), onFile, addressHidden));
       }
       const canUpdate = (await request.can(`table:${input.connection}:${input.table}:update`)) && (await deps.reachedRow(request, input.connection, input.table, input.row, 'update')) !== null;
       const [connect, sendLink, disconnect] = await Promise.all([holds(request, table, 'connect'), holds(request, table, 'send-link'), holds(request, table, 'disconnect')]);
@@ -242,7 +262,8 @@ export function connectedAccountRoutes(deps: ConnectedAccountRoutesDeps): Fastif
         }
         const sent = await accounts.sendLink(target, table, { createdBy: by, forwarded: forwardedOf(request) }).catch(asRefusal);
         await record(request, 'connected-account.link-sent', { table: input.table, row: rowKey });
-        return { sentTo: sent.sentTo, url: null };
+        const hidden = await hiddenFrom(request, input.connection, input.table);
+        return { sentTo: table.rule.address !== undefined && hidden.has(table.rule.address) ? null : sent.sentTo, url: null };
       },
     );
 
@@ -331,9 +352,11 @@ export function connectedAccountRoutes(deps: ConnectedAccountRoutesDeps): Fastif
         for (const connection of connections) {
           for (const { id: table, table: rule } of await accounts.tablesFrom(connection, spec.key)) {
             if (!(await request.can(`table:${connection}:${table}:read`))) continue;
-            const rows = await accounts.listRows(connection, table, PEOPLE_MAX + 1);
-            if (rows.length > PEOPLE_MAX) more = true;
-            for (const { rowKey, row } of rows.slice(0, PEOPLE_MAX)) {
+            const rows = await accounts.listRows(connection, table, PEOPLE_SCAN_MAX + 1);
+            if (rows.length > PEOPLE_SCAN_MAX) more = true;
+            const hidden = await hiddenFrom(request, connection, table);
+            const addressHidden = rule.rule.address !== undefined && hidden.has(rule.rule.address);
+            for (const { rowKey, row } of rows.slice(0, PEOPLE_SCAN_MAX)) {
               if (people.length >= PEOPLE_MAX) {
                 more = true;
                 break;
@@ -346,9 +369,10 @@ export function connectedAccountRoutes(deps: ConnectedAccountRoutesDeps): Fastif
                 connection,
                 table,
                 row: rowKey,
-                name: person.name,
-                address: person.address,
-                account: mine === undefined ? null : accountOut(mine, refused, named, person.address?.toLowerCase() ?? null),
+                name: rule.rule.name !== undefined && hidden.has(rule.rule.name) ? null : person.name,
+                address: addressHidden ? null : person.address,
+                canEmail: person.address !== null,
+                account: mine === undefined ? null : accountOut(mine, refused, named, person.address?.toLowerCase() ?? null, addressHidden),
                 lastSyncedAt: mine === undefined ? null : ((await deps.lastSyncedOf?.(mine.id)) ?? null),
                 elsewhere: held.some((account) => account.manifestId !== installed.row.id),
               });
@@ -399,6 +423,7 @@ export function connectedAccountRoutes(deps: ConnectedAccountRoutesDeps): Fastif
           redirectOrigin: redirectUri === null ? null : new URL(redirectUri).origin,
           secretEndsOn: endsOn,
           secretToldFor: endsOn !== null && endsOn === before?.secretEndsOn && !secretChanged ? (before.secretToldFor ?? null) : null,
+          keptCalendars: before?.keptCalendars ?? {},
         };
         await manifests.setCredential(installed.row.id, { kind: 'oauth2', secret: next });
         // A new secret is a new answer: the provider is asked again at the next refresh.

@@ -56,7 +56,9 @@ export default {
       "silentTitle": "Changes from {person}’s calendar are arriving late",
       "silentBody": "Its instant updates have stopped, so changes arrive with the regular check, within about 12 minutes.",
       "secretEndingTitle": "The {provider} client secret ends on {date}",
-      "secretEndingBody": "Make a new client secret and paste it into the setup guide before that day, or every {provider} connection stops. Nobody needs to reconnect."
+      "secretEndingBody": "Make a new client secret and paste it into the setup guide before that day, or every {provider} connection stops. Nobody needs to reconnect.",
+      "unreadableTitle": "A calendar of {person}’s can no longer be read",
+      "unreadableBody": "It was deleted or is no longer shared, so it was taken off the calendars counted as busy and no longer blocks {person}’s slots. Their other calendars still do."
     }
   }
 } as const;

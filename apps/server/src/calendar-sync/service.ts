@@ -42,6 +42,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 
 import {
   isCalendarError,
+  type CalendarError,
   type CalendarBusyInterval,
   type CalendarProvider,
   type DemoCalendarBackend,
@@ -184,6 +185,9 @@ const syncedTables = (view: SnapshotView): string[] => view.model.tables.filter(
 /** An account the sync may call. */
 const usable = (account: ConnectedAccount): boolean => account.state === 'connected' || account.state === 'connecting' || account.state === 'partial';
 
+/** What a service says of a calendar that is gone, or closed to this person. */
+const CALENDAR_LOST: ReadonlySet<string> = new Set(['CALENDAR_MISSING', 'PERMISSION_MISSING']);
+
 export function createCalendarSync(deps: CalendarSyncDeps) {
   const { meta, accounts } = deps;
   const repo = calendarSyncRepo(meta, deps.crypto);
@@ -214,7 +218,7 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
   }
 
   /** The booking table an account's person is the resource of. */
-  async function bindAccount(account: ConnectedAccount): Promise<BoundTable | null> {
+  async function bindAccount(account: Pick<ConnectedAccount, 'connectionId' | 'tableName'>): Promise<BoundTable | null> {
     const source = await deps.source(account.connectionId);
     if (source === null) return null;
     for (const id of syncedTables(source.view)) {
@@ -707,6 +711,32 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
     }
   }
 
+  /**
+   * A whole read, unless one added calendar is gone. That one is taken off the
+   * list and the managers are told, so it cannot freeze the person's other
+   * calendars at what they last said. The main calendar is never taken off:
+   * if it cannot be read, nothing about this person can be trusted.
+   */
+  async function readBusyOf(account: ConnectedAccount, provider: CalendarProvider, state: CalendarSyncState, calendarIds: string[], from: string, to: string): Promise<Awaited<ReturnType<CalendarProvider['readBusy']>>> {
+    const whole = await provider.readBusy({ calendarIds, from, to });
+    if (!isCalendarError(whole) || !CALENDAR_LOST.has(whole.calendarError)) return whole;
+    const intervals: Exclude<Awaited<ReturnType<CalendarProvider['readBusy']>>, CalendarError>['intervals'] = [];
+    const lost: string[] = [];
+    for (const calendarId of calendarIds) {
+      const one = await provider.readBusy({ calendarIds: [calendarId], from, to });
+      if (!isCalendarError(one)) intervals.push(...one.intervals);
+      else if (calendarId === 'primary' || !CALENDAR_LOST.has(one.calendarError)) return one;
+      else lost.push(calendarId);
+    }
+    if (lost.length === 0) return whole;
+    const left = (state.readCalendars ?? ['primary']).filter((id) => !lost.includes(id));
+    const next = left.length > 0 ? left : ['primary'];
+    await repo.patch(account.id, { readCalendars: next }, now());
+    state.readCalendars = next;
+    await tellCalendar(noticeDeps, await appKeyOf(account), 'calendar.unreadable', { person: await personName(account) });
+    return left.length > 0 ? { intervals } : provider.readBusy({ calendarIds: ['primary'], from, to });
+  }
+
   async function readOnce(accountId: string): Promise<{ state: string }> {
     const account = await accountsRepo.find(accountId);
     if (account === null || account.state === 'disconnecting') return { state: 'gone' };
@@ -744,7 +774,7 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
     const window = await readWindow(bound);
     // The calendar Adminium writes is never read as the person's busy time.
     const calendarIds = (state.readCalendars ?? ['primary']).filter((id) => id !== state.calendarId);
-    const answer = await provider.readBusy({ calendarIds, from: new Date(window.from).toISOString(), to: new Date(window.to).toISOString() });
+    const answer = await readBusyOf(account, provider, state, calendarIds, new Date(window.from).toISOString(), new Date(window.to).toISOString());
     if (isCalendarError(answer)) {
       if (answer.calendarError === 'RATE_LIMITED') {
         const wait = answer.retryAfterMs ?? FAILED_RETRY_MS;
@@ -980,6 +1010,11 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
     const before = await repo.state(account.id);
     await repo.ensure({ accountId: account.id, connectionId: account.connectionId, bookingTable: bound.table.id, detail: bound.rule.sync.detail?.default ?? 'first-name+initial', nextPollAt: at }, at);
     await repo.patch(account.id, { paused: null, calendarLostCount: 0, calendarLostAt: null, nextPollAt: at, holdUntil: null, staleDroppedAt: null }, at);
+    if (before === null) {
+      // Connecting back: the calendar they left is theirs again. Its name is left blank, so it is checked before it is used.
+      const kept = await accounts.takeCalendar(account.manifestId, account.subject).catch(() => null);
+      if (kept !== null) await repo.patch(account.id, { calendarId: kept, calendarName: null }, at);
+    }
     if (before === null || before.lastSyncedAt === null) {
       // Never read: nobody knows this diary yet, so its window is closed until the first read.
       await repo.patch(account.id, { connectingSince: at }, at);
@@ -1024,6 +1059,11 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
     }
   }
 
+  accounts.setCalendarNamer(async (target) => {
+    const bound = await bindAccount(target);
+    return bound === null ? null : calendarNameOf(bound);
+  });
+
   /** At the end of a connection: its channels stop, its coming events go, its busy times go. */
   accounts.addCleanup({
     run: async ({ account }) => {
@@ -1066,6 +1106,7 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
         // The hourly pass drops the rows of an account that no longer exists.
         failed = true;
       }
+      if (state?.calendarId != null) await accounts.rememberCalendar(account.manifestId, account.subject, state.calendarId).catch(() => undefined);
       if (failed) throw new Error('Part of the calendar could not be reached.');
       return { removed };
     },
@@ -1309,6 +1350,8 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
       readCalendars: state?.readCalendars ?? null,
       countAllDay: state?.countAllDay ?? false,
       detail: state?.detail ?? 'first-name+initial',
+      /** The calendar Adminium keeps there, which is never one of the calendars to count. */
+      calendarId: state?.calendarId ?? null,
       /** What this provider can tell: the all-day tick and the list of calendars are shown only when it can. */
       traits,
       calendars,
@@ -1332,6 +1375,14 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
         if (isCalendarError(listed)) return 'unknown-calendar';
         const known = new Set(['primary', ...listed.calendars.map((calendar) => calendar.id)]);
         if (input.readCalendars.some((id) => !known.has(id))) return 'unknown-calendar';
+      } else if (lookup.ok) {
+        // A calendar typed by hand is tried once, so a mistyped ID is refused here and not at every later read.
+        const had = new Set((await repo.state(accountId))?.readCalendars ?? ['primary']);
+        for (const id of input.readCalendars) {
+          if (had.has(id)) continue;
+          const tried = await lookup.provider.readBusy({ calendarIds: [id], from: new Date(now()).toISOString(), to: new Date(now() + 60_000).toISOString() });
+          if (isCalendarError(tried) && CALENDAR_LOST.has(tried.calendarError)) return 'unknown-calendar';
+        }
       }
     }
     const bound = await bindAccount(account);

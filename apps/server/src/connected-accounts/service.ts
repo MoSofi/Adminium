@@ -99,6 +99,9 @@ const SETUP_CHECK_CODE = 'adminium-setup-check';
 /** Microsoft's own number for a client secret past its end date. */
 const SECRET_EXPIRED_CODE = 7000222;
 const SECRET_NOTICE_MS = 30 * 86_400_000;
+/** The most left-behind calendars an install remembers, oldest dropped first. */
+const KEPT_CALENDARS_MAX = 500;
+const keptKey = (subject: string): string => createHash('sha256').update(subject).digest('hex').slice(0, 32);
 
 /** A table whose rows may connect. */
 export interface AccountTable {
@@ -142,6 +145,8 @@ export interface OpenedLink {
   address: string | null;
   /** Who sent it, by name. */
   sentBy: string | null;
+  /** What the calendar kept in their account is called, where a sync serves this row. */
+  calendar: string | null;
   providers: { key: string; name: string }[];
 }
 
@@ -204,6 +209,7 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
   const noticeDeps: AccountNoticeDeps = { meta, secret: deps.secret, ...deps.notices, ...(deps.now === undefined ? {} : { now: deps.now }) };
   const cleanups: AccountCleanup[] = [];
   const onConnected: ((account: ConnectedAccount) => Promise<void>)[] = [];
+  let calendarNamer: ((target: AccountTarget) => Promise<string | null>) | null = null;
 
   /**
    * The table's rule, from the installed app that declares it. `unsure`: an app
@@ -490,10 +496,15 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
      * nothing else. Only the `error` word and the numbered codes are read from
      * its answer, and any token it hands back is dropped unread.
      */
-    async checkApp(manifestId: string, input: { grant: 'pair' | 'app'; scope?: string | undefined }): Promise<AppCheck> {
+    async checkApp(manifestId: string, input: { grant: 'pair' | 'app'; scope?: string | undefined; clientId?: string | undefined; clientSecret?: string | undefined; tenant?: string | null | undefined }): Promise<AppCheck> {
       const held = await installOf(manifestId);
-      if (held === null || held.registration === null) return 'not-set-up';
-      const { registration, spec } = held;
+      if (held === null) return 'not-set-up';
+      const { spec } = held;
+      // What is about to be saved, asked about before it replaces what works.
+      const clientId = input.clientId ?? held.registration?.clientId;
+      const clientSecret = input.clientSecret ?? held.registration?.clientSecret;
+      if (clientId === undefined || clientSecret === undefined) return 'not-set-up';
+      const registration = { clientId, clientSecret, tenant: input.tenant === undefined ? (held.registration?.tenant ?? null) : input.tenant };
       const directory = registration.tenant ?? spec.tenantDefault;
       // An app's own sign-in needs a named directory: Microsoft refuses it on `common`.
       if (input.grant === 'app' && (directory === null || ['common', 'organizations', 'consumers'].includes(directory.toLowerCase()) || input.scope === undefined)) return 'unknown';
@@ -530,6 +541,33 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
 
     /** The crypto the account store seals with, for a piece that shares it. */
     crypto,
+
+    /** How the link page learns what the person's calendar will be called. */
+    setCalendarNamer(namer: (target: AccountTarget) => Promise<string | null>): void {
+      calendarNamer = namer;
+    },
+
+    /** Remembers the calendar a person leaves in their account when a connection ends. */
+    async rememberCalendar(manifestId: string, subject: string, calendarId: string): Promise<void> {
+      const held = await installOf(manifestId);
+      if (held?.registration == null) return;
+      const key = keptKey(subject);
+      const others = Object.entries(held.registration.keptCalendars).filter(([one]) => one !== key);
+      const keptCalendars = Object.fromEntries([...others, [key, calendarId]].slice(-KEPT_CALENDARS_MAX));
+      await manifests.setCredential(manifestId, { kind: 'oauth2', secret: { ...held.registration, keptCalendars } });
+    },
+
+    /** The calendar this person left here before, once: it is theirs again from now on. */
+    async takeCalendar(manifestId: string, subject: string): Promise<string | null> {
+      const held = await installOf(manifestId);
+      if (held?.registration == null) return null;
+      const key = keptKey(subject);
+      const calendarId = held.registration.keptCalendars[key];
+      if (calendarId === undefined) return null;
+      const { [key]: _taken, ...keptCalendars } = held.registration.keptCalendars;
+      await manifests.setCredential(manifestId, { kind: 'oauth2', secret: { ...held.registration, keptCalendars } });
+      return calendarId;
+    },
 
     /** Whether people can connect through this server at all. */
     async reachNow(forwarded: boolean): Promise<ConnectReach> {
@@ -601,6 +639,7 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
         person: resolved.person,
         address: resolved.address,
         sentBy: sender?.name ?? null,
+        calendar: resolved.rule === null || calendarNamer === null ? null : await calendarNamer(link).catch(() => null),
         providers: resolved.providers.map(({ key, name }) => ({ key, name })),
       };
     },

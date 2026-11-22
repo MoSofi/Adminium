@@ -56,7 +56,9 @@ export default {
       "silentTitle": "{person} 日历的更改到达延迟",
       "silentBody": "即时更新已停止，更改将随定期检查到达，大约在 12 分钟内。",
       "secretEndingTitle": "{provider} 客户端密钥将于 {date} 到期",
-      "secretEndingBody": "请在此日期前创建新的客户端密钥并粘贴到设置指南中，否则所有 {provider} 连接都会停止。无需任何人重新连接。"
+      "secretEndingBody": "请在此日期前创建新的客户端密钥并粘贴到设置指南中，否则所有 {provider} 连接都会停止。无需任何人重新连接。",
+      "unreadableTitle": "{person} 的一个日历已无法读取",
+      "unreadableBody": "该日历已被删除或不再共享，因此已从计为忙碌的日历中移除，不再占用 {person} 的时段。其他日历仍会占用。"
     }
   }
 } as const;

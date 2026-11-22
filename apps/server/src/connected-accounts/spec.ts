@@ -81,11 +81,17 @@ export interface AppRegistration extends Record<string, unknown> {
   secretEndsOn: string | null;
   /** The end date the managers were last told about, so they are told once. */
   secretToldFor: string | null;
+  /**
+   * The calendar each disconnected person left in their own account, by a hash
+   * of who they are. A service whose permissions cannot list calendars could
+   * not find it again, and connecting back would make a second one.
+   */
+  keptCalendars: Readonly<Record<string, string>>;
 }
 
 export function registrationOf(held: { kind: string; secret: Record<string, unknown> } | null): AppRegistration | null {
   if (held === null || held.kind !== 'oauth2' || held.secret['oauthApp'] !== 1) return null;
-  const { clientId, clientSecret, tenant, redirectOrigin, secretEndsOn, secretToldFor } = held.secret;
+  const { clientId, clientSecret, tenant, redirectOrigin, secretEndsOn, secretToldFor, keptCalendars } = held.secret;
   if (typeof clientId !== 'string' || typeof clientSecret !== 'string') return null;
   return {
     oauthApp: 1,
@@ -95,6 +101,10 @@ export function registrationOf(held: { kind: string; secret: Record<string, unkn
     redirectOrigin: typeof redirectOrigin === 'string' ? redirectOrigin : null,
     secretEndsOn: typeof secretEndsOn === 'string' ? secretEndsOn : null,
     secretToldFor: typeof secretToldFor === 'string' ? secretToldFor : null,
+    keptCalendars:
+      typeof keptCalendars === 'object' && keptCalendars !== null
+        ? Object.fromEntries(Object.entries(keptCalendars).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
+        : {},
   };
 }
 

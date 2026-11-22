@@ -123501,6 +123501,9 @@
                               "null"
                             ]
                           },
+                          "canEmail": {
+                            "type": "boolean"
+                          },
                           "account": {
                             "anyOf": [
                               {
@@ -123578,6 +123581,7 @@
                           "row",
                           "name",
                           "address",
+                          "canEmail",
                           "account",
                           "lastSyncedAt",
                           "elsewhere"
@@ -123620,6 +123624,27 @@
                   "scope": {
                     "type": "string",
                     "pattern": "^https:\\/\\/[a-z0-9.-]+\\/\\.default$"
+                  },
+                  "clientId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "clientSecret": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  },
+                  "tenant": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,126}[A-Za-z0-9])?$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "required": [
@@ -123970,6 +123995,12 @@
                                 "none"
                               ]
                             },
+                            "calendarId": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
                             "traits": {
                               "anyOf": [
                                 {
@@ -124063,6 +124094,7 @@
                             "readCalendars",
                             "countAllDay",
                             "detail",
+                            "calendarId",
                             "traits",
                             "calendars",
                             "push"

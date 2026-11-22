@@ -139,7 +139,7 @@ export function connectDoorRoutes(deps: ConnectDoorDeps): FastifyPluginAsync {
       if (!sameSite(request) || !(await open(request))) return unavailable(reply);
       const opened = await accounts.open(request.body.token);
       if (opened === null) return unavailable(reply);
-      return { business: opened.business, contact: opened.contact, person: opened.person, address: opened.address, sentBy: opened.sentBy, purpose: opened.link.purpose, providers: opened.providers };
+      return { business: opened.business, contact: opened.contact, person: opened.person, address: opened.address, sentBy: opened.sentBy, calendar: opened.calendar, purpose: opened.link.purpose, providers: opened.providers };
     });
 
     app.post('/x/connect/api/start', { config: { rateLimitBucket: 'connect-door', csrf: 'exempt', audit }, schema: { hide: true, body: startBody } }, async (request, reply) => {
@@ -160,7 +160,8 @@ export function connectDoorRoutes(deps: ConnectDoorDeps): FastifyPluginAsync {
       if (!sameSite(request) || !(await open(request))) return unavailable(reply);
       const { state, code, error } = request.body;
       const answer = await accounts.complete({ state, code: code ?? null, error: error ?? null, nonce: cookieOf(request) });
-      void reply.header('set-cookie', `${CONNECT_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`);
+      // Left alone on an answer that took no flow: a stray address must not end someone's sign-in.
+      if (answer.outcome !== 'nothing') void reply.header('set-cookie', `${CONNECT_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`);
       return answer;
     });
   };
