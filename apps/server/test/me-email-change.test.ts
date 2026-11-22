@@ -11,6 +11,7 @@ import { createFirstSuperAdmin, emailChangesRepo, passwordResetsRepo, usersRepo,
 
 import { buildServer, type AdminiumServer } from '../src/app.js';
 import { hashToken } from '../src/auth/sessions.js';
+import { sweepAddress } from '../src/privacy/erase-meta.js';
 import { ADMIN_EMAIL, ADMIN_PASSWORD, adminPasswordHash, sessionCookie } from './auth-helpers.js';
 import { makeEnv } from './helpers.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
@@ -81,6 +82,16 @@ describe.each(META_ENGINES.map((engine) => [engine.name, engine] as const))('cha
     expect(mailed[0]).toMatchObject({ userId: user.id, email: wanted });
     expect((await attempt(user.email)).statusCode).toBe(200);
     expect((await attempt(wanted)).statusCode).toBe(401);
+  });
+
+  it.skipIf(!engine.available)('an erased address cannot be claimed by a change that was waiting for it', async () => {
+    const { user, cookie } = await person();
+    const wanted = address('erased');
+    expect((await ask(cookie, wanted)).statusCode).toBe(200);
+    const token = mailed.at(-1)!.token;
+    await sweepAddress(meta, wanted);
+    expect((await confirm(cookie, token)).statusCode).toBe(410);
+    expect(await stored(user.id)).toBe(user.email);
   });
 
   it.skipIf(!engine.available)('a wrong password sends nothing', async () => {
