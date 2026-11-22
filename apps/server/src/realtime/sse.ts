@@ -98,7 +98,10 @@ export function registerSseRoute(
       // Held from before the first await below: an account stopped meanwhile finds this stream to close.
       let closed = false;
       let unsubscribes: (() => void)[] = [];
-      let keepAlive: ReturnType<typeof setInterval> | undefined;
+      const keepAlive = setInterval(() => {
+        res.write(`: keep-alive ${new Date().toISOString()}\n\n`);
+      }, keepAliveMs);
+      keepAlive.unref?.();
       const close = (): void => {
         if (closed) return;
         closed = true;
@@ -124,11 +127,6 @@ export function registerSseRoute(
           }),
         ),
       );
-
-      keepAlive = setInterval(() => {
-        res.write(`: keep-alive ${new Date().toISOString()}\n\n`);
-      }, keepAliveMs);
-      keepAlive.unref?.();
     },
   );
 }
