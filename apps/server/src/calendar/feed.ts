@@ -172,7 +172,7 @@ export async function renderFeed(deps: FeedDeps, token: string): Promise<{ body:
   const events: CalendarEvent[] = [];
   for (const row of rows) {
     const customerName = names ? shownNameOfFull(await textAlong(db, view, table, row, feed.customer!, memo)) : undefined;
-    const entry = await bookingEntry(ctx, row, { customerName, withoutNotice: true });
+    const entry = await bookingEntry(ctx, row, { customerName, withoutNotice: true, withoutPerson: !names });
     if (entry !== null) events.push(entry.event);
   }
   const studio = String((await read(rule.calendar.studio.name)) ?? '').trim();

@@ -84,14 +84,14 @@ export interface EntryContext {
 }
 
 /** One row as an entry, with whether it still takes its time; null when its time cannot be read. */
-export async function bookingEntry(ctx: EntryContext, row: Row, opts: { customerName?: string | undefined; withoutNotice?: boolean | undefined } = {}): Promise<{ event: CalendarEvent; takesTime: boolean } | null> {
+export async function bookingEntry(ctx: EntryContext, row: Row, opts: { customerName?: string | undefined; withoutNotice?: boolean | undefined; withoutPerson?: boolean | undefined } = {}): Promise<{ event: CalendarEvent; takesTime: boolean } | null> {
   const { rule, db, view, table } = ctx;
   const calendar = rule.calendar;
   const start = slotInstant(row[rule.start]);
   const minutes = Number(row[rule.minutes]);
   if (start === null || !Number.isFinite(minutes) || minutes <= 0) return null;
   const title = await textAlong(db, view, table, row, calendar.title, ctx.memo);
-  const person = calendar.person === undefined ? '' : ((await textAlong(db, view, table, row, calendar.person, ctx.memo)).split(/\s+/)[0] ?? '');
+  const person = calendar.person === undefined || opts.withoutPerson === true ? '' : ((await textAlong(db, view, table, row, calendar.person, ctx.memo)).split(/\s+/)[0] ?? '');
   const studio = text(await ctx.setting(calendar.studio.name));
   const location = calendar.studio.address === undefined ? '' : text(await ctx.setting(calendar.studio.address));
   const website = calendar.studio.website === undefined ? '' : text(await ctx.setting(calendar.studio.website));

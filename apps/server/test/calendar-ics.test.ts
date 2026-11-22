@@ -6,7 +6,7 @@
 import nodemailer from 'nodemailer';
 import { describe, expect, it } from 'vitest';
 
-import { calendarUid, noticeIn } from '../src/calendar/entry.js';
+import { bookingEntry, calendarUid, noticeIn } from '../src/calendar/entry.js';
 import { downloadFile, feedFile, foldLine, googleCalendarLink, icsInstant, icsParam, icsText, invitationFile, outlookCalendarLink, type CalendarEvent } from '../src/calendar/ics.js';
 import { mailOptionsOf } from '../src/email/config.js';
 import { scrubPathForLog, scrubUrlForLog } from '../src/log-scrub.js';
@@ -135,6 +135,23 @@ describe('the two add-to-calendar links', () => {
 });
 
 describe('the entry\'s words', () => {
+  it('leaves a customer\'s name out of an entry whose feed may not show it', async () => {
+    const table = { id: 'visits', primaryKey: ['id'], columns: new Map() } as never;
+    const rule = {
+      start: 'starts_at',
+      minutes: 'minutes',
+      countWhere: { column: 'state', values: ['booked'] },
+      calendar: { title: ['service'], person: ['customer'], code: 'code', revision: 'revision', notice: { 'en-US': 'Note' }, studio: { name: { table: 'settings', column: 'name' } } },
+    } as never;
+    const row = { id: 1, starts_at: '2026-09-15T18:00:00.000Z', minutes: 60, state: 'booked', service: 'Facial', customer: 'Ava Stone', code: 'LMN-1', revision: 0 };
+    const ctx = { db: null, view: null, table, rule, appKey: 'lumen', connectionId: 'con', install: 'i', locale: 'en-US', setting: () => Promise.resolve('Lumen') } as never;
+    const named = await bookingEntry(ctx, row, { withoutNotice: true });
+    expect(named!.event.description).toContain('Ava');
+    const hidden = await bookingEntry(ctx, row, { withoutNotice: true, withoutPerson: true });
+    expect(hidden!.event.description).not.toContain('Ava');
+    expect(hidden!.event.description).toContain('Facial');
+  });
+
   it('a UID is the app, the database, the row and the install: two studios\' first bookings are two events', () => {
     expect(calendarUid('lumen', 'con-a', '1', 'install-a')).not.toBe(calendarUid('lumen', 'con-a', '1', 'install-b'));
     expect(calendarUid('lumen', 'con-a', '1', 'install-a')).not.toBe(calendarUid('lumen', 'con-b', '1', 'install-a'));
