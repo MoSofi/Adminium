@@ -24,9 +24,12 @@ import {
 import { validateManifest } from '@adminium/manifest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
+import { CALENDAR_PROVIDER_CONTRACT, CALENDAR_PROVIDER_FACTORY, CALENDAR_PROVIDER_VERSION } from '@adminium/add-on-contracts';
 
 import { addOnCredentialCryptoFromSecret } from '../src/add-ons/credential-crypto.js';
 import { createAddOnHttpClient } from '../src/add-ons/egress.js';
+import type { AddOnRuntimeState } from '../src/add-ons/runtime.js';
+import { calendarProviderFor } from '../src/calendar-sync/provider.js';
 import { addOnVisibleCredential } from '../src/add-ons/oauth.js';
 import { sanitizeDump } from '../src/archive/policy.js';
 import { encryptSecret } from '../src/config/secrets.js';
@@ -951,6 +954,25 @@ for (const [dialect, reachable] of LEGS) {
       const reply = await door('complete', { state: 'x'.repeat(20), code: 'stray' }, '__Host-adminium-connect=someone');
       expect(reply.json()).toEqual({ outcome: 'nothing' });
       expect(reply.headers['set-cookie']).toBeUndefined();
+    });
+
+    it('makes no call on a person\'s account while the add-on is switched off for the app', async () => {
+      const account = await accountOf('noor');
+      expect(account?.state).toBe('connected');
+      const runtime = { providers: new Map([[`${CALENDAR_PROVIDER_CONTRACT}@${String(CALENDAR_PROVIDER_VERSION)}`, [{ addOnKey: KEY, module: { [CALENDAR_PROVIDER_FACTORY]: () => ({ traits: { listsCalendars: false, allDayKnown: true, busyPush: false } }) } }]]]) } as unknown as AddOnRuntimeState;
+      const deps = { accounts: engine(), runtime: () => runtime, demo: null };
+      const before = provider.calls.length;
+      const manifests = manifestsRepo(h.meta, addOnCredentialCryptoFromSecret(TEST_SECRET));
+      await manifests.setAttachmentEnabled(installId, 'studio', false);
+      try {
+        expect(await calendarProviderFor(deps, account!)).toEqual({ ok: false, reason: 'unavailable' });
+        expect(provider.calls.length).toBe(before);
+        // What ends a connection still runs: a switched-off add-on must be able to take its events back.
+        expect((await calendarProviderFor(deps, account!, { ending: true })).ok).toBe(true);
+      } finally {
+        await manifests.setAttachmentEnabled(installId, 'studio', true);
+      }
+      expect((await calendarProviderFor(deps, account!)).ok).toBe(true);
     });
 
     it('keeps a masked address and name from a reader who may not read personal data', async () => {

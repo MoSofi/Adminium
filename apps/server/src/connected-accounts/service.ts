@@ -426,6 +426,24 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
     }
   }
 
+  /**
+   * Whether the owner has switched this account's add-on off for its app, or
+   * the add-on as a whole. Its connections stay, and make no call until it is
+   * back on. Unknown reads as on: a passing failure is not an owner's choice.
+   */
+  async function switchedOff(account: ConnectedAccount): Promise<boolean> {
+    if (account.tableName === INSTALL_ACCOUNT_TABLE) return false;
+    try {
+      const install = await manifests.findById(account.manifestId);
+      if (install === null) return false;
+      if (install.row.status !== 'installed') return true;
+      const { table } = await lookUpTable(account.connectionId, account.tableName);
+      return table !== null && install.attachments.some((attachment) => attachment.attachedTo === table.appKey && attachment.disabledAt !== null);
+    } catch {
+      return false;
+    }
+  }
+
   /** Thirty days before the client secret's written end date: one notice, per date. */
   async function warnSecretEnding(manifestId: string): Promise<void> {
     const held = await installOf(manifestId);
@@ -471,6 +489,7 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
     tableOf,
     installOf,
     personOf,
+    switchedOff,
     rowIsLive,
 
     /** The row, read as the engine. */

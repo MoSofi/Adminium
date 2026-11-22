@@ -74,6 +74,8 @@ export async function calendarProviderFor(deps: CalendarProviderDeps, account: C
     if (deps.demo === null) return { ok: false, reason: 'unavailable' };
     return { ok: true, key: DEMO_CALENDAR_KEY, provider: guardCalendarProvider(deps.demo.providerFor(account.subject), deps.log) };
   }
+  // Switched off stops every call but the ones that end a connection, which must still take its events back.
+  if (options?.ending !== true && (await deps.accounts.switchedOff(account))) return { ok: false, reason: 'unavailable' };
   const install = await deps.accounts.installOf(account.manifestId).catch(() => null);
   if (install === null) return { ok: false, reason: 'unavailable' };
   const factory = factoryByKey(deps, install.spec.key);
