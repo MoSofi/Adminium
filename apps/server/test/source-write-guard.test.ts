@@ -63,6 +63,8 @@ const ALLOWED: Record<string, string> = {
     "a named survey's invitation keeps the hash of the token its mail carries and when it stops, written as the system once the message is claimed and only while the invitation is unanswered: Adminium's own record of a link it made, never a person's save",
   'privacy/form-answers.ts':
     "the survey invitations sent to an erased person lose the address and the name, by key, as the system, under the privacy action, for the reasons the erasure of their own rows gives (privacy/erase-rows.ts)",
+  'privacy/held-values.ts':
+    "what a person holds on an add-on's table (a pack, a gift card), written as the system: their details emptied or marked when they are forgotten, and their key and address moved when their address changes, by key or by the old key, so a save's rules, mail and hooks do not run for a change the person did not make to that row",
   'privacy/forget-copies.ts':
     "a person's own delete empties the declared copies on the rows linked to their key, inside the transaction that empties their own row, as the system: a save would judge the booking again, move or lock on a state, stamp, mail and fire the app's rules",
   'privacy/erase-rows.ts':
