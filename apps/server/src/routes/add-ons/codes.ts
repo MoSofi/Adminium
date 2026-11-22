@@ -35,6 +35,7 @@ import type { Row } from '../../crud/mask.js';
 import { readViewFor } from '../../crud/read-view.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { AppError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { scrubUrlForLog } from '../../log-scrub.js';
 
 export interface CodesMakeDeps {
   meta: MetaDb;
@@ -94,7 +95,7 @@ export function addOnCodesRoutes(deps: CodesMakeDeps): FastifyPluginAsyncZod {
         if (codes === null) throw new NotFoundError('This add-on keeps no discount codes here.', { addOn: addOnKey });
         const permission = `table:${connectionId}:${codes.id}:create`;
         if (!(await request.can(permission))) {
-          await app.rbac.audit(request, { category: 'rbac', action: 'permission.denied', connectionId, changes: { after: { permission, method: request.method, url: request.url } } });
+          await app.rbac.audit(request, { category: 'rbac', action: 'permission.denied', connectionId, changes: { after: { permission, method: request.method, url: scrubUrlForLog(request.url) } } });
           throw new ForbiddenError('You do not have access to this table.', 'TABLE_FORBIDDEN', { permission });
         }
         const { db } = await deps.manager.data(connectionId);

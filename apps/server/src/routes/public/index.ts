@@ -294,6 +294,7 @@ import { parseBearerPublishableKey, parsePublicSessionToken } from '../../public
 import { createConsentTicks } from '../../public-api/consent-tick.js';
 import type { PeopleConsent } from '../../people/consent-writes.js';
 import { tagRoutes } from '../../security/route-audience.js';
+import { scrubUrlForLog } from '../../log-scrub.js';
 
 export interface PublicRoutesDeps {
   env: Env;
@@ -2096,7 +2097,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       // U+0000 in the path or the query: the parameter the caller sent, named back to them.
       if (error instanceof NulInRequest) return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', 'That request is not permitted here.', { parameter: error.parameter });
       // Logged in full server-side; the caller gets a code and nothing else.
-      request.log.warn({ err: error, url: request.url }, 'public API request failed');
+      request.log.warn({ err: error, url: scrubUrlForLog(request.url) }, 'public API request failed');
       const code: PublicErrorCode =
         status === 400 || status === 422 ? 'PUBLIC_QUERY_REFUSED' : 'PUBLIC_UPSTREAM_UNAVAILABLE';
       const outward = status === 400 || status === 422 ? 400 : 503;

@@ -8,7 +8,10 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { Writable } from 'node:stream';
+import { fileURLToPath } from 'node:url';
 
 import pino from 'pino';
 
@@ -128,5 +131,82 @@ describe('scrubUrlForLog', () => {
     // Another of the door's paths, and a path that only begins alike, keep what they are.
     expect(scrubUrlForLog('/m/x/abc')).toBe('/m/x/abc');
     expect(scrubUrlForLog('/media/c/abc')).toBe('/media/c/abc');
+  });
+
+  it('redacts the token of an object link, which erases a person', () => {
+    expect(scrubUrlForLog(`/m/o/${TOKEN}`)).toBe(`/m/o/${REDACTED}`);
+    expect(scrubUrlForLog(`/m/o/${TOKEN}~abc_DEF-123?from=mail`)).toBe(`/m/o/${REDACTED}?from=mail`);
+    expect(scrubUrlForLog('/m/o/')).toBe('/m/o/');
+  });
+
+  it('redacts a mail or pay token however the router-accepted address is spelled', () => {
+    expect(scrubUrlForLog(`/m/%6F/${TOKEN}`)).toBe(`/m/%6F/${REDACTED}`);
+    expect(scrubUrlForLog(`/m/%75/${TOKEN}`)).toBe(`/m/%75/${REDACTED}`);
+    expect(scrubUrlForLog(`/%6D/l/${TOKEN}?x=1`)).toBe(`/%6D/l/${REDACTED}?x=1`);
+    expect(scrubUrlForLog(`/p%61y/${TOKEN}`)).toBe(`/p%61y/${REDACTED}`);
+    expect(scrubUrlForLog(`/pay/%61pi/${TOKEN}/challenge`)).toBe(`/pay/%61pi/${REDACTED}/challenge`);
+    expect(scrubUrlForLog(`/pay/b%61ck/${TOKEN}`)).toBe(`/pay/b%61ck/${REDACTED}`);
+    expect(scrubUrlForLog(`/pay/api/d%65mo/${TOKEN}`)).toBe(`/pay/api/d%65mo/${REDACTED}`);
+    expect(scrubUrlForLog(`http://shop.example/m/o/${TOKEN}`)).toBe(`http://shop.example/m/o/${REDACTED}`);
+    expect(scrubUrlForLog(`http://shop.example/pay/${TOKEN}`)).toBe(`http://shop.example/pay/${REDACTED}`);
+    // A broken escape in the token does not hide it.
+    expect(scrubUrlForLog(`/m/%6F/${TOKEN}%zz`)).not.toContain(TOKEN);
+    expect(scrubUrlForLog(`/p%61y/${TOKEN}%zz`)).not.toContain(TOKEN);
+  });
+
+  it('keeps the paths around the mail and pay links as they were', () => {
+    for (const url of ['/m', '/m/', '/m/u/', '/m/x/abc', '/mo/abc', '/pay', '/pay/', '/pay/api/', '/pay/back/', '/pay/assets/pay-abc123.js', '/pay/assets/', '/payments/abc']) {
+      expect(scrubUrlForLog(url), url).toBe(url);
+    }
+  });
+
+  it('redacts the one-use codes of the signed-in doors and keeps the route readable', () => {
+    for (const route of ['/api/v1/bridge/seed/', '/api/v1/documents/print-once/', '/api/v1/data/undo/', '/api/v1/llm/runs/run_1/undo/']) {
+      expect(scrubUrlForLog(`${route}${TOKEN}`)).toBe(`${route}${REDACTED}`);
+      expect(scrubUrlForLog(`${route}${TOKEN}?x=1`)).toBe(`${route}${REDACTED}?x=1`);
+      expect(scrubUrlForLog(`http://shop.example${route}${TOKEN}`)).toBe(`http://shop.example${route}${REDACTED}`);
+    }
+    expect(scrubUrlForLog(`/api/v1/d%61ta/undo/${TOKEN}`)).toBe(`/api/v1/d%61ta/undo/${REDACTED}`);
+    expect(scrubUrlForLog(`/api/v1/llm/runs/run_1/%75ndo/${TOKEN}`)).toBe(`/api/v1/llm/runs/run_1/%75ndo/${REDACTED}`);
+    expect(scrubUrlForLog(`/api/v1/data/undo//${TOKEN}`)).not.toContain(TOKEN);
+  });
+
+  it('leaves the routes beside those doors alone', () => {
+    for (const url of ['/api/v1/bridge/handoff', '/api/v1/bridge/seed', '/api/v1/bridge/seed/', '/api/v1/documents/print', '/api/v1/documents/print-once', '/api/v1/data/undo', '/api/v1/data/undo/', '/api/v1/data/conn_1/orders', '/api/v1/data/conn_1/orders/5', '/api/v1/llm/runs/run_1', '/api/v1/llm/runs/run_1/undo', '/api/v1/llm/runs/run_1/undo/']) {
+      expect(scrubUrlForLog(url), url).toBe(url);
+    }
+  });
+
+  it('no log line or audit row takes a request URL unscrubbed', () => {
+    const root = fileURLToPath(new URL('../src', import.meta.url));
+    const files = (dir: string): string[] => readdirSync(dir).flatMap((name) => {
+      const path = join(dir, name);
+      return statSync(path).isDirectory() ? files(path) : path.endsWith('.ts') ? [path] : [];
+    });
+    const raw = files(root).filter((file) => /\burl: *(?:req|request)\.(?:raw\.)?url\b/.test(readFileSync(file, 'utf8')));
+    expect(raw.map((file) => file.slice(root.length + 1))).toEqual([]);
+  });
+
+  it('redacts a mail notice token and keeps the service', () => {
+    for (const service of ['ses', 'postmark', 'mailgun', 'brevo', 'sendgrid', 'other']) {
+      expect(scrubUrlForLog(`/api/v1/email/notices/${service}/${TOKEN}`)).toBe(`/api/v1/email/notices/${service}/${REDACTED}`);
+    }
+    expect(scrubUrlForLog(`/api/v1/email/notices/other/${TOKEN}?attempt=2`)).toBe(`/api/v1/email/notices/other/${REDACTED}?attempt=2`);
+    // As sent, apart from the token: a log line should read like the request that made it.
+    expect(scrubUrlForLog(`/api/v1/email/n%6Ftices/oth%65r/${TOKEN}`)).toBe(`/api/v1/email/n%6Ftices/oth%65r/${REDACTED}`);
+    expect(scrubUrlForLog(`http://mail.example/api/v1/email/notices/other/${TOKEN}`)).toBe(`http://mail.example/api/v1/email/notices/other/${REDACTED}`);
+  });
+
+  it('redacts a token that landed in the wrong place on a notice address', () => {
+    expect(scrubUrlForLog(`/api/v1/email/notices/${TOKEN}`)).toBe(`/api/v1/email/notices/${REDACTED}`);
+    expect(scrubUrlForLog(`/api/v1/email/notices/other//${TOKEN}`)).toBe(`/api/v1/email/notices/other/${REDACTED}`);
+    expect(scrubUrlForLog(`/api/v1/email/notices/other/${TOKEN}/extra`)).toBe(`/api/v1/email/notices/other/${REDACTED}`);
+    expect(scrubUrlForLog(`/api/v1/email/n%6Ftices/other/${TOKEN}%zz`)).not.toContain(TOKEN);
+  });
+
+  it('leaves paths that only look like a notice address alone', () => {
+    for (const url of ['/api/v1/email/notices', '/api/v1/email/notices/', '/api/v1/email/notices/other', '/api/v1/email/other/abc', '/api/v2/email/notices/other/abc', '/x/api/v1/email/notices/other/abc']) {
+      expect(scrubUrlForLog(url), url).toBe(url);
+    }
   });
 });

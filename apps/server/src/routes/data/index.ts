@@ -221,6 +221,7 @@ import {
   findPersonReply,
 } from './schema.js';
 import { tagRoutes } from '../../security/route-audience.js';
+import { scrubUrlForLog } from '../../log-scrub.js';
 
 type TableAction = 'read' | 'create' | 'update' | 'delete';
 
@@ -626,7 +627,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           category: 'rbac',
           action: 'permission.denied',
           connectionId,
-          changes: { after: { permission, method: request.method, url: request.url } },
+          changes: { after: { permission, method: request.method, url: scrubUrlForLog(request.url) } },
         });
         throw new ForbiddenError('You do not have access to this table.', 'TABLE_FORBIDDEN', {
           permission,
@@ -1957,7 +1958,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               table: entry.table,
               reason: entry.reason,
               method: request.method,
-              url: request.url,
+              url: scrubUrlForLog(request.url),
             },
           },
         });

@@ -28,6 +28,7 @@ import type { ActionPermission, ProjectDb, ProjectUser, RecordId } from './defin
 import { recordKey, type ProjectDbScope } from './db.js';
 import { projectLogger, withTimeLimit, type ProjectLogFn } from './hooks.js';
 import type { LoadedAction, ProjectCode } from './load.js';
+import { scrubUrlForLog } from '../../log-scrub.js';
 
 export const ACTION_TIMEOUT_MS = 60_000;
 /** The most rows one run may be handed; the bulk bar's own cap. */
@@ -159,7 +160,7 @@ export function createActionRunner(deps: ActionRunnerDeps) {
         category: 'rbac',
         action: 'permission.denied',
         connectionId: placed.connection.id,
-        changes: { after: { permission, method: request.method, url: request.url } },
+        changes: { after: { permission, method: request.method, url: scrubUrlForLog(request.url) } },
       });
       throw new ForbiddenError('You do not have access to this action.', 'TABLE_FORBIDDEN', { permission });
     }
