@@ -325,6 +325,16 @@ for (const [dialect, reachable] of LEGS) {
       });
     });
 
+    it('sends a dated mail to the address its person has now', async () => {
+      const moving = await create('customers', { email: 'mo.old@lumen-guests.dev', name: 'Mo Hart' });
+      const visit = await create('visits', { customer_id: moving['id'], starts_at: '2026-09-16T21:00:00.000Z' });
+      await update('visits', visit['id'], { state: 'done' });
+      await update('customers', moving['id'], { email: 'mo.new@lumen-guests.dev' });
+      await run('2026-09-18T17:00:00Z');
+      const [row] = await h.rows(`SELECT status, to_address FROM ${h.real('messages')} WHERE visit_id = ${String(visit['id'])} AND kind = 'review-request'`);
+      expect([row!['status'], row!['to_address']]).toEqual(['sent', 'mo.new@lumen-guests.dev']);
+    });
+
     it('queues neither while the studio has reviews switched off', async () => {
       await h.rows(`UPDATE ${h.real('settings')} SET reviews_on = ${dialect === 'postgres' ? 'false' : '0'}`);
       const visit = await visitOn('2026-09-16T21:00:00.000Z');
