@@ -61,6 +61,20 @@ const input = (values: Record<string, unknown>, caps: AnonymousCaps = { perValue
   now,
 });
 
+describe('a time someone else holds', () => {
+  it("keeps the visitor's own hour counted when the entry names no hour of its own", async () => {
+    const repo = memoryRepo();
+    const caps: AnonymousCaps = { perValue: { columns: ['email'], n: 1 }, perKeyHour: 10 };
+    const knock = (i: number) => chargeAnonymous(repo, { ...input({ email: `v${String(i)}@gmail.com` }, caps), ip: '203.0.113.9', now: now + i });
+    for (let i = 0; i < ANONYMOUS_PER_IP_HOUR; i += 1) {
+      const charge = await knock(i);
+      expect(charge.ok).toBe(true);
+      if (charge.ok) await charge.releaseAllButVisitor?.();
+    }
+    expect((await knock(ANONYMOUS_PER_IP_HOUR)).ok).toBe(false);
+  });
+});
+
 describe('anonymous caps', () => {
   it('counts one number or address however it is spelled', () => {
     expect(capValue('+44 7700 900123')).toBe(capValue('07700 900123'));

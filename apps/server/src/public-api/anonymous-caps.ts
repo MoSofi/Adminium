@@ -217,7 +217,7 @@ export async function chargeAnonymous(
     if (caps.perIpHour !== undefined && caps.perIpHour < ANONYMOUS_PER_IP_HOUR) {
       charges.push({ subject: entryIpSubject(input.key, input.keyId, input.ref, input.ip), limit: caps.perIpHour, since: input.now - HOUR_MS, visitor: true });
     }
-    charges.push({ subject: ipSubject(input.key, input.keyId, input.ip), limit: ANONYMOUS_PER_IP_HOUR, since: input.now - HOUR_MS });
+    charges.push({ subject: ipSubject(input.key, input.keyId, input.ip), limit: ANONYMOUS_PER_IP_HOUR, since: input.now - HOUR_MS, visitor: true });
   }
   if (caps.perKeyHour !== undefined) charges.push({ subject: keySubject(input.keyId), limit: caps.perKeyHour, since: input.now - HOUR_MS, everyone: true });
   const perValue = caps.perValue;
