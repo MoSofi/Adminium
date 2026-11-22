@@ -4765,6 +4765,7 @@
       "stays": {
         "forGood": "Dauerhaft aufbewahrt.",
         "days": "{count, plural, one {# Tag aufbewahrt.} other {# Tage aufbewahrt.}}",
+        "daysOnceRead": "{count, plural, one {Bis zum Lesen aufbewahrt, danach noch # Tag.} other {Bis zum Lesen aufbewahrt, danach noch # Tage.}}",
         "doNotEmail": "Ihre Adresse bleibt als Code auf der Liste „Keine E-Mails“, damit sie nie wieder angeschrieben werden.",
         "lawHealth": "{count, plural, one {# Zeile} other {# Zeilen}} in {label}, weil das Gesundheitsrecht sie verlangt.",
         "lawContract": "{count, plural, one {# Zeile} other {# Zeilen}} in {label}, weil ein Vertrag sie verlangt.",

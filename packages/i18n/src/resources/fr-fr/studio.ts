@@ -4775,6 +4775,7 @@ export default {
       "stays": {
         "forGood": "Conservé pour toujours.",
         "days": "{count, plural, one {Conservé # jour.} other {Conservé # jours.}}",
+        "daysOnceRead": "{count, plural, one {Conservé jusqu’à la lecture, puis pendant # jour.} other {Conservé jusqu’à la lecture, puis pendant # jours.}}",
         "doNotEmail": "Son adresse reste sur la liste « Pas d’e-mail » sous forme de code, pour qu’elle ne reçoive plus jamais d’e-mail.",
         "lawHealth": "{count, plural, one {# ligne} other {# lignes}} dans {label}, car le droit de la santé l’exige.",
         "lawContract": "{count, plural, one {# ligne} other {# lignes}} dans {label}, car un contrat l’exige.",

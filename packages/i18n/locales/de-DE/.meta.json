@@ -37783,6 +37783,10 @@
     "status": "mt",
     "srcHash": "0520db26e350"
   },
+  "studio.privacy.erase.stays.daysOnceRead": {
+    "status": "mt",
+    "srcHash": "7a1cad7c3d78"
+  },
   "studio.privacy.erase.stays.doNotEmail": {
     "status": "mt",
     "srcHash": "fc55efc78ee2"

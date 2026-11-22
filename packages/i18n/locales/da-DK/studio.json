@@ -4765,6 +4765,7 @@
       "stays": {
         "forGood": "Gemmes for altid.",
         "days": "{count, plural, one {Gemmes i # dag.} other {Gemmes i # dage.}}",
+        "daysOnceRead": "{count, plural, one {Gemmes indtil læsning og derefter i # dag.} other {Gemmes indtil læsning og derefter i # dage.}}",
         "doNotEmail": "Deres adresse bliver på listen „Ingen e-mails“ som en kode, så de aldrig får e-mail igen.",
         "lawHealth": "{count, plural, one {# række} other {# rækker}} i {label}, fordi sundhedslovgivningen kræver dem.",
         "lawContract": "{count, plural, one {# række} other {# rækker}} i {label}, fordi en kontrakt kræver dem.",
