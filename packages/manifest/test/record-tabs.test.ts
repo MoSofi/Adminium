@@ -64,7 +64,7 @@ describe('a record tab', () => {
     const dated = { ...LINKS, columns: [...LINKS.columns, { ref: 'seen_at', type: 'timestamptz', nullable: true }, { ref: 'seen_on', type: 'date', nullable: true }] };
     const said = (column: string) => ({ column, yes: label('Seen'), yesLabels: { 'de-DE': 'Gesehen' }, no: label('Not yet') });
     const withPresence = (over: Doc) => {
-      const doc = kit([{ ...TAB, columns: ['account_id', 'seen_at', 'seen_on'], edit: ['account_id'], ...over }], [dated, USES, SETTINGS]) as { compatibility?: Doc };
+      const doc = kit([{ ...TAB, columns: ['account_id', 'seen_at', 'seen_on'], edit: undefined, add: undefined, remove: undefined, actions: undefined, summary: undefined, ...over }], [dated, USES, SETTINGS]) as { compatibility?: Doc };
       doc.compatibility = { ...doc.compatibility, minAdminiumVersion: '0.3.71' };
       return issuesOf(doc);
     };
@@ -75,8 +75,10 @@ describe('a record tab', () => {
     expect(withPresence({ edit: undefined, presence: [said('note')] })).toContain('"note" is shown as there or not: list it in "columns" too');
     expect(withPresence({ edit: undefined, columns: ['account_id', 'note'], presence: [said('note')] })).toContain('only a date or time column is shown as there or not');
     expect(withPresence({ edit: undefined, presence: [said('seen_at'), said('seen_at')] })).toContain('"seen_at" is named twice');
-    expect(withPresence({ edit: ['seen_at'], presence: [said('seen_at')] })).toContain('its date cannot be edited here');
-    expect(withPresence({ edit: undefined, form: ['seen_at'], presence: [said('seen_at')] })).toContain('its date cannot be edited here');
+    // A write's reply would carry the date, and a form would ask for it: such a tab only lists.
+    for (const over of [{ edit: ['account_id'] }, { form: ['account_id'] }, { add: TAB.add }, { remove: true }, { actions: TAB.actions }]) {
+      expect(withPresence({ ...over, presence: [said('seen_at')] })).toContain('only lists rows');
+    }
     expect(recordTabsSchema.safeParse([{ ...TAB, presence: [{ column: 'seen_at', yes: label('Seen') }] }]).success).toBe(false);
   });
 

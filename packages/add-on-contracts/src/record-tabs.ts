@@ -151,8 +151,11 @@ export function recordTabIssues(m: { tabs: readonly RecordTab[]; tables: readonl
       present.add(one.column);
       if (!shown.has(one.column)) out.push({ path, message: `"${one.column}" is shown as there or not: list it in "columns" too` });
       else if (found !== undefined && !PRESENCE_TYPES.includes(found.type)) out.push({ path, message: `"${tab.table}.${one.column}" is a ${found.type}: only a date or time column is shown as there or not` });
-      if (tab.edit?.includes(one.column) === true || tab.form?.includes(one.column) === true) out.push({ path, message: `"${one.column}" is shown as there or not, so its date cannot be edited here` });
     });
+    // A write's reply carries the row, date and all, and a form would ask for the date: such a tab only lists.
+    if (tab.presence !== undefined && (tab.edit !== undefined || tab.form !== undefined || tab.add !== undefined || tab.remove !== undefined || tab.actions !== undefined)) {
+      out.push({ path: at('presence'), message: 'a tab that shows a date as there or not only lists rows: it has no edit, form, add, remove or actions' });
+    }
     (tab.edit ?? []).forEach((name, e) => {
       if (!shown.has(name)) out.push({ path: at('edit', e), message: `"${name}" is edited where it is shown: list it in "columns" too` });
       else if (matched.has(name)) out.push({ path: at('edit', e), message: `"${name}" says which record the row belongs to: nobody edits it` });

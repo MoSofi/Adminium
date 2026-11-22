@@ -28,7 +28,7 @@ parts and the reader's own grants. A manifest that uses it sets
 | `table`, `match` | The add-on's own table whose rows the tab lists, and its two columns that say which record a row belongs to: `match.table` holds a table's stored name (`"rules": { "tableRef": true }`), `match.row` the row's key as text. |
 | `on` | `"linked"`: every table a [posting rule](https://docs.adminium.dev/reference/manifest/#postings) hands in to this add-on as the row asked about. Or up to 24 tables by their stored names. |
 | `columns` | 1–8 columns shown. `edit` lists those a reader who may change the rows edits in place. |
-| `presence` | Date columns among `columns` shown only as there or not, each `{ "column", "yes", "yesLabels", "no", "noLabels" }`: `yes` and `no` are the words, like `label`, and `yesLabels` and `noLabels` give them per language. The date is never sent to the tab, and such a column cannot be in `edit` or `form`. From `0.3.71`. |
+| `presence` | Date columns among `columns` shown only as there or not, each `{ "column", "yes", "yesLabels", "no", "noLabels" }`: `yes` and `no` are the words, like `label`, and `yesLabels` and `noLabels` give them per language. The date is never sent to the tab. A tab with `presence` only lists rows: it has no `edit`, `form`, `add`, `remove` or `actions`. From `0.3.71`. |
 | `add` | `{ "pick" }`: a row is added by picking a row of another of the add-on's tables, shown by its `label` column. One pick, or two (an item or a kit). |
 | `remove` | `true`: a row may be removed from the tab. |
 | `form` | 1–8 columns: one row edited as a form, in place of a list. |
