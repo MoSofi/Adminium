@@ -48,7 +48,9 @@
       "secretEndingTitle": "Tajný klíč klienta {provider} končí {date}",
       "secretEndingBody": "Před tímto dnem vytvořte nový tajný klíč a vložte ho do průvodce nastavením, jinak se všechna připojení k {provider} zastaví. Nikdo se nemusí znovu připojovat.",
       "unreadableTitle": "Jeden kalendář osoby {person} už nelze číst",
-      "unreadableBody": "Byl smazán nebo už není sdílený, proto byl odebrán z kalendářů počítaných jako obsazené a už neblokuje časy osoby {person}. Ostatní kalendáře je blokují dál."
+      "unreadableBody": "Byl smazán nebo už není sdílený, proto byl odebrán z kalendářů počítaných jako obsazené a už neblokuje časy osoby {person}. Ostatní kalendáře je blokují dál.",
+      "namesLeftTitle": "V kalendáři uživatele {person} může být stále vidět jméno zákazníka",
+      "namesLeftBody": "Některé události v kalendáři {calendar} se nepodařilo odstranit před ukončením tohoto připojení. Požádejte uživatele {person} o jejich smazání."
     }
   }
 }

@@ -877,14 +877,19 @@ for (const [dialect, reachable] of LEGS) {
       return sync.accountsForTest.end(accountId);
     };
 
-    it('says so when a calendar could not be reached at the end, and still lets go', async () => {
+    it('says so when a calendar could not be reached at the end, keeps trying, and on the last try lets go', async () => {
       const account = await connected('ivy');
       await book('ivy', '2026-10-16', '10:00');
       await drain();
       demo.failNext(account.subject, 'deleteEvent', 'UNAVAILABLE');
       const ended = await sync.accountsForTest.end(account.id);
-      expect(ended?.incomplete).toBe(true);
+      expect(ended).toMatchObject({ incomplete: true, waiting: true });
       expect(await busyRows('ivy')).toBe(0);
+      expect((await accountOf('ivy')).state).toBe('disconnecting');
+      demo.failNext(account.subject, 'deleteEvent', 'UNAVAILABLE');
+      const last = await sync.accountsForTest.end(account.id, { final: true });
+      expect(last?.incomplete).toBe(true);
+      expect(last?.waiting).toBeUndefined();
       expect((await accountsRepo().forTarget(target('ivy')))).toEqual([]);
     });
 
@@ -1232,6 +1237,100 @@ for (const [dialect, reachable] of LEGS) {
         const told = await sync.onErased({ address: `${name}@studio.dev`, rows: [] });
         expect(told.accounts).toBe(1);
         expect(await accountOf(name)).toBeUndefined();
+      });
+
+      describe('a calendar event that could not be taken out as the connection ended', () => {
+        const PAST_THE_WAIT = 7 * 3_600_000;
+        let ends = 0;
+        /** What the hourly tick queues for an account on its way out. */
+        const tryAgain = async (accountId: string) => {
+          ends += 1;
+          await composed.jobs.enqueue({ kind: 'connected-accounts.end', payload: { accountId }, dedupeKey: `test-end:${String(ends)}`, maxAttempts: 1 });
+          await drain();
+        };
+        const notices = () => h.meta.db.selectFrom('adminium_notifications').select(['kind', 'title', 'body']).where('kind', '=', 'calendar.names-left').execute();
+        const named = async (name: string) => {
+          const account = await connected(name);
+          const day = soon(6);
+          // Their own customer: other tests here forget theirs.
+          if (custRow['dana'] === undefined) {
+            await h.rows(`INSERT INTO ${h.real('customers')} (name) VALUES ('Dana Wolfe')`);
+            custRow['dana'] = Number((await h.rows(`SELECT id FROM ${h.real('customers')} WHERE name = 'Dana Wolfe'`))[0]!['id']);
+          }
+          await book(name, day, '10:00', 'dana');
+          await drain();
+          expect((await eventAt(name, day))?.title).toBe('Facial — Dana W.');
+          return { account, day, subject: account.subject };
+        };
+        const switchOff = async (name: string) => {
+          const off = await staff('admin', 'PATCH', `/data/${h.connectionId}/${team}/${String(teamRow[name])}`, { values: { active: false } });
+          expect(off.statusCode, off.body).toBe(200);
+          await drain();
+        };
+
+        it('keeps the grant, tries again, and only then lets it go', async () => {
+          const { name } = await teammate('row');
+          const { account, day, subject } = await named(name);
+          demo.failNext(subject, 'deleteEvent', 'UNAVAILABLE');
+          await switchOff(name);
+          expect((await accountOf(name))?.state).toBe('disconnecting');
+          expect(demo.events(subject).some((one) => one.start === iso(day, '10:00'))).toBe(true);
+          advance(3_600_000);
+          await tryAgain(account.id);
+          expect(await accountOf(name)).toBeUndefined();
+          expect(demo.events(subject).some((one) => one.start === iso(day, '10:00'))).toBe(false);
+          expect((await notices()).filter((one) => one.body.includes(name) || one.title.includes(name))).toEqual([]);
+        });
+
+        it('sends a removed person no new booking while it waits, and uses the grant only to delete', async () => {
+          const { name, user } = await teammate('row');
+          const { account, subject } = await named(name);
+          demo.failNext(subject, 'deleteEvent', 'UNAVAILABLE');
+          const removed = await staff('admin', 'DELETE', `/users/${user.id}?permanent=true&handTo=${people['admin']!.id}`);
+          expect(removed.statusCode, removed.body).toBe(200);
+          await drain();
+          expect((await accountOf(name))?.state).toBe('disconnecting');
+          const writes = demo.callCount(subject, 'upsertEvent');
+          const reads = demo.callCount(subject, 'readBusy');
+          const later = soon(8);
+          await book(name, later, '10:00', 'ava');
+          advance(120_000);
+          await tick();
+          expect(demo.events(subject).some((one) => one.start === iso(later, '10:00'))).toBe(false);
+          expect(demo.callCount(subject, 'upsertEvent')).toBe(writes);
+          expect(demo.callCount(subject, 'readBusy')).toBe(reads);
+          await tryAgain(account.id);
+          expect(await accountOf(name)).toBeUndefined();
+        });
+
+        it('stops after a bounded wait, and tells the admin whose calendar may still show a name', async () => {
+          const { name } = await teammate('row');
+          const { account, day, subject } = await named(name);
+          demo.failNext(subject, 'deleteEvent', 'UNAVAILABLE');
+          demo.failNext(subject, 'deleteEvent', 'UNAVAILABLE');
+          await switchOff(name);
+          expect((await accountOf(name))?.state).toBe('disconnecting');
+          advance(PAST_THE_WAIT);
+          await tryAgain(account.id);
+          expect(await accountOf(name)).toBeUndefined();
+          expect(demo.events(subject).find((one) => one.start === iso(day, '10:00'))?.title).toBe('Facial — Dana W.');
+          const told = (await notices()).filter((one) => `${one.title} ${one.body}`.includes(name));
+          expect(told.length).toBeGreaterThan(0);
+          for (const one of told) {
+            expect(`${one.title} ${one.body}`).toContain('Lumen Studio');
+            expect(`${one.title} ${one.body}`).not.toMatch(/Dana|Wolfe/);
+          }
+        });
+
+        it('tells at once when the grant is already dead', async () => {
+          const { name } = await teammate('row');
+          const { subject, day } = await named(name);
+          demo.failNext(subject, 'deleteEvent', 'UNAUTHORIZED');
+          await switchOff(name);
+          expect(await accountOf(name)).toBeUndefined();
+          expect(demo.events(subject).some((one) => one.start === iso(day, '10:00'))).toBe(true);
+          expect((await notices()).some((one) => `${one.title} ${one.body}`.includes(name))).toBe(true);
+        });
       });
 
       it('an erased row keeps no connection', async () => {

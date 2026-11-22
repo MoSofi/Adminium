@@ -33,7 +33,8 @@ export function registerConnectedAccountJobs(registry: JobRegistry, accounts: Co
     endPayload,
     async (payload) => {
       const ended = await accounts.endBySystem(payload.accountId, payload.why);
-      return ended === null ? { state: 'gone' } : { state: 'ended', removed: ended.removed, incomplete: ended.incomplete, revoked: ended.revoked };
+      if (ended === null) return { state: 'gone' };
+      return { state: ended.waiting === true ? 'waiting' : 'ended', removed: ended.removed, incomplete: ended.incomplete, revoked: ended.revoked };
     },
     { internal: true },
   );

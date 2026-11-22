@@ -48,7 +48,9 @@
       "secretEndingTitle": "Klienthemmeligheden til {provider} udløber den {date}",
       "secretEndingBody": "Lav en ny klienthemmelighed, og indsæt den i opsætningsguiden før den dag, ellers stopper alle forbindelser til {provider}. Ingen behøver at forbinde igen.",
       "unreadableTitle": "En kalender for {person} kan ikke længere læses",
-      "unreadableBody": "Den er slettet eller ikke længere delt, så den tæller ikke længere som optaget og blokerer ikke tiderne for {person}. De andre kalendere gør det stadig."
+      "unreadableBody": "Den er slettet eller ikke længere delt, så den tæller ikke længere som optaget og blokerer ikke tiderne for {person}. De andre kalendere gør det stadig.",
+      "namesLeftTitle": "Kalenderen for {person} kan stadig vise en kundes navn",
+      "namesLeftBody": "Nogle begivenheder i kalenderen {calendar} kunne ikke fjernes, før denne forbindelse sluttede. Bed {person} om at slette dem der."
     }
   }
 }

@@ -1068,13 +1068,22 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
     return bound === null ? null : calendarNameOf(bound);
   });
 
-  /** At the end of a connection: its channels stop, its coming events go, its busy times go. */
+  /**
+   * At the end of a connection: its channels stop, its coming events go, its
+   * busy times go. An event the service would not take out keeps its mirror,
+   * and the grant stays for another try, for this alone. Once no try is left,
+   * or the grant is dead, whoever manages the connections is told whose
+   * calendar may still show a name, and never whose name.
+   */
   accounts.addCleanup({
-    run: async ({ account }) => {
+    run: async ({ account, lastTry }) => {
       let removed = 0;
       let failed = false;
+      let namesLeft = 0;
+      const unreached: CalendarEventRow[] = [];
       const lookup = await calendarProviderFor(providerDeps, account, { ending: true }).catch(() => null);
       const provider = lookup?.ok === true ? lookup.provider : null;
+      let grantDead = lookup?.ok === false && lookup.reason === 'reconnect';
       const state = await repo.state(account.id);
       for (const channel of await repo.channelsOf(account.id)) {
         if (provider === null) failed = true;
@@ -1089,17 +1098,38 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
         for (const mirror of page) {
           after = mirror.id;
           // Coming events go. So does a past one still carrying a name: once its row here is gone, nothing could take the name out.
-          if (mirror.remoteId !== null && (mirror.endAt === null || mirror.endAt >= at || mirror.detail === 'name') && state?.calendarId != null) {
-            if (provider === null) failed = true;
-            else {
-              const answer = await provider.deleteEvent({ calendarId: state.calendarId, remoteId: mirror.remoteId });
-              if (!isCalendarError(answer) || answer.calendarError === 'EVENT_MISSING' || answer.calendarError === 'CALENDAR_MISSING') removed += 1;
-              else failed = true;
+          if (mirror.remoteId !== null && (mirror.endAt === null || mirror.endAt >= at || mirror.detail === 'name')) {
+            if (state?.calendarId == null) {
+              // No calendar to reach it in.
+              if (mirror.detail === 'name') namesLeft += 1;
+            } else {
+              let gone = false;
+              if (provider !== null && !grantDead) {
+                const answer = await provider.deleteEvent({ calendarId: state.calendarId, remoteId: mirror.remoteId });
+                if (!isCalendarError(answer) || answer.calendarError === 'EVENT_MISSING' || answer.calendarError === 'CALENDAR_MISSING') {
+                  removed += 1;
+                  gone = true;
+                } else if (answer.calendarError === 'UNAUTHORIZED' || answer.calendarError === 'PERMISSION_MISSING') {
+                  grantDead = true;
+                }
+              }
+              if (!gone) {
+                failed = true;
+                unreached.push(mirror);
+                continue;
+              }
             }
           }
           await repo.removeEvent(mirror.id);
         }
         if (page.length < ROW_PAGE) break;
+      }
+      const again = unreached.length > 0 && !lastTry && !grantDead;
+      if (!again) {
+        for (const mirror of unreached) {
+          if (mirror.detail === 'name') namesLeft += 1;
+          await repo.removeEvent(mirror.id);
+        }
       }
       // The busy times go whatever the service said: they are this server's to drop.
       try {
@@ -1111,6 +1141,12 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
         failed = true;
       }
       if (state?.calendarId != null) await accounts.rememberCalendar(account.manifestId, account.subject, state.calendarId).catch(() => undefined);
+      if (again) return { removed, retry: true };
+      if (namesLeft > 0) {
+        const bound = await bindAccount(account).catch(() => null);
+        const calendar = state?.calendarName ?? (bound === null ? '' : await calendarNameOf(bound));
+        await tellCalendar(noticeDeps, await appKeyOf(account), 'calendar.names-left', { person: await personName(account), calendar });
+      }
       if (failed) throw new Error('Part of the calendar could not be reached.');
       return { removed };
     },

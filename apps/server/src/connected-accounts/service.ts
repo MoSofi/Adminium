@@ -123,10 +123,23 @@ export type AccountEndWhy = { kind: 'handed-over'; from: string } | { kind: 'log
 const staffColumnsOf = (declared: { belongs?: unknown } | undefined): string[] =>
   Array.isArray(declared?.belongs) ? declared.belongs.flatMap((one: { column?: unknown }) => (typeof one?.column === 'string' ? [one.column] : [])) : [];
 
+/**
+ * How long a connection on its way out keeps its grant so that a failed clean
+ * up can be tried again. The hourly tick is the retry, so this is about six
+ * tries. It is measured from the moment it began to end, which the store
+ * keeps, so a restart neither loses the wait nor starts it over.
+ */
+export const CONNECTION_END_WAIT_MS = 6 * 3_600_000;
+
 /** What a step may do at the end of a connection, before the tokens go (sync adds its own). */
 export interface AccountCleanup {
-  /** Best effort: returns what it removed, or throws, and the pipeline goes on. */
-  run(input: { account: ConnectedAccount; tokens: TokenService }): Promise<{ removed: number }>;
+  /**
+   * Best effort: returns what it removed, or throws, and the pipeline goes on.
+   * `retry`: something it must take out could not be reached, so the grant is
+   * kept and this runs again. Ignored on the `lastTry`, when the step says what
+   * it could not do, because the grant goes next.
+   */
+  run(input: { account: ConnectedAccount; tokens: TokenService; lastTry: boolean }): Promise<{ removed: number; retry?: boolean }>;
 }
 
 export interface EndResult {
@@ -134,8 +147,10 @@ export interface EndResult {
   removed: number;
   /** A cleanup could not finish, so some of what was written stays there. */
   incomplete: boolean;
-  /** Whether the grant was given back at the provider. Null: it declares no way to. */
+  /** Whether the grant was given back at the provider. Null: it declares no way to, or it is still kept (`waiting`). */
   revoked: boolean | null;
+  /** Still on its way out: the grant is kept, for deleting only, until a later try. */
+  waiting?: true;
 }
 
 export type DoorOutcome =
@@ -543,20 +558,30 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
     for (const appKey of appKeys.size === 0 ? [null] : appKeys) await tellSecretEnding(noticeDeps, { appKey, provider: providerName(held.manifest), date });
   }
 
-  async function end(accountId: string): Promise<EndResult | null> {
+  /** `final`: this is the last try, whatever is left. */
+  async function end(accountId: string, options: { final?: boolean } = {}): Promise<EndResult | null> {
     const account = await repo.find(accountId);
     if (account === null) return null;
+    const leaving = account.state === 'disconnecting';
+    // Its links go as it starts to end. Not on a later try: by then a link may be the next person's.
+    if (!leaving) await repo.removeLinksOnTarget(account);
     // From here no call may use it, and a second end finds it on its way out.
     await repo.setState(account.id, 'disconnecting', now());
+    const lastTry = options.final === true || (leaving && now() - account.stateSince >= CONNECTION_END_WAIT_MS);
     let removed = 0;
     let incomplete = false;
+    let retry = false;
     for (const cleanup of cleanups) {
       try {
-        removed += (await cleanup.run({ account, tokens })).removed;
+        const done = await cleanup.run({ account, tokens, lastTry });
+        removed += done.removed;
+        if (done.retry === true && !lastTry) retry = true;
       } catch {
         incomplete = true;
       }
     }
+    // The grant stays, for deleting only. The hourly tick comes back for it (`sweep`).
+    if (retry) return { removed, incomplete: true, revoked: null, waiting: true };
     let revoked: boolean | null = null;
     const install = await installOf(account.manifestId).catch(() => null);
     if (install !== null && install.spec.revokeUrl !== null) {
@@ -565,7 +590,6 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
       if (held !== null && !(await subjectHeldElsewhere(account.manifestId, account.subject, account.id))) revoked = await revokeAt(install, held.refreshToken);
     }
     await repo.remove(account.id);
-    await repo.removeLinksOnTarget(account);
     return { removed, incomplete, revoked };
   }
 
@@ -875,6 +899,10 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
       }
 
       const target: AccountTarget = { connectionId: flow.connectionId, tableName: flow.tableName, rowKey: flow.rowKey };
+      // Someone else connecting a row whose last connection is still on its way out: that one has its last try now.
+      for (const old of await repo.forTarget(target)) {
+        if (old.state === 'disconnecting' && (old.manifestId !== flow.manifestId || old.subject !== identity.subject)) await end(old.id, { final: true }).catch(() => undefined);
+      }
       const already = await repo.forTarget(target);
       const here = already.find((account) => account.manifestId === flow.manifestId);
       if (already.some((account) => account.manifestId !== flow.manifestId)) {
@@ -955,7 +983,7 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
       if (account === null) return null;
       if (account.state !== 'disconnecting' && (await standingOf(account)) !== 'gone' && !(await stillLeft(account, why))) return null;
       const ended = await end(accountId);
-      if (ended !== null) {
+      if (ended !== null && ended.waiting !== true) {
         await auditRepo(meta)
           .append({ actorKind: 'system', actorId: null, actorLabel: 'connected accounts', category: 'add-on', action: 'connected-account.ended', changes: { after: { table: account.tableName, row: account.rowKey, ...ended } } })
           .catch(() => undefined);
@@ -965,7 +993,8 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
 
     /** Every account of an install, before it is removed. */
     async endInstall(manifestId: string): Promise<void> {
-      for (const account of await repo.forInstall(manifestId)) await end(account.id).catch(() => undefined);
+      // The install is going, and its grants' client with it: there is no later try.
+      for (const account of await repo.forInstall(manifestId)) await end(account.id, { final: true }).catch(() => undefined);
     },
 
     /**

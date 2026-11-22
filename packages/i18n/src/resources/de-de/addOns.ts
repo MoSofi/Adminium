@@ -58,7 +58,9 @@ export default {
       "secretEndingTitle": "Das Client-Secret von {provider} endet am {date}",
       "secretEndingBody": "Erstellen Sie vor diesem Tag ein neues Client-Secret und fügen Sie es in die Einrichtungsanleitung ein, sonst stoppt jede Verbindung zu {provider}. Niemand muss sich neu verbinden.",
       "unreadableTitle": "Ein Kalender von {person} kann nicht mehr gelesen werden",
-      "unreadableBody": "Er wurde gelöscht oder wird nicht mehr geteilt. Deshalb zählt er nicht mehr als belegt und blockiert die Zeiten von {person} nicht mehr. Die anderen Kalender tun das weiterhin."
+      "unreadableBody": "Er wurde gelöscht oder wird nicht mehr geteilt. Deshalb zählt er nicht mehr als belegt und blockiert die Zeiten von {person} nicht mehr. Die anderen Kalender tun das weiterhin.",
+      "namesLeftTitle": "Im Kalender von {person} steht möglicherweise noch der Name eines Kunden",
+      "namesLeftBody": "Einige Termine im Kalender {calendar} konnten nicht entfernt werden, bevor diese Verbindung endete. Bitte {person}, sie dort zu löschen."
     }
   }
 } as const;

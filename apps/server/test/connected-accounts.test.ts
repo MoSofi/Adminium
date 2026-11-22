@@ -753,6 +753,80 @@ for (const [dialect, reachable] of LEGS) {
       expect(seen).toEqual(['stop:connected']);
     });
 
+    describe('a cleanup that must try again', () => {
+      const waiting = () => {
+        const service = engine();
+        service.addCleanup({ run: async () => Promise.resolve({ removed: 0, retry: true }) });
+        return service;
+      };
+      const revokes = () => provider.calls.filter((call) => call.url.endsWith('/revoke')).length;
+      const backdate = (id: string, ms: number) => h.meta.db.updateTable('adminium_connected_accounts').set({ stateSince: Date.now() - ms }).where('id', '=', id).execute();
+
+      it('keeps the grant for deleting only, and a process started later finishes it', async () => {
+        await connectAs('june', { subject: 'sub-june' });
+        const account = (await accountOf('june'))!;
+        const before = revokes();
+        expect(await waiting().end(account.id)).toMatchObject({ incomplete: true, waiting: true });
+        expect((await accountOf('june'))?.state).toBe('disconnecting');
+        expect(revokes()).toBe(before);
+        await expect(engine().tokens.accessToken(account.id)).rejects.toBeInstanceOf(AccountTokenError);
+        const later = engine();
+        const queued: string[] = [];
+        await runConnectedAccountsTick(later, (input) => (queued.push(String(input.payload['accountId'])), Promise.resolve()));
+        expect(queued).toContain(account.id);
+        expect(await later.endBySystem(account.id)).toMatchObject({ incomplete: false, revoked: true });
+        expect(await accountOf('june')).toBeNull();
+        expect(revokes()).toBe(before + 1);
+      });
+
+      it('gives up after the wait, whatever the cleanup still wants', async () => {
+        await connectAs('june', { subject: 'sub-june' });
+        const account = (await accountOf('june'))!;
+        const service = engine();
+        const told: boolean[] = [];
+        service.addCleanup({ run: async ({ lastTry }) => (told.push(lastTry), Promise.resolve({ removed: 0, retry: !lastTry })) });
+        expect(await service.end(account.id)).toMatchObject({ waiting: true });
+        await backdate(account.id, 7 * 3_600_000);
+        expect(await service.end(account.id)).toMatchObject({ revoked: true });
+        expect(told).toEqual([false, true]);
+        expect(await accountOf('june')).toBeNull();
+      });
+
+      it('takes back the open link as it starts waiting', async () => {
+        await connectAs('june', { subject: 'sub-june' });
+        const account = (await accountOf('june'))!;
+        const open = await linkFor('june');
+        await waiting().end(account.id);
+        const opened = await door('open', { token: open });
+        expect(opened.statusCode).toBe(404);
+        await engine().end(account.id);
+      });
+
+      it('lets someone else connect the row, finishing the old connection first', async () => {
+        await connectAs('june', { subject: 'sub-june' });
+        const account = (await accountOf('june'))!;
+        await waiting().end(account.id);
+        const before = revokes();
+        const link = await linkFor('june');
+        expect(await finish(await start(link), { subject: 'sub-next' })).toMatchObject({ outcome: 'connected' });
+        expect((await accountOf('june'))?.subject).toBe('sub-next');
+        expect((await accountOf('june'))?.state).toBe('connected');
+        expect(revokes()).toBe(before + 1);
+        await engine().end((await accountOf('june'))!.id);
+      });
+
+      it('lets the same account come back without giving its grant away', async () => {
+        await connectAs('june', { subject: 'sub-june' });
+        const account = (await accountOf('june'))!;
+        await waiting().end(account.id);
+        const before = revokes();
+        expect(await finish(await start(await linkFor('june')), { subject: 'sub-june' })).toMatchObject({ outcome: 'connected' });
+        expect((await accountOf('june'))?.state).toBe('connected');
+        expect(revokes()).toBe(before);
+        await engine().end((await accountOf('june'))!.id);
+      });
+    });
+
     it('leaves the grant alone while the same account is connected on another database under the same client', async () => {
       await connectAs('ana', { subject: 'sub-shared' });
       const here = (await accountOf('ana'))!;
