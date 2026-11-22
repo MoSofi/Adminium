@@ -15,11 +15,13 @@
 import type { FastifyRequest } from 'fastify';
 import { permissionsRepo, rolesRepo, usersRepo, type Role, type RolePermission } from '@adminium/meta';
 
+import type { EffectiveModel } from '../../connections/effective-schema.js';
 import { ForbiddenError } from '../../errors.js';
 import { scrubUrlForLog } from '../../log-scrub.js';
 import type { RbacDecoration } from '../../plugins/rbac.js';
 import { matrixRowsFromGrants } from '../../rbac/permissions.js';
 import { getPrincipal } from '../../rbac/principal.js';
+import { personWithinReach } from '../../rbac/reach-held.js';
 import { SUPER_ADMIN_SLUG, resolvePermissionSet, type PermissionSet } from '../../rbac/resolver.js';
 import { holdsEdit, holdsRole, holdsRows, type GrantRow } from '../../rbac/role-within.js';
 
@@ -139,22 +141,31 @@ export function roleGiving(app: { rbac: RbacDecoration }) {
     return { all: false, grants: grants.sort() };
   }
 
+  /** All of this person's roles are the caller's to hold, and their rows within the caller's reach (a key: its own and its maker's). */
+  async function holdsPerson(giver: RoleGiver, userId: string, held: readonly Role[], models: Map<string, EffectiveModel | null>): Promise<boolean> {
+    if (giver.superAdmin) return true;
+    for (const role of held) {
+      if (!holdsAll(giver, role, await permissions.listForRole(role.id))) return false;
+    }
+    for (const set of giver.sets) {
+      if (!(await personWithinReach(meta, set, userId, models))) return false;
+    }
+    return true;
+  }
+
   /**
    * Account changes are held to what the caller holds: somebody may change the
-   * sign-in details only of a person all of whose roles they hold themselves.
+   * sign-in details only of a person whose roles and rows are within their own.
    */
   async function assertHoldsAccount(request: FastifyRequest, userId: string, held: readonly Role[]): Promise<void> {
     const giver = await giverOf(request);
-    if (giver.superAdmin) return;
-    for (const role of held) {
-      if (holdsAll(giver, role, await permissions.listForRole(role.id))) continue;
-      await app.rbac.audit(request, {
-        category: 'rbac',
-        action: 'permission.denied',
-        changes: { after: { reason: ACCOUNT_ABOVE_YOU, method: request.method, url: scrubUrlForLog(request.url), userId } },
-      });
-      throw new ForbiddenError('This person holds permissions you do not, so you cannot change their sign-in details.', 'FORBIDDEN', { reason: ACCOUNT_ABOVE_YOU, userId });
-    }
+    if (await holdsPerson(giver, userId, held, new Map())) return;
+    await app.rbac.audit(request, {
+      category: 'rbac',
+      action: 'permission.denied',
+      changes: { after: { reason: ACCOUNT_ABOVE_YOU, method: request.method, url: scrubUrlForLog(request.url), userId } },
+    });
+    throw new ForbiddenError('This person holds permissions or rows you do not reach, so you cannot change their sign-in details.', 'FORBIDDEN', { reason: ACCOUNT_ABOVE_YOU, userId });
   }
 
   /** Whose sign-in details this caller may not change, of these people: what the People page offers. */
@@ -164,7 +175,13 @@ export function roleGiving(app: { rbac: RbacDecoration }) {
     const asked = new Set([...byUser.values()].flatMap((list) => list.map((role) => role.id)));
     const roles = (await rolesRepo(meta).list()).filter((role) => asked.has(role.id));
     const may = await changeable(request, roles);
-    return new Set([...byUser].filter(([, list]) => list.some((role) => !may.has(role.id))).map(([userId]) => userId));
+    const models = new Map<string, EffectiveModel | null>();
+    const locked = new Set<string>();
+    for (const [userId, list] of byUser) {
+      if (list.some((role) => !may.has(role.id))) locked.add(userId);
+      else if (!(await holdsPerson(giver, userId, [], models))) locked.add(userId);
+    }
+    return locked;
   }
 
   return { assertMayHandle, assertMayClone, assertMayWrite, assertHoldsAccount, accountsAbove, changeable, grantable };

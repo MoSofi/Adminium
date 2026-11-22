@@ -198,7 +198,7 @@ describe('TeamPage row actions', () => {
     renderTeam(adminBootstrap);
     const locked = within(await rowOf('Abe Above')).getByRole('button', { name: 'New link' }) as HTMLButtonElement;
     expect(locked.disabled).toBe(true);
-    expect(locked.getAttribute('title')).toContain('holds permissions you do not');
+    expect(locked.getAttribute('title')).toContain('holds permissions or rows you do not reach');
     expect((within(await rowOf('Pia Peer')).getByRole('button', { name: 'New link' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
@@ -224,7 +224,7 @@ describe('TeamPage row actions', () => {
     renderTeam(adminBootstrap);
     await actor.click(within(await rowOf('Noor New')).getByRole('button', { name: 'New link' }));
     const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toContain('holds permissions you do not');
+    expect(alert.textContent).toContain('holds permissions or rows you do not reach');
     expect(alert.textContent).not.toContain('server words');
   });
 

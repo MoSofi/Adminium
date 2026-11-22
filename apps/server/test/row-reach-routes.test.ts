@@ -8,9 +8,10 @@
  * with the two people they belong to.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { auditRepo, permissionsRepo, rolesRepo, teamsRepo, usersRepo, type User } from '@adminium/meta';
+import { apiKeysRepo, auditRepo, permissionsRepo, rolesRepo, teamsRepo, usersRepo, type User } from '@adminium/meta';
 
 import { loadSnapshotView } from '../src/data-io/snapshot-view.js';
+import { generateApiKey } from '../src/rbac/api-keys.js';
 import { ADMIN_PASSWORD, adminPasswordHash, sessionCookie } from './auth-helpers.js';
 import { LEGS, installInvoicing, invoicingManifest, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { servePublic } from './public-lane.helpers.js';
@@ -348,6 +349,82 @@ for (const [dialect, reachable] of LEGS) {
       const covered = await handTo(asLead, mate2.id, lead.id);
       expect(covered.statusCode, covered.body).toBe(200);
       await h.rows(`DELETE FROM ${h.real('deals')} WHERE name IN ('zz leaver', 'zz mate', 'zz mate2')`);
+    });
+
+    it('holds sign-in changes to the people whose rows the caller reaches', async () => {
+      const users = usersRepo(h.meta);
+      const roles = rolesRepo(h.meta);
+      const permissions = permissionsRepo(h.meta);
+      const deals = `${h.connectionId}/${tableId('deals')}`;
+      const notes = `${h.connectionId}/${tableId('notes')}`;
+      const reading = { read: true, create: false, update: false, delete: false, export: false, import: false };
+      const role = async (slug: string, rowLimit?: Record<string, unknown>, alsoNotes = false) => {
+        const made = await roles.create({ slug: `${slug}-${dialect}`, name: slug });
+        await permissions.grant(made.id, 'system', 'users.manage', { allowed: true });
+        await permissions.grant(made.id, 'table', deals, { ...reading, ...(rowLimit === undefined ? {} : { rowLimit }) } as never);
+        if (alsoNotes) await permissions.grant(made.id, 'table', notes, reading);
+        return made;
+      };
+      const person = async (name: string, withRole: { id: string }, status: User['status'] = 'active') => {
+        people[name] = await users.create({ email: `${name}-${dialect}@reach.dev`, name, passwordHash: status === 'active' ? await adminPasswordHash() : null, status });
+        await roles.assignToUser(people[name]!.id, withRole.id);
+        return people[name]!;
+      };
+      const ownRole = await role('sign-own', { read: { reach: 'own' } });
+      const teamRole = await role('sign-team', { read: { reach: 'team' } });
+      const privateRole = await role('sign-private', { read: { reach: 'team' } }, true);
+      const fullRole = await role('sign-full');
+      const ann = await person('ann', ownRole);
+      const bob = await person('bob', ownRole);
+      const bea = await person('bea', ownRole, 'invited');
+      const cara = await person('cara', teamRole);
+      const dave = await person('dave', teamRole);
+      const erin = await person('erin', teamRole);
+      const gil = await person('gil', privateRole);
+      const hana = await person('hana', privateRole);
+      const full = await person('full', fullRole);
+      const team = await teamsRepo(h.meta).create(`Sign ${dialect}`);
+      await teamsRepo(h.meta).setMember(team.id, cara.id, true);
+      await teamsRepo(h.meta).setMember(team.id, dave.id, false);
+      const privateTeam = await teamsRepo(h.meta).create(`Sign private ${dialect}`);
+      await teamsRepo(h.meta).setMember(privateTeam.id, gil.id, true);
+      await teamsRepo(h.meta).setMember(privateTeam.id, hana.id, false);
+      const refused = (reply: { statusCode: number; body: string }) => {
+        expect(reply.statusCode, reply.body).toBe(403);
+        expect((JSON.parse(reply.body) as { error: { details?: { reason?: string } } }).error.details?.reason).toBe('account-above-you');
+      };
+      let moved = 0;
+      const changeEmail = (headers: Record<string, string>, id: string) => app.inject({ method: 'PATCH', url: `/api/v1/users/${id}`, headers, payload: { email: `moved-${String(++moved)}-${dialect}@reach.dev` } });
+      const asAnn = { cookie: await signedIn('ann') };
+      const asCara = { cookie: await signedIn('cara') };
+      const asGil = { cookie: await signedIn('gil') };
+      const asFull = { cookie: await signedIn('full') };
+      const keyOf = async (roleId: string, createdBy: string) => {
+        const generated = generateApiKey();
+        await apiKeysRepo(h.meta).create({ name: 'sign key', prefix: generated.prefix, tokenHash: generated.tokenHash, roleId, createdBy });
+        return { authorization: `Bearer ${generated.key}` };
+      };
+
+      // The same role, limited to their own rows: the other's are not the caller's to reach.
+      refused(await changeEmail(asAnn, bob.id));
+      refused(await app.inject({ method: 'POST', url: `/api/v1/users/${bea.id}/invite/resend`, headers: asAnn }));
+      expect((await users.findById(bob.id))?.email).toBe(bob.email);
+      const listed = (await app.inject({ method: 'GET', url: '/api/v1/users?limit=200', headers: asAnn })).json() as { users: { id: string; signInLocked: boolean }[] };
+      expect(listed.users.find((one) => one.id === bob.id)?.signInLocked).toBe(true);
+      expect(listed.users.find((one) => one.id === ann.id)?.signInLocked).toBe(false);
+      // Renaming and suspending stay open.
+      expect((await app.inject({ method: 'PATCH', url: `/api/v1/users/${bob.id}`, headers: asAnn, payload: { name: 'Bob B' } })).statusCode).toBe(200);
+      // The same role, and the caller leads them: their rows are already within reach. Somebody outside the team's are not.
+      expect((await changeEmail(asCara, dave.id)).statusCode).toBe(200);
+      refused(await changeEmail(asCara, erin.id));
+      // A private table is its people's alone, even for their lead.
+      refused(await changeEmail(asGil, hana.id));
+      // Nothing limits this manager's rows.
+      expect((await changeEmail(asFull, bob.id)).statusCode).toBe(200);
+      // A key reaches no row through a person of its own, and answers for its maker too.
+      refused(await changeEmail(await keyOf(teamRole.id, cara.id), dave.id));
+      refused(await changeEmail(await keyOf(fullRole.id, ann.id), bea.id));
+      expect((await changeEmail(await keyOf(fullRole.id, full.id), bea.id)).statusCode).toBe(200);
     });
 
     it('is closed to somebody who manages neither people nor roles, and a Super Admin\'s rows are a Super Admin\'s to hand on', async () => {

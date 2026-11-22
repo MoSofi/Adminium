@@ -12,7 +12,7 @@ export function peopleFailureText(error: Error): string {
     case 'role-above-you':
       return t('team.roles.refused', 'You can give only roles whose permissions you hold yourself, and cannot take away a role that holds more than you do.');
     case 'account-above-you':
-      return t('team.roles.accountRefused', 'This person holds permissions you do not, so you cannot change their email or send them a new sign-in link.');
+      return t('team.roles.accountRefused', 'This person holds permissions or rows you do not reach, so you cannot change their email or send them a new sign-in link.');
     case 'reach-above-you':
       return t('team.roles.reachRefused', 'This would bring rows within your own reach that your role does not give you.');
     default:

@@ -10,11 +10,13 @@
  */
 import { teamsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 
+import type { EffectiveModel } from '../connections/effective-schema.js';
 import { rowTestTables } from '../crud/row-limit.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import type { RbacPrincipal } from './principal.js';
-import { resolvePermissionSet, type PermissionSet } from './resolver.js';
-import { ROW_ACTIONS, asksForTeam, rowReachesOf } from './row-limits.js';
+import { permissionSetAllows, resolvePermissionSet, type PermissionSet } from './resolver.js';
+import { canonical } from './role-within.js';
+import { ROW_ACTIONS, asksForTeam, rowReachesOf, type RowReach } from './row-limits.js';
 
 /** The refusal's `details.reason`: what the screens say in the reader's language. */
 export const REACH_ABOVE_YOU = 'reach-above-you';
@@ -83,4 +85,72 @@ export async function handOverWidensReach(
       return reaches.some((reach) => (reach.reach === 'own' ? toSelf : reach.reach === 'team' && !led.has(fromId)));
     }),
   );
+}
+
+/** Does one reach of the caller's take in every row one reach of the other person's does? When in doubt, no. */
+function reachCovers(
+  mine: RowReach,
+  theirs: RowReach,
+  me: { ids: ReadonlySet<string>; capped: boolean },
+  them: { id: string; led: readonly string[]; capped: boolean },
+): boolean {
+  // What narrows mine must narrow theirs the same way. A "never the person named" is about me, and says nothing of them.
+  if (mine.notBy !== undefined) return false;
+  if (mine.while !== undefined && canonical(mine.while) !== canonical(theirs.while)) return false;
+  if (mine.notThrough !== undefined && canonical(mine.notThrough) !== canonical(theirs.notThrough)) return false;
+  // A reach through a parent is judged by that parent's person alone: only the same way there says the same rows.
+  if (theirs.via !== undefined || mine.via !== undefined) {
+    if (mine.via !== theirs.via || mine.by !== theirs.by) return false;
+  } else if (mine.by !== undefined && mine.by !== theirs.by) return false;
+  if (theirs.unowned === true && mine.unowned !== true && mine.reach !== 'all') return false;
+  if (mine.reach === 'all') return true;
+  if (mine.reach !== 'team' || me.capped || !me.ids.has(them.id)) return false;
+  if (theirs.reach === 'own') return true;
+  return theirs.reach === 'team' && !them.capped && them.led.every((id) => me.ids.has(id));
+}
+
+/**
+ * Does somebody limited to some rows already reach everything this person's
+ * roles let them reach? Asked of every table the person holds an action on,
+ * by the same ways a row is judged: its own people, a parent, a listing.
+ * Somebody nothing limits is not asked. What cannot be read counts as no.
+ */
+export async function personWithinReach(
+  meta: MetaDb,
+  held: PermissionSet,
+  personId: string,
+  models: Map<string, EffectiveModel | null> = new Map(),
+): Promise<boolean> {
+  if (held.superAdmin || held.rowLimits === undefined || held.reach?.userId === personId) return true;
+  const person = await usersRepo(meta).findById(personId);
+  if (person === null) return false;
+  const theirs = await resolvePermissionSet(meta, { kind: 'user', id: person.id, label: person.name });
+  if (theirs.superAdmin) return false;
+  if (![...theirs.grants].some((grant) => grant.startsWith('table:'))) return true;
+  const ownId = held.reach?.userId ?? null;
+  const me = { ids: new Set([...(ownId === null ? [] : [ownId]), ...(ownId === null ? [] : (held.reach?.ledIds ?? []))]), capped: held.reach?.capped === true };
+  const them = { id: person.id, led: theirs.reach?.ledIds ?? [], capped: theirs.reach?.capped === true };
+  const connections = await meta.db.selectFrom('adminium_connections').select('id').execute();
+  for (const { id: connectionId } of connections) {
+    if (!models.has(connectionId)) models.set(connectionId, await loadSnapshotView(meta, connectionId).then((view) => view.model, () => null));
+    const model = models.get(connectionId) ?? null;
+    if (model === null) {
+      const couldHold = [...theirs.grants].some((grant) => grant.startsWith(`table:${connectionId}:`) || grant.startsWith('table:*:'));
+      if (couldHold) return false;
+      continue;
+    }
+    for (const table of model.tables) {
+      for (const action of ROW_ACTIONS) {
+        if (!permissionSetAllows(theirs, `table:${connectionId}:${table.id}:${action}`)) continue;
+        // A private table's rows are its own people's alone, whoever leads them.
+        if (table.private === true) return false;
+        const mine = rowReachesOf(held, connectionId, table.id, action);
+        if (mine === null) continue;
+        const asked = rowReachesOf(theirs, connectionId, table.id, action);
+        if (asked === null) return false;
+        if (!asked.every((reach) => mine.some((own) => reachCovers(own, reach, me, them)))) return false;
+      }
+    }
+  }
+  return true;
 }

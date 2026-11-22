@@ -30,6 +30,7 @@ import type { EffectiveModel } from '../../connections/effective-schema.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { SUPER_ADMIN_SLUG } from '../../rbac/resolver.js';
 import { rowLimitIssue } from '../../rbac/row-limit-check.js';
+import { declaredRowLimitsOf } from '../../apps/mark-owner-row-limits.js';
 import { ownerRowsAfterEdit } from '../../apps/owner-row-limits.js';
 import { roleGiving } from './role-giving.js';
 import {
@@ -319,6 +320,13 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
         if (!models.has(connectionId)) models.set(connectionId, await loadSnapshotView(meta, connectionId).then((view) => view.model, () => null));
         return models.get(connectionId) ?? null;
       };
+      // What the role's app declares, to fall back on when an owner's limit is taken off. Never guessed: unread, the limit stays.
+      let declaredRows: Promise<Map<string, RowLimit> | null> | undefined;
+      const appLimit = async (ref: string, action: 'read' | 'update' | 'delete'): Promise<RowLimit[typeof action]> => {
+        const declared = await (declaredRows ??= declaredRowLimitsOf(meta, role));
+        if (declared === null) throw new ValidationFailedError('This limit cannot be taken off now: the limit its app declares cannot be read until the database schema has been read.', { fields: { rows: { code: 'app-limit-unread', table: ref, action } } });
+        return declared.get(ref)?.[action];
+      };
       const { rows, invalid } = matrixRowsFromGrants(request.body.grants);
       if (invalid.length > 0) {
         throw new ValidationFailedError('One or more grants are outside the permission grammar.', {
@@ -359,8 +367,17 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
       const granted = new Set(rows.filter((row) => row.resourceKind === 'table').map((row) => row.resourceRef));
       for (const [ref, limit] of Object.entries(request.body.rows ?? {})) {
         if (limit === null || Object.keys(limit).length === 0) {
-          rowLimits.delete(ref);
+          // What the owner set goes; where the app declares a limit on that action, the app's holds again at once.
+          const owned = ownerRows.get(ref);
+          const back: RowLimit = {};
+          for (const action of ['read', 'update', 'delete'] as const) {
+            if (owned?.[action] === undefined) continue;
+            const app = await appLimit(ref, action);
+            if (app !== undefined) back[action] = app;
+          }
           ownerRows.delete(ref);
+          if (Object.keys(back).length === 0) rowLimits.delete(ref);
+          else rowLimits.set(ref, back);
           continue;
         }
         if (!granted.has(ref)) {
@@ -385,10 +402,18 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
             throw new ValidationFailedError('"Every row" is the grant itself: take the limit off, or say only while.', { fields: { rows: { code: 'all-without-while', table: ref, action } } });
           }
         }
-        const owners = ownerRowsAfterEdit(rowLimits.get(ref), ownerRows.get(ref), limit);
+        const was = ownerRows.get(ref);
+        const owners = ownerRowsAfterEdit(rowLimits.get(ref), was, limit, (action) => own?.[action] === true);
         if (owners === undefined) ownerRows.delete(ref);
         else ownerRows.set(ref, owners);
-        rowLimits.set(ref, limit);
+        // An action whose owner limit this save took off: the app's limit on it, if it declares one, holds again at once.
+        const saved: RowLimit = { ...limit };
+        for (const action of ['read', 'update', 'delete'] as const) {
+          if (limit[action] !== undefined || was?.[action] === undefined || owners?.[action] !== undefined) continue;
+          const app = await appLimit(ref, action);
+          if (app !== undefined) saved[action] = app;
+        }
+        rowLimits.set(ref, saved);
       }
       // A limited table whose own row this save takes away, while a wider grant still gives the action there: the limit would
       // go with the row and the role reach every row, with nothing said. Refused, unless the limit is taken off by name.
@@ -406,8 +431,10 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
         const limit = row.resourceKind === 'table' ? limits.get(row.resourceRef) : undefined;
         const read = row.resourceKind === 'table' ? reads.get(row.resourceRef) : undefined;
         const create = row.resourceKind === 'table' ? creates.get(row.resourceRef) : undefined;
-        const rowLimit = row.resourceKind === 'table' ? rowLimits.get(row.resourceRef) : undefined;
         const owner = row.resourceKind === 'table' ? ownerRows.get(row.resourceRef) : undefined;
+        const limited = row.resourceKind === 'table' ? rowLimits.get(row.resourceRef) : undefined;
+        // What the owner set stands, an action coming back with this save included.
+        const rowLimit = owner === undefined ? limited : { ...(limited ?? {}), ...owner };
         const actions =
           limit === undefined && read === undefined && create === undefined && rowLimit === undefined && owner === undefined
             ? row.actions

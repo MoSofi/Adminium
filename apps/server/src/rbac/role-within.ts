@@ -193,6 +193,25 @@ function limitWouldLift(next: readonly GrantRow[], stored: readonly GrantRow[]):
 }
 
 /**
+ * A limit of the owner's can wait on a row whose action is away, where no grant
+ * shows it. Only somebody who holds that action whole may change or clear it.
+ */
+function holdsWaitingLimits(held: PermissionSet, next: readonly GrantRow[], stored: readonly GrantRow[]): boolean {
+  return stored.every((row) => {
+    if (row.resourceKind !== 'table') return true;
+    const waiting = (row.actions as TableActions).ownerRows;
+    if (waiting === undefined) return true;
+    const after = next.find((other) => other.resourceKind === 'table' && other.resourceRef === row.resourceRef)?.actions as TableActions | undefined;
+    return (['read', 'update', 'delete'] as const).every((action) => {
+      if (waiting[action] === undefined || (row.actions as TableActions)[action] === true || after?.[action] === true) return true;
+      if (canonical(waiting[action]) === canonical(after?.ownerRows?.[action])) return true;
+      const whole: TableActions = { read: false, create: false, update: false, delete: false, export: false, import: false, [action]: true };
+      return holdsRows(held, [{ resourceKind: 'table', resourceRef: row.resourceRef, actions: whole }]);
+    });
+  });
+}
+
+/**
  * May this person save these rows over the role's stored ones, having been
  * found to hold the role as it is? Asked only of what the save adds or
  * un-limits: taking a permission off, or leaving a row as it was, needs
@@ -201,6 +220,7 @@ function limitWouldLift(next: readonly GrantRow[], stored: readonly GrantRow[]):
  */
 export function holdsEdit(held: PermissionSet, next: readonly GrantRow[], stored: readonly GrantRow[]): boolean {
   if (held.superAdmin) return true;
+  if (!holdsWaitingLimits(held, next, stored)) return false;
   if (limitWouldLift(next, stored)) return holdsRows(held, next);
   return next.every((given) => {
     const row = asStored(given);

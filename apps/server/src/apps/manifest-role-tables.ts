@@ -36,7 +36,7 @@ import { appTablesRepo, permissionsRepo, realTableOf, rolesRepo, settingsRepo, s
 import { addOnOfPageGrant, addOnScreensOf, roleGrantsOf, roleSlugFor, SEEDED_APP_ROLE_GRANTS_KEY, storedRowLimit } from './manifest-roles.js';
 import { addOnGrantsWider, holdOf, roleTablesOf, widerWords, type AddOnGrantWider, type RoleTableCheck } from '../add-ons/grants-wider.js';
 import { tableIdOrNull } from '../installs/table-id.js';
-import { rowLimitWith } from './owner-row-limits.js';
+import { OWNER_ROW_LIMITS_PENDING_KEY, ownerRowsOf, rowLimitWith } from './owner-row-limits.js';
 
 export { addOnGrantsWider, roleTablesOf, widerWords, type AddOnGrantWider, type RoleTableCheck };
 
@@ -215,6 +215,8 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
   const declared = app.roles ?? [];
   const settings = settingsRepo(meta);
   const seeded = new Set(await settings.get(SEEDED_APP_ROLE_GRANTS_KEY));
+  // Installs whose stored limits are not sorted yet into the app's and the owner's: what is on their rows is kept.
+  const unsorted = new Set(await settings.get(OWNER_ROW_LIMITS_PENDING_KEY));
   const slugs = new Map(declared.map((role) => [roleSlugFor(app.key, role.key), role]));
   /** What the ledger says was given to this app's roles on add-ons' tables. */
   const given = [...seeded].flatMap((pair) => {
@@ -261,6 +263,10 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
       if (!live.has(addOn)) forget = actions.filter((action) => (existing?.actions as Record<string, unknown> | undefined)?.[action] === true);
       if (existing !== null) {
         const held = { ...(existing.actions as Record<string, unknown>) };
+        if (unsorted.has(role.manifestId ?? '')) {
+          const owner = ownerRowsOf(existing.actions as TableActions, true);
+          if (owner !== undefined) held['ownerRows'] = owner;
+        }
         for (const action of actions) held[action] = false;
         // A limit narrows an action: with the action taken back, so is what narrowed it.
         if (actions.includes('read')) delete held['readLimit'];
@@ -360,7 +366,7 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
         }
       }
       // The owner's reach stands over what the app declares; on a shared table it is held to this app's rows too.
-      const ownerRows = (existing?.actions as TableActions | undefined)?.ownerRows;
+      const ownerRows = existing === null ? undefined : ownerRowsOf(existing.actions as TableActions, unsorted.has(role.manifestId ?? ''));
       const settled = rowLimitWith(ownerRows, rows as RowLimit, appColumn === undefined ? null : { column: appColumn, in: [app.key] });
       const stoppedPairs = new Set(settled.blocked.map((action) => pairOf(slug, entry.addOn, entry.table, action)));
       for (const action of settled.blocked) {
