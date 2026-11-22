@@ -420,7 +420,7 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
     if (!rowIsLive(row, table.rule)) return null;
     const person = personOf(row, table.rule);
     // A row that came to hold someone else: an address corrected, or a deleted row's key used again.
-    if (link.addressDigest !== null && (person.address === null || addressDigest(person.address) !== link.addressDigest)) return null;
+    if (link.addressDigest !== (person.address === null ? null : addressDigest(person.address))) return null;
     const providers: { key: string; name: string; manifestId: string }[] = [];
     for (const key of link.providers) {
       const found = await providerOn(link, table, key);

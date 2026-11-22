@@ -403,6 +403,14 @@ for (const [dialect, reachable] of LEGS) {
       await h.rows(`DELETE FROM ${real} WHERE id = ${rowOf['wes']!}`);
       await h.rows(`INSERT INTO ${real} (id, name, email, active, user_id) VALUES (${rowOf['wes']!}, 'New Hire', 'new.hire@studio.dev', ${dialect === 'postgres' ? 'TRUE' : '1'}, NULL)`);
       expect((await door('open', { token: reused })).statusCode).toBe(404);
+
+      // A link made while the row held no address is no pass to whoever comes to hold one.
+      await h.rows(`UPDATE ${real} SET email = NULL WHERE id = ${rowOf['wes']!}`);
+      const unaddressed = await linkFor('wes');
+      expect((await door('open', { token: unaddressed })).statusCode).toBe(200);
+      await h.rows(`UPDATE ${real} SET email = 'later.hire@studio.dev' WHERE id = ${rowOf['wes']!}`);
+      expect((await door('open', { token: unaddressed })).statusCode).toBe(404);
+      expect((await door('start', { token: unaddressed, provider: KEY })).statusCode).toBe(404);
     });
 
     it('sends one person\'s link once a minute, so a colleague\'s inbox and link cannot be worn out', async () => {
