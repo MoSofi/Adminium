@@ -1037,5 +1037,13 @@
     "heading": "Votre compte a été connecté",
     "intro": "Bonjour {name}, {provider} est maintenant connecté pour vous chez {business} avec le compte {account}.",
     "notice": "Si ce n’était pas vous, prévenez {business} immédiatement."
+  },
+  "emailChangeConfirm": {
+    "action": "Confirmer cette adresse",
+    "heading": "Confirmez votre nouvelle adresse",
+    "intro": "Bonjour {name}, une personne connectée à {appName} en tant que {currentEmail} a demandé à se connecter désormais avec {email}.",
+    "name": "Confirmer une nouvelle adresse de connexion",
+    "notice": "Ouvrez ce lien en étant connecté à ce compte. Il ne fonctionne qu’une fois et expire dans {expiresInHours} heures. Si vous ne connaissez pas ce compte, ignorez cet e-mail : rien ne change.",
+    "subject": "Confirmez votre nouvelle adresse de connexion à {appName}"
   }
 }

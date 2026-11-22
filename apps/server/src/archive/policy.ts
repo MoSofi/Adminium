@@ -39,6 +39,8 @@ export const NEVER_ARCHIVED_TABLES: readonly string[] = [
   'adminium_migrations',
   'adminium_sessions',
   'adminium_password_resets',
+  // A link waiting to be opened: a restored one would reopen a change somebody let lapse.
+  'adminium_email_changes',
   'adminium_public_sessions',
   'adminium_public_challenges',
   'adminium_public_proofs',

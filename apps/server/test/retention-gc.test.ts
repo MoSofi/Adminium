@@ -26,6 +26,7 @@ import {
   createSqliteMetaDb,
   firstRun,
   jobsRepo,
+  notificationsRepo,
   passwordResetsRepo,
   publicKeysRepo,
   publicScopesRepo,
@@ -218,6 +219,24 @@ describe('firing the sweep deletes what the policy says', () => {
     const left = await meta.db.selectFrom('adminium_payment_events').select('id').execute();
     // An event nobody handled is work, however old; the sweep never takes it.
     expect(left.map((row) => row.id).sort()).toEqual([waiting.event.id, recent.event.id].sort());
+  });
+
+  it('drops notifications read longer ago than retention.notificationsDays, and keeps unread ones', async () => {
+    const { meta, server } = await compose();
+    const userId = await seedUser(meta);
+    const notifications = notificationsRepo(meta);
+    await settingsRepo(meta).set('retention.notificationsDays', 30, { updatedBy: null });
+    const now = Date.now();
+    const old = await notifications.create({ userId, kind: 'report.ready', title: 'Old' }, now - 60 * DAY_MS);
+    await notifications.markRead(old.id, userId, now - 31 * DAY_MS);
+    const recent = await notifications.create({ userId, kind: 'report.ready', title: 'Recent' }, now - 60 * DAY_MS);
+    await notifications.markRead(recent.id, userId, now - 29 * DAY_MS);
+    const unread = await notifications.create({ userId, kind: 'report.ready', title: 'Unread' }, now - 400 * DAY_MS);
+
+    await server.jobs.scheduler.trigger(RETENTION_GC_SCHEDULE_NAME);
+
+    const left = await meta.db.selectFrom('adminium_notifications').select('id').execute();
+    expect(left.map((row) => row.id).sort()).toEqual([recent.id, unread.id].sort());
   });
 
   it('drops finished jobs past retention.jobsDays and keeps pending ones', async () => {

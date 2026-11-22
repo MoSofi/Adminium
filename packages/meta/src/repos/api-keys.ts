@@ -78,6 +78,17 @@ export function apiKeysRepo(meta: MetaDb) {
       return Number(res.numUpdatedRows) === 1;
     },
 
+    /** The keys a person made that are not revoked, newest first; an expired one is among them. */
+    async unrevokedBy(userId: string): Promise<ApiKey[]> {
+      return db.selectFrom('adminium_api_keys').selectAll().where('createdBy', '=', userId).where('revokedAt', 'is', null).orderBy('createdAt', 'desc').execute();
+    },
+
+    /** Revokes every key this person still holds. */
+    async revokeAllBy(userId: string, at: number = Date.now()): Promise<number> {
+      const res = await db.updateTable('adminium_api_keys').set({ revokedAt: at }).where('createdBy', '=', userId).where('revokedAt', 'is', null).executeTakeFirst();
+      return Number(res.numUpdatedRows);
+    },
+
     /** Throttled by the caller (server) like session touches. */
     async touchLastUsed(id: string, at: number = Date.now()): Promise<void> {
       await db.updateTable('adminium_api_keys').set({ lastUsedAt: at }).where('id', '=', id).execute();

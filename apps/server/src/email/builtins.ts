@@ -127,6 +127,7 @@ export const BUILTIN_EMAIL_TEMPLATE_KEYS = [
    */
   'sign-in-code',
   'email-changed',
+  'email-change-confirm',
   /*
    * A client signing in by address alone: a one-use link to the app's own
    * guest side, and the same sign-in as a code for another device.
@@ -203,6 +204,7 @@ export const BUILTIN_EMAIL_TEMPLATE_VARS: Readonly<
    * nothing, which drops its paragraph.
    */
   'email-changed': ['appName', 'name', 'newEmail', 'phoneLine', 'contactLine'],
+  'email-change-confirm': ['appName', 'name', 'email', 'currentEmail', 'confirmUrl', 'expiresInHours'],
   'sign-in-link': ['appName', 'link', 'code', 'minutes'],
   // One of `keptLine` and `stoppedLine` holds a sentence (`detailsDeletedLines`), as above.
   'details-deleted': ['appName', 'name', 'heldLine', 'giftsLine', 'keptLine', 'stoppedLine'],
@@ -251,6 +253,9 @@ const VAR = {
   inviterName: '{{inviterName}}',
   resetUrl: '{{resetUrl}}',
   activationUrl: '{{activationUrl}}',
+  currentEmail: '{{currentEmail}}',
+  confirmUrl: '{{confirmUrl}}',
+  expiresInHours: '{{expiresInHours}}',
   actionUrl: '{{actionUrl}}',
   title: '{{title}}',
   body: '{{body}}',
@@ -360,6 +365,47 @@ function passwordResetTemplate(t: Translate): BuiltinEmailTemplate {
       ),
     ],
     footer: linkFallback(t, VAR.resetUrl),
+  };
+}
+
+/**
+ * Sent to the NEW address. It names the account asking, because whoever reads
+ * it may not be that person: somebody can type another person's address, and
+ * this mail is what stops the address moving without them.
+ */
+function emailChangeConfirmTemplate(t: Translate): BuiltinEmailTemplate {
+  return {
+    key: 'email-change-confirm',
+    name: t('email:emailChangeConfirm.name', { defaultValue: 'Confirm a new sign-in address' }),
+    subject: t('email:emailChangeConfirm.subject', {
+      appName: VAR.appName,
+      defaultValue: 'Confirm your new {appName} sign-in address',
+    }),
+    category: 'transactional',
+    blocks: [
+      heading(t('email:emailChangeConfirm.heading', { defaultValue: 'Confirm your new address' })),
+      paragraph(
+        'intro',
+        t('email:emailChangeConfirm.intro', {
+          name: VAR.name,
+          appName: VAR.appName,
+          currentEmail: VAR.currentEmail,
+          email: VAR.email,
+          defaultValue: 'Hi {name}, someone signed in to {appName} as {currentEmail} asked to sign in with {email} from now on.',
+        }),
+      ),
+      button(t('email:emailChangeConfirm.action', { defaultValue: 'Confirm this address' }), VAR.confirmUrl),
+      paragraph(
+        'notice',
+        t('email:emailChangeConfirm.notice', {
+          expiresInHours: VAR.expiresInHours,
+          defaultValue:
+            'Open this link while signed in to that account. It works only once and expires in {expiresInHours} hours. ' +
+            'If you don’t know this account, ignore this email: nothing changes.',
+        }),
+      ),
+    ],
+    footer: linkFallback(t, VAR.confirmUrl),
   };
 }
 
@@ -978,6 +1024,7 @@ export function builtinEmailTemplates(t: Translate): BuiltinEmailTemplate[] {
     bookingConfirmationTemplate(t),
     signInCodeTemplate(t),
     emailChangedTemplate(t),
+    emailChangeConfirmTemplate(t),
     signInLinkTemplate(t),
     detailsDeletedTemplate(t),
     paymentLinkTemplate(t),

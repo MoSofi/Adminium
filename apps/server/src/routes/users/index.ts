@@ -22,6 +22,7 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { FastifyRequest } from 'fastify';
 import {
+  emailChangesRepo,
   rolesRepo,
   sessionsRepo,
   settingsRepo,
@@ -37,6 +38,7 @@ import { PERMISSIONS } from '../../rbac/permissions.js';
 import { SUPER_ADMIN_SLUG } from '../../rbac/resolver.js';
 import { linkOrigin } from '../../security/public-origin.js';
 import { toUserView } from '../auth/handlers.js';
+import { accountKeyAuditEntries, revokeAccountKeys } from './account-keys.js';
 import { INVITE_TOKEN_TTL_MS, mintInvite, type MintedInvite } from './invite.js';
 import { cursorText } from '../../security/nul-bytes.js';
 import {
@@ -91,7 +93,6 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
   const { meta } = app.rbac;
   const users = usersRepo(meta);
   const roles = rolesRepo(meta);
-  const sessions = sessionsRepo(meta);
 
   /**
    * The master secret, off the auth plugin's context rather than threaded in:
@@ -100,6 +101,34 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
    * Absent only on a server built without a meta store, which cannot get here.
    */
   const emailSecret = app.authContext?.env.ADMINIUM_SECRET;
+
+  /**
+   * Stops an account in one transaction with its API keys (`account-keys.ts`):
+   * no moment where the person is stopped and a key of theirs still works, and
+   * no key revoked for a stop that did not happen. Then what is open closes.
+   */
+  async function stopAccount(request: FastifyRequest, user: User, how: 'suspend' | 'delete', at: number): Promise<void> {
+    await meta.db.transaction().execute(async (trx) => {
+      const inTransaction = { ...meta, db: trx };
+      // First: a key being made for this person waits for the stop, and then sees it (`POST /api-keys`). SQLite has one writer.
+      const held = trx.selectFrom('adminium_users').select('id').where('id', '=', user.id);
+      await (meta.dialect === 'sqlite' ? held : held.forUpdate()).execute();
+      const keys = await revokeAccountKeys(inTransaction, user.id, at);
+      if (how === 'delete') await trx.deleteFrom('adminium_users').where('id', '=', user.id).execute();
+      else {
+        await usersRepo(inTransaction).updateStatus(user.id, 'suspended', at);
+        await sessionsRepo(inTransaction).revokeAllForUser(user.id, at);
+      }
+      // In the transaction: after a removal for good, this is all that says whose a key was.
+      for (const entry of accountKeyAuditEntries(user, keys)) await app.rbac.audit(request, entry, inTransaction);
+    });
+    closeConnections(user.id);
+  }
+
+  /** Ends a person's open sockets and streams (`jobs/register.ts`); a server with no realtime has none. */
+  const closeConnections = (userId: string): void => {
+    (app as unknown as { closeUserConnections?: (id: string) => number }).closeUserConnections?.(userId);
+  };
 
   /**
    * Queue the invitation mail. Returns whether it was QUEUED — not whether it
@@ -456,11 +485,11 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
 
       const now = app.rbac.now();
       if (Object.keys(patch).length > 0) await users.updateProfile(user.id, patch, now);
-      if (status !== null) {
-        await users.updateStatus(user.id, status, now);
-        // A suspended user must stop being logged in immediately.
-        if (status === 'suspended') await sessions.revokeAllForUser(user.id, now);
-      }
+      // An administrator set the address: a link the person was still waiting on no longer applies.
+      if (patch.email !== undefined) await emailChangesRepo(meta).clear(user.id);
+      // A suspended user must stop being logged in immediately, on what is already open and with their API keys too.
+      if (status === 'suspended') await stopAccount(request, user, 'suspend', now);
+      else if (status !== null) await users.updateStatus(user.id, status, now);
 
       const updated = await mustFindUser(user.id);
       await app.rbac.audit(request, {
@@ -525,7 +554,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
         // Explicitly asked for. FK CASCADE takes the user's prefs, sessions
         // and reset tokens with it, and `adminium_settings.updated_by` goes
         // NULL — audited under its own verb precisely because it is lossy.
-        await meta.db.deleteFrom('adminium_users').where('id', '=', user.id).execute();
+        await stopAccount(request, user, 'delete', now);
         await app.rbac.audit(request, {
           category: 'rbac',
           action: 'user.delete',
@@ -534,8 +563,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
         return { ok: true as const, permanent: true, user: null };
       }
 
-      await users.updateStatus(user.id, 'suspended', now);
-      await sessions.revokeAllForUser(user.id, now);
+      await stopAccount(request, user, 'suspend', now);
       const suspended = await mustFindUser(user.id);
       await app.rbac.audit(request, {
         category: 'rbac',

@@ -9,7 +9,7 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { apiKeysRepo, permissionsRepo, rolesRepo, type ApiKey } from '@adminium/meta';
 
-import { ConflictError, NotFoundError } from '../../errors.js';
+import { ConflictError, ForbiddenError, NotFoundError } from '../../errors.js';
 import { generateApiKey } from '../../rbac/api-keys.js';
 import { PERMISSIONS, grantsFromMatrixRows } from '../../rbac/permissions.js';
 import {
@@ -63,21 +63,30 @@ export const apiKeysRoutes: FastifyPluginAsyncZod = async (app) => {
         throw new NotFoundError('Role not found.', { roleId: request.body.roleId });
       }
       const generated = generateApiKey();
-      const actingUserId =
+      // Whose key this is. One made by a key is that key's maker's, so stopping the person stops it too.
+      const makerId =
         request.apiKeyPrincipal === null
           ? ((request as unknown as { user?: { id?: string } }).user?.id ?? null)
-          : null;
-      const row = await apiKeys.create(
-        {
-          name: request.body.name,
-          prefix: generated.prefix,
-          tokenHash: generated.tokenHash,
-          roleId: role.id,
-          createdBy: actingUserId,
-          expiresAt: request.body.expiresAt ?? null,
-        },
-        app.rbac.now(),
-      );
+          : ((await apiKeys.findById(request.apiKeyPrincipal.id))?.createdBy ?? null);
+      // With the maker's row held, so a stop either finishes first and is seen here, or waits and revokes this key too.
+      const row = await meta.db.transaction().execute(async (trx) => {
+        if (makerId !== null) {
+          const read = trx.selectFrom('adminium_users').select('status').where('id', '=', makerId);
+          const maker = await (meta.dialect === 'sqlite' ? read : read.forUpdate()).executeTakeFirst();
+          if (maker?.status !== 'active') throw new ForbiddenError('This account is no longer active.');
+        }
+        return apiKeysRepo({ ...meta, db: trx }).create(
+          {
+            name: request.body.name,
+            prefix: generated.prefix,
+            tokenHash: generated.tokenHash,
+            roleId: role.id,
+            createdBy: makerId,
+            expiresAt: request.body.expiresAt ?? null,
+          },
+          app.rbac.now(),
+        );
+      });
       const scopes = role.slug === 'super-admin'
         ? ['*']
         : grantsFromMatrixRows(await permissions.listForRole(role.id));

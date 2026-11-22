@@ -6297,7 +6297,7 @@ recorded, so the app's page can put it back.
 | `branding` | `appName` (1–60), `showVersion`, `theme` (`light`, `dark`, `system`), `accent` (`indigo`, `blue`, `teal`, `violet`, `rose`, `red`, `orange`, `black`), `density` (`comfortable`, `compact`), and `logo` and `favicon` as files of the package, each `{ "file", "sha256" }`. |
 | `languages` | `enabled` (1–40 language ids such as `en_US`, each once) and `default`, which must be one of them. A language the target does not have is not switched on. |
 | `wording` | 1–5,000 changed interface words, each `{ "locale", "namespace", "key", "value" }`, each changed once. A blank value is a word left out on purpose. |
-| `systemEmails` | Edited system emails, each `{ "key", "locale", "content" }`, each edited once. `key` is one of `password-reset`, `user-invite`, `notification`, `document-ready`, `booking-confirmation`, `sign-in-code`, `email-changed`, `sign-in-link`, `details-deleted`, `payment-link`, `payment-receipt`, `sign-up-confirm`. The review shows each one's changes and every place its links go, each ticked on its own. |
+| `systemEmails` | Edited system emails, each `{ "key", "locale", "content" }`, each edited once. `key` is one of `password-reset`, `user-invite`, `notification`, `document-ready`, `booking-confirmation`, `sign-in-code`, `email-changed`, `email-change-confirm`, `sign-in-link`, `details-deleted`, `payment-link`, `payment-receipt`, `sign-up-confirm`. The review shows each one's changes and every place its links go, each ticked on its own. |
 | `settings` | From an allow-list only: `assistant.name`, `privacy.businessName`, `privacy.noticeUrl` (`https` only) and `email.postalAddress`. Any other setting is refused by name. |
 
 It carries something, or it is left out. It never carries any part of a setting that holds a
@@ -6967,6 +6967,7 @@ parts and the reader's own grants. A manifest that uses it sets
 | `table`, `match` | The add-on's own table whose rows the tab lists, and its two columns that say which record a row belongs to: `match.table` holds a table's stored name (`"rules": { "tableRef": true }`), `match.row` the row's key as text. |
 | `on` | `"linked"`: every table a [posting rule](#postings) hands in to this add-on as the row asked about. Or up to 24 tables by their stored names. |
 | `columns` | 1–8 columns shown. `edit` lists those a reader who may change the rows edits in place. |
+| `presence` | Date columns among `columns` shown only as there or not, each `{ "column", "yes", "yesLabels", "no", "noLabels" }`: `yes` and `no` are the words, like `label`, and `yesLabels` and `noLabels` give them per language. The date is never sent to the tab. A tab with `presence` only lists rows: it has no `edit`, `form`, `add`, `remove` or `actions`. From `0.3.71`. |
 | `add` | `{ "pick" }`: a row is added by picking a row of another of the add-on's tables, shown by its `label` column. One pick, or two (an item or a kit). |
 | `remove` | `true`: a row may be removed from the tab. |
 | `form` | 1–8 columns: one row edited as a form, in place of a list. |

@@ -123,6 +123,24 @@ describe('a dish with two usage lines', () => {
     expect(within(row).queryByRole('textbox', { name: 'Item' })).toBeNull();
   });
 
+  it('a date column named for presence says only there or not, and asks the list for no date', async () => {
+    crud.rows = [
+      { id: 41, item_id: 7, item_id__label: 'Flour', qty: '1', unit: 'kg', answered_at: true },
+      { id: 42, item_id: 8, item_id__label: 'Sugar', qty: '2', unit: 'g', answered_at: false },
+    ];
+    mount({
+      ...TAB,
+      edit: [],
+      columns: [fact('item_id', 'Item', 'integer'), fact('answered_at', 'Answered', 'timestamptz')],
+      presence: [{ column: 'answered_at', yes: 'Answered', yesKey: 'tab.answered', no: 'Not yet', noKey: 'tab.notYet' }],
+    });
+    await screen.findByText('Flour');
+    const cells = (id: number) => [...(document.querySelector(`[data-row="${String(id)}"]`) as HTMLElement).querySelectorAll('td')].map((cell) => cell.textContent ?? '');
+    expect(cells(41).some((text) => text.endsWith('Answered') && !text.includes('true'))).toBe(true);
+    expect(cells(42).some((text) => text.endsWith('Not yet') && !text.includes('false'))).toBe(true);
+    expect(apiOf('public.inventory_links').list).toHaveBeenCalledWith(expect.objectContaining({ presentOnly: ['answered_at'] }));
+  });
+
   it('a cell saves on blur, and on Enter; a value not changed saves nothing', async () => {
     const user = userEvent.setup();
     mount();

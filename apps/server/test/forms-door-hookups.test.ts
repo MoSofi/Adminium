@@ -34,6 +34,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { strFromU8, unzipSync } from 'fflate';
+import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { parseForm, type FormDefinitionInput, type FormSettingsInput } from '@adminium/add-on-contracts/forms';
@@ -53,6 +54,7 @@ import { createFormsScopes } from '../src/forms/scope.js';
 import { surveyTokenHash } from '../src/forms/survey-token.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
+import { instantOf } from '../src/outbox/survey-link.js';
 import { personZip } from '../src/privacy/export.js';
 import { findPerson } from '../src/privacy/sources.js';
 import { solveProof } from '../src/public-api/proof.js';
@@ -253,6 +255,8 @@ describe.each(LEGS)('the forms door’s hook-ups — %s', (dialect, available) =
       [8, 'Reception desks at Harbour'],
       [9, 'Meeting booths at Linden'],
       [10, 'Quiet room at Linden'],
+      [11, 'Reception at Harbour'],
+      [12, 'Meeting rooms at Cobalt'],
     ] as const) {
       await db.insertInto('crm_jobs').values({ id, title } as never).execute();
     }
@@ -525,6 +529,61 @@ describe.each(LEGS)('the forms door’s hook-ups — %s', (dialect, available) =
     const answer = (await answersOf('frm_quiet')).at(-1)!;
     expect(answer).toMatchObject({ email: null, name: null, invitation_id: null });
     expect((await invitation(id))['answered_at']).not.toBeNull();
+  });
+
+  it.skipIf(!available)('"Link answers to names" off: the invitation keeps no time its answer can be matched by', async () => {
+    const sentAt = Date.now() - 3 * DAY;
+    const { id, token } = await invite('frm_quiet', 10, { at: sentAt });
+    const sent = await send('quiet-survey', { qnps: 5 }, { t: token });
+    expect(sent.statusCode, sent.body).toBe(200);
+    const answer = (await answersOf('frm_quiet')).at(-1)!;
+    const spent = await invitation(id);
+    // Spent, so the link cannot be used again and the survey still counts it, but stamped with when it was SENT.
+    expect(instantOf(spent['answered_at'])).toBe(instantOf(spent['invited_at']));
+    expect(instantOf(spent['answered_at'])).not.toBe(instantOf(answer['submitted_at']));
+    expect((await send('quiet-survey', { qnps: 5 }, { t: token })).statusCode).toBe(409);
+  });
+
+  it.skipIf(!available)('"Link answers to names" on: the invitation still says when it was answered', async () => {
+    const { id, token } = await invite('frm_fit', 11, { at: Date.now() - 3 * DAY });
+    expect((await send('fit-out', { qnps: 9, qday: 3 }, { t: token })).statusCode).toBe(200);
+    const answer = (await answersOf('frm_fit')).find((row) => row['invitation_id'] === id)!;
+    expect(instantOf((await invitation(id))['answered_at'])).toBe(instantOf(answer['submitted_at']));
+  });
+
+  it.skipIf(!available)('invitations already stored: an unlinked answer’s time is taken off, a linked one’s is kept, and a second pass changes nothing', async () => {
+    const { db } = await h.manager.data(h.connectionId);
+    const view = (await views.viewFor(h.connectionId))!;
+    const table = view.table(names['invitations']!);
+    const stamp = async (invitationId: string, at: number): Promise<void> => {
+      await db.updateTable(table.id as never).set({ answered_at: bindWriteValue(table.columns.get('answered_at')!, new Date(at).toISOString(), dialect) } as never).where(sql.ref('id'), '=', invitationId as never).execute();
+    };
+    // As an older version wrote it: the unlinked answer and its invitation at one instant.
+    const old = await invite('frm_quiet', 10, { at: Date.now() - 5 * DAY });
+    expect((await send('quiet-survey', { qnps: 4 }, { t: old.token })).statusCode).toBe(200);
+    const oldAnswer = (await answersOf('frm_quiet')).at(-1)!;
+    await stamp(old.id, instantOf(oldAnswer['submitted_at'])!);
+    expect(instantOf((await invitation(old.id))['answered_at'])).toBe(instantOf(oldAnswer['submitted_at']));
+    const named = await invite('frm_fit', 12, { at: Date.now() - 5 * DAY });
+    expect((await send('fit-out', { qnps: 9, qday: 2 }, { t: named.token })).statusCode).toBe(200);
+    const namedAt = instantOf((await invitation(named.id))['answered_at']);
+    const unanswered = await invite('frm_quiet', 10);
+
+    const sweep = async (): Promise<void> => {
+      await composed.jobs.scheduler.trigger(FORM_ANSWERS_SWEEP_NAME);
+      for (let round = 0; round < 5; round += 1) {
+        await h.meta.db.updateTable('adminium_jobs').set({ runAt: 0 } as never).where('status', '=', 'pending' as never).execute();
+        if ((await composed.jobs.worker.runOnce()) === 0) break;
+      }
+    };
+    await sweep();
+    const repaired = await invitation(old.id);
+    expect(instantOf(repaired['answered_at'])).toBe(instantOf(repaired['invited_at']));
+    expect(instantOf(repaired['answered_at'])).not.toBe(instantOf(oldAnswer['submitted_at']));
+    expect(instantOf((await invitation(named.id))['answered_at'])).toBe(namedAt);
+    expect((await invitation(unanswered.id))['answered_at']).toBeNull();
+    await sweep();
+    expect(await invitation(old.id)).toEqual(repaired);
   });
 
   it.skipIf(!available)('an anonymous survey takes no token and works like a form', async () => {

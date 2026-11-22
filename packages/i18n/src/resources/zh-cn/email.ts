@@ -1047,5 +1047,13 @@ export default {
     "heading": "您的账户已连接",
     "intro": "{name} 您好，您在 {business} 的 {provider} 现已连接为 {account}。",
     "notice": "如果这不是您本人的操作，请立即告知 {business}。"
+  },
+  "emailChangeConfirm": {
+    "action": "确认此地址",
+    "heading": "确认你的新地址",
+    "intro": "{name}，你好。有人以 {currentEmail} 的身份登录 {appName}，并申请今后使用 {email} 登录。",
+    "name": "确认新的登录地址",
+    "notice": "请在登录该账户的状态下打开此链接。链接只能使用一次，将在 {expiresInHours} 小时后失效。如果你不认识此账户，请忽略这封邮件，一切都不会改变。",
+    "subject": "确认你的 {appName} 新登录地址"
   }
 } as const;

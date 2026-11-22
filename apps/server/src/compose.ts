@@ -51,10 +51,12 @@ import {
   filesRepo,
   jobsRepo,
   manifestsRepo,
+  notificationsRepo,
   operatorTalliesRepo,
   pagesRepo,
   publicKeysRepo,
   passwordResetsRepo,
+  emailChangesRepo,
   publicApiStateRepo,
   publicRequestStatsRepo,
   publicChallengesRepo,
@@ -1984,7 +1986,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   });
   // A forms add-on's answers past the time its settings keep them: deleted by the engine, the add-on runs no timer.
   jobs.scheduler.registerSchedule(FORM_ANSWERS_SWEEP_NAME, FORM_ANSWERS_SWEEP_CRON, async () => {
-    const swept = await sweepFormAnswers({ meta, manager, answerFiles: formsFiles.removeAnswerFiles });
+    const swept = await sweepFormAnswers({ meta, manager, answerFiles: formsFiles.removeAnswerFiles, log: app.log });
     if (Object.keys(swept).length > 0) app.log.info({ swept }, 'form answers sweep');
   });
   // An add-on's own rows past the time its table keeps them (`expire`): let go by the engine, their files to the bin,
@@ -4910,6 +4912,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // audit trail of "you were logged out" survives the day it happened.
     const sessions = await sessionsRepo(meta).gc(at);
     const passwordResets = await passwordResetsRepo(meta).gc(at);
+    const emailChanges = await emailChangesRepo(meta).gc(at);
 
     const jobsDays = await settings.get('retention.jobsDays');
     const finishedJobs = await jobsRepo(meta).gc(at, jobsDays);
@@ -4986,11 +4989,21 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     } catch (error) {
       app.log.warn({ err: error }, 'retention sweep: payment event purge failed');
     }
+    // Notifications read longer ago than `retention.notificationsDays`, which
+    // the privacy screen tells people. Unread ones stay: nobody has seen them.
+    let notifications: number | null = null;
+    try {
+      const days = await settings.get('retention.notificationsDays');
+      notifications = await notificationsRepo(meta).gc(at, days);
+    } catch (error) {
+      app.log.warn({ err: error }, 'retention sweep: notification purge failed');
+    }
 
     app.log.info(
       {
         sessions,
         passwordResets,
+        emailChanges,
         jobs: finishedJobs,
         auditEntries,
         removedRows,
@@ -5000,6 +5013,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         publicChallenges,
         publicRequestStats,
         paymentEvents,
+        notifications,
         jobsDays,
         auditLogDays,
         automationRunsDays,

@@ -128,6 +128,8 @@ export interface RecordTabFact {
   match: { table: string; row: string; tableRef: string };
   mode: 'list' | 'form';
   columns: FormColumnFactReply[];
+  /** Date columns shown only as there or not, with the add-on's words for each. */
+  presence?: { column: string; yes: string; yesKey: string; no: string; noKey: string }[];
   edit: string[];
   form: string[];
   add: { fk: string; table: string; key: string; label: string }[];

@@ -79,6 +79,11 @@ export const recordListQuery = z.object({
   lookup: lookupParam,
   agg: aggParam,
   compute: computeParam,
+  /**
+   * Columns answered as `true` or `false` (whether they hold a value) in place
+   * of the value: for a screen that must say only that a date is there.
+   */
+  presentOnly: z.union([z.string().min(1).max(64), z.array(z.string().min(1).max(64)).max(8)]).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
   offset: z.coerce.number().int().min(0).optional(),
   /** Keyset cursor; empty string = first keyset page. */

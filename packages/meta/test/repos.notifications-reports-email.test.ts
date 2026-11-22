@@ -83,6 +83,25 @@ for (const dialect of TEST_DIALECTS) {
       expect(await repo.unreadCount(userId)).toBe(0);
     });
 
+    it('notifications: gc deletes what was read longer ago than the setting, and never an unread one', async () => {
+      const repo = notificationsRepo(meta());
+      const day = 86_400_000;
+      const now = 1_750_000_000_000;
+      const make = (title: string, at: number) => repo.create({ userId, kind: 'report.ready', title }, at);
+
+      const readLongAgo = await make('read long ago', now - 200 * day);
+      await repo.markRead(readLongAgo.id, userId, now - 91 * day);
+      const readLately = await make('old, read lately', now - 200 * day);
+      await repo.markRead(readLately.id, userId, now - 89 * day);
+      const unread = await make('never read', now - 2_000 * day);
+
+      expect(await repo.gc(now, 90)).toBe(1);
+      expect(await repo.findById(readLongAgo.id)).toBeNull();
+      expect(await repo.findById(readLately.id)).not.toBeNull();
+      expect(await repo.findById(unread.id)).not.toBeNull();
+      expect(await repo.gc(now, 90)).toBe(0);
+    });
+
     it('notification prefs: defaults when missing, upsert stores deviations', async () => {
       const repo = notificationPrefsRepo(meta());
       expect(await repo.get(userId, 'report.ready')).toBeNull();

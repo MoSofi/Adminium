@@ -167,10 +167,10 @@ describe('email document routes', () => {
     const res = await app.inject({ method: 'GET', url: '/email-templates?kind=template', headers: as(viewer) });
     expect(res.statusCode).toBe(200);
     const body = res.json() as { items: { key: string; locale: string; isBuiltin: boolean; topicLabel: string }[]; counts: { template: number; campaign: number; archived: number } };
-    // Fifteen built-ins × eight compiled locales (added `document-ready`, then `booking-confirmation`,
+    // Sixteen built-ins × eight compiled locales (added `document-ready`, then `booking-confirmation`,
     // then `sign-in-code` and `email-changed`, then `sign-in-link`, `details-deleted`, then the
-    // two payment emails, then `sign-up-confirm`, then `chat-reply`, then the two account mails).
-    expect(body.counts).toEqual({ template: 120, campaign: 0, archived: 0 });
+    // two payment emails, then `sign-up-confirm`, then `chat-reply`, then the two account mails, then `email-change-confirm`).
+    expect(body.counts).toEqual({ template: 128, campaign: 0, archived: 0 });
     const reset = body.items.filter((i) => i.key === 'password-reset');
     expect(reset).toHaveLength(8);
     expect(reset[0]?.locale).toBe('en_US');

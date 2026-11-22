@@ -332,6 +332,28 @@ describe('removing a person rows still name', () => {
   });
 });
 
+describe('the API keys of a person being stopped', () => {
+  const openOn = async (button: string) => {
+    const cell = await screen.findByText(dana.email);
+    await userEvent.click(within(cell.closest('tr')!).getByRole('button', { name: button }));
+    return within(await screen.findByRole('dialog'));
+  };
+
+  it('says before suspending that their keys are revoked and do not come back', async () => {
+    installFetch();
+    renderTeam();
+    const dialog = await openOn('Suspend');
+    expect(dialog.getByTestId('team-suspend-keys').textContent).toBe('Any API keys Dana Whitlock made are revoked now. Reactivating Dana Whitlock does not bring them back.');
+  });
+
+  it('says before deleting for good that their keys are revoked', async () => {
+    installFetch();
+    renderTeam();
+    const dialog = await openOn('Delete');
+    expect(dialog.getByTestId('team-remove-keys').textContent).toBe('Any API keys Dana Whitlock made are revoked.');
+  });
+});
+
 describe('the named rows, as the dialog lists them', () => {
   it('adds a table\'s columns together, most rows first, and keeps the private ones apart', () => {
     expect(namedRowsByTable({ ...NAMED, named: [...NAMED.named, { ...NAMED.named[1]!, column: 'done_by_id', rows: 5 }] })).toEqual({

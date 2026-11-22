@@ -641,6 +641,10 @@ export default {
       "body": "{name} can no longer sign in, and is signed out everywhere. Their account, roles and history stay, and you can reactivate them.",
       "failed": "The account was not suspended",
       "confirmHand": "Hand over and suspend"
+    },
+    "apiKeys": {
+      "revokedOnSuspend": "Any API keys {name} made are revoked now. Reactivating {name} does not bring them back.",
+      "revokedOnRemove": "Any API keys {name} made are revoked."
     }
   },
   "quietHours": {
@@ -1126,13 +1130,11 @@ export default {
     "on": "Enabled",
     "off": "Off",
     "nameRequired": "Enter your name.",
-    "emailHelper": "Used to sign in. Changing it needs your password.",
     "confirmPassword": "Current password",
     "confirmPasswordHelper": "Confirm it is you before your sign-in address changes.",
     "save": "Save changes",
     "saveFailed": "Could not save your profile",
     "saved": "Profile updated",
-    "savedBody": "Your new details are in use across this server. If you changed your email, sign in with the new address from now on.",
     "accessTitle": "Access",
     "accessSubtitle": "What this account may do, and how it proves who it is.",
     "rolesHelper": "Roles are granted by an administrator and cannot be changed from your own account.",
@@ -1148,6 +1150,21 @@ export default {
       "reset": "Reset to the server default",
       "resetFailed": "Could not reset this preference. Try again.",
       "appliesInstantly": "Changes apply instantly and are saved to your profile."
+    },
+    "emailHelperLink": "Used to sign in. Changing it needs your password and a link sent to the new address.",
+    "savedProfileBody": "Your new details are in use across this server.",
+    "emailPendingTitle": "Check your new address",
+    "emailPendingBody": "We sent a link to {email}. Until you open it, keep signing in with {current}.",
+    "confirmEmail": {
+      "action": "Confirm address",
+      "back": "Back to your account",
+      "body": "This makes the address in your email your sign-in address for this account.",
+      "doneBody": "Sign in with your new address from now on.",
+      "doneTitle": "Address changed",
+      "failedBody": "It may have expired, been replaced by a newer one, or belong to another account. You can ask for a new one on your account page.",
+      "failedTitle": "This link doesn’t work",
+      "takenBody": "That address now belongs to another account. Choose a different one on your account page.",
+      "title": "Confirm your new address"
     }
   },
   "templates": {

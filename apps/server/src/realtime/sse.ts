@@ -8,7 +8,8 @@
  *   data: {"channel":…,"type":…,"data":…,"ts":…}
  *
  * with an initial `retry:` hint and `: keep-alive` comments every 25 s.
- * `?topics=` is accepted as an alias (sketch uses "topics").
+ * `?topics=` is accepted as an alias (sketch uses "topics"). A stream lasts
+ * only as long as its account, as a socket does (`realtime/ws.ts`).
  *
  * Register inside the `/api/v1` prefix scope — `registerJobsAndRealtime`
  * (jobs/register.ts) does.
@@ -20,7 +21,7 @@ import { z } from 'zod';
 import { ForbiddenError, UnauthorizedError, ValidationFailedError } from '../errors.js';
 import { authorizeChannel } from './hub.js';
 import type { RealtimeGatewayDeps } from './ws.js';
-import { orderedSink } from './read-frames.js';
+import { orderedSink, whileActive } from './read-frames.js';
 
 /** Keep-alive comment interval. */
 export const SSE_KEEPALIVE_MS = 25_000;
@@ -94,32 +95,40 @@ export function registerSseRoute(
       });
       res.write(`retry: ${SSE_RETRY_MS}\n\n`);
 
-      // As this subscriber reads each channel's table: the columns their role does not show taken out.
-      const frames = await Promise.all(channels.map(async (channel) => (await deps.frameFor?.(user, channel)) ?? null));
-      const unsubscribes = channels.map((channel, i) =>
-        deps.hub.subscribe(
-          channel,
-          orderedSink(frames[i] ?? null, (shown) => {
-            res.write(`event: ${shown.type}\ndata: ${JSON.stringify(shown)}\n\n`);
-          }),
-        ),
-      );
-
-      const keepAlive = setInterval(() => {
-        res.write(`: keep-alive ${new Date().toISOString()}\n\n`);
-      }, keepAliveMs);
-      keepAlive.unref?.();
-
+      // Held from before the first await below: an account stopped meanwhile finds this stream to close.
       let closed = false;
+      let unsubscribes: (() => void)[] = [];
+      let keepAlive: ReturnType<typeof setInterval> | undefined;
       const close = (): void => {
         if (closed) return;
         closed = true;
         clearInterval(keepAlive);
+        release();
         for (const unsubscribe of unsubscribes) unsubscribe();
         res.end();
       };
+      const release = deps.hub.holdConnection(user.id, close);
       request.raw.on('close', close);
       res.on('close', close);
+      const stillActive = deps.isActive === undefined ? null : () => deps.isActive!(user);
+
+      // As this subscriber reads each channel's table: the columns their role does not show taken out.
+      const frames = await Promise.all(channels.map(async (channel) => (await deps.frameFor?.(user, channel)) ?? null));
+      if (closed) return;
+      unsubscribes = channels.map((channel, i) =>
+        deps.hub.subscribe(
+          channel,
+          orderedSink(whileActive(stillActive, frames[i] ?? null, close), (shown) => {
+            // A frame still being judged when the stream ended has nowhere to go.
+            if (!closed) res.write(`event: ${shown.type}\ndata: ${JSON.stringify(shown)}\n\n`);
+          }),
+        ),
+      );
+
+      keepAlive = setInterval(() => {
+        res.write(`: keep-alive ${new Date().toISOString()}\n\n`);
+      }, keepAliveMs);
+      keepAlive.unref?.();
     },
   );
 }

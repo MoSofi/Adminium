@@ -155,6 +155,17 @@ function scrubCalendarFeedPath(segments: readonly string[]): string | null {
 }
 
 /**
+ * A password or invitation link (`/reset/<token>`) with its token replaced, or
+ * null when the path is not one. Until it is used, that token sets the
+ * account's password for whoever reads it in a log.
+ */
+function scrubResetPath(segments: readonly string[]): string | null {
+  if (segmentName(segments[1] ?? '') !== 'reset') return null;
+  if (segments.slice(2).join('/') === '') return null;
+  return `${segments.slice(0, 2).join('/')}/${REDACTED}`;
+}
+
+/**
  * A pay path with its token replaced, or null when it holds none: a pay link's
  * token, the nonce of a way back from a provider, a demo checkout's attempt.
  * Anyone who reads a log line with a live token holds a working pay link, so
@@ -217,8 +228,8 @@ function scrubSessionCodePath(segments: readonly string[]): string | null {
 
 /**
  * The path with a door's token replaced by {@link REDACTED}: a mail link's, a
- * calendar feed's, a pay link's (or a way back's nonce), a notice address's, or a
- * signed-in door's one-use code.
+ * calendar feed's, a password or invitation link's, a pay link's (or a way
+ * back's nonce), a notice address's, or a signed-in door's one-use code.
  *
  * Compared segment by segment, decoded, because the router also accepts
  * `/p%61y/…` and `/m/%6F/…`. What is kept is kept as it was sent.
@@ -230,6 +241,7 @@ export function scrubPathForLog(path: string): string {
   const scrubbed =
     scrubMailPath(segments) ??
     scrubCalendarFeedPath(segments) ??
+    scrubResetPath(segments) ??
     scrubPayPath(segments) ??
     scrubNoticePath(segments) ??
     scrubSessionCodePath(segments);

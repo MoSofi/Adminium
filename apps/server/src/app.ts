@@ -42,7 +42,7 @@ import { isPrivilegeRefusal, privilegeRefusal, readRefusal } from './connections
 import { scrubUrlForLog } from './log-scrub.js';
 import { refuseNulInRequest } from './security/nul-bytes.js';
 import { dsnCryptoFromSecret } from './connections/crypto.js';
-import { authPlugin, type PasswordResetDelivery } from './plugins/auth.js';
+import { authPlugin, type EmailChangeDelivery, type PasswordResetDelivery } from './plugins/auth.js';
 import { corePlugin } from './plugins/core.js';
 import { publicOriginPlugin } from './plugins/public-origin.js';
 import { staticPlugin } from './plugins/static.js';
@@ -292,6 +292,8 @@ export interface BuildServerOptions {
   metaDb?: MetaDb | undefined;
   /** Delivery hook for password-reset tokens (email transport lands later). */
   onPasswordResetToken?: ((delivery: PasswordResetDelivery) => void) | undefined;
+  /** Test/embedder seam: the link token of a new sign-in address. A shipped instance mails it. */
+  onEmailChangeToken?: ((delivery: EmailChangeDelivery) => void) | undefined;
   /**
    * Collect an OpenAPI 3.1 document for `app.swagger()` (`scripts/openapi.mjs`).
    *
@@ -632,6 +634,7 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     env,
     metaDb: opts.metaDb ?? null,
     deliverResetToken: opts.onPasswordResetToken,
+    deliverEmailChangeToken: opts.onEmailChangeToken,
   });
   // The assistant's way to this server's own routes, as the signed-in person. After auth (its
   // hook reads who is asking) and before any route scope, so it reaches every route.

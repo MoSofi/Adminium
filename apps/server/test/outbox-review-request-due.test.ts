@@ -247,6 +247,29 @@ for (const [dialect, reachable] of LEGS) {
       expect(await statuses(visit)).toEqual({ 'review-request': 'skipped:overtaken', 'review-reminder': 'sent' });
     });
 
+    it('drops what comes due while the studio has reviews off, and sends none of it when they are back on', async () => {
+      const visit = await visitOn('2026-09-16T21:00:00.000Z');
+      await update('visits', visit['id'], { state: 'done' });
+      expect((await mails(visit)).map((row) => row.status)).toEqual(['queued', 'queued']);
+      await h.rows(`UPDATE ${h.real('settings')} SET reviews_on = ${dialect === 'postgres' ? 'false' : '0'}`);
+      await run('2026-09-22T17:00:00Z');
+      expect(await statuses(visit)).toEqual({ 'review-request': 'skipped:no-longer-needed', 'review-reminder': 'skipped:no-longer-needed' });
+      await h.rows(`UPDATE ${h.real('settings')} SET reviews_on = ${dialect === 'postgres' ? 'true' : '1'}`);
+      expect(await run('2026-09-23T17:00:00Z')).toBe(0);
+      expect(await statuses(visit)).toEqual({ 'review-request': 'skipped:no-longer-needed', 'review-reminder': 'skipped:no-longer-needed' });
+    });
+
+    it('keeps a mail not yet due when reviews go off and come back before its moment', async () => {
+      const visit = await visitOn('2026-09-16T21:00:00.000Z');
+      await update('visits', visit['id'], { state: 'done' });
+      await h.rows(`UPDATE ${h.real('settings')} SET reviews_on = ${dialect === 'postgres' ? 'false' : '0'}`);
+      await run('2026-09-17T17:00:00Z');
+      expect(await statuses(visit)).toEqual({ 'review-request': 'skipped:no-longer-needed', 'review-reminder': 'queued' });
+      await h.rows(`UPDATE ${h.real('settings')} SET reviews_on = ${dialect === 'postgres' ? 'true' : '1'}`);
+      expect(await run('2026-09-21T17:00:00Z')).toBe(1);
+      expect(await statuses(visit)).toEqual({ 'review-request': 'skipped:no-longer-needed', 'review-reminder': 'sent' });
+    });
+
     it('queues neither while the studio has reviews switched off', async () => {
       await h.rows(`UPDATE ${h.real('settings')} SET reviews_on = ${dialect === 'postgres' ? 'false' : '0'}`);
       const visit = await visitOn('2026-09-16T21:00:00.000Z');

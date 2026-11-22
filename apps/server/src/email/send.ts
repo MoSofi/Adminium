@@ -204,6 +204,8 @@ export const BOOKING_CONFIRMATION_TEMPLATE_KEY = 'booking-confirmation';
 /** The code that raises a found session to verified, and the notice an address change sends the old one. */
 export const SIGN_IN_CODE_TEMPLATE_KEY = 'sign-in-code';
 export const EMAIL_CHANGED_TEMPLATE_KEY = 'email-changed';
+/** The link that confirms a staff account's new sign-in address, sent to that address (`routes/me`). */
+export const EMAIL_CHANGE_CONFIRM_TEMPLATE_KEY = 'email-change-confirm';
 /** A client's one-use sign-in link to an app's guest side (`public-api/sign-in-link.ts`). */
 export const SIGN_IN_LINK_TEMPLATE_KEY = 'sign-in-link';
 /** The last email to a guest who deleted their details (`DELETE /public/account`). */
@@ -231,6 +233,7 @@ export const SYSTEM_MAIL_TEMPLATE_KEYS: ReadonlySet<string> = new Set([
   USER_INVITE_TEMPLATE_KEY,
   SIGN_IN_CODE_TEMPLATE_KEY,
   EMAIL_CHANGED_TEMPLATE_KEY,
+  EMAIL_CHANGE_CONFIRM_TEMPLATE_KEY,
 ]);
 
 /**

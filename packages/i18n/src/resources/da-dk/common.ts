@@ -425,13 +425,11 @@ export default {
     "on": "Slået til",
     "off": "Slået fra",
     "nameRequired": "Angiv dit navn.",
-    "emailHelper": "Bruges til at logge ind. Ændring kræver din adgangskode.",
     "confirmPassword": "Nuværende adgangskode",
     "confirmPasswordHelper": "Bekræft, at det er dig, før din login-adresse ændres.",
     "save": "Gem ændringer",
     "saveFailed": "Din profil kunne ikke gemmes",
     "saved": "Profil opdateret",
-    "savedBody": "Dine nye oplysninger gælder på hele serveren. Hvis du har ændret din e-mail, skal du fremover logge ind med den nye adresse.",
     "accessTitle": "Adgang",
     "accessSubtitle": "Hvad denne konto må, og hvordan den beviser, hvem den er.",
     "rolesHelper": "Roller tildeles af en administrator og kan ikke ændres fra din egen konto.",
@@ -447,6 +445,21 @@ export default {
       "reset": "Nulstil til serverens standard",
       "resetFailed": "Denne præference kunne ikke nulstilles. Prøv igen.",
       "appliesInstantly": "Ændringer træder i kraft med det samme og gemmes i din profil."
+    },
+    "emailHelperLink": "Bruges til at logge ind. For at ændre den skal du bruge din adgangskode og et link, der sendes til den nye adresse.",
+    "savedProfileBody": "Dine nye oplysninger bruges nu på denne server.",
+    "emailPendingTitle": "Tjek din nye adresse",
+    "emailPendingBody": "Vi har sendt et link til {email}. Indtil du åbner det, skal du fortsat logge ind med {current}.",
+    "confirmEmail": {
+      "action": "Bekræft adresse",
+      "back": "Tilbage til din konto",
+      "body": "Adressen fra din e-mail bliver login-adresse for denne konto.",
+      "doneBody": "Log ind med din nye adresse fra nu af.",
+      "doneTitle": "Adressen er ændret",
+      "failedBody": "Det er måske udløbet, erstattet af et nyere eller hører til en anden konto. Du kan bede om et nyt på din kontoside.",
+      "failedTitle": "Dette link virker ikke",
+      "takenBody": "Den adresse hører nu til en anden konto. Vælg en anden på din kontoside.",
+      "title": "Bekræft din nye adresse"
     }
   },
   "settings": {
@@ -1932,6 +1945,10 @@ export default {
       "body": "{name} kan ikke længere logge ind og bliver logget ud overalt. Konto, roller og historik bevares, og du kan genaktivere dem.",
       "failed": "Kontoen blev ikke suspenderet",
       "confirmHand": "Overdrag og suspendér"
+    },
+    "apiKeys": {
+      "revokedOnSuspend": "Alle API-nøgler, som {name} har oprettet, tilbagekaldes nu. Genaktivering af {name} bringer dem ikke tilbage.",
+      "revokedOnRemove": "Alle API-nøgler, som {name} har oprettet, tilbagekaldes."
     }
   },
   "invoices": {
