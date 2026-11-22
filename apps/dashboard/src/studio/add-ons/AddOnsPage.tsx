@@ -102,6 +102,7 @@ import {
   type UpdatePlan,
   type StagedPackage,
 } from './addOnsApi.js';
+import { AccountsLine } from './AccountsLine.js';
 
 /** What a pending confirm is about; each has its own words. */
 type Pending =
@@ -1212,7 +1213,7 @@ export function AddOnsPage() {
                         {t('studio:addOns.installed.missing', 'Missing')}
                       </Badge>
                     )}
-                    {addOn.connectKind !== 'none' && !isSourcesAddOn(addOn) && (
+                    {addOn.connectKind !== 'none' && !isSourcesAddOn(addOn) && addOn.connectAccounts !== true && (
                       <Badge tone={addOn.connected ? 'pos' : 'warn'}>
                         {addOn.connected
                           ? t('studio:addOns.installed.connected', 'Connected')
@@ -1294,6 +1295,8 @@ export function AddOnsPage() {
                     </p>
                   )}
 
+                  {addOn.connectAccounts === true && <AccountsLine addOn={addOn} />}
+
                   {!addOn.connected && !isPaymentAddOn(addOn) && !isSourcesAddOn(addOn) && (
                     <ConnectForm
                       addOn={addOn}
@@ -1316,7 +1319,7 @@ export function AddOnsPage() {
                   <SampleDataCard appKey={addOn.key} kind="add-on" connectionName={null} />
 
                   <div className="flex gap-2">
-                    {addOn.connected && !isSourcesAddOn(addOn) && (
+                    {addOn.connected && !isSourcesAddOn(addOn) && addOn.connectAccounts !== true && (
                       <Button
                         size="sm"
                         variant="ghost"

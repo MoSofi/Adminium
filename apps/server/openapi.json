@@ -123425,6 +123425,22 @@
                     "accounts": {
                       "type": "number"
                     },
+                    "counts": {
+                      "type": "object",
+                      "properties": {
+                        "connected": {
+                          "type": "number"
+                        },
+                        "reconnect": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "connected",
+                        "reconnect"
+                      ],
+                      "additionalProperties": false
+                    },
                     "secretEndsOn": {
                       "type": [
                         "string",
@@ -123443,6 +123459,7 @@
                     "reach",
                     "install",
                     "accounts",
+                    "counts",
                     "secretEndsOn"
                   ],
                   "additionalProperties": false
@@ -160718,6 +160735,9 @@
                             "oauth2"
                           ]
                         },
+                        "connectAccounts": {
+                          "type": "boolean"
+                        },
                         "connected": {
                           "type": "boolean"
                         },
@@ -161615,6 +161635,9 @@
                             "oauth2"
                           ]
                         },
+                        "connectAccounts": {
+                          "type": "boolean"
+                        },
                         "connected": {
                           "type": "boolean"
                         },
@@ -162096,6 +162119,9 @@
                               "oauth2"
                             ]
                           },
+                          "connectAccounts": {
+                            "type": "boolean"
+                          },
                           "connected": {
                             "type": "boolean"
                           },
@@ -162566,6 +162592,9 @@
                             "api-key",
                             "oauth2"
                           ]
+                        },
+                        "connectAccounts": {
+                          "type": "boolean"
                         },
                         "connected": {
                           "type": "boolean"
@@ -163959,6 +163988,9 @@
                             "oauth2"
                           ]
                         },
+                        "connectAccounts": {
+                          "type": "boolean"
+                        },
                         "connected": {
                           "type": "boolean"
                         },
@@ -164649,6 +164681,9 @@
                             "oauth2"
                           ]
                         },
+                        "connectAccounts": {
+                          "type": "boolean"
+                        },
                         "connected": {
                           "type": "boolean"
                         },
@@ -165227,6 +165262,9 @@
                             "oauth2"
                           ]
                         },
+                        "connectAccounts": {
+                          "type": "boolean"
+                        },
                         "connected": {
                           "type": "boolean"
                         },
@@ -165689,6 +165727,9 @@
                             "api-key",
                             "oauth2"
                           ]
+                        },
+                        "connectAccounts": {
+                          "type": "boolean"
                         },
                         "connected": {
                           "type": "boolean"

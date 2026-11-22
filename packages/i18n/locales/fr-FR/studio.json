@@ -111,7 +111,11 @@
       "paymentsWho": "Une personne ayant l’autorisation « Configurer les paiements » le configure dans Paiements.",
       "sourcesWhere": "Configurez ses sources sur son écran « Sources ».",
       "sourceEgress": "{source} peut contacter : {hosts}",
-      "sourceWebsite": "{source} : Adminium lit lui-même le site de chaque entreprise"
+      "sourceWebsite": "{source} : Adminium lit lui-même le site de chaque entreprise",
+      "accountsNotSetUp": "Non configuré",
+      "accountsCount": "{connected} connecté(s)",
+      "accountsBoth": "{connected} connecté(s) · {reconnect} à reconnecter",
+      "accountsOpen": "Ouvrir"
     },
     "job": {
       "body": "Récupération et vérification. Rien n’est installé sans votre accord.",

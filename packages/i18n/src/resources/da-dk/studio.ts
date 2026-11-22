@@ -121,7 +121,11 @@ export default {
       "paymentsWho": "En med tilladelsen »Opsæt betalinger« sætter det op under Betalinger.",
       "sourcesWhere": "Opsæt dens kilder på dens egen skærm Kilder.",
       "sourceEgress": "{source} må kontakte: {hosts}",
-      "sourceWebsite": "{source}: Adminium læser selv hver virksomheds hjemmeside"
+      "sourceWebsite": "{source}: Adminium læser selv hver virksomheds hjemmeside",
+      "accountsNotSetUp": "Ikke sat op",
+      "accountsCount": "{connected} forbundet",
+      "accountsBoth": "{connected} forbundet · {reconnect} skal forbindes igen",
+      "accountsOpen": "Åbn"
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",

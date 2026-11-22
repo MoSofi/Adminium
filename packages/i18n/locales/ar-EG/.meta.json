@@ -25119,6 +25119,22 @@
     "status": "mt",
     "srcHash": "2525de5bdfd5"
   },
+  "studio.addOns.installed.accountsBoth": {
+    "status": "mt",
+    "srcHash": "866ca876c0d5"
+  },
+  "studio.addOns.installed.accountsCount": {
+    "status": "mt",
+    "srcHash": "bc519adde40a"
+  },
+  "studio.addOns.installed.accountsNotSetUp": {
+    "status": "mt",
+    "srcHash": "be8f2e94e7b3"
+  },
+  "studio.addOns.installed.accountsOpen": {
+    "status": "mt",
+    "srcHash": "cf9b77061f7b"
+  },
   "studio.addOns.installed.connected": {
     "status": "src",
     "srcHash": "c2f9b7b4897f"

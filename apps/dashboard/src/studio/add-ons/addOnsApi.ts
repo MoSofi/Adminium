@@ -62,6 +62,8 @@ export interface AddOnDto {
   /** This copy's database by name; null for a copy kept once per server. Absent from an older server. */
   connectionName?: string | null;
   connectKind: ConnectKind;
+  /** Each person connects their own account through one saved app. */
+  connectAccounts?: boolean;
   /** Whether a credential is stored. Never the credential. */
   connected: boolean;
   /**

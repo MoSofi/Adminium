@@ -121,7 +121,11 @@ export default {
       "paymentsWho": "Someone with the “Set up payments” permission sets this up in Payments.",
       "sourcesWhere": "Set up its sources on its own Sources screen.",
       "sourceEgress": "{source} may contact: {hosts}",
-      "sourceWebsite": "{source}: Adminium reads each company’s own website itself"
+      "sourceWebsite": "{source}: Adminium reads each company’s own website itself",
+      "accountsNotSetUp": "Not set up",
+      "accountsCount": "{connected} connected",
+      "accountsBoth": "{connected} connected · {reconnect} to reconnect",
+      "accountsOpen": "Open"
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",

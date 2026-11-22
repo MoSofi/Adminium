@@ -121,7 +121,11 @@ export default {
       "paymentsWho": "Nastaví ho v Platbách někdo s oprávněním „Nastavit platby“.",
       "sourcesWhere": "Zdroje nastavte na jeho obrazovce Zdroje.",
       "sourceEgress": "{source} smí kontaktovat: {hosts}",
-      "sourceWebsite": "{source}: Adminium čte web každé firmy samo"
+      "sourceWebsite": "{source}: Adminium čte web každé firmy samo",
+      "accountsNotSetUp": "Nenastaveno",
+      "accountsCount": "Připojeno: {connected}",
+      "accountsBoth": "Připojeno: {connected} · znovu připojit: {reconnect}",
+      "accountsOpen": "Otevřít"
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",

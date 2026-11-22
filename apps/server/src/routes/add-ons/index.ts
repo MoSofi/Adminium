@@ -753,6 +753,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       ...copy,
       connectionName,
       connectKind: block.connect.kind,
+      connectAccounts: block.connect.accounts !== undefined,
       connected: credential !== null,
       // The one disk read in this DTO. Without it the list is a pure meta read
       // and cannot tell a running add-on from one a redeploy erased.

@@ -111,7 +111,11 @@
       "paymentsWho": "يُعدّه في المدفوعات من لديه إذن «إعداد المدفوعات».",
       "sourcesWhere": "اضبط مصادرها في شاشة المصادر الخاصة بها.",
       "sourceEgress": "يمكن لـ {source} الاتصال بـ: {hosts}",
-      "sourceWebsite": "{source}: يقرأ Adminium موقع كل شركة بنفسه"
+      "sourceWebsite": "{source}: يقرأ Adminium موقع كل شركة بنفسه",
+      "accountsNotSetUp": "غير مُعد",
+      "accountsCount": "متصل: {connected}",
+      "accountsBoth": "متصل: {connected} · بحاجة لإعادة الربط: {reconnect}",
+      "accountsOpen": "فتح"
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",

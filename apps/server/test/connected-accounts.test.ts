@@ -929,6 +929,15 @@ for (const [dialect, reachable] of LEGS) {
       expect((await staff('admin', 'GET', `/add-ons/${KEY}/connect/accounts`)).json()).toMatchObject({ clientId: 'client-1', install: 'ready' });
     });
 
+    it('counts who is connected and who must reconnect, for the add-ons list', async () => {
+      const held = await repo().forInstall(installId);
+      const live = held.filter((one) => one.state !== 'disconnecting');
+      const owed = live.filter((one) => !one.hasTokens || one.state === 'reconnect' || one.state === 'partial').length;
+      const reply = (await staff('admin', 'GET', `/add-ons/${KEY}/connect/accounts`)).json() as { accounts: number; counts: { connected: number; reconnect: number } };
+      expect(reply.accounts).toBe(live.length);
+      expect(reply.counts).toEqual({ connected: live.length - owed, reconnect: owed });
+    });
+
     it('remembers the calendar a person left, across a re-save, and hands it back once', async () => {
       const running = engine();
       await running.rememberCalendar(installId, 'sub-left', 'calendar-left');

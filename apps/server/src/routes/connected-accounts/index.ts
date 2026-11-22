@@ -105,6 +105,8 @@ const installReply = z.object({
   /** `secret-refused`: the provider refused the app. `cannot-read-keys`: sealed under another server secret. */
   install: z.enum(['ready', 'not-set-up', 'secret-refused', 'cannot-read-keys']),
   accounts: z.number(),
+  /** A studio-wide refusal counts as connected: nobody has to reconnect for it. */
+  counts: z.object({ connected: z.number(), reconnect: z.number() }),
   secretEndsOn: z.string().nullable(),
 });
 
@@ -315,6 +317,8 @@ export function connectedAccountRoutes(deps: ConnectedAccountRoutesDeps): Fastif
         }
         const refused = await accounts.repo.refusedOf(installed.row.id);
         const redirectUri = await accounts.redirectUri(spec.key);
+        const held = (await accounts.repo.forInstall(installed.row.id)).filter((account) => account.state !== 'disconnecting');
+        const toReconnect = held.filter((account) => refused === null && (!account.hasTokens || account.state === 'reconnect' || account.state === 'partial')).length;
         return {
           key: spec.key,
           per: spec.per,
@@ -325,7 +329,8 @@ export function connectedAccountRoutes(deps: ConnectedAccountRoutesDeps): Fastif
           redirectMoved: registration?.redirectOrigin != null && redirectUri !== null && !redirectUri.startsWith(`${registration.redirectOrigin}/`),
           reach: await accounts.reachNow(forwardedOf(request)),
           install: status === null ? ('not-set-up' as const) : !keys ? ('cannot-read-keys' as const) : refused !== null ? ('secret-refused' as const) : ('ready' as const),
-          accounts: (await accounts.repo.forInstall(installed.row.id)).length,
+          accounts: held.length,
+          counts: { connected: held.length - toReconnect, reconnect: toReconnect },
           secretEndsOn: registration?.secretEndsOn ?? null,
         };
       },
