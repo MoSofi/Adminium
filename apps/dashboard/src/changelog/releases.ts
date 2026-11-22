@@ -68,7 +68,7 @@ export type Release = z.infer<typeof releaseSchema>;
 const RAW: unknown = [
   {
     version: '0.3.71',
-    date: '2026-11-22',
+    date: '2026-11-23',
     title: 'Online bookings, calendars and access rules',
     summary:
       'Adminium can now run a bookings business: staff calendars that sync, buffers and time off, invitations that update themselves, and customer pages that sit inside your own website. It also sets who can hand out keys, roles and links, so please read the notice above first.',

@@ -1,5 +1,20 @@
 # @adminium/meta
 
+## 0.3.71
+
+### Patch Changes
+
+- 0c2f868: A booking's mail can carry a real calendar invitation that updates and cancels in place, and each person can have a private calendar feed they can renew. A review mail can carry a link that reviews one visit and nothing else, a service mail sent for a purpose carries a working stop link, and a public box can record a person's "no". A studio's own cancel can refund by itself, whoever pressed it, and a review can be hidden because its author asked.
+- f76920f: A booking rule can now keep a buffer after each visit, block the times a person is away (time off, or a calendar table only Adminium writes), share "anyone" evenly and flag who it picked, cap a person's hours by the studio's, and hold only guests to the booking window. A strip of days reads its days once, and names the window's last day. Hours a booking rule reads must be a time of day. A guest may not change who they see inside the cancellation window. A dashboard can ask how booked each person is (`booking-occupancy`).
+- ee77eef: A booking rule can name states a row is placed from: a time offered to someone on a waiting list holds nothing, and is judged as a new booking when it is taken.
+- c053149: A booking rule can sync each person's calendar (`booking.sync`): bookings go out to their own calendar and their busy times block new ones, by push or a regular read. A new `calendar-provider` contract, a built-in demo calendar and a conformance kit carry it. The desk reads a person's calendar state, busy times and clashes, and can keep a clash. A dashboard card can read a table of an add-on the app names, and count calendar connections (`calendar-connections`).
+- ad4c4fc: An add-on can now connect a person's own outside account, such as a calendar: through a short link or the desk, with tokens sealed on the server, one refresh at a time, and a clear state when the account needs connecting again.
+- bc5b266: An add-on can now show a signed-in customer the rows it holds for them (`heldBy`), let them spend one without its code reaching the browser (`held:<key>`), and run an outside script in a sandboxed page of its own (`addOn.framedPage`).
+- 13117ab: An invitation link works only while the account is still invited, a new invitation retires the person's earlier links, a new password-reset link retires earlier reset links, and using any link retires the rest. Password and invitation links stay out of the request log. Another person's export opens only for someone who holds `exports.manage` and can read its whole table. Notifications are deleted once they have been read for longer than `retention.notificationsDays` (90 days by default); unread ones are kept.
+- 16bd520: Row limits an owner sets stay in place through app updates, restarts, table renames, config imports and later edits. Taking an owner's limit off returns the role to the limit its app declares, straight away. Limits stored before this release are sorted at start, one install at a time, and an install that cannot be read yet keeps its limits and is tried again at the next start.
+- be784da: Suspending or deleting someone also ends their unused password-reset links and the invitations they sent that nobody has accepted yet. A person still waiting on one of those invitations needs a new one.
+- ad4c4fc: An app's customer pages can now run inside a frame on the websites its owner lists, with a button or a sheet, a snippet maker in the studio, and a payment that returns to the page it started from.
+
 ## 0.3.70
 
 ## 0.3.69

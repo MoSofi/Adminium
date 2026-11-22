@@ -1,5 +1,13 @@
 # @adminium/i18n
 
+## 0.3.71
+
+### Patch Changes
+
+- 1c983d2: A person can now connect their calendar from a link, on a page that needs no account and says what happened at every step. A calendar add-on's page can list who is connected, check that a business's client ID and secret are accepted, and warn 30 days before the secret ends. On Studio's Add-ons page, a calendar add-on now shows how many people are connected or need to reconnect, with an Open button in place of Disconnect.
+- ad4c4fc: An add-on can now connect a person's own outside account, such as a calendar: through a short link or the desk, with tokens sealed on the server, one refresh at a time, and a clear state when the account needs connecting again.
+- ad4c4fc: An app's customer pages can now run inside a frame on the websites its owner lists, with a button or a sheet, a snippet maker in the studio, and a payment that returns to the page it started from.
+
 ## 0.3.70
 
 ## 0.3.69
