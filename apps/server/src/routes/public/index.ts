@@ -3134,6 +3134,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
 
       // Charged only for a save that gets this far; handed back only when the guest's own value was refused.
       let release: (() => Promise<void>) | null = null;
+      let releaseAllButVisitor: (() => Promise<void>) | null = null;
       if (!dry && retryKey !== null) {
         const before = await replay(found.db);
         if (before !== null) {
@@ -3283,6 +3284,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const charge = await chargeAnonymous(challenges, { caps, key: capSecret, keyId: ok.key.keyId, connectionId: ok.key.connectionId, table: found.table.id, ref, values, now: Date.now(), ip: request.ip });
         if (!charge.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be made online have been made. Please get in touch instead.');
         release = charge.release;
+        releaseAllButVisitor = charge.releaseAllButVisitor ?? charge.release;
       }
       /** The person found or made by the address typed (never for a quote, never for a guest signed in), then the buyer's other holds let go. */
       const finds = !dry && finder !== null && people !== null && !signedInPerson;
@@ -3426,6 +3428,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         // A guest's own value refused: nothing ran that a bad value could have bought, so the charge is handed back.
         const own = error instanceof PublicWriteRefused && typeof error.params?.['reason'] === 'string' && error.params['column'] !== undefined && TREE_NAMED.has(error.params['reason']) && error.params['reason'] !== 'used-up';
         if (own) await release?.();
+        // A time someone else holds made nothing: only the visitor's own hour stays counted, so one visitor cannot knock on it uncounted.
+        else if (error instanceof PublicSlotRefused) await (error.code === 'PUBLIC_SLOT_BUSY' ? release : releaseAllButVisitor)?.();
         if (error instanceof PublicPriceChanged) return fail(reply, 409, 'PUBLIC_PRICE_CHANGED', error.message, error.params);
         if (error instanceof PublicWriteRefused) {
           logRefused(request, ref, error, [table, ...[...lists.values()].flatMap((child) => [child.table, ...Object.values(child.children ?? {}).map((grandchild) => grandchild.table)]).flatMap((name) => tableOf(name) ?? [])]);

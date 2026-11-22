@@ -221,6 +221,9 @@ async function serving(dialect: Dialect, opts: { textKey?: boolean } = {}) {
     customers: { ...base, source: idOf('customers'), methods: ['GET'], select: ['id', 'name'], auth: { role: 'authenticated' }, identity: { strategy: 'lookup', match: ['mobile'], column: 'id' } },
     my_bookings: { ...base, source: bookings, methods: ['GET', 'PATCH'], select: ['id', 'starts_at', 'state'], writable: ['starts_at', 'team_id', 'state'], auth: { role: 'authenticated' }, claim: { column: 'customer_id' } },
     free_times: { ...base, source: bookings, methods: ['GET'], select: ['id'], auth: { role: 'anon' }, kind: 'availability' },
+    capped_bookings: { ...base, source: bookings, methods: ['POST'], select: ['id', 'starts_at'], writable: ['team_id', 'service_id', 'starts_at'], auth: { role: 'anon' }, dry_run: true, anonymous: { per_value: { columns: ['team_id'], n: 2 } } },
+    shown_team: { ...base, source: idOf('team'), methods: ['GET'], select: ['id', 'name'], auth: { role: 'anon' } },
+    shown_services: { ...base, source: idOf('services'), methods: ['GET'], select: ['id', 'name'], auth: { role: 'anon' } },
   };
   for (const [ref, definition] of Object.entries(endpoints)) {
     await service.saveEndpoint({ connectionId: connection.id, ref, definition: { path: `/${ref}`, ...definition } as PublicEndpointDefinition, origin: 'custom', managedBy: 'studio' });
@@ -234,6 +237,9 @@ async function serving(dialect: Dialect, opts: { textKey?: boolean } = {}) {
       { ref: 'customers', methods: ['GET'] },
       { ref: 'my_bookings', methods: ['GET', 'PATCH'] },
       { ref: 'free_times', methods: ['GET'] },
+      { ref: 'capped_bookings', methods: ['POST'] },
+      { ref: 'shown_team', methods: ['GET'] },
+      { ref: 'shown_services', methods: ['GET'] },
     ],
     secret: { prefix: generated.prefix, tokenHash: generated.tokenHash, tokenEncrypted: sealPublishableKey(dsnCryptoFromSecret(TEST_SECRET), generated.token) },
     origins: [],
@@ -286,6 +292,7 @@ async function serving(dialect: Dialect, opts: { textKey?: boolean } = {}) {
       app.inject(who === 'guest' ? { method: 'GET', url: `/api/v1/public/availability/free_times?${query}`, headers: guest() } : { method: 'GET', url: `/api/v1/data/${connection.id}/${bookings}/booking-slots?${query}`, headers: desk }),
     staffStrip: (query: string) => staffFree(query),
     guestBook: (values: Record<string, unknown>) => app.inject({ method: 'POST', url: '/api/v1/public/records/bookings', headers: guest(), payload: { values } }),
+    cappedBook: (values: Record<string, unknown>) => app.inject({ method: 'POST', url: '/api/v1/public/records/capped_bookings', headers: guest(), payload: { values } }),
     book: (values: Record<string, unknown>) => app.inject({ method: 'POST', url: `/api/v1/data/${connection.id}/${bookings}`, headers: desk, payload: { values } }),
     change: (id: unknown, values: Record<string, unknown>) => app.inject({ method: 'PATCH', url: `/api/v1/data/${connection.id}/${bookings}/${String(id)}`, headers: desk, payload: { values } }),
     write: (table: string, method: 'POST' | 'PATCH' | 'DELETE', id: unknown, values?: Record<string, unknown>) =>
@@ -600,7 +607,7 @@ for (const [dialect, available] of legs) {
       expect(yes((await p.row(id))['picked_by_anyone'])).toBe(true);
 
       // Elin is taken at 11:00, so the move goes to the next person.
-      await p.seed(ELIN, GEL, WED, '11:00');
+      await p.seed(ELIN, FACIAL, WED, '11:00');
       expect((await p.change(id, { starts_at: at(WED, '11:00'), team_id: null })).statusCode).toBe(200);
       expect(Number((await p.row(id))['team_id'])).toBe(RAFA);
       expect(yes((await p.row(id))['picked_by_anyone'])).toBe(true);
@@ -836,5 +843,19 @@ describe('a day far outside any calendar', () => {
     const input = { kind: FACIAL, resource: 'any', isPublic: true, excludePk: null, now: new Date() };
     const far = await bookingDays(rule, target, '2050-01-03', 1, 60, input);
     expect(far[0]!.open).toBe(0);
+  });
+});
+
+describe('a create with rows below it, refused for its time', () => {
+  it('leaves the per-address cap as it was', async () => {
+    const p = await serving('sqlite');
+    await p.seed(ELIN, FACIAL, WED, '11:00');
+    for (let i = 0; i < 3; i += 1) {
+      const taken = await p.cappedBook({ team_id: ELIN, service_id: FACIAL, starts_at: at(WED, '11:00') });
+      expect(taken.statusCode, taken.body).toBe(409);
+      expect(errorOf(taken).code).toBe('PUBLIC_SLOT_FULL');
+    }
+    const honest = await p.cappedBook({ team_id: ELIN, service_id: FACIAL, starts_at: at(WED, '13:00') });
+    expect(honest.statusCode, honest.body).toBe(201);
   });
 });
