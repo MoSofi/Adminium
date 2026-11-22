@@ -23,6 +23,7 @@ is written:
 | `documents.json` | `documents`, as the array |
 | `automations.json` | `automations`, as the array |
 | `people.json` | `people`, as the array |
+| `shipping.json` | `shipping`, as the object: where an order's delivery address is kept |
 
 Only `app.json`, one table and one page are required. A part you do not need is simply not there.
 A file that is none of these is an error, so a misspelt name cannot be silently left out, and

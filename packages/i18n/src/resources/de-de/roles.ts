@@ -91,6 +91,7 @@ export default {
     "paymentsManage": "Zahlungen einrichten",
     "paymentsRefund": "Erstattungen geben",
     "paymentsView": "Zahlungsaktivität sehen und exportieren",
+    "shippingManage": "Versand einrichten",
     "privacyManage": "Daten einer Person finden, herunterladen und verwalten",
     "privacyPeople": "Daten einer Person finden, herunterladen und löschen"
   },

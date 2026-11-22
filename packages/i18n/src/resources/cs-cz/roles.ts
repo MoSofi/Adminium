@@ -91,6 +91,7 @@ export default {
     "paymentsManage": "Nastavit platby",
     "paymentsRefund": "Vracet peníze",
     "paymentsView": "Zobrazit aktivitu plateb a exportovat ji",
+    "shippingManage": "Nastavit dopravu",
     "privacyManage": "Najít, stáhnout a spravovat údaje osoby",
     "privacyPeople": "Najít, stáhnout a vymazat údaje osoby"
   },

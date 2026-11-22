@@ -309,6 +309,10 @@ export const SYSTEM_ACTION_KEYS = [
   'payments.manage',
   'payments.refund',
   'payments.view',
+  // Shipping: which carrier a shop uses, its Ship from address and asking for
+  // rates. A key of its own because a carrier account spends real money. Held
+  // as the payments keys are: only the Super Admin, unless granted on purpose.
+  'shipping.manage',
   // A person's data: finding everything kept about one address, downloading
   // it for them, and the privacy notice. It reads every people table whole,
   // past any role's table and row limits, so it is a key of its own. Only the

@@ -68,6 +68,7 @@ import { savedPartsIssues, savedPartsShape } from './saved-parts.js';
 import { tableNameIssue, tableSchemaIssue } from './table-names.js';
 import { mailClassFloorIssues } from './mail-class.js';
 import { keepSchema, peopleIssues, peopleSchema, publicConsentIssues } from './people.js';
+import { shippingIssues, shippingSchema } from './shipping.js';
 import { expireIssues, expireSchema } from './expire.js';
 import { automationIssues, manifestAutomationsSchema, type AutomationTableShape, type ManifestAutomation } from './automations.js';
 import { changeGuardIssues, changeGuardsSchema } from './change-guards.js';
@@ -4027,6 +4028,8 @@ export const appManifestSchema = z
     maps: z.literal(true).optional(),
     /** The tables that hold the app's people and companies, and where else a person is copied (see `people.ts`). */
     people: peopleSchema.optional(),
+    /** Where the app keeps what a carrier needs of an order (see `shipping.ts`). Without it, no real carrier is called for this app. */
+    shipping: shippingSchema.optional(),
     /** Where a self-made app was saved (see `saved-apps.ts`). */
     provenance: provenanceSchema.optional(),
     /** A self-made app's icon, a lucide name (see `saved-apps.ts`). */
@@ -4047,6 +4050,7 @@ export const appManifestSchema = z
     for (const issue of mailClassFloorIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of peopleIssues(m, tableIndex(m.requiredSchema.tables))) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of publicConsentIssues(m, tableIndex(m.requiredSchema.tables))) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    for (const issue of shippingIssues(m, tableIndex(m.requiredSchema.tables))) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of addOnOnlyWordIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of appReferenceIssues(m)) {
       ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });

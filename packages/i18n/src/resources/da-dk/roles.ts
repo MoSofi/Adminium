@@ -91,6 +91,7 @@ export default {
     "paymentsManage": "Opsæt betalinger",
     "paymentsRefund": "Give refusioner",
     "paymentsView": "Se betalingsaktivitet og eksportere den",
+    "shippingManage": "Konfigurere forsendelse",
     "privacyManage": "Finde, downloade og administrere en persons data",
     "privacyPeople": "Find, hent og slet en persons data"
   },

@@ -103,6 +103,8 @@ const SYSTEM_PERMISSION_META: Record<
   'payments.manage': { label: 'Set up payments', category: 'workspace' },
   'payments.refund': { label: 'Give refunds', category: 'workspace' },
   'payments.view': { label: 'See payment activity and export it', category: 'workspace' },
+  // `workspace`: which carrier a shop uses and the address its parcels leave from.
+  'shipping.manage': { label: 'Set up shipping', category: 'workspace' },
   // `workspace`: the privacy notice is the business's own words, and finding a
   // person's data reads every people table past the role's limits.
   'privacy.manage': { label: "Find, download and manage a person's data", category: 'workspace' },

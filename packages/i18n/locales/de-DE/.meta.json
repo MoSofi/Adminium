@@ -24335,6 +24335,10 @@
     "status": "mt",
     "srcHash": "2e38dd338230"
   },
+  "roles.permission.shippingManage": {
+    "status": "mt",
+    "srcHash": "3bbc1d23537a"
+  },
   "roles.permission.storageManage": {
     "status": "mt",
     "srcHash": "3a4d20b7746a"

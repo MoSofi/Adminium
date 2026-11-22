@@ -44,12 +44,18 @@ import {
 } from '../product-personalizer.js';
 import {
   CarrierError,
+  cancelResultSchema,
+  carrierCredentialCheckSchema,
   rateSchema,
+  recoveryResultSchema,
+  shipmentDocumentFileSchema,
   shipmentSchema,
   trackEventSchema,
   type Address,
+  type BookingDetails,
   type OrderRef,
   type Parcel,
+  type Rate,
   type ShippingCarrier,
 } from '../shipping-carrier.js';
 
@@ -126,10 +132,43 @@ export interface ShippingCarrierFixtures {
   order: OrderRef;
 }
 
+/**
+ * ── WHAT A REAL CARRIER CANNOT PROMISE (ruled 2026-11-21) ───────────────────
+ *
+ * This is a deliberate amendment, in the same spirit as the inbound one below,
+ * and the defaults keep every existing transport on the strict assertions. A
+ * real label service buys a new label on every purchase call, so "buy this once"
+ * is proved by the engine's booking ledger, across a second press, a reload and
+ * a restart. A fake in-memory map that made a real transport pass here would be
+ * exactly the guard that does not survive a restart.
+ */
+export interface ShippingCarrierTraits {
+  /** `false` when every `book` call is a new purchase at the carrier. */
+  bookIsIdempotent?: boolean;
+  /** `false` when a new booking has no tracking events yet, as in a carrier's test mode. */
+  eventsAfterBooking?: boolean;
+}
+
+/** A quote's handle and expiry are new on every quote. What it offers must not be. */
+function offer(rate: Rate): Rate {
+  const copy = { ...rate };
+  delete copy.ref;
+  delete copy.expiresAt;
+  return copy;
+}
+
 export function describeShippingCarrier(
   impl: ShippingCarrier,
   fixtures: ShippingCarrierFixtures,
+  traits: ShippingCarrierTraits = {},
 ): void {
+  const details: BookingDetails = { parcel: fixtures.parcel, from: fixtures.from, to: fixtures.to };
+  const bookOne = async () => {
+    const [rate] = await impl.quote(fixtures.parcel, fixtures.from, fixtures.to);
+    expect(rate).toBeDefined();
+    return impl.book(rate!, fixtures.order, details);
+  };
+
   describe(`shipping-carrier@1 conformance — ${impl.key}`, () => {
     it('has a non-empty key', () => {
       expect(impl.key).toMatch(/^[a-z][a-z0-9-]*$/);
@@ -147,7 +186,7 @@ export function describeShippingCarrier(
     it('quote is side-effect free — the same call twice gives the same rates', async () => {
       const a = await impl.quote(fixtures.parcel, fixtures.from, fixtures.to);
       const b = await impl.quote(fixtures.parcel, fixtures.from, fixtures.to);
-      expect(b).toEqual(a);
+      expect(b.map(offer)).toEqual(a.map(offer));
     });
 
     it('surfaces a refusal as a typed CarrierError carrying the carrier’s own message', async () => {
@@ -201,26 +240,26 @@ export function describeShippingCarrier(
     });
 
     it('books a shipment of the declared shape', async () => {
-      const [rate] = await impl.quote(fixtures.parcel, fixtures.from, fixtures.to);
-      expect(rate).toBeDefined();
-      const shipment = await impl.book(rate!, fixtures.order);
+      const shipment = await bookOne();
       const parsed = shipmentSchema.safeParse(shipment);
       expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
     });
 
-    it('book is idempotent for one OrderRef', async () => {
+    it.runIf(traits.bookIsIdempotent !== false)('book is idempotent for one OrderRef', async () => {
       const [rate] = await impl.quote(fixtures.parcel, fixtures.from, fixtures.to);
-      const first = await impl.book(rate!, fixtures.order);
-      const second = await impl.book(rate!, fixtures.order);
+      const first = await impl.book(rate!, fixtures.order, details);
+      const second = await impl.book(rate!, fixtures.order, details);
       expect(second.id).toBe(first.id);
       expect(second.tracking).toBe(first.tracking);
     });
 
     it('tracks a booked shipment with events of the declared shape', async () => {
-      const [rate] = await impl.quote(fixtures.parcel, fixtures.from, fixtures.to);
-      const shipment = await impl.book(rate!, fixtures.order);
-      const events = await impl.track(shipment.tracking);
-      expect(events.length).toBeGreaterThan(0);
+      const shipment = await bookOne();
+      const events = await impl.track(
+        shipment.tracking,
+        shipment.carrierToken === undefined ? undefined : { carrierToken: shipment.carrierToken },
+      );
+      if (traits.eventsAfterBooking !== false) expect(events.length).toBeGreaterThan(0);
       for (const event of events) {
         const parsed = trackEventSchema.safeParse(event);
         expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
@@ -232,17 +271,62 @@ export function describeShippingCarrier(
     });
 
     it('produces a label file for a booked shipment', async () => {
-      const [rate] = await impl.quote(fixtures.parcel, fixtures.from, fixtures.to);
-      const shipment = await impl.book(rate!, fixtures.order);
+      const shipment = await bookOne();
       const file = await impl.label(shipment.id);
       expect(file.fileId.length).toBeGreaterThan(0);
       expect(file.bytes).toBeGreaterThan(0);
     });
 
-    it('cancels a booked shipment without throwing', async () => {
-      const [rate] = await impl.quote(fixtures.parcel, fixtures.from, fixtures.to);
-      const shipment = await impl.book(rate!, fixtures.order);
-      await expect(impl.cancel(shipment.id)).resolves.toBeUndefined();
+    it('cancels a booked shipment and says what happened', async () => {
+      const shipment = await bookOne();
+      if (impl.requestCancel === undefined) {
+        await expect(impl.cancel(shipment.id)).resolves.toBeUndefined();
+        return;
+      }
+      const parsed = cancelResultSchema.safeParse(await impl.requestCancel(shipment.id));
+      expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+    });
+
+    /*
+     * The members below are optional, so a transport that has one answers for it
+     * here. A transport without one skips the case rather than passing it.
+     */
+    it.runIf(impl.cancelStatus !== undefined)('reports a cancel request of the declared shape', async () => {
+      const shipment = await bookOne();
+      await impl.requestCancel?.(shipment.id);
+      const parsed = cancelResultSchema.safeParse(await impl.cancelStatus!(shipment.id));
+      expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+    });
+
+    it.runIf(impl.fetchDocument !== undefined)('fetches the label file itself', async () => {
+      const shipment = await bookOne();
+      const file = await impl.fetchDocument!(shipment.id, 'label');
+      const parsed = shipmentDocumentFileSchema.safeParse(file);
+      expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+      expect(file.kind).toBe('label');
+    });
+
+    it.runIf(impl.checkCredentials !== undefined)('reports a credential check of the declared shape', async () => {
+      const parsed = carrierCredentialCheckSchema.safeParse(
+        await impl.checkCredentials!({ country: fixtures.from.country }),
+      );
+      expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+    });
+
+    it.runIf(impl.recover !== undefined)('recovers a purchase it really made', async () => {
+      const shipment = await bookOne();
+      const result = await impl.recover!(fixtures.order);
+      const parsed = recoveryResultSchema.safeParse(result);
+      expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+      expect(result.outcome).toBe('found');
+      if (result.outcome === 'found') expect(result.shipment.tracking).toBe(shipment.tracking);
+    });
+
+    it.runIf(impl.recover !== undefined)('never reports a purchase for an order it never booked', async () => {
+      const result = await impl.recover!({ reference: 'no-such-order-0000' });
+      const parsed = recoveryResultSchema.safeParse(result);
+      expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+      expect(result.outcome).not.toBe('found');
     });
   });
 }

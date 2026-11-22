@@ -91,6 +91,7 @@ export default {
     "paymentsManage": "設定付款",
     "paymentsRefund": "辦理退款",
     "paymentsView": "查看付款活動並匯出",
+    "shippingManage": "設定配送",
     "privacyManage": "尋找、下載和管理某人的資料",
     "privacyPeople": "尋找、下載並刪除某人的資料"
   },

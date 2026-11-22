@@ -55,6 +55,8 @@ export const NEVER_ARCHIVED_TABLES: readonly string[] = [
   'adminium_visits',
   // What each source of a lead source add-on was asked today: never set back by a file.
   'adminium_source_days',
+  // A carrier's rates for one order, good for an hour and sealed to this server's secret: an old one must never come back.
+  'adminium_shipping_quotes',
 ];
 
 /** Staff API keys and the public API's keys. */

@@ -375,6 +375,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'people.lead',
   // A record action Adminium's own record page shows on a kind of declared table (a companies table's "Fill in details").
   'addOn.slots.on',
+  // Where an app's orders keep what a carrier needs: without it, the engine calls no real carrier for the app.
+  'shipping',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -686,6 +688,7 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'addOn.leads': '0.3.66',
   'people.lead': '0.3.66',
   'addOn.slots.on': '0.3.66',
+  'shipping': '0.3.71',
   // A release before refuses the keys (and pages from a file not made on an Adminium).
   'publicAccess.filterable': '0.3.68',
   'publicAccess.searchable': '0.3.68',
@@ -852,6 +855,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       });
       if (isDoc(entry) && entry['lead'] !== undefined) out.push({ word: 'people.lead', path: `people.${String(e)}.lead` });
     });
+    if (document['shipping'] !== undefined) out.push({ word: 'shipping', path: 'shipping' });
   }
 
   // An agreement on a text's length, on an entry or on its child rows (two levels).

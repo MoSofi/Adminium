@@ -58,6 +58,7 @@ const BLOCK_PARTS: ReadonlyArray<{ file: string; fields: readonly string[]; whol
   { file: 'documents.json', fields: ['documents'], whole: true },
   { file: 'automations.json', fields: ['automations'], whole: true },
   { file: 'people.json', fields: ['people'], whole: true },
+  { file: 'shipping.json', fields: ['shipping'], whole: true },
   { file: 'saved.json', fields: ['reports', 'invoiceLayouts', 'scheduledReports', 'payments'], whole: false },
   { file: 'instance.json', fields: ['instance'], whole: true },
 ];

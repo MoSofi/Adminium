@@ -199,6 +199,7 @@ export {
   type PeopleEntry,
   type PublicConsent,
 } from './people.js';
+export { shippingIssues, shippingOrderSchema, shippingSchema, type Shipping, type ShippingAddressColumns, type ShippingOrder } from './shipping.js';
 export { EXPIRE_DAYS_MAX, EXPIRE_DAYS_MIN, expireIssues, expireSchema, type Expire } from './expire.js';
 export {
   MODULE_DEFAULTS,

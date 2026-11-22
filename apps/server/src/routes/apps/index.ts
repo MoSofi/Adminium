@@ -78,6 +78,7 @@ import {
   roleNameFor,
   realTableOf,
   type AppTableRecord,
+  shippingRepo,
 } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
@@ -2562,6 +2563,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         const { rulesRemoved, emailsRemoved, dropped, kept, instanceRestored } = await service.removals.remove(plan, { dropTables, superAdmin, settingsManage, createdBy: userId });
         // Its own settings go with it (the row's cascade too); a reinstall starts from the manifest's defaults.
         await addOnSettingsRepo(deps.meta).clearForInstall(row.row.id);
+        // Its carrier choice, Ship from address and quotes: no foreign key takes them (0103).
+        await shippingRepo(deps.meta).forgetInstall(row.row.id);
         /*
          * Its links to add-ons go; the add-ons stay installed — they are
          * shared, and removing one is its own decision, made in Add-ons. The

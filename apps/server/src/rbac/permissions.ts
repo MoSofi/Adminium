@@ -108,6 +108,8 @@ export const PERMISSIONS = {
   paymentsManage: 'system:payments:manage',
   paymentsRefund: 'system:payments:refund',
   paymentsView: 'system:payments:view',
+  // Shipping: the shop's carrier, its Ship from address and asking for rates.
+  shippingManage: 'system:shipping:manage',
   // A person's data, by address: find, download, the privacy notice. Read past
   // every role's table and row limits, so only the Super Admin holds it unless
   // granted on purpose.

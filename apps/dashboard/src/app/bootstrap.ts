@@ -457,6 +457,7 @@ export type SystemAction =
   | 'payments.manage'
   | 'payments.refund'
   | 'payments.view'
+  | 'shipping.manage'
   | 'privacy.manage'
   | 'privacy.people';
 
@@ -472,7 +473,7 @@ export type SystemAction =
  * Nor does the privacy key: it reads a person's data past every limit, the
  * Admin role is not seeded with it, and a server that sends no list has none.
  */
-const NEVER_GUESSED: ReadonlySet<SystemAction> = new Set<SystemAction>(['payments.manage', 'payments.refund', 'payments.view', 'privacy.manage', 'privacy.people']);
+const NEVER_GUESSED: ReadonlySet<SystemAction> = new Set<SystemAction>(['payments.manage', 'payments.refund', 'payments.view', 'shipping.manage', 'privacy.manage', 'privacy.people']);
 
 export function holdsSystemAction(bootstrap: BootstrapData, action: SystemAction): boolean {
   if (bootstrap.systemActions === undefined) {

@@ -2039,6 +2039,38 @@ export interface AdminiumSourceDaysTable {
 }
 
 /**
+ * Wave 0103 — one app install's shipping choices: its carrier and its Ship
+ * from address (JSON, parsed by the engine with a schema).
+ */
+export interface AdminiumShippingSettingsTable {
+  installId: string;
+  activeCarrier: string | null;
+  shipFrom: ColumnType<unknown, string | null | undefined, string | null>;
+  updatedBy: string | null;
+  updatedAt: Ts;
+}
+
+/**
+ * Wave 0103 — the one live quote of an order slot. Holds a keyed hash of what
+ * it was given for, never a name, an address or a phone.
+ */
+export interface AdminiumShippingQuotesTable {
+  id: Id;
+  installId: string;
+  connectionId: string;
+  tableRef: string;
+  rowKey: string;
+  purpose: string;
+  parcelNumber: number;
+  carrierKey: string;
+  detailsHash: string;
+  rates: JsonColumn;
+  createdBy: string | null;
+  createdAt: Ts;
+  expiresAt: Ts;
+}
+
+/**
  * Wave 0095 (made again over 0094's) — one model call the chat answerer made
  * for a network address (a keyed hash, never the address), with no
  * conversation id: read for three hours, then swept.
@@ -2388,6 +2420,8 @@ export interface MetaDB {
   adminium_visitors: AdminiumVisitorsTable;
   adminium_visits: AdminiumVisitsTable;
   adminium_source_days: AdminiumSourceDaysTable;
+  adminium_shipping_settings: AdminiumShippingSettingsTable;
+  adminium_shipping_quotes: AdminiumShippingQuotesTable;
 }
 
 /**
@@ -2503,4 +2537,6 @@ export const META_TABLE_NAMES = [
   'adminium_visitors',
   'adminium_visits',
   'adminium_source_days',
+  'adminium_shipping_settings',
+  'adminium_shipping_quotes',
 ] as const satisfies readonly (keyof MetaDB)[];

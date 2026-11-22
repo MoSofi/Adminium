@@ -167385,6 +167385,762 @@
         }
       }
     },
+    "/api/v1/apps/{key}/shipping": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "appUpdated": {
+                          "type": "boolean"
+                        },
+                        "carriers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "locked": {
+                                "type": "boolean"
+                              },
+                              "on": {
+                                "type": "boolean"
+                              },
+                              "connected": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "name",
+                              "locked",
+                              "on",
+                              "connected"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "activeCarrier": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "shipFrom": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "lines": {
+                                  "minItems": 1,
+                                  "maxItems": 3,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 120
+                                  }
+                                },
+                                "city": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "region": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "postcode": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 32
+                                },
+                                "country": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z]{2}$"
+                                },
+                                "phone": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 40
+                                },
+                                "company": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "email": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 254
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "shipFromMissing": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "international": {
+                          "type": "boolean",
+                          "enum": [
+                            false
+                          ]
+                        }
+                      },
+                      "required": [
+                        "appUpdated",
+                        "carriers",
+                        "activeCarrier",
+                        "shipFrom",
+                        "shipFromMissing",
+                        "international"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/shipping/active-carrier": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "carrier": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                  }
+                },
+                "required": [
+                  "carrier"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "appUpdated": {
+                          "type": "boolean"
+                        },
+                        "carriers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "locked": {
+                                "type": "boolean"
+                              },
+                              "on": {
+                                "type": "boolean"
+                              },
+                              "connected": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "name",
+                              "locked",
+                              "on",
+                              "connected"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "activeCarrier": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "shipFrom": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "lines": {
+                                  "minItems": 1,
+                                  "maxItems": 3,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 120
+                                  }
+                                },
+                                "city": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "region": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "postcode": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 32
+                                },
+                                "country": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z]{2}$"
+                                },
+                                "phone": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 40
+                                },
+                                "company": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "email": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 254
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "shipFromMissing": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "international": {
+                          "type": "boolean",
+                          "enum": [
+                            false
+                          ]
+                        }
+                      },
+                      "required": [
+                        "appUpdated",
+                        "carriers",
+                        "activeCarrier",
+                        "shipFrom",
+                        "shipFromMissing",
+                        "international"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/shipping/ship-from": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "lines": {
+                    "maxItems": 3,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 120
+                    }
+                  },
+                  "city": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "region": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "postcode": {
+                    "type": "string",
+                    "maxLength": 32
+                  },
+                  "country": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "company": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "appUpdated": {
+                          "type": "boolean"
+                        },
+                        "carriers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "locked": {
+                                "type": "boolean"
+                              },
+                              "on": {
+                                "type": "boolean"
+                              },
+                              "connected": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "name",
+                              "locked",
+                              "on",
+                              "connected"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "activeCarrier": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "shipFrom": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "lines": {
+                                  "minItems": 1,
+                                  "maxItems": 3,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 120
+                                  }
+                                },
+                                "city": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "region": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "postcode": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 32
+                                },
+                                "country": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z]{2}$"
+                                },
+                                "phone": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 40
+                                },
+                                "company": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "email": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 254
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "shipFromMissing": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "international": {
+                          "type": "boolean",
+                          "enum": [
+                            false
+                          ]
+                        }
+                      },
+                      "required": [
+                        "appUpdated",
+                        "carriers",
+                        "activeCarrier",
+                        "shipFrom",
+                        "shipFromMissing",
+                        "international"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/shipping/quotes": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "object",
+                    "properties": {
+                      "table": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 191
+                      }
+                    },
+                    "required": [
+                      "table",
+                      "id"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "parcel": {
+                    "type": "object",
+                    "properties": {
+                      "weightKg": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 1000
+                      },
+                      "lengthCm": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 400
+                      },
+                      "widthCm": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 400
+                      },
+                      "heightCm": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 400
+                      },
+                      "contents": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      }
+                    },
+                    "required": [
+                      "weightKg",
+                      "lengthCm",
+                      "widthCm",
+                      "heightCm",
+                      "contents"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "enum": [
+                      "outbound",
+                      "return",
+                      "replacement"
+                    ]
+                  },
+                  "parcelNumber": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 99
+                  }
+                },
+                "required": [
+                  "source",
+                  "parcel"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "quoteId": {
+                          "type": "string"
+                        },
+                        "carrier": {
+                          "type": "string"
+                        },
+                        "expiresAt": {
+                          "type": "number"
+                        },
+                        "rates": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "rateId": {
+                                "type": "string"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "service": {
+                                "type": "string"
+                              },
+                              "amountDecimal": {
+                                "type": "string"
+                              },
+                              "currency": {
+                                "type": "string"
+                              },
+                              "estimatedDelivery": {
+                                "type": "string"
+                              },
+                              "estimatedDays": {
+                                "type": "number"
+                              },
+                              "expiresAt": {
+                                "type": "string"
+                              },
+                              "carrier": {
+                                "type": "string"
+                              },
+                              "handover": {
+                                "type": "string",
+                                "enum": [
+                                  "collection-booked",
+                                  "drop-off",
+                                  "carrier-collects",
+                                  "unknown"
+                                ]
+                              },
+                              "tracked": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "rateId",
+                              "code",
+                              "service",
+                              "amountDecimal",
+                              "currency"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "quoteId",
+                        "carrier",
+                        "expiresAt",
+                        "rates"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/roles": {
       "get": {
         "responses": {
