@@ -51,6 +51,7 @@ import {
   filesRepo,
   jobsRepo,
   manifestsRepo,
+  notificationsRepo,
   operatorTalliesRepo,
   pagesRepo,
   publicKeysRepo,
@@ -4973,6 +4974,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     } catch (error) {
       app.log.warn({ err: error }, 'retention sweep: payment event purge failed');
     }
+    // Notifications read longer ago than `retention.notificationsDays`, which
+    // the privacy screen tells people. Unread ones stay: nobody has seen them.
+    let notifications: number | null = null;
+    try {
+      const days = await settings.get('retention.notificationsDays');
+      notifications = await notificationsRepo(meta).gc(at, days);
+    } catch (error) {
+      app.log.warn({ err: error }, 'retention sweep: notification purge failed');
+    }
 
     app.log.info(
       {
@@ -4988,6 +4998,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         publicChallenges,
         publicRequestStats,
         paymentEvents,
+        notifications,
         jobsDays,
         auditLogDays,
         automationRunsDays,
