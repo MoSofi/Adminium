@@ -21,8 +21,11 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { LEAD_REACH_MAX, teamsRepo, usersRepo, type Team, type User } from '@adminium/meta';
 
-import { ConflictError, NotFoundError, UnauthorizedError } from '../../errors.js';
+import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError } from '../../errors.js';
+import { scrubUrlForLog } from '../../log-scrub.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { getPrincipal } from '../../rbac/principal.js';
+import { REACH_ABOVE_YOU, REACH_MESSAGE, reachSubjectOf, seatWidensReach } from '../../rbac/reach-held.js';
 import { peopleQuery, peopleReply, teamBody, teamDto, teamIdParams, teamListReply, teamMemberBody, teamMemberParams, teamOkReply, type TeamDto } from './schema.js';
 
 export const teamsRoutes: FastifyPluginAsyncZod = async (app) => {
@@ -104,6 +107,12 @@ export const teamsRoutes: FastifyPluginAsyncZod = async (app) => {
       const team = await mustFindTeam(request.params.id);
       const user = await mustFindUser(request.params.userId);
       const before = (await teams.members(team.id)).find((member) => member.userId === user.id);
+      // A lead reaches the rows of the team: nobody held to their team's rows brings more people into their own reach.
+      const subject = await reachSubjectOf(meta, getPrincipal(request));
+      if (subject !== null && (await seatWidensReach(meta, subject, team.id, user.id, request.body.lead))) {
+        await app.rbac.audit(request, { category: 'rbac', action: 'permission.denied', changes: { after: { reason: REACH_ABOVE_YOU, method: request.method, url: scrubUrlForLog(request.url), teamId: team.id, userId: user.id } } });
+        throw new ForbiddenError(REACH_MESSAGE, 'FORBIDDEN', { reason: REACH_ABOVE_YOU, teamId: team.id });
+      }
       await teams.setMember(team.id, user.id, request.body.lead);
       await app.rbac.audit(request, {
         category: 'rbac',

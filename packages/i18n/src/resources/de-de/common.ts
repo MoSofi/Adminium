@@ -1869,12 +1869,16 @@ export default {
     "roles": {
       "unavailable": "Rollen sind für Ihr Konto nicht sichtbar, daher können hier keine zugewiesen werden.",
       "above": "Rollen mit Berechtigungen, die Sie nicht haben, können hier weder vergeben noch entzogen werden.",
-      "refused": "Sie können nur Rollen vergeben, deren Berechtigungen Sie selbst haben, und keine Rolle entziehen, die mehr Berechtigungen hat als Sie."
+      "refused": "Sie können nur Rollen vergeben, deren Berechtigungen Sie selbst haben, und keine Rolle entziehen, die mehr Berechtigungen hat als Sie.",
+      "accountRefused": "Diese Person hat Berechtigungen, die Sie nicht haben. Sie können daher weder ihre E-Mail-Adresse ändern noch ihr einen neuen Anmeldelink senden.",
+      "reachRefused": "Dadurch kämen Zeilen in Ihre Reichweite, die Ihre Rolle Ihnen nicht gibt.",
+      "signInLocked": "Diese Person hat Berechtigungen, die Sie nicht haben. Einen neuen Link kann daher nur jemand senden, der sie hat."
     },
     "rolesDialog": {
       "description": "Ein Benutzer erhält die Vereinigung aller Rollen, die er innehat.",
       "failed": "Die Rollen konnten nicht geändert werden",
-      "title": "Rollen für {name}"
+      "title": "Rollen für {name}",
+      "invitedNote": "Wenn Sie dieser Person eine weitere Rolle geben, endet ihre aktuelle Einladung: Senden Sie ihr danach einen neuen Link."
     },
     "rolesLocked": "Zum Ändern von Rollen wird die Berechtigung „Rollen verwalten“ benötigt.",
     "search": "Name oder E-Mail suchen",

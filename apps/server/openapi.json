@@ -175042,6 +175042,9 @@
                               ],
                               "additionalProperties": false
                             }
+                          },
+                          "signInLocked": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -175053,7 +175056,8 @@
                           "lastLoginAt",
                           "createdAt",
                           "updatedAt",
-                          "roles"
+                          "roles",
+                          "signInLocked"
                         ],
                         "additionalProperties": false
                       }

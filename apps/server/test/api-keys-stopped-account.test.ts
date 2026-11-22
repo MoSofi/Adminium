@@ -278,6 +278,16 @@ describe.each(META_ENGINES.map((engine) => [engine.name, engine] as const))('a s
     expect(await meta.db.selectFrom('adminium_api_keys').select('id').where('createdBy', '=', maker.id).where('revokedAt', 'is', null).execute()).toEqual([]);
   });
 
+  it.skipIf(!engine.available)('a key revoked while it is making another makes nothing', async () => {
+    const maker = await person(keysRole);
+    const calling = await keyOf(maker.id, 'calling', keysRole);
+    midRequest = () => apiKeysRepo(meta).revoke(calling.id);
+    const res = await app.inject({ method: 'POST', url: '/api/v1/api-keys', headers: { authorization: `Bearer ${calling.key}` }, payload: { name: 'child', roleId: keysRole.id } });
+    expect(res.statusCode, res.body).toBe(403);
+    expect(res.body).not.toContain('adm_sk_');
+    expect((await apiKeysRepo(meta).list()).some((key) => key.name === 'child')).toBe(false);
+  });
+
   it.skipIf(!engine.available)('a key made in the moment its maker was stopped does not survive', async () => {
     const maker = await person(keysRole);
     const cookie = await signIn(maker.email);

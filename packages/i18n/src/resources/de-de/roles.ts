@@ -196,6 +196,7 @@ export default {
     "notHeld": "Sie haben diese Berechtigung nicht und können sie daher nicht vergeben.",
     "roleAbove": "Diese Rolle hat Berechtigungen, die Sie nicht haben, daher können Sie sie nicht ändern.",
     "refused": "Sie können nur Berechtigungen vergeben, die Sie selbst haben, und keine Rolle ändern, die mehr Berechtigungen hat als Sie.",
-    "noTargets": "Es gibt keine Rolle, die Sie vergeben können und zu der diese Mitglieder wechseln könnten. Diese Rolle kann daher noch nicht gelöscht werden."
+    "noTargets": "Es gibt keine Rolle, die Sie vergeben können und zu der diese Mitglieder wechseln könnten. Diese Rolle kann daher noch nicht gelöscht werden.",
+    "fullAccess": "„Apps und Add-ons installieren und verwalten“ entspricht Vollzugriff: Apps und Add-ons führen Code auf diesem Server aus. Vergeben Sie dies nur an jemanden, den Sie auch zum Super Admin machen würden."
   }
 } as const;

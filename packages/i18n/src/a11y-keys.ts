@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3862 entries. */
+/** `namespace:key` — 3863 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -791,6 +791,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'common:team.remove.prompt',
   'common:team.remove.rows.to',
   'common:team.remove.title',
+  'common:team.roles.signInLocked',
   'common:team.rolesDialog.description',
   'common:team.rolesDialog.failed',
   'common:team.rolesDialog.title',
