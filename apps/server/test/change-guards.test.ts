@@ -14,9 +14,10 @@
  *  - Each refused as the person it limits, and let through for the person
  *    allowed; a record page offers the buttons with who they are hidden for.
  */
-import { overridesRepo, permissionsRepo, rowLimitSchema, validateOverrideInput } from '@adminium/meta';
+import { apiKeysRepo, overridesRepo, permissionsRepo, rolesRepo, rowLimitSchema, validateOverrideInput } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { generateApiKey } from '../src/rbac/api-keys.js';
 import { opsForRules } from '../src/apps/manifest-rules.js';
 import { storedRowLimit } from '../src/apps/manifest-roles.js';
 import { renamedInRule } from '../src/schema-ddl/rename-repair.js';
@@ -285,6 +286,33 @@ for (const [dialect, available] of ENGINES) {
           expect(refusal(await create('mara', 'quotes', { id: 101, deal_id: 1, total: 1, approval: 'approved', stage: 'draft' }))).toEqual({ status: 403, code: 'COLUMN_FORBIDDEN', column: 'approval', reason: 'change-from' });
         } finally {
           await resetQuotes();
+        }
+      });
+
+      it('a key answers for the person who made it: never the asker\'s own approval, and no "only by" either', async () => {
+        const superAdmin = (await rolesRepo(w.meta).findBySlug('super-admin'))!;
+        const keyOf = async (createdBy: string | null): Promise<Record<string, string>> => {
+          const generated = generateApiKey();
+          await apiKeysRepo(w.meta).create({ name: 'guard key', prefix: generated.prefix, tokenHash: generated.tokenHash, roleId: superAdmin.id, createdBy });
+          return { authorization: `Bearer ${generated.key}` };
+        };
+        const patchAs = async (headers: Record<string, string>, table: string, key: number, values: Record<string, unknown>): Promise<Reply> =>
+          w.app.inject({ method: 'PATCH', url: `/api/v1/${data(table)}/${String(key)}`, headers, payload: { values } }) as unknown as Reply;
+        try {
+          // Quote 1 was asked for by Omar, on Dana's deal.
+          expect(refusal(await patchAs(await keyOf(w.people.omar), 'quotes', 1, { approval: 'approved' }))).toEqual({ status: 403, code: 'COLUMN_FORBIDDEN', column: 'approval', reason: 'change-not-by' });
+          expect(refusal(await patchAs(await keyOf(w.people.dana), 'quotes', 1, { approval: 'refused' }))).toEqual({ status: 403, code: 'COLUMN_FORBIDDEN', column: 'approval', reason: 'change-not-by' });
+          expect((await one('SELECT approval FROM quotes WHERE id = 1'))['approval']).toBe('asked');
+          // Enquiry 2 is Dana's to tie: her key is not her, so it does not pass an "only by".
+          expect(refusal(await patchAs(await keyOf(w.people.dana), 'enquiries', 2, { deal_id: 1 }))).toEqual({ status: 403, code: 'COLUMN_FORBIDDEN', column: 'deal_id', reason: 'change-by' });
+          // Somebody else's key, and a key with nobody behind it, approve as they always have.
+          const byMara = await patchAs(await keyOf(w.people.mara), 'quotes', 1, { approval: 'approved' });
+          expect(byMara.statusCode, byMara.body).toBe(200);
+          const byNobody = await patchAs(await keyOf(null), 'quotes', 3, { approval: 'approved' });
+          expect(byNobody.statusCode, byNobody.body).toBe(200);
+        } finally {
+          await resetQuotes();
+          await resetEnquiries();
         }
       });
 

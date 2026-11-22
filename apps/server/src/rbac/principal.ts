@@ -26,6 +26,8 @@ export interface ApiKeyPrincipal {
   label: string;
   /** The key acts with this role's permissions. */
   roleId: string;
+  /** The person who made it, when one is known: what they may not do, their key may not do for them. */
+  madeBy: string | null;
 }
 
 export type RbacPrincipal = UserPrincipal | ApiKeyPrincipal;

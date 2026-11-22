@@ -80,6 +80,8 @@ export async function judgeChangeGuards(rules: TableRules | null, action: WriteA
   const actor = context.actor;
   // The person a write is: a staff member by id; a key or a visitor is somebody no column names. Adminium itself is nobody to judge.
   const person = actor !== null && (actor.kind === 'user' || actor.kind === 'api-key' || actor.kind === 'public') ? { id: actor.kind === 'user' ? actor.id : null } : null;
+  // Who a "not by" is asked of: the person, or the person behind a key. A key never passes an "only by" for them: it is not them.
+  const answersFor = actor?.kind === 'api-key' ? (actor.madeBy ?? null) : (person?.id ?? null);
   const after: Row = { ...(stored ?? {}), ...values };
   const expect: Row = {};
   const table = target.table.id;
@@ -141,7 +143,7 @@ export async function judgeChangeGuards(rules: TableRules | null, action: WriteA
       for (const path of guard.notBy ?? []) {
         for (const row of action === 'create' ? [after] : [stored!, after]) {
           const who = await named(path, row);
-          if (who === UNREADABLE || (who !== null && person.id !== null && who === person.id)) {
+          if (who === UNREADABLE || (who !== null && answersFor !== null && who === answersFor)) {
             return refuse(rule, 'change-not-by', `${rule.column} may not ${to} by the person ${path.path} names.`, { notBy: path.path });
           }
         }

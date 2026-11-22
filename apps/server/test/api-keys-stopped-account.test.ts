@@ -240,9 +240,9 @@ describe.each(META_ENGINES.map((engine) => [engine.name, engine] as const))('a s
   });
 
   it.skipIf(!engine.available)('a key made by a key belongs to the person behind it, and stops with them', async () => {
-    const sam = await person();
+    const sam = await person(keysRole);
     const first = await keyOf(sam.id, 'first', keysRole);
-    const res = await app.inject({ method: 'POST', url: '/api/v1/api-keys', headers: { authorization: `Bearer ${first.key}` }, payload: { name: 'second', roleId: viewerRole.id } });
+    const res = await app.inject({ method: 'POST', url: '/api/v1/api-keys', headers: { authorization: `Bearer ${first.key}` }, payload: { name: 'second', roleId: keysRole.id } });
     expect(res.statusCode, res.body).toBe(201);
     const second = res.json() as { apiKey: { id: string }; key: string };
     expect((await apiKeysRepo(meta).findById(second.apiKey.id))?.createdBy).toBe(sam.id);
@@ -252,11 +252,12 @@ describe.each(META_ENGINES.map((engine) => [engine.name, engine] as const))('a s
   });
 
   it.skipIf(!engine.available)('a key left over from a stopped person cannot make another', async () => {
-    const sam = await person();
+    const sam = await person(keysRole);
     const leftover = await keyOf(sam.id, 'from before', keysRole);
     await usersRepo(meta).updateStatus(sam.id, 'suspended');
-    const res = await app.inject({ method: 'POST', url: '/api/v1/api-keys', headers: { authorization: `Bearer ${leftover.key}` }, payload: { name: 'another', roleId: viewerRole.id } });
+    const res = await app.inject({ method: 'POST', url: '/api/v1/api-keys', headers: { authorization: `Bearer ${leftover.key}` }, payload: { name: 'another', roleId: keysRole.id } });
     expect(res.statusCode, res.body).toBe(403);
+    expect(res.body).toContain('no longer active');
     expect(res.body).not.toContain('adm_sk_');
   });
 
@@ -266,13 +267,14 @@ describe.each(META_ENGINES.map((engine) => [engine.name, engine] as const))('a s
     let creating: Promise<{ statusCode: number; body: string }> | undefined;
     // After the stop has revoked the keys it could see, and before it has changed the account.
     failing.duringRevoke = async () => {
-      creating = Promise.resolve(app.inject({ method: 'POST', url: '/api/v1/api-keys', headers: { cookie }, payload: { name: 'racing', roleId: viewerRole.id } }));
+      creating = Promise.resolve(app.inject({ method: 'POST', url: '/api/v1/api-keys', headers: { cookie }, payload: { name: 'racing', roleId: keysRole.id } }));
       await new Promise((resolve) => setTimeout(resolve, 500));
     };
     const stopped = await suspend({ cookie: adminCookie }, maker.id);
     expect(stopped.statusCode, stopped.body).toBe(200);
     const res = await creating!;
     expect(res.statusCode, res.body).toBe(403);
+    expect(res.body).toContain('no longer active');
     expect(await meta.db.selectFrom('adminium_api_keys').select('id').where('createdBy', '=', maker.id).where('revokedAt', 'is', null).execute()).toEqual([]);
   });
 
@@ -281,8 +283,9 @@ describe.each(META_ENGINES.map((engine) => [engine.name, engine] as const))('a s
     const cookie = await signIn(maker.email);
     // Signed in when the request began, stopped by the time the key is written.
     midRequest = () => usersRepo(meta).updateStatus(maker.id, 'suspended');
-    const res = await app.inject({ method: 'POST', url: '/api/v1/api-keys', headers: { cookie }, payload: { name: 'late', roleId: viewerRole.id } });
+    const res = await app.inject({ method: 'POST', url: '/api/v1/api-keys', headers: { cookie }, payload: { name: 'late', roleId: keysRole.id } });
     expect(res.statusCode, res.body).toBe(403);
+    expect(res.body).toContain('no longer active');
     expect(res.body).not.toContain('adm_sk_');
     const live = await meta.db.selectFrom('adminium_api_keys').select('id').where('createdBy', '=', maker.id).where('revokedAt', 'is', null).execute();
     expect(live).toEqual([]);
