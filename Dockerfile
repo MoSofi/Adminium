@@ -129,8 +129,7 @@ RUN node scripts/release/fetch-add-ons-bundle.mjs /app/add-ons-bundle
 # Custom screens stay off on trials (`designerCode`): this builds the declarative apps' own files only.
 ARG ESBUILD_VERSION=0.28.2
 RUN mkdir -p /esbuild \
-    && cd /esbuild \
-    && npm install --no-save --no-package-lock --no-audit --no-fund "esbuild@${ESBUILD_VERSION}" \
+    && npm install --prefix /esbuild --no-save --no-package-lock --no-audit --no-fund "esbuild@${ESBUILD_VERSION}" \
     && node -e "require('/esbuild/node_modules/esbuild').transformSync('let a=1')"
 
 # ────────────────────────── runtime ──────────────────────────
