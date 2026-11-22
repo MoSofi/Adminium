@@ -326,6 +326,7 @@ import { ADD_ON_BUNDLE_ROUTE, ADD_ON_DOCUMENT_ROUTE, ADD_ON_LOOK_UP_ROUTE, ADD_O
 import { isGranted } from './rbac/permissions.js';
 import { permissionSetAllows, resolvePermissionSet } from './rbac/resolver.js';
 import { API_PREFIX } from './routes/index.js';
+import { markOwnerRowLimits } from './apps/mark-owner-row-limits.js';
 import { apiKeysRoutes } from './routes/api-keys/index.js';
 import { createAddOnSchemaTarget } from './add-ons/schema-target.js';
 import { addOnRoutes } from './routes/add-ons/index.js';
@@ -3876,7 +3877,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(rowReachRoutes({ meta, manager }));
       // A person named in rows is not removed for good until those rows are somebody's: the users routes ask this.
       api.decorate('rowsNamingUser', (userId: string) => rowsNaming(meta, manager, userId));
-      api.decorate('handUserRows', (from: Parameters<typeof handOverRows>[1]['from'], toId: string, audit: Parameters<typeof handOverRows>[1]['audit']) => handOverRows({ meta, manager }, { from, toId, audit }));
+      // Once: which row limits already stored are an owner's, while the running version of each app can still say.
+      api.addHook('onReady', async () => {
+        try {
+          const marked = await markOwnerRowLimits({ meta, credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET) });
+          if (marked > 0) app.log.info({ marked }, 'recorded the row limits owners set');
+        } catch (error) {
+          app.log.warn({ err: error }, 'could not record the row limits owners set; trying again at the next start');
+        }
+      });
+      api.decorate('handUserRows', (from: Parameters<typeof handOverRows>[1]['from'], toId: string, audit: Parameters<typeof handOverRows>[1]['audit'], by: Parameters<typeof handOverRows>[1]['by']) => handOverRows({ meta, manager }, { from, toId, audit, by }));
       await api.register(usersRoutes);
       await api.register(permissionsRoutes);
       await api.register(apiKeysRoutes);

@@ -170,12 +170,12 @@ describe('the Teams page', () => {
     await userEvent.click(sheet.getByRole('button', { name: 'Remove Ivy Sandoval from Sales' }));
     expect(calls).toEqual([]);
     await userEvent.click(sheet.getByTestId('team-sheet-save'));
-    // Who leaves first, then who joins or now leads; the name was not changed, so it is not sent.
+    // Who joins or now leads first, so a refused seat leaves everybody where they were; then who leaves.
     await waitFor(() =>
       expect(calls).toEqual([
-        { key: 'DELETE /api/v1/teams/team_1/members/usr_ivy', body: null },
         { key: `PUT /api/v1/teams/team_1/members/${dana.id}`, body: { lead: true } },
         { key: `PUT /api/v1/teams/team_1/members/${sam.id}`, body: { lead: false } },
+        { key: 'DELETE /api/v1/teams/team_1/members/usr_ivy', body: null },
       ]),
     );
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
@@ -200,6 +200,29 @@ describe('the Teams page', () => {
         { key: `PUT /api/v1/teams/team_1/members/${sam.id}`, body: { lead: false } },
       ]),
     );
+  });
+
+  it('leaves no new team behind when its first seat is refused, and says why', async () => {
+    const calls = installFetch();
+    const passThrough = globalThis.fetch;
+    vi.stubGlobal('fetch', vi.fn((input: unknown, init?: RequestInit) => {
+      if (init?.method === 'PUT' && String(input).includes('/teams/team_1/members/')) {
+        calls.push({ key: `PUT ${String(input)}`, body: null });
+        return Promise.resolve(jsonResponse(403, { error: { code: 'FORBIDDEN', message: 'server words', details: { reason: 'reach-above-you' } } }));
+      }
+      return passThrough(input as never, init);
+    }));
+    renderTeams();
+    await userEvent.click(screen.getByTestId('teams-new'));
+    const sheet = within(await screen.findByRole('dialog'));
+    await userEvent.type(sheet.getByTestId('team-sheet-name'), 'North');
+    await userEvent.selectOptions(sheet.getByTestId('team-sheet-add'), sam.id);
+    await userEvent.click(sheet.getByTestId('team-sheet-add-confirm'));
+    await userEvent.click(sheet.getByTestId('team-sheet-save'));
+    const alert = await sheet.findByTestId('team-sheet-error');
+    expect(alert.textContent).toContain('your role does not give you');
+    expect(alert.textContent).not.toContain('server words');
+    expect(calls.map((call) => call.key)).toEqual(['POST /api/v1/teams', `PUT /api/v1/teams/team_1/members/${sam.id}`, 'DELETE /api/v1/teams/team_1']);
   });
 
   it('asks before deleting a team, and says what it does and does not touch', async () => {

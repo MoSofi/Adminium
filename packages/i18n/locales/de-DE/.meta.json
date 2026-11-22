@@ -9451,9 +9451,21 @@
     "status": "mt",
     "srcHash": "872deb570fad"
   },
+  "common.team.roles.accountRefused": {
+    "status": "mt",
+    "srcHash": "cbbb4fc3ebf6"
+  },
+  "common.team.roles.reachRefused": {
+    "status": "mt",
+    "srcHash": "faf6d4196c9b"
+  },
   "common.team.roles.refused": {
     "status": "mt",
     "srcHash": "831bee7287c6"
+  },
+  "common.team.roles.signInLocked": {
+    "status": "mt",
+    "srcHash": "168922061fbc"
   },
   "common.team.roles.unavailable": {
     "status": "mt",
@@ -9466,6 +9478,10 @@
   "common.team.rolesDialog.failed": {
     "status": "mt",
     "srcHash": "6b19b87f3441"
+  },
+  "common.team.rolesDialog.invitedNote": {
+    "status": "mt",
+    "srcHash": "bad42c9ca716"
   },
   "common.team.rolesDialog.title": {
     "status": "mt",
@@ -24402,6 +24418,10 @@
   "roles.delete.title": {
     "status": "mt",
     "srcHash": "fbf0667eaa4b"
+  },
+  "roles.limits.fullAccess": {
+    "status": "mt",
+    "srcHash": "0ec4bbec5343"
   },
   "roles.limits.noTargets": {
     "status": "mt",

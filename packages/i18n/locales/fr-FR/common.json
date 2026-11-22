@@ -1859,12 +1859,16 @@
     "roles": {
       "unavailable": "Les rôles ne sont pas visibles pour votre compte : aucun ne peut donc être attribué ici.",
       "above": "Les rôles détenant des autorisations que vous n’avez pas ne peuvent être ni attribués ni retirés ici.",
-      "refused": "Vous ne pouvez attribuer que des rôles dont vous détenez les autorisations, et vous ne pouvez pas retirer un rôle qui en détient plus que vous."
+      "refused": "Vous ne pouvez attribuer que des rôles dont vous détenez les autorisations, et vous ne pouvez pas retirer un rôle qui en détient plus que vous.",
+      "accountRefused": "Cette personne détient des autorisations que vous n’avez pas : vous ne pouvez ni modifier son e-mail ni lui envoyer un nouveau lien de connexion.",
+      "reachRefused": "Cela mettrait à votre portée des lignes que votre rôle ne vous donne pas.",
+      "signInLocked": "Cette personne détient des autorisations que vous n’avez pas : seule une personne qui les détient peut envoyer un nouveau lien."
     },
     "rolesDialog": {
       "description": "Un utilisateur cumule les permissions de tous les rôles qu’il détient.",
       "failed": "Impossible de modifier les rôles",
-      "title": "Rôles de {name}"
+      "title": "Rôles de {name}",
+      "invitedNote": "Attribuer un autre rôle à cette personne met fin à son invitation actuelle : envoyez-lui ensuite un nouveau lien."
     },
     "rolesLocked": "Modifier les rôles requiert la permission « Gérer les rôles ».",
     "search": "Rechercher un nom ou un e-mail",

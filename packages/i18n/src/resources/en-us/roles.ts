@@ -196,6 +196,7 @@ export default {
     "notHeld": "You do not hold this permission, so you cannot give it.",
     "roleAbove": "This role holds permissions you do not, so you cannot change it.",
     "refused": "You can give only permissions you hold yourself, and cannot change a role that holds more than you do.",
-    "noTargets": "There is no role you can give that these members could move to, so this role cannot be deleted yet."
+    "noTargets": "There is no role you can give that these members could move to, so this role cannot be deleted yet.",
+    "fullAccess": "“Install and manage apps and add-ons” equals full access: apps and add-ons run code on this server. Give it only to somebody you would make a Super Admin."
   }
 } as const;

@@ -90,6 +90,12 @@ export const apiKeysRoutes: FastifyPluginAsyncZod = async (app) => {
           const maker = await (meta.dialect === 'sqlite' ? read : read.forUpdate()).executeTakeFirst();
           if (maker?.status !== 'active') throw new ForbiddenError('This account is no longer active.');
         }
+        // The calling key as it stands now, held with the row: one revoked since the request began makes nothing.
+        if (callingKey !== null) {
+          const read = trx.selectFrom('adminium_api_keys').select('revokedAt').where('id', '=', callingKey.id);
+          const still = await (meta.dialect === 'sqlite' ? read : read.forUpdate()).executeTakeFirst();
+          if (still === undefined || still.revokedAt !== null) throw new ForbiddenError('This key is no longer active.');
+        }
         return apiKeysRepo({ ...meta, db: trx }).create(
           {
             name: request.body.name,

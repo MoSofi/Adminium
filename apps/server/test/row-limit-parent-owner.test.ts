@@ -112,6 +112,29 @@ for (const [dialect, available] of ENGINES) {
       expect((await get('lena', data('deals/8'))).statusCode).toBe(200);
     });
 
+    it('a hand-over does not bring a table\'s rows into reach through their parent', async () => {
+      const { permissionsRepo, rolesRepo, usersRepo } = await import('@adminium/meta');
+      const roles = rolesRepo(w.meta);
+      const role = await roles.create({ slug: `visits-own-${dialect}`, name: 'Visits, own' });
+      await permissionsRepo(w.meta).grant(role.id, 'system', 'users.manage', { allowed: true });
+      const reading = { read: true, create: false, update: false, delete: false, export: false, import: false };
+      await permissionsRepo(w.meta).grant(role.id, 'table', `${w.connectionId}/${w.id('deals')}`, reading);
+      await permissionsRepo(w.meta).grant(role.id, 'table', `${w.connectionId}/${visits}`, { ...reading, rowLimit: { read: { reach: 'own' } } } as never);
+      await roles.assignToUser(w.people.omar, role.id);
+      const leaver = await usersRepo(w.meta).create({ email: `left-${dialect}@firm.test`, name: 'Left', passwordHash: null, status: 'suspended' });
+      await w.run(`INSERT INTO deals (id, title, owner_id, state, amount, big) VALUES (901, 'Left behind', '${leaver.id}', 'open', 1, ${dialect === 'postgres' ? 'false' : '0'})`);
+      await w.run(`INSERT INTO visits (id, deal_id, rep_id, note) VALUES (901, 901, NULL, 'On the left deal')`);
+      try {
+        const res = await call('omar', 'POST', `users/${leaver.id}/rows/hand-over`, { to: w.people.omar });
+        expect(res.statusCode, res.body).toBe(403);
+        expect(reason(res)).toBe('reach-above-you');
+      } finally {
+        await w.run('DELETE FROM visits WHERE id = 901');
+        await w.run('DELETE FROM deals WHERE id = 901');
+        await roles.removeFromUser(w.people.omar, role.id);
+      }
+    });
+
     it('a change: refused on another team\'s deal as a row that is not there, made on her own team\'s', async () => {
       const refused = await call('mara', 'PATCH', data(`${v()}/1`), { values: { note: 'Mara was here' } });
       expect(shape(refused, 1)).toEqual(shape(await call('mara', 'PATCH', data(`${v()}/999`), { values: { note: 'Mara was here' } }), 999));

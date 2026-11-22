@@ -565,12 +565,16 @@ export default {
     "roles": {
       "unavailable": "Roles are not visible to your account, so none can be assigned here.",
       "above": "Roles that hold permissions you do not have cannot be given or taken away here.",
-      "refused": "You can give only roles whose permissions you hold yourself, and cannot take away a role that holds more than you do."
+      "refused": "You can give only roles whose permissions you hold yourself, and cannot take away a role that holds more than you do.",
+      "accountRefused": "This person holds permissions you do not, so you cannot change their email or send them a new sign-in link.",
+      "reachRefused": "This would bring rows within your own reach that your role does not give you.",
+      "signInLocked": "This person holds permissions you do not, so only somebody who holds them can send a new link."
     },
     "rolesDialog": {
       "description": "A user gets the union of every role they hold.",
       "failed": "Could not change the roles",
-      "title": "Roles for {name}"
+      "title": "Roles for {name}",
+      "invitedNote": "Giving this person another role ends their current invitation: send them a new link afterwards."
     },
     "rolesLocked": "Changing roles needs the “Manage roles” permission.",
     "search": "Search name or email",

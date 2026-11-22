@@ -55,6 +55,7 @@ import { pagesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, typ
 import { matrixRowsFromGrants, appAccountsPermission, appRefundPermission, type AccountAction } from '../rbac/permissions.js';
 import type { RoleTableResult } from '@adminium/manifest';
 import { grantKeyOf, installRoleSlug, type InstallAddress } from '../installs/resolve.js';
+import { rowLimitWith } from './owner-row-limits.js';
 import type { AfterInstallItem } from './after-install.js';
 import { isSavedFile } from './saved-file.js';
 import { ownsBlocks } from './owns-blocks.js';
@@ -107,7 +108,7 @@ function grantsOf(role: ManifestRole, roles: readonly ManifestRole[]): string[] 
  */
 type RoleLimit = NonNullable<ManifestRole['limits']>[string];
 
-function limitsOf(role: ManifestRole, roles: readonly ManifestRole[]): Record<string, RoleLimit> {
+export function limitsOf(role: ManifestRole, roles: readonly ManifestRole[]): Record<string, RoleLimit> {
   const from = role.cloneFrom === undefined ? undefined : roles.find((other) => other.key === role.cloneFrom);
   return { ...(from?.limits ?? {}), ...(role.limits ?? {}) };
 }
@@ -434,7 +435,10 @@ export async function writeManifestRoles(input: {
   const settings = settingsRepo(meta);
   const seeded = new Set(await settings.get(SEEDED_APP_ROLE_GRANTS_KEY));
 
-  /** Put the manifest's limits on the role's table rows — what its update writes, what its read shows — and nothing else there. */
+  /**
+   * Put the manifest's limits on the role's table rows: what its update writes, what its read shows. Which rows it reaches
+   * is also the owner's to set, and what the owner set stays (`owner-row-limits.ts`).
+   */
   const writeLimits = async (roleId: string, limits: Record<string, RoleLimit>): Promise<void> => {
     const wanted = new Map<string, RoleLimit>();
     for (const [ref, limit] of Object.entries(limits)) {
@@ -462,7 +466,8 @@ export async function writeManifestRoles(input: {
       const create: UpdateLimit | undefined =
         limit?.creatable === undefined ? undefined : { writable: [...limit.creatable], ...(limit.creatableValues === undefined ? {} : { writableValues: limit.creatableValues }) };
       // Which rows its read, update and delete reach: dropped here, the role would reach every row.
-      const rows: RowLimit | undefined = limit?.rows === undefined ? undefined : storedRowLimit(limit.rows, (ref) => tableId(ref) ?? ref);
+      const declaredRows: RowLimit | undefined = limit?.rows === undefined ? undefined : storedRowLimit(limit.rows, (ref) => tableId(ref) ?? ref);
+      const { rows } = rowLimitWith(actions.ownerRows, declaredRows);
       await permissions.grant(roleId, 'table', row.resourceRef, {
         ...rest,
         ...(update === undefined ? {} : { updateLimit: update }),
@@ -488,7 +493,8 @@ export async function writeManifestRoles(input: {
       if (existing === null) return;
       const actions = { ...(existing.actions as Record<string, unknown>), [action]: false };
       const anyLeft = Object.entries(actions).some(([name, value]) => name !== 'updateLimit' && name !== 'readLimit' && name !== 'createLimit' && value === true);
-      if (anyLeft) await permissions.grant(roleId, kind, ref, actions as never);
+      // What the owner limited waits on the row, for a version that gives the action back.
+      if (anyLeft || actions['ownerRows'] !== undefined) await permissions.grant(roleId, kind, ref, actions as never);
       else await permissions.revoke(roleId, kind, ref);
     };
     if (table !== null) {
