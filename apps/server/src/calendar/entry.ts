@@ -38,9 +38,15 @@ export type TextSetting = (source: { table: string; column: string }) => Promise
 
 const text = (value: unknown): string => (typeof value === 'string' ? value.trim() : value === null || value === undefined ? '' : String(value).trim());
 
-/** The entry's UID: the same in the mail, the feed and anything that syncs it, so one visit is one event everywhere. */
-export function calendarUid(appKey: string, rowKey: string, install: string): string {
-  return `${appKey}.${encodeURIComponent(rowKey)}@${install}`;
+/**
+ * The entry's UID: the same in the mail, the feed and anything that syncs it, so
+ * one visit is one event everywhere. The database is in it because one server
+ * can run a copy of an app per database, each counting its rows from 1: without
+ * it, one copy's cancellation could remove another copy's visit from a guest's
+ * calendar.
+ */
+export function calendarUid(appKey: string, connectionId: string, rowKey: string, install: string): string {
+  return `${appKey}.${encodeURIComponent(connectionId)}.${encodeURIComponent(rowKey)}@${install}`;
 }
 
 /** The notice in the mail's language: the exact tag, else the same language, else US English. */
@@ -69,6 +75,7 @@ export interface EntryContext {
   table: ResolvedTable;
   rule: CalendarRule;
   appKey: string;
+  connectionId: string;
   install: string;
   locale: string;
   setting: TextSetting;
@@ -93,7 +100,7 @@ export async function bookingEntry(ctx: EntryContext, row: Row, opts: { customer
   const description = [[title, person].filter((part) => part !== '').join(' · '), code, opts.withoutNotice === true ? '' : noticeIn(calendar.notice, ctx.locale)].filter((line) => line !== '').join('\n');
   return {
     event: {
-      uid: calendarUid(ctx.appKey, rowKeyOf(table, row), ctx.install),
+      uid: calendarUid(ctx.appKey, ctx.connectionId, rowKeyOf(table, row), ctx.install),
       sequence: Math.max(0, Math.trunc(Number(row[calendar.revision]) || 0)),
       start,
       end: new Date(start.getTime() + minutes * 60_000),

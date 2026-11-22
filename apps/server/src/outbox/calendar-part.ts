@@ -46,7 +46,7 @@ export async function calendarPartFor(
   const install = await settingsRepo(deps.meta).get('system.instanceId');
   if (row === undefined || typeof install !== 'string' || install === '') return null;
   const read = settingReader(deps.meta, db, view, input.connectionId);
-  const entry = await bookingEntry({ db, view, table, rule, appKey: input.appKey, install, locale: input.locale, setting: (source) => read(source) }, row);
+  const entry = await bookingEntry({ db, view, table, rule, appKey: input.appKey, connectionId: input.connectionId, install, locale: input.locale, setting: (source) => read(source) }, row);
   if (entry === null) return null;
   const method = entry.takesTime ? 'REQUEST' : 'CANCEL';
   const content = invitationFile({ method, event: entry.event, stamp: new Date(deps.now), organizer: input.organizer, attendee: input.to });

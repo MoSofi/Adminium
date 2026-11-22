@@ -168,7 +168,7 @@ export async function renderFeed(deps: FeedDeps, token: string): Promise<{ body:
   const feed = rule.calendar.feed;
   const names = feed.detail !== undefined && feed.customer !== undefined && String((await read(feed.detail)) ?? '') === 'name';
   const memo = new Map<string, string>();
-  const ctx = { db, view, table, rule, appKey: claim.app, install, locale: 'en-US', setting: (source: { table: string; column: string }) => read(source), memo };
+  const ctx = { db, view, table, rule, appKey: claim.app, connectionId: claim.connection, install, locale: 'en-US', setting: (source: { table: string; column: string }) => read(source), memo };
   const events: CalendarEvent[] = [];
   for (const row of rows) {
     const customerName = names ? shownNameOfFull(await textAlong(db, view, table, row, feed.customer!, memo)) : undefined;
@@ -176,7 +176,7 @@ export async function renderFeed(deps: FeedDeps, token: string): Promise<{ body:
     if (entry !== null) events.push(entry.event);
   }
   const studio = String((await read(rule.calendar.studio.name)) ?? '').trim();
-  const body = feedFile({ name: studio === '' ? 'Calendar' : studio, uid: `feed.${claim.app}.${encodeURIComponent(claim.row)}@${install}`, events, stamp: new Date(now) });
+  const body = feedFile({ name: studio === '' ? 'Calendar' : studio, uid: `feed.${claim.app}.${encodeURIComponent(claim.connection)}.${encodeURIComponent(claim.row)}@${install}`, events, stamp: new Date(now) });
   // The moment it was made changes on every fetch and says nothing about the visits.
   const etag = `"${createHash('sha256').update(body.replace(/^DTSTAMP:.*\r\n/gm, '')).digest('base64url')}"`;
   return { body, etag };

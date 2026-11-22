@@ -307,7 +307,7 @@ describe.each(LEGS)('a booking as a calendar entry — %s', (dialect, available)
       expect(booked!.calendar?.method).toBe('REQUEST');
       const first = unfolded(booked!.calendar!.content);
       const uid = first.find((line) => line.startsWith('UID:'))!;
-      expect(uid).toBe(`UID:studio.${String(visit['id'])}@install-test`);
+      expect(uid).toBe(`UID:studio.${h.connectionId}.${String(visit['id'])}@install-test`);
       expect(first).toContain('SEQUENCE:0');
       expect(first.some((line) => line.startsWith('ATTENDEE') && line.endsWith('RSVP=FALSE:mailto:ava@lumen-guests.dev'))).toBe(true);
       expect(first.some((line) => line.startsWith('ORGANIZER;CN="Lumen Studio":mailto:hello@lumen.example'))).toBe(true);
@@ -454,7 +454,7 @@ describe.each(LEGS)('a booking as a calendar entry — %s', (dialect, available)
       expect(res.headers['x-robots-tag']).toBe('noindex');
       expect(res.headers['referrer-policy']).toBe('no-referrer');
       const body = res.body.replace(/\r\n /g, '');
-      expect(body).toContain(`UID:studio.${String(kept['id'])}@install-test`);
+      expect(body).toContain(`UID:studio.${h.connectionId}.${String(kept['id'])}@install-test`);
       expect(body).toContain('LMN-KEPT');
       expect(body).not.toContain('LMN-GONE');
       expect(body).not.toContain('LMN-MARCO');

@@ -135,9 +135,10 @@ describe('the two add-to-calendar links', () => {
 });
 
 describe('the entry\'s words', () => {
-  it('a UID is the app, the row and the install: two studios\' first bookings are two events', () => {
-    expect(calendarUid('lumen', '1', 'install-a')).not.toBe(calendarUid('lumen', '1', 'install-b'));
-    expect(calendarUid('lumen', 'a b/c', 'i')).toBe('lumen.a%20b%2Fc@i');
+  it('a UID is the app, the database, the row and the install: two studios\' first bookings are two events', () => {
+    expect(calendarUid('lumen', 'con-a', '1', 'install-a')).not.toBe(calendarUid('lumen', 'con-a', '1', 'install-b'));
+    expect(calendarUid('lumen', 'con-a', '1', 'install-a')).not.toBe(calendarUid('lumen', 'con-b', '1', 'install-a'));
+    expect(calendarUid('lumen', 'con-a', 'a b/c', 'i')).toBe('lumen.con-a.a%20b%2Fc@i');
   });
 
   it('the notice is in the mail\'s language, else its language family, else US English', () => {

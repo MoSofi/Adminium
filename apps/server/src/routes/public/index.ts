@@ -6661,7 +6661,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (row === null || typeof install !== 'string' || install === '') return none();
         const read = settingReader(meta, found.db, found.view, ok.key.connectionId);
         const language = (request.headers['accept-language'] ?? '').split(',')[0]?.split(';')[0]?.trim() || 'en-US';
-        const entry = await bookingEntry({ db: found.db, view: found.view, table: found.table, rule, appKey: ok.key.managedBy, install, locale: language, setting: (source) => read(source) }, row);
+        const entry = await bookingEntry({ db: found.db, view: found.view, table: found.table, rule, appKey: ok.key.managedBy, connectionId: ok.key.connectionId, install, locale: language, setting: (source) => read(source) }, row);
         if (entry === null || !entry.takesTime) return none();
         return reply.send({ data: { ics: downloadFile({ event: entry.event, stamp: new Date() }), google: googleCalendarLink(entry.event), outlook: outlookCalendarLink(entry.event) } });
       },
