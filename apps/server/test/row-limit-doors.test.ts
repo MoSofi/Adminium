@@ -184,6 +184,26 @@ for (const [dialect, available] of ENGINES) {
         expect(json<{ data: { id: string }[] }>(await get('lena', 'exports')).data.map((row) => row.id)).toContain(danas);
       });
 
+      it('is not opened or listed by a holder of the manage grant who cannot read its table', async () => {
+        const lenas = await exportDeals('lena');
+        // Sam looks after exports and has no grant on the deals at all.
+        const missing = await download('sam', 'exp_nothing_here');
+        const refused = await download('sam', lenas);
+        expect([refused.statusCode, json<{ error: { code: string } }>(refused).error.code]).toEqual([missing.statusCode, json<{ error: { code: string } }>(missing).error.code]);
+        expect((await get('sam', `exports/${lenas}`)).statusCode).toBe(404);
+        expect(json<{ data: { id: string }[] }>(await get('sam', 'exports')).data.map((row) => row.id)).not.toContain(lenas);
+      });
+
+      it('whose database is gone is opened only by somebody who reads every table', async () => {
+        const lenas = await exportDeals('lena');
+        await w.meta.db.updateTable('adminium_exports').set({ connectionId: null }).where('id', '=', lenas).execute();
+        expect((await download('sam', lenas)).statusCode).toBe(404);
+        expect((await download('dana', lenas)).statusCode).toBe(404);
+        expect((await download('owner', lenas)).statusCode).toBe(200);
+        // Her own file stays hers.
+        expect((await download('lena', lenas)).statusCode).toBe(200);
+      });
+
       it('is counted and previewed over the rows the asker would get', async () => {
         const countOf = async (who: Who): Promise<number | null> =>
           json<{ data: { tables: { id: string; rowCountEstimate: number | null }[] } }>(await get(who, `exports/sources?connectionId=${w.connectionId}`)).data.tables.find((table) => table.id === deals())!.rowCountEstimate;
