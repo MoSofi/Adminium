@@ -9,15 +9,16 @@
  *    of the address on it, and the random nonce that person's feed holds now.
  *    "Renew" replaces the nonce and the old link stops at once; a row that
  *    comes to hold someone else's address opens nothing;
- *  - a person made inactive or deleted, an app switched off or removed, and a
- *    made-up link all get the same answer, so a link tells nothing;
+ *  - a person made inactive or deleted, the staff account that took the link
+ *    suspended or deleted, an app switched off or removed, and a made-up link
+ *    all get the same answer, so a link tells nothing;
  *  - an entry shows the service, and the customer's first name and initial only
  *    while the studio's setting says `name`: never an address, a phone, a note,
  *    a price or a link that opens the booking.
  */
 import { createHash } from 'node:crypto';
 
-import { calendarFeedsRepo, manifestsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
+import { calendarFeedsRepo, manifestsRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 import type { Kysely } from 'kysely';
 
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
@@ -55,6 +56,8 @@ export interface FeedClaim {
   /** A digest of the sign-in address on that row when the link was made: a row that now holds someone else opens nothing. */
   address: string;
   nonce: string;
+  /** The signed-in person who took the link: it stops while they are suspended, and for good once they are deleted. */
+  user: string;
 }
 
 export function makeFeedToken(key: string, claim: FeedClaim): string {
@@ -64,9 +67,9 @@ export function makeFeedToken(key: string, claim: FeedClaim): string {
 export function readFeedToken(keys: readonly string[], install: string, token: unknown): FeedClaim | null {
   const read = openLink(keys, KIND, token);
   if (read === null || read['v'] !== 1 || read['install'] !== install) return null;
-  const { app, connection, table, row, address, nonce } = read;
-  if (typeof app !== 'string' || typeof connection !== 'string' || typeof table !== 'string' || typeof row !== 'string' || typeof address !== 'string' || typeof nonce !== 'string') return null;
-  return { install, app, connection, table, row, address, nonce };
+  const { app, connection, table, row, address, nonce, user } = read;
+  if (typeof app !== 'string' || typeof connection !== 'string' || typeof table !== 'string' || typeof row !== 'string' || typeof address !== 'string' || typeof nonce !== 'string' || typeof user !== 'string') return null;
+  return { install, app, connection, table, row, address, nonce, user };
 }
 
 /** The feed link on this server's public address. */
@@ -113,6 +116,8 @@ export interface FeedDeps {
 
 /** What a live claim opens, or null: every reason there is none reads the same. */
 async function liveFeed(deps: FeedDeps, claim: FeedClaim) {
+  const holder = await usersRepo(deps.meta).findById(claim.user);
+  if (holder === null || holder.status === 'suspended') return null;
   const installed = await manifestsRepo(deps.meta, NO_SECRETS).findInScope(claim.app, claim.connection);
   if (installed === null || installed.row.status !== 'installed' || installed.row.connectionId !== claim.connection) return null;
   const view = await deps.viewFor(claim.connection);

@@ -504,6 +504,22 @@ describe.each(LEGS)('a booking as a calendar entry — %s', (dialect, available)
       expect(audit.length).toBeGreaterThanOrEqual(2);
     });
 
+    it.skipIf(!available)('stops while the person who took it is suspended, and for good once they are deleted', async () => {
+      await h.rows(`INSERT INTO ${h.real('team')} (id, first_name, email, active, position) VALUES (9, 'Sam Vale', 'sam@lumen.example', ${yes}, 9)`);
+      const sam = await login('sam@lumen.example', 'super-admin');
+      const path = pathOf(((await look(sam, 9)).json() as { data: { link: string } }).data.link);
+      expect((await fetchFeed(path)).statusCode).toBe(200);
+      const user = (await usersRepo(meta).findByEmail('sam@lumen.example'))!;
+      await usersRepo(meta).updateStatus(user.id, 'suspended');
+      expect((await fetchFeed(path)).statusCode).toBe(404);
+      await usersRepo(meta).updateStatus(user.id, 'active');
+      expect((await fetchFeed(path)).statusCode).toBe(200);
+      await meta.db.deleteFrom('adminium_user_roles').where('userId', '=', user.id).execute();
+      await meta.db.deleteFrom('adminium_sessions').where('userId', '=', user.id).execute();
+      await meta.db.deleteFrom('adminium_users').where('id', '=', user.id).execute();
+      expect((await fetchFeed(path)).statusCode).toBe(404);
+    });
+
     it.skipIf(!available)('is bound to the person: a row that comes to hold someone else opens nothing', async () => {
       await h.rows(`INSERT INTO ${h.real('team')} (id, first_name, email, active, position) VALUES (3, 'Lee Park', 'lee@lumen.example', ${yes}, 3)`);
       const lee = await login('lee@lumen.example', 'super-admin');

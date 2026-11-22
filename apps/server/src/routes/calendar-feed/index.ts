@@ -122,11 +122,11 @@ export function calendarFeedRoutes(deps: FeedDeps): FastifyPluginAsyncZod {
     }
 
     /** The link, for its own person only, on this server's public address. */
-    async function linkFor(input: { appKey: string; connection: string; table: string; rowKey: string; address: string; nonce: string | null }): Promise<string | null> {
+    async function linkFor(input: { appKey: string; connection: string; table: string; rowKey: string; address: string; nonce: string | null; user: unknown }): Promise<string | null> {
       const origin = await storedPublicOrigin(deps.meta);
       const install = await settingsRepo(deps.meta).get('system.instanceId');
-      if (origin === null || input.nonce === null || typeof install !== 'string' || install === '') return null;
-      const token = makeFeedToken(await mailLinkKeys(deps.meta, deps.secret).feed(), { install, app: input.appKey, connection: input.connection, table: input.table, row: input.rowKey, address: input.address, nonce: input.nonce });
+      if (origin === null || input.nonce === null || typeof input.user !== 'string' || typeof install !== 'string' || install === '') return null;
+      const token = makeFeedToken(await mailLinkKeys(deps.meta, deps.secret).feed(), { install, app: input.appKey, connection: input.connection, table: input.table, row: input.rowKey, address: input.address, nonce: input.nonce, user: input.user });
       return feedUrl(origin, token);
     }
 
@@ -134,7 +134,7 @@ export function calendarFeedRoutes(deps: FeedDeps): FastifyPluginAsyncZod {
       const { target, appKey, rowKey, own, address } = await personFor(request, request.query);
       if (!own) return { data: { link: null, own: false } };
       const nonce = await calendarFeedsRepo(deps.meta).ensure({ connectionId: request.query.connection, appKey, tableName: target.table.id, rowKey }, Date.now());
-      return { data: { link: await linkFor({ appKey, connection: request.query.connection, table: target.table.id, rowKey, address, nonce }), own: true } };
+      return { data: { link: await linkFor({ appKey, connection: request.query.connection, table: target.table.id, rowKey, address, nonce, user: (request.user as { id?: unknown } | null)?.id }), own: true } };
     });
 
     app.post(
@@ -145,7 +145,7 @@ export function calendarFeedRoutes(deps: FeedDeps): FastifyPluginAsyncZod {
         const by = (request.user as { id?: unknown } | null)?.id;
         const nonce = await calendarFeedsRepo(deps.meta).renew({ connectionId: request.body.connection, appKey, tableName: target.table.id, rowKey }, typeof by === 'string' ? by : null, Date.now());
         await app.rbac.audit(request, { category: 'settings', action: 'calendar-feed.renew', changes: { after: { table: target.table.id, row: rowKey } } });
-        return { data: { link: own ? await linkFor({ appKey, connection: request.body.connection, table: target.table.id, rowKey, address, nonce }) : null, own } };
+        return { data: { link: own ? await linkFor({ appKey, connection: request.body.connection, table: target.table.id, rowKey, address, nonce, user: by }) : null, own } };
       },
     );
   };
