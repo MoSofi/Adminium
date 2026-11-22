@@ -417,7 +417,8 @@ import { privacyRoutes } from './routes/privacy/index.js';
 import { formsStaffRoutes } from './routes/forms/index.js';
 import { mailSettingsRoutes } from './routes/mail-settings/index.js';
 import { registerPrivacyExportHandler, sweepPrivacyExports } from './privacy/export.js';
-import { sweepKeptHolders } from './privacy/held-values.js';
+import { moveHeldToAddress, sweepKeptHolders } from './privacy/held-values.js';
+import { installedCustomerKey } from './public-api/customer-key.js';
 import { sweepFormAnswers } from './forms/answers.js';
 import { ADD_ON_EXPIRE_SWEEP_CRON, ADD_ON_EXPIRE_SWEEP_NAME, sweepExpiredRows } from './add-ons/expire.js';
 import { mailNoticeRoutes } from './routes/mail-door/notices.js';
@@ -1532,7 +1533,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    */
   app.decorate(
     'publicIdentities',
-    createIdentityEmailWatch({ meta, manager, views: { viewFor: (connectionId) => publicViews.viewFor(connectionId) }, addressSecret: addressKey(env.ADMINIUM_SECRET), logger: app.log }),
+    createIdentityEmailWatch({ meta, manager, moveHeld: async (connectionId, view, from, to) => moveHeldToAddress({ meta, db: (await manager.data(connectionId)).db, keyOf: installedCustomerKey }, connectionId, view, from, to), views: { viewFor: (connectionId) => publicViews.viewFor(connectionId) }, addressSecret: addressKey(env.ADMINIUM_SECRET), logger: app.log }),
   );
   let signInLinkMinter: ReturnType<typeof createSignInLinkMinter> | undefined;
   // A record's live pay link, for printed invoices and reminders; found once the payment parts exist (below).

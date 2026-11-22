@@ -49,7 +49,7 @@ import { NulInRequest } from '../../security/nul-bytes.js';
 import { availabilityOf } from '../../surfaces/settings.js';
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
 import { blankOwnCopies, ownCopyTables } from '../../privacy/forget-copies.js';
-import { forgetHeld, heldIndex, holderTablesOn, reachesGiftsOnlyBySale } from '../../privacy/held-values.js';
+import { forgetHeld, heldIndex, holderTablesOn, moveHeldToAddress, reachesGiftsOnlyBySale } from '../../privacy/held-values.js';
 import { erasedNameOf } from '../../privacy/sources.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import type { Dialect } from '@adminium/engine';
@@ -4971,6 +4971,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             invalidateWidgetData(app, ok.key.connectionId, found.table.id);
           },
         });
+        // What they hold by their key goes with them: the old mailbox's next owner must not be able to spend it.
+        if (typeof oldAddress === 'string') {
+          await moveHeldToAddress({ meta, db: found.db, keyOf: installedCustomerKey }, ok.key.connectionId, found.view, oldAddress, newAddress).catch((error: unknown) => {
+            request.log.warn({ err: error }, 'what a person holds could not follow their new address');
+          });
+        }
         await challenges.mark({ keyId: ok.key.keyId, ref: person.claim.ref, sessionId: session.id, subject, purpose: 'email-changed' }, now);
         const locale = negotiateLocale(request.headers['accept-language']) ?? (await recipientLocale(meta, null));
         if (plausibleAddress(oldAddress)) {
