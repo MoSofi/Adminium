@@ -233,23 +233,24 @@ type Heard = { kind: 'answer'; value: unknown } | { kind: 'threw'; error: unknow
 export async function recordBought(deps: BookingDeps, booking: ShippingBooking, fields: ShippingBookingFields, duplicates: number): Promise<ShippingBooking> {
   const repo = shippingBookingsRepo(deps.meta);
   const now = deps.now();
-  const all = { ...fields, duplicates };
-  if (await repo.move(booking.id, ['calling', 'unknown'], 'booked', all, now)) {
+  // First, and only ever upwards: a count already recorded is a paid label someone still has to refund.
+  await repo.raiseDuplicates(booking.id, duplicates, now);
+  if (await repo.move(booking.id, ['calling', 'unknown'], 'booked', fields, now)) {
     await deps.faults?.afterBooked?.();
     await queueApply(deps, booking.id);
     return (await repo.byId(booking.id))!;
   }
   const current = (await repo.byId(booking.id))!;
   if (current.state !== 'refused' && current.state !== 'released') return current;
-  if (await repo.reopenAsBooked(current.id, current, current.mode, all, now)) {
+  if (await repo.reopenAsBooked(current.id, current, current.mode, fields, now)) {
     await takeCountBack(deps, current.id);
     await queueApply(deps, current.id);
     return (await repo.byId(current.id))!;
   }
-  await repo.note(current.id, ['refused', 'released'], { ...all, reason: LATE_LABEL_REASON }, now);
+  await repo.note(current.id, ['refused', 'released'], { ...fields, reason: LATE_LABEL_REASON }, now);
   await takeCountBack(deps, current.id);
   const holder = await repo.open(current, current.mode);
-  if (holder !== null) await repo.note(holder.id, ['booked', 'calling', 'unknown'], { duplicates: holder.duplicates + 1 }, now);
+  if (holder !== null) await repo.addDuplicate(holder.id, ['booked', 'calling', 'unknown'], now);
   deps.log?.('a second paid label turned up for one parcel', { key: current.carrierKey, booking: current.id });
   return (await repo.byId(current.id))!;
 }
@@ -358,7 +359,8 @@ async function lateLabel(deps: BookingDeps, reserved: ShippingBooking, resolved:
   if (owner === undefined) throw new ShippingRefusal('CARRIER_BAD_ANSWER', 'The carrier found a label that cannot be matched to this parcel, so nothing was bought.', { carrier: reserved.carrierKey });
   const fields = fieldsOf(owner, shipment, deps.now());
   if (fields === null) throw new ShippingRefusal('CARRIER_BAD_ANSWER', 'The carrier answered in a way Adminium does not understand.', { carrier: reserved.carrierKey });
-  if (!(await repo.takeBackSlot(reserved.id, owner.id, owner, owner.mode, { ...fields, duplicates: parsed.data.duplicates?.length ?? 0 }, 'label-found', deps.now()))) {
+  await repo.raiseDuplicates(owner.id, parsed.data.duplicates?.length ?? 0, deps.now());
+  if (!(await repo.takeBackSlot(reserved.id, owner.id, owner, owner.mode, fields, 'label-found', deps.now()))) {
     throw new ShippingRefusal('BOOKING_EXISTS', 'This parcel already has a booking.', {});
   }
   await giveBackCount(deps, reserved.id);
