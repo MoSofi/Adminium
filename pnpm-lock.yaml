@@ -474,6 +474,9 @@ importers:
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
+      google-libphonenumber:
+        specifier: 3.2.48
+        version: 3.2.48
       kysely:
         specifier: ^0.29.5
         version: 0.29.5
@@ -511,6 +514,9 @@ importers:
       '@types/better-sqlite3':
         specifier: ^9.6.0
         version: 9.6.0
+      '@types/google-libphonenumber':
+        specifier: 7.4.31
+        version: 7.4.31
       '@types/node':
         specifier: 22.15.3
         version: 22.15.3
@@ -3846,6 +3852,9 @@ packages:
   '@types/geojson@7946.0.16':
     resolution: {integrity: sha512-6C8nqWur3j98U6+lXDfTUWIfgvZU+EumvpHKcYjujKH7woYyLj2sUmff0tRhrqM7BohUw7Pz3ZB1jj2gW9Fvmg==}
 
+  '@types/google-libphonenumber@7.4.31':
+    resolution: {integrity: sha512-NqtRPbLfRbCsqYTVb2UHM67AhMUfTYarxy32u14QilQq7i2C37jtvxbEmb0U0oCMMZtFfpoAtbuhrXwF7/EyVg==}
+
   '@types/hast@3.0.5':
     resolution: {integrity: sha512-rp/ezSWaD1m44dPKICGhiskI13nVr7qTloFwDa/IYkhhf5nzwP+zIQcIJh3WIFSBOy/H1PzB40jPjMDksN4F+g==}
 
@@ -5345,6 +5354,10 @@ packages:
   globalthis@1.0.4:
     resolution: {integrity: sha512-DpLKbNU4WylpxJykQujfCcwYWiV/Jhm50Goo0wrVILAv5jOr9d+H+UR3PhSCD2rCCEIg0uc+G+muBTwD54JhDQ==}
     engines: {node: '>= 0.4'}
+
+  google-libphonenumber@3.2.48:
+    resolution: {integrity: sha512-x8Z8baHTiMchHIcQUsCU5HNwbCVA8UOoVkOMfGxOpCtkoUG6pAAp6jtjKILHgmhNzEb6t3t8i4UxAMIkNZr3DA==}
+    engines: {node: '>=0.10'}
 
   gopd@1.2.0:
     resolution: {integrity: sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==}
@@ -10863,6 +10876,8 @@ snapshots:
 
   '@types/geojson@7946.0.16': {}
 
+  '@types/google-libphonenumber@7.4.31': {}
+
   '@types/hast@3.0.5':
     dependencies:
       '@types/unist': 3.0.3
@@ -12746,6 +12761,8 @@ snapshots:
       define-properties: 1.2.1
       gopd: 1.2.0
     optional: true
+
+  google-libphonenumber@3.2.48: {}
 
   gopd@1.2.0: {}
 
