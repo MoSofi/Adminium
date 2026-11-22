@@ -53,6 +53,11 @@ export const releaseSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expected an ISO-8601 date (YYYY-MM-DD)'),
   title: z.string().min(1),
   summary: z.string().min(1),
+  /**
+   * What someone running Adminium has to do around this upgrade, shown above
+   * the release's title. Its heading is data, like every other word in the feed.
+   */
+  notice: z.object({ title: z.string().min(1), items: z.array(z.string().min(1)).min(1) }).optional(),
   changes: z.array(changeSchema).min(1),
 });
 
@@ -61,6 +66,42 @@ export type Release = z.infer<typeof releaseSchema>;
 
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
+  {
+    version: '0.3.71',
+    date: '2026-11-22',
+    title: 'Online bookings, calendars and tighter security',
+    summary:
+      'Adminium can now run a bookings business: staff calendars that sync, buffers and time off, invitations that update themselves, and customer pages that sit inside your own website. This release also closes several security gaps, so please read the notice above first.',
+    notice: {
+      title: 'Before you upgrade',
+      items: [
+        'Old notifications are deleted for good. The first cleanup after the upgrade, at 03:00 UTC, deletes notifications that were read more than retention.notificationsDays ago (90 days unless you changed it). Unread ones stay until they are read. To keep older ones, raise that setting first. It has no screen yet, so the statement to run is in the docs: Upgrading, “Keep read notifications longer”. If you have only just upgraded, you still have until the next 03:00 UTC.',
+        'API keys made by suspended people stop working. The upgrade revokes, once, every API key made by someone who is suspended at that moment, and writes each one to the audit log with who made it. A revoked key cannot be restored, even by reactivating the person, so a shared integration running on one needs a new key. A key with no recorded maker keeps working: revoke any you do not recognise on the API keys page.',
+        'Keys and roles can no longer reach above the person handing them out. A new API key can never hold more than whoever makes it, and only a signed-in Super Admin can make a Super Admin key. Someone who manages roles and is not a Super Admin can now give out only what they hold, and cannot edit roles above them. Keys and roles that exist today are not changed, so if a custom role has held “Manage API keys” or “Manage roles”, review your keys and who holds which role.',
+        'If you run several replicas, finish replacing all of them before you suspend anyone.',
+      ],
+    },
+    changes: [
+      { tag: 'New', text: 'A booking rule can keep a buffer after each visit, block the times a person is away, share “anyone” evenly, cap a person’s hours, hold only guests to the booking window, and offer a waiting-list time that holds nothing until it is taken.' },
+      { tag: 'New', text: 'Each person can connect their own calendar from a link that needs no account. Bookings go out to it and its busy times block new ones. Staff on screens-only roles can see their busy times and clashes and keep a clash.' },
+      { tag: 'New', text: 'A booking’s mail can carry a real calendar invitation that updates and cancels in place, and each person can have a private calendar feed they can renew.' },
+      { tag: 'New', text: 'An app’s customer pages can run inside a frame on the websites its owner lists, with a button or a sheet, a snippet maker in the studio, and a payment that returns to the page it started from.' },
+      { tag: 'New', text: 'A review mail can carry a link that reviews one visit and nothing else, a service mail sent for a purpose carries a working stop link, and a studio’s own cancel can refund by itself.' },
+      { tag: 'New', text: '“Delete my details” can also empty the person’s own copies on rows linked to them, such as the name on a past booking. An app turns it on with forget.copies, and tables the law keeps stay whole. The public client’s forgetMe() now also says what the delete could not reach: balances still live and gifts not linked to the person.' },
+      { tag: 'New', text: 'An add-on can show a signed-in customer the rows it holds for them, let them spend one without its code reaching the browser, run an outside script in a sandboxed page, and show a date column as there or not.' },
+      { tag: 'Improved', text: 'The built-in demo calendar now exists only when NODE_ENV is exactly test or development, so a server with NODE_ENV unset no longer has it.' },
+      { tag: 'Fixed', text: 'A dated mail that comes due while its setting is off is dropped instead of going out late. A mail not yet due is kept, so turning a setting off and on again loses no reminder.' },
+      { tag: 'Security', text: 'Secret codes in web addresses no longer reach the request log or the audit log, including mail service notice addresses, the link that lets a found person object and be erased, mail and pay links, and undo codes. Lines written before this release keep what they hold: if other people can read your logs and you use the “other” mail service without a password, replace its notice address.' },
+      { tag: 'Security', text: 'Creating an API key can no longer reach above its maker. A key made by a key is held to both, cannot outlast the key that made it, and a key with no person behind it can no longer make keys.' },
+      { tag: 'Security', text: 'Someone who manages roles and is not a signed-in Super Admin can set only permissions they fully hold, and cannot rename, change, delete, give or take a role that holds more than they do. The Roles and Team pages show what you cannot give and say why.' },
+      { tag: 'Security', text: 'Suspending or deleting someone closes their live connections at once and revokes every API key they made. Reactivating them does not bring the keys back.' },
+      { tag: 'Security', text: 'An invitation link works only while the account is still invited, a new link retires the earlier ones, and using any link retires the rest. Password and invitation links no longer reach the request log.' },
+      { tag: 'Security', text: 'Holding exports.manage no longer opens another person’s export of a table you cannot read.' },
+      { tag: 'Security', text: 'Holding imports.manage no longer opens another person’s import of a table you cannot read.' },
+      { tag: 'Security', text: 'A survey with “Link answers to names” off no longer keeps a time that matches an answer to its invitation, and the daily sweep removes that time from invitations already stored.' },
+      { tag: 'Security', text: 'Changing your own sign-in address now needs a link sent to the new address, opened while signed in. The old address keeps working until then.' },
+    ],
+  },
   {
     version: '0.3.70',
     date: '2026-11-21',

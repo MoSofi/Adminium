@@ -190,5 +190,12 @@ export default {
   "partsOff": "Její část aplikace je vypnutá: dokud se nezapne, role nic neuděluje.",
   "people": {
     "unnamed": "Nepojmenovaná osoba"
+  },
+  "limits": {
+    "note": "Můžete udělit jen oprávnění, která sami máte. Ostatní se zobrazují, ale nelze je změnit.",
+    "notHeld": "Toto oprávnění nemáte, proto ho nemůžete udělit.",
+    "roleAbove": "Tato role má oprávnění, která vy nemáte, proto ji nemůžete změnit.",
+    "refused": "Můžete udělit jen oprávnění, která sami máte, a nemůžete změnit roli, která má víc oprávnění než vy.",
+    "noTargets": "Neexistuje role, kterou můžete udělit a na kterou by se tito členové mohli přesunout, takže tuto roli zatím nelze smazat."
   }
 } as const;

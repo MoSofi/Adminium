@@ -61,7 +61,7 @@ import { PageSurface } from '../shell/PageSurface.js';
 import { t } from '../i18n/t.js';
 import { useCommonWords } from '../i18n/commonWords.js';
 import { CopyButton } from '../studio/connect/CopyButton.js';
-import { peopleQuery, rolesQuery, type RoleListItem } from './rolesApi.js';
+import { isRoleRefusal, peopleQuery, rolesQuery, type RoleListItem } from './rolesApi.js';
 import {
   EMPTY_USER_FILTERS,
   TEAM_USERS_KEY,
@@ -351,6 +351,13 @@ function InviteDialog({
   );
 }
 
+/** A failed save in the reader's words when the server refused it for reaching above them. */
+function roleFailureText(error: Error): string {
+  return isRoleRefusal(error)
+    ? t('team.roles.refused', 'You can give only roles whose permissions you hold yourself, and cannot take away a role that holds more than you do.')
+    : error.message;
+}
+
 function RoleCheckboxes(props: {
   idPrefix: string;
   roles: readonly RoleListItem[];
@@ -364,19 +371,24 @@ function RoleCheckboxes(props: {
       </p>
     );
   }
+  const shown = props.roles.filter((role) => role.partsOff !== true || props.selected.includes(role.id));
+  const noteId = `${props.idPrefix}-roles-above`;
+  const someAbove = shown.some((role) => role.mayChange === false);
   return (
     <div className="flex flex-col gap-2">
       {/* A role whose part of its app is switched off is offered to nobody new; somebody who holds it sees it, to take it away. */}
-      {props.roles
-        .filter((role) => role.partsOff !== true || props.selected.includes(role.id))
-        .map((role) => {
+      {shown.map((role) => {
         const id = `${props.idPrefix}-role-${role.id}`;
         const checked = props.selected.includes(role.id);
+        // Above the viewer: shown as it stands, neither given nor taken away here.
+        const above = role.mayChange === false;
         return (
           <div key={role.id} className="flex items-center gap-2">
             <Checkbox
               id={id}
               checked={checked}
+              disabled={above}
+              aria-describedby={above ? noteId : undefined}
               onCheckedChange={(next) => {
                 props.onChange(
                   next
@@ -385,12 +397,17 @@ function RoleCheckboxes(props: {
                 );
               }}
             />
-            <Label htmlFor={id} className="text-body-sm text-fg">
+            <Label htmlFor={id} className={above ? 'text-body-sm text-fg-muted' : 'text-body-sm text-fg'}>
               {role.name}
             </Label>
           </div>
         );
       })}
+      {someAbove ? (
+        <p id={noteId} className="text-caption text-fg-muted" data-testid="team-roles-above">
+          {t('team.roles.above', 'Roles that hold permissions you do not have cannot be given or taken away here.')}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -930,7 +947,7 @@ export function TeamPage(): ReactNode {
         mayAssignRoles={mayManageRoles}
         roles={roleList}
         busy={create.isPending}
-        error={create.error === null ? null : create.error.message}
+        error={create.error === null ? null : roleFailureText(create.error)}
         onOpenChange={(open) => {
           setInviteOpen(open);
           if (!open) create.reset();
@@ -944,7 +961,7 @@ export function TeamPage(): ReactNode {
           user={editingRoles}
           roles={roleList}
           busy={saveRoles.isPending}
-          error={saveRoles.error === null ? null : saveRoles.error.message}
+          error={saveRoles.error === null ? null : roleFailureText(saveRoles.error)}
           onClose={() => {
             setEditingRoles(null);
             saveRoles.reset();

@@ -32,7 +32,7 @@
  */
 import { Rss } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
-import { Badge, Button, Card, ChoiceChips, EmptyState, Tag, type Tone } from '@adminium/ui';
+import { Alert, Badge, Button, Card, ChoiceChips, EmptyState, Tag, type Tone } from '@adminium/ui';
 import { getFormatters, tagForLocale, type LocaleId } from '@adminium/i18n';
 import { useSuspenseQuery } from '@tanstack/react-query';
 
@@ -105,6 +105,22 @@ function ReleaseNode({
           </Badge>
           <span className="text-caption text-fg-subtle">{dateLabel}</span>
         </div>
+
+        {release.notice === undefined ? null : (
+          <Alert
+            tone="warn"
+            data-testid="changelog-notice"
+            className="mb-3.5"
+            title={release.notice.title}
+            body={
+              <ul className="mt-1 list-disc space-y-1.5 ps-4">
+                {release.notice.items.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            }
+          />
+        )}
 
         <h2 className="text-modal text-fg">{release.title}</h2>
         <p className="mt-1 text-body-sm leading-relaxed text-fg-muted">{release.summary}</p>

@@ -1857,7 +1857,9 @@
       }
     },
     "roles": {
-      "unavailable": "Les rôles ne sont pas visibles pour votre compte : aucun ne peut donc être attribué ici."
+      "unavailable": "Les rôles ne sont pas visibles pour votre compte : aucun ne peut donc être attribué ici.",
+      "above": "Les rôles détenant des autorisations que vous n’avez pas ne peuvent être ni attribués ni retirés ici.",
+      "refused": "Vous ne pouvez attribuer que des rôles dont vous détenez les autorisations, et vous ne pouvez pas retirer un rôle qui en détient plus que vous."
     },
     "rolesDialog": {
       "description": "Un utilisateur cumule les permissions de tous les rôles qu’il détient.",

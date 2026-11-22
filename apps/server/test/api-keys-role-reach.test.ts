@@ -387,7 +387,7 @@ for (const engine of META_ENGINES) {
       await expectRefused(h, await signedIn(h, h.keeper), h.adminRole.id);
       const rows = await h.meta.db.selectFrom('adminium_audit_log').select(['action', 'changes']).where('action', '=', 'permission.denied').execute();
       const changes = rows.map((row) => (typeof row.changes === 'string' ? JSON.parse(row.changes) : row.changes) as { after?: Record<string, unknown> });
-      expect(changes.some((entry) => entry.after?.['reason'] === 'api-key-role' && entry.after?.['roleId'] === h.adminRole.id)).toBe(true);
+      expect(changes.some((entry) => entry.after?.['reason'] === 'role-above-you' && entry.after?.['roleId'] === h.adminRole.id)).toBe(true);
       expect(changes.some((entry) => entry.after?.['permission'] === PERMISSIONS.apiKeysManage)).toBe(false);
     });
   });

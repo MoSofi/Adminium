@@ -1011,6 +1011,14 @@ export interface UploadedFile {
   kind: string;
 }
 
+/** What "delete my details" could not reach: a count and a yes/no, never a code or a value. */
+export interface ForgetMeResult {
+  /** Packs, gift cards or store credit of this person's that still hold a balance, and so keep their name and address. */
+  keptBalances: number;
+  /** True where Offers is installed: a gift card someone else bought this person is not linked to their account. */
+  giftsNotLinked: boolean;
+}
+
 export interface PublicClient {
   /** The scope, fetched once and cached. */
   config: () => Promise<PublicConfig>;
@@ -1151,8 +1159,13 @@ export interface PublicClient {
    * and tickets stay, and still open by their links), every session ends and
    * the old address gets one last email. Needs a mailbox proved minutes ago:
    * `PUBLIC_CODE_STEP_UP` asks for a fresh sign-in link first.
+   *
+   * Answers what the delete could not reach: `keptBalances` counts the packs,
+   * gift cards and store credit that keep the person's name and address until
+   * they are used up or expire; `giftsNotLinked` says a gift card someone else
+   * bought them is not linked to this account, so it was not touched.
    */
-  forgetMe: () => Promise<void>;
+  forgetMe: () => Promise<ForgetMeResult>;
   /**
    * "Make a new link" for one of the signed-in person's rows (a verified
    * session, never a row's own link): the row's own link stops opening it —
@@ -1884,8 +1897,9 @@ export function createPublicClient(
     },
 
     async forgetMe() {
-      await request('/api/v1/public/account', { method: 'DELETE' });
+      const out = await request<{ data: ForgetMeResult }>('/api/v1/public/account', { method: 'DELETE' });
       holdSession(null);
+      return out.data;
     },
 
     async newLink(ref, id) {

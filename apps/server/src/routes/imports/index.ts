@@ -197,11 +197,13 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
   /**
    * Somebody else's import — its file, its mapping, the report of the rows it
    * refused, each of which quotes rows — is opened by a holder of the manage
-   * grant whom nothing limits on the table it wrote: a report of rows that
-   * are not theirs is not theirs to read, whoever asked for the import.
+   * grant who may read the table it wrote and whom nothing limits on it: a
+   * report of rows that are not theirs is not theirs to read, whoever asked
+   * for the import. `tableName` is the resolved table id the grant names.
    */
   async function mayOpenAnothers(request: FastifyRequest, row: DataImport): Promise<boolean> {
     if (!(await request.can(IMPORTS_MANAGE_PERMISSION))) return false;
+    if (!(await request.can(`table:${row.connectionId}:${row.tableName}:read`))) return false;
     return requestReadsWhole(meta, request, row.connectionId, row.tableName);
   }
 
