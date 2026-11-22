@@ -11,7 +11,9 @@ import type { Kysely } from 'kysely';
 
 import type { ColumnHelpers } from '../columns.js';
 import { metaTable } from '../prefix.js';
+import { columnExists } from './probe.js';
 
 export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
+  if (await columnExists(db, c.dialect, metaTable('connect_links'), 'address_digest')) return;
   await db.schema.alterTable(metaTable('connect_links')).addColumn('address_digest', c.str(64)).execute();
 }

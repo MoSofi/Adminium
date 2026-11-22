@@ -64,6 +64,14 @@
  * 0063 ships in 0.3.33, read out of the published `@adminiumjs/adminium@0.3.33`
  * the same way; 0061 and 0062 read the same out of it.
  *
+ * 0064 to 0099 shipped in 0.3.35 to 0.3.66. All were read out of the published
+ * `@adminiumjs/adminium@0.3.70`, and each reads the same out of the published
+ * release that first carried it.
+ *
+ * 0100 to 0105 ship in 0.3.71. They were read out of the built `dist` of the
+ * tree being released, hashed under plain node; cross-check them against the
+ * published `@adminiumjs/adminium@0.3.71` once it is on npm.
+ *
  * WHERE THE NEXT ROW COMES FROM. That package stops being published once the
  * CLI bundles its internal packages, so 0033 onwards cannot be pinned by the
  * command above — it will simply 404. The successor source is the flagship
@@ -251,6 +259,54 @@ const SHIPPED_CHECKSUMS: Readonly<Record<string, string>> = Object.freeze({
   '0061_user_figma_token': '1bb4fc6204984c9a5bf8e222bec93e7a23f4c411f6eb24146ba0edc6747011df',
   '0062_payments': '12b0c604a0b7c4c1c600382d5a4777476e6aa5fea76f99393329112ae9738715',
   '0063_payment_dispute_outcome': '4f7e9c8752cd61a484b801c80c96660557960ab8c169731c2180d3ebca0ff3f0',
+  // --- v0.3.35 ---
+  '0064_removed_rows': 'b943f9b18960cc3fea81684bb19e7f229e4bc6094c4f2b092820705d333fe4a5',
+  // --- v0.3.38 ---
+  '0065_consent_log': 'cf6c37f356af98dbf2997a5c14ed4b4c054804ae8474d96789c6e4cfffbec67a',
+  '0066_stop_list': '3ad4680efdd67aed32f40f4188f529bdddf33d61eb98cb6945bebd4558657b46',
+  '0067_email_send_ledger': 'e51c44f3679ff3c1907ce2c4a56b20182fb1116be755d299ee5a9d8cd882deb9',
+  '0068_mail_relay_secrets': 'ebbf354c3da4e23b211f00c1be1d47b8255689eefa9776a3cd52ac79d22c37e6',
+  '0069_email_run_track_clicks': '53a8a4b3a2025228a2ed93525c914e60a2cd43e9755f4cccd14a3b6ee9b7b8cf',
+  '0070_privacy_exports': '7a5a6ce1067548715f4f7facc743cbda635c9231575bb3397cb329cb74032c9e',
+  // --- v0.3.39 ---
+  '0071_pictures_made': 'fe71a1c9cbc50b6b55f3083ffb22b27092bc0f85e4bdabf1d0477763e6b961f5',
+  // --- v0.3.40 ---
+  '0072_desktop_setup_words': 'f71f297a1e54e00ca98e3bc3329164ded626d4dd1b5ed9ace6423b7c89ade9a4',
+  '0073_form_marks': 'de9f136847b67b218d2e13442b10a8a67b5c71df1a355f763e6394b6294aa91f',
+  '0074_public_uploads': 'c287b1d02d89c08a2a86f4b4a3c93108050b1fa2cd5a82c424e5dad2f1d68fc2',
+  // --- v0.3.49 ---
+  '0075_own_apps_and_workspaces': '65306ecd323e78d4422e8c248faaca88959458873dadb76deb19b99f6d8114b6',
+  '0076_installs_per_database': 'ff38afefc77ff5cbdf61d0a32e1a68648e0e44ef327ff18d4d664c29530c02f1',
+  '0077_app_parts': 'cba41d6e6ffc7a9279c51661a23913aa050f1e4b1585b93613143890a311fe9c',
+  '0078_app_updates': '08f2cb0d258bf4d5cef4297662611b44a4cf6cc381877155a9d7d8e913de2de4',
+  '0079_app_instance_undo': 'ae75587359fbe601a9f9add3e8599a5dd9e08206baba13fb6f90c87539b91c96',
+  '0080_template_send_as': '478f4b3b14f4a1ea2c66f0f880d9cf832306a52c9fc6cfa704e2d3527ef5a6a9',
+  '0082_workspace_install_document': '02750a84b5f60aededaf02f219b8fd704869954d7ec3937d98ae5cb22ec8a735',
+  '0083_app_after_install_hidden': '93a141da8b152918e9db18f4d0f3a93caa1269f0be985cf2bf1a78d7f919142c',
+  '0086_app_save_names': '52d1eadcbce153c051c5fb34a1b49ef61381c55273d34f4f3ecbf1bfc88de9fd',
+  '0087_app_save_carried': '1c331bf9b010d403832b76e4f73b3f94572fce25b2b908944e77d6973e166c46',
+  // --- v0.3.57 ---
+  '0088_operator_holds': 'a94c0b21e94fc3e898d3b09fb41b51e15062e48126e09040b4356d1f9abf5d67',
+  '0089_operator_tallies': 'dcf9056232c50b86b5a0f2fdb18fba2dce66356124ab6a29d9f6d7424cb03a65',
+  // --- v0.3.60 ---
+  '0090_payment_public_starts': 'a4238141470128a42b3ae6ffe65c68f89811748372bcf2a03ad0d2ed232b87dc',
+  '0091_app_refund_rows': 'd1f4af513e477454df894e602ceb89340fd2ddc34bbc334624e95625a60d5e52',
+  '0092_card_readers': '9cb38713d92e4234e71a9cc76999a710d33f2bdcb9f4d7dce02ca5ccb821db91',
+  // --- v0.3.64 ---
+  '0094_chat_ai_tally': 'ace7f34262b39dc32586d1b9bf42f59772444c940212d7c83fbb9a53393daf88',
+  '0095_chat_ai_addresses': '43160691901c02ab07c0b03c991e7afe2d202ebec537487b8928a737f21e42f6',
+  // --- v0.3.65 ---
+  '0096_view_days': '5a3907068d213758e7987a20b0b4ed3515a59d8ac1bff38f0770109d52db2eec',
+  '0097_visitors': 'f5a479b49bd6d4c69aea60b55be86a8a93701b52e54a42e126732b47811a6194',
+  // --- v0.3.66 ---
+  '0099_source_days': 'b283b796d6087df30ae7f624f3d4a9477c696467ecda0b55e41eb261a9d0390b',
+  // --- v0.3.71 ---
+  '0100_connected_accounts': 'b3247dc6d94e9fae4f23ed9d28363853ce2f2779b5df13e7de9e9965259b86ca',
+  '0101_calendar_feeds': '9a28642c0d8a3c0ee3591d1ca758b913ae8d529465d1ed04cda19b928f309b38',
+  '0102_calendar_sync': '601d05dc7d25d256d4907e5191c37c79509419c50abec4a6d867d952ce673b3e',
+  '0103_email_changes': '6ff630c287b6b67e4a51503bd7579bf24825eae4f71b5c65b050d85efa9270dc',
+  '0104_connect_link_address': 'a53a963b43b113db5e09e88fe7532913ca051ce602331fb91a28d1c09fbc1d31',
+  '0105_revoke_stopped_keys': '23e4c361f4a48f99e826a4b9adebb331b2c2943530458a2bde7c1f9021b57733',
 });
 
 describe('shipped migration checksums', () => {

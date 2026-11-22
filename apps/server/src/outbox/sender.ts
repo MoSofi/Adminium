@@ -1383,7 +1383,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const blank = named === null || named === undefined || (typeof named === 'string' && named.trim() === '');
     // An address a removed row held is read once, as the row goes: the message keeps it, and there is no row to read it from again.
     const ofRemovedRow = producer !== undefined && 'onDelete' in producer && columnRecipientOf(producer) !== null;
-    const again = producer !== undefined && !ofRemovedRow && (producer.hold === true || producer.recipient !== undefined);
+    // A dated mail waited too: it goes to the person as they are now, not to an address they have since left.
+    const again = producer !== undefined && !ofRemovedRow && (producer.hold === true || producer.recipient !== undefined || producer.due !== undefined);
     if (!again && !blank) return { addressed: null, to: named, lookedUp: false };
     const addressed = await addressFor({ db: ctx.db, view: ctx.view, outboxId: ctx.outbox.id, read: settingReader(deps.meta, ctx.db, ctx.view, box.connectionId) }, box.definition, producer, row);
     return { addressed, to: addressed.address, lookedUp: true };

@@ -22,6 +22,7 @@ import { sql, type Kysely } from 'kysely';
 
 import type { ColumnHelpers } from '../columns.js';
 import { metaTable } from '../prefix.js';
+import { createIndexUnlessMade } from './probe.js';
 import { CONNECTED_ROW_WIDTH, CONNECTED_TABLE_WIDTH } from './0100_connected_accounts.js';
 
 export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
@@ -71,7 +72,7 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('updated_at', c.ts, (col) => col.notNull())
     .addForeignKeyConstraint('fk_adminium_calendar_sync_account', ['account_id'], metaTable('connected_accounts'), ['id'], (cb) => cb.onDelete('cascade'))
     .execute();
-  await db.schema.createIndex('ix_adminium_calendar_sync_due').on(metaTable('calendar_sync')).columns(['next_poll_at']).execute();
+  await createIndexUnlessMade(db, c.dialect, 'ix_adminium_calendar_sync_due', metaTable('calendar_sync'), ['next_poll_at']);
 
   await db.schema
     .createTable(metaTable('calendar_events'))
@@ -96,13 +97,8 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('updated_at', c.ts, (col) => col.notNull())
     .addForeignKeyConstraint('fk_adminium_calendar_events_account', ['account_id'], metaTable('connected_accounts'), ['id'], (cb) => cb.onDelete('cascade'))
     .execute();
-  await db.schema
-    .createIndex('uq_adminium_calendar_events_row')
-    .on(metaTable('calendar_events'))
-    .columns(['account_id', 'connection_id', 'table_name', 'row_key'])
-    .unique()
-    .execute();
-  await db.schema.createIndex('ix_adminium_calendar_events_of_row').on(metaTable('calendar_events')).columns(['connection_id', 'table_name', 'row_key']).execute();
+  await createIndexUnlessMade(db, c.dialect, 'uq_adminium_calendar_events_row', metaTable('calendar_events'), ['account_id', 'connection_id', 'table_name', 'row_key'], { unique: true });
+  await createIndexUnlessMade(db, c.dialect, 'ix_adminium_calendar_events_of_row', metaTable('calendar_events'), ['connection_id', 'table_name', 'row_key']);
 
   await db.schema
     .createTable(metaTable('calendar_dirty'))
@@ -115,8 +111,8 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     /** Bumped on every mark, so a job clears only what it read. */
     .addColumn('mark', c.int, (col) => col.notNull())
     .execute();
-  await db.schema.createIndex('uq_adminium_calendar_dirty_row').on(metaTable('calendar_dirty')).columns(['connection_id', 'table_name', 'row_key']).unique().execute();
-  await db.schema.createIndex('ix_adminium_calendar_dirty_marked').on(metaTable('calendar_dirty')).columns(['marked_at']).execute();
+  await createIndexUnlessMade(db, c.dialect, 'uq_adminium_calendar_dirty_row', metaTable('calendar_dirty'), ['connection_id', 'table_name', 'row_key'], { unique: true });
+  await createIndexUnlessMade(db, c.dialect, 'ix_adminium_calendar_dirty_marked', metaTable('calendar_dirty'), ['marked_at']);
 
   await db.schema
     .createTable(metaTable('calendar_channels'))
@@ -137,8 +133,8 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('created_at', c.ts, (col) => col.notNull())
     .addForeignKeyConstraint('fk_adminium_calendar_channels_account', ['account_id'], metaTable('connected_accounts'), ['id'], (cb) => cb.onDelete('cascade'))
     .execute();
-  await db.schema.createIndex('ix_adminium_calendar_channels_account').on(metaTable('calendar_channels')).columns(['account_id']).execute();
-  await db.schema.createIndex('ix_adminium_calendar_channels_expiry').on(metaTable('calendar_channels')).columns(['expires_at']).execute();
+  await createIndexUnlessMade(db, c.dialect, 'ix_adminium_calendar_channels_account', metaTable('calendar_channels'), ['account_id']);
+  await createIndexUnlessMade(db, c.dialect, 'ix_adminium_calendar_channels_expiry', metaTable('calendar_channels'), ['expires_at']);
 
   await db.schema
     .createTable(metaTable('calendar_clashes'))
@@ -154,10 +150,5 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('kept_at', c.ts)
     .addColumn('kept_by', c.str(64))
     .execute();
-  await db.schema
-    .createIndex('uq_adminium_calendar_clashes_key')
-    .on(metaTable('calendar_clashes'))
-    .columns(['connection_id', 'table_name', 'row_key', 'overlap_start', 'overlap_end'])
-    .unique()
-    .execute();
+  await createIndexUnlessMade(db, c.dialect, 'uq_adminium_calendar_clashes_key', metaTable('calendar_clashes'), ['connection_id', 'table_name', 'row_key', 'overlap_start', 'overlap_end'], { unique: true });
 }

@@ -48,8 +48,9 @@ import { csrfHeaderMatches, csrfSigningKey, isSameOriginRequest } from '../../se
 import { NulInRequest } from '../../security/nul-bytes.js';
 import { availabilityOf } from '../../surfaces/settings.js';
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
+import { scrubAuditImages, scrubRemovedRows, type ImageTarget } from '../../privacy/erase-meta.js';
 import { blankOwnCopies, ownCopyTables } from '../../privacy/forget-copies.js';
-import { forgetHeld, heldIndex, holderTablesOn, reachesGiftsOnlyBySale } from '../../privacy/held-values.js';
+import { forgetHeld, heldIndex, holderTablesOn, moveHeldToAddress, reachesGiftsOnlyBySale } from '../../privacy/held-values.js';
 import { erasedNameOf } from '../../privacy/sources.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import type { Dialect } from '@adminium/engine';
@@ -76,7 +77,7 @@ import { bookingEntry, calendarRuleOf } from '../../calendar/entry.js';
 import { downloadFile, googleCalendarLink, outlookCalendarLink } from '../../calendar/ics.js';
 import { mailLinkKeys } from '../../email/link-keys.js';
 import { settingReader } from '../../outbox/timing.js';
-import { pkOfRowKey } from '../../payments/payables.js';
+import { pkOfRowKey, rowKeyOf } from '../../payments/payables.js';
 import { reviewText } from '../../public-api/plain-text.js';
 import type { AddOnInstalls } from '../../apps/table-ref.js';
 import type { PublicKeyResolver, ResolvedKey } from '../../public-api/resolve.js';
@@ -4971,6 +4972,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             invalidateWidgetData(app, ok.key.connectionId, found.table.id);
           },
         });
+        // What they hold by their key goes with them: the old mailbox's next owner must not be able to spend it.
+        if (typeof oldAddress === 'string') {
+          await moveHeldToAddress({ meta, db: found.db, keyOf: installedCustomerKey }, ok.key.connectionId, found.view, oldAddress, newAddress).catch((error: unknown) => {
+            request.log.warn({ err: error }, 'what a person holds could not follow their new address');
+          });
+        }
         await challenges.mark({ keyId: ok.key.keyId, ref: person.claim.ref, sessionId: session.id, subject, purpose: 'email-changed' }, now);
         const locale = negotiateLocale(request.headers['accept-language']) ?? (await recipientLocale(meta, null));
         if (plausibleAddress(oldAddress)) {
@@ -6081,6 +6088,22 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           await deps.calendars?.onErased({ address: '', rows: blanked.map((one) => ({ connectionId: ok.key.connectionId, ...one })) }).catch((error: unknown) => {
             request.log.warn({ err: error }, 'a forgotten person\'s calendar events could not be queued');
           });
+        }
+        // What the log and the removed-row history kept of these rows goes too, as in the staff erasure.
+        try {
+          const ownKey = rowKeyOf(found.table, row);
+          const copied = new Map<string, Set<string>>();
+          for (const copy of ownCopies) copied.set(copy.table.id, new Set([...(copied.get(copy.table.id) ?? []), ...copy.columns.keys()]));
+          const byTable = new Map<string, string[]>();
+          for (const one of blanked) byTable.set(one.table, [...(byTable.get(one.table) ?? []), one.key]);
+          const images: ImageTarget[] = [
+            { connectionId: ok.key.connectionId, table: found.table.id, keys: [ownKey], columns: new Map([[ownKey, [...forget.columns]]]), own: true },
+            ...[...byTable].map(([table, keys]): ImageTarget => ({ connectionId: ok.key.connectionId, table, keys, columns: new Map(keys.map((key) => [key, [...(copied.get(table) ?? [])]])), own: false })),
+          ];
+          const removedImages = await scrubRemovedRows(meta, images, []);
+          await scrubAuditImages(meta, [...images, ...removedImages.copies]);
+        } catch (error) {
+          request.log.warn({ err: error }, 'what the log kept of a forgotten person could not all be emptied');
         }
         await sessions.endBySubject(person.subject, 'forgotten', now);
         if (typeof oldAddress === 'string' && oldAddress !== '') {

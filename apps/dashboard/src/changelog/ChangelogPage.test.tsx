@@ -150,6 +150,23 @@ describe('ChangelogPage', () => {
     }
   });
 
+  it('shows a release’s upgrade notice inside that release, above its title', async () => {
+    await renderPage();
+    await screen.findByRole('heading', { name: 'Changelog' });
+    const noticed = RELEASES.filter((release) => release.notice !== undefined);
+    expect(noticed.length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('changelog-notice')).toHaveLength(noticed.length);
+
+    for (const release of noticed) {
+      const row = screen.getAllByTestId('changelog-release').find((node) => node.dataset['version'] === release.version);
+      const notice = row?.querySelector('[data-testid="changelog-notice"]');
+      const title = row?.querySelector('h2');
+      expect(notice?.textContent).toContain(release.notice?.title);
+      for (const item of release.notice?.items ?? []) expect(notice?.textContent).toContain(item);
+      expect(notice && title ? notice.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING : 0).toBeTruthy();
+    }
+  });
+
   // The date appears twice per release by design: the version gutter (≥sm) and
   // an inline restatement for narrow screens where the gutter is hidden.
   it('formats dates through the Intl layer, not as a hardcoded string', async () => {

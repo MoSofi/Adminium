@@ -58,6 +58,8 @@ export interface IdentityEmailWatchDeps {
   addressSecret: Buffer;
   logger?: { warn(obj: Record<string, unknown>, msg?: string): void } | undefined;
   now?: () => number;
+  /** What the person holds by their key follows their new address (`privacy/held-values.ts`). */
+  moveHeld?: (connectionId: string, view: SnapshotView, from: string, to: string) => Promise<unknown>;
 }
 
 export interface IdentityEmailWatch {
@@ -157,6 +159,11 @@ export function createIdentityEmailWatch(deps: IdentityEmailWatchDeps): Identity
           }
           if (after !== null) {
             const next = after[identity.email];
+            if (typeof old === 'string' && plausibleAddress(next)) {
+              await deps.moveHeld?.(event.connectionId, view, old, next as string).catch((error: unknown) => {
+                deps.logger?.warn({ err: error, connectionId: event.connectionId, table: event.table.id }, 'what a person holds could not follow their new address');
+              });
+            }
             await tellOldAddress(identity, event.connectionId, before, typeof next === 'string' ? next : null);
           }
         }

@@ -123,13 +123,18 @@ const NOTICE_PATH = ['', 'api', 'v1', 'email', 'notices'] as const;
 /** An absolute-form request target (`POST http://host/path`), which `req.url` carries as sent. */
 const ABSOLUTE_TARGET = /^[a-z][a-z0-9+.-]*:\/\/[^/]*/i;
 
-/** One path segment as the router reads it, in lower case; as sent when it does not decode. */
+/**
+ * One path segment as the router reads it, in lower case; as sent when it does
+ * not decode. Without any `;…`, which a proxy in front may strip before routing.
+ */
 function segmentName(raw: string): string {
+  let name = raw;
   try {
-    return decodeURIComponent(raw).toLowerCase();
+    name = decodeURIComponent(raw);
   } catch {
-    return raw.toLowerCase();
+    // Compared as sent.
   }
+  return (name.split(';', 1)[0] ?? '').toLowerCase();
 }
 
 /**
@@ -213,6 +218,8 @@ const SESSION_CODE_PATHS: readonly (readonly string[])[] = [
   ['', 'api', 'v1', 'documents', 'print-once'],
   ['', 'api', 'v1', 'data', 'undo'],
   ['', 'api', 'v1', 'llm', 'runs', '*', 'undo'],
+  // The link that confirms a new sign-in address, a page the dashboard serves.
+  ['', 'account', 'confirm-email'],
 ];
 
 /** A signed-in door's path with its code, and whatever follows it, replaced; null when the path is not one. */
@@ -235,9 +242,9 @@ function scrubSessionCodePath(segments: readonly string[]): string | null {
  * `/p%61y/…` and `/m/%6F/…`. What is kept is kept as it was sent.
  */
 export function scrubPathForLog(path: string): string {
-  const origin = ABSOLUTE_TARGET.exec(path)?.[0] ?? '';
-  const segments = path.slice(origin.length).split('/');
-  if (segments[0] !== '') return path;
+  const { origin, extra, rest } = targetParts(path);
+  if (!rest.startsWith('/')) return path;
+  const segments = rest.split('/');
   const scrubbed =
     scrubMailPath(segments) ??
     scrubCalendarFeedPath(segments) ??
@@ -245,7 +252,27 @@ export function scrubPathForLog(path: string): string {
     scrubPayPath(segments) ??
     scrubNoticePath(segments) ??
     scrubSessionCodePath(segments);
-  return scrubbed === null ? path : `${origin}${scrubbed}`;
+  return scrubbed === null ? path : `${origin}${extra}${scrubbed}`;
+}
+
+/** A target's origin, any extra leading slashes (a proxy may fold them), and the path from its last leading slash. */
+function targetParts(target: string): { origin: string; extra: string; rest: string } {
+  const origin = ABSOLUTE_TARGET.exec(target)?.[0] ?? '';
+  const after = target.slice(origin.length);
+  const slashes = /^\/+/.exec(after)?.[0].length ?? 0;
+  const extra = after.slice(0, Math.max(0, slashes - 1));
+  return { origin, extra, rest: after.slice(extra.length) };
+}
+
+/** A way back (`returnTo`) that carries a door's token, once decoded. */
+function wayBackHoldsToken(value: string): boolean {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    return false;
+  }
+  return scrubUrlForLog(decoded) !== decoded;
 }
 
 export function scrubUrlForLog(url: string): string {
@@ -254,7 +281,7 @@ export function scrubUrlForLog(url: string): string {
 
   const path = scrubPathForLog(url.slice(0, mark));
   const query = url.slice(mark + 1);
-  const stranger = url.startsWith('/x/');
+  const stranger = segmentName(targetParts(url).rest.split('/')[1] ?? '') === 'x';
   let touched = false;
 
   const scrubbed = query
@@ -266,7 +293,8 @@ export function scrubUrlForLog(url: string): string {
       if (eq === -1) return pair;
       const rawName = pair.slice(0, eq);
       const name = decodeParamName(rawName).toLowerCase();
-      if (!SENSITIVE_LOWER.has(name) && !(stranger && STRANGER_QUERY_PARAMS.has(name))) return pair;
+      const carried = name === 'returnto' && wayBackHoldsToken(pair.slice(eq + 1));
+      if (!carried && !SENSITIVE_LOWER.has(name) && !(stranger && STRANGER_QUERY_PARAMS.has(name))) return pair;
       touched = true;
       return `${rawName}=${REDACTED}`;
     })

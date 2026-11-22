@@ -12,7 +12,10 @@
  *  - an app without the word behaves as before.
  */
 import { validateManifest } from '@adminium/manifest';
+import { auditRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+
+import { loadSnapshotView } from '../src/data-io/snapshot-view.js';
 
 import { installInvoicing, LEGS, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { guest, mailReady, shopManifest } from './person-fixture.js';
@@ -170,6 +173,25 @@ describe.each(LEGS)('"delete my details" with its copies — %s', (dialect, avai
     } finally {
       told.mockRestore();
     }
+  });
+
+  it.skipIf(!available)('takes their words out of the audit log and the removed-row history', async () => {
+    const id = await order(on, 'yan@fieldmail.io', 'Yan Cole', 'Peanut allergy');
+    const orders = (await loadSnapshotView(on.h.meta, on.h.connectionId)).model.tables.find((table) => table.name === on.h.real('orders'))!.id;
+    const entity = { connectionId: on.h.connectionId, table: orders, pk: { id }, label: String(id) };
+    await auditRepo(on.h.meta).append({ actorKind: 'user', actorId: null, actorLabel: 'The desk', category: 'data', action: 'data.update', entity, changes: { before: { name: 'Yan Cole', note: 'Peanut allergy' }, after: { note: 'Peanut allergy, severe' } } });
+    await on.h.meta.db
+      .insertInto('adminium_removed_rows')
+      .values({ id: `rmv_${String(id)}`, connectionId: on.h.connectionId, entityTable: orders, entityId: String(id), pk: JSON.stringify({ id }), via: '', parentTable: '', parentValue: '', removedAt: Date.now(), actorKind: 'user', actorId: null, actorLabel: 'The desk', reason: null, image: JSON.stringify({ id, name: 'Yan Cole', note: 'Peanut allergy' }) })
+      .execute();
+    const session = await on.g.signIn('yan@fieldmail.io');
+    const gone = await on.g.request('DELETE', '/account', { session });
+    expect(gone.statusCode, gone.body).toBe(200);
+    const logged = await on.h.meta.db.selectFrom('adminium_audit_log').select('changes').where('action', '=', 'data.update').where('entityId', '=', String(id)).execute();
+    expect(logged).toHaveLength(1);
+    expect(JSON.stringify(logged[0]!.changes)).not.toMatch(/Yan Cole|Peanut/);
+    const kept = await on.h.meta.db.selectFrom('adminium_removed_rows').select('image').where('id', '=', `rmv_${String(id)}`).executeTakeFirstOrThrow();
+    expect(JSON.stringify(kept.image)).not.toMatch(/Yan Cole|Peanut/);
   });
 
   it.skipIf(!available)('without the word, the rows linked to them stay as they were', async () => {

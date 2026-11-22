@@ -418,7 +418,8 @@ import { privacyRoutes } from './routes/privacy/index.js';
 import { formsStaffRoutes } from './routes/forms/index.js';
 import { mailSettingsRoutes } from './routes/mail-settings/index.js';
 import { registerPrivacyExportHandler, sweepPrivacyExports } from './privacy/export.js';
-import { sweepKeptHolders } from './privacy/held-values.js';
+import { moveHeldToAddress, sweepKeptHolders } from './privacy/held-values.js';
+import { installedCustomerKey } from './public-api/customer-key.js';
 import { sweepFormAnswers } from './forms/answers.js';
 import { ADD_ON_EXPIRE_SWEEP_CRON, ADD_ON_EXPIRE_SWEEP_NAME, sweepExpiredRows } from './add-ons/expire.js';
 import { mailNoticeRoutes } from './routes/mail-door/notices.js';
@@ -448,7 +449,7 @@ import { registerPaymentsSettleHandler } from './payments/webhook.js';
 import { PAYMENTS_SWEEP_PLAN_CRON, PAYMENTS_SWEEP_PLAN_NAME, planSweeps, registerPaymentsSweepHandler } from './payments/sweep.js';
 import { createRowLeftWatch, endLeftPages, registerRowLeftHandler } from './payments/row-left.js';
 import { paymentWebhookRoutes } from './routes/payments/webhook.js';
-import { CONNECTED_ACCOUNTS_TICK_CRON, CONNECTED_ACCOUNTS_TICK_NAME, registerConnectedAccountJobs, runConnectedAccountsTick } from './connected-accounts/jobs.js';
+import { CONNECTED_ACCOUNTS_TICK_CRON, CONNECTED_ACCOUNTS_TICK_NAME, CONNECTED_ACCOUNT_END_JOB, registerConnectedAccountJobs, runConnectedAccountsTick } from './connected-accounts/jobs.js';
 import { createConnectedAccounts } from './connected-accounts/service.js';
 import { connectCallbackRoutes, connectDoorRoutes } from './routes/connect-door/index.js';
 import { connectedAccountRoutes } from './routes/connected-accounts/index.js';
@@ -1533,7 +1534,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    */
   app.decorate(
     'publicIdentities',
-    createIdentityEmailWatch({ meta, manager, views: { viewFor: (connectionId) => publicViews.viewFor(connectionId) }, addressSecret: addressKey(env.ADMINIUM_SECRET), logger: app.log }),
+    createIdentityEmailWatch({ meta, manager, moveHeld: async (connectionId, view, from, to) => moveHeldToAddress({ meta, db: (await manager.data(connectionId)).db, keyOf: installedCustomerKey }, connectionId, view, from, to), views: { viewFor: (connectionId) => publicViews.viewFor(connectionId) }, addressSecret: addressKey(env.ADMINIUM_SECRET), logger: app.log }),
   );
   let signInLinkMinter: ReturnType<typeof createSignInLinkMinter> | undefined;
   // A record's live pay link, for printed invoices and reminders; found once the payment parts exist (below).
@@ -2247,6 +2248,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     log: (message, fields) => app.log.warn(fields, message),
   });
   connectedAccounts.addOnConnected((account) => calendarSync.onConnected(account));
+  // Asked before a person's rows are handed on: what comes back ends the connections those rows held.
+  app.decorate('connectionsLeavingWith', async (person: { id: string; email: string }) => {
+    const ids = await connectedAccounts.accountsOfPerson(person);
+    return async () => {
+      for (const accountId of ids) {
+        await jobs.enqueue({ kind: CONNECTED_ACCOUNT_END_JOB, payload: { accountId, why: { kind: 'login-removed' } }, dedupeKey: `connected-account-end:${accountId}`, maxAttempts: 5 });
+      }
+    };
+  });
   app.decorate('calendarRows', { onRecordEvent: (event: Parameters<typeof calendarSync.onRecordEvent>[0]) => calendarSync.onRecordEvent(event) });
   registerCalendarSyncJobs(jobs.registry, calendarSync);
   jobs.scheduler.registerSchedule(CALENDAR_PLAN_NAME, CALENDAR_PLAN_CRON, async () => {

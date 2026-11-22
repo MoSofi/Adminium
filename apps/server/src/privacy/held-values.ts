@@ -242,6 +242,42 @@ async function writeRow(db: Kysely<SourceDatabase>, dialect: Dialect, held: Hold
   }
 }
 
+/**
+ * A person's address changed, by their own proved change or at the desk: what
+ * they hold by their key goes with them. Left behind, the old mailbox's next
+ * owner could prove that address and spend it, and the person could neither
+ * spend it nor have it found when they delete their details. A row that only
+ * holds a typed address, with no key, proves nothing and stays as typed.
+ */
+export async function moveHeldToAddress(
+  deps: { meta: MetaDb; db: Kysely<SourceDatabase>; keyOf: (connectionId: string, address: string) => string },
+  connectionId: string,
+  view: SnapshotView,
+  from: string,
+  to: string,
+): Promise<number> {
+  if (normal(from) === normal(to)) return 0;
+  const tables = await holderTablesOn(deps.meta, connectionId, view);
+  if (tables.length === 0) return 0;
+  const fromKey = deps.keyOf(connectionId, from);
+  const toKey = deps.keyOf(connectionId, to);
+  let moved = 0;
+  await deps.db.transaction().execute(async (trx) => {
+    for (const held of tables) {
+      for (const holder of held.holders.people) {
+        if (holder.key === undefined) continue;
+        const changed = await trx
+          .updateTable(held.table.id as never)
+          .set({ [holder.key]: toKey, [holder.email]: to.trim() } as never)
+          .where(sql.ref(holder.key), '=', fromKey as never)
+          .executeTakeFirst();
+        moved += Number(changed.numUpdatedRows);
+      }
+    }
+  });
+  return moved;
+}
+
 /** How stored table names read on this database: asked before a transaction opens, where nothing may wait on another pool. */
 export const heldIndex = (meta: MetaDb, connectionId: string, view: SnapshotView): Promise<TableRefIndex> => tableRefIndex(meta, connectionId, view.model);
 

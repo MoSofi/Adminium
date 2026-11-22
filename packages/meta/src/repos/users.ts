@@ -211,6 +211,21 @@ export function usersRepo(meta: MetaDb) {
       return Number(res.numUpdatedRows) === 1;
     },
 
+    /**
+     * An invitation taken up: the first password and `active` in one write, only
+     * while the person is still invited, so it cannot undo a suspension that
+     * landed while the password was being hashed.
+     */
+    async activateInvited(userId: string, passwordHash: string, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_users')
+        .set({ passwordHash, status: userStatusSchema.parse('active'), updatedAt: at })
+        .where('id', '=', userId)
+        .where('status', '=', userStatusSchema.parse('invited'))
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
+    },
+
     async updateStatus(userId: string, status: UserStatus, at: number = Date.now()): Promise<boolean> {
       const res = await db
         .updateTable('adminium_users')
