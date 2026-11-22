@@ -118,7 +118,8 @@ for (const [dialect, available] of ENGINES) {
     };
 
     beforeAll(async () => {
-      w = await world(dialect);
+      // One person runs more than an hour's exports and imports here, across the doors.
+      w = await world(dialect, { rateLimitScale: 4 });
       const all = ['read', 'create', 'update', 'delete', 'export', 'import'] as const;
       await w.role('rep', {
         deals: { actions: [...all], rows: { read: OWN, update: OWN, delete: OWN } },
