@@ -70,6 +70,8 @@ function factoryByKey(deps: CalendarProviderDeps, key: string): CreateCalendarPr
 }
 
 export async function calendarProviderFor(deps: CalendarProviderDeps, account: ConnectedAccount, options?: { ending?: boolean }): Promise<ProviderLookup> {
+  // A suspended person's calendar gets no call, but the ones that end a connection and take its events back.
+  if (options?.ending !== true && (await deps.accounts.holderStopped(account))) return { ok: false, reason: 'unavailable' };
   if (isDemoAccount(account)) {
     if (deps.demo === null) return { ok: false, reason: 'unavailable' };
     return { ok: true, key: DEMO_CALENDAR_KEY, provider: guardCalendarProvider(deps.demo.providerFor(account.subject), deps.log) };

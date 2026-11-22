@@ -67,6 +67,7 @@ import type { Dialect } from '@adminium/engine';
 
 import type { AddOnRuntimeState } from '../add-ons/runtime.js';
 import { CONNECTED_ACCOUNT_END_JOB } from '../connected-accounts/jobs.js';
+import { addressDigest } from '../reviews/link.js';
 import type { ConnectedAccounts } from '../connected-accounts/service.js';
 import type { BookingSyncRule, TableBookingRule } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
@@ -1275,10 +1276,17 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
     const rule = await accounts.tableOf(event.connectionId, bound.resource.id);
     if (rule === null) return;
     const gone = event.action === 'delete' || !accounts.rowIsLive((event.after ?? undefined) as Row | undefined, rule.rule);
-    if (!gone) return;
+    const was = accounts.personOf((event.before ?? undefined) as Row | undefined, rule.rule).address;
+    const next = accounts.personOf((event.after ?? undefined) as Row | undefined, rule.rule).address;
+    // The row came to hold someone else: its bookings must not keep going to the last person's calendar.
+    const handedOver = !gone && was !== null && was.trim().toLowerCase() !== next?.trim().toLowerCase();
+    if (!gone && !handedOver) return;
     const rowKey = rowKeyOf(bound.resource, event.entity.pk as Row);
     for (const account of await accountsRepo.forTarget({ connectionId: event.connectionId, tableName: bound.resource.id, rowKey })) {
-      await deps.enqueue({ kind: CONNECTED_ACCOUNT_END_JOB, payload: { accountId: account.id }, dedupeKey: `connected-account-end:${account.id}`, maxAttempts: 5 });
+      // Their own account's address, put on the row: the same person, nothing to end.
+      if (handedOver && next !== null && account.address?.trim().toLowerCase() === next.trim().toLowerCase()) continue;
+      const payload = handedOver ? { accountId: account.id, why: { kind: 'handed-over', from: addressDigest(was) } } : { accountId: account.id };
+      await deps.enqueue({ kind: CONNECTED_ACCOUNT_END_JOB, payload, dedupeKey: `connected-account-end:${account.id}`, maxAttempts: 5 });
     }
   }
 
@@ -1310,15 +1318,24 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
       }
     }
     let ended = 0;
+    // An erased row's own connection, and any link still open for it.
+    for (const row of input.rows) {
+      const target = { connectionId: row.connectionId, tableName: row.table, rowKey: row.key };
+      for (const account of await accountsRepo.forTarget(target).catch(() => [])) {
+        if ((await accounts.end(account.id).catch(() => null)) !== null) ended += 1;
+      }
+      await accountsRepo.removeLinksOnTarget(target).catch(() => undefined);
+    }
     const address = input.address.trim().toLowerCase();
-    if (address === '') return { events, accounts: 0 };
+    if (address === '') return { events, accounts: ended };
     let after: string | null = null;
     for (;;) {
       const page: ConnectedAccount[] = await accountsRepo.page(after, 200);
       if (page.length === 0) break;
       for (const account of page) {
         after = account.id;
-        if (account.address?.toLowerCase() === address && (await accounts.end(account.id).catch(() => null)) !== null) ended += 1;
+        const named = account.address?.toLowerCase() === address || (await accounts.rowAddressOf(account))?.trim().toLowerCase() === address;
+        if (named && (await accounts.end(account.id).catch(() => null)) !== null) ended += 1;
       }
       if (page.length < 200) break;
     }

@@ -301,11 +301,11 @@ const SHIPPED_CHECKSUMS: Readonly<Record<string, string>> = Object.freeze({
   // --- v0.3.66 ---
   '0099_source_days': 'b283b796d6087df30ae7f624f3d4a9477c696467ecda0b55e41eb261a9d0390b',
   // --- v0.3.71 ---
-  '0100_connected_accounts': '734152d220783e22cc45ef122ae4160f2b3211f2c1dc3ab9d81971b5e3acfad7',
+  '0100_connected_accounts': 'b3247dc6d94e9fae4f23ed9d28363853ce2f2779b5df13e7de9e9965259b86ca',
   '0101_calendar_feeds': '9a28642c0d8a3c0ee3591d1ca758b913ae8d529465d1ed04cda19b928f309b38',
-  '0102_calendar_sync': '326813e0e1d2576bdd448939d8203d087157ae4fbde02cd9239da5afabd827cd',
+  '0102_calendar_sync': '601d05dc7d25d256d4907e5191c37c79509419c50abec4a6d867d952ce673b3e',
   '0103_email_changes': '6ff630c287b6b67e4a51503bd7579bf24825eae4f71b5c65b050d85efa9270dc',
-  '0104_connect_link_address': '6006593b7873bb7fcb5471fba1b79db2b78748b1bd9a3a8a9ddff705def8abb7',
+  '0104_connect_link_address': 'a53a963b43b113db5e09e88fe7532913ca051ce602331fb91a28d1c09fbc1d31',
   '0105_revoke_stopped_keys': '23e4c361f4a48f99e826a4b9adebb331b2c2943530458a2bde7c1f9021b57733',
 });
 

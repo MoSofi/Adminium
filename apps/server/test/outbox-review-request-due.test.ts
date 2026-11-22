@@ -19,8 +19,9 @@ import type { RecordWriteEvent } from '../src/crud/after-record-write.js';
 import { slotInstant } from '../src/crud/capacity-guard.js';
 import type { ResolvedTable, SnapshotView } from '../src/crud/identifiers.js';
 import type { Row } from '../src/crud/mask.js';
-import { createWriteService, type WriteContext } from '../src/crud/write-service.js';
+import { NO_RECORD_HOOKS, createWriteService, type WriteContext } from '../src/crud/write-service.js';
 import { emailSecretKey } from '../src/email/config.js';
+import { withOutboxMoves } from '../src/outbox/moves.js';
 import { createOutboxProducers, type OutboxProducers } from '../src/outbox/producers.js';
 import { createOutboxSender, type OutboxSender } from '../src/outbox/sender.js';
 import { createPublicViews } from '../src/public-api/runtime.js';
@@ -67,6 +68,7 @@ function manifest(): Record<string, unknown> {
         instant('due'),
         instant('sent_at'),
         text('error', 200),
+        text('approved_by', 120),
       ],
     },
   ];
@@ -80,7 +82,7 @@ function manifest(): Record<string, unknown> {
     pages: [{ ref: 'studio-visits', template: 'page-crud', title: { key: 't', fallback: 'Visits' }, nav: { group: 'library', icon: 'list', order: 1 }, bindings: { rows: 'visits' } }],
     outbox: {
       table: 'messages',
-      columns: { kind: 'kind', status: 'status', to: 'to_address', due: 'due', sentAt: 'sent_at', error: 'error', skipReason: 'skip_reason' },
+      columns: { kind: 'kind', status: 'status', to: 'to_address', due: 'due', sentAt: 'sent_at', error: 'error', skipReason: 'skip_reason', approvedBy: 'approved_by' },
       links: { customer: 'customer_id', visit: 'visit_id' },
       recipient: { via: 'customer_id', table: 'customers', email: 'email', name: 'name' },
       settings: { table: 'settings', name: 'name' },
@@ -156,7 +158,11 @@ for (const [dialect, reachable] of LEGS) {
       await settingsRepo(meta).set('system.publicOrigin', 'https://admin.studio.example' as never);
       const views = createPublicViews(meta);
       view = (await views.viewFor(h.connectionId))!;
-      writes = createWriteService({ sequences: documentSequencesRepo(meta), watched: (connectionId, tableId) => producers.watches(connectionId, tableId) });
+      writes = createWriteService({
+        sequences: documentSequencesRepo(meta),
+        watched: (connectionId, tableId) => producers.watches(connectionId, tableId),
+        hooks: () => withOutboxMoves(NO_RECORD_HOOKS, { meta, outboxes: () => producers.all() }),
+      });
       producers = createOutboxProducers({ meta, manager: h.manager, viewFor: views.viewFor, writes });
       sender = createOutboxSender({
         meta,
@@ -268,6 +274,65 @@ for (const [dialect, reachable] of LEGS) {
       await h.rows(`UPDATE ${h.real('settings')} SET reviews_on = ${dialect === 'postgres' ? 'true' : '1'}`);
       expect(await run('2026-09-21T17:00:00Z')).toBe(1);
       expect(await statuses(visit)).toEqual({ 'review-request': 'skipped:no-longer-needed', 'review-reminder': 'sent' });
+    });
+
+    describe('a person decides, or the day moved, while reviews are off', () => {
+      const off = () => h.rows(`UPDATE ${h.real('settings')} SET reviews_on = ${dialect === 'postgres' ? 'false' : '0'}`);
+      const requestOf = async (visit: Row) => (await h.rows(`SELECT id FROM ${h.real('messages')} WHERE visit_id = ${String(visit['id'])} AND kind = 'review-request'`))[0]!['id'];
+      const setStatus = (rowId: unknown, status: string) => h.rows(`UPDATE ${h.real('messages')} SET status = '${status}' WHERE id = ${String(rowId)}`);
+
+      it('leaves a held mail held when its moment passes', async () => {
+        const visit = await visitOn('2026-09-16T21:00:00.000Z');
+        await update('visits', visit['id'], { state: 'done' });
+        await setStatus(await requestOf(visit), 'held');
+        await off();
+        await run('2026-09-18T17:00:00Z');
+        expect((await statuses(visit))['review-request']).toBe('held');
+      });
+
+      it('sends a mail a person approved', async () => {
+        const visit = await visitOn('2026-09-16T21:00:00.000Z');
+        await update('visits', visit['id'], { state: 'done' });
+        const request = await requestOf(visit);
+        await setStatus(request, 'held');
+        await off();
+        await update('messages', request, { status: 'queued' });
+        await run('2026-09-18T17:00:00Z');
+        expect((await statuses(visit))['review-request']).toBe('sent');
+      });
+
+      it('sends a failed mail a person queued again', async () => {
+        const visit = await visitOn('2026-09-16T21:00:00.000Z');
+        await update('visits', visit['id'], { state: 'done' });
+        const request = await requestOf(visit);
+        await setStatus(request, 'failed');
+        await off();
+        await update('messages', request, { status: 'queued' });
+        await run('2026-09-18T17:00:00Z');
+        expect((await statuses(visit))['review-request']).toBe('sent');
+      });
+
+      it('moves a mail whose visit moved ahead instead of dropping it on its old day', async () => {
+        const visit = await visitOn('2026-09-16T21:00:00.000Z');
+        await update('visits', visit['id'], { state: 'done' });
+        const later = dialect === 'mysql' ? '2026-09-25 21:00:00' : '2026-09-25T21:00:00.000Z';
+        await h.rows(`UPDATE ${h.real('visits')} SET starts_at = '${later}' WHERE id = ${String(visit['id'])}`);
+        await off();
+        await run('2026-09-18T17:00:00Z');
+        const request = (await mails(visit)).find((row) => row.kind === 'review-request')!;
+        expect(request.status).toBe('queued');
+        expect(request.due).toBe('2026-09-26T17:00:00.000Z');
+      });
+    });
+
+    it('sends a dated mail to the address its person has now', async () => {
+      const moving = await create('customers', { email: 'mo.old@lumen-guests.dev', name: 'Mo Hart' });
+      const visit = await create('visits', { customer_id: moving['id'], starts_at: '2026-09-16T21:00:00.000Z' });
+      await update('visits', visit['id'], { state: 'done' });
+      await update('customers', moving['id'], { email: 'mo.new@lumen-guests.dev' });
+      await run('2026-09-18T17:00:00Z');
+      const [row] = await h.rows(`SELECT status, to_address FROM ${h.real('messages')} WHERE visit_id = ${String(visit['id'])} AND kind = 'review-request'`);
+      expect([row!['status'], row!['to_address']]).toEqual(['sent', 'mo.new@lumen-guests.dev']);
     });
 
     it('queues neither while the studio has reviews switched off', async () => {

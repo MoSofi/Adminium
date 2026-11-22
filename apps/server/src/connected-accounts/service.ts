@@ -34,6 +34,7 @@ import { connectedAccountsSchema, isAddOnManifest, validateManifest, type AddOnM
 import {
   appTablesRepo,
   usersRepo,
+  type User,
   auditRepo,
   connectedAccountsRepo,
   installTarget,
@@ -108,7 +109,19 @@ const keptKey = (subject: string): string => createHash('sha256').update(subject
 export interface AccountTable {
   appKey: string;
   rule: ConnectedAccountsRule;
+  /** The columns that name the row's Adminium account (`table.belongs`). */
+  staff?: readonly string[];
 }
+
+/**
+ * Why an account is ended although its row still stands. `handed-over`: the
+ * row's address changed from the one with this digest. `login-removed`: the
+ * person's Adminium account was removed, or their row handed to a colleague.
+ */
+export type AccountEndWhy = { kind: 'handed-over'; from: string } | { kind: 'login-removed' };
+
+const staffColumnsOf = (declared: { belongs?: unknown } | undefined): string[] =>
+  Array.isArray(declared?.belongs) ? declared.belongs.flatMap((one: { column?: unknown }) => (typeof one?.column === 'string' ? [one.column] : [])) : [];
 
 /** What a step may do at the end of a connection, before the tokens go (sync adds its own). */
 export interface AccountCleanup {
@@ -224,8 +237,9 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
     for (const record of records) {
       const app = record.manifestId === null ? await manifests.findInScope(record.appKey, connectionId) : await manifests.findById(record.manifestId);
       if (app === null || app.row.kind !== 'app') continue;
-      const tables = (app.document as { requiredSchema?: { tables?: { ref?: unknown; connectedAccounts?: unknown }[] } }).requiredSchema?.tables ?? [];
-      const declared = tables.find((one) => one.ref === record.ref)?.connectedAccounts;
+      const tables = (app.document as { requiredSchema?: { tables?: { ref?: unknown; connectedAccounts?: unknown; belongs?: unknown }[] } }).requiredSchema?.tables ?? [];
+      const entry = tables.find((one) => one.ref === record.ref);
+      const declared = entry?.connectedAccounts;
       if (declared === undefined) continue;
       const id = await deps.rows.tableId(connectionId, realTableOf(record));
       if (id === null) {
@@ -234,7 +248,7 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
       }
       if (id !== table) continue;
       const parsed = connectedAccountsSchema.safeParse(declared);
-      if (parsed.success) return { table: { appKey: record.appKey, rule: parsed.data }, unsure: false };
+      if (parsed.success) return { table: { appKey: record.appKey, rule: parsed.data, staff: staffColumnsOf(entry) }, unsure: false };
     }
     return { table: null, unsure };
   }
@@ -468,6 +482,54 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
     }
   }
 
+  /** The Adminium accounts a row names: by its staff columns, and by its address. Read as they are now. */
+  async function loginsOfRow(account: ConnectedAccount): Promise<{ users: User[]; address: string | null } | null> {
+    if (account.tableName === INSTALL_ACCOUNT_TABLE) return null;
+    const { table } = await lookUpTable(account.connectionId, account.tableName);
+    if (table === null) return null;
+    const row = await deps.rows.read(account.connectionId, account.tableName, account.rowKey);
+    if (row === undefined) return null;
+    const people = usersRepo(meta);
+    const users: User[] = [];
+    for (const column of table.staff ?? []) {
+      const id = row[column];
+      const named = typeof id === 'string' && id !== '' ? await people.findById(id) : null;
+      if (named !== null) users.push(named);
+    }
+    const address = personOf(row, table.rule).address;
+    const byAddress = address === null ? null : await people.findByEmail(address);
+    if (byAddress !== null && !users.some((user) => user.id === byAddress.id)) users.push(byAddress);
+    return { users, address };
+  }
+
+  /**
+   * Whether the person behind this row has a suspended Adminium account. Their
+   * calendar then gets no call: nothing written, read, refreshed or renewed,
+   * and it catches up if they are reinstated. Unknown reads as not stopped: a
+   * passing failure is nobody's suspension.
+   */
+  async function holderStopped(account: ConnectedAccount): Promise<boolean> {
+    try {
+      return (await loginsOfRow(account))?.users.some((user) => user.status === 'suspended') === true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Whether the reason an account was to end still holds, for a row that still stands. */
+  async function stillLeft(account: ConnectedAccount, why: AccountEndWhy | undefined): Promise<boolean> {
+    if (why === undefined) return false;
+    if (why.kind === 'login-removed') return true;
+    try {
+      const { table } = await lookUpTable(account.connectionId, account.tableName);
+      if (table === null) return false;
+      const address = personOf(await deps.rows.read(account.connectionId, account.tableName, account.rowKey), table.rule).address;
+      return address === null || addressDigest(address) !== why.from;
+    } catch {
+      return false;
+    }
+  }
+
   /** Thirty days before the client secret's written end date: one notice, per date. */
   async function warnSecretEnding(manifestId: string): Promise<void> {
     const held = await installOf(manifestId);
@@ -514,7 +576,30 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
     installOf,
     personOf,
     switchedOff,
+    holderStopped,
     rowIsLive,
+
+    /** The address on an account's row, as the rule names it; null when there is none or it cannot be read. */
+    async rowAddressOf(account: ConnectedAccount): Promise<string | null> {
+      return (await loginsOfRow(account).catch(() => null))?.address ?? null;
+    },
+
+    /** The accounts on rows this person holds: named by a staff column, or by their address. Asked before their rows are handed on. */
+    async accountsOfPerson(person: { id: string; email: string }): Promise<string[]> {
+      const held: string[] = [];
+      let after: string | null = null;
+      for (;;) {
+        const page: ConnectedAccount[] = await repo.page(after, 200);
+        if (page.length === 0) break;
+        for (const account of page) {
+          after = account.id;
+          const logins = await loginsOfRow(account).catch(() => null);
+          if (logins?.users.some((user) => user.id === person.id || user.email === person.email) === true) held.push(account.id);
+        }
+        if (page.length < 200) break;
+      }
+      return held;
+    },
 
     /** The row, read as the engine. */
     readRow: (target: AccountTarget) => deps.rows.read(target.connectionId, target.tableName, target.rowKey),
@@ -865,10 +950,10 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
      * sweep's answer may be an hour old. With the record a person's disconnect
      * writes for itself.
      */
-    async endBySystem(accountId: string): Promise<EndResult | null> {
+    async endBySystem(accountId: string, why?: AccountEndWhy): Promise<EndResult | null> {
       const account = await repo.find(accountId);
       if (account === null) return null;
-      if (account.state !== 'disconnecting' && (await standingOf(account)) !== 'gone') return null;
+      if (account.state !== 'disconnecting' && (await standingOf(account)) !== 'gone' && !(await stillLeft(account, why))) return null;
       const ended = await end(accountId);
       if (ended !== null) {
         await auditRepo(meta)

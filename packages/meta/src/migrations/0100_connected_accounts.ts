@@ -38,6 +38,7 @@ import { sql, type Kysely } from 'kysely';
 
 import type { ColumnHelpers } from '../columns.js';
 import { metaTable } from '../prefix.js';
+import { columnExists, createIndexUnlessMade } from './probe.js';
 
 /** The longest table name a target holds. */
 export const CONNECTED_TABLE_WIDTH = 128;
@@ -57,8 +58,12 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
   const exact = (width: number) => (c.dialect === 'mysql' ? sql.raw(`varchar(${String(width)}) character set utf8mb4 collate utf8mb4_bin`) : c.str(width));
 
   // Separate statements: SQLite adds one column per ALTER.
-  await db.schema.alterTable(metaTable('add_on_credentials')).addColumn('refused_code', c.str(32)).execute();
-  await db.schema.alterTable(metaTable('add_on_credentials')).addColumn('refused_at', c.ts).execute();
+  if (!(await columnExists(db, c.dialect, metaTable('add_on_credentials'), 'refused_code'))) {
+    await db.schema.alterTable(metaTable('add_on_credentials')).addColumn('refused_code', c.str(32)).execute();
+  }
+  if (!(await columnExists(db, c.dialect, metaTable('add_on_credentials'), 'refused_at'))) {
+    await db.schema.alterTable(metaTable('add_on_credentials')).addColumn('refused_at', c.ts).execute();
+  }
 
   await db.schema
     .createTable(metaTable('connected_accounts'))
@@ -86,17 +91,8 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('updated_at', c.ts, (col) => col.notNull())
     .addForeignKeyConstraint('fk_adminium_connected_accounts_manifest', ['manifest_id'], metaTable('manifests'), ['id'], (cb) => cb.onDelete('cascade'))
     .execute();
-  await db.schema
-    .createIndex('uq_adminium_connected_accounts_target')
-    .on(metaTable('connected_accounts'))
-    .columns(['manifest_id', 'connection_id', 'table_name', 'row_key'])
-    .unique()
-    .execute();
-  await db.schema
-    .createIndex('ix_adminium_connected_accounts_row')
-    .on(metaTable('connected_accounts'))
-    .columns(['connection_id', 'table_name', 'row_key'])
-    .execute();
+  await createIndexUnlessMade(db, c.dialect, 'uq_adminium_connected_accounts_target', metaTable('connected_accounts'), ['manifest_id', 'connection_id', 'table_name', 'row_key'], { unique: true });
+  await createIndexUnlessMade(db, c.dialect, 'ix_adminium_connected_accounts_row', metaTable('connected_accounts'), ['connection_id', 'table_name', 'row_key']);
 
   await db.schema
     .createTable(metaTable('connect_links'))
@@ -114,13 +110,8 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('expires_at', c.ts, (col) => col.notNull())
     .addColumn('created_at', c.ts, (col) => col.notNull())
     .execute();
-  await db.schema.createIndex('uq_adminium_connect_links_token').on(metaTable('connect_links')).columns(['token_hash']).unique().execute();
-  await db.schema
-    .createIndex('uq_adminium_connect_links_target')
-    .on(metaTable('connect_links'))
-    .columns(['connection_id', 'table_name', 'row_key'])
-    .unique()
-    .execute();
+  await createIndexUnlessMade(db, c.dialect, 'uq_adminium_connect_links_token', metaTable('connect_links'), ['token_hash'], { unique: true });
+  await createIndexUnlessMade(db, c.dialect, 'uq_adminium_connect_links_target', metaTable('connect_links'), ['connection_id', 'table_name', 'row_key'], { unique: true });
 
   await db.schema
     .createTable(metaTable('oauth_flows'))
@@ -141,11 +132,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('created_at', c.ts, (col) => col.notNull())
     .addForeignKeyConstraint('fk_adminium_oauth_flows_manifest', ['manifest_id'], metaTable('manifests'), ['id'], (cb) => cb.onDelete('cascade'))
     .execute();
-  await db.schema.createIndex('uq_adminium_oauth_flows_state').on(metaTable('oauth_flows')).columns(['state_hash']).unique().execute();
-  await db.schema
-    .createIndex('uq_adminium_oauth_flows_link')
-    .on(metaTable('oauth_flows'))
-    .columns(['link_id'])
-    .unique()
-    .execute();
+  await createIndexUnlessMade(db, c.dialect, 'uq_adminium_oauth_flows_state', metaTable('oauth_flows'), ['state_hash'], { unique: true });
+  await createIndexUnlessMade(db, c.dialect, 'uq_adminium_oauth_flows_link', metaTable('oauth_flows'), ['link_id'], { unique: true });
 }

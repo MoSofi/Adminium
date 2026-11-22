@@ -14,6 +14,7 @@ import { validateManifest } from '@adminium/manifest';
 import { rolesRepo, usersRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { loadSnapshotView } from '../src/data-io/snapshot-view.js';
 import { sweepKeptHolders } from '../src/privacy/held-values.js';
 import { installedCustomerKey } from '../src/public-api/customer-key.js';
 import { addOnHarness, addOnManifest, type Harness } from './app-add-ons.helpers.js';
@@ -296,5 +297,27 @@ describe.each(LEGS)('what a forgotten person still holds — %s', (dialect, avai
     const gift = await card(3);
     expect(gift['recipient_email']).toBe(MAX);
     expect(flag(gift['recipient_forgotten'])).toBe(true);
+  });
+
+  describe('when the holder changes address', () => {
+    const holder = async (id: number, email: string) => {
+      await h.rows(`insert into shop_customers (id, email, name) values (${String(id)}, '${email}', 'Nora Vale')`);
+      await h.rows(
+        `insert into wallet_passes (id, status, uses_left, expires_on, holder_email, holder_key, holder_name) values (${String(id)}, 'issued', 4, '${dayFrom(60)}', '${email}', '${installedCustomerKey(h.connectionId, email)}', 'Nora Vale')`,
+      );
+    };
+    const moved = async (id: number, to: string) => {
+      const row = await pass(id);
+      expect([row['holder_email'], row['holder_key']]).toEqual([to, installedCustomerKey(h.connectionId, to)]);
+      expect(Number(row['uses_left'])).toBe(4);
+    };
+
+    it.skipIf(!available)('a pack goes with them when the desk corrects it, and the old mailbox holds nothing', async () => {
+      await holder(31, 'nora.old@fieldmail.io');
+      const customers = (await loadSnapshotView(h.meta, h.connectionId)).model.tables.find((table) => table.name === 'shop_customers')!.id;
+      const patched = await served.composed.app.inject({ method: 'PATCH', url: `/api/v1/data/${h.connectionId}/${encodeURIComponent(customers)}/31`, headers: { cookie }, payload: { values: { email: 'nora.new@fieldmail.io' } } });
+      expect(patched.statusCode, patched.body).toBe(200);
+      await moved(31, 'nora.new@fieldmail.io');
+    });
   });
 });

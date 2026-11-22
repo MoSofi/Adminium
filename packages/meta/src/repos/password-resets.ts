@@ -108,6 +108,14 @@ export function passwordResetsRepo(meta: MetaDb) {
       return Number(res.numUpdatedRows) === 1;
     },
 
+    /** Ends every unused link of these people: their address changed, or who invited them was stopped. */
+    async retireFor(userIds: readonly string[], at: number = Date.now(), kind?: PasswordReset['kind']): Promise<void> {
+      if (userIds.length === 0) return;
+      let unused = db.updateTable('adminium_password_resets').set({ usedAt: at }).where('userId', 'in', [...userIds]).where('usedAt', 'is', null);
+      if (kind !== undefined) unused = unused.where('kind', '=', kind);
+      await unused.execute();
+    },
+
     /** Retention `password-resets` policy: used, or expired > 24 h ago. */
     async gc(at: number = Date.now()): Promise<number> {
       const res = await db

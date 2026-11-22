@@ -267,3 +267,40 @@ describe('scrubUrlForLog', () => {
     expect(log).not.toContain(TOKEN);
   });
 });
+
+describe('a token in a spelling the router or a proxy may pass', () => {
+  it.each([
+    [`/account/confirm-email/${TOKEN}`, `/account/confirm-email/${REDACTED}`],
+    [`/%61ccount/CONFIRM-email/${TOKEN}`, `/%61ccount/CONFIRM-email/${REDACTED}`],
+    [`//reset/${TOKEN}`, `//reset/${REDACTED}`],
+    [`//x/cal/${TOKEN}.ics`, `//x/cal/${REDACTED}`],
+    [`//pay/${TOKEN}`, `//pay/${REDACTED}`],
+    [`//m/u/${TOKEN}`, `//m/u/${REDACTED}`],
+    [`/reset;a/${TOKEN}`, `/reset;a/${REDACTED}`],
+    [`http://h.example//reset/${TOKEN}`, `http://h.example//reset/${REDACTED}`],
+  ])('hides it in the path: %s', (url, expected) => {
+    expect(scrubUrlForLog(url)).toBe(expected);
+  });
+
+  it.each([
+    [`/%78/forms/s?t=${TOKEN}`, `/%78/forms/s?t=${REDACTED}`],
+    [`http://h.example/x/forms/s?t=${TOKEN}`, `http://h.example/x/forms/s?t=${REDACTED}`],
+    [`//x/forms/s?t=${TOKEN}`, `//x/forms/s?t=${REDACTED}`],
+  ])("hides a stranger page's token: %s", (url, expected) => {
+    expect(scrubUrlForLog(url)).toBe(expected);
+  });
+
+  it.each([
+    [`/login?returnTo=%2Faccount%2Fconfirm-email%2F${TOKEN}`, `/login?returnTo=${REDACTED}`],
+    [`/login?returnTo=/reset/${TOKEN}`, `/login?returnTo=${REDACTED}`],
+    [`/login?RETURNTO=%2Fx%2Fcal%2F${TOKEN}.ics&a=1`, `/login?RETURNTO=${REDACTED}&a=1`],
+  ])('hides a token carried in a way back: %s', (url, expected) => {
+    expect(scrubUrlForLog(url)).toBe(expected);
+  });
+
+  it('keeps a way back with no token readable', () => {
+    expect(scrubUrlForLog('/login?returnTo=%2Fapps%2Forders')).toBe('/login?returnTo=%2Fapps%2Forders');
+    expect(scrubUrlForLog('/account/settings?tab=email')).toBe('/account/settings?tab=email');
+    expect(scrubUrlForLog('/login?returnTo=%E0%A4%A')).toBe('/login?returnTo=%E0%A4%A');
+  });
+});
