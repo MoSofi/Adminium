@@ -6,9 +6,10 @@
  * says which, whose, and why. Nobody else's key is touched, and a key that
  * names no maker stays, because nothing says it was that person's.
  */
+import type { KyselyPlugin } from 'kysely';
 import { describe, expect, it } from 'vitest';
 
-import { apiKeysRepo, applyMigrations, ALL_MIGRATIONS, rolesRepo, usersRepo, type MetaDb } from '../src/index.js';
+import { apiKeysRepo, applyMigrations, auditRepo, ALL_MIGRATIONS, rolesRepo, usersRepo, type MetaDb } from '../src/index.js';
 import { up as revokeOnce } from '../src/migrations/0105_revoke_stopped_keys.js';
 import { TEST_DIALECTS } from './helpers/db.js';
 
@@ -30,6 +31,28 @@ async function auditOf(meta: MetaDb, apiKeyId: string): Promise<{ actorKind: str
       return { actorKind: row.actorKind, category: row.category, before: changes.before, after: changes.after, raw };
     })
     .filter((row) => row.before['apiKeyId'] === apiKeyId);
+}
+
+/** As 0.3.70 recorded a key made by a key: no maker on the row, and an audit entry naming the key that made it. */
+async function keyMadeBy(meta: MetaDb, roleId: string, name: string, parent: string): Promise<string> {
+  const id = await keyOf(meta, roleId, name, null);
+  await auditRepo(meta).append({ actorKind: 'api-key', actorId: parent, actorLabel: 'a key', category: 'system', action: 'api-key.create', changes: { after: { apiKeyId: id, name, roleId } } });
+  return id;
+}
+
+/** Makes the second revoke of a run fail, as a crash part way through would. */
+function failOnSecondRevoke(): KyselyPlugin {
+  let seen = 0;
+  return {
+    transformQuery: ({ node }) => {
+      if (node.kind === 'UpdateQueryNode' && JSON.stringify(node.table).includes('adminium_api_keys')) {
+        seen += 1;
+        if (seen === 2) throw new Error('the process stopped here');
+      }
+      return node;
+    },
+    transformResult: async ({ result }) => result,
+  };
 }
 
 for (const dialect of TEST_DIALECTS) {
@@ -89,6 +112,71 @@ for (const dialect of TEST_DIALECTS) {
         await users.updateStatus(gone.id, 'active');
         await revokeOnce(meta.db as never);
         expect(await revokedAt(live)).toBe(firstRevoked);
+      } finally {
+        await t.destroy();
+      }
+    });
+
+    it('follows a key made by a key back to its person, and leaves one nothing can be traced from', async () => {
+      const t = await dialect.make();
+      try {
+        const { meta } = t;
+        await applyMigrations(meta.db, { dialect: meta.dialect, migrations: ALL_MIGRATIONS.filter((m) => m.name <= LAST_IN_0370) });
+        const role = await rolesRepo(meta).create({ slug: 'bots', name: 'Bots' });
+        const users = usersRepo(meta);
+        const gone = await users.create({ email: 'gone@example.com', name: 'Sam Gone', passwordHash: 'x' });
+        const here = await users.create({ email: 'here@example.com', name: 'Ann Here', passwordHash: 'x' });
+        await users.updateStatus(gone.id, 'suspended');
+        const root = await keyOf(meta, role.id, 'root', gone.id);
+        const child = await keyMadeBy(meta, role.id, 'child', root);
+        const grandchild = await keyMadeBy(meta, role.id, 'grandchild', child);
+        const hereRoot = await keyOf(meta, role.id, 'here-root', here.id);
+        const hereChild = await keyMadeBy(meta, role.id, 'here-child', hereRoot);
+        const untraced = await keyOf(meta, role.id, 'untraced', null);
+        // Entries that point at each other lead nowhere, and must not hang the upgrade.
+        const loopA = await keyOf(meta, role.id, 'loop-a', null);
+        const loopB = await keyMadeBy(meta, role.id, 'loop-b', loopA);
+        await auditRepo(meta).append({ actorKind: 'api-key', actorId: loopB, actorLabel: 'a key', category: 'system', action: 'api-key.create', changes: { after: { apiKeyId: loopA } } });
+
+        await applyMigrations(meta.db, { dialect: meta.dialect });
+
+        const row = async (id: string) => (await apiKeysRepo(meta).findById(id))!;
+        for (const id of [child, grandchild]) {
+          expect((await row(id)).revokedAt).not.toBeNull();
+          expect((await row(id)).createdBy).toBe(gone.id);
+          expect((await auditOf(meta, id))[0]).toMatchObject({ before: { createdBy: gone.id, createdByEmail: 'gone@example.com' } });
+        }
+        // An active person's key-made key still works, and now stops with them.
+        expect(await row(hereChild)).toMatchObject({ revokedAt: null, createdBy: here.id });
+        for (const id of [untraced, loopA, loopB]) expect(await row(id)).toMatchObject({ revokedAt: null, createdBy: null });
+      } finally {
+        await t.destroy();
+      }
+    });
+
+    it('a crash part way through keeps nothing, and the next run finishes with one entry a key', async () => {
+      const t = await dialect.make();
+      try {
+        const { meta } = t;
+        await applyMigrations(meta.db, { dialect: meta.dialect, migrations: ALL_MIGRATIONS.filter((m) => m.name < WAVE) });
+        const role = await rolesRepo(meta).create({ slug: 'bots', name: 'Bots' });
+        const gone = await usersRepo(meta).create({ email: 'gone@example.com', name: 'Sam Gone', passwordHash: 'x' });
+        await usersRepo(meta).updateStatus(gone.id, 'suspended');
+        const first = await keyOf(meta, role.id, 'first', gone.id);
+        const second = await keyOf(meta, role.id, 'second', gone.id);
+        const crashing = meta.db.withPlugin(failOnSecondRevoke());
+        // Postgres and SQLite run a wave inside the migrator's transaction; MySQL's wave opens its own.
+        const run = meta.dialect === 'mysql' ? revokeOnce(crashing as never) : crashing.transaction().execute((trx) => revokeOnce(trx as never));
+        await expect(run).rejects.toThrow('the process stopped here');
+        for (const id of [first, second]) {
+          expect((await apiKeysRepo(meta).findById(id))?.revokedAt).toBeNull();
+          expect(await auditOf(meta, id)).toEqual([]);
+        }
+        await applyMigrations(meta.db, { dialect: meta.dialect });
+        for (const id of [first, second]) {
+          expect((await apiKeysRepo(meta).findById(id))?.revokedAt).not.toBeNull();
+          expect(await auditOf(meta, id)).toHaveLength(1);
+        }
       } finally {
         await t.destroy();
       }

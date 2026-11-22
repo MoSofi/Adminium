@@ -8,7 +8,13 @@
  * one, which the release notes say.
  *
  * Each key revoked gets an audit entry saying whose it was, in the same
- * transaction. A key that names no maker stays: nothing says it was theirs.
+ * transaction.
+ *
+ * A KEY MADE BY A KEY named no maker before this release. The audit log still
+ * says which key made it, so it is traced back to the person first, and from
+ * then on it stops with them. A key with no maker and no such trail (its maker
+ * was deleted for good, or the entry has passed the audit log's retention)
+ * stays: nothing says whose it was.
  */
 import { MysqlAdapter, type Kysely } from 'kysely';
 
@@ -17,7 +23,48 @@ import { metaTable } from '../prefix.js';
 
 type Store = Kysely<Record<string, Record<string, unknown>>>;
 
+/** What an audit entry's `changes` holds: text on some engines, parsed on others. */
+function madeKeyOf(changes: unknown): string | null {
+  let read = changes;
+  if (typeof read === 'string') {
+    try {
+      read = JSON.parse(read);
+    } catch {
+      return null;
+    }
+  }
+  const made = (read as { after?: { apiKeyId?: unknown } } | null)?.after?.apiKeyId;
+  return typeof made === 'string' ? made : null;
+}
+
+/** Names the person behind each working key that was made by a key, following the audit log from key to key. */
+async function traceKeyMadeKeys(store: Store): Promise<void> {
+  const made = await store.selectFrom(metaTable('audit_log')).select(['actorId', 'changes']).where('action', '=', 'api-key.create').where('actorKind', '=', 'api-key').execute();
+  if (made.length === 0) return;
+  const madeBy = new Map<string, string>();
+  for (const entry of made) {
+    const child = madeKeyOf(entry['changes']);
+    if (child !== null && typeof entry['actorId'] === 'string') madeBy.set(child, entry['actorId']);
+  }
+  const keys = await store.selectFrom(metaTable('api_keys')).select(['id', 'createdBy', 'revokedAt']).execute();
+  const makerOf = new Map(keys.map((key) => [key['id'] as string, key['createdBy'] as string | null]));
+  for (const key of keys) {
+    if (key['createdBy'] !== null || key['revokedAt'] !== null) continue;
+    const seen = new Set<string>();
+    let at: string | undefined = key['id'] as string;
+    let maker: string | null = null;
+    while (at !== undefined && !seen.has(at)) {
+      seen.add(at);
+      maker = makerOf.get(at) ?? null;
+      if (maker !== null) break;
+      at = madeBy.get(at);
+    }
+    if (maker !== null) await store.updateTable(metaTable('api_keys')).set({ createdBy: maker }).where('id', '=', key['id'] as string).where('createdBy', 'is', null).execute();
+  }
+}
+
 async function revokeHeld(store: Store, at: number): Promise<void> {
+  await traceKeyMadeKeys(store);
   // camelCase: the meta instance runs `CamelCasePlugin`.
   const suspended = await store.selectFrom(metaTable('users')).select(['id', 'email', 'name']).where('status', '=', 'suspended').execute();
   if (suspended.length === 0) return;
@@ -26,6 +73,9 @@ async function revokeHeld(store: Store, at: number): Promise<void> {
   for (const key of keys) {
     const maker = makers.get(key['createdBy'] as string);
     if (maker === undefined) continue;
+    // First: a key something else revoked a moment ago is not this upgrade's to report.
+    const revoked = await store.updateTable(metaTable('api_keys')).set({ revokedAt: at }).where('id', '=', key['id'] as string).where('revokedAt', 'is', null).executeTakeFirst();
+    if (Number(revoked.numUpdatedRows) !== 1) continue;
     await store
       .insertInto(metaTable('audit_log'))
       .values({
@@ -49,7 +99,6 @@ async function revokeHeld(store: Store, at: number): Promise<void> {
         requestId: null,
       })
       .execute();
-    await store.updateTable(metaTable('api_keys')).set({ revokedAt: at }).where('id', '=', key['id'] as string).where('revokedAt', 'is', null).execute();
   }
 }
 
