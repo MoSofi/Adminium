@@ -72,6 +72,7 @@ import {
   snapshotsRepo,
   assistantSessionsRepo,
   type PayableRef,
+  shippingRepo,
 } from '@adminium/meta';
 
 import { buildServer, type AdminiumServer, type BuildServerOptions } from './app.js';
@@ -3624,6 +3625,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             await addOnSettingsRepo(meta).clearForInstall(install.row.id);
             // A lead source add-on's sources: what was kept of each (last four, switch, caps) and its daily counts.
             await forgetSources(meta, install.row.id);
+            // A carrier add-on's account record: what it said of a key that is gone with the install.
+            await shippingRepo(meta).forgetAccount(install.row.id);
           },
           credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
           schemaTarget: addOnInstaller.schemaTarget,
@@ -3668,6 +3671,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           runtime: () => addOnRuntime,
           networkFeatures: () => addOnCatalog.networkFeaturesAllowed(),
           policy: app.trialPolicy,
+          sources: paymentSources,
+          // No booking can be open yet: nothing buys a label until the booking table exists, and it answers here.
+          openBookings: async () => [],
           readRow: (request, connectionId, tableId, row) => readReachedRow({ meta, data: (id) => manager.data(id), resolve: (one) => app.rbac.resolve(one) }, request, connectionId, tableId, row),
         }),
       );

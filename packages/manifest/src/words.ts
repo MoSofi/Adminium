@@ -254,6 +254,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'roles.privacyPeople',
   // An app role that gives back the money paid online for the app's own records (`payments:@:refund`).
   'roles.paymentsRefund',
+  // An app role that books, cancels or declares customs for the app's own labels (`shipping:@:book`, `:cancel`, `:customs`).
+  'roles.shippingGrants',
   // The columns a records page's list opens on, in order (`config.columns`).
   'config.columns',
   // An add-on kept once per server rather than installed per database.
@@ -607,6 +609,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'appGrants.more': '0.3.47',
   'roles.privacyPeople': '0.3.47',
   'roles.paymentsRefund': '0.3.60',
+  // A release before refuses the grant.
+  'roles.shippingGrants': '0.3.71',
   // A release before ignores the key, and the list opens on the columns Adminium picks.
   'config.columns': '0.3.47',
   'addOn.scope': '0.3.49',
@@ -817,6 +821,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
         if (ref !== undefined && !ownPages.has(ref)) out.push({ word: 'roles.addOnPages', path: `roles.${String(r)}.permissions.${String(g)}` });
         if (grant === 'privacy:@:people') out.push({ word: 'roles.privacyPeople', path: `roles.${String(r)}.permissions.${String(g)}` });
         if (grant === 'payments:@:refund') out.push({ word: 'roles.paymentsRefund', path: `roles.${String(r)}.permissions.${String(g)}` });
+        if (typeof grant === 'string' && /^shipping:@:(book|cancel|customs)$/.test(grant)) out.push({ word: 'roles.shippingGrants', path: `roles.${String(r)}.permissions.${String(g)}` });
       });
     });
     // What only a file made on an Adminium carries.

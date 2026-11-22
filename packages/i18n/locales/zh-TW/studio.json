@@ -968,7 +968,10 @@
       "grantsAdded": {
         "title": "此版本給了它的角色更多權限",
         "addOnSettings": "{roles} 可以變更 {addOn} 的設定，這些設定由它服務的所有應用程式共用。",
-        "refund": "{roles} 可以退還客戶為此應用程式的記錄線上支付的款項。"
+        "refund": "{roles} 可以退還客戶為此應用程式的記錄線上支付的款項。",
+        "shippingBook": "{roles} 可以在你設定的限額內購買貨運標籤。",
+        "shippingCancel": "{roles} 可以申請退還貨運標籤的費用。",
+        "shippingCustoms": "{roles} 可以為包裹申報海關。"
       },
       "stopped": {
         "pages": "更新至 {to} 時在寫入頁面期間停止。沒有遺失任何內容；{from} 的頁面仍在。",
@@ -5653,6 +5656,7 @@
       "grantAddOn": "針對此資料庫沒有的附加元件設定的授權已排除。",
       "appScreens": "針對其他應用程式畫面的授權不會帶入。",
       "appScreensAll": "針對所有應用程式畫面的授權不會帶入。",
+      "shippingRight": "貨運標籤權限不會帶入。請在安裝後授予該角色。",
       "screensOnly": "該應用程式沒有自己的畫面，因此該角色會開啟儀表板。",
       "builtinEmail": "內建郵件不會儲存在應用程式中。",
       "emailMissing": "這封郵件沒有生效的文字，因此已將其排除。",

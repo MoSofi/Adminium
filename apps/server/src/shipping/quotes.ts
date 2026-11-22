@@ -116,12 +116,12 @@ export interface StoredQuoteReply {
 }
 
 /** Keeps the carrier's rates as this slot's one quote, in place of any before it. */
-export async function storeQuote(meta: MetaDb, secret: string, input: { slot: ShippingSlot; carrierKey: string; details: QuoteDetails; rates: readonly Rate[]; createdBy: string | null; now: number }): Promise<StoredQuoteReply> {
+export async function storeQuote(meta: MetaDb, secret: string, input: { slot: ShippingSlot; carrierKey: string; accountFingerprint: string; details: QuoteDetails; rates: readonly Rate[]; createdBy: string | null; now: number }): Promise<StoredQuoteReply> {
   const stated = input.rates.flatMap((rate) => (rate.expiresAt === undefined ? [] : [Date.parse(rate.expiresAt)]));
   const expiresAt = Math.min(input.now + QUOTE_LIFE_MS, ...stated);
   const rates = input.rates.map((rate) => toStored(secret, rate));
   const quote = await shippingRepo(meta).replaceQuote(
-    { ...input.slot, carrierKey: input.carrierKey, detailsHash: detailsHash(secret, input.details), rates, createdBy: input.createdBy, expiresAt },
+    { ...input.slot, carrierKey: input.carrierKey, accountFingerprint: input.accountFingerprint, detailsHash: detailsHash(secret, input.details), rates, createdBy: input.createdBy, expiresAt },
     input.now,
   );
   return { quoteId: quote.id, carrier: input.carrierKey, expiresAt, rates: rates.map(toOffered) };
@@ -146,13 +146,16 @@ function sameHash(a: string, b: string): boolean {
  * `details` must be read again from the order and Ship from just before this,
  * and `carrierKey` is the shop's carrier now: a quote that was being stored as
  * the owner changed carrier is not one the shop still means to buy.
+ * `accountFingerprint` is the account its key opens now: a rate priced under
+ * another account, or in another mode, is never bought on this one.
  * A quote of another order reads as one that does not exist.
  */
-export async function readQuoteForBooking(meta: MetaDb, secret: string, input: { quoteId: string; rateId: string; slot: ShippingSlot; carrierKey: string; details: Omit<QuoteDetails, 'purpose' | 'parcelNumber'>; now: number }): Promise<QuoteForBooking> {
+export async function readQuoteForBooking(meta: MetaDb, secret: string, input: { quoteId: string; rateId: string; slot: ShippingSlot; carrierKey: string; accountFingerprint: string; details: Omit<QuoteDetails, 'purpose' | 'parcelNumber'>; now: number }): Promise<QuoteForBooking> {
   const quote = await shippingRepo(meta).quote(input.quoteId);
   if (quote === null || !sameSlot(quote, input.slot)) return { ok: false, code: 'QUOTE_NOT_FOUND' };
   if (quote.expiresAt <= input.now) return { ok: false, code: 'QUOTE_EXPIRED' };
   if (quote.carrierKey !== input.carrierKey) return { ok: false, code: 'QUOTE_STALE' };
+  if (quote.accountFingerprint === null || !sameHash(quote.accountFingerprint, input.accountFingerprint)) return { ok: false, code: 'QUOTE_STALE' };
   const hash = detailsHash(secret, { ...input.details, purpose: input.slot.purpose as ShipmentPurpose, parcelNumber: input.slot.parcelNumber });
   if (!sameHash(hash, quote.detailsHash)) return { ok: false, code: 'QUOTE_STALE' };
   const rates = storedRatesSchema.safeParse(quote.rates);

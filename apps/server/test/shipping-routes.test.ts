@@ -10,7 +10,11 @@
  *  - a person without the table or the row gets no price and no carrier call;
  *  - a new quote voids the last, and an edited order reads as stale;
  *  - no carrier handle or address in a reply, a quote row, a log or an audit;
- *  - two databases on one server keep their own carrier, choice and Ship from.
+ *  - two databases on one server keep their own carrier, choice and Ship from;
+ *  - a carrier key is checked before it is saved, says test or live from the
+ *    carrier's answer, and reaches no reply, log, audit row or plain column;
+ *  - booking is a per-person, per-install right inside the owner's limits, and
+ *    someone who cannot see money gets no price, no price order and no carrier words.
  */
 import { randomBytes } from 'node:crypto';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -29,8 +33,10 @@ import { createRunService } from '../src/llm/run-service.js';
 import { generateApiKey } from '../src/rbac/api-keys.js';
 import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
 import { readReachedRow } from '../src/crud/row-reached.js';
+import type { PayableSources } from '../src/payments/payables.js';
 import { shippingRoutes } from '../src/routes/shipping/index.js';
 import { orderAddress, shipFromAddress } from '../src/shipping/addresses.js';
+import { accountFingerprintOf, credentialHash } from '../src/shipping/fingerprint.js';
 import { QUOTE_LIFE_MS, readQuoteForBooking } from '../src/shipping/quotes.js';
 import { addOnHarness, addOnManifest, type Dialect, type Harness } from './app-add-ons.helpers.js';
 import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
@@ -56,6 +62,9 @@ interface Fake {
   made: { key: string; credentials: Record<string, string>; todayIso: string }[];
   quotes: { key: string; parcel: Doc; from: Doc; to: Doc; options: Doc }[];
   quote?: (key: string) => unknown;
+  /** What `checkCredentials` answers; a test key that sells everywhere unless a test says otherwise. */
+  check?: (key: string, credentials: Record<string, string>, query: Doc) => unknown;
+  checks: { key: string; query: Doc }[];
 }
 const globals = globalThis as unknown as { __shippingFake?: Fake };
 const fake = (): Fake => globals.__shippingFake!;
@@ -73,10 +82,15 @@ const serverJs = (key: string) => `export function createShippingCarrier(context
     track: async () => [],
     label: async () => { throw new Error('never in these tests'); },
     cancel: async () => undefined,
+    checkCredentials: async (query) => {
+      fake.checks.push({ key: ${JSON.stringify(key)}, query: query ?? {} });
+      return fake.check(${JSON.stringify(key)}, context.credentials, query ?? {});
+    },
   };
 }
 `;
 
+const ADDRESS_COLUMNS = ['ship_name', 'ship_line1', 'ship_line2', 'ship_city', 'ship_region', 'ship_postcode', 'ship_country', 'ship_phone', 'ship_email', 'ship_company'];
 const text = (ref: string, maxLength = 120) => ({ ref, type: 'text', maxLength, nullable: true });
 
 function shopDoc(key: string, shipping: boolean): Record<string, unknown> {
@@ -116,7 +130,18 @@ function shopDoc(key: string, shipping: boolean): Record<string, unknown> {
         { ref: 'notes', columns: [{ ref: 'id', type: 'int', role: 'pk' }, text('body')] },
       ],
     },
-    roles: [{ key: 'rep', name: 'Rep', permissions: ['table:@orders:read'], limits: { orders: { rows: { read: { reach: 'own' } } } } }],
+    roles: [
+      { key: 'rep', name: 'Rep', permissions: ['table:@orders:read'], limits: { orders: { rows: { read: { reach: 'own' } } } } },
+      ...(shipping
+        ? [
+            // Reads an order's address and never its money: the role Online Shop's packer has.
+            { key: 'packer', name: 'Packer', permissions: ['table:@orders:read', 'shipping:@:book'], limits: { orders: { readable: ['id', 'number', ...ADDRESS_COLUMNS] } } },
+            { key: 'picker', name: 'Picker', permissions: ['table:@orders:read', 'shipping:@:book'] },
+            { key: 'refunder', name: 'Refunder', permissions: ['table:@orders:read', 'shipping:@:cancel'] },
+            { key: 'bench', name: 'Bench', screensOnly: true, permissions: ['app:@:staff', 'table:@orders:read', 'shipping:@:book'], limits: { orders: { readable: ['id', 'number', ...ADDRESS_COLUMNS] } } },
+          ]
+        : []),
+    ],
     pages: [{ ref: `${key}-orders`, template: 'page-crud', title: { key: 't', fallback: 'Orders' }, nav: { group: 'shop', icon: 'home', order: 1 }, bindings: { rows: 'orders' } }],
     frontends: [{ side: 'staff', kind: 'spa', entry: 'index.html' }],
     ...(shipping
@@ -240,13 +265,20 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
 
   async function addCarrier(key: string, hosts: { key: string; hostInstall: string }[], connectionId: string = conn, credential?: string): Promise<string> {
     const made = await repo.install({ manifestKey: key, version: '1.0.0', kind: 'add-on', source: 'file', document: carrierDoc(key), connectionId, status: 'installed', attachTo: hosts });
-    if (credential !== undefined) await repo.setCredential(made.row.id, { kind: 'api-key', secret: { api_key: credential } });
+    if (credential !== undefined) await saveChecked(made.row.id, key, credential);
     return made.row.id;
+  }
+
+  /** A key saved as the key door saves it: with what the carrier said of it. */
+  async function saveChecked(installId: string, key: string, credential: string, mode: 'live' | 'test' = 'live'): Promise<void> {
+    const fields = { api_key: credential };
+    await repo.setCredential(installId, { kind: 'api-key', secret: fields });
+    await settings().saveAccount({ carrierInstallId: installId, mode, fingerprint: accountFingerprintOf(TEST_SECRET, key, mode, undefined, fields), keyHash: credentialHash(TEST_SECRET, key, fields), keyHint: credential.slice(-4), state: 'ok', carriers: ['Evri'], checkedBy: null, checkedAt: 1 });
   }
 
   beforeAll(async () => {
     if (!available) return;
-    globals.__shippingFake = { made: [], quotes: [] };
+    globals.__shippingFake = { made: [], quotes: [], checks: [] };
     h = await addOnHarness(dialect, { unbuiltWords: {} });
     conn = h.connectionId;
     repo = manifestsRepo(h.meta, addOnCredentialCryptoFromSecret(TEST_SECRET));
@@ -274,7 +306,7 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
     const shop = on('shop');
     await addCarrier('carrier-one', [...shop, ...on('legacy'), { key: 'shop', hostInstall: installs['shop@second']! }], conn, KEY_ONE);
     // The same carrier's own install, and key, on the second database.
-    await repo.install({ manifestKey: 'carrier-one', version: '1.0.0', kind: 'add-on', source: 'file', document: carrierDoc('carrier-one'), connectionId: second.id, instanceSlug: 'second', status: 'installed' }).then((made) => repo.setCredential(made.row.id, { kind: 'api-key', secret: { api_key: KEY_TWO } }));
+    await repo.install({ manifestKey: 'carrier-one', version: '1.0.0', kind: 'add-on', source: 'file', document: carrierDoc('carrier-one'), connectionId: second.id, instanceSlug: 'second', status: 'installed' }).then((made) => saveChecked(made.row.id, 'carrier-one', KEY_TWO));
     await addCarrier('carrier-two', shop, conn, KEY_TWO);
     await addCarrier('carrier-keyless', shop);
     await addCarrier('shipping-dhl', shop, conn, 'test-dhl-value');
@@ -313,6 +345,10 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
     await person('clerk', [], ['system:shipping:manage']);
     await person('rep', ['shop-rep'], ['system:shipping:manage']);
     await person('admin', ['admin'], []);
+    await person('packer', ['shop-packer'], []);
+    await person('picker', ['shop-picker'], []);
+    await person('refunder', ['shop-refunder'], []);
+    await person('bench', ['shop-bench'], []);
   }, 300_000);
 
   afterAll(async () => {
@@ -331,7 +367,9 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
     const state = fake();
     state.made.length = 0;
     state.quotes.length = 0;
+    state.checks.length = 0;
     state.quote = () => [RATE];
+    state.check = () => ({ outcome: 'ok', mode: 'live', carriers: ['Evri', 'DPD'] });
     for (const id of Object.values(installs)) await settings().forgetInstall(id);
     for (const key of ['shop', 'legacy', 'solo', 'bare']) await settings().setShipFrom(installs[key]!, SHIP_FROM, null, 1);
     await settings().setActiveCarrier(installs['shop']!, 'carrier-one', null, 1);
@@ -603,7 +641,7 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
     expect(data.carrier).toBe('carrier-one');
     expect(data.expiresAt).toBeGreaterThanOrEqual(before + QUOTE_LIFE_MS - 1000);
     expect(data.expiresAt).toBeLessThanOrEqual(Date.now() + QUOTE_LIFE_MS);
-    expect(data.rates[0]).toEqual({ rateId: expect.stringMatching(/^rate_[0-9a-f]{24}$/), code: 'evri-48', service: 'Evri 48', amountDecimal: '3.10', currency: 'GBP', carrier: 'Evri', handover: 'drop-off', tracked: true });
+    expect(data.rates[0]).toEqual({ rateId: expect.stringMatching(/^rate_[0-9a-f]{24}$/), code: 'evri-48', service: 'Evri 48', amountDecimal: '3.10', currency: 'GBP', carrier: 'Evri', handover: 'drop-off', tracked: true, withinLimit: true });
     // With no exact decimal, the carrier's number as a string.
     expect(data.rates[1].amountDecimal).toBe('7.5');
     expect(data.rates[1]).not.toHaveProperty('amount');
@@ -633,7 +671,7 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
     const id = await order('shop');
     const first = ((await quote('shop', body(id))).json() as Doc)['data'];
     const read = (quoteId: string, rateId: string, details: Awaited<ReturnType<typeof currentDetails>>, over: Partial<ShippingSlot> = {}, now = Date.now(), carrierKey = 'carrier-one') =>
-      readQuoteForBooking(h.meta, TEST_SECRET, { quoteId, rateId, slot: slot(id, over), carrierKey, details, now });
+      readQuoteForBooking(h.meta, TEST_SECRET, { quoteId, rateId, slot: slot(id, over), carrierKey, accountFingerprint: accountFingerprintOf(TEST_SECRET, 'carrier-one', 'live', undefined, { api_key: KEY_ONE }), details, now });
 
     // The full rate comes back for the purchase, its handles unsealed.
     const held = await read(first.quoteId, first.rates[0].rateId, await currentDetails(id));
@@ -767,6 +805,427 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
     }
   });
 
+  // ── A carrier's key ─────────────────────────────────────────────────────
+
+  const FRESH_KEY = 'pasted-carrier-value-9f3k';
+  const saveKey = (carrier: string, fields: Doc = { api_key: FRESH_KEY }, over: Doc = {}, who = 'boss') => call(who, 'PUT', `shop/shipping/carriers/${carrier}/key`, { fields, ...over });
+  const checkKey = (carrier: string, who = 'boss') => call(who, 'POST', `shop/shipping/carriers/${carrier}/check`);
+  const carrierInstall = async (key: string) => (await repo.findInScope(key, conn))!.row.id;
+  const savedKey = async (key: string) => ((await repo.getCredential(await carrierInstall(key)))?.secret as Doc | undefined)?.['api_key'] as string | undefined;
+  const carrierOf = (res: { json(): unknown }, key: string) => (((res.json() as Doc)['data']['carriers'] as Doc[]).find((one) => one['key'] === key) as Doc);
+
+  async function restoreKey(key: string, value: string): Promise<void> {
+    await saveChecked(await carrierInstall(key), key, value);
+  }
+
+  it.skipIf(!available)('checks a key with the carrier before saving it, and takes test or live from its answer, not the key', async () => {
+    await settings().setShipFrom(installs['shop']!, SHIP_FROM, null, 2);
+    // A key that reads as live, on an account the carrier says is a test one.
+    fake().check = () => ({ outcome: 'ok', mode: 'test', carriers: ['Evri'] });
+    const res = await saveKey('carrier-two', { api_key: 'live-looking-value-a1b2' }, { confirmAccountChange: true });
+    expect(res.statusCode, res.body).toBe(200);
+    expect(carrierOf(res, 'carrier-two')['account']).toMatchObject({ mode: 'test', keyHint: 'a1b2', state: 'ok', carriers: ['Evri'] });
+    // Asked for this shop's real country.
+    expect(fake().checks).toEqual([{ key: 'carrier-two', query: { country: 'GB' } }]);
+    expect(await savedKey('carrier-two')).toBe('live-looking-value-a1b2');
+
+    const access = (await call('boss', 'PUT', 'shop/shipping/active-carrier', { carrier: 'carrier-two' }));
+    expect(access.statusCode, access.body).toBe(200);
+    const id = await order('shop');
+    const quoted = await quote('shop', body(id));
+    expect(quoted.statusCode, quoted.body).toBe(200);
+    expect((quoted.json() as Doc)['data']['mode']).toBe('test');
+    expect(((await call('boss', 'GET', 'shop/shipping/access')).json() as Doc)['data']['mode']).toBe('test');
+    await restoreKey('carrier-two', KEY_TWO);
+  });
+
+  it.skipIf(!available)('never stores a key the carrier refuses, or could not answer for, and the old key stays in force', async () => {
+    fake().check = () => ({ outcome: 'refused', carrierMessage: `Bad key ${FRESH_KEY} see https://carrier.example/help?token=abc123` });
+    const refused = await saveKey('carrier-one');
+    expect(refused.statusCode, refused.body).toBe(422);
+    expect(code(refused)).toBe('KEY_REFUSED');
+    expect(refused.body).not.toContain(FRESH_KEY);
+    expect(refused.body).not.toContain('abc123');
+    expect(refused.body).not.toContain('carrier.example');
+    expect(await savedKey('carrier-one')).toBe(KEY_ONE);
+
+    fake().check = () => ({ outcome: 'unreachable' });
+    const down = await saveKey('carrier-one');
+    expect(down.statusCode, down.body).toBe(502);
+    expect(code(down)).toBe('CARRIER_UNAVAILABLE');
+    expect(await savedKey('carrier-one')).toBe(KEY_ONE);
+
+    fake().check = () => {
+      throw new Error(`socket closed with ${FRESH_KEY}`);
+    };
+    const threw = await saveKey('carrier-one');
+    expect(code(threw)).toBe('CARRIER_UNAVAILABLE');
+    expect(threw.body).not.toContain(FRESH_KEY);
+
+    fake().check = () => ({ outcome: 'ok', mode: 'sideways', carriers: [] });
+    expect(code(await saveKey('carrier-one'))).toBe('CARRIER_BAD_ANSWER');
+    expect(await savedKey('carrier-one')).toBe(KEY_ONE);
+    expect((await quote('shop', body(await order('shop')))).statusCode).toBe(200);
+  });
+
+  it.skipIf(!available)('asks before a key for another account replaces one, and clears the rates priced under the old', async () => {
+    const id = await order('shop');
+    const quoted = ((await quote('shop', body(id))).json() as Doc)['data'];
+    fake().check = () => ({ outcome: 'ok', mode: 'live', accountFingerprint: 'account-b', carriers: ['DPD'] });
+    const asked = await saveKey('carrier-one');
+    expect(asked.statusCode, asked.body).toBe(409);
+    expect((asked.json() as Doc)['error']).toMatchObject({ code: 'KEY_OTHER_ACCOUNT', details: { carrier: 'carrier-one', from: { mode: 'live' }, to: { mode: 'live' } } });
+    expect(await savedKey('carrier-one')).toBe(KEY_ONE);
+    expect(await settings().quote(quoted.quoteId)).not.toBeNull();
+
+    const meant = await saveKey('carrier-one', { api_key: FRESH_KEY }, { confirmAccountChange: true });
+    expect(meant.statusCode, meant.body).toBe(200);
+    expect(await savedKey('carrier-one')).toBe(FRESH_KEY);
+    expect(await settings().quote(quoted.quoteId)).toBeNull();
+
+    // Another key on the same account needs no confirm.
+    const same = await saveKey('carrier-one', { api_key: `${FRESH_KEY}-2` });
+    expect(same.statusCode, same.body).toBe(200);
+    await restoreKey('carrier-one', KEY_ONE);
+  });
+
+  it.skipIf(!available)('takes no key for a locked carrier, nor the wrong fields, and the generic connect form refuses every carrier', async () => {
+    const before = fake().made.length;
+    const locked = await saveKey('shipping-dhl');
+    expect(locked.statusCode, locked.body).toBe(409);
+    expect(code(locked)).toBe('CARRIER_LOCKED');
+    expect(code(await checkKey('shipping-dhl'))).toBe('CARRIER_LOCKED');
+    expect(fake().made.length).toBe(before);
+
+    for (const fields of [{ wrong: 'x' }, { api_key: 'x', extra: 'y' }, {}]) {
+      const res = await saveKey('carrier-one', fields);
+      expect(res.statusCode, JSON.stringify(fields)).toBe(422);
+      expect(code(res)).toBe('KEY_FIELDS');
+    }
+    expect(code(await saveKey('carrier-nobody'))).toBe('CARRIER_NOT_INSTALLED');
+
+    const connect = await composed.app.inject({ method: 'POST', url: `/api/v1/add-ons/carrier-one/connect?connectionId=${encodeURIComponent(conn)}`, headers: { cookie: cookies['boss']! }, payload: { credentials: { api_key: FRESH_KEY } } });
+    expect(connect.statusCode, connect.body).toBe(422);
+    expect((connect.json() as Doc)['error']['details']).toMatchObject({ reason: 'shipping' });
+    const disconnect = await composed.app.inject({ method: 'DELETE', url: `/api/v1/add-ons/carrier-one/connect?connectionId=${encodeURIComponent(conn)}`, headers: { cookie: cookies['boss']! } });
+    expect(disconnect.statusCode, disconnect.body).toBe(422);
+    expect(await savedKey('carrier-one')).toBe(KEY_ONE);
+  });
+
+  it.skipIf(!available)('stops using a key nobody checked, one changed behind the door, or one the carrier now refuses', async () => {
+    const id = await order('shop');
+    const install = await carrierInstall('carrier-one');
+    // The stored key changed some other way: what was said of the old one says nothing of it.
+    await repo.setCredential(install, { kind: 'api-key', secret: { api_key: 'swapped-behind-the-door' } });
+    const changed = await quote('shop', body(id));
+    expect(changed.statusCode, changed.body).toBe(409);
+    expect((changed.json() as Doc)['error']).toMatchObject({ code: 'CARRIER_NOT_CHECKED', details: { reason: 'unchecked' } });
+    expect(fake().quotes).toEqual([]);
+
+    // Check connection settles it.
+    const checked = await checkKey('carrier-one');
+    expect(checked.statusCode, checked.body).toBe(200);
+    expect((checked.json() as Doc)['data']).toEqual({ outcome: 'ok', mode: 'live', carriers: ['Evri', 'DPD'], country: 'GB' });
+    expect((await quote('shop', body(id))).statusCode).toBe(200);
+
+    fake().check = () => ({ outcome: 'refused' });
+    expect(((await checkKey('carrier-one')).json() as Doc)['data']).toEqual({ outcome: 'refused' });
+    expect((await settings().account(install))?.state).toBe('refused');
+    const stale = await quote('shop', body(id));
+    expect((stale.json() as Doc)['error']).toMatchObject({ code: 'CARRIER_NOT_CHECKED', details: { reason: 'refused' } });
+    expect(code(await call('boss', 'PUT', 'shop/shipping/active-carrier', { carrier: 'carrier-one' }))).toBe('CARRIER_NOT_CHECKED');
+
+    // A carrier that did not answer changes nothing it said before.
+    fake().check = () => ({ outcome: 'unreachable' });
+    expect(((await checkKey('carrier-one')).json() as Doc)['data']).toEqual({ outcome: 'unreachable' });
+    expect((await settings().account(install))?.state).toBe('refused');
+    await restoreKey('carrier-one', KEY_ONE);
+  });
+
+  it.skipIf(!available)('removes a key at its own door, with what was said of it and the rates priced under it', async () => {
+    const id = await order('shop');
+    const quoted = ((await quote('shop', body(id))).json() as Doc)['data'];
+    const install = await carrierInstall('carrier-one');
+    const res = await composed.app.inject({ method: 'DELETE', url: `/api/v1/apps/shop/shipping/carriers/carrier-one/key?connectionId=${encodeURIComponent(conn)}`, headers: { cookie: cookies['boss']! } });
+    expect(res.statusCode, res.body).toBe(200);
+    expect(carrierOf(res, 'carrier-one')).toMatchObject({ connected: false, account: null });
+    expect(await repo.getCredential(install)).toBeNull();
+    expect(await settings().account(install)).toBeNull();
+    expect(await settings().quote(quoted.quoteId)).toBeNull();
+    await restoreKey('carrier-one', KEY_ONE);
+  });
+
+  it.skipIf(!available)('holds no key in a reply, a log line, an audit row or the account record', async () => {
+    logs.length = 0;
+    const replies = [await saveKey('carrier-two', { api_key: FRESH_KEY }, { confirmAccountChange: true }), await checkKey('carrier-two'), await call('boss', 'GET', 'shop/shipping'), await call('boss', 'GET', 'shop/shipping/access')];
+    fake().check = () => ({ outcome: 'refused', carrierMessage: `Refused ${FRESH_KEY}` });
+    replies.push(await checkKey('carrier-two'));
+    for (const reply of replies) expect(reply.body).not.toContain(FRESH_KEY);
+    expect(logs.join('\n')).not.toContain(FRESH_KEY);
+    const audit = await h.meta.db.selectFrom('adminium_audit_log').selectAll().where('action', 'like', 'shipping.key.%').execute();
+    expect(audit.map((row) => row.action)).toEqual(expect.arrayContaining(['shipping.key.saved', 'shipping.key.checked']));
+    expect(JSON.stringify(audit)).toContain('api_key');
+    expect(JSON.stringify(audit)).not.toContain(FRESH_KEY);
+    const row = await h.meta.db.selectFrom('adminium_shipping_accounts').selectAll().where('carrierInstallId', '=', await carrierInstall('carrier-two')).executeTakeFirstOrThrow();
+    expect(JSON.stringify(row)).not.toContain(FRESH_KEY);
+    expect(row.keyHint).toBe(FRESH_KEY.slice(-4));
+    // In the credential store it is ciphertext.
+    const stored = await h.meta.db.selectFrom('adminium_add_on_credentials').selectAll().where('manifestId', '=', await carrierInstall('carrier-two')).executeTakeFirstOrThrow();
+    expect(JSON.stringify(stored)).not.toContain(FRESH_KEY);
+    await restoreKey('carrier-two', KEY_TWO);
+  });
+
+  it.skipIf(!available)('keeps every key route to a signed-in person who manages shipping', async () => {
+    const token = generateApiKey();
+    await apiKeysRepo(h.meta).create({ name: `keys-${String(nextId)}`, tokenHash: token.tokenHash, prefix: token.prefix, roleId: (await rolesRepo(h.meta).findBySlug('super-admin'))!.id, createdBy: ids['boss']! });
+    const routes = [
+      ['PUT', 'shop/shipping/carriers/carrier-one/key', { fields: { api_key: FRESH_KEY } }],
+      ['POST', 'shop/shipping/carriers/carrier-one/check', undefined],
+      ['DELETE', 'shop/shipping/carriers/carrier-one/key', undefined],
+      ['PUT', 'shop/shipping/limits', { perLabel: null, dailyLabels: null }],
+    ] as const;
+    for (const [method, path, payload] of routes) {
+      const url = `/api/v1/apps/${path}?connectionId=${encodeURIComponent(conn)}`;
+      const byKey = await composed.app.inject({ method, url, headers: { authorization: `Bearer ${token.key}` }, ...(payload === undefined ? {} : { payload }) });
+      expect(byKey.statusCode, `${path}: ${byKey.body}`).toBe(403);
+      expect((byKey.json() as Doc)['error']['details']).toMatchObject({ reason: 'api-key' });
+      for (const who of ['nobody', 'admin', 'packer', 'picker']) {
+        const res = await composed.app.inject({ method, url, headers: { cookie: cookies[who]! }, ...(payload === undefined ? {} : { payload }) });
+        expect(res.statusCode, `${who} ${path}: ${res.body}`).toBe(403);
+      }
+    }
+    expect(await savedKey('carrier-one')).toBe(KEY_ONE);
+  });
+
+  // ── Who may spend ───────────────────────────────────────────────────────
+
+  const setLimits = (amount: string | null, daily: number | null, currency = 'GBP') => call('boss', 'PUT', 'shop/shipping/limits', { perLabel: amount === null ? null : { amount, currency }, dailyLabels: daily });
+  const today = async () => (await import('../src/crud/row-limit-context.js')).venueDayOf(h.meta, conn);
+
+  it.skipIf(!available)('with no limit set the owner books: a packer is told so before any carrier is asked', async () => {
+    const id = await order('shop');
+    const res = await quote('shop', body(id), 'packer');
+    expect(res.statusCode, res.body).toBe(403);
+    expect((res.json() as Doc)['error']).toMatchObject({ code: 'OWNER_BOOKS', details: { reason: 'no-limit' } });
+    expect(fake().made).toEqual([]);
+    const access = ((await call('packer', 'GET', 'shop/shipping/access')).json() as Doc)['data'];
+    expect(access).toMatchObject({ mayBook: true, mayCancel: false, mayCustoms: false, manages: false, pricesHidden: true, booking: 'no-limit' });
+    // The owner still books.
+    expect((await quote('shop', body(id))).statusCode).toBe(200);
+  });
+
+  it.skipIf(!available)('gives someone who cannot see money no price, no currency and no price order', async () => {
+    const id = await order('shop');
+    await setLimits('25.00', 20);
+    // Cheapest first, as a carrier lists them.
+    fake().quote = () => [
+      { code: 'z-cheap', service: 'Zebra Post', amount: 2.5, amountDecimal: '2.57', currency: 'GBP' },
+      { code: 'm-mid', service: 'Mid Courier', amount: 9, amountDecimal: '9.13', currency: 'GBP' },
+      { code: 'a-dear', service: 'Apex Express', amount: 88, amountDecimal: '88.91', currency: 'GBP' },
+    ];
+    const res = await quote('shop', body(id), 'packer');
+    expect(res.statusCode, res.body).toBe(200);
+    const data = (res.json() as Doc)['data'];
+    expect(data.pricesHidden).toBe(true);
+    expect((data.rates as Doc[]).map((rate) => rate['service'])).toEqual(['Apex Express', 'Mid Courier', 'Zebra Post']);
+    expect((data.rates as Doc[]).map((rate) => rate['withinLimit'])).toEqual([false, true, true]);
+    for (const rate of data.rates as Doc[]) {
+      expect(rate).not.toHaveProperty('amountDecimal');
+      expect(rate).not.toHaveProperty('amount');
+      expect(rate).not.toHaveProperty('currency');
+    }
+    for (const money of ['2.57', '9.13', '88.91', 'GBP', '25.00']) expect(res.body).not.toContain(money);
+    // What they were sent to the carrier for is the real address, read past their masking.
+    expect(fake().quotes.at(-1)!.to).toMatchObject({ name: NAME, lines: [STREET], postcode: 'LS1 4AB' });
+    // And nothing about the owner's limit in money on their own page.
+    const access = await call('packer', 'GET', 'shop/shipping/access');
+    expect((access.json() as Doc)['data']).toMatchObject({ booking: 'open', usedToday: 0, dailyLabels: 20 });
+    expect(access.body).not.toContain('25.00');
+    expect(access.body).not.toContain('GBP');
+  });
+
+  it.skipIf(!available)('compares a rate with the limit exactly, and treats another currency as above it', async () => {
+    const id = await order('shop');
+    await setLimits('25.00', 20);
+    fake().quote = () => [
+      { code: 'at', service: 'At', amount: 25, amountDecimal: '25', currency: 'GBP' },
+      { code: 'over', service: 'Over', amount: 25.001, amountDecimal: '25.001', currency: 'GBP' },
+      { code: 'usd', service: 'Usd', amount: 1, amountDecimal: '1.00', currency: 'USD' },
+    ];
+    const rates = ((await quote('shop', body(id), 'packer')).json() as Doc)['data']['rates'] as Doc[];
+    expect(Object.fromEntries(rates.map((rate) => [rate['code'], rate['withinLimit']]))).toEqual({ at: true, over: false, usd: false });
+  });
+
+  it.skipIf(!available)('stops at the daily limit for all packers together, on the shop\'s day', async () => {
+    const id = await order('shop');
+    await setLimits('25.00', 2);
+    const day = await today();
+    expect(await settings().reserveDayLabel(installs['shop']!, day, 2)).toBe(true);
+    expect((await quote('shop', body(id), 'packer')).statusCode).toBe(200);
+    expect(await settings().reserveDayLabel(installs['shop']!, day, 2)).toBe(true);
+    fake().made.length = 0;
+    for (const who of ['packer', 'picker']) {
+      const res = await quote('shop', body(id), who);
+      expect(res.statusCode, res.body).toBe(403);
+      expect((res.json() as Doc)['error']).toMatchObject({ code: 'OWNER_BOOKS', details: { reason: 'daily-limit' } });
+    }
+    expect(fake().made).toEqual([]);
+    expect(((await call('packer', 'GET', 'shop/shipping/access')).json() as Doc)['data']).toMatchObject({ booking: 'daily-limit', usedToday: 2, dailyLabels: 2 });
+    // The owner is not bound by it.
+    expect((await quote('shop', body(id))).statusCode).toBe(200);
+    expect(((await call('boss', 'GET', 'shop/shipping')).json() as Doc)['data']['limits']).toMatchObject({ perLabel: { amount: '25.00', currency: 'GBP' }, dailyLabels: 2, usedToday: 2 });
+  });
+
+  it.skipIf(!available)('tells someone who cannot see money what a refusal was about, in none of the carrier\'s words', async () => {
+    const id = await order('shop');
+    await setLimits('25.00', 20);
+    fake().quote = () => {
+      throw { name: 'CarrierError', code: 'BALANCE_4_20', carrierMessage: 'Your balance of 4.20 GBP is too low', reason: 'payment' };
+    };
+    const hidden = await quote('shop', body(id), 'packer');
+    expect(hidden.statusCode, hidden.body).toBe(422);
+    expect((hidden.json() as Doc)['error']).toMatchObject({ code: 'CARRIER_REFUSED', details: { reason: 'payment' } });
+    expect(hidden.body).not.toContain('4.20');
+    expect(hidden.body).not.toContain('BALANCE');
+    // Someone who can see money gets the words.
+    const shown = await quote('shop', body(id), 'picker');
+    expect((shown.json() as Doc)['error']['details']['carrierMessage']).toContain('4.20');
+  });
+
+  it.skipIf(!available)('shows a booker who reads the money its prices, still inside the limit', async () => {
+    const id = await order('shop');
+    expect(code(await quote('shop', body(id), 'picker'))).toBe('OWNER_BOOKS');
+    await setLimits('2.00', 20);
+    const data = ((await quote('shop', body(id), 'picker')).json() as Doc)['data'];
+    expect(data.pricesHidden).toBe(false);
+    expect(data.rates[0]).toMatchObject({ amountDecimal: '3.10', currency: 'GBP', withinLimit: false });
+  });
+
+  it.skipIf(!available)('keeps booking, cancelling and customs apart, and each right to its own install', async () => {
+    const id = await order('shop');
+    await setLimits('25.00', 20);
+    // A right to refund is no right to buy.
+    const refunder = await quote('shop', body(id), 'refunder');
+    expect(refunder.statusCode, refunder.body).toBe(403);
+    expect(((await call('refunder', 'GET', 'shop/shipping/access')).json() as Doc)['data']).toMatchObject({ mayBook: false, mayCancel: true, booking: 'no-right' });
+    expect((await call('nobody', 'GET', 'shop/shipping/access')).statusCode).toBe(403);
+
+    // The same app on the second database is another shop: a packer here holds nothing there.
+    const there = await order('shop', {}, second.id);
+    const away = await composed.app.inject({ method: 'POST', url: `/api/v1/apps/shop/shipping/quotes?connectionId=${encodeURIComponent(second.id)}`, headers: { cookie: cookies['packer']! }, payload: body(there) });
+    expect([403, 404], away.body).toContain(away.statusCode);
+    expect(fake().made).toEqual([]);
+  });
+
+  it.skipIf(!available)('lets a screens-only packer use the bench and nothing else of shipping', async () => {
+    const id = await order('shop');
+    await setLimits('25.00', 20);
+    const res = await quote('shop', body(id), 'bench');
+    expect(res.statusCode, res.body).toBe(200);
+    expect((res.json() as Doc)['data']['pricesHidden']).toBe(true);
+    expect((await call('bench', 'GET', 'shop/shipping/access')).statusCode).toBe(200);
+    for (const [method, path, payload] of [
+      ['GET', 'shop/shipping', undefined],
+      ['PUT', 'shop/shipping/limits', { perLabel: null, dailyLabels: null }],
+      ['PUT', 'shop/shipping/carriers/carrier-one/key', { fields: { api_key: FRESH_KEY } }],
+      ['POST', 'shop/shipping/carriers/carrier-one/check', undefined],
+      ['PUT', 'shop/shipping/active-carrier', { carrier: 'carrier-one' }],
+    ] as const) {
+      const refused = await call('bench', method, path, payload);
+      expect(refused.statusCode, `${path}: ${refused.body}`).toBe(403);
+      expect(code(refused)).toBe('APP_SCREENS_ONLY');
+    }
+  });
+
+  it.skipIf(!available)('saves limits audited, both figures or neither, and clearing them hands booking back to the owner', async () => {
+    const saved = await setLimits('12.50', 5);
+    expect(saved.statusCode, saved.body).toBe(200);
+    expect((saved.json() as Doc)['data']['limits']).toMatchObject({ perLabel: { amount: '12.50', currency: 'GBP' }, dailyLabels: 5, packersAbroad: false });
+    const row = await h.meta.db.selectFrom('adminium_audit_log').select('changes').where('action', '=', 'shipping.limits.saved').execute();
+    expect(JSON.stringify(row.at(-1))).toContain('12.50');
+    for (const bad of [{ perLabel: { amount: '5', currency: 'GBP' }, dailyLabels: null }, { perLabel: null, dailyLabels: 5 }, { perLabel: { amount: '0.00', currency: 'GBP' }, dailyLabels: 5 }, { perLabel: { amount: '-1', currency: 'GBP' }, dailyLabels: 5 }, { perLabel: { amount: '1', currency: 'pounds' }, dailyLabels: 5 }, { perLabel: { amount: '1', currency: 'GBP' }, dailyLabels: 0 }]) {
+      const res = await call('boss', 'PUT', 'shop/shipping/limits', bad);
+      expect(res.statusCode, JSON.stringify(bad)).toBe(422);
+    }
+    expect((await setLimits(null, null)).statusCode).toBe(200);
+    expect(code(await quote('shop', body(await order('shop')), 'packer'))).toBe('OWNER_BOOKS');
+  });
+
+  it.skipIf(!available)('never buys a rate on an account other than the one that priced it, even one stored as the key changed', async () => {
+    const id = await order('shop');
+    const quoted = ((await quote('shop', body(id))).json() as Doc)['data'];
+    const stored = await settings().quote(quoted.quoteId);
+    const account = await settings().account(await carrierInstall('carrier-one'));
+    expect(stored?.accountFingerprint).toBe(account?.fingerprint);
+    const { db } = await h.manager.data(conn);
+    const row = await db.selectFrom(tables[`${conn}:shop`]! as never).selectAll().where('id' as never, '=', Number(id) as never).executeTakeFirstOrThrow();
+    const from = shipFromAddress(SHIP_FROM);
+    const columns = { name: 'ship_name', lines: ['ship_line1', 'ship_line2'], city: 'ship_city', region: 'ship_region', postcode: 'ship_postcode', country: 'ship_country', phone: 'ship_phone', email: 'ship_email', company: 'ship_company' };
+    const details = { parcel: PARCEL, from, to: orderAddress(row as Doc, columns, from) };
+    const read = (accountFingerprint: string) => readQuoteForBooking(h.meta, TEST_SECRET, { quoteId: quoted.quoteId, rateId: quoted.rates[0].rateId, slot: slot(id), carrierKey: 'carrier-one', accountFingerprint, details, now: Date.now() });
+    expect((await read(account!.fingerprint)).ok).toBe(true);
+    expect(await read(accountFingerprintOf(TEST_SECRET, 'carrier-one', 'live', 'another-account', { api_key: KEY_ONE }))).toEqual({ ok: false, code: 'QUOTE_STALE' });
+    // The same key, read as the test side of the account.
+    expect(await read(accountFingerprintOf(TEST_SECRET, 'carrier-one', 'test', undefined, { api_key: KEY_ONE }))).toEqual({ ok: false, code: 'QUOTE_STALE' });
+  });
+
+  it.skipIf(!available)('asks first when a live key replaces a test key of the very same account', async () => {
+    fake().check = () => ({ outcome: 'ok', mode: 'test', accountFingerprint: 'account-one', carriers: ['Evri'] });
+    expect((await saveKey('carrier-two', { api_key: 'first-value-aaaa' }, { confirmAccountChange: true })).statusCode).toBe(200);
+    fake().check = () => ({ outcome: 'ok', mode: 'live', accountFingerprint: 'account-one', carriers: ['Evri'] });
+    const asked = await saveKey('carrier-two', { api_key: 'second-value-bbbb' });
+    expect(asked.statusCode, asked.body).toBe(409);
+    expect((asked.json() as Doc)['error']).toMatchObject({ code: 'KEY_OTHER_ACCOUNT', details: { from: { mode: 'test' }, to: { mode: 'live' } } });
+    expect(await savedKey('carrier-two')).toBe('first-value-aaaa');
+    await restoreKey('carrier-two', KEY_TWO);
+  });
+
+  it.skipIf(!available)('refuses a carrier the OAuth way in too', async () => {
+    const res = await composed.app.inject({ method: 'POST', url: `/api/v1/add-ons/carrier-one/connect/oauth/start?connectionId=${encodeURIComponent(conn)}`, headers: { cookie: cookies['boss']! }, payload: { clientId: 'x', clientSecret: 'y', redirectUri: 'https://shop.example/cb' } });
+    expect(res.statusCode, res.body).toBe(422);
+    expect(res.body).not.toContain('authorizeUrl');
+  });
+
+  it.skipIf(!available)('tells a limited reader what is wrong with an order, and nothing from its columns', async () => {
+    await setLimits('25.00', 20);
+    const abroad = await quote('shop', body(await order('shop', { ship_country: 'IE' })), 'packer');
+    expect(code(abroad)).toBe('OUTSIDE_OWN_COUNTRY');
+    expect(abroad.body).not.toContain('IE');
+    const gaps = await quote('shop', body(await order('shop', { ship_city: '' })), 'packer');
+    expect(code(gaps)).toBe('ADDRESS_INCOMPLETE');
+    expect((gaps.json() as Doc)['error']['details'] ?? {}).not.toHaveProperty('fields');
+    // Someone who reads the whole row is told which.
+    const named = await quote('shop', body(await order('shop', { ship_city: '' })), 'picker');
+    expect((named.json() as Doc)['error']['details']).toMatchObject({ fields: ['city'] });
+  });
+
+  it.skipIf(!available)('keeps no carrier order among tied services for someone who cannot see money', async () => {
+    await setLimits('25.00', 20);
+    fake().quote = () => [
+      { code: 'same', service: 'Same', amount: 1, amountDecimal: '1.00', currency: 'GBP' },
+      { code: 'same', service: 'Same', amount: 2, amountDecimal: '2.00', currency: 'GBP' },
+      { code: 'same', service: 'Same', amount: 3, amountDecimal: '3.00', currency: 'GBP' },
+    ];
+    const rates = ((await quote('shop', body(await order('shop')), 'packer')).json() as Doc)['data']['rates'] as Doc[];
+    const ids = rates.map((rate) => rate['rateId'] as string);
+    expect(ids).toEqual([...ids].sort());
+  });
+
+  it.skipIf(!available)('takes a right on an app\'s labels from every role when the app is uninstalled', async () => {
+    const role = await rolesRepo(h.meta).create({ slug: `warehouse-${String(nextId)}`, name: 'Warehouse' });
+    const held = matrixRowsFromGrants(['shipping:gone:book', 'shipping:gone:cancel', 'shipping:shop:book']).rows;
+    for (const row of held) await permissionsRepo(h.meta).grant(role.id, row.resourceKind, row.resourceRef, row.actions as never);
+    const res = await h.inject({ method: 'DELETE', url: '/apps/gone', payload: {} });
+    expect(res.statusCode, res.body).toBe(200);
+    delete installs['gone'];
+    const left = (await permissionsRepo(h.meta).listForRole(role.id)).map((row) => row.resourceRef);
+    expect(left).toEqual(['shipping-book/shop']);
+    // Put back for the test that uninstalls it.
+    await h.stageApp(shopDoc('gone', true));
+    expect((await h.install('gone', '1.0.0')).statusCode).toBe(200);
+    installs['gone'] = (await repo.findInScope('gone', conn))!.row.id;
+  });
+
   // ── Several databases ───────────────────────────────────────────────────
 
   it.skipIf(!available)('keeps two databases apart: each its own install of the carrier, its key, its choice and its Ship from', async () => {
@@ -821,6 +1280,9 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
   });
 });
 
+/** A database with no payable named: a limited read of it hides money. */
+const NO_PAYABLES = { shapeOf: async () => null, profile: async () => null } as unknown as PayableSources;
+
 describe('a server with network features off', () => {
   it('asks no carrier, and reads no key', async () => {
     const made: string[] = [];
@@ -844,6 +1306,8 @@ describe('a server with network features off', () => {
               return null;
             },
             networkFeatures: () => false,
+            sources: NO_PAYABLES,
+            openBookings: async () => [],
             readRow: (request, connectionId, tableId, row) => readReachedRow({ meta, data: (id) => manager.data(id), resolve: (one) => request.server.rbac.resolve(one) }, request, connectionId, tableId, row),
           }),
         ],
@@ -864,6 +1328,60 @@ describe('a server with network features off', () => {
       expect(res.json().error).toMatchObject({ code: 'CARRIER_UNAVAILABLE', details: { reason: 'network-off' } });
       expect(made).toEqual([]);
       expect(reads).toEqual([]);
+    } finally {
+      await h?.close();
+    }
+  }, 120_000);
+});
+
+describe('the door of a key still in use, and the pace of quotes', () => {
+  it('refuses to replace or remove a key with a booking unresolved, naming the orders, and stops a runaway quoter', async () => {
+    let h: Harness | undefined;
+    let open: { reference: string }[] = [{ reference: 'MP-1059' }, { reference: 'MP-1063' }];
+    try {
+      h = await addOnHarness('sqlite', {
+        unbuiltWords: {},
+        routes: ({ meta, manager }) => [
+          shippingRoutes({
+            meta,
+            manifests: manifestsRepo(meta, addOnCredentialCryptoFromSecret(TEST_SECRET)),
+            secret: TEST_SECRET,
+            runtime: () => null,
+            networkFeatures: () => true,
+            sources: NO_PAYABLES,
+            openBookings: async () => open,
+            quotesPerMinute: 2,
+            readRow: (request, connectionId, tableId, row) => readReachedRow({ meta, data: (id) => manager.data(id), resolve: (one) => request.server.rbac.resolve(one) }, request, connectionId, tableId, row),
+          }),
+        ],
+      });
+      await h.stageApp(shopDoc('shop', true));
+      expect((await h.install('shop', '1.0.0')).statusCode).toBe(200);
+      const manifests = manifestsRepo(h.meta, addOnCredentialCryptoFromSecret(TEST_SECRET));
+      const app = (await manifests.findInScope('shop', h.connectionId))!;
+      const carrier = await manifests.install({ manifestKey: 'carrier-one', version: '1.0.0', kind: 'add-on', source: 'file', document: carrierDoc('carrier-one'), connectionId: h.connectionId, status: 'installed', attachTo: [{ key: 'shop', hostInstall: app.row.id }] });
+      await manifests.setCredential(carrier.row.id, { kind: 'api-key', secret: { api_key: KEY_ONE } });
+      await shippingRepo(h.meta).setShipFrom(app.row.id, SHIP_FROM, null, 1);
+      const table = (await h.meta.db.selectFrom('adminium_app_tables').select('tableName').where('ref', '=', 'orders').executeTakeFirstOrThrow()).tableName;
+      const { db } = await h.manager.data(h.connectionId);
+      await db.insertInto(table as never).values({ id: 7, number: 'MP-7', ship_name: NAME, ship_line1: STREET, ship_city: 'Leeds', ship_postcode: 'LS1 4AB', ship_country: 'GB' } as never).execute();
+
+      for (const [method, payload] of [['PUT', { fields: { api_key: 'another-value' } }], ['DELETE', undefined]] as const) {
+        const res = await h.inject({ method, url: '/apps/shop/shipping/carriers/carrier-one/key', ...(payload === undefined ? {} : { payload }) });
+        expect(res.statusCode, res.body).toBe(409);
+        expect(res.json().error).toMatchObject({ code: 'KEY_IN_USE', details: { count: 2, orders: ['MP-1059', 'MP-1063'] } });
+      }
+      expect((await manifests.getCredential(carrier.row.id))?.secret).toEqual({ api_key: KEY_ONE });
+      open = [];
+
+      const ask = () => h!.inject({ method: 'POST', url: '/apps/shop/shipping/quotes', payload: { source: { table: 'orders', id: '7' }, parcel: PARCEL } });
+      // No runtime here, so each counted quote stops at the carrier that did not load.
+      expect((await ask()).json().error.code).toBe('CARRIER_NOT_LOADED');
+      expect((await ask()).json().error.code).toBe('CARRIER_NOT_LOADED');
+      const third = await ask();
+      expect(third.statusCode, third.body).toBe(429);
+      expect(third.json().error).toMatchObject({ code: 'QUOTES_TOO_FAST' });
+      expect(third.json().error.details.retryAfterSeconds).toBeGreaterThan(0);
     } finally {
       await h?.close();
     }

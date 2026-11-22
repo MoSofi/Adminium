@@ -47,6 +47,8 @@ import { z } from 'zod';
 import { addOnHttpClientFor, type AddOnHttpClientOptions } from '../add-ons/egress.js';
 import { providerByKey, type AddOnRuntimeState } from '../add-ons/runtime.js';
 import { installOnConnection } from '../installs/resolve.js';
+import { lastFour } from '../payments/credentials.js';
+import { accountFingerprintOf, credentialHash } from './fingerprint.js';
 import { carrierLocked } from './locks.js';
 import { ShippingRefusal, type ShippingRefusalCode } from './refusals.js';
 
@@ -72,6 +74,12 @@ export interface ResolvedCarrier {
   carrier: ShippingCarrier;
   /** Takes this carrier's saved key values out of a text it might echo them in. */
   scrub(text: string): string;
+  /** The keyed hash of the key this carrier was built with. The key itself stays in here. */
+  keyHash(secret: string): string;
+  /** The keyed fingerprint of its account: the carrier's id for it when it gave one, else the key. */
+  accountFingerprint(secret: string, mode: 'live' | 'test', said: string | undefined): string;
+  /** The last four characters of the key's first field, or empty for a key too short to show any of. */
+  keyHint: string;
 }
 
 type CarrierFactory = (context: ShippingCarrierContext) => ShippingCarrier;
@@ -100,7 +108,14 @@ export function carrierHttpFor(meta: MetaDb, manifest: AddOnManifest, policy: Ad
 }
 
 /** The carrier `key` names on this database, ready for one operation, or the refusal that says why not. */
-export async function shippingCarrierFor(deps: ShippingCarrierDeps, key: string, connectionId: string, todayIso: string): Promise<ResolvedCarrier> {
+export async function shippingCarrierFor(
+  deps: ShippingCarrierDeps,
+  key: string,
+  connectionId: string,
+  todayIso: string,
+  /** A pasted key, to check before it is saved. The saved key is not read. */
+  candidate?: Readonly<Record<string, string>>,
+): Promise<ResolvedCarrier> {
   if (carrierLocked(key)) throw refuse('CARRIER_LOCKED', key, `"${key}" runs as a demo for now, so no real carrier is called.`);
 
   const found = await installOnConnection(deps.manifests as ManifestsRepo, key, connectionId);
@@ -118,9 +133,14 @@ export async function shippingCarrierFor(deps: ShippingCarrierDeps, key: string,
 
   let credentials: Record<string, string>;
   try {
-    const parsed = credentialFields.safeParse((await deps.manifests.getCredential(install.row.id))?.secret);
+    const parsed = credentialFields.safeParse(candidate ?? (await deps.manifests.getCredential(install.row.id))?.secret);
     if (!parsed.success || Object.keys(parsed.data).length === 0) throw refuse('CARRIER_NO_CREDENTIAL', key, `The carrier "${key}" has no key saved.`);
-    credentials = parsed.data;
+    // A key missing one of its declared fields is no key: the carrier would only fail on it later.
+    const fields = parsed.data;
+    if ((manifest.data.settings ?? []).some((setting) => setting.secret === true && fields[setting.key] === undefined)) {
+      throw refuse('CARRIER_NO_CREDENTIAL', key, `The carrier "${key}" has only part of its key saved.`);
+    }
+    credentials = fields;
   } catch (error) {
     if (error instanceof ShippingRefusal) throw error;
     // A key that no longer decrypts (the server's secret changed) is a key that has to be saved again.
@@ -139,17 +159,30 @@ export async function shippingCarrierFor(deps: ShippingCarrierDeps, key: string,
 
   const secrets = Object.values(credentials).filter((value) => value.length >= 4);
   const scrub = (text: string) => secrets.reduce((out, secret) => out.split(secret).join('[hidden]'), text);
-  return { key, install, carrier, scrub };
+  const firstField = (manifest.data.settings ?? []).find((setting) => setting.secret === true)?.key ?? Object.keys(credentials).sort()[0]!;
+  return {
+    key,
+    install,
+    carrier,
+    scrub,
+    keyHash: (secret) => credentialHash(secret, key, credentials),
+    accountFingerprint: (secret, mode, said) => accountFingerprintOf(secret, key, mode, said, credentials),
+    keyHint: lastFour(credentials[firstField] ?? ''),
+  };
 }
 
 /**
  * What a screen may show of a carrier's words: no control or invisible
  * characters (a bidirectional override can make a message read backwards),
- * none of the saved key, and at most 300 characters.
+ * none of the saved key, no address or query string (either can carry a token),
+ * and at most 300 characters.
  */
 export function cleanCarrierMessage(text: string, scrub: (text: string) => string = (same) => same): string {
   return scrub(text)
     .replace(/[\p{Cc}\p{Cf}]+/gu, ' ')
+    .replace(/\b[a-z][a-z0-9+.-]*:\/\/\S*/gi, '[link]')
+    .replace(/\bwww\.\S+/gi, '[link]')
+    .replace(/[?&][\w.%-]+=\S*/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, CARRIER_MESSAGE_MAX);

@@ -4609,6 +4609,20 @@ or later. An app without it can never reach a real carrier: the engine refuses t
 The server reads the address from these columns, so a request can name an order but never where
 its parcel goes. The country must hold a two-letter ISO code; Adminium never guesses one.
 
+An app's role can be given three rights on this install's labels. They need the `shipping` block
+and Adminium 0.3.71 or later, and an update that adds one asks first.
+
+| Grant | What it allows |
+|---|---|
+| `shipping:@:book` | Get a carrier's services for an order and buy its label, within the owner's limits |
+| `shipping:@:cancel` | Ask for a label to be refunded |
+| `shipping:@:customs` | Declare customs for a parcel |
+
+Someone who holds `shipping:@:book` without managing shipping books only inside the two limits the
+owner sets: the most one label may cost, and how many labels all such people may buy on the shop's
+day. With no limit set, the owner books. If their read of the order table leaves its money out,
+they see each service with no price, no currency and in no price order.
+
 ## Public access
 
 `publicAccess` says what the app's public screens may do. Each entry becomes an endpoint of the

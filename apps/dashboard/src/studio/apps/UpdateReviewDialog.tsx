@@ -66,17 +66,18 @@ import { PublicAccessInstallCard, publicAccessBlocked } from './PublicAccessInst
 import { AppsRoleTablesWiderCard, RoleTablesUpdateCard } from './RoleTablesList.js';
 
 /** The grants a new version's roles are given that the running one's were not: the update asks before it gives them. */
-export function grantsAddedOf(plan: AppInstallPlan): { privacy: NonNullable<AppInstallPlan['privacyGrants']>; addOn: NonNullable<AppInstallPlan['addOnGrants']>; refund: NonNullable<AppInstallPlan['refundGrants']> } {
+export function grantsAddedOf(plan: AppInstallPlan): { privacy: NonNullable<AppInstallPlan['privacyGrants']>; addOn: NonNullable<AppInstallPlan['addOnGrants']>; refund: NonNullable<AppInstallPlan['refundGrants']>; shipping: NonNullable<AppInstallPlan['shippingGrants']> } {
   return {
     privacy: (plan.privacyGrants ?? []).filter((grant) => grant.added === true),
     addOn: (plan.addOnGrants ?? []).filter((grant) => grant.added === true),
     refund: (plan.refundGrants ?? []).filter((grant) => grant.added === true),
+    shipping: (plan.shippingGrants ?? []).filter((grant) => grant.added === true),
   };
 }
 
 export const asksGrants = (plan: AppInstallPlan): boolean => {
   const added = grantsAddedOf(plan);
-  return added.privacy.length > 0 || added.addOn.length > 0 || added.refund.length > 0;
+  return added.privacy.length > 0 || added.addOn.length > 0 || added.refund.length > 0 || added.shipping.length > 0;
 };
 
 /** What a new version's roles hold more of add-ons' tables than the running one's: the update asks before it gives it. */
@@ -352,7 +353,7 @@ export function UpdateReviewDialog(props: UpdateReviewProps) {
     // Shown above: the Update button is the say.
     ...(wider.length === 0 ? {} : { roleTables: true }),
     // …and so is it for what the roles are newly given.
-    ...(grants.privacy.length === 0 && grants.addOn.length === 0 && grants.refund.length === 0 ? {} : { roleGrants: true }),
+    ...(grants.privacy.length === 0 && grants.addOn.length === 0 && grants.refund.length === 0 && grants.shipping.length === 0 ? {} : { roleGrants: true }),
     // The add-ons it moves with it, as the card shows them ("Update it too").
     ...(addOnRows.length === 0 ? {} : { addOns: addOnChoicesOf(addOnRows, addOnPicks) }),
     // Ticked on the card: the endpoints it widens show visitors more.
@@ -519,7 +520,7 @@ export function UpdateReviewDialog(props: UpdateReviewProps) {
           {access === null ? null : <PublicAccessInstallCard access={access} checked={allowPublic} onChange={setAllowPublic} />}
           <RoleTablesUpdateCard entries={wider} />
           <AppsRoleTablesWiderCard entries={wider} />
-          <RoleGrantsAddedCard privacy={grants.privacy} addOn={grants.addOn} refund={grants.refund} />
+          <RoleGrantsAddedCard privacy={grants.privacy} addOn={grants.addOn} refund={grants.refund} shipping={grants.shipping} />
           {download.error === null ? null : (
             <Alert tone="danger" title={t('studio:hostedApps.error', 'Something went wrong')}>
               {download.error.message}

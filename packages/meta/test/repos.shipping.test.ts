@@ -46,6 +46,66 @@ for (const dialect of TEST_DIALECTS) {
       expect((await applyMigrations(meta().db, { dialect: meta().dialect })).applied).toEqual([]);
     });
 
+    it('keeps what a carrier said of a key, one row per carrier install, and forgets it', async () => {
+      const repo = shippingRepo(meta());
+      expect(await repo.account('mft_carrier')).toBeNull();
+      const account = { carrierInstallId: 'mft_carrier', mode: 'test' as const, fingerprint: 'b'.repeat(SHIPPING_HASH_WIDTH), keyHash: 'c'.repeat(SHIPPING_HASH_WIDTH), keyHint: 'a1B2', state: 'ok' as const, carriers: ['Evri', 'DPD'], checkedBy: 'usr_owner', checkedAt: T0 };
+      await repo.saveAccount(account);
+      expect(await repo.account('mft_carrier')).toEqual(account);
+      // The same again: MySQL reports no row changed, and the save still holds.
+      await repo.saveAccount(account);
+      await repo.saveAccount({ ...account, mode: 'live', state: 'refused', carriers: [] });
+      expect(await repo.account('mft_carrier')).toMatchObject({ mode: 'live', state: 'refused', carriers: [] });
+      await expect(repo.saveAccount({ ...account, keyHash: 'short' })).rejects.toThrow(/full hashes/);
+      await expect(repo.saveAccount({ ...account, keyHint: 'toolong' })).rejects.toThrow(/last four/);
+      await repo.forgetAccount('mft_carrier');
+      expect(await repo.account('mft_carrier')).toBeNull();
+    });
+
+    it('keeps limits as exact text, saved again as they were', async () => {
+      const repo = shippingRepo(meta());
+      const limits = { installId: 'mft_shop', labelLimit: '25.0050', labelCurrency: 'GBP', dailyLabels: 20, packersAbroad: false, updatedBy: 'usr_owner', updatedAt: T0 };
+      await repo.setLimits(limits);
+      expect(await repo.limits('mft_shop')).toEqual(limits);
+      await repo.setLimits(limits);
+      await repo.setLimits({ ...limits, labelLimit: null, labelCurrency: null, dailyLabels: null, packersAbroad: true });
+      expect(await repo.limits('mft_shop')).toMatchObject({ labelLimit: null, labelCurrency: null, dailyLabels: null, packersAbroad: true });
+      await expect(repo.setLimits({ ...limits, labelCurrency: 'POUNDS' })).rejects.toThrow(/three-letter/);
+    });
+
+    it('never counts past the daily limit, also when many ask at once', async () => {
+      const repo = shippingRepo(meta());
+      const asked = await Promise.all(Array.from({ length: 12 }, () => repo.reserveDayLabel('mft_shop', '2026-11-22', 5)));
+      expect(asked.filter(Boolean)).toHaveLength(5);
+      expect(await repo.dayLabels('mft_shop', '2026-11-22')).toBe(5);
+      expect(await repo.reserveDayLabel('mft_shop', '2026-11-22', 5)).toBe(false);
+      // A new day, and another shop, count from nothing.
+      expect(await repo.dayLabels('mft_shop', '2026-11-23')).toBe(0);
+      expect(await repo.reserveDayLabel('mft_other', '2026-11-22', 1)).toBe(true);
+      // One clearly not bought goes back, and the count never goes below none.
+      await repo.releaseDayLabel('mft_shop', '2026-11-22');
+      expect(await repo.dayLabels('mft_shop', '2026-11-22')).toBe(4);
+      await repo.releaseDayLabel('mft_shop', '2026-11-30');
+      expect(await repo.dayLabels('mft_shop', '2026-11-30')).toBe(0);
+      expect(await repo.reserveDayLabel('mft_shop', '2026-11-24', 0)).toBe(false);
+    });
+
+    it('forgets an app install\'s limits and count with it, and clears only one carrier\'s quotes on one database', async () => {
+      const repo = shippingRepo(meta());
+      await repo.setLimits({ installId: 'mft_shop', labelLimit: '5', labelCurrency: 'GBP', dailyLabels: 2, packersAbroad: false, updatedBy: null, updatedAt: T0 });
+      await repo.reserveDayLabel('mft_shop', '2026-11-22', 2);
+      const one = await repo.replaceQuote(quote(), T0);
+      const other = await repo.replaceQuote(quote({ rowKey: '42', carrierKey: 'shipping-other' }), T0);
+      const elsewhere = await repo.replaceQuote(quote({ connectionId: 'conn_two' }), T0);
+      expect(await repo.clearCarrierQuotes('conn_one', 'shipping-shippo')).toBe(1);
+      expect(await repo.quote(one.id)).toBeNull();
+      expect(await repo.quote(other.id)).not.toBeNull();
+      expect(await repo.quote(elsewhere.id)).not.toBeNull();
+      await repo.forgetInstall('mft_shop');
+      expect(await repo.limits('mft_shop')).toBeNull();
+      expect(await repo.dayLabels('mft_shop', '2026-11-22')).toBe(0);
+    });
+
     it('saves the carrier and Ship from apart, so one never writes over the other', async () => {
       const repo = shippingRepo(meta());
       await repo.setShipFrom('mft_shop', { name: 'Marlow Press', lines: ['1 Mill Lane'] }, 'usr_a', T0);

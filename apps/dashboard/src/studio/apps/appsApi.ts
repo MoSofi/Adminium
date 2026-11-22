@@ -889,6 +889,8 @@ export interface AppInstallPlan {
   privacyGrants?: { role: string; roleName: string; added?: true }[];
   /** The roles that would refund the app's own online payments (`payments:@:refund`), each ticked on the check. */
   refundGrants?: { role: string; roleName: string; added?: true }[];
+  /** The roles that would hold a right on the app's own labels, one entry per role and right. */
+  shippingGrants?: { role: string; roleName: string; action: 'book' | 'cancel' | 'customs'; added?: true }[];
   /**
    * What each role would hold of the tables of the add-ons the app names, with
    * the columns of each action, cut to each add-on's own words. Absent when

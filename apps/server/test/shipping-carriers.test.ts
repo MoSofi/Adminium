@@ -184,7 +184,7 @@ describe('shippingCarrierFor', () => {
 });
 
 describe('what a carrier says', () => {
-  const resolved = (quote: () => Promise<unknown>): ResolvedCarrier => ({ key: 'carrier-one', install: install('carrier-one', CONN_A), carrier: { ...madeCarrier, quote } as never, scrub: (text) => text.split('value-one').join('[hidden]') });
+  const resolved = (quote: () => Promise<unknown>): ResolvedCarrier => ({ key: 'carrier-one', install: install('carrier-one', CONN_A), carrier: { ...madeCarrier, quote } as never, keyHash: () => 'h', accountFingerprint: () => 'f', keyHint: '', scrub: (text) => text.split('value-one').join('[hidden]') });
   const parcel = { weightKg: 1, lengthCm: 1, widthCm: 1, heightCm: 1, contents: 'x' };
   const address = { name: 'n', lines: ['l'], city: 'c', postcode: 'p', country: 'GB' };
   const failure = async (quote: () => Promise<unknown>) => {

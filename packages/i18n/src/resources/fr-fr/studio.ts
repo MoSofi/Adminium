@@ -978,7 +978,10 @@ export default {
       "grantsAdded": {
         "title": "Cette version donne plus à ses rôles",
         "addOnSettings": "{roles} peut modifier les réglages de {addOn}, partagés par toutes les apps qu’il sert.",
-        "refund": "{roles} peuvent rendre l’argent payé en ligne par les clients pour les fiches de cette application."
+        "refund": "{roles} peuvent rendre l’argent payé en ligne par les clients pour les fiches de cette application.",
+        "shippingBook": "{roles} peuvent acheter des étiquettes d’expédition, dans les limites que vous fixez.",
+        "shippingCancel": "{roles} peuvent demander le remboursement d’une étiquette d’expédition.",
+        "shippingCustoms": "{roles} peuvent faire la déclaration en douane d’un colis."
       },
       "stopped": {
         "pages": "La mise à jour vers {to} s’est arrêtée pendant l’écriture des pages. Rien n’a été perdu ; les pages de {from} sont toujours là.",
@@ -5663,6 +5666,7 @@ export default {
       "grantAddOn": "Un droit sur les réglages d’un module que cette base de données n’a pas est exclu.",
       "appScreens": "Un droit sur les écrans d’une autre application n’est pas transmis.",
       "appScreensAll": "Un droit sur les écrans de toutes les applications n’est pas transmis.",
+      "shippingRight": "Un droit sur les étiquettes d’expédition n’est pas repris. Donnez-le au rôle après l’installation.",
       "screensOnly": "L’application n’a pas d’écrans à elle, le rôle ouvre donc le tableau de bord.",
       "builtinEmail": "Un e-mail intégré n’est pas enregistré dans une application.",
       "emailMissing": "Cet e-mail n’a aucun texte actif, il est donc exclu.",

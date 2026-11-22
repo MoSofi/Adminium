@@ -147023,6 +147023,40 @@
                             "additionalProperties": false
                           }
                         },
+                        "shippingGrants": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "role": {
+                                "type": "string"
+                              },
+                              "roleName": {
+                                "type": "string"
+                              },
+                              "action": {
+                                "type": "string",
+                                "enum": [
+                                  "book",
+                                  "cancel",
+                                  "customs"
+                                ]
+                              },
+                              "added": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              }
+                            },
+                            "required": [
+                              "role",
+                              "roleName",
+                              "action"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
                         "roleTables": {
                           "type": "array",
                           "items": {
@@ -167385,8 +167419,39 @@
         }
       }
     },
-    "/api/v1/apps/{key}/shipping": {
-      "get": {
+    "/api/v1/apps/{key}/shipping/carriers/{carrier}/key": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fields": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_]{0,63}$"
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 4096
+                    }
+                  },
+                  "confirmAccountChange": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "fields"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -167396,6 +167461,15 @@
             },
             "in": "path",
             "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "carrier",
             "required": true
           }
         ],
@@ -167432,6 +167506,52 @@
                               },
                               "connected": {
                                 "type": "boolean"
+                              },
+                              "account": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "mode": {
+                                        "type": "string",
+                                        "enum": [
+                                          "live",
+                                          "test"
+                                        ]
+                                      },
+                                      "keyHint": {
+                                        "type": "string"
+                                      },
+                                      "state": {
+                                        "type": "string",
+                                        "enum": [
+                                          "ok",
+                                          "refused"
+                                        ]
+                                      },
+                                      "carriers": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "checkedAt": {
+                                        "type": "number"
+                                      }
+                                    },
+                                    "required": [
+                                      "mode",
+                                      "keyHint",
+                                      "state",
+                                      "carriers",
+                                      "checkedAt"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               }
                             },
                             "required": [
@@ -167439,7 +167559,8 @@
                               "name",
                               "locked",
                               "on",
-                              "connected"
+                              "connected",
+                              "account"
                             ],
                             "additionalProperties": false
                           }
@@ -167523,6 +167644,53 @@
                           "enum": [
                             false
                           ]
+                        },
+                        "limits": {
+                          "type": "object",
+                          "properties": {
+                            "perLabel": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "amount": {
+                                      "type": "string"
+                                    },
+                                    "currency": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "amount",
+                                    "currency"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "dailyLabels": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "packersAbroad": {
+                              "type": "boolean"
+                            },
+                            "usedToday": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "perLabel",
+                            "dailyLabels",
+                            "packersAbroad",
+                            "usedToday"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -167531,7 +167699,1064 @@
                         "activeCarrier",
                         "shipFrom",
                         "shipFromMissing",
-                        "international"
+                        "international",
+                        "limits"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "carrier",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "appUpdated": {
+                          "type": "boolean"
+                        },
+                        "carriers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "locked": {
+                                "type": "boolean"
+                              },
+                              "on": {
+                                "type": "boolean"
+                              },
+                              "connected": {
+                                "type": "boolean"
+                              },
+                              "account": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "mode": {
+                                        "type": "string",
+                                        "enum": [
+                                          "live",
+                                          "test"
+                                        ]
+                                      },
+                                      "keyHint": {
+                                        "type": "string"
+                                      },
+                                      "state": {
+                                        "type": "string",
+                                        "enum": [
+                                          "ok",
+                                          "refused"
+                                        ]
+                                      },
+                                      "carriers": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "checkedAt": {
+                                        "type": "number"
+                                      }
+                                    },
+                                    "required": [
+                                      "mode",
+                                      "keyHint",
+                                      "state",
+                                      "carriers",
+                                      "checkedAt"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "name",
+                              "locked",
+                              "on",
+                              "connected",
+                              "account"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "activeCarrier": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "shipFrom": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "lines": {
+                                  "minItems": 1,
+                                  "maxItems": 3,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 120
+                                  }
+                                },
+                                "city": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "region": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "postcode": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 32
+                                },
+                                "country": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z]{2}$"
+                                },
+                                "phone": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 40
+                                },
+                                "company": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "email": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 254
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "shipFromMissing": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "international": {
+                          "type": "boolean",
+                          "enum": [
+                            false
+                          ]
+                        },
+                        "limits": {
+                          "type": "object",
+                          "properties": {
+                            "perLabel": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "amount": {
+                                      "type": "string"
+                                    },
+                                    "currency": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "amount",
+                                    "currency"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "dailyLabels": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "packersAbroad": {
+                              "type": "boolean"
+                            },
+                            "usedToday": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "perLabel",
+                            "dailyLabels",
+                            "packersAbroad",
+                            "usedToday"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "appUpdated",
+                        "carriers",
+                        "activeCarrier",
+                        "shipFrom",
+                        "shipFromMissing",
+                        "international",
+                        "limits"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/shipping/carriers/{carrier}/check": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "carrier",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "outcome": {
+                              "type": "string",
+                              "enum": [
+                                "ok"
+                              ]
+                            },
+                            "mode": {
+                              "type": "string",
+                              "enum": [
+                                "live",
+                                "test"
+                              ]
+                            },
+                            "carriers": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "country": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "outcome",
+                            "mode",
+                            "carriers",
+                            "country"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "outcome": {
+                              "type": "string",
+                              "enum": [
+                                "refused"
+                              ]
+                            },
+                            "carrierMessage": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "outcome"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "outcome": {
+                              "type": "string",
+                              "enum": [
+                                "unreachable"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "outcome"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/shipping/limits": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "perLabel": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "amount": {
+                            "type": "string",
+                            "pattern": "^\\d{1,12}(\\.\\d{1,4})?$"
+                          },
+                          "currency": {
+                            "type": "string",
+                            "pattern": "^[A-Z]{3}$"
+                          }
+                        },
+                        "required": [
+                          "amount",
+                          "currency"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "dailyLabels": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 100000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "packersAbroad": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "perLabel",
+                  "dailyLabels"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "appUpdated": {
+                          "type": "boolean"
+                        },
+                        "carriers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "locked": {
+                                "type": "boolean"
+                              },
+                              "on": {
+                                "type": "boolean"
+                              },
+                              "connected": {
+                                "type": "boolean"
+                              },
+                              "account": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "mode": {
+                                        "type": "string",
+                                        "enum": [
+                                          "live",
+                                          "test"
+                                        ]
+                                      },
+                                      "keyHint": {
+                                        "type": "string"
+                                      },
+                                      "state": {
+                                        "type": "string",
+                                        "enum": [
+                                          "ok",
+                                          "refused"
+                                        ]
+                                      },
+                                      "carriers": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "checkedAt": {
+                                        "type": "number"
+                                      }
+                                    },
+                                    "required": [
+                                      "mode",
+                                      "keyHint",
+                                      "state",
+                                      "carriers",
+                                      "checkedAt"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "name",
+                              "locked",
+                              "on",
+                              "connected",
+                              "account"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "activeCarrier": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "shipFrom": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "lines": {
+                                  "minItems": 1,
+                                  "maxItems": 3,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 120
+                                  }
+                                },
+                                "city": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "region": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "postcode": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 32
+                                },
+                                "country": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z]{2}$"
+                                },
+                                "phone": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 40
+                                },
+                                "company": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "email": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 254
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "shipFromMissing": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "international": {
+                          "type": "boolean",
+                          "enum": [
+                            false
+                          ]
+                        },
+                        "limits": {
+                          "type": "object",
+                          "properties": {
+                            "perLabel": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "amount": {
+                                      "type": "string"
+                                    },
+                                    "currency": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "amount",
+                                    "currency"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "dailyLabels": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "packersAbroad": {
+                              "type": "boolean"
+                            },
+                            "usedToday": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "perLabel",
+                            "dailyLabels",
+                            "packersAbroad",
+                            "usedToday"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "appUpdated",
+                        "carriers",
+                        "activeCarrier",
+                        "shipFrom",
+                        "shipFromMissing",
+                        "international",
+                        "limits"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/shipping/access": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "appUpdated": {
+                          "type": "boolean"
+                        },
+                        "carrier": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "mode": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "live",
+                                "test"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "manages": {
+                          "type": "boolean"
+                        },
+                        "mayBook": {
+                          "type": "boolean"
+                        },
+                        "mayCancel": {
+                          "type": "boolean"
+                        },
+                        "mayCustoms": {
+                          "type": "boolean"
+                        },
+                        "pricesHidden": {
+                          "type": "boolean"
+                        },
+                        "booking": {
+                          "type": "string",
+                          "enum": [
+                            "open",
+                            "no-limit",
+                            "daily-limit",
+                            "no-right"
+                          ]
+                        },
+                        "usedToday": {
+                          "type": "number"
+                        },
+                        "dailyLabels": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "appUpdated",
+                        "carrier",
+                        "mode",
+                        "manages",
+                        "mayBook",
+                        "mayCancel",
+                        "mayCustoms",
+                        "pricesHidden",
+                        "booking"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/shipping": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "appUpdated": {
+                          "type": "boolean"
+                        },
+                        "carriers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "locked": {
+                                "type": "boolean"
+                              },
+                              "on": {
+                                "type": "boolean"
+                              },
+                              "connected": {
+                                "type": "boolean"
+                              },
+                              "account": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "mode": {
+                                        "type": "string",
+                                        "enum": [
+                                          "live",
+                                          "test"
+                                        ]
+                                      },
+                                      "keyHint": {
+                                        "type": "string"
+                                      },
+                                      "state": {
+                                        "type": "string",
+                                        "enum": [
+                                          "ok",
+                                          "refused"
+                                        ]
+                                      },
+                                      "carriers": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "checkedAt": {
+                                        "type": "number"
+                                      }
+                                    },
+                                    "required": [
+                                      "mode",
+                                      "keyHint",
+                                      "state",
+                                      "carriers",
+                                      "checkedAt"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "name",
+                              "locked",
+                              "on",
+                              "connected",
+                              "account"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "activeCarrier": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "shipFrom": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "lines": {
+                                  "minItems": 1,
+                                  "maxItems": 3,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 120
+                                  }
+                                },
+                                "city": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "region": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "postcode": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 32
+                                },
+                                "country": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z]{2}$"
+                                },
+                                "phone": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 40
+                                },
+                                "company": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "email": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 254
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "shipFromMissing": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "international": {
+                          "type": "boolean",
+                          "enum": [
+                            false
+                          ]
+                        },
+                        "limits": {
+                          "type": "object",
+                          "properties": {
+                            "perLabel": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "amount": {
+                                      "type": "string"
+                                    },
+                                    "currency": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "amount",
+                                    "currency"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "dailyLabels": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "packersAbroad": {
+                              "type": "boolean"
+                            },
+                            "usedToday": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "perLabel",
+                            "dailyLabels",
+                            "packersAbroad",
+                            "usedToday"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "appUpdated",
+                        "carriers",
+                        "activeCarrier",
+                        "shipFrom",
+                        "shipFromMissing",
+                        "international",
+                        "limits"
                       ],
                       "additionalProperties": false
                     }
@@ -167614,6 +168839,52 @@
                               },
                               "connected": {
                                 "type": "boolean"
+                              },
+                              "account": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "mode": {
+                                        "type": "string",
+                                        "enum": [
+                                          "live",
+                                          "test"
+                                        ]
+                                      },
+                                      "keyHint": {
+                                        "type": "string"
+                                      },
+                                      "state": {
+                                        "type": "string",
+                                        "enum": [
+                                          "ok",
+                                          "refused"
+                                        ]
+                                      },
+                                      "carriers": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "checkedAt": {
+                                        "type": "number"
+                                      }
+                                    },
+                                    "required": [
+                                      "mode",
+                                      "keyHint",
+                                      "state",
+                                      "carriers",
+                                      "checkedAt"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               }
                             },
                             "required": [
@@ -167621,7 +168892,8 @@
                               "name",
                               "locked",
                               "on",
-                              "connected"
+                              "connected",
+                              "account"
                             ],
                             "additionalProperties": false
                           }
@@ -167705,6 +168977,53 @@
                           "enum": [
                             false
                           ]
+                        },
+                        "limits": {
+                          "type": "object",
+                          "properties": {
+                            "perLabel": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "amount": {
+                                      "type": "string"
+                                    },
+                                    "currency": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "amount",
+                                    "currency"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "dailyLabels": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "packersAbroad": {
+                              "type": "boolean"
+                            },
+                            "usedToday": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "perLabel",
+                            "dailyLabels",
+                            "packersAbroad",
+                            "usedToday"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -167713,7 +169032,8 @@
                         "activeCarrier",
                         "shipFrom",
                         "shipFromMissing",
-                        "international"
+                        "international",
+                        "limits"
                       ],
                       "additionalProperties": false
                     }
@@ -167828,6 +169148,52 @@
                               },
                               "connected": {
                                 "type": "boolean"
+                              },
+                              "account": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "mode": {
+                                        "type": "string",
+                                        "enum": [
+                                          "live",
+                                          "test"
+                                        ]
+                                      },
+                                      "keyHint": {
+                                        "type": "string"
+                                      },
+                                      "state": {
+                                        "type": "string",
+                                        "enum": [
+                                          "ok",
+                                          "refused"
+                                        ]
+                                      },
+                                      "carriers": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "checkedAt": {
+                                        "type": "number"
+                                      }
+                                    },
+                                    "required": [
+                                      "mode",
+                                      "keyHint",
+                                      "state",
+                                      "carriers",
+                                      "checkedAt"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               }
                             },
                             "required": [
@@ -167835,7 +169201,8 @@
                               "name",
                               "locked",
                               "on",
-                              "connected"
+                              "connected",
+                              "account"
                             ],
                             "additionalProperties": false
                           }
@@ -167919,6 +169286,53 @@
                           "enum": [
                             false
                           ]
+                        },
+                        "limits": {
+                          "type": "object",
+                          "properties": {
+                            "perLabel": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "amount": {
+                                      "type": "string"
+                                    },
+                                    "currency": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "amount",
+                                    "currency"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "dailyLabels": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "packersAbroad": {
+                              "type": "boolean"
+                            },
+                            "usedToday": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "perLabel",
+                            "dailyLabels",
+                            "packersAbroad",
+                            "usedToday"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -167927,7 +169341,8 @@
                         "activeCarrier",
                         "shipFrom",
                         "shipFromMissing",
-                        "international"
+                        "international",
+                        "limits"
                       ],
                       "additionalProperties": false
                     }
@@ -168054,80 +169469,190 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "properties": {
-                        "quoteId": {
-                          "type": "string"
-                        },
-                        "carrier": {
-                          "type": "string"
-                        },
-                        "expiresAt": {
-                          "type": "number"
-                        },
-                        "rates": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "rateId": {
-                                "type": "string"
-                              },
-                              "code": {
-                                "type": "string"
-                              },
-                              "service": {
-                                "type": "string"
-                              },
-                              "amountDecimal": {
-                                "type": "string"
-                              },
-                              "currency": {
-                                "type": "string"
-                              },
-                              "estimatedDelivery": {
-                                "type": "string"
-                              },
-                              "estimatedDays": {
-                                "type": "number"
-                              },
-                              "expiresAt": {
-                                "type": "string"
-                              },
-                              "carrier": {
-                                "type": "string"
-                              },
-                              "handover": {
-                                "type": "string",
-                                "enum": [
-                                  "collection-booked",
-                                  "drop-off",
-                                  "carrier-collects",
-                                  "unknown"
-                                ]
-                              },
-                              "tracked": {
-                                "type": "boolean"
-                              }
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "quoteId": {
+                              "type": "string"
                             },
-                            "required": [
-                              "rateId",
-                              "code",
-                              "service",
-                              "amountDecimal",
-                              "currency"
-                            ],
-                            "additionalProperties": false
-                          }
+                            "carrier": {
+                              "type": "string"
+                            },
+                            "mode": {
+                              "type": "string",
+                              "enum": [
+                                "live",
+                                "test"
+                              ]
+                            },
+                            "expiresAt": {
+                              "type": "number"
+                            },
+                            "pricesHidden": {
+                              "type": "boolean",
+                              "enum": [
+                                false
+                              ]
+                            },
+                            "rates": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "rateId": {
+                                    "type": "string"
+                                  },
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "service": {
+                                    "type": "string"
+                                  },
+                                  "amountDecimal": {
+                                    "type": "string"
+                                  },
+                                  "currency": {
+                                    "type": "string"
+                                  },
+                                  "estimatedDelivery": {
+                                    "type": "string"
+                                  },
+                                  "estimatedDays": {
+                                    "type": "number"
+                                  },
+                                  "expiresAt": {
+                                    "type": "string"
+                                  },
+                                  "carrier": {
+                                    "type": "string"
+                                  },
+                                  "handover": {
+                                    "type": "string",
+                                    "enum": [
+                                      "collection-booked",
+                                      "drop-off",
+                                      "carrier-collects",
+                                      "unknown"
+                                    ]
+                                  },
+                                  "tracked": {
+                                    "type": "boolean"
+                                  },
+                                  "withinLimit": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "rateId",
+                                  "code",
+                                  "service",
+                                  "amountDecimal",
+                                  "currency",
+                                  "withinLimit"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "quoteId",
+                            "carrier",
+                            "mode",
+                            "expiresAt",
+                            "pricesHidden",
+                            "rates"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "quoteId": {
+                              "type": "string"
+                            },
+                            "carrier": {
+                              "type": "string"
+                            },
+                            "mode": {
+                              "type": "string",
+                              "enum": [
+                                "live",
+                                "test"
+                              ]
+                            },
+                            "expiresAt": {
+                              "type": "number"
+                            },
+                            "pricesHidden": {
+                              "type": "boolean",
+                              "enum": [
+                                true
+                              ]
+                            },
+                            "rates": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "rateId": {
+                                    "type": "string"
+                                  },
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "service": {
+                                    "type": "string"
+                                  },
+                                  "estimatedDelivery": {
+                                    "type": "string"
+                                  },
+                                  "estimatedDays": {
+                                    "type": "number"
+                                  },
+                                  "expiresAt": {
+                                    "type": "string"
+                                  },
+                                  "carrier": {
+                                    "type": "string"
+                                  },
+                                  "handover": {
+                                    "type": "string",
+                                    "enum": [
+                                      "collection-booked",
+                                      "drop-off",
+                                      "carrier-collects",
+                                      "unknown"
+                                    ]
+                                  },
+                                  "tracked": {
+                                    "type": "boolean"
+                                  },
+                                  "withinLimit": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "rateId",
+                                  "code",
+                                  "service",
+                                  "withinLimit"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "quoteId",
+                            "carrier",
+                            "mode",
+                            "expiresAt",
+                            "pricesHidden",
+                            "rates"
+                          ],
+                          "additionalProperties": false
                         }
-                      },
-                      "required": [
-                        "quoteId",
-                        "carrier",
-                        "expiresAt",
-                        "rates"
-                      ],
-                      "additionalProperties": false
+                      ]
                     }
                   },
                   "required": [

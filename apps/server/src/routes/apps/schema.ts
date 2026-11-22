@@ -610,6 +610,22 @@ export const appInstallPlanDto = z.object({
     )
     .optional(),
   /**
+   * The roles that would hold a right on the app's own labels
+   * (`shipping:@:book`, `:cancel`, `:customs`), one entry per role and right.
+   * Absent when none.
+   */
+  shippingGrants: z
+    .array(
+      z.object({
+        role: z.string(),
+        roleName: z.string(),
+        action: z.enum(['book', 'cancel', 'customs']),
+        /** An update's check: the running version's role was not given it. The update gives it only with `"roleGrants": true`. */
+        added: z.literal(true).optional(),
+      }),
+    )
+    .optional(),
+  /**
    * What each role of the app would hold of the tables of the add-ons it
    * names (`roles[].tables`), for the check step to show: written when that
    * add-on is there for the app, taken back when it is not. Absent when none.

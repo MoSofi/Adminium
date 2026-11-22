@@ -24,6 +24,11 @@
  *                              records (`payments:<appKey>:refund`, D20); never
  *                              the install's refund right. Shown on the install
  *                              check, ticked; the installer may untick it.
+ *   `shipping:@:book`          buy labels for THIS install's orders, within the
+ *   `shipping:@:cancel`        limits its owner sets; ask for a label's refund;
+ *   `shipping:@:customs`       declare customs. Three rights, because a packer
+ *                              who books is promised never to cancel. An
+ *                              update that adds one asks first.
  *
  * `read_pii` shows the table's personal columns in clear (crud/mask.ts): a
  * reception that rings patients holds it on the patients table.
@@ -50,7 +55,7 @@ import { parseDatabaseModel } from '@adminium/engine';
 import type { Manifest, RowReach } from '@adminium/manifest';
 import { pagesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type RowLimit, type RowReach as StoredRowReach, type TableActions, type UpdateLimit } from '@adminium/meta';
 
-import { matrixRowsFromGrants, appRefundPermission } from '../rbac/permissions.js';
+import { matrixRowsFromGrants, appRefundPermission, appShippingPermission, type ShippingAction } from '../rbac/permissions.js';
 import type { RoleTableResult } from '@adminium/manifest';
 import { grantKeyOf, installRoleSlug, type InstallAddress } from '../installs/resolve.js';
 import type { AfterInstallItem } from './after-install.js';
@@ -81,6 +86,8 @@ const PRIVACY_PEOPLE = /^privacy:@:people$/;
 const PRIVACY_PEOPLE_GRANT = 'system:privacy:people';
 /** Giving back the money paid online for the app's own records: the one payments right an app's role may carry. */
 const PAYMENTS_REFUND = /^payments:@:refund$/;
+/** The rights on the app's own labels an app's role may carry. */
+const SHIPPING_GRANT = /^shipping:@:(book|cancel|customs)$/;
 
 /**
  * An app role's slug: `<key>-<role>` for the install holding the bare
@@ -269,6 +276,10 @@ export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIE
       } else if (PAYMENTS_REFUND.test(grant)) {
         // The money an app takes is its own business's: an add-on's role is never given it.
         if ((manifest as Manifest).kind === 'add-on') refuse(`"${grant}" is given by an app's role, never an add-on's`);
+      } else if (SHIPPING_GRANT.test(grant)) {
+        // Labels are bought for an app's own orders, which its `shipping` block names.
+        if ((manifest as Manifest).kind === 'add-on') refuse(`"${grant}" is given by an app's role, never an add-on's`);
+        else if ((manifest as { shipping?: unknown }).shipping === undefined) refuse(`"${grant}" needs the app's "shipping" block, which says where its orders keep an address`);
       } else if (PRIVACY_PEOPLE.test(grant)) {
         // An add-on's role is never given people's data: it is the business's to give, through its own apps' roles.
         if ((manifest as Manifest).kind === 'add-on') refuse(`"${grant}" is given by an app's role, never an add-on's`);
@@ -280,7 +291,7 @@ export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIE
         const theirs = /([a-z][a-z0-9_]*):(?:read|create|update)$/.exec(grant);
         refuse(
           named === undefined
-            ? `"${grant}" is not a grant an app can give (table:@…, page:@…, app:@:staff, privacy:@:people or payments:@:refund)`
+            ? `"${grant}" is not a grant an app can give (table:@…, page:@…, app:@:staff, privacy:@:people, payments:@:refund or shipping:@:book, :cancel or :customs)`
             : `"${grant}" is not a grant an app can give. A table of the add-on "${named.key}" is granted beside "permissions", on the role itself: "tables": [{ "addOn": "${named.key}", "table": "${theirs?.[1] ?? '<its table>'}", "actions": ["read"] }]`,
         );
       }
@@ -361,6 +372,18 @@ export function refundGrantsOf(manifest: Manifest): { role: string; roleName: st
   return roles.flatMap((role) => (grantsOf(role, roles).some((grant) => PAYMENTS_REFUND.test(grant)) ? [{ role: roleSlugFor(manifest.key, role.key), roleName: role.name }] : []));
 }
 
+/** The roles that would hold a right on the app's own labels, one entry per role and right. */
+export function shippingGrantsOf(manifest: Manifest): { role: string; roleName: string; action: ShippingAction }[] {
+  if (!ownsBlocks(manifest) || manifest.kind !== 'app') return [];
+  const roles = manifest.roles ?? [];
+  return roles.flatMap((role) =>
+    grantsOf(role, roles).flatMap((grant) => {
+      const action = SHIPPING_GRANT.exec(grant)?.[1] as ShippingAction | undefined;
+      return action === undefined ? [] : [{ role: roleSlugFor(manifest.key, role.key), roleName: role.name, action }];
+    }),
+  );
+}
+
 /**
  * What a new version's roles are given that the running version's were not,
  * by role: the add-on settings (`addOn:<key>:settings`) and finding and
@@ -372,15 +395,17 @@ export function refundGrantsOf(manifest: Manifest): { role: string; roleName: st
 export function grantsAdded(
   running: Manifest | null,
   next: Manifest,
-): { addOnGrants: ReturnType<typeof addOnGrantsOf>; privacyGrants: ReturnType<typeof privacyGrantsOf>; refundGrants: ReturnType<typeof refundGrantsOf> } {
-  if (running === null) return { addOnGrants: [], privacyGrants: [], refundGrants: [] };
+): { addOnGrants: ReturnType<typeof addOnGrantsOf>; privacyGrants: ReturnType<typeof privacyGrantsOf>; refundGrants: ReturnType<typeof refundGrantsOf>; shippingGrants: ReturnType<typeof shippingGrantsOf> } {
+  if (running === null) return { addOnGrants: [], privacyGrants: [], refundGrants: [], shippingGrants: [] };
   const had = new Set(addOnGrantsOf(running).map((grant) => `${grant.role}\u0000${grant.addOn}`));
   const erased = new Set(privacyGrantsOf(running).map((grant) => grant.role));
   const refunding = new Set(refundGrantsOf(running).map((grant) => grant.role));
+  const shipping = new Set(shippingGrantsOf(running).map((grant) => `${grant.role}\u0000${grant.action}`));
   return {
     addOnGrants: addOnGrantsOf(next).filter((grant) => !had.has(`${grant.role}\u0000${grant.addOn}`)),
     privacyGrants: privacyGrantsOf(next).filter((grant) => !erased.has(grant.role)),
     refundGrants: refundGrantsOf(next).filter((grant) => !refunding.has(grant.role)),
+    shippingGrants: shippingGrantsOf(next).filter((grant) => !shipping.has(`${grant.role}\u0000${grant.action}`)),
   };
 }
 
@@ -504,6 +529,10 @@ export async function writeManifestRoles(input: {
     } else if (PAYMENTS_REFUND.test(grant)) {
       const row = matrixRowsFromGrants([appRefundPermission(manifest.key)]).rows[0];
       if (row !== undefined) await permissions.revoke(roleId, row.resourceKind, row.resourceRef);
+    } else if (SHIPPING_GRANT.test(grant)) {
+      const action = SHIPPING_GRANT.exec(grant)![1] as ShippingAction;
+      const row = matrixRowsFromGrants([appShippingPermission(grantKeyOf({ manifestKey: manifest.key, instanceSlug: input.install.slug }), action)]).rows[0];
+      if (row !== undefined) await permissions.revoke(roleId, row.resourceKind, row.resourceRef);
     } else if (ADD_ON_SETTINGS.test(grant)) {
       const row = matrixRowsFromGrants([grant]).rows[0];
       if (row !== undefined) await permissions.revoke(roleId, row.resourceKind, row.resourceRef);
@@ -614,6 +643,12 @@ export async function writeManifestRoles(input: {
           if (row === undefined) continue;
           await permissions.grant(role.id, row.resourceKind, row.resourceRef, row.actions);
         }
+      } else if (SHIPPING_GRANT.test(grant)) {
+        if (manifest.kind !== 'app') continue;
+        const action = SHIPPING_GRANT.exec(grant)![1] as ShippingAction;
+        const row = matrixRowsFromGrants([appShippingPermission(grantKeyOf({ manifestKey: manifest.key, instanceSlug: input.install.slug }), action)]).rows[0];
+        if (row === undefined) continue;
+        await permissions.grant(role.id, row.resourceKind, row.resourceRef, row.actions);
       } else if (ADD_ON_SETTINGS.test(grant)) {
         const row = matrixRowsFromGrants([grant]).rows[0];
         if (row === undefined) continue;

@@ -26,7 +26,7 @@
  * applied while the question waits.
  */
 
-import { addOnSettingsRef } from '../rbac/permissions.js';
+import { addOnSettingsRef, SHIPPING_ACTIONS, appShippingPermission, matrixRowsFromGrants } from '../rbac/permissions.js';
 import type { Manifest, RequiredColumn } from '@adminium/manifest';
 import type { DatabaseModel } from '@adminium/engine';
 import {
@@ -463,6 +463,10 @@ export function createRemovals(deps: RemovalDeps) {
      */
     await permissionsRepo(deps.meta).revokeAllForResource('app', list.address);
     await permissionsRepo(deps.meta).revokeAllForResource('app', addOnSettingsRef(list.address));
+    for (const action of SHIPPING_ACTIONS) {
+      const right = matrixRowsFromGrants([appShippingPermission(list.address, action)]).rows[0];
+      if (right !== undefined) await permissionsRepo(deps.meta).revokeAllForResource('app', right.resourceRef);
+    }
     /*
      * 4. The column rules it wrote, while they are still as it wrote them.
      *    One the operator changed, switched off or re-saved differently is

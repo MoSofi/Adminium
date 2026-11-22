@@ -57,6 +57,23 @@ describe('the refund card', () => {
     expect(container.textContent).toBe('');
   });
 
+  it('says which roles an update lets buy labels, ask for refunds or declare customs', () => {
+    render(
+      <RoleGrantsAddedCard
+        privacy={[]}
+        addOn={[]}
+        shipping={[
+          { role: 'shop-packer', roleName: 'Packer', action: 'book' },
+          { role: 'shop-owner', roleName: 'Owner', action: 'cancel' },
+          { role: 'shop-owner', roleName: 'Owner', action: 'customs' },
+        ]}
+      />,
+    );
+    expect(screen.getByText('Packer can buy shipping labels, within the limits you set.')).toBeTruthy();
+    expect(screen.getByText('Owner can ask for a shipping label to be refunded.')).toBeTruthy();
+    expect(screen.getByText('Owner can declare customs for a parcel.')).toBeTruthy();
+  });
+
   it('names a role an update newly lets refund', () => {
     render(<RoleGrantsAddedCard privacy={[]} addOn={[]} refund={[{ role: 'counter-manager', roleName: 'Manager' }]} />);
     expect(screen.getByTestId('role-grants-added').textContent).toContain('Manager can give back money customers paid online');

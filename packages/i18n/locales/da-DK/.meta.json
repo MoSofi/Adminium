@@ -31227,6 +31227,18 @@
     "status": "mt",
     "srcHash": "75579feade47"
   },
+  "studio.hostedApps.update.grantsAdded.shippingBook": {
+    "status": "mt",
+    "srcHash": "f774325df762"
+  },
+  "studio.hostedApps.update.grantsAdded.shippingCancel": {
+    "status": "mt",
+    "srcHash": "c9d76263a89f"
+  },
+  "studio.hostedApps.update.grantsAdded.shippingCustoms": {
+    "status": "mt",
+    "srcHash": "438680fe6ec6"
+  },
   "studio.hostedApps.update.grantsAdded.title": {
     "status": "mt",
     "srcHash": "98dbb647f4b4"
@@ -40750,6 +40762,10 @@
   "studio.saveApp.info.semanticNotCarried": {
     "status": "mt",
     "srcHash": "456c8d080ac0"
+  },
+  "studio.saveApp.info.shippingRight": {
+    "status": "mt",
+    "srcHash": "cdacc0e992ea"
   },
   "studio.saveApp.info.stateRole": {
     "status": "mt",

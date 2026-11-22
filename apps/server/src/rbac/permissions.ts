@@ -152,6 +152,30 @@ export function appRefundPermission(appKey: string): string {
 }
 const APP_REFUND_REF_PREFIX = 'payments-refund/';
 
+/** What an app's role may do with a carrier: three rights, because a packer who books is promised never to cancel. */
+export const SHIPPING_ACTIONS = ['book', 'cancel', 'customs'] as const;
+export type ShippingAction = (typeof SHIPPING_ACTIONS)[number];
+
+/**
+ * `shipping:<install grant key>:book|cancel|customs` — one app install's
+ * labels, as an app's role is given them (`shipping:@:book`). Keyed by the
+ * install (`grantKeyOf`), because a carrier account is per database: a right
+ * on one shop's labels never reaches another's. Stored as an `app` row whose
+ * ref has a `/` no app key can hold.
+ */
+export function appShippingPermission(grantKey: string, action: ShippingAction): string {
+  return `shipping:${grantKey}:${action}`;
+}
+const APP_SHIPPING_REF_PREFIX = 'shipping-';
+const shippingRefOf = (grantKey: string, action: ShippingAction) => `${APP_SHIPPING_REF_PREFIX}${action}/${grantKey}`;
+function shippingGrantOfRef(ref: string): string | null {
+  for (const action of SHIPPING_ACTIONS) {
+    const prefix = `${APP_SHIPPING_REF_PREFIX}${action}/`;
+    if (ref.startsWith(prefix) && ref.length > prefix.length) return appShippingPermission(ref.slice(prefix.length), action);
+  }
+  return null;
+}
+
 /** The matrix row ref an add-on's settings grant is stored under. */
 export function addOnSettingsRef(addOnKey: string): string {
   return `${ADD_ON_SETTINGS_REF_PREFIX}${addOnKey}`;
@@ -164,7 +188,8 @@ export type ParsedGrant =
   /** `app:<key>:staff` — an installed app's staff screens; `app:*:staff` is every app's. */
   | { kind: 'app'; appKey: string; action: 'staff' }
   | { kind: 'addOn'; addOnKey: string; action: 'settings' }
-  | { kind: 'payments'; appKey: string; action: 'refund' };
+  | { kind: 'payments'; appKey: string; action: 'refund' }
+  | { kind: 'shipping'; appKey: string; action: ShippingAction };
 
 /** A concrete (wildcard-free) permission, as passed to `can()`/`require()`. */
 export type ParsedPermission =
@@ -173,7 +198,8 @@ export type ParsedPermission =
   | { kind: 'page'; pageId: string; action: PageAction }
   | { kind: 'app'; appKey: string; action: 'staff' }
   | { kind: 'addOn'; addOnKey: string; action: 'settings' }
-  | { kind: 'payments'; appKey: string; action: 'refund' };
+  | { kind: 'payments'; appKey: string; action: 'refund' }
+  | { kind: 'shipping'; appKey: string; action: ShippingAction };
 
 const SYSTEM_KEY_SET: ReadonlySet<string> = new Set(SYSTEM_ACTION_KEYS);
 const TABLE_ACTION_SET: ReadonlySet<string> = new Set(TABLE_ACTIONS);
@@ -233,6 +259,13 @@ export function parseGrant(input: string): ParsedGrant | null {
     // Concrete only: one app's payments, never "every app's".
     if (!validSegment(appKey) || appKey === '*' || action !== 'refund') return null;
     return { kind: 'payments', appKey, action: 'refund' };
+  }
+
+  if (kind === 'shipping' && segments.length === 3) {
+    const [, appKey, action] = segments as [string, string, string];
+    // Concrete only: one shop's labels, never "every shop's".
+    if (!validSegment(appKey) || appKey === '*' || !(SHIPPING_ACTIONS as readonly string[]).includes(action)) return null;
+    return { kind: 'shipping', appKey, action: action as ShippingAction };
   }
 
   return null;
@@ -296,6 +329,10 @@ export function grantMatches(grant: string, required: string): boolean {
       const gp = g as Extract<ParsedGrant, { kind: 'payments' }>;
       return gp.appKey === r.appKey;
     }
+    case 'shipping': {
+      const gs = g as Extract<ParsedGrant, { kind: 'shipping' }>;
+      return gs.appKey === r.appKey && gs.action === r.action;
+    }
   }
 }
 
@@ -353,6 +390,8 @@ export function grantsFromMatrixRows(rows: readonly RolePermission[]): string[] 
       if ((row.actions as { staff?: boolean }).staff !== true) continue;
       if (row.resourceRef.startsWith(APP_REFUND_REF_PREFIX)) {
         grants.push(appRefundPermission(row.resourceRef.slice(APP_REFUND_REF_PREFIX.length)));
+      } else if (shippingGrantOfRef(row.resourceRef) !== null) {
+        grants.push(shippingGrantOfRef(row.resourceRef)!);
       } else if (row.resourceRef.startsWith(ADD_ON_SETTINGS_REF_PREFIX)) {
         grants.push(addOnSettingsPermission(row.resourceRef.slice(ADD_ON_SETTINGS_REF_PREFIX.length)));
       } else {
@@ -416,6 +455,10 @@ export function matrixRowsFromGrants(grants: readonly string[]): MatrixConversio
     }
     if (parsed.kind === 'payments') {
       appRefs.add(`${APP_REFUND_REF_PREFIX}${parsed.appKey}`);
+      continue;
+    }
+    if (parsed.kind === 'shipping') {
+      appRefs.add(shippingRefOf(parsed.appKey, parsed.action));
       continue;
     }
     if (parsed.kind === 'table') {

@@ -978,7 +978,10 @@ export default {
       "grantsAdded": {
         "title": "Diese Version gibt ihren Rollen mehr",
         "addOnSettings": "{roles} kann die Einstellungen von {addOn} ändern, die alle Apps teilen, für die es arbeitet.",
-        "refund": "{roles} dürfen Geld zurückgeben, das Kunden online für Datensätze dieser App bezahlt haben."
+        "refund": "{roles} dürfen Geld zurückgeben, das Kunden online für Datensätze dieser App bezahlt haben.",
+        "shippingBook": "{roles} dürfen Versandetiketten kaufen, innerhalb der von Ihnen gesetzten Grenzen.",
+        "shippingCancel": "{roles} dürfen die Erstattung eines Versandetiketts beantragen.",
+        "shippingCustoms": "{roles} dürfen die Zollerklärung für ein Paket abgeben."
       },
       "stopped": {
         "pages": "Die Aktualisierung auf {to} wurde beim Schreiben der Seiten unterbrochen. Nichts ging verloren; die Seiten von {from} sind noch da.",
@@ -5663,6 +5666,7 @@ export default {
       "grantAddOn": "Eine Berechtigung für die Einstellungen eines Add-ons, das diese Datenbank nicht hat, wird weggelassen.",
       "appScreens": "Eine Berechtigung für die Bildschirme einer anderen App wird nicht übernommen.",
       "appScreensAll": "Eine Berechtigung für die Bildschirme aller Apps wird nicht übernommen.",
+      "shippingRight": "Ein Recht auf Versandetiketten wird nicht übernommen. Geben Sie es der Rolle nach der Installation.",
       "screensOnly": "Die App hat keine eigenen Bildschirme, daher öffnet die Rolle das Dashboard.",
       "builtinEmail": "Eine integrierte E-Mail wird nicht in einer App gespeichert.",
       "emailMissing": "Diese E-Mail hat keinen aktiven Text, daher wird sie weggelassen.",

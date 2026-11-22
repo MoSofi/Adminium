@@ -370,6 +370,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'roles.privacyPeople',
   // An app role that refunds the app's own online payments (apps/manifest-roles.ts, rbac/permissions.ts payments:<app>:refund).
   'roles.paymentsRefund',
+  // An app role's rights on the app's own labels (apps/manifest-roles.ts, rbac/permissions.ts shipping:<install>:<action>).
+  'roles.shippingGrants',
   // The columns a records page's list opens on, written to the page at install (apps/manifest-page-config.ts).
   'config.columns',
   // A form's reference picker narrowed by another field: kept in the form at install, read by the picker (widgets reference.tsx).

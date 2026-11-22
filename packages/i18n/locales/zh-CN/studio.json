@@ -968,7 +968,10 @@
       "grantsAdded": {
         "title": "此版本给了它的角色更多权限",
         "addOnSettings": "{roles} 可以更改 {addOn} 的设置，这些设置由它服务的所有应用共享。",
-        "refund": "{roles} 可以退还客户为此应用的记录在线支付的款项。"
+        "refund": "{roles} 可以退还客户为此应用的记录在线支付的款项。",
+        "shippingBook": "{roles} 可以在你设定的限额内购买运单标签。",
+        "shippingCancel": "{roles} 可以申请退还运单标签的费用。",
+        "shippingCustoms": "{roles} 可以为包裹申报海关。"
       },
       "stopped": {
         "pages": "更新到 {to} 时在写入页面期间停止。没有丢失任何内容；{from} 的页面仍在。",
@@ -5653,6 +5656,7 @@
       "grantAddOn": "针对此数据库没有的附加组件设置的授权已排除。",
       "appScreens": "针对其他应用界面的授权不会带入。",
       "appScreensAll": "针对所有应用界面的授权不会带入。",
+      "shippingRight": "运单标签权限不会带入。请在安装后授予该角色。",
       "screensOnly": "该应用没有自己的界面，因此该角色会打开仪表板。",
       "builtinEmail": "内置邮件不会保存在应用中。",
       "emailMissing": "这封邮件没有生效的文本，因此已将其排除。",

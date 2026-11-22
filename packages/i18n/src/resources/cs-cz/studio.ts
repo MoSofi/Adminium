@@ -978,7 +978,10 @@ export default {
       "grantsAdded": {
         "title": "Tato verze dává svým rolím víc",
         "addOnSettings": "{roles} může měnit nastavení doplňku {addOn}, která sdílejí všechny aplikace, jimž slouží.",
-        "refund": "{roles} smí vracet peníze, které zákazníci zaplatili online za záznamy této aplikace."
+        "refund": "{roles} smí vracet peníze, které zákazníci zaplatili online za záznamy této aplikace.",
+        "shippingBook": "{roles} smí kupovat přepravní štítky v rámci limitů, které nastavíte.",
+        "shippingCancel": "{roles} smí požádat o vrácení peněz za přepravní štítek.",
+        "shippingCustoms": "{roles} smí podat celní prohlášení k balíku."
       },
       "stopped": {
         "pages": "Aktualizace na {to} se zastavila při zápisu stránek. Nic se neztratilo; stránky verze {from} tu stále jsou.",
@@ -5663,6 +5666,7 @@ export default {
       "grantAddOn": "Oprávnění k nastavení doplňku, který tato databáze nemá, se vynechává.",
       "appScreens": "Oprávnění k obrazovkám jiné aplikace se nepřenáší.",
       "appScreensAll": "Oprávnění k obrazovkám všech aplikací se nepřenáší.",
+      "shippingRight": "Právo na přepravní štítky se nepřenáší. Udělte ho roli po instalaci.",
       "screensOnly": "Aplikace nemá vlastní obrazovky, proto role otevírá nástěnku.",
       "builtinEmail": "Vestavěný e-mail se do aplikace neukládá.",
       "emailMissing": "Tento e-mail nemá žádný aktivní text, proto se vynechává.",

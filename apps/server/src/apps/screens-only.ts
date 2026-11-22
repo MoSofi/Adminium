@@ -14,7 +14,8 @@
  * signature and photos, a copy of one for another record), and a record's e-mail consent (the panel, and recording consent,
  * "Replied" and "They said no" on it), the add-ons connected to their apps, and the server's name and logo to head
  * their screens with, and the code of an add-on of their app that fills a place on those screens, and taking a payment
- * at their app's counter (its card readers, a charge, a pay link made or closed, a refund for whoever may give one). Forty-odd routes
+ * at their app's counter (its card readers, a charge, a pay link made or closed, a refund for whoever may give one),
+ * and getting a carrier's services for an order of their app, for whoever may book its labels. Forty-odd routes
  * check only that someone is signed in, so this
  * list — not those routes — is the boundary.
  */
@@ -22,6 +23,7 @@ import type { FastifyRequest } from 'fastify';
 import type { MetaDb } from '@adminium/meta';
 
 import { ForbiddenError } from '../errors.js';
+import { splitInstallKey } from '../installs/resolve.js';
 import { connectionForMount, type SurfaceSettings } from '../surfaces/settings.js';
 
 const API = '/api/v1';
@@ -187,6 +189,9 @@ export function allowedForScreensOnly(
   // Which of their app's own rules are switched on, for a screen that depends on one. The route asks the app's own staff grant, and says a
   // rule's key, name and switch: nothing of what it does.
   if (method === 'GET' && rest === '/apps/:key/rules' && typeof key === 'string' && appKeys.includes(key)) return true;
+  // A packer at their app's bench: what they may do with its labels, and the services for one order. Each route asks the app
+  // install's own `shipping:<install>:book` right, the table and the row, and never tells a price to someone who cannot see money.
+  if (((method === 'GET' && rest === '/apps/:key/shipping/access') || (method === 'POST' && rest === '/apps/:key/shipping/quotes')) && typeof key === 'string' && appKeys.includes(splitInstallKey(key).key)) return true;
   // What an add-on of their app says of the rows their screen shows. The route still asks that they read the table asked about.
   const addOn = (params as { addOn?: unknown } | null)?.addOn;
   if (method === 'GET' && route === STAFF_WORDS_ROUTE && typeof addOn === 'string' && addOns.has(addOn)) return true;

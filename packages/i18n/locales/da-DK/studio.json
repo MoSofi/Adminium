@@ -968,7 +968,10 @@
       "grantsAdded": {
         "title": "Denne version giver sine roller mere",
         "addOnSettings": "{roles} kan ændre indstillingerne for {addOn}, som alle de apps, den betjener, deler.",
-        "refund": "{roles} må give penge tilbage, som kunder har betalt online for denne apps poster."
+        "refund": "{roles} må give penge tilbage, som kunder har betalt online for denne apps poster.",
+        "shippingBook": "{roles} må købe forsendelsesetiketter inden for de grænser, du sætter.",
+        "shippingCancel": "{roles} må bede om refusion af en forsendelsesetiket.",
+        "shippingCustoms": "{roles} må lave tolddeklaration for en pakke."
       },
       "stopped": {
         "pages": "Opdateringen til {to} stoppede under skrivning af siderne. Intet gik tabt; siderne fra {from} er her stadig.",
@@ -5653,6 +5656,7 @@
       "grantAddOn": "En rettighed til indstillingerne for en tilføjelse, som denne database ikke har, udelades.",
       "appScreens": "En rettighed til en anden apps skærme tages ikke med.",
       "appScreensAll": "En rettighed til alle apps’ skærme tages ikke med.",
+      "shippingRight": "En ret til forsendelsesetiketter følger ikke med. Giv den til rollen efter installationen.",
       "screensOnly": "Appen har ingen egne skærme, så rollen åbner dashboardet.",
       "builtinEmail": "En indbygget mail gemmes ikke i en app.",
       "emailMissing": "Denne mail har ingen aktiv tekst, så den udelades.",

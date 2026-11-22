@@ -968,7 +968,10 @@
       "grantsAdded": {
         "title": "This version gives its roles more",
         "addOnSettings": "{roles} can change the settings of {addOn}, which every app it serves shares.",
-        "refund": "{roles} can give back money customers paid online for this app’s records."
+        "refund": "{roles} can give back money customers paid online for this app’s records.",
+        "shippingBook": "{roles} can buy shipping labels, within the limits you set.",
+        "shippingCancel": "{roles} can ask for a shipping label to be refunded.",
+        "shippingCustoms": "{roles} can declare customs for a parcel."
       },
       "stopped": {
         "pages": "The update to {to} stopped while writing pages. Nothing was lost; {from}’s pages are still here.",
@@ -5653,6 +5656,7 @@
       "grantAddOn": "A grant on the settings of an add-on this database does not have is left out.",
       "appScreens": "A grant on another app’s screens is not carried.",
       "appScreensAll": "A grant on the screens of every app is not carried.",
+      "shippingRight": "A right on shipping labels is not carried. Give it to the role after installing.",
       "screensOnly": "The app has no screens of its own, so the role opens the dashboard.",
       "builtinEmail": "A built-in mail is not saved in an app.",
       "emailMissing": "This mail has no live text, so it is left out.",

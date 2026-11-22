@@ -210,6 +210,11 @@ export const convertRoles: ConvertPart = async (ctx) => {
         give('payments:@:refund');
         continue;
       }
+      // A saved app carries no `shipping` block, which these rights need, and a carrier account is one business's own.
+      if (/^shipping-(book|cancel|customs)\//.test(row.resourceRef)) {
+        info('SHIPPING_RIGHT', 'A right on shipping labels is not carried. Give it to the role after installing.');
+        continue;
+      }
       if (row.resourceRef.startsWith(ADD_ON_SETTINGS_REF)) {
         const addOn = row.resourceRef.slice(ADD_ON_SETTINGS_REF.length);
         if (addOns.has(addOn)) give(`addOn:${addOn}:settings`);

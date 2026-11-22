@@ -11,7 +11,7 @@
  */
 import { SHIPPING_CARRIER_CONTRACT } from '@adminium/add-on-contracts';
 import { addOnManifestSchema } from '@adminium/manifest';
-import { shippingRepo, type InstalledManifest, type ManifestsRepo, type MetaDb } from '@adminium/meta';
+import { shippingRepo, type InstalledManifest, type ManifestsRepo, type MetaDb, type ShippingAccountState, type ShippingKeyMode } from '@adminium/meta';
 
 import { installOnConnection } from '../installs/resolve.js';
 import { readShipFrom, shipFromMissing, type ShipFrom } from './addresses.js';
@@ -35,6 +35,37 @@ export interface ShopShipping {
 }
 
 type CarrierReads = Pick<ManifestsRepo, 'attachedToHost' | 'findInScope' | 'credentialStatus'>;
+
+/** What a manager is shown of a saved key: never the key, and never its hashes. */
+export interface CarrierAccountView {
+  mode: ShippingKeyMode;
+  keyHint: string;
+  state: ShippingAccountState;
+  carriers: string[];
+  checkedAt: number;
+}
+
+/** Whether an add-on is a delivery carrier: its key has its own door. */
+export function isShippingCarrier(manifest: { addOn: { provides?: readonly { contract: string }[] | undefined } }): boolean {
+  return (manifest.addOn.provides ?? []).some((entry) => entry.contract === SHIPPING_CARRIER_CONTRACT);
+}
+
+/** The same, of a stored document that may no longer validate: a broken manifest is no way round the key's door. */
+export function declaresShippingCarrier(document: unknown): boolean {
+  const provides = (document as { addOn?: { provides?: unknown } } | null)?.addOn?.provides;
+  return Array.isArray(provides) && provides.some((entry) => (entry as { contract?: unknown } | null)?.contract === SHIPPING_CARRIER_CONTRACT);
+}
+
+/** The account record of each carrier on this database, by carrier key. */
+export async function carrierAccounts(meta: MetaDb, manifests: Pick<ManifestsRepo, 'findInScope'>, carriers: readonly AttachedCarrier[], connectionId: string): Promise<Record<string, CarrierAccountView | null>> {
+  const out: Record<string, CarrierAccountView | null> = {};
+  for (const carrier of carriers) {
+    const here = carrier.locked ? null : await installOnConnection(manifests as ManifestsRepo, carrier.key, connectionId);
+    const account = here === null ? null : await shippingRepo(meta).account(here.row.id);
+    out[carrier.key] = account === null ? null : { mode: account.mode, keyHint: account.keyHint, state: account.state, carriers: account.carriers, checkedAt: account.checkedAt };
+  }
+  return out;
+}
 
 function providesCarrier(document: unknown): { name: string } | null {
   const parsed = addOnManifestSchema.safeParse(document);

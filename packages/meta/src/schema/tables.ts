@@ -2063,11 +2063,48 @@ export interface AdminiumShippingQuotesTable {
   purpose: string;
   parcelNumber: number;
   carrierKey: string;
+  /** Wave 0104: the account the quote was priced under. */
+  accountFingerprint: ColumnType<string | null, string | null | undefined, string | null>;
   detailsHash: string;
   rates: JsonColumn;
   createdBy: string | null;
   createdAt: Ts;
   expiresAt: Ts;
+}
+
+/**
+ * Wave 0104 — what a carrier said of the key saved for one carrier install.
+ * The key itself is in the encrypted credential store; this holds its last
+ * four characters and keyed hashes.
+ */
+export interface AdminiumShippingAccountsTable {
+  carrierInstallId: string;
+  mode: string;
+  fingerprint: string;
+  keyHash: string;
+  keyHint: string;
+  state: string;
+  carriers: JsonColumn;
+  checkedBy: string | null;
+  checkedAt: Ts;
+}
+
+/** Wave 0104 — what one app install lets people spend who do not manage shipping. */
+export interface AdminiumShippingLimitsTable {
+  installId: string;
+  labelLimit: string | null;
+  labelCurrency: string | null;
+  dailyLabels: number | null;
+  packersAbroad: ColumnType<unknown, boolean, boolean>;
+  updatedBy: string | null;
+  updatedAt: Ts;
+}
+
+/** Wave 0104 — the labels counted against one app install's daily limit, per shop day. */
+export interface AdminiumShippingDayLabelsTable {
+  installId: string;
+  day: string;
+  labels: number;
 }
 
 /**
@@ -2422,6 +2459,9 @@ export interface MetaDB {
   adminium_source_days: AdminiumSourceDaysTable;
   adminium_shipping_settings: AdminiumShippingSettingsTable;
   adminium_shipping_quotes: AdminiumShippingQuotesTable;
+  adminium_shipping_accounts: AdminiumShippingAccountsTable;
+  adminium_shipping_limits: AdminiumShippingLimitsTable;
+  adminium_shipping_day_labels: AdminiumShippingDayLabelsTable;
 }
 
 /**
@@ -2539,4 +2579,7 @@ export const META_TABLE_NAMES = [
   'adminium_source_days',
   'adminium_shipping_settings',
   'adminium_shipping_quotes',
+  'adminium_shipping_accounts',
+  'adminium_shipping_limits',
+  'adminium_shipping_day_labels',
 ] as const satisfies readonly (keyof MetaDB)[];

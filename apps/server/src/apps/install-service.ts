@@ -138,6 +138,7 @@ import {
   addOnGrantsOf,
   privacyGrantsOf,
   refundGrantsOf,
+  shippingGrantsOf,
   grantsAdded,
   addOnPageGrantIssues,
   plannedAfterInstallOfRoles,
@@ -1342,6 +1343,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const isAdded = (role: string, addOn?: string) =>
       addOn === undefined ? added.privacyGrants.some((grant) => grant.role === role) : added.addOnGrants.some((grant) => grant.role === role && grant.addOn === addOn);
     const refundAdded = (role: string) => added.refundGrants.some((grant) => grant.role === role);
+    const shippingAdded = (role: string, action: string) => added.shippingGrants.some((grant) => grant.role === role && grant.action === action);
     return {
       plan,
       shapeRecords: shapes === null ? new Map() : shapeRecordsFor(manifest, shapes),
@@ -1410,6 +1412,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         ...(privacyGrantsOf(manifest).length === 0 ? {} : { privacyGrants: privacyGrantsOf(manifest).map((grant) => (isAdded(grant.role) ? { ...grant, added: true as const } : grant)) }),
         // The roles that would refund the app's own online payments: each ticked, for the installer to untick.
         ...(refundGrantsOf(manifest).length === 0 ? {} : { refundGrants: refundGrantsOf(manifest).map((grant) => (refundAdded(grant.role) ? { ...grant, added: true as const } : grant)) }),
+        ...(shippingGrantsOf(manifest).length === 0 ? {} : { shippingGrants: shippingGrantsOf(manifest).map((grant) => (shippingAdded(grant.role, grant.action) ? { ...grant, added: true as const } : grant)) }),
         // What each role would hold of the tables of the add-ons the app names, once each is there for it: with the columns, cut to the add-on's words.
         ...(roleTables.length === 0 ? {} : { roleTables }),
         pageWarnings:
@@ -3685,16 +3688,17 @@ export function createAppInstallService(deps: AppRoutesDeps) {
      * before anything moves.
      */
     const newGrants = grantsAdded(installed.document as Manifest | null, manifest);
-    if ((newGrants.privacyGrants.length > 0 || newGrants.addOnGrants.length > 0 || newGrants.refundGrants.length > 0) && input.body?.roleGrants !== true) {
+    if ((newGrants.privacyGrants.length > 0 || newGrants.addOnGrants.length > 0 || newGrants.refundGrants.length > 0 || newGrants.shippingGrants.length > 0) && input.body?.roleGrants !== true) {
       const said = [
         ...newGrants.privacyGrants.map((grant) => `"${grant.roleName}" may find, download and erase people's data`),
         ...newGrants.refundGrants.map((grant) => `"${grant.roleName}" may refund the app's online payments`),
+        ...newGrants.shippingGrants.map((grant) => `"${grant.roleName}" may ${grant.action === 'book' ? 'buy shipping labels' : grant.action === 'cancel' ? 'ask for a shipping label to be refunded' : 'declare customs'}`),
         ...newGrants.addOnGrants.map((grant) => `"${grant.roleName}" may change the settings of the add-on "${grant.addOn}"`),
       ];
       throw new ValidationFailedError(
         `"${key}" ${to} gives its roles more than ${from} did: ${said.join('; ')}. ` +
           'Check the update and allow it ("roleGrants": true), or keep the running version.',
-        { reason: 'ROLE_GRANTS_ADDED', privacyGrants: newGrants.privacyGrants, addOnGrants: newGrants.addOnGrants, refundGrants: newGrants.refundGrants },
+        { reason: 'ROLE_GRANTS_ADDED', privacyGrants: newGrants.privacyGrants, addOnGrants: newGrants.addOnGrants, refundGrants: newGrants.refundGrants, shippingGrants: newGrants.shippingGrants },
       );
     }
 
