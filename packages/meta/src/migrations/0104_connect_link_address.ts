@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0103 — the address a connect link was made for, as a digest.
+ * Wave 0104 — the address a connect link was made for, as a digest.
  *
  * A link names a row by its key, and a key can come to mean someone else: an
  * address corrected on the row, or a deleted row's key used again. A link whose
