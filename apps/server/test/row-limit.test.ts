@@ -322,7 +322,7 @@ for (const [dialect, available] of ENGINES) {
         expect(await w.reached(owner, 'one_to_ones', 'delete')).toEqual([]);
         const admin = (await rolesRepo(w.meta).findBySlug('super-admin'))!;
         const key = await apiKeysRepo(w.meta).create({ name: 'k', tokenHash: 'h1', prefix: 'adm_sk_1', roleId: admin.id, createdBy: w.owner.id });
-        const set = await resolvePermissionSet(w.meta, { kind: 'api-key', id: key.id, label: 'k', roleId: admin.id });
+        const set = await resolvePermissionSet(w.meta, { kind: 'api-key', id: key.id, label: 'k', roleId: admin.id, madeBy: w.owner.id });
         expect(await w.reached(set, 'one_to_ones')).toEqual([]);
         expect(await w.reached(set, 'deals')).toBe('all');
       });
@@ -333,12 +333,12 @@ for (const [dialect, available] of ENGINES) {
         for (const slug of ['rep', 'inbox', 'accounts']) {
           const role = (await rolesRepo(w.meta).findBySlug(slug))!;
           const key = await apiKeysRepo(w.meta).create({ name: slug, tokenHash: `h-${slug}`, prefix: `adm_sk_${slug}`, roleId: role.id, createdBy: w.owner.id });
-          const set = await resolvePermissionSet(w.meta, { kind: 'api-key', id: key.id, label: slug, roleId: role.id });
+          const set = await resolvePermissionSet(w.meta, { kind: 'api-key', id: key.id, label: slug, roleId: role.id, madeBy: w.owner.id });
           expect(set.reach).toEqual({ userId: null, ledIds: [] });
           expect(await w.reached(set, 'deals'), slug).toEqual([]);
         }
         const reader = (await rolesRepo(w.meta).findBySlug('reader'))!;
-        expect(await w.reached(await resolvePermissionSet(w.meta, { kind: 'api-key', id: 'key_x', label: 'r', roleId: reader.id }), 'deals')).toBe('all');
+        expect(await w.reached(await resolvePermissionSet(w.meta, { kind: 'api-key', id: 'key_x', label: 'r', roleId: reader.id, madeBy: null }), 'deals')).toBe('all');
       });
 
       it('roles resolved with no person behind them reach no limited row', async () => {

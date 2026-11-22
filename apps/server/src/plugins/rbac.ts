@@ -165,7 +165,7 @@ export const rbacPlugin = fp<RbacPluginOptions>(
       if (row === null) {
         throw new UnauthorizedError('UNAUTHENTICATED', 'Invalid, expired, or revoked API key.');
       }
-      request.apiKeyPrincipal = { kind: 'api-key', id: row.id, label: row.name, roleId: row.roleId };
+      request.apiKeyPrincipal = { kind: 'api-key', id: row.id, label: row.name, roleId: row.roleId, madeBy: row.createdBy };
       if (row.lastUsedAt === null || at - row.lastUsedAt >= API_KEY_TOUCH_INTERVAL_MS) {
         await apiKeys.touchLastUsed(row.id, at);
       }

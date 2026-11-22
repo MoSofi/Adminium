@@ -54,6 +54,8 @@ export interface WriteActor {
   id: string | null;
   /** What the audit trail shows: a name, a key label, a rule's name. */
   label: string;
+  /** An API key's maker: a "not by this person" guard holds their key too (`crud/change-guards.ts`). */
+  madeBy?: string | null | undefined;
 }
 
 export interface WriteContext {

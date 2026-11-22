@@ -222,7 +222,7 @@ export function requestWriteContext(request: FastifyRequest, origin: WriteOrigin
   return {
     origin,
     hops: 0,
-    actor: principal === null ? null : { kind: principal.kind, id: principal.id, label: principal.label },
+    actor: principal === null ? null : { kind: principal.kind, id: principal.id, label: principal.label, ...(principal.kind === 'api-key' ? { madeBy: principal.madeBy } : {}) },
     request,
     ...(locale === null ? {} : { adjust: { locale } }),
   };
