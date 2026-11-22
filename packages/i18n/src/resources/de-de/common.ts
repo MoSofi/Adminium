@@ -1945,6 +1945,10 @@ export default {
       "body": "{name} kann sich nicht mehr anmelden und wird überall abgemeldet. Konto, Rollen und Verlauf bleiben erhalten, und Sie können die Sperre aufheben.",
       "failed": "Das Konto wurde nicht gesperrt",
       "confirmHand": "Übergeben und sperren"
+    },
+    "apiKeys": {
+      "revokedOnSuspend": "Alle API-Schlüssel, die {name} erstellt hat, werden jetzt widerrufen. Eine Reaktivierung von {name} bringt sie nicht zurück.",
+      "revokedOnRemove": "Alle API-Schlüssel, die {name} erstellt hat, werden widerrufen."
     }
   },
   "invoices": {

@@ -1945,6 +1945,10 @@ export default {
       "body": "{name} kan ikke længere logge ind og bliver logget ud overalt. Konto, roller og historik bevares, og du kan genaktivere dem.",
       "failed": "Kontoen blev ikke suspenderet",
       "confirmHand": "Overdrag og suspendér"
+    },
+    "apiKeys": {
+      "revokedOnSuspend": "Alle API-nøgler, som {name} har oprettet, tilbagekaldes nu. Genaktivering af {name} bringer dem ikke tilbage.",
+      "revokedOnRemove": "Alle API-nøgler, som {name} har oprettet, tilbagekaldes."
     }
   },
   "invoices": {

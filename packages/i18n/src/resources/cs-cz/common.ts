@@ -1945,6 +1945,10 @@ export default {
       "body": "{name} se už nebude moci přihlásit a bude všude odhlášen(a). Účet, role a historie zůstanou a můžete je znovu aktivovat.",
       "failed": "Účet se nepodařilo pozastavit",
       "confirmHand": "Předat a pozastavit"
+    },
+    "apiKeys": {
+      "revokedOnSuspend": "Všechny klíče API, které vytvořil uživatel {name}, se nyní odvolají. Opětovná aktivace uživatele {name} je nevrátí.",
+      "revokedOnRemove": "Všechny klíče API, které vytvořil uživatel {name}, se odvolají."
     }
   },
   "invoices": {

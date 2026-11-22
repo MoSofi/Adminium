@@ -1945,6 +1945,10 @@ export default {
       "body": "{name} 将无法再登录，并会在所有地方退出登录。其账号、角色和历史都会保留，你可以重新启用。",
       "failed": "账号未暂停",
       "confirmHand": "移交并暂停"
+    },
+    "apiKeys": {
+      "revokedOnSuspend": "{name} 创建的所有 API 密钥现在都会被吊销。重新启用 {name} 不会恢复这些密钥。",
+      "revokedOnRemove": "{name} 创建的所有 API 密钥都会被吊销。"
     }
   },
   "invoices": {

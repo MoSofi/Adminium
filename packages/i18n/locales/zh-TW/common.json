@@ -1935,6 +1935,10 @@
       "body": "{name} 將無法再登入，並會在所有地方登出。其帳號、角色和歷史都會保留，你可以重新啟用。",
       "failed": "帳號未停權",
       "confirmHand": "移交並停權"
+    },
+    "apiKeys": {
+      "revokedOnSuspend": "{name} 建立的所有 API 金鑰現在都會被撤銷。重新啟用 {name} 不會恢復這些金鑰。",
+      "revokedOnRemove": "{name} 建立的所有 API 金鑰都會被撤銷。"
     }
   },
   "invoices": {

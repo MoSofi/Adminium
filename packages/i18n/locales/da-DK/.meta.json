@@ -9183,6 +9183,14 @@
     "status": "mt",
     "srcHash": "8fd70858f7ff"
   },
+  "common.team.apiKeys.revokedOnRemove": {
+    "status": "mt",
+    "srcHash": "65bf0d150baf"
+  },
+  "common.team.apiKeys.revokedOnSuspend": {
+    "status": "mt",
+    "srcHash": "c4b58e3d03c3"
+  },
   "common.team.column.actions": {
     "status": "mt",
     "srcHash": "c3cd636a585b"

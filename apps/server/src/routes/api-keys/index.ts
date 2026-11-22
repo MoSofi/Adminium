@@ -7,9 +7,9 @@
  * Mutations audit under the `system` category (matrix).
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { apiKeysRepo, permissionsRepo, rolesRepo, type ApiKey } from '@adminium/meta';
+import { apiKeysRepo, permissionsRepo, rolesRepo, usersRepo, type ApiKey } from '@adminium/meta';
 
-import { ConflictError, NotFoundError } from '../../errors.js';
+import { ConflictError, ForbiddenError, NotFoundError } from '../../errors.js';
 import { generateApiKey } from '../../rbac/api-keys.js';
 import { PERMISSIONS, grantsFromMatrixRows } from '../../rbac/permissions.js';
 import {
@@ -78,6 +78,11 @@ export const apiKeysRoutes: FastifyPluginAsyncZod = async (app) => {
         },
         app.rbac.now(),
       );
+      // Their account was stopped while this request ran, after its keys were settled: this one must not outlive it.
+      if (actingUserId !== null && (await usersRepo(meta).findById(actingUserId))?.status !== 'active') {
+        await apiKeys.revoke(row.id, app.rbac.now());
+        throw new ForbiddenError('This account is no longer active.');
+      }
       const scopes = role.slug === 'super-admin'
         ? ['*']
         : grantsFromMatrixRows(await permissions.listForRole(role.id));

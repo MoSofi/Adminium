@@ -1945,6 +1945,10 @@ export default {
       "body": "{name} ne peut plus se connecter et est déconnecté·e partout. Son compte, ses rôles et son historique restent, et vous pourrez le réactiver.",
       "failed": "Le compte n’a pas été suspendu",
       "confirmHand": "Confier et suspendre"
+    },
+    "apiKeys": {
+      "revokedOnSuspend": "Toutes les clés API créées par {name} sont révoquées maintenant. Réactiver {name} ne les rétablit pas.",
+      "revokedOnRemove": "Toutes les clés API créées par {name} sont révoquées."
     }
   },
   "invoices": {

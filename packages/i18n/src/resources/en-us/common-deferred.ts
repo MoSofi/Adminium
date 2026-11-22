@@ -641,6 +641,10 @@ export default {
       "body": "{name} can no longer sign in, and is signed out everywhere. Their account, roles and history stay, and you can reactivate them.",
       "failed": "The account was not suspended",
       "confirmHand": "Hand over and suspend"
+    },
+    "apiKeys": {
+      "revokedOnSuspend": "Any API keys {name} made are revoked now. Reactivating {name} does not bring them back.",
+      "revokedOnRemove": "Any API keys {name} made are revoked."
     }
   },
   "quietHours": {
