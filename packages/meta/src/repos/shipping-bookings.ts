@@ -171,6 +171,22 @@ function checkFields(fields: ShippingBookingFields): void {
   if (!fits(fields.reason, SHIPPING_REASON_WIDTH)) throw new Error('A reason is longer than its column.');
 }
 
+/**
+ * Moves a label's keeping clock forward. Never backwards, so an old event
+ * arriving late cannot shorten the time, and never to before the purchase,
+ * which is where the clock already stands.
+ */
+export async function moveLabelClock(db: MetaDb['db'], id: string, at: number): Promise<void> {
+  await db
+    .updateTable('adminium_shipping_bookings')
+    .set({ labelClockAt: at })
+    .where('id', '=', id)
+    .where('labelGoneAt', 'is', null)
+    .where('createdAt', '<=', at)
+    .where((eb) => eb.or([eb('labelClockAt', 'is', null), eb('labelClockAt', '<', at)]))
+    .execute();
+}
+
 /** Rolls a hand-over back when one side of it has moved on. */
 class SlotMoved extends Error {}
 
@@ -457,17 +473,10 @@ export function shippingBookingsRepo(meta: MetaDb) {
 
     /**
      * The label's last state moved on (delivery, a tracking event, a settled
-     * refund): its 90 days count from here. Never moves backwards, so an old
-     * event arriving late cannot shorten the time.
+     * refund): its 90 days count from here.
      */
     async noteLabelClock(id: string, at: number): Promise<void> {
-      await db
-        .updateTable('adminium_shipping_bookings')
-        .set({ labelClockAt: at })
-        .where('id', '=', id)
-        .where('labelGoneAt', 'is', null)
-        .where((eb) => eb.or([eb('labelClockAt', 'is', null), eb('labelClockAt', '<', at)]))
-        .execute();
+      await moveLabelClock(db, id, at);
     },
 
     /** Bought labels whose last state is older than `before`, and whose files are not yet gone. In id order. */

@@ -3,7 +3,7 @@
  * BACKGROUND TRACKING: BUILT, AND LOCKED OFF.
  *
  * Shippo's terms bar processes that run while nobody is logged in, and the
- * owner has not ruled on Shippo's reply (Q15). So `mayPoll` in `locks.ts`, a
+ * owner has not ruled on Shippo's reply. So `mayPoll` in `locks.ts`, a
  * literal in code, is the first thing asked: while it says no, no job is
  * registered, no schedule exists, no key is read, and a stored per-install
  * switch means nothing. Turning this on is a reviewed commit to that file.

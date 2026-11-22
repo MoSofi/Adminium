@@ -112103,7 +112103,8 @@
                             "document",
                             "package",
                             "stranger",
-                            "landing"
+                            "landing",
+                            "ship-label"
                           ]
                         },
                         "destinationId": {
@@ -112245,7 +112246,8 @@
                 "document",
                 "package",
                 "stranger",
-                "landing"
+                "landing",
+                "ship-label"
               ]
             },
             "in": "query",
@@ -112436,7 +112438,8 @@
                               "document",
                               "package",
                               "stranger",
-                              "landing"
+                              "landing",
+                              "ship-label"
                             ]
                           },
                           "destinationId": {
@@ -112626,7 +112629,8 @@
                             "document",
                             "package",
                             "stranger",
-                            "landing"
+                            "landing",
+                            "ship-label"
                           ]
                         },
                         "destinationId": {
@@ -112845,7 +112849,8 @@
                             "document",
                             "package",
                             "stranger",
-                            "landing"
+                            "landing",
+                            "ship-label"
                           ]
                         },
                         "destinationId": {
@@ -113014,7 +113019,8 @@
                             "document",
                             "package",
                             "stranger",
-                            "landing"
+                            "landing",
+                            "ship-label"
                           ]
                         },
                         "destinationId": {
@@ -113163,7 +113169,8 @@
                             "document",
                             "package",
                             "stranger",
-                            "landing"
+                            "landing",
+                            "ship-label"
                           ]
                         },
                         "destinationId": {
@@ -113334,7 +113341,8 @@
                                   "document",
                                   "package",
                                   "stranger",
-                                  "landing"
+                                  "landing",
+                                  "ship-label"
                                 ]
                               },
                               "destinationId": {
@@ -113550,7 +113558,8 @@
                             "document",
                             "package",
                             "stranger",
-                            "landing"
+                            "landing",
+                            "ship-label"
                           ]
                         },
                         "destinationId": {
@@ -113701,7 +113710,8 @@
                             "document",
                             "package",
                             "stranger",
-                            "landing"
+                            "landing",
+                            "ship-label"
                           ]
                         },
                         "destinationId": {
@@ -113852,7 +113862,8 @@
                             "document",
                             "package",
                             "stranger",
-                            "landing"
+                            "landing",
+                            "ship-label"
                           ]
                         },
                         "destinationId": {
@@ -131563,6 +131574,7 @@
                                   "automation-runs",
                                   "notifications",
                                   "files",
+                                  "shipping-labels",
                                   "form-answers",
                                   "form-invitations",
                                   "form-files",
@@ -131723,6 +131735,7 @@
                                   "invoices",
                                   "payments",
                                   "payment-events",
+                                  "shipping-bookings",
                                   "automation-runs",
                                   "notifications",
                                   "campaign-failures",
@@ -131739,6 +131752,7 @@
                                   "safety",
                                   "issued-document",
                                   "payment-records",
+                                  "carrier-records",
                                   "kept-a-while",
                                   "objection"
                                 ]
@@ -131841,6 +131855,12 @@
                                     "type": "string",
                                     "enum": [
                                       "until-removed"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "ninety-days"
                                     ]
                                   },
                                   {
@@ -131977,6 +131997,12 @@
                                     "type": "string",
                                     "enum": [
                                       "until-removed"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "ninety-days"
                                     ]
                                   },
                                   {
@@ -132830,6 +132856,7 @@
                                   "consent",
                                   "campaign-mail",
                                   "files",
+                                  "shipping-labels",
                                   "form-answers",
                                   "form-invitations",
                                   "form-files",
@@ -132875,6 +132902,7 @@
                                   "invoices",
                                   "payments",
                                   "payment-events",
+                                  "shipping-bookings",
                                   "automation-runs",
                                   "notifications",
                                   "campaign-failures",
@@ -132891,6 +132919,7 @@
                                   "safety",
                                   "issued-document",
                                   "payment-records",
+                                  "carrier-records",
                                   "kept-a-while",
                                   "objection"
                                 ]
@@ -167645,6 +167674,14 @@
                             false
                           ]
                         },
+                        "labelSize": {
+                          "type": "string",
+                          "enum": [
+                            "a4",
+                            "a6",
+                            "4x6"
+                          ]
+                        },
                         "limits": {
                           "type": "object",
                           "properties": {
@@ -167700,6 +167737,7 @@
                         "shipFrom",
                         "shipFromMissing",
                         "international",
+                        "labelSize",
                         "limits"
                       ],
                       "additionalProperties": false
@@ -167909,6 +167947,14 @@
                             false
                           ]
                         },
+                        "labelSize": {
+                          "type": "string",
+                          "enum": [
+                            "a4",
+                            "a6",
+                            "4x6"
+                          ]
+                        },
                         "limits": {
                           "type": "object",
                           "properties": {
@@ -167964,6 +168010,7 @@
                         "shipFrom",
                         "shipFromMissing",
                         "international",
+                        "labelSize",
                         "limits"
                       ],
                       "additionalProperties": false
@@ -168340,6 +168387,14 @@
                             false
                           ]
                         },
+                        "labelSize": {
+                          "type": "string",
+                          "enum": [
+                            "a4",
+                            "a6",
+                            "4x6"
+                          ]
+                        },
                         "limits": {
                           "type": "object",
                           "properties": {
@@ -168395,6 +168450,7 @@
                         "shipFrom",
                         "shipFromMissing",
                         "international",
+                        "labelSize",
                         "limits"
                       ],
                       "additionalProperties": false
@@ -168568,6 +168624,46 @@
                               "applied": {
                                 "type": "boolean"
                               },
+                              "label": {
+                                "type": "object",
+                                "properties": {
+                                  "state": {
+                                    "type": "string",
+                                    "enum": [
+                                      "none",
+                                      "ready",
+                                      "owed",
+                                      "gone"
+                                    ]
+                                  },
+                                  "size": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "sizeGot": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "sizeDiffers": {
+                                    "type": "boolean"
+                                  },
+                                  "customsInvoice": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "state",
+                                  "size",
+                                  "sizeGot",
+                                  "sizeDiffers",
+                                  "customsInvoice"
+                                ],
+                                "additionalProperties": false
+                              },
                               "amount": {
                                 "type": "string"
                               },
@@ -168576,6 +168672,65 @@
                               },
                               "chargeDiffers": {
                                 "type": "boolean"
+                              },
+                              "track": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "status": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "UNKNOWN",
+                                              "PRE_TRANSIT",
+                                              "TRANSIT",
+                                              "FAILURE",
+                                              "RETURNED",
+                                              "DELIVERED"
+                                            ]
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "statusAt": {
+                                        "type": [
+                                          "number",
+                                          "null"
+                                        ]
+                                      },
+                                      "checkedAt": {
+                                        "type": [
+                                          "number",
+                                          "null"
+                                        ]
+                                      },
+                                      "flag": {
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
+                                      },
+                                      "newNumber": {
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": [
+                                      "status",
+                                      "statusAt",
+                                      "checkedAt",
+                                      "flag",
+                                      "newNumber"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               }
                             },
                             "required": [
@@ -168594,7 +168749,8 @@
                               "calledAt",
                               "checkedAt",
                               "releaseAfter",
-                              "applied"
+                              "applied",
+                              "label"
                             ],
                             "additionalProperties": false
                           }
@@ -168764,6 +168920,46 @@
                         "applied": {
                           "type": "boolean"
                         },
+                        "label": {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "none",
+                                "ready",
+                                "owed",
+                                "gone"
+                              ]
+                            },
+                            "size": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "sizeGot": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "sizeDiffers": {
+                              "type": "boolean"
+                            },
+                            "customsInvoice": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "size",
+                            "sizeGot",
+                            "sizeDiffers",
+                            "customsInvoice"
+                          ],
+                          "additionalProperties": false
+                        },
                         "amount": {
                           "type": "string"
                         },
@@ -168772,6 +168968,65 @@
                         },
                         "chargeDiffers": {
                           "type": "boolean"
+                        },
+                        "track": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "status": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "UNKNOWN",
+                                        "PRE_TRANSIT",
+                                        "TRANSIT",
+                                        "FAILURE",
+                                        "RETURNED",
+                                        "DELIVERED"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "statusAt": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ]
+                                },
+                                "checkedAt": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ]
+                                },
+                                "flag": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "newNumber": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "status",
+                                "statusAt",
+                                "checkedAt",
+                                "flag",
+                                "newNumber"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -168790,7 +169045,8 @@
                         "calledAt",
                         "checkedAt",
                         "releaseAfter",
-                        "applied"
+                        "applied",
+                        "label"
                       ],
                       "additionalProperties": false
                     }
@@ -168930,6 +169186,46 @@
                             "applied": {
                               "type": "boolean"
                             },
+                            "label": {
+                              "type": "object",
+                              "properties": {
+                                "state": {
+                                  "type": "string",
+                                  "enum": [
+                                    "none",
+                                    "ready",
+                                    "owed",
+                                    "gone"
+                                  ]
+                                },
+                                "size": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "sizeGot": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "sizeDiffers": {
+                                  "type": "boolean"
+                                },
+                                "customsInvoice": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "state",
+                                "size",
+                                "sizeGot",
+                                "sizeDiffers",
+                                "customsInvoice"
+                              ],
+                              "additionalProperties": false
+                            },
                             "amount": {
                               "type": "string"
                             },
@@ -168938,6 +169234,65 @@
                             },
                             "chargeDiffers": {
                               "type": "boolean"
+                            },
+                            "track": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "status": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "enum": [
+                                            "UNKNOWN",
+                                            "PRE_TRANSIT",
+                                            "TRANSIT",
+                                            "FAILURE",
+                                            "RETURNED",
+                                            "DELIVERED"
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "statusAt": {
+                                      "type": [
+                                        "number",
+                                        "null"
+                                      ]
+                                    },
+                                    "checkedAt": {
+                                      "type": [
+                                        "number",
+                                        "null"
+                                      ]
+                                    },
+                                    "flag": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "newNumber": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": [
+                                    "status",
+                                    "statusAt",
+                                    "checkedAt",
+                                    "flag",
+                                    "newNumber"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
                             }
                           },
                           "required": [
@@ -168956,7 +169311,8 @@
                             "calledAt",
                             "checkedAt",
                             "releaseAfter",
-                            "applied"
+                            "applied",
+                            "label"
                           ],
                           "additionalProperties": false
                         }
@@ -169110,6 +169466,46 @@
                         "applied": {
                           "type": "boolean"
                         },
+                        "label": {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "none",
+                                "ready",
+                                "owed",
+                                "gone"
+                              ]
+                            },
+                            "size": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "sizeGot": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "sizeDiffers": {
+                              "type": "boolean"
+                            },
+                            "customsInvoice": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "size",
+                            "sizeGot",
+                            "sizeDiffers",
+                            "customsInvoice"
+                          ],
+                          "additionalProperties": false
+                        },
                         "amount": {
                           "type": "string"
                         },
@@ -169118,6 +169514,65 @@
                         },
                         "chargeDiffers": {
                           "type": "boolean"
+                        },
+                        "track": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "status": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "UNKNOWN",
+                                        "PRE_TRANSIT",
+                                        "TRANSIT",
+                                        "FAILURE",
+                                        "RETURNED",
+                                        "DELIVERED"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "statusAt": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ]
+                                },
+                                "checkedAt": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ]
+                                },
+                                "flag": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "newNumber": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "status",
+                                "statusAt",
+                                "checkedAt",
+                                "flag",
+                                "newNumber"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -169136,7 +169591,888 @@
                         "calledAt",
                         "checkedAt",
                         "releaseAfter",
-                        "applied"
+                        "applied",
+                        "label"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/shipping/bookings/{id}/documents/{kind}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "label",
+                "customs-invoice"
+              ]
+            },
+            "in": "path",
+            "name": "kind",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "label",
+                "customs-invoice"
+              ]
+            },
+            "in": "path",
+            "name": "kind",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "reserved",
+                            "calling",
+                            "booked",
+                            "refused",
+                            "unknown",
+                            "released"
+                          ]
+                        },
+                        "test": {
+                          "type": "boolean"
+                        },
+                        "purpose": {
+                          "type": "string"
+                        },
+                        "parcelNumber": {
+                          "type": "number"
+                        },
+                        "carrier": {
+                          "type": "string"
+                        },
+                        "service": {
+                          "type": "string"
+                        },
+                        "tracking": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "carrierName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "reason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "duplicates": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "number"
+                        },
+                        "calledAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "checkedAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "releaseAfter": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "applied": {
+                          "type": "boolean"
+                        },
+                        "label": {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "none",
+                                "ready",
+                                "owed",
+                                "gone"
+                              ]
+                            },
+                            "size": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "sizeGot": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "sizeDiffers": {
+                              "type": "boolean"
+                            },
+                            "customsInvoice": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "size",
+                            "sizeGot",
+                            "sizeDiffers",
+                            "customsInvoice"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "amount": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "chargeDiffers": {
+                          "type": "boolean"
+                        },
+                        "track": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "status": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "UNKNOWN",
+                                        "PRE_TRANSIT",
+                                        "TRANSIT",
+                                        "FAILURE",
+                                        "RETURNED",
+                                        "DELIVERED"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "statusAt": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ]
+                                },
+                                "checkedAt": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ]
+                                },
+                                "flag": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "newNumber": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "status",
+                                "statusAt",
+                                "checkedAt",
+                                "flag",
+                                "newNumber"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "state",
+                        "test",
+                        "purpose",
+                        "parcelNumber",
+                        "carrier",
+                        "service",
+                        "tracking",
+                        "carrierName",
+                        "reason",
+                        "duplicates",
+                        "createdAt",
+                        "calledAt",
+                        "checkedAt",
+                        "releaseAfter",
+                        "applied",
+                        "label"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/shipping/label-size": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "size": {
+                    "type": "string",
+                    "enum": [
+                      "a4",
+                      "a6",
+                      "4x6"
+                    ]
+                  }
+                },
+                "required": [
+                  "size"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "labelSize": {
+                          "type": "string",
+                          "enum": [
+                            "a4",
+                            "a6",
+                            "4x6"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "labelSize"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/shipping/bookings/{id}/refresh": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "type": "string",
+                          "enum": [
+                            "updated",
+                            "unchanged",
+                            "no-events",
+                            "recent",
+                            "test",
+                            "not-open",
+                            "other-account",
+                            "no-answer",
+                            "rate-limited"
+                          ]
+                        },
+                        "track": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "status": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "UNKNOWN",
+                                        "PRE_TRANSIT",
+                                        "TRANSIT",
+                                        "FAILURE",
+                                        "RETURNED",
+                                        "DELIVERED"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "statusAt": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ]
+                                },
+                                "checkedAt": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ]
+                                },
+                                "flag": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "newNumber": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "status",
+                                "statusAt",
+                                "checkedAt",
+                                "flag",
+                                "newNumber"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "outcome",
+                        "track"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/shipping/tracking/refresh": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "type": "string",
+                          "enum": [
+                            "done",
+                            "recent",
+                            "rate-limited"
+                          ]
+                        },
+                        "checked": {
+                          "type": "number"
+                        },
+                        "updated": {
+                          "type": "number"
+                        },
+                        "failed": {
+                          "type": "number"
+                        },
+                        "remaining": {
+                          "type": "number"
+                        },
+                        "more": {
+                          "type": "boolean"
+                        },
+                        "oldestCheckedAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "neverChecked": {
+                          "type": "number"
+                        },
+                        "retryAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "outcome",
+                        "checked",
+                        "updated",
+                        "failed",
+                        "remaining",
+                        "more",
+                        "oldestCheckedAt",
+                        "neverChecked",
+                        "retryAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/shipping/carriers/{carrier}/tracking": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "carrier",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "carrier": {
+                          "type": "string"
+                        },
+                        "webhook": {
+                          "type": "object",
+                          "properties": {
+                            "supported": {
+                              "type": "boolean"
+                            },
+                            "address": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "made": {
+                              "type": "boolean"
+                            },
+                            "madeAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "firstAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "lastAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "lastBadAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "supported",
+                            "address",
+                            "made",
+                            "madeAt",
+                            "firstAt",
+                            "lastAt",
+                            "lastBadAt"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "parcels": {
+                          "type": "object",
+                          "properties": {
+                            "open": {
+                              "type": "number"
+                            },
+                            "neverChecked": {
+                              "type": "number"
+                            },
+                            "oldestCheckedAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "quiet": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "open",
+                            "neverChecked",
+                            "oldestCheckedAt",
+                            "quiet"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "polling": {
+                          "type": "object",
+                          "properties": {
+                            "allowed": {
+                              "type": "boolean"
+                            },
+                            "on": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "allowed",
+                            "on"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "carrier",
+                        "webhook",
+                        "parcels",
+                        "polling"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/shipping/carriers/{carrier}/webhook": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "carrier",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "address": {
+                          "type": "string"
+                        },
+                        "madeAt": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "address",
+                        "madeAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/shipping/carriers/{carrier}/polling": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "on": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "on"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "carrier",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "on": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "on"
                       ],
                       "additionalProperties": false
                     }
@@ -169442,6 +170778,14 @@
                             false
                           ]
                         },
+                        "labelSize": {
+                          "type": "string",
+                          "enum": [
+                            "a4",
+                            "a6",
+                            "4x6"
+                          ]
+                        },
                         "limits": {
                           "type": "object",
                           "properties": {
@@ -169497,6 +170841,7 @@
                         "shipFrom",
                         "shipFromMissing",
                         "international",
+                        "labelSize",
                         "limits"
                       ],
                       "additionalProperties": false
@@ -169719,6 +171064,14 @@
                             false
                           ]
                         },
+                        "labelSize": {
+                          "type": "string",
+                          "enum": [
+                            "a4",
+                            "a6",
+                            "4x6"
+                          ]
+                        },
                         "limits": {
                           "type": "object",
                           "properties": {
@@ -169774,6 +171127,7 @@
                         "shipFrom",
                         "shipFromMissing",
                         "international",
+                        "labelSize",
                         "limits"
                       ],
                       "additionalProperties": false
@@ -170028,6 +171382,14 @@
                             false
                           ]
                         },
+                        "labelSize": {
+                          "type": "string",
+                          "enum": [
+                            "a4",
+                            "a6",
+                            "4x6"
+                          ]
+                        },
                         "limits": {
                           "type": "object",
                           "properties": {
@@ -170083,6 +171445,7 @@
                         "shipFrom",
                         "shipFromMissing",
                         "international",
+                        "labelSize",
                         "limits"
                       ],
                       "additionalProperties": false

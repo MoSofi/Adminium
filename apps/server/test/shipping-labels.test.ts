@@ -27,6 +27,7 @@ import {
   postgresInt8AsNumber,
   shippingBookingsRepo,
   shippingRepo,
+  shippingTrackingRepo,
   usersRepo,
   type MetaDb,
   type ShippingBooking,
@@ -492,6 +493,34 @@ describe.each(LEGS)('a label\'s file on %s', (dialect, available) => {
     expect((await sweepLabelFiles(deps())).deleted).toBe(0);
     clock = lastEvent + LABEL_KEEP_MS + 1;
     expect((await sweepLabelFiles(deps())).deleted).toBe(1);
+  });
+
+  it.skipIf(!available)('a tracking event moves the label\'s clock, in the same step as the parcel\'s status', async () => {
+    const booking = await fetchDocument(deps(), await bought(), resolved(), { pk: { id: 1 } }, 'label', by);
+    const tracking = shippingTrackingRepo(meta);
+    await tracking.ensureParcel(booking.id, booking.carrierInstallId, clock);
+    expect(await tracking.applyStatus(booking.id, 'UNKNOWN', T0 + DAY_MS, clock)).toBe(true);
+    expect((await repo().byId(booking.id))!.labelClockAt).toBeNull();
+    const delivered = T0 + 20 * DAY_MS;
+    expect(await tracking.applyStatus(booking.id, 'DELIVERED', delivered, clock)).toBe(true);
+    expect((await repo().byId(booking.id))!.labelClockAt).toBe(delivered);
+    // An older event moves neither.
+    expect(await tracking.applyStatus(booking.id, 'TRANSIT', T0 + 5 * DAY_MS, clock)).toBe(false);
+    expect((await repo().byId(booking.id))!.labelClockAt).toBe(delivered);
+    clock = T0 + LABEL_KEEP_MS + 1;
+    expect((await sweepLabelFiles(deps())).deleted).toBe(0);
+    clock = delivered + LABEL_KEEP_MS + 1;
+    expect((await sweepLabelFiles(deps())).deleted).toBe(1);
+  });
+
+  it.skipIf(!available)('an event dated before the purchase cannot shorten the time', async () => {
+    const booking = await fetchDocument(deps(), await bought(), resolved(), { pk: { id: 1 } }, 'label', by);
+    const tracking = shippingTrackingRepo(meta);
+    await tracking.ensureParcel(booking.id, booking.carrierInstallId, clock);
+    expect(await tracking.applyStatus(booking.id, 'TRANSIT', T0 - 30 * DAY_MS, clock)).toBe(true);
+    expect((await repo().byId(booking.id))!.labelClockAt).toBeNull();
+    clock = T0 + LABEL_KEEP_MS;
+    expect((await sweepLabelFiles(deps())).deleted).toBe(0);
   });
 
   it.skipIf(!available)('a refunded or released label goes too, and an owed one can never be fetched afterwards', async () => {

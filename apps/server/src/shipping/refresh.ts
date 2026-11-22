@@ -3,7 +3,7 @@
  * A PERSON ASKS WHERE A PARCEL IS.
  *
  * Every call here starts from someone pressing Refresh, which is what the
- * carrier's terms allow without question (Q15). "Refresh open parcels" is the
+ * carrier's terms allow without question. "Refresh open parcels" is the
  * same press over a budget: a fixed batch, a time limit, a cool-down per
  * install, and a stop at the carrier's first "too many requests".
  *

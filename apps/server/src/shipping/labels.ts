@@ -15,7 +15,7 @@
  * The label is already paid for. A fetch that fails leaves it "owed", and a
  * person retries. Only a person's request calls the carrier.
  *
- * ─── HOW LONG IT IS KEPT (Q19, R2) ─────────────────────────────────────────
+ * ─── HOW LONG IT IS KEPT ──────────────────────────────────────────────────
  *
  * 90 days from the label's last state: delivery, the last tracking event, a
  * settled refund (`label_clock_at`), or the purchase when nothing came after.
@@ -47,7 +47,7 @@ export const SHIPPING_LABELS_SWEEP_NAME = 'shipping.labels.sweep';
 /** Daily, in the quiet of the night. */
 export const SHIPPING_LABELS_SWEEP_CRON = '40 3 * * *';
 
-/** How long a label's file is kept after its last state (Q19, R2). */
+/** How long a label's file is kept after its last state. */
 export const LABEL_KEEP_MS = 90 * DAY_MS;
 /** How long a carrier keeps a label to fetch again. */
 export const LABEL_REFETCH_MS = 365 * DAY_MS;

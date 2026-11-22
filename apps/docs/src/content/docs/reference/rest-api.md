@@ -109,7 +109,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/add-ons/*` | 41 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
 | `/api/v1/api-docs` | 1 | The public API catalogue behind /api-docs — what live keys can call; 404 while the page is off |
 | `/api/v1/api-keys/*` | 3 | Issue, list and revoke API keys |
-| `/api/v1/apps/*` | 62 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), rename an older install’s tables to the app’s prefix, change one app’s settings, switch it off and on, set its domains and instances, add and remove its sample data, discard a staged version, uninstall, and upload, review and install a workspace file (several apps in one), finishing a stopped one with Install the rest |
+| `/api/v1/apps/*` | 70 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), rename an older install’s tables to the app’s prefix, change one app’s settings, switch it off and on, set its domains and instances, add and remove its sample data, discard a staged version, uninstall, and upload, review and install a workspace file (several apps in one), finishing a stopped one with Install the rest |
 | `/api/v1/assistant/*` | 13 | The page assistant — open a session on a page, ask it something, read what the turn came back with, and act on the draft it proposed. Every route needs the assistant permission; saving what it drafts additionally needs the same permission the page’s own save needs. The assistant reads; nothing it does writes a record on its own. |
 | `/api/v1/audit/*` | 2 | The audit log — list and read single entries |
 | `/api/v1/auth/*` | 12 | Login, logout, session listing, 2FA enrolment, password change and reset |
@@ -316,19 +316,27 @@ GET /api/v1/apps/saves
 GET /api/v1/apps/save/{id}/file
 GET /api/v1/apps/{key}/editable
 POST /api/v1/apps/{key}/editable
-GET /api/v1/apps/{key}/shipping
-PUT /api/v1/apps/{key}/shipping/active-carrier
-PUT /api/v1/apps/{key}/shipping/ship-from
-POST /api/v1/apps/{key}/shipping/quotes
-GET /api/v1/apps/{key}/shipping/access
-PUT /api/v1/apps/{key}/shipping/limits
 PUT /api/v1/apps/{key}/shipping/carriers/{carrier}/key
-POST /api/v1/apps/{key}/shipping/carriers/{carrier}/check
 DELETE /api/v1/apps/{key}/shipping/carriers/{carrier}/key
+POST /api/v1/apps/{key}/shipping/carriers/{carrier}/check
+PUT /api/v1/apps/{key}/shipping/limits
 GET /api/v1/apps/{key}/shipping/bookings
 POST /api/v1/apps/{key}/shipping/bookings
 POST /api/v1/apps/{key}/shipping/bookings/{id}/check
 POST /api/v1/apps/{key}/shipping/bookings/{id}/release
+GET /api/v1/apps/{key}/shipping/bookings/{id}/documents/{kind}
+POST /api/v1/apps/{key}/shipping/bookings/{id}/documents/{kind}
+PUT /api/v1/apps/{key}/shipping/label-size
+POST /api/v1/apps/{key}/shipping/bookings/{id}/refresh
+POST /api/v1/apps/{key}/shipping/tracking/refresh
+GET /api/v1/apps/{key}/shipping/carriers/{carrier}/tracking
+POST /api/v1/apps/{key}/shipping/carriers/{carrier}/webhook
+PUT /api/v1/apps/{key}/shipping/carriers/{carrier}/polling
+GET /api/v1/apps/{key}/shipping/access
+GET /api/v1/apps/{key}/shipping
+PUT /api/v1/apps/{key}/shipping/active-carrier
+PUT /api/v1/apps/{key}/shipping/ship-from
+POST /api/v1/apps/{key}/shipping/quotes
 ```
 
 ### `/assistant`

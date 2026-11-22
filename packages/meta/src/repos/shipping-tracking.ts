@@ -14,6 +14,7 @@ import { newId } from '../ids.js';
 import { SHIPPING_CARRIER_TEXT_WIDTH, SHIPPING_URL_WIDTH } from '../migrations/0105_shipping_bookings.js';
 import { SHIPPING_TRACK_WORD_WIDTH } from '../migrations/0107_shipping_tracking.js';
 import type { AdminiumShippingParcelsTable, AdminiumShippingTrackEventsTable, AdminiumShippingTrackInstallsTable } from '../schema/tables.js';
+import { moveLabelClock } from './shipping-bookings.js';
 import { affected, isDuplicateKeyError } from './util.js';
 
 /** How far along each status is. A delivered or returned parcel is final. */
@@ -345,7 +346,8 @@ export function shippingTrackingRepo(meta: MetaDb) {
      */
     async applyStatus(bookingId: string, status: ShippingTrackStatus, statusAt: number, at: number, sameNumberSince?: number | null): Promise<boolean> {
       const rank = SHIPPING_TRACK_RANKS[status];
-      const moved = await db
+      return db.transaction().execute(async (trx) => {
+      const moved = await trx
         .updateTable('adminium_shipping_parcels')
         .set({ status, statusRank: rank, statusAt, updatedAt: at })
         .where('bookingId', '=', bookingId)
@@ -361,7 +363,11 @@ export function shippingTrackingRepo(meta: MetaDb) {
           ]);
         })
         .executeTakeFirst();
-      return affected(moved.numUpdatedRows) > 0;
+      if (affected(moved.numUpdatedRows) === 0) return false;
+      // A real event is the label's latest state: its file is kept 90 days from here, in the same step.
+      if (status !== 'UNKNOWN') await moveLabelClock(trx, bookingId, statusAt);
+      return true;
+      });
     },
 
     /** One person's refresh of one parcel per cool-down, decided by the UPDATE. */

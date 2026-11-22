@@ -23,7 +23,7 @@ export const DHL_REAL_MODE_ENABLED = false;
 
 export const BACKGROUND_CARRIER_CALLS_ENABLED = false;
 
-/** Which carriers may be asked about a parcel with nobody at the screen. Shippo's terms are with the owner (Q15). */
+/** Which carriers may be asked about a parcel with nobody at the screen. Shippo's terms are with the owner. */
 export const POLLING_ALLOWED: Readonly<Record<string, boolean>> = { 'shipping-shippo': false };
 
 export const INTERNATIONAL_ENABLED = false;
