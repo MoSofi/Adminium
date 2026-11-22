@@ -410,6 +410,7 @@ import { formsStaffRoutes } from './routes/forms/index.js';
 import { mailSettingsRoutes } from './routes/mail-settings/index.js';
 import { registerPrivacyExportHandler, sweepPrivacyExports } from './privacy/export.js';
 import { sweepFormAnswers } from './forms/answers.js';
+import { SHIPPING_LABELS_SWEEP_CRON, SHIPPING_LABELS_SWEEP_NAME, sweepLabelFiles } from './shipping/labels.js';
 import { ADD_ON_EXPIRE_SWEEP_CRON, ADD_ON_EXPIRE_SWEEP_NAME, sweepExpiredRows } from './add-ons/expire.js';
 import { mailNoticeRoutes } from './routes/mail-door/notices.js';
 import { createPayPageReader, payRoutes, type PayRoutesDeps } from './routes/pay/index.js';
@@ -1967,6 +1968,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     const swept = await sweepPrivacyExports(meta, storage);
     if (swept > 0) app.log.info({ swept }, 'privacy downloads sweep');
   });
+  // A label's file, 90 days after its last state. The booking and tracking number stay.
+  jobs.scheduler.registerSchedule(SHIPPING_LABELS_SWEEP_NAME, SHIPPING_LABELS_SWEEP_CRON, async () => {
+    const swept = await sweepLabelFiles({ meta, storage, now: Date.now, log: (message, fields) => app.log.warn(fields, message) });
+    if (swept.deleted > 0 || swept.failed > 0 || swept.orphans > 0) app.log.info(swept, 'shipping: label files swept');
+  }, { jitterMs: 60_000 });
   // A forms add-on's answers past the time its settings keep them: deleted by the engine, the add-on runs no timer.
   jobs.scheduler.registerSchedule(FORM_ANSWERS_SWEEP_NAME, FORM_ANSWERS_SWEEP_CRON, async () => {
     const swept = await sweepFormAnswers({ meta, manager, answerFiles: formsFiles.removeAnswerFiles });
@@ -3687,6 +3693,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           networkFeatures: () => addOnCatalog.networkFeaturesAllowed(),
           policy: app.trialPolicy,
           sources: paymentSources,
+          storage,
           openBookings: (carrierInstallId) => shippingBookingsRepo(meta).unresolved(carrierInstallId),
           ...(opts.shippingQuotesPerMinute === undefined ? {} : { quotesPerMinute: opts.shippingQuotesPerMinute }),
           enqueueApply: (bookingId) => enqueueApply((input) => jobs.enqueue(input), bookingId),

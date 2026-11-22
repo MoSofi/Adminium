@@ -4722,7 +4722,8 @@ export default {
         "answers": "Formularsvar",
         "invitations": "Invitationer til undersøgelser",
         "answerFiles": "Filer sendt med formularsvar",
-        "reviews": "Anmeldelser"
+        "reviews": "Anmeldelser",
+        "shippingLabels": "Pakker og labels"
       },
       "onList": "ja",
       "rows": "{count, plural, one {# række} other {# rækker}}",
@@ -4769,7 +4770,8 @@ export default {
         "answerFiles": "{count, plural, one {# fil} other {# filer}} sendt med formularsvar i {label}",
         "chats": "{count, plural, one {# chatsamtale} other {# chatsamtaler}} i {label}, med deres beskeder",
         "foundPeople": "{count, plural, one {# post} other {# poster}} om, hvor de blev fundet, i {label}, med de e-mails, der fortalte dem det",
-        "reviews": "{count, plural, one {# anmeldelse} other {# anmeldelser}} i {label}, beholdt uden navn"
+        "reviews": "{count, plural, one {# anmeldelse} other {# anmeldelser}} i {label}, beholdt uden navn",
+        "shippingLabels": "{count, plural, one {# fil med forsendelseslabel} other {# filer med forsendelseslabels}}"
       },
       "stays": {
         "forGood": "Gemmes for altid.",
@@ -4786,7 +4788,8 @@ export default {
         "automationRuns": "{count, plural, one {# regelkørsel i reglernes historik.} other {# regelkørsler i reglernes historik.}}",
         "notifications": "{count, plural, one {# notifikation til personalet.} other {# notifikationer til personalet.}}",
         "campaignFailures": "{count, plural, one {# fejlet kampagneudsendelse, gemt med kampagnens udsendelseslog.} other {# fejlede kampagneudsendelser, gemt med kampagnens udsendelseslog.}}",
-        "exports": "Dataeksporter, som personalet har lavet af en tabel, kan indeholde dem, indtil hver af dem udløber."
+        "exports": "Dataeksporter, som personalet har lavet af en tabel, kan indeholde dem, indtil hver af dem udløber.",
+        "shippingBookings": "{count, plural, one {# pakkebooking med sit sporingsnummer. Fragtfirmaet og forsendelsestjenesten beholder deres egen kopi.} other {# pakkebookinger med deres sporingsnumre. Fragtfirmaerne og forsendelsestjenesten beholder deres egne kopier.}}"
       },
       "mismatch": "Det er ikke den samme adresse. Skriv den igen.",
       "failed": "Sletningen blev ikke færdig. Slet igen for at gøre den færdig: det, der allerede er gjort, forbliver gjort.",
@@ -4840,7 +4843,10 @@ export default {
       "viewsSaveFailed": "Hvor længe ting gemmes, blev ikke gemt. Prøv igen.",
       "foundPeople": "Fundne personer — {addOn}",
       "foundPeopleYears": "{count, plural, one {Gemmes i # år} other {Gemmes i # år}}",
-      "foundPeopleWhy": "Indstillet i {addOn}s indstillinger, fra de blev fundet eller sidste gang de skrev. Den, der ikke har fået at vide, hvor oplysningerne kom fra, inden fristen, slettes da."
+      "foundPeopleWhy": "Indstillet i {addOn}s indstillinger, fra de blev fundet eller sidste gang de skrev. Den, der ikke har fået at vide, hvor oplysningerne kom fra, inden fristen, slettes da.",
+      "shippingLabels": "Filer med forsendelseslabels",
+      "shippingLabelsKept": "Slettes 90 dage efter levering",
+      "shippingLabelsWhy": "En pakke, der aldrig blev leveret: 90 dage efter den sidste sporingshændelse, refusionen eller købet. Bookingen og sporingsnummeret bliver."
     },
     "downloads": {
       "processing": "Bliver lavet…",

@@ -15,18 +15,28 @@
  */
 import { createHash } from 'node:crypto';
 
-import type { Selectable } from 'kysely';
+import { sql, type Selectable } from 'kysely';
 
 import type { MetaDb } from '../connect.js';
 import { newId } from '../ids.js';
 import { SHIPPING_CARRIER_WIDTH, SHIPPING_HASH_WIDTH, SHIPPING_ID_WIDTH, SHIPPING_ROW_WIDTH, SHIPPING_TABLE_WIDTH } from '../migrations/0103_shipping.js';
 import { SHIPPING_MONEY_WIDTH } from '../migrations/0104_shipping_keys.js';
 import { SHIPPING_CARRIER_TEXT_WIDTH, SHIPPING_REASON_WIDTH, SHIPPING_URL_WIDTH } from '../migrations/0105_shipping_bookings.js';
+import { SHIPPING_LABEL_GONE_WIDTH, SHIPPING_LABEL_SIZE_WIDTH } from '../migrations/0106_shipping_labels.js';
 import type { AdminiumShippingBookingsTable } from '../schema/tables.js';
 import { affected, isDuplicateKeyError, readBool, writeBool } from './util.js';
 import type { ShippingKeyMode, ShippingSlot } from './shipping.js';
 
-export { SHIPPING_CARRIER_TEXT_WIDTH, SHIPPING_REASON_WIDTH, SHIPPING_URL_WIDTH };
+export { SHIPPING_CARRIER_TEXT_WIDTH, SHIPPING_LABEL_SIZE_WIDTH, SHIPPING_REASON_WIDTH, SHIPPING_URL_WIDTH };
+
+/** What a stored label file is filed as. */
+export const SHIPPING_LABEL_FILE_KIND = 'ship-label';
+
+/** The documents a booking can hold a stored file of. */
+export type ShippingDocumentKind = 'label' | 'customs-invoice';
+
+/** Why a booking's files are gone for good: past their keeping time, or their person was erased. */
+export type ShippingLabelGoneWhy = 'kept-90' | 'erased';
 
 export const SHIPPING_BOOKING_STATES = ['reserved', 'calling', 'booked', 'refused', 'unknown', 'released'] as const;
 export type ShippingBookingState = (typeof SHIPPING_BOOKING_STATES)[number];
@@ -67,7 +77,19 @@ export interface ShippingBooking extends ShippingSlot {
   carrierName: string | null;
   carrierToken: string | null;
   trackingUrl: string | null;
+  /** The stored label file (`adminium_files`), never a carrier's address for it. */
   labelRef: string | null;
+  /** The stored customs invoice, when the parcel has one. */
+  customsRef: string | null;
+  /** The size asked for when it was bought. */
+  labelSize: string | null;
+  /** The size the stored file really is: `a4`, `a6`, `4x6`, `other`, or null when the file cannot say. */
+  labelSizeGot: string | null;
+  /** The label's last state after the purchase: delivery, the last tracking event, or a settled refund. */
+  labelClockAt: number | null;
+  /** Set once its files are deleted for good: nothing may fetch them again. */
+  labelGoneAt: number | null;
+  labelGoneWhy: ShippingLabelGoneWhy | null;
   /** The shop day this attempt counts against the daily limit, when it was bound by one. */
   countedDay: string | null;
   /** Whether it counts now: a refusal gives it back, and a label that turns up late takes it again. */
@@ -104,7 +126,7 @@ export type NewShippingBooking = Pick<
   | 'quotedAmount'
   | 'quotedCurrency'
   | 'createdBy'
-> & { state?: Extract<ShippingBookingState, 'reserved' | 'unknown'>; reason?: string | null };
+> & { state?: Extract<ShippingBookingState, 'reserved' | 'unknown'>; reason?: string | null; labelSize?: string | null };
 
 export type ShippingBookingFields = Partial<
   Pick<
@@ -187,6 +209,12 @@ export function shippingBookingsRepo(meta: MetaDb) {
       carrierToken: row.carrierToken,
       trackingUrl: row.trackingUrl,
       labelRef: row.labelRef,
+      customsRef: row.customsRef ?? null,
+      labelSize: row.labelSize ?? null,
+      labelSizeGot: row.labelSizeGot ?? null,
+      labelClockAt: number(row.labelClockAt),
+      labelGoneAt: number(row.labelGoneAt),
+      labelGoneWhy: row.labelGoneWhy === 'kept-90' || row.labelGoneWhy === 'erased' ? row.labelGoneWhy : null,
       countedDay: row.countedDay,
       countHeld: readBool(row.countHeld),
       reason: row.reason,
@@ -265,6 +293,7 @@ export function shippingBookingsRepo(meta: MetaDb) {
             chargeDiffers: writeBool(meta, false) as boolean,
             countHeld: writeBool(meta, false) as boolean,
             reason: input.reason ?? null,
+            labelSize: input.labelSize ?? null,
             duplicates: 0,
             createdBy: input.createdBy,
             createdAt: at,
@@ -392,6 +421,131 @@ export function shippingBookingsRepo(meta: MetaDb) {
         .limit(limit)
         .execute();
       return rows.map(toBooking);
+    },
+
+    /**
+     * A fetched file takes its place on a bought label. Answers false, changing
+     * nothing, when the booking has moved on, its files were deleted for good,
+     * or another fetch got there first: the caller then removes its copy.
+     */
+    async storeDocument(id: string, kind: ShippingDocumentKind, fileId: string, sizeGot: string | null, at: number): Promise<boolean> {
+      if (fileId.length === 0 || fileId.length > SHIPPING_CARRIER_TEXT_WIDTH) throw new Error('A file id is empty or longer than its column.');
+      if (sizeGot !== null && sizeGot.length > SHIPPING_LABEL_SIZE_WIDTH) throw new Error('A label size is longer than its column.');
+      const column = kind === 'label' ? 'labelRef' : 'customsRef';
+      const moved = await db
+        .updateTable('adminium_shipping_bookings')
+        .set({ [column]: fileId, ...(kind === 'label' ? { labelSizeGot: sizeGot } : {}), updatedAt: at })
+        .where('id', '=', id)
+        .where('state', '=', 'booked')
+        .where('labelGoneAt', 'is', null)
+        .where(column, 'is', null)
+        .executeTakeFirst();
+      return affected(moved.numUpdatedRows) > 0;
+    },
+
+    /** A stored file whose bytes are lost: the booking owes it again. */
+    async dropDocument(id: string, kind: ShippingDocumentKind, fileId: string, at: number): Promise<boolean> {
+      const column = kind === 'label' ? 'labelRef' : 'customsRef';
+      const moved = await db
+        .updateTable('adminium_shipping_bookings')
+        .set({ [column]: null, ...(kind === 'label' ? { labelSizeGot: null } : {}), updatedAt: at })
+        .where('id', '=', id)
+        .where(column, '=', fileId)
+        .executeTakeFirst();
+      return affected(moved.numUpdatedRows) > 0;
+    },
+
+    /**
+     * The label's last state moved on (delivery, a tracking event, a settled
+     * refund): its 90 days count from here. Never moves backwards, so an old
+     * event arriving late cannot shorten the time.
+     */
+    async noteLabelClock(id: string, at: number): Promise<void> {
+      await db
+        .updateTable('adminium_shipping_bookings')
+        .set({ labelClockAt: at })
+        .where('id', '=', id)
+        .where('labelGoneAt', 'is', null)
+        .where((eb) => eb.or([eb('labelClockAt', 'is', null), eb('labelClockAt', '<', at)]))
+        .execute();
+    },
+
+    /** Bought labels whose last state is older than `before`, and whose files are not yet gone. In id order. */
+    async labelsPast(before: number, limit = 200, afterId?: string): Promise<ShippingBooking[]> {
+      let query = db
+        .selectFrom('adminium_shipping_bookings')
+        .selectAll()
+        .where('labelGoneAt', 'is', null)
+        .where('carrierShipmentId', 'is not', null)
+        .where(sql<number>`coalesce(${sql.ref('labelClockAt')}, ${sql.ref('answeredAt')}, ${sql.ref('createdAt')})`, '<', before);
+      if (afterId !== undefined) query = query.where('id', '>', afterId);
+      const rows = await query.orderBy('id', 'asc').limit(limit).execute();
+      return rows.map(toBooking);
+    },
+
+    /**
+     * Its files are deleted for good, and nothing may fetch them again. Written
+     * BEFORE the bytes go, so a download or a re-fetch cannot slip in between.
+     * Answers the file ids it held, for the caller to remove.
+     */
+    async markLabelGone(id: string, why: ShippingLabelGoneWhy, at: number): Promise<string[]> {
+      if (why.length > SHIPPING_LABEL_GONE_WIDTH) throw new Error('A reason is longer than its column.');
+      // Gone first: from here no fetch can store a file, so the refs read next are all there will ever be.
+      const moved = await db.updateTable('adminium_shipping_bookings').set({ labelGoneAt: at, labelGoneWhy: why, updatedAt: at }).where('id', '=', id).where('labelGoneAt', 'is', null).executeTakeFirst();
+      if (affected(moved.numUpdatedRows) === 0) return [];
+      const row = await db.selectFrom('adminium_shipping_bookings').select(['labelRef', 'customsRef']).where('id', '=', id).executeTakeFirst();
+      await db.updateTable('adminium_shipping_bookings').set({ labelRef: null, customsRef: null, labelSizeGot: null }).where('id', '=', id).execute();
+      return [row?.labelRef ?? null, row?.customsRef ?? null].filter((one): one is string => one !== null);
+    },
+
+    /** The real tables of this database that have ever had a booking. */
+    async tablesOn(connectionId: string): Promise<string[]> {
+      const rows = await db.selectFrom('adminium_shipping_bookings').select('tableName').distinct().where('connectionId', '=', connectionId).execute();
+      return rows.map((row) => row.tableName);
+    },
+
+    /** Every attempt on these rows of one database, by the real table. */
+    async ofRows(connectionId: string, tableNames: readonly string[], rowKeys: readonly string[]): Promise<ShippingBooking[]> {
+      if (tableNames.length === 0 || rowKeys.length === 0) return [];
+      const rows = await db
+        .selectFrom('adminium_shipping_bookings')
+        .selectAll()
+        .where('connectionId', '=', connectionId)
+        .where('tableName', 'in', [...tableNames])
+        .where('rowKey', 'in', [...rowKeys])
+        .orderBy('id', 'asc')
+        .execute();
+      return rows.map(toBooking);
+    },
+
+    /**
+     * Stored label files no booking names, older than `before`: a process that
+     * died between storing and recording one, or a removal that failed.
+     */
+    async orphanLabelFiles(before: number, limit = 100, afterId?: string): Promise<string[]> {
+      let query = db
+        .selectFrom('adminium_files as f')
+        .select('f.id')
+        .where('f.kind', '=', SHIPPING_LABEL_FILE_KIND)
+        .where('f.createdAt', '<', before);
+      if (afterId !== undefined) query = query.where('f.id', '>', afterId);
+      const rows = await query
+        .where((eb) =>
+          eb.not(
+            eb.exists(
+              eb
+                .selectFrom('adminium_shipping_bookings as b')
+                .select('b.id')
+                // A booking marked gone no longer holds its files, even if a crash left the refs on it.
+                .where('b.labelGoneAt', 'is', null)
+                .where((inner) => inner.or([inner('b.labelRef', '=', inner.ref('f.id')), inner('b.customsRef', '=', inner.ref('f.id'))])),
+            ),
+          ),
+        )
+        .orderBy('f.id', 'asc')
+        .limit(limit)
+        .execute();
+      return rows.map((row) => row.id);
     },
 
     /** Bought labels whose steps after the purchase did not finish, last touched before `before`. */

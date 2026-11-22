@@ -30,6 +30,7 @@ import {
   auditEntityKeyPart,
   CUSTOMER_KEY_PURPOSE,
   keyStaffBinding,
+  SHIPPING_LABEL_FILE_KIND,
   filesRepo,
   auditRepo,
   publicKeysRepo,
@@ -5316,6 +5317,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const file = await filesRepo(meta).findById(fileId);
         if (
           file === null ||
+          file.kind === SHIPPING_LABEL_FILE_KIND ||
           file.deletedAt !== null ||
           file.entityConnectionId !== ok.key.connectionId ||
           // The row the file is attached to, and no other, compared as stored: a column made to name another row's file, or a library file, serves nothing.

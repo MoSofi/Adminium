@@ -39,6 +39,7 @@ import type { Readable } from 'node:stream';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
+  SHIPPING_LABEL_FILE_KIND,
   destinationsRepo,
   filesRepo,
   settingsRepo,
@@ -574,7 +575,8 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         // that arrives after a 200 MB upload has landed is a refusal that cost
         // the user two minutes and the server a disk write.
         if (sidecar?.maxCount !== undefined && recordId !== undefined && table !== undefined) {
-          const held = await files.listByEntity({ connectionId, table, recordId }, sidecar.maxCount + 1);
+          // A shipping label is on the order too, and is not one of the attachments this cap counts.
+          const held = (await files.listByEntity({ connectionId, table, recordId }, null)).filter((one) => one.kind !== SHIPPING_LABEL_FILE_KIND);
           if (held.length >= sidecar.maxCount) {
             throw new ConflictError(
               `This record already has the maximum of ${String(sidecar.maxCount)} attachment(s).`,
@@ -966,7 +968,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
           // "this exists but you cannot see it" is a disclosure a grid has no
           // use for.
           out[ref] =
-            file === null || file.deletedAt !== null || !(await canRead(request, file)) ? null : toView(file);
+            file === null || file.deletedAt !== null || file.kind === SHIPPING_LABEL_FILE_KIND || !(await canRead(request, file)) ? null : toView(file);
         }
         return { data: out };
       },

@@ -6,7 +6,7 @@
  * reads where a parcel goes from the order, so nothing a client sends can
  * change it. A bad weight or size is refused, never replaced with a guess.
  */
-import { HANDOVER_KINDS, SHIPMENT_PURPOSES } from '@adminium/add-on-contracts';
+import { HANDOVER_KINDS, LABEL_SIZES, SHIPMENT_PURPOSES } from '@adminium/add-on-contracts';
 import { SHIPPING_ID_WIDTH, SHIPPING_ROW_WIDTH, SHIPPING_TABLE_WIDTH } from '@adminium/meta';
 import { z } from 'zod';
 
@@ -83,6 +83,8 @@ export const shippingStatusReply = z.object({
     shipFrom: shipFromSchema.nullable(),
     shipFromMissing: z.array(z.string()),
     international: z.literal(false),
+    /** The label size this shop asks carriers for. */
+    labelSize: z.enum(LABEL_SIZES),
     limits: z.object({
       perLabel: z.object({ amount: z.string(), currency: z.string() }).nullable(),
       dailyLabels: z.number().nullable(),
@@ -179,6 +181,15 @@ const bookingView = z
     checkedAt: z.number().nullable(),
     releaseAfter: z.number().nullable(),
     applied: z.boolean(),
+    label: z
+      .object({
+        state: z.enum(['none', 'ready', 'owed', 'gone']),
+        size: z.string().nullable(),
+        sizeGot: z.string().nullable(),
+        sizeDiffers: z.boolean(),
+        customsInvoice: z.boolean(),
+      })
+      .strict(),
     amount: z.string().optional(),
     currency: z.string().optional(),
     chargeDiffers: z.boolean().optional(),

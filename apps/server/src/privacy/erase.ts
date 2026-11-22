@@ -77,7 +77,8 @@ import type { ChatForget } from '../chat/transcripts.js';
 import type { AnswerFilesRemover } from '../forms/answers.js';
 import { personHash, personHashes } from './export.js';
 import type { AppScope } from './scope.js';
-import { erasedNameOf, findPerson, searchAddress } from './sources.js';
+import { erasedNameOf, findPerson, searchAddress, type PersonFound } from './sources.js';
+import { bookingsOfRows, eraseLabelsOfRows, type LabelPersonRow } from '../shipping/labels.js';
 import { whatStays, type StaysItem } from './what-stays.js';
 
 export interface EraseDeps {
@@ -169,7 +170,7 @@ async function withSoleTraders(deps: EraseDeps, rows: PersonRows, found: readonl
 }
 
 /** What goes, as the erase dialog counts it. */
-export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations' | 'page-visits' | 'found-people' | 'reviews';
+export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'shipping-labels' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations' | 'page-visits' | 'found-people' | 'reviews';
 
 export interface GoesItem {
   kind: GoesKind;
@@ -250,6 +251,14 @@ function copyLinks(rows: PersonRows): CopyLink[] {
 }
 
 /** Their own rows and their copies: what a chat that became one of them is found by. */
+/** Every row the search found of theirs, those of a table the law keeps too. */
+function rowsInSources(found: PersonFound): LabelPersonRow[] {
+  const own = found.sources
+    .filter((source) => (source.kind === 'people' || source.kind === 'copy') && source.connectionId !== null && source.table !== null)
+    .flatMap((source) => source.keys.map((key) => ({ connectionId: source.connectionId!, table: source.table!, key })));
+  const linked = found.lawLinked.flatMap((one) => one.keys.map((key) => ({ connectionId: one.connectionId, table: one.table, key })));
+  return [...own, ...linked, ...found.parcelRows.map(({ connectionId, table, key }) => ({ connectionId, table, key }))];
+}
 function theirRows(rows: PersonRows): TheirRow[] {
   return rows.databases.flatMap((database) =>
     database.sources.filter((source) => source.kind === 'people' || source.kind === 'copy').flatMap((source) => source.rows.map((row) => ({ connectionId: source.connectionId, table: source.table.id, key: row.key }))),
@@ -305,9 +314,13 @@ export async function previewErasure(deps: EraseDeps, rawAddress: string, scope?
   if (visits > 0) goes.push({ kind: 'page-visits', count: visits });
   const sends = (await campaignSendIds(deps.meta, address, people, whole)).length;
   if (sends > 0) goes.push({ kind: 'campaign-mail', count: sends });
-  const files = new Set([...(await rowFileIds(deps.meta, people)), ...(await copyFileIds(deps.meta, copyRows(rows)))]).size;
+  const person = await findPerson(deps, address, apps);
+  // Every row of theirs, a kept one too: an order the law keeps stays, and its label is not that record.
+  const labelFiles = new Set((await bookingsOfRows(deps.meta, [...theirRows(rows), ...rowsInSources(await findPerson(deps, address, apps, { rowsOnly: true }))])).flatMap((one) => [one.labelRef, one.customsRef].filter((id): id is string => id !== null)));
+  if (labelFiles.size > 0) goes.push({ kind: 'shipping-labels', count: labelFiles.size });
+  const files = new Set([...(await rowFileIds(deps.meta, people)), ...(await copyFileIds(deps.meta, copyRows(rows)))].filter((id) => !labelFiles.has(id))).size;
   if (files > 0) goes.push({ kind: 'files', count: files });
-  const stays = await whatStays(deps.meta, await findPerson(deps, address, apps));
+  const stays = await whatStays(deps.meta, person);
   const found = goes.length > 0 || stays.some((item) => item.count !== null && item.count > 0) || (whole && (await deps.consent.stop.entryFor(address)) !== null);
   return { address, found, goes, stays, left: rows.left };
 }
@@ -335,6 +348,8 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: E
   // A sole trader's company row is theirs: emptied with them.
   const rows = await withSoleTraders(deps, narrowed, foundPeople, erasedName);
   const people = peopleRefs(rows);
+  // Found while their rows still hold their address. A narrowed erasure takes only the rows it was given.
+  const labelRows = [...theirRows(rows), ...(only === undefined ? rowsInSources(await findPerson(deps, address, apps, { rowsOnly: true })) : [])];
   const counts: Record<string, number> = {};
 
   // 1. Still stopped, by the hash alone. The do-not-email list is the workspace's: an erasure for some apps leaves it.
@@ -389,6 +404,9 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: E
     }
   }
   counts['downloads'] = downloads.deleted;
+  const labels = await eraseLabelsOfRows({ meta, storage: deps.storage }, labelRows, now());
+  if (labels.deleted > 0) counts['shipping-labels'] = labels.deleted;
+  filesFailed += labels.failed;
   const files = await purgeRowFiles(meta, deps.storage, [...new Set([...(await rowFileIds(meta, people)), ...(await copyFileIds(meta, copyRows(rows)))])]);
   counts['files'] = files.purged;
   filesFailed += files.failed;
@@ -407,6 +425,14 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: E
   let audit = await scrubAuditImages(meta, [...targets, ...removed.copies]);
   const swept = await sweepAddress(meta, address);
   counts['removed-rows'] = removed.changed + swept.removedRows;
+  // An order already deleted is in no search, and its label is still in the bin until its 90 days are up.
+  const removedLabels = await eraseLabelsOfRows(
+    { meta, storage: deps.storage },
+    [...removed.copies.flatMap((one) => one.keys.map((key) => ({ connectionId: one.connectionId, table: one.table, key }))), ...(whole ? swept.rows : [])],
+    now(),
+  );
+  if (removedLabels.deleted > 0) counts['shipping-labels'] = (counts['shipping-labels'] ?? 0) + removedLabels.deleted;
+  filesFailed += removedLabels.failed;
 
   // 6. Their rows.
   Object.assign(counts, await writePersonRows(rows));

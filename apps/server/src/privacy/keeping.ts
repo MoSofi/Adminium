@@ -44,7 +44,7 @@ import { chatAddOnsOn, storedChatAddOns, transcriptsMonths } from '../chat/trans
 import { leadsAddOnsOn, readLeadsSettings, storedLeadsAddOns } from '../leads/installs.js';
 
 /** How long a fixed row is kept. */
-export type FixedKeep = 'forever' | 'until-erased' | 'until-removed';
+export type FixedKeep = 'forever' | 'until-erased' | 'until-removed' | 'ninety-days';
 
 export interface KeepingRowDef {
   /** What it is: the screens word it (`studio:privacy.keeping.<key>`). */
@@ -79,6 +79,15 @@ export interface KeepingRow {
   options: number[];
   /** A row an add-on keeps: the add-on, whose own settings say how long. */
   addOn?: { key: string; name: string };
+}
+
+/** The key of the shipping labels row. */
+export const SHIPPING_LABELS_KEEPING = 'shipping-labels';
+
+/** Shown once a shop has booked a parcel: a label's file goes 90 days after its last state (`shipping/labels.ts`). */
+export async function shippingLabelsKeeping(meta: MetaDb): Promise<KeepingRow[]> {
+  const any = await meta.db.selectFrom('adminium_shipping_bookings').select('id').limit(1).executeTakeFirst();
+  return any === undefined ? [] : [{ key: SHIPPING_LABELS_KEEPING, fixed: true, keptFor: 'ninety-days', options: [] }];
 }
 
 /** The key of a forms add-on's answers row. */

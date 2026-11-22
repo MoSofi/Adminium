@@ -334,6 +334,11 @@ const KEEPING_WORDS: Record<string, () => { what: string; kept: string; why: str
     kept: t('studio:privacy.keeping.forGood', 'Kept for good'),
     why: t('studio:privacy.keeping.doNotEmailWhy', 'Kept as a code once the person is erased, so they’re never e-mailed again'),
   }),
+  'shipping-labels': () => ({
+    what: t('studio:privacy.keeping.shippingLabels', 'Shipping label files'),
+    kept: t('studio:privacy.keeping.shippingLabelsKept', 'Deleted 90 days after delivery'),
+    why: t('studio:privacy.keeping.shippingLabelsWhy', 'A parcel never delivered: 90 days after its last tracking event, its refund or its purchase. The booking and tracking number stay.'),
+  }),
 };
 
 /** A forms add-on's answers: how long its own settings keep them, worded for its row. */

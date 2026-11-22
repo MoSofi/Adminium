@@ -37531,6 +37531,10 @@
     "status": "mt",
     "srcHash": "9faa73c8c231"
   },
+  "studio.privacy.erase.goes.shippingLabels": {
+    "status": "mt",
+    "srcHash": "349b68cd2506"
+  },
   "studio.privacy.erase.goesLabel": {
     "status": "mt",
     "srcHash": "2082eb13ae8d"
@@ -37622,6 +37626,10 @@
   "studio.privacy.erase.stays.payments": {
     "status": "mt",
     "srcHash": "7cfda7e2c44d"
+  },
+  "studio.privacy.erase.stays.shippingBookings": {
+    "status": "mt",
+    "srcHash": "664879f78838"
   },
   "studio.privacy.erase.staysLabel": {
     "status": "mt",
@@ -37722,6 +37730,18 @@
   "studio.privacy.keeping.loadFailed": {
     "status": "mt",
     "srcHash": "1db6b169b5b3"
+  },
+  "studio.privacy.keeping.shippingLabels": {
+    "status": "mt",
+    "srcHash": "d33de9fc415b"
+  },
+  "studio.privacy.keeping.shippingLabelsKept": {
+    "status": "mt",
+    "srcHash": "d3959cb49f8c"
+  },
+  "studio.privacy.keeping.shippingLabelsWhy": {
+    "status": "mt",
+    "srcHash": "bbce5f64af64"
   },
   "studio.privacy.keeping.sub": {
     "status": "mt",
@@ -37990,6 +38010,10 @@
   "studio.privacy.person.kind.reviews": {
     "status": "mt",
     "srcHash": "b83c4cdafef5"
+  },
+  "studio.privacy.person.kind.shippingLabels": {
+    "status": "mt",
+    "srcHash": "e3bc3c4f1719"
   },
   "studio.privacy.person.kind.stopList": {
     "status": "mt",

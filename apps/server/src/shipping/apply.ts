@@ -61,7 +61,6 @@ async function copyToCarrierTable(deps: ApplyDeps, booking: ShippingBooking): Pr
     carrier: booking.carrierName ?? booking.carrierKey,
     service: booking.service,
     tracking: booking.tracking,
-    label_file: booking.labelRef,
     amount: booking.amount ?? booking.quotedAmount,
     currency: booking.currency ?? booking.quotedCurrency,
     status: 'booked',

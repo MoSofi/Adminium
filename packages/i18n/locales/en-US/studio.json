@@ -4712,7 +4712,8 @@
         "answers": "Form answers",
         "invitations": "Survey invitations",
         "answerFiles": "Files sent with form answers",
-        "reviews": "Reviews"
+        "reviews": "Reviews",
+        "shippingLabels": "Parcels and labels"
       },
       "onList": "yes",
       "rows": "{count, plural, one {# row} other {# rows}}",
@@ -4759,7 +4760,8 @@
         "answerFiles": "{count, plural, one {# file} other {# files}} sent with form answers in {label}",
         "chats": "{count, plural, one {# chat conversation} other {# chat conversations}} in {label}, with their messages",
         "foundPeople": "{count, plural, one {# record} other {# records}} of where they were found in {label}, with the mails that told them",
-        "reviews": "{count, plural, one {# review} other {# reviews}} in {label}, kept without their name"
+        "reviews": "{count, plural, one {# review} other {# reviews}} in {label}, kept without their name",
+        "shippingLabels": "{count, plural, one {# shipping label file} other {# shipping label files}}"
       },
       "stays": {
         "forGood": "Kept for good.",
@@ -4776,7 +4778,8 @@
         "automationRuns": "{count, plural, one {# rule run in the rules’ history.} other {# rule runs in the rules’ history.}}",
         "notifications": "{count, plural, one {# notification to staff.} other {# notifications to staff.}}",
         "campaignFailures": "{count, plural, one {# failed campaign send, kept with the campaign’s send log.} other {# failed campaign sends, kept with the campaign’s send log.}}",
-        "exports": "Data exports staff made of a table may hold them, until each one expires."
+        "exports": "Data exports staff made of a table may hold them, until each one expires.",
+        "shippingBookings": "{count, plural, one {# parcel booking with its tracking number. The carrier and the shipping service keep their own copy.} other {# parcel bookings with their tracking numbers. The carriers and the shipping service keep their own copies.}}"
       },
       "mismatch": "That isn’t the same address. Type it again.",
       "failed": "The erasure did not finish. Erase again to finish it: what was already done stays done.",
@@ -4830,7 +4833,10 @@
       "viewsSaveFailed": "How long things are kept was not saved. Try again.",
       "foundPeople": "People found — {addOn}",
       "foundPeopleYears": "{count, plural, one {Kept for # year} other {Kept for # years}}",
-      "foundPeopleWhy": "Set in {addOn}’s settings, from when they were found or the last time they wrote. Anyone not told where their details came from by their tell-by day is deleted then."
+      "foundPeopleWhy": "Set in {addOn}’s settings, from when they were found or the last time they wrote. Anyone not told where their details came from by their tell-by day is deleted then.",
+      "shippingLabels": "Shipping label files",
+      "shippingLabelsKept": "Deleted 90 days after delivery",
+      "shippingLabelsWhy": "A parcel never delivered: 90 days after its last tracking event, its refund or its purchase. The booking and tracking number stay."
     },
     "downloads": {
       "processing": "Being made…",

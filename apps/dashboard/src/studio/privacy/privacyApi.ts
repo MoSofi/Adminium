@@ -80,6 +80,7 @@ export type SourceKind =
   | 'automation-runs'
   | 'notifications'
   | 'files'
+  | 'shipping-labels'
   | 'form-answers'
   | 'form-invitations'
   | 'form-files'
@@ -127,6 +128,7 @@ export type StaysKind =
   | 'invoices'
   | 'payments'
   | 'payment-events'
+  | 'shipping-bookings'
   | 'automation-runs'
   | 'notifications'
   | 'campaign-failures'
@@ -135,7 +137,7 @@ export type StaysKind =
 
 export interface StaysItem {
   kind: StaysKind;
-  reason: KeptByLawReason | 'issued-document' | 'payment-records' | 'kept-a-while' | 'objection';
+  reason: KeptByLawReason | 'issued-document' | 'payment-records' | 'carrier-records' | 'kept-a-while' | 'objection';
   /** Null where they are not counted (exports staff made of a table). */
   count: number | null;
   keptDays: number | null;
@@ -146,7 +148,7 @@ export interface StaysItem {
   label?: string | undefined;
 }
 
-export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations' | 'page-visits' | 'found-people' | 'reviews';
+export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'shipping-labels' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations' | 'page-visits' | 'found-people' | 'reviews';
 
 export interface GoesItem {
   kind: GoesKind;
@@ -224,7 +226,7 @@ export function exportDownloadHref(id: string): string {
 export interface KeepingRow {
   key: string;
   fixed: boolean;
-  keptFor: 'forever' | 'until-erased' | 'until-removed' | number;
+  keptFor: 'forever' | 'until-erased' | 'until-removed' | 'ninety-days' | number;
   options: number[];
   /** A row an add-on keeps (its form answers): the add-on, whose own settings say how long. */
   addOn?: { key: string; name: string };

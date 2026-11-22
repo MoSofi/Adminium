@@ -25,7 +25,8 @@ import { auditExempt, audited } from '../../audit/coverage.js';
 import { venueDayOf } from '../../crud/row-limit-context.js';
 import { ForbiddenError, NotFoundError } from '../../errors.js';
 import { grantKeyOf } from '../../installs/resolve.js';
-import type { PayableSources } from '../../payments/payables.js';
+import type { ResolvedTable } from '../../crud/identifiers.js';
+import { pkOfRowKey, type PayableSources } from '../../payments/payables.js';
 import { appShippingPermission, PERMISSIONS } from '../../rbac/permissions.js';
 import { tagRoutes } from '../../security/route-audience.js';
 import { pricesHiddenFrom, shippingPerson, shippingViewerOf, type ShippingViewer } from '../../shipping/access.js';
@@ -33,6 +34,7 @@ import { recipientForRates } from '../../shipping/addresses.js';
 import { FOREIGN_LABEL_REASON, bookingView, buyLabel, foreignLabelOn, lookUpBooking, releaseBooking, settleStale, type BookingDeps } from '../../shipping/bookings.js';
 import { shippingCarrierFor, type ShippingCarrierDeps } from '../../shipping/carriers.js';
 import { checkedAccount } from '../../shipping/keys.js';
+import { firstFetch, labelSizeOf, type LabelDeps } from '../../shipping/labels.js';
 import { rateWithinLimit } from '../../shipping/limits.js';
 import { readQuoteForBooking } from '../../shipping/quotes.js';
 import { ShippingRefusal } from '../../shipping/refusals.js';
@@ -69,6 +71,8 @@ export interface ShippingBookingRoutesDeps {
   shippableOrder(request: FastifyRequest, install: InstalledManifest, connectionId: string, viewer: ShippingViewer, source: { table: string; id: string }): Promise<ShippableOrder>;
   withoutCarrierWords(error: unknown): unknown;
   bookingDeps(request: FastifyRequest): BookingDeps;
+  /** What stores a bought label's file. Without it, every label is owed. */
+  labelDeps?(request: FastifyRequest): LabelDeps;
 }
 
 const parcelSchema = z
@@ -237,7 +241,7 @@ export function shippingBookingRoutes(deps: ShippingBookingRoutesDeps): FastifyP
         }
 
         const dailyLabels = order.limits?.dailyLabels ?? null;
-        const booking = await buyLabel(
+        const bought = await buyLabel(
           bookingDeps,
           {
             slot: place,
@@ -248,7 +252,7 @@ export function shippingBookingRoutes(deps: ShippingBookingRoutesDeps): FastifyP
             detailsHash: held.detailsHash,
             rate: held.rate,
             // A carrier that binds at quote time ignores these. A customer's phone and email stay here until one needs them.
-            details: { parcel: parcel.data as Parcel, from: order.from, to: recipientForRates(order.to) },
+            details: { parcel: parcel.data as Parcel, from: order.from, to: recipientForRates(order.to), labelSize: await labelSizeOf(meta, install.row.id) },
             by,
             counted: viewer.manages || dailyLabels === null ? null : { day: order.venueDay, dailyLabels },
             confirmEarlier: viewer.manages && confirmEarlier === true,
@@ -257,6 +261,8 @@ export function shippingBookingRoutes(deps: ShippingBookingRoutesDeps): FastifyP
         ).catch((error: unknown) => {
           throw order.pricesHidden ? deps.withoutCarrierWords(error) : error;
         });
+        // The label is paid for from here: a file that does not arrive is owed, and never fails the booking.
+        const booking = deps.labelDeps === undefined ? bought : await firstFetch(deps.labelDeps(request), bought, resolved, { pk: pkOfRowKey(order.table as unknown as Pick<ResolvedTable, 'primaryKey' | 'columns'>, order.rowKey) ?? {} }, by);
         await app.rbac.audit(request, {
           category: 'settings',
           action: 'shipping.booking.made',

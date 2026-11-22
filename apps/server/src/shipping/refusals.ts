@@ -55,6 +55,22 @@ export const SHIPPING_REFUSAL_STATUS = {
   REBUY_UNCHECKED: 409,
   /** The quiet period before a person may declare that no label exists. */
   RELEASE_TOO_SOON: 409,
+  /** The label is paid for and has not been stored yet: a person retries. */
+  LABEL_OWED: 409,
+  /** The carrier did not hand the file over. The label is still paid for. */
+  LABEL_FETCH_FAILED: 502,
+  /** Deleted after its keeping time, or with its person. Nothing can fetch it again. */
+  LABEL_GONE: 410,
+  /** Past the time the carrier keeps it. */
+  LABEL_EXPIRED: 410,
+  /** A booking with no usable label: not bought, refused, or being refunded. */
+  LABEL_NOT_AVAILABLE: 409,
+  /** This carrier has no way to hand the file over. */
+  LABEL_NOT_OFFERED: 409,
+  /** The key saved now opens another account than the one that bought this label. */
+  LABEL_OTHER_ACCOUNT: 409,
+  /** The file store could not answer. Nothing was changed. */
+  LABEL_UNREADABLE: 503,
 } as const;
 
 export type ShippingRefusalCode = keyof typeof SHIPPING_REFUSAL_STATUS;

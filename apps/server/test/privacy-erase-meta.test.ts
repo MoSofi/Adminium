@@ -205,11 +205,11 @@ for (const engine of META_ENGINES) {
     });
 
     it('nulls every text still holding her address, never one holding another that contains it', async () => {
-      expect(await sweepAddress(meta, MARTA)).toEqual({ audit: 1, removedRows: 1 });
+      expect(await sweepAddress(meta, MARTA)).toMatchObject({ audit: 1, removedRows: 1 });
       expect((await changesOf(ids['note']!)).changes).toEqual({ after: { note: null, keep: 1 } });
       expect((await changesOf(ids['near']!)).changes).toEqual({ after: { note: `Wrote to x${MARTA}.` } });
       expect(await imageOf(ids[`rm-${VISITS}-10`]!)).toEqual({ id: 10, contact_id: 2, visitor_name: 'Ben Other', note: null });
-      expect(await sweepAddress(meta, MARTA)).toEqual({ audit: 0, removedRows: 0 });
+      expect(await sweepAddress(meta, MARTA)).toEqual({ audit: 0, removedRows: 0, rows: [] });
     });
 
     it('keeps her campaign sends with the address and name emptied; a waiting one is skipped as stopped', async () => {

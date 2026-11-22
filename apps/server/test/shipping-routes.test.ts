@@ -80,6 +80,9 @@ interface Fake {
   book?: (key: string) => unknown;
   books: { key: string; rate: Doc; order: Doc; details: Doc }[];
   recover?: (key: string, order: Doc) => unknown;
+  /** What `fetchDocument` answers, and every file asked for. */
+  fetchDocument?: (key: string, id: string, kind: string) => unknown;
+  fetches?: { key: string; id: string; kind: string }[];
 }
 const globals = globalThis as unknown as { __shippingFake?: Fake };
 const fake = (): Fake => globals.__shippingFake!;
@@ -98,6 +101,10 @@ const serverJs = (key: string) => `export function createShippingCarrier(context
       return fake.book(${JSON.stringify(key)});
     },
     recover: async (order) => fake.recover(${JSON.stringify(key)}, order),
+    fetchDocument: async (id, kind) => {
+      fake.fetches.push({ key: ${JSON.stringify(key)}, id, kind });
+      return fake.fetchDocument(${JSON.stringify(key)}, id, kind);
+    },
     track: async () => [],
     label: async () => { throw new Error('never in these tests'); },
     cancel: async () => undefined,
@@ -302,7 +309,7 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
 
   beforeAll(async () => {
     if (!available) return;
-    globals.__shippingFake = { made: [], quotes: [], checks: [], books: [] };
+    globals.__shippingFake = { made: [], quotes: [], checks: [], books: [], fetches: [] };
     h = await addOnHarness(dialect, { unbuiltWords: {} });
     conn = h.connectionId;
     repo = manifestsRepo(h.meta, addOnCredentialCryptoFromSecret(TEST_SECRET));
@@ -396,6 +403,10 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
     state.books.length = 0;
     state.book = () => SHIPMENT;
     state.recover = () => ({ outcome: 'no-match' });
+    state.fetches!.length = 0;
+    state.fetchDocument = () => {
+      throw new Error('no label in this test');
+    };
     await h.meta.db.deleteFrom('adminium_shipping_bookings').execute();
     state.quote = () => [RATE];
     state.check = () => ({ outcome: 'ok', mode: 'live', carriers: ['Evri', 'DPD'] });
@@ -1277,6 +1288,136 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
   const unclear = () => {
     throw new Error('socket hang up');
   };
+
+  // ── A bought label's file ───────────────────────────────────────────────
+
+  const SIGNED_ADDRESS = 'https://deliver.goshippo.com/signed-do-not-show?Signature=abc';
+  const LABEL_PDF = Buffer.from('%PDF-1.4\n1 0 obj <</Type/Page/MediaBox [0 0 297.64 419.53]>> endobj\n', 'latin1');
+  const labelFile = () => ({ kind: 'label', mediaType: 'application/pdf', bytes: new Uint8Array(LABEL_PDF) });
+  const documentPath = (id: string, kind = 'label') => `shop/shipping/bookings/${id}/documents/${kind}`;
+  const bookedWithLabel = async (over: Doc = {}) => {
+    fake().fetchDocument = labelFile;
+    const id = await order('shop', over);
+    const res = await buy(await quoted(id));
+    expect(res.statusCode, res.body).toBe(200);
+    return { orderId: id, booking: (res.json() as Doc)['data'] as Doc };
+  };
+
+  it.skipIf(!available)('hands a label over as an attachment, after the purchase fetched it, and leaks no address for it', async () => {
+    const { booking } = await bookedWithLabel();
+    expect(booking['label']).toEqual({ state: 'ready', size: 'a4', sizeGot: 'a6', sizeDiffers: true, customsInvoice: false });
+    expect(fake().books.at(-1)!.details['labelSize']).toBe('a4');
+    const res = await call('boss', 'GET', documentPath(booking['id'] as string));
+    expect(res.statusCode, res.body).toBe(200);
+    expect(res.rawPayload.equals(LABEL_PDF)).toBe(true);
+    expect(res.headers['content-type']).toBe('application/pdf');
+    expect(res.headers['content-disposition']).toBe(`attachment; filename="label-${booking['id'] as string}.pdf"`);
+    expect(res.headers['x-content-type-options']).toBe('nosniff');
+    expect(res.headers['cache-control']).toBe('private, no-store');
+    const stored = (await bookings().byId(booking['id'] as string))!;
+    const audit = await h.meta.db.selectFrom('adminium_audit_log').selectAll().where('action', 'like', 'shipping.%').execute();
+    expect(audit.some((row) => row.action === 'shipping.label.downloaded')).toBe(true);
+    for (const text of [JSON.stringify(booking), JSON.stringify(stored), JSON.stringify(audit), logs.join('\n')]) {
+      expect(text).not.toContain('signed-do-not-show');
+      expect(text).not.toContain(LABEL_ID);
+    }
+    expect(JSON.stringify(audit)).not.toContain(KEY_ONE);
+    expect(logs.join('\n')).not.toContain(KEY_ONE);
+  });
+
+  it.skipIf(!available)('asks for the row, the right to book and the personal columns, and no other door serves the file', async () => {
+    const { booking } = await bookedWithLabel({ owner_id: 'someone-else' });
+    const path = documentPath(booking['id'] as string);
+    // No right on this app's labels.
+    expect((await call('nobody', 'GET', path)).statusCode).toBe(403);
+    expect((await call('refunder', 'GET', path)).statusCode).toBe(403);
+    // May book and read the order, with its personal columns masked: the label shows them.
+    const masked = await call('picker', 'GET', path);
+    expect(masked.statusCode, masked.body).toBe(403);
+    expect(masked.body).toContain('read_pii');
+    expect((await call('picker', 'POST', path)).statusCode).toBe(403);
+    // Manages shipping, but cannot reach this row: it is not there.
+    expect((await call('rep', 'GET', path)).statusCode).toBe(404);
+    // Given the personal columns by name, the same role gets it.
+    const orderTable = (await bookings().byId(booking['id'] as string))!.tableName;
+    await person('labeller', ['shop-picker'], [`table:${conn}:${orderTable}:read_pii`]);
+    expect((await call('labeller', 'GET', path)).statusCode).toBe(200);
+
+    const fileId = (await bookings().byId(booking['id'] as string))!.labelRef!;
+    const inject = (method: 'GET' | 'POST', url: string, payload?: unknown) => composed.app.inject({ method, url, headers: { cookie: cookies['boss']! }, ...(payload === undefined ? {} : { payload: payload as never }) });
+    expect((await inject('GET', `/api/v1/files/${fileId}`)).statusCode).toBe(404);
+    expect((await inject('GET', `/api/v1/files/${fileId}/content`)).statusCode).toBe(404);
+    const resolved = await inject('POST', '/api/v1/files/resolve', { refs: [fileId] });
+    if (resolved.statusCode === 200) expect((resolved.json() as Doc)['data'][fileId]).toBeNull();
+    expect((await inject('GET', '/api/v1/files')).body).not.toContain(fileId);
+  });
+
+  it.skipIf(!available)('a failed fetch is a label owed, never a failed booking, and a person retries it', async () => {
+    fake().fetchDocument = () => {
+      throw new Error(`could not read ${SIGNED_ADDRESS}`);
+    };
+    const id = await order('shop');
+    const res = await buy(await quoted(id));
+    expect(res.statusCode, res.body).toBe(200);
+    const booking = (res.json() as Doc)['data'] as Doc;
+    expect(booking['state']).toBe('booked');
+    expect(booking['label']['state']).toBe('owed');
+    const path = documentPath(booking['id'] as string);
+    expect(code(await call('boss', 'GET', path))).toBe('LABEL_OWED');
+    const failed = await call('boss', 'POST', path);
+    expect(failed.statusCode).toBe(502);
+    expect(code(failed)).toBe('LABEL_FETCH_FAILED');
+    expect(failed.body).not.toContain('signed-do-not-show');
+    expect(logs.join('\n')).not.toContain('signed-do-not-show');
+    fake().fetchDocument = labelFile;
+    const retried = await call('boss', 'POST', path);
+    expect(retried.statusCode, retried.body).toBe(200);
+    expect((retried.json() as Doc)['data']['label']['state']).toBe('ready');
+    expect((await call('boss', 'GET', path)).statusCode).toBe(200);
+    expect(fake().books).toHaveLength(1);
+  });
+
+  it.skipIf(!available)('refuses the file of a label given up or deleted, and never asks the carrier for it again', async () => {
+    const { booking } = await bookedWithLabel();
+    const id = booking['id'] as string;
+    await bookings().markLabelGone(id, 'kept-90', Date.now());
+    fake().fetches!.length = 0;
+    const path = documentPath(id);
+    expect((await call('boss', 'GET', path)).statusCode).toBe(410);
+    expect(code(await call('boss', 'POST', path))).toBe('LABEL_GONE');
+    expect(fake().fetches).toEqual([]);
+
+    const second = await bookedWithLabel();
+    await bookings().move(second.booking['id'] as string, ['booked'], 'released', { reason: 'refund-requested' }, Date.now());
+    expect(code(await call('boss', 'GET', documentPath(second.booking['id'] as string)))).toBe('LABEL_NOT_AVAILABLE');
+  });
+
+  it.skipIf(!available)('will not fetch a label with a key that opens another account', async () => {
+    fake().fetchDocument = () => {
+      throw new Error('down');
+    };
+    const { booking } = await (async () => {
+      const id = await order('shop');
+      const res = await buy(await quoted(id));
+      return { booking: (res.json() as Doc)['data'] as Doc };
+    })();
+    await h.meta.db.updateTable('adminium_shipping_bookings').set({ accountFingerprint: 'e'.repeat(64) }).where('id', '=', booking['id'] as string).execute();
+    fake().fetches!.length = 0;
+    expect(code(await call('boss', 'POST', documentPath(booking['id'] as string)))).toBe('LABEL_OTHER_ACCOUNT');
+    expect(fake().fetches).toEqual([]);
+  });
+
+  it.skipIf(!available)('the label size is the shop\'s setting, set by someone who manages shipping and asked of the carrier', async () => {
+    expect(((await call('boss', 'GET', 'shop/shipping')).json() as Doc)['data']['labelSize']).toBe('a4');
+    expect((await call('packer', 'PUT', 'shop/shipping/label-size', { size: 'a6' })).statusCode).toBe(403);
+    expect((await call('boss', 'PUT', 'shop/shipping/label-size', { size: 'huge' })).statusCode).toBe(422);
+    const saved = await call('boss', 'PUT', 'shop/shipping/label-size', { size: '4x6' });
+    expect(saved.statusCode, saved.body).toBe(200);
+    expect(((await call('boss', 'GET', 'shop/shipping')).json() as Doc)['data']['labelSize']).toBe('4x6');
+    const { booking } = await bookedWithLabel();
+    expect(fake().books.at(-1)!.details['labelSize']).toBe('4x6');
+    expect(booking['label']).toMatchObject({ size: '4x6', sizeGot: 'a6', sizeDiffers: true });
+  });
 
   it.skipIf(!available)('buys one label from a stored quote, and a second press, a reload and a replay buy nothing', async () => {
     const id = await order('shop');

@@ -19,6 +19,7 @@ import {
   SHIPPING_TABLE_WIDTH,
 } from '../migrations/0103_shipping.js';
 import { SHIPPING_CURRENCY_WIDTH, SHIPPING_DAY_WIDTH, SHIPPING_KEY_HINT_WIDTH, SHIPPING_MONEY_WIDTH } from '../migrations/0104_shipping_keys.js';
+import { SHIPPING_LABEL_SIZE_WIDTH } from '../migrations/0106_shipping_labels.js';
 import { affected, isDuplicateKeyError, packJson, readBool, readJson, readJsonOrNull, writeBool } from './util.js';
 
 export { SHIPPING_CARRIER_WIDTH, SHIPPING_CURRENCY_WIDTH, SHIPPING_DAY_WIDTH, SHIPPING_HASH_WIDTH, SHIPPING_ID_WIDTH, SHIPPING_KEY_HINT_WIDTH, SHIPPING_MONEY_WIDTH, SHIPPING_PURPOSE_WIDTH, SHIPPING_ROW_WIDTH, SHIPPING_TABLE_WIDTH };
@@ -28,6 +29,8 @@ export interface ShippingSettings {
   activeCarrier: string | null;
   /** As stored; the engine parses it. */
   shipFrom: unknown;
+  /** The label size this shop asks carriers for, or null before anyone chose. */
+  labelSize: string | null;
   updatedBy: string | null;
   updatedAt: number;
 }
@@ -117,14 +120,14 @@ export function shippingRepo(meta: MetaDb) {
    * changed nothing, so a row that is there is met by the insert's duplicate
    * key and the update runs once more.
    */
-  async function writeSettings(installId: string, fields: { activeCarrier?: string | null; shipFrom?: string | null }, by: string | null, at: number): Promise<void> {
+  async function writeSettings(installId: string, fields: { activeCarrier?: string | null; shipFrom?: string | null; labelSize?: string | null }, by: string | null, at: number): Promise<void> {
     const change = { ...fields, updatedBy: by, updatedAt: at };
     const updated = await db.updateTable('adminium_shipping_settings').set(change).where('installId', '=', installId).executeTakeFirst();
     if (affected(updated.numUpdatedRows) > 0) return;
     try {
       await db
         .insertInto('adminium_shipping_settings')
-        .values({ installId, activeCarrier: fields.activeCarrier ?? null, shipFrom: fields.shipFrom ?? null, updatedBy: by, updatedAt: at })
+        .values({ installId, activeCarrier: fields.activeCarrier ?? null, shipFrom: fields.shipFrom ?? null, labelSize: fields.labelSize ?? null, updatedBy: by, updatedAt: at })
         .execute();
     } catch (error) {
       if (!isDuplicateKeyError(error)) throw error;
@@ -136,7 +139,7 @@ export function shippingRepo(meta: MetaDb) {
     async settings(installId: string): Promise<ShippingSettings | null> {
       const row = await db.selectFrom('adminium_shipping_settings').selectAll().where('installId', '=', installId).executeTakeFirst();
       if (row === undefined) return null;
-      return { installId: row.installId, activeCarrier: row.activeCarrier, shipFrom: readJsonOrNull(row.shipFrom), updatedBy: row.updatedBy, updatedAt: Number(row.updatedAt) };
+      return { installId: row.installId, activeCarrier: row.activeCarrier, shipFrom: readJsonOrNull(row.shipFrom), labelSize: row.labelSize ?? null, updatedBy: row.updatedBy, updatedAt: Number(row.updatedAt) };
     },
 
     async setActiveCarrier(installId: string, carrier: string, by: string | null, at: number): Promise<void> {
@@ -146,6 +149,12 @@ export function shippingRepo(meta: MetaDb) {
 
     async setShipFrom(installId: string, shipFrom: unknown, by: string | null, at: number): Promise<void> {
       await writeSettings(installId, { shipFrom: packJson(shipFrom) }, by, at);
+    },
+
+    /** The label size this shop asks carriers for. */
+    async setLabelSize(installId: string, labelSize: string, by: string | null, at: number): Promise<void> {
+      if (labelSize.length === 0 || labelSize.length > SHIPPING_LABEL_SIZE_WIDTH) throw new Error('A label size is empty or longer than its column.');
+      await writeSettings(installId, { labelSize }, by, at);
     },
 
     /**

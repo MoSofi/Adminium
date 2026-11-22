@@ -4712,7 +4712,8 @@
         "answers": "表单回答",
         "invitations": "调查邀请",
         "answerFiles": "随表单回答发送的文件",
-        "reviews": "评价"
+        "reviews": "评价",
+        "shippingLabels": "包裹和面单"
       },
       "onList": "是",
       "rows": "{count, plural, other {# 行}}",
@@ -4759,7 +4760,8 @@
         "answerFiles": "{label} 中随表单回答发送的 {count, plural, other {# 个文件}}",
         "chats": "{label} 中的 {count, plural, other {# 个聊天对话}}，连同其消息",
         "foundPeople": "{label} 中关于其被找到之处的 {count, plural, other {# 条记录}}，以及告知其本人的邮件",
-        "reviews": "{label} 中的 {count, plural, other {# 条评价}}，保留但不含姓名"
+        "reviews": "{label} 中的 {count, plural, other {# 条评价}}，保留但不含姓名",
+        "shippingLabels": "{count, plural, other {# 个运单面单文件}}"
       },
       "stays": {
         "forGood": "永久保留。",
@@ -4776,7 +4778,8 @@
         "automationRuns": "{count, plural, other {规则历史中的 # 次规则运行。}}",
         "notifications": "{count, plural, other {# 条发给员工的通知。}}",
         "campaignFailures": "{count, plural, other {# 次失败的活动发送，与活动的发送日志一起保留。}}",
-        "exports": "员工从表格导出的数据可能包含其内容，直到每个导出到期。"
+        "exports": "员工从表格导出的数据可能包含其内容，直到每个导出到期。",
+        "shippingBookings": "{count, plural, other {# 条包裹预订及其跟踪号。承运商和物流服务会保留各自的副本。}}"
       },
       "mismatch": "地址不一致。请重新输入。",
       "failed": "删除未完成。再次删除即可完成：已完成的部分保持完成。",
@@ -4830,7 +4833,10 @@
       "viewsSaveFailed": "保留时长未保存。请重试。",
       "foundPeople": "找到的人 — {addOn}",
       "foundPeopleYears": "{count, plural, other {保留 # 年}}",
-      "foundPeopleWhy": "在 {addOn} 的设置中设定，自找到之时或其最后一次来信时起算。到期前仍未被告知信息来源的人，届时会被删除。"
+      "foundPeopleWhy": "在 {addOn} 的设置中设定，自找到之时或其最后一次来信时起算。到期前仍未被告知信息来源的人，届时会被删除。",
+      "shippingLabels": "运单面单文件",
+      "shippingLabelsKept": "送达 90 天后删除",
+      "shippingLabelsWhy": "从未送达的包裹：在最后一次跟踪事件、退款或购买 90 天后删除。预订记录和跟踪号会保留。"
     },
     "downloads": {
       "processing": "正在生成…",

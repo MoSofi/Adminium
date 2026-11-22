@@ -47,6 +47,7 @@ import {
 
 import type { PayableSources } from '../payments/payables.js';
 import { CARRIER_HTTP_TIMEOUT_MS, cleanCarrierMessage, type ResolvedCarrier } from './carriers.js';
+import { labelView, type LabelView } from './labels.js';
 import { decimalAtMost } from './limits.js';
 import { openRateHandle, sealRateHandle } from './quotes.js';
 import { ShippingRefusal } from './refusals.js';
@@ -133,6 +134,8 @@ export interface BookingView {
   checkedAt: number | null;
   releaseAfter: number | null;
   applied: boolean;
+  /** How its label file stands. Never where the file is. */
+  label: LabelView;
   amount?: string;
   currency?: string;
   chargeDiffers?: boolean;
@@ -160,6 +163,7 @@ export function bookingView(booking: ShippingBooking, now: number, pricesHidden:
     checkedAt: booking.checkedAt,
     releaseAfter: state === 'unknown' ? releaseAfterOf(booking) : null,
     applied: booking.appliedAt !== null,
+    label: labelView(booking),
     ...(pricesHidden ? {} : { amount, currency, chargeDiffers: booking.chargeDiffers }),
   };
 }
@@ -202,13 +206,13 @@ function charged(rate: Rate): { amount: string | null; currency: string } {
 /** The fields of a bought label, or null when they cannot be kept as they are. */
 function fieldsOf(booking: ShippingBooking, shipment: Shipment, at: number): ShippingBookingFields | null {
   const fits = (value: string | undefined) => value === undefined || value.length <= SHIPPING_CARRIER_TEXT_WIDTH;
-  if (!fits(shipment.id) || !fits(shipment.tracking) || !fits(shipment.labelFileId) || !fits(shipment.carrier) || !fits(shipment.carrierToken)) return null;
+  if (!fits(shipment.id) || !fits(shipment.tracking) || !fits(shipment.carrier) || !fits(shipment.carrierToken)) return null;
   const { amount, currency } = charged(shipment.rate);
   const same = amount !== null && currency === booking.quotedCurrency && decimalAtMost(amount, booking.quotedAmount) && decimalAtMost(booking.quotedAmount, amount);
   return {
     carrierShipmentId: shipment.id,
     tracking: shipment.tracking,
-    labelRef: shipment.labelFileId,
+    // `label_ref` is the file stored here (`labels.ts`). The carrier's own id for it may be a signed address, so it is not kept.
     carrierName: shipment.carrier ?? null,
     carrierToken: shipment.carrierToken ?? null,
     trackingUrl: shipment.trackingUrl !== undefined && shipment.trackingUrl.length <= SHIPPING_URL_WIDTH ? shipment.trackingUrl : null,
@@ -397,6 +401,7 @@ export async function buyLabel(deps: BookingDeps, input: PurchaseInput, pricesHi
       quotedAmount: rate.amountDecimal ?? String(rate.amount),
       quotedCurrency: rate.currency.toUpperCase(),
       createdBy: input.by,
+      labelSize: input.details.labelSize ?? null,
     },
     now,
   );

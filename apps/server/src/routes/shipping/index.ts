@@ -56,6 +56,9 @@ import { ORDINARY_POLICY, type TrialPolicy } from '../../trial/policy.js';
 import { factsViewFor } from '../pages/column-facts.js';
 import { shippingBookingRoutes, type ReachedOrder, type ShippableOrder } from './bookings.js';
 import { shippingKeyRoutes } from './keys.js';
+import { shippingLabelRoutes } from './labels.js';
+import { labelSizeOf } from '../../shipping/labels.js';
+import type { FileStore } from '../../files/store.js';
 import { activeCarrierBody, quoteBody, quoteReply, shipFromBodySchema, shippingAccessReply, shippingParams, shippingStatusReply } from './schema.js';
 
 export interface ShippingRoutesDeps {
@@ -67,6 +70,8 @@ export interface ShippingRoutesDeps {
   /** `ADMINIUM_NETWORK_FEATURES`, asked per call. */
   networkFeatures: () => boolean;
   policy?: Pick<TrialPolicy, 'allows'> & Partial<Pick<TrialPolicy, 'strictNetwork'>>;
+  /** Where label files are kept. Without it, the label routes are not there. */
+  storage?: FileStore;
   /** The row, as this person reaches it (`crud/row-reached.ts`). */
   readRow(request: FastifyRequest, connectionId: string, tableId: string, row: string): Promise<Row | undefined>;
   /** Where a table's money columns are named, to judge who may see a price. */
@@ -127,6 +132,7 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
         ...shop,
         carriers: shop.carriers.map((carrier) => ({ ...carrier, account: accounts[carrier.key] ?? null })),
         international: false as const,
+        labelSize: await labelSizeOf(meta, install.row.id),
         limits: {
           perLabel: limits?.labelLimit != null && limits.labelCurrency !== null ? { amount: limits.labelLimit, currency: limits.labelCurrency } : null,
           dailyLabels: limits?.dailyLabels ?? null,
@@ -266,6 +272,7 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
         reachOrder,
         shippableOrder,
         withoutCarrierWords,
+        ...(deps.storage === undefined ? {} : { labelDeps: (request: FastifyRequest) => ({ meta, storage: deps.storage!, now: () => app.rbac.now(), log: (message: string, fields: Record<string, unknown>) => request.log.warn(fields, message) }) }),
         bookingDeps: (request) => ({
           meta,
           secret,
@@ -277,6 +284,10 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
         }),
       }),
     );
+
+    if (deps.storage !== undefined) {
+      await app.register(shippingLabelRoutes({ meta, secret, storage: deps.storage, sources: deps.sources, carrierDeps, appOf, reachOrder }));
+    }
 
     app.get(
       '/apps/:key/shipping/access',

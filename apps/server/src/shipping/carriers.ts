@@ -98,12 +98,61 @@ function refuse(code: ShippingRefusalCode, key: string, message: string): Shippi
   return new ShippingRefusal(code, message, { carrier: key });
 }
 
-/** The client a carrier is handed: its own `network.allow`, no redirects, 15 seconds a request. */
+/**
+ * The hosts a carrier's label files come from. They get no key: a signed
+ * address is its own permission, and the carrier's key must never travel to a
+ * host that only serves files.
+ */
+export const CARRIER_FILE_HOSTS: Readonly<Record<string, readonly string[]>> = {
+  'shipping-shippo': ['deliver.goshippo.com'],
+};
+
+const hostOf = (url: string): string | null => {
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * The client a carrier is handed: its own `network.allow`, no redirects, 15
+ * seconds a request. Really two clients: one narrowed to its API hosts, and
+ * one narrowed to its file hosts.
+ */
 export function carrierHttpFor(meta: MetaDb, manifest: AddOnManifest, policy: AddOnHttpClientOptions['policy']): ShippingHttpClient {
+  const fileHosts = CARRIER_FILE_HOSTS[manifest.key] ?? [];
+  const apiHosts = (manifest.addOn.network?.allow ?? []).filter((host) => !fileHosts.includes(host));
   return (url, init) => {
     const { signal, ...rest } = init ?? {};
-    const client = addOnHttpClientFor(meta, manifest, { policy, timeoutMs: CARRIER_HTTP_TIMEOUT_MS, ...(signal === undefined ? {} : { signal }) });
+    const host = hostOf(url);
+    const narrowTo = host !== null && fileHosts.includes(host) ? fileHosts : apiHosts;
+    const client = addOnHttpClientFor(meta, manifest, { policy, timeoutMs: CARRIER_HTTP_TIMEOUT_MS, narrowTo, ...(signal === undefined ? {} : { signal }) });
     return client(url, rest);
+  };
+}
+
+/**
+ * Whatever a carrier's code does, its key does not reach a file host: a request
+ * there is a bare GET with no headers but `accept` and no body, and an address
+ * that holds a saved key is refused before it leaves.
+ */
+export function withKeyOffFileHosts(http: ShippingHttpClient, carrierKey: string, secrets: readonly string[]): ShippingHttpClient {
+  const fileHosts = CARRIER_FILE_HOSTS[carrierKey] ?? [];
+  if (fileHosts.length === 0) return http;
+  return (url, init) => {
+    const host = hostOf(url);
+    if (host === null || !fileHosts.includes(host)) return http(url, init);
+    const decoded = (() => {
+      try {
+        return decodeURIComponent(url);
+      } catch {
+        return url;
+      }
+    })();
+    if (secrets.some((secret) => url.includes(secret) || decoded.includes(secret))) return Promise.reject(new Error('A file address may not hold a carrier key.'));
+    const accept = Object.entries(init?.headers ?? {}).find(([name]) => name.toLowerCase() === 'accept')?.[1];
+    return http(url, { method: 'GET', ...(accept === undefined ? {} : { headers: { accept } }), ...(init?.signal === undefined ? {} : { signal: init.signal }) });
   };
 }
 
@@ -150,7 +199,8 @@ export async function shippingCarrierFor(
 
   let carrier: ShippingCarrier;
   try {
-    carrier = factory({ http: deps.httpFor(manifest.data), credentials, todayIso });
+    const saved = Object.values(credentials).filter((value) => value.length >= 4);
+    carrier = factory({ http: withKeyOffFileHosts(deps.httpFor(manifest.data), key, saved), credentials, todayIso });
   } catch {
     deps.log?.('a carrier factory threw', { key });
     throw refuse('CARRIER_NO_FACTORY', key, `The carrier "${key}" could not be started.`);

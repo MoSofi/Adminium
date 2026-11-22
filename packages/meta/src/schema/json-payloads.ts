@@ -2871,6 +2871,15 @@ export const fileKindSchema = z.enum([
    * while a live page names it (`apps/server/src/landing/pictures.ts`).
    */
   'landing',
+  /*
+   * A carrier's label or customs invoice: a customer's name, address and
+   * perhaps phone. Not `upload`, because the files routes serve an upload to
+   * anyone who reads its record, and a person who may read an order without
+   * its personal columns must not get the address on its label. It is served
+   * only by the shipping label route, and goes by `shipping/labels.ts`'s rules.
+   * Short because the column holds twelve characters.
+   */
+  'ship-label',
 ]);
 
 // --- storage destinations --------------------------------------

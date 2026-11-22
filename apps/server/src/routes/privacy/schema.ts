@@ -85,8 +85,8 @@ export const privacyFindReply = z.object({
 
 /** One thing an erasure leaves, and why (`privacy/what-stays.ts`). */
 const staysItem = z.object({
-  kind: z.enum(['app-rows', 'documents', 'invoices', 'payments', 'payment-events', 'automation-runs', 'notifications', 'campaign-failures', 'exports', 'do-not-email']),
-  reason: z.enum([...KEPT_BY_LAW_REASONS, 'issued-document', 'payment-records', 'kept-a-while', 'objection']),
+  kind: z.enum(['app-rows', 'documents', 'invoices', 'payments', 'payment-events', 'shipping-bookings', 'automation-runs', 'notifications', 'campaign-failures', 'exports', 'do-not-email']),
+  reason: z.enum([...KEPT_BY_LAW_REASONS, 'issued-document', 'payment-records', 'carrier-records', 'kept-a-while', 'objection']),
   count: z.number().nullable(),
   keptDays: z.number().nullable(),
   forever: z.boolean(),
@@ -111,7 +111,7 @@ export const erasePreviewReply = z.object({
     /** What goes: their rows, copies of them, their mail, consent entries, campaign sends, files on their rows. */
     goes: z.array(
       z.object({
-        kind: z.enum(['people', 'copy', 'outbox', 'consent', 'campaign-mail', 'files', 'form-answers', 'form-invitations', 'form-files', 'chat-conversations', 'page-visits', 'found-people', 'reviews']),
+        kind: z.enum(['people', 'copy', 'outbox', 'consent', 'campaign-mail', 'files', 'shipping-labels', 'form-answers', 'form-invitations', 'form-files', 'chat-conversations', 'page-visits', 'found-people', 'reviews']),
         count: z.number(),
         connectionId: z.string().optional(),
         table: z.string().optional(),
@@ -140,7 +140,7 @@ export const keepingReply = z.object({
       z.object({
         key: z.string(),
         fixed: z.boolean(),
-        keptFor: z.union([z.literal('forever'), z.literal('until-erased'), z.literal('until-removed'), z.number()]),
+        keptFor: z.union([z.literal('forever'), z.literal('until-erased'), z.literal('until-removed'), z.literal('ninety-days'), z.number()]),
         options: z.array(z.number()),
         /** A row an add-on keeps (its form answers, its chat conversations): the add-on, whose own settings say how long. */
         addOn: z.object({ key: z.string(), name: z.string() }).optional(),

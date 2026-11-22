@@ -31,7 +31,7 @@
  */
 import { Writable } from 'node:stream';
 
-import { SYSTEM_ACTION_KEYS, apiKeysRepo, auditRepo, consentLogRepo, emailRunsRepo, emailSendsRepo, emailTemplatesRepo, filesRepo, jobsRepo, permissionsRepo, privacyExportsRepo, rolesRepo, settingsRepo } from '@adminium/meta';
+import { SYSTEM_ACTION_KEYS, apiKeysRepo, auditRepo, consentLogRepo, emailRunsRepo, emailSendsRepo, emailTemplatesRepo, filesRepo, jobsRepo, permissionsRepo, privacyExportsRepo, rolesRepo, settingsRepo, newId, shippingBookingsRepo } from '@adminium/meta';
 import { pino } from 'pino';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -379,6 +379,24 @@ for (const [dialect, reachable] of LEGS) {
       expect((await one('contacts', 1))['name']).toBe('Marta Kovac');
     });
 
+    let labelBooking = '';
+    const LABEL_FILE = newId('file');
+
+    it('says the label on an order the law keeps goes, though the order and its booking stay', async () => {
+      await filesRepo(s.meta).create({ id: LABEL_FILE, filename: 'label.pdf', mime: 'application/pdf', sizeBytes: 5, sha256: '0'.repeat(64), kind: 'ship-label', storageKey: LABEL_FILE, attachedAt: Date.now() });
+      const made = await shippingBookingsRepo(s.meta).reserve(
+        { installId: 'inst', carrierInstallId: 'carrier', carrierKey: 'shipping-shippo', connectionId: s.connectionId, tableRef: 'invoices', tableName: s.t('invoices'), rowKey: '1', purpose: 'outbound', parcelNumber: 1, reference: 'INV-1', mode: 'live', accountFingerprint: 'f'.repeat(64), detailsHash: 'd'.repeat(64), service: 'Evri 48', rateCode: 'evri-48', handleSealed: null, quotedAmount: '3.10', quotedCurrency: 'GBP', createdBy: null },
+        Date.now(),
+      );
+      if (!made.ok) throw new Error('no slot');
+      labelBooking = made.booking.id;
+      await shippingBookingsRepo(s.meta).move(labelBooking, ['reserved'], 'booked', { carrierShipmentId: 'tx_1', tracking: 'TRK-KEPT', answeredAt: Date.now() }, Date.now());
+      expect(await shippingBookingsRepo(s.meta).storeDocument(labelBooking, 'label', LABEL_FILE, 'a6', Date.now())).toBe(true);
+      const view = dataOf<Preview>(await preview('pia'));
+      expect(view.goes).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'shipping-labels', count: 1 })]));
+      expect(view.stays).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'shipping-bookings', reason: 'carrier-records', count: 1 })]));
+    });
+
     it('erases her in place: every link whole, the sent quote blanked and nothing else on it, no rule fired', async () => {
       const told = await notificationsFor('rita');
       const started = await runs();
@@ -440,6 +458,32 @@ for (const [dialect, reachable] of LEGS) {
       expect(await notificationsFor('rita')).toBe(told);
       expect(await runs()).toBe(started);
       expect((await s.emails()).filter((mail) => mail.to.toLowerCase().includes('marta'))).toEqual([]);
+    });
+
+    it('deleted the label of the order the law keeps: the order, the booking and its tracking number stay', async () => {
+      expect(await filesRepo(s.meta).findById(LABEL_FILE)).toBeNull();
+      expect(await shippingBookingsRepo(s.meta).byId(labelBooking)).toMatchObject({ labelRef: null, labelGoneWhy: 'erased', tracking: 'TRK-KEPT', state: 'booked' });
+      expect(await one('invoices', 1)).toBeDefined();
+    });
+
+    it('an erasure also takes the label of an order already deleted, found by the address in what was kept of it', async () => {
+      const file = newId('file');
+      await filesRepo(s.meta).create({ id: file, filename: 'label.pdf', mime: 'application/pdf', sizeBytes: 5, sha256: '0'.repeat(64), kind: 'ship-label', storageKey: file, attachedAt: Date.now() });
+      const made = await shippingBookingsRepo(s.meta).reserve(
+        { installId: 'inst', carrierInstallId: 'carrier', carrierKey: 'shipping-shippo', connectionId: s.connectionId, tableRef: 'orders', tableName: 'removed_orders', rowKey: '501', purpose: 'outbound', parcelNumber: 1, reference: 'GONE-1', mode: 'live', accountFingerprint: 'f'.repeat(64), detailsHash: 'd'.repeat(64), service: 'Evri 48', rateCode: 'evri-48', handleSealed: null, quotedAmount: '3.10', quotedCurrency: 'GBP', createdBy: null },
+        Date.now(),
+      );
+      if (!made.ok) throw new Error('no slot');
+      await shippingBookingsRepo(s.meta).move(made.booking.id, ['reserved'], 'booked', { carrierShipmentId: 'tx_gone', tracking: 'TRK-GONE', answeredAt: Date.now() }, Date.now());
+      await shippingBookingsRepo(s.meta).storeDocument(made.booking.id, 'label', file, null, Date.now());
+      await s.meta.db.insertInto('adminium_removed_rows').values({ id: newId('file'), connectionId: s.connectionId, entityTable: 'removed_orders', entityId: '501', pk: '{"id":501}', via: 'id', parentTable: 'contacts', parentValue: '1', removedAt: Date.now(), actorKind: 'system', actorId: null, actorLabel: 'test', reason: null, image: JSON.stringify({ id: 501, ship_email: 'second.person@cobaltlegal.example.org' }) } as never).execute();
+      const removedBytes: string[] = [];
+      const storage = { remove: async (at: { storageKey: string }) => void removedBytes.push(at.storageKey), driverFor: async () => ({ remove: async () => undefined }) } as unknown as FileStore;
+      const done = await erasePerson({ meta: s.meta, manager: s.manager, consent: createConsentService({ meta: s.meta, secret: TEST_SECRET }), storage, secret: TEST_SECRET, signIns: async () => undefined }, 'second.person@cobaltlegal.example.org');
+      expect(done.counts['shipping-labels']).toBe(1);
+      expect(removedBytes).toEqual([file]);
+      expect(await filesRepo(s.meta).findById(file)).toBeNull();
+      expect(await shippingBookingsRepo(s.meta).byId(made.booking.id)).toMatchObject({ labelRef: null, labelGoneWhy: 'erased', tracking: 'TRK-GONE' });
     });
 
     it('leaves no name or address of hers in the audit log or the removed-row history; the entries stay', async () => {

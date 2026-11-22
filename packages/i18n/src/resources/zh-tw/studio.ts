@@ -4722,7 +4722,8 @@ export default {
         "answers": "表單回覆",
         "invitations": "問卷邀請",
         "answerFiles": "隨表單回覆傳送的檔案",
-        "reviews": "評價"
+        "reviews": "評價",
+        "shippingLabels": "包裹與託運標籤"
       },
       "onList": "是",
       "rows": "{count, plural, other {# 列}}",
@@ -4769,7 +4770,8 @@ export default {
         "answerFiles": "{label} 中隨表單回覆傳送的 {count, plural, other {# 個檔案}}",
         "chats": "{label} 中的 {count, plural, other {# 個聊天對話}}，連同其訊息",
         "foundPeople": "{label} 中關於其被找到之處的 {count, plural, other {# 筆紀錄}}，以及告知其本人的電子郵件",
-        "reviews": "{label} 中的 {count, plural, other {# 則評價}}，保留但不含姓名"
+        "reviews": "{label} 中的 {count, plural, other {# 則評價}}，保留但不含姓名",
+        "shippingLabels": "{count, plural, other {# 個託運標籤檔案}}"
       },
       "stays": {
         "forGood": "永久保留。",
@@ -4786,7 +4788,8 @@ export default {
         "automationRuns": "{count, plural, other {規則歷史中的 # 次規則執行。}}",
         "notifications": "{count, plural, other {# 則發給員工的通知。}}",
         "campaignFailures": "{count, plural, other {# 次失敗的活動寄送，與活動的寄送紀錄一起保留。}}",
-        "exports": "員工從表格匯出的資料可能包含其內容，直到每個匯出到期。"
+        "exports": "員工從表格匯出的資料可能包含其內容，直到每個匯出到期。",
+        "shippingBookings": "{count, plural, other {# 筆包裹預訂及其追蹤號碼。貨運公司與物流服務會保留各自的副本。}}"
       },
       "mismatch": "地址不一致。請重新輸入。",
       "failed": "刪除未完成。再次刪除即可完成：已完成的部分保持完成。",
@@ -4840,7 +4843,10 @@ export default {
       "viewsSaveFailed": "保留時間未儲存。請再試一次。",
       "foundPeople": "找到的人 — {addOn}",
       "foundPeopleYears": "{count, plural, other {保留 # 年}}",
-      "foundPeopleWhy": "在 {addOn} 的設定中設定，自找到之時或其最後一次來信時起算。到期前仍未被告知資料來源的人，屆時會被刪除。"
+      "foundPeopleWhy": "在 {addOn} 的設定中設定，自找到之時或其最後一次來信時起算。到期前仍未被告知資料來源的人，屆時會被刪除。",
+      "shippingLabels": "託運標籤檔案",
+      "shippingLabelsKept": "送達 90 天後刪除",
+      "shippingLabelsWhy": "從未送達的包裹：在最後一次追蹤事件、退款或購買 90 天後刪除。預訂紀錄與追蹤號碼會保留。"
     },
     "downloads": {
       "processing": "正在產生…",

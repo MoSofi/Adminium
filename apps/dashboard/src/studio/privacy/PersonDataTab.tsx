@@ -49,6 +49,7 @@ import {
   UserSearch,
   Workflow,
   type LucideIcon,
+  Package,
   Star,
 } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
@@ -88,6 +89,7 @@ const ICONS: Record<SourceKind, LucideIcon> = {
   'found-people-mail': MailCheck,
   'found-people-fields': FileCheck2,
   reviews: Star,
+  'shipping-labels': Package,
 };
 
 /** What a source is called: an app table's own label (and its app), else Adminium's store by its kind. */
@@ -119,6 +121,8 @@ function sourceLabel(source: Pick<FoundSource, 'kind' | 'label' | 'app'>): strin
       return t('studio:privacy.person.kind.notifications', 'Notifications to staff');
     case 'files':
       return t('studio:privacy.person.kind.files', 'Files on their rows');
+    case 'shipping-labels':
+      return t('studio:privacy.person.kind.shippingLabels', 'Parcels and labels');
     case 'form-answers':
       return t('studio:privacy.person.kind.answers', 'Form answers');
     case 'form-invitations':

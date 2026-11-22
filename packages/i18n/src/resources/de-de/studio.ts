@@ -4722,7 +4722,8 @@ export default {
         "answers": "Formularantworten",
         "invitations": "Umfrageeinladungen",
         "answerFiles": "Mit Formularantworten gesendete Dateien",
-        "reviews": "Bewertungen"
+        "reviews": "Bewertungen",
+        "shippingLabels": "Pakete und Etiketten"
       },
       "onList": "ja",
       "rows": "{count, plural, one {# Zeile} other {# Zeilen}}",
@@ -4769,7 +4770,8 @@ export default {
         "answerFiles": "{count, plural, one {# Datei} other {# Dateien}} aus Formularantworten in {label}",
         "chats": "{count, plural, one {# Chat-Unterhaltung} other {# Chat-Unterhaltungen}} in {label}, mit ihren Nachrichten",
         "foundPeople": "{count, plural, one {# Eintrag} other {# Einträge}} darüber, wo die Person gefunden wurde, in {label}, mit den E-Mails, die es ihr sagten",
-        "reviews": "{count, plural, one {# Bewertung} other {# Bewertungen}} in {label}, behalten ohne ihren Namen"
+        "reviews": "{count, plural, one {# Bewertung} other {# Bewertungen}} in {label}, behalten ohne ihren Namen",
+        "shippingLabels": "{count, plural, one {# Versandetikett-Datei} other {# Versandetikett-Dateien}}"
       },
       "stays": {
         "forGood": "Dauerhaft aufbewahrt.",
@@ -4786,7 +4788,8 @@ export default {
         "automationRuns": "{count, plural, one {# Regellauf im Verlauf der Regeln.} other {# Regelläufe im Verlauf der Regeln.}}",
         "notifications": "{count, plural, one {# Benachrichtigung an Mitarbeitende.} other {# Benachrichtigungen an Mitarbeitende.}}",
         "campaignFailures": "{count, plural, one {# fehlgeschlagene Kampagnen-Sendung, aufbewahrt mit dem Sendeprotokoll der Kampagne.} other {# fehlgeschlagene Kampagnen-Sendungen, aufbewahrt mit dem Sendeprotokoll der Kampagne.}}",
-        "exports": "Datenexporte, die Mitarbeitende aus einer Tabelle erstellt haben, können sie enthalten, bis jeder abläuft."
+        "exports": "Datenexporte, die Mitarbeitende aus einer Tabelle erstellt haben, können sie enthalten, bis jeder abläuft.",
+        "shippingBookings": "{count, plural, one {# Paketbuchung mit ihrer Sendungsnummer. Der Versanddienstleister und der Versandservice behalten ihre eigene Kopie.} other {# Paketbuchungen mit ihren Sendungsnummern. Die Versanddienstleister und der Versandservice behalten ihre eigenen Kopien.}}"
       },
       "mismatch": "Das ist nicht dieselbe Adresse. Geben Sie sie erneut ein.",
       "failed": "Die Löschung wurde nicht beendet. Löschen Sie erneut, um sie abzuschließen: Was schon erledigt ist, bleibt erledigt.",
@@ -4840,7 +4843,10 @@ export default {
       "viewsSaveFailed": "Die Aufbewahrungsdauer wurde nicht gespeichert. Versuchen Sie es erneut.",
       "foundPeople": "Gefundene Personen — {addOn}",
       "foundPeopleYears": "{count, plural, one {# Jahr aufbewahrt} other {# Jahre aufbewahrt}}",
-      "foundPeopleWhy": "Festgelegt in den Einstellungen von {addOn}, ab dem Fund oder ab dem Tag, an dem die Person zuletzt geschrieben hat. Wer bis zu seinem Stichtag nicht erfahren hat, woher seine Daten stammen, wird dann gelöscht."
+      "foundPeopleWhy": "Festgelegt in den Einstellungen von {addOn}, ab dem Fund oder ab dem Tag, an dem die Person zuletzt geschrieben hat. Wer bis zu seinem Stichtag nicht erfahren hat, woher seine Daten stammen, wird dann gelöscht.",
+      "shippingLabels": "Versandetikett-Dateien",
+      "shippingLabelsKept": "90 Tage nach der Zustellung gelöscht",
+      "shippingLabelsWhy": "Ein nie zugestelltes Paket: 90 Tage nach dem letzten Sendungsereignis, der Erstattung oder dem Kauf. Buchung und Sendungsnummer bleiben."
     },
     "downloads": {
       "processing": "Wird erstellt…",

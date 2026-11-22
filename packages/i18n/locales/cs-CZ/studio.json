@@ -4712,7 +4712,8 @@
         "answers": "Odpovědi z formulářů",
         "invitations": "Pozvánky do průzkumů",
         "answerFiles": "Soubory odeslané s odpověďmi z formulářů",
-        "reviews": "Recenze"
+        "reviews": "Recenze",
+        "shippingLabels": "Zásilky a štítky"
       },
       "onList": "ano",
       "rows": "{count, plural, one {# řádek} few {# řádky} many {# řádku} other {# řádků}}",
@@ -4759,7 +4760,8 @@
         "answerFiles": "{count, plural, one {# soubor} few {# soubory} many {# souboru} other {# souborů}} z odpovědí na formuláře v {label}",
         "chats": "{count, plural, one {# konverzace v chatu} few {# konverzace v chatu} many {# konverzace v chatu} other {# konverzací v chatu}} v {label}, i se zprávami",
         "foundPeople": "{count, plural, one {# záznam} few {# záznamy} many {# záznamu} other {# záznamů}} o tom, kde byli nalezeni, v {label}, s e-maily, které jim to sdělily",
-        "reviews": "{count, plural, one {# recenze} few {# recenze} many {# recenze} other {# recenzí}} v {label}, ponechané bez jména"
+        "reviews": "{count, plural, one {# recenze} few {# recenze} many {# recenze} other {# recenzí}} v {label}, ponechané bez jména",
+        "shippingLabels": "{count, plural, one {# soubor přepravního štítku} few {# soubory přepravních štítků} many {# souboru přepravních štítků} other {# souborů přepravních štítků}}"
       },
       "stays": {
         "forGood": "Uchováno natrvalo.",
@@ -4776,7 +4778,8 @@
         "automationRuns": "{count, plural, one {# běh pravidla v historii pravidel.} few {# běhy pravidel v historii pravidel.} many {# běhu pravidel v historii pravidel.} other {# běhů pravidel v historii pravidel.}}",
         "notifications": "{count, plural, one {# oznámení pro tým.} few {# oznámení pro tým.} many {# oznámení pro tým.} other {# oznámení pro tým.}}",
         "campaignFailures": "{count, plural, one {# neúspěšné odeslání kampaně, uchované s protokolem odesílání kampaně.} few {# neúspěšná odeslání kampaní, uchovaná s protokolem odesílání kampaně.} many {# neúspěšného odeslání kampaní, uchovaného s protokolem odesílání kampaně.} other {# neúspěšných odeslání kampaní, uchovaných s protokolem odesílání kampaně.}}",
-        "exports": "Exporty dat, které tým udělal z tabulky, je mohou obsahovat, dokud každý nevyprší."
+        "exports": "Exporty dat, které tým udělal z tabulky, je mohou obsahovat, dokud každý nevyprší.",
+        "shippingBookings": "{count, plural, one {# rezervace zásilky s číslem pro sledování. Dopravce a přepravní služba si ponechají vlastní kopii.} few {# rezervace zásilek s čísly pro sledování. Dopravci a přepravní služba si ponechají vlastní kopie.} many {# rezervace zásilek s čísly pro sledování. Dopravci a přepravní služba si ponechají vlastní kopie.} other {# rezervací zásilek s čísly pro sledování. Dopravci a přepravní služba si ponechají vlastní kopie.}}"
       },
       "mismatch": "To není stejná adresa. Zadejte ji znovu.",
       "failed": "Vymazání se nedokončilo. Vymažte znovu a dokončete ho: co už je hotové, zůstane hotové.",
@@ -4830,7 +4833,10 @@
       "viewsSaveFailed": "Doba uchování se neuložila. Zkuste to znovu.",
       "foundPeople": "Nalezení lidé — {addOn}",
       "foundPeopleYears": "{count, plural, one {Uchováno # rok} few {Uchováno # roky} many {Uchováno # roku} other {Uchováno # let}}",
-      "foundPeopleWhy": "Nastaveno v nastavení doplňku {addOn}, od chvíle nalezení nebo od chvíle, kdy naposledy napsali. Kdo se do svého termínu nedozvěděl, odkud jeho údaje pocházejí, je pak smazán."
+      "foundPeopleWhy": "Nastaveno v nastavení doplňku {addOn}, od chvíle nalezení nebo od chvíle, kdy naposledy napsali. Kdo se do svého termínu nedozvěděl, odkud jeho údaje pocházejí, je pak smazán.",
+      "shippingLabels": "Soubory přepravních štítků",
+      "shippingLabelsKept": "Smazány 90 dní po doručení",
+      "shippingLabelsWhy": "Nedoručená zásilka: 90 dní po poslední události sledování, vrácení peněz nebo nákupu. Rezervace a číslo pro sledování zůstávají."
     },
     "downloads": {
       "processing": "Připravuje se…",

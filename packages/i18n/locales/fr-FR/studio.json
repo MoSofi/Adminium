@@ -4712,7 +4712,8 @@
         "answers": "Réponses aux formulaires",
         "invitations": "Invitations aux enquêtes",
         "answerFiles": "Fichiers envoyés avec les réponses aux formulaires",
-        "reviews": "Avis"
+        "reviews": "Avis",
+        "shippingLabels": "Colis et étiquettes"
       },
       "onList": "oui",
       "rows": "{count, plural, one {# ligne} other {# lignes}}",
@@ -4759,7 +4760,8 @@
         "answerFiles": "{count, plural, one {# fichier envoyé} other {# fichiers envoyés}} avec des réponses à des formulaires dans {label}",
         "chats": "{count, plural, one {# conversation de chat} other {# conversations de chat}} dans {label}, avec leurs messages",
         "foundPeople": "{count, plural, one {# fiche} other {# fiches}} indiquant où la personne a été trouvée dans {label}, avec les e-mails qui l’en ont informée",
-        "reviews": "{count, plural, one {# avis} other {# avis}} dans {label}, conservés sans leur nom"
+        "reviews": "{count, plural, one {# avis} other {# avis}} dans {label}, conservés sans leur nom",
+        "shippingLabels": "{count, plural, one {# fichier d’étiquette d’expédition} other {# fichiers d’étiquette d’expédition}}"
       },
       "stays": {
         "forGood": "Conservé pour toujours.",
@@ -4776,7 +4778,8 @@
         "automationRuns": "{count, plural, one {# exécution de règle dans l’historique des règles.} other {# exécutions de règles dans l’historique des règles.}}",
         "notifications": "{count, plural, one {# notification à l’équipe.} other {# notifications à l’équipe.}}",
         "campaignFailures": "{count, plural, one {# envoi de campagne échoué, conservé avec le journal d’envoi de la campagne.} other {# envois de campagne échoués, conservés avec le journal d’envoi de la campagne.}}",
-        "exports": "Les exports de données que l’équipe a faits d’une table peuvent la contenir, jusqu’à l’expiration de chacun."
+        "exports": "Les exports de données que l’équipe a faits d’une table peuvent la contenir, jusqu’à l’expiration de chacun.",
+        "shippingBookings": "{count, plural, one {# réservation de colis avec son numéro de suivi. Le transporteur et le service d’expédition gardent leur propre copie.} other {# réservations de colis avec leurs numéros de suivi. Les transporteurs et le service d’expédition gardent leurs propres copies.}}"
       },
       "mismatch": "Ce n’est pas la même adresse. Saisissez-la à nouveau.",
       "failed": "L’effacement n’est pas allé au bout. Effacez à nouveau pour le terminer : ce qui est fait reste fait.",
@@ -4830,7 +4833,10 @@
       "viewsSaveFailed": "La durée de conservation n’a pas été enregistrée. Réessayez.",
       "foundPeople": "Personnes trouvées — {addOn}",
       "foundPeopleYears": "{count, plural, one {Conservées # an} other {Conservées # ans}}",
-      "foundPeopleWhy": "Réglé dans les paramètres de {addOn}, à partir du moment où elles ont été trouvées ou de leur dernier message. Une personne qui n’a pas été informée de l’origine de ses coordonnées à sa date limite est alors supprimée."
+      "foundPeopleWhy": "Réglé dans les paramètres de {addOn}, à partir du moment où elles ont été trouvées ou de leur dernier message. Une personne qui n’a pas été informée de l’origine de ses coordonnées à sa date limite est alors supprimée.",
+      "shippingLabels": "Fichiers d’étiquettes d’expédition",
+      "shippingLabelsKept": "Supprimés 90 jours après la livraison",
+      "shippingLabelsWhy": "Un colis jamais livré : 90 jours après son dernier événement de suivi, son remboursement ou son achat. La réservation et le numéro de suivi restent."
     },
     "downloads": {
       "processing": "En préparation…",

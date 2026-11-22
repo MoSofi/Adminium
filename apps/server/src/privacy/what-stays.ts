@@ -34,7 +34,7 @@ import { settingsRepo, type MetaDb } from '@adminium/meta';
 
 import type { PersonFound } from './sources.js';
 
-export type StaysReason = KeptByLawReason | 'issued-document' | 'payment-records' | 'kept-a-while' | 'objection';
+export type StaysReason = KeptByLawReason | 'issued-document' | 'payment-records' | 'carrier-records' | 'kept-a-while' | 'objection';
 
 export type StaysKind =
   | 'app-rows'
@@ -42,6 +42,7 @@ export type StaysKind =
   | 'invoices'
   | 'payments'
   | 'payment-events'
+  | 'shipping-bookings'
   | 'automation-runs'
   | 'notifications'
   | 'campaign-failures'
@@ -99,6 +100,9 @@ export async function whatStays(meta: MetaDb, found: PersonFound): Promise<Stays
   if (payments > 0) items.push({ kind: 'payments', reason: 'payment-records', count: payments, keptDays: null, forever: true });
   const events = count('payment-events');
   if (events > 0) items.push({ kind: 'payment-events', reason: 'payment-records', count: events, keptDays: paymentEventsDays, forever: false });
+  // The label file goes. The booking and its tracking number stay, and an erasure here cannot reach the carrier's own copy.
+  const parcels = count('shipping-labels');
+  if (parcels > 0) items.push({ kind: 'shipping-bookings', reason: 'carrier-records', count: parcels, keptDays: null, forever: true });
   const runs = count('automation-runs');
   if (runs > 0) items.push({ kind: 'automation-runs', reason: 'kept-a-while', count: runs, keptDays: automationRunsDays, forever: false });
   const notifications = count('notifications');

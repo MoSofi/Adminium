@@ -119,6 +119,7 @@ import { up as up0099 } from './0099_source_days.js';
 import { up as up0103 } from './0103_shipping.js';
 import { up as up0104 } from './0104_shipping_keys.js';
 import { up as up0105 } from './0105_shipping_bookings.js';
+import { up as up0106 } from './0106_shipping_labels.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -225,4 +226,5 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0103_shipping', up: up0103 },
   { name: '0104_shipping_keys', up: up0104 },
   { name: '0105_shipping_bookings', up: up0105 },
+  { name: '0106_shipping_labels', up: up0106 },
 ];

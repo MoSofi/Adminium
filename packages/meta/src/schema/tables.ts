@@ -2046,6 +2046,8 @@ export interface AdminiumShippingSettingsTable {
   installId: string;
   activeCarrier: string | null;
   shipFrom: ColumnType<unknown, string | null | undefined, string | null>;
+  /** Wave 0106: the label size this shop asks carriers for. */
+  labelSize: ColumnType<string | null, string | null | undefined, string | null>;
   updatedBy: string | null;
   updatedAt: Ts;
 }
@@ -2137,6 +2139,13 @@ export interface AdminiumShippingBookingsTable {
   carrierToken: string | null;
   trackingUrl: string | null;
   labelRef: string | null;
+  /** Wave 0106: the stored customs invoice, the size asked for and got, and when the label's file stops being kept. */
+  customsRef: ColumnType<string | null, string | null | undefined, string | null>;
+  labelSize: ColumnType<string | null, string | null | undefined, string | null>;
+  labelSizeGot: ColumnType<string | null, string | null | undefined, string | null>;
+  labelClockAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  labelGoneAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  labelGoneWhy: ColumnType<string | null, string | null | undefined, string | null>;
   countedDay: string | null;
   countHeld: ColumnType<unknown, boolean, boolean>;
   reason: string | null;

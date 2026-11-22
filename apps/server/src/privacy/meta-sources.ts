@@ -17,7 +17,9 @@
  *   - notifications to staff about one of their rows, or naming their address;
  *   - files attached to one of their rows; of a row that is theirs only as a
  *     copy, the files of their copies alone (`copyFileIds`), as the erasure
- *     takes them.
+ *     takes them;
+ *   - parcels booked for one of their orders, and whether a label is held.
+ *     A label file is listed here and not under files.
  *
  * Addresses are compared as `normaliseAddress` spells them (trimmed, lower
  * case), never as the stop list folds them (`+tag`, Gmail's dots): that
@@ -35,7 +37,7 @@
  * workspace.
  */
 import { sql, type RawBuilder } from 'kysely';
-import { readJson, type MetaDb } from '@adminium/meta';
+import { SHIPPING_LABEL_FILE_KIND, readJson, type MetaDb } from '@adminium/meta';
 
 import type { FoundSource } from './types.js';
 import { holdsAddress, isAddress, jsonHoldsAddress, plainRow, plainValue } from './values.js';
@@ -123,7 +125,7 @@ async function* batches<T extends { id: string }>(read: (after: string | null) =
 }
 
 /** The meta store's sources for one person (see the header). Only sources with something in them are answered. */
-export async function findInMeta(meta: MetaDb, address: string, rows: readonly FoundRow[], options: { byAddress?: boolean; copyFiles?: readonly string[] } = {}): Promise<FoundSource[]> {
+export async function findInMeta(meta: MetaDb, address: string, rows: readonly FoundRow[], options: { byAddress?: boolean; copyFiles?: readonly string[]; parcelRows?: readonly FoundRow[] } = {}): Promise<FoundSource[]> {
   const { db } = meta;
   const byAddress = options.byAddress !== false;
   // Matched by the address alone: only for the whole workspace.
@@ -301,7 +303,8 @@ export async function findInMeta(meta: MetaDb, address: string, rows: readonly F
         .selectFrom('adminium_files')
         .select(['id', 'filename', 'mime', 'sizeBytes', 'kind', 'entityConnectionId', 'entityTable', 'entityId', 'createdAt', 'deletedAt'])
         .where('entityTable', 'in', tables)
-        .where('entityId', 'in', [...new Set(rows.map((row) => row.key))]);
+        .where('entityId', 'in', [...new Set(rows.map((row) => row.key))])
+        .where('kind', '!=', SHIPPING_LABEL_FILE_KIND);
       if (after !== null) query = query.where('id', '>', after);
       return query.orderBy('id', 'asc').limit(BATCH).execute();
     })) {
@@ -324,6 +327,30 @@ export async function findInMeta(meta: MetaDb, address: string, rows: readonly F
     for (const row of batch) add(files, row.id, fileRow(row));
   }
   out.push(files);
+
+  // ── parcels booked for their orders ───────────────────────────────────────
+  const labels = source('shipping-labels', 'held');
+  // Their rows, and the orders that point at them by a key alone.
+  const parcelRows = [...rows, ...(options.parcelRows ?? [])];
+  if (parcelRows.length > 0) {
+    const parcelIndex = rowIndex(parcelRows);
+    const parcelTables = [...new Set(parcelRows.flatMap((row) => [row.table, row.tableName]))];
+    const rowKeys = [...new Set(parcelRows.map((row) => row.key))];
+    for (let at = 0; at < rowKeys.length; at += BATCH) {
+      const batch = await db
+        .selectFrom('adminium_shipping_bookings')
+        .select(['id', 'connectionId', 'tableName', 'rowKey', 'carrierKey', 'carrierName', 'service', 'state', 'mode', 'purpose', 'parcelNumber', 'tracking', 'labelRef', 'customsRef', 'labelGoneAt', 'createdAt'])
+        .where('tableName', 'in', parcelTables)
+        .where('rowKey', 'in', rowKeys.slice(at, at + BATCH))
+        .orderBy('id', 'asc')
+        .execute();
+      for (const row of batch) {
+        if (!isOneOf(parcelIndex, row.connectionId, row.tableName, row.rowKey)) continue;
+        add(labels, row.id, plainRow({ id: row.id, carrier: row.carrierName ?? row.carrierKey, service: row.service, state: row.state, mode: row.mode, purpose: row.purpose, parcel: row.parcelNumber, tracking: row.tracking, labelHeld: row.labelRef !== null || row.customsRef !== null, labelDeletedAt: row.labelGoneAt, createdAt: row.createdAt }));
+      }
+    }
+  }
+  out.push(labels);
 
   return out.filter((one) => one.count > 0);
 }

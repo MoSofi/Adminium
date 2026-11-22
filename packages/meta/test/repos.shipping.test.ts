@@ -114,6 +114,7 @@ for (const dialect of TEST_DIALECTS) {
         installId: 'mft_shop',
         activeCarrier: 'shipping-shippo',
         shipFrom: { name: 'Marlow Press', lines: ['1 Mill Lane'] },
+        labelSize: null,
         updatedBy: 'usr_b',
         updatedAt: T0 + 1,
       });
