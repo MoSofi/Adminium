@@ -362,8 +362,9 @@ export async function judgeMove(box: LiveOutbox, event: BeforeWriteEvent, deps: 
     }
     values[cols.to] = onFile;
   }
-  if (from !== 'held') return;
+  // Who sent it on its way: an approval, or a second try. A dated mail a person decided on is not dropped by a switch (`verdictsFor`).
   if (cols.approvedBy !== undefined) values[cols.approvedBy] = context.actor?.label ?? null;
+  if (from !== 'held') return;
   const now = deps.now?.() ?? Date.now();
   // Approved before its day, or with no day at all (one that could not be
   // worked out): it goes now. The sender waits for an empty due only while
