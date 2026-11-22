@@ -161,7 +161,11 @@ export interface ConsentService {
     add(input: StopAddInput): Promise<{ entry: StopEntryView; added: boolean }>;
     remove(id: string): Promise<StopRemoveResult>;
     has(address: string): Promise<boolean>;
-    /** Which of these addresses are on the list, as `normaliseAddress` spells them. */
+    /**
+     * Which of these addresses are on the list, as `normaliseAddress` spells them.
+     * Anything that is not an e-mail address is reported as not stopped, so a
+     * phone must never be asked about here: its list is `sms/consent/`.
+     */
     stoppedAmong(addresses: readonly string[]): Promise<Set<string>>;
     /** The entry an address is on, or null. */
     entryFor(address: string): Promise<StopEntryView | null>;
