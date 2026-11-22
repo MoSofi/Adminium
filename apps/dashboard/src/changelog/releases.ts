@@ -96,6 +96,8 @@ const RAW: unknown = [
       { tag: 'Fixed', text: 'A dated mail that comes due while its setting is off is dropped and does not go out when the setting returns. A mail not yet due is kept, so turning a setting off and on again loses no reminder. A mail a person held, approved or queued again still goes out.' },
       { tag: 'Fixed', text: 'A dated mail goes to the person’s address as it stands when the mail is sent.' },
       { tag: 'Fixed', text: 'The hourly limit on public forms counts each visitor on every form.' },
+      { tag: 'Fixed', text: 'The Designer reads each search, sort and filter on a customer screen against what its list declares, and names the exact field to add when one is missing.' },
+      { tag: 'Fixed', text: 'The public client’s list call sends its via filter, so a shop can filter products through their variants. A list that declares no via answers 400 PUBLIC_QUERY_REFUSED to such a call.' },
       { tag: 'Security', text: 'Secret codes in web addresses stay out of the request log and the audit log, including mail service notice addresses, the link that lets a found person object and be erased, mail and pay links, and undo codes. Logs written before this release are not rewritten: if other people can read your logs and you use the “other” mail service without a password, replace its notice address.' },
       { tag: 'Security', text: 'A secret code in a web address stays out of the request log and the audit log however the address is written.' },
       { tag: 'Security', text: 'An API key holds at most what its maker holds. A key made by a key is held to both, cannot outlast the key that made it, and only a key with a person behind it can make keys.' },
