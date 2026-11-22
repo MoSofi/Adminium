@@ -284,7 +284,7 @@ for (const [dialect, reachable] of LEGS) {
         rowOf[name] = String(rows[0]!['id']);
       };
       await insert('elin', people['elin']!.id);
-      for (const name of ['noor', 'rafa', 'ivy', 'ivy2', 'june', 'june2', 'wes', 'marco', 'gone', 'off']) await insert(name, null);
+      for (const name of ['noor', 'rafa', 'ivy', 'ivy2', 'june', 'june2', 'wes', 'lou', 'kit', 'marco', 'gone', 'off']) await insert(name, null);
       const put = await app.inject({ method: 'PUT', url: `/api/v1/add-ons/${KEY}/connect/app`, headers: { cookie: cookies['admin']! }, payload: { clientId: 'client-1', clientSecret: 'client-secret-1' } });
       expect(put.statusCode, put.body).toBe(200);
     }, 240_000);
@@ -405,6 +405,21 @@ for (const [dialect, reachable] of LEGS) {
       expect((await door('open', { token: reused })).statusCode).toBe(404);
     });
 
+    it('sends one person\'s link once a minute, so a colleague\'s inbox and link cannot be worn out', async () => {
+      await settingsRepo(h.meta).set('email.smtp', { host: 'localhost', port: 587, user: 'postmaster', passEncrypted: encryptSecret('hunter2', emailSecretKey(TEST_SECRET)), secure: false, from: 'Studio <no-reply@studio.example>' } as never);
+      try {
+        const first = await staff('desk', 'POST', '/connected-accounts/link', ref('lou'));
+        expect(first.statusCode, first.body).toBe(200);
+        const held = await repo().linkOnTarget(target('lou'), Date.now());
+        const again = await staff('desk', 'POST', '/connected-accounts/link', ref('lou'));
+        expect(again.statusCode, again.body).toBe(429);
+        // The link already sent still stands.
+        expect((await repo().linkOnTarget(target('lou'), Date.now()))?.id).toBe(held?.id);
+      } finally {
+        await settingsRepo(h.meta).unset('email.smtp');
+      }
+    });
+
     it('takes a code once', async () => {
       const started = await start(await linkFor('june'));
       provider.codes.set('once', { subject: 'sub-june' });
@@ -513,7 +528,7 @@ for (const [dialect, reachable] of LEGS) {
     it('front desk: a typed address is not a thing the route takes', async () => {
       await settingsRepo(h.meta).set('email.smtp', { host: 'localhost', port: 587, user: 'postmaster', passEncrypted: encryptSecret('hunter2', emailSecretKey(TEST_SECRET)), from: 'Studio <no-reply@studio.example>', secure: false } as never);
       try {
-        const reply = await staff('desk', 'POST', '/connected-accounts/link', { ...ref('marco'), to: 'attacker@evil.example' });
+        const reply = await staff('desk', 'POST', '/connected-accounts/link', { ...ref('kit'), to: 'attacker@evil.example' });
         // The body is read for what the schema names: the mail goes to the row's own address or nowhere.
         if (reply.statusCode === 200) expect(reply.json()).toEqual({ sentTo: null, url: null });
         else expect(reply.statusCode).toBe(422);

@@ -30,7 +30,7 @@ import { OAUTH_TENANT } from '@adminium/add-on-contracts';
 import { audited } from '../../audit/coverage.js';
 import { accountSpecOf, callbackPath, type AppRegistration } from '../../connected-accounts/spec.js';
 import { ConnectRefusedError, parseAddOn, type AccountTable, type ConnectedAccounts } from '../../connected-accounts/service.js';
-import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
+import { ForbiddenError, NotFoundError, RateLimitedError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import { forwardedOf } from '../../forms/reach.js';
 import { canReadPii } from '../../crud/mask.js';
 import { installOnConnection, requireInstall, selectorOf } from '../../installs/resolve.js';
@@ -141,6 +141,9 @@ export interface ConnectedAccountRoutesDeps {
   /** The table's personal columns, shown only to whoever may read them. */
   maskedColumns?(connectionId: string, table: string): Promise<ReadonlySet<string>>;
 }
+
+/** How soon one person may send the same row's link again. */
+const SEND_LINK_EVERY_MS = 60_000;
 
 function personId(request: FastifyRequest): string {
   if (request.apiKeyPrincipal != null) throw new ForbiddenError('A connected account is handled by a signed-in person, never with an API key.', 'FORBIDDEN', { reason: 'api-key' });
@@ -262,6 +265,9 @@ export function connectedAccountRoutes(deps: ConnectedAccountRoutesDeps): Fastif
           await record(request, 'connected-account.link-copied', { table: input.table, row: rowKey });
           return { sentTo: null, url: minted.url };
         }
+        // Each send retires the last link and mails the person: once a minute from any one sender.
+        const last = await accounts.repo.linkOnTarget(target, Date.now());
+        if (last !== null && last.createdBy === by && Date.now() - last.createdAt < SEND_LINK_EVERY_MS) throw new RateLimitedError('This link was sent a moment ago.');
         const sent = await accounts.sendLink(target, table, { createdBy: by, forwarded: forwardedOf(request) }).catch(asRefusal);
         await record(request, 'connected-account.link-sent', { table: input.table, row: rowKey });
         const hidden = await hiddenFrom(request, input.connection, input.table);
