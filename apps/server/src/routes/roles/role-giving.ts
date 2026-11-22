@@ -13,7 +13,7 @@
  * nothing. What is already stored is not touched: this judges changes.
  */
 import type { FastifyRequest } from 'fastify';
-import { permissionsRepo, usersRepo, type Role, type RolePermission } from '@adminium/meta';
+import { permissionsRepo, rolesRepo, usersRepo, type Role, type RolePermission } from '@adminium/meta';
 
 import { ForbiddenError } from '../../errors.js';
 import { scrubUrlForLog } from '../../log-scrub.js';
@@ -25,6 +25,7 @@ import { holdsEdit, holdsRole, holdsRows, type GrantRow } from '../../rbac/role-
 
 /** The refusal's `details.reason`: what the screens say in the reader's language. */
 export const ROLE_ABOVE_YOU = 'role-above-you';
+export const ACCOUNT_ABOVE_YOU = 'account-above-you';
 
 interface RoleGiver {
   /** A signed-in Super Admin: holds everything, and alone gives Super Admin. */
@@ -138,5 +139,33 @@ export function roleGiving(app: { rbac: RbacDecoration }) {
     return { all: false, grants: grants.sort() };
   }
 
-  return { assertMayHandle, assertMayClone, assertMayWrite, changeable, grantable };
+  /**
+   * Account changes are held to what the caller holds: somebody may change the
+   * sign-in details only of a person all of whose roles they hold themselves.
+   */
+  async function assertHoldsAccount(request: FastifyRequest, userId: string, held: readonly Role[]): Promise<void> {
+    const giver = await giverOf(request);
+    if (giver.superAdmin) return;
+    for (const role of held) {
+      if (holdsAll(giver, role, await permissions.listForRole(role.id))) continue;
+      await app.rbac.audit(request, {
+        category: 'rbac',
+        action: 'permission.denied',
+        changes: { after: { reason: ACCOUNT_ABOVE_YOU, method: request.method, url: scrubUrlForLog(request.url), userId } },
+      });
+      throw new ForbiddenError('This person holds permissions you do not, so you cannot change their sign-in details.', 'FORBIDDEN', { reason: ACCOUNT_ABOVE_YOU, userId });
+    }
+  }
+
+  /** Whose sign-in details this caller may not change, of these people: what the People page offers. */
+  async function accountsAbove(request: FastifyRequest, byUser: ReadonlyMap<string, readonly { id: string }[]>): Promise<ReadonlySet<string>> {
+    const giver = await giverOf(request);
+    if (giver.superAdmin) return new Set();
+    const asked = new Set([...byUser.values()].flatMap((list) => list.map((role) => role.id)));
+    const roles = (await rolesRepo(meta).list()).filter((role) => asked.has(role.id));
+    const may = await changeable(request, roles);
+    return new Set([...byUser].filter(([, list]) => list.some((role) => !may.has(role.id))).map(([userId]) => userId));
+  }
+
+  return { assertMayHandle, assertMayClone, assertMayWrite, assertHoldsAccount, accountsAbove, changeable, grantable };
 }

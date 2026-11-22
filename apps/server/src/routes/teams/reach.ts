@@ -30,7 +30,10 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } f
 import { handOverRows } from '../../rbac/hand-over.js';
 import { listingsOfTable, rowReachIssue } from '../../rbac/row-limit-check.js';
 import { PERMISSIONS, grantMatches, grantsFromMatrixRows, isGranted } from '../../rbac/permissions.js';
+import { getPrincipal } from '../../rbac/principal.js';
+import { REACH_ABOVE_YOU } from '../../rbac/reach-held.js';
 import { readLimitOf } from '../../rbac/read-limits.js';
+import { scrubUrlForLog } from '../../log-scrub.js';
 import { SUPER_ADMIN_SLUG } from '../../rbac/resolver.js';
 import { rowReachOfRow } from '../../rbac/row-limits.js';
 
@@ -246,7 +249,12 @@ export function rowReachRoutes(deps: { meta: MetaDb; manager: ConnectionManager 
       if (from.status !== 'suspended') {
         throw new ConflictError('Rows are handed on when a person is suspended or removed. Suspend them first, or hand the rows on as you remove them.', 'CONFLICT', { reason: 'STILL_HERE' });
       }
-      return handOverRows({ meta, manager }, { from, toId: request.body.to, audit: (entry) => app.rbac.audit(request, { category: 'rbac', ...entry }) });
+      return handOverRows({ meta, manager }, {
+        from,
+        toId: request.body.to,
+        audit: (entry) => app.rbac.audit(request, { category: 'rbac', ...entry }),
+        by: { principal: getPrincipal(request), refused: () => app.rbac.audit(request, { category: 'rbac', action: 'permission.denied', changes: { after: { reason: REACH_ABOVE_YOU, method: request.method, url: scrubUrlForLog(request.url), userId: from.id } } }) },
+      });
     });
   };
 }

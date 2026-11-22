@@ -191,6 +191,43 @@ describe('TeamPage row actions', () => {
     expect(alert.textContent).not.toContain('server words');
   });
 
+  it('does not offer a new link for somebody who holds more than the viewer, and says why', async () => {
+    const invitedAbove = { ...user({ id: 'usr_above', name: 'Abe Above', email: 'abe@example.test', status: 'invited', roles: [{ id: 'role_top', slug: 'top', name: 'Top' }] }), signInLocked: true };
+    const invitedPeer = { ...user({ id: 'usr_peer', name: 'Pia Peer', email: 'pia@example.test', status: 'invited', roles: [{ id: 'role_admin', slug: 'admin', name: 'Admin' }] }), signInLocked: false };
+    installFetch({ 'GET /api/v1/users': () => jsonResponse(200, { users: [me, invitedAbove, invitedPeer], nextCursor: null, counts: { active: 1, invited: 2, suspended: 0 } }) });
+    renderTeam(adminBootstrap);
+    const locked = within(await rowOf('Abe Above')).getByRole('button', { name: 'New link' }) as HTMLButtonElement;
+    expect(locked.disabled).toBe(true);
+    expect(locked.getAttribute('title')).toContain('holds permissions you do not');
+    expect((within(await rowOf('Pia Peer')).getByRole('button', { name: 'New link' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('says that changing an invited person’s roles ends their link', async () => {
+    const invited = user({ id: 'usr_new', name: 'Noor New', email: 'noor@example.test', status: 'invited' });
+    installFetch({
+      'GET /api/v1/users': () => jsonResponse(200, { users: [me, invited], nextCursor: null, counts: { active: 1, invited: 1, suspended: 0 } }),
+      'GET /api/v1/roles': () => jsonResponse(200, { roles: [{ id: 'role_viewer', slug: 'viewer', name: 'Viewer', description: null, isBuiltin: true, memberCount: 0, createdAt: 1, updatedAt: 1, mayChange: true }] }),
+    });
+    const actor = userEvent.setup();
+    renderTeam(makeBootstrap({ user: { ...makeBootstrap().user, id: me.id, email: me.email, name: me.name }, roles: ['people'], systemActions: ['users.manage', 'roles.manage'] }));
+    await actor.click(await within(await rowOf('Noor New')).findByRole('button', { name: 'Roles' }));
+    expect((await screen.findByTestId('team-roles-invited')).textContent).toContain('send them a new link');
+  });
+
+  it('says a refused account change in the viewer’s words', async () => {
+    const invited = user({ id: 'usr_new', name: 'Noor New', email: 'noor@example.test', status: 'invited' });
+    installFetch({
+      'GET /api/v1/users': () => jsonResponse(200, { users: [me, invited], nextCursor: null, counts: { active: 1, invited: 1, suspended: 0 } }),
+      'POST /api/v1/users/usr_new/invite/resend': () => jsonResponse(403, { error: { code: 'FORBIDDEN', message: 'server words', details: { reason: 'account-above-you', userId: 'usr_new' } } }),
+    });
+    const actor = userEvent.setup();
+    renderTeam(adminBootstrap);
+    await actor.click(within(await rowOf('Noor New')).getByRole('button', { name: 'New link' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('holds permissions you do not');
+    expect(alert.textContent).not.toContain('server words');
+  });
+
   it('says in the dialog why a delete was refused', async () => {
     installFetch({
       [`DELETE /api/v1/users/${colleague.id}?permanent=true`]: () =>
@@ -249,7 +286,7 @@ describe('the invitation banner says what the server did', () => {
    */
   const invited = user({ id: 'usr_new', name: 'Noor New', email: 'noor@example.test', status: 'invited' });
   const withInvite = (emailSent: boolean) => ({
-    'GET /api/v1/users?limit=50': () =>
+    'GET /api/v1/users': () =>
       jsonResponse(200, { users: [me, invited], nextCursor: null, counts: { active: 1, invited: 1, suspended: 0 } }),
     [`POST /api/v1/users/${invited.id}/invite/resend`]: () =>
       jsonResponse(200, {
@@ -267,7 +304,7 @@ describe('the invitation banner says what the server did', () => {
         const url = String(input);
         const method = init?.method ?? 'GET';
         if (method === 'POST' && url.endsWith('/invite/resend')) return Promise.resolve(routes[`POST /api/v1/users/${invited.id}/invite/resend`]!());
-        if (method === 'GET' && url.startsWith('/api/v1/users')) return Promise.resolve(routes['GET /api/v1/users?limit=50']());
+        if (method === 'GET' && url.startsWith('/api/v1/users')) return Promise.resolve(routes['GET /api/v1/users']());
         if (url === '/api/v1/roles') return Promise.resolve(jsonResponse(200, { roles: [] }));
         return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: url } }));
       }),

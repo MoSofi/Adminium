@@ -213,6 +213,14 @@ describe('RolesPage — what the viewer cannot hand out', () => {
   });
 });
 
+describe('RolesPage — a permission that equals full access', () => {
+  it('says plainly that installing apps is full access, to everybody who opens the page', async () => {
+    installFetch();
+    renderRoles();
+    expect((await screen.findByTestId('roles-full-access-note')).textContent).toContain('equals full access');
+  });
+});
+
 describe('RolesPage — apps', () => {
   it('draws every app’s staff screens, then each installed app’s, and any app a role already holds', async () => {
     installFetch();

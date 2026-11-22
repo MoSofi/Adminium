@@ -198,6 +198,8 @@ export const tableActionsSchema = z.object({
   readLimit: readLimitSchema.optional(),
   /** Narrows which ROWS `read`, `update` and `delete` reach; absent, every row. */
   rowLimit: rowLimitSchema.optional(),
+  /** Of `rowLimit`, what the owner set by hand: an app's update keeps it, and it waits here while the action is away. */
+  ownerRows: rowLimitSchema.optional(),
 });
 export type TableActions = z.infer<typeof tableActionsSchema>;
 

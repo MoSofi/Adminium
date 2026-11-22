@@ -35,7 +35,7 @@ const KEY = new RegExp(`['"](?:common:)?((?:${GROUPS})\\.[A-Za-z0-9_.]+)['"]`, '
 const SCREENS: Readonly<Record<string, readonly string[]>> = {
   'about/AboutPage.tsx': ['about/DesktopAboutSections.tsx'],
   'kb/KnowledgeBasePage.tsx': ['kb/articles.ts'],
-  'team/TeamPage.tsx': [],
+  'team/TeamPage.tsx': ['team/peopleRefusals.ts'],
   // The account and preferences screens: their group joined to make room for the rail's People and Teams.
   'pages/AccountPage.tsx': [],
   'account/PreferencesPage.tsx': [],

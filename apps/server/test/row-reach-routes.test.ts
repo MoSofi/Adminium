@@ -272,6 +272,84 @@ for (const [dialect, reachable] of LEGS) {
       expect(await owners()).toEqual([people['ivy']!.id, people['ivy']!.id, people['ivy']!.id, people['ivy']!.id, null]);
     });
 
+    it('holds team changes and a hand-over to the rows the caller already reaches', async () => {
+      const users = usersRepo(h.meta);
+      const roles = rolesRepo(h.meta);
+      const permissions = permissionsRepo(h.meta);
+      const deals = `${h.connectionId}/${tableId('deals')}`;
+      const reading = { read: true, create: false, update: false, delete: false, export: false, import: false };
+      const role = async (slug: string, rowLimit?: Record<string, unknown>) => {
+        const made = await roles.create({ slug: `${slug}-${dialect}`, name: slug });
+        await permissions.grant(made.id, 'system', 'users.manage', { allowed: true });
+        await permissions.grant(made.id, 'table', deals, { ...reading, ...(rowLimit === undefined ? {} : { rowLimit }) } as never);
+        return made;
+      };
+      const person = async (name: string, withRole: { id: string } | null, status: User['status'] = 'active') => {
+        people[name] = await users.create({ email: `${name}-${dialect}@reach.dev`, name, passwordHash: status === 'active' ? await adminPasswordHash() : null, status });
+        if (withRole !== null) await roles.assignToUser(people[name]!.id, withRole.id);
+        return people[name]!;
+      };
+      const teamReach = await role('team-reach', { read: { reach: 'team' } });
+      const ownReach = await role('own-reach', { read: { reach: 'own' } });
+      const wholeTable = await role('whole-table');
+      const lead = await person('tl', teamReach);
+      const rep = await person('own', ownReach);
+      const open = await person('whole', wholeTable);
+      const outsider = await person('outsider', wholeTable);
+      const asLead = await signedIn('tl');
+      const asRep = await signedIn('own');
+      const asOpen = await signedIn('whole');
+      const refused = (reply: { statusCode: number; body: string }) => {
+        expect(reply.statusCode, reply.body).toBe(403);
+        expect((JSON.parse(reply.body) as { error: { details?: { reason?: string } } }).error.details?.reason).toBe('reach-above-you');
+      };
+      const member = (as: string, teamId: string, userId: string, isLead: boolean) => app.inject({ method: 'PUT', url: `/api/v1/teams/${teamId}/members/${userId}`, headers: { cookie: as }, payload: { lead: isLead } });
+      const sales = (await teamsRepo(h.meta).list()).find((team) => team.name === 'Sales')!;
+
+      // Leading a team with people in it is reaching their rows.
+      refused(await member(asLead, sales.id, lead.id, true));
+      expect((await teamsRepo(h.meta).members(sales.id)).some((one) => one.userId === lead.id)).toBe(false);
+      // A plain seat reaches nobody, and somebody nothing limits may lead.
+      expect((await member(asLead, sales.id, lead.id, false)).statusCode).toBe(200);
+      expect((await app.inject({ method: 'DELETE', url: `/api/v1/teams/${sales.id}/members/${lead.id}`, headers: { cookie: asLead } })).statusCode).toBe(200);
+      expect((await member(asOpen, sales.id, open.id, true)).statusCode).toBe(200);
+      await teamsRepo(h.meta).removeMember(sales.id, open.id);
+      // Leading an empty team reaches nobody; bringing somebody into it does.
+      const own = await teamsRepo(h.meta).create(`Mine ${dialect}`);
+      expect((await member(asLead, own.id, lead.id, true)).statusCode).toBe(200);
+      refused(await member(asLead, own.id, outsider.id, false));
+
+      // A leaver's rows, to the caller, when the caller does not reach them.
+      const leaver = await person('leaver', null, 'suspended');
+      await h.rows(`INSERT INTO ${h.real('deals')} (name, owner_id) VALUES ('zz leaver', '${leaver.id}')`);
+      const owner = async () => (await h.rows(`SELECT owner_id FROM ${h.real('deals')} WHERE name = 'zz leaver'`))[0]!['owner_id'];
+      const handTo = (as: string, from: string, to: string) => app.inject({ method: 'POST', url: `/api/v1/users/${from}/rows/hand-over`, headers: { cookie: as }, payload: { to } });
+      refused(await handTo(asRep, leaver.id, rep.id));
+      refused(await app.inject({ method: 'DELETE', url: `/api/v1/users/${leaver.id}?permanent=true&handTo=${rep.id}`, headers: { cookie: asRep } }));
+      refused(await handTo(asLead, leaver.id, lead.id));
+      expect(await owner()).toBe(leaver.id);
+      expect((await users.findById(leaver.id))?.status).toBe('suspended');
+      // To somebody else, or by somebody nothing limits, it moves.
+      const moved = await handTo(asRep, leaver.id, outsider.id);
+      expect(moved.statusCode, moved.body).toBe(200);
+      expect(await owner()).toBe(outsider.id);
+
+      // A lead takes the rows of somebody already in their team: they reached them before.
+      const mate = await person('mate', null, 'suspended');
+      await teamsRepo(h.meta).setMember(own.id, mate.id, false);
+      await h.rows(`INSERT INTO ${h.real('deals')} (name, owner_id) VALUES ('zz mate', '${mate.id}')`);
+      const taken = await handTo(asLead, mate.id, lead.id);
+      expect(taken.statusCode, taken.body).toBe(200);
+      // …also when another of their roles says "their own": the team's reach already covered those rows.
+      await roles.assignToUser(lead.id, ownReach.id);
+      const mate2 = await person('mate2', null, 'suspended');
+      await teamsRepo(h.meta).setMember(own.id, mate2.id, false);
+      await h.rows(`INSERT INTO ${h.real('deals')} (name, owner_id) VALUES ('zz mate2', '${mate2.id}')`);
+      const covered = await handTo(asLead, mate2.id, lead.id);
+      expect(covered.statusCode, covered.body).toBe(200);
+      await h.rows(`DELETE FROM ${h.real('deals')} WHERE name IN ('zz leaver', 'zz mate', 'zz mate2')`);
+    });
+
     it('is closed to somebody who manages neither people nor roles, and a Super Admin\'s rows are a Super Admin\'s to hand on', async () => {
       const users = usersRepo(h.meta);
       const roles = rolesRepo(h.meta);

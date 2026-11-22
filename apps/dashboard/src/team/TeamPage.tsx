@@ -61,7 +61,8 @@ import { PageSurface } from '../shell/PageSurface.js';
 import { t } from '../i18n/t.js';
 import { useCommonWords } from '../i18n/commonWords.js';
 import { CopyButton } from '../studio/connect/CopyButton.js';
-import { isRoleRefusal, peopleQuery, rolesQuery, type RoleListItem } from './rolesApi.js';
+import { peopleFailureText } from './peopleRefusals.js';
+import { peopleQuery, rolesQuery, type RoleListItem } from './rolesApi.js';
 import {
   EMPTY_USER_FILTERS,
   TEAM_USERS_KEY,
@@ -351,13 +352,6 @@ function InviteDialog({
   );
 }
 
-/** A failed save in the reader's words when the server refused it for reaching above them. */
-function roleFailureText(error: Error): string {
-  return isRoleRefusal(error)
-    ? t('team.roles.refused', 'You can give only roles whose permissions you hold yourself, and cannot take away a role that holds more than you do.')
-    : error.message;
-}
-
 function RoleCheckboxes(props: {
   idPrefix: string;
   roles: readonly RoleListItem[];
@@ -433,6 +427,11 @@ function RolesDialog(props: {
         closeLabel={t('common.close', 'Close')}
       />
       <ModalBody>
+        {props.user.status === 'invited' ? (
+          <p className="mb-3 text-body-sm text-fg-muted" data-testid="team-roles-invited">
+            {t('team.rolesDialog.invitedNote', 'Giving this person another role ends their current invitation: send them a new link afterwards.')}
+          </p>
+        ) : null}
         <RoleCheckboxes
           idPrefix={`user-${props.user.id}`}
           roles={props.roles}
@@ -565,7 +564,7 @@ function SuspendDialog(props: { user: UserDto; mode: 'suspend' | 'later'; onClos
             className="mt-3"
             data-testid="team-suspend-error"
             title={mode === 'suspend' ? t('team.suspend.failed', 'The account was not suspended') : t('team.handOver.failed', 'The rows were not handed over')}
-            body={act.error.message}
+            body={peopleFailureText(act.error)}
           />
         )}
       </ModalBody>
@@ -756,7 +755,7 @@ export function TeamPage(): ReactNode {
           tone="danger"
           data-testid="team-action-error"
           title={t('team.actionFailed', 'That change was not made')}
-          body={rowError.message}
+          body={peopleFailureText(rowError)}
           action={
             <Button variant="ghost" size="sm" onClick={dismissRowError}>
               {t('common.dismiss', 'Dismiss')}
@@ -947,7 +946,7 @@ export function TeamPage(): ReactNode {
         mayAssignRoles={mayManageRoles}
         roles={roleList}
         busy={create.isPending}
-        error={create.error === null ? null : roleFailureText(create.error)}
+        error={create.error === null ? null : peopleFailureText(create.error)}
         onOpenChange={(open) => {
           setInviteOpen(open);
           if (!open) create.reset();
@@ -961,7 +960,7 @@ export function TeamPage(): ReactNode {
           user={editingRoles}
           roles={roleList}
           busy={saveRoles.isPending}
-          error={saveRoles.error === null ? null : roleFailureText(saveRoles.error)}
+          error={saveRoles.error === null ? null : peopleFailureText(saveRoles.error)}
           onClose={() => {
             setEditingRoles(null);
             saveRoles.reset();
@@ -1013,7 +1012,7 @@ export function TeamPage(): ReactNode {
                   className="mt-3"
                   data-testid="team-remove-error"
                   title={t('team.remove.failed', 'The account was not deleted')}
-                  body={remove.error.message}
+                  body={peopleFailureText(remove.error)}
                 />
               )}
             </>
@@ -1144,7 +1143,13 @@ function UserRow(props: {
             </Button>
           ) : null}
           {props.mayActOn && user.status === 'invited' ? (
-            <Button variant="ghost" size="sm" disabled={props.busy} onClick={props.onResend}>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={props.busy || user.signInLocked === true}
+              title={user.signInLocked === true ? t('team.roles.signInLocked', 'This person holds permissions you do not, so only somebody who holds them can send a new link.') : undefined}
+              onClick={props.onResend}
+            >
               {t('team.action.resend', 'New link')}
             </Button>
           ) : null}

@@ -196,6 +196,7 @@ export default {
     "notHeld": "Toto oprávnění nemáte, proto ho nemůžete udělit.",
     "roleAbove": "Tato role má oprávnění, která vy nemáte, proto ji nemůžete změnit.",
     "refused": "Můžete udělit jen oprávnění, která sami máte, a nemůžete změnit roli, která má víc oprávnění než vy.",
-    "noTargets": "Neexistuje role, kterou můžete udělit a na kterou by se tito členové mohli přesunout, takže tuto roli zatím nelze smazat."
+    "noTargets": "Neexistuje role, kterou můžete udělit a na kterou by se tito členové mohli přesunout, takže tuto roli zatím nelze smazat.",
+    "fullAccess": "„Instalace a správa aplikací a doplňků“ znamená plný přístup: aplikace a doplňky spouštějí kód na tomto serveru. Udělte to jen tomu, koho byste jmenovali superadministrátorem."
   }
 } as const;

@@ -72,7 +72,7 @@ function columnsWithin(heldTo: ReadonlySet<string> | null, wanted: ReadLimit | n
 }
 
 /** The same JSON whatever order its keys were written in. */
-function canonical(value: unknown): string {
+export function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
   if (value !== null && typeof value === 'object') {
     const entries = Object.entries(value).filter(([, item]) => item !== undefined).sort(([a], [b]) => (a < b ? -1 : 1));

@@ -429,6 +429,9 @@ export function RolesPage(): ReactNode {
               body={failureText(save.error)}
             />
           )}
+          <p className="mb-3 text-body-sm text-fg-muted" data-testid="roles-full-access-note">
+            {t('roles:limits.fullAccess', '“Install and manage apps and add-ons” equals full access: apps and add-ons run code on this server. Give it only to somebody you would make a Super Admin.')}
+          </p>
           {limited ? (
             <p className="mb-3 text-body-sm text-fg-muted" data-testid="roles-limited-note">
               {t('roles:limits.note', 'You can give only the permissions you hold yourself. Anything else is shown but cannot be changed.')}

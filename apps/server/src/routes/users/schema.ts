@@ -38,8 +38,11 @@ export const userListQuery = z.object({
 });
 export type UserListQuery = z.infer<typeof userListQuery>;
 
+/** A row of the directory: with whether the caller may change this person's sign-in details. */
+export const userListItem = userDto.extend({ signInLocked: z.boolean() });
+
 export const userListReply = z.object({
-  users: z.array(userDto),
+  users: z.array(userListItem),
   /** Pass back as `cursor` for the next page; `null` on the last page. */
   nextCursor: z.string().nullable(),
   /** Whole-directory tallies for the status tabs — not page-scoped. */

@@ -12,13 +12,16 @@
  *    a row of which would become theirs: nobody is given rows they cannot open;
  *  - never a private table's rows;
  *  - one audit entry per table, with how many rows moved and to whom. Taking
- *    them yourself is allowed, and reads in the log as exactly that.
+ *    them yourself is allowed, and reads in the log as exactly that, unless
+ *    it would bring rows within a reach your role limits (`reach-held.ts`).
  */
 import { usersRepo, type MetaDb, type User } from '@adminium/meta';
 
 import type { ConnectionManager } from '../connections/manager.js';
 import { handRowsOver, tablesHandedOver, type RowsHandedOver } from '../crud/rows-naming.js';
-import { ConflictError, NotFoundError, ValidationFailedError } from '../errors.js';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.js';
+import type { RbacPrincipal } from './principal.js';
+import { REACH_ABOVE_YOU, REACH_MESSAGE, handOverWidensReach, reachSubjectOf } from './reach-held.js';
 import { permissionSetAllows, resolvePermissionSet } from './resolver.js';
 
 export interface HandOverAudit {
@@ -28,7 +31,13 @@ export interface HandOverAudit {
 
 export async function handOverRows(
   deps: { meta: MetaDb; manager: ConnectionManager },
-  input: { from: User; toId: string; audit: (entry: HandOverAudit) => Promise<void> },
+  input: {
+    from: User;
+    toId: string;
+    audit: (entry: HandOverAudit) => Promise<void>;
+    /** Who asks, and how a refusal is put on the audit log. */
+    by: { principal: RbacPrincipal | null; refused: () => Promise<void> };
+  },
 ): Promise<RowsHandedOver> {
   const { meta, manager } = deps;
   const { from } = input;
@@ -38,7 +47,13 @@ export async function handOverRows(
   // Somebody who is here: not suspended, not yet arrived, and not a sample person, who can open nothing.
   if (to.status !== 'active') throw new ConflictError('That person cannot be given rows now.', 'CONFLICT', { reason: 'NOT_ACTIVE' });
   const permissions = await resolvePermissionSet(meta, { kind: 'user', id: to.id, label: to.email });
-  const closed = (await tablesHandedOver(meta, manager, from.id)).filter((table) => !permissionSetAllows(permissions, `table:${table.connectionId}:${table.tableId}:read`));
+  const handed = await tablesHandedOver(meta, manager, from.id);
+  const subject = await reachSubjectOf(meta, input.by.principal);
+  if (subject !== null && (await handOverWidensReach(meta, subject, handed, from.id, to.id))) {
+    await input.by.refused();
+    throw new ForbiddenError(REACH_MESSAGE, 'FORBIDDEN', { reason: REACH_ABOVE_YOU, userId: from.id });
+  }
+  const closed = handed.filter((table) => !permissionSetAllows(permissions, `table:${table.connectionId}:${table.tableId}:read`));
   if (closed.length > 0) {
     throw new ConflictError(`${to.name} holds no role that reads ${closed.map((table) => table.tableLabel).join(', ')}. Give them one first, or hand the rows to somebody who does.`, 'CONFLICT', {
       reason: 'TAKER_CANNOT_READ',

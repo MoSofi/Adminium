@@ -67,6 +67,8 @@ export interface UserDto {
    * at all. The role list is still fetched, but only for the pickers.
    */
   roles: UserRoleRef[];
+  /** On a directory row: this person holds permissions the viewer does not, so their sign-in details are not the viewer's to change. */
+  signInLocked?: boolean;
 }
 
 export interface UsersListReply {
