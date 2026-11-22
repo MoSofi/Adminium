@@ -1234,12 +1234,24 @@ for (const [dialect, reachable] of LEGS) {
         expect(await accountOf(name)).toBeUndefined();
       });
 
-      it('an erased row keeps no connection and no open link', async () => {
+      it('an erased row keeps no connection', async () => {
         const { name } = await teammate('row');
         await connected(name);
         const told = await sync.onErased({ address: '', rows: [{ connectionId: h.connectionId, table: team, key: String(teamRow[name]) }] });
         expect(told.accounts).toBe(1);
         expect(await accountOf(name)).toBeUndefined();
+      });
+
+      it('an erased row keeps no open connect link', async () => {
+        const { name } = await teammate('row');
+        const rowKey = String(teamRow[name]);
+        const id = `clk_erased_${name}`;
+        await h.meta.db
+          .insertInto('adminium_connect_links')
+          .values({ id, connectionId: h.connectionId, tableName: team, rowKey, providers: JSON.stringify([KEY]), purpose: 'connect', tokenHash: id.padEnd(64, 'e'), createdBy: null, addressDigest: null, expiresAt: Date.now() + 600_000, createdAt: Date.now() } as never)
+          .execute();
+        await sync.onErased({ address: '', rows: [{ connectionId: h.connectionId, table: team, key: rowKey }] });
+        expect(await h.meta.db.selectFrom('adminium_connect_links').select('id').where('id', '=', id).executeTakeFirst()).toBeUndefined();
       });
     });
   });
