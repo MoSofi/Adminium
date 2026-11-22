@@ -15,6 +15,14 @@
     "status": "mt",
     "srcHash": "8cc99d540ed2"
   },
+  "addOns.accounts.notice.namesLeftBody": {
+    "status": "mt",
+    "srcHash": "229632913dc7"
+  },
+  "addOns.accounts.notice.namesLeftTitle": {
+    "status": "mt",
+    "srcHash": "27bcb23aafba"
+  },
   "addOns.accounts.notice.refusedBody": {
     "status": "mt",
     "srcHash": "c569bb70c52d"

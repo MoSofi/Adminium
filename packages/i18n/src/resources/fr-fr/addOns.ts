@@ -58,7 +58,9 @@ export default {
       "secretEndingTitle": "Le secret client {provider} expire le {date}",
       "secretEndingBody": "Créez un nouveau secret client et collez-le dans le guide de configuration avant cette date, sinon toutes les connexions {provider} s’arrêteront. Personne n’aura à se reconnecter.",
       "unreadableTitle": "Un agenda de {person} ne peut plus être lu",
-      "unreadableBody": "Il a été supprimé ou n’est plus partagé. Il a donc été retiré des agendas comptés comme occupés et ne bloque plus les créneaux de {person}. Les autres agendas continuent de le faire."
+      "unreadableBody": "Il a été supprimé ou n’est plus partagé. Il a donc été retiré des agendas comptés comme occupés et ne bloque plus les créneaux de {person}. Les autres agendas continuent de le faire.",
+      "namesLeftTitle": "L’agenda de {person} peut encore afficher le nom d’un client",
+      "namesLeftBody": "Certains événements de l’agenda {calendar} n’ont pas pu être supprimés avant la fin de cette connexion. Demandez à {person} de les y supprimer."
     }
   }
 } as const;

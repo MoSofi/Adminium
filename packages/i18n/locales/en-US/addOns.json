@@ -48,7 +48,9 @@
       "secretEndingTitle": "The {provider} client secret ends on {date}",
       "secretEndingBody": "Make a new client secret and paste it into the setup guide before that day, or every {provider} connection stops. Nobody needs to reconnect.",
       "unreadableTitle": "A calendar of {person}’s can no longer be read",
-      "unreadableBody": "It was deleted or is no longer shared, so it was taken off the calendars counted as busy and no longer blocks {person}’s slots. Their other calendars still do."
+      "unreadableBody": "It was deleted or is no longer shared, so it was taken off the calendars counted as busy and no longer blocks {person}’s slots. Their other calendars still do.",
+      "namesLeftTitle": "{person}’s calendar may still show a customer’s name",
+      "namesLeftBody": "Some events in the {calendar} calendar could not be removed before this connection ended. Ask {person} to delete them there."
     }
   }
 }
