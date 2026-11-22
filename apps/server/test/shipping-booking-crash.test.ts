@@ -31,7 +31,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { commitRows, rowsOf, sanitizeDump } from '../src/archive/policy.js';
 import { pickUpApplies } from '../src/shipping/apply.js';
-import { BOOK_ANSWER_MS, LATE_LABEL_REASON, RELEASE_QUIET_MS, RESERVED_STALE_MS, bookingView, buyLabel, lookUpBooking, readsAs, releaseBooking, settleStale, type BookingDeps, type PurchaseInput } from '../src/shipping/bookings.js';
+import { BOOK_ANSWER_MS, LATE_LABEL_REASON, RELEASE_QUIET_MS, RESERVED_STALE_MS, bookingView, buyLabel, lookUpBooking, readsAs, recordBought, releaseBooking, settleStale, type BookingDeps, type PurchaseInput } from '../src/shipping/bookings.js';
 import type { ResolvedCarrier } from '../src/shipping/carriers.js';
 import { openRateHandle } from '../src/shipping/quotes.js';
 import { ShippingRefusal } from '../src/shipping/refusals.js';
@@ -538,6 +538,44 @@ describe.each(LEGS)('buying a label once, with the booking table on %s', (dialec
     const twice = await unknownBooking();
     recover = async () => ({ outcome: 'found', shipment: SHIPMENT, duplicates: [{ ...SHIPMENT, id: 'tx_2', tracking: 'TRK-2' }] });
     expect(await lookUpBooking(deps, twice.booking, resolved(), { fingerprint: FINGERPRINT })).toMatchObject({ outcome: 'found', booking: { state: 'booked', duplicates: 1 } });
+  });
+
+  it.skipIf(!available)('a look-up never lowers the count of labels a person still has to refund, and raises it when the carrier names more', async () => {
+    const { booking } = await unknownBooking();
+    await repo().note(booking.id, ['unknown'], { duplicates: 2 }, clock);
+    recover = async () => ({ outcome: 'found', shipment: SHIPMENT });
+    expect(await lookUpBooking(deps, booking, resolved(), { fingerprint: FINGERPRINT })).toMatchObject({ outcome: 'found', booking: { state: 'booked', duplicates: 2 } });
+
+    const more = await unknownBooking();
+    await repo().note(more.booking.id, ['unknown'], { duplicates: 1 }, clock);
+    const extra = (n: number) => ({ ...SHIPMENT, id: `tx_extra_${String(n)}`, tracking: `TRK-X${String(n)}` });
+    recover = async () => ({ outcome: 'found', shipment: SHIPMENT, duplicates: [extra(1), extra(2), extra(3)] });
+    expect(await lookUpBooking(deps, more.booking, resolved(), { fingerprint: FINGERPRINT })).toMatchObject({ booking: { duplicates: 3 } });
+  });
+
+  it.skipIf(!available)('a late answer holding a stale copy of the booking keeps a count recorded since', async () => {
+    const { booking } = await unknownBooking();
+    expect(booking.duplicates).toBe(0);
+    await repo().addDuplicate(booking.id, ['unknown'], clock);
+    expect(await recordBought(deps, booking, { carrierShipmentId: 'tx_1', tracking: 'TRK-1' }, 0)).toMatchObject({ state: 'booked', duplicates: 1 });
+  });
+
+  it.skipIf(!available)('an earlier label taking its place back keeps the count it already had', async () => {
+    const { slot, booking } = await unknownBooking();
+    await repo().note(booking.id, ['unknown'], { duplicates: 1 }, clock);
+    clock += RELEASE_QUIET_MS;
+    await releaseBooking(deps, booking, 'usr_owner');
+    recover = async () => ({ outcome: 'found', shipment: SHIPMENT });
+    expect(await codeOf(buy(slot, { rate: { ...RATE, ref: 'rate-handle-2' } }))).toBe('ALREADY_BOUGHT');
+    expect(await repo().byId(booking.id)).toMatchObject({ state: 'booked', duplicates: 1 });
+  });
+
+  it.skipIf(!available)('counts two further labels found at the same moment as two', async () => {
+    const { booking } = await unknownBooking();
+    await Promise.all([repo().addDuplicate(booking.id, ['unknown'], clock), repo().addDuplicate(booking.id, ['unknown'], clock)]);
+    expect((await repo().byId(booking.id))!.duplicates).toBe(2);
+    await repo().raiseDuplicates(booking.id, 1, clock);
+    expect((await repo().byId(booking.id))!.duplicates).toBe(2);
   });
 
   it.skipIf(!available)('a person may release only after the quiet period, and only an unknown purchase', async () => {

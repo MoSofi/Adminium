@@ -250,8 +250,8 @@ async function followTransaction(deps: TrackDeps, event: ShippingTrackEvent): Pr
   if (unknown.length === 0) return 'no-match';
   if (unknown.length > 1) return flagAll(deps, unknown.map((one) => one.booking.id), install);
   const { booking, carrierToken } = unknown[0]!;
-  // The event does not say what was charged, so the quote is not shown as the confirmed charge. Duplicates already found stay found.
-  await recordBought(deps, booking, { carrierShipmentId: event.transactionId, tracking: event.tracking, trackingUrl: event.trackingUrl, carrierToken, chargeDiffers: true, answeredAt: deps.now(), reason: null }, booking.duplicates);
+  // The event does not say what was charged, so the quote is not shown as the confirmed charge. It names no further labels: any already counted stay counted.
+  await recordBought(deps, booking, { carrierShipmentId: event.transactionId, tracking: event.tracking, trackingUrl: event.trackingUrl, carrierToken, chargeDiffers: true, answeredAt: deps.now(), reason: null }, 0);
   return 'settled';
 }
 

@@ -336,6 +336,26 @@ export function shippingBookingsRepo(meta: MetaDb) {
     },
 
     /**
+     * The carrier named this many more labels for the purchase. Only ever
+     * raises the count: each is a paid label a person still has to refund, so
+     * an answer that names fewer must not make one disappear.
+     */
+    async raiseDuplicates(id: string, atLeast: number, at: number): Promise<void> {
+      if (atLeast <= 0) return;
+      await db.updateTable('adminium_shipping_bookings').set({ duplicates: atLeast, updatedAt: at }).where('id', '=', id).where('duplicates', '<', atLeast).execute();
+    },
+
+    /** One more paid label for this parcel, counted in the UPDATE so two at once are both counted. */
+    async addDuplicate(id: string, states: readonly ShippingBookingState[], at: number): Promise<void> {
+      await db
+        .updateTable('adminium_shipping_bookings')
+        .set((eb) => ({ duplicates: eb('duplicates', '+', 1), updatedAt: at }))
+        .where('id', '=', id)
+        .where('state', 'in', [...states])
+        .execute();
+    },
+
+    /**
      * A purchase read as "not bought" turned up after all: it takes its slot
      * back. Answers false if the slot is held, and then it stays as it was.
      */
