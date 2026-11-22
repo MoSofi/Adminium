@@ -45,7 +45,8 @@ describe('a side’s calls, read from its source', () => {
     const found = messages();
     expect(found).toHaveLength(2);
     expect(found[0]).toContain('asks the public API for a list with "where"');
-    expect(found[0]).toContain('PUBLIC_QUERY_REFUSED');
+    // `orders` is only added to: no entry reads it, so the list itself is not found.
+    expect(found[0]).toContain('PUBLIC_REF_NOT_FOUND');
     // Said with where the names are, since "config.tables" alone was read as the client's config.
     expect(found[1]).toContain("loaded.value.tables['<table>'] ?? '<table>'");
     expect(found[1]).toContain('Never from `client.config()`');
@@ -55,6 +56,193 @@ describe('a side’s calls, read from its source', () => {
     // What a public list does take, and a name that is no table of the app's.
     write('customer/src/App.tsx', `const rows = (await client.list(config.tables['cakes'] ?? 'cakes', { limit: 50, cursor })).data;\nawait client.create(name, { message });\nthings.get('other');`);
     expect(messages()).toEqual([]);
+  });
+
+  describe('a public list’s search, sort and filter, judged against its entry', () => {
+    const SHOP = {
+      compatibility: { minAdminiumVersion: '0.3.70' },
+      requiredSchema: { tables: [{ ref: 'products' }, { ref: 'pages' }, { ref: 'orders' }] },
+      publicAccess: [
+        { table: 'products', methods: ['GET'], select: ['id', 'name', 'category', 'price'], searchable: ['name'], orderable: ['price'], filterable: ['category', { column: 'price', ops: ['gte', 'lte'] }] },
+        { table: 'pages', methods: ['GET'], select: ['id', 'title'] },
+      ],
+    };
+    const listing = (table: string, options: string): void => write('customer/src/App.tsx', `const rows = await client.list(loaded.value.tables['${table}'] ?? '${table}', ${options});`);
+
+    it('says nothing of a search, a sort or a filter the entry declares', () => {
+      for (const options of [
+        '{ q: term, limit: 24 }',
+        '{ q }',
+        "{ order: 'price.desc' }",
+        "{ order: up ? 'price.asc' : 'price.desc' }",
+        "{ where: { column: 'category', op: 'eq', value: picked } }",
+        "{ where: { and: [{ column: 'price', op: 'gte', value: 1 }, { column: 'price', op: 'lte', value: 9 }] } }",
+        '{ limit: 24, ...(term ? { q: term } : {}) }',
+      ]) {
+        listing('products', options);
+        expect(messages(SHOP), options).toEqual([]);
+      }
+      write('customer/src/App.tsx', "const rows = await client.list<Product>(loaded.value.tables['products'] ?? 'products', { q: term });\nconst more = await client.list(loaded.value.tables['pages'] ?? 'pages', { limit: 5 });");
+      expect(messages(SHOP)).toEqual([]);
+    });
+
+    it('names the exact field to declare for a search, a sort or a filter the entry does not', () => {
+      for (const [options, parameter, field] of [
+        ['{ q: term }', 'q', 'publicAccess[1].searchable'],
+        ['{ limit: 24, ...(term ? { q: term } : {}) }', 'q', 'publicAccess[1].searchable'],
+        ["{ order: 'title.asc' }", 'order', 'publicAccess[1].orderable'],
+        ["{ where: { column: 'title', op: 'eq', value: picked } }", 'where', 'publicAccess[1].filterable'],
+      ] as const) {
+        listing('pages', options);
+        const found = messages(SHOP);
+        expect(found, options).toHaveLength(1);
+        expect(found[0]).toContain(`a list with "${parameter}"`);
+        expect(found[0]).toContain('400 PUBLIC_QUERY_REFUSED');
+        expect(found[0]).toContain(`manifest/access.json, at ${field}`);
+      }
+    });
+
+    it('names a column or an operator the declaration leaves out', () => {
+      listing('products', "{ order: 'name.asc' }");
+      expect(messages(SHOP)).toEqual([expect.stringMatching(/publicAccess\[0\]\.orderable.*"name"/)]);
+      listing('products', "{ where: { column: 'name', op: 'eq', value: picked } }");
+      expect(messages(SHOP)).toEqual([expect.stringMatching(/publicAccess\[0\]\.filterable.*"name"/)]);
+      listing('products', "{ where: { column: 'price', op: 'eq', value: picked } }");
+      expect(messages(SHOP)).toEqual([expect.stringMatching(/publicAccess\[0\]\.filterable.*"price".*"eq"/)]);
+      listing('products', "{ where: { or: [{ column: 'category', op: 'eq', value: 1 }, { column: 'category', op: 'eq', value: 2 }] } }");
+      expect(messages(SHOP)).toEqual([expect.stringContaining('joined by "and" only')]);
+    });
+
+    it('names an option the public client does not have, declared or not: it is dropped without an error', () => {
+      for (const [options, wrong, right] of [
+        ["{ filter: { column: 'category', op: 'eq', value: picked } }", 'filter', 'where'],
+        ["{ filters: [{ column: 'category', op: 'eq', value: picked }] }", 'filters', 'where'],
+        ['{ search: term }', 'search', 'q'],
+        ["{ sort: 'price.desc' }", 'sort', 'order'],
+      ] as const) {
+        listing('products', options);
+        const found = messages(SHOP);
+        expect(found, options).toHaveLength(1);
+        expect(found[0]).toContain(`passes "${wrong}"`);
+        expect(found[0]).toContain(`The option is "${right}"`);
+        expect(found[0]).not.toContain('PUBLIC_QUERY_REFUSED');
+      }
+    });
+
+    it('never tells a signed-in list to declare what it may not', () => {
+      write('customer/src/App.tsx', "const rows = await client.list(`${loaded.value.tables['orders'] ?? 'orders'}_claimed`, { order: 'id.desc' });\nawait client.claim({ code, email });");
+      const found = messages({ ...SHOP, publicAccess: [...SHOP.publicAccess, { table: 'orders', methods: ['GET'], select: ['id'], claim: { match: ['code', 'email'] } }] });
+      expect(found).toEqual([expect.stringContaining('publicAccess[2] cannot declare "orderable"')]);
+      expect(found[0]).toContain('sort or narrow the rows in the page');
+    });
+
+    it('says to raise the app’s floor only when it is below the release that reads these fields', () => {
+      listing('pages', '{ q: term }');
+      expect(messages(SHOP)[0]).not.toContain('compatibility.minAdminiumVersion');
+      const older = { ...SHOP, compatibility: { minAdminiumVersion: '0.3.60' } };
+      expect(messages(older)[0]).toContain('manifest/app.json, at compatibility.minAdminiumVersion, to "0.3.68"');
+    });
+
+    it('follows a name held in a variable, and stays quiet when it cannot tell and an entry declares it', () => {
+      write('customer/src/App.tsx', "const ref = loaded.value.tables['products'] ?? 'products';\nconst rows = await client.list(ref, { q: term });");
+      expect(messages(SHOP)).toEqual([]);
+      write('customer/src/App.tsx', "const ref = loaded.value.tables['pages'] ?? 'pages';\nconst rows = await client.list(ref, { q: term });");
+      expect(messages(SHOP)).toEqual([expect.stringContaining('publicAccess[1].searchable')]);
+      write('customer/src/App.tsx', 'export const load = (table: string) => client.list(table, { q: term });');
+      expect(messages(SHOP)).toEqual([]);
+      write('customer/src/App.tsx', "export const load = (table: string) => client.list(table, { order: 'title.asc' });");
+      expect(messages({ ...SHOP, publicAccess: [SHOP.publicAccess[1]] })).toEqual([expect.stringContaining('publicAccess[0].orderable')]);
+    });
+
+    it('judges every call in a file, not only the first', () => {
+      write('customer/src/App.tsx', "await client.list(loaded.value.tables['products'] ?? 'products', { q: term });\nawait client.list(loaded.value.tables['pages'] ?? 'pages', { q: term });");
+      expect(messages(SHOP)).toEqual([expect.stringContaining('publicAccess[1].searchable')]);
+    });
+
+    describe('a filter through another list (via)', () => {
+      const TABLES = {
+        tables: [
+          { ref: 'products', columns: [{ ref: 'id', role: 'pk' }, { ref: 'name' }, { ref: 'category' }] },
+          { ref: 'variants', columns: [{ ref: 'id', role: 'pk' }, { ref: 'product_id', type: 'fk', references: 'products' }, { ref: 'colour_code' }, { ref: 'size_code' }, { ref: 'price' }] },
+        ],
+      };
+      const VARIANTS = { table: 'variants', methods: ['GET'], select: ['id', 'product_id', 'colour_code', 'size_code', 'price'] };
+      const THROUGH = {
+        compatibility: { minAdminiumVersion: '0.3.70' },
+        requiredSchema: TABLES,
+        publicAccess: [
+          { table: 'products', methods: ['GET'], select: ['id', 'name', 'category'], filterable: ['category'], via: { entry: 'variants', on: 'product_id', columns: ['colour_code', { column: 'size_code', ops: ['eq'] }] } },
+          VARIANTS,
+        ],
+      };
+      const UNDECLARED = { ...THROUGH, publicAccess: [{ table: 'products', methods: ['GET'], select: ['id', 'name', 'category'] }, VARIANTS] };
+
+      it('says nothing of a via the entry declares', () => {
+        for (const options of [
+          '{ via }',
+          '{ via: picked, limit: 24 }',
+          "{ via: { column: 'colour_code', op: 'eq', value: colour } }",
+          "{ via: { column: 'colour_code', op: 'in', value: colours } }",
+          "{ via: { and: [{ column: 'colour_code', op: 'eq', value: colour }, { column: 'size_code', op: 'eq', value: size }] } }",
+          "{ limit: 24, ...(colour ? { via: { column: 'colour_code', op: 'eq', value: colour } } : {}) }",
+          "{ where: { column: 'category', op: 'eq', value: picked }, via: { column: 'colour_code', op: 'eq', value: colour } }",
+        ]) {
+          listing('products', options);
+          expect(messages(THROUGH), options).toEqual([]);
+        }
+      });
+
+      it('names the exact field and a ready shape for a via the entry does not declare', () => {
+        listing('products', "{ via: { and: [{ column: 'colour_code', op: 'eq', value: colour }, { column: 'size_code', op: 'eq', value: size }] } }");
+        const found = messages(UNDECLARED);
+        expect(found).toHaveLength(1);
+        expect(found[0]).toContain('a list with "via" on "products"');
+        expect(found[0]).toContain('400 PUBLIC_QUERY_REFUSED');
+        expect(found[0]).toContain('manifest/access.json, at publicAccess[0].via');
+        expect(found[0]).toContain('"via": { "entry": "variants", "on": "product_id", "columns": ["colour_code", "size_code"] }');
+        expect(found[0]).toContain('ONE');
+      });
+
+      it('leaves the shape to fill in when the source cannot say which list it goes through', () => {
+        listing('products', "{ via: { column: 'weight', op: 'eq', value: 2 } }");
+        expect(messages(UNDECLARED)).toEqual([expect.stringContaining('"via": { "entry": "<table of the other list>", "on": "<its foreign key to this table>", "columns": ["weight"] }')]);
+        // The link is there and customers read no list of that table: naming it would fail the manifest's own check.
+        listing('products', "{ via: { column: 'colour_code', op: 'eq', value: 'slate' } }");
+        expect(messages({ ...UNDECLARED, publicAccess: [UNDECLARED.publicAccess[0]] })).toEqual([expect.stringContaining('"entry": "<table of the other list>"')]);
+      });
+
+      it('names a column or an operator its columns leave out, an "or", and a plain object', () => {
+        listing('products', "{ via: { column: 'price', op: 'eq', value: 2 } }");
+        expect(messages(THROUGH)).toEqual([expect.stringMatching(/publicAccess\[0\]\.via\.columns.*"price".*"variants"/)]);
+        listing('products', "{ via: { column: 'size_code', op: 'in', value: sizes } }");
+        expect(messages(THROUGH)).toEqual([expect.stringMatching(/publicAccess\[0\]\.via\.columns.*"size_code".*"in"/)]);
+        listing('products', "{ via: { column: 'colour_code', op: 'like', value: 'sl%' } }");
+        expect(messages(THROUGH)).toEqual([expect.stringContaining('never takes "like"')]);
+        listing('products', "{ via: { or: [{ column: 'colour_code', op: 'eq', value: 1 }, { column: 'size_code', op: 'eq', value: 2 }] } }");
+        expect(messages(THROUGH)).toEqual([expect.stringContaining('joined by "and" only')]);
+        listing('products', "{ via: { colour_code: 'slate' } }");
+        expect(messages(THROUGH)).toEqual([expect.stringContaining('passes it as { column: value }')]);
+      });
+
+      it('says a where on the other list’s column belongs under via, never to declare it on this table', () => {
+        listing('products', "{ where: { column: 'colour_code', op: 'eq', value: colour } }");
+        const found = messages(THROUGH);
+        expect(found).toEqual([expect.stringContaining('Send it as "via"')]);
+        expect(found[0]).toContain('publicAccess[0].via.columns');
+        expect(found[0]).not.toContain('at publicAccess[0].filterable');
+        // Also on an entry with no filterable of its own.
+        const only = { ...THROUGH, publicAccess: [{ ...THROUGH.publicAccess[0], filterable: undefined }, VARIANTS] };
+        expect(messages(only)).toEqual([expect.stringContaining('Send it as "via"')]);
+      });
+
+      it('never tells a signed-in list to declare it, and raises a floor below its release', () => {
+        write('customer/src/App.tsx', "await client.claim({ code, email });\nconst rows = await client.list(`${loaded.value.tables['products'] ?? 'products'}_claimed`, { via: picked });");
+        expect(messages({ ...UNDECLARED, publicAccess: [{ table: 'products', methods: ['GET'], select: ['id'], claim: { match: ['code', 'email'] } }, VARIANTS] })).toEqual([expect.stringContaining('publicAccess[0] cannot declare "via"')]);
+        listing('products', '{ via: picked }');
+        expect(messages(UNDECLARED)[0]).not.toContain('compatibility.minAdminiumVersion');
+        expect(messages({ ...UNDECLARED, compatibility: { minAdminiumVersion: '0.3.60' } })[0]).toContain('manifest/app.json, at compatibility.minAdminiumVersion, to "0.3.68"');
+      });
+    });
   });
 
   it('names a picture column put in an <img> as it is, and a pictures entry whose rows carry no id', () => {
@@ -100,6 +288,26 @@ describe('a side’s calls, read from its source', () => {
       expect.stringContaining('access.json has no entry with a "claim"'),
     ]);
     expect(found[2]).toContain('manifest-by-task--let-a-customer-find-their-own-row.md');
+  });
+
+  it('reads a typed call like a plain one, for a short name and for a claimed endpoint', () => {
+    const claimed = { ...MANIFEST, publicAccess: [...MANIFEST.publicAccess, { table: 'orders', methods: ['GET'], claim: { match: ['code', 'email'] } }] };
+    for (const type of ['<Cake>', '<Cake[]>', '<Row<Cake>>', '<{ id: number }>', '<{\n  id: number;\n  name: string;\n}>', '<\n  Cake | Pie\n>']) {
+      write('customer/src/App.tsx', `const rows = await client.list${type}('cakes', { limit: 5 });`);
+      expect(messages(), type).toEqual([expect.stringContaining('short name ("cakes")')]);
+      write('customer/src/App.tsx', `await client.list(table);\nawait client.create${type}('orders', { name });`);
+      expect(messages(), type).toEqual([expect.stringContaining('short name ("orders")')]);
+      write('customer/src/App.tsx', `await client.claim({ code, email });\nconst rows = await client.list${type}('orders_claimed');`);
+      expect(messages(claimed), type).toEqual([expect.stringContaining('reads a claimed endpoint by a name written out')]);
+      write('customer/src/App.tsx', `await client.claim({ code, email });\nconst row = await client.get${type}(\`orders_claimed\`, id);`);
+      expect(messages(claimed), type).toEqual([expect.stringContaining('reads a claimed endpoint by a name written out')]);
+      // The name built from the customer config stays right, typed or not.
+      write('customer/src/App.tsx', `await client.claim({ code, email });\nconst rows = await client.list${type}(\`\${orders}_claimed\`, { limit: 1 });`);
+      expect(messages(claimed), type).toEqual([]);
+    }
+    // A comparison that only looks like a type names no table.
+    write('customer/src/App.tsx', `await client.list(table);\nconst far = page.list < 3 && size > ('cakes');`);
+    expect(messages()).toEqual([]);
   });
 
   it('names a staff filter written as { column: value }', () => {
@@ -223,6 +431,14 @@ describe('a hook called after a component may already have returned', () => {
     expect(messages()).toEqual([]);
     write('customer/src/data.ts', `export const one = (client, table, id) => client.get(table, id);`);
     expect(messages()).toEqual([]);
+    // A call typed with what it answers is a read too, however its type is written.
+    for (const typed of ['client.list<Cake>(table, { limit: 50 })', 'client.list<Cake[]>(table)', 'client.list<Row<Cake>>(table)', 'client.list<{ id: number }>(table)', 'client.get<Cake>(table, id)', 'client\n  .list<Cake>(table)', 'client.list<{\n  id: number;\n}>(table)', 'client.list<\n  Cake | Pie\n>(table)']) {
+      write('customer/src/data.ts', `export const load = (client, table, id) => ${typed};`);
+      expect(messages(), typed).toEqual([]);
+    }
+    // A comparison that only looks like a type is no read.
+    write('customer/src/data.ts', `export const nothing = (page) => page.list < 3;`);
+    expect(messages()).toHaveLength(1);
     // A list call only in a comment is none.
     write('customer/src/data.ts', `// client.list(table)\nexport const nothing = 1;`);
     expect(messages()).toHaveLength(1);

@@ -143,7 +143,7 @@ describe('gift cards at a till, start to finish', () => {
 
     // What each tool answered.
     const answers = requests.flatMap((request) => request.messages.at(-1)?.content ?? []).flatMap((block) => (block.type === 'tool_result' ? [String(block.content)] : []));
-    expect(answers.find((answer) => answer.startsWith('offers 1.0.9'))).toContain('Shapes for build_on_shape, added to your own tables: discountable@1, card-payment@1, card-sale@1, voucher-sale@1.');
+    expect(answers.find((answer) => answer.startsWith('offers 1.0.9'))).toContain('Shapes for build_on_shape, added to your own tables: discountable@1, card-payment@1, card-sale@1, voucher-sale@1, card-sale-online@1, voucher-sale-online@1.');
     const written = answers.filter((answer) => answer.startsWith('Written:'));
     expect(written).toHaveLength(2);
     expect(written[0]).toContain(`${base}/tables/ticket_lines.json: added gift_card_id (int, a link to offers.gift_cards), load_amount (money); the rule "card-load" posts into offers/value (issue)`);

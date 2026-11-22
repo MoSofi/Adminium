@@ -2569,7 +2569,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         const { rulesRemoved, emailsRemoved, dropped, kept, instanceRestored } = await service.removals.remove(plan, { dropTables, superAdmin, settingsManage, createdBy: userId });
         // Its own settings go with it (the row's cascade too); a reinstall starts from the manifest's defaults.
         await addOnSettingsRepo(deps.meta).clearForInstall(row.row.id);
-        // Its carrier choice, Ship from address and quotes: no foreign key takes them (0103).
+        // Its carrier choice, Ship from address and quotes: no foreign key takes them (0107).
         await shippingRepo(deps.meta).forgetInstall(row.row.id);
         /*
          * Its links to add-ons go; the add-ons stay installed — they are

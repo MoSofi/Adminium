@@ -138,6 +138,24 @@ describe('PermissionMatrix', () => {
     });
   });
 
+  it('an unavailable cell keeps its value, says why, and emits nothing, while its neighbours still work', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderMatrix({
+      onChange,
+      getCellUnavailable: (roleId, key) => (roleId === 'role-admin' && key === 'system:roles:manage' ? 'You do not hold this.' : null),
+    });
+    const cell = screen.getByRole('button', { name: 'Manage roles & access — Admin' });
+    expect(cell.getAttribute('aria-pressed')).toBe('false');
+    expect(cell.getAttribute('aria-disabled')).toBe('true');
+    expect(cell.getAttribute('title')).toBe('You do not hold this.');
+    expect(cell.getAttribute('aria-description')).toBe('You do not hold this.');
+    await user.click(cell);
+    expect(onChange).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Manage members — Admin' }));
+    expect(onChange).toHaveBeenCalledWith({ roleId: 'role-admin', permissionKey: 'system:users:manage', granted: false });
+  });
+
   it('disabled matrix keeps state visible but emits nothing', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

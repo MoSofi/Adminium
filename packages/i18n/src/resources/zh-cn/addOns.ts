@@ -38,5 +38,29 @@ export default {
   "tooOld": {
     "title": "此页面需要更新版本的 Adminium",
     "body": "此附加组件的页面是为比当前更新的 Adminium 版本构建的。更新 Adminium 后即可打开；页面中的任何内容都未运行。"
+  },
+  "accounts": {
+    "notice": {
+      "connectedTitle": "{person} 连接了一个账户",
+      "connectedBody": "{person} 现已以 {account} 连接到 {provider}。",
+      "refusedTitle": "{provider} 拒绝了此服务器的应用",
+      "refusedBody": "请检查为 {provider} 保存的客户端 ID 和密钥。无需任何人重新连接：应用被接受后，连接会自动恢复。",
+      "clashTitle": "{person} 的日历有冲突",
+      "clashBody": "{person} 日历中的忙碌时间现在与一项预约重叠。打开该预约以改期或保留。",
+      "staleTitle": "已移除 {person} 的忙碌时间",
+      "staleBody": "{person} 已 7 天未重新连接，因此其日历不再占用时间。",
+      "removedTitle": "{person} 删除了日历 {calendar}",
+      "removedBody": "该日历在一周内被删除两次，因此预约不再写入 {person} 的日历，直到其重新开启。",
+      "remadeTitle": "已重新创建日历 {calendar}",
+      "remadeBody": "该日历已从 {person} 的账户中删除，因此已连同即将到来的预约重新创建。",
+      "silentTitle": "{person} 日历的更改到达延迟",
+      "silentBody": "即时更新已停止，更改将随定期检查到达，大约在 12 分钟内。",
+      "secretEndingTitle": "{provider} 客户端密钥将于 {date} 到期",
+      "secretEndingBody": "请在此日期前创建新的客户端密钥并粘贴到设置指南中，否则所有 {provider} 连接都会停止。无需任何人重新连接。",
+      "unreadableTitle": "{person} 的一个日历已无法读取",
+      "unreadableBody": "该日历已被删除或不再共享，因此已从计为忙碌的日历中移除，不再占用 {person} 的时段。其他日历仍会占用。",
+      "namesLeftTitle": "{person} 的日历可能仍显示客户姓名",
+      "namesLeftBody": "在此连接结束前，未能从 {calendar} 日历中移除部分日程。请让 {person} 在该日历中删除它们。"
+    }
   }
 } as const;

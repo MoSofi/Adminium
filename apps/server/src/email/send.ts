@@ -76,7 +76,7 @@ import {
 } from './render.js';
 import type { MarketingCarry } from './marketing-carry.js';
 import { PLAIN_DOTTED, PLAIN_RECIPIENT } from './plain-address.js';
-import type { EmailRenderSource, EmailSendAttachmentRef, EmailSendInlineRef } from './types.js';
+import type { EmailCalendarPart, EmailRenderSource, EmailSendAttachmentRef, EmailSendInlineRef } from './types.js';
 import { resolveMailSender, SERVER_SENDER, type MailSender, type SendAbout } from './workspace-sender.js';
 import { configureTrialMail, queueThroughRelay, relayInUse, shownName, trialMailOn } from './trial-relay.js';
 
@@ -204,6 +204,8 @@ export const BOOKING_CONFIRMATION_TEMPLATE_KEY = 'booking-confirmation';
 /** The code that raises a found session to verified, and the notice an address change sends the old one. */
 export const SIGN_IN_CODE_TEMPLATE_KEY = 'sign-in-code';
 export const EMAIL_CHANGED_TEMPLATE_KEY = 'email-changed';
+/** The link that confirms a staff account's new sign-in address, sent to that address (`routes/me`). */
+export const EMAIL_CHANGE_CONFIRM_TEMPLATE_KEY = 'email-change-confirm';
 /** A client's one-use sign-in link to an app's guest side (`public-api/sign-in-link.ts`). */
 export const SIGN_IN_LINK_TEMPLATE_KEY = 'sign-in-link';
 /** The last email to a guest who deleted their details (`DELETE /public/account`). */
@@ -215,6 +217,10 @@ export const PAYMENT_RECEIPT_TEMPLATE_KEY = 'payment-receipt';
 export const SIGN_UP_CONFIRM_TEMPLATE_KEY = 'sign-up-confirm';
 /** A staff member's reply in a website chat, to the address the visitor left (`chat/reply-mail.ts`). */
 export const CHAT_REPLY_TEMPLATE_KEY = 'chat-reply';
+/** A one-time link for a person to connect their own outside account (`connected-accounts/notices.ts`). */
+export const CONNECT_LINK_TEMPLATE_KEY = 'connect-link';
+/** Tells a person, at the address on file, which outside account was connected for them. */
+export const ACCOUNT_CONNECTED_TEMPLATE_KEY = 'account-connected';
 
 /**
  * The templates of the server's own mail to its staff: getting in and keeping
@@ -227,6 +233,7 @@ export const SYSTEM_MAIL_TEMPLATE_KEYS: ReadonlySet<string> = new Set([
   USER_INVITE_TEMPLATE_KEY,
   SIGN_IN_CODE_TEMPLATE_KEY,
   EMAIL_CHANGED_TEMPLATE_KEY,
+  EMAIL_CHANGE_CONFIRM_TEMPLATE_KEY,
 ]);
 
 /**
@@ -363,6 +370,10 @@ export interface EnqueueEmailInput {
    */
   mailClass?: EmailMailClass | undefined;
   /** What a marketing mail carries (`marketing.ts`): its list headers and its locked footer, drawn last. */
+  /** A service mail's stop link headers (`List-Unsubscribe`), when it is sent for a consent purpose. */
+  listHeaders?: Record<string, string> | undefined;
+  /** The calendar entry this message carries, as the text of its `text/calendar` part. */
+  calendar?: EmailCalendarPart | undefined;
   marketing?: MarketingCarry | undefined;
   /** What a marketing mail was judged on, asked again at the hand-over. */
   standing?: MarketingStanding | undefined;
@@ -458,6 +469,8 @@ interface EmailEnvelope {
   standing?: MarketingStanding | undefined;
   /** A service mail's consent purpose when queued, asked again at the hand-over. */
   objection?: ServiceObjection | undefined;
+  /** The calendar entry the mail carries: an older server drops it and sends the mail without. */
+  calendar?: EmailCalendarPart | undefined;
   /** Sent by one of the server's account flows ({@link EnqueueEmailInput.account}): sealed, so a row cannot claim it. */
   account?: true | undefined;
 }
@@ -677,6 +690,8 @@ export interface EnqueueRenderedEmailInput {
   standing?: MarketingStanding | undefined;
   /** A service mail's consent purpose, asked again at the hand-over (service mail only). */
   objection?: ServiceObjection | undefined;
+  /** The calendar entry the mail carries. */
+  calendar?: EmailCalendarPart | undefined;
 }
 
 /**
@@ -758,6 +773,7 @@ async function queueEnvelope(deps: EnqueueEmailDeps, secret: string, input: Enqu
     ...(input.headers === undefined || Object.keys(input.headers).length === 0 ? {} : { headers: input.headers }),
     ...(input.mailClass !== 'marketing' || input.standing === undefined ? {} : { standing: input.standing }),
     ...(input.mailClass !== 'service' || input.objection === undefined ? {} : { objection: input.objection }),
+    ...(input.calendar === undefined ? {} : { calendar: input.calendar }),
     ...(account ? { account: true as const } : {}),
   };
   const inline = inlineRefs(input.rendered as RenderedEmail);
@@ -880,7 +896,8 @@ export async function enqueueEmail(
       report: input.report,
       ...(input.dedupeKey === undefined ? {} : { dedupeKey: input.dedupeKey }),
       ...(input.mailClass === undefined ? {} : { mailClass: input.mailClass }),
-      ...(input.marketing === undefined ? {} : { headers: input.marketing.headers }),
+      ...(input.marketing !== undefined ? { headers: input.marketing.headers } : input.listHeaders === undefined ? {} : { headers: input.listHeaders }),
+      ...(input.calendar === undefined ? {} : { calendar: input.calendar }),
       ...(input.standing === undefined ? {} : { standing: input.standing }),
       ...(input.objection === undefined ? {} : { objection: input.objection }),
     },

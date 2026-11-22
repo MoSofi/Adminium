@@ -61,6 +61,7 @@ import { PageSurface } from '../shell/PageSurface.js';
 import { t } from '../i18n/t.js';
 import { useCommonWords } from '../i18n/commonWords.js';
 import { CopyButton } from '../studio/connect/CopyButton.js';
+import { peopleFailureText } from './peopleRefusals.js';
 import { peopleQuery, rolesQuery, type RoleListItem } from './rolesApi.js';
 import {
   EMPTY_USER_FILTERS,
@@ -364,19 +365,24 @@ function RoleCheckboxes(props: {
       </p>
     );
   }
+  const shown = props.roles.filter((role) => role.partsOff !== true || props.selected.includes(role.id));
+  const noteId = `${props.idPrefix}-roles-above`;
+  const someAbove = shown.some((role) => role.mayChange === false);
   return (
     <div className="flex flex-col gap-2">
       {/* A role whose part of its app is switched off is offered to nobody new; somebody who holds it sees it, to take it away. */}
-      {props.roles
-        .filter((role) => role.partsOff !== true || props.selected.includes(role.id))
-        .map((role) => {
+      {shown.map((role) => {
         const id = `${props.idPrefix}-role-${role.id}`;
         const checked = props.selected.includes(role.id);
+        // Above the viewer: shown as it stands, neither given nor taken away here.
+        const above = role.mayChange === false;
         return (
           <div key={role.id} className="flex items-center gap-2">
             <Checkbox
               id={id}
               checked={checked}
+              disabled={above}
+              aria-describedby={above ? noteId : undefined}
               onCheckedChange={(next) => {
                 props.onChange(
                   next
@@ -385,12 +391,17 @@ function RoleCheckboxes(props: {
                 );
               }}
             />
-            <Label htmlFor={id} className="text-body-sm text-fg">
+            <Label htmlFor={id} className={above ? 'text-body-sm text-fg-muted' : 'text-body-sm text-fg'}>
               {role.name}
             </Label>
           </div>
         );
       })}
+      {someAbove ? (
+        <p id={noteId} className="text-caption text-fg-muted" data-testid="team-roles-above">
+          {t('team.roles.above', 'Roles that hold permissions you do not have cannot be given or taken away here.')}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -416,6 +427,11 @@ function RolesDialog(props: {
         closeLabel={t('common.close', 'Close')}
       />
       <ModalBody>
+        {props.user.status === 'invited' ? (
+          <p className="mb-3 text-body-sm text-fg-muted" data-testid="team-roles-invited">
+            {t('team.rolesDialog.invitedNote', 'Giving this person another role ends their current invitation: send them a new link afterwards.')}
+          </p>
+        ) : null}
         <RoleCheckboxes
           idPrefix={`user-${props.user.id}`}
           roles={props.roles}
@@ -530,7 +546,10 @@ function SuspendDialog(props: { user: UserDto; mode: 'suspend' | 'later'; onClos
       />
       <ModalBody className="text-body-sm text-fg-muted" data-testid="team-suspend-dialog">
         {mode === 'suspend' ? (
-          <p>{t('team.suspend.body', '{name} can no longer sign in, and is signed out everywhere. Their account, roles and history stay, and you can reactivate them.', { name: user.name })}</p>
+          <>
+            <p>{t('team.suspend.body', '{name} can no longer sign in, and is signed out everywhere. Their account, roles and history stay, and you can reactivate them.', { name: user.name })}</p>
+            <p className="mt-2" data-testid="team-suspend-keys">{t('team.apiKeys.revokedOnSuspend', 'Any API keys {name} made are revoked now. Reactivating {name} does not bring them back.', { name: user.name })}</p>
+          </>
         ) : null}
         {rows.isError ? (
           <Alert role="alert" tone="warn" className="mt-3" title={t('team.handOver.unknown', 'Which rows name {name} could not be read.', { name: user.name })} body={rows.error.message} />
@@ -545,7 +564,7 @@ function SuspendDialog(props: { user: UserDto; mode: 'suspend' | 'later'; onClos
             className="mt-3"
             data-testid="team-suspend-error"
             title={mode === 'suspend' ? t('team.suspend.failed', 'The account was not suspended') : t('team.handOver.failed', 'The rows were not handed over')}
-            body={act.error.message}
+            body={peopleFailureText(act.error)}
           />
         )}
       </ModalBody>
@@ -736,7 +755,7 @@ export function TeamPage(): ReactNode {
           tone="danger"
           data-testid="team-action-error"
           title={t('team.actionFailed', 'That change was not made')}
-          body={rowError.message}
+          body={peopleFailureText(rowError)}
           action={
             <Button variant="ghost" size="sm" onClick={dismissRowError}>
               {t('common.dismiss', 'Dismiss')}
@@ -927,7 +946,7 @@ export function TeamPage(): ReactNode {
         mayAssignRoles={mayManageRoles}
         roles={roleList}
         busy={create.isPending}
-        error={create.error === null ? null : create.error.message}
+        error={create.error === null ? null : peopleFailureText(create.error)}
         onOpenChange={(open) => {
           setInviteOpen(open);
           if (!open) create.reset();
@@ -941,7 +960,7 @@ export function TeamPage(): ReactNode {
           user={editingRoles}
           roles={roleList}
           busy={saveRoles.isPending}
-          error={saveRoles.error === null ? null : saveRoles.error.message}
+          error={saveRoles.error === null ? null : peopleFailureText(saveRoles.error)}
           onClose={() => {
             setEditingRoles(null);
             saveRoles.reset();
@@ -982,6 +1001,7 @@ export function TeamPage(): ReactNode {
                 'This erases {name}’s account, their preferences and their sign-in sessions, and blanks their name from the record of settings they changed. Suspending instead keeps all of it and only stops them signing in. This cannot be undone.',
                 { name: removing.name },
               )}
+              <p className="mt-2" data-testid="team-remove-keys">{t('team.apiKeys.revokedOnRemove', 'Any API keys {name} made are revoked.', { name: removing.name })}</p>
               {namedRows.data === undefined ? null : (
                 <HandOverRows person={removing} rows={namedRows.data} mode="remove" takerId={takerId} onTaker={setTakerId} testId="team-remove-rows" />
               )}
@@ -992,7 +1012,7 @@ export function TeamPage(): ReactNode {
                   className="mt-3"
                   data-testid="team-remove-error"
                   title={t('team.remove.failed', 'The account was not deleted')}
-                  body={remove.error.message}
+                  body={peopleFailureText(remove.error)}
                 />
               )}
             </>
@@ -1123,7 +1143,13 @@ function UserRow(props: {
             </Button>
           ) : null}
           {props.mayActOn && user.status === 'invited' ? (
-            <Button variant="ghost" size="sm" disabled={props.busy} onClick={props.onResend}>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={props.busy || user.signInLocked === true}
+              title={user.signInLocked === true ? t('team.roles.signInLocked', 'This person holds permissions or rows you do not reach, so only somebody who reaches them can send a new link.') : undefined}
+              onClick={props.onResend}
+            >
               {t('team.action.resend', 'New link')}
             </Button>
           ) : null}

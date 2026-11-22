@@ -191,5 +191,13 @@ export default {
   "partsOff": "Dens del af appen er slået fra: den giver intet, før delen er slået til.",
   "people": {
     "unnamed": "Unavngiven person"
+  },
+  "limits": {
+    "note": "Du kan kun give de tilladelser, du selv har. Alt andet vises, men kan ikke ændres.",
+    "notHeld": "Du har ikke denne tilladelse, så du kan ikke give den.",
+    "roleAbove": "Denne rolle har tilladelser, du ikke selv har, så du kan ikke ændre den.",
+    "refused": "Du kan kun give tilladelser, du selv har, og du kan ikke ændre en rolle, der har flere tilladelser end dig.",
+    "noTargets": "Der er ingen rolle, du kan give, som disse medlemmer kan flyttes til, så denne rolle kan ikke slettes endnu.",
+    "fullAccess": "“Installer og administrer apps og tilføjelser” svarer til fuld adgang: apps og tilføjelser kører kode på denne server. Giv det kun til en, du ville gøre til Super Admin."
   }
 } as const;

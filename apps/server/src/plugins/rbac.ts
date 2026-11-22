@@ -41,6 +41,7 @@ import {
   resolvePermissionSet,
   type PermissionSet,
 } from '../rbac/resolver.js';
+import { scrubUrlForLog } from '../log-scrub.js';
 
 /** Audit fields the caller provides; actor/ip/ua/request-id come from the request. */
 export type RequestAuditInput = Omit<
@@ -55,7 +56,7 @@ export interface RbacDecoration {
   /** Resolve (and per-request cache) the acting principal's permission set. */
   resolve(request: FastifyRequest): Promise<PermissionSet>;
   /** Append an audit entry stamped with the request's actor + transport info. */
-  audit(request: FastifyRequest, entry: RequestAuditInput): Promise<void>;
+  audit(request: FastifyRequest, entry: RequestAuditInput, on?: MetaDb): Promise<void>;
   now(): number;
 }
 
@@ -111,12 +112,13 @@ export const rbacPlugin = fp<RbacPluginOptions>(
       return permissionSetAllows(await resolve(this), permission);
     });
 
-    async function auditFromRequest(request: FastifyRequest, entry: RequestAuditInput): Promise<void> {
+    /** `on`: the transaction this entry stands or falls with; absent, the store itself. */
+    async function auditFromRequest(request: FastifyRequest, entry: RequestAuditInput, on?: MetaDb): Promise<void> {
       const principal = getPrincipal(request);
       // A write confirmed in a conversation with the assistant says so: the request came through
       // the assistant's door, which set this only after its ticket was found and matched.
       const via = request.assistantVia;
-      await audit.append(
+      await (on === undefined ? audit : auditRepo(on)).append(
         {
           ...entry,
           ...(via === null || via === undefined ? {} : { changes: { ...(entry.changes ?? {}), via: { assistant: { sessionId: via.sessionId, turnId: via.turnId } } } }),
@@ -143,7 +145,7 @@ export const rbacPlugin = fp<RbacPluginOptions>(
         await auditFromRequest(request, {
           category: 'rbac',
           action: 'permission.denied',
-          changes: { after: { permission, method: request.method, url: request.url } },
+          changes: { after: { permission, method: request.method, url: scrubUrlForLog(request.url) } },
         });
         throw new ForbiddenError('You do not have the required permission.', 'FORBIDDEN', {
           permission,
@@ -163,7 +165,7 @@ export const rbacPlugin = fp<RbacPluginOptions>(
       if (row === null) {
         throw new UnauthorizedError('UNAUTHENTICATED', 'Invalid, expired, or revoked API key.');
       }
-      request.apiKeyPrincipal = { kind: 'api-key', id: row.id, label: row.name, roleId: row.roleId };
+      request.apiKeyPrincipal = { kind: 'api-key', id: row.id, label: row.name, roleId: row.roleId, madeBy: row.createdBy };
       if (row.lastUsedAt === null || at - row.lastUsedAt >= API_KEY_TOUCH_INTERVAL_MS) {
         await apiKeys.touchLastUsed(row.id, at);
       }

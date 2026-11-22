@@ -121,7 +121,11 @@ export default {
       "paymentsWho": "Someone with the “Set up payments” permission sets this up in Payments.",
       "sourcesWhere": "Set up its sources on its own Sources screen.",
       "sourceEgress": "{source} may contact: {hosts}",
-      "sourceWebsite": "{source}: Adminium reads each company’s own website itself"
+      "sourceWebsite": "{source}: Adminium reads each company’s own website itself",
+      "accountsNotSetUp": "Not set up",
+      "accountsCount": "{connected} connected",
+      "accountsBoth": "{connected} connected · {reconnect} to reconnect",
+      "accountsOpen": "Open"
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",
@@ -4776,6 +4780,7 @@ export default {
       "stays": {
         "forGood": "Kept for good.",
         "days": "{count, plural, one {Kept for # day.} other {Kept for # days.}}",
+        "daysOnceRead": "{count, plural, one {Kept until read, then for # day.} other {Kept until read, then for # days.}}",
         "doNotEmail": "Their address stays on the do-not-email list as a code, so they’re never e-mailed again.",
         "lawHealth": "{count, plural, one {# row} other {# rows}} in {label}, because health law needs them.",
         "lawContract": "{count, plural, one {# row} other {# rows}} in {label}, because a contract needs them.",
@@ -4789,7 +4794,9 @@ export default {
         "notifications": "{count, plural, one {# notification to staff.} other {# notifications to staff.}}",
         "campaignFailures": "{count, plural, one {# failed campaign send, kept with the campaign’s send log.} other {# failed campaign sends, kept with the campaign’s send log.}}",
         "exports": "Data exports staff made of a table may hold them, until each one expires.",
-        "shippingBookings": "{count, plural, one {# parcel booking with its tracking number. The carrier and the shipping service keep their own copy.} other {# parcel bookings with their tracking numbers. The carriers and the shipping service keep their own copies.}}"
+        "shippingBookings": "{count, plural, one {# parcel booking with its tracking number. The carrier and the shipping service keep their own copy.} other {# parcel bookings with their tracking numbers. The carriers and the shipping service keep their own copies.}}",
+        "heldValues": "{count, plural, one {# pack, gift card or credit} other {# packs, gift cards or credits}} in {label} still with a balance, so the holder can use it.",
+        "heldValuesKept": "Their name and address go once it is used up or expires."
       },
       "mismatch": "That isn’t the same address. Type it again.",
       "failed": "The erasure did not finish. Erase again to finish it: what was already done stays done.",
@@ -4867,14 +4874,14 @@ export default {
     },
     "websites": {
       "tab": "Your websites",
-      "listHeading": "Websites that may show your forms and chat",
+      "listHeading": "Websites that may show your forms, chat and booking screens",
       "addedBy": "Added by {name} · {date}",
       "addedOn": "Added {date}",
       "remove": "Remove",
       "removeLabel": "Remove {url}",
       "removed": "Removed {url}",
       "removeFailed": "{url} was not removed. Try again.",
-      "none": "None yet. A form shows on another website only once that website is on this list.",
+      "none": "None yet. Your forms, chat and booking screens show on another website only once it is on this list.",
       "addLabel": "Add a website",
       "addHelp": "One website per line, starting with https://.",
       "add": "Add",
@@ -4890,7 +4897,7 @@ export default {
         "ok": "Ready to add"
       },
       "tooMany": "The list holds at most {max} websites. Remove one first.",
-      "note": "A listed website can show your forms and chat in a frame. It never gets access to your data.",
+      "note": "A listed website can show your forms, chat and booking screens in a frame. It never gets access to your data.",
       "embedHeading": "Put it on your website",
       "copy": "Copy",
       "copied": "Copied",
@@ -4914,6 +4921,33 @@ export default {
         "setIt": "Set it",
         "checkAgain": "Check again",
         "loadFailed": "Whether visitors can reach this server could not be checked. Try again."
+      },
+      "maker": {
+        "heading": "Show an app’s screen on your website",
+        "app": "App",
+        "screen": "Screen",
+        "way": "How it shows",
+        "inline": "Inline",
+        "inlineHelp": "Sits in the page",
+        "button": "Button",
+        "buttonHelp": "Opens on press",
+        "floating": "Floating",
+        "floatingHelp": "Stays in a corner",
+        "choice": "Open on a particular one",
+        "any": "Any",
+        "words": "The button’s words",
+        "linkWords": "The link’s words, if the screen can’t load",
+        "site": "The website it goes on",
+        "notListed": "This website isn’t allowed to show your screens yet.",
+        "add": "Add {site}",
+        "preview": "Preview",
+        "nothing": "Nothing shows here yet",
+        "nothingWhy": "This website isn’t on your list, so your screens refuse to load on it.",
+        "close": "Close",
+        "snippet": "The snippet",
+        "copyLabel": "Copy the snippet",
+        "strict": "If your website sets a content security policy, allow {origin} in its script-src and frame-src.",
+        "show": "Show the real screen"
       }
     },
     "reach": {

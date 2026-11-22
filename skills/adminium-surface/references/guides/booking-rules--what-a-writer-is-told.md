@@ -15,7 +15,7 @@ In the dashboard and the REST API:
 
 | Code | Status | When |
 |---|---|---|
-| `BOOKING_TAKEN` | 409 | Another counted visit of that person overlaps it. |
+| `BOOKING_TAKEN` | 409 | The person is taken. `details.reason` says why: `booking`, `buffer` or `busy`, and for `busy`, `details.source` is its place in the rule's `busy` list. A guest is never told which. |
 | `BOOKING_CLOSED` | 409 | A closure covers the day. |
 | `BOOKING_BUSY` | 409 | Another booking of that day is being written. Try again. |
 | `VALIDATION_FAILED` | 422 | `details.reason` is `BOOKING_OUT_OF_HOURS`, `BOOKING_OUT_OF_RANGE` (past, beyond the window, inside the notice) or `BOOKING_NOT_OFFERED`, and the field is named. |

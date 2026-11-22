@@ -79,6 +79,7 @@ import { personHash, personHashes } from './export.js';
 import type { AppScope } from './scope.js';
 import { erasedNameOf, findPerson, searchAddress, type PersonFound } from './sources.js';
 import { bookingsOfRows, eraseLabelsOfRows, type LabelPersonRow } from '../shipping/labels.js';
+import { countHeldByAddress, forgetHeldByAddress } from './held-values.js';
 import { whatStays, type StaysItem } from './what-stays.js';
 
 export interface EraseDeps {
@@ -99,6 +100,8 @@ export interface EraseDeps {
   signIns?: ((event: RecordWriteEvent) => Promise<void>) | undefined;
   /** What is installed: a reviews add-on's reviews of theirs keep their stars and words and lose their name (`reviews/erase.ts`). */
   reviewInstalls?: (() => Promise<AddOnInstalls>) | undefined;
+  /** The calendar sync: their events in staff calendars lose their name, and a connected account at this address ends. */
+  calendars?: { onErased(input: { address: string; rows: readonly { connectionId: string; table: string; key: string }[] }): Promise<{ events: number; accounts: number }> } | undefined;
   now?: (() => number) | undefined;
 }
 
@@ -321,6 +324,8 @@ export async function previewErasure(deps: EraseDeps, rawAddress: string, scope?
   const files = new Set([...(await rowFileIds(deps.meta, people)), ...(await copyFileIds(deps.meta, copyRows(rows)))].filter((id) => !labelFiles.has(id))).size;
   if (files > 0) goes.push({ kind: 'files', count: files });
   const stays = await whatStays(deps.meta, person);
+  // What they still hold with a balance keeps them until the balance ends (`held-values.ts`).
+  if (whole) for (const one of await countHeldByAddress({ meta: deps.meta, manager: deps.manager, now }, address)) stays.push({ kind: 'held-values', reason: 'live-balance', count: one.count, keptDays: null, forever: false, connectionId: one.connectionId, table: one.table, label: one.label });
   const found = goes.length > 0 || stays.some((item) => item.count !== null && item.count > 0) || (whole && (await deps.consent.stop.entryFor(address)) !== null);
   return { address, found, goes, stays, left: rows.left };
 }
@@ -436,6 +441,12 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: E
 
   // 6. Their rows.
   Object.assign(counts, await writePersonRows(rows));
+  // What they hold on an add-on's table: emptied where its value has ended, kept and marked where it has not.
+  if (whole) {
+    const held = await forgetHeldByAddress({ meta, manager: deps.manager, now }, address);
+    if (held.emptied > 0) counts['held-emptied'] = held.emptied;
+    if (held.kept > 0) counts['held-kept'] = held.kept;
+  }
   Object.assign(counts, await eraseFormRows(forms, erasedName, deps.answerFiles));
   let blanked = 0;
   for (const { db, found } of reviewed) blanked += await blankReviews(db, found);
@@ -448,6 +459,17 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: E
   if (whole) {
     const gone = await erasePageVisits(meta, deps.secret, address);
     if (gone.visits > 0 || gone.visitors > 0) Object.assign(counts, { 'page-visits': gone.visits, visitors: gone.visitors });
+  }
+  // Written without an announcement, so the sync is told: what their rows put in staff calendars is written again, nameless.
+  if (deps.calendars !== undefined) {
+    const told = await deps.calendars
+      .onErased({
+        address: whole ? address : '',
+        rows: rows.databases.flatMap((database) => database.sources.flatMap((source) => source.rows.map((row) => ({ connectionId: source.connectionId, table: source.table.id, key: row.key })))),
+      })
+      .catch(() => ({ events: 0, accounts: 0 }));
+    if (told.events > 0) counts['calendar-events'] = told.events;
+    if (told.accounts > 0) counts['calendar-accounts'] = told.accounts;
   }
   // An entry written about one of their rows while this ran.
   audit += await scrubAuditImages(meta, targets, started);

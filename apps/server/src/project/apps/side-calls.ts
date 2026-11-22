@@ -4,8 +4,8 @@
  * from the source before a person meets it on the page.
  *
  * A screen builds whatever it calls: the build knows nothing of what the
- * public API takes. So a customer page that sorts or filters a list from
- * the browser, names a table by its short name, or reads a person's own row
+ * public API takes. So a customer page that sorts or filters a list its
+ * entry does not declare, names a table by its short name, or reads a person's own row
  * without claiming it first, builds, opens, and then says "That did not work"
  * to every customer. These are found by reading the source for the call's
  * shape. It is a reading, not a proof: each finding says what it saw, and a
@@ -15,6 +15,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { appDir, appPath, type AppSide } from './read-app.js';
+import { callOpening, listQueryMessages } from './side-list-queries.js';
 
 export interface SideCallIssue {
   side: AppSide;
@@ -25,6 +26,7 @@ export interface SideCallIssue {
 
 /** What of a manifest these checks read. */
 interface ManifestLike {
+  compatibility?: { minAdminiumVersion?: unknown } | undefined;
   requiredSchema?: { tables?: { ref: string; columns?: { ref?: string; role?: string }[] }[] } | undefined;
   publicAccess?: { table?: string; claim?: unknown; kind?: string; select?: unknown; pictures?: unknown; methods?: unknown }[] | undefined;
 }
@@ -53,10 +55,12 @@ export function code(text: string): string {
   return text.replace(/\/\*[\s\S]*?\*\//g, (found) => found.replace(/[^\n]/g, ' ')).replace(/(^|[^:'"`\\])\/\/[^\n]*/g, (found, lead: string) => lead + ' '.repeat(found.length - lead.length));
 }
 
-/** A caller's sort, filter or search in the options of a `.list(...)`. */
-const LIST_WITH_QUERY = /\.list\(\s*[^,()]+,\s*\{[^{}]*?\b(order|where|q|filter|filters|sort|search)\s*[:,}]/;
 /** A table named by a string where the endpoint's own name goes. */
-const LITERAL_TABLE = /\.(list|create|get|update|remove)\(\s*(['"`])([a-z][a-z0-9_]*)\2/g;
+const LITERAL_TABLE = new RegExp(`${callOpening('list|create|get|update|remove')}${/\s*(?<quote>['"`])(?<name>[a-z][a-z0-9_]*)\k<quote>/.source}`, 'g');
+/** A claimed endpoint's name written out: one built from config.tables (a template with a value in it) is the right way. */
+const CLAIMED_WRITTEN_OUT = new RegExp(`${callOpening('list|get')}${/\s*(?:'[^']*claimed[^']*'|"[^"]*claimed[^"]*"|`[^`$]*claimed[^`$]*`)/.source}`);
+/** Any read a screen makes: the public client's, typed or not, or its own fetch. */
+const ANY_READ = new RegExp(`${callOpening('list|get')}|\\bfetch\\s*\\(`);
 /** `where` given as a plain object of column: value. */
 const WHERE_AS_OBJECT = /\bwhere\s*:\s*\{\s*(?!column\b|and\b|or\b|not\b|['"`]?(?:column|and|or|not)['"`]?\s*:)[A-Za-z_'"`[]/;
 
@@ -131,7 +135,7 @@ export function sideCallIssues(root: string, key: string, manifest: unknown): Si
   // Customers may read a table, and no screen reads anything at all: the page shows none of what it was made to show.
   const read = (app.publicAccess ?? []).filter((entry) => typeof entry.table === 'string' && entry.claim === undefined && Array.isArray(entry.methods) && entry.methods.includes('GET')).map((entry) => entry.table as string);
   const screens = customer.filter((source) => /\.(tsx|jsx)$/.test(source.file));
-  if (read.length > 0 && screens.length > 0 && !customer.some((source) => /\.\s*(?:list|get)\s*\(|\bfetch\s*\(/.test(source.text))) {
+  if (read.length > 0 && screens.length > 0 && !customer.some((source) => ANY_READ.test(source.text))) {
     const first = read[0] as string;
     out.push({
       side: 'customer',
@@ -152,14 +156,8 @@ export function sideCallIssues(root: string, key: string, manifest: unknown): Si
       });
       break;
     }
-    const query = LIST_WITH_QUERY.exec(text);
-    if (query !== null) {
-      out.push({
-        side: 'customer',
-        file,
-        message: `asks the public API for a list with "${query[1] as string}". A public list takes only limit, offset and cursor from the page, and refuses this with 400 PUBLIC_QUERY_REFUSED, so customers see an error. Read the list and sort or narrow it in the page; keep rows out of it with "filters" in access.json; and to show a person only their own row, give the entry a "claim" and call client.claim({ … }) first.`,
-      });
-    }
+    // A search, sort or filter is judged against what that list's own entry declares.
+    for (const message of listQueryMessages(text, app)) out.push({ side: 'customer', file, message });
     // `tables` read from the public client's own config: it has none (the table names are in the customer config), so the
     // read throws inside the load, the list stays empty, and the page says nothing.
     const fromClient = /\b(?:const|let)\s+(\w+)\s*=\s*await\s+\w+\.config\(\s*\)/.exec(text);
@@ -172,7 +170,7 @@ export function sideCallIssues(root: string, key: string, manifest: unknown): Si
       });
     }
     const named = new Set<string>();
-    for (const found of text.matchAll(LITERAL_TABLE)) if (tables.has(found[3] as string)) named.add(found[3] as string);
+    for (const found of text.matchAll(LITERAL_TABLE)) if (tables.has(found.groups?.name as string)) named.add(found.groups?.name as string);
     if (named.size > 0) {
       const one = [...named][0] as string;
       out.push({
@@ -187,8 +185,7 @@ export function sideCallIssues(root: string, key: string, manifest: unknown): Si
     if (/\.claim\(\s*['"`]/.test(text)) {
       out.push({ side: 'customer', file, message: 'calls client.claim with a name first. It takes one object, the details the person typed: client.claim({ code, customer_email }), and answers true or false.' });
     }
-    // Written out in full: a name built from config.tables (a template with a value in it) is the right way.
-    if (/\.(list|get)\(\s*(?:'[^']*claimed[^']*'|"[^"]*claimed[^"]*"|`[^`$]*claimed[^`$]*`)/.test(text)) {
+    if (CLAIMED_WRITTEN_OUT.test(text)) {
       out.push({
         side: 'customer',
         file,

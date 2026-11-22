@@ -60,14 +60,31 @@ export type OAuthRefusal =
   | 'NO_ACCESS_TOKEN'
   | 'NO_REFRESH_TOKEN';
 
+/**
+ * The token endpoint's `error` words Adminium acts on. Only these are kept,
+ * never the description or the body, which can echo what was sent.
+ */
+export const OAUTH_PROVIDER_CODES = ['invalid_grant', 'invalid_client', 'unauthorized_client', 'invalid_scope', 'access_denied'] as const;
+export type OAuthProviderCode = (typeof OAUTH_PROVIDER_CODES)[number];
+
 export class AddOnOAuthError extends Error {
   override readonly name = 'AddOnOAuthError';
   readonly reason: OAuthRefusal;
+  /** The endpoint's `error` word, when it is one of {@link OAUTH_PROVIDER_CODES}. */
+  readonly providerCode: OAuthProviderCode | null;
 
-  constructor(reason: OAuthRefusal, message: string) {
+  constructor(reason: OAuthRefusal, message: string, providerCode: OAuthProviderCode | null = null) {
     super(message);
     this.reason = reason;
+    this.providerCode = providerCode;
   }
+}
+
+/** The one word of a token endpoint's error body worth keeping, or null. */
+function providerCodeOf(body: unknown): OAuthProviderCode | null {
+  if (typeof body !== 'object' || body === null) return null;
+  const word = (body as { error?: unknown }).error;
+  return typeof word === 'string' && (OAUTH_PROVIDER_CODES as readonly string[]).includes(word) ? (word as OAuthProviderCode) : null;
 }
 
 /** One flow in progress. Never persisted, never logged. */
@@ -232,6 +249,9 @@ interface TokenResponse {
   refresh_token?: unknown;
   expires_in?: unknown;
   scope?: unknown;
+  id_token?: unknown;
+  refresh_token_expires_in?: unknown;
+  error?: unknown;
 }
 
 async function postToken(
@@ -256,9 +276,12 @@ async function postToken(
     // The body is deliberately NOT included: a token endpoint's error body can
     // echo back the parameters it was sent, which here includes a client
     // secret, and this message reaches an operator's screen and the log.
+    // Only its `error` word is read, against a short list.
+    const code = providerCodeOf(await response.json().catch(() => null));
     throw new AddOnOAuthError(
       'EXCHANGE_FAILED',
-      `the token endpoint answered ${response.status}.`,
+      `the token endpoint answered ${response.status}${code === null ? '' : ` (${code})`}.`,
+      code,
     );
   }
   try {
@@ -272,6 +295,10 @@ export interface ExchangeResult {
   envelope: OAuthEnvelope;
   expiresAt: number | null;
   scopes: string[] | null;
+  /** The sign-in's ID token, when the scopes asked for one. Who connected is read from it. */
+  idToken: string | null;
+  /** When the refresh token itself ends, if the provider says (Google, for an app in Testing). */
+  refreshExpiresAt: number | null;
 }
 
 function readTokens(
@@ -282,7 +309,8 @@ function readTokens(
 ): ExchangeResult {
   const accessToken = typeof body.access_token === 'string' ? body.access_token : null;
   if (accessToken === null) {
-    throw new AddOnOAuthError('NO_ACCESS_TOKEN', 'the token endpoint returned no access token.');
+    const code = providerCodeOf(body);
+    throw new AddOnOAuthError('NO_ACCESS_TOKEN', `the token endpoint returned no access token${code === null ? '' : ` (${code})`}.`, code);
   }
   // A refresh response may legitimately omit `refresh_token`, meaning "keep the
   // one you have" — dropping it there would silently make the grant one-shot.
@@ -295,6 +323,8 @@ function readTokens(
     envelope: { ...base, accessToken, refreshToken },
     expiresAt: expiresIn === null ? null : now + expiresIn * 1000,
     scopes: scope,
+    idToken: typeof body.id_token === 'string' ? body.id_token : null,
+    refreshExpiresAt: typeof body.refresh_token_expires_in === 'number' ? now + body.refresh_token_expires_in * 1000 : null,
   };
 }
 
@@ -374,4 +404,16 @@ export function addOnVisibleOAuthCredential(
   envelope: OAuthEnvelope,
 ): Record<string, unknown> {
   return { accessToken: envelope.accessToken };
+}
+
+/**
+ * What an add-on's code is handed of the install's one credential: an API key
+ * as saved; of an OAuth one the access token alone; and nothing of a connected
+ * accounts add-on's app registration, whose only contents are the client id
+ * and secret.
+ */
+export function addOnVisibleCredential(held: { kind: string; secret: Record<string, unknown> }): Record<string, unknown> | null {
+  if (held.kind !== 'oauth2') return held.secret;
+  if (held.secret['oauthApp'] !== undefined || typeof held.secret['accessToken'] !== 'string') return null;
+  return addOnVisibleOAuthCredential(held.secret as OAuthEnvelope);
 }

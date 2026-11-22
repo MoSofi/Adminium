@@ -13,7 +13,9 @@
  *   one-per-line  empty, or holds a space, a comma or a `*`
  *   https         does not start with `https://`
  *   address       not a website address once read (no host, a user name in
- *                 it, longer than an origin may be)
+ *                 it, longer than an origin may be, or a host a content
+ *                 policy cannot name: the origin is written into one, so a
+ *                 `;` in it would add a directive of its own)
  *   path          names a path, a query or a fragment beyond the origin
  *   self          this server's own address
  *   listed        already on the list (or an earlier line of the same batch)
@@ -49,6 +51,9 @@ export interface WebsiteCheckContext {
   listed: readonly string[];
 }
 
+/** An origin as a content policy's `frame-ancestors` can name it: letters, digits and dashes in dotted parts, and a port. */
+const POLICY_ORIGIN = /^https:\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)*\.?(?::\d{1,5})?$/;
+
 /** The origin a line names when it is one: null when it is not an https address with nothing after its host. */
 function originOf(text: string): { origin: string | null; code: 'address' | 'path' | 'ok' } {
   let url: URL;
@@ -59,7 +64,7 @@ function originOf(text: string): { origin: string | null; code: 'address' | 'pat
   }
   if (url.protocol !== 'https:' || url.hostname === '' || url.username !== '' || url.password !== '') return { origin: null, code: 'address' };
   const origin = url.origin.toLowerCase();
-  if (origin.length > WEBSITE_ORIGIN_MAX) return { origin: null, code: 'address' };
+  if (origin.length > WEBSITE_ORIGIN_MAX || !POLICY_ORIGIN.test(origin)) return { origin: null, code: 'address' };
   // Nothing after the host but one slash: no path, no query, no fragment (an empty `?` or `#` counts too).
   if (url.pathname !== '/' || url.search !== '' || url.hash !== '' || /[?#]/.test(text)) return { origin, code: 'path' };
   return { origin, code: 'ok' };

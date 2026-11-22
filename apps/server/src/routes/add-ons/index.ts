@@ -754,6 +754,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       ...copy,
       connectionName,
       connectKind: block.connect.kind,
+      connectAccounts: block.connect.accounts !== undefined,
       connected: credential !== null,
       // The one disk read in this DTO. Without it the list is a pure meta read
       // and cannot tell a running add-on from one a redeploy erased.
@@ -878,6 +879,10 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         `"${key}" does not connect over OAuth — its connect kind is ` +
           `"${manifest.addOn.connect.kind}".`,
       );
+    }
+    // People connect their own accounts through the connect door, and the registration is saved on its own route.
+    if (manifest.addOn.connect.accounts !== undefined) {
+      throw new ValidationFailedError(`"${key}" keeps an account per person. Save its app registration, then connect from its connected accounts.`, { reason: 'accounts' });
     }
     return { installed, manifest };
   }
@@ -2243,6 +2248,12 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         // Removed at its own door, which first asks whether a booking still depends on it.
         if (declaresShippingCarrier(installed.document)) {
           throw new ValidationFailedError(`"${key}" is a delivery carrier. Remove its key in its app's shipping settings.`, { reason: 'shipping' });
+        }
+
+        // A registration people are connected through: they are disconnected first, each with what that undoes at the provider.
+        if (read.ok && isAddOnManifest(read.manifest) && read.manifest.addOn.connect.accounts !== undefined) {
+          const held = await deps.meta.db.selectFrom('adminium_connected_accounts').select('id').where('manifestId', '=', installed.row.id).limit(1).execute();
+          if (held.length > 0) throw new ValidationFailedError(`"${key}" still has connected accounts. Disconnect them first.`, { reason: 'accounts' });
         }
 
         // And the whole of it: ONE delete, against a table that holds only

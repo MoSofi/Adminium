@@ -62,6 +62,9 @@ const FINAL_REFUSALS: ReadonlySet<string> = new Set(['CURRENCY_UNSUPPORTED']);
 /** The states that end a visit: where the page offers the way back to the app the record is paid in. */
 const BACK_STATES: ReadonlySet<string> = new Set(['paid', 'processing', 'shop-checks', 'failed', 'cancelled', 'nothing-due', 'voided']);
 
+/** In a tab opened beside a frame: the states with nothing left to do here. A declined card can still try again. */
+const BESIDE_DONE: ReadonlySet<string> = new Set(['paid', 'processing', 'shop-checks', 'nothing-due', 'voided']);
+
 /** How often the way-back page asks again while the provider has not said. */
 export const BACK_POLL_MS = 3000;
 /** After this many asks the page says it is taking long, and keeps asking more slowly. */
@@ -717,6 +720,11 @@ export function PayApp({ route }: { route: Exclude<PayRoute, { kind: 'demo' } | 
                 </a>
               )}
               {current.contact === true ? <Contact shop={shop} /> : null}
+              {page?.beside === true && BESIDE_DONE.has(page.state) ? (
+                <p className="pp-small" data-testid="pay-beside">
+                  {t('pay:beside', 'You can close this tab and go back to the website you came from.')}
+                </p>
+              ) : null}
               {page?.back != null && BACK_STATES.has(page.state) ? (
                 <a className="pp-link" href={page.back.url} data-testid="pay-back">
                   <Icon of={ArrowLeft} size={14} flip />

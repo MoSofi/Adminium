@@ -111,7 +111,7 @@ for (const dialect of TEST_DIALECTS) {
       const t = await dialect.make();
       try {
         await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS.filter((m) => m.name < '0099_source_days') });
-        expect((await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS.filter((m) => m.name <= '0099_source_days') })).applied).toEqual(['0099_source_days']);
+        expect((await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS })).applied[0]).toBe('0099_source_days');
         expect(await sourceDaysRepo(t.meta).day(TOTAL)).toBeNull();
       } finally {
         await t.destroy();

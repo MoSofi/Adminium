@@ -24,7 +24,7 @@ function app(shipping?: unknown): Doc {
     license: 'AGPL-3.0-only',
     description: { key: 'd', fallback: 'A shop.' },
     categories: ['operations'],
-    compatibility: { minAdminiumVersion: '0.3.71', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: '0.3.72', engines: ['postgres', 'mysql', 'sqlite'] },
     requiredSchema: {
       tables: [
         {
@@ -57,11 +57,11 @@ describe('the shipping block', () => {
   });
 
   it('asks for the release that reads it, so an older server says so', () => {
-    expect(WORD_FLOORS['shipping']).toBe('0.3.71');
+    expect(WORD_FLOORS['shipping']).toBe('0.3.72');
     expect(installFloorWords(app({ orders: [entry()] }))).toContainEqual({ word: 'shipping', path: 'shipping' });
     const old = app({ orders: [entry()] });
-    old['compatibility'].minAdminiumVersion = '0.3.70';
-    expect(messages(old).join()).toContain('"shipping" is read by Adminium 0.3.71 and later');
+    old['compatibility'].minAdminiumVersion = '0.3.71';
+    expect(messages(old).join()).toContain('"shipping" is read by Adminium 0.3.72 and later');
   });
 
   it('takes a full entry, and one with only the required fields', () => {

@@ -198,6 +198,8 @@ export const tableActionsSchema = z.object({
   readLimit: readLimitSchema.optional(),
   /** Narrows which ROWS `read`, `update` and `delete` reach; absent, every row. */
   rowLimit: rowLimitSchema.optional(),
+  /** Of `rowLimit`, what the owner set by hand: an app's update keeps it, and it waits here while the action is away. */
+  ownerRows: rowLimitSchema.optional(),
 });
 export type TableActions = z.infer<typeof tableActionsSchema>;
 
@@ -1332,6 +1334,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
         table: z.union([ruleTable, addOnTable]),
         column: ruleColumn,
         where: codeWhere.optional(),
+        /** The address column a row named `held:<key>` is held to. */
+        held: ruleColumn.optional(),
         scope: z
           .array(z.object({ column: ruleColumn, equals: ruleColumn, orEmpty: z.literal(true).optional() }).strict())
           .min(1)
@@ -1569,6 +1573,7 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
     value: z.object({
       start: bookingName,
       minutes: bookingName,
+      buffer: bookingName.optional(),
       resource: bookingName,
       kind: bookingName,
       countWhere: z.object({ column: bookingName, values: z.array(z.string().min(1)).min(1) }),
@@ -1582,13 +1587,44 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       }),
       hours: z.object({
         practice: z.object({ table: bookingTable, open: bookingName.optional(), ...bookingHours }),
-        own: z.object({ table: bookingTable, resource: bookingName, ...bookingHours }).optional(),
+        own: z.object({ table: bookingTable, resource: bookingName, ...bookingHours, within: z.literal('practice').optional() }).optional(),
       }),
       closures: z
         .object({ table: bookingTable, from: bookingName, to: bookingName, resource: bookingName.optional(), active: bookingName.optional() })
         .optional(),
+      busy: z
+        .array(
+          z.object({
+            table: bookingTable,
+            resource: bookingName,
+            start: bookingName,
+            end: bookingName,
+            countWhere: z.object({ column: bookingName, values: z.array(z.string().min(1)).min(1) }).optional(),
+            engine: z.object({ account: bookingName }).optional(),
+          }),
+        )
+        .min(1)
+        .max(4)
+        .optional(),
+      anyone: z
+        .object({
+          pick: z.union([z.enum(['order', 'even']), z.object({ column: bookingName })]),
+          made: bookingName.optional(),
+          flag: bookingName.optional(),
+        })
+        .optional(),
+      sync: z
+        .object({
+          when: z.object({ column: bookingName, values: z.array(z.string().min(1)).min(1).max(16) }),
+          calendarName: z.union([z.string().min(1).max(100), z.object({ table: bookingTable, column: bookingName })]),
+          title: z.object({ service: z.string().min(1).max(256), person: z.string().min(1).max(256).optional() }),
+          detail: z.object({ default: z.enum(['first-name+initial', 'none']), max: z.enum(['first-name+initial', 'none']) }).optional(),
+        })
+        .optional(),
       grid: capacityNumber,
       windowDays: capacityNumber.optional(),
+      windowFor: z.enum(['everyone', 'guests']).optional(),
+      placedFrom: z.array(z.string().min(1)).min(1).max(8).optional(),
       noticeMinutes: capacityNumber.optional(),
       cancel: z
         .object({
@@ -1596,6 +1632,29 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
           mode: z.enum(['refuse', 'flag']),
           flag: bookingName.optional(),
           when: z.object({ column: bookingName, to: z.string().min(1) }),
+        })
+        .optional(),
+      // The booking as a calendar entry: what its invitation and a person's feed may say (`calendar/`).
+      calendar: z
+        .object({
+          revision: bookingName,
+          title: z.array(bookingName).min(1).max(3),
+          code: bookingName.optional(),
+          person: z.array(bookingName).min(1).max(3).optional(),
+          studio: z.object({
+            name: z.object({ table: bookingTable, column: bookingName }),
+            address: z.object({ table: bookingTable, column: bookingName }).optional(),
+            website: z.object({ table: bookingTable, column: bookingName }).optional(),
+          }),
+          notice: z.record(z.string().min(2).max(35), z.string().min(1).max(200)),
+          feed: z
+            .object({
+              own: bookingName,
+              active: bookingName.optional(),
+              detail: z.object({ table: bookingTable, column: bookingName }).optional(),
+              customer: z.array(bookingName).min(1).max(3).optional(),
+            })
+            .optional(),
         })
         .optional(),
     }),

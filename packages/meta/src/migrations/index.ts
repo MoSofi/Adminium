@@ -116,11 +116,18 @@ import { up as up0095 } from './0095_chat_ai_addresses.js';
 import { up as up0096 } from './0096_view_days.js';
 import { up as up0097 } from './0097_visitors.js';
 import { up as up0099 } from './0099_source_days.js';
-import { up as up0103 } from './0103_shipping.js';
-import { up as up0104 } from './0104_shipping_keys.js';
-import { up as up0105 } from './0105_shipping_bookings.js';
-import { up as up0106 } from './0106_shipping_labels.js';
-import { up as up0107 } from './0107_shipping_tracking.js';
+import { up as up0100 } from './0100_connected_accounts.js';
+import { up as up0101 } from './0101_calendar_feeds.js';
+import { up as up0102 } from './0102_calendar_sync.js';
+import { up as up0103 } from './0103_email_changes.js';
+import { up as up0104 } from './0104_connect_link_address.js';
+import { up as up0105 } from './0105_revoke_stopped_keys.js';
+import { up as up0106 } from './0106_owner_row_limits_pending.js';
+import { up as up0107 } from './0107_shipping.js';
+import { up as up0108 } from './0108_shipping_keys.js';
+import { up as up0109 } from './0109_shipping_bookings.js';
+import { up as up0110 } from './0110_shipping_labels.js';
+import { up as up0111 } from './0111_shipping_tracking.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -224,9 +231,16 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0096_view_days', up: up0096 },
   { name: '0097_visitors', up: up0097 },
   { name: '0099_source_days', up: up0099 },
-  { name: '0103_shipping', up: up0103 },
-  { name: '0104_shipping_keys', up: up0104 },
-  { name: '0105_shipping_bookings', up: up0105 },
-  { name: '0106_shipping_labels', up: up0106 },
-  { name: '0107_shipping_tracking', up: up0107 },
+  { name: '0100_connected_accounts', up: up0100 },
+  { name: '0101_calendar_feeds', up: up0101 },
+  { name: '0102_calendar_sync', up: up0102 },
+  { name: '0103_email_changes', up: up0103 },
+  { name: '0104_connect_link_address', up: up0104 },
+  { name: '0105_revoke_stopped_keys', up: up0105 },
+  { name: '0106_owner_row_limits_pending', up: up0106 },
+  { name: '0107_shipping', up: up0107 },
+  { name: '0108_shipping_keys', up: up0108 },
+  { name: '0109_shipping_bookings', up: up0109 },
+  { name: '0110_shipping_labels', up: up0110 },
+  { name: '0111_shipping_tracking', up: up0111 },
 ];

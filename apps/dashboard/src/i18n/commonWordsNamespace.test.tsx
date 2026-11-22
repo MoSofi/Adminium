@@ -35,7 +35,7 @@ const KEY = new RegExp(`['"](?:common:)?((?:${GROUPS})\\.[A-Za-z0-9_.]+)['"]`, '
 const SCREENS: Readonly<Record<string, readonly string[]>> = {
   'about/AboutPage.tsx': ['about/DesktopAboutSections.tsx'],
   'kb/KnowledgeBasePage.tsx': ['kb/articles.ts'],
-  'team/TeamPage.tsx': [],
+  'team/TeamPage.tsx': ['team/peopleRefusals.ts'],
   // The account and preferences screens: their group joined to make room for the rail's People and Teams.
   'pages/AccountPage.tsx': [],
   'account/PreferencesPage.tsx': [],
@@ -45,6 +45,8 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
   'account/SecurityPage.tsx': ['account/FigmaCard.tsx'],
   // The password form, on `/account` too: it waits for its own words wherever it is mounted.
   'account/PasswordCard.tsx': [],
+  // Where the link mailed to a new sign-in address lands.
+  'account/ConfirmEmailPage.tsx': [],
   'reports/ScheduledReportsPage.tsx': [],
   'changelog/ChangelogPage.tsx': [],
   'audit/AuditLogPage.tsx': [],

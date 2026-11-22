@@ -88,6 +88,8 @@ export interface CrudListParams {
    * fields compute arithmetic over them server-side.
    */
   compute?: string | undefined;
+  /** Columns answered as `true` or `false` (whether they hold a value) in place of the value. */
+  presentOnly?: readonly string[] | undefined;
   limit?: number | undefined;
   /** Offset mode — mutually exclusive with `cursor`. */
   offset?: number | undefined;

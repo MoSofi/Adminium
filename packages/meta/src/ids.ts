@@ -90,6 +90,15 @@ export const ID_PREFIXES = {
   // with the manifest they hang off would make a stray id look valid.
   mat: 'adminium_manifest_attachments',
   aoc: 'adminium_add_on_credentials',
+  /** Connected accounts, their links and their sign-ins in progress (wave 0100). */
+  cac: 'adminium_connected_accounts',
+  clk: 'adminium_connect_links',
+  ofl: 'adminium_oauth_flows',
+  /** Calendar sync: its event mirror, rows waiting to go out, push channels and clashes (wave 0102). */
+  cev: 'adminium_calendar_events',
+  cdr: 'adminium_calendar_dirty',
+  chn: 'adminium_calendar_channels',
+  ccl: 'adminium_calendar_clashes',
   /** One table an installed app uses (wave 0039). */
   atb: 'adminium_app_tables',
   /** An installed app's outbox (wave 0042). */
@@ -183,11 +192,11 @@ export const ID_PREFIXES = {
   cai: 'adminium_chat_ai_addresses',
   // wave 0097 — one counted view of a visitor who said yes to "Per visitor".
   vst: 'adminium_visits',
-  /** One order slot's live quote (wave 0103). */
+  /** One order slot's live quote (wave 0107). */
   shq: 'adminium_shipping_quotes',
-  /** One attempt to buy a label (wave 0105). */
+  /** One attempt to buy a label (wave 0109). */
   shb: 'adminium_shipping_bookings',
-  /** One webhook event about a parcel (wave 0107). */
+  /** One webhook event about a parcel (wave 0111). */
   ste: 'adminium_shipping_track_events',
 } as const;
 

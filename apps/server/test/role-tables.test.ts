@@ -203,6 +203,33 @@ describe.each(LEGS)('an app\'s roles on an add-on\'s tables — %s', (dialect, a
     expect(await held('night')).toEqual(WRITTEN);
   });
 
+  it.skipIf(!available)('a row limit the owner set on an add-on\'s table survives an app update', async () => {
+    await start();
+    expect((await addKit()).statusCode).toBe(200);
+    const role = (await rolesRepo(h.meta).findBySlug('shop-floor'))!;
+    const row = (await permissionsRepo(h.meta).listForRole(role.id)).find((one) => one.resourceRef.endsWith('ledger_kit_accounts'))!;
+    await permissionsRepo(h.meta).grant(role.id, 'table', row.resourceRef, { ...(row.actions as Doc), rowLimit: { read: { reach: 'own' } }, ownerRows: { read: { reach: 'own' } } } as never);
+    await h.stageApp(shop({ version: '1.0.1' }));
+    const updated = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: { to: '1.0.1' } });
+    expect(updated.statusCode, updated.body).toBe(200);
+    expect((await held('floor'))['ledger_kit_accounts']).toMatchObject({ ...WRITTEN.ledger_kit_accounts, rowLimit: { read: { reach: 'own' } } });
+  });
+
+  it.skipIf(!available)('a row limit the owner set on an add-on\'s table is back when the add-on is switched off and on', async () => {
+    await start();
+    expect((await addKit()).statusCode).toBe(200);
+    const role = (await rolesRepo(h.meta).findBySlug('shop-floor'))!;
+    const row = (await permissionsRepo(h.meta).listForRole(role.id)).find((one) => one.resourceRef.endsWith('ledger_kit_accounts'))!;
+    await permissionsRepo(h.meta).grant(role.id, 'table', row.resourceRef, { ...(row.actions as Doc), rowLimit: { read: { reach: 'own' } }, ownerRows: { read: { reach: 'own' } } } as never);
+    const toggle = (enabled: boolean) => h.inject({ method: 'PATCH', url: `/add-ons/${KIT}`, payload: { attachedTo: 'shop', enabled } });
+    const off = await toggle(false);
+    expect(off.statusCode, off.body).toBe(200);
+    expect((await held('floor'))['ledger_kit_accounts']?.['read']).toBeUndefined();
+    const on = await toggle(true);
+    expect(on.statusCode, on.body).toBe(200);
+    expect((await held('floor'))['ledger_kit_accounts']).toMatchObject({ read: true, rowLimit: { read: { reach: 'own' } } });
+  });
+
   it.skipIf(!available)('what the owner took away stays away when the add-on is switched off and on again', async () => {
     await start();
     expect((await addKit()).statusCode).toBe(200);

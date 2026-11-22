@@ -1,5 +1,15 @@
 # @adminium/add-on-contracts
 
+## 0.3.71
+
+### Patch Changes
+
+- 1c983d2: A person can now connect their calendar from a link, on a page that needs no account and says what happened at every step. A calendar add-on's page can list who is connected, check that a business's client ID and secret are accepted, and warn 30 days before the secret ends. On Studio's Add-ons page, a calendar add-on now shows how many people are connected or need to reconnect, with an Open button in place of Disconnect.
+- c053149: A booking rule can sync each person's calendar (`booking.sync`): bookings go out to their own calendar and their busy times block new ones, by push or a regular read. A new `calendar-provider` contract, a built-in demo calendar and a conformance kit carry it. The desk reads a person's calendar state, busy times and clashes, and can keep a clash. A dashboard card can read a table of an add-on the app names, and count calendar connections (`calendar-connections`).
+- ad4c4fc: An add-on can now connect a person's own outside account, such as a calendar: through a short link or the desk, with tokens sealed on the server, one refresh at a time, and a clear state when the account needs connecting again.
+- bc5b266: An add-on can now show a signed-in customer the rows it holds for them (`heldBy`), let them spend one without its code reaching the browser (`held:<key>`), and run an outside script in a sandboxed page of its own (`addOn.framedPage`).
+- ad4c4fc: An app's customer pages can now run inside a frame on the websites its owner lists, with a button or a sheet, a snippet maker in the studio, and a payment that returns to the page it started from.
+
 ## 0.3.70
 
 ## 0.3.69

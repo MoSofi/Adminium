@@ -65,6 +65,12 @@ export interface RegisterJobHandlerOptions {
   internal?: boolean;
   /** Keep a kind out of the jobs routes altogether (implies nothing about `internal`). */
   hidden?: boolean;
+  /**
+   * A later registration of this kind takes its place. Only for kinds that are
+   * rebuilt while the server runs: an add-on's event halves, on every install,
+   * update and switch.
+   */
+  replace?: boolean;
 }
 
 /** Creates an isolated registry (one per server; fresh per test). */
@@ -82,7 +88,7 @@ export function createJobRegistry() {
       if (kind.length === 0 || kind.length > 60) {
         throw new Error(`job kind must be 1–60 chars, got "${kind}"`);
       }
-      if (handlers.has(kind)) {
+      if (handlers.has(kind) && opts.replace !== true) {
         throw new Error(`job handler for kind "${kind}" is already registered`);
       }
       handlers.set(kind, {
@@ -97,6 +103,11 @@ export function createJobRegistry() {
 
     has(kind: string): boolean {
       return handlers.has(kind);
+    },
+
+    /** Forgets a kind that was registered to be replaced, once nothing provides it any more. */
+    unregister(kind: string): boolean {
+      return handlers.delete(kind);
     },
 
     get(kind: string): RegisteredJobHandler | undefined {

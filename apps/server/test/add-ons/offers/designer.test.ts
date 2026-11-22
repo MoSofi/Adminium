@@ -91,8 +91,10 @@ describe('what the tool reads of Offers', () => {
     expect(FIXTURE.version).toBe(offers!.version);
   });
 
-  it.skipIf(!run)('all four of its shapes are ones added to an app\'s own tables', () => {
-    expect(shapesOf(offers!.manifest)).toEqual(['discountable@1', 'card-payment@1', 'card-sale@1', 'voucher-sale@1'].map((name) => ({ name, how: 'spelled-out' })));
+  it.skipIf(!run)('all six of its shapes are ones added to an app\'s own tables', () => {
+    expect(shapesOf(offers!.manifest)).toEqual(
+      ['discountable@1', 'card-payment@1', 'card-sale@1', 'voucher-sale@1', 'card-sale-online@1', 'voucher-sale-online@1'].map((name) => ({ name, how: 'spelled-out' })),
+    );
   });
 
   it.skipIf(!run)('the four go onto one till, and every rule written fits the add-on', () => {

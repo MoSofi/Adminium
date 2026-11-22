@@ -121,7 +121,11 @@ export default {
       "paymentsWho": "Eingerichtet wird das in Zahlungen, von jemandem mit der Berechtigung „Zahlungen einrichten“.",
       "sourcesWhere": "Richten Sie seine Quellen auf seinem eigenen Bildschirm „Quellen“ ein.",
       "sourceEgress": "{source} darf Folgendes kontaktieren: {hosts}",
-      "sourceWebsite": "{source}: Adminium liest die Website jeder Firma selbst"
+      "sourceWebsite": "{source}: Adminium liest die Website jeder Firma selbst",
+      "accountsNotSetUp": "Nicht eingerichtet",
+      "accountsCount": "{connected} verbunden",
+      "accountsBoth": "{connected} verbunden · {reconnect} neu zu verbinden",
+      "accountsOpen": "Öffnen"
     },
     "job": {
       "body": "Wird geladen und geprüft. Installiert wird erst auf Ihr Wort.",
@@ -4776,6 +4780,7 @@ export default {
       "stays": {
         "forGood": "Dauerhaft aufbewahrt.",
         "days": "{count, plural, one {# Tag aufbewahrt.} other {# Tage aufbewahrt.}}",
+        "daysOnceRead": "{count, plural, one {Bis zum Lesen aufbewahrt, danach noch # Tag.} other {Bis zum Lesen aufbewahrt, danach noch # Tage.}}",
         "doNotEmail": "Ihre Adresse bleibt als Code auf der Liste „Keine E-Mails“, damit sie nie wieder angeschrieben werden.",
         "lawHealth": "{count, plural, one {# Zeile} other {# Zeilen}} in {label}, weil das Gesundheitsrecht sie verlangt.",
         "lawContract": "{count, plural, one {# Zeile} other {# Zeilen}} in {label}, weil ein Vertrag sie verlangt.",
@@ -4789,7 +4794,9 @@ export default {
         "notifications": "{count, plural, one {# Benachrichtigung an Mitarbeitende.} other {# Benachrichtigungen an Mitarbeitende.}}",
         "campaignFailures": "{count, plural, one {# fehlgeschlagene Kampagnen-Sendung, aufbewahrt mit dem Sendeprotokoll der Kampagne.} other {# fehlgeschlagene Kampagnen-Sendungen, aufbewahrt mit dem Sendeprotokoll der Kampagne.}}",
         "exports": "Datenexporte, die Mitarbeitende aus einer Tabelle erstellt haben, können sie enthalten, bis jeder abläuft.",
-        "shippingBookings": "{count, plural, one {# Paketbuchung mit ihrer Sendungsnummer. Der Versanddienstleister und der Versandservice behalten ihre eigene Kopie.} other {# Paketbuchungen mit ihren Sendungsnummern. Die Versanddienstleister und der Versandservice behalten ihre eigenen Kopien.}}"
+        "shippingBookings": "{count, plural, one {# Paketbuchung mit ihrer Sendungsnummer. Der Versanddienstleister und der Versandservice behalten ihre eigene Kopie.} other {# Paketbuchungen mit ihren Sendungsnummern. Die Versanddienstleister und der Versandservice behalten ihre eigenen Kopien.}}",
+        "heldValues": "{count, plural, one {# Paket, Geschenkkarte oder Guthaben} other {# Pakete, Geschenkkarten oder Guthaben}} in {label} mit Restguthaben, damit die Person es nutzen kann.",
+        "heldValuesKept": "Name und Adresse werden entfernt, sobald es aufgebraucht oder abgelaufen ist."
       },
       "mismatch": "Das ist nicht dieselbe Adresse. Geben Sie sie erneut ein.",
       "failed": "Die Löschung wurde nicht beendet. Löschen Sie erneut, um sie abzuschließen: Was schon erledigt ist, bleibt erledigt.",
@@ -4867,14 +4874,14 @@ export default {
     },
     "websites": {
       "tab": "Ihre Websites",
-      "listHeading": "Websites, die Ihre Formulare und den Chat zeigen dürfen",
+      "listHeading": "Websites, die Ihre Formulare, den Chat und Buchungsbildschirme zeigen dürfen",
       "addedBy": "Hinzugefügt von {name} · {date}",
       "addedOn": "Hinzugefügt am {date}",
       "remove": "Entfernen",
       "removeLabel": "{url} entfernen",
       "removed": "{url} entfernt",
       "removeFailed": "{url} wurde nicht entfernt. Versuchen Sie es erneut.",
-      "none": "Noch keine. Ein Formular erscheint auf einer anderen Website erst, wenn diese Website auf dieser Liste steht.",
+      "none": "Noch keine. Ihre Formulare, der Chat und Buchungsbildschirme erscheinen auf einer anderen Website erst, wenn sie auf dieser Liste steht.",
       "addLabel": "Website hinzufügen",
       "addHelp": "Eine Website pro Zeile, beginnend mit https://.",
       "add": "Hinzufügen",
@@ -4890,7 +4897,7 @@ export default {
         "ok": "Bereit zum Hinzufügen"
       },
       "tooMany": "Die Liste fasst höchstens {max} Websites. Entfernen Sie zuerst eine.",
-      "note": "Eine aufgeführte Website kann Ihre Formulare und den Chat in einem Rahmen zeigen. Auf Ihre Daten hat sie nie Zugriff.",
+      "note": "Eine gelistete Website kann Ihre Formulare, den Chat und Buchungsbildschirme in einem Frame zeigen. Auf Ihre Daten erhält sie nie Zugriff.",
       "embedHeading": "Auf Ihre Website setzen",
       "copy": "Kopieren",
       "copied": "Kopiert",
@@ -4914,6 +4921,33 @@ export default {
         "setIt": "Festlegen",
         "checkAgain": "Erneut prüfen",
         "loadFailed": "Ob Besucher diesen Server erreichen, konnte nicht geprüft werden. Versuchen Sie es erneut."
+      },
+      "maker": {
+        "heading": "Einen App-Bildschirm auf Ihrer Website zeigen",
+        "app": "App",
+        "screen": "Bildschirm",
+        "way": "Darstellung",
+        "inline": "Eingebettet",
+        "inlineHelp": "Steht in der Seite",
+        "button": "Schaltfläche",
+        "buttonHelp": "Öffnet sich per Klick",
+        "floating": "Schwebend",
+        "floatingHelp": "Bleibt in einer Ecke",
+        "choice": "Bei einem bestimmten Eintrag öffnen",
+        "any": "Beliebig",
+        "words": "Text der Schaltfläche",
+        "linkWords": "Linktext, falls der Bildschirm nicht lädt",
+        "site": "Die Website, auf der es erscheint",
+        "notListed": "Diese Website darf Ihre Bildschirme noch nicht zeigen.",
+        "add": "{site} hinzufügen",
+        "preview": "Vorschau",
+        "nothing": "Hier wird noch nichts angezeigt",
+        "nothingWhy": "Diese Website steht nicht auf Ihrer Liste, daher laden Ihre Bildschirme dort nicht.",
+        "close": "Schließen",
+        "snippet": "Das Snippet",
+        "copyLabel": "Snippet kopieren",
+        "strict": "Wenn Ihre Website eine Content-Security-Policy setzt, erlauben Sie {origin} in script-src und frame-src.",
+        "show": "Echten Bildschirm zeigen"
       }
     },
     "reach": {

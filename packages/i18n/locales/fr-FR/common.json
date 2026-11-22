@@ -415,13 +415,11 @@
     "on": "Activée",
     "off": "Désactivée",
     "nameRequired": "Saisissez votre nom.",
-    "emailHelper": "Sert à vous connecter. La modifier requiert votre mot de passe.",
     "confirmPassword": "Mot de passe actuel",
     "confirmPasswordHelper": "Confirmez votre identité avant que votre adresse de connexion ne change.",
     "save": "Enregistrer les modifications",
     "saveFailed": "Impossible d’enregistrer votre profil",
     "saved": "Profil mis à jour",
-    "savedBody": "Vos nouvelles informations s’appliquent à tout le serveur. Si vous avez changé d’e-mail, connectez-vous désormais avec la nouvelle adresse.",
     "accessTitle": "Accès",
     "accessSubtitle": "Ce que ce compte peut faire, et comment il prouve son identité.",
     "rolesHelper": "Les rôles sont attribués par un administrateur et ne peuvent pas être modifiés depuis votre propre compte.",
@@ -437,6 +435,21 @@
       "reset": "Rétablir la valeur du serveur",
       "resetFailed": "Impossible de réinitialiser cette préférence. Réessayez.",
       "appliesInstantly": "Les changements s’appliquent immédiatement et sont enregistrés dans votre profil."
+    },
+    "emailHelperLink": "Sert à vous connecter. Pour la changer, il faut votre mot de passe et un lien envoyé à la nouvelle adresse.",
+    "savedProfileBody": "Vos nouvelles informations sont utilisées sur ce serveur.",
+    "emailPendingTitle": "Vérifiez votre nouvelle adresse",
+    "emailPendingBody": "Nous avons envoyé un lien à {email}. Tant que vous ne l’avez pas ouvert, continuez à vous connecter avec {current}.",
+    "confirmEmail": {
+      "action": "Confirmer l’adresse",
+      "back": "Retour à votre compte",
+      "body": "L’adresse de votre e-mail deviendra l’adresse de connexion de ce compte.",
+      "doneBody": "Connectez-vous désormais avec votre nouvelle adresse.",
+      "doneTitle": "Adresse modifiée",
+      "failedBody": "Il a peut-être expiré, été remplacé par un lien plus récent ou appartient à un autre compte. Vous pouvez en demander un nouveau sur la page de votre compte.",
+      "failedTitle": "Ce lien ne fonctionne pas",
+      "takenBody": "Cette adresse appartient désormais à un autre compte. Choisissez-en une autre sur la page de votre compte.",
+      "title": "Confirmer votre nouvelle adresse"
     }
   },
   "settings": {
@@ -1844,12 +1857,18 @@
       }
     },
     "roles": {
-      "unavailable": "Les rôles ne sont pas visibles pour votre compte : aucun ne peut donc être attribué ici."
+      "unavailable": "Les rôles ne sont pas visibles pour votre compte : aucun ne peut donc être attribué ici.",
+      "above": "Les rôles détenant des autorisations que vous n’avez pas ne peuvent être ni attribués ni retirés ici.",
+      "refused": "Vous ne pouvez attribuer que des rôles dont vous détenez les autorisations, et vous ne pouvez pas retirer un rôle qui en détient plus que vous.",
+      "accountRefused": "Cette personne détient des autorisations ou des lignes auxquelles vous n’avez pas accès : vous ne pouvez ni modifier son e-mail ni lui envoyer un nouveau lien de connexion.",
+      "reachRefused": "Cela mettrait à votre portée des lignes que votre rôle ne vous donne pas.",
+      "signInLocked": "Cette personne détient des autorisations ou des lignes auxquelles vous n’avez pas accès : seule une personne qui y a accès peut envoyer un nouveau lien."
     },
     "rolesDialog": {
       "description": "Un utilisateur cumule les permissions de tous les rôles qu’il détient.",
       "failed": "Impossible de modifier les rôles",
-      "title": "Rôles de {name}"
+      "title": "Rôles de {name}",
+      "invitedNote": "Attribuer un autre rôle à cette personne met fin à son invitation actuelle : envoyez-lui ensuite un nouveau lien."
     },
     "rolesLocked": "Modifier les rôles requiert la permission « Gérer les rôles ».",
     "search": "Rechercher un nom ou un e-mail",
@@ -1922,6 +1941,10 @@
       "body": "{name} ne peut plus se connecter et est déconnecté·e partout. Son compte, ses rôles et son historique restent, et vous pourrez le réactiver.",
       "failed": "Le compte n’a pas été suspendu",
       "confirmHand": "Confier et suspendre"
+    },
+    "apiKeys": {
+      "revokedOnSuspend": "Toutes les clés API créées par {name} sont révoquées maintenant. Réactiver {name} ne les rétablit pas.",
+      "revokedOnRemove": "Toutes les clés API créées par {name} sont révoquées."
     }
   },
   "invoices": {

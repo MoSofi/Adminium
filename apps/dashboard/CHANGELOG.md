@@ -1,5 +1,29 @@
 # @adminium/dashboard
 
+## 0.3.71
+
+### Patch Changes
+
+- 94c7cd0: Account changes are held to what the person making them holds, and team and row changes to the rows they already reach. An app update keeps the row limits an owner set on its roles, through every version and while an add-on is away. The workspace always keeps a Super Admin who can act. Giving an invited person another role ends their current invitation, so send them a new link afterwards. The Roles page says plainly that "Install and manage apps and add-ons" equals full access, because apps and add-ons run code on the server.
+- 1c983d2: A person can now connect their calendar from a link, on a page that needs no account and says what happened at every step. A calendar add-on's page can list who is connected, check that a business's client ID and secret are accepted, and warn 30 days before the secret ends. On Studio's Add-ons page, a calendar add-on now shows how many people are connected or need to reconnect, with an Open button in place of Disconnect.
+- f90538f: Security: somebody who manages roles and is not a signed-in Super Admin can give out only what they hold themselves, and cannot edit roles above them. Creating, copying or editing a role can set only permissions the person fully holds, including limits on columns, values and rows. They cannot rename, change or delete a role that holds more than they do, and cannot give that role to anybody or take it from anybody, themselves included. An API key that manages roles is held to its own permissions and to those of the person who made it. A signed-in Super Admin can do everything. Roles, the people who hold them and API keys that exist today are not changed, so if a custom role has held "Manage roles", review who holds which role. The Roles and Team pages show what you cannot give as unavailable and say why.
+- d5cc7d3: Sign-in details are changed only by somebody who already reaches the rows of the person they belong to, as well as holding their permissions. Full access to rows counts as reaching them, and suspending a person is open to anyone who manages users. The People page shows when a new link is not yours to send, and why.
+- ad4c4fc: An app's customer pages can now run inside a frame on the websites its owner lists, with a button or a sheet, a snippet maker in the studio, and a payment that returns to the page it started from.
+- Updated dependencies [f76920f]
+- Updated dependencies [1c983d2]
+- Updated dependencies [c053149]
+- Updated dependencies [ad4c4fc]
+- Updated dependencies [bc5b266]
+- Updated dependencies [f90538f]
+- Updated dependencies [ad4c4fc]
+  - @adminium/widgets@0.3.71
+  - @adminium/add-on-contracts@0.3.71
+  - @adminium/i18n@0.3.71
+  - @adminium/ui@0.3.71
+  - @adminium/engine@0.3.71
+  - @adminium/charts@0.3.71
+  - @adminium/tokens@0.3.71
+
 ## 0.3.70
 
 ### Patch Changes

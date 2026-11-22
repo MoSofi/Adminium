@@ -50,6 +50,12 @@ export interface PaymentLink {
   createdAt: number;
   /** Who it was made for: a public start's own link, or one staff or the system made. */
   audience: LinkAudience;
+  /**
+   * A public start made from a frame on the owner's website: the pay tab was
+   * opened beside that frame, so it ends with "you can close this tab" and no
+   * way "back". Kept in `audience` (`framed`), read as a public link everywhere.
+   */
+  beside?: true;
 }
 
 /** A link a public start made (`public`), or one staff or the system made (`staff`). */
@@ -64,7 +70,12 @@ export interface MintLinkInput {
   createdBy: string | null;
   /** `public` for a public start's own link; staff's when not said. */
   audience?: LinkAudience;
+  /** A public start made from a frame on the owner's website. */
+  beside?: boolean;
 }
+
+/** The stored `audience` of a public start made from a frame (see {@link PaymentLink.beside}). */
+const FRAMED = 'framed';
 
 /** The key a payable's current link of one audience is held under. */
 function currentKeyOf(payable: PayableRef, audience: LinkAudience): string {
@@ -84,7 +95,8 @@ function decodeLink(row: Selectable<AdminiumPaymentLinksTable>): PaymentLink {
     revokeReason: row.revokeReason ?? null,
     createdBy: row.createdBy,
     createdAt: Number(row.createdAt),
-    audience: row.audience === 'public' ? 'public' : 'staff',
+    audience: row.audience === 'public' || row.audience === FRAMED ? 'public' : 'staff',
+    ...(row.audience === FRAMED ? { beside: true as const } : {}),
   };
 }
 
@@ -125,7 +137,7 @@ export function paymentLinksRepo(meta: MetaDb) {
         revokeReason: null,
         createdBy: input.createdBy,
         createdAt: at,
-        audience: audience === 'public' ? 'public' : null,
+        audience: audience === 'public' ? (input.beside === true ? FRAMED : 'public') : null,
       };
       let replaced = (await retireKey(key)) > 0;
       try {
@@ -157,6 +169,16 @@ export function paymentLinksRepo(meta: MetaDb) {
         .where('currentKey', '=', currentKeyOf(payable, audience))
         .executeTakeFirst();
       return row === undefined ? null : decodeLink(row);
+    },
+
+    /** Says how a public link was last opened: from a frame on the owner's website, or not. The last start decides. */
+    async setBeside(id: string, beside: boolean): Promise<void> {
+      await db
+        .updateTable('adminium_payment_links')
+        .set({ audience: beside ? FRAMED : 'public' })
+        .where('id', '=', id)
+        .where('audience', 'in', ['public', FRAMED])
+        .execute();
     },
 
     /** Revokes a link. It stops being current at once. */
@@ -281,8 +303,8 @@ export const refundRowsMappingSchema = z
   .strict();
 export type RefundRowsMapping = z.infer<typeof refundRowsMappingSchema>;
 
-/** Who made a move that may refund by itself: the customer through the app's public side, Adminium's timed move, or staff holding the refund right. */
-export const REFUND_ON_WHO = ['customer', 'system', 'refund-right'] as const;
+/** Who made a move that may refund by itself: the customer through the app's public side, Adminium's timed move, staff holding the refund right, or any signed-in person at the studio (`staff`). */
+export const REFUND_ON_WHO = ['customer', 'system', 'refund-right', 'staff'] as const;
 
 /**
  * The moves after which the full refund starts by itself (`refundOn`): a
@@ -292,13 +314,21 @@ export const REFUND_ON_WHO = ['customer', 'system', 'refund-right'] as const;
 export const refundOnSchema = z
   .object({
     moves: z
-      .array(z.object({ from: z.array(stateValue).min(1).max(16).optional(), to: stateValue, by: z.array(z.enum(REFUND_ON_WHO)).min(1).max(3) }).strict())
+      .array(z.object({ from: z.array(stateValue).min(1).max(16).optional(), to: stateValue, by: z.array(z.enum(REFUND_ON_WHO)).min(1).max(4) }).strict())
       .min(1)
       .max(8),
     /** The app's own switch ("Refund free cancellations automatically"), a boolean column of its one-row settings table, read at the move. */
     switch: z.object({ table: column, column }).strict().optional(),
     /** Only while the moment in this column is still this many hours ahead (a clinic's late-cancel window), read from the settings row. */
-    before: z.object({ column, hours: z.object({ table: column, column }).strict() }).strict().optional(),
+    before: z
+      .object({
+        column,
+        hours: z.object({ table: column, column }).strict(),
+        /** Whose moves the window holds to; absent, everyone's. */
+        binds: z.array(z.enum(['customer', 'system', 'staff'])).min(1).max(3).optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 export type RefundOn = z.infer<typeof refundOnSchema>;

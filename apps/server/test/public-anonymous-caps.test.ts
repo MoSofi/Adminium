@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ANONYMOUS_PER_IP_HOUR,
   ANONYMOUS_PURPOSE,
+  CAP_REACHED_PURPOSE,
   capKey,
   capValue,
   chargeAnonymous,
@@ -18,8 +19,8 @@ import {
   plainRule,
   plainText,
   plainTextLoosened,
-  valueSubject,
   type AnonymousCaps,
+  valueSubject,
 } from '../src/public-api/anonymous-caps.js';
 import { notPlainChange } from '../src/public-api/change-limits.js';
 
@@ -58,6 +59,20 @@ const input = (values: Record<string, unknown>, caps: AnonymousCaps = { perValue
   ref: 'visits',
   values,
   now,
+});
+
+describe('a time someone else holds', () => {
+  it("keeps the visitor's own hour counted when the entry names no hour of its own", async () => {
+    const repo = memoryRepo();
+    const caps: AnonymousCaps = { perValue: { columns: ['email'], n: 1 }, perKeyHour: 10 };
+    const knock = (i: number) => chargeAnonymous(repo, { ...input({ email: `v${String(i)}@gmail.com` }, caps), ip: '203.0.113.9', now: now + i });
+    for (let i = 0; i < ANONYMOUS_PER_IP_HOUR; i += 1) {
+      const charge = await knock(i);
+      expect(charge.ok).toBe(true);
+      if (charge.ok) await charge.releaseAllButVisitor?.();
+    }
+    expect((await knock(ANONYMOUS_PER_IP_HOUR)).ok).toBe(false);
+  });
 });
 
 describe('anonymous caps', () => {
@@ -216,7 +231,8 @@ describe('anonymous caps', () => {
     const busy = memoryRepo();
     for (let i = 0; i < 10; i += 1) expect((await chargeAnonymous(busy, input({ mobile: `0770090${String(1000 + i)}` }))).ok).toBe(true);
     expect((await chargeAnonymous(busy, input({ mobile: '07700 902000' }))).ok).toBe(false);
-    expect(busy.rows.every((row) => row.purpose === ANONYMOUS_PURPOSE)).toBe(true);
+    // Every charge counts under its own purpose; the refusal leaves one mark for the desk, which no cap counts.
+    expect(busy.rows.filter((row) => row.purpose !== ANONYMOUS_PURPOSE).map((row) => row.purpose)).toEqual([CAP_REACHED_PURPOSE]);
   });
 });
 

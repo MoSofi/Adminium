@@ -21,6 +21,7 @@ import payments from './en-us/payments.js';
 import mailDoor from './en-us/mailDoor.js';
 import x from './en-us/x.js';
 import xChat from './en-us/xChat.js';
+import xConnect from './en-us/xConnect.js';
 import email from './en-us/email.js';
 import files from './en-us/files.js';
 import assistant from './en-us/assistant.js';
@@ -77,4 +78,5 @@ export const EN_US_RESOURCES: Record<Namespace, ResourceBundle> = {
   mailDoor,
   x,
   xChat,
+  xConnect,
 };

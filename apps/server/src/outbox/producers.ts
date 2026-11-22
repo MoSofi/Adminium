@@ -1119,6 +1119,27 @@ export async function verdictsFor(
       out.set(row, { skip: reason });
       continue;
     }
+    // A dated mail that comes due while its switch is off is dropped, so it does not go out late when the switch comes back.
+    // Judged only at its moment: a switch turned off and on again before then loses no one's reminder, because nothing would
+    // queue it a second time. A mail a person holds, approved or queued again is theirs to decide.
+    const decided = status === 'held' || (cols.approvedBy !== undefined && row[cols.approvedBy] !== null && row[cols.approvedBy] !== undefined && row[cols.approvedBy] !== '');
+    if (
+      producer.due !== undefined &&
+      producer.hold !== true &&
+      !decided &&
+      due !== null &&
+      due <= now &&
+      typeof producer.gate === 'object' &&
+      'setting' in producer.gate &&
+      producer.gate.setting !== undefined
+    ) {
+      // Its moment as it stands now: a day moved ahead re-dates it below, and the switch is judged when that day comes.
+      const moment = !batched && linked !== null && cols.due !== undefined ? await dueFor(producer.due, linked.row, linked.table.columns.get(producer.due.date), ctx.zone, ctx.read) : due;
+      if (moment !== null && moment <= now && !sameValue(true, await ctx.read(producer.gate.setting))) {
+        out.set(row, { skip: 'no-longer-needed' });
+        continue;
+      }
+    }
     // Sent once per value of the row's repeat column: a message for a value the row no longer holds (an
     // offer that lapsed, offered again since) is overtaken by the message for the new one.
     const repeat = linked === null ? undefined : repeatKeyOf(definition, producer, linked.row);

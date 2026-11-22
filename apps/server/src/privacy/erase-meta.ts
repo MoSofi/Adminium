@@ -212,6 +212,8 @@ export async function scrubRemovedRows(meta: MetaDb, targets: readonly ImageTarg
 /** Every audit entry and removed-row image that still holds the address in a text: that text nulled. Answers the entries and rows changed. */
 export async function sweepAddress(meta: MetaDb, address: string): Promise<{ audit: number; removedRows: number; rows: { connectionId: string; table: string; key: string }[] }> {
   const { db } = meta;
+  // An account's pending move to this address: it holds the address in clear, and opening its link would bring it back.
+  await db.deleteFrom('adminium_email_changes').where('newEmail', '=', address.trim().toLowerCase()).execute();
   let changed = 0;
   let audit = 0;
   let after: string | null = null;

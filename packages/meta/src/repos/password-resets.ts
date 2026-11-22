@@ -28,6 +28,14 @@ export interface CreatePasswordResetInput {
 export function passwordResetsRepo(meta: MetaDb) {
   const { db } = meta;
   return {
+    /**
+     * Issue a link and retire the person's earlier unused ones, so a lost or
+     * resent link stops working the moment a new one exists.
+     *
+     * An invite retires everything. A reset retires only earlier resets: the
+     * forgot form is open to anyone who knows an address, and must not be a way
+     * to kill somebody's invitation, which may be the only link they were given.
+     */
     async create(input: CreatePasswordResetInput, at: number = Date.now()): Promise<PasswordReset> {
       const row: PasswordReset = {
         id: newId('rst'),
@@ -38,7 +46,16 @@ export function passwordResetsRepo(meta: MetaDb) {
         usedAt: null,
         createdAt: at,
       };
-      await db.insertInto('adminium_password_resets').values(row).execute();
+      await db.transaction().execute(async (trx) => {
+        let earlier = trx
+          .updateTable('adminium_password_resets')
+          .set({ usedAt: at })
+          .where('userId', '=', row.userId)
+          .where('usedAt', 'is', null);
+        if (row.kind === 'reset') earlier = earlier.where('kind', '=', 'reset');
+        await earlier.execute();
+        await trx.insertInto('adminium_password_resets').values(row).execute();
+      });
       return row;
     },
 
@@ -63,6 +80,40 @@ export function passwordResetsRepo(meta: MetaDb) {
         .where('usedAt', 'is', null)
         .executeTakeFirst();
       return Number(res.numUpdatedRows) === 1;
+    },
+
+    /**
+     * Spend one link and retire the person's others; true when this call won.
+     *
+     * The others go FIRST, in separate statements. Two different live links
+     * sent at once then cannot both win: whichever spends its own link second
+     * finds it already retired by the other. At worst both lose and the person
+     * asks again. One transaction would instead have each hold its own row
+     * while waiting for the other's, which is a deadlock on Postgres and MySQL.
+     */
+    async redeem(id: string, userId: string, at: number = Date.now()): Promise<boolean> {
+      await db
+        .updateTable('adminium_password_resets')
+        .set({ usedAt: at })
+        .where('userId', '=', userId)
+        .where('id', '!=', id)
+        .where('usedAt', 'is', null)
+        .execute();
+      const res = await db
+        .updateTable('adminium_password_resets')
+        .set({ usedAt: at })
+        .where('id', '=', id)
+        .where('usedAt', 'is', null)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
+    },
+
+    /** Ends every unused link of these people: their address changed, or who invited them was stopped. */
+    async retireFor(userIds: readonly string[], at: number = Date.now(), kind?: PasswordReset['kind']): Promise<void> {
+      if (userIds.length === 0) return;
+      let unused = db.updateTable('adminium_password_resets').set({ usedAt: at }).where('userId', 'in', [...userIds]).where('usedAt', 'is', null);
+      if (kind !== undefined) unused = unused.where('kind', '=', kind);
+      await unused.execute();
     },
 
     /** Retention `password-resets` policy: used, or expired > 24 h ago. */

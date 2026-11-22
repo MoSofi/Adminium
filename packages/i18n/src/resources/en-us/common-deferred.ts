@@ -563,12 +563,18 @@ export default {
       }
     },
     "roles": {
-      "unavailable": "Roles are not visible to your account, so none can be assigned here."
+      "unavailable": "Roles are not visible to your account, so none can be assigned here.",
+      "above": "Roles that hold permissions you do not have cannot be given or taken away here.",
+      "refused": "You can give only roles whose permissions you hold yourself, and cannot take away a role that holds more than you do.",
+      "accountRefused": "This person holds permissions or rows you do not reach, so you cannot change their email or send them a new sign-in link.",
+      "reachRefused": "This would bring rows within your own reach that your role does not give you.",
+      "signInLocked": "This person holds permissions or rows you do not reach, so only somebody who reaches them can send a new link."
     },
     "rolesDialog": {
       "description": "A user gets the union of every role they hold.",
       "failed": "Could not change the roles",
-      "title": "Roles for {name}"
+      "title": "Roles for {name}",
+      "invitedNote": "Giving this person another role ends their current invitation: send them a new link afterwards."
     },
     "rolesLocked": "Changing roles needs the “Manage roles” permission.",
     "search": "Search name or email",
@@ -641,6 +647,10 @@ export default {
       "body": "{name} can no longer sign in, and is signed out everywhere. Their account, roles and history stay, and you can reactivate them.",
       "failed": "The account was not suspended",
       "confirmHand": "Hand over and suspend"
+    },
+    "apiKeys": {
+      "revokedOnSuspend": "Any API keys {name} made are revoked now. Reactivating {name} does not bring them back.",
+      "revokedOnRemove": "Any API keys {name} made are revoked."
     }
   },
   "quietHours": {
@@ -1126,13 +1136,11 @@ export default {
     "on": "Enabled",
     "off": "Off",
     "nameRequired": "Enter your name.",
-    "emailHelper": "Used to sign in. Changing it needs your password.",
     "confirmPassword": "Current password",
     "confirmPasswordHelper": "Confirm it is you before your sign-in address changes.",
     "save": "Save changes",
     "saveFailed": "Could not save your profile",
     "saved": "Profile updated",
-    "savedBody": "Your new details are in use across this server. If you changed your email, sign in with the new address from now on.",
     "accessTitle": "Access",
     "accessSubtitle": "What this account may do, and how it proves who it is.",
     "rolesHelper": "Roles are granted by an administrator and cannot be changed from your own account.",
@@ -1148,6 +1156,21 @@ export default {
       "reset": "Reset to the server default",
       "resetFailed": "Could not reset this preference. Try again.",
       "appliesInstantly": "Changes apply instantly and are saved to your profile."
+    },
+    "emailHelperLink": "Used to sign in. Changing it needs your password and a link sent to the new address.",
+    "savedProfileBody": "Your new details are in use across this server.",
+    "emailPendingTitle": "Check your new address",
+    "emailPendingBody": "We sent a link to {email}. Until you open it, keep signing in with {current}.",
+    "confirmEmail": {
+      "action": "Confirm address",
+      "back": "Back to your account",
+      "body": "This makes the address in your email your sign-in address for this account.",
+      "doneBody": "Sign in with your new address from now on.",
+      "doneTitle": "Address changed",
+      "failedBody": "It may have expired, been replaced by a newer one, or belong to another account. You can ask for a new one on your account page.",
+      "failedTitle": "This link doesn’t work",
+      "takenBody": "That address now belongs to another account. Choose a different one on your account page.",
+      "title": "Confirm your new address"
     }
   },
   "templates": {

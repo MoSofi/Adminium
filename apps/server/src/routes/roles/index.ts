@@ -11,14 +11,15 @@
  *   unassign with the last-super-admin guard
  *
  * Built-ins cannot be renamed or deleted (409). Every mutation writes an
- * `rbac`-category audit entry (dotted verb + resource — anatomy).
+ * `rbac`-category audit entry (dotted verb + resource — anatomy). Nobody hands
+ * out power they do not hold (`role-giving.ts`).
  */
 import { sameLanguage } from '../../i18n/bcp47.js';
 import { loadAppParts, roleIsOffered } from '../../rbac/app-parts.js';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { permissionsRepo, rolesRepo, rowReachList, usersRepo, type Role, type TableActions, type ReadLimit, type RowLimit, type UpdateLimit, roleNameFor, userPrefsRepo } from '@adminium/meta';
+import { passwordResetsRepo, permissionsRepo, rolesRepo, rowReachList, usersRepo, type Role, type TableActions, type ReadLimit, type RowLimit, type UpdateLimit, roleNameFor, userPrefsRepo } from '@adminium/meta';
 
-import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import {
   PERMISSIONS,
   grantMatches,
@@ -29,9 +30,13 @@ import type { EffectiveModel } from '../../connections/effective-schema.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { SUPER_ADMIN_SLUG } from '../../rbac/resolver.js';
 import { rowLimitIssue } from '../../rbac/row-limit-check.js';
+import { declaredRowLimitsOf } from '../../apps/mark-owner-row-limits.js';
+import { ownerRowsAfterEdit } from '../../apps/owner-row-limits.js';
+import { roleGiving } from './role-giving.js';
 import {
   roleCreateBody,
   roleDeleteQuery,
+  roleGrantableReply,
   roleIdParams,
   roleListReply,
   roleOkReply,
@@ -85,6 +90,7 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
   const roles = rolesRepo(meta);
   const users = usersRepo(meta);
   const permissions = permissionsRepo(meta);
+  const giving = roleGiving(app);
 
   async function mustFindRole(id: string): Promise<Role> {
     const role = await roles.findById(id);
@@ -97,6 +103,18 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
       .selectFrom('adminium_user_roles')
       .select('userId')
       .where('roleId', '=', roleId)
+      .execute();
+    return rows.length;
+  }
+
+  /** Who holds the role and can act: only somebody active can reinstate anybody. */
+  async function activeHolderCount(roleId: string): Promise<number> {
+    const rows = await meta.db
+      .selectFrom('adminium_user_roles')
+      .innerJoin('adminium_users', 'adminium_users.id', 'adminium_user_roles.userId')
+      .select('adminium_user_roles.userId')
+      .where('adminium_user_roles.roleId', '=', roleId)
+      .where('adminium_users.status', '=', 'active')
       .execute();
     return rows.length;
   }
@@ -120,15 +138,26 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
       const countByRole = new Map(counts.map((row) => [row.roleId, Number(row.memberCount)]));
       // A role of an app's parts is offered while one of them is on: one that is not says so, and is given to nobody new.
       const parts = await loadAppParts(meta, [...new Set(all.flatMap((role) => (role.appKey === null || role.modules === null ? [] : [role.appKey])))]);
+      const changeable = await giving.changeable(request, all);
       return {
         roles: all.map((role) => ({
           ...toDto(role, locale),
           memberCount: countByRole.get(role.id) ?? 0,
+          mayChange: changeable.has(role.id),
           ...(role.appKey === null ? {} : { appKey: role.appKey }),
           ...(roleIsOffered(role, parts) ? {} : { partsOff: true as const }),
         })),
       };
     },
+  );
+
+  app.get(
+    '/roles/grantable',
+    {
+      preHandler: app.rbac.require(PERMISSIONS.rolesManage),
+      schema: { response: { 200: roleGrantableReply } },
+    },
+    async (request) => giving.grantable(request),
   );
 
   app.post(
@@ -146,12 +175,16 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
         });
       }
       const source = cloneFromRoleId === undefined ? null : await mustFindRole(cloneFromRoleId);
-      const role = await roles.create({ slug, name, description: description ?? null }, app.rbac.now());
-      if (source !== null) {
-        for (const row of await permissions.listForRole(source.id)) {
-          await permissions.grant(role.id, row.resourceKind, row.resourceRef, row.actions);
-        }
-      }
+      const sourceRows = source === null ? [] : await permissions.listForRole(source.id);
+      // Before the role exists: a refused copy leaves nothing behind.
+      if (source !== null) await giving.assertMayClone(request, source, sourceRows);
+      // One write: a copy cut short could hold a wide grant without the limit that stands over it.
+      const role = await meta.db.transaction().execute(async (trx) => {
+        const inTransaction = { ...meta, db: trx };
+        const made = await rolesRepo(inTransaction).create({ slug, name, description: description ?? null }, app.rbac.now());
+        for (const row of sourceRows) await permissionsRepo(inTransaction).grant(made.id, row.resourceKind, row.resourceRef, row.actions);
+        return made;
+      });
       await app.rbac.audit(request, {
         category: 'rbac',
         action: 'role.create',
@@ -174,6 +207,7 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
           slug: role.slug,
         });
       }
+      await giving.assertMayHandle(request, role);
       const patch: { name?: string; description?: string | null } = {};
       if (request.body.name !== undefined) patch.name = request.body.name;
       if (request.body.description !== undefined) patch.description = request.body.description;
@@ -206,6 +240,7 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
       if (role.isBuiltin) {
         throw new ConflictError('Built-in roles cannot be deleted.', 'CONFLICT', { slug: role.slug });
       }
+      await giving.assertMayHandle(request, role);
       const memberCount = await memberCountFor(role.id);
       const { reassignTo } = request.query;
       if (memberCount > 0 && reassignTo === undefined) {
@@ -220,6 +255,8 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
           throw new ValidationFailedError('reassignTo must be a different role.', { reassignTo });
         }
         const target = await mustFindRole(reassignTo);
+        // Moving people onto a role is giving it to them.
+        await giving.assertMayHandle(request, target);
         const members = await meta.db
           .selectFrom('adminium_user_roles')
           .select('userId')
@@ -228,6 +265,8 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
         for (const member of members) {
           await roles.assignToUser(member.userId, target.id, null, app.rbac.now());
         }
+        const invited = await meta.db.selectFrom('adminium_users').select('id').where('id', 'in', members.map((member) => member.userId)).where('status', '=', 'invited').execute();
+        await passwordResetsRepo(meta).retireFor(invited.map((one) => one.id), app.rbac.now(), 'invite');
         await meta.db.deleteFrom('adminium_user_roles').where('roleId', '=', role.id).execute();
       }
       // FK CASCADE removes the role's adminium_role_permissions rows.
@@ -275,10 +314,18 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
           slug: role.slug,
         });
       }
+      await giving.assertMayHandle(request, role);
       const models = new Map<string, EffectiveModel | null>();
       const modelOf = async (connectionId: string): Promise<EffectiveModel | null> => {
         if (!models.has(connectionId)) models.set(connectionId, await loadSnapshotView(meta, connectionId).then((view) => view.model, () => null));
         return models.get(connectionId) ?? null;
+      };
+      // What the role's app declares, to fall back on when an owner's limit is taken off. Never guessed: unread, the limit stays.
+      let declaredRows: Promise<Map<string, RowLimit> | null> | undefined;
+      const appLimit = async (ref: string, action: 'read' | 'update' | 'delete'): Promise<RowLimit[typeof action]> => {
+        const declared = await (declaredRows ??= declaredRowLimitsOf(meta, role));
+        if (declared === null) throw new ValidationFailedError('This limit cannot be taken off now: the limit its app declares cannot be read until the database schema has been read.', { fields: { rows: { code: 'app-limit-unread', table: ref, action } } });
+        return declared.get(ref)?.[action];
       };
       const { rows, invalid } = matrixRowsFromGrants(request.body.grants);
       if (invalid.length > 0) {
@@ -301,8 +348,13 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
       const creates = new Map<string, UpdateLimit>();
       // …and which rows a read, an update or a delete reaches (a rep reads their own deals): dropped, the role would reach every row.
       const rowLimits = new Map<string, RowLimit>();
+      // …and which of those limits the owner set: an app's update keeps them. One may wait on a row whose action is away.
+      const ownerRows = new Map<string, RowLimit>();
       for (const row of held) {
-        const rows = row.resourceKind === 'table' ? (row.actions as TableActions).rowLimit : undefined;
+        const owner = row.resourceKind === 'table' ? (row.actions as TableActions).ownerRows : undefined;
+        if (owner !== undefined) ownerRows.set(row.resourceRef, owner);
+        const stored = row.resourceKind === 'table' ? (row.actions as TableActions).rowLimit : undefined;
+        const rows = owner === undefined ? stored : { ...owner, ...(stored ?? {}) };
         if (rows !== undefined) rowLimits.set(row.resourceRef, rows);
         const limit = row.resourceKind === 'table' ? (row.actions as TableActions).updateLimit : undefined;
         if (limit !== undefined) limits.set(row.resourceRef, limit);
@@ -315,7 +367,17 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
       const granted = new Set(rows.filter((row) => row.resourceKind === 'table').map((row) => row.resourceRef));
       for (const [ref, limit] of Object.entries(request.body.rows ?? {})) {
         if (limit === null || Object.keys(limit).length === 0) {
-          rowLimits.delete(ref);
+          // What the owner set goes; where the app declares a limit on that action, the app's holds again at once.
+          const owned = ownerRows.get(ref);
+          const back: RowLimit = {};
+          for (const action of ['read', 'update', 'delete'] as const) {
+            if (owned?.[action] === undefined) continue;
+            const app = await appLimit(ref, action);
+            if (app !== undefined) back[action] = app;
+          }
+          ownerRows.delete(ref);
+          if (Object.keys(back).length === 0) rowLimits.delete(ref);
+          else rowLimits.set(ref, back);
           continue;
         }
         if (!granted.has(ref)) {
@@ -340,7 +402,18 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
             throw new ValidationFailedError('"Every row" is the grant itself: take the limit off, or say only while.', { fields: { rows: { code: 'all-without-while', table: ref, action } } });
           }
         }
-        rowLimits.set(ref, limit);
+        const was = ownerRows.get(ref);
+        const owners = ownerRowsAfterEdit(rowLimits.get(ref), was, limit, (action) => own?.[action] === true);
+        if (owners === undefined) ownerRows.delete(ref);
+        else ownerRows.set(ref, owners);
+        // An action whose owner limit this save took off: the app's limit on it, if it declares one, holds again at once.
+        const saved: RowLimit = { ...limit };
+        for (const action of ['read', 'update', 'delete'] as const) {
+          if (limit[action] !== undefined || was?.[action] === undefined || owners?.[action] !== undefined) continue;
+          const app = await appLimit(ref, action);
+          if (app !== undefined) saved[action] = app;
+        }
+        rowLimits.set(ref, saved);
       }
       // A limited table whose own row this save takes away, while a wider grant still gives the action there: the limit would
       // go with the row and the role reach every row, with nothing said. Refused, unless the limit is taken off by name.
@@ -353,14 +426,17 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
         }
       }
       const beforeRows = rowLimitsOf(held);
-      await meta.db.deleteFrom('adminium_role_permissions').where('roleId', '=', role.id).execute();
-      for (const row of rows) {
+      // The rows as they would be stored, limits and all: that, and not the grant strings, is what is handed out.
+      const next = rows.map((row) => {
         const limit = row.resourceKind === 'table' ? limits.get(row.resourceRef) : undefined;
         const read = row.resourceKind === 'table' ? reads.get(row.resourceRef) : undefined;
         const create = row.resourceKind === 'table' ? creates.get(row.resourceRef) : undefined;
-        const rowLimit = row.resourceKind === 'table' ? rowLimits.get(row.resourceRef) : undefined;
+        const owner = row.resourceKind === 'table' ? ownerRows.get(row.resourceRef) : undefined;
+        const limited = row.resourceKind === 'table' ? rowLimits.get(row.resourceRef) : undefined;
+        // What the owner set stands, an action coming back with this save included.
+        const rowLimit = owner === undefined ? limited : { ...(limited ?? {}), ...owner };
         const actions =
-          limit === undefined && read === undefined && create === undefined && rowLimit === undefined
+          limit === undefined && read === undefined && create === undefined && rowLimit === undefined && owner === undefined
             ? row.actions
             : {
                 ...(row.actions as TableActions),
@@ -368,9 +444,22 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
                 ...(read === undefined ? {} : { readLimit: read }),
                 ...(create === undefined ? {} : { createLimit: create }),
                 ...(rowLimit === undefined ? {} : { rowLimit }),
+                ...(owner === undefined ? {} : { ownerRows: owner }),
               };
-        await permissions.grant(role.id, row.resourceKind, row.resourceRef, actions);
+        return { resourceKind: row.resourceKind, resourceRef: row.resourceRef, actions };
+      });
+      // A limit of the owner's on a table this save holds nothing of still waits there, for when the action is back.
+      for (const [ref, owner] of ownerRows) {
+        if (next.some((row) => row.resourceKind === 'table' && row.resourceRef === ref)) continue;
+        next.push({ resourceKind: 'table', resourceRef: ref, actions: { read: false, create: false, update: false, delete: false, export: false, import: false, ownerRows: owner } });
       }
+      await giving.assertMayWrite(request, role, next, held);
+      // One write: a save cut short could leave a wide grant without the limit that stands over it.
+      await meta.db.transaction().execute(async (trx) => {
+        await trx.deleteFrom('adminium_role_permissions').where('roleId', '=', role.id).execute();
+        const inTransaction = permissionsRepo({ ...meta, db: trx });
+        for (const row of next) await inTransaction.grant(role.id, row.resourceKind, row.resourceRef, row.actions);
+      });
       const saved = await permissions.listForRole(role.id);
       const after = grantsFromMatrixRows(saved);
       const afterRows = rowLimitsOf(saved);
@@ -411,21 +500,12 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
         request.apiKeyPrincipal === null
           ? ((request as unknown as { user?: { id?: string } }).user?.id ?? null)
           : null;
-      // Minting a new Super Admin is a super-admin-only power. `roles:manage`
-      // is a grantable key a custom role can hold, so without this a
-      // roles:manage holder could assign the Super Admin role to themselves and
-      // escalate to allow-all. Mirrors the asymmetry the DELETE/PUT handlers
-      // already encode. Only a session user who *holds* Super Admin qualifies —
-      // an API-key principal never mints a Super Admin.
-      if (role.slug === SUPER_ADMIN_SLUG) {
-        const actorIsSuperAdmin =
-          actingUserId !== null &&
-          (await roles.rolesForUser(actingUserId)).some((r) => r.slug === SUPER_ADMIN_SLUG);
-        if (!actorIsSuperAdmin) {
-          throw new ForbiddenError('Only a Super Admin can grant the Super Admin role.');
-        }
-      }
+      // Nobody gives a role above them, themselves included; Super Admin is a signed-in Super Admin's alone to give.
+      await giving.assertMayHandle(request, role);
+      const heldAlready = (await roles.rolesForUser(user.id)).some((r) => r.id === role.id);
       await roles.assignToUser(user.id, role.id, actingUserId, app.rbac.now());
+      // An invitation opens the account as it now stands: one given more is invited again.
+      if (user.status === 'invited' && !heldAlready) await passwordResetsRepo(meta).retireFor([user.id], app.rbac.now(), 'invite');
       const roleIds = (await roles.rolesForUser(user.id)).map((r) => r.id);
       await app.rbac.audit(request, {
         category: 'rbac',
@@ -447,23 +527,12 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
       if (user === null) throw new NotFoundError('User not found.', { userId: request.params.id });
       assertNotSample(user);
       const role = await mustFindRole(request.params.roleId);
+      // Taking a role away is as much handing out power as giving it: a role above the caller is not theirs to move.
+      await giving.assertMayHandle(request, role);
       if (role.slug === SUPER_ADMIN_SLUG) {
-        // Demoting a Super Admin is as much a super-admin-only power as
-        // minting one (POST above): `roles:manage` is grantable to a custom
-        // role, whose holder could otherwise strip every Super Admin but one.
-        const actingUserId =
-          request.apiKeyPrincipal === null
-            ? ((request as unknown as { user?: { id?: string } }).user?.id ?? null)
-            : null;
-        const actorIsSuperAdmin =
-          actingUserId !== null &&
-          (await roles.rolesForUser(actingUserId)).some((r) => r.slug === SUPER_ADMIN_SLUG);
-        if (!actorIsSuperAdmin) {
-          throw new ForbiddenError('Only a Super Admin can remove the Super Admin role.');
-        }
-        const holders = await memberCountFor(role.id);
+        const holders = await activeHolderCount(role.id);
         const userHolds = (await roles.rolesForUser(user.id)).some((r) => r.id === role.id);
-        if (userHolds && holders <= 1) {
+        if (userHolds && user.status === 'active' && holders <= 1) {
           throw new ConflictError('Cannot remove the last Super Admin.', 'CONFLICT', {
             roleId: role.id,
           });

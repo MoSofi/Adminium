@@ -503,6 +503,10 @@ const resourceSchema = z
     shareLink: z.object({ column: columnSchema, key: z.string().min(1).max(64), addOn: z.string().min(1).max(80).optional() }).strict().optional(),
     /** Read only by the holder of a live session. */
     sessionOnly: z.literal(true).optional(),
+    /** Of those, only the rows this column holds the session's proved address in. */
+    heldBy: columnSchema.optional(),
+    /** A date column: until that day a held row is not shown yet. */
+    heldFrom: columnSchema.optional(),
     /** On the identity: what "delete my details" empties, and the time it stamps. */
     forget: z
       .object({
@@ -516,6 +520,8 @@ const resourceSchema = z
           .min(1)
           .max(8)
           .optional(),
+        /** Also blanked: the person's copies on the rows linked to them. */
+        copies: z.literal(true).optional(),
       })
       .strict()
       .optional(),
@@ -794,7 +800,9 @@ export interface CompiledResource {
   findOrCreate?: { identityRef: string; email: string; link: string; fill: Readonly<Record<string, string>>; on?: { column: string; to: string } | undefined } | null | undefined;
   shareLink?: { column: string; key: string; addOn?: string | undefined } | null | undefined;
   sessionOnly?: boolean | undefined;
-  forget?: { columns: readonly string[]; stamp?: string | undefined; flags?: readonly string[] | undefined; links?: readonly { table: string; column: string; people: readonly string[] }[] | undefined } | null | undefined;
+  heldBy?: string | undefined;
+  heldFrom?: string | undefined;
+  forget?: { columns: readonly string[]; stamp?: string | undefined; flags?: readonly string[] | undefined; copies?: true | undefined; links?: readonly { table: string; column: string; people: readonly string[] }[] | undefined } | null | undefined;
   /** "Make a new link" for a signed-in person's row: the own link's code column, and the outbox kind that emails it. */
   newLink?: { column: string; kind: string; when?: { where: readonly StateCondition[] } | undefined; stopped?: string | undefined } | null | undefined;
   /** Columns left out of rows read through a parent unless the row's holder is the session's own person. */
@@ -1626,6 +1634,8 @@ export function compileScope(
       findOrCreate: r.findOrCreate === undefined ? null : { ...r.findOrCreate, fill: { ...(r.findOrCreate.fill ?? {}) } },
       shareLink: r.shareLink === undefined ? null : { ...r.shareLink },
       sessionOnly: r.sessionOnly === true,
+      ...(r.heldBy === undefined ? {} : { heldBy: r.heldBy }),
+      ...(r.heldFrom === undefined ? {} : { heldFrom: r.heldFrom }),
       forget:
         r.forget === undefined
           ? null
@@ -1633,6 +1643,7 @@ export function compileScope(
               columns: [...r.forget.columns],
               ...(r.forget.stamp === undefined ? {} : { stamp: r.forget.stamp }),
               ...(r.forget.flags === undefined ? {} : { flags: [...r.forget.flags] }),
+              ...(r.forget.copies === true ? { copies: true as const } : {}),
               ...(r.forget.links === undefined ? {} : { links: r.forget.links.map((link) => ({ ...link, people: [...link.people] })) }),
             },
       newLink: r.newLink === undefined ? null : { column: r.newLink.column, kind: r.newLink.kind, ...(r.newLink.when === undefined ? {} : { when: structuredClone(r.newLink.when) as { where: StateCondition[] } }), ...(r.newLink.stopped === undefined ? {} : { stopped: r.newLink.stopped }) },

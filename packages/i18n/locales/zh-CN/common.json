@@ -415,13 +415,11 @@
     "on": "已启用",
     "off": "未启用",
     "nameRequired": "请输入你的姓名。",
-    "emailHelper": "用于登录。修改需要输入密码。",
     "confirmPassword": "当前密码",
     "confirmPasswordHelper": "在更改登录地址前，请确认是你本人。",
     "save": "保存更改",
     "saveFailed": "无法保存你的个人资料",
     "saved": "个人资料已更新",
-    "savedBody": "新的信息已在整个服务器上生效。如果你更改了邮箱，今后请使用新地址登录。",
     "accessTitle": "访问权限",
     "accessSubtitle": "此账户可以做什么，以及它如何证明身份。",
     "rolesHelper": "角色由管理员授予，无法在自己的账户中更改。",
@@ -437,6 +435,21 @@
       "reset": "恢复为服务器默认值",
       "resetFailed": "无法重置此偏好。请重试。",
       "appliesInstantly": "更改会立即生效，并保存到你的个人资料。"
+    },
+    "emailHelperLink": "用于登录。更改时需要输入密码，并打开发送到新地址的链接。",
+    "savedProfileBody": "你的新资料已在此服务器上生效。",
+    "emailPendingTitle": "请查收新地址的邮件",
+    "emailPendingBody": "我们已向 {email} 发送链接。在打开链接之前，请继续使用 {current} 登录。",
+    "confirmEmail": {
+      "action": "确认地址",
+      "back": "返回你的账户",
+      "body": "这会把邮件中的地址设为此账户的登录地址。",
+      "doneBody": "今后请使用新地址登录。",
+      "doneTitle": "地址已更改",
+      "failedBody": "链接可能已过期、已被新链接取代，或属于其他账户。你可以在账户页面重新申请。",
+      "failedTitle": "此链接无法使用",
+      "takenBody": "该地址现已属于其他账户。请在账户页面选择其他地址。",
+      "title": "确认你的新地址"
     }
   },
   "settings": {
@@ -1844,12 +1857,18 @@
       }
     },
     "roles": {
-      "unavailable": "你的账户无法查看角色，因此这里无法分配任何角色。"
+      "unavailable": "你的账户无法查看角色，因此这里无法分配任何角色。",
+      "above": "拥有你没有的权限的角色，无法在此授予或移除。",
+      "refused": "你只能授予其权限你自己都拥有的角色，也不能移除权限比你多的角色。",
+      "accountRefused": "此人拥有你无法触及的权限或数据行，因此你无法更改其邮箱或向其发送新的登录链接。",
+      "reachRefused": "这会让你能访问你的角色未授予的行。",
+      "signInLocked": "此人拥有你无法触及的权限或数据行，因此只有能触及这些内容的人才能发送新链接。"
     },
     "rolesDialog": {
       "description": "用户会获得其所持有的全部角色的权限并集。",
       "failed": "无法更改角色",
-      "title": "{name} 的角色"
+      "title": "{name} 的角色",
+      "invitedNote": "为此人分配其他角色会使其当前邀请失效：之后请向其发送新链接。"
     },
     "rolesLocked": "更改角色需要“管理角色”权限。",
     "search": "搜索姓名或邮箱",
@@ -1922,6 +1941,10 @@
       "body": "{name} 将无法再登录，并会在所有地方退出登录。其账号、角色和历史都会保留，你可以重新启用。",
       "failed": "账号未暂停",
       "confirmHand": "移交并暂停"
+    },
+    "apiKeys": {
+      "revokedOnSuspend": "{name} 创建的所有 API 密钥现在都会被吊销。重新启用 {name} 不会恢复这些密钥。",
+      "revokedOnRemove": "{name} 创建的所有 API 密钥都会被吊销。"
     }
   },
   "invoices": {

@@ -3,7 +3,7 @@
  * The privacy routes' bodies and replies (`routes/privacy/index.ts`).
  */
 import { WEBSITES_MAX } from '@adminium/add-on-contracts/forms/websites';
-import { KEPT_BY_LAW_REASONS } from '@adminium/manifest';
+import { EMBED_MODES, KEPT_BY_LAW_REASONS } from '@adminium/manifest';
 import { BANNER_LOCALES, bannerWordsSchema, KEEPING_MONTHS, PRIVACY_EXPORT_STATUSES } from '@adminium/meta';
 import { z } from 'zod';
 
@@ -85,8 +85,8 @@ export const privacyFindReply = z.object({
 
 /** One thing an erasure leaves, and why (`privacy/what-stays.ts`). */
 const staysItem = z.object({
-  kind: z.enum(['app-rows', 'documents', 'invoices', 'payments', 'payment-events', 'shipping-bookings', 'automation-runs', 'notifications', 'campaign-failures', 'exports', 'do-not-email']),
-  reason: z.enum([...KEPT_BY_LAW_REASONS, 'issued-document', 'payment-records', 'carrier-records', 'kept-a-while', 'objection']),
+  kind: z.enum(['app-rows', 'documents', 'invoices', 'payments', 'payment-events', 'shipping-bookings', 'automation-runs', 'notifications', 'campaign-failures', 'exports', 'do-not-email', 'held-values']),
+  reason: z.enum([...KEPT_BY_LAW_REASONS, 'issued-document', 'payment-records', 'carrier-records', 'kept-a-while', 'objection', 'live-balance']),
   count: z.number().nullable(),
   keptDays: z.number().nullable(),
   forever: z.boolean(),
@@ -177,6 +177,36 @@ export const websitesReply = z.object({
     websites: z.array(websiteView),
     /** The most the list holds. */
     max: z.number(),
+  }),
+});
+
+const embedWords = z.union([z.string(), z.record(z.string(), z.string())]);
+
+/** What the snippet maker may offer: the apps with screens for a website (`privacy/embeds.ts`). */
+export const embedsReply = z.object({
+  data: z.object({
+    apps: z.array(
+      z.object({
+        app: z.string(),
+        name: embedWords,
+        mount: z.string(),
+        modes: z.array(z.enum(EMBED_MODES)),
+        screens: z.array(
+          z.object({
+            path: z.string(),
+            label: embedWords.nullable(),
+            choose: z
+              .object({
+                query: z.string(),
+                title: embedWords.nullable(),
+                any: embedWords.nullable(),
+                values: z.array(z.object({ value: z.string(), label: z.string() })),
+              })
+              .nullable(),
+          }),
+        ),
+      }),
+    ),
   }),
 });
 

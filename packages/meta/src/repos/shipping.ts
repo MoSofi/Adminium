@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * shippingRepo — adminium_shipping_settings and adminium_shipping_quotes
- * (0103): what one app install chose, and the quotes it was given; and
- * adminium_shipping_accounts, _limits and _day_labels (0104): what a carrier
+ * (0107): what one app install chose, and the quotes it was given; and
+ * adminium_shipping_accounts, _limits and _day_labels (0108): what a carrier
  * said of a saved key, and what people who do not manage shipping may spend.
  *
  * The JSON here (Ship from, the rates) is handed back as read, typed `unknown`:
@@ -17,9 +17,9 @@ import {
   SHIPPING_PURPOSE_WIDTH,
   SHIPPING_ROW_WIDTH,
   SHIPPING_TABLE_WIDTH,
-} from '../migrations/0103_shipping.js';
-import { SHIPPING_CURRENCY_WIDTH, SHIPPING_DAY_WIDTH, SHIPPING_KEY_HINT_WIDTH, SHIPPING_MONEY_WIDTH } from '../migrations/0104_shipping_keys.js';
-import { SHIPPING_LABEL_SIZE_WIDTH } from '../migrations/0106_shipping_labels.js';
+} from '../migrations/0107_shipping.js';
+import { SHIPPING_CURRENCY_WIDTH, SHIPPING_DAY_WIDTH, SHIPPING_KEY_HINT_WIDTH, SHIPPING_MONEY_WIDTH } from '../migrations/0108_shipping_keys.js';
+import { SHIPPING_LABEL_SIZE_WIDTH } from '../migrations/0110_shipping_labels.js';
 import { affected, isDuplicateKeyError, packJson, readBool, readJson, readJsonOrNull, writeBool } from './util.js';
 
 export { SHIPPING_CARRIER_WIDTH, SHIPPING_CURRENCY_WIDTH, SHIPPING_DAY_WIDTH, SHIPPING_HASH_WIDTH, SHIPPING_ID_WIDTH, SHIPPING_KEY_HINT_WIDTH, SHIPPING_MONEY_WIDTH, SHIPPING_PURPOSE_WIDTH, SHIPPING_ROW_WIDTH, SHIPPING_TABLE_WIDTH };

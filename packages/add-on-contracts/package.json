@@ -1,6 +1,6 @@
 {
   "name": "@adminium/add-on-contracts",
-  "version": "0.3.70",
+  "version": "0.3.71",
   "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
@@ -29,6 +29,10 @@
     "./testing/lead-source": {
       "types": "./dist/testing/lead-source.d.ts",
       "default": "./dist/testing/lead-source.js"
+    },
+    "./testing/calendar-provider": {
+      "types": "./dist/testing/calendar-provider.d.ts",
+      "default": "./dist/testing/calendar-provider.js"
     },
     "./forms": {
       "types": "./dist/forms/index.d.ts",

@@ -55,7 +55,7 @@ is sent to the app instead of the dashboard:
 - getting a carrier's services for an order at their app's packing bench and buying its label, when
   their role holds `shipping:@:book` (`GET /api/v1/apps/<key>/shipping/access`,
   `POST /api/v1/apps/<key>/shipping/quotes`, `GET` and `POST /api/v1/apps/<key>/shipping/bookings`, and
-  `POST …/bookings/<id>/check`, Adminium 0.3.71). The owner's limits apply, and a role that cannot read
+  `POST …/bookings/<id>/check`, Adminium 0.3.72). The owner's limits apply, and a role that cannot read
   the order's money sees no price. Carrier keys, limits, releasing a purchase with no known result and
   the rest of shipping's setup stay the dashboard's.
 - the [assistant](https://docs.adminium.dev/guides/llm-assist/milo/#on-an-apps-own-staff-address), when an administrator

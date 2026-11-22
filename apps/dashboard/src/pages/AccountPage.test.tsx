@@ -43,8 +43,9 @@ interface PatchCall {
 }
 
 /** `null` reply = let the handler answer 200 with the patched user. */
-function stubFetch(patchReply: { status: number; body: unknown } | null = null) {
+function stubFetch(patchReply: { status: number; body: unknown } | null = null, confirmReply: { status: number; body: unknown } | null = null) {
   const patchCalls: PatchCall[] = [];
+  const confirmCalls: PatchCall[] = [];
   const passwordCalls: PatchCall[] = [];
   const user = makeBootstrap().user;
   const fetchMock = vi.fn().mockImplementation((input: unknown, init?: RequestInit) => {
@@ -59,7 +60,16 @@ function stubFetch(patchReply: { status: number; body: unknown } | null = null) 
       if (patchReply !== null) {
         return Promise.resolve(jsonResponse(patchReply.status, patchReply.body));
       }
+      // A new address moves nothing: the reply keeps the old one and says where the link went.
+      if (typeof body['email'] === 'string') {
+        return Promise.resolve(jsonResponse(200, { data: { user, emailChange: { pendingEmail: body['email'], expiresAt: Date.now() + 86_400_000 } } }));
+      }
       return Promise.resolve(jsonResponse(200, { data: { user: { ...user, ...body, password: undefined } } }));
+    }
+    if (url === '/api/v1/me/email/confirm' && method === 'POST') {
+      confirmCalls.push({ body: JSON.parse(String(init?.body)) as Record<string, unknown> });
+      if (confirmReply !== null) return Promise.resolve(jsonResponse(confirmReply.status, confirmReply.body));
+      return Promise.resolve(jsonResponse(200, { data: { user: { ...user, email: 'ava@new.io' } } }));
     }
     if (url === '/api/v1/auth/password/change' && method === 'POST') {
       passwordCalls.push({ body: JSON.parse(String(init?.body)) as Record<string, unknown> });
@@ -85,7 +95,7 @@ function stubFetch(patchReply: { status: number; body: unknown } | null = null) 
     );
   });
   vi.stubGlobal('fetch', fetchMock);
-  return { fetchMock, patchCalls, passwordCalls };
+  return { fetchMock, patchCalls, passwordCalls, confirmCalls };
 }
 
 async function renderAccount(patchReply?: { status: number; body: unknown }) {
@@ -177,6 +187,51 @@ describe('AccountPage', () => {
 
     await waitFor(() => expect(patchCalls).toHaveLength(1));
     expect(patchCalls[0]?.body).toEqual({ email: 'ava@new.io', password: 'hunter2' });
+    // The old address is still the account's: the page says so, and does not claim it saved.
+    const pending = await screen.findByTestId('account-email-pending');
+    expect(pending.textContent).toContain('ava@new.io');
+    expect(pending.textContent).toContain(makeBootstrap().user.email);
+    expect((screen.getByTestId('account-email') as HTMLInputElement).value).toBe(makeBootstrap().user.email);
+    expect(screen.queryByTestId('account-saved')).toBeNull();
+  });
+
+  it('the mailed link moves nothing until the button is pressed', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal('WebSocket', FakeWebSocket);
+    const { confirmCalls } = stubFetch();
+    const queryClient = createQueryClient();
+    const router = createAppRouter(queryClient, { history: createMemoryHistory({ initialEntries: ['/account/confirm-email/tok_abc'] }) });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+    const action = await screen.findByTestId('confirm-email-action');
+    expect(confirmCalls).toHaveLength(0);
+    await user.click(action);
+    await screen.findByTestId('confirm-email-done');
+    expect(confirmCalls[0]?.body).toEqual({ token: 'tok_abc' });
+  });
+
+  it('a dead link says so in words, and an address someone else took says that', async () => {
+    for (const [status, code, words] of [
+      [410, 'GONE', 'It may have expired'],
+      [409, 'UNIQUE_VIOLATION', 'belongs to another account'],
+    ] as const) {
+      const user = userEvent.setup();
+      vi.stubGlobal('WebSocket', FakeWebSocket);
+      stubFetch(null, { status, body: { error: { code, message: 'refused', requestId: 'req_t' } } });
+      const queryClient = createQueryClient();
+      const router = createAppRouter(queryClient, { history: createMemoryHistory({ initialEntries: ['/account/confirm-email/tok_dead'] }) });
+      const view = render(
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>,
+      );
+      await user.click(await screen.findByTestId('confirm-email-action'));
+      expect((await screen.findByTestId('confirm-email-error')).textContent).toContain(words);
+      view.unmount();
+    }
   });
 
   it('surfaces a rejected email change instead of pretending it saved', async () => {

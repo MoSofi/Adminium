@@ -65,7 +65,15 @@
               "issued_at",
               "moved_from",
               "moved_table",
-              "moving"
+              "moving",
+              "recipient_name",
+              "recipient_email",
+              "sender_name",
+              "message",
+              "language",
+              "source_table",
+              "source_row",
+              "send_on"
             ],
             "update": {
               "by": [
@@ -76,7 +84,8 @@
                 "issued_at",
                 "expires_on",
                 "remind_on",
-                "notify"
+                "notify",
+                "void_reason"
               ]
             }
           },
@@ -92,7 +101,15 @@
               "public_name",
               "uses_total",
               "expires_on",
-              "note"
+              "note",
+              "holder_email",
+              "holder_name",
+              "language",
+              "sold",
+              "sale_price",
+              "tax_later",
+              "sale_table",
+              "sale_row"
             ],
             "update": {
               "by": [
@@ -377,9 +394,16 @@
             "inputs": {
               "card": "link?",
               "amount": "decimal?",
-              "label": "text?"
+              "label": "text?",
+              "to_name": "text?",
+              "to_email": "text?",
+              "message": "text?",
+              "sender": "text?",
+              "language": "text?",
+              "send_on": "date?"
             },
             "phases": [
+              "reserve",
               "post",
               "reverse"
             ],
@@ -391,6 +415,94 @@
                   {
                     "column": "id",
                     "from": "input.card"
+                  }
+                ]
+              },
+              {
+                "as": "made",
+                "table": "gift_cards",
+                "by": [
+                  {
+                    "column": "receipt_id",
+                    "from": "receipt.id"
+                  }
+                ]
+              }
+            ],
+            "locks": [
+              {
+                "read": "card",
+                "column": "id",
+                "table": "gift_cards"
+              },
+              {
+                "read": "made",
+                "column": "id",
+                "table": "gift_cards"
+              }
+            ],
+            "writes": [
+              "card_ledger",
+              "gift_cards"
+            ]
+          },
+          "recall": {
+            "inputs": {
+              "sale": "rowRef",
+              "reason": "text?",
+              "label": "text?"
+            },
+            "phases": [
+              "post"
+            ],
+            "reads": [
+              {
+                "as": "sold",
+                "table": "card_ledger",
+                "by": [
+                  {
+                    "column": "source_table",
+                    "from": "input.sale.table"
+                  },
+                  {
+                    "column": "source_row",
+                    "from": "input.sale.row"
+                  }
+                ],
+                "where": [
+                  {
+                    "column": "kind",
+                    "eq": "issue"
+                  }
+                ]
+              },
+              {
+                "as": "card",
+                "table": "gift_cards",
+                "by": [
+                  {
+                    "column": "id",
+                    "from": "sold.card_id"
+                  }
+                ]
+              },
+              {
+                "as": "given",
+                "table": "card_ledger",
+                "by": [
+                  {
+                    "column": "against_id",
+                    "from": "sold.id"
+                  }
+                ]
+              },
+              {
+                "as": "history",
+                "table": "card_ledger",
+                "by": [
+                  {
+                    "column": "card_id",
+                    "from": "card.id"
                   }
                 ]
               }
@@ -539,6 +651,92 @@
             "locks": [
               {
                 "read": "voucher",
+                "column": "id",
+                "table": "vouchers"
+              }
+            ],
+            "writes": [
+              "vouchers"
+            ]
+          },
+          "sell-pack": {
+            "inputs": {
+              "amount": "decimal",
+              "name": "text",
+              "uses": "number",
+              "what": "text",
+              "target": "rowRef",
+              "holder_email": "text",
+              "holder_name": "text?",
+              "language": "text?",
+              "proved": "bool?",
+              "tax_later": "bool?"
+            },
+            "phases": [
+              "reserve",
+              "post",
+              "reverse"
+            ],
+            "reads": [
+              {
+                "as": "made",
+                "table": "vouchers",
+                "by": [
+                  {
+                    "column": "receipt_id",
+                    "from": "receipt.id"
+                  }
+                ]
+              }
+            ],
+            "writes": [
+              "vouchers"
+            ],
+            "locks": [
+              {
+                "read": "made",
+                "column": "id",
+                "table": "vouchers"
+              }
+            ]
+          },
+          "recall-pack": {
+            "inputs": {
+              "sale": "rowRef"
+            },
+            "phases": [
+              "post",
+              "reverse"
+            ],
+            "reads": [
+              {
+                "as": "pack",
+                "table": "vouchers",
+                "by": [
+                  {
+                    "column": "sale_table",
+                    "from": "input.sale.table"
+                  },
+                  {
+                    "column": "sale_row",
+                    "from": "input.sale.row"
+                  }
+                ]
+              },
+              {
+                "as": "spent",
+                "table": "redemptions",
+                "by": [
+                  {
+                    "column": "voucher_id",
+                    "from": "pack.id"
+                  }
+                ]
+              }
+            ],
+            "locks": [
+              {
+                "read": "pack",
                 "column": "id",
                 "table": "vouchers"
               }
@@ -734,7 +932,8 @@
         "prefixes": [
           "VC-",
           "PK-"
-        ]
+        ],
+        "held": "holder_key"
       },
       "applied": {
         "table": "applied",
@@ -1310,6 +1509,331 @@
             "inAdjust": {
               "paidBy": "voucher_id"
             }
+          }
+        }
+      },
+      {
+        "name": "card-sale-online",
+        "version": 1,
+        "parts": {
+          "order": {
+            "columns": [
+              {
+                "ref": "id",
+                "type": "int",
+                "role": "pk"
+              },
+              {
+                "ref": "paid_at",
+                "type": "timestamptz",
+                "nullable": true
+              },
+              {
+                "ref": "cancelled_at",
+                "type": "timestamptz",
+                "nullable": true
+              }
+            ]
+          },
+          "lines": {
+            "postings": [
+              {
+                "id": "card-make",
+                "into": {
+                  "addOn": "offers",
+                  "ledger": "value",
+                  "action": "issue"
+                },
+                "via": "order_id",
+                "reserve": {
+                  "on": {
+                    "create": true
+                  }
+                },
+                "post": {
+                  "on": {
+                    "column": "paid_at",
+                    "set": true
+                  }
+                },
+                "reverse": {
+                  "on": {
+                    "column": "cancelled_at",
+                    "set": true
+                  }
+                },
+                "map": {
+                  "amount": "load_amount",
+                  "to_name": "to_name",
+                  "to_email": "to_email",
+                  "message": "message",
+                  "sender": "sender",
+                  "language": "language",
+                  "send_on": "send_on"
+                }
+              },
+              {
+                "id": "card-recall",
+                "into": {
+                  "addOn": "offers",
+                  "ledger": "value",
+                  "action": "recall"
+                },
+                "via": "order_id",
+                "post": {
+                  "on": {
+                    "column": "cancelled_at",
+                    "set": true
+                  }
+                },
+                "map": {
+                  "sale": {
+                    "row": true
+                  }
+                }
+              }
+            ],
+            "columns": [
+              {
+                "ref": "id",
+                "type": "int",
+                "role": "pk"
+              },
+              {
+                "ref": "order_id",
+                "type": "fk",
+                "references": "order"
+              },
+              {
+                "ref": "load_amount",
+                "type": "money",
+                "scale": "currency"
+              },
+              {
+                "ref": "to_name",
+                "type": "text",
+                "maxLength": 80,
+                "nullable": true,
+                "rules": {
+                  "plainText": true
+                }
+              },
+              {
+                "ref": "to_email",
+                "type": "text",
+                "maxLength": 254,
+                "rules": {
+                  "validation": {
+                    "format": "email"
+                  }
+                }
+              },
+              {
+                "ref": "message",
+                "type": "text",
+                "maxLength": 200,
+                "nullable": true,
+                "rules": {
+                  "plainText": {
+                    "digits": 20,
+                    "max": 200
+                  }
+                }
+              },
+              {
+                "ref": "sender",
+                "type": "text",
+                "maxLength": 80,
+                "nullable": true,
+                "rules": {
+                  "plainText": true
+                }
+              },
+              {
+                "ref": "language",
+                "type": "text",
+                "maxLength": 12,
+                "nullable": true
+              },
+              {
+                "ref": "send_on",
+                "type": "date",
+                "nullable": true
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "voucher-sale-online",
+        "version": 1,
+        "parts": {
+          "order": {
+            "columns": [
+              {
+                "ref": "id",
+                "type": "int",
+                "role": "pk"
+              },
+              {
+                "ref": "paid_at",
+                "type": "timestamptz",
+                "nullable": true
+              },
+              {
+                "ref": "cancelled_at",
+                "type": "timestamptz",
+                "nullable": true
+              },
+              {
+                "ref": "customer_proved",
+                "type": "bool",
+                "default": false
+              }
+            ]
+          },
+          "lines": {
+            "postings": [
+              {
+                "id": "pack-make",
+                "into": {
+                  "addOn": "offers",
+                  "ledger": "value",
+                  "action": "sell-pack"
+                },
+                "via": "order_id",
+                "reserve": {
+                  "on": {
+                    "create": true
+                  }
+                },
+                "post": {
+                  "on": {
+                    "column": "paid_at",
+                    "set": true
+                  }
+                },
+                "reverse": {
+                  "on": {
+                    "column": "cancelled_at",
+                    "set": true
+                  }
+                },
+                "map": {
+                  "amount": "sale_amount",
+                  "name": "pack_name",
+                  "uses": "pack_uses",
+                  "what": "pack_what",
+                  "target": "target_id",
+                  "holder_email": "holder_email",
+                  "holder_name": "holder_name",
+                  "language": "language",
+                  "proved": {
+                    "parent": "customer_proved"
+                  },
+                  "tax_later": "tax_later"
+                }
+              },
+              {
+                "id": "pack-recall",
+                "into": {
+                  "addOn": "offers",
+                  "ledger": "value",
+                  "action": "recall-pack"
+                },
+                "via": "order_id",
+                "post": {
+                  "on": {
+                    "column": "cancelled_at",
+                    "set": true
+                  }
+                },
+                "reverse": {
+                  "on": {
+                    "column": "paid_at",
+                    "set": true
+                  }
+                },
+                "map": {
+                  "sale": {
+                    "row": true
+                  }
+                }
+              }
+            ],
+            "columns": [
+              {
+                "ref": "id",
+                "type": "int",
+                "role": "pk"
+              },
+              {
+                "ref": "order_id",
+                "type": "fk",
+                "references": "order"
+              },
+              {
+                "ref": "sale_amount",
+                "type": "money",
+                "scale": "currency"
+              },
+              {
+                "ref": "pack_name",
+                "type": "text",
+                "maxLength": 120
+              },
+              {
+                "ref": "pack_uses",
+                "type": "int",
+                "rules": {
+                  "validation": {
+                    "min": 1,
+                    "max": 50
+                  }
+                }
+              },
+              {
+                "ref": "pack_what",
+                "type": "enum",
+                "enum": [
+                  "item",
+                  "category",
+                  "type",
+                  "tag"
+                ]
+              },
+              {
+                "ref": "holder_email",
+                "type": "text",
+                "maxLength": 254,
+                "rules": {
+                  "validation": {
+                    "format": "email"
+                  }
+                }
+              },
+              {
+                "ref": "holder_name",
+                "type": "text",
+                "maxLength": 80,
+                "nullable": true,
+                "rules": {
+                  "plainText": true
+                }
+              },
+              {
+                "ref": "language",
+                "type": "text",
+                "maxLength": 12,
+                "nullable": true
+              },
+              {
+                "ref": "tax_later",
+                "type": "bool",
+                "default": false,
+                "nullable": true
+              }
+            ]
           }
         }
       }

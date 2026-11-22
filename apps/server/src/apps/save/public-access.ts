@@ -268,6 +268,7 @@ function entryOf(inv: Inverse, endpoint: PublicEndpoint, def: Def, keyName: stri
     ...opt('pictures', def.pictures === undefined ? undefined : [...def.pictures]),
     ...opt('assets', def.assets === undefined ? undefined : [...def.assets]),
     ...opt('appColumn', def.app_column),
+    ...opt('heldBy', def.held_by === undefined ? undefined : { address: def.held_by, ...(def.held_from === undefined ? {} : { from: def.held_from }) }),
     ...opt('children', children === undefined ? undefined : Object.fromEntries(Object.entries(children).map(([name, child]) => childOf(inv, name, child)))),
     ...opt('agrees', def.agrees === undefined ? undefined : structuredClone(def.agrees)),
     ...(def.dry_run === true ? { dryRun: true as const } : {}),

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0106 — a bought label's file, and how long it is kept.
+ * Wave 0110 — a bought label's file, and how long it is kept.
  *
  * On `adminium_shipping_bookings`:
  *  - `customs_ref`: the stored customs invoice (`label_ref` is the label);
@@ -21,7 +21,7 @@ import type { Kysely } from 'kysely';
 
 import type { ColumnHelpers } from '../columns.js';
 import { metaTable } from '../prefix.js';
-import { SHIPPING_CARRIER_TEXT_WIDTH } from './0105_shipping_bookings.js';
+import { SHIPPING_CARRIER_TEXT_WIDTH } from './0109_shipping_bookings.js';
 import { columnExists, createIndexUnlessMade } from './probe.js';
 
 /** `a4`, `a6`, `4x6` or `other`. */

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * What one app install chose for shipping, and its stored quotes (wave 0103),
+ * What one app install chose for shipping, and its stored quotes (wave 0107),
  * on every available dialect: a store from before the wave upgrades with
  * nothing in it; saving one setting leaves the other; a slot holds one quote,
  * also when two arrive at once; expired quotes go when a new one comes; each
@@ -41,7 +41,7 @@ for (const dialect of TEST_DIALECTS) {
     const meta = useMetaDb(dialect, migrateOnly);
 
     it('upgrades a store from before the wave, with nothing in it, and runs once', async () => {
-      expect(ALL_MIGRATIONS.map((one) => one.name)).toContain('0103_shipping');
+      expect(ALL_MIGRATIONS.map((one) => one.name)).toContain('0107_shipping');
       expect(await shippingRepo(meta()).settings('mft_shop')).toBeNull();
       expect((await applyMigrations(meta().db, { dialect: meta().dialect })).applied).toEqual([]);
     });

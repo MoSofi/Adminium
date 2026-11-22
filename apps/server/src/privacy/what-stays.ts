@@ -21,7 +21,9 @@
  *     (`retention.exportsDays`); they are files, so they are not searched and
  *     carry no count;
  *   - the do-not-email list keeps their address as a code, so they are never
- *     mailed again: for good.
+ *     mailed again: for good;
+ *   - a pack, gift card or credit that still has a balance keeps its holder
+ *     until the balance ends (`held-values.ts`), added by the erasure's preview.
  *
  * A campaign's failure list is not here: the erasure takes their entries
  * out of it (`erase-meta.ts`, `sweepMailAddress`). The kind stays in the
@@ -34,7 +36,7 @@ import { settingsRepo, type MetaDb } from '@adminium/meta';
 
 import type { PersonFound } from './sources.js';
 
-export type StaysReason = KeptByLawReason | 'issued-document' | 'payment-records' | 'carrier-records' | 'kept-a-while' | 'objection';
+export type StaysReason = KeptByLawReason | 'issued-document' | 'payment-records' | 'carrier-records' | 'kept-a-while' | 'objection' | 'live-balance';
 
 export type StaysKind =
   | 'app-rows'
@@ -47,7 +49,8 @@ export type StaysKind =
   | 'notifications'
   | 'campaign-failures'
   | 'exports'
-  | 'do-not-email';
+  | 'do-not-email'
+  | 'held-values';
 
 export interface StaysItem {
   kind: StaysKind;

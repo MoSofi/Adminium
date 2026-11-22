@@ -65,6 +65,9 @@ import { tagRoutes } from '../../security/route-audience.js';
  */
 export const EXPORTS_MANAGE_PERMISSION = 'system:exports:manage';
 
+/** A grant segment no real database or table id takes, so only a `*` grant matches it. */
+const NO_LONGER_NAMED = '(gone)';
+
 export interface ExportsRoutesDeps {
   meta: MetaDb;
   manager: ConnectionManager;
@@ -105,14 +108,20 @@ export function exportsRoutes(deps: ExportsRoutesDeps): FastifyPluginAsyncZod {
 
   /**
    * Whether somebody who is NOT the one who asked for a file may open it: they
-   * hold the manage grant, and nothing limits which rows of the file's table
-   * they read. A file of a table a person reads in part holds rows that are
-   * not theirs, whoever wrote it; the manage grant is to look after exports,
-   * not a way round a role.
+   * hold the manage grant, they may read the file's table, and nothing limits
+   * which of its rows they read. A file of a table a person reads in part holds
+   * rows that are not theirs, whoever wrote it; the manage grant is to look
+   * after exports, not a way round a role.
+   *
+   * A file whose database or table is no longer named has no grant to ask
+   * about, so {@link NO_LONGER_NAMED} stands in: only a grant on every database
+   * or table covers it.
    */
   async function mayOpenAnothers(request: FastifyRequest, row: DataExport): Promise<boolean> {
     if (!(await request.can(EXPORTS_MANAGE_PERMISSION))) return false;
     const tableName = row.source.table;
+    const readGrant = `table:${row.connectionId ?? NO_LONGER_NAMED}:${typeof tableName === 'string' ? tableName : NO_LONGER_NAMED}:read`;
+    if (!(await request.can(readGrant))) return false;
     if (row.connectionId === null || typeof tableName !== 'string') return true;
     return requestReadsWhole(meta, request, row.connectionId, tableName);
   }

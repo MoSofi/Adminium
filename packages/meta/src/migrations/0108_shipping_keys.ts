@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0104 — who a shop's carrier key belongs to, and what packers may spend.
+ * Wave 0108 — who a shop's carrier key belongs to, and what packers may spend.
  *
  * `adminium_shipping_accounts`, one row per carrier add-on install: what the
  * carrier said of the saved key when it was last checked (test or live, which
@@ -29,7 +29,7 @@ import type { Kysely } from 'kysely';
 import type { ColumnHelpers } from '../columns.js';
 import { metaTable } from '../prefix.js';
 import { columnExists } from './probe.js';
-import { SHIPPING_HASH_WIDTH, SHIPPING_ID_WIDTH } from './0103_shipping.js';
+import { SHIPPING_HASH_WIDTH, SHIPPING_ID_WIDTH } from './0107_shipping.js';
 
 /** `live` or `test`. */
 export const SHIPPING_MODE_WIDTH = 8;

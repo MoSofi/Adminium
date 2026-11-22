@@ -133,6 +133,8 @@ const pageReply = z.object({
    * request or the link carried. Null for any other record.
    */
   back: z.object({ url: z.string(), app: z.string() }).nullable().optional(),
+  /** The tab was opened beside a frame on the owner's website: it ends with "you can close this tab", and has no way back. */
+  beside: z.literal(true).optional(),
 });
 
 type PageReply = z.infer<typeof pageReply>;
@@ -314,7 +316,8 @@ export function createPayPageReader(deps: PayRoutesDeps) {
     const payable = await resolvePayable(deps.sources, link.payable, { mode: link.mode });
     if (payable === null) return base;
     const shown = await shownOf(payable);
-    const back = await backOf(link.payable);
+    const beside = link.beside === true ? ({ beside: true } as const) : {};
+    const back = link.beside === true ? null : await backOf(link.payable);
     // What holds the payable: the open attempt, else money taken and not yet written down — succeeded,
     // being recorded, or refused and not yet looked at (the shop decides; the customer never pays twice).
     const open =
@@ -322,18 +325,18 @@ export function createPayPageReader(deps: PayRoutesDeps) {
       (await attempts.forPayable(payable.ref, 20)).find((one) => one.mode === link.mode && (one.state === 'succeeded' || one.state === 'recording' || (one.state === 'record_refused' && one.check === null))) ??
       null;
     const held = open === null ? null : stateOfAttempt(open);
-    if (held === 'processing') return { ...base, state: 'processing', test: link.mode === 'test', payable: shown, back, processing: { method: (open?.paidWith as { label?: string } | null)?.label ?? null, startedAt: open!.createdAt } };
-    if (held === 'paid' || held === 'shop-checks') return { ...base, state: held, test: link.mode === 'test', payable: shown, back };
+    if (held === 'processing') return { ...base, state: 'processing', test: link.mode === 'test', payable: shown, back, ...beside, processing: { method: (open?.paidWith as { label?: string } | null)?.label ?? null, startedAt: open!.createdAt } };
+    if (held === 'paid' || held === 'shop-checks') return { ...base, state: held, test: link.mode === 'test', payable: shown, back, ...beside };
     if (payable.refusal !== null) {
       const state: PayState = payable.refusal.code === 'VOIDED' ? 'voided' : payable.refusal.code === 'NOTHING_DUE' ? 'paid' : payable.refusal.code === 'NOT_SENT' ? 'nothing-due' : 'unavailable';
-      return { ...base, state, test: link.mode === 'test', payable: shown, back };
+      return { ...base, state, test: link.mode === 'test', payable: shown, back, ...beside };
     }
     const ways = await waysOf(payable, country, link.mode);
-    if (ways.length === 0) return { ...base, state: 'no-ways', test: link.mode === 'test', payable: shown, back };
+    if (ways.length === 0) return { ...base, state: 'no-ways', test: link.mode === 'test', payable: shown, back, ...beside };
     const locked = (await counters.read(linkFailBucket(link.id), now())) >= LINK_FAILURES_TO_LOCK || (await publicStartsHeld(request, link));
     // A locked link still shows the ways to pay by hand.
-    if (locked) return { ...base, state: 'locked', test: link.mode === 'test', payable: shown, back, ways: ways.filter((way) => way.source === 'manual') };
-    return { ...base, state: 'ready', test: link.mode === 'test', payable: shown, back, ways };
+    if (locked) return { ...base, state: 'locked', test: link.mode === 'test', payable: shown, back, ...beside, ways: ways.filter((way) => way.source === 'manual') };
+    return { ...base, state: 'ready', test: link.mode === 'test', payable: shown, back, ...beside, ways };
   }
 
   /** Staff only: the pay page settings' preview (a made-up invoice, as a customer would see it). */
@@ -558,6 +561,7 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
         const test = attempt.mode === 'test';
         const told = {
           ...base,
+          ...(link.beside === true ? { beside: true as const } : {}),
           test,
           payable: shown,
           attempt: {

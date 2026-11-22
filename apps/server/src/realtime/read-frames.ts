@@ -159,6 +159,24 @@ function forRowsReached(event: RealtimeEvent, permissions: PermissionSet, user: 
 }
 
 /**
+ * A subscriber's frames only while their account is active, on EVERY channel:
+ * a connection is signed in once, when it opens, and the role lookup below
+ * does not ask about the account. An account found stopped gets no frame, and
+ * `stop` ends the connection. A check that fails drops the frame
+ * (`orderedSink`), so an outage never sends one unchecked.
+ */
+export function whileActive(isActive: (() => Promise<boolean>) | null, filter: FrameFilter | null, stop: () => void): FrameFilter | null {
+  if (isActive === null) return filter;
+  return async (event) => {
+    if (!(await isActive())) {
+      stop();
+      return null;
+    }
+    return filter === null ? event : filter(event);
+  };
+}
+
+/**
  * A sink that sends each frame through `filter` in the order they came: one
  * frame's check never overtakes the one before it. A filter that fails drops
  * that frame (a screen refetches on the next one).

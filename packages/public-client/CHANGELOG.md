@@ -1,5 +1,14 @@
 # @adminium/public-client
 
+## 0.3.71
+
+### Patch Changes
+
+- f76920f: A booking rule can now keep a buffer after each visit, block the times a person is away (time off, or a calendar table only Adminium writes), share "anyone" evenly and flag who it picked, cap a person's hours by the studio's, and hold only guests to the booking window. A strip of days reads its days once, and names the window's last day. Hours a booking rule reads must be a time of day. A guest may not change who they see inside the cancellation window. A dashboard can ask how booked each person is (`booking-occupancy`).
+- 2bf8022: `forgetMe()` now returns what the delete could not reach: `keptBalances` and `giftsNotLinked`.
+- 0de09f0: `client.list(ref, { via })` sends its filter, so a shop can filter products through their variants (a colour and a size on one variant). A list that declares no `via` in `manifest/access.json` answers 400 `PUBLIC_QUERY_REFUSED` to such a call.
+- ad4c4fc: An app's customer pages can now run inside a frame on the websites its owner lists, with a button or a sheet, a snippet maker in the studio, and a payment that returns to the page it started from.
+
 ## 0.3.70
 
 ## 0.3.69

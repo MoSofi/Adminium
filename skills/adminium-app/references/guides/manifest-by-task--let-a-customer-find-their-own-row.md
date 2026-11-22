@@ -48,8 +48,9 @@ const mine = (await client.list(`${orders}_claimed`, { limit: 1 })).data[0];
 
 - `claim.match` names one to three columns, and the person must give every one. A code compares
   the way codes are kept (upper case, spaces and dashes left out), so `ck y28fap` finds `CK-Y28FAP`.
-- A public list takes no `where`, `order` or `q` from the page: asking for the row by a filter is
-  refused `400` `PUBLIC_QUERY_REFUSED`. The claim is how one row is asked for.
+- A claimed entry cannot declare `filterable`, `searchable` or `orderable`, so asking for the row
+  by `where`, `q` or `order` is refused `400` `PUBLIC_QUERY_REFUSED`. The claim is how one row is
+  asked for.
 - Before the claim, and after its session ends (30 minutes), the claimed endpoint answers `404`.
 - To let the person change their row (cancel it), add `PATCH` to the claimed entry with a narrow
   `writable`: see [A person's own rows](https://docs.adminium.dev/guides/apps/public-access/#a-persons-own-rows).

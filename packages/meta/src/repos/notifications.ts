@@ -15,7 +15,7 @@ import type { Selectable } from 'kysely';
 import type { MetaDb } from '../connect.js';
 import { newId } from '../ids.js';
 import type { AdminiumNotificationsTable } from '../schema/tables.js';
-import { affected, packJson, readJsonOrNull } from './util.js';
+import { DAY_MS, affected, packJson, readJsonOrNull } from './util.js';
 
 export interface Notification {
   id: string;
@@ -155,6 +155,19 @@ export function notificationsRepo(meta: MetaDb) {
         .where('readAt', 'is', null)
         .executeTakeFirst();
       return affected(res.numUpdatedRows);
+    },
+
+    /**
+     * Retention `retention.notificationsDays`: read more than `days` ago,
+     * counted from when it was read. An unread notice has a NULL `read_at`, so
+     * it is never swept: nobody has seen it yet.
+     */
+    async gc(at: number, days: number): Promise<number> {
+      const res = await db
+        .deleteFrom('adminium_notifications')
+        .where('readAt', '<', at - days * DAY_MS)
+        .executeTakeFirst();
+      return affected(res.numDeletedRows);
     },
   };
 }

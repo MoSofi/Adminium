@@ -647,8 +647,20 @@ export type PublicFilter =
   | { and: PublicFilter[] }
   | { or: PublicFilter[] };
 
+/** What a filter through another list may ask: conditions ANDed, never `or`, never a pattern. */
+export type PublicViaFilter =
+  | { column: string; op: 'eq' | 'in' | 'gte' | 'lte' | 'gt' | 'lt'; value: unknown }
+  | { and: PublicViaFilter[] };
+
 export interface ListOptions {
   where?: PublicFilter;
+  /**
+   * Conditions on the rows of the list this entry's `via` names (a product's
+   * variants), on the columns and operators it declares. Every condition must
+   * hold on ONE of those rows: "Slate and M" finds a product only when one
+   * variant is both. A list that declares no `via` refuses it.
+   */
+  via?: PublicViaFilter;
   q?: string;
   order?: string;
   limit?: number;
@@ -710,6 +722,12 @@ export interface PublicClientOptions {
    * reload (in `sessionStorage`, say) and hand it back as `session`.
    */
   onSessionChange?: (session: HeldSession | null) => void;
+  /**
+   * This page runs in a frame on the owner's website (`./frame`): a payment
+   * started here opens in a tab beside the frame, and that tab ends with "you
+   * can close this tab" instead of a way back.
+   */
+  framed?: boolean;
 }
 
 /** How far a claim session reaches: `lookup` found the person, `verified` proved their mailbox. */
@@ -734,6 +752,8 @@ export interface DayAvailability {
   /** How many of the day's times are free. */
   open: number;
   state: 'open' | 'full' | 'closed';
+  /** The last day the booking window reaches (itself closed, if it ends on a weekend): a "later" control stops here. */
+  lastBookable?: true;
 }
 
 /** What a booking availability read asks, whichever form. */
@@ -1003,6 +1023,14 @@ export interface UploadedFile {
   kind: string;
 }
 
+/** What "delete my details" could not reach: a count and a yes/no, never a code or a value. */
+export interface ForgetMeResult {
+  /** Packs, gift cards or store credit of this person's that still hold a balance, and so keep their name and address. */
+  keptBalances: number;
+  /** True where Offers is installed: a gift card someone else bought this person is not linked to their account. */
+  giftsNotLinked: boolean;
+}
+
 export interface PublicClient {
   /** The scope, fetched once and cached. */
   config: () => Promise<PublicConfig>;
@@ -1143,8 +1171,13 @@ export interface PublicClient {
    * and tickets stay, and still open by their links), every session ends and
    * the old address gets one last email. Needs a mailbox proved minutes ago:
    * `PUBLIC_CODE_STEP_UP` asks for a fresh sign-in link first.
+   *
+   * Answers what the delete could not reach: `keptBalances` counts the packs,
+   * gift cards and store credit that keep the person's name and address until
+   * they are used up or expire; `giftsNotLinked` says a gift card someone else
+   * bought them is not linked to this account, so it was not touched.
    */
-  forgetMe: () => Promise<void>;
+  forgetMe: () => Promise<ForgetMeResult>;
   /**
    * "Make a new link" for one of the signed-in person's rows (a verified
    * session, never a row's own link): the row's own link stops opening it —
@@ -1375,6 +1408,7 @@ export function createPublicClient(
       authorization: `Bearer ${key}`,
       ...(init.body === undefined ? {} : { 'content-type': 'application/json' }),
       ...(session === null ? {} : { [SESSION_HEADER]: session.token }),
+      ...(options?.framed === true ? { 'x-adminium-framed': '1' } : {}),
       // Only on a write: the server checks it only there, and a token in every
       // read is one more place for it to be logged.
       ...(writes && typeof csrf === 'string' && csrf !== '' ? { [CSRF_HEADER]: csrf } : {}),
@@ -1481,14 +1515,15 @@ export function createPublicClient(
   /**
    * Query-string encoder.
    *
-   * `where` is JSON, because the server parses it as JSON. Building it by
-   * hand in each app is how a filter ends up subtly wrong in one of fifteen
-   * places — and the server would refuse it anyway, opaquely.
+   * `where` and `via` are JSON, because the server parses them as JSON.
+   * Building one by hand in each app is how a filter ends up subtly wrong in
+   * one of fifteen places — and the server would refuse it anyway, opaquely.
    */
   const encode = (options: ListOptions | undefined): string => {
     if (options === undefined) return '';
     const p = new URLSearchParams();
     if (options.where !== undefined) p.set('where', JSON.stringify(options.where));
+    if (options.via !== undefined) p.set('via', JSON.stringify(options.via));
     if (options.q !== undefined && options.q !== '') p.set('q', options.q);
     if (options.order !== undefined) p.set('order', options.order);
     if (options.limit !== undefined) p.set('limit', String(options.limit));
@@ -1875,8 +1910,9 @@ export function createPublicClient(
     },
 
     async forgetMe() {
-      await request('/api/v1/public/account', { method: 'DELETE' });
+      const out = await request<{ data: ForgetMeResult }>('/api/v1/public/account', { method: 'DELETE' });
       holdSession(null);
+      return out.data;
     },
 
     async newLink(ref, id) {

@@ -62,7 +62,7 @@ const shopDoc = (key: string): Record<string, unknown> => ({
   license: 'AGPL-3.0-only',
   description: { key: 'd', fallback: 'A shop.' },
   categories: ['operations'],
-  compatibility: { minAdminiumVersion: '0.3.71', engines: ['postgres', 'mysql', 'sqlite'] },
+  compatibility: { minAdminiumVersion: '0.3.72', engines: ['postgres', 'mysql', 'sqlite'] },
   requiredSchema: {
     prefixed: true,
     tables: [

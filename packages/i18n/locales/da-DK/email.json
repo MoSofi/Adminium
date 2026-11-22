@@ -877,7 +877,9 @@
     "intro": "Hej {name}, som du bad om, er de oplysninger, {appName} havde om dig, slettet, og du er logget ud overalt.",
     "kept": "Det, du allerede har hos os, gælder stadig, og de e-mails, du allerede har, åbner det stadig. Du hører ikke fra os igen, medmindre du kommer tilbage.",
     "footer": "{appName}",
-    "stopped": "Linkene i de e-mails, du allerede har, virker ikke længere. Du hører ikke fra os igen, medmindre du kommer tilbage."
+    "stopped": "Linkene i de e-mails, du allerede har, virker ikke længere. Du hører ikke fra os igen, medmindre du kommer tilbage.",
+    "held": "Én undtagelse: Pakker eller gavekort med en saldo beholder dit navn og din e-mail, indtil de er brugt op eller udløbet, så du stadig kan bruge dem. Antal beholdt: {count}.",
+    "gifts": "Hvis en anden har købt et gavekort til dig, er det ikke knyttet til din konto, så det viser stadig det navn og den e-mail, der blev skrevet. Skriv til os, hvis du vil have dem fjernet."
   },
   "missing": {
     "chip": "{name}: angiv, hvad der skrives, når den mangler",
@@ -1019,5 +1021,29 @@
     "object": "Gør indsigelse",
     "questions": "Spørgsmål? Skriv til {contact}. {who}.",
     "keptBy": "Gemt af {who}."
+  },
+  "connectLink": {
+    "name": "Forbind din konto",
+    "subject": "{business} beder dig forbinde din konto",
+    "preheader": "Linket virker i {days} dage.",
+    "heading": "Forbind din konto",
+    "intro": "Hej {name}, {business} beder dig forbinde din egen konto. Brug den konto, der er din.",
+    "action": "Forbind min konto",
+    "notice": "Linket virker én gang, i {days} dage. Hvis du ikke ventede det, kan du se bort fra denne e-mail: Intet forbindes, før du logger ind."
+  },
+  "accountConnected": {
+    "name": "Konto forbundet",
+    "subject": "Din konto blev forbundet hos {business}",
+    "heading": "Din konto blev forbundet",
+    "intro": "Hej {name}, {provider} er nu forbundet for dig hos {business} som {account}.",
+    "notice": "Hvis det ikke var dig, så sig det til {business} med det samme."
+  },
+  "emailChangeConfirm": {
+    "action": "Bekræft denne adresse",
+    "heading": "Bekræft din nye adresse",
+    "intro": "Hej {name}, en person, der er logget ind på {appName} som {currentEmail}, har bedt om at logge ind med {email} fra nu af.",
+    "name": "Bekræft en ny login-adresse",
+    "notice": "Åbn linket, mens du er logget ind på den konto. Det virker kun én gang og udløber om {expiresInHours} timer. Hvis du ikke kender kontoen, kan du ignorere denne e-mail: Intet ændres.",
+    "subject": "Bekræft din nye login-adresse til {appName}"
   }
 }

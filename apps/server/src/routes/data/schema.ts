@@ -9,6 +9,7 @@
 import { onceEntrySchema } from './once.js';
 import { z } from 'zod';
 
+import { calendarDay } from '../../crud/calendar-day.js';
 import { MAX_COMPUTE_BYTES } from '../../crud/compute.js';
 import { MAX_CHILD_ROWS } from '../../crud/child-rows.js';
 import { MAX_WHERE_BYTES } from '../../crud/filters.js';
@@ -78,6 +79,11 @@ export const recordListQuery = z.object({
   lookup: lookupParam,
   agg: aggParam,
   compute: computeParam,
+  /**
+   * Columns answered as `true` or `false` (whether they hold a value) in place
+   * of the value: for a screen that must say only that a date is there.
+   */
+  presentOnly: z.union([z.string().min(1).max(64), z.array(z.string().min(1).max(64)).max(8)]).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
   offset: z.coerce.number().int().min(0).optional(),
   /** Keyset cursor; empty string = first keyset page. */
@@ -479,20 +485,23 @@ export const bookingSlotsQuery = z
   .object({
     kind: z.string().min(1).max(200),
     resource: z.string().min(1).max(200).optional(),
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    date: calendarDay.optional(),
+    from: calendarDay.optional(),
     days: z.coerce.number().int().min(1).max(31).optional(),
     /** The visit being moved; its own time is not counted against it. */
     exclude: z.string().min(1).max(400).optional(),
   })
   .strict();
 
+/** Minutes of the last hour in which a public create was refused because the key's hour was full. */
+export const publicCapReachedReply = z.object({ data: z.object({ lastHour: z.number() }) });
+
 export const bookingSlotsReply = z.object({
   data: z.union([
     z.array(
       z.object({ time: z.string(), state: z.enum(['free', 'full']), resource: z.union([z.string(), z.number()]).optional() }),
     ),
-    z.array(z.object({ date: z.string(), open: z.number().int(), state: z.enum(['open', 'full', 'closed']) })),
+    z.array(z.object({ date: z.string(), open: z.number().int(), state: z.enum(['open', 'full', 'closed']), lastBookable: z.literal(true).optional() })),
   ]),
 });
 

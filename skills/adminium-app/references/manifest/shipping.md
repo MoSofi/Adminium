@@ -2,7 +2,7 @@
 
 # Manifest spec: Shipping
 
-`shipping` says where an app's orders keep what a delivery company needs. It needs Adminium 0.3.71
+`shipping` says where an app's orders keep what a delivery company needs. It needs Adminium 0.3.72
 or later. An app without it can never reach a real carrier: the engine refuses the call with
 `APP_NOT_UPDATED`, whatever the client sends.
 
@@ -42,7 +42,7 @@ its parcel goes. The country must hold a two-letter ISO code; Adminium never gue
 Buying a label never moves the order's status. A label bought with a test key reaches neither column.
 
 An app's role can be given three rights on this install's labels. They need the `shipping` block
-and Adminium 0.3.71 or later, and an update that adds one asks first.
+and Adminium 0.3.72 or later, and an update that adds one asks first.
 
 | Grant | What it allows |
 |---|---|

@@ -395,19 +395,31 @@ export async function resetPasswordHandler(
   await assertPasswordPolicy(ctx.meta, body.newPassword, 'newPassword');
 
   const row = await resets.findValidByTokenHash(hashToken(body.token), now);
-  // `consume` is the single-use guard: only the first request wins.
-  if (row === null || !(await resets.consume(row.id, now))) {
-    throw invalidCredentials('Invalid or expired reset token.');
-  }
+  if (row === null) throw invalidCredentials('Invalid or expired reset token.');
 
   const user = await users.findById(row.userId);
-  if (user === null || user.status === 'suspended' || user.status === 'sample') {
+  // An invitation sets a FIRST password. Once the account is active, an old
+  // invitation link is no way to replace the password of whoever holds it now.
+  if (
+    user === null ||
+    user.status === 'suspended' ||
+    user.status === 'sample' ||
+    (row.kind === 'invite' && user.status !== 'invited')
+  ) {
+    // Only this link is spent: a refused one must not cost the person a live one.
+    await resets.consume(row.id, now);
+    throw invalidCredentials('Invalid or expired reset token.');
+  }
+  // The single-use guard: only the first request wins, and the person's other links die with it.
+  if (!(await resets.redeem(row.id, user.id, now))) {
     throw invalidCredentials('Invalid or expired reset token.');
   }
 
-  await users.updatePassword(user.id, await hashPassword(body.newPassword), now);
-  // Invite-activation path: first password set activates the account.
-  if (user.status === 'invited') await users.updateStatus(user.id, 'active', now);
+  const passwordHash = await hashPassword(body.newPassword);
+  // Invite-activation path: first password set activates the account, unless it was stopped while that was hashed.
+  if (user.status === 'invited') {
+    if (!(await users.activateInvited(user.id, passwordHash, now))) throw invalidCredentials('Invalid or expired reset token.');
+  } else await users.updatePassword(user.id, passwordHash, now);
   // Credential change revokes every existing session.
   await sessionsRepo(ctx.meta).revokeAllForUser(user.id, now);
   await auditAuth(ctx.meta, request, {

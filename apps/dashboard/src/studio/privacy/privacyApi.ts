@@ -133,11 +133,12 @@ export type StaysKind =
   | 'notifications'
   | 'campaign-failures'
   | 'exports'
-  | 'do-not-email';
+  | 'do-not-email'
+  | 'held-values';
 
 export interface StaysItem {
   kind: StaysKind;
-  reason: KeptByLawReason | 'issued-document' | 'payment-records' | 'carrier-records' | 'kept-a-while' | 'objection';
+  reason: KeptByLawReason | 'issued-document' | 'payment-records' | 'carrier-records' | 'kept-a-while' | 'objection' | 'live-balance';
   /** Null where they are not counted (exports staff made of a table). */
   count: number | null;
   keptDays: number | null;
@@ -279,6 +280,32 @@ export interface WebsitesList {
 }
 
 export const PRIVACY_WEBSITES_QUERY_KEY = ['privacy', 'websites'] as const;
+
+/** A word of a manifest: one text, or the same in several languages. */
+export type EmbedWords = string | Record<string, string>;
+
+export interface EmbedScreen {
+  path: string;
+  label: EmbedWords | null;
+  choose: { query: string; title: EmbedWords | null; any: EmbedWords | null; values: { value: string; label: string }[] } | null;
+}
+
+/** An installed app with screens a website may show. */
+export interface EmbedApp {
+  /** What `data-adminium-app` says. */
+  app: string;
+  name: EmbedWords;
+  mount: string;
+  screens: EmbedScreen[];
+  modes: ('inline' | 'button' | 'floating')[];
+}
+
+export function embedsQuery() {
+  return queryOptions({
+    queryKey: ['privacy', 'embeds'] as const,
+    queryFn: async () => (await api.get<{ data: { apps: EmbedApp[] } }>('/api/v1/privacy/embeds')).data.apps,
+  });
+}
 
 export function websitesQuery() {
   return queryOptions({

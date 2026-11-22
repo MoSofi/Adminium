@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { PublicSessionContext } from '../src/public-api/claim.js';
+import { hashAddress } from '../src/public-api/claim-code.js';
 import { provedAddressOf } from '../src/public-api/proved-address.js';
 import type { CompiledScope } from '../src/public-api/scope.js';
 
@@ -36,5 +37,13 @@ describe('the address a public session proved', () => {
     for (const email of ['"wes@fieldmail.io"', 'wes@fieldmail.io;', 'Wes <wes@fieldmail.io>', '', null]) {
       expect(provedAddressOf(scope, session(), { id: 7, email }), String(email)).toBeNull();
     }
+  });
+
+  it('proves nothing once the row holds another address than the one the mail went to', () => {
+    const key = Buffer.alloc(32, 7);
+    const sent = hashAddress(key, 'old@fieldmail.io');
+    const opened = session({ kind: 'link', grant: { ref: 'customer', column: 'id', value: 7, addr: sent } });
+    expect(provedAddressOf(scope, opened, { id: 7, email: 'old@fieldmail.io' }, key)).toBe('old@fieldmail.io');
+    expect(provedAddressOf(scope, opened, { id: 7, email: 'new@fieldmail.io' }, key)).toBeNull();
   });
 });

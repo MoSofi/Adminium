@@ -38,5 +38,29 @@ export default {
   "tooOld": {
     "title": "Diese Seite braucht ein neueres Adminium",
     "body": "Die Seite dieses Add-ons wurde für eine neuere Version von Adminium gebaut als diese. Ein Update von Adminium öffnet sie; von der Seite wurde nichts ausgeführt."
+  },
+  "accounts": {
+    "notice": {
+      "connectedTitle": "{person} hat ein Konto verbunden",
+      "connectedBody": "{person} ist jetzt als {account} mit {provider} verbunden.",
+      "refusedTitle": "{provider} hat die App dieses Servers abgelehnt",
+      "refusedBody": "Prüfen Sie die für {provider} gespeicherte Client-ID und das Secret. Niemand muss sich neu verbinden: Die Verbindungen laufen weiter, sobald die App akzeptiert wird.",
+      "clashTitle": "{person} hat eine Kalenderüberschneidung",
+      "clashBody": "Eine belegte Zeit im Kalender von {person} überschneidet sich jetzt mit einer Buchung. Öffnen Sie die Buchung, um sie zu verschieben oder beizubehalten.",
+      "staleTitle": "Die belegten Zeiten von {person} wurden entfernt",
+      "staleBody": "{person} hat sich seit 7 Tagen nicht neu verbunden, daher blockiert dieser Kalender keine Zeiten mehr.",
+      "removedTitle": "{person} hat den Kalender {calendar} entfernt",
+      "removedBody": "Er wurde zweimal innerhalb einer Woche gelöscht. Buchungen gehen daher nicht mehr in den Kalender von {person}, bis die Person sie wieder einschaltet.",
+      "remadeTitle": "Der Kalender {calendar} wurde neu angelegt",
+      "remadeBody": "Er wurde aus dem Konto von {person} gelöscht und daher mit den kommenden Buchungen neu angelegt.",
+      "silentTitle": "Änderungen aus dem Kalender von {person} kommen verspätet an",
+      "silentBody": "Die sofortigen Aktualisierungen haben aufgehört. Änderungen kommen jetzt mit der regelmäßigen Prüfung, innerhalb von etwa 12 Minuten.",
+      "secretEndingTitle": "Das Client-Secret von {provider} endet am {date}",
+      "secretEndingBody": "Erstellen Sie vor diesem Tag ein neues Client-Secret und fügen Sie es in die Einrichtungsanleitung ein, sonst stoppt jede Verbindung zu {provider}. Niemand muss sich neu verbinden.",
+      "unreadableTitle": "Ein Kalender von {person} kann nicht mehr gelesen werden",
+      "unreadableBody": "Er wurde gelöscht oder wird nicht mehr geteilt. Deshalb zählt er nicht mehr als belegt und blockiert die Zeiten von {person} nicht mehr. Die anderen Kalender tun das weiterhin.",
+      "namesLeftTitle": "Im Kalender von {person} steht möglicherweise noch der Name eines Kunden",
+      "namesLeftBody": "Einige Termine im Kalender {calendar} konnten nicht entfernt werden, bevor diese Verbindung endete. Bitte {person}, sie dort zu löschen."
+    }
   }
 } as const;

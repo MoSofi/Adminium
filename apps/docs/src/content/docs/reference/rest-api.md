@@ -106,7 +106,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | Group | Ops | |
 |---|---:|---|
 | `/api/v1/about/*` | 2 | Build version, edition, and the update check |
-| `/api/v1/add-ons/*` | 41 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
+| `/api/v1/add-ons/*` | 47 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
 | `/api/v1/api-docs` | 1 | The public API catalogue behind /api-docs — what live keys can call; 404 while the page is off |
 | `/api/v1/api-keys/*` | 3 | Issue, list and revoke API keys |
 | `/api/v1/apps/*` | 70 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), rename an older install’s tables to the app’s prefix, change one app’s settings, switch it off and on, set its domains and instances, add and remove its sample data, discard a staged version, uninstall, and upload, review and install a workspace file (several apps in one), finishing a stopped one with Install the rest |
@@ -117,11 +117,14 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/automations/*` | 9 | Automation rules — the trigger, the steps and the branches between them; the tables, columns, templates and roles a rule can name; the 30-day counters the cards show; and a dry run that walks the flow without executing anything |
 | `/api/v1/bootstrap` | 1 | Everything the dashboard needs on first paint, in one call |
 | `/api/v1/branding/*` | 4 | Instance name, colours and logo (read is public; writes are admin) |
+| `/api/v1/calendar-feed/*` | 2 | A person’s private calendar link on a booking table: whether you may renew it, the link itself for its own person only, and a new link that ends the old one. Each route asks your reach on that person’s row |
+| `/api/v1/calendar-sync/*` | 6 | A person’s connected calendar as the desk uses it: its state, the calendars read, busy times with no words, "Sync now", and clashes with a booking and keeping them. Each route asks the person’s reach on the row, and an API key acts for nobody here |
 | `/api/v1/chat/*` | 12 | A website chat, for staff: whether its automatic answers can call an AI service and a question tried on them; the visitor on the page or gone; taking, replying (also mailed to a visitor who left an address and the page), closing and reopening a conversation; an enquiry made from it under the person’s own create; a reply drafted by Milo; everything its settings page shows; and the breaker’s pause on new chats |
 | `/api/v1/connect/*` | 3 | Connect Supabase: the one-time hand-off from an operator's connect service (ADMINIUM_SUPABASE_CONNECT_URL). Start, the return with its one-time code, and the password for an existing project |
+| `/api/v1/connected-accounts/*` | 4 | A person’s own outside account on a row of an app (a team member’s calendar): its state, connecting it, a one-time link sent to the address on the row or copied, and ending the connection. Each route asks the person’s reach on that row and the app’s named action, and an API key acts for nobody here |
 | `/api/v1/connections/*` | 30 | Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation |
 | `/api/v1/consent/*` | 7 | Consent and the do-not-email list — the list itself (search, add, remove), and a record's consent: its standing per purpose, its history, recording a yes, "Replied" and "They said no" |
-| `/api/v1/data/*` | 25 | Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references |
+| `/api/v1/data/*` | 26 | Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references |
 | `/api/v1/designer/*` | 2 | Adminium Designer on a server people reach — whether it is allowed and switched on, and the switch itself (a Super Admin, with their password). The Designer’s own routes exist only while the server runs it |
 | `/api/v1/documents/*` | 14 | Documents drawn from your own records — the register of what was issued, the bytes behind each one, and the mappings that say which columns make which document. A document keeps a frozen copy of what it was drawn from, so editing or deleting the source row never changes an invoice somebody already has. Reading one needs read access to every table its mapping uses; a caller without all of them is told the document exists and not what is in it. |
 | `/api/v1/email/*` | 9 | The marketing mail settings — each sender’s DKIM key and DNS checks, where replies go, and the addresses a mail service calls to report bounces and spam (no reply ever carries a key or a secret) |
@@ -144,7 +147,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/leads/*` | 8 | Finding companies, for staff of an add-on that finds them: search a register, look up one company, add found companies, fill in a company's details, and find and keep the people who work there — every write made as the person asking; where each filled field of a company came from, while it still holds what was filled; and the mail a found person is sent, drawn for a made-up person and never sent |
 | `/api/v1/ledgers/*` | 4 | The rules that hand rows to an add-on's ledger (stock, gift cards) — which tables post into it, whether each rule runs, how many rows hold something under it and how many saves wait to be worked out; the tables and columns a new rule may be drawn from; making the ledger's items from a table's rows; and recording the saves let through while the add-on could not be asked. Reading needs a session and the connection; the two runs need the grant that changes what a table's columns mean. A rule itself is stored under /connections/:id/tables/:table/postings. |
 | `/api/v1/llm/*` | 18 | LLM assist — provider config, runs, prompts, diffs, apply, undo |
-| `/api/v1/me/*` | 15 | The signed-in user — profile, preferences, notifications, saved layouts |
+| `/api/v1/me/*` | 16 | The signed-in user — profile, preferences, notifications, saved layouts |
 | `/api/v1/meta/*` | 2 | Where the meta store lives, and relocating it |
 | `/api/v1/onboarding/*` | 2 | The first-run checklist |
 | `/api/v1/option-lists/*` | 5 | Named sets of answers a column accepts, written once and pointed at by as many columns as need them. Reading one needs only a session — a create dialog has to render the choices to anyone who may add a row — while writing needs the same grant that points a column at a list. The built-in lists live in code and are served with their labels in the caller's locale; editing one makes an ordinary copy rather than changing it. Deleting a list a column still names is refused with 409 and the columns using it. |
@@ -153,16 +156,16 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/people` | 1 | Names and ids of staff, for picking somebody (an owner, a hand-over) |
 | `/api/v1/permissions` | 1 | The permission catalog every role is built from |
 | `/api/v1/presence` | 1 | Someone is using this dashboard: an empty answer the dashboard asks for once a minute while its person is active, only where the operator set ADMINIUM_PRESENCE=on, for a proxy that counts any request as use |
-| `/api/v1/privacy/*` | 21 | A person’s data by their e-mail address — finding everything kept about them, downloading it as a .zip of JSON and CSV, erasing them in place (with a preview of what goes and what stays), and how long things are kept — plus the privacy notice (business name, notice address), the sender’s postal address and visitor counting (Off, Counts only or Per visitor, and the visitor banner’s words). Needs privacy.manage (only the Super Admin holds it unless granted) and a signed-in person; the postal address needs settings.manage. |
+| `/api/v1/privacy/*` | 22 | A person’s data by their e-mail address — finding everything kept about them, downloading it as a .zip of JSON and CSV, erasing them in place (with a preview of what goes and what stays), and how long things are kept — plus the privacy notice (business name, notice address), the sender’s postal address and visitor counting (Off, Counts only or Per visitor, and the visitor banner’s words). Needs privacy.manage (only the Super Admin holds it unless granted) and a signed-in person; the postal address needs settings.manage. |
 | `/api/v1/project/*` | 11 | A project folder on the server that runs one — which pages and schema customizations differ from the deployed files, settling a page changed on both sides, the changed copies `adminium pull --from` writes into the project, running the project’s actions, the built files of its own pages and widgets, and what Studio shows about the project |
-| `/api/v1/public/*` | 39 | The scoped public API for customer- and staff-facing pages (off by default) |
+| `/api/v1/public/*` | 42 | The scoped public API for customer- and staff-facing pages (off by default) |
 | `/api/v1/public-api/*` | 3 | Turn the public API on or off, and see whether this instance opted in |
 | `/api/v1/public-endpoints/*` | 5 | Build the endpoints a key can be granted — source, columns, filters, methods and limits |
 | `/api/v1/public-keys/*` | 5 | Issue, reveal, rotate and revoke the browser-safe keys your pages use |
 | `/api/v1/public-scopes/*` | 4 | Define what a public key may read — resources, columns, filters and time zone |
 | `/api/v1/readyz` | 1 | Readiness — per-dependency verdicts, 503 when a dependency is down |
 | `/api/v1/report-documents/*` | 9 | Report templates and reports — the block documents behind the report builder, the starters, duplicates, and building a report from a template |
-| `/api/v1/roles/*` | 8 | RBAC roles, their permission sets, and which rows each reaches |
+| `/api/v1/roles/*` | 9 | RBAC roles, their permission sets, and which rows each reaches |
 | `/api/v1/scheduled-reports/*` | 4 | Recurring exports delivered on a schedule |
 | `/api/v1/schema-import` | 1 | Parse a schema file (SQL, Prisma, Drizzle, the JSON IR, …) into the IR |
 | `/api/v1/search` | 1 | Cross-resource search for the command palette |
@@ -213,6 +216,12 @@ POST /api/v1/add-ons/{key}/codes/make
 GET /api/v1/add-ons/{key}/kit
 GET /api/v1/add-ons/{key}/forms/{id}/summary
 POST /api/v1/add-ons/{key}/documents/render
+GET /api/v1/add-ons/{key}/connect/accounts
+GET /api/v1/add-ons/{key}/connect/people
+POST /api/v1/add-ons/{key}/connect/check
+PUT /api/v1/add-ons/{key}/connect/app
+POST /api/v1/add-ons/{key}/connect/accounts/link
+POST /api/v1/add-ons/{key}/connect/accounts/{id}/disconnect
 GET /api/v1/add-ons/catalog
 PUT /api/v1/add-ons/catalog
 POST /api/v1/add-ons/catalog/refresh
@@ -418,6 +427,24 @@ POST /api/v1/branding/logo
 DELETE /api/v1/branding/logo
 ```
 
+### `/calendar-feed`
+
+```http
+GET /api/v1/calendar-feed
+POST /api/v1/calendar-feed/renew
+```
+
+### `/calendar-sync`
+
+```http
+GET /api/v1/calendar-sync/row
+GET /api/v1/calendar-sync/busy
+POST /api/v1/calendar-sync/row/choices
+POST /api/v1/calendar-sync/row/sync-now
+GET /api/v1/calendar-sync/clashes
+POST /api/v1/calendar-sync/clashes/keep
+```
+
 ### `/chat`
 
 ```http
@@ -441,6 +468,15 @@ POST /api/v1/chat/{addOn}/resume
 POST /api/v1/connect/start
 POST /api/v1/connect/return
 POST /api/v1/connect/complete
+```
+
+### `/connected-accounts`
+
+```http
+GET /api/v1/connected-accounts
+POST /api/v1/connected-accounts/connect
+POST /api/v1/connected-accounts/link
+POST /api/v1/connected-accounts/disconnect
 ```
 
 ### `/connections`
@@ -511,6 +547,7 @@ PATCH /api/v1/data/{connectionId}/{table}/{recordId}
 DELETE /api/v1/data/{connectionId}/{table}/{recordId}
 GET /api/v1/data/{connectionId}/{table}/availability
 GET /api/v1/data/{connectionId}/{table}/booking-slots
+GET /api/v1/data/{connectionId}/{table}/public-cap-reached
 GET /api/v1/data/{connectionId}/{table}/capacity-counts
 GET /api/v1/data/{connectionId}/{table}/{recordId}/nightly
 GET /api/v1/data/{connectionId}/{table}/{recordId}/links/{relationId}
@@ -799,6 +836,7 @@ POST /api/v1/llm/yours-assist/undo
 ```http
 GET /api/v1/me
 PATCH /api/v1/me
+POST /api/v1/me/email/confirm
 GET /api/v1/me/prefs
 PATCH /api/v1/me/prefs
 GET /api/v1/me/notifications
@@ -947,6 +985,7 @@ GET /api/v1/privacy/notice/public
 GET /api/v1/privacy/reach
 GET /api/v1/privacy/websites
 POST /api/v1/privacy/websites
+GET /api/v1/privacy/embeds
 POST /api/v1/privacy/websites/remove
 GET /api/v1/privacy/postal-address
 PUT /api/v1/privacy/postal-address
@@ -1021,6 +1060,9 @@ DELETE /api/v1/public/account
 POST /api/v1/public/records/{ref}/{id}/new-link
 GET /api/v1/public/records/{ref}/{id}/review
 POST /api/v1/public/records/{ref}/{id}/review
+POST /api/v1/public/review-link
+POST /api/v1/public/review-link/take
+GET /api/v1/public/records/{ref}/{id}/calendar
 DELETE /api/v1/public/session
 ```
 
@@ -1086,6 +1128,7 @@ POST /api/v1/report-documents/{id}/from-template
 ```http
 GET /api/v1/roles
 POST /api/v1/roles
+GET /api/v1/roles/grantable
 PATCH /api/v1/roles/{id}
 DELETE /api/v1/roles/{id}
 GET /api/v1/roles/{id}/permissions

@@ -126,7 +126,7 @@ downgrade, restore the pre-upgrade backup — which is why step 1 is step 1.
 ## Pin your version
 
 ```bash title=".env"
-ADMINIUM_VERSION=0.3.70
+ADMINIUM_VERSION=0.3.71
 ```
 
 ```bash
@@ -152,7 +152,7 @@ compares them — and read
 
 A release sometimes refuses a setting an earlier one took, when the setting
 could send Adminium somewhere it should not go. The setting is kept, but what
-depends on it stops working until you change it. After an upgrade to 0.3.70,
+depends on it stops working until you change it. After an upgrade to 0.3.71,
 check three things:
 
 - **Database connection strings.** A string that carries a parameter the
@@ -174,6 +174,59 @@ check three things:
   `NODE_ENV=production`, which ignores it.
 
 Rehearsing the upgrade (below) shows all three before production does.
+
+## Keep read notifications longer
+
+Every day at 03:00 UTC, Adminium permanently deletes notifications that were
+read more than `retention.notificationsDays` ago (90 days by default). Unread
+notifications stay until someone reads them. The setting has no screen yet, so
+to keep read notifications longer, write it to the meta store. This keeps them
+for 3650 days. Run the one that matches your meta store, **before** you upgrade
+to a release that starts this cleanup, or at the latest before its first 03:00
+UTC.
+
+Embedded SQLite in the Docker image, which has no `sqlite3` command:
+
+```bash
+docker compose exec -T adminium node - <<'JS'
+const Database = require('better-sqlite3');
+const db = new Database(`${process.env.ADMINIUM_DATA_DIR}/meta.db`);
+db.prepare(`INSERT INTO adminium_settings (key, value, updated_at)
+  VALUES ('retention.notificationsDays', '3650', CAST(strftime('%s', 'now') AS INTEGER) * 1000)
+  ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`).run();
+db.close();
+JS
+```
+
+Embedded SQLite anywhere else:
+
+```bash
+sqlite3 "$ADMINIUM_DATA_DIR/meta.db" <<'SQL'
+INSERT INTO adminium_settings (key, value, updated_at)
+VALUES ('retention.notificationsDays', '3650', CAST(strftime('%s', 'now') AS INTEGER) * 1000)
+ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at;
+SQL
+```
+
+PostgreSQL:
+
+```bash
+psql "$ADMINIUM_META_URL" <<'SQL'
+INSERT INTO adminium_settings (key, value, updated_at)
+VALUES ('retention.notificationsDays', '3650', (extract(epoch FROM now()) * 1000)::bigint)
+ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at;
+SQL
+```
+
+MySQL:
+
+```bash
+mysql adminium_meta <<'SQL'
+INSERT INTO adminium_settings (`key`, value, updated_at)
+VALUES ('retention.notificationsDays', '3650', UNIX_TIMESTAMP() * 1000)
+ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = VALUES(updated_at);
+SQL
+```
 
 ## Rehearse it
 

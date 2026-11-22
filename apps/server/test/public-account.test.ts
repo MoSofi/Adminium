@@ -191,7 +191,8 @@ describe.each(LEGS)("a guest's own account — %s", (dialect, available) => {
 
     const res = await g.request('DELETE', '/account', { session });
     expect(res.statusCode, res.body).toBe(200);
-    expect(res.json()).toEqual({ data: {} });
+    // Nothing held on an add-on's table: nothing kept, and no gift it could not reach.
+    expect(res.json()).toEqual({ data: { keptBalances: 0, giftsNotLinked: false } });
     listen.mockRestore();
 
     const person = (await h.rows(`select email, name, phone, forgotten_at from ${customers} where id = 1`))[0]!;

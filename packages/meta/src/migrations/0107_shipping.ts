@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0103 — real shipping: what one app install has chosen, and the quotes
+ * Wave 0107 — real shipping: what one app install has chosen, and the quotes
  * it was given.
  *
  * `adminium_shipping_settings`, one row per app install: the carrier the shop

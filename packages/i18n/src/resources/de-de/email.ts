@@ -887,7 +887,9 @@ export default {
     "intro": "Hallo {name}, wie gewünscht wurden die Daten, die {appName} über Sie gespeichert hatte, gelöscht, und Sie wurden überall abgemeldet.",
     "kept": "Was Sie bereits bei uns haben, bleibt gültig, und die E-Mails, die Sie bereits haben, öffnen es weiterhin. Sie hören nicht mehr von uns, außer Sie kommen wieder.",
     "footer": "{appName}",
-    "stopped": "Die Links in den E-Mails, die Sie bereits haben, funktionieren nicht mehr. Sie hören nicht mehr von uns, außer Sie kommen wieder."
+    "stopped": "Die Links in den E-Mails, die Sie bereits haben, funktionieren nicht mehr. Sie hören nicht mehr von uns, außer Sie kommen wieder.",
+    "held": "Eine Ausnahme: Pakete oder Geschenkkarten mit Restguthaben behalten deinen Namen und deine E-Mail-Adresse, bis sie aufgebraucht oder abgelaufen sind, damit du sie weiter nutzen kannst. Anzahl: {count}.",
+    "gifts": "Wenn jemand anderes dir eine Geschenkkarte gekauft hat, ist sie nicht mit deinem Konto verknüpft und zeigt weiter den eingegebenen Namen und die E-Mail-Adresse. Schreib uns, wenn wir sie entfernen sollen."
   },
   "missing": {
     "chip": "{name}: festlegen, was geschrieben wird, wenn der Wert fehlt",
@@ -1029,5 +1031,29 @@ export default {
     "object": "Widersprechen",
     "questions": "Fragen? Schreiben Sie an {contact}. {who}.",
     "keptBy": "Aufbewahrt von {who}."
+  },
+  "connectLink": {
+    "name": "Konto verbinden",
+    "subject": "{business} bittet Sie, Ihr Konto zu verbinden",
+    "preheader": "Der Link gilt {days} Tage.",
+    "heading": "Verbinden Sie Ihr Konto",
+    "intro": "Hallo {name}, {business} bittet Sie, Ihr eigenes Konto zu verbinden. Bitte verwenden Sie das Konto, das Ihnen gehört.",
+    "action": "Mein Konto verbinden",
+    "notice": "Der Link funktioniert einmal und gilt {days} Tage. Falls Sie ihn nicht erwartet haben, können Sie diese E-Mail ignorieren: Ohne Ihre Anmeldung wird nichts verbunden."
+  },
+  "accountConnected": {
+    "name": "Konto verbunden",
+    "subject": "Ihr Konto wurde bei {business} verbunden",
+    "heading": "Ihr Konto wurde verbunden",
+    "intro": "Hallo {name}, {provider} ist bei {business} jetzt für Sie als {account} verbunden.",
+    "notice": "Falls Sie das nicht waren, informieren Sie {business} bitte sofort."
+  },
+  "emailChangeConfirm": {
+    "action": "Diese Adresse bestätigen",
+    "heading": "Neue Adresse bestätigen",
+    "intro": "Hallo {name}, jemand, der bei {appName} als {currentEmail} angemeldet ist, möchte sich ab jetzt mit {email} anmelden.",
+    "name": "Neue Anmeldeadresse bestätigen",
+    "notice": "Öffne diesen Link, während du in diesem Konto angemeldet bist. Er funktioniert nur einmal und läuft in {expiresInHours} Stunden ab. Wenn du dieses Konto nicht kennst, ignoriere diese E-Mail: Es ändert sich nichts.",
+    "subject": "Bestätige deine neue Anmeldeadresse für {appName}"
   }
 } as const;

@@ -1,5 +1,20 @@
 # @adminium/widgets
 
+## 0.3.71
+
+### Patch Changes
+
+- f76920f: A booking rule can now keep a buffer after each visit, block the times a person is away (time off, or a calendar table only Adminium writes), share "anyone" evenly and flag who it picked, cap a person's hours by the studio's, and hold only guests to the booking window. A strip of days reads its days once, and names the window's last day. Hours a booking rule reads must be a time of day. A guest may not change who they see inside the cancellation window. A dashboard can ask how booked each person is (`booking-occupancy`).
+- c053149: A booking rule can sync each person's calendar (`booking.sync`): bookings go out to their own calendar and their busy times block new ones, by push or a regular read. A new `calendar-provider` contract, a built-in demo calendar and a conformance kit carry it. The desk reads a person's calendar state, busy times and clashes, and can keep a clash. A dashboard card can read a table of an add-on the app names, and count calendar connections (`calendar-connections`).
+- Updated dependencies [1c983d2]
+- Updated dependencies [ad4c4fc]
+- Updated dependencies [f90538f]
+- Updated dependencies [ad4c4fc]
+  - @adminium/i18n@0.3.71
+  - @adminium/ui@0.3.71
+  - @adminium/charts@0.3.71
+  - @adminium/tokens@0.3.71
+
 ## 0.3.70
 
 ### Patch Changes

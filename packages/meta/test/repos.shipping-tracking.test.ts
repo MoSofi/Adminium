@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Where a parcel is (wave 0107) on every available dialect: a status moves
+ * Where a parcel is (wave 0111) on every available dialect: a status moves
  * forward only, a real event moves the label's keeping clock, a changed number
  * lands whole or not at all, and test bookings are never matched or refreshed.
  */

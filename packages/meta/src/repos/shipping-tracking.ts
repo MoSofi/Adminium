@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * shippingTrackingRepo — where a parcel is (0107).
+ * shippingTrackingRepo — where a parcel is (0111).
  *
  * A carrier's word about a parcel is a claim. `applyStatus` is the one place a
  * status is written, and it is a single guarded UPDATE, so events arriving
@@ -11,8 +11,8 @@ import type { Selectable } from 'kysely';
 
 import type { MetaDb } from '../connect.js';
 import { newId } from '../ids.js';
-import { SHIPPING_CARRIER_TEXT_WIDTH, SHIPPING_URL_WIDTH } from '../migrations/0105_shipping_bookings.js';
-import { SHIPPING_TRACK_WORD_WIDTH } from '../migrations/0107_shipping_tracking.js';
+import { SHIPPING_CARRIER_TEXT_WIDTH, SHIPPING_URL_WIDTH } from '../migrations/0109_shipping_bookings.js';
+import { SHIPPING_TRACK_WORD_WIDTH } from '../migrations/0111_shipping_tracking.js';
 import type { AdminiumShippingParcelsTable, AdminiumShippingTrackEventsTable, AdminiumShippingTrackInstallsTable } from '../schema/tables.js';
 import { moveLabelClock } from './shipping-bookings.js';
 import { affected, isDuplicateKeyError } from './util.js';

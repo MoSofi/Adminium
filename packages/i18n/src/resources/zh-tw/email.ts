@@ -887,7 +887,9 @@ export default {
     "intro": "{name}，您好：依照您的要求，{appName} 保存的您的資料已刪除，您已在所有裝置上登出。",
     "kept": "您在我們這裡已有的內容仍然有效，您已收到的郵件仍可開啟它。除非您再次光臨，否則我們不會再與您聯絡。",
     "footer": "{appName}",
-    "stopped": "您已收到的郵件中的連結已失效。除非您再次光臨，否則我們不會再與您聯絡。"
+    "stopped": "您已收到的郵件中的連結已失效。除非您再次光臨，否則我們不會再與您聯絡。",
+    "held": "有一個例外：仍有餘額的套票或禮品卡會保留你的姓名和電子郵件，直到用完或到期，讓你可以繼續使用。保留數量：{count}。",
+    "gifts": "如果別人為你購買了禮品卡，它沒有連結到你的帳戶，因此仍顯示對方填寫的姓名和電子郵件。如需移除，請與我們聯絡。"
   },
   "missing": {
     "chip": "{name}：設定缺少該值時寫什麼",
@@ -1029,5 +1031,29 @@ export default {
     "object": "提出反對",
     "questions": "有疑問？請寫信至 {contact}。{who}。",
     "keptBy": "由 {who} 保留。"
+  },
+  "connectLink": {
+    "name": "連接您的帳戶",
+    "subject": "{business} 請您連接帳戶",
+    "preheader": "此連結 {days} 天內有效。",
+    "heading": "連接您的帳戶",
+    "intro": "{name} 您好，{business} 請您連接您自己的帳戶。請使用屬於您本人的帳戶。",
+    "action": "連接我的帳戶",
+    "notice": "此連結只能使用一次，{days} 天內有效。如果您沒有預期收到此郵件，可以忽略：在您登入之前不會連接任何內容。"
+  },
+  "accountConnected": {
+    "name": "帳戶已連接",
+    "subject": "您的帳戶已在 {business} 連接",
+    "heading": "您的帳戶已連接",
+    "intro": "{name} 您好，您在 {business} 的 {provider} 現已連接為 {account}。",
+    "notice": "如果這不是您本人的操作，請立即告知 {business}。"
+  },
+  "emailChangeConfirm": {
+    "action": "確認此地址",
+    "heading": "確認你的新地址",
+    "intro": "{name}，你好。有人以 {currentEmail} 的身分登入 {appName}，並申請今後使用 {email} 登入。",
+    "name": "確認新的登入地址",
+    "notice": "請在登入該帳戶的狀態下開啟此連結。連結只能使用一次，將在 {expiresInHours} 小時後失效。如果你不認識此帳戶，請忽略這封郵件，一切都不會改變。",
+    "subject": "確認你的 {appName} 新登入地址"
   }
 } as const;

@@ -20,6 +20,8 @@
  *                              everything the workspace keeps about one address
  *                              (`system:privacy:people`); never the privacy
  *                              notice or the websites. Shown on the install check.
+ *   `accounts:@:connect|send-link|disconnect`  a row's connected account, for
+ *                              the rows this role reaches
  *   `payments:@:refund`        give back the money paid online for THIS app's
  *                              records (`payments:<appKey>:refund`, D20); never
  *                              the install's refund right. Shown on the install
@@ -55,9 +57,10 @@ import { parseDatabaseModel } from '@adminium/engine';
 import type { Manifest, RowReach } from '@adminium/manifest';
 import { pagesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type RowLimit, type RowReach as StoredRowReach, type TableActions, type UpdateLimit } from '@adminium/meta';
 
-import { matrixRowsFromGrants, appRefundPermission, appShippingPermission, type ShippingAction } from '../rbac/permissions.js';
+import { matrixRowsFromGrants, appAccountsPermission, appRefundPermission, appShippingPermission, type AccountAction, type ShippingAction } from '../rbac/permissions.js';
 import type { RoleTableResult } from '@adminium/manifest';
 import { grantKeyOf, installRoleSlug, type InstallAddress } from '../installs/resolve.js';
+import { OWNER_ROW_LIMITS_PENDING_KEY, ownerRowsOf, rowLimitWith } from './owner-row-limits.js';
 import type { AfterInstallItem } from './after-install.js';
 import { isSavedFile } from './saved-file.js';
 import { ownsBlocks } from './owns-blocks.js';
@@ -88,6 +91,8 @@ const PRIVACY_PEOPLE_GRANT = 'system:privacy:people';
 const PAYMENTS_REFUND = /^payments:@:refund$/;
 /** The rights on the app's own labels an app's role may carry. */
 const SHIPPING_GRANT = /^shipping:@:(book|cancel|customs)$/;
+/** What a role may do about a row's connected account: connect it, send a link for it, or end it. */
+const ACCOUNTS = /^accounts:@:(connect|send-link|disconnect)$/;
 
 /**
  * An app role's slug: `<key>-<role>` for the install holding the bare
@@ -110,7 +115,7 @@ function grantsOf(role: ManifestRole, roles: readonly ManifestRole[]): string[] 
  */
 type RoleLimit = NonNullable<ManifestRole['limits']>[string];
 
-function limitsOf(role: ManifestRole, roles: readonly ManifestRole[]): Record<string, RoleLimit> {
+export function limitsOf(role: ManifestRole, roles: readonly ManifestRole[]): Record<string, RoleLimit> {
   const from = role.cloneFrom === undefined ? undefined : roles.find((other) => other.key === role.cloneFrom);
   return { ...(from?.limits ?? {}), ...(role.limits ?? {}) };
 }
@@ -280,6 +285,9 @@ export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIE
         // Labels are bought for an app's own orders, which its `shipping` block names.
         if ((manifest as Manifest).kind === 'add-on') refuse(`"${grant}" is given by an app's role, never an add-on's`);
         else if ((manifest as { shipping?: unknown }).shipping === undefined) refuse(`"${grant}" needs the app's "shipping" block, which says where its orders keep an address`);
+      } else if (ACCOUNTS.test(grant)) {
+        // Whose outside account is connected is the business's to say, through its own app's roles.
+        if ((manifest as Manifest).kind === 'add-on') refuse(`"${grant}" is given by an app's role, never an add-on's`);
       } else if (PRIVACY_PEOPLE.test(grant)) {
         // An add-on's role is never given people's data: it is the business's to give, through its own apps' roles.
         if ((manifest as Manifest).kind === 'add-on') refuse(`"${grant}" is given by an app's role, never an add-on's`);
@@ -291,7 +299,7 @@ export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIE
         const theirs = /([a-z][a-z0-9_]*):(?:read|create|update)$/.exec(grant);
         refuse(
           named === undefined
-            ? `"${grant}" is not a grant an app can give (table:@…, page:@…, app:@:staff, privacy:@:people, payments:@:refund or shipping:@:book, :cancel or :customs)`
+            ? `"${grant}" is not a grant an app can give (table:@…, page:@…, app:@:staff, privacy:@:people, payments:@:refund, accounts:@:connect|send-link|disconnect or shipping:@:book, :cancel or :customs)`
             : `"${grant}" is not a grant an app can give. A table of the add-on "${named.key}" is granted beside "permissions", on the role itself: "tables": [{ "addOn": "${named.key}", "table": "${theirs?.[1] ?? '<its table>'}", "actions": ["read"] }]`,
         );
       }
@@ -451,8 +459,13 @@ export async function writeManifestRoles(input: {
   const permissions = permissionsRepo(meta);
   const settings = settingsRepo(meta);
   const seeded = new Set(await settings.get(SEEDED_APP_ROLE_GRANTS_KEY));
+  // Stored limits not sorted yet into the app's and the owner's: this update keeps them all.
+  const unsorted = (await settings.get(OWNER_ROW_LIMITS_PENDING_KEY)).includes(input.install.id);
 
-  /** Put the manifest's limits on the role's table rows — what its update writes, what its read shows — and nothing else there. */
+  /**
+   * Put the manifest's limits on the role's table rows: what its update writes, what its read shows. Which rows it reaches
+   * is also the owner's to set, and what the owner set stays (`owner-row-limits.ts`).
+   */
   const writeLimits = async (roleId: string, limits: Record<string, RoleLimit>): Promise<void> => {
     const wanted = new Map<string, RoleLimit>();
     for (const [ref, limit] of Object.entries(limits)) {
@@ -480,7 +493,8 @@ export async function writeManifestRoles(input: {
       const create: UpdateLimit | undefined =
         limit?.creatable === undefined ? undefined : { writable: [...limit.creatable], ...(limit.creatableValues === undefined ? {} : { writableValues: limit.creatableValues }) };
       // Which rows its read, update and delete reach: dropped here, the role would reach every row.
-      const rows: RowLimit | undefined = limit?.rows === undefined ? undefined : storedRowLimit(limit.rows, (ref) => tableId(ref) ?? ref);
+      const declaredRows: RowLimit | undefined = limit?.rows === undefined ? undefined : storedRowLimit(limit.rows, (ref) => tableId(ref) ?? ref);
+      const { rows } = rowLimitWith(ownerRowsOf(actions, unsorted), declaredRows);
       await permissions.grant(roleId, 'table', row.resourceRef, {
         ...rest,
         ...(update === undefined ? {} : { updateLimit: update }),
@@ -504,9 +518,14 @@ export async function writeManifestRoles(input: {
     const narrow = async (kind: 'table' | 'page', ref: string, action: string): Promise<void> => {
       const existing = await permissions.find(roleId, kind, ref);
       if (existing === null) return;
-      const actions = { ...(existing.actions as Record<string, unknown>), [action]: false };
+      const actions: Record<string, unknown> = { ...(existing.actions as Record<string, unknown>), [action]: false };
+      if (unsorted && kind === 'table') {
+        const owner = ownerRowsOf(existing.actions as TableActions, true);
+        if (owner !== undefined) actions['ownerRows'] = owner;
+      }
       const anyLeft = Object.entries(actions).some(([name, value]) => name !== 'updateLimit' && name !== 'readLimit' && name !== 'createLimit' && value === true);
-      if (anyLeft) await permissions.grant(roleId, kind, ref, actions as never);
+      // What the owner limited waits on the row, for a version that gives the action back.
+      if (anyLeft || actions['ownerRows'] !== undefined) await permissions.grant(roleId, kind, ref, actions as never);
       else await permissions.revoke(roleId, kind, ref);
     };
     if (table !== null) {
@@ -532,6 +551,9 @@ export async function writeManifestRoles(input: {
     } else if (SHIPPING_GRANT.test(grant)) {
       const action = SHIPPING_GRANT.exec(grant)![1] as ShippingAction;
       const row = matrixRowsFromGrants([appShippingPermission(grantKeyOf({ manifestKey: manifest.key, instanceSlug: input.install.slug }), action)]).rows[0];
+      if (row !== undefined) await permissions.revoke(roleId, row.resourceKind, row.resourceRef);
+    } else if (ACCOUNTS.test(grant)) {
+      const row = matrixRowsFromGrants([appAccountsPermission(manifest.key, ACCOUNTS.exec(grant)![1] as AccountAction)]).rows[0];
       if (row !== undefined) await permissions.revoke(roleId, row.resourceKind, row.resourceRef);
     } else if (ADD_ON_SETTINGS.test(grant)) {
       const row = matrixRowsFromGrants([grant]).rows[0];
@@ -647,6 +669,11 @@ export async function writeManifestRoles(input: {
         if (manifest.kind !== 'app') continue;
         const action = SHIPPING_GRANT.exec(grant)![1] as ShippingAction;
         const row = matrixRowsFromGrants([appShippingPermission(grantKeyOf({ manifestKey: manifest.key, instanceSlug: input.install.slug }), action)]).rows[0];
+        if (row === undefined) continue;
+        await permissions.grant(role.id, row.resourceKind, row.resourceRef, row.actions);
+      } else if (ACCOUNTS.test(grant)) {
+        if (manifest.kind !== 'app') continue;
+        const row = matrixRowsFromGrants([appAccountsPermission(manifest.key, ACCOUNTS.exec(grant)![1] as AccountAction)]).rows[0];
         if (row === undefined) continue;
         await permissions.grant(role.id, row.resourceKind, row.resourceRef, row.actions);
       } else if (ADD_ON_SETTINGS.test(grant)) {

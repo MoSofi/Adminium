@@ -37,6 +37,7 @@ The identity entry names what is emptied:
 | `forget.columns` | 1 to 16. Nullable columns or yes/no columns, never the key and never a column Adminium fills. It includes the column the person signs in by. |
 | `forget.stamp` | A nullable `timestamptz`, not in `columns`. |
 | `forget.links` | `true` to stop the person's own links too ([below](https://docs.adminium.dev/guides/apps/identity-and-own-links/#stopping-own-links-too)). |
+| `forget.copies` | `true` to also empty the person's copies on the rows linked to them ([below](https://docs.adminium.dev/guides/apps/identity-and-own-links/#emptying-their-copies-too)). Needs Adminium 0.3.71. |
 
 See the [manifest reference](https://docs.adminium.dev/reference/manifest/#delete-my-details).
 
@@ -49,6 +50,19 @@ address. Every session those links opened ends, told `forgotten`. If one cannot 
 answer is `409` `PUBLIC_WRITE_REFUSED` and nothing is forgotten, so the guest can try again.
 
 It is the app's choice. Without it, the rows' own links keep working.
+
+### Emptying their copies too
+
+An order or a booking often keeps its own copy of the name and address it was made with. Without
+`forget.copies` those copies stay after the person deletes their details. With it, the delete also
+empties each copy the app declares in `people[].copies` with a `via` link:
+
+- **Only rows linked to the person.** A row is found by that link to their own row, never by an
+  address or a name. A row that holds the same typed address with no link is left alone.
+- **In one transaction** with their own row: all of it happens or none does.
+- **Tables the law keeps stay whole** (`keep`): invoices, payments and the like keep what they hold.
+- **Nothing else runs.** No state moves, no booking is judged again, no mail or rule fires. The key,
+  the links and the row's other columns stay.
 
 ### What stops being sent
 

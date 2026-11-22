@@ -446,6 +446,18 @@ export const importZip: ImportZip = async (opts) => {
         .execute();
     }
 
+    // An app's role takes the bundle's rows, which may be older than the record of whose limit is whose: sorted at the next
+    // start, and until then no update changes them.
+    if (targetRoleIds.length > 0) {
+      const appRoles = await trx.selectFrom('adminium_roles').select(['appKey', 'manifestId']).where('id', 'in', targetRoleIds).where('appKey', 'is not', null).execute();
+      if (appRoles.length > 0) {
+        const keys = [...new Set(appRoles.map((one) => one.appKey as string))];
+        const installs = await trx.selectFrom('adminium_manifests').select('id').where('manifestKey', 'in', keys).execute();
+        const pending = await settings.get('system.ownerRowLimitsPending');
+        await settings.set('system.ownerRowLimitsPending', [...new Set([...pending, ...installs.map((one) => one.id)])].sort(), { at });
+      }
+    }
+
     // connections — no natural key beyond the id; upsert by id.
     //
     // THE DSN COLUMNS ARE ABSENT-vs-NULL SENSITIVE. A default bundle omits

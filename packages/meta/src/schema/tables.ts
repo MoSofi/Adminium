@@ -137,6 +137,17 @@ export interface AdminiumPasswordResetsTable {
   createdAt: Ts;
 }
 
+/** A staff account's new sign-in address, waiting for the link mailed to it (wave 0103). */
+export interface AdminiumEmailChangesTable {
+  userId: Id;
+  newEmail: string;
+  tokenHash: string;
+  expiresAt: Ts;
+  sentCount: number;
+  windowAt: Ts;
+  createdAt: Ts;
+}
+
 // ---------------------------------------------------------------------------
 // wave 0002 — rbac
 // ---------------------------------------------------------------------------
@@ -1143,8 +1154,151 @@ export interface AdminiumAddOnCredentialsTable {
   payload: string;
   expiresAt: Ts | null;
   scopes: JsonColumn | null;
+  /** The provider refused this install's client (wave 0100): the install's state, not each person's. */
+  refusedCode: string | null;
+  refusedAt: Ts | null;
   createdAt: Ts;
   updatedAt: Ts;
+}
+
+/** One person's outside account on an add-on install (wave 0100). Tokens are sealed in `payload`. */
+export interface AdminiumConnectedAccountsTable {
+  id: Id;
+  manifestId: Id;
+  connectionId: string;
+  tableName: string;
+  rowKey: string;
+  subject: string;
+  address: string | null;
+  /** AES-256-GCM ciphertext. NULL after an export or a restore under another secret. */
+  payload: string | null;
+  expiresAt: Ts | null;
+  refreshExpiresAt: Ts | null;
+  scopes: JsonColumn | null;
+  state: string;
+  stateSince: Ts;
+  version: number;
+  leaseUntil: Ts | null;
+  connectedAt: Ts;
+  updatedAt: Ts;
+}
+
+/** One connected calendar's sync state (wave 0102). */
+export interface AdminiumCalendarSyncTable {
+  accountId: Id;
+  connectionId: string;
+  bookingTable: string;
+  calendarId: string | null;
+  calendarName: string | null;
+  readCalendars: JsonColumn | null;
+  countAllDay: boolean | number;
+  detail: string;
+  ownCursor: string | null;
+  readStartedAt: Ts | null;
+  lastSyncedAt: Ts | null;
+  nextPollAt: Ts;
+  noticeAt: Ts | null;
+  connectingSince: Ts | null;
+  holdUntil: Ts | null;
+  staleDroppedAt: Ts | null;
+  calendarLostAt: Ts | null;
+  calendarLostCount: number;
+  paused: string | null;
+  calendarLeaseUntil: Ts | null;
+  busyHash: string | null;
+  silentToldAt: Ts | null;
+  lastError: string | null;
+  updatedAt: Ts;
+}
+
+/** The event mirror (wave 0102): the provider's id and a hash, never a title. */
+export interface AdminiumCalendarEventsTable {
+  id: Id;
+  accountId: Id;
+  connectionId: string;
+  tableName: string;
+  rowKey: string;
+  generation: number;
+  remoteId: string | null;
+  etag: string | null;
+  appliedHash: string | null;
+  startAt: Ts | null;
+  endAt: Ts | null;
+  detail: string | null;
+  tries: number;
+  lastError: string | null;
+  updatedAt: Ts;
+}
+
+/** A row whose calendar events may be out of date (wave 0102). */
+export interface AdminiumCalendarDirtyTable {
+  id: Id;
+  connectionId: string;
+  tableName: string;
+  rowKey: string;
+  markedAt: Ts;
+  mark: number;
+}
+
+/** A push channel (wave 0102). The secret is sealed. */
+export interface AdminiumCalendarChannelsTable {
+  id: Id;
+  accountId: Id;
+  provider: string;
+  target: string;
+  state: string;
+  secretSealed: string;
+  remoteChannelId: string | null;
+  resourceId: string | null;
+  address: string;
+  expiresAt: Ts;
+  lastNoticeAt: Ts | null;
+  createdAt: Ts;
+}
+
+/** A clash told or kept (wave 0102), keyed on the clipped overlap. */
+export interface AdminiumCalendarClashesTable {
+  id: Id;
+  connectionId: string;
+  tableName: string;
+  rowKey: string;
+  overlapStart: Ts;
+  overlapEnd: Ts;
+  toldAt: Ts | null;
+  keptAt: Ts | null;
+  keptBy: string | null;
+}
+
+/** A one-time connect link (wave 0100): its hash, what it may connect, until when. */
+export interface AdminiumConnectLinksTable {
+  id: Id;
+  connectionId: string;
+  tableName: string;
+  rowKey: string;
+  providers: JsonColumn;
+  purpose: string;
+  tokenHash: string;
+  createdBy: string | null;
+  /** Wave 0103: a digest of the address on the row when the link was made. */
+  addressDigest: string | null;
+  expiresAt: Ts;
+  createdAt: Ts;
+}
+
+/** A sign-in in progress (wave 0100). Never holds the client secret. */
+export interface AdminiumOauthFlowsTable {
+  id: Id;
+  stateHash: string;
+  nonceHash: string;
+  manifestId: Id;
+  connectionId: string;
+  tableName: string;
+  rowKey: string;
+  linkId: string;
+  verifierSealed: string;
+  redirectUri: string;
+  expiresAt: Ts;
+  createdAt: Ts;
 }
 
 /** drives the sidebar "what's new" badge. PK user_id. */
@@ -2026,6 +2180,17 @@ export interface AdminiumChatAiDaysTable {
 }
 
 /** Wave 0099 — the calls one source of a lead source add-on was asked on one UTC day, per spender (a staff id, `step`, or `*` for the day's total). */
+/** A person's private calendar feed: the nonce its link carries (0101). */
+export interface AdminiumCalendarFeedsTable {
+  connectionId: string;
+  appKey: string;
+  tableName: string;
+  rowKey: string;
+  nonce: string;
+  changedAt: Ts;
+  changedBy: string | null;
+}
+
 export interface AdminiumSourceDaysTable {
   installId: string;
   source: string;
@@ -2039,21 +2204,21 @@ export interface AdminiumSourceDaysTable {
 }
 
 /**
- * Wave 0103 — one app install's shipping choices: its carrier and its Ship
+ * Wave 0107 — one app install's shipping choices: its carrier and its Ship
  * from address (JSON, parsed by the engine with a schema).
  */
 export interface AdminiumShippingSettingsTable {
   installId: string;
   activeCarrier: string | null;
   shipFrom: ColumnType<unknown, string | null | undefined, string | null>;
-  /** Wave 0106: the label size this shop asks carriers for. */
+  /** Wave 0110: the label size this shop asks carriers for. */
   labelSize: ColumnType<string | null, string | null | undefined, string | null>;
   updatedBy: string | null;
   updatedAt: Ts;
 }
 
 /**
- * Wave 0103 — the one live quote of an order slot. Holds a keyed hash of what
+ * Wave 0107 — the one live quote of an order slot. Holds a keyed hash of what
  * it was given for, never a name, an address or a phone.
  */
 export interface AdminiumShippingQuotesTable {
@@ -2065,9 +2230,9 @@ export interface AdminiumShippingQuotesTable {
   purpose: string;
   parcelNumber: number;
   carrierKey: string;
-  /** Wave 0104: the account the quote was priced under. */
+  /** Wave 0108: the account the quote was priced under. */
   accountFingerprint: ColumnType<string | null, string | null | undefined, string | null>;
-  /** Wave 0105: what was weighed and measured, so a purchase names only a quote and a rate. */
+  /** Wave 0109: what was weighed and measured, so a purchase names only a quote and a rate. */
   parcel: ColumnType<unknown, string | null | undefined, string | null>;
   detailsHash: string;
   rates: JsonColumn;
@@ -2077,7 +2242,7 @@ export interface AdminiumShippingQuotesTable {
 }
 
 /**
- * Wave 0104 — what a carrier said of the key saved for one carrier install.
+ * Wave 0108 — what a carrier said of the key saved for one carrier install.
  * The key itself is in the encrypted credential store; this holds its last
  * four characters and keyed hashes.
  */
@@ -2093,7 +2258,7 @@ export interface AdminiumShippingAccountsTable {
   checkedAt: Ts;
 }
 
-/** Wave 0104 — what one app install lets people spend who do not manage shipping. */
+/** Wave 0108 — what one app install lets people spend who do not manage shipping. */
 export interface AdminiumShippingLimitsTable {
   installId: string;
   labelLimit: string | null;
@@ -2104,7 +2269,7 @@ export interface AdminiumShippingLimitsTable {
   updatedAt: Ts;
 }
 
-/** Wave 0107 — one carrier install's webhook, its health and its refresh pace. The token is held only as a keyed hash. */
+/** Wave 0111 — one carrier install's webhook, its health and its refresh pace. The token is held only as a keyed hash. */
 export interface AdminiumShippingTrackInstallsTable {
   carrierInstallId: string;
   tokenHash: ColumnType<string | null, string | null | undefined, string | null>;
@@ -2120,7 +2285,7 @@ export interface AdminiumShippingTrackInstallsTable {
   updatedAt: Ts;
 }
 
-/** Wave 0107 — where one booked parcel is. */
+/** Wave 0111 — where one booked parcel is. */
 export interface AdminiumShippingParcelsTable {
   bookingId: string;
   carrierInstallId: string;
@@ -2137,7 +2302,7 @@ export interface AdminiumShippingParcelsTable {
   updatedAt: Ts;
 }
 
-/** Wave 0107 — what a webhook said, stored once. Never an address or a name. */
+/** Wave 0111 — what a webhook said, stored once. Never an address or a name. */
 export interface AdminiumShippingTrackEventsTable {
   id: Id;
   carrierInstallId: string;
@@ -2156,7 +2321,7 @@ export interface AdminiumShippingTrackEventsTable {
 }
 
 /**
- * Wave 0105 — one attempt to buy a label, written before the carrier is
+ * Wave 0109 — one attempt to buy a label, written before the carrier is
  * called. Holds a keyed hash of the shipment, never a name or an address.
  */
 export interface AdminiumShippingBookingsTable {
@@ -2190,7 +2355,7 @@ export interface AdminiumShippingBookingsTable {
   carrierToken: string | null;
   trackingUrl: string | null;
   labelRef: string | null;
-  /** Wave 0106: the stored customs invoice, the size asked for and got, and when the label's file stops being kept. */
+  /** Wave 0110: the stored customs invoice, the size asked for and got, and when the label's file stops being kept. */
   customsRef: ColumnType<string | null, string | null | undefined, string | null>;
   labelSize: ColumnType<string | null, string | null | undefined, string | null>;
   labelSizeGot: ColumnType<string | null, string | null | undefined, string | null>;
@@ -2213,7 +2378,7 @@ export interface AdminiumShippingBookingsTable {
   updatedAt: Ts;
 }
 
-/** Wave 0104 — the labels counted against one app install's daily limit, per shop day. */
+/** Wave 0108 — the labels counted against one app install's daily limit, per shop day. */
 export interface AdminiumShippingDayLabelsTable {
   installId: string;
   day: string;
@@ -2468,6 +2633,7 @@ export interface MetaDB {
   adminium_user_prefs: AdminiumUserPrefsTable;
   adminium_sessions: AdminiumSessionsTable;
   adminium_password_resets: AdminiumPasswordResetsTable;
+  adminium_email_changes: AdminiumEmailChangesTable;
   adminium_roles: AdminiumRolesTable;
   adminium_role_permissions: AdminiumRolePermissionsTable;
   adminium_user_roles: AdminiumUserRolesTable;
@@ -2507,6 +2673,14 @@ export interface MetaDB {
   adminium_app_outboxes: AdminiumAppOutboxesTable;
   adminium_manifest_attachments: AdminiumManifestAttachmentsTable;
   adminium_add_on_credentials: AdminiumAddOnCredentialsTable;
+  adminium_connected_accounts: AdminiumConnectedAccountsTable;
+  adminium_calendar_sync: AdminiumCalendarSyncTable;
+  adminium_calendar_events: AdminiumCalendarEventsTable;
+  adminium_calendar_dirty: AdminiumCalendarDirtyTable;
+  adminium_calendar_channels: AdminiumCalendarChannelsTable;
+  adminium_calendar_clashes: AdminiumCalendarClashesTable;
+  adminium_connect_links: AdminiumConnectLinksTable;
+  adminium_oauth_flows: AdminiumOauthFlowsTable;
   adminium_changelog_seen: AdminiumChangelogSeenTable;
   adminium_locales: AdminiumLocalesTable;
   adminium_translations: AdminiumTranslationsTable;
@@ -2579,6 +2753,7 @@ export interface MetaDB {
   adminium_shipping_track_installs: AdminiumShippingTrackInstallsTable;
   adminium_shipping_parcels: AdminiumShippingParcelsTable;
   adminium_shipping_track_events: AdminiumShippingTrackEventsTable;
+  adminium_calendar_feeds: AdminiumCalendarFeedsTable;
 }
 
 /**
@@ -2594,6 +2769,7 @@ export const META_TABLE_NAMES = [
   'adminium_user_prefs',
   'adminium_sessions',
   'adminium_password_resets',
+  'adminium_email_changes',
   'adminium_settings',
   'adminium_storage_destinations',
   'adminium_files',
@@ -2634,6 +2810,9 @@ export const META_TABLE_NAMES = [
   'adminium_app_outboxes',
   'adminium_manifest_attachments',
   'adminium_add_on_credentials',
+  'adminium_connected_accounts',
+  'adminium_connect_links',
+  'adminium_oauth_flows',
   'adminium_changelog_seen',
   'adminium_locales',
   'adminium_translations',
@@ -2703,4 +2882,5 @@ export const META_TABLE_NAMES = [
   'adminium_shipping_track_installs',
   'adminium_shipping_parcels',
   'adminium_shipping_track_events',
+  'adminium_calendar_feeds',
 ] as const satisfies readonly (keyof MetaDB)[];

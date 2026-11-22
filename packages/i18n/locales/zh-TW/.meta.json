@@ -1,4 +1,84 @@
 {
+  "addOns.accounts.notice.clashBody": {
+    "status": "mt",
+    "srcHash": "c9a317f7169b"
+  },
+  "addOns.accounts.notice.clashTitle": {
+    "status": "mt",
+    "srcHash": "a4caa9135143"
+  },
+  "addOns.accounts.notice.connectedBody": {
+    "status": "mt",
+    "srcHash": "f075114b652e"
+  },
+  "addOns.accounts.notice.connectedTitle": {
+    "status": "mt",
+    "srcHash": "8cc99d540ed2"
+  },
+  "addOns.accounts.notice.namesLeftBody": {
+    "status": "mt",
+    "srcHash": "229632913dc7"
+  },
+  "addOns.accounts.notice.namesLeftTitle": {
+    "status": "mt",
+    "srcHash": "27bcb23aafba"
+  },
+  "addOns.accounts.notice.refusedBody": {
+    "status": "mt",
+    "srcHash": "c569bb70c52d"
+  },
+  "addOns.accounts.notice.refusedTitle": {
+    "status": "mt",
+    "srcHash": "1e5c3c4e69d9"
+  },
+  "addOns.accounts.notice.remadeBody": {
+    "status": "mt",
+    "srcHash": "e904cc4f8c65"
+  },
+  "addOns.accounts.notice.remadeTitle": {
+    "status": "mt",
+    "srcHash": "5ef4df3f32e3"
+  },
+  "addOns.accounts.notice.removedBody": {
+    "status": "mt",
+    "srcHash": "33d60f3b7303"
+  },
+  "addOns.accounts.notice.removedTitle": {
+    "status": "mt",
+    "srcHash": "b7fa89433e1d"
+  },
+  "addOns.accounts.notice.secretEndingBody": {
+    "status": "mt",
+    "srcHash": "9fffd81246c0"
+  },
+  "addOns.accounts.notice.secretEndingTitle": {
+    "status": "mt",
+    "srcHash": "77f150b8822e"
+  },
+  "addOns.accounts.notice.silentBody": {
+    "status": "mt",
+    "srcHash": "67e1ff8e1a69"
+  },
+  "addOns.accounts.notice.silentTitle": {
+    "status": "mt",
+    "srcHash": "e6364e975071"
+  },
+  "addOns.accounts.notice.staleBody": {
+    "status": "mt",
+    "srcHash": "ae71e7b89c2f"
+  },
+  "addOns.accounts.notice.staleTitle": {
+    "status": "mt",
+    "srcHash": "9e52b900131c"
+  },
+  "addOns.accounts.notice.unreadableBody": {
+    "status": "mt",
+    "srcHash": "4f424f49ed76"
+  },
+  "addOns.accounts.notice.unreadableTitle": {
+    "status": "mt",
+    "srcHash": "e2102643184f"
+  },
   "addOns.crashed.body": {
     "status": "mt",
     "srcHash": "009bc13b9030"
@@ -3807,6 +3887,42 @@
     "status": "mt",
     "srcHash": "2f81a22de0af"
   },
+  "common.account.confirmEmail.action": {
+    "status": "mt",
+    "srcHash": "eea484c7d92c"
+  },
+  "common.account.confirmEmail.back": {
+    "status": "mt",
+    "srcHash": "1a5a961a69a1"
+  },
+  "common.account.confirmEmail.body": {
+    "status": "mt",
+    "srcHash": "d5ac227a452d"
+  },
+  "common.account.confirmEmail.doneBody": {
+    "status": "mt",
+    "srcHash": "3ed818f22c07"
+  },
+  "common.account.confirmEmail.doneTitle": {
+    "status": "mt",
+    "srcHash": "31fab26302f2"
+  },
+  "common.account.confirmEmail.failedBody": {
+    "status": "mt",
+    "srcHash": "d025f26553ad"
+  },
+  "common.account.confirmEmail.failedTitle": {
+    "status": "mt",
+    "srcHash": "642f49c6028c"
+  },
+  "common.account.confirmEmail.takenBody": {
+    "status": "mt",
+    "srcHash": "6755940a247e"
+  },
+  "common.account.confirmEmail.title": {
+    "status": "mt",
+    "srcHash": "34a486e63e97"
+  },
   "common.account.confirmPassword": {
     "status": "mt",
     "srcHash": "19dff4dad0a7"
@@ -3819,9 +3935,17 @@
     "srcHash": "84add5b29527",
     "status": "mt"
   },
-  "common.account.emailHelper": {
+  "common.account.emailHelperLink": {
     "status": "mt",
-    "srcHash": "d18a6efa0045"
+    "srcHash": "a8a8b56d8e48"
+  },
+  "common.account.emailPendingBody": {
+    "status": "mt",
+    "srcHash": "a0d0dec9a7ad"
+  },
+  "common.account.emailPendingTitle": {
+    "status": "mt",
+    "srcHash": "0685fc1b4c45"
   },
   "common.account.manageTwoFactor": {
     "status": "mt",
@@ -3903,9 +4027,9 @@
     "status": "mt",
     "srcHash": "9713530fa389"
   },
-  "common.account.savedBody": {
+  "common.account.savedProfileBody": {
     "status": "mt",
-    "srcHash": "c4a6a1dd14b8"
+    "srcHash": "fea900e01f8d"
   },
   "common.account.securityLink": {
     "status": "mt",
@@ -9067,6 +9191,14 @@
     "status": "mt",
     "srcHash": "8fd70858f7ff"
   },
+  "common.team.apiKeys.revokedOnRemove": {
+    "status": "mt",
+    "srcHash": "65bf0d150baf"
+  },
+  "common.team.apiKeys.revokedOnSuspend": {
+    "status": "mt",
+    "srcHash": "c4b58e3d03c3"
+  },
   "common.team.column.actions": {
     "status": "mt",
     "srcHash": "c3cd636a585b"
@@ -9323,6 +9455,26 @@
     "status": "mt",
     "srcHash": "c70512ee2dd2"
   },
+  "common.team.roles.above": {
+    "status": "mt",
+    "srcHash": "872deb570fad"
+  },
+  "common.team.roles.accountRefused": {
+    "status": "mt",
+    "srcHash": "cbbb4fc3ebf6"
+  },
+  "common.team.roles.reachRefused": {
+    "status": "mt",
+    "srcHash": "faf6d4196c9b"
+  },
+  "common.team.roles.refused": {
+    "status": "mt",
+    "srcHash": "831bee7287c6"
+  },
+  "common.team.roles.signInLocked": {
+    "status": "mt",
+    "srcHash": "168922061fbc"
+  },
   "common.team.roles.unavailable": {
     "status": "mt",
     "srcHash": "da65c2b6ccfc"
@@ -9334,6 +9486,10 @@
   "common.team.rolesDialog.failed": {
     "status": "mt",
     "srcHash": "6b19b87f3441"
+  },
+  "common.team.rolesDialog.invitedNote": {
+    "status": "mt",
+    "srcHash": "bad42c9ca716"
   },
   "common.team.rolesDialog.title": {
     "status": "mt",
@@ -17195,6 +17351,26 @@
     "status": "mt",
     "srcHash": "9760e265be93"
   },
+  "email.accountConnected.heading": {
+    "status": "mt",
+    "srcHash": "a4a9b2fd521d"
+  },
+  "email.accountConnected.intro": {
+    "status": "mt",
+    "srcHash": "830c70706677"
+  },
+  "email.accountConnected.name": {
+    "status": "mt",
+    "srcHash": "4d04eece64a7"
+  },
+  "email.accountConnected.notice": {
+    "status": "mt",
+    "srcHash": "9fc1408ea897"
+  },
+  "email.accountConnected.subject": {
+    "status": "mt",
+    "srcHash": "2f5532777597"
+  },
   "email.actions.archived": {
     "status": "mt",
     "srcHash": "eddc813f35b1"
@@ -17947,6 +18123,34 @@
     "status": "mt",
     "srcHash": "26cd776257f8"
   },
+  "email.connectLink.action": {
+    "status": "mt",
+    "srcHash": "6e549e0320e1"
+  },
+  "email.connectLink.heading": {
+    "status": "mt",
+    "srcHash": "9f431f77c7da"
+  },
+  "email.connectLink.intro": {
+    "status": "mt",
+    "srcHash": "08e31914cb5c"
+  },
+  "email.connectLink.name": {
+    "status": "mt",
+    "srcHash": "9f431f77c7da"
+  },
+  "email.connectLink.notice": {
+    "status": "mt",
+    "srcHash": "e6ca1a0d644d"
+  },
+  "email.connectLink.preheader": {
+    "status": "mt",
+    "srcHash": "87704ca23f99"
+  },
+  "email.connectLink.subject": {
+    "status": "mt",
+    "srcHash": "a32aa6633c3f"
+  },
   "email.copySuffix": {
     "status": "mt",
     "srcHash": "7e4c743b8f09"
@@ -18007,9 +18211,17 @@
     "status": "src",
     "srcHash": "401110dbbabf"
   },
+  "email.detailsDeleted.gifts": {
+    "status": "mt",
+    "srcHash": "9fc52efc3885"
+  },
   "email.detailsDeleted.heading": {
     "status": "mt",
     "srcHash": "4d52e122bd5f"
+  },
+  "email.detailsDeleted.held": {
+    "status": "mt",
+    "srcHash": "b9edb19647a2"
   },
   "email.detailsDeleted.intro": {
     "status": "mt",
@@ -18194,6 +18406,30 @@
   "email.editor.undo": {
     "status": "mt",
     "srcHash": "39fc72124884"
+  },
+  "email.emailChangeConfirm.action": {
+    "status": "mt",
+    "srcHash": "60560b4b2e3f"
+  },
+  "email.emailChangeConfirm.heading": {
+    "status": "mt",
+    "srcHash": "34a486e63e97"
+  },
+  "email.emailChangeConfirm.intro": {
+    "status": "mt",
+    "srcHash": "241ce2be4e0b"
+  },
+  "email.emailChangeConfirm.name": {
+    "status": "mt",
+    "srcHash": "e9164c16b7ba"
+  },
+  "email.emailChangeConfirm.notice": {
+    "status": "mt",
+    "srcHash": "e42f36213bfb"
+  },
+  "email.emailChangeConfirm.subject": {
+    "status": "mt",
+    "srcHash": "6a5143221d91"
   },
   "email.emailChanged.footer": {
     "status": "src",
@@ -21855,6 +22091,10 @@
     "status": "mt",
     "srcHash": "ff1d79c5055b"
   },
+  "pay.beside": {
+    "status": "mt",
+    "srcHash": "bab2c4022f1b"
+  },
   "pay.cancelled.body": {
     "status": "mt",
     "srcHash": "6e684ae688ee"
@@ -24187,6 +24427,30 @@
     "status": "mt",
     "srcHash": "fbf0667eaa4b"
   },
+  "roles.limits.fullAccess": {
+    "status": "mt",
+    "srcHash": "0ec4bbec5343"
+  },
+  "roles.limits.noTargets": {
+    "status": "mt",
+    "srcHash": "d09ec581c91c"
+  },
+  "roles.limits.notHeld": {
+    "status": "mt",
+    "srcHash": "20279298126c"
+  },
+  "roles.limits.note": {
+    "status": "mt",
+    "srcHash": "384038a6964f"
+  },
+  "roles.limits.refused": {
+    "status": "mt",
+    "srcHash": "a206b95cea6b"
+  },
+  "roles.limits.roleAbove": {
+    "status": "mt",
+    "srcHash": "4916dd6e8819"
+  },
   "roles.list.title": {
     "status": "mt",
     "srcHash": "47dcc27d6e87"
@@ -24998,6 +25262,22 @@
   "studio.addOns.incomplete.writers": {
     "status": "mt",
     "srcHash": "2525de5bdfd5"
+  },
+  "studio.addOns.installed.accountsBoth": {
+    "status": "mt",
+    "srcHash": "866ca876c0d5"
+  },
+  "studio.addOns.installed.accountsCount": {
+    "status": "mt",
+    "srcHash": "bc519adde40a"
+  },
+  "studio.addOns.installed.accountsNotSetUp": {
+    "status": "mt",
+    "srcHash": "be8f2e94e7b3"
+  },
+  "studio.addOns.installed.accountsOpen": {
+    "status": "mt",
+    "srcHash": "cf9b77061f7b"
   },
   "studio.addOns.installed.connected": {
     "status": "src",
@@ -37579,6 +37859,10 @@
     "status": "mt",
     "srcHash": "0520db26e350"
   },
+  "studio.privacy.erase.stays.daysOnceRead": {
+    "status": "mt",
+    "srcHash": "7a1cad7c3d78"
+  },
   "studio.privacy.erase.stays.doNotEmail": {
     "status": "mt",
     "srcHash": "fc55efc78ee2"
@@ -37594,6 +37878,14 @@
   "studio.privacy.erase.stays.forGood": {
     "status": "mt",
     "srcHash": "c3c1736d44e8"
+  },
+  "studio.privacy.erase.stays.heldValues": {
+    "status": "mt",
+    "srcHash": "f25749a03a16"
+  },
+  "studio.privacy.erase.stays.heldValuesKept": {
+    "status": "mt",
+    "srcHash": "46f592073e9f"
   },
   "studio.privacy.erase.stays.invoices": {
     "status": "mt",
@@ -38182,6 +38474,106 @@
   "studio.privacy.websites.loadFailed": {
     "status": "mt",
     "srcHash": "910548d82020"
+  },
+  "studio.privacy.websites.maker.add": {
+    "status": "mt",
+    "srcHash": "036779da3ed6"
+  },
+  "studio.privacy.websites.maker.any": {
+    "status": "mt",
+    "srcHash": "322444d3bb52"
+  },
+  "studio.privacy.websites.maker.app": {
+    "status": "mt",
+    "srcHash": "fc4a695f02a8"
+  },
+  "studio.privacy.websites.maker.button": {
+    "status": "mt",
+    "srcHash": "794145f030ff"
+  },
+  "studio.privacy.websites.maker.buttonHelp": {
+    "status": "mt",
+    "srcHash": "7f59dcbcbf3a"
+  },
+  "studio.privacy.websites.maker.choice": {
+    "status": "mt",
+    "srcHash": "a265e5f53362"
+  },
+  "studio.privacy.websites.maker.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "studio.privacy.websites.maker.copyLabel": {
+    "status": "mt",
+    "srcHash": "7b75b807707b"
+  },
+  "studio.privacy.websites.maker.floating": {
+    "status": "mt",
+    "srcHash": "ab224b519653"
+  },
+  "studio.privacy.websites.maker.floatingHelp": {
+    "status": "mt",
+    "srcHash": "64670089c737"
+  },
+  "studio.privacy.websites.maker.heading": {
+    "status": "mt",
+    "srcHash": "91696039b3d9"
+  },
+  "studio.privacy.websites.maker.inline": {
+    "status": "mt",
+    "srcHash": "2e347f4ceb23"
+  },
+  "studio.privacy.websites.maker.inlineHelp": {
+    "status": "mt",
+    "srcHash": "c1680ea1844a"
+  },
+  "studio.privacy.websites.maker.linkWords": {
+    "status": "mt",
+    "srcHash": "5688e0cdb508"
+  },
+  "studio.privacy.websites.maker.notListed": {
+    "status": "mt",
+    "srcHash": "b0fd92cf4dc6"
+  },
+  "studio.privacy.websites.maker.nothing": {
+    "status": "mt",
+    "srcHash": "721efd0e772a"
+  },
+  "studio.privacy.websites.maker.nothingWhy": {
+    "status": "mt",
+    "srcHash": "12347006869d"
+  },
+  "studio.privacy.websites.maker.preview": {
+    "status": "mt",
+    "srcHash": "f1fbb2b43dca"
+  },
+  "studio.privacy.websites.maker.screen": {
+    "status": "mt",
+    "srcHash": "5cc847f94fce"
+  },
+  "studio.privacy.websites.maker.show": {
+    "status": "mt",
+    "srcHash": "830d23907beb"
+  },
+  "studio.privacy.websites.maker.site": {
+    "status": "mt",
+    "srcHash": "39e1c0f6ac00"
+  },
+  "studio.privacy.websites.maker.snippet": {
+    "status": "mt",
+    "srcHash": "67356e0be396"
+  },
+  "studio.privacy.websites.maker.strict": {
+    "status": "mt",
+    "srcHash": "497098d374d4"
+  },
+  "studio.privacy.websites.maker.way": {
+    "status": "mt",
+    "srcHash": "c218666e53d5"
+  },
+  "studio.privacy.websites.maker.words": {
+    "status": "mt",
+    "srcHash": "28ba063aacc8"
   },
   "studio.privacy.websites.none": {
     "status": "mt",
@@ -51175,6 +51567,14 @@
     "status": "mt",
     "srcHash": "2e0cd1025972"
   },
+  "x.connect.noScript": {
+    "status": "mt",
+    "srcHash": "0570a6c12eb0"
+  },
+  "x.connect.unavailable": {
+    "status": "mt",
+    "srcHash": "95ce6dd6c2ef"
+  },
   "x.ending.already": {
     "status": "mt",
     "srcHash": "81e45b749c67"
@@ -51774,5 +52174,181 @@
   "xChat.write": {
     "status": "mt",
     "srcHash": "24bf2a34e6f4"
+  },
+  "xConnect.adminBody": {
+    "status": "mt",
+    "srcHash": "011a17e4e951"
+  },
+  "xConnect.adminTitle": {
+    "status": "mt",
+    "srcHash": "e5791d149cc7"
+  },
+  "xConnect.adminWhat": {
+    "status": "mt",
+    "srcHash": "9ecaae96accc"
+  },
+  "xConnect.button": {
+    "status": "mt",
+    "srcHash": "a508bee3c2f5"
+  },
+  "xConnect.cannotBody": {
+    "status": "mt",
+    "srcHash": "7da23f0132b9"
+  },
+  "xConnect.cannotTitle": {
+    "status": "mt",
+    "srcHash": "c6b9db5a9f09"
+  },
+  "xConnect.deadBody": {
+    "status": "mt",
+    "srcHash": "d463943cc731"
+  },
+  "xConnect.deadTitle": {
+    "status": "mt",
+    "srcHash": "69c12bafdf0a"
+  },
+  "xConnect.deniedBody": {
+    "status": "mt",
+    "srcHash": "3a3f0c919b5e"
+  },
+  "xConnect.differentBody": {
+    "status": "mt",
+    "srcHash": "f218bc8376ba"
+  },
+  "xConnect.differentTitle": {
+    "status": "mt",
+    "srcHash": "6be81eeda615"
+  },
+  "xConnect.doneAs": {
+    "status": "mt",
+    "srcHash": "5de90df8331a"
+  },
+  "xConnect.doneClose": {
+    "status": "mt",
+    "srcHash": "78bccd89d470"
+  },
+  "xConnect.doneDiffers": {
+    "status": "mt",
+    "srcHash": "da2db83b88e4"
+  },
+  "xConnect.doneLater": {
+    "status": "mt",
+    "srcHash": "d283fe1345d3"
+  },
+  "xConnect.doneTitle": {
+    "status": "mt",
+    "srcHash": "299dedf6a369"
+  },
+  "xConnect.hi": {
+    "status": "mt",
+    "srcHash": "2a73e11c64b5"
+  },
+  "xConnect.linkFor": {
+    "status": "mt",
+    "srcHash": "6eb7f34adec0"
+  },
+  "xConnect.nothingBody": {
+    "status": "mt",
+    "srcHash": "c080af677cfb"
+  },
+  "xConnect.nothingTitle": {
+    "status": "mt",
+    "srcHash": "bffa659046e1"
+  },
+  "xConnect.or": {
+    "status": "mt",
+    "srcHash": "439ac6327d9e"
+  },
+  "xConnect.otherBody": {
+    "status": "mt",
+    "srcHash": "8276f1f750e3"
+  },
+  "xConnect.otherTitle": {
+    "status": "mt",
+    "srcHash": "1589e71dca15"
+  },
+  "xConnect.partialBody": {
+    "status": "mt",
+    "srcHash": "74dbb4b6323f"
+  },
+  "xConnect.partialTitle": {
+    "status": "mt",
+    "srcHash": "cb15fdb9b4ca"
+  },
+  "xConnect.sentBy": {
+    "status": "mt",
+    "srcHash": "9b1146553da2"
+  },
+  "xConnect.setupBody": {
+    "status": "mt",
+    "srcHash": "19b256605fbc"
+  },
+  "xConnect.setupTitle": {
+    "status": "mt",
+    "srcHash": "3998ccfe5ca6"
+  },
+  "xConnect.signInMany": {
+    "status": "mt",
+    "srcHash": "5ee9cf2656ba"
+  },
+  "xConnect.signInOne": {
+    "status": "mt",
+    "srcHash": "e13055d18265"
+  },
+  "xConnect.theBusiness": {
+    "status": "mt",
+    "srcHash": "055af646bcf5"
+  },
+  "xConnect.theProvider": {
+    "status": "mt",
+    "srcHash": "cc7b45160cc2"
+  },
+  "xConnect.title": {
+    "status": "mt",
+    "srcHash": "13caddcc9dba"
+  },
+  "xConnect.titleBy": {
+    "status": "mt",
+    "srcHash": "af3cc16267a3"
+  },
+  "xConnect.titleReconnect": {
+    "status": "mt",
+    "srcHash": "0b575a92062c"
+  },
+  "xConnect.titleReconnectBy": {
+    "status": "mt",
+    "srcHash": "b9f74e3001a2"
+  },
+  "xConnect.tryAgain": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "xConnect.whoSent": {
+    "status": "mt",
+    "srcHash": "a9941a98d40a"
+  },
+  "xConnect.will1": {
+    "status": "mt",
+    "srcHash": "90693911087b"
+  },
+  "xConnect.will2": {
+    "status": "mt",
+    "srcHash": "f11b096b956a"
+  },
+  "xConnect.will3": {
+    "status": "mt",
+    "srcHash": "8fe83e9bb35a"
+  },
+  "xConnect.willHeading": {
+    "status": "mt",
+    "srcHash": "ec222cd49076"
+  },
+  "xConnect.worksOnce": {
+    "status": "mt",
+    "srcHash": "58d6220efaed"
+  },
+  "xConnect.yourAccount": {
+    "status": "mt",
+    "srcHash": "e4ffacba5591"
   }
 }

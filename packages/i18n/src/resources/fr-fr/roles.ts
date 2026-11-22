@@ -191,5 +191,13 @@ export default {
   "partsOff": "Sa partie de l’application est désactivée : il ne donne rien tant qu’elle n’est pas activée.",
   "people": {
     "unnamed": "Personne sans nom"
+  },
+  "limits": {
+    "note": "Vous ne pouvez attribuer que les autorisations que vous détenez vous-même. Les autres sont affichées mais ne peuvent pas être modifiées.",
+    "notHeld": "Vous ne détenez pas cette autorisation, vous ne pouvez donc pas l’attribuer.",
+    "roleAbove": "Ce rôle détient des autorisations que vous n’avez pas, vous ne pouvez donc pas le modifier.",
+    "refused": "Vous ne pouvez attribuer que les autorisations que vous détenez vous-même, et vous ne pouvez pas modifier un rôle qui en détient plus que vous.",
+    "noTargets": "Aucun rôle que vous pouvez attribuer ne peut accueillir ces membres : ce rôle ne peut donc pas encore être supprimé.",
+    "fullAccess": "« Installer et gérer les applications et les modules » équivaut à un accès complet : les applications et modules exécutent du code sur ce serveur. Ne l’accordez qu’à une personne que vous nommeriez Super Admin."
   }
 } as const;

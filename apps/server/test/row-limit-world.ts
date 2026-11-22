@@ -213,7 +213,7 @@ async function sourceDatabase(dialect: Dialect, dataDir: string): Promise<{ dsn:
 let signIns = 0;
 
 /** `staticRoot`: a built dashboard to serve, for a look in a real browser. */
-export async function world(dialect: Dialect, opts: { staticRoot?: string } = {}): Promise<World> {
+export async function world(dialect: Dialect, opts: { staticRoot?: string; rateLimitScale?: number } = {}): Promise<World> {
   const dataDir = await mkdtemp(join(tmpdir(), 'row-limit-'));
   const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
   await firstRun(meta);
@@ -313,7 +313,7 @@ export async function world(dialect: Dialect, opts: { staticRoot?: string } = {}
 
   const runService = createRunService({ meta });
   const composed = await composeServer({
-    env: makeEnv({ HOST: '127.0.0.1', ADMINIUM_DATA_DIR: dataDir }),
+    env: makeEnv({ HOST: '127.0.0.1', ADMINIUM_DATA_DIR: dataDir, ...(opts.rateLimitScale === undefined ? {} : { ADMINIUM_RATE_LIMIT_SCALE: String(opts.rateLimitScale) }) }),
     metaStore: { meta, url: 'sqlite::memory:', engine: 'sqlite', source: 'embedded', close: async () => Promise.resolve() },
     manager,
     runService,

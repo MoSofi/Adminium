@@ -83,6 +83,11 @@ export function staysWords(item: StaysItem): { line: string; kept: string | null
       ? null
       : t('studio:privacy.erase.stays.days', '{count, plural, one {Kept for # day.} other {Kept for # days.}}', { count: item.keptDays });
   switch (item.kind) {
+    case 'held-values':
+      return {
+        line: t('studio:privacy.erase.stays.heldValues', '{count, plural, one {# pack, gift card or credit} other {# packs, gift cards or credits}} in {label} still with a balance, so the holder can use it.', { count, label }),
+        kept: t('studio:privacy.erase.stays.heldValuesKept', 'Their name and address go once it is used up or expires.'),
+      };
     case 'do-not-email':
       return { line: t('studio:privacy.erase.stays.doNotEmail', 'Their address stays on the do-not-email list as a code, so they’re never e-mailed again.'), kept: null };
     case 'app-rows': {
@@ -109,7 +114,11 @@ export function staysWords(item: StaysItem): { line: string; kept: string | null
     case 'automation-runs':
       return { line: t('studio:privacy.erase.stays.automationRuns', '{count, plural, one {# rule run in the rules’ history.} other {# rule runs in the rules’ history.}}', { count }), kept };
     case 'notifications':
-      return { line: t('studio:privacy.erase.stays.notifications', '{count, plural, one {# notification to staff.} other {# notifications to staff.}}', { count }), kept };
+      // The sweep counts from when a notification was read, and never takes an unread one.
+      return {
+        line: t('studio:privacy.erase.stays.notifications', '{count, plural, one {# notification to staff.} other {# notifications to staff.}}', { count }),
+        kept: item.keptDays === null ? kept : t('studio:privacy.erase.stays.daysOnceRead', '{count, plural, one {Kept until read, then for # day.} other {Kept until read, then for # days.}}', { count: item.keptDays }),
+      };
     case 'campaign-failures':
       return { line: t('studio:privacy.erase.stays.campaignFailures', '{count, plural, one {# failed campaign send, kept with the campaign’s send log.} other {# failed campaign sends, kept with the campaign’s send log.}}', { count }), kept };
     case 'exports':

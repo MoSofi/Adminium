@@ -887,7 +887,9 @@ export default {
     "intro": "Dobrý den, {name}, jak jste požádali, údaje, které o vás {appName} uchovával, jsou smazány a byli jste všude odhlášeni.",
     "kept": "To, co u nás už máte, zůstává platné a e-maily, které už máte, to stále otevřou. Už se vám neozveme, pokud se nevrátíte.",
     "footer": "{appName}",
-    "stopped": "Odkazy v e-mailech, které už máte, přestaly fungovat. Už se vám neozveme, pokud se nevrátíte."
+    "stopped": "Odkazy v e-mailech, které už máte, přestaly fungovat. Už se vám neozveme, pokud se nevrátíte.",
+    "held": "Jedna výjimka: balíčky nebo dárkové karty se zůstatkem si ponechají vaše jméno a e-mail, dokud nebudou vyčerpány nebo jim neskončí platnost, abyste je mohli dál používat. Počet ponechaných: {count}.",
+    "gifts": "Pokud vám dárkovou kartu koupil někdo jiný, není propojena s vaším účtem, takže na ní zůstává zadané jméno a e-mail. Pokud je chcete odstranit, napište nám."
   },
   "missing": {
     "chip": "{name}: určete, co se napíše, když chybí",
@@ -1029,5 +1031,29 @@ export default {
     "object": "Vznést námitku",
     "questions": "Máte otázky? Napište na {contact}. {who}.",
     "keptBy": "Uchovává {who}."
+  },
+  "connectLink": {
+    "name": "Připojení účtu",
+    "subject": "{business} vás žádá o připojení účtu",
+    "preheader": "Odkaz platí {days} dní.",
+    "heading": "Připojte svůj účet",
+    "intro": "Dobrý den, {name}, {business} vás žádá o připojení vašeho vlastního účtu. Použijte prosím účet, který je váš.",
+    "action": "Připojit můj účet",
+    "notice": "Odkaz funguje jednou a platí {days} dní. Pokud jste ho nečekali, můžete tento e-mail ignorovat: dokud se nepřihlásíte, nic se nepřipojí."
+  },
+  "accountConnected": {
+    "name": "Účet připojen",
+    "subject": "Váš účet byl připojen u {business}",
+    "heading": "Váš účet byl připojen",
+    "intro": "Dobrý den, {name}, služba {provider} je teď u {business} připojena jako {account}.",
+    "notice": "Pokud jste to nebyli vy, ihned to sdělte {business}."
+  },
+  "emailChangeConfirm": {
+    "action": "Potvrdit tuto adresu",
+    "heading": "Potvrďte svou novou adresu",
+    "intro": "Dobrý den, {name}, někdo přihlášený do {appName} jako {currentEmail} požádal o přihlašování adresou {email}.",
+    "name": "Potvrzení nové přihlašovací adresy",
+    "notice": "Otevřete tento odkaz, když jste přihlášeni k tomuto účtu. Funguje jen jednou a vyprší za {expiresInHours} h. Pokud tento účet neznáte, e-mail ignorujte: nic se nezmění.",
+    "subject": "Potvrďte svou novou přihlašovací adresu pro {appName}"
   }
 } as const;

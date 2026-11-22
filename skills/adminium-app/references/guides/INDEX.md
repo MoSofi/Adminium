@@ -14,7 +14,7 @@
 | `references/guides/manifest-by-task--buttons-on-a-record-page.md` | Buttons on a record page | 1587 |
 | `references/guides/manifest-by-task--add-a-role.md` | Add a role | 2153 |
 | `references/guides/manifest-by-task--let-customers-read-or-add.md` | Let customers read or add | 2783 |
-| `references/guides/manifest-by-task--let-a-customer-find-their-own-row.md` | Let a customer find their own row | 2981 |
+| `references/guides/manifest-by-task--let-a-customer-find-their-own-row.md` | Let a customer find their own row | 3013 |
 | `references/guides/manifest-by-task--sample-data.md` | Sample data | 1495 |
 | `references/guides/manifest-by-task--settings-the-operator-fills-in.md` | Settings the operator fills in | 1069 |
 | `references/guides/manifest-by-task--emails.md` | Emails | 721 |
@@ -66,11 +66,12 @@
 | `references/guides/orders-with-lines--at-the-desk.md` | At the desk | 810 |
 | `references/guides/booking-rules--overview.md` | Booking rules and limits | 1232 |
 | `references/guides/booking-rules--what-a-rule-reads.md` | What a rule reads | 1259 |
-| `references/guides/booking-rules--when-a-time-can-be-booked.md` | When a time can be booked | 2730 |
+| `references/guides/booking-rules--when-a-time-can-be-booked.md` | When a time can be booked | 4451 |
 | `references/guides/booking-rules--the-venue-s-clock.md` | The venue's clock | 398 |
 | `references/guides/booking-rules--late-cancellations.md` | Late cancellations | 963 |
-| `references/guides/booking-rules--what-availability-answers.md` | What availability answers | 2521 |
-| `references/guides/booking-rules--what-a-writer-is-told.md` | What a writer is told | 1372 |
+| `references/guides/booking-rules--what-availability-answers.md` | What availability answers | 2708 |
+| `references/guides/booking-rules--what-a-writer-is-told.md` | What a writer is told | 1503 |
+| `references/guides/booking-rules--connected-calendars.md` | Connected calendars | 2190 |
 | `references/guides/booking-rules--booking-rules-and-capacity.md` | Booking rules and capacity | 779 |
 | `references/guides/booking-rules--limits.md` | Limits | 1061 |
 | `references/guides/booking-rules--limits--slot-limits.md` | Limits — Slot limits | 3137 |
@@ -85,6 +86,5 @@
 | `references/guides/timed-moves--a-timed-move.md` | A timed move | 1877 |
 | `references/guides/timed-moves--moments.md` | Moments | 3425 |
 | `references/guides/timed-moves--the-venue-s-clock.md` | The venue's clock | 560 |
-| `references/guides/timed-moves--the-job-that-makes-the-moves.md` | The job that makes the moves | 2092 |
 
 More: `references/guides/INDEX-2.md`

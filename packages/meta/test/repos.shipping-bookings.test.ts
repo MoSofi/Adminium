@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The booking table (wave 0105) on every available dialect: one live booking
+ * The booking table (wave 0109) on every available dialect: one live booking
  * per slot however many ask at once, every state move guarded, a freed slot
  * free again, and a late label taking its place back.
  */
@@ -38,7 +38,7 @@ for (const dialect of TEST_DIALECTS) {
     };
 
     it('upgrades a store from before the wave, and runs once', async () => {
-      expect(ALL_MIGRATIONS.map((one) => one.name)).toContain('0105_shipping_bookings');
+      expect(ALL_MIGRATIONS.map((one) => one.name)).toContain('0109_shipping_bookings');
       expect(await shippingBookingsRepo(meta()).byId('shb_none')).toBeNull();
       expect((await applyMigrations(meta().db, { dialect: meta().dialect })).applied).toEqual([]);
     });

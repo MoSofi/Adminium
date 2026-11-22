@@ -171,5 +171,6 @@ export default {
   },
   "shopFallback": "butikken",
   "shopFallbackStart": "Butikken",
-  "back": "Tilbage til {app}"
+  "back": "Tilbage til {app}",
+  "beside": "Du kan lukke denne fane og gå tilbage til det website, du kom fra."
 } as const;

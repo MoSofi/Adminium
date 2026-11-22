@@ -23,12 +23,17 @@ import { z } from 'zod';
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
 import { rowLimitContextOf } from '../../crud/row-limit-context.js';
 import { rowLimitFor } from '../../crud/row-limit.js';
+import { requestReadsWhole } from '../../crud/row-reach-request.js';
 import { rowsNaming } from '../../crud/rows-naming.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { handOverRows } from '../../rbac/hand-over.js';
 import { listingsOfTable, rowReachIssue } from '../../rbac/row-limit-check.js';
 import { PERMISSIONS, grantMatches, grantsFromMatrixRows, isGranted } from '../../rbac/permissions.js';
+import { getPrincipal } from '../../rbac/principal.js';
+import { REACH_ABOVE_YOU } from '../../rbac/reach-held.js';
+import { readLimitOf } from '../../rbac/read-limits.js';
+import { scrubUrlForLog } from '../../log-scrub.js';
 import { SUPER_ADMIN_SLUG } from '../../rbac/resolver.js';
 import { rowReachOfRow } from '../../rbac/row-limits.js';
 
@@ -122,6 +127,10 @@ export function rowReachRoutes(deps: { meta: MetaDb; manager: ConnectionManager 
       for (const one of reaches) {
         const wrong = rowReachIssue(view.model, tableId, one);
         if (wrong !== null) throw new ValidationFailedError(wrong.message, { fields: { table: { code: wrong.code, ...(wrong.column === undefined ? {} : { column: wrong.column }) } } });
+      }
+      // A count under a reach names rows and columns, so it would tell somebody who reads only some of them about the rest.
+      if (readLimitOf(await app.rbac.resolve(request), connectionId, tableId) !== null || !(await requestReadsWhole(meta, request, connectionId, tableId))) {
+        throw new ForbiddenError('You read only part of this table, so it cannot be counted for you.', 'TABLE_FORBIDDEN', { reason: 'read-limit', table: tableId });
       }
       const led = reaches.some((one) => one.reach === 'team') ? await teamsRepo(meta).leadReach(userId) : { ids: [], capped: false };
       // The person, holding this one limit (one reach, or several of which any one is enough) on this one table and nothing else.
@@ -240,7 +249,12 @@ export function rowReachRoutes(deps: { meta: MetaDb; manager: ConnectionManager 
       if (from.status !== 'suspended') {
         throw new ConflictError('Rows are handed on when a person is suspended or removed. Suspend them first, or hand the rows on as you remove them.', 'CONFLICT', { reason: 'STILL_HERE' });
       }
-      return handOverRows({ meta, manager }, { from, toId: request.body.to, audit: (entry) => app.rbac.audit(request, { category: 'rbac', ...entry }) });
+      return handOverRows({ meta, manager }, {
+        from,
+        toId: request.body.to,
+        audit: (entry) => app.rbac.audit(request, { category: 'rbac', ...entry }),
+        by: { principal: getPrincipal(request), refused: () => app.rbac.audit(request, { category: 'rbac', action: 'permission.denied', changes: { after: { reason: REACH_ABOVE_YOU, method: request.method, url: scrubUrlForLog(request.url), userId: from.id } } }) },
+      });
     });
   };
 }

@@ -22,7 +22,7 @@
 import websocket from '@fastify/websocket';
 import type { FastifyInstance } from 'fastify';
 
-import { jobsRepo, type EnqueueJobInput, type Job, type MetaDb } from '@adminium/meta';
+import { jobsRepo, usersRepo, type EnqueueJobInput, type Job, type MetaDb } from '@adminium/meta';
 
 import { API_PREFIX } from '../routes/index.js';
 import { jobOwnerId, jobsRoutes } from '../routes/jobs/index.js';
@@ -305,6 +305,8 @@ export async function registerJobsAndRealtime(
     hub,
     resolveUser: opts.resolveUser,
     can: opts.can,
+    // Signed in once, when it opened: every frame and subscription asks whether the account still stands.
+    isActive: async (user) => (await usersRepo(meta).findById(user.id))?.status === 'active',
     // Job owners may follow their own jobs:<id> channel (topics table).
     getJobOwner: async (jobId) => jobOwnerId(await jobs.findById(jobId)),
     // A table a subscriber's role reads only in part: its frames without the other columns.
@@ -312,6 +314,9 @@ export async function registerJobsAndRealtime(
     // A table asked for by the name an app's config gives it is heard on its full id's channel.
     canonicalChannel: canonicalChannels(meta),
   };
+
+  // The users routes close a person's connections the moment their account stops.
+  if (!app.hasDecorator('closeUserConnections')) app.decorate('closeUserConnections', (userId: string) => hub.closeUserConnections(userId));
 
   await app.register(websocket, {
     options: { maxPayload: 64 * 1024 },

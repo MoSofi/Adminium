@@ -62,7 +62,7 @@ class Stop extends Error {
 }
 
 /** One value along a path: links followed row by row (plain reads), then the last column. With `ends: 'row'`, the row the links reach. */
-async function follow(db: Db, view: SnapshotView, from: ResolvedTable, row: Row, path: readonly string[], ends: 'column' | 'row'): Promise<{ table: ResolvedTable; row: Row; value: unknown } | null> {
+export async function followPath(db: Db, view: SnapshotView, from: ResolvedTable, row: Row, path: readonly string[], ends: 'column' | 'row'): Promise<{ table: ResolvedTable; row: Row; value: unknown } | null> {
   let table = from;
   let at: Row = row;
   const links = ends === 'column' ? path.slice(0, -1) : path;
@@ -125,18 +125,18 @@ export async function takeReview(input: TakeInput): Promise<TakeOutcome> {
       const stamped = row[word.stamp];
       if (stamped !== null && stamped !== undefined && stamped !== '') throw new Stop({ kind: 'done' });
 
-      const when = await follow(trx, view, table, row, word.when.path, 'column');
+      const when = await followPath(trx, view, table, row, word.when.path, 'column');
       if (when === null || !oneOf(when.value, word.when.in)) throw new Stop({ kind: 'not-yet' });
 
       // What it is about: the link, and the thing's name (and second line) as they stand now.
       const aboutKey = row[word.about.link];
       const about = relatedTarget(view, table, word.about.link);
       if (about === null || aboutKey === null || aboutKey === undefined || aboutKey === '') throw new Stop({ kind: 'refused' });
-      const name = await follow(trx, view, table, row, pathOf(word.about.name), 'column');
-      const detail = word.about.detail === undefined ? null : await follow(trx, view, table, row, pathOf(word.about.detail), 'column');
+      const name = await followPath(trx, view, table, row, pathOf(word.about.name), 'column');
+      const detail = word.about.detail === undefined ? null : await followPath(trx, view, table, row, pathOf(word.about.detail), 'column');
 
       // Whose review it is: the person the row's claim reaches — the session's own, when it signed in as a person.
-      const person = await follow(trx, view, table, row, word.person, 'row');
+      const person = await followPath(trx, view, table, row, word.person, 'row');
       if (person === null || person.table.primaryKey.length !== 1) throw new Stop({ kind: 'refused' });
       const personKey = textOf(person.row[person.table.primaryKey[0]!]);
       if (input.sessionPerson !== null && (input.sessionPerson.table !== person.table.id || textOf(person.row[input.sessionPerson.column]) !== input.sessionPerson.value)) throw new Stop({ kind: 'refused' });
@@ -192,7 +192,7 @@ export async function takeReview(input: TakeInput): Promise<TakeOutcome> {
 
 /** The name a review would show for this row's person, as `takeReview` would cut it; null when the row reaches nobody. */
 export async function shownNameFor(db: Db, view: SnapshotView, table: ResolvedTable, row: Row, word: Review): Promise<string | null> {
-  const person = await follow(db, view, table, row, word.person, 'row');
+  const person = await followPath(db, view, table, row, word.person, 'row');
   if (person === null) return null;
   return 'full' in word.shownName ? shownNameOfFull(person.row[word.shownName.full]) : shownNameOf(person.row[word.shownName.first], word.shownName.last === undefined ? '' : person.row[word.shownName.last]);
 }
@@ -204,14 +204,14 @@ export async function shownNameFor(db: Db, view: SnapshotView, table: ResolvedTa
  */
 export async function reviewProved(db: Db, view: SnapshotView, table: ResolvedTable, row: Row, word: Review): Promise<boolean> {
   if (word.proved === undefined) return true;
-  const found = await follow(db, view, table, row, word.proved, 'column');
+  const found = await followPath(db, view, table, row, word.proved, 'column');
   return found !== null && yesNo(found.value) === true;
 }
 
 export async function reviewOpen(db: Db, view: SnapshotView, table: ResolvedTable, row: Row, word: Review): Promise<boolean> {
   const stamped = row[word.stamp];
   if (stamped !== null && stamped !== undefined && stamped !== '') return false;
-  const when = await follow(db, view, table, row, word.when.path, 'column');
+  const when = await followPath(db, view, table, row, word.when.path, 'column');
   return when !== null && oneOf(when.value, word.when.in);
 }
 

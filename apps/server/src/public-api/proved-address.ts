@@ -12,22 +12,27 @@
  *    forwarded, so it proves no mailbox either.
  * A desk change of that address ends the person's sessions
  * (`identity-email-watch.ts`), and the person may not write it themselves,
- * so the row read now still holds the address the mail went to.
+ * so the row read now still holds the address the mail went to. An import
+ * announces nothing, so the session's own record of that address is compared
+ * here too: the row holding another one proves nothing, at once.
  *
  * What the write side does with it (`people/consent-writes.ts`): a public yes
  * overrules a "no" standing for an address only when this is that address.
  */
 import type { Row } from '../crud/mask.js';
-import { normaliseAddress, plausibleAddress } from './claim-code.js';
+import { hashAddress, normaliseAddress, plausibleAddress } from './claim-code.js';
 import type { PublicSessionContext } from './claim.js';
 import type { CompiledScope } from './scope.js';
 
 /** The address (trimmed, lower case) the session proved, or null when it proved none. */
-export function provedAddressOf(scope: Pick<CompiledScope, 'claim'>, session: PublicSessionContext | null, claimed: Row | null): string | null {
+export function provedAddressOf(scope: Pick<CompiledScope, 'claim'>, session: PublicSessionContext | null, claimed: Row | null, addressSecret?: Buffer): string | null {
   if (session === null || claimed === null || session.kind === 'token') return null;
   if (session.level !== 'verified' && session.kind !== 'link') return null;
   const claim = scope.claim;
   if (claim === null || claim === undefined || claim.ref !== session.grant.ref || claim.email === undefined) return null;
   const value = claimed[claim.email];
-  return plausibleAddress(value) ? normaliseAddress(value) : null;
+  if (!plausibleAddress(value)) return null;
+  const sentTo = session.grant.addr;
+  if (addressSecret !== undefined && typeof sentTo === 'string' && hashAddress(addressSecret, value) !== sentTo) return null;
+  return normaliseAddress(value);
 }

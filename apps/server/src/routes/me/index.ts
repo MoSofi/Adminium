@@ -9,12 +9,13 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { AppError } from '../../errors.js';
 import type { AuthContext } from '../../plugins/auth.js';
 import {
+  confirmEmailChangeHandler,
   getMeHandler,
   getMePrefsHandler,
   patchMeHandler,
   patchMePrefsHandler,
 } from './handlers.js';
-import { mePatchBody, mePrefsPatchBody, mePrefsReply, meReply } from './schema.js';
+import { meEmailConfirmBody, mePatchBody, mePatchReply, mePrefsPatchBody, mePrefsReply, meReply } from './schema.js';
 
 export const meRoutes: FastifyPluginAsyncZod = async (app) => {
   const ctx = (): AuthContext => {
@@ -34,8 +35,15 @@ export const meRoutes: FastifyPluginAsyncZod = async (app) => {
 
   app.patch(
     '/me',
-    { ...guarded, schema: { body: mePatchBody, response: { 200: meReply } } },
+    { ...guarded, schema: { body: mePatchBody, response: { 200: mePatchReply } } },
     async (request) => patchMeHandler(ctx(), request, request.body),
+  );
+
+  // The link mailed to a new address, opened by the account that asked for it.
+  app.post(
+    '/me/email/confirm',
+    { ...guarded, schema: { body: meEmailConfirmBody, response: { 200: meReply } } },
+    async (request) => confirmEmailChangeHandler(ctx(), request, request.body),
   );
 
   app.get(

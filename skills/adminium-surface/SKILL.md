@@ -60,8 +60,9 @@ Rules of the public side:
 
 - A table anyone may add to may not also be readable by anyone. Read from one table, add to
   another (the starter's `items` and `requests`).
-- A public list comes in key order. `order`, `where` and `q` from the screen are refused
-  (`PUBLIC_QUERY_REFUSED`): sort in the screen, and hide rows with `filters` in `access.json`.
+- A list refuses `q`, `order`, `where`, `via` unless `access.json` declares
+  `publicAccess[n].searchable`, `publicAccess[n].orderable`, `publicAccess[n].filterable`,
+  `publicAccess[n].via`.
 - A create returns only the columns of the entry's `select`, not the whole row.
 - `PATCH` needs a guest who has signed in to reach their own row. Read
   `references/guides/identity-and-own-links--*.md` before any "my booking" screen.

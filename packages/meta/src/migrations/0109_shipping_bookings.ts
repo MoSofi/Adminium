@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0105 — the truth about every label a shop has tried to buy.
+ * Wave 0109 — the truth about every label a shop has tried to buy.
  *
  * `adminium_shipping_bookings`, one row per attempt, written BEFORE the carrier
  * is called, so a crash at any point leaves a row that says what may have
@@ -27,8 +27,8 @@ import type { Kysely } from 'kysely';
 
 import type { ColumnHelpers } from '../columns.js';
 import { metaTable } from '../prefix.js';
-import { SHIPPING_CARRIER_WIDTH, SHIPPING_HASH_WIDTH, SHIPPING_ID_WIDTH, SHIPPING_PURPOSE_WIDTH, SHIPPING_ROW_WIDTH, SHIPPING_TABLE_WIDTH } from './0103_shipping.js';
-import { SHIPPING_CURRENCY_WIDTH, SHIPPING_DAY_WIDTH, SHIPPING_MODE_WIDTH, SHIPPING_MONEY_WIDTH } from './0104_shipping_keys.js';
+import { SHIPPING_CARRIER_WIDTH, SHIPPING_HASH_WIDTH, SHIPPING_ID_WIDTH, SHIPPING_PURPOSE_WIDTH, SHIPPING_ROW_WIDTH, SHIPPING_TABLE_WIDTH } from './0107_shipping.js';
+import { SHIPPING_CURRENCY_WIDTH, SHIPPING_DAY_WIDTH, SHIPPING_MODE_WIDTH, SHIPPING_MONEY_WIDTH } from './0108_shipping_keys.js';
 import { columnExists, createIndexUnlessMade } from './probe.js';
 
 /** `reserved`, `calling`, `booked`, `refused`, `unknown` or `released`. */

@@ -24,6 +24,7 @@
  *   GET  /privacy/websites               the websites that may show a form in a frame ("Your websites")
  *   POST /privacy/websites               add several, every line checked, all or none
  *   POST /privacy/websites/remove        take one off the list
+ *   GET  /privacy/embeds                 the apps with screens for a website, for the snippet maker
  *
  * ─── Who may ───────────────────────────────────────────────────────────────
  * Everything about a person, and the notice, under the privacy action
@@ -76,10 +77,11 @@ import type { RecordWriteEvent } from '../../crud/after-record-write.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import type { FileStore } from '../../files/store.js';
 import { formsReach, proxyUncheckedOf, type FormsReachFacts } from '../../forms/reach.js';
+import { embeddableApps } from '../../privacy/embeds.js';
 import { addWebsites, readWebsites, removeWebsite, type ListedWebsite } from '../../forms/websites.js';
 import { refuseUnlistedWebsites } from '../../trial/operator-hosts.js';
 import { businessName, privacyNoticeOf, senderPostalAddress } from '../../privacy/business.js';
-import { erasePerson, previewErasure } from '../../privacy/erase.js';
+import { erasePerson, previewErasure, type EraseDeps } from '../../privacy/erase.js';
 import { peopleFoundNotice } from '../../leads/notice.js';
 import type { AnswerFilesRemover } from '../../forms/answers.js';
 import { countsOf, PRIVACY_EXPORT_KIND, personHash } from '../../privacy/export.js';
@@ -114,6 +116,7 @@ import {
   publicNoticeReply,
   reachReply,
   websiteRemoveBody,
+  embedsReply,
   websitesAddBody,
   websitesReply,
   whatStaysReply,
@@ -137,6 +140,8 @@ export interface PrivacyRoutesDeps {
   chatForget?: ChatForget | undefined;
   /** What is installed: a person's reviews keep their words and lose their name (`reviews/erase.ts`). */
   reviewInstalls?: (() => Promise<AddOnInstalls>) | undefined;
+  /** The calendar sync, told of what an erasure wrote. */
+  calendars?: EraseDeps['calendars'];
   /** The view counter of this process: told a new level at once (`views/counter.ts`). */
   counting?: { setLevel: (level: TrackingLevel) => void } | undefined;
 }
@@ -165,7 +170,7 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
   const { meta, secret } = deps;
   const settings = settingsRepo(meta);
   const exports = privacyExportsRepo(meta);
-  const eraseDeps = { meta, manager: deps.manager, consent: deps.consent, storage: deps.storage, secret, signIns: deps.signIns, answerFiles: deps.answerFiles, chatForget: deps.chatForget, reviewInstalls: deps.reviewInstalls };
+  const eraseDeps = { meta, manager: deps.manager, consent: deps.consent, storage: deps.storage, secret, signIns: deps.signIns, answerFiles: deps.answerFiles, chatForget: deps.chatForget, reviewInstalls: deps.reviewInstalls, calendars: deps.calendars };
 
   /** Locked keys refused rather than read as "nothing found" (or, for an erasure, half done). */
   async function unlocked<T>(work: () => Promise<T>): Promise<T> {
@@ -301,6 +306,9 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
 
     // ── "Your websites" ─────────────────────────────────────────────────────
     app.get('/privacy/websites', { preHandler: privacy, schema: { response: { 200: websitesReply } } }, async () => websitesView(await readWebsites(meta)));
+
+    // What the snippet maker may offer: the apps with screens for a website, and each screen's choices.
+    app.get('/privacy/embeds', { preHandler: privacy, schema: { response: { 200: embedsReply } } }, async () => ({ data: { apps: await embeddableApps({ meta, manager: deps.manager }) } }));
 
     app.post(
       '/privacy/websites',

@@ -121,7 +121,11 @@ export default {
       "paymentsWho": "En med tilladelsen »Opsæt betalinger« sætter det op under Betalinger.",
       "sourcesWhere": "Opsæt dens kilder på dens egen skærm Kilder.",
       "sourceEgress": "{source} må kontakte: {hosts}",
-      "sourceWebsite": "{source}: Adminium læser selv hver virksomheds hjemmeside"
+      "sourceWebsite": "{source}: Adminium læser selv hver virksomheds hjemmeside",
+      "accountsNotSetUp": "Ikke sat op",
+      "accountsCount": "{connected} forbundet",
+      "accountsBoth": "{connected} forbundet · {reconnect} skal forbindes igen",
+      "accountsOpen": "Åbn"
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",
@@ -4776,6 +4780,7 @@ export default {
       "stays": {
         "forGood": "Gemmes for altid.",
         "days": "{count, plural, one {Gemmes i # dag.} other {Gemmes i # dage.}}",
+        "daysOnceRead": "{count, plural, one {Gemmes indtil læsning og derefter i # dag.} other {Gemmes indtil læsning og derefter i # dage.}}",
         "doNotEmail": "Deres adresse bliver på listen „Ingen e-mails“ som en kode, så de aldrig får e-mail igen.",
         "lawHealth": "{count, plural, one {# række} other {# rækker}} i {label}, fordi sundhedslovgivningen kræver dem.",
         "lawContract": "{count, plural, one {# række} other {# rækker}} i {label}, fordi en kontrakt kræver dem.",
@@ -4789,7 +4794,9 @@ export default {
         "notifications": "{count, plural, one {# notifikation til personalet.} other {# notifikationer til personalet.}}",
         "campaignFailures": "{count, plural, one {# fejlet kampagneudsendelse, gemt med kampagnens udsendelseslog.} other {# fejlede kampagneudsendelser, gemt med kampagnens udsendelseslog.}}",
         "exports": "Dataeksporter, som personalet har lavet af en tabel, kan indeholde dem, indtil hver af dem udløber.",
-        "shippingBookings": "{count, plural, one {# pakkebooking med sit sporingsnummer. Fragtfirmaet og forsendelsestjenesten beholder deres egen kopi.} other {# pakkebookinger med deres sporingsnumre. Fragtfirmaerne og forsendelsestjenesten beholder deres egne kopier.}}"
+        "shippingBookings": "{count, plural, one {# pakkebooking med sit sporingsnummer. Fragtfirmaet og forsendelsestjenesten beholder deres egen kopi.} other {# pakkebookinger med deres sporingsnumre. Fragtfirmaerne og forsendelsestjenesten beholder deres egne kopier.}}",
+        "heldValues": "{count, plural, one {# pakke, gavekort eller tilgodehavende} other {# pakker, gavekort eller tilgodehavender}} i {label} med en saldo, så indehaveren kan bruge det.",
+        "heldValuesKept": "Navn og adresse fjernes, når det er brugt op eller udløbet."
       },
       "mismatch": "Det er ikke den samme adresse. Skriv den igen.",
       "failed": "Sletningen blev ikke færdig. Slet igen for at gøre den færdig: det, der allerede er gjort, forbliver gjort.",
@@ -4867,14 +4874,14 @@ export default {
     },
     "websites": {
       "tab": "Dine websites",
-      "listHeading": "Websites, der må vise dine formularer og chatten",
+      "listHeading": "Websites, der må vise dine formularer, chat og bookingskærme",
       "addedBy": "Tilføjet af {name} · {date}",
       "addedOn": "Tilføjet {date}",
       "remove": "Fjern",
       "removeLabel": "Fjern {url}",
       "removed": "{url} fjernet",
       "removeFailed": "{url} blev ikke fjernet. Prøv igen.",
-      "none": "Ingen endnu. En formular vises først på et andet website, når det website står på denne liste.",
+      "none": "Ingen endnu. Dine formularer, chat og bookingskærme vises kun på et andet website, når det er på denne liste.",
       "addLabel": "Tilføj et website",
       "addHelp": "Ét website pr. linje, der starter med https://.",
       "add": "Tilføj",
@@ -4890,7 +4897,7 @@ export default {
         "ok": "Klar til at blive tilføjet"
       },
       "tooMany": "Listen rummer højst {max} websites. Fjern et først.",
-      "note": "Et website på listen kan vise dine formularer og chatten i en ramme. Det får aldrig adgang til dine data.",
+      "note": "Et website på listen kan vise dine formularer, chat og bookingskærme i en ramme. Det får aldrig adgang til dine data.",
       "embedHeading": "Sæt det på dit website",
       "copy": "Kopiér",
       "copied": "Kopieret",
@@ -4914,6 +4921,33 @@ export default {
         "setIt": "Angiv den",
         "checkAgain": "Tjek igen",
         "loadFailed": "Det kunne ikke tjekkes, om besøgende kan nå denne server. Prøv igen."
+      },
+      "maker": {
+        "heading": "Vis en apps skærm på dit website",
+        "app": "App",
+        "screen": "Skærm",
+        "way": "Sådan vises den",
+        "inline": "På siden",
+        "inlineHelp": "Står i siden",
+        "button": "Knap",
+        "buttonHelp": "Åbner ved tryk",
+        "floating": "Svævende",
+        "floatingHelp": "Bliver i et hjørne",
+        "choice": "Åbn på en bestemt",
+        "any": "Alle",
+        "words": "Knappens tekst",
+        "linkWords": "Linkets tekst, hvis skærmen ikke kan indlæses",
+        "site": "Det website, den skal på",
+        "notListed": "Dette website må endnu ikke vise dine skærme.",
+        "add": "Tilføj {site}",
+        "preview": "Forhåndsvisning",
+        "nothing": "Der vises ikke noget her endnu",
+        "nothingWhy": "Dette website er ikke på din liste, så dine skærme nægter at indlæse på det.",
+        "close": "Luk",
+        "snippet": "Kodestykket",
+        "copyLabel": "Kopiér kodestykket",
+        "strict": "Hvis dit website har en content security policy, så tillad {origin} i dens script-src og frame-src.",
+        "show": "Vis den rigtige skærm"
       }
     },
     "reach": {

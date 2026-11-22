@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * shippingBookingsRepo — adminium_shipping_bookings (0105): every label a shop
+ * shippingBookingsRepo — adminium_shipping_bookings (0109): every label a shop
  * has tried to buy, and how each attempt stands.
  *
  *   reserved ──> calling ──> booked
@@ -19,10 +19,10 @@ import { sql, type Selectable } from 'kysely';
 
 import type { MetaDb } from '../connect.js';
 import { newId } from '../ids.js';
-import { SHIPPING_CARRIER_WIDTH, SHIPPING_HASH_WIDTH, SHIPPING_ID_WIDTH, SHIPPING_ROW_WIDTH, SHIPPING_TABLE_WIDTH } from '../migrations/0103_shipping.js';
-import { SHIPPING_MONEY_WIDTH } from '../migrations/0104_shipping_keys.js';
-import { SHIPPING_CARRIER_TEXT_WIDTH, SHIPPING_REASON_WIDTH, SHIPPING_URL_WIDTH } from '../migrations/0105_shipping_bookings.js';
-import { SHIPPING_LABEL_GONE_WIDTH, SHIPPING_LABEL_SIZE_WIDTH } from '../migrations/0106_shipping_labels.js';
+import { SHIPPING_CARRIER_WIDTH, SHIPPING_HASH_WIDTH, SHIPPING_ID_WIDTH, SHIPPING_ROW_WIDTH, SHIPPING_TABLE_WIDTH } from '../migrations/0107_shipping.js';
+import { SHIPPING_MONEY_WIDTH } from '../migrations/0108_shipping_keys.js';
+import { SHIPPING_CARRIER_TEXT_WIDTH, SHIPPING_REASON_WIDTH, SHIPPING_URL_WIDTH } from '../migrations/0109_shipping_bookings.js';
+import { SHIPPING_LABEL_GONE_WIDTH, SHIPPING_LABEL_SIZE_WIDTH } from '../migrations/0110_shipping_labels.js';
 import type { AdminiumShippingBookingsTable } from '../schema/tables.js';
 import { affected, isDuplicateKeyError, readBool, writeBool } from './util.js';
 import type { ShippingKeyMode, ShippingSlot } from './shipping.js';

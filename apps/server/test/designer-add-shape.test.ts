@@ -123,7 +123,7 @@ afterEach(() => {
 
 describe('build_on_shape, for a shape added to the app\'s own tables', () => {
   it('knows which way a shape is built', () => {
-    for (const shape of ['discountable@1', 'card-payment@1', 'card-sale@1', 'voucher-sale@1']) expect(spelledOut(OFFERS, shape), shape).toBe(true);
+    for (const shape of ['discountable@1', 'card-payment@1', 'card-sale@1', 'voucher-sale@1', 'card-sale-online@1', 'voucher-sale-online@1']) expect(spelledOut(OFFERS, shape), shape).toBe(true);
     expect(spelledOut(OFFERS, 'nothing@1')).toBe(false);
     expect(spelledOut({ addOn: { shapes: [{ name: 'invoice', version: 1, parts: { document: { columns: [] } } }] } }, 'invoice@1')).toBe(false);
   });
@@ -262,11 +262,11 @@ describe('build_on_shape, for a shape added to the app\'s own tables', () => {
     expect((json('tables/payments.json')['postings'] as { via: string }[])[0]!.via).toBe('ticket_id');
     expect((json('tables/payments.json')['columns'] as { ref: string; type: string }[])[1]).toMatchObject({ ref: 'ticket_id', type: 'fk', references: 'tickets' });
     expect(paid.content).toContain('ticket_id is now "type": "fk" (it named "tickets" as a whole number)');
-    expect(paid.content).toContain('Not on this app yet: discountable@1, card-sale@1, voucher-sale@1. Each is a call of its own, with your tables; add the ones the person asked for before you apply.');
+    expect(paid.content).toContain('Not on this app yet: discountable@1, card-sale@1, voucher-sale@1, card-sale-online@1, voucher-sale-online@1. Each is a call of its own, with your tables; add the ones the person asked for before you apply.');
     // A part named in the singular, as the same model wrote it, is read as the part it means.
     const sold = await build({ shape: 'card-sale@1', tables: { 'card-sale@1/order': 'tickets', 'card-sale@1/line': 'ticket_lines' }, when: PAID });
     expect(sold.isError, sold.content).toBeUndefined();
-    expect(sold.content).toContain('Not on this app yet: discountable@1, voucher-sale@1.');
+    expect(sold.content).toContain('Not on this app yet: discountable@1, voucher-sale@1, card-sale-online@1, voucher-sale-online@1.');
     expect(errors()).toEqual([]);
   });
 
@@ -359,13 +359,13 @@ describe('the parts themselves', () => {
     const have = { tickets: TICKETS, ticket_lines: LINES };
     expect(adoptParts({ addOn: 'offers', document: OFFERS, shape: 'card-sale@1', tables: { order: 'tickets', lines: 'tickets' }, have })).toMatchObject({ ok: false, problem: expect.stringContaining('Two parts would both be the table "tickets"') });
     expect(adoptParts({ addOn: 'offers', document: OFFERS, shape: 'card-sale@1', tables: { order: 'tickets', rows: 'ticket_lines' }, have })).toMatchObject({ ok: false, problem: expect.stringContaining('"rows" is not a part of card-sale@1. Its parts: order, lines.') });
-    expect(adoptParts({ addOn: 'offers', document: OFFERS, shape: 'gift@1', tables: {}, have })).toMatchObject({ ok: false, problem: expect.stringContaining('Its shapes: discountable@1, card-payment@1, card-sale@1, voucher-sale@1.') });
+    expect(adoptParts({ addOn: 'offers', document: OFFERS, shape: 'gift@1', tables: {}, have })).toMatchObject({ ok: false, problem: expect.stringContaining('Its shapes: discountable@1, card-payment@1, card-sale@1, voucher-sale@1, card-sale-online@1, voucher-sale-online@1.') });
   });
 
   it('a step the action does not have is refused, and a moment that is no moment', () => {
     const have = { tickets: TICKETS, ticket_lines: LINES };
     const tables = { order: 'tickets', lines: 'ticket_lines' };
-    expect(adoptParts({ addOn: 'offers', document: OFFERS, shape: 'card-sale@1', tables, have, when: { reserve: { create: true } } })).toMatchObject({ ok: false, problem: 'offers/value/issue has no "reserve". It takes: post, reverse. Give "when" for those.' });
+    expect(adoptParts({ addOn: 'offers', document: OFFERS, shape: 'voucher-sale@1', tables, have, columns: { amount: 'line_total' }, when: { reserve: { create: true } } })).toMatchObject({ ok: false, problem: 'offers/value/sell has no "reserve". It takes: post, reverse. Give "when" for those.' });
     expect(adoptParts({ addOn: 'offers', document: OFFERS, shape: 'card-sale@1', tables, have, when: { post: { whenever: true } } })).toMatchObject({ ok: false, problem: expect.stringContaining('"when.post" is not a moment a rule fires at.') });
   });
 

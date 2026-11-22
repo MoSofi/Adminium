@@ -99,6 +99,18 @@ export const SECRET_FIELD_NAMES_CANONICAL: readonly string[] = [
   'payload',
   'refreshToken',
   'accessToken',
+  // The OAuth names as a provider's answer spells them, and what a sign-in in
+  // progress holds. Matched exactly, so none is caught by the camelCase pair
+  // above, and an add-on's `ctx.log('refresh', body)` would print them.
+  'access_token',
+  'refresh_token',
+  'id_token',
+  'clientSecret',
+  'client_secret',
+  'codeVerifier',
+  'code_verifier',
+  'clientState',
+  'verifierSealed',
   // A storage destination's S3 credential. The pair is named for the AWS SDK's
   // own field names, so none of the `*Key` / `secret*` patterns above reaches
   // either: `secretAccessKey` is not `secret`, and the matcher is exact. A

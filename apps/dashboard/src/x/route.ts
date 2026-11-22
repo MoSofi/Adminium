@@ -3,7 +3,9 @@
  * Which page this is, from its address: a form (`/x/forms/<slug>`), drawn
  * for a website's frame with `?frame=1`; a live chat's window
  * (`/x/chat/<addOn>`), drawn for the website loader's frame with `?frame=1`;
- * a landing page (`/x/pages/<slug>`), never in a frame; anything else is
+ * a landing page (`/x/pages/<slug>`), never in a frame; the page a connect
+ * link opens and the one a provider returns to (`/x/connect`, `/x/connect/back`),
+ * never in a frame; anything else is
  * "not available".
  *
  * Of the query, only `frame`, `lang`, a survey's `t`, `preview` (the
@@ -15,6 +17,7 @@ export type XRoute =
   | { kind: 'form'; slug: string; frame: boolean; lang: string | null; token: string | null; query: URLSearchParams; preview?: true }
   | { kind: 'chat'; addOn: string; frame: boolean; lang: string | null; preview?: true }
   | { kind: 'page'; slug: string; frame: false; lang: string | null; query: URLSearchParams; preview?: { page: string | null } }
+  | { kind: 'connect'; frame: false; lang: string | null }
   | { kind: 'none'; frame: boolean; lang: string | null };
 
 /** The third part of `/x/<door>/<name>`, decoded; undefined for any other address or a name that does not decode. */
@@ -34,6 +37,7 @@ export function routeOf(path: string, search: string): XRoute {
   const lang = query.get('lang');
   const preview = query.get('preview') === '1' ? { preview: true as const } : {};
   const parts = path.split('/').filter(Boolean);
+  if (parts[0] === 'x' && parts[1] === 'connect' && (parts.length === 2 || (parts.length === 3 && parts[2] === 'back'))) return { kind: 'connect', frame: false, lang };
   const addOn = nameIn(parts, 'chat');
   if (addOn !== undefined) return { kind: 'chat', addOn, frame, lang, ...preview };
   const page = nameIn(parts, 'pages');

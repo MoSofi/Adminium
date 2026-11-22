@@ -77,7 +77,7 @@ describe.each(LEGS)('a gift card\'s balance, asked by a stranger — %s', (diale
 
   it.skipIf(!run)('the app\'s key gains the balance entry, and the link has a key of its own', async () => {
     const endpoints = (await publicEndpointsRepo(h.meta).listByConnection(h.connectionId)).filter((endpoint) => endpoint.managedBy === 'offers').map((endpoint) => endpoint.ref).sort();
-    expect(endpoints).toEqual([LINK, BALANCE].sort());
+    expect(endpoints).toEqual([LINK, BALANCE, 'offers_vouchers_verified', 'offers_gift_cards_verified'].sort());
     const link = (await publicKeysRepo(h.meta).listManagedBy('offers')).filter((key) => key.revokedAt === null);
     expect(link.map((key) => key.purpose)).toEqual(['offers-link']);
   });

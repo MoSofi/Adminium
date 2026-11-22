@@ -237,10 +237,24 @@ with a sentence saying so.
 
 Five things a customer screen needs that the example above leaves out:
 
-- **A list comes in key order, and the caller cannot change it.** An app's public endpoint takes
-  `limit`, `offset` and `cursor`, and refuses a sort, a filter or a search of the caller's
-  (`order`, `where`, `q`) with `400 PUBLIC_QUERY_REFUSED`. Sort the rows in the screen. To keep
-  rows out of the public list, write `filters` on the entry in `access.json`: that is decided by
+- **A list comes in key order unless its entry says otherwise.** An app's public endpoint always
+  takes `limit`, `offset` and `cursor`. The rest must be declared in `manifest/access.json`, where
+  `n` is the entry's place in the `publicAccess` array:
+  - `q` needs text columns in `publicAccess[n].searchable`. Send it from 2 characters.
+  - `order` (`'price.asc'`) needs the column in `publicAccess[n].orderable`.
+  - `where` (`{ column: 'price', op: 'lte', value: 20 }`, several under `{ and: [ … ] }`, never
+    `or`) needs the column in `publicAccess[n].filterable`.
+  - `via` (the same shape as `where`) asks about the rows of another list that link to this one,
+    such as a product's variants. It needs `publicAccess[n].via`, for example
+    `{ "entry": "variants", "on": "product_id", "columns": ["colour", "size"] }`. Every condition
+    must hold on one of those rows, and each column must be in that other list's `select`.
+
+  Every other column must be in that entry's `select`. Only an entry with `"methods": ["GET"]`, no
+  sign-in and no code may declare these, and `compatibility.minAdminiumVersion` in
+  `manifest/app.json` must be `0.3.68` or later. See
+  [Filters, search and sort on public lists](/guides/apps/shopper-lists/). Anything undeclared is
+  refused with `400 PUBLIC_QUERY_REFUSED`: sort or narrow the rows in the screen instead. To keep
+  rows out of the public list for everyone, write `publicAccess[n].filters`: that is decided by
   the app, not by whoever calls.
 
 - **`createPublicClient` may return `null`**, when it is given no address or no key. Check for it

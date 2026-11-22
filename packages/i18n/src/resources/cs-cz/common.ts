@@ -425,13 +425,11 @@ export default {
     "on": "Zapnuto",
     "off": "Vypnuto",
     "nameRequired": "Zadejte své jméno.",
-    "emailHelper": "Slouží k přihlášení. Ke změně je potřeba vaše heslo.",
     "confirmPassword": "Současné heslo",
     "confirmPasswordHelper": "Potvrďte svou totožnost, než se změní vaše přihlašovací adresa.",
     "save": "Uložit změny",
     "saveFailed": "Váš profil se nepodařilo uložit",
     "saved": "Profil aktualizován",
-    "savedBody": "Vaše nové údaje platí na celém serveru. Pokud jste změnili e-mail, přihlašujte se od teď novou adresou.",
     "accessTitle": "Přístup",
     "accessSubtitle": "Co tento účet smí a jak prokazuje svou totožnost.",
     "rolesHelper": "Role uděluje správce a z vlastního účtu je nelze změnit.",
@@ -447,6 +445,21 @@ export default {
       "reset": "Vrátit na výchozí nastavení serveru",
       "resetFailed": "Tuto předvolbu se nepodařilo obnovit. Zkuste to znovu.",
       "appliesInstantly": "Změny se projeví okamžitě a uloží se do vašeho profilu."
+    },
+    "emailHelperLink": "Slouží k přihlášení. Ke změně potřebujete heslo a odkaz zaslaný na novou adresu.",
+    "savedProfileBody": "Vaše nové údaje se na tomto serveru už používají.",
+    "emailPendingTitle": "Zkontrolujte svou novou adresu",
+    "emailPendingBody": "Na adresu {email} jsme poslali odkaz. Dokud ho neotevřete, přihlašujte se dál pomocí {current}.",
+    "confirmEmail": {
+      "action": "Potvrdit adresu",
+      "back": "Zpět na váš účet",
+      "body": "Adresa z vašeho e-mailu se stane přihlašovací adresou tohoto účtu.",
+      "doneBody": "Od této chvíle se přihlašujte novou adresou.",
+      "doneTitle": "Adresa změněna",
+      "failedBody": "Možná vypršel, byl nahrazen novějším nebo patří k jinému účtu. Nový si můžete vyžádat na stránce svého účtu.",
+      "failedTitle": "Tento odkaz nefunguje",
+      "takenBody": "Tato adresa nyní patří jinému účtu. Na stránce svého účtu zvolte jinou.",
+      "title": "Potvrďte svou novou adresu"
     }
   },
   "settings": {
@@ -1854,12 +1867,18 @@ export default {
       }
     },
     "roles": {
-      "unavailable": "Role nejsou pro váš účet viditelné, takže zde žádnou nelze přiřadit."
+      "unavailable": "Role nejsou pro váš účet viditelné, takže zde žádnou nelze přiřadit.",
+      "above": "Role s oprávněními, která nemáte, zde nelze udělit ani odebrat.",
+      "refused": "Můžete udělit jen role, jejichž oprávnění sami máte, a nemůžete odebrat roli, která má víc oprávnění než vy.",
+      "accountRefused": "Tato osoba má oprávnění nebo řádky, ke kterým nemáte přístup, proto nemůžete změnit její e-mail ani jí poslat nový přihlašovací odkaz.",
+      "reachRefused": "Tím byste získali přístup k řádkům, které vám vaše role nedává.",
+      "signInLocked": "Tato osoba má oprávnění nebo řádky, ke kterým nemáte přístup, proto nový odkaz může poslat jen někdo, kdo k nim přístup má."
     },
     "rolesDialog": {
       "description": "Uživatel dostane sjednocení všech rolí, které má.",
       "failed": "Role se nepodařilo změnit",
-      "title": "Role uživatele {name}"
+      "title": "Role uživatele {name}",
+      "invitedNote": "Přidělením další role skončí aktuální pozvánka této osoby: poté jí pošlete nový odkaz."
     },
     "rolesLocked": "Změna rolí vyžaduje oprávnění „Spravovat role“.",
     "search": "Hledat podle jména nebo e-mailu",
@@ -1932,6 +1951,10 @@ export default {
       "body": "{name} se už nebude moci přihlásit a bude všude odhlášen(a). Účet, role a historie zůstanou a můžete je znovu aktivovat.",
       "failed": "Účet se nepodařilo pozastavit",
       "confirmHand": "Předat a pozastavit"
+    },
+    "apiKeys": {
+      "revokedOnSuspend": "Všechny klíče API, které vytvořil uživatel {name}, se nyní odvolají. Opětovná aktivace uživatele {name} je nevrátí.",
+      "revokedOnRemove": "Všechny klíče API, které vytvořil uživatel {name}, se odvolají."
     }
   },
   "invoices": {

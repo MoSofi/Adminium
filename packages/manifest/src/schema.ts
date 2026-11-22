@@ -27,6 +27,7 @@ import { addOnNeedsIssues, addOnsSchema, requiresAddOn, type AddOnNeeds } from '
 import { NAV_LINK_SCREENS, RECORD_ADDRESS_MESSAGE, SIDE_PATH_MESSAGE, isRecordAddress, isSidePath, railIssues } from './rail.js';
 import { addOnModuleIssues, moduleIdSchema, moduleIssues, modulesSchema, optionalShapeAddOns, roleNamesSchema, shapeIsOptional, withoutModules } from './modules.js';
 import { bookingIssues, bookingSchema } from './booking.js';
+import { connectedAccountsIssues, connectedAccountsSchema, type ConnectedAccountsRule } from './connected-accounts.js';
 import { occupiesIssues, occupiesSchema } from './occupies.js';
 import { columnHistorySchema, removalIssues, removalSchema } from './removal.js';
 import { capacityIssues, capacitySchema, isLegacyCapacity, kindOf, rulesOf, viaIndexIssues, type Capacity } from './capacity.js';
@@ -41,6 +42,7 @@ import { CHAT_KEY, FORMS_KEY, chatKeyReserved, codeWhereSchema, personalColumn, 
 import { appGrantsIssues, appGrantsSchema, roleTableHold, type AppGrantTableShape, type RoleTableHold } from './app-grants.js';
 import { belongsIssues, belongsSchema, privateTableIssues, roleAddOnTableIssues, roleAddOnTablesSchema, type RoleAddOnTable, roleLimitIssues, roleLimitsSchema, rowTablesOf, type RoleShape, privateShapeIssues, storedTotalIssues } from './roles.js';
 import { conditionIssues, stateConditionSchema, statesIssues, statesSchema, type States } from './states.js';
+import { embedIssues, frontendEmbedSchema } from './embed.js';
 import { MOMENT_LIMITS, clockTimeSchema, momentIssues, momentSchema, settingRefSchema } from './refs.js';
 import {
   NUMERIC_TYPES,
@@ -70,6 +72,7 @@ import { mailClassFloorIssues } from './mail-class.js';
 import { keepSchema, peopleIssues, peopleSchema, publicConsentIssues } from './people.js';
 import { shippingIssues, shippingSchema } from './shipping.js';
 import { expireIssues, expireSchema } from './expire.js';
+import { holdersIssues, holdersSchema } from './holders.js';
 import { automationIssues, manifestAutomationsSchema, type AutomationTableShape, type ManifestAutomation } from './automations.js';
 import { changeGuardIssues, changeGuardsSchema } from './change-guards.js';
 import { adjustDecidedColumns, adjustIssues, adjustSchema, adjusterIssues, adjusterSchema, type Adjuster, type AdjustTableShape } from './adjust.js';
@@ -763,6 +766,12 @@ export const columnRulesSchema = z
         table: z.union([refSchema, addOnTableSchema]),
         column: refSchema,
         where: codeWhereSchema.optional(),
+        /**
+         * The address column of the codes table: a signed-in person may name a
+         * row they hold as `held:<key>` in place of its code, and it is found
+         * only when this column holds the address their session proved.
+         */
+        held: refSchema.optional(),
         scope: z
           .array(z.object({ column: refSchema, equals: refSchema, orEmpty: z.literal(true).optional() }).strict())
           .min(1)
@@ -1269,6 +1278,8 @@ export const requiredTableSchema = z
     booking: bookingSchema.optional(),
     /** A row takes a resource for a time: no two overlap, and it lies within the resource's hours (see `occupies.ts`). */
     occupies: occupiesSchema.optional(),
+    /** Each row may connect its own outside account through the named add-ons (see `connected-accounts.ts`). */
+    connectedAccounts: connectedAccountsSchema.optional(),
     /** States, the moves between them, locks and no-delete (see `states.ts`). */
     states: statesSchema.optional(),
     /**
@@ -1341,6 +1352,8 @@ export const requiredTableSchema = z
     keep: keepSchema.optional(),
     /** An add-on's own rows let go some days after a moment of theirs, unless a column holds a value (see `expire.ts`). */
     expire: expireSchema.optional(),
+    /** Who holds a row of value, and when it stops being worth anything: what "delete my details" keeps and for how long (see `holders.ts`). */
+    holders: holdersSchema.optional(),
   })
   .strict()
   .refine(
@@ -1371,6 +1384,7 @@ export const requiredTableSchema = z
     for (const issue of uniqueSetIssues(t)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of indexSetIssues(t)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of expireIssues(t)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    for (const issue of holdersIssues(t)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
   });
 
 /**
@@ -1809,6 +1823,8 @@ export const frontendSchema = z
       .record(z.string().regex(/^[a-z][a-z0-9_]*$/, 'a table ref'), z.string().max(200).refine(isRecordAddress, RECORD_ADDRESS_MESSAGE))
       .refine((value) => Object.keys(value).length > 0, 'name at least one table')
       .optional(),
+    /** The screens of a customer side a listed website may show in a frame (`embed.ts`). */
+    embed: frontendEmbedSchema.optional(),
   })
   .strict();
 
@@ -2418,6 +2434,20 @@ function perNightIssues(
     else if (!valueFits(filter, adjust.where.eq)) out.push({ path: at('adjust', 'where'), message: `${JSON.stringify(adjust.where.eq)} is not a value of "${adjust.table}.${adjust.where.column}"` });
     else if (filter.nullable === true) out.push({ path: at('adjust', 'where'), message: `"${adjust.table}.${adjust.where.column}" may be empty, so a row could drop out unseen; make it not nullable` });
   }
+  return out;
+}
+
+/** `forget.copies` blanks the copies reached by a link to the person: the people entry must declare at least one. */
+function forgetCopiesIssues(m: { publicAccess?: readonly PublicAccess[] | undefined; people?: readonly unknown[] | undefined }): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  (m.publicAccess ?? []).forEach((entry, e) => {
+    if (entry.forget?.copies !== true) return;
+    const linked = (m.people ?? []).some((one) => {
+      const person = one as { table?: unknown; copies?: readonly { via?: unknown }[] };
+      return person.table === entry.table && (person.copies ?? []).some((copy) => copy.via !== undefined);
+    });
+    if (!linked) out.push({ path: ['publicAccess', e, 'forget', 'copies'], message: `"${entry.table}" declares no copy kept through a link to the person, so "copies" has nothing to blank` });
+  });
   return out;
 }
 
@@ -3226,6 +3256,11 @@ export function appReferenceIssues(
       out.push(...bookingIssues(table, table.booking, index, at));
       // The late flag is Adminium's to set.
       if (table.booking.cancel?.flag !== undefined) decide(table.ref, table.booking.cancel.flag);
+      // So is whether it picked the person.
+      if (table.booking.anyone?.flag !== undefined) decide(table.ref, table.booking.anyone.flag);
+    }
+    if (table.connectedAccounts !== undefined) {
+      out.push(...connectedAccountsIssues(table, table.connectedAccounts, index, new Set([...(m.addOns?.requires ?? []), ...(m.addOns?.suggests ?? [])].map((need) => need.key)), at));
     }
     if (table.occupies !== undefined) {
       out.push(...occupiesIssues(table, table.occupies, index, at));
@@ -3274,6 +3309,7 @@ export function appReferenceIssues(
   out.push(...rollupChainIssues(m.requiredSchema.tables));
 
   out.push(
+    ...forgetCopiesIssues(m),
     ...publicAccessIssues(m.publicAccess ?? [], {
       index,
       appKey: m.key,
@@ -3655,6 +3691,9 @@ function codeLookupIssues(
   } else if (column.type !== 'fk' || column.nullable !== true || column.references !== into) {
     out.push({ path: [...path, 'table'], message: `a lookup fills this table's link to "${into}": the column is a nullable foreign key to it` });
   }
+  if (lookup.held !== undefined && lookup.scope !== undefined) {
+    out.push({ path: [...path, 'held'], message: 'a row named by the person who holds it is found by its key and their address: a lookup with a scope cannot say held' });
+  }
   const typed = table.columns.find((c) => c.ref === lookup.from);
   if (typed === undefined) {
     out.push({ path: [...path, 'from'], message: `"${table.ref}" has no column "${lookup.from}"` });
@@ -3898,6 +3937,7 @@ export interface RequiredTableShape {
   capacity?: Capacity | undefined;
   booking?: z.infer<typeof bookingSchema> | undefined;
   occupies?: z.infer<typeof occupiesSchema> | undefined;
+  connectedAccounts?: ConnectedAccountsRule | undefined;
   states?: States | undefined;
   builtOn?: string | undefined;
   postings?: z.infer<typeof postingsSchema> | undefined;
@@ -3935,13 +3975,15 @@ export const HOST_REFERENCES_FLOOR = '0.3.43';
  * entry held to the app whose key serves it. An app's rows are its owner's to
  * keep, and its entries serve its own key only.
  */
-function addOnOnlyWordIssues(m: { requiredSchema: { tables: readonly { expire?: unknown }[] }; publicAccess?: readonly { appColumn?: string | undefined }[] | undefined }): { path: (string | number)[]; message: string }[] {
+function addOnOnlyWordIssues(m: { requiredSchema: { tables: readonly { expire?: unknown; holders?: unknown }[] }; publicAccess?: readonly { appColumn?: string | undefined; heldBy?: unknown }[] | undefined }): { path: (string | number)[]; message: string }[] {
   const out: { path: (string | number)[]; message: string }[] = [];
   m.requiredSchema.tables.forEach((table, t) => {
     if (table.expire !== undefined) out.push({ path: ['requiredSchema', 'tables', t, 'expire'], message: "only an add-on's own table expires: an app's rows are its owner's to keep" });
+    if (table.holders !== undefined) out.push({ path: ['requiredSchema', 'tables', t, 'holders'], message: "only an add-on's own table names holders: an app's people are declared in `people`" });
   });
   (m.publicAccess ?? []).forEach((entry, e) => {
     if (entry.appColumn !== undefined) out.push({ path: ['publicAccess', e, 'appColumn'], message: "an app's entry serves its own key and its own rows: appColumn is said by an add-on's entry" });
+    if (entry.heldBy !== undefined) out.push({ path: ['publicAccess', e, 'heldBy'], message: "an app's rows name their person by a link: heldBy is said by an add-on's entry" });
   });
   return out;
 }
@@ -4045,6 +4087,7 @@ export const appManifestSchema = z
   .refine(sidesAreDistinct, { ...SIDES_MESSAGE, path: [...SIDES_MESSAGE.path] })
   .superRefine((m, ctx) => {
     for (const issue of phoneSideIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    for (const issue of embedIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of railIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of installFloorIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of mailClassFloorIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
@@ -4785,7 +4828,7 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
      * (a design's code, which the order's lines hold) and nothing else. Never
      * a list: everyone the app signs in would read every row.
      */
-    if (entry.key === undefined && entry.level !== undefined && entry.claim === undefined && entry.claimedBy === undefined && entry.visibleWith === undefined) {
+    if (entry.key === undefined && entry.level !== undefined && entry.claim === undefined && entry.claimedBy === undefined && entry.visibleWith === undefined && entry.heldBy === undefined) {
       if (entry.unlockBy === undefined || !('self' in entry.unlockBy)) {
         out.push({ path: ['publicAccess', e, 'unlockBy'], message: "an add-on's read for whoever an app signed in opens one row by its own code: give it unlockBy {\"header\": true, \"column\": …, \"self\": true, \"length\": …}" });
       }

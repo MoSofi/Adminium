@@ -57,6 +57,7 @@ import {
 import { bootstrapQuery, holdsSystemAction } from '../app/bootstrap.js';
 import { useCommonWords } from '../i18n/commonWords.js';
 import { t } from '../i18n/t.js';
+import { peopleFailureText } from './peopleRefusals.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { peopleQuery } from './rolesApi.js';
@@ -161,7 +162,7 @@ export function TeamsPage(): ReactNode {
         ) : null}
       </div>
 
-      {remove.error === null ? null : <Alert role="alert" tone="danger" data-testid="teams-error" title={t('team.teams.failed', 'The team was not changed')} body={remove.error.message} />}
+      {remove.error === null ? null : <Alert role="alert" tone="danger" data-testid="teams-error" title={t('team.teams.failed', 'The team was not changed')} body={peopleFailureText(remove.error)} />}
       {(teams.data?.over ?? []).map((one) => (
         <Alert key={one.userId} tone="warn" data-testid="teams-over" title={t('team.teams.over', '{name} leads more than {max} people. Only the first {max} are reached.', { name: one.name, max: teams.data?.reachMax ?? 0 })} />
       ))}
@@ -328,8 +329,14 @@ function TeamSheet(props: { team: TeamDto | null; onClose: () => void; onDelete:
       let id = team?.id ?? null;
       if (changes.rename !== null) id = (id === null ? await createTeam(changes.rename) : await renameTeam(id, changes.rename)).id;
       if (id === null) return;
+      // Seats first: one that is refused leaves everybody where they were, and a new team is not left behind half made.
+      try {
+        for (const one of changes.set) await setTeamMember(id, one.userId, one.lead);
+      } catch (error) {
+        if (team === null) await deleteTeam(id).catch(() => undefined);
+        throw error;
+      }
       for (const userId of changes.remove) await removeTeamMember(id, userId);
-      for (const one of changes.set) await setTeamMember(id, one.userId, one.lead);
     },
     onSuccess: props.onClose,
     // Read again whatever happened: a refusal part of the way leaves the changes before it saved.
@@ -428,7 +435,7 @@ function TeamSheet(props: { team: TeamDto | null; onClose: () => void; onDelete:
         </section>
 
         {!missingName ? null : <Alert role="alert" tone="warn" title={t('team.teams.needName', 'Give the team a name first.')} />}
-        {save.error === null ? null : <Alert role="alert" tone="danger" data-testid="team-sheet-error" title={t('team.teams.failed', 'The team was not changed')} body={save.error.message} />}
+        {save.error === null ? null : <Alert role="alert" tone="danger" data-testid="team-sheet-error" title={t('team.teams.failed', 'The team was not changed')} body={peopleFailureText(save.error)} />}
       </DrawerBody>
       <DrawerFooter className="justify-between">
         {team === null ? (

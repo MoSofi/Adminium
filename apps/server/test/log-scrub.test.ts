@@ -8,16 +8,37 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { Writable } from 'node:stream';
+import { fileURLToPath } from 'node:url';
 
+import BetterSqlite3 from 'better-sqlite3';
+import { createSqliteMetaDb, firstRun } from '@adminium/meta';
 import pino from 'pino';
 
-import { REDACT_PATHS } from '../src/app.js';
+import { REDACT_PATHS, buildLogger, buildServer } from '../src/app.js';
 import { REDACTED, SENSITIVE_QUERY_PARAMS, scrubUrlForLog } from '../src/log-scrub.js';
+import { makeEnv } from './helpers.js';
 
 const TOKEN = 'f'.repeat(64);
 
 describe('scrubUrlForLog', () => {
+  it.each([
+    ['/x/cal/feed-secret.ics', `/x/cal/${REDACTED}`],
+    ['/x/c%61l/feed-secret.ics', `/x/c%61l/${REDACTED}`],
+    ['/%78/CAL/feed-secret.ics', `/%78/CAL/${REDACTED}`],
+    ['/x/cal/feed-secret.ics?download=1', `/x/cal/${REDACTED}?download=1`],
+    ['http://host.example/x/cal/feed-secret.ics', `http://host.example/x/cal/${REDACTED}`],
+  ])('hides a calendar feed token however its path is spelled: %s', (url, expected) => {
+    expect(scrubUrlForLog(url)).toBe(expected);
+  });
+
+  it('leaves a calendar path with no token, and other /x/ pages, as sent', () => {
+    expect(scrubUrlForLog('/x/cal/')).toBe('/x/cal/');
+    expect(scrubUrlForLog('/x/calendar/page')).toBe('/x/calendar/page');
+  });
+
   it("redacts a pay link's token, a way back's nonce and a demo attempt, in every pay path", () => {
     const token = 'Xk2v9QpL7mN3aR5tW8yZ1b';
     expect(scrubUrlForLog(`/pay/${token}`)).toBe(`/pay/${REDACTED}`);
@@ -128,5 +149,158 @@ describe('scrubUrlForLog', () => {
     // Another of the door's paths, and a path that only begins alike, keep what they are.
     expect(scrubUrlForLog('/m/x/abc')).toBe('/m/x/abc');
     expect(scrubUrlForLog('/media/c/abc')).toBe('/media/c/abc');
+  });
+
+  it('redacts the token of an object link, which erases a person', () => {
+    expect(scrubUrlForLog(`/m/o/${TOKEN}`)).toBe(`/m/o/${REDACTED}`);
+    expect(scrubUrlForLog(`/m/o/${TOKEN}~abc_DEF-123?from=mail`)).toBe(`/m/o/${REDACTED}?from=mail`);
+    expect(scrubUrlForLog('/m/o/')).toBe('/m/o/');
+  });
+
+  it('redacts a mail or pay token however the router-accepted address is spelled', () => {
+    expect(scrubUrlForLog(`/m/%6F/${TOKEN}`)).toBe(`/m/%6F/${REDACTED}`);
+    expect(scrubUrlForLog(`/m/%75/${TOKEN}`)).toBe(`/m/%75/${REDACTED}`);
+    expect(scrubUrlForLog(`/%6D/l/${TOKEN}?x=1`)).toBe(`/%6D/l/${REDACTED}?x=1`);
+    expect(scrubUrlForLog(`/p%61y/${TOKEN}`)).toBe(`/p%61y/${REDACTED}`);
+    expect(scrubUrlForLog(`/pay/%61pi/${TOKEN}/challenge`)).toBe(`/pay/%61pi/${REDACTED}/challenge`);
+    expect(scrubUrlForLog(`/pay/b%61ck/${TOKEN}`)).toBe(`/pay/b%61ck/${REDACTED}`);
+    expect(scrubUrlForLog(`/pay/api/d%65mo/${TOKEN}`)).toBe(`/pay/api/d%65mo/${REDACTED}`);
+    expect(scrubUrlForLog(`http://shop.example/m/o/${TOKEN}`)).toBe(`http://shop.example/m/o/${REDACTED}`);
+    expect(scrubUrlForLog(`http://shop.example/pay/${TOKEN}`)).toBe(`http://shop.example/pay/${REDACTED}`);
+    // A broken escape in the token does not hide it.
+    expect(scrubUrlForLog(`/m/%6F/${TOKEN}%zz`)).not.toContain(TOKEN);
+    expect(scrubUrlForLog(`/p%61y/${TOKEN}%zz`)).not.toContain(TOKEN);
+  });
+
+  it('keeps the paths around the mail and pay links as they were', () => {
+    for (const url of ['/m', '/m/', '/m/u/', '/m/x/abc', '/mo/abc', '/pay', '/pay/', '/pay/api/', '/pay/back/', '/pay/assets/pay-abc123.js', '/pay/assets/', '/payments/abc']) {
+      expect(scrubUrlForLog(url), url).toBe(url);
+    }
+  });
+
+  it('redacts the one-use codes of the signed-in doors and keeps the route readable', () => {
+    for (const route of ['/api/v1/bridge/seed/', '/api/v1/documents/print-once/', '/api/v1/data/undo/', '/api/v1/llm/runs/run_1/undo/']) {
+      expect(scrubUrlForLog(`${route}${TOKEN}`)).toBe(`${route}${REDACTED}`);
+      expect(scrubUrlForLog(`${route}${TOKEN}?x=1`)).toBe(`${route}${REDACTED}?x=1`);
+      expect(scrubUrlForLog(`http://shop.example${route}${TOKEN}`)).toBe(`http://shop.example${route}${REDACTED}`);
+    }
+    expect(scrubUrlForLog(`/api/v1/d%61ta/undo/${TOKEN}`)).toBe(`/api/v1/d%61ta/undo/${REDACTED}`);
+    expect(scrubUrlForLog(`/api/v1/llm/runs/run_1/%75ndo/${TOKEN}`)).toBe(`/api/v1/llm/runs/run_1/%75ndo/${REDACTED}`);
+    expect(scrubUrlForLog(`/api/v1/data/undo//${TOKEN}`)).not.toContain(TOKEN);
+  });
+
+  it('leaves the routes beside those doors alone', () => {
+    for (const url of ['/api/v1/bridge/handoff', '/api/v1/bridge/seed', '/api/v1/bridge/seed/', '/api/v1/documents/print', '/api/v1/documents/print-once', '/api/v1/data/undo', '/api/v1/data/undo/', '/api/v1/data/conn_1/orders', '/api/v1/data/conn_1/orders/5', '/api/v1/llm/runs/run_1', '/api/v1/llm/runs/run_1/undo', '/api/v1/llm/runs/run_1/undo/']) {
+      expect(scrubUrlForLog(url), url).toBe(url);
+    }
+  });
+
+  it('no log line or audit row takes a request URL unscrubbed', () => {
+    const root = fileURLToPath(new URL('../src', import.meta.url));
+    const files = (dir: string): string[] => readdirSync(dir).flatMap((name) => {
+      const path = join(dir, name);
+      return statSync(path).isDirectory() ? files(path) : path.endsWith('.ts') ? [path] : [];
+    });
+    const raw = files(root).filter((file) => /\burl: *(?:req|request)\.(?:raw\.)?url\b/.test(readFileSync(file, 'utf8')));
+    expect(raw.map((file) => file.slice(root.length + 1))).toEqual([]);
+  });
+
+  it('redacts a mail notice token and keeps the service', () => {
+    for (const service of ['ses', 'postmark', 'mailgun', 'brevo', 'sendgrid', 'other']) {
+      expect(scrubUrlForLog(`/api/v1/email/notices/${service}/${TOKEN}`)).toBe(`/api/v1/email/notices/${service}/${REDACTED}`);
+    }
+    expect(scrubUrlForLog(`/api/v1/email/notices/other/${TOKEN}?attempt=2`)).toBe(`/api/v1/email/notices/other/${REDACTED}?attempt=2`);
+    // As sent, apart from the token: a log line should read like the request that made it.
+    expect(scrubUrlForLog(`/api/v1/email/n%6Ftices/oth%65r/${TOKEN}`)).toBe(`/api/v1/email/n%6Ftices/oth%65r/${REDACTED}`);
+    expect(scrubUrlForLog(`http://mail.example/api/v1/email/notices/other/${TOKEN}`)).toBe(`http://mail.example/api/v1/email/notices/other/${REDACTED}`);
+  });
+
+  it('redacts a token that landed in the wrong place on a notice address', () => {
+    expect(scrubUrlForLog(`/api/v1/email/notices/${TOKEN}`)).toBe(`/api/v1/email/notices/${REDACTED}`);
+    expect(scrubUrlForLog(`/api/v1/email/notices/other//${TOKEN}`)).toBe(`/api/v1/email/notices/other/${REDACTED}`);
+    expect(scrubUrlForLog(`/api/v1/email/notices/other/${TOKEN}/extra`)).toBe(`/api/v1/email/notices/other/${REDACTED}`);
+    expect(scrubUrlForLog(`/api/v1/email/n%6Ftices/other/${TOKEN}%zz`)).not.toContain(TOKEN);
+  });
+
+  it('leaves paths that only look like a notice address alone', () => {
+    for (const url of ['/api/v1/email/notices', '/api/v1/email/notices/', '/api/v1/email/notices/other', '/api/v1/email/other/abc', '/api/v2/email/notices/other/abc', '/x/api/v1/email/notices/other/abc']) {
+      expect(scrubUrlForLog(url), url).toBe(url);
+    }
+  });
+
+  it.each([
+    [`/reset/${TOKEN}`, `/reset/${REDACTED}`],
+    [`/r%65set/${TOKEN}`, `/r%65set/${REDACTED}`],
+    [`/RESET/${TOKEN}`, `/RESET/${REDACTED}`],
+    [`/reset/${TOKEN}?from=mail`, `/reset/${REDACTED}?from=mail`],
+    [`/reset//${TOKEN}`, `/reset/${REDACTED}`],
+    [`/reset/${TOKEN}/extra`, `/reset/${REDACTED}`],
+    [`http://host.example/reset/${TOKEN}`, `http://host.example/reset/${REDACTED}`],
+  ])('hides a password or invitation link however its path is spelled: %s', (url, expected) => {
+    expect(scrubUrlForLog(url)).toBe(expected);
+  });
+
+  it('leaves the paths beside a reset link as they were', () => {
+    for (const url of ['/reset', '/reset/', '/resets/abc', '/api/v1/auth/password/reset', '/x/reset/abc']) {
+      expect(scrubUrlForLog(url), url).toBe(url);
+    }
+  });
+
+  it('writes no working reset link to the real request log', async () => {
+    const lines: string[] = [];
+    const env = makeEnv();
+    const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+    await firstRun(meta);
+    const app = await buildServer({
+      env,
+      metaDb: meta,
+      logger: buildLogger(env, { pretty: false, stream: { write: (line: string) => void lines.push(line) } }),
+    });
+    await app.ready();
+
+    await app.inject({ method: 'GET', url: `/reset/${TOKEN}` });
+
+    await app.close();
+    await meta.db.destroy();
+    const log = lines.join('\n');
+    expect(log).toContain('/reset/');
+    expect(log).not.toContain(TOKEN);
+  });
+});
+
+describe('a token in a spelling the router or a proxy may pass', () => {
+  it.each([
+    [`/account/confirm-email/${TOKEN}`, `/account/confirm-email/${REDACTED}`],
+    [`/%61ccount/CONFIRM-email/${TOKEN}`, `/%61ccount/CONFIRM-email/${REDACTED}`],
+    [`//reset/${TOKEN}`, `//reset/${REDACTED}`],
+    [`//x/cal/${TOKEN}.ics`, `//x/cal/${REDACTED}`],
+    [`//pay/${TOKEN}`, `//pay/${REDACTED}`],
+    [`//m/u/${TOKEN}`, `//m/u/${REDACTED}`],
+    [`/reset;a/${TOKEN}`, `/reset;a/${REDACTED}`],
+    [`http://h.example//reset/${TOKEN}`, `http://h.example//reset/${REDACTED}`],
+  ])('hides it in the path: %s', (url, expected) => {
+    expect(scrubUrlForLog(url)).toBe(expected);
+  });
+
+  it.each([
+    [`/%78/forms/s?t=${TOKEN}`, `/%78/forms/s?t=${REDACTED}`],
+    [`http://h.example/x/forms/s?t=${TOKEN}`, `http://h.example/x/forms/s?t=${REDACTED}`],
+    [`//x/forms/s?t=${TOKEN}`, `//x/forms/s?t=${REDACTED}`],
+  ])("hides a stranger page's token: %s", (url, expected) => {
+    expect(scrubUrlForLog(url)).toBe(expected);
+  });
+
+  it.each([
+    [`/login?returnTo=%2Faccount%2Fconfirm-email%2F${TOKEN}`, `/login?returnTo=${REDACTED}`],
+    [`/login?returnTo=/reset/${TOKEN}`, `/login?returnTo=${REDACTED}`],
+    [`/login?RETURNTO=%2Fx%2Fcal%2F${TOKEN}.ics&a=1`, `/login?RETURNTO=${REDACTED}&a=1`],
+  ])('hides a token carried in a way back: %s', (url, expected) => {
+    expect(scrubUrlForLog(url)).toBe(expected);
+  });
+
+  it('keeps a way back with no token readable', () => {
+    expect(scrubUrlForLog('/login?returnTo=%2Fapps%2Forders')).toBe('/login?returnTo=%2Fapps%2Forders');
+    expect(scrubUrlForLog('/account/settings?tab=email')).toBe('/account/settings?tab=email');
+    expect(scrubUrlForLog('/login?returnTo=%E0%A4%A')).toBe('/login?returnTo=%E0%A4%A');
   });
 });

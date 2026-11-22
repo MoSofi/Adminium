@@ -37,6 +37,8 @@ const ALLOWED: Record<string, string> = {
     "a waitlist claim's release (`reserved.releaseTo`): the kept places it took move to their released state inside the claim's own write, under the pool's lock the judge holds — their state column only, with no audit row or live frame of their own",
   'schema-ddl/rename-repair.ts':
     "a renamed table's stored name, rewritten in the columns that keep one (a receipt's source and line): Adminium's own mend of its own text, on rows no rule of the table may refuse or decide",
+  'crud/booking-busy.ts':
+    "a connected calendar's busy times, swapped per account and window in one transaction under the booking guard's venue-day locks: a private table only Adminium writes, whose rows no person can write or read, so no rule, hook or live frame is owed for them",
   'crud/rows-naming.ts':
     "a leaver's rows handed to somebody else, as the person is suspended or removed: only the columns that decide whose a row is, a database's rows in one transaction, with one audit entry a table and the count (`rbac/hand-over.ts`) — no hook, rule or live frame a row, for a person who is no longer here",
   'outbox/release.ts':
@@ -61,6 +63,10 @@ const ALLOWED: Record<string, string> = {
     "a named survey's invitation keeps the hash of the token its mail carries and when it stops, written as the system once the message is claimed and only while the invitation is unanswered: Adminium's own record of a link it made, never a person's save",
   'privacy/form-answers.ts':
     "the survey invitations sent to an erased person lose the address and the name, by key, as the system, under the privacy action, for the reasons the erasure of their own rows gives (privacy/erase-rows.ts)",
+  'privacy/held-values.ts':
+    "what a person holds on an add-on's table (a pack, a gift card), written as the system: their details emptied or marked when they are forgotten, and their key and address moved when their address changes, by key or by the old key, so a save's rules, mail and hooks do not run for a change the person did not make to that row",
+  'privacy/forget-copies.ts':
+    "a person's own delete empties the declared copies on the rows linked to their key, inside the transaction that empties their own row, as the system: a save would judge the booking again, move or lock on a state, stamp, mail and fire the app's rules",
   'privacy/erase-rows.ts':
     "a person erased in place under the privacy action: their own fields, their declared copies and their outbox mail emptied by key, one transaction a database, as the system — a save would run under a role's reach and stop half-way, drop the strict stamps it empties, fire the rules (which would mail and copy the name back into history), follow copies into sent and locked rows, and log the name in its before-image; the erasure audits itself with counts and a keyed hash",
   'forms/invitation.ts':

@@ -37,6 +37,12 @@ export interface FilterCondition {
   op: FilterOp;
   /** Required except for is_null / not_null. */
   value?: unknown;
+  /**
+   * Set by the server alone (the wire's grammar has no such word): `eq` compares
+   * the stored bytes. A MySQL collation otherwise reads `adà@` as `ada@`, and an
+   * address is somebody's.
+   */
+  exact?: true;
 }
 
 export type RecordFilter =
@@ -267,6 +273,7 @@ function compileCondition(eb: Eb, ctx: CompileFilterContext, condition: FilterCo
   const value = () => bindable(ctx, column, requireValue(condition));
   switch (condition.op) {
     case 'eq':
+      if (condition.exact === true && ctx.dialect === 'mysql') return sql<SqlBool>`BINARY ${ref} = ${value()}`;
       return eb(ref, '=', value());
     case 'neq':
       return eb(ref, '!=', value());

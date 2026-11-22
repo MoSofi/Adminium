@@ -181,5 +181,60 @@ for (const dialect of TEST_DIALECTS) {
       expect(await resets.gc(T0 + 20)).toBe(1);
       expect(await resets.findValidByTokenHash('th2', T0 + 21)).toMatchObject({ id: keep.id });
     });
+
+    it('password resets: a new invite retires every unused link of that person, and nobody else\'s', async () => {
+      const users = usersRepo(meta());
+      const resets = passwordResetsRepo(meta());
+      const person = await users.create({ email: 'new-invite@b.co', name: 'P' }, T0);
+      const other = await users.create({ email: 'new-invite-other@b.co', name: 'O' }, T0);
+      const expiresAt = T0 + 86_400_000;
+
+      await resets.create({ userId: person.id, kind: 'invite', tokenHash: 'inv-1', expiresAt }, T0);
+      await resets.create({ userId: person.id, kind: 'reset', tokenHash: 'rst-1', expiresAt }, T0);
+      await resets.create({ userId: other.id, kind: 'invite', tokenHash: 'inv-other', expiresAt }, T0);
+      await resets.create({ userId: person.id, kind: 'invite', tokenHash: 'inv-2', expiresAt }, T0 + 1);
+
+      expect(await resets.findValidByTokenHash('inv-1', T0 + 2)).toBeNull();
+      expect(await resets.findValidByTokenHash('rst-1', T0 + 2)).toBeNull();
+      expect(await resets.findValidByTokenHash('inv-2', T0 + 2)).not.toBeNull();
+      expect(await resets.findValidByTokenHash('inv-other', T0 + 2)).not.toBeNull();
+    });
+
+    it('password resets: a new reset retires earlier resets and leaves an invite working', async () => {
+      const users = usersRepo(meta());
+      const resets = passwordResetsRepo(meta());
+      const person = await users.create({ email: 'new-reset@b.co', name: 'P' }, T0);
+      const expiresAt = T0 + 86_400_000;
+
+      await resets.create({ userId: person.id, kind: 'invite', tokenHash: 'keep-inv', expiresAt }, T0);
+      await resets.create({ userId: person.id, kind: 'reset', tokenHash: 'old-rst', expiresAt }, T0);
+      await resets.create({ userId: person.id, kind: 'reset', tokenHash: 'new-rst', expiresAt }, T0 + 1);
+
+      expect(await resets.findValidByTokenHash('old-rst', T0 + 2)).toBeNull();
+      expect(await resets.findValidByTokenHash('new-rst', T0 + 2)).not.toBeNull();
+      // The forgot form is open to anyone: it must not be a way to kill someone's invitation.
+      expect(await resets.findValidByTokenHash('keep-inv', T0 + 2)).not.toBeNull();
+    });
+
+    it('password resets: redeeming one link retires the rest, and only one can win', async () => {
+      const users = usersRepo(meta());
+      const resets = passwordResetsRepo(meta());
+      const person = await users.create({ email: 'redeem@b.co', name: 'P' }, T0);
+      const expiresAt = T0 + 86_400_000;
+
+      const invite = await resets.create({ userId: person.id, kind: 'invite', tokenHash: 'r-inv', expiresAt }, T0);
+      const reset = await resets.create({ userId: person.id, kind: 'reset', tokenHash: 'r-rst', expiresAt }, T0);
+      expect(await resets.redeem(invite.id, person.id, T0 + 1)).toBe(true);
+      expect(await resets.findValidByTokenHash('r-rst', T0 + 2)).toBeNull();
+      expect(await resets.redeem(reset.id, person.id, T0 + 2)).toBe(false);
+      expect(await resets.redeem(invite.id, person.id, T0 + 3)).toBe(false);
+
+      // Two different live links sent at the same moment: never both.
+      const racer = await users.create({ email: 'redeem-race@b.co', name: 'R' }, T0);
+      const one = await resets.create({ userId: racer.id, kind: 'invite', tokenHash: 'race-inv', expiresAt }, T0);
+      const two = await resets.create({ userId: racer.id, kind: 'reset', tokenHash: 'race-rst', expiresAt }, T0);
+      const wins = await Promise.all([resets.redeem(one.id, racer.id, T0 + 1), resets.redeem(two.id, racer.id, T0 + 1)]);
+      expect(wins.filter(Boolean).length).toBeLessThanOrEqual(1);
+    });
   });
 }

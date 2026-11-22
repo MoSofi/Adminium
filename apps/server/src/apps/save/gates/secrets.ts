@@ -61,6 +61,9 @@ export const SECRET_SOURCES = [
   'adminium_webhooks.secretEncrypted',
   'adminium_manifests.licenseKeyEncrypted',
   'adminium_add_on_credentials.payload',
+  'adminium_connected_accounts.payload',
+  'adminium_oauth_flows.verifierSealed',
+  'adminium_calendar_channels.secretSealed',
   'adminium_public_keys.tokenEncrypted',
   'adminium_public_challenges.newDestinationEnc',
   'adminium_payment_links.tokenSealed',
@@ -361,6 +364,15 @@ export async function collectKnownSecrets(meta: MetaDb, masterSecret: string, pr
   }
   for (const row of await db.selectFrom('adminium_add_on_credentials').select(['payload']).execute()) {
     list.addOpened('an add-on\'s key', credential(row.payload));
+  }
+  for (const row of await db.selectFrom('adminium_connected_accounts').select(['payload']).execute()) {
+    if (row.payload !== null) list.addOpened('a connected account\'s token', credential(row.payload));
+  }
+  for (const row of await db.selectFrom('adminium_oauth_flows').select(['verifierSealed']).execute()) {
+    list.add('a sign-in in progress', credential(row.verifierSealed), 'opaque');
+  }
+  for (const row of await db.selectFrom('adminium_calendar_channels').select(['secretSealed']).execute()) {
+    list.add('a calendar channel\'s secret', credential(row.secretSealed), 'opaque');
   }
   for (const row of await db.selectFrom('adminium_public_keys').select(['tokenEncrypted']).execute()) {
     list.add('a public key\'s token', dsn(row.tokenEncrypted), 'opaque');

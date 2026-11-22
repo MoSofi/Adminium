@@ -117,6 +117,23 @@ describe('requests', () => {
     expect(url.searchParams.get('limit')).toBe('5');
   });
 
+  it('encodes `via` as JSON, beside the list’s own `where`', async () => {
+    // Dropped, a declared filter through the variants answers every product, with no error to say so.
+    const { client, calls } = make(() => ({ data: [] }));
+    await client.list('products', {
+      where: { column: 'category', op: 'eq', value: 'jackets' },
+      via: { and: [{ column: 'colour_code', op: 'eq', value: 'slate' }, { column: 'size_code', op: 'in', value: ['m', 'l'] }] },
+    });
+    const url = new URL(calls[0]?.url ?? '');
+    expect(JSON.parse(url.searchParams.get('via') ?? '')).toEqual({
+      and: [
+        { column: 'colour_code', op: 'eq', value: 'slate' },
+        { column: 'size_code', op: 'in', value: ['m', 'l'] },
+      ],
+    });
+    expect(JSON.parse(url.searchParams.get('where') ?? '')).toEqual({ column: 'category', op: 'eq', value: 'jackets' });
+  });
+
   it('omits query params that were not supplied', async () => {
     const { client, calls } = make(() => ({ data: [] }));
     await client.list('menu');

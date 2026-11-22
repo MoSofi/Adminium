@@ -38,6 +38,7 @@ An add-on manifest has `"kind": "add-on"` and shares the identity fields, `compa
 | `recordTabs` | no | 1–6 tabs of its rows shown on another table's record. See [A tab on another table's record](https://docs.adminium.dev/reference/manifest/#a-tab-on-another-tables-record). |
 | `checker` | no | What the add-on reads to say whether a design may be ordered. See [The design question](https://docs.adminium.dev/reference/manifest/#the-design-question). |
 | `panels` | no | 1–6 of its own screens drawn on the record pages of tables that link into one of its tables. See [A panel on another table's record](https://docs.adminium.dev/reference/manifest/#a-panel-on-another-tables-record). |
+| `framedPage` | no | One small page of the add-on's own, for an outside script that must never run in an app's page. Served at `/x/add-on-frame/<key>` in its own sandbox, with the hosts it names. See below. Needs 0.3.71. |
 | `shapes` | no | 1–8 shapes apps build their tables on. See below. |
 | `scope` | no | `"server"`: the add-on is installed once for the whole server, not once per database. Payment providers say so: two businesses on one server share one provider account. Without it, an add-on installs on its host app's database (or the one chosen), once per database. Needs Adminium 0.3.49. |
 | `chat` | no | A live chat's four tables: `conversations`, `messages`, `answers` and `choices`. See [Live chat](https://docs.adminium.dev/reference/manifest/#live-chat). Needs Adminium 0.3.64. |

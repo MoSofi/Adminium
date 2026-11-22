@@ -22,6 +22,8 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { FastifyRequest } from 'fastify';
 import {
+  emailChangesRepo,
+  passwordResetsRepo,
   rolesRepo,
   sessionsRepo,
   settingsRepo,
@@ -33,10 +35,15 @@ import {
 import { USER_INVITE_TEMPLATE_KEY, enqueueEmail } from '../../email/send.js';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { recipientLocale, translatorFor } from '../../i18n/server-i18n.js';
+import { scrubUrlForLog } from '../../log-scrub.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { getPrincipal, type RbacPrincipal } from '../../rbac/principal.js';
+import { REACH_ABOVE_YOU } from '../../rbac/reach-held.js';
 import { SUPER_ADMIN_SLUG } from '../../rbac/resolver.js';
 import { linkOrigin } from '../../security/public-origin.js';
 import { toUserView } from '../auth/handlers.js';
+import { roleGiving } from '../roles/role-giving.js';
+import { accountKeyAuditEntries, revokeAccountKeys } from './account-keys.js';
 import { INVITE_TOKEN_TTL_MS, mintInvite, type MintedInvite } from './invite.js';
 import { cursorText } from '../../security/nul-bytes.js';
 import {
@@ -91,7 +98,6 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
   const { meta } = app.rbac;
   const users = usersRepo(meta);
   const roles = rolesRepo(meta);
-  const sessions = sessionsRepo(meta);
 
   /**
    * The master secret, off the auth plugin's context rather than threaded in:
@@ -100,6 +106,51 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
    * Absent only on a server built without a meta store, which cannot get here.
    */
   const emailSecret = app.authContext?.env.ADMINIUM_SECRET;
+
+  /**
+   * Stops an account in one transaction with its API keys (`account-keys.ts`):
+   * no moment where the person is stopped and a key of theirs still works, and
+   * no key revoked for a stop that did not happen. Then what is open closes.
+   */
+  async function stopAccount(request: FastifyRequest, user: User, how: 'suspend' | 'delete', at: number): Promise<void> {
+    await meta.db.transaction().execute(async (trx) => {
+      const inTransaction = { ...meta, db: trx };
+      // First: a key being made for this person waits for the stop, and then sees it (`POST /api-keys`). SQLite has one writer.
+      const held = trx.selectFrom('adminium_users').select('id').where('id', '=', user.id);
+      await (meta.dialect === 'sqlite' ? held : held.forUpdate()).execute();
+      const keys = await revokeAccountKeys(inTransaction, user.id, at);
+      // What they could still use or hand on: their own reset links, invitations they issued, and connect links they made.
+      const resets = passwordResetsRepo(inTransaction);
+      await resets.retireFor([user.id], at);
+      const invited = await trx
+        .selectFrom('adminium_user_roles as granted')
+        .innerJoin('adminium_users as person', 'person.id', 'granted.userId')
+        .select('person.id')
+        .where('granted.grantedBy', '=', user.id)
+        .where('person.status', '=', 'invited')
+        .execute();
+      await resets.retireFor([...new Set(invited.map((person) => person.id))], at, 'invite');
+      const links = await trx.selectFrom('adminium_connect_links').select('id').where('createdBy', '=', user.id).execute();
+      if (links.length > 0) {
+        const ids = links.map((link) => link.id);
+        await trx.deleteFrom('adminium_oauth_flows').where('linkId', 'in', ids).execute();
+        await trx.deleteFrom('adminium_connect_links').where('id', 'in', ids).execute();
+      }
+      if (how === 'delete') await trx.deleteFrom('adminium_users').where('id', '=', user.id).execute();
+      else {
+        await usersRepo(inTransaction).updateStatus(user.id, 'suspended', at);
+        await sessionsRepo(inTransaction).revokeAllForUser(user.id, at);
+      }
+      // In the transaction: after a removal for good, this is all that says whose a key was.
+      for (const entry of accountKeyAuditEntries(user, keys)) await app.rbac.audit(request, entry, inTransaction);
+    });
+    closeConnections(user.id);
+  }
+
+  /** Ends a person's open sockets and streams (`jobs/register.ts`); a server with no realtime has none. */
+  const closeConnections = (userId: string): void => {
+    (app as unknown as { closeUserConnections?: (id: string) => number }).closeUserConnections?.(userId);
+  };
 
   /**
    * Queue the invitation mail. Returns whether it was QUEUED — not whether it
@@ -166,6 +217,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
     }
   }
 
+  const giving = roleGiving(app);
   const guarded = { preHandler: app.rbac.require(PERMISSIONS.usersManage) };
   /** Role assignment is a `roles:manage` power even on a users route. */
   const roleGuarded = {
@@ -216,45 +268,23 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
   }
 
   async function superAdminHolderCount(roleId: string): Promise<number> {
+    // Those who can act: only somebody active can reinstate anybody.
     const rows = await meta.db
       .selectFrom('adminium_user_roles')
-      .select('userId')
-      .where('roleId', '=', roleId)
+      .innerJoin('adminium_users', 'adminium_users.id', 'adminium_user_roles.userId')
+      .select('adminium_user_roles.userId')
+      .where('adminium_user_roles.roleId', '=', roleId)
+      .where('adminium_users.status', '=', 'active')
       .execute();
     return rows.length;
   }
 
   /**
-   * Minting guard, as `POST /users/:id/roles` carries it: only a session user
-   * who HOLDS super-admin may hand it out, so a `roles:manage` holder cannot
-   * promote itself to allow-all. An API-key principal never qualifies.
-   */
-  async function assertMayMintSuperAdmin(
-    request: FastifyRequest,
-    before: readonly Role[],
-    after: readonly Role[],
-  ): Promise<void> {
-    const held = before.some((role) => role.slug === SUPER_ADMIN_SLUG);
-    const keeps = after.some((role) => role.slug === SUPER_ADMIN_SLUG);
-    if (held || !keeps) return;
-    const actorId = actingUserId(request);
-    const actorIsSuperAdmin =
-      actorId !== null &&
-      (await roles.rolesForUser(actorId)).some((role) => role.slug === SUPER_ADMIN_SLUG);
-    if (!actorIsSuperAdmin) {
-      throw new ForbiddenError('Only a Super Admin can grant the Super Admin role.');
-    }
-  }
-
-  /**
    * A Super Admin's account is changed only by a Super Admin.
    *
-   * `users.manage` is the Admin role's key, and without this it let an Admin
-   * suspend, delete, re-role or re-invite a Super Admin — and PATCH their email,
-   * which hands the password reset for an allow-all account to whoever owns the
-   * new address. The last-super-admin guard only stopped the LAST one. This is
-   * the same asymmetry {@link assertMayMintSuperAdmin} encodes for granting the
-   * role; an API-key principal never qualifies. Refusing is a 403, not the 409
+   * `users.manage` is the Admin role's key: it does not reach an account that
+   * holds every permission there is. This is the same asymmetry `role-giving.ts`
+   * holds for giving the role; an API-key principal never qualifies. Refusing is a 403, not the 409
    * the invariants below throw: it is about who is asking, not about state.
    */
   async function assertMayActOnAccount(request: FastifyRequest, user: User): Promise<void> {
@@ -281,6 +311,8 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
     const superAdmin = before.find((role) => role.slug === SUPER_ADMIN_SLUG);
     if (superAdmin === undefined) return;
     if (after.some((role) => role.slug === SUPER_ADMIN_SLUG)) return;
+    // Somebody who is not active leaves the number who can act as it was.
+    if (user.status !== 'active') return;
     if ((await superAdminHolderCount(superAdmin.id)) > 1) return;
     throw new ConflictError('Cannot remove the last Super Admin.', 'CONFLICT', {
       userId: user.id,
@@ -342,13 +374,14 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
 
       const page = rows.slice(0, limit);
       const byUser = await rolesByUser(page.map((user) => user.id));
+      const locked = await giving.accountsAbove(request, byUser);
       const last = page[page.length - 1];
       const nextCursor =
         rows.length > limit && last !== undefined
           ? encodeCursor({ createdAt: last.createdAt, id: last.id })
           : null;
       return {
-        users: page.map((user) => toDto(user, byUser.get(user.id) ?? [])),
+        users: page.map((user) => ({ ...toDto(user, byUser.get(user.id) ?? []), signInLocked: locked.has(user.id) })),
         nextCursor,
         counts: await users.countByStatus(),
       };
@@ -373,7 +406,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
       }
       const granted = await resolveRoles(roleIds);
       // Checked before the row exists — a refused invite leaves nothing behind.
-      await assertMayMintSuperAdmin(request, [], granted);
+      for (const role of granted) await giving.assertMayHandle(request, role);
 
       const now = app.rbac.now();
       // NULL passwordHash + status 'invited': there is no credential to set
@@ -430,6 +463,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
       if (email !== undefined) {
         const next = email.trim().toLowerCase();
         if (next !== user.email) {
+          await giving.assertHoldsAccount(request, user.id, await roles.rolesForUser(user.id));
           const taken = await users.findByEmail(next);
           if (taken !== null && taken.id !== user.id) {
             throw new ConflictError('That email is already in use.', 'UNIQUE_VIOLATION', {
@@ -455,11 +489,21 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
       }
 
       const now = app.rbac.now();
-      if (Object.keys(patch).length > 0) await users.updateProfile(user.id, patch, now);
-      if (status !== null) {
+      // One write: an address and the links that went to the one before it.
+      await meta.db.transaction().execute(async (trx) => {
+        const inTransaction = { ...meta, db: trx };
+        if (Object.keys(patch).length > 0) await usersRepo(inTransaction).updateProfile(user.id, patch, now);
+        if (patch.email !== undefined) {
+          await emailChangesRepo(inTransaction).clear(user.id);
+          await passwordResetsRepo(inTransaction).retireFor([user.id], now);
+        }
+      });
+      // A suspended user must stop being logged in immediately, on what is already open and with their API keys too.
+      if (status === 'suspended') await stopAccount(request, user, 'suspend', now);
+      else if (status !== null) {
         await users.updateStatus(user.id, status, now);
-        // A suspended user must stop being logged in immediately.
-        if (status === 'suspended') await sessions.revokeAllForUser(user.id, now);
+        // A sign-in that raced the stop wrote its session after the stop's sweep: it stays dead when the account comes back.
+        if (status === 'active') await sessionsRepo(meta).revokeAllForUser(user.id, now);
       }
 
       const updated = await mustFindUser(user.id);
@@ -497,11 +541,17 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
       // a hand-over the server then refused the removal for would be rows moved for nothing, and it cannot be undone.
       const decorated = app as unknown as {
         rowsNamingUser?: (userId: string) => Promise<{ total: number; named: unknown[]; private: boolean }>;
-        handUserRows?: (from: User, toId: string, audit: (entry: { action: string; changes: { before: Record<string, unknown>; after: Record<string, unknown> } }) => Promise<void>) => Promise<{ failed: unknown[] }>;
+        handUserRows?: (from: User, toId: string, audit: (entry: { action: string; changes: { before: Record<string, unknown>; after: Record<string, unknown> } }) => Promise<void>, by: { principal: RbacPrincipal | null; refused: () => Promise<void> }) => Promise<{ failed: unknown[] }>;
       };
+      // Asked now: once their rows are handed on, nothing says which connections were theirs.
+      const leaving = app as unknown as { connectionsLeavingWith?: (person: { id: string; email: string }) => Promise<() => Promise<void>> };
+      const endConnections = permanent || request.query.handTo !== undefined ? await leaving.connectionsLeavingWith?.(user).catch(() => undefined) : undefined;
       if (request.query.handTo !== undefined) {
         if (decorated.handUserRows === undefined) throw new ConflictError('This server cannot hand rows over.', 'CONFLICT', { reason: 'HAND_OVER_UNAVAILABLE' });
-        await decorated.handUserRows(user, request.query.handTo, (entry) => app.rbac.audit(request, { category: 'rbac', ...entry }));
+        await decorated.handUserRows(user, request.query.handTo, (entry) => app.rbac.audit(request, { category: 'rbac', ...entry }), {
+          principal: getPrincipal(request),
+          refused: () => app.rbac.audit(request, { category: 'rbac', action: 'permission.denied', changes: { after: { reason: REACH_ABOVE_YOU, method: request.method, url: scrubUrlForLog(request.url), userId: user.id } } }),
+        });
       }
       // Gone for good, the rows that are still theirs would be nobody's that a colleague limited to "their own" could
       // reach. A private table's rows stay where they are, and are said only to be there.
@@ -525,7 +575,8 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
         // Explicitly asked for. FK CASCADE takes the user's prefs, sessions
         // and reset tokens with it, and `adminium_settings.updated_by` goes
         // NULL — audited under its own verb precisely because it is lossy.
-        await meta.db.deleteFrom('adminium_users').where('id', '=', user.id).execute();
+        await stopAccount(request, user, 'delete', now);
+        await endConnections?.().catch((error: unknown) => request.log.warn({ err: error }, 'a removed person\'s calendar connections could not be queued to end'));
         await app.rbac.audit(request, {
           category: 'rbac',
           action: 'user.delete',
@@ -534,8 +585,8 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
         return { ok: true as const, permanent: true, user: null };
       }
 
-      await users.updateStatus(user.id, 'suspended', now);
-      await sessions.revokeAllForUser(user.id, now);
+      await stopAccount(request, user, 'suspend', now);
+      await endConnections?.().catch((error: unknown) => request.log.warn({ err: error }, 'a stopped person\'s calendar connections could not be queued to end'));
       const suspended = await mustFindUser(user.id);
       await app.rbac.audit(request, {
         category: 'rbac',
@@ -558,7 +609,9 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
       assertNotSample(user);
       const after = await resolveRoles(request.body.roleIds);
       const before = await roles.rolesForUser(user.id);
-      await assertMayMintSuperAdmin(request, before, after);
+      // What this changes, in either direction: a role somebody keeps is not handed out again.
+      const moved = [...after.filter((role) => !before.some((held) => held.id === role.id)), ...before.filter((role) => !after.some((kept) => kept.id === role.id))];
+      for (const role of moved) await giving.assertMayHandle(request, role);
       await assertKeepsLastSuperAdmin(user, before, after);
 
       const now = app.rbac.now();
@@ -568,6 +621,10 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
       }
       for (const role of after) {
         await roles.assignToUser(user.id, role.id, actingUserId(request), now);
+      }
+      // An invitation opens the account as it now stands: one given more is invited again.
+      if (user.status === 'invited' && after.some((role) => !before.some((held) => held.id === role.id))) {
+        await passwordResetsRepo(meta).retireFor([user.id], now, 'invite');
       }
 
       await app.rbac.audit(request, {
@@ -589,6 +646,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
       const user = await mustFindUser(request.params.id);
       await assertMayActOnAccount(request, user);
       assertNotSample(user);
+      await giving.assertHoldsAccount(request, user.id, await roles.rolesForUser(user.id));
       if (user.status !== 'invited') {
         throw new ConflictError('This account has already been activated.', 'CONFLICT', {
           userId: user.id,

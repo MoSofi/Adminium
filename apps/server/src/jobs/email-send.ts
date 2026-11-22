@@ -157,6 +157,8 @@ const envelopeSchema = z.object({
       person: z.object({ connectionId: z.string().min(1).max(64), table: z.string().min(1).max(200), key: z.string().min(1).max(500) }).nullable(),
     })
     .optional(),
+  /** The calendar entry the mail carries. An older server drops it and sends the mail without. */
+  calendar: z.object({ method: z.enum(['REQUEST', 'CANCEL']), content: z.string().min(1).max(64_000) }).optional(),
 });
 
 /**
@@ -412,6 +414,7 @@ export function registerEmailSendHandler(registry: JobRegistry, deps: EmailSendH
         ...(envelope.from === undefined ? {} : { from: envelope.from }),
         ...(envelope.replyTo === undefined ? {} : { replyTo: envelope.replyTo }),
         ...(attachments.length === 0 ? {} : { attachments }),
+        ...(envelope.calendar === undefined ? {} : { calendar: envelope.calendar }),
         ...(Object.keys(headers).length === 0 ? {} : { headers }),
         ...(signed?.dkim == null ? {} : { dkim: signed.dkim }),
         ...(sendId === null ? {} : { messageId: campaignMessageId(sendId, from) }),

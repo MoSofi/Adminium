@@ -246,6 +246,7 @@ the database.
 | `part` | with `builtOn` | snake_case: which part of the shape the table is (`document`, `lines`, `payments`). Only a table with `builtOn` has one. |
 | `capacity` | no | A limit on how much of a pool the table's rows may take (a time slot, a ticket type, a room type's nights), or a list of up to three; see [Capacity](#capacity). |
 | `booking` | no | Rows that book a person's time, never overlapping; see [Booking](#booking). A table has `capacity` or `booking`, not both. |
+| `connectedAccounts` | no | Each row may connect its own outside account (a team member's calendar) through the add-ons it names: `{ "from", "address"?, "name"?, "active"? }`. `from` lists add-ons the app requires or suggests, `address` is the column a connect link is sent to, `name` the column naming the person, and `active` a bool whose row, switched off, has its connection ended. A role's `accounts:@:connect`, `send-link` and `disconnect` grants name who may act. Needs Adminium 0.3.71. |
 | `occupies` | no | Rows that take a resource for a time (a room for an hour, a van for a day), never overlapping; see [A resource and a time](#a-resource-and-a-time). A table has one of `capacity`, `booking` and `occupies`. Needs Adminium 0.3.28. |
 | `states` | no | The states a row moves through, what is locked in each, and the child tables tied to them; see [States](#states). |
 | `unique` | no | 1–8 sets of 2–4 columns no two rows may hold the same values in together; see [Columns unique together](#columns-unique-together). |
@@ -1660,16 +1661,23 @@ pieces fit together, see [Booking rules](/guides/apps/booking-rules/).
 |---|---|---|
 | `start` | yes | A `timestamptz` column: when the row starts, read in the venue's time zone. |
 | `minutes` | yes | An `int` column: how long the row lasts. Usually a `copy` from the kind. |
-| `resource` | yes | A foreign key: whose time the row takes. Left empty on a create, it means anyone: Adminium picks the first free person in `eligible.order`. |
+| `buffer` | no | An `int` column: minutes kept clear after the row, such as clean-up. It must be a `copy` from the kind with `"mode": "always"`. Two rows' times and buffers never overlap. Hours ask only of `minutes`, so a buffer may run past closing or into a break. Needs Adminium 0.3.71. |
+| `resource` | yes | A foreign key: whose time the row takes. Left empty on a create, it means anyone: Adminium picks a free person, by `anyone` or else the first in `eligible.order`. |
 | `kind` | yes | A foreign key: what the row is, which decides who may be booked for it. |
 | `countWhere` | yes | `{ "column", "values" }`: only rows whose column holds one of these values take time (a cancelled visit takes none). Each value must fit the column. |
 | `eligible` | yes | Who does what: `{ "table", "resource", "kind", "order"? }`, a link table whose two foreign keys point where the row's `resource` and `kind` point. A person with no link row for a kind is never booked for it. |
 | `eligible.order` | no | `{ "table", "column", "active"?, "public"? }`, kept on the table `resource` points at. `column` is a number: the order in which "anyone" picks. A person whose `active` bool is false is never booked; one whose `public` bool is false is never booked through the public API. |
 | `hours.practice` | yes | Weekly hours: `{ "table", "weekday", "opens", "closes", "breakStart"?, "breakEnd"?, "open"? }`, one row per weekday. `weekday` is an enum of exactly `mon`, `tue`, `wed`, `thu`, `fri`, `sat`, `sun`, in that order. The times are `text` columns holding `HH:MM`. A break names both its start and its end. `open` is a bool. |
 | `hours.own` | no | A person's own weekly hours, the same shape plus `resource`, a foreign key to the person. A person with rows here follows them every day, and a weekday with no row is a day off. A person with none follows the practice's hours. |
+| `hours.own.within` | no | `"practice"`: the practice's hours cap the person's own. The later opening and the earlier closing apply, both breaks hold, and a day the practice is shut is shut. Without it, a person's own hours replace the practice's. Needs Adminium 0.3.71. |
 | `closures` | no | Dated closures: `{ "table", "from", "to", "resource"?, "active"? }`. `from` and `to` are `date` columns. `resource` must be nullable: an empty one closes for everyone. `active` is a bool. |
+| `busy` | no | Up to four tables of times a person is away: `{ "table", "resource", "start", "end", "countWhere"?, "engine"? }`. See below. Needs Adminium 0.3.71. |
+| `anyone` | no | How "anyone" is given a person: `{ "pick", "made"?, "flag"? }`. See below. Without it, the first free person in the order. Needs Adminium 0.3.71. |
+| `sync` | no | Bookings out to, and busy times in from, each person's connected calendar: `{ "when", "calendarName", "title", "detail"? }`. See below. Needs Adminium 0.3.71. |
 | `grid` | yes | The minutes between bookable starts, counted from the opening time. At least 1. |
 | `windowDays` | no | How many working days ahead a booking may be made. |
+| `windowFor` | no | Who the window holds: `"everyone"` (the default) or `"guests"`, which leaves staff free to book further ahead. Needs Adminium 0.3.71. |
+| `placedFrom` | no | Up to eight states that take no time, such as an offer. A row moving from one of them into a counted state is judged as a new booking: hours, closures, who is offered, the window and a guest's notice. Without it, a row counted again is asked only about overlap. Needs Adminium 0.3.71. |
 | `noticeMinutes` | no | How far ahead a public booking must be. Staff are never held to it. |
 | `cancel` | no | Late cancellation: `{ "hours", "mode", "flag"?, "when" }`. See below. |
 
@@ -1677,7 +1685,36 @@ pieces fit together, see [Booking rules](/guides/apps/booking-rules/).
 value that does not count. Inside `hours` of the start, `mode: "refuse"` turns a guest's
 cancellation away, and `mode: "flag"` lets it through and sets `flag`, a bool column of the table,
 whoever cancels. `flag` is required with `"flag"` and not allowed with `"refuse"`. A guest can never
-move a booking inside the window, in either mode. Staff are never refused.
+move a booking, or change its person, inside the window, in either mode. Staff are never refused.
+
+A `busy` source is a table of times a person is away, such as part-day time off. `resource` is a
+foreign key to the person, and `start` and `end` are `timestamptz` columns, so one row may run for
+days. A new time may not touch one, for staff or guests. A busy time never moves or refuses a
+booking already there: a counted row that keeps its start and person is held only to any time it
+newly takes. With `engine: { "account": <text column> }` the rows are Adminium's own, a connected
+calendar's: the table must be `"private": true`, needs no `belongs`, and no person can write it.
+One source at most may say `engine`.
+
+`sync` needs a `busy` source with `engine`, and a resource table with
+[`connectedAccounts`](#tables). An event carries a title, a start, an end and the venue's zone, and
+nothing else: no attendee, place, description or reminder, and the buffer stays out.
+
+- `when` is `{ "column", "values" }`: the states that go out. Name them, because a counted state may
+  not be one for a calendar: a booking still being paid for holds its time and is on nobody's phone.
+- `calendarName` is the calendar Adminium makes, as text or `{ "table", "column" }` of the settings
+  row.
+- `title` is `{ "service", "person"? }`, each a text column or `fk.column` one link away.
+- `detail` is `{ "default", "max" }`, each `"first-name+initial"` or `"none"`. `max` is the most a
+  person's own setting may choose. Without it, first name and initial ("Ava R.", or "Cher" for a
+  one-word name). The morning after a visit the title becomes the service alone, and when a person
+  is forgotten or erased, every event of theirs is written again without the name.
+
+`anyone.pick` is `"order"`, `"even"`, or `{ "column" }`, an enum of those two on the kind's table,
+so each kind can choose. `even` gives the time to the free person with the fewest counted rows that
+day, then the one whose last row was made longest ago (`made`, a `timestamptz` of this table,
+required unless the pick is `"order"`), then the order. `flag` is a bool of this table that Adminium
+sets: true when it picked the person, false once a write names one. No writer can set it. A booking
+moved with its person emptied keeps that person when they are free.
 
 Nothing may start in the past, with one exception: staff may create a walk-in in the slot that
 holds the current time, when its status is a counted value other than the first in `countWhere`
@@ -3154,6 +3191,7 @@ there and is not declared.
 | `enabled` | no | Whether the side starts switched on. Absent means on. |
 | `records` | no | Staff side only: where a record opens on this side, from a table ref to a path with one `{id}`; see [Where a record opens](#where-a-record-opens). Needs Adminium 0.3.28. |
 | `instances` | no | `true`: the side reads its instance base and sends the `X-Adminium-Install` header, so every copy of the app (one per database) opens it. Without it, only the first copy's screens open; a later copy brings its pages, tables, roles and rules, and says its screens open for the first install only. See [An app on several databases](/self-hosting/apps-per-database/#screens-of-a-later-copy). Needs Adminium 0.3.49. |
+| `embed` | no | Customer side only: the screens a website on "Your websites" may show in a frame, as `{ "paths": [...], "modes": ["inline", "button", "floating"] }`. A path is `/book`, or `{ "path", "label", "choose" }` where `choose` names a query and a table's two shown columns for the snippet maker. See [An app's screens on your website](/guides/apps/on-your-website/). Needs Adminium 0.3.71. |
 
 ### Where a record opens
 
@@ -4005,6 +4043,7 @@ there for the same kind and source is what stops a second send.
 | `classes` | from 0.3.38 | Each kind's class, `marketing` or `service`; see [Marketing or service](#marketing-or-service). Needs Adminium 0.3.38, and from that floor every kind has one. |
 | `purposes` | no | Each kind's consent purpose, `newsletter` or `surveys`; see [A kind's purpose](#a-kinds-purpose). Needs Adminium 0.3.40. |
 | `surveyLinks` | no | The kinds whose template prints `{{survey_link}}`: a forms add-on's survey invitations; see [A survey's link](#a-surveys-link). Needs Adminium 0.3.40. |
+| `reviewLinks` | no | `{ "kinds", "link", "page" }`: the kinds whose template prints `{{reviewLink}}`, a link that reviews one row; see [Bookings in a calendar](/guides/apps/booking-calendars/). Needs Adminium 0.3.71. |
 | `producers` | no | Up to 32 rules that queue rows by themselves (more than 24 needs Adminium 0.3.62). See below. |
 
 **`recipient`** is `{ "via", "table", "email", "name"?, "language"?, "optIn"?, "fallback"? }`.
@@ -4574,7 +4613,7 @@ name, on the table's e-mail sheet. That is the owner's word and stays theirs acr
 
 ## Shipping
 
-`shipping` says where an app's orders keep what a delivery company needs. It needs Adminium 0.3.71
+`shipping` says where an app's orders keep what a delivery company needs. It needs Adminium 0.3.72
 or later. An app without it can never reach a real carrier: the engine refuses the call with
 `APP_NOT_UPDATED`, whatever the client sends.
 
@@ -4614,7 +4653,7 @@ its parcel goes. The country must hold a two-letter ISO code; Adminium never gue
 Buying a label never moves the order's status. A label bought with a test key reaches neither column.
 
 An app's role can be given three rights on this install's labels. They need the `shipping` block
-and Adminium 0.3.71 or later, and an update that adds one asks first.
+and Adminium 0.3.72 or later, and an update that adds one asks first.
 
 | Grant | What it allows |
 |---|---|
@@ -5185,6 +5224,13 @@ learns it by the `x-adminium-session-ended: forgotten` header, once); if that ca
 nothing is forgotten. A message about a forgotten person is not sent, even one queued before they
 asked. Every session the person holds can also be ended without forgetting anything:
 `POST /api/v1/public/session/revoke-all`.
+
+With `"copies": true` (Adminium 0.3.71 or later), the same delete also empties the person's copies
+that [`people[].copies`](#people) declares with a `via` link to them, in the transaction that empties
+their own row. A row is found by that link alone, so a row that merely holds the same typed address
+stays as it is. A table with `keep` stays whole. The rows are written directly: no state moves, no
+booking is judged again, and no mail or rule runs. The manifest is refused when no copy of the person
+has a `via`.
 
 ### Reads for a signed-in guest
 
@@ -6306,7 +6352,7 @@ recorded, so the app's page can put it back.
 | `branding` | `appName` (1–60), `showVersion`, `theme` (`light`, `dark`, `system`), `accent` (`indigo`, `blue`, `teal`, `violet`, `rose`, `red`, `orange`, `black`), `density` (`comfortable`, `compact`), and `logo` and `favicon` as files of the package, each `{ "file", "sha256" }`. |
 | `languages` | `enabled` (1–40 language ids such as `en_US`, each once) and `default`, which must be one of them. A language the target does not have is not switched on. |
 | `wording` | 1–5,000 changed interface words, each `{ "locale", "namespace", "key", "value" }`, each changed once. A blank value is a word left out on purpose. |
-| `systemEmails` | Edited system emails, each `{ "key", "locale", "content" }`, each edited once. `key` is one of `password-reset`, `user-invite`, `notification`, `document-ready`, `booking-confirmation`, `sign-in-code`, `email-changed`, `sign-in-link`, `details-deleted`, `payment-link`, `payment-receipt`, `sign-up-confirm`. The review shows each one's changes and every place its links go, each ticked on its own. |
+| `systemEmails` | Edited system emails, each `{ "key", "locale", "content" }`, each edited once. `key` is one of `password-reset`, `user-invite`, `notification`, `document-ready`, `booking-confirmation`, `sign-in-code`, `email-changed`, `email-change-confirm`, `sign-in-link`, `details-deleted`, `payment-link`, `payment-receipt`, `sign-up-confirm`. The review shows each one's changes and every place its links go, each ticked on its own. |
 | `settings` | From an allow-list only: `assistant.name`, `privacy.businessName`, `privacy.noticeUrl` (`https` only) and `email.postalAddress`. Any other setting is refused by name. |
 
 It carries something, or it is left out. It never carries any part of a setting that holds a
@@ -6411,6 +6457,7 @@ An add-on manifest has `"kind": "add-on"` and shares the identity fields, `compa
 | `recordTabs` | no | 1–6 tabs of its rows shown on another table's record. See [A tab on another table's record](#a-tab-on-another-tables-record). |
 | `checker` | no | What the add-on reads to say whether a design may be ordered. See [The design question](#the-design-question). |
 | `panels` | no | 1–6 of its own screens drawn on the record pages of tables that link into one of its tables. See [A panel on another table's record](#a-panel-on-another-tables-record). |
+| `framedPage` | no | One small page of the add-on's own, for an outside script that must never run in an app's page. Served at `/x/add-on-frame/<key>` in its own sandbox, with the hosts it names. See below. Needs 0.3.71. |
 | `shapes` | no | 1–8 shapes apps build their tables on. See below. |
 | `scope` | no | `"server"`: the add-on is installed once for the whole server, not once per database. Payment providers say so: two businesses on one server share one provider account. Without it, an add-on installs on its host app's database (or the one chosen), once per database. Needs Adminium 0.3.49. |
 | `chat` | no | A live chat's four tables: `conversations`, `messages`, `answers` and `choices`. See [Live chat](#live-chat). Needs Adminium 0.3.64. |
@@ -6469,6 +6516,36 @@ Adminium 0.3.43.
 A table anyone may add to through an entry is never one anyone may read through another on the
 same key: ready-made designs a shop offers live in a table of their own, apart from the designs
 shoppers save.
+
+
+#### The rows a signed-in customer holds (`heldBy`)
+
+An add-on keeps some rows for a person by their address, never by a key of the app's table: a pack,
+a gift card. `claimedBy` cannot reach those. `heldBy` is a read of exactly the rows held in the
+address the session **proved by reading mail**:
+
+```json
+{ "table": "vouchers", "methods": ["GET"], "level": "verified",
+  "heldBy": { "address": "holder_email" },
+  "select": ["id", "public_name", "uses_left", "expires_on", "code_last4"] }
+```
+
+The entry is an add-on's, on the app's `customer` key, `GET` only, at level `verified`, with a
+`select`. Its column keeps an address in one spelling (`normalize: "email"`). A session that only
+found the person, a row's own link, and no session at all are answered as an unknown ref. The address
+is what chooses the rows, compared byte for byte on every engine, and is not shown unless the entry
+selects it. `from` names a date column: a row dated for a later day is not listed before that day.
+Needs 0.3.71.
+
+**Spending what you hold, with no code in the browser.** A read like this shows only a code's last
+characters. The holder names a row instead, by typing `held:<key>` where a code goes:
+
+- on a price rule's codes, when the add-on's `adjuster.vouchers.held` names the voucher's holder
+  column. Only a row with a holder is found, and the add-on holds it to the proved customer;
+- on a `lookup` that names `held`, the address column of the codes table. The row is found only when
+  that column holds the address this session proved.
+
+Every miss is the answer an unknown code gets. Both need 0.3.71.
 
 #### A shopper's own link
 
@@ -6679,6 +6756,37 @@ One row a phase, written by Adminium: `id`, `source_table` and `line_table` (tex
 `rows` (a whole number), `add_on_version`, `origin` (`staff`, `public`, `system`), `by` (text), `at`
 (a date and time) and `held_until` (a date and time that may be empty). Adminium makes its unique
 key and its indexes itself.
+
+
+#### An add-on's own page in a sandbox (`addOn.framedPage`)
+
+Some services can only be used by loading their script in the visitor's browser. Such a script must
+never run in an app's page, which holds a guest's session and whose policy allows its own host alone.
+The add-on names one script of its package, and the outside hosts that page may reach:
+
+```json
+"framedPage": {
+  "script": "dist/frame.js",
+  "title": "Google reviews",
+  "evalScripts": true,
+  "hosts": { "script": ["https://maps.googleapis.com"], "connect": ["https://*.googleapis.com"] }
+}
+```
+
+Adminium serves it at `/x/add-on-frame/<key>`, and its script at `…/frame.js`, while the add-on is
+attached to an installed app and switched on there; otherwise both are a 404. The page's own policy:
+
+- **sandboxes it however it is opened** (`allow-scripts allow-popups allow-popups-to-escape-sandbox`),
+  so it has no origin, none of the app's storage and no reach into the page around it;
+- allows its one script and the listed `https` hosts, by directive (`script`, `style`, `img`, `font`,
+  `connect`, `frame`). A host is a name with at most one leading `*.`, and `evalScripts` adds
+  `'unsafe-eval'` and `blob:` workers inside the sandbox only;
+- lets only this host and the listed websites frame it;
+- has no origin of its own, so **a browser sends no `Referer` from it**. A service that checks a key
+  against the page's address may refuse it.
+
+The app's own pages keep their policy. The app makes the frame with the same `sandbox` attribute, and
+speaks to it by `postMessage`, checking `event.source`.
 
 #### Code that decides
 
@@ -6914,6 +7022,7 @@ parts and the reader's own grants. A manifest that uses it sets
 | `table`, `match` | The add-on's own table whose rows the tab lists, and its two columns that say which record a row belongs to: `match.table` holds a table's stored name (`"rules": { "tableRef": true }`), `match.row` the row's key as text. |
 | `on` | `"linked"`: every table a [posting rule](#postings) hands in to this add-on as the row asked about. Or up to 24 tables by their stored names. |
 | `columns` | 1–8 columns shown. `edit` lists those a reader who may change the rows edits in place. |
+| `presence` | Date columns among `columns` shown only as there or not, each `{ "column", "yes", "yesLabels", "no", "noLabels" }`: `yes` and `no` are the words, like `label`, and `yesLabels` and `noLabels` give them per language. The date is never sent to the tab. A tab with `presence` only lists rows: it has no `edit`, `form`, `add`, `remove` or `actions`. From `0.3.71`. |
 | `add` | `{ "pick" }`: a row is added by picking a row of another of the add-on's tables, shown by its `label` column. One pick, or two (an item or a kit). |
 | `remove` | `true`: a row may be removed from the tab. |
 | `form` | 1–8 columns: one row edited as a form, in place of a list. |

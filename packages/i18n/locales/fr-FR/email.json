@@ -877,7 +877,9 @@
     "intro": "Bonjour {name}, comme vous l’avez demandé, les données que {appName} conservait à votre sujet sont supprimées et vous êtes déconnecté partout.",
     "kept": "Ce que vous avez déjà chez nous reste valable, et les e-mails que vous avez déjà reçus l’ouvrent toujours. Vous n’aurez plus de nouvelles de nous, sauf si vous revenez.",
     "footer": "{appName}",
-    "stopped": "Les liens des e-mails que vous avez déjà reçus ne fonctionnent plus. Vous n’aurez plus de nouvelles de nous, sauf si vous revenez."
+    "stopped": "Les liens des e-mails que vous avez déjà reçus ne fonctionnent plus. Vous n’aurez plus de nouvelles de nous, sauf si vous revenez.",
+    "held": "Une exception : les forfaits ou cartes cadeaux qui ont encore un solde gardent votre nom et votre e-mail jusqu’à ce qu’ils soient épuisés ou expirés, afin que vous puissiez toujours les utiliser. Nombre conservé : {count}.",
+    "gifts": "Si quelqu’un d’autre vous a acheté une carte cadeau, elle n’est pas liée à votre compte : elle affiche toujours le nom et l’e-mail saisis. Contactez-nous si vous souhaitez les faire retirer."
   },
   "missing": {
     "chip": "{name} : indiquer quoi écrire quand la valeur manque",
@@ -1019,5 +1021,29 @@
     "object": "Je m’oppose",
     "questions": "Des questions ? Écrivez à {contact}. {who}.",
     "keptBy": "Conservées par {who}."
+  },
+  "connectLink": {
+    "name": "Connecter votre compte",
+    "subject": "{business} vous demande de connecter votre compte",
+    "preheader": "Le lien est valable {days} jours.",
+    "heading": "Connectez votre compte",
+    "intro": "Bonjour {name}, {business} vous demande de connecter votre propre compte. Utilisez bien le compte qui est le vôtre.",
+    "action": "Connecter mon compte",
+    "notice": "Le lien fonctionne une seule fois, pendant {days} jours. Si vous ne l’attendiez pas, ignorez cet e-mail : rien n’est connecté tant que vous ne vous identifiez pas."
+  },
+  "accountConnected": {
+    "name": "Compte connecté",
+    "subject": "Votre compte a été connecté chez {business}",
+    "heading": "Votre compte a été connecté",
+    "intro": "Bonjour {name}, {provider} est maintenant connecté pour vous chez {business} avec le compte {account}.",
+    "notice": "Si ce n’était pas vous, prévenez {business} immédiatement."
+  },
+  "emailChangeConfirm": {
+    "action": "Confirmer cette adresse",
+    "heading": "Confirmez votre nouvelle adresse",
+    "intro": "Bonjour {name}, une personne connectée à {appName} en tant que {currentEmail} a demandé à se connecter désormais avec {email}.",
+    "name": "Confirmer une nouvelle adresse de connexion",
+    "notice": "Ouvrez ce lien en étant connecté à ce compte. Il ne fonctionne qu’une fois et expire dans {expiresInHours} heures. Si vous ne connaissez pas ce compte, ignorez cet e-mail : rien ne change.",
+    "subject": "Confirmez votre nouvelle adresse de connexion à {appName}"
   }
 }

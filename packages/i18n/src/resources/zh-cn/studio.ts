@@ -121,7 +121,11 @@ export default {
       "paymentsWho": "由拥有“设置付款”权限的人在“付款”中设置。",
       "sourcesWhere": "请在它自己的“来源”页面上设置它的来源。",
       "sourceEgress": "{source} 可以联系：{hosts}",
-      "sourceWebsite": "{source}：Adminium 自己读取每家公司的网站"
+      "sourceWebsite": "{source}：Adminium 自己读取每家公司的网站",
+      "accountsNotSetUp": "未设置",
+      "accountsCount": "已连接 {connected} 人",
+      "accountsBoth": "已连接 {connected} 人 · {reconnect} 人需重新连接",
+      "accountsOpen": "打开"
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",
@@ -4776,6 +4780,7 @@ export default {
       "stays": {
         "forGood": "永久保留。",
         "days": "{count, plural, other {保留 # 天。}}",
+        "daysOnceRead": "{count, plural, other {保留至阅读，之后再保留 # 天。}}",
         "doNotEmail": "其地址会以代码形式保留在禁止发送邮件名单中，确保永不再向其发送邮件。",
         "lawHealth": "{label} 中的 {count, plural, other {# 行}}，因为卫生法规要求保留。",
         "lawContract": "{label} 中的 {count, plural, other {# 行}}，因为合同要求保留。",
@@ -4789,7 +4794,9 @@ export default {
         "notifications": "{count, plural, other {# 条发给员工的通知。}}",
         "campaignFailures": "{count, plural, other {# 次失败的活动发送，与活动的发送日志一起保留。}}",
         "exports": "员工从表格导出的数据可能包含其内容，直到每个导出到期。",
-        "shippingBookings": "{count, plural, other {# 条包裹预订及其跟踪号。承运商和物流服务会保留各自的副本。}}"
+        "shippingBookings": "{count, plural, other {# 条包裹预订及其跟踪号。承运商和物流服务会保留各自的副本。}}",
+        "heldValues": "{label} 中有 {count, plural, other {# 个套餐、礼品卡或储值}}仍有余额，持有人可继续使用。",
+        "heldValuesKept": "用完或过期后，其姓名和地址将被删除。"
       },
       "mismatch": "地址不一致。请重新输入。",
       "failed": "删除未完成。再次删除即可完成：已完成的部分保持完成。",
@@ -4867,14 +4874,14 @@ export default {
     },
     "websites": {
       "tab": "您的网站",
-      "listHeading": "可以显示您的表单和聊天的网站",
+      "listHeading": "可显示您的表单、聊天和预订页面的网站",
       "addedBy": "由 {name} 添加 · {date}",
       "addedOn": "添加于 {date}",
       "remove": "移除",
       "removeLabel": "移除 {url}",
       "removed": "已移除 {url}",
       "removeFailed": "未能移除 {url}。请重试。",
-      "none": "暂无。只有当某个网站在此列表中时，表单才会显示在该网站上。",
+      "none": "暂无。只有列入此列表的网站才能显示您的表单、聊天和预订页面。",
       "addLabel": "添加网站",
       "addHelp": "每行一个网站，以 https:// 开头。",
       "add": "添加",
@@ -4890,7 +4897,7 @@ export default {
         "ok": "可以添加"
       },
       "tooMany": "列表最多容纳 {max} 个网站。请先移除一个。",
-      "note": "列表中的网站可以在框架中显示您的表单和聊天，但永远无法访问您的数据。",
+      "note": "列表中的网站可在框架中显示您的表单、聊天和预订页面，但绝不能访问您的数据。",
       "embedHeading": "放到您的网站上",
       "copy": "复制",
       "copied": "已复制",
@@ -4914,6 +4921,33 @@ export default {
         "setIt": "去设置",
         "checkAgain": "重新检查",
         "loadFailed": "无法检查访客能否访问此服务器。请重试。"
+      },
+      "maker": {
+        "heading": "在您的网站上显示应用页面",
+        "app": "应用",
+        "screen": "页面",
+        "way": "显示方式",
+        "inline": "内嵌",
+        "inlineHelp": "显示在页面中",
+        "button": "按钮",
+        "buttonHelp": "点击后打开",
+        "floating": "悬浮",
+        "floatingHelp": "固定在角落",
+        "choice": "打开特定项目",
+        "any": "任意",
+        "words": "按钮文字",
+        "linkWords": "页面无法加载时的链接文字",
+        "site": "要放置的网站",
+        "notListed": "此网站尚无权显示您的页面。",
+        "add": "添加 {site}",
+        "preview": "预览",
+        "nothing": "这里暂时没有内容",
+        "nothingWhy": "此网站不在您的列表中，因此您的页面无法在其上加载。",
+        "close": "关闭",
+        "snippet": "代码片段",
+        "copyLabel": "复制代码片段",
+        "strict": "如果您的网站设置了内容安全策略，请在 script-src 和 frame-src 中允许 {origin}。",
+        "show": "显示真实页面"
       }
     },
     "reach": {

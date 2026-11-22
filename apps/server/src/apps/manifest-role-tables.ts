@@ -31,11 +31,12 @@
  */
 import { parseDatabaseModel } from '@adminium/engine';
 import { addOnRoleTableHold, holdWider, type RoleTableResult, type AddOnManifest, type Manifest, type RoleTableHold } from '@adminium/manifest';
-import { appTablesRepo, permissionsRepo, realTableOf, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type TableActions, type UpdateLimit } from '@adminium/meta';
+import { appTablesRepo, permissionsRepo, realTableOf, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type RowLimit, type TableActions, type UpdateLimit } from '@adminium/meta';
 
 import { addOnOfPageGrant, addOnScreensOf, roleGrantsOf, roleSlugFor, SEEDED_APP_ROLE_GRANTS_KEY, storedRowLimit } from './manifest-roles.js';
 import { addOnGrantsWider, holdOf, roleTablesOf, widerWords, type AddOnGrantWider, type RoleTableCheck } from '../add-ons/grants-wider.js';
 import { tableIdOrNull } from '../installs/table-id.js';
+import { OWNER_ROW_LIMITS_PENDING_KEY, ownerRowsOf, rowLimitWith } from './owner-row-limits.js';
 
 export { addOnGrantsWider, roleTablesOf, widerWords, type AddOnGrantWider, type RoleTableCheck };
 
@@ -206,7 +207,7 @@ export async function settleRolePages(input: { meta: MetaDb; app: Manifest; conn
  * to, by name. The app's grants of the add-ons' pages and panels are settled
  * first, the same way (`settleRolePages`).
  */
-export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; connectionId: string; live: readonly LiveForApp[] }): Promise<RoleTableResult[]> {
+export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; connectionId: string; live: readonly LiveForApp[]; }): Promise<RoleTableResult[]> {
   const { meta, app, connectionId } = input;
   const out: RoleTableResult[] = [];
   if (app.kind !== 'app') return out;
@@ -214,6 +215,8 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
   const declared = app.roles ?? [];
   const settings = settingsRepo(meta);
   const seeded = new Set(await settings.get(SEEDED_APP_ROLE_GRANTS_KEY));
+  // Installs whose stored limits are not sorted yet into the app's and the owner's: what is on their rows is kept.
+  const unsorted = new Set(await settings.get(OWNER_ROW_LIMITS_PENDING_KEY));
   const slugs = new Map(declared.map((role) => [roleSlugFor(app.key, role.key), role]));
   /** What the ledger says was given to this app's roles on add-ons' tables. */
   const given = [...seeded].flatMap((pair) => {
@@ -260,6 +263,10 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
       if (!live.has(addOn)) forget = actions.filter((action) => (existing?.actions as Record<string, unknown> | undefined)?.[action] === true);
       if (existing !== null) {
         const held = { ...(existing.actions as Record<string, unknown>) };
+        if (unsorted.has(role.manifestId ?? '')) {
+          const owner = ownerRowsOf(existing.actions as TableActions, true);
+          if (owner !== undefined) held['ownerRows'] = owner;
+        }
         for (const action of actions) held[action] = false;
         // A limit narrows an action: with the action taken back, so is what narrowed it.
         if (actions.includes('read')) delete held['readLimit'];
@@ -272,7 +279,8 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
           else held['rowLimit'] = rows;
         }
         const anyLeft = Object.entries(held).some(([name_, value]) => !name_.endsWith('Limit') && value === true);
-        if (anyLeft) await permissions.grant(role.id, 'table', ref, held as never);
+        // What the owner limited waits on the row, for when the add-on is back.
+        if (anyLeft || held['ownerRows'] !== undefined) await permissions.grant(role.id, 'table', ref, held as never);
         else await permissions.revoke(role.id, 'table', ref);
       }
     }
@@ -357,14 +365,23 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
           rows[action] = held.length === 1 ? held[0] : held;
         }
       }
-      const rowLimit = Object.keys(rows).length === 0 ? undefined : rows;
+      // The owner's reach stands over what the app declares; on a shared table it is held to this app's rows too.
+      const ownerRows = existing === null ? undefined : ownerRowsOf(existing.actions as TableActions, unsorted.has(role.manifestId ?? ''));
+      const settled = rowLimitWith(ownerRows, rows as RowLimit, appColumn === undefined ? null : { column: appColumn, in: [app.key] });
+      const stoppedPairs = new Set(settled.blocked.map((action) => pairOf(slug, entry.addOn, entry.table, action)));
+      for (const action of settled.blocked) {
+        next[action] = false;
+        // Not "given and taken away by the owner": it is given again once the owner's limit can hold here.
+        changed = seeded.delete(pairOf(slug, entry.addOn, entry.table, action)) || changed;
+      }
+      const rowLimit = settled.rows;
       const anyLeft = Object.values(next).some((value) => value === true);
       // The actions and their limits, one row, one statement.
-      if (anyLeft || (existing !== null && (update !== undefined || read !== undefined || create !== undefined || rowLimit !== undefined))) {
+      if (anyLeft || ownerRows !== undefined || (existing !== null && (update !== undefined || read !== undefined || create !== undefined || rowLimit !== undefined))) {
         await permissions.grant(role.id, 'table', ref, { ...next, ...(update === undefined ? {} : { updateLimit: update }), ...(read === undefined ? {} : { readLimit: read }), ...(create === undefined ? {} : { createLimit: create }), ...(rowLimit === undefined ? {} : { rowLimit }) } as never);
       } else if (existing !== null) await permissions.revoke(role.id, 'table', ref);
       // The ledger says what the row now holds — written down only once the row does.
-      for (const pair of giving) seeded.add(pair);
+      for (const pair of giving) if (!stoppedPairs.has(pair)) seeded.add(pair);
       for (const before of leaving) seeded.delete(before.pair);
       changed = changed || giving.length > 0 || leaving.length > 0;
       result({ ...hold, actions: actions.filter((action) => next[action] === true) });

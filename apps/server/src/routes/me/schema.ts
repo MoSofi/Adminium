@@ -17,11 +17,23 @@ import { authUserView } from '../auth/schema.js';
 export const meReply = z.object({ data: z.object({ user: authUserView }) });
 export type MeReply = z.infer<typeof meReply>;
 
+/** A saved profile; `emailChange` when a link went to a new address, which is not in force until it is opened. */
+export const mePatchReply = z.object({
+  data: z.object({
+    user: authUserView,
+    emailChange: z.object({ pendingEmail: z.string(), expiresAt: z.number() }).optional(),
+  }),
+});
+export type MePatchReply = z.infer<typeof mePatchReply>;
+
+export const meEmailConfirmBody = z.object({ token: z.string().min(1).max(200) });
+export type MeEmailConfirmBody = z.infer<typeof meEmailConfirmBody>;
+
 export const mePatchBody = z
   .object({
     name: z.string().trim().min(1).max(120).optional(),
     email: z.string().trim().min(3).max(320).optional(),
-    /** Required when `email` changes. */
+    /** Required when `email` changes. A new address takes effect only once the link mailed to it is opened. */
     password: z.string().min(1).max(200).optional(),
   })
   .refine((body) => body.email === undefined || body.password !== undefined, {

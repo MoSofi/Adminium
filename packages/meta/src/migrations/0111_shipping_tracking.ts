@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0107 — where a parcel is, and how Adminium heard.
+ * Wave 0111 — where a parcel is, and how Adminium heard.
  *
  *  - `adminium_shipping_track_installs`: one row per carrier install. The
  *    webhook token as a keyed hash (the address is shown once), the health of
@@ -20,8 +20,8 @@ import type { Kysely } from 'kysely';
 
 import type { ColumnHelpers } from '../columns.js';
 import { metaTable } from '../prefix.js';
-import { SHIPPING_HASH_WIDTH, SHIPPING_ID_WIDTH } from './0103_shipping.js';
-import { SHIPPING_CARRIER_TEXT_WIDTH, SHIPPING_URL_WIDTH } from './0105_shipping_bookings.js';
+import { SHIPPING_HASH_WIDTH, SHIPPING_ID_WIDTH } from './0107_shipping.js';
+import { SHIPPING_CARRIER_TEXT_WIDTH, SHIPPING_URL_WIDTH } from './0109_shipping_bookings.js';
 import { createIndexUnlessMade } from './probe.js';
 
 /** A carrier's status, or a transaction's, as one stable word. */

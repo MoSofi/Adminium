@@ -53,6 +53,8 @@ export interface PayPage {
   attempt: { provider: string; amount: string; at: number; receiptSent: boolean } | null;
   /** Back to the app the record is paid in, when it names where. Absent from a server one step behind. */
   back?: { url: string; app: string } | null;
+  /** The tab was opened beside a frame on the owner's website: it ends with "you can close this tab". */
+  beside?: true;
 }
 
 export type Credentials = 'omit' | 'same-origin';
