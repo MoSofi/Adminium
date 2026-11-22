@@ -13,10 +13,13 @@ import { join } from 'node:path';
 import { Writable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 
+import BetterSqlite3 from 'better-sqlite3';
+import { createSqliteMetaDb, firstRun } from '@adminium/meta';
 import pino from 'pino';
 
-import { REDACT_PATHS } from '../src/app.js';
+import { REDACT_PATHS, buildLogger, buildServer } from '../src/app.js';
 import { REDACTED, SENSITIVE_QUERY_PARAMS, scrubUrlForLog } from '../src/log-scrub.js';
+import { makeEnv } from './helpers.js';
 
 const TOKEN = 'f'.repeat(64);
 
@@ -223,5 +226,44 @@ describe('scrubUrlForLog', () => {
     for (const url of ['/api/v1/email/notices', '/api/v1/email/notices/', '/api/v1/email/notices/other', '/api/v1/email/other/abc', '/api/v2/email/notices/other/abc', '/x/api/v1/email/notices/other/abc']) {
       expect(scrubUrlForLog(url), url).toBe(url);
     }
+  });
+
+  it.each([
+    [`/reset/${TOKEN}`, `/reset/${REDACTED}`],
+    [`/r%65set/${TOKEN}`, `/r%65set/${REDACTED}`],
+    [`/RESET/${TOKEN}`, `/RESET/${REDACTED}`],
+    [`/reset/${TOKEN}?from=mail`, `/reset/${REDACTED}?from=mail`],
+    [`/reset//${TOKEN}`, `/reset/${REDACTED}`],
+    [`/reset/${TOKEN}/extra`, `/reset/${REDACTED}`],
+    [`http://host.example/reset/${TOKEN}`, `http://host.example/reset/${REDACTED}`],
+  ])('hides a password or invitation link however its path is spelled: %s', (url, expected) => {
+    expect(scrubUrlForLog(url)).toBe(expected);
+  });
+
+  it('leaves the paths beside a reset link as they were', () => {
+    for (const url of ['/reset', '/reset/', '/resets/abc', '/api/v1/auth/password/reset', '/x/reset/abc']) {
+      expect(scrubUrlForLog(url), url).toBe(url);
+    }
+  });
+
+  it('writes no working reset link to the real request log', async () => {
+    const lines: string[] = [];
+    const env = makeEnv();
+    const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+    await firstRun(meta);
+    const app = await buildServer({
+      env,
+      metaDb: meta,
+      logger: buildLogger(env, { pretty: false, stream: { write: (line: string) => void lines.push(line) } }),
+    });
+    await app.ready();
+
+    await app.inject({ method: 'GET', url: `/reset/${TOKEN}` });
+
+    await app.close();
+    await meta.db.destroy();
+    const log = lines.join('\n');
+    expect(log).toContain('/reset/');
+    expect(log).not.toContain(TOKEN);
   });
 });
