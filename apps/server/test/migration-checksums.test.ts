@@ -68,7 +68,7 @@
  * `@adminiumjs/adminium@0.3.70`, and each reads the same out of the published
  * release that first carried it.
  *
- * 0100 to 0105 ship in 0.3.71. They were read out of the built `dist` of the
+ * 0100 to 0106 ship in 0.3.71. They were read out of the built `dist` of the
  * tree being released, hashed under plain node; cross-check them against the
  * published `@adminiumjs/adminium@0.3.71` once it is on npm.
  *
@@ -307,6 +307,7 @@ const SHIPPED_CHECKSUMS: Readonly<Record<string, string>> = Object.freeze({
   '0103_email_changes': '6ff630c287b6b67e4a51503bd7579bf24825eae4f71b5c65b050d85efa9270dc',
   '0104_connect_link_address': 'a53a963b43b113db5e09e88fe7532913ca051ce602331fb91a28d1c09fbc1d31',
   '0105_revoke_stopped_keys': '23e4c361f4a48f99e826a4b9adebb331b2c2943530458a2bde7c1f9021b57733',
+  '0106_owner_row_limits_pending': '148af042ac4f7472354307f6203ab858ab78ae928ab03b26162a6fd6723c6a45',
 });
 
 describe('shipped migration checksums', () => {
