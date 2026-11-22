@@ -8,7 +8,7 @@
  * Signed in as the real roles throughout: stopping somebody takes the people
  * permission and no other, and a Super Admin's session would hide that.
  */
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { apiKeysRepo, createFirstSuperAdmin, permissionsRepo, rolesRepo, usersRepo, type MetaDb, type Role, type User } from '@adminium/meta';
 
 import { buildServer, type AdminiumServer } from '../src/app.js';
@@ -20,6 +20,41 @@ import { usersRoutes } from '../src/routes/users/index.js';
 import { ADMIN_EMAIL, ADMIN_PASSWORD, adminPasswordHash, sessionCookie } from './auth-helpers.js';
 import { makeEnv } from './helpers.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
+
+/** Set to make the next stop fail after its keys were revoked, or to run something at that moment, inside its transaction. */
+const failing = vi.hoisted(() => ({ next: false, duringRevoke: null as null | (() => Promise<void>) }));
+vi.mock('@adminium/meta', async (original) => {
+  const real = await original<typeof import('@adminium/meta')>();
+  return {
+    ...real,
+    apiKeysRepo: (meta: Parameters<typeof real.apiKeysRepo>[0]) => {
+      const repo = real.apiKeysRepo(meta);
+      return {
+        ...repo,
+        revokeAllBy: async (...args: Parameters<typeof repo.revokeAllBy>) => {
+          const during = failing.duringRevoke;
+          failing.duringRevoke = null;
+          const done = await repo.revokeAllBy(...args);
+          await during?.();
+          return done;
+        },
+      };
+    },
+    sessionsRepo: (meta: Parameters<typeof real.sessionsRepo>[0]) => {
+      const repo = real.sessionsRepo(meta);
+      return {
+        ...repo,
+        revokeAllForUser: async (...args: Parameters<typeof repo.revokeAllForUser>) => {
+          if (failing.next) {
+            failing.next = false;
+            throw new Error('the store went away mid-stop');
+          }
+          return repo.revokeAllForUser(...args);
+        },
+      };
+    },
+  };
+});
 
 describe.each(META_ENGINES.map((engine) => [engine.name, engine] as const))('a stopped person’s API keys — %s', (_name, engine) => {
   let handle: MetaHandle;
@@ -192,6 +227,53 @@ describe.each(META_ENGINES.map((engine) => [engine.name, engine] as const))('a s
     const res = await app.inject({ method: 'PATCH', url: `/api/v1/users/${sam.id}`, headers: { cookie: adminCookie }, payload: { name: 'Sam L.' } });
     expect(res.statusCode, res.body).toBe(200);
     expect(await works(made.key)).toBe(true);
+  });
+
+  it.skipIf(!engine.available)('a stop that fails part way leaves the person, their keys and the audit as they were', async () => {
+    const sam = await person();
+    const made = await keyOf(sam.id, 'laptop');
+    failing.next = true;
+    expect((await suspend({ cookie: adminCookie }, sam.id)).statusCode).toBe(500);
+    expect((await usersRepo(meta).findById(sam.id))?.status).toBe('active');
+    expect(await works(made.key)).toBe(true);
+    expect(await auditOf(made.id)).toEqual([]);
+  });
+
+  it.skipIf(!engine.available)('a key made by a key belongs to the person behind it, and stops with them', async () => {
+    const sam = await person();
+    const first = await keyOf(sam.id, 'first', keysRole);
+    const res = await app.inject({ method: 'POST', url: '/api/v1/api-keys', headers: { authorization: `Bearer ${first.key}` }, payload: { name: 'second', roleId: viewerRole.id } });
+    expect(res.statusCode, res.body).toBe(201);
+    const second = res.json() as { apiKey: { id: string }; key: string };
+    expect((await apiKeysRepo(meta).findById(second.apiKey.id))?.createdBy).toBe(sam.id);
+    expect((await suspend({ cookie: adminCookie }, sam.id)).statusCode).toBe(200);
+    expect(await works(first.key)).toBe(false);
+    expect(await works(second.key)).toBe(false);
+  });
+
+  it.skipIf(!engine.available)('a key left over from a stopped person cannot make another', async () => {
+    const sam = await person();
+    const leftover = await keyOf(sam.id, 'from before', keysRole);
+    await usersRepo(meta).updateStatus(sam.id, 'suspended');
+    const res = await app.inject({ method: 'POST', url: '/api/v1/api-keys', headers: { authorization: `Bearer ${leftover.key}` }, payload: { name: 'another', roleId: viewerRole.id } });
+    expect(res.statusCode, res.body).toBe(403);
+    expect(res.body).not.toContain('adm_sk_');
+  });
+
+  it.skipIf(!engine.available || engine.name === 'sqlite')('a key being made while the stop is in flight waits for it, and is refused', async () => {
+    const maker = await person(keysRole);
+    const cookie = await signIn(maker.email);
+    let creating: Promise<{ statusCode: number; body: string }> | undefined;
+    // After the stop has revoked the keys it could see, and before it has changed the account.
+    failing.duringRevoke = async () => {
+      creating = Promise.resolve(app.inject({ method: 'POST', url: '/api/v1/api-keys', headers: { cookie }, payload: { name: 'racing', roleId: viewerRole.id } }));
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    };
+    const stopped = await suspend({ cookie: adminCookie }, maker.id);
+    expect(stopped.statusCode, stopped.body).toBe(200);
+    const res = await creating!;
+    expect(res.statusCode, res.body).toBe(403);
+    expect(await meta.db.selectFrom('adminium_api_keys').select('id').where('createdBy', '=', maker.id).where('revokedAt', 'is', null).execute()).toEqual([]);
   });
 
   it.skipIf(!engine.available)('a key made in the moment its maker was stopped does not survive', async () => {

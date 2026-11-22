@@ -108,18 +108,21 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
    * no key revoked for a stop that did not happen. Then what is open closes.
    */
   async function stopAccount(request: FastifyRequest, user: User, how: 'suspend' | 'delete', at: number): Promise<void> {
-    const revoked = await meta.db.transaction().execute(async (trx) => {
+    await meta.db.transaction().execute(async (trx) => {
       const inTransaction = { ...meta, db: trx };
+      // First: a key being made for this person waits for the stop, and then sees it (`POST /api-keys`). SQLite has one writer.
+      const held = trx.selectFrom('adminium_users').select('id').where('id', '=', user.id);
+      await (meta.dialect === 'sqlite' ? held : held.forUpdate()).execute();
       const keys = await revokeAccountKeys(inTransaction, user.id, at);
       if (how === 'delete') await trx.deleteFrom('adminium_users').where('id', '=', user.id).execute();
       else {
         await usersRepo(inTransaction).updateStatus(user.id, 'suspended', at);
         await sessionsRepo(inTransaction).revokeAllForUser(user.id, at);
       }
-      return keys;
+      // In the transaction: after a removal for good, this is all that says whose a key was.
+      for (const entry of accountKeyAuditEntries(user, keys)) await app.rbac.audit(request, entry, inTransaction);
     });
     closeConnections(user.id);
-    for (const entry of accountKeyAuditEntries(user, revoked)) await app.rbac.audit(request, entry);
   }
 
   /** Ends a person's open sockets and streams (`jobs/register.ts`); a server with no realtime has none. */
