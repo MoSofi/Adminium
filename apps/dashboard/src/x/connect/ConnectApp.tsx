@@ -85,7 +85,7 @@ export function ConnectApp(): ReactNode {
             setView({ kind: link === null ? 'dead' : 'nothing' });
             return;
           }
-          const answer = await completeSignIn(back);
+          const answer = await completeSignIn({ ...back, ...(token.current === null ? {} : { token: token.current }) });
           if (answer.outcome === 'connected') forgetToken(store);
           setView(viewOf(answer));
           return;

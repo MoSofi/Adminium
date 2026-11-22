@@ -94,7 +94,7 @@ export async function startSignIn(token: string, provider: string): Promise<Star
   return { url: authorizeUrl };
 }
 
-export async function completeSignIn(input: { state: string; code?: string; error?: string }): Promise<ConnectOutcome> {
+export async function completeSignIn(input: { token?: string; state: string; code?: string; error?: string }): Promise<ConnectOutcome> {
   const response = await post('complete', input);
   if (response.status === 404) return { outcome: 'nothing' };
   if (!response.ok) throw new Error('offline');

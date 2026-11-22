@@ -54,6 +54,8 @@ const openBody = z.object({ token }).strict();
 const startBody = z.object({ token, provider: z.string().regex(/^[a-z][a-z0-9-]{1,79}$/) }).strict();
 const completeBody = z
   .object({
+    /** The link, as the tab that pressed Connect holds it. */
+    token: z.string().min(16).max(128).optional(),
     state: z.string().min(16).max(512),
     code: z.string().min(1).max(4096).optional(),
     error: z.string().min(1).max(64).optional(),
@@ -158,8 +160,8 @@ export function connectDoorRoutes(deps: ConnectDoorDeps): FastifyPluginAsync {
 
     app.post('/x/connect/api/complete', { config: { rateLimitBucket: 'connect-door', csrf: 'exempt', audit }, schema: { hide: true, body: completeBody } }, async (request, reply) => {
       if (!sameSite(request) || !(await open(request))) return unavailable(reply);
-      const { state, code, error } = request.body;
-      const answer = await accounts.complete({ state, code: code ?? null, error: error ?? null, nonce: cookieOf(request) });
+      const { state, code, error, token } = request.body;
+      const answer = await accounts.complete({ state, code: code ?? null, error: error ?? null, nonce: cookieOf(request), token: token ?? null });
       // Left alone on an answer that took no flow: a stray address must not end someone's sign-in.
       if (answer.outcome !== 'nothing') void reply.header('set-cookie', `${CONNECT_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`);
       return answer;

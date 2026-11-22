@@ -710,10 +710,14 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
     },
 
     /** Finishes a sign-in: the one place an account is written. */
-    async complete(input: { state: string; code: string | null; error: string | null; nonce: string | null }): Promise<DoorOutcome> {
+    async complete(input: { state: string; code: string | null; error: string | null; nonce: string | null; token: string | null }): Promise<DoorOutcome> {
       const flow = await repo.flowByState(hashToken(input.state), now());
       // A wrong browser leaves the flow in place: it cannot burn the right one's sign-in.
       if (flow === null || input.nonce === null || !sameHash(flow.nonceHash, hashToken(input.nonce))) return { outcome: 'nothing' };
+      // The cookie says which browser; the link, held only by the tab that pressed Connect, says this answer is that tab's.
+      // Without it, someone who signed in on a copied authorize address could send this browser back with their own code.
+      const holder = input.token === null ? null : await repo.linkByHash(hashToken(input.token), now());
+      if (holder === null || holder.id !== flow.linkId) return { outcome: 'nothing' };
       if (!(await repo.takeFlow(flow.id))) return { outcome: 'nothing' };
 
       if (input.error !== null) {

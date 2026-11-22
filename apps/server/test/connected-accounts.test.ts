@@ -210,15 +210,15 @@ for (const [dialect, reachable] of LEGS) {
       expect(reply.statusCode, reply.body).toBe(200);
       const authorize = new URL((reply.json() as { authorizeUrl: string }).authorizeUrl);
       const raw = reply.headers['set-cookie'] as string;
-      return { authorize, state: authorize.searchParams.get('state')!, cookie: raw.split(';')[0]!, raw };
+      return { token, authorize, state: authorize.searchParams.get('state')!, cookie: raw.split(';')[0]!, raw };
     }
 
     /** The provider says yes, and the door page finishes it. */
-    async function finish(started: { state: string; cookie: string }, grant: Grant) {
+    async function finish(started: { token: string; state: string; cookie: string }, grant: Grant) {
       codeNumber += 1;
       const code = `code-${String(codeNumber)}`;
       provider.codes.set(code, grant);
-      const reply = await door('complete', { state: started.state, code }, started.cookie);
+      const reply = await door('complete', { token: started.token, state: started.state, code }, started.cookie);
       expect(reply.statusCode, reply.body).toBe(200);
       return reply.json() as { outcome: string; address?: string | null; addressDiffers?: boolean; testing?: boolean; missing?: string[] };
     }
@@ -284,7 +284,7 @@ for (const [dialect, reachable] of LEGS) {
         rowOf[name] = String(rows[0]!['id']);
       };
       await insert('elin', people['elin']!.id);
-      for (const name of ['noor', 'rafa', 'ivy', 'june', 'marco', 'gone', 'off']) await insert(name, null);
+      for (const name of ['noor', 'rafa', 'ivy', 'ivy2', 'june', 'marco', 'gone', 'off']) await insert(name, null);
       const put = await app.inject({ method: 'PUT', url: `/api/v1/add-ons/${KEY}/connect/app`, headers: { cookie: cookies['admin']! }, payload: { clientId: 'client-1', clientSecret: 'client-secret-1' } });
       expect(put.statusCode, put.body).toBe(200);
     }, 240_000);
@@ -365,18 +365,31 @@ for (const [dialect, reachable] of LEGS) {
       const started = await start(token);
       provider.codes.set('stolen', { subject: 'sub-elin-private' });
       for (const cookie of [undefined, '__Host-adminium-connect=someone-elses']) {
-        expect((await door('complete', { state: started.state, code: 'stolen' }, cookie)).json()).toEqual({ outcome: 'nothing' });
+        expect((await door('complete', { token: started.token, state: started.state, code: 'stolen' }, cookie)).json()).toEqual({ outcome: 'nothing' });
       }
       expect(await accountOf('ivy')).toBeNull();
       expect(await finish(started, { subject: 'sub-ivy' })).toMatchObject({ outcome: 'connected' });
       expect((await accountOf('ivy'))?.subject).toBe('sub-ivy');
     });
 
+    it('takes no code sent to the right browser from a page that never held the link', async () => {
+      const token = await linkFor('ivy2');
+      const started = await start(token);
+      // The attacker signed in on the copied authorize address and sends the victim the way back, with the attacker's code.
+      provider.codes.set('injected', { subject: 'sub-attacker', email: 'attacker@gmail.example' });
+      expect((await door('complete', { state: started.state, code: 'injected' }, started.cookie)).json()).toEqual({ outcome: 'nothing' });
+      expect((await door('complete', { token: 'x'.repeat(43), state: started.state, code: 'injected' }, started.cookie)).json()).toEqual({ outcome: 'nothing' });
+      expect(await accountOf('ivy2')).toBeNull();
+      // The person's own tab is not cost anything by it.
+      expect(await finish(started, { subject: 'sub-ivy2' })).toMatchObject({ outcome: 'connected' });
+      expect((await accountOf('ivy2'))?.subject).toBe('sub-ivy2');
+    });
+
     it('takes a code once', async () => {
       const started = await start(await linkFor('june'));
       provider.codes.set('once', { subject: 'sub-june' });
-      expect((await door('complete', { state: started.state, code: 'once' }, started.cookie)).json()).toMatchObject({ outcome: 'connected' });
-      expect((await door('complete', { state: started.state, code: 'once' }, started.cookie)).json()).toEqual({ outcome: 'nothing' });
+      expect((await door('complete', { token: started.token, state: started.state, code: 'once' }, started.cookie)).json()).toMatchObject({ outcome: 'connected' });
+      expect((await door('complete', { token: started.token, state: started.state, code: 'once' }, started.cookie)).json()).toEqual({ outcome: 'nothing' });
     });
 
     it('opening a link spends nothing, so a mail scanner cannot use it up', async () => {
@@ -416,7 +429,7 @@ for (const [dialect, reachable] of LEGS) {
     it('says a person said no, and leaves the link', async () => {
       const token = await linkFor('marco');
       const started = await start(token);
-      const denied = await door('complete', { state: started.state, error: 'access_denied' }, started.cookie);
+      const denied = await door('complete', { token: started.token, state: started.state, error: 'access_denied' }, started.cookie);
       expect(denied.json()).toEqual({ outcome: 'denied' });
       expect((await door('open', { token })).statusCode).toBe(200);
     });
@@ -793,7 +806,7 @@ for (const [dialect, reachable] of LEGS) {
       const started = await start(await linkFor('june'));
       provider.codes.set('slow', { subject: 'sub-june' });
       provider.state.delayMs = 150;
-      const finishing = door('complete', { state: started.state, code: 'slow' }, started.cookie);
+      const finishing = door('complete', { token: started.token, state: started.state, code: 'slow' }, started.cookie);
       await new Promise((resolve) => setTimeout(resolve, 40));
       const ended = await staff('owner', 'POST', '/connected-accounts/disconnect', { ...ref('june'), addOn: KEY });
       expect(ended.statusCode, ended.body).toBe(200);
@@ -853,7 +866,7 @@ for (const [dialect, reachable] of LEGS) {
       const authorize = new URL((begun.json() as { authorizeUrl: string }).authorizeUrl);
       expect(authorize.pathname).toBe('/contoso.example/authorize');
       expect(authorize.searchParams.has('login_hint')).toBe(false);
-      const done = await finish({ state: authorize.searchParams.get('state')!, cookie: (begun.headers['set-cookie'] as string).split(';')[0]! }, { subject: 'sub-solo' });
+      const done = await finish({ token, state: authorize.searchParams.get('state')!, cookie: (begun.headers['set-cookie'] as string).split(';')[0]! }, { subject: 'sub-solo' });
       expect(done).toMatchObject({ outcome: 'connected', address: 'sub-solo@gmail.example' });
 
       const [account] = await repo().forInstall(install.row.id);

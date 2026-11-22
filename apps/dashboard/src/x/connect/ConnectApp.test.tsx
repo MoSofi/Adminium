@@ -148,6 +148,8 @@ describe('coming back from the provider', () => {
     await heading(/Done — your Lumen Studio bookings will appear in a calendar called Lumen Studio/);
     expect(screen.getByText(/Connected as/)).toBeTruthy();
     expect(calls.filter((call) => call.path === 'complete')).toHaveLength(1);
+    // The link this tab holds goes with the answer: the door refuses an answer from a page that never held it.
+    expect(calls.find((call) => call.path === 'complete')?.body['token']).toBe(TOKEN);
     expect(window.location.hash).toBe('');
     expect(window.sessionStorage.getItem('adminium-connect-link')).toBeNull();
   });
