@@ -15,7 +15,7 @@ import { overridesRepo, rolesRepo, settingsRepo, usersRepo, type ConnectedAccoun
 import { validateManifest, type Manifest } from '@adminium/manifest';
 import type { DemoCalendarBackend } from '@adminium/add-on-contracts';
 import { DEMO_CALENDAR_SECRET_HEADER } from '@adminium/add-on-contracts';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { addOnCredentialCryptoFromSecret } from '../src/add-ons/credential-crypto.js';
 import { bindLayout, pagePlanProblems } from '../src/apps/manifest-page-config.js';
@@ -180,7 +180,7 @@ for (const [dialect, reachable] of LEGS) {
     const custRow: Record<string, number> = {};
     let facial = 0;
 
-    const staff = (who: string, method: 'GET' | 'POST' | 'PATCH', url: string, payload?: Record<string, unknown>) =>
+    const staff = (who: string, method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string, payload?: Record<string, unknown>) =>
       composed.app.inject({ method, url: `/api/v1${url}`, headers: { cookie: cookies[who]! }, ...(payload === undefined ? {} : { payload }) });
 
     async function drain(): Promise<void> {
@@ -1161,5 +1161,86 @@ for (const [dialect, reachable] of LEGS) {
       expect(write.statusCode).toBeGreaterThanOrEqual(400);
     });
 
+    // ─── When the person behind a calendar stops, or the row changes hands ──
+
+    describe('the person behind a calendar', () => {
+      let made = 0;
+      const soon = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+      const eventAt = async (name: string, day: string) => (await eventsOf(name)).find((one) => one.start === iso(day, '10:00'));
+
+      /** A new team row. `row`: it names their login in `user_id`; `address`: only by carrying their sign-in address. */
+      async function teammate(link: 'row' | 'address'): Promise<{ name: string; user: User }> {
+        made += 1;
+        const name = `sia${String(made)}`;
+        const user = await usersRepo(h.meta).create({ email: `${name}-${dialect}@studio.dev`, name, passwordHash: await adminPasswordHash(), status: 'active' });
+        const email = link === 'row' ? `${name}@studio.dev` : user.email;
+        const owner = link === 'row' ? `'${user.id}'` : 'NULL';
+        await h.rows(`INSERT INTO ${h.real('team')} (name, email, position, active, user_id) VALUES ('${name}', '${email}', ${String(100 + made)}, ${dialect === 'postgres' ? 'TRUE' : '1'}, ${owner})`);
+        teamRow[name] = Number((await h.rows(`SELECT id FROM ${h.real('team')} WHERE name = '${name}'`))[0]!['id']);
+        await h.rows(`INSERT INTO ${h.real('team_services')} (team_id, service_id) VALUES (${String(teamRow[name])}, ${String(facial)})`);
+        return { name, user };
+      }
+
+      beforeEach(async () => {
+        await signIn();
+      });
+
+      it.each(['row', 'address'] as const)('a suspended person (linked by %s) gets nothing in their calendar, and catches up when back', async (link) => {
+        const { name, user } = await teammate(link);
+        await connected(name);
+        expect((await staff('admin', 'PATCH', `/users/${user.id}`, { status: 'suspended' })).statusCode).toBe(200);
+        const day = soon(4);
+        await book(name, day, '10:00');
+        await tick();
+        expect(await eventAt(name, day)).toBeUndefined();
+        expect((await staff('admin', 'PATCH', `/users/${user.id}`, { status: 'active' })).statusCode).toBe(200);
+        advance(120_000);
+        await tick();
+        expect((await eventAt(name, day))?.title).toBeDefined();
+      });
+
+      it('a person removed for good loses the connection, though their row went to a colleague', async () => {
+        const { name, user } = await teammate('row');
+        await connected(name);
+        const removed = await staff('admin', 'DELETE', `/users/${user.id}?permanent=true&handTo=${people['admin']!.id}`);
+        expect(removed.statusCode, removed.body).toBe(200);
+        await drain();
+        expect(await accountOf(name)).toBeUndefined();
+      });
+
+      it('a row given to someone else ends the last person\'s connection', async () => {
+        const { name } = await teammate('row');
+        await connected(name);
+        const moved = await staff('admin', 'PATCH', `/data/${h.connectionId}/${team}/${String(teamRow[name])}`, { values: { email: `next-${name}@studio.dev` } });
+        expect(moved.statusCode, moved.body).toBe(200);
+        await drain();
+        expect(await accountOf(name)).toBeUndefined();
+      });
+
+      it('the same address in other capitals changes nothing', async () => {
+        const { name } = await teammate('row');
+        await connected(name);
+        const moved = await staff('admin', 'PATCH', `/data/${h.connectionId}/${team}/${String(teamRow[name])}`, { values: { email: `${name.toUpperCase()}@studio.dev` } });
+        expect(moved.statusCode, moved.body).toBe(200);
+        await drain();
+        expect(await accountOf(name)).toBeDefined();
+      });
+
+      it('an erasure of the row\'s address ends a connection whose provider address differs', async () => {
+        const { name } = await teammate('row');
+        await connected(name);
+        const told = await sync.onErased({ address: `${name}@studio.dev`, rows: [] });
+        expect(told.accounts).toBe(1);
+        expect(await accountOf(name)).toBeUndefined();
+      });
+
+      it('an erased row keeps no connection and no open link', async () => {
+        const { name } = await teammate('row');
+        await connected(name);
+        const told = await sync.onErased({ address: '', rows: [{ connectionId: h.connectionId, table: team, key: String(teamRow[name]) }] });
+        expect(told.accounts).toBe(1);
+        expect(await accountOf(name)).toBeUndefined();
+      });
+    });
   });
 }

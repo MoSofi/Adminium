@@ -550,6 +550,9 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
         rowsNamingUser?: (userId: string) => Promise<{ total: number; named: unknown[]; private: boolean }>;
         handUserRows?: (from: User, toId: string, audit: (entry: { action: string; changes: { before: Record<string, unknown>; after: Record<string, unknown> } }) => Promise<void>) => Promise<{ failed: unknown[] }>;
       };
+      // Asked now: once their rows are handed on, nothing says which connections were theirs.
+      const leaving = app as unknown as { connectionsLeavingWith?: (person: { id: string; email: string }) => Promise<() => Promise<void>> };
+      const endConnections = permanent || request.query.handTo !== undefined ? await leaving.connectionsLeavingWith?.(user).catch(() => undefined) : undefined;
       if (request.query.handTo !== undefined) {
         if (decorated.handUserRows === undefined) throw new ConflictError('This server cannot hand rows over.', 'CONFLICT', { reason: 'HAND_OVER_UNAVAILABLE' });
         await decorated.handUserRows(user, request.query.handTo, (entry) => app.rbac.audit(request, { category: 'rbac', ...entry }));
@@ -577,6 +580,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
         // and reset tokens with it, and `adminium_settings.updated_by` goes
         // NULL — audited under its own verb precisely because it is lossy.
         await stopAccount(request, user, 'delete', now);
+        await endConnections?.().catch((error: unknown) => request.log.warn({ err: error }, 'a removed person\'s calendar connections could not be queued to end'));
         await app.rbac.audit(request, {
           category: 'rbac',
           action: 'user.delete',
@@ -586,6 +590,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
       }
 
       await stopAccount(request, user, 'suspend', now);
+      await endConnections?.().catch((error: unknown) => request.log.warn({ err: error }, 'a stopped person\'s calendar connections could not be queued to end'));
       const suspended = await mustFindUser(user.id);
       await app.rbac.audit(request, {
         category: 'rbac',

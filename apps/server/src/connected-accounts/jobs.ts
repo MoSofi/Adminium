@@ -19,14 +19,20 @@ export const CONNECTED_ACCOUNTS_TICK_CRON = '17 * * * *';
 export const CONNECTED_ACCOUNT_END_JOB = 'connected-accounts.end';
 const END_MAX_ATTEMPTS = 5;
 
-const endPayload = z.object({ accountId: z.string().min(1).max(36) }).strict();
+const endPayload = z
+  .object({
+    accountId: z.string().min(1).max(36),
+    /** Set when the row still stands: what must still be true when the job runs. */
+    why: z.union([z.object({ kind: z.literal('handed-over'), from: z.string().min(1).max(64) }).strict(), z.object({ kind: z.literal('login-removed') }).strict()]).optional(),
+  })
+  .strict();
 
 export function registerConnectedAccountJobs(registry: JobRegistry, accounts: ConnectedAccounts): void {
   registry.registerJobHandler(
     CONNECTED_ACCOUNT_END_JOB,
     endPayload,
     async (payload) => {
-      const ended = await accounts.endBySystem(payload.accountId);
+      const ended = await accounts.endBySystem(payload.accountId, payload.why);
       return ended === null ? { state: 'gone' } : { state: 'ended', removed: ended.removed, incomplete: ended.incomplete, revoked: ended.revoked };
     },
     { internal: true },
