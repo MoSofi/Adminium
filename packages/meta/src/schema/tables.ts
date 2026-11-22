@@ -2102,6 +2102,57 @@ export interface AdminiumShippingLimitsTable {
   updatedAt: Ts;
 }
 
+/** Wave 0107 — one carrier install's webhook, its health and its refresh pace. The token is held only as a keyed hash. */
+export interface AdminiumShippingTrackInstallsTable {
+  carrierInstallId: string;
+  tokenHash: ColumnType<string | null, string | null | undefined, string | null>;
+  tokenHint: ColumnType<string | null, string | null | undefined, string | null>;
+  tokenMadeAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  firstAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  lastAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  lastBadAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  refreshedAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  pollOnAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  pollMonth: ColumnType<string | null, string | null | undefined, string | null>;
+  pollCalls: number;
+  updatedAt: Ts;
+}
+
+/** Wave 0107 — where one booked parcel is. */
+export interface AdminiumShippingParcelsTable {
+  bookingId: string;
+  carrierInstallId: string;
+  status: ColumnType<string | null, string | null | undefined, string | null>;
+  statusRank: number;
+  statusAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  triedAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  checkedAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  polledAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  flag: ColumnType<string | null, string | null | undefined, string | null>;
+  numberChangedAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  numberAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  oldNumbers: ColumnType<string | null, string | null | undefined, string | null>;
+  updatedAt: Ts;
+}
+
+/** Wave 0107 — what a webhook said, stored once. Never an address or a name. */
+export interface AdminiumShippingTrackEventsTable {
+  id: Id;
+  carrierInstallId: string;
+  dedupeHash: string;
+  kind: string;
+  tracking: string | null;
+  transactionId: string | null;
+  rateRef: string | null;
+  status: string;
+  statusAt: Ts | null;
+  trackingUrl: string | null;
+  state: string;
+  outcome: ColumnType<string | null, string | null | undefined, string | null>;
+  receivedAt: Ts;
+  processedAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+}
+
 /**
  * Wave 0105 — one attempt to buy a label, written before the carrier is
  * called. Holds a keyed hash of the shipment, never a name or an address.
@@ -2516,6 +2567,9 @@ export interface MetaDB {
   adminium_shipping_limits: AdminiumShippingLimitsTable;
   adminium_shipping_day_labels: AdminiumShippingDayLabelsTable;
   adminium_shipping_bookings: AdminiumShippingBookingsTable;
+  adminium_shipping_track_installs: AdminiumShippingTrackInstallsTable;
+  adminium_shipping_parcels: AdminiumShippingParcelsTable;
+  adminium_shipping_track_events: AdminiumShippingTrackEventsTable;
 }
 
 /**
@@ -2637,4 +2691,7 @@ export const META_TABLE_NAMES = [
   'adminium_shipping_limits',
   'adminium_shipping_day_labels',
   'adminium_shipping_bookings',
+  'adminium_shipping_track_installs',
+  'adminium_shipping_parcels',
+  'adminium_shipping_track_events',
 ] as const satisfies readonly (keyof MetaDB)[];

@@ -187,6 +187,8 @@ export const ID_PREFIXES = {
   shq: 'adminium_shipping_quotes',
   /** One attempt to buy a label (wave 0105). */
   shb: 'adminium_shipping_bookings',
+  /** One webhook event about a parcel (wave 0107). */
+  ste: 'adminium_shipping_track_events',
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;

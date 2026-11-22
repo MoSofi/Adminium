@@ -55,6 +55,12 @@ export const SHIPPING_REFUSAL_STATUS = {
   REBUY_UNCHECKED: 409,
   /** The quiet period before a person may declare that no label exists. */
   RELEASE_TOO_SOON: 409,
+  /** This carrier has no webhook to point anywhere. */
+  TRACKING_NO_WEBHOOK: 409,
+  /** A webhook address needs this server's public https address, and there is none, or it is too long for the carrier. */
+  NO_PUBLIC_ADDRESS: 409,
+  /** Background tracking is locked in code until the carrier's terms are settled. */
+  POLLING_LOCKED: 409,
 } as const;
 
 export type ShippingRefusalCode = keyof typeof SHIPPING_REFUSAL_STATUS;

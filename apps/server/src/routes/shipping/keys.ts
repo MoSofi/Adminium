@@ -13,7 +13,7 @@
  */
 import type { AddOnManifest } from '@adminium/manifest';
 import { addOnManifestSchema } from '@adminium/manifest';
-import { SERVER_SCOPE, shippingRepo, type InstalledManifest, type ManifestsRepo, type MetaDb, type ShippingAccount } from '@adminium/meta';
+import { SERVER_SCOPE, shippingRepo, shippingTrackingRepo, type InstalledManifest, type ManifestsRepo, type MetaDb, type ShippingAccount } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
@@ -138,6 +138,8 @@ export function shippingKeyRoutes(deps: ShippingKeyRoutesDeps): FastifyPluginAsy
         await repo.saveAccount(account);
         // A rate was priced under the old account, and a purchase would be made on the new one.
         if (before?.keyHash !== keyHash) await repo.clearCarrierQuotes(connectionId, carrier);
+        // A new key means a new webhook address: the old one stops working, and the screen makes the next.
+        if (before !== null && before.keyHash !== keyHash) await shippingTrackingRepo(meta).clearToken(row.row.id, app.rbac.now());
         await app.rbac.audit(request, {
           category: 'settings',
           action: 'shipping.key.saved',
@@ -203,6 +205,7 @@ export function shippingKeyRoutes(deps: ShippingKeyRoutesDeps): FastifyPluginAsy
         const repo = shippingRepo(meta);
         await repo.forgetAccount(row.row.id);
         const credentialsDeleted = await manifests.deleteCredential(row.row.id);
+        await shippingTrackingRepo(meta).clearToken(row.row.id, app.rbac.now());
         await repo.clearCarrierQuotes(connectionId, carrier);
         await app.rbac.audit(request, { category: 'settings', action: 'shipping.key.removed', changes: { after: { app: install.row.manifestKey, carrier, credentialsDeleted } } });
         return (await deps.statusOf(install, connectionId)) as never;

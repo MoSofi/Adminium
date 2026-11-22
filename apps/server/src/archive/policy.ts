@@ -70,7 +70,7 @@ const EXPORT_SKIPPED_TABLES: readonly string[] = ['adminium_jobs'];
  * owes its server's operator (`operator/events.ts`). Another server, or this
  * one restored elsewhere, must not send them, signed with its own token.
  */
-export const NEVER_ARCHIVED_JOB_KINDS: readonly string[] = ['operator.event', 'shipping.apply'];
+export const NEVER_ARCHIVED_JOB_KINDS: readonly string[] = ['operator.event', 'shipping.apply', 'shipping.track'];
 
 export const NEVER_ARCHIVED_SETTINGS: readonly string[] = ['addOns.deciderTrust', 'designer.live', 'designer.liveId', 'connections.allowLocalDatabases', 'email.builtinsSeededFor', 'addOns.keptCopyTrust', 'addOns.trustCarriedOver'];
 
@@ -289,6 +289,15 @@ export function sanitizeDump(tables: Map<string, MetaTableDump>, opts: SanitizeO
     commitRows(
       bookings,
       rowsOf(bookings).map((row) => (row.state === 'reserved' || row.state === 'calling' ? { ...row, state: 'unknown', reason: 'restored' } : row)),
+    );
+  }
+
+  // A copy moved to another server must not answer to this server's webhook address.
+  const trackInstalls = tables.get('adminium_shipping_track_installs');
+  if (trackInstalls !== undefined && exporting) {
+    commitRows(
+      trackInstalls,
+      rowsOf(trackInstalls).map((row) => ({ ...row, tokenHash: null, tokenHint: null, tokenMadeAt: null })),
     );
   }
 

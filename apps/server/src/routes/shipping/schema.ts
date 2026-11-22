@@ -161,6 +161,17 @@ export const bookBody = z
 /** What a person declares, in so many words, to free an order whose purchase has no known result. */
 export const releaseBody = z.object({ declaration: z.literal('no-label-exists') }).strict();
 
+/** Where a parcel is. `checkedAt` is a person's Refresh, never a webhook. */
+export const trackView = z
+  .object({
+    status: z.enum(['UNKNOWN', 'PRE_TRANSIT', 'TRANSIT', 'FAILURE', 'RETURNED', 'DELIVERED']).nullable(),
+    statusAt: z.number().nullable(),
+    checkedAt: z.number().nullable(),
+    flag: z.string().nullable(),
+    newNumber: z.boolean(),
+  })
+  .strict();
+
 const bookingView = z
   .object({
     id: z.string(),
@@ -182,6 +193,7 @@ const bookingView = z
     amount: z.string().optional(),
     currency: z.string().optional(),
     chargeDiffers: z.boolean().optional(),
+    track: trackView.nullable().optional(),
   })
   .strict();
 
