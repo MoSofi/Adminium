@@ -26,9 +26,17 @@
  * while it is still empty, inside the answer's own transaction. Two sends
  * with one token: one sets it, the other changes nothing and is told the
  * survey was answered already.
+ *
+ * A SURVEY THAT DOES NOT LINK ANSWERS TO NAMES KEEPS NO ANSWERING TIME HERE.
+ * The invitation holds the person's address and the answer holds the instant
+ * it came in, so the same instant on both would name the author to anyone who
+ * reads the two tables. Such an invitation is spent with the time it was SENT:
+ * still "answered" for the counts and the one-use rule, and saying nothing of
+ * when. Rows an older version stamped are put right by the daily sweep
+ * (`answers.ts`, `forgetUnlinkedAnswerTimes`).
  */
 import { formsOf } from '@adminium/manifest';
-import type { Form } from '@adminium/add-on-contracts/forms';
+import { keepsNames, type Form } from '@adminium/add-on-contracts/forms';
 import { sql, type Kysely } from 'kysely';
 
 import type { AddOnInstalls } from '../apps/table-ref.js';
@@ -69,6 +77,8 @@ export interface OpenInvitation {
   /** What the page shows: the invitee's first name (after the name rule) and the record's name. */
   firstName: string | null;
   about: string | null;
+  /** Whether its survey links answers to names; if not, spending it records no answering time. */
+  keepsAnswerTime: boolean;
 }
 
 export type InvitationFound = { state: 'open'; invitation: OpenInvitation } | { state: 'already' } | { state: 'dead' };
@@ -185,6 +195,7 @@ export function createSurveyInvitations(deps: SurveyInvitationsDeps) {
           record,
           firstName: firstNameOf(name),
           about: record === null ? null : recordName(where.view, record),
+          keepsAnswerTime: keepsNames(live.form.settings),
         },
       };
     },
@@ -196,7 +207,8 @@ export function createSurveyInvitations(deps: SurveyInvitationsDeps) {
     async spend(db: Kysely<SourceDatabase>, dialect: WriteTarget['dialect'], invitation: OpenInvitation, at: number): Promise<boolean> {
       const column = invitation.table.columns.get('answered_at');
       if (column === undefined) return false;
-      let update = db.updateTable(invitation.table.id as never).set({ answered_at: bindWriteValue(column, new Date(at).toISOString(), dialect) } as never);
+      const answeredAt = invitation.keepsAnswerTime ? bindWriteValue(column, new Date(at).toISOString(), dialect) : sql.ref('invited_at');
+      let update = db.updateTable(invitation.table.id as never).set({ answered_at: answeredAt } as never);
       for (const [name, value] of Object.entries(invitation.pk)) update = update.where(sql.ref(name), '=', value as never);
       const result = await update.where(sql.ref('answered_at'), 'is', null).executeTakeFirst();
       return Number(result.numUpdatedRows) === 1;
