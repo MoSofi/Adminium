@@ -27,6 +27,7 @@ import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import type { DeclaredCopy } from '../people/declared.js';
 import { peopleTablesOf } from '../people/tables-of.js';
+import { rowKeyOf } from '../payments/payables.js';
 import { linkColumnsOf } from './copy-rows.js';
 import { blankRow, pkOf } from './erase-rows.js';
 import type { ErasedRole } from './erase-values.js';
@@ -68,10 +69,10 @@ export async function ownCopyTables(meta: MetaDb, connectionId: string, view: Sn
   return [...out.values()];
 }
 
-/** Empties those copies on the rows linked to this person, inside the caller's transaction. Answers the rows changed. */
-export async function blankOwnCopies(db: Kysely<SourceDatabase>, dialect: Dialect, tables: readonly OwnCopyTable[], personKey: unknown, erasedName: string): Promise<number> {
-  if (personKey === null || personKey === undefined) return 0;
-  let changed = 0;
+/** Empties those copies on the rows linked to this person, inside the caller's transaction. Answers the rows changed, for whatever keeps a copy elsewhere. */
+export async function blankOwnCopies(db: Kysely<SourceDatabase>, dialect: Dialect, tables: readonly OwnCopyTable[], personKey: unknown, erasedName: string): Promise<{ table: string; key: string }[]> {
+  if (personKey === null || personKey === undefined) return [];
+  const changed: { table: string; key: string }[] = [];
   for (const { table, via, columns } of tables) {
     const rows = (await db.selectFrom(table.id as never).selectAll().where(sql.ref(via), '=', personKey as never).execute()) as Row[];
     for (const row of rows) {
@@ -82,7 +83,7 @@ export async function blankOwnCopies(db: Kysely<SourceDatabase>, dialect: Dialec
       // Still theirs at the moment of the write.
       update = update.where(sql.ref(via), '=', personKey as never);
       await update.execute();
-      changed += 1;
+      changed.push({ table: table.id, key: rowKeyOf(table, row) });
     }
   }
   return changed;

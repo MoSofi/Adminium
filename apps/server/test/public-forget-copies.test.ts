@@ -12,7 +12,7 @@
  *  - an app without the word behaves as before.
  */
 import { validateManifest } from '@adminium/manifest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { installInvoicing, LEGS, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { guest, mailReady, shopManifest } from './person-fixture.js';
@@ -156,6 +156,20 @@ describe.each(LEGS)('"delete my details" with its copies — %s', (dialect, avai
     const [row] = await on.h.rows(`select email, name, forgotten_at from ${on.h.real('customers')} where id = ${String(ids['lea'])}`);
     expect([row!['email'], row!['name']]).toEqual([null, null]);
     expect(row!['forgotten_at']).not.toBeNull();
+  });
+
+  it.skipIf(!available)('tells the calendar sync which rows lost a name, so a staff calendar loses it too', async () => {
+    const id = await order(on, 'zoe@fieldmail.io', 'Zoe Hart', 'Corner table');
+    const session = await on.g.signIn('zoe@fieldmail.io');
+    const told = vi.spyOn(on.customer.composed.calendarSync, 'onErased');
+    try {
+      const gone = await on.g.request('DELETE', '/account', { session });
+      expect(gone.statusCode, gone.body).toBe(200);
+      expect(told).toHaveBeenCalledTimes(1);
+      expect(told.mock.calls[0]![0].rows.some((row) => row.key === String(id))).toBe(true);
+    } finally {
+      told.mockRestore();
+    }
   });
 
   it.skipIf(!available)('without the word, the rows linked to them stay as they were', async () => {

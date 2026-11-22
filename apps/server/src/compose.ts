@@ -4349,6 +4349,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         ledgers,
         // A customer's review of a row: the app's word and the add-on that keeps it, as installed now (`reviews/`).
         reviews: { installs: () => addOnInstalls.fresh() },
+        calendars: calendarSync,
         pay: publicPay,
         cardTesting,
         // A rehearsal's rows go in their app's list of sample rows (made first when there is none).

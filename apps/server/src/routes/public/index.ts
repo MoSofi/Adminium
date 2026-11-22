@@ -342,6 +342,8 @@ export interface PublicRoutesDeps {
   ledgers?: LedgerRuntime | undefined;
   /** What is installed, for a customer's review of a row (`reviews/`): the app's word and its keeping add-on. Absent: no review is taken. */
   reviews?: { installs: () => Promise<AddOnInstalls> } | undefined;
+  /** The calendar sync: rows a forgetting blanked put a name in staff calendars, and are written again without it. */
+  calendars?: { onErased(input: { address: string; rows: readonly { connectionId: string; table: string; key: string }[] }): Promise<unknown> } | undefined;
   /** Paying from an app's own screens (`payments/public-pay.ts`). Absent = this server takes no payments from the public API. */
   pay?: PublicPay | undefined;
   /** The card-testing breakers: what a public start may still start (`payments/card-testing.ts`). */
@@ -6031,6 +6033,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         // The app's word: their copies on the rows linked to them go in the same transaction as their own row.
         const ownCopies = forget.copies === true && found.table.primaryKey.length === 1 ? await ownCopyTables(meta, ok.key.connectionId, found.view, found.table) : [];
         const erasedName = ownCopies.length === 0 ? '' : await erasedNameOf(meta);
+        let blanked: { table: string; key: string }[] = [];
         try {
           await writes.update({
             target: { connectionId: ok.key.connectionId, view: found.view, table: found.table, db: found.db, dialect: found.dialect, timezone: ok.key.scope.timezone },
@@ -6040,7 +6043,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
               ? {}
               : {
                   inside: async (db: Kysely<SourceDatabase>) => {
-                    await blankOwnCopies(db, found.dialect, ownCopies, row[found.table.primaryKey[0]!], erasedName);
+                    blanked = await blankOwnCopies(db, found.dialect, ownCopies, row[found.table.primaryKey[0]!], erasedName);
                   },
                 }),
             // The row as read: the rules hear what was forgotten, and the address watch leaves a forgetting to this route.
@@ -6061,6 +6064,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (lostRace(error)) return busy(reply);
           if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
           throw error;
+        }
+        // Those rows were written without an announcement, now committed: what they put in staff calendars is written again, nameless.
+        if (blanked.length > 0) {
+          await deps.calendars?.onErased({ address: '', rows: blanked.map((one) => ({ connectionId: ok.key.connectionId, ...one })) }).catch((error: unknown) => {
+            request.log.warn({ err: error }, 'a forgotten person\'s calendar events could not be queued');
+          });
         }
         await sessions.endBySubject(person.subject, 'forgotten', now);
         if (typeof oldAddress === 'string' && oldAddress !== '') {
