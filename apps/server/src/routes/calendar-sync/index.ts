@@ -26,7 +26,9 @@ import { z } from 'zod';
 import { auditExempt, audited } from '../../audit/coverage.js';
 import type { CalendarSync } from '../../calendar-sync/service.js';
 import type { ConnectedAccounts } from '../../connected-accounts/service.js';
+import { canReadPii } from '../../crud/mask.js';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
+import { normaliseAddress } from '../../public-api/claim-code.js';
 import { tagRoutes } from '../../security/route-audience.js';
 
 /** A service's notice is a few kilobytes; a Microsoft batch a little more. */
@@ -125,6 +127,10 @@ export interface CalendarDeskDeps {
   accounts: ConnectedAccounts;
   /** The row as this person reaches it, under their row limits, with its canonical key; null when they do not. */
   reachedRow(request: FastifyRequest, connectionId: string, table: string, row: string, action: 'read' | 'update'): Promise<{ rowKey: string } | null>;
+  /** The table's personal columns, shown only to whoever may read them. */
+  maskedColumns(connectionId: string, table: string): Promise<ReadonlySet<string>>;
+  /** The columns that name a staff member as this row's own person (`table.belongs`). */
+  ownColumns(connectionId: string, table: string): Promise<readonly string[]>;
 }
 
 function personId(request: FastifyRequest): string {
@@ -157,11 +163,27 @@ export function calendarDeskRoutes(deps: CalendarDeskDeps): FastifyPluginAsyncZo
   const record = (request: FastifyRequest, action: string, after: Record<string, unknown>) =>
     audit.append({ actorKind: 'user', actorId: request.user?.id ?? null, actorLabel: request.user?.email ?? 'unknown', category: 'add-on', action, changes: { after } });
 
+  /** Whether this reader may see who a row's calendar belongs to: personal data, or their own row. */
+  async function seesPersonal(request: FastifyRequest, target: { connectionId: string; tableName: string; rowKey: string }): Promise<boolean> {
+    if (await canReadPii(request, target.connectionId, target.tableName)) return true;
+    const table = await accounts.tableOf(target.connectionId, target.tableName);
+    if (table === null) return false;
+    const column = table.rule.address;
+    if (column !== undefined && !(await deps.maskedColumns(target.connectionId, target.tableName)).has(column)) return true;
+    const row = await accounts.readRow(target);
+    if (row === undefined) return false;
+    const me = request.user?.id;
+    if (me !== undefined && (await deps.ownColumns(target.connectionId, target.tableName)).some((name) => row[name] === me)) return true;
+    const own = accounts.personOf(row, table.rule).address;
+    const mine = request.user?.email;
+    return typeof own === 'string' && typeof mine === 'string' && normaliseAddress(own) === normaliseAddress(mine);
+  }
+
   return async (app) => {
     app.get('/calendar-sync/row', { preHandler: app.requireAuth, schema: { querystring: rowRef, response: { 200: stateReply } } }, async (request) => {
       personId(request);
       const target = await person(request, request.query, 'read');
-      return { calendar: await sync.stateOfRow(target) };
+      return { calendar: await sync.stateOfRow(target, { personal: await seesPersonal(request, target) }) };
     });
 
     app.get(

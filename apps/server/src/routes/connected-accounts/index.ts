@@ -209,7 +209,7 @@ export function connectedAccountRoutes(deps: ConnectedAccountRoutesDeps): Fastif
       const row = await accountsRow(accounts, target);
       const onFile = accounts.personOf(row, table.rule).address?.toLowerCase() ?? null;
       const hidden = await hiddenFrom(request, input.connection, input.table);
-      const addressHidden = table.rule.address !== undefined && hidden.has(table.rule.address);
+      const addressHidden = table.rule.address === undefined ? !(await canReadPii(request, input.connection, input.table)) : hidden.has(table.rule.address);
       const providers: { key: string; name: string }[] = [];
       const names = new Map<string, { key: string; name: string }>();
       for (const key of table.rule.from) {

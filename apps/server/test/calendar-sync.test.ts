@@ -11,7 +11,7 @@
  *
  * The clock is pinned to Tuesday 15 September 2026, 10:40 in Los Angeles.
  */
-import { rolesRepo, settingsRepo, usersRepo, type ConnectedAccount, type User } from '@adminium/meta';
+import { overridesRepo, rolesRepo, settingsRepo, usersRepo, type ConnectedAccount, type User } from '@adminium/meta';
 import { validateManifest, type Manifest } from '@adminium/manifest';
 import type { DemoCalendarBackend } from '@adminium/add-on-contracts';
 import { DEMO_CALENDAR_SECRET_HEADER } from '@adminium/add-on-contracts';
@@ -104,6 +104,7 @@ function appManifest(): Record<string, unknown> {
     pages: [{ ref: 'studio-bookings', template: 'page-crud', title: { key: 't', fallback: 'Bookings' }, nav: { group: 'library', icon: 'list', order: 1 }, bindings: { rows: 'bookings' } }],
     roles: [
       { key: 'owner', name: 'Owner', permissions: ['app:@:staff', ...tableGrants(['read', 'create', 'update']), 'accounts:@:connect', 'accounts:@:send-link', 'accounts:@:disconnect'] },
+      { key: 'reader', name: 'Reader', permissions: ['app:@:staff', 'table:@team:read', 'table:@bookings:read'] },
       {
         key: 'specialist',
         name: 'Specialist',
@@ -189,7 +190,7 @@ for (const [dialect, reachable] of LEGS) {
     /** Signs everyone in, for a test that moved the clock past their sessions. */
     let signIns = 0;
     async function signIn(): Promise<void> {
-      for (const who of ['admin', 'owner', 'elin', 'rafa']) {
+      for (const who of ['admin', 'owner', 'elin', 'rafa', 'reader']) {
         signIns += 1;
         const login = await composed.app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { email: people[who]!.email, password: ADMIN_PASSWORD }, remoteAddress: `10.9.${String(Math.floor(signIns / 250))}.${String((signIns % 250) + 1)}` });
         expect(login.statusCode, login.body).toBe(200);
@@ -281,6 +282,7 @@ for (const [dialect, reachable] of LEGS) {
       await make('owner', 'studio-owner');
       await make('elin', 'studio-specialist');
       await make('rafa', 'studio-specialist');
+      await make('reader', 'studio-reader');
       await signIn();
 
       const view = await loadSnapshotView(h.meta, h.connectionId);
@@ -1102,6 +1104,25 @@ for (const [dialect, reachable] of LEGS) {
       expect((await staff('elin', 'GET', `/calendar-sync/busy?${row('june')}&from=2026-10-20&to=2026-10-21`)).statusCode).toBe(404);
       expect((await staff('elin', 'POST', '/calendar-sync/row/sync-now', { connection: h.connectionId, table: team, row: String(teamRow['june']) })).statusCode).toBe(404);
       expect((await staff('elin', 'POST', '/calendar-sync/row/sync-now', { connection: h.connectionId, table: team, row: String(teamRow['elin']) })).statusCode).toBe(200);
+    });
+
+    it('keeps a person\'s address and calendars from a reader without personal data, and asks the provider nothing for them', async () => {
+      const account = await connected('kai');
+      const url = `/calendar-sync/row?connection=${h.connectionId}&table=${encodeURIComponent(team)}&row=${String(teamRow['kai'])}`;
+      const masked = await overridesRepo(h.meta).create({ connectionId: h.connectionId, op: 'column.pii', tableName: team, columnName: 'email', value: { masked: true }, origin: 'user' } as never);
+      try {
+        const asked = vi.spyOn(demo, 'providerFor');
+        const reply = await staff('reader', 'GET', url);
+        expect(reply.statusCode, reply.body).toBe(200);
+        expect((reply.json() as { calendar: Record<string, unknown> }).calendar).toMatchObject({ accountId: account.id, address: null, calendars: null, readCalendars: null });
+        expect(asked).not.toHaveBeenCalled();
+        asked.mockRestore();
+        const full = await staff('admin', 'GET', url);
+        expect((full.json() as { calendar: { address: string | null; calendars: unknown[] | null } }).calendar.address).not.toBeNull();
+        expect((full.json() as { calendar: { calendars: unknown[] | null } }).calendar.calendars).not.toBeNull();
+      } finally {
+        await overridesRepo(h.meta).delete((masked as { id: string }).id);
+      }
     });
 
     it('the busy table stays closed to every write and read but the sync\'s', async () => {

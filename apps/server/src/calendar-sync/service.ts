@@ -1325,12 +1325,14 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
   // ─── WHAT THE DESK ASKS ─────────────────────────────────────────────────
 
   /** A row's calendar, as the desk shows it. */
-  async function stateOfRow(target: { connectionId: string; tableName: string; rowKey: string }) {
+  async function stateOfRow(target: { connectionId: string; tableName: string; rowKey: string }, options?: { personal?: boolean }) {
     const account = (await accountsRepo.forTarget(target))[0];
     if (account === undefined) return null;
+    // Without personal data: the state alone, and no call on the person's account to learn the rest.
+    const personal = options?.personal !== false;
     const state = await repo.state(account.id);
     const channels = await repo.channelsOf(account.id);
-    const lookup = await calendarProviderFor(providerDeps, account).catch(() => null);
+    const lookup = personal ? await calendarProviderFor(providerDeps, account).catch(() => null) : null;
     const traits = lookup?.ok === true ? lookup.provider.traits : null;
     let calendars: { id: string; name: string; primary: boolean; writable: boolean }[] | null = null;
     if (lookup?.ok === true && lookup.provider.traits.listsCalendars) {
@@ -1340,14 +1342,14 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
     return {
       accountId: account.id,
       state: account.state,
-      address: account.address,
+      address: personal ? account.address : null,
       demo: isDemoAccount(account),
       lastSyncedAt: state?.lastSyncedAt ?? null,
       /** While someone must reconnect: the date of the busy times that still block. Null once they were dropped. */
       busyAsOf: account.state === 'reconnect' && state?.staleDroppedAt == null ? (state?.lastSyncedAt ?? null) : null,
       busyDropped: state?.staleDroppedAt != null,
       paused: state?.paused ?? null,
-      readCalendars: state?.readCalendars ?? null,
+      readCalendars: personal ? (state?.readCalendars ?? null) : null,
       countAllDay: state?.countAllDay ?? false,
       detail: state?.detail ?? 'first-name+initial',
       /** The calendar Adminium keeps there, which is never one of the calendars to count. */

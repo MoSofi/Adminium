@@ -2834,6 +2834,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           meta,
           sync: calendarSync,
           accounts: connectedAccounts,
+          maskedColumns: async (connectionId, tableId) => {
+            const view = await factsViewFor(meta, connectionId);
+            if (view === null || !view.model.tables.some((one) => one.id === tableId)) return new Set<string>();
+            return new Set([...view.table(tableId).columns.entries()].filter(([, column]) => column.masked === true).map(([name]) => name));
+          },
+          ownColumns: async (connectionId, tableId) => {
+            const view = await factsViewFor(meta, connectionId);
+            if (view === null || !view.model.tables.some((one) => one.id === tableId)) return [];
+            return (view.table(tableId).table?.belongs ?? []).flatMap((way) => ('column' in way && way.person === undefined ? [way.column] : []));
+          },
           reachedRow: async (request, connectionId, tableId, row, action) => {
             const view = await factsViewFor(meta, connectionId);
             if (view === null || !view.model.tables.some((one) => one.id === tableId)) return null;
