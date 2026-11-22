@@ -133816,7 +133816,8 @@
                                   "notifications",
                                   "campaign-failures",
                                   "exports",
-                                  "do-not-email"
+                                  "do-not-email",
+                                  "held-values"
                                 ]
                               },
                               "reason": {
@@ -133829,7 +133830,8 @@
                                   "issued-document",
                                   "payment-records",
                                   "kept-a-while",
-                                  "objection"
+                                  "objection",
+                                  "live-balance"
                                 ]
                               },
                               "count": {
@@ -134968,7 +134970,8 @@
                                   "notifications",
                                   "campaign-failures",
                                   "exports",
-                                  "do-not-email"
+                                  "do-not-email",
+                                  "held-values"
                                 ]
                               },
                               "reason": {
@@ -134981,7 +134984,8 @@
                                   "issued-document",
                                   "payment-records",
                                   "kept-a-while",
-                                  "objection"
+                                  "objection",
+                                  "live-balance"
                                 ]
                               },
                               "count": {
