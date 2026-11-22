@@ -15725,6 +15725,29 @@
           },
           {
             "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                {
+                  "maxItems": 8,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                }
+              ]
+            },
+            "in": "query",
+            "name": "presentOnly",
+            "required": false
+          },
+          {
+            "schema": {
               "type": "integer",
               "minimum": 1,
               "maximum": 200
@@ -103476,6 +103499,37 @@
                                 "writable",
                                 "filledBy",
                                 "required"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "presence": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "column": {
+                                  "type": "string"
+                                },
+                                "yes": {
+                                  "type": "string"
+                                },
+                                "yesKey": {
+                                  "type": "string"
+                                },
+                                "no": {
+                                  "type": "string"
+                                },
+                                "noKey": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "column",
+                                "yes",
+                                "yesKey",
+                                "no",
+                                "noKey"
                               ],
                               "additionalProperties": false
                             }

@@ -55,6 +55,7 @@ import { fetchVisible, rowRefinement, type RowAction, type RowLimitContext } fro
 import { limitProjections, rowLimitContextOf, rowTestOf, venueDayOf } from '../../crud/row-limit-context.js';
 import { assertLinksReached, assertLinksToUnreadTables, assertListedCanOpen, assertNoUnreachedChildren, assertStaffColumns, linkRefused, reachedKeys, type LinkWriter, type StaffWriteOptions } from '../../crud/row-writes.js';
 import { applyLookupMask, fetchLookupValues } from '../../crud/lookups.js';
+import { presentOnly } from '../../crud/present-only.js';
 import {
   resolveProjections,
   type ProjectionRefusal,
@@ -1993,7 +1994,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           derivedFields: fields,
         });
         // A SQLite source's times as instants, as every reader elsewhere gets them.
-        return ctx.dialect === 'sqlite' ? { ...listed, data: listed.data.map((row) => staffInstants(row, ctx.readTable, ctx.dialect)) } : listed;
+        const read = ctx.dialect === 'sqlite' ? listed.data.map((row) => staffInstants(row, ctx.readTable, ctx.dialect)) : listed.data;
+        return { ...listed, data: presentOnly(read, request.query.presentOnly) };
       },
     );
 

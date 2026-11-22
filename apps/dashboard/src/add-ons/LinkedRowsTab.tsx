@@ -14,6 +14,10 @@
  * The line above the rows is the add-on's own stock words for this record,
  * said only from what the answer carries: a reader who is not shown the
  * figure sees the word alone.
+ *
+ * A date column the tab names in `presence` says only that it is there or not,
+ * in the add-on's words. The list is asked for just that, so the date never
+ * reaches this page.
  */
 import { Alert, Badge, Button, Combobox, Input, Modal, ModalBody, ModalFooter, ModalHeader, Select, Spinner, Switch } from '@adminium/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -213,6 +217,7 @@ export default function LinkedRowsTab({ tab, connectionId, recordId }: LinkedRow
         where: { and: [{ column: tab.match.table, op: 'eq', value: tab.match.tableRef }, { column: tab.match.row, op: 'eq', value: recordId }] },
         // What a picked row is called, beside its key.
         lookup: tab.add.map((pick) => `${pick.fk}__label:${pick.fk}.${pick.label}`),
+        ...(tab.presence === undefined ? {} : { presentOnly: tab.presence.map((one) => one.column) }),
         order: [{ column: tab.key, dir: 'asc' }],
         limit: PAGE,
         offset: page * PAGE,
@@ -239,6 +244,11 @@ export default function LinkedRowsTab({ tab, connectionId, recordId }: LinkedRow
   const keyOf = (row: Row): string => String(row[tab.key]);
   const display = (row: Row, fact: FormColumnFactReply): string => {
     const name = nameOf(fact);
+    const said = tab.presence?.find((one) => one.column === name);
+    if (said !== undefined) {
+      const there = row[name] !== null && row[name] !== undefined && row[name] !== false;
+      return there ? addOnWords(tab.addOn, said.yesKey, said.yes) : addOnWords(tab.addOn, said.noKey, said.no);
+    }
     const label = row[`${name}__label`];
     if (label !== null && label !== undefined && label !== '') return String(label);
     const choice = choicesOf(fact)?.find((one) => one.value === shown(row[name]));

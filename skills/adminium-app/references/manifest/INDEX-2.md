@@ -51,7 +51,7 @@
 | `references/manifest/a-self-made-app--a-table-s-real-name-and-schema.md` | A self-made app — A table's real name and schema | 1029 |
 | `references/manifest/a-self-made-app--columns-under-their-own-names.md` | A self-made app — Columns under their own names | 932 |
 | `references/manifest/a-self-made-app--apps-requires.md` | A self-made app — `apps.requires` | 1407 |
-| `references/manifest/a-self-made-app--instance.md` | A self-made app — `instance` | 2327 |
+| `references/manifest/a-self-made-app--instance.md` | A self-made app — `instance` | 2351 |
 | `references/manifest/a-self-made-app--reports-invoicelayouts-and-scheduledreports.md` | A self-made app — `reports`, `invoiceLayouts` and `scheduledReports` | 1310 |
 | `references/manifest/a-self-made-app--payments.md` | A self-made app — `payments` | 6915 |
 | `references/manifest/add-on-manifests.md` | Add-on manifests | 5803 |
@@ -65,7 +65,7 @@
 | `references/manifest/add-on-manifests--steps-for-automations.md` | Add-on manifests — Steps for Automations | 5011 |
 | `references/manifest/add-on-manifests--what-an-add-on-tells-the-assistant.md` | Add-on manifests — What an add-on tells the assistant | 1646 |
 | `references/manifest/add-on-manifests--stock-words.md` | Add-on manifests — Stock words | 2389 |
-| `references/manifest/add-on-manifests--a-tab-on-another-table-s-record.md` | Add-on manifests — A tab on another table's record | 2828 |
+| `references/manifest/add-on-manifests--a-tab-on-another-table-s-record.md` | Add-on manifests — A tab on another table's record | 3159 |
 | `references/manifest/add-on-manifests--a-panel-on-another-table-s-record.md` | Add-on manifests — A panel on another table's record | 2611 |
 | `references/manifest/add-on-manifests--an-add-on-that-works-with-another.md` | Add-on manifests — An add-on that works with another | 743 |
 | `references/manifest/add-on-manifests--what-a-typed-code-may-find.md` | Add-on manifests — What a typed code may find | 1966 |

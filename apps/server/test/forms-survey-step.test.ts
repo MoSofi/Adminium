@@ -15,7 +15,7 @@
  * then shows on the table the rule is about.
  */
 import { parseDatabaseModel } from '@adminium/engine';
-import { automationsRepo, overridesRepo, rolesRepo, settingsRepo, snapshotsRepo, usersRepo, type Automation, type AutomationGraph, type AutomationTriggerEvent } from '@adminium/meta';
+import { automationsRepo, overridesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, usersRepo, type Automation, type AutomationGraph, type AutomationTriggerEvent } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { formsWithInvitations } from '../../../packages/manifest/test/forms-invitations-fixture.js';
@@ -30,6 +30,7 @@ import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import { SnapshotView } from '../src/crud/identifiers.js';
 import { peopleTablesOf } from '../src/people/tables-of.js';
+import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
 import { ADMIN_PASSWORD, adminPasswordHash, sessionCookie } from './auth-helpers.js';
 import { addOnHarness, type Harness } from './app-add-ons.helpers.js';
 import { shopManifest } from './fixtures/cards-kit/index.js';
@@ -43,9 +44,9 @@ const words = (text: string): Doc => Object.fromEntries(LOCALES.map((locale) => 
 const NOW = Date.parse('2026-11-03T09:00:00Z');
 
 /** The forms add-on, giving "Send a survey" and a tab of the invitations a record has. */
-function formsWithStep(): Doc {
+function formsWithStep(presence = false): Doc {
   const doc = formsWithInvitations();
-  doc['compatibility'] = { minAdminiumVersion: '0.3.41', engines: ['postgres', 'mysql', 'sqlite'] };
+  doc['compatibility'] = { minAdminiumVersion: presence ? '0.3.71' : '0.3.41', engines: ['postgres', 'mysql', 'sqlite'] };
   const invitations = (doc['requiredSchema'] as { tables: (Doc & { columns: Doc[] })[] }).tables.find((table) => table['ref'] === 'invitations')!;
   // The invitee's address and name are kept personal; the job is named by its table's stored name, which a record tab reads.
   invitations.columns = invitations.columns.map((column) =>
@@ -82,6 +83,11 @@ function formsWithStep(): Doc {
     },
   ];
   addOn['recordTabs'] = [{ id: 'survey', label: { key: 'forms.tab.survey', fallback: 'Survey sent' }, table: 'invitations', match: { table: 'record_table', row: 'record_key' }, on: 'linked', columns: ['class', 'invited_at'] }];
+  if (presence) {
+    const [tab] = addOn['recordTabs'] as Doc[];
+    tab!['columns'] = ['class', 'invited_at', 'answered_at'];
+    tab!['presence'] = [{ column: 'answered_at', yes: { key: 'forms.tab.answered', fallback: 'Answered' }, yesLabels: { 'de-DE': 'Beantwortet' }, no: { key: 'forms.tab.notYet', fallback: 'Not yet' }, noLabels: { 'de-DE': 'Noch nicht' } }];
+  }
   return doc;
 }
 
@@ -131,12 +137,12 @@ describe.each(LEGS)('a step that sends a survey — %s', (dialect, available) =>
     for (const row of await h.meta.db.selectFrom('adminium_app_tables').select(['ref', 'tableName']).execute()) tables.set(row.ref, model.tables.find((table) => table.name === row.tableName)!.id);
   };
   const name = (ref: string) => view.table(tables.get(ref)!).name;
-  const setUp = async (): Promise<void> => {
+  const setUp = async (presence = false): Promise<void> => {
     h = await addOnHarness(dialect, { unbuiltWords: {} });
     await h.stageApp(crm());
     const installed = await h.install('shop', '1.0.0');
     expect(installed.statusCode, installed.body).toBe(200);
-    await h.stageAddOn(formsWithStep(), { bundled: true });
+    await h.stageAddOn(formsWithStep(presence), { bundled: true });
     const added = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: 'forms', version: '1.0.0', attachTo: ['shop'] } });
     expect(added.statusCode, added.body).toBe(200);
     await read();
@@ -311,6 +317,71 @@ describe.each(LEGS)('a step that sends a survey — %s', (dialect, available) =>
     // A person a run reaches by `@record` on the contacts themselves.
     const people = await peopleTables();
     expect(() => resolveRule({ ...trigger(), table: tables.get('contacts')! }, survey({ ...fitOut, to: '@record' }), { view, templateKeys: new Set(), blockLoopback: false, steps: steps(), peopleTables: people })).not.toThrow();
+  });
+
+  it.skipIf(!available)('its tab says Answered or Not yet, never a date, on a named and an unlinked survey, to who reads it and nobody else', async () => {
+    await setUp(true);
+    await automationsRepo(h.meta).create({ connectionId: h.connectionId, name: 'Survey after sign-off', enabled: false, trigger: trigger(), graph: survey(fitOut) });
+    const invitationsId = tables.get('invitations')!;
+    const line = (id: string, form: string, answered: string) => `('${id}', '${form}', 'ann@linden.example', 'en-US', '${tables.get('contacts')!}', '1', 'shop:jobs', '10', 'service', '2026-10-01 09:00:00', ${answered})`;
+    await h.rows(
+      `INSERT INTO ${name('invitations')} (id, form_id, email, language, person_table, person_key, record_table, record_key, class, invited_at, answered_at) VALUES ${[
+        // A survey that links names keeps the answering time.
+        line('inv_named', 'frm_fit', `'2026-10-20 08:30:00'`),
+        // One that does not holds the time it was sent.
+        line('inv_unlinked', 'frm_old', `'2026-10-01 09:00:00'`),
+        line('inv_waiting', 'frm_fit', 'NULL'),
+      ].join(', ')}`,
+    );
+    const read = `table:${h.connectionId}:${invitationsId}:read`;
+    const reader: RecordTabsAsker = { can: async (permission) => permission === read, permissions: {}, locale: 'de_DE' };
+    const notReader: RecordTabsAsker = { can: async () => false, permissions: {} };
+    const [tab] = (await recordTabsFor(h.meta, installs, reader, view, jobs())) ?? [];
+    expect(tab?.presence).toEqual([{ column: 'answered_at', yes: 'Beantwortet', yesKey: 'forms.tab.answered', no: 'Noch nicht', noKey: 'forms.tab.notYet' }]);
+    expect(await recordTabsFor(h.meta, installs, notReader, view, jobs())).toBeUndefined();
+
+    const runService = createRunService({ meta: h.meta });
+    const composed = await composeServer({
+      env: makeEnv({ ADMINIUM_DATA_DIR: h.dataDir, HOST: '127.0.0.1', ADMINIUM_SECRET: TEST_SECRET }),
+      metaStore: { meta: h.meta, url: 'sqlite::memory:', engine: 'sqlite', source: 'embedded', close: async () => Promise.resolve() },
+      manager: h.manager,
+      runService,
+      applyService: createApplyService({ meta: h.meta, runService }),
+      allowed: null,
+      logger: false,
+      telemetry: false,
+    });
+    try {
+      await composed.app.ready();
+      await composed.addOnsLoaded;
+      await composed.jobs.worker.stop();
+      composed.jobs.scheduler.stop();
+      const roles = rolesRepo(h.meta);
+      const signInWith = async (slug: string, grants: string[], at: string): Promise<string> => {
+        const email = `${slug}@forms.dev`;
+        const user = await usersRepo(h.meta).create({ email, name: slug, passwordHash: await adminPasswordHash() });
+        const role = await roles.create({ slug, name: slug });
+        for (const row of matrixRowsFromGrants(grants).rows) await permissionsRepo(h.meta).grant(role.id, row.resourceKind, row.resourceRef, row.actions as never);
+        await roles.assignToUser(user.id, role.id);
+        const login = await composed.app.inject({ method: 'POST', url: '/api/v1/auth/login', remoteAddress: at, payload: { email, password: ADMIN_PASSWORD } });
+        expect(login.statusCode, login.body).toBe(200);
+        return sessionCookie(login.headers['set-cookie']);
+      };
+      const readerCookie = await signInWith('tab-reader', [read], '10.55.0.1');
+      const otherCookie = await signInWith('tab-other', [`table:${h.connectionId}:${jobs()}:read`], '10.55.0.2');
+      const url = `/api/v1/data/${h.connectionId}/${encodeURIComponent(invitationsId)}?presentOnly=answered_at&limit=20`;
+      const res = await composed.app.inject({ method: 'GET', url, headers: { cookie: readerCookie } });
+      expect(res.statusCode, res.body).toBe(200);
+      const said = Object.fromEntries((res.json() as { data: Doc[] }).data.map((row) => [row['id'], row['answered_at']]));
+      expect(said).toEqual({ inv_named: true, inv_unlinked: true, inv_waiting: false });
+      expect(res.body).not.toContain('2026-10-20');
+      expect((await composed.app.inject({ method: 'GET', url, headers: { cookie: otherCookie } })).statusCode).toBe(403);
+      // The survey's own Invitations screen still reads the date, by not asking for this.
+      const plain = await composed.app.inject({ method: 'GET', url: url.replace('presentOnly=answered_at&', ''), headers: { cookie: readerCookie } });
+      expect(plain.body).toContain('2026-10-20');
+    } finally {
+      await composed.app.close();
+    }
   });
 
   it.skipIf(!available)('its record tab shows on the table a rule sends the survey from, and on no other', async () => {

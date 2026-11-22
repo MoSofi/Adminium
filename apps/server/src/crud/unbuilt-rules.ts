@@ -126,6 +126,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'availability.words',
   // An add-on's rows listed on another table's record page: a tab there, for who reads them.
   'addOn.recordTabs',
+  // A date column such a tab says only "there" or "not" of, the date itself never sent to it.
+  'recordTab.presence',
   // Two links on a dashboard's toolbar, one of them the page's main action: each drawn for who may open its page.
   'toolbar.links',
   // What an app's role holds of a table of an add-on it names: written while the add-on is there for the app, taken back when it is not.

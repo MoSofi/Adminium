@@ -150,6 +150,7 @@ function listSearch(params: CrudListParams): string {
   for (const agg of params.agg ?? []) search.append('agg', agg);
   // NOT repeatable: the server refuses a second `compute=` by name.
   if (params.compute !== undefined) search.set('compute', params.compute);
+  for (const name of params.presentOnly ?? []) search.append('presentOnly', name);
   if (params.limit !== undefined) search.set('limit', String(params.limit));
   if (params.offset !== undefined) search.set('offset', String(params.offset));
   if (params.cursor !== undefined) search.set('cursor', params.cursor);

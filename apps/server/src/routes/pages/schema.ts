@@ -324,6 +324,7 @@ export const pageReply = z.object({
         match: z.object({ table: z.string(), row: z.string(), tableRef: z.string() }),
         mode: z.enum(['list', 'form']),
         columns: z.array(columnFactSchema),
+        presence: z.array(z.object({ column: z.string(), yes: z.string(), yesKey: z.string(), no: z.string(), noKey: z.string() })).optional(),
         edit: z.array(z.string()),
         form: z.array(z.string()),
         add: z.array(z.object({ fk: z.string(), table: z.string(), key: z.string(), label: z.string() })),
