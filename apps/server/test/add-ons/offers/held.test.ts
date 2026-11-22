@@ -13,6 +13,7 @@ import { rolesRepo, usersRepo } from '@adminium/meta';
 import { pino } from 'pino';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { sweepKeptHolders } from '../../../src/privacy/held-values.js';
 import { addOnHarness, type Harness } from '../../app-add-ons.helpers.js';
 import { ADMIN_PASSWORD, adminPasswordHash, sessionCookie } from '../../auth-helpers.js';
 import { LEGS } from '../../invoicing-install.helpers.js';
@@ -143,7 +144,7 @@ function studio(): Doc {
       ],
     },
     publicAccess: [
-      { table: 'customers', methods: ['GET'], select: ['name'], claim: { verify: 'email-link', email: 'email' }, humanCheck: true },
+      { table: 'customers', methods: ['GET'], select: ['name'], claim: { verify: 'email-link', email: 'email' }, humanCheck: true, forget: { columns: ['email', 'name'], stamp: 'forgotten_at' } },
       { table: 'services', methods: ['GET'], select: ['id', 'name', 'price'] },
       { table: 'pack_products', methods: ['GET'], select: ['id', 'name', 'price'] },
       {
@@ -438,6 +439,38 @@ describe.each(LEGS)('what a signed-in customer holds — %s', (dialect, availabl
       expect(res.statusCode, res.body).toBeGreaterThanOrEqual(400);
     }
     expect(Number((await rows('offers_gift_cards', `id = ${String(cardId)}`))[0]!['balance'])).toBe(30);
+  });
+
+  it.skipIf(!run)('a person who deleted their details still spends what has a balance, and it lets go of them when it ends', async () => {
+    const address = 'cleo@lumen.example';
+    await h.rows(`insert into studio_customers (id, email, name) values (30, '${address}', 'Cleo')`);
+    const buyer = await g.signIn(address);
+    const live = await packFor(buyer);
+    const over = await packFor(buyer);
+    await h.rows(`update offers_vouchers set status = 'voided' where id = ${String(over['id'])}`);
+    const fresh = await g.signIn(address);
+    const gone = await g.request('DELETE', '/account', { session: fresh });
+    expect(gone.statusCode, gone.body).toBe(200);
+    expect((gone.json() as { data: Doc }).data).toEqual({ keptBalances: 1, giftsNotLinked: true });
+    const pack = async (id: unknown) => (await rows('offers_vouchers', `id = ${String(id)}`))[0]!;
+    expect(await pack(over['id'])).toMatchObject({ holder_email: null, holder_name: null, holder_key: null, status: 'voided' });
+    expect((await pack(live['id']))['holder_email']).toBe(address);
+    // They come back with the same mailbox: a new row of theirs, a new proved session, and the pack is still theirs to spend.
+    const again = await book(undefined, { email: address });
+    expect(again.statusCode, again.body).toBe(201);
+    const back = await g.signIn(address);
+    expect(dataOf(await list(PACKS, back)).map((row) => row['id'])).toEqual([live['id']]);
+    const handle = `held:${String(live['id'])}`;
+    for (const left of [1, 0]) {
+      const used = await book(back, { email: address, booking_codes: [{ typed: handle }] });
+      expect(used.statusCode, used.body).toBe(201);
+      expect(Number((await pack(live['id']))['uses_left'])).toBe(left);
+    }
+    // Used up: the daily sweep takes what was kept for them.
+    expect((await pack(live['id']))['holder_email']).toBe(address);
+    expect((await sweepKeptHolders({ meta: h.meta, manager: h.manager }))['offers:vouchers']).toBe(1);
+    expect(await pack(live['id'])).toMatchObject({ holder_email: null, holder_name: null, holder_key: null, status: 'used' });
+    for (const mail of await rows('offers_messages', `voucher_id = ${String(live['id'])}`)) expect(mail['to_address']).toBeNull();
   });
 });
 
