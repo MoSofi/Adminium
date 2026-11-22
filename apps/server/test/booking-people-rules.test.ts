@@ -281,6 +281,9 @@ async function serving(dialect: Dialect, opts: { textKey?: boolean } = {}) {
     staffTimes: async (service: number, person: number | 'any', day: string) => freeTimes(await staffFree(`kind=${service}&resource=${person}&date=${day}`)),
     staffSlots: (query: string) => staffFree(query),
     strip: (query: string) => free(query),
+    /** A guest's or the desk's read, however it is answered. */
+    asked: (who: 'guest' | 'desk', query: string) =>
+      app.inject(who === 'guest' ? { method: 'GET', url: `/api/v1/public/availability/free_times?${query}`, headers: guest() } : { method: 'GET', url: `/api/v1/data/${connection.id}/${bookings}/booking-slots?${query}`, headers: desk }),
     staffStrip: (query: string) => staffFree(query),
     guestBook: (values: Record<string, unknown>) => app.inject({ method: 'POST', url: '/api/v1/public/records/bookings', headers: guest(), payload: { values } }),
     book: (values: Record<string, unknown>) => app.inject({ method: 'POST', url: `/api/v1/data/${connection.id}/${bookings}`, headers: desk, payload: { values } }),
@@ -806,5 +809,32 @@ describe('a strip of days', () => {
     await counted.destroy();
     expect(long).toBe(short);
     expect(long).toBeLessThanOrEqual(14);
+  });
+});
+
+describe('a day far outside any calendar', () => {
+  it('is refused at both doors, and a closed week cannot hold the server', async () => {
+    const p = await serving('sqlite');
+    await sql.raw('delete from opening_hours').execute(p.db);
+    for (const who of ['guest', 'desk'] as const) {
+      for (const day of ['9999-12-30', '9999-12-31', '0001-01-01', '2026-13-45']) {
+        const reply = await p.asked(who, `kind=${FACIAL}&resource=any&date=${day}`);
+        expect(reply.statusCode, `${who} ${day}`).toBe(who === 'guest' ? 400 : 422);
+      }
+    }
+    const { rule, target } = await p.target();
+    const input = { kind: FACIAL, resource: 'any', isPublic: true, excludePk: null, now: new Date() };
+    const days = await bookingDays(rule, target, '9999-12-29', 2, 60, input);
+    expect(days.every((day) => day.open === 0)).toBe(true);
+  });
+
+  it('counts a window across years of one open weekday, and no further', async () => {
+    const p = await serving('sqlite');
+    await sql.raw("delete from opening_hours where weekday <> 'mon'").execute(p.db);
+    await sql.raw('update settings set window_days = 400').execute(p.db);
+    const { rule, target } = await p.target();
+    const input = { kind: FACIAL, resource: 'any', isPublic: true, excludePk: null, now: new Date() };
+    const far = await bookingDays(rule, target, '2050-01-03', 1, 60, input);
+    expect(far[0]!.open).toBe(0);
   });
 });

@@ -16,6 +16,7 @@
 import { SHOPPER_OPS } from '@adminium/manifest';
 import { z } from 'zod';
 
+import { calendarDay } from '../../crud/calendar-day.js';
 import { PUBLIC_ACTIONS, PUBLIC_RESPONSE_SHAPES } from '../../public-api/scope.js';
 import { rowValues } from '../../security/nul-bytes.js';
 
@@ -42,7 +43,7 @@ export const publicListQuery = z.object({
 });
 export type PublicListQuery = z.infer<typeof publicListQuery>;
 
-const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const day = calendarDay;
 
 /**
  * What an availability read asks, in one of two forms, told apart by the

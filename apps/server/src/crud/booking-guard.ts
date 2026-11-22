@@ -275,7 +275,15 @@ export interface BookingDayContext {
 
 /** The weekday of a `YYYY-MM-DD` day. */
 export const weekdayOf = (day: string) => WEEKDAYS[new Date(`${day}T00:00:00Z`).getUTCDay()]!;
-export const addDays = (day: string, days: number) => new Date(Date.parse(`${day}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
+/** The last day a `YYYY-MM-DD` can spell: past it, a date's text gains a longer year and no longer sorts as a date. */
+const LAST_SPELLED_DAY = '9999-12-31';
+const LAST_SPELLED_MS = Date.parse(`${LAST_SPELLED_DAY}T00:00:00Z`);
+export const addDays = (day: string, days: number) => {
+  const ms = Date.parse(`${day}T00:00:00Z`) + days * DAY_MS;
+  return ms >= LAST_SPELLED_MS ? LAST_SPELLED_DAY : new Date(ms).toISOString().slice(0, 10);
+};
+/** How far ahead working days are counted: 400 of them, with one open weekday, and a little room for closures. */
+const COUNTED_DAYS_AT_MOST = 3_000;
 
 /** Every closure row that covers any day in `[from, to]`, active ones only. */
 export async function closureRows(rule: TableBookingRule, db: Db, from: string, to: string): Promise<Row[]> {
@@ -402,19 +410,23 @@ async function loadBookingRange(rule: TableBookingRule, target: GuardTarget, fro
     start: dateOf(row[spec!.from]),
     end: dateOf(row[spec!.to]),
   }));
+  // Counted once, from today up, and never further than a window could ask: a far day cannot cost a long walk.
+  const furthest = addDays(today, COUNTED_DAYS_AT_MOST);
+  const countTo = after < furthest ? after : furthest;
   const practiceClosed = new Set<string>();
   for (const closure of closures) {
     if (closure.who !== '') continue;
-    for (let d = closure.start < first ? first : closure.start; d <= closure.end && d <= last; d = addDays(d, 1)) practiceClosed.add(d);
+    for (let d = closure.start < today ? today : closure.start; d <= closure.end && d <= countTo; d = addDays(d, 1)) practiceClosed.add(d);
   }
 
-  // Counted once, from today up: a far day stops at the cap the window could ever ask about.
   const counted = new Map<string, number>();
   let working = 0;
-  for (let d = today; d <= after && working <= 400; d = addDays(d, 1)) {
+  for (let d = today; d <= countTo && working <= 400; d = addDays(d, 1)) {
     if (practiceFor(weekdayOf(d)) !== null && !practiceClosed.has(d)) working += 1;
     counted.set(d, working);
   }
+  // A day past the count is past any window.
+  const beyond = countTo < after && working <= 400 ? Number.MAX_SAFE_INTEGER : working;
 
   return {
     zone,
@@ -428,7 +440,7 @@ async function loadBookingRange(rule: TableBookingRule, target: GuardTarget, fro
     grid: Math.max(1, (await numberOf(db, rule.grid)) ?? 15),
     windowDays: await numberOf(db, rule.windowDays),
     noticeMinutes: await numberOf(db, rule.noticeMinutes),
-    workingDaysTo: (day) => (day < today ? 0 : (counted.get(day) ?? working)),
+    workingDaysTo: (day) => (day < today ? 0 : (counted.get(day) ?? beyond)),
   };
 }
 

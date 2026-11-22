@@ -9,6 +9,7 @@
 import { onceEntrySchema } from './once.js';
 import { z } from 'zod';
 
+import { calendarDay } from '../../crud/calendar-day.js';
 import { MAX_COMPUTE_BYTES } from '../../crud/compute.js';
 import { MAX_CHILD_ROWS } from '../../crud/child-rows.js';
 import { MAX_WHERE_BYTES } from '../../crud/filters.js';
@@ -479,8 +480,8 @@ export const bookingSlotsQuery = z
   .object({
     kind: z.string().min(1).max(200),
     resource: z.string().min(1).max(200).optional(),
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    date: calendarDay.optional(),
+    from: calendarDay.optional(),
     days: z.coerce.number().int().min(1).max(31).optional(),
     /** The visit being moved; its own time is not counted against it. */
     exclude: z.string().min(1).max(400).optional(),
