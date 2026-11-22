@@ -17,4 +17,4 @@ export function isCalendarDay(value: string): boolean {
   return Number.isFinite(ms) && new Date(ms).toISOString().slice(0, 10) === value;
 }
 
-export const calendarDay = z.string().refine(isCalendarDay, 'Not a date.');
+export const calendarDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(isCalendarDay, 'Not a date.');
