@@ -5,10 +5,12 @@
  * revokes every existing session.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { auditRepo } from '@adminium/meta';
+import { auditRepo, usersRepo } from '@adminium/meta';
 
 import type { PasswordResetDelivery } from '../src/plugins/auth.js';
+import { hashPassword } from '../src/auth/passwords.js';
 import { RESET_TOKEN_TTL_MS } from '../src/auth/sessions.js';
+import { mintInvite, type MintedInvite } from '../src/routes/users/invite.js';
 import { ADMIN_EMAIL, ADMIN_PASSWORD, buildAuthApp, login, type AuthTestApp } from './auth-helpers.js';
 
 let fixture: AuthTestApp | undefined;
@@ -130,5 +132,76 @@ describe('POST /auth/password/forgot + /auth/password/reset', () => {
     const res = await reset(fixture.app, 'admr_definitely-not-a-real-token', 'whatever-password');
     expect(res.statusCode).toBe(401);
     expect((res.json() as { error: { code: string } }).error.code).toBe('INVALID_CREDENTIALS');
+  });
+});
+
+describe('an invitation link and the account it was for', () => {
+  const EMAIL = 'noa@example.com';
+  const invited = async (meta: AuthTestApp['meta']) =>
+    usersRepo(meta).create({ email: EMAIL, name: 'Noa', passwordHash: null, status: 'invited' });
+  const tokenOf = (invite: MintedInvite) => invite.token;
+
+  it('refuses an invite link once the account is active, and leaves its password alone', async () => {
+    fixture = await buildAuthApp();
+    const user = await invited(fixture.meta);
+    const stale = tokenOf(await mintInvite(fixture.meta, user.id));
+    await usersRepo(fixture.meta).updatePassword(user.id, await hashPassword('the-real-password-1'));
+    await usersRepo(fixture.meta).updateStatus(user.id, 'active');
+
+    const res = await reset(fixture.app, stale, 'taken-over-password-2');
+
+    expect(res.statusCode).toBe(401);
+    expect((res.json() as { error: { code: string } }).error.code).toBe('INVALID_CREDENTIALS');
+    expect((await login(fixture.app, EMAIL, 'the-real-password-1')).res.statusCode).toBe(200);
+    expect((await login(fixture.app, EMAIL, 'taken-over-password-2')).res.statusCode).toBe(401);
+  });
+
+  it('a resent invitation kills the first link', async () => {
+    fixture = await buildAuthApp();
+    const user = await invited(fixture.meta);
+    const first = tokenOf(await mintInvite(fixture.meta, user.id));
+    const second = tokenOf(await mintInvite(fixture.meta, user.id));
+
+    expect((await reset(fixture.app, first, 'from-the-lost-link-1')).statusCode).toBe(401);
+    expect((await reset(fixture.app, second, 'from-the-new-link-2')).statusCode).toBe(200);
+    expect((await login(fixture.app, EMAIL, 'from-the-new-link-2')).res.statusCode).toBe(200);
+  });
+
+  it('using one link kills the person\'s other links', async () => {
+    const deliveries: PasswordResetDelivery[] = [];
+    fixture = await buildAuthApp({ onPasswordResetToken: (d) => deliveries.push(d) });
+    const user = await invited(fixture.meta);
+    const invite = tokenOf(await mintInvite(fixture.meta, user.id));
+    await forgot(fixture.app, EMAIL);
+    const mailed = deliveries[0]?.token ?? '';
+
+    expect((await reset(fixture.app, invite, 'set-from-invite-1')).statusCode).toBe(200);
+    expect((await reset(fixture.app, mailed, 'set-from-mailed-2')).statusCode).toBe(401);
+    expect((await login(fixture.app, EMAIL, 'set-from-invite-1')).res.statusCode).toBe(200);
+  });
+
+  it('a stranger on the forgot form cannot kill somebody\'s invitation', async () => {
+    fixture = await buildAuthApp();
+    const user = await invited(fixture.meta);
+    const invite = tokenOf(await mintInvite(fixture.meta, user.id));
+
+    await forgot(fixture.app, EMAIL);
+
+    expect((await reset(fixture.app, invite, 'still-my-invite-1')).statusCode).toBe(200);
+    expect((await usersRepo(fixture.meta).findById(user.id))?.status).toBe('active');
+  });
+
+  it('a refused stale invite does not cost the person their live reset link', async () => {
+    const deliveries: PasswordResetDelivery[] = [];
+    fixture = await buildAuthApp({ onPasswordResetToken: (d) => deliveries.push(d) });
+    const user = await invited(fixture.meta);
+    const stale = tokenOf(await mintInvite(fixture.meta, user.id));
+    await usersRepo(fixture.meta).updatePassword(user.id, await hashPassword('the-real-password-1'));
+    await usersRepo(fixture.meta).updateStatus(user.id, 'active');
+    await forgot(fixture.app, EMAIL);
+
+    expect((await reset(fixture.app, stale, 'taken-over-password-2')).statusCode).toBe(401);
+    expect((await reset(fixture.app, deliveries[0]?.token ?? '', 'my-own-reset-3')).statusCode).toBe(200);
+    expect((await login(fixture.app, EMAIL, 'my-own-reset-3')).res.statusCode).toBe(200);
   });
 });

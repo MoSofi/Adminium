@@ -10,8 +10,9 @@
  * somebody. Passing the link on is then a human step.
  *
  * The token rides the existing password-reset table with `kind: 'invite'`, so
- * `resetPasswordHandler` consumes it unchanged: setting the first password
- * flips `invited → active` and revokes any sessions.
+ * `resetPasswordHandler` consumes it: setting the first password flips
+ * `invited → active` and revokes any sessions. It works only while the account
+ * is still `invited`, and minting a new one retires the person's earlier links.
  */
 import { passwordResetsRepo, type MetaDb } from '@adminium/meta';
 
