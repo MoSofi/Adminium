@@ -7,21 +7,18 @@
  * Mutations audit under the `system` category (matrix).
  *
  * WHICH ROLE. Choosing a key's role hands out that role's power, so a caller
- * gives only a role they already hold all of (`rbac/role-within.ts`). Only a
- * signed-in Super Admin gives Super Admin, as on `POST /users/:id/roles`. A key
- * is held to its own permissions and to those of the person behind it, and a
- * key with nobody behind it makes no keys. Keys already made are not touched.
+ * gives only a role they already hold all of (`routes/roles/role-giving.ts`).
+ * Only a signed-in Super Admin gives Super Admin. A key is held to its own
+ * permissions and to those of the person behind it, and a key with nobody
+ * behind it makes no keys. Keys already made are not touched.
  */
-import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { apiKeysRepo, permissionsRepo, rolesRepo, type ApiKey, type Role } from '@adminium/meta';
+import { apiKeysRepo, permissionsRepo, rolesRepo, type ApiKey } from '@adminium/meta';
 
 import { ConflictError, ForbiddenError, NotFoundError } from '../../errors.js';
-import { scrubUrlForLog } from '../../log-scrub.js';
 import { generateApiKey } from '../../rbac/api-keys.js';
 import { PERMISSIONS, grantsFromMatrixRows } from '../../rbac/permissions.js';
-import { SUPER_ADMIN_SLUG, resolvePermissionSet } from '../../rbac/resolver.js';
-import { holdsRole } from '../../rbac/role-within.js';
+import { roleGiving } from '../roles/role-giving.js';
 import {
   apiKeyCreateBody,
   apiKeyCreateReply,
@@ -52,30 +49,7 @@ export const apiKeysRoutes: FastifyPluginAsyncZod = async (app) => {
   const roles = rolesRepo(meta);
   const permissions = permissionsRepo(meta);
 
-  /** The refusal, on the audit log as a denied attempt. Names no grant of the role. */
-  async function refusal(request: FastifyRequest, role: Role, message: string): Promise<ForbiddenError> {
-    await app.rbac.audit(request, {
-      category: 'rbac',
-      action: 'permission.denied',
-      changes: { after: { reason: 'api-key-role', method: request.method, url: scrubUrlForLog(request.url), roleId: role.id } },
-    });
-    return new ForbiddenError(message, 'FORBIDDEN', { roleId: role.id });
-  }
-
-  async function assertMayGiveRole(request: FastifyRequest, role: Role, makerId: string | null): Promise<void> {
-    const held = await app.rbac.resolve(request);
-    const byKey = request.apiKeyPrincipal !== null;
-    if (role.slug === SUPER_ADMIN_SLUG) {
-      if (byKey || !held.superAdmin) throw await refusal(request, role, 'Only a signed-in Super Admin can give a key the Super Admin role.');
-      return;
-    }
-    const rows = await permissions.listForRole(role.id);
-    if (!holdsRole(held, role.id, rows)) throw await refusal(request, role, 'You can give a key only a role whose permissions you already hold.');
-    if (!byKey) return;
-    if (makerId === null) throw await refusal(request, role, 'This key has no person behind it, so it cannot make another key.');
-    const maker = await resolvePermissionSet(meta, { kind: 'user', id: makerId, label: makerId });
-    if (!holdsRole(maker, role.id, rows)) throw await refusal(request, role, 'The person who made this key does not hold every permission of that role.');
-  }
+  const giving = roleGiving(app);
 
   app.get(
     '/api-keys',
@@ -104,7 +78,7 @@ export const apiKeysRoutes: FastifyPluginAsyncZod = async (app) => {
         request.apiKeyPrincipal === null
           ? ((request as unknown as { user?: { id?: string } }).user?.id ?? null)
           : (callingKey?.createdBy ?? null);
-      await assertMayGiveRole(request, role, makerId);
+      await giving.assertMayHandle(request, role);
       // A key made by a key ends no later than the key that made it.
       const asked = request.body.expiresAt ?? null;
       const until = callingKey?.expiresAt ?? null;

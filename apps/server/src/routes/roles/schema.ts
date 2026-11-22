@@ -24,10 +24,15 @@ export const roleListItem = roleDto.extend({
   appKey: z.string().optional(),
   /** Every part of its app the role belongs to is switched off: it grants nothing now and is offered to nobody new. */
   partsOff: z.literal(true).optional(),
+  /** Whether the caller holds all of it, and so may change, delete, give or take it. */
+  mayChange: z.boolean(),
 });
 
 export const roleListReply = z.object({ roles: z.array(roleListItem) });
 export type RoleListReply = z.infer<typeof roleListReply>;
+
+/** What the caller could give a role: everything, or these grants, which they hold with nothing narrowing them. */
+export const roleGrantableReply = z.object({ all: z.boolean(), grants: z.array(z.string()) });
 
 export const roleReply = roleDto;
 export type RoleReply = z.infer<typeof roleReply>;

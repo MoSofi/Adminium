@@ -166,6 +166,31 @@ describe('TeamPage row actions', () => {
     expect(within(row).getByRole('button', { name: 'Roles' })).toBeTruthy();
   });
 
+  it('shows a role above the viewer as unavailable, and says a refused save in their words', async () => {
+    const pick = (id: string, name: string, mayChange: boolean) => ({ id, slug: id, name, description: null, isBuiltin: false, memberCount: 1, createdAt: 1, updatedAt: 1, mayChange });
+    installFetch({
+      'GET /api/v1/roles': () => jsonResponse(200, { roles: [pick('role_viewer', 'Viewer', true), pick('role_top', 'Top', false)] }),
+      'PUT /api/v1/users/usr_colleague/roles': () =>
+        jsonResponse(403, { error: { code: 'FORBIDDEN', message: 'server words', details: { reason: 'role-above-you', roleId: 'role_viewer' } } }),
+    });
+    const actor = userEvent.setup();
+    renderTeam(makeBootstrap({ user: { ...makeBootstrap().user, id: me.id, email: me.email, name: me.name }, roles: ['people'], systemActions: ['users.manage', 'roles.manage'] }));
+    const row = await rowOf('Cleo Viewer');
+    await actor.click(await within(row).findByRole('button', { name: 'Roles' }));
+    const dialog = await screen.findByRole('dialog');
+    const top = await within(dialog).findByRole('checkbox', { name: 'Top' });
+    expect((top as HTMLButtonElement).disabled).toBe(true);
+    expect(within(dialog).getByTestId('team-roles-above').textContent).toContain('cannot be given or taken away here');
+    expect(top.getAttribute('aria-describedby')).toBe(within(dialog).getByTestId('team-roles-above').id);
+    const viewer = within(dialog).getByRole('checkbox', { name: 'Viewer' });
+    expect((viewer as HTMLButtonElement).disabled).toBe(false);
+    await actor.click(viewer);
+    await actor.click(within(dialog).getByRole('button', { name: 'Save' }));
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert.textContent).toContain('You can give only roles whose permissions you hold yourself');
+    expect(alert.textContent).not.toContain('server words');
+  });
+
   it('says in the dialog why a delete was refused', async () => {
     installFetch({
       [`DELETE /api/v1/users/${colleague.id}?permanent=true`]: () =>

@@ -639,6 +639,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'GET /api/v1/report-documents/starters': noRows('Report designs: authored templates, no source row.'),
   // --- /roles
   'GET /api/v1/roles': noRows('Roles and what they hold; which rows a role reaches is configuration.'),
+  'GET /api/v1/roles/grantable': noRows('Which grants the caller could give: their own permissions, no row.'),
   'POST /api/v1/roles': noRows('Roles and what they hold; which rows a role reaches is configuration.'),
   'DELETE /api/v1/roles/:id': noRows('Roles and what they hold; which rows a role reaches is configuration.'),
   'PATCH /api/v1/roles/:id': noRows('Roles and what they hold; which rows a role reaches is configuration.'),

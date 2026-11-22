@@ -58,6 +58,12 @@ export interface ToggleMatrixProps
   isDirty?: ((rowId: string, columnId: string) => boolean) | undefined;
   /** Disables every editable cell (read-only view / save in flight). */
   disabled?: boolean | undefined;
+  /**
+   * Why this one cell cannot be changed, or null when it can. The cell keeps
+   * showing its value, stays in the keyboard order, says the reason to pointer
+   * and screen-reader users, and never fires `onToggle`.
+   */
+  getUnavailable?: ((rowId: string, columnId: string) => string | null) | undefined;
 }
 
 const cellKey = (rowId: string, columnId: string): string => `${rowId}\x00${columnId}`;
@@ -79,6 +85,7 @@ export function ToggleMatrix({
   onToggle,
   isDirty,
   disabled = false,
+  getUnavailable,
   className,
   ...props
 }: ToggleMatrixProps) {
@@ -208,6 +215,7 @@ export function ToggleMatrix({
                   const locked = state === 'locked';
                   const on = state === 'on';
                   const dirty = !locked && isDirty !== undefined && isDirty(row.id, column.id);
+                  const unavailable = locked ? null : (getUnavailable?.(row.id, column.id) ?? null);
                   const roving = rowIndex === focusRow && colIndex === focusCol;
                   return (
                     <div
@@ -220,10 +228,13 @@ export function ToggleMatrix({
                         data-part="matrix-cell"
                         data-state={state}
                         data-dirty={dirty || undefined}
+                        data-unavailable={unavailable === null ? undefined : true}
                         aria-label={`${row.label} — ${column.label}`}
+                        aria-description={unavailable ?? undefined}
+                        title={unavailable ?? undefined}
                         // Locked ⇒ granted immutably (Owner column semantics).
                         aria-pressed={locked ? true : on}
-                        aria-disabled={locked || disabled || undefined}
+                        aria-disabled={locked || disabled || unavailable !== null || undefined}
                         tabIndex={roving ? 0 : -1}
                         ref={(element) => {
                           const key = cellKey(row.id, column.id);
@@ -232,7 +243,7 @@ export function ToggleMatrix({
                         }}
                         onFocus={() => setFocus({ row: rowIndex, col: colIndex })}
                         onClick={() => {
-                          if (locked || disabled) return;
+                          if (locked || disabled || unavailable !== null) return;
                           onToggle?.(row.id, column.id, !on);
                         }}
                         className={cn(
@@ -244,6 +255,8 @@ export function ToggleMatrix({
                               ? 'bg-accent-soft text-accent hover:bg-surface-3 active:scale-90'
                               : 'text-fg-subtle hover:bg-surface-3 active:scale-90',
                           !locked && disabled && 'cursor-default opacity-60 active:scale-100',
+                          unavailable !== null && 'cursor-not-allowed opacity-60 hover:bg-transparent active:scale-100',
+                          unavailable !== null && on && 'hover:bg-accent-soft',
                         )}
                       >
                         {locked ? (

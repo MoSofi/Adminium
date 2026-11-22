@@ -169729,6 +169729,9 @@
                             "enum": [
                               true
                             ]
+                          },
+                          "mayChange": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -169739,7 +169742,8 @@
                           "isBuiltin",
                           "createdAt",
                           "updatedAt",
-                          "memberCount"
+                          "memberCount",
+                          "mayChange"
                         ],
                         "additionalProperties": false
                       }
@@ -169824,6 +169828,38 @@
                     "isBuiltin",
                     "createdAt",
                     "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roles/grantable": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "all": {
+                      "type": "boolean"
+                    },
+                    "grants": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "all",
+                    "grants"
                   ],
                   "additionalProperties": false
                 }

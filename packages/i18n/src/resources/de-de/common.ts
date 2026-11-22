@@ -1867,7 +1867,9 @@ export default {
       }
     },
     "roles": {
-      "unavailable": "Rollen sind für Ihr Konto nicht sichtbar, daher können hier keine zugewiesen werden."
+      "unavailable": "Rollen sind für Ihr Konto nicht sichtbar, daher können hier keine zugewiesen werden.",
+      "above": "Rollen mit Berechtigungen, die Sie nicht haben, können hier weder vergeben noch entzogen werden.",
+      "refused": "Sie können nur Rollen vergeben, deren Berechtigungen Sie selbst haben, und keine Rolle entziehen, die mehr Berechtigungen hat als Sie."
     },
     "rolesDialog": {
       "description": "Ein Benutzer erhält die Vereinigung aller Rollen, die er innehat.",

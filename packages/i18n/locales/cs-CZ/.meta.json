@@ -9447,6 +9447,14 @@
     "status": "mt",
     "srcHash": "c70512ee2dd2"
   },
+  "common.team.roles.above": {
+    "status": "mt",
+    "srcHash": "872deb570fad"
+  },
+  "common.team.roles.refused": {
+    "status": "mt",
+    "srcHash": "831bee7287c6"
+  },
   "common.team.roles.unavailable": {
     "status": "mt",
     "srcHash": "da65c2b6ccfc"
@@ -24394,6 +24402,26 @@
   "roles.delete.title": {
     "status": "mt",
     "srcHash": "fbf0667eaa4b"
+  },
+  "roles.limits.noTargets": {
+    "status": "mt",
+    "srcHash": "d09ec581c91c"
+  },
+  "roles.limits.notHeld": {
+    "status": "mt",
+    "srcHash": "20279298126c"
+  },
+  "roles.limits.note": {
+    "status": "mt",
+    "srcHash": "384038a6964f"
+  },
+  "roles.limits.refused": {
+    "status": "mt",
+    "srcHash": "a206b95cea6b"
+  },
+  "roles.limits.roleAbove": {
+    "status": "mt",
+    "srcHash": "4916dd6e8819"
   },
   "roles.list.title": {
     "status": "mt",
