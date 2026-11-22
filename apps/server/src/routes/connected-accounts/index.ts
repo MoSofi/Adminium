@@ -158,7 +158,7 @@ function accountOut(account: ConnectedAccount, refused: boolean, named: { key: s
     since: account.stateSince,
     address: addressHidden ? null : account.address,
     // Says only that the two differ, which is what lets the desk notice a wrong account.
-    addressDiffers: onFile !== null && account.address !== null && account.address.toLowerCase() !== onFile,
+    addressDiffers: onFile !== null && (account.address === null || account.address.toLowerCase() !== onFile),
     grantEndsAt: account.refreshExpiresAt,
   };
 }

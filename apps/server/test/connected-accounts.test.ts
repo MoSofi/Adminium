@@ -284,7 +284,7 @@ for (const [dialect, reachable] of LEGS) {
         rowOf[name] = String(rows[0]!['id']);
       };
       await insert('elin', people['elin']!.id);
-      for (const name of ['noor', 'rafa', 'ivy', 'ivy2', 'june', 'marco', 'gone', 'off']) await insert(name, null);
+      for (const name of ['noor', 'rafa', 'ivy', 'ivy2', 'june', 'june2', 'marco', 'gone', 'off']) await insert(name, null);
       const put = await app.inject({ method: 'PUT', url: `/api/v1/add-ons/${KEY}/connect/app`, headers: { cookie: cookies['admin']! }, payload: { clientId: 'client-1', clientSecret: 'client-secret-1' } });
       expect(put.statusCode, put.body).toBe(200);
     }, 240_000);
@@ -383,6 +383,13 @@ for (const [dialect, reachable] of LEGS) {
       // The person's own tab is not cost anything by it.
       expect(await finish(started, { subject: 'sub-ivy2' })).toMatchObject({ outcome: 'connected' });
       expect((await accountOf('ivy2'))?.subject).toBe('sub-ivy2');
+    });
+
+    it('flags an account that proves no address when the row has one on file', async () => {
+      const done = await connectAs('june2', { subject: 'sub-june2', email: null });
+      expect(done).toMatchObject({ outcome: 'connected', address: null, addressDiffers: true });
+      const read = await staff('owner', 'GET', `/connected-accounts?connection=${h.connectionId}&table=${table}&row=${rowOf['june2']!}`);
+      expect(read.json()).toMatchObject({ accounts: [{ address: null, addressDiffers: true }] });
     });
 
     it('takes a code once', async () => {

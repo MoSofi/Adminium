@@ -815,7 +815,8 @@ export function createConnectedAccounts(deps: ConnectedAccountsDeps) {
 
       const address = identity.address;
       const onFile = resolved.address;
-      const addressDiffers = onFile !== null && address !== null && onFile.toLowerCase() !== address.toLowerCase();
+      // An account that proves no address is not known to match: the desk is told, as for one that differs.
+      const addressDiffers = onFile !== null && (address === null || onFile.toLowerCase() !== address.toLowerCase());
       if (here === undefined) {
         const { business } = await strangerBusiness(meta).catch(() => ({ business: { name: '' } }));
         const person = resolved.person ?? onFile ?? held.manifest.name;
