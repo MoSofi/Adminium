@@ -647,8 +647,20 @@ export type PublicFilter =
   | { and: PublicFilter[] }
   | { or: PublicFilter[] };
 
+/** What a filter through another list may ask: conditions ANDed, never `or`, never a pattern. */
+export type PublicViaFilter =
+  | { column: string; op: 'eq' | 'in' | 'gte' | 'lte' | 'gt' | 'lt'; value: unknown }
+  | { and: PublicViaFilter[] };
+
 export interface ListOptions {
   where?: PublicFilter;
+  /**
+   * Conditions on the rows of the list this entry's `via` names (a product's
+   * variants), on the columns and operators it declares. Every condition must
+   * hold on ONE of those rows: "Slate and M" finds a product only when one
+   * variant is both. A list that declares no `via` refuses it.
+   */
+  via?: PublicViaFilter;
   q?: string;
   order?: string;
   limit?: number;
@@ -1503,14 +1515,15 @@ export function createPublicClient(
   /**
    * Query-string encoder.
    *
-   * `where` is JSON, because the server parses it as JSON. Building it by
-   * hand in each app is how a filter ends up subtly wrong in one of fifteen
-   * places — and the server would refuse it anyway, opaquely.
+   * `where` and `via` are JSON, because the server parses them as JSON.
+   * Building one by hand in each app is how a filter ends up subtly wrong in
+   * one of fifteen places — and the server would refuse it anyway, opaquely.
    */
   const encode = (options: ListOptions | undefined): string => {
     if (options === undefined) return '';
     const p = new URLSearchParams();
     if (options.where !== undefined) p.set('where', JSON.stringify(options.where));
+    if (options.via !== undefined) p.set('via', JSON.stringify(options.via));
     if (options.q !== undefined && options.q !== '') p.set('q', options.q);
     if (options.order !== undefined) p.set('order', options.order);
     if (options.limit !== undefined) p.set('limit', String(options.limit));
