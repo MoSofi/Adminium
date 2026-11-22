@@ -112,6 +112,45 @@ for (const [dialect, available] of ENGINES) {
       expect((await get('lena', data('deals/8'))).statusCode).toBe(200);
     });
 
+    it('holds a sign-in change to the people whose rows are reached through the parent', async () => {
+      const { permissionsRepo, rolesRepo, teamsRepo, usersRepo } = await import('@adminium/meta');
+      const roles = rolesRepo(w.meta);
+      const users = usersRepo(w.meta);
+      const reading = { read: true, create: false, update: false, delete: false, export: false, import: false };
+      const desk = await roles.create({ slug: `desk-${dialect}`, name: 'Desk' });
+      await permissionsRepo(w.meta).grant(desk.id, 'system', 'users.manage', { allowed: true });
+      await permissionsRepo(w.meta).grant(desk.id, 'table', `${w.connectionId}/${visits}`, { ...reading, rowLimit: { read: BY_DEAL_OWNER } } as never);
+      const plainTeam = await roles.create({ slug: `desk-plain-${dialect}`, name: 'Desk plain' });
+      await permissionsRepo(w.meta).grant(plainTeam.id, 'system', 'users.manage', { allowed: true });
+      await permissionsRepo(w.meta).grant(plainTeam.id, 'table', `${w.connectionId}/${visits}`, { ...reading, rowLimit: { read: { reach: 'team' } } } as never);
+      const inTeam = await users.create({ email: `in-team-${dialect}@firm.test`, name: 'In team', passwordHash: 'x', status: 'active' });
+      const outside = await users.create({ email: `outside-${dialect}@firm.test`, name: 'Outside', passwordHash: 'x', status: 'active' });
+      await roles.assignToUser(inTeam.id, desk.id);
+      await roles.assignToUser(outside.id, desk.id);
+      const north = await teamsRepo(w.meta).create(`Desk ${dialect}`);
+      await teamsRepo(w.meta).setMember(north.id, w.people.omar, true);
+      await teamsRepo(w.meta).setMember(north.id, inTeam.id, false);
+      await roles.assignToUser(w.people.omar, desk.id);
+      try {
+        const email = (id: string, name: string) => call('omar', 'PATCH', `users/${id}`, { email: `${name}-moved-${dialect}@firm.test` });
+        // The same reach through the same parent, over somebody they lead.
+        expect((await email(inTeam.id, 'in')).statusCode).toBe(200);
+        const away = await email(outside.id, 'out');
+        expect(away.statusCode, away.body).toBe(403);
+        expect(reason(away)).toBe('account-above-you');
+        // A reach by the row's own people says nothing of rows judged by their parent's owner.
+        await roles.removeFromUser(w.people.omar, desk.id);
+        await roles.assignToUser(w.people.omar, plainTeam.id);
+        await permissionsRepo(w.meta).grant(plainTeam.id, 'table', `${w.connectionId}/${visits}`, { ...reading, rowLimit: { read: { reach: 'team' } } } as never);
+        const otherShape = await email(inTeam.id, 'again');
+        expect(otherShape.statusCode, otherShape.body).toBe(403);
+      } finally {
+        await roles.removeFromUser(w.people.omar, desk.id);
+        await roles.removeFromUser(w.people.omar, plainTeam.id);
+        await teamsRepo(w.meta).delete(north.id);
+      }
+    });
+
     it('a hand-over does not bring a table\'s rows into reach through their parent', async () => {
       const { permissionsRepo, rolesRepo, usersRepo } = await import('@adminium/meta');
       const roles = rolesRepo(w.meta);

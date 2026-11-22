@@ -1870,9 +1870,9 @@ export default {
       "unavailable": "Role nejsou pro váš účet viditelné, takže zde žádnou nelze přiřadit.",
       "above": "Role s oprávněními, která nemáte, zde nelze udělit ani odebrat.",
       "refused": "Můžete udělit jen role, jejichž oprávnění sami máte, a nemůžete odebrat roli, která má víc oprávnění než vy.",
-      "accountRefused": "Tato osoba má oprávnění, která vy nemáte, proto nemůžete změnit její e-mail ani jí poslat nový přihlašovací odkaz.",
+      "accountRefused": "Tato osoba má oprávnění nebo řádky, ke kterým nemáte přístup, proto nemůžete změnit její e-mail ani jí poslat nový přihlašovací odkaz.",
       "reachRefused": "Tím byste získali přístup k řádkům, které vám vaše role nedává.",
-      "signInLocked": "Tato osoba má oprávnění, která vy nemáte, proto nový odkaz může poslat jen někdo, kdo je má."
+      "signInLocked": "Tato osoba má oprávnění nebo řádky, ke kterým nemáte přístup, proto nový odkaz může poslat jen někdo, kdo k nim přístup má."
     },
     "rolesDialog": {
       "description": "Uživatel dostane sjednocení všech rolí, které má.",

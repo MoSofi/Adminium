@@ -1870,9 +1870,9 @@ export default {
       "unavailable": "Roller er ikke synlige for din konto, så ingen kan tildeles her.",
       "above": "Roller med tilladelser, du ikke selv har, kan ikke gives eller fjernes her.",
       "refused": "Du kan kun give roller, hvis tilladelser du selv har, og du kan ikke fjerne en rolle, der har flere tilladelser end dig.",
-      "accountRefused": "Denne person har tilladelser, du ikke har, så du kan ikke ændre personens e-mail eller sende et nyt loginlink.",
+      "accountRefused": "Denne person har tilladelser eller rækker, du ikke har adgang til, så du kan ikke ændre personens e-mail eller sende et nyt loginlink.",
       "reachRefused": "Det ville give dig adgang til rækker, som din rolle ikke giver dig.",
-      "signInLocked": "Denne person har tilladelser, du ikke har, så kun en, der har dem, kan sende et nyt link."
+      "signInLocked": "Denne person har tilladelser eller rækker, du ikke har adgang til, så kun en, der har adgang til dem, kan sende et nyt link."
     },
     "rolesDialog": {
       "description": "En bruger får summen af alle de roller, vedkommende har.",

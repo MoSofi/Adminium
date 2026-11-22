@@ -1870,9 +1870,9 @@ export default {
       "unavailable": "Rollen sind für Ihr Konto nicht sichtbar, daher können hier keine zugewiesen werden.",
       "above": "Rollen mit Berechtigungen, die Sie nicht haben, können hier weder vergeben noch entzogen werden.",
       "refused": "Sie können nur Rollen vergeben, deren Berechtigungen Sie selbst haben, und keine Rolle entziehen, die mehr Berechtigungen hat als Sie.",
-      "accountRefused": "Diese Person hat Berechtigungen, die Sie nicht haben. Sie können daher weder ihre E-Mail-Adresse ändern noch ihr einen neuen Anmeldelink senden.",
+      "accountRefused": "Diese Person hat Berechtigungen oder Zeilen, auf die Sie keinen Zugriff haben. Sie können daher weder ihre E-Mail-Adresse ändern noch ihr einen neuen Anmeldelink senden.",
       "reachRefused": "Dadurch kämen Zeilen in Ihre Reichweite, die Ihre Rolle Ihnen nicht gibt.",
-      "signInLocked": "Diese Person hat Berechtigungen, die Sie nicht haben. Einen neuen Link kann daher nur jemand senden, der sie hat."
+      "signInLocked": "Diese Person hat Berechtigungen oder Zeilen, auf die Sie keinen Zugriff haben. Einen neuen Link kann daher nur jemand senden, der Zugriff darauf hat."
     },
     "rolesDialog": {
       "description": "Ein Benutzer erhält die Vereinigung aller Rollen, die er innehat.",

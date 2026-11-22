@@ -1147,7 +1147,7 @@ function UserRow(props: {
               variant="ghost"
               size="sm"
               disabled={props.busy || user.signInLocked === true}
-              title={user.signInLocked === true ? t('team.roles.signInLocked', 'This person holds permissions you do not, so only somebody who holds them can send a new link.') : undefined}
+              title={user.signInLocked === true ? t('team.roles.signInLocked', 'This person holds permissions or rows you do not reach, so only somebody who reaches them can send a new link.') : undefined}
               onClick={props.onResend}
             >
               {t('team.action.resend', 'New link')}
