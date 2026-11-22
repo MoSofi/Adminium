@@ -156,6 +156,8 @@ export {
 } from './validate.js';
 
 export { BOOKING_WEEKDAYS, bookingSchema, type BookingRule } from './booking.js';
+export { connectedAccountsSchema, type ConnectedAccountsRule } from './connected-accounts.js';
+export { BOOKING_CALENDAR_NOTICE_MAX, bookingCalendarSchema, type BookingCalendar } from './booking-calendar.js';
 export { occupiesSchema, type OccupiesRule } from './occupies.js';
 export { REMOVAL_REASON_MAX, auditOnlyColumns, columnHistorySchema, removalIssues, removalSchema, type RemovalRule } from './removal.js';
 export {
@@ -271,6 +273,8 @@ export {
   OUTBOX_SKIP_REASONS,
   OUTBOX_STATUSES,
   SURVEY_LINK_VARIABLE,
+  REVIEW_LINK_VARIABLE,
+  STOP_LINK_VARIABLE,
   ROW_PICTURE_MAX_BYTES,
   ROW_PICTURE_TYPES,
   emailTemplateSchema,
@@ -673,6 +677,7 @@ export {
   type ComposeResult,
   type PartOrigin,
 } from './compose.js';
+export { EMBED_MAX_PATHS, EMBED_MODES, embedOfDocument, frontendEmbedSchema, isEmbedPath, type EmbedMode, type EmbedScreen, type FrontendEmbed } from './embed.js';
 export { ADD_ON_INSTALL_BLOCKS, FILE_COLUMN_EARLIER_MAX_BYTES, INSTALL_FLOOR_WORD_NAMES, WORD_FLOORS, installFloorWords, type ManifestWord, type ManifestWordName } from './words.js';
 export {
   LEDGERS_MAX,

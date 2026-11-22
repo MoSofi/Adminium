@@ -18,3 +18,9 @@ import { installsLikeAnApp, type AppManifest, type Manifest } from '@adminium/ma
 export function ownsBlocks(manifest: Manifest): manifest is AppManifest {
   return manifest.kind === 'app' || installsLikeAnApp(manifest);
 }
+
+/** The add-ons a manifest names: an app's requires and suggests, an add-on's suggests alone. */
+export function namedAddOnKeys(manifest: Manifest): Set<string> {
+  const requires = manifest.kind === 'app' ? (manifest.addOns?.requires ?? []) : [];
+  return new Set([...requires, ...(manifest.addOns?.suggests ?? [])].map((need) => need.key));
+}

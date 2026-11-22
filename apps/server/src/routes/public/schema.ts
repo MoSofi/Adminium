@@ -88,7 +88,7 @@ export const publicAvailabilityReply = z.object({
   data: z.union([
     // A paused time is a slot limit's with pauses; a released one says free or full only.
     z.array(z.object({ time: z.string(), state: z.enum(['free', 'full', 'paused']) })),
-    z.array(z.object({ date: z.string(), open: z.number().int(), state: z.enum(['open', 'full', 'closed']) })),
+    z.array(z.object({ date: z.string(), open: z.number().int(), state: z.enum(['open', 'full', 'closed']), lastBookable: z.literal(true).optional() })),
     // A parent limit's rows (ticket types), and a night limit's pools (room types): `left` only when the entry shows it.
     z.array(z.object({ id: z.string(), state: z.enum(['on', 'soon', 'ended', 'soldout']), left: z.number().int().optional() })),
     z.array(
@@ -714,5 +714,13 @@ export const publicReviewBody = z
   .strict();
 /** Whether a row may be reviewed now, when it was, and the name its review shows (`GET …/review`). */
 export const publicReviewStateReply = z.object({ data: z.object({ open: z.boolean(), reviewedAt: z.string().nullable(), shownName: z.string() }) });
+/** A review link from a mail, read (`POST /public/review-link`): the token rides in the body, never in a logged address. */
+export const publicReviewLinkBody = z.object({ token: z.string().min(40).max(1600) }).strict();
+/** What a review link shows: whether it may be used, for what, and in whose name. */
+export const publicReviewLinkReply = z.object({ data: z.object({ open: z.boolean(), reviewedAt: z.string().nullable(), shownName: z.string(), about: z.string(), detail: z.string().nullable() }) });
+/** A review sent through a mail's link (`POST /public/review-link/take`). */
+export const publicReviewLinkTakeBody = publicReviewBody.extend({ token: z.string().min(40).max(1600) }).strict();
+/** One booking as a calendar entry, for a page's "Add to calendar" (`GET /public/records/:ref/:id/calendar`). */
+export const publicCalendarReply = z.object({ data: z.object({ ics: z.string(), google: z.string(), outlook: z.string() }) });
 /** A review taken: the moment the row was stamped. */
 export const publicReviewTakenReply = z.object({ data: z.object({ reviewedAt: z.string() }) });

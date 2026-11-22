@@ -4,6 +4,7 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/guides/timed-moves--the-job-that-makes-the-moves.md` | The job that makes the moves | 2092 |
 | `references/guides/timed-moves--rows-the-job-sets-aside.md` | Rows the job sets aside | 1431 |
 | `references/guides/timed-moves--what-a-timed-move-never-does.md` | What a timed move never does | 1374 |
 | `references/guides/timed-moves--three-cases.md` | Three cases | 2280 |
@@ -88,6 +89,5 @@
 | `references/guides/public-access--switches-in-the-settings-row.md` | Switches in the settings row | 915 |
 | `references/guides/public-access--what-an-add-on-adds.md` | What an add-on adds | 2366 |
 | `references/guides/public-access--what-the-app-s-keys-can-never-do.md` | What the app's keys can never do | 1221 |
-| `references/guides/public-access--when-it-stops-answering.md` | When it stops answering | 710 |
 
 More: `references/guides/INDEX-3.md`

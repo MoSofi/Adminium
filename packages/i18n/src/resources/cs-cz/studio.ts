@@ -121,7 +121,11 @@ export default {
       "paymentsWho": "Nastaví ho v Platbách někdo s oprávněním „Nastavit platby“.",
       "sourcesWhere": "Zdroje nastavte na jeho obrazovce Zdroje.",
       "sourceEgress": "{source} smí kontaktovat: {hosts}",
-      "sourceWebsite": "{source}: Adminium čte web každé firmy samo"
+      "sourceWebsite": "{source}: Adminium čte web každé firmy samo",
+      "accountsNotSetUp": "Nenastaveno",
+      "accountsCount": "Připojeno: {connected}",
+      "accountsBoth": "Připojeno: {connected} · znovu připojit: {reconnect}",
+      "accountsOpen": "Otevřít"
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",
@@ -4858,14 +4862,14 @@ export default {
     },
     "websites": {
       "tab": "Vaše weby",
-      "listHeading": "Weby, které smějí zobrazovat vaše formuláře a chat",
+      "listHeading": "Weby, které smějí zobrazovat vaše formuláře, chat a rezervační obrazovky",
       "addedBy": "Přidal(a) {name} · {date}",
       "addedOn": "Přidáno {date}",
       "remove": "Odebrat",
       "removeLabel": "Odebrat {url}",
       "removed": "{url} odebrán",
       "removeFailed": "{url} se nepodařilo odebrat. Zkuste to znovu.",
-      "none": "Zatím žádné. Formulář se na jiném webu zobrazí, až když je ten web na tomto seznamu.",
+      "none": "Zatím žádné. Vaše formuláře, chat a rezervační obrazovky se na jiném webu zobrazí, až když bude na tomto seznamu.",
       "addLabel": "Přidat web",
       "addHelp": "Jeden web na řádek, začínající https://.",
       "add": "Přidat",
@@ -4881,7 +4885,7 @@ export default {
         "ok": "Připraveno k přidání"
       },
       "tooMany": "Seznam pojme nejvýš {max} webů. Nejdřív jeden odeberte.",
-      "note": "Web ze seznamu může zobrazit vaše formuláře a chat v rámečku. K vašim datům nikdy přístup nemá.",
+      "note": "Web na seznamu může zobrazit vaše formuláře, chat a rezervační obrazovky v rámečku. K vašim datům se nikdy nedostane.",
       "embedHeading": "Dejte to na svůj web",
       "copy": "Kopírovat",
       "copied": "Zkopírováno",
@@ -4905,6 +4909,33 @@ export default {
         "setIt": "Nastavit",
         "checkAgain": "Zkontrolovat znovu",
         "loadFailed": "Nepodařilo se ověřit, zda se návštěvníci dostanou na tento server. Zkuste to znovu."
+      },
+      "maker": {
+        "heading": "Zobrazte obrazovku aplikace na svém webu",
+        "app": "Aplikace",
+        "screen": "Obrazovka",
+        "way": "Způsob zobrazení",
+        "inline": "V textu",
+        "inlineHelp": "Je součástí stránky",
+        "button": "Tlačítko",
+        "buttonHelp": "Otevře se po stisknutí",
+        "floating": "Plovoucí",
+        "floatingHelp": "Zůstává v rohu",
+        "choice": "Otevřít na konkrétní položce",
+        "any": "Libovolná",
+        "words": "Text tlačítka",
+        "linkWords": "Text odkazu, pokud se obrazovka nenačte",
+        "site": "Web, na který patří",
+        "notListed": "Tento web zatím nesmí zobrazovat vaše obrazovky.",
+        "add": "Přidat {site}",
+        "preview": "Náhled",
+        "nothing": "Zatím se zde nic nezobrazuje",
+        "nothingWhy": "Tento web není na vašem seznamu, takže se na něm vaše obrazovky nenačtou.",
+        "close": "Zavřít",
+        "snippet": "Kód k vložení",
+        "copyLabel": "Zkopírovat kód",
+        "strict": "Pokud váš web nastavuje zásady zabezpečení obsahu, povolte {origin} v jeho script-src a frame-src.",
+        "show": "Zobrazit skutečnou obrazovku"
       }
     },
     "reach": {

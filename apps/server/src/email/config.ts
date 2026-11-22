@@ -242,6 +242,8 @@ export function mailOptionsOf(msg: OutboundEmail, defaultFrom: string) {
     ...(msg.messageId === undefined ? {} : { messageId: msg.messageId }),
     // Adminium's own signature on a marketing mail, for this message alone (nodemailer signs per message).
     ...(msg.dkim === undefined ? {} : { dkim: msg.dkim }),
+    // The part a mail app reads as an invitation (`text/calendar; method=…`), and the same text as `invite.ics`.
+    ...(msg.calendar === undefined ? {} : { icalEvent: { filename: 'invite.ics', method: msg.calendar.method, content: msg.calendar.content } }),
     // BYTES ONLY: `content` is a Buffer the delivery layer
     // read itself. Nothing here ever becomes a `path` or an `href`, so
     // the two `disable*Access` flags of the transport are belt and braces,

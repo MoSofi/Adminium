@@ -58,6 +58,12 @@ export interface OutboundAttachment {
   cid?: string | undefined;
 }
 
+/** A calendar entry a message carries: sent as a `text/calendar` part with its method, and as `invite.ics`. */
+export interface EmailCalendarPart {
+  method: 'REQUEST' | 'CANCEL';
+  content: string;
+}
+
 /** One message, fully rendered — the transport adds only the From. */
 export interface OutboundEmail {
   to: string;
@@ -79,6 +85,8 @@ export interface OutboundEmail {
    */
   messageId?: string | undefined;
   attachments?: OutboundAttachment[] | undefined;
+  /** The calendar entry it carries, for a mail app to show as an invitation. */
+  calendar?: EmailCalendarPart | undefined;
   /**
    * Adminium's own DKIM signature for this one message (a marketing mail
    * from a domain that has a key): nodemailer's `dkim` options, the private

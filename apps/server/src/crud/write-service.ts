@@ -98,7 +98,9 @@ import { landingSlugLockName, sealLandingWrite, slugTakenRefusal } from '../land
 import { applyTotals, engineReviewValues, hiddenHasReason, recountTotals, refusePersonReviewWrite, staffReviewValues, type ReviewTables } from '../reviews/tables.js';
 import { capacityLockNames, touchesCapacity } from './capacity/judge.js';
 import { batchNeedsGuard, judgeRows, withLimitLocks } from './capacity/door.js';
+import { isKeptBusyTable } from './booking-busy.js';
 import { bookingColumn, bookingCounts, bookingDay, bookingLockName, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
+import { raisedRevision } from './booking-revision.js';
 import { decideRow, hasStampsAfterFormulas, needsStored, stampFires, stampYields, workingDaysAfterFormulas, workingDaysAfterSettle, type DecideContext } from './decide.js';
 import { judgeChangeGuards } from './change-guards.js';
 import { renewedColumns, withRenewRetry } from './code-renew.js';
@@ -613,7 +615,7 @@ export async function updateRows(
     values,
     match,
     async (tx) => {
-      const count = await statement(tx, set);
+      const count = await statement(tx, await raisedRevision(tx, table, values, match, set));
       // Another writer changed the row since it was judged: refused as the check would refuse it now.
       if (count === 0 && required !== undefined && (await present(tx)) && !(await answers(tx))) throw requiredRefusal(required);
       if (count === 0 && expected !== undefined && (await present(tx))) throw rowMoved(expected, values);
@@ -2324,16 +2326,21 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   const current = (): RecordHooks => opts.hooks?.() ?? NO_RECORD_HOOKS;
 
   /** A person's create or change of a table only Adminium writes ({@link WriteServiceOptions.ownRecords}): refused, by name. */
-  const refuseOwnRecords = async (target: Pick<WriteTarget, 'connectionId' | 'table'>, context: WriteContext): Promise<void> => {
-    if (opts.ownRecords === undefined || writtenByAdminium(context)) return;
+  const refuseOwnRecords = async (target: Pick<WriteTarget, 'connectionId' | 'table' | 'view'>, context: WriteContext): Promise<void> => {
+    if (writtenByAdminium(context)) return;
+    // A connected calendar's busy times: swapped in by the sync alone, whoever is asking.
+    if (isKeptBusyTable(target.view, target.table.id)) throw new ForbiddenError('Only Adminium writes and removes these rows.', 'TABLE_FORBIDDEN', { table: target.table.id, reason: 'adminium-keeps' });
+    if (opts.ownRecords === undefined) return;
     if (!(await opts.ownRecords(target.connectionId, target.table.id))) return;
     const sealed = (await opts.sealedRecords?.(target.connectionId, target.table.id)) === true;
     throw new ForbiddenError(sealed ? 'Only Adminium writes these rows. You can read them.' : 'Only Adminium writes these rows. You can read and delete them.', 'TABLE_FORBIDDEN', { table: target.table.id, reason: 'adminium-writes' });
   };
 
   /** A person's delete of a table only Adminium removes rows from ({@link WriteServiceOptions.sealedRecords}): refused, by name. */
-  const refuseSealedDelete = async (target: Pick<WriteTarget, 'connectionId' | 'table'>, context: WriteContext): Promise<void> => {
-    if (opts.sealedRecords === undefined || writtenByAdminium(context)) return;
+  const refuseSealedDelete = async (target: Pick<WriteTarget, 'connectionId' | 'table' | 'view'>, context: WriteContext): Promise<void> => {
+    if (writtenByAdminium(context)) return;
+    if (isKeptBusyTable(target.view, target.table.id)) throw new ForbiddenError('Only Adminium writes and removes these rows.', 'TABLE_FORBIDDEN', { table: target.table.id, reason: 'adminium-keeps' });
+    if (opts.sealedRecords === undefined) return;
     if (!(await opts.sealedRecords(target.connectionId, target.table.id))) return;
     throw new ForbiddenError('Only Adminium writes and removes these rows. You can read them.', 'TABLE_FORBIDDEN', { table: target.table.id, reason: 'adminium-keeps' });
   };
@@ -2654,6 +2661,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
                 : { granted: (column: string) => columnGranted(target.rights, column, action) }),
             }),
             context.origin,
+            context.stamps,
           ),
           context.origin,
         ),
@@ -3345,7 +3353,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         await fillLinksFromElsewhere(rules, action, target, localize(rules, target, fill(rules, action, target, context, withoutTypedCodes(rules, context, values), now), await zoneFor(rules, target)), settingsReaderOn(opts.settings, target.connectionId)),
         memo,
         context.origin === 'undo',
-        { origin: context.origin, zone: await zoneFor(rules, target), now, stored, rights: target.rights },
+        { origin: context.origin, provedAddress: context.provedAddress ?? null, zone: await zoneFor(rules, target), now, stored, rights: target.rights },
       ),
       settingsReaderOn(opts.settings, target.connectionId),
     );
@@ -3612,7 +3620,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       write: async (table, pk, set) => {
         if (dry && !written) return;
         const bound = Object.fromEntries(Object.entries(set).map(([column, value]) => [column, bindValue(target.dialect, value)]));
-        let update = target.db.updateTable(table.id).set(bound as never);
+        // A booking whose length follows its service: a calendar must hear of that too.
+        let update = target.db.updateTable(table.id).set((await raisedRevision(target.db, table, set, pk, bound)) as never);
         for (const [column, value] of Object.entries(pk)) update = update.where((eb) => eb(target.db.dynamic.ref(column), '=', value));
         await update.execute();
       },
@@ -3950,7 +3959,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       'create',
       target,
       // A code a person typed is found here: a miss is the caller's to word.
-      await guardedValue(() => resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo', { origin: context.origin, zone, now: clock.startedAt, rights: target.rights }), mapError),
+      await guardedValue(() => resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo', { origin: context.origin, provedAddress: context.provedAddress ?? null, zone, now: clock.startedAt, rights: target.rights }), mapError),
       settingsReaderOn(opts.settings, target.connectionId),
     );
     // DECIDE: what creating the row makes Adminium write (a stamp), before the hooks and CHECK.
@@ -3958,7 +3967,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     // A total, a formula and a number are Adminium's alone, whatever a hook set.
     const hooked =
       input.hooks && (await hooks.wants('before', 'create', target, context))
-        ? withoutReadOnly(rules, await runBefore(hooks, 'create', target, context, decided, null), context.origin)
+        ? withoutReadOnly(rules, await runBefore(hooks, 'create', target, context, decided, null), context.origin, context.stamps)
         : decided;
     const values = await daysAfterFormulas(rules, 'create', target, context, await formulate(rules, 'create', target, hooked, null, context.origin), null, clock, zone);
     if (values !== given && input.recheck !== undefined) await input.recheck(values);
@@ -3989,7 +3998,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const rules = rulesOf(target);
       const zone = await zoneFor(rules, target);
       const filled = await fillLinksFromElsewhere(rules, 'create', target, localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, values), clock.startedAt), zone), settingsReaderOn(opts.settings, target.connectionId));
-      const resolved = await fillFromElsewhere(rules, 'create', target, await resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo', { origin: context.origin, zone, now: clock.startedAt, rights: target.rights }), settingsReaderOn(opts.settings, target.connectionId));
+      const resolved = await fillFromElsewhere(rules, 'create', target, await resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo', { origin: context.origin, provedAddress: context.provedAddress ?? null, zone, now: clock.startedAt, rights: target.rights }), settingsReaderOn(opts.settings, target.connectionId));
       const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, stampNow(clock), zone, await peopleDecide(rules, target, context)));
       return await daysAfterFormulas(rules, 'create', target, context, await formulate(rules, 'create', target, decided, null, context.origin), null, clock, zone);
     } catch {
@@ -4822,9 +4831,12 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
        * transaction. So a create sent with a retry key, which comes this way
        * to be found again, is placed like any other; and a second key for a
        * time that is taken is refused by the rule, as an unkeyed create is.
+       * The public door asks for more (`with-rows`): its rows below are written
+       * under that lock, and its quote is judged by the rule without one.
        */
       const rootBooking = rulesOf(rootRow.target)?.booking;
-      if (rootBooking !== undefined && (input.placeRoot !== true || dry || everyRow.length > 1)) await at(rootRow.node, () => Promise.reject(new GuardedBatchError(rootRow.target.table.name)));
+      const rootPlaced = input.placeRoot === 'with-rows' || (input.placeRoot === true && !dry && everyRow.length === 1);
+      if (rootBooking !== undefined && !rootPlaced) await at(rootRow.node, () => Promise.reject(new GuardedBatchError(rootRow.target.table.name)));
 
       /*
        * A retry of a create already made answers the rows it stored, with
@@ -5305,7 +5317,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       // A row the caller cannot see is not a hook's business: the UPDATE below
       // matches nothing and the caller answers as it always has.
       if (wantsBefore && before !== null) {
-        values = withoutReadOnly(rules, await runBefore(hooks, 'update', target, context, values, before), context.origin);
+        values = withoutReadOnly(rules, await runBefore(hooks, 'update', target, context, values, before), context.origin, context.stamps);
       }
       // A price by the night this change names (its dates, its rate): decided below against the row as held —
       // priced again when they differ from it, else the price it holds kept (a whole-row send repeats them).
@@ -5980,7 +5992,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           prepared.push({ values: brand(settled), record, issues: refused });
           continue;
         }
-        const values = withoutReadOnly(rules, await runBefore(hooks, action, target, context, action === 'delete' ? {} : settled, record), context.origin);
+        const values = withoutReadOnly(rules, await runBefore(hooks, action, target, context, action === 'delete' ? {} : settled, record), context.origin, context.stamps);
         if (action === 'update') refuseMovedBalance(rules, target, values, record, beforeOpts?.capacity);
         const done = await prepare(action === 'delete' ? settled : values, record);
         if (action === 'update' && withRules && done.issues === null) await refuseBatchFollow(rules, target, values, done.values, record, row.match, beforeOpts?.capacity);

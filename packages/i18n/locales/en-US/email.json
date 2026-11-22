@@ -1020,6 +1020,22 @@
     "questions": "Questions? Write to {contact}. {who}.",
     "keptBy": "Kept by {who}."
   },
+  "connectLink": {
+    "name": "Connect your account",
+    "subject": "{business} asks you to connect your account",
+    "preheader": "The link works for {days} days.",
+    "heading": "Connect your account",
+    "intro": "Hi {name}, {business} asks you to connect your own account. Please use the account that is yours.",
+    "action": "Connect my account",
+    "notice": "The link works once, for {days} days. If you weren’t expecting it, you can ignore this email: nothing is connected until you sign in."
+  },
+  "accountConnected": {
+    "name": "Account connected",
+    "subject": "Your account was connected at {business}",
+    "heading": "Your account was connected",
+    "intro": "Hi {name}, {provider} is now connected for you at {business} as {account}.",
+    "notice": "If this wasn’t you, tell {business} straight away."
+  },
   "emailChangeConfirm": {
     "action": "Confirm this address",
     "heading": "Confirm your new address",

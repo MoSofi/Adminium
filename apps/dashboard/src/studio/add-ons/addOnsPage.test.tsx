@@ -264,6 +264,26 @@ describe('AddOnsPage', () => {
     expect(screen.getByText(/May contact: status\.example$/)).toBeTruthy();
   });
 
+  it('shows who is connected for an add-on each person connects to, and opens its page: no Connected badge, no Disconnect', async () => {
+    await renderPage({
+      installed: [makeAddOn({ key: 'calendar-google', name: 'Google Calendar', connected: true, connectKind: 'oauth2', connectAccounts: true })],
+      respond: (method, url) => (method === 'GET' && url === '/api/v1/add-ons/calendar-google/connect/accounts' ? { status: 200, body: { registered: true, counts: { connected: 2, reconnect: 1 } } } : undefined),
+    });
+    expect((await screen.findByTestId('add-on-calendar-google-accounts')).textContent).toBe('2 connected · 1 to reconnect');
+    expect(screen.getByTestId('add-on-calendar-google-open')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Disconnect' })).toBeNull();
+    expect(screen.queryByText('Connected')).toBeNull();
+  });
+
+  it('says an add-on each person connects to is not set up yet', async () => {
+    await renderPage({
+      installed: [makeAddOn({ key: 'calendar-google', name: 'Google Calendar', connected: false, connectKind: 'oauth2', connectAccounts: true })],
+      respond: (method, url) => (method === 'GET' && url === '/api/v1/add-ons/calendar-google/connect/accounts' ? { status: 200, body: { registered: false, counts: { connected: 0, reconnect: 0 } } } : undefined),
+    });
+    expect((await screen.findByTestId('add-on-calendar-google-accounts')).textContent).toBe('Not set up');
+    expect(screen.queryByText('Not connected')).toBeNull();
+  });
+
   it('says who sets a payment service up, to someone without a payments key', async () => {
     await renderPage({
       respond: (_method, url) => (url.startsWith('/api/v1/bootstrap') ? { status: 200, body: { data: makeBootstrap({ nav: { groups: [] }, roles: ['admin'], systemActions: ['manifests.manage'] }) } } : undefined),

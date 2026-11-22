@@ -1497,13 +1497,14 @@ export function bookingRuleIssue(raw: unknown, table: TableModel, model: Databas
   const ownNames: unknown[] = [value['start'], value['minutes'], value['resource'], value['kind'], (value['countWhere'] as Value | undefined)?.['column']];
   const cancel = value['cancel'] as Value | undefined;
   if (cancel !== undefined) ownNames.push((cancel['when'] as Value | undefined)?.['column'], cancel['flag']);
+  const anyone = value['anyone'] as Value | undefined;
+  ownNames.push(value['buffer'], anyone?.['made'], anyone?.['flag']);
   for (const name of ownNames) {
     if (name === undefined) continue;
     if (own(name) === undefined) return `${table.name} has no column ${JSON.stringify(name)}.`;
   }
-  const minutes = own(value['minutes']);
-  if (minutes !== undefined && !NUMERIC_TYPES.has(minutes.logicalType)) {
-    return `${minutes.name} is not a number, so it cannot be a length in minutes.`;
+  for (const [column, what] of [[own(value['minutes']), 'a length in minutes'], [value['buffer'] === undefined ? undefined : own(value['buffer']), 'a buffer in minutes']] as const) {
+    if (column !== undefined && !NUMERIC_TYPES.has(column.logicalType)) return `${column.name} is not a number, so it cannot be ${what}.`;
   }
 
   /** The table by its snapshot id, and each of `columns` on it. */
@@ -1525,11 +1526,39 @@ export function bookingRuleIssue(raw: unknown, table: TableModel, model: Databas
     [eligible === undefined ? undefined : { ...eligible, order: undefined }, 'list of who does what'],
     [eligible?.['order'], 'booking order'],
     [hours?.['practice'], 'opening hours'],
-    [hours?.['own'], 'own hours'],
+    // `within` is a word of the rule, not a column.
+    [hours?.['own'] === undefined ? undefined : { ...(hours['own'] as Value), within: undefined }, 'own hours'],
     [value['closures'], 'closures'],
+    ...((value['busy'] as Value[] | undefined) ?? []).map((source) => [source, 'busy times'] as const),
   ] as const) {
     const issue = elsewhere(part, what);
     if (issue !== null) return issue;
+  }
+  for (const source of (value['busy'] as Value[] | undefined) ?? []) {
+    const held = model.tables.find((candidate) => candidate.id === String(source['table']));
+    for (const name of [(source['countWhere'] as Value | undefined)?.['column'], (source['engine'] as Value | undefined)?.['account']]) {
+      if (name !== undefined && held?.columns.some((c) => c.name === name) !== true) return `${held?.name ?? String(source['table'])} has no column ${JSON.stringify(name)} for the busy times.`;
+    }
+  }
+  const sync = value['sync'] as Value | undefined;
+  if (sync !== undefined) {
+    if (own((sync['when'] as Value)['column']) === undefined) return `${table.name} has no column ${JSON.stringify((sync['when'] as Value)['column'])} for what goes to a calendar.`;
+    const name = sync['calendarName'];
+    if (typeof name === 'object' && name !== null) {
+      const issue = elsewhere(name, 'calendar name');
+      if (issue !== null) return issue;
+    }
+    for (const written of Object.values(sync['title'] as Value)) {
+      const [first] = String(written).split('.');
+      if (own(first) === undefined) return `${table.name} has no column ${JSON.stringify(first)} for a calendar event's title.`;
+    }
+  }
+  const pick = anyone?.['pick'];
+  if (typeof pick === 'object' && pick !== null) {
+    const link = model.relations.find((r) => r.through === null && r.from.tableId === table.id && r.from.columns.length === 1 && r.from.columns[0] === value['kind']);
+    const kinds = model.tables.find((candidate) => candidate.id === link?.to.tableId);
+    const column = (pick as Value)['column'];
+    if (kinds?.columns.some((c) => c.name === column) !== true) return `The kind of ${table.name} has no column ${JSON.stringify(column)} saying how anyone is picked.`;
   }
   if (eligible === undefined || hours?.['practice'] === undefined) return 'A booking rule names who does what and the opening hours.';
 

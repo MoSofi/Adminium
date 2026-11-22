@@ -384,6 +384,21 @@ describe('an error answered before the gate is readable cross-origin', () => {
     expect(completed?.level).toBe(30);
     expect(completed?.res?.statusCode).toBe(429);
   });
+
+  it("keeps a guest's code out of the failed request's warn line", async () => {
+    const lines: string[] = [];
+    const stream = { write: (line: string) => void lines.push(line) };
+    const app = await serving({ logger: buildLogger(makeEnv(), { pretty: false, stream }) });
+    const rejected = await app.inject({
+      method: 'GET',
+      url: '/api/v1/public/records/anything?limit=500&code=K7PX2QWE',
+      headers: { origin: ORIGIN, authorization: `Bearer ${KEY}` },
+    });
+    expect(rejected.statusCode).toBe(400);
+    const warned = lines.map((line) => JSON.parse(line) as { msg?: string; url?: string }).find((l) => l.msg === 'public API request failed');
+    expect(warned?.url).toBe('/api/v1/public/records/anything?limit=500&code=[REDACTED]');
+    expect(lines.join('')).not.toContain('K7PX2QWE');
+  });
 });
 
 describe('every public operation documents its 429', () => {

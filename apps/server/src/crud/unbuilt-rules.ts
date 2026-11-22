@@ -79,6 +79,11 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'column.codeLast4',
   // A code a ledger's own answer brings on a row it adds (an older card, under the code its holder has): kept as given, after its checks.
   'code.givenByLedger',
+  // A row named by a signed-in person who holds it (crud/code-lookup.ts, crud/adjust/load.ts).
+  'lookup.held',
+  // Served in its own sandbox (routes/add-on-frame).
+  'addOn.framedPage',
+  'adjuster.vouchers.held',
   // A column that keeps a table's name: a rename of that table rewrites its rows.
   'column.tableRef',
   // The rows an add-on's tables start with, its one settings row, and an index a table declares over a set of columns.
@@ -139,6 +144,10 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'rows.pair',
   // A row opened by its own code: a code of another length is refused before the lookup, and a miss is held against the cards' count.
   'unlockBy.self',
+  // An add-on whose people each connect their own outside account, the table they are rows of, and what a role may do about it (`connected-accounts/`).
+  'addOn.connect.accounts',
+  'table.connectedAccounts',
+  'roles.accounts',
   // An add-on's public entries, served through the key of an app that names it, and its one link key of its own.
   'publicAccess',
   'publicKeys',
@@ -253,6 +262,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // An add-on kept once per server (installs/resolve.ts addOnIsServerWide); a side that serves every install of its app (its config names its install).
   'addOn.scope',
   'frontend.instances',
+  // The screens a listed website may frame: read when the page is served and when the snippet maker lists them (plugins/surface-frame.ts, privacy/embeds.ts).
+  'frontend.embed',
   // A page kept off the sidebar, and an entry of the app's section that is not a page: both read when the menu is built.
   'nav.offRail',
   'navLinks',
@@ -325,6 +336,10 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // (public-api/derive.ts); a person's copy on an add-on's table, found, exported and blanked with them (privacy/copy-rows.ts);
   // an add-on's rows let go when they expire (add-ons/expire.ts, run daily by the job runner).
   'publicAccess.appColumn',
+  // Filtered to the address the session proved (routes/public, public-api/proved-address.ts).
+  'publicAccess.heldBy',
+  // "Delete my details" also blanks the person's linked copies, in its own transaction (privacy/forget-copies.ts).
+  'publicAccess.forget.copies',
   'people.addOnCopies',
   'table.expire',
   // A band link picked by the write (crud/band.ts), a stamp counted in working days (crud/working-days.ts), and a
@@ -486,6 +501,22 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'table.review',
   // Who proved who they are on a reviewed row: a row's own link reviews only a proved one (routes/public review, reviews/take.ts).
   'table.review.proved',
+  // A booking's buffer, busy sources, "anyone" pick, capped hours and guests-only window (crud/booking-guard.ts).
+  'table.booking.buffer',
+  'table.booking.busy',
+  'table.booking.anyone',
+  'table.booking.hours.within',
+  'table.booking.windowFor',
+  'table.booking.placedFrom',
+  // The review link only the review mails carry (outbox/review-link.ts); a booking's calendar entry, on its mail and its
+  // feed (calendar/); a public box that says no (people/consent-writes.ts); a studio's cancel refunded (payments/refund-moves.ts).
+  'outbox.reviewLinks',
+  'table.booking.calendar',
+  'emailTemplate.calendar',
+  'publicAccess.consent.no',
+  'payments.refundOnStaff',
+  // Bookings out to, and busy times in from, each person's connected calendar (calendar-sync/).
+  'table.booking.sync',
   'addOn.reviews',
   'appGrants.appColumn',
 ];

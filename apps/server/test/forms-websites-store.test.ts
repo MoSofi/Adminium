@@ -62,6 +62,21 @@ describe.each(META_ENGINES)('"Your websites" in the meta store — $name', (engi
     await settings.set('publicPages.websites', [], { updatedBy: null });
   });
 
+  it.skipIf(!engine.available)('a line saved before the check refused it frames nothing, stays on the page, and can be removed', async () => {
+    const settings = settingsRepo(handle.meta);
+    const bad = 'https://a;sandbox';
+    await settings.set('publicPages.websites', [{ origin: 'https://shop.meridian.example', addedBy: null, addedAt: 1 }, { origin: bad, addedBy: null, addedAt: 2 }], { updatedBy: null });
+    forgetListedWebsites(handle.meta);
+    expect(await listedWebsitesOf(handle.meta)()).toEqual(['https://shop.meridian.example']);
+    expect((await readWebsites(handle.meta)).map((site) => site.origin)).toContain(bad);
+    expect(await removeWebsite(handle.meta, bad, { userId: owner, at: 3 })).toMatchObject({ removed: true, origin: bad });
+    expect((await readWebsites(handle.meta)).map((site) => site.origin)).toEqual(['https://shop.meridian.example']);
+    const refused = await addWebsites(handle.meta, [bad], { userId: owner, at: 4 });
+    expect(refused.ok ? [] : refused.lines.map((line) => line.code)).toEqual(['address']);
+    await settings.set('publicPages.websites', [], { updatedBy: null });
+    forgetListedWebsites(handle.meta);
+  });
+
   it.skipIf(!engine.available)('adds several at once, all or none, and never past fifty', async () => {
     forgetListedWebsites(handle.meta);
     const by = { userId: owner, at: 1_793_000_000_000 };

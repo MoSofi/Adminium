@@ -388,6 +388,7 @@ function definitionOf(
     ...(entry.assets === undefined ? {} : { assets: [...entry.assets] }),
     // An add-on's entry held to the app whose key serves it.
     ...(entry.appColumn === undefined ? {} : { app_column: entry.appColumn }),
+    ...(entry.heldBy === undefined ? {} : { held_by: entry.heldBy.address, ...(entry.heldBy.from === undefined ? {} : { held_from: entry.heldBy.from }) }),
     // A create with its child rows, and what it checks.
     ...(entry.children === undefined ? {} : { children: childDefinitions(entry.children, idOf) }),
     ...(entry.agrees === undefined ? {} : { agrees: structuredClone(entry.agrees) }),
@@ -418,6 +419,7 @@ function definitionOf(
           forget: {
             columns: [...entry.forget.columns],
             ...(entry.forget.stamp === undefined ? {} : { stamp: entry.forget.stamp }),
+            ...(entry.forget.copies === true ? { copies: true as const } : {}),
             // The app's yes/no columns: SQLite keeps them as numbers, and a forgetting sets them to no.
             ...(boolsOf(manifest, entry.table, entry.forget.columns).length === 0 ? {} : { flags: boolsOf(manifest, entry.table, entry.forget.columns) }),
             // The own links of the person's rows, stopped too: each table by its real id.

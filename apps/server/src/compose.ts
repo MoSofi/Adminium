@@ -102,6 +102,7 @@ import { operatorMailSetupOf, trialMailSetupOf } from './email/trial-mail-setup.
 import { configureTrialMail, onEmailCapReached } from './email/trial-relay.js';
 import { CATALOG_ENABLED_SETTING, createCatalogClient } from './add-ons/catalog.js';
 import { addOnCredentialCryptoFromSecret } from './add-ons/credential-crypto.js';
+import { addOnVisibleCredential } from './add-ons/oauth.js';
 import { addOnHttpClientFor } from './add-ons/egress.js';
 import {
   buildAddOnRuntime,
@@ -134,6 +135,7 @@ import { formsDoorRoutes } from './routes/forms-door/index.js';
 import { xConsentRoutes } from './routes/x-consent/index.js';
 import { viewCountsRoutes } from './routes/view-counts/index.js';
 import { createCounting, registerCountingSchedules } from './views/wiring.js';
+import { addOnFrameRoutes } from './routes/add-on-frame/index.js';
 import { chatDoorRoutes } from './routes/chat-door/index.js';
 import { capKey } from './public-api/anonymous-caps.js';
 import { chatAiFrom, type ChatAi } from './chat/ai.js';
@@ -330,6 +332,10 @@ import { factsViewFor } from './routes/pages/column-facts.js';
 import { fetchByPk, parseRecordId } from './crud/records.js';
 import { rowLimitContextOf } from './crud/row-limit-context.js';
 import { fetchVisible } from './crud/row-limit.js';
+import { rowKeyOf } from './payments/payables.js';
+import { tableIdOrNull } from './installs/table-id.js';
+import { reachability } from './payments/reachability.js';
+import { storedPublicOrigin } from './email/door-reach.js';
 import { addOnKitRoutes } from './routes/add-ons/kit.js';
 import { formSummaryRoutes } from './routes/add-ons/form-summary.js';
 import { addOnCodesRoutes } from './routes/add-ons/codes.js';
@@ -405,6 +411,7 @@ import { paymentPanelRoutes } from './routes/payments/panel.js';
 import { consentRoutes, emailColumnOf } from './routes/consent/index.js';
 import { queuePaymentReceipt, receiptSentFor } from './payments/emails.js';
 import { mailDoorRoutes } from './routes/mail-door/index.js';
+import { calendarFeedDoor, calendarFeedRoutes } from './routes/calendar-feed/index.js';
 import { privacyRoutes } from './routes/privacy/index.js';
 import { formsStaffRoutes } from './routes/forms/index.js';
 import { mailSettingsRoutes } from './routes/mail-settings/index.js';
@@ -438,6 +445,14 @@ import { registerPaymentsSettleHandler } from './payments/webhook.js';
 import { PAYMENTS_SWEEP_PLAN_CRON, PAYMENTS_SWEEP_PLAN_NAME, planSweeps, registerPaymentsSweepHandler } from './payments/sweep.js';
 import { createRowLeftWatch, endLeftPages, registerRowLeftHandler } from './payments/row-left.js';
 import { paymentWebhookRoutes } from './routes/payments/webhook.js';
+import { CONNECTED_ACCOUNTS_TICK_CRON, CONNECTED_ACCOUNTS_TICK_NAME, registerConnectedAccountJobs, runConnectedAccountsTick } from './connected-accounts/jobs.js';
+import { createConnectedAccounts } from './connected-accounts/service.js';
+import { connectCallbackRoutes, connectDoorRoutes } from './routes/connect-door/index.js';
+import { connectedAccountRoutes } from './routes/connected-accounts/index.js';
+import { calendarDeskRoutes, calendarHookRoutes } from './routes/calendar-sync/index.js';
+import { demoCalendarFor } from './calendar-sync/provider.js';
+import { createCalendarSync, type CalendarSync } from './calendar-sync/service.js';
+import { CALENDAR_DAILY_CRON, CALENDAR_DAILY_NAME, CALENDAR_PLAN_CRON, CALENDAR_PLAN_NAME, CALENDAR_SWEEP_CRON, CALENDAR_SWEEP_NAME, registerCalendarSyncJobs } from './calendar-sync/jobs.js';
 import { paymentActivityRoutes } from './routes/payments/activity.js';
 import { keyAppRoutes } from './routes/payments/key-app.js';
 import { testPaymentsRoutes } from './routes/payments/test-payments.js';
@@ -729,6 +744,8 @@ export interface ComposeServerOptions {
 }
 
 export interface ComposedServer {
+  /** The calendar sync (`calendar-sync/`): its demo calendar and its passes, for a contract or a sample. */
+  calendarSync: CalendarSync;
   app: AdminiumServer;
   /**
    * The live chat's engine: what finds a chat, the one writer of its
@@ -2137,6 +2154,104 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       warn: (fields, message) => app.log.warn(fields, message),
     }),
   );
+  /*
+   * CONNECTED ACCOUNTS: one person's outside account per row of an app (or per
+   * install). The engine runs every sign-in and refresh; an add-on's code is
+   * handed a client that adds the token, never the token (`connected-accounts/`).
+   */
+  const connectedAccounts = createConnectedAccounts({
+    meta,
+    crypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
+    secret: env.ADMINIUM_SECRET,
+    httpFor: (manifest) => addOnHttpClientFor(meta, manifest, { policy: app.trialPolicy }),
+    rows: {
+      read: async (connectionId, tableId, rowKey) => {
+        const view = await factsViewFor(meta, connectionId);
+        if (view === null) throw new Error('This database has no schema snapshot to read a row with.');
+        // Not "the row is gone": a re-sync under a role that lost its rights drops a table from the snapshot too.
+        if (!view.model.tables.some((one) => one.id === tableId)) throw new Error('This table is not in the schema snapshot.');
+        const table = view.table(tableId);
+        const { db } = await manager.data(connectionId);
+        return (await fetchByPk(db, table, parseRecordId(table, rowKey))) as Record<string, unknown> | undefined;
+      },
+      tableId: async (connectionId, real) => {
+        const view = await factsViewFor(meta, connectionId);
+        return view === null ? null : tableIdOrNull(view.model, real);
+      },
+      list: async (connectionId, tableId, limit) => {
+        const view = await factsViewFor(meta, connectionId);
+        if (view === null || !view.model.tables.some((one) => one.id === tableId)) return [];
+        const table = view.table(tableId);
+        if (table.primaryKey.length !== 1) return [];
+        const { db } = await manager.data(connectionId);
+        const rows = (await db.selectFrom(table.id).selectAll().orderBy(db.dynamic.ref(table.primaryKey[0]!)).limit(limit).execute()) as Record<string, unknown>[];
+        return rows.map((row) => ({ rowKey: rowKeyOf(table, row), row }));
+      },
+    },
+    publicOrigin: () => storedPublicOrigin(meta),
+    reach: async (forwarded) =>
+      reachability({
+        networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+        desktop: env.ADMINIUM_RUNTIME === 'desktop',
+        trustProxy: env.ADMINIUM_TRUST_PROXY,
+        forwarded,
+        publicOrigin: await storedPublicOrigin(meta),
+      }),
+    notices: { hub: paymentWatchDeps.hub, logger: app.log },
+  });
+  registerConnectedAccountJobs(jobs.registry, connectedAccounts);
+  jobs.scheduler.registerSchedule(
+    CONNECTED_ACCOUNTS_TICK_NAME,
+    CONNECTED_ACCOUNTS_TICK_CRON,
+    async () => {
+      const done = await runConnectedAccountsTick(connectedAccounts, (input) => jobs.enqueue(input));
+      if (done.ending > 0) app.log.info({ ending: done.ending }, 'connected accounts: ending connections whose row went away');
+    },
+    { jitterMs: 60_000 },
+  );
+  /*
+   * CALENDAR SYNC: bookings out to each person's connected calendar, their busy
+   * times in. One planner, one sweep and fixed job kinds (`calendar-sync/`).
+   * The demo calendar is never offered on a production server.
+   */
+  const calendarSync = createCalendarSync({
+    meta,
+    crypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
+    accounts: connectedAccounts,
+    source: async (connectionId) => {
+      const view = await factsViewFor(meta, connectionId);
+      if (view === null) return null;
+      const { db, dialect } = await manager.data(connectionId);
+      return { view, db, dialect, timezone: (await connectionTenantConfig(meta, connectionId))?.timezone ?? 'UTC' };
+    },
+    runtime: () => addOnRuntime,
+    demo: demoCalendarFor(process.env['NODE_ENV']),
+    enqueue: (input) => jobs.enqueue(input),
+    publicOrigin: () => storedPublicOrigin(meta),
+    reach: async () =>
+      reachability({
+        networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+        desktop: env.ADMINIUM_RUNTIME === 'desktop',
+        trustProxy: env.ADMINIUM_TRUST_PROXY,
+        forwarded: false,
+        publicOrigin: await storedPublicOrigin(meta),
+      }),
+    connectionIds: async () => (await manager.connections.list()).map((connection) => connection.id),
+    notices: { hub: paymentWatchDeps.hub, logger: app.log },
+    log: (message, fields) => app.log.warn(fields, message),
+  });
+  connectedAccounts.addOnConnected((account) => calendarSync.onConnected(account));
+  app.decorate('calendarRows', { onRecordEvent: (event: Parameters<typeof calendarSync.onRecordEvent>[0]) => calendarSync.onRecordEvent(event) });
+  registerCalendarSyncJobs(jobs.registry, calendarSync);
+  jobs.scheduler.registerSchedule(CALENDAR_PLAN_NAME, CALENDAR_PLAN_CRON, async () => {
+    await calendarSync.plan();
+  }, { jitterMs: 5_000 });
+  jobs.scheduler.registerSchedule(CALENDAR_SWEEP_NAME, CALENDAR_SWEEP_CRON, async () => {
+    await calendarSync.sweep();
+  }, { jitterMs: 30_000 });
+  jobs.scheduler.registerSchedule(CALENDAR_DAILY_NAME, CALENDAR_DAILY_CRON, async () => {
+    await calendarSync.daily();
+  }, { jitterMs: 60_000 });
   jobs.scheduler.registerSchedule(PAYMENTS_WATCH_NAME, PAYMENTS_WATCH_CRON, async () => {
     await runPaymentWatch(paymentWatchDeps);
     const queued = await pickUpRefunds(paymentRefundDeps);
@@ -2380,6 +2495,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
 
   await app.register(
     async (api) => {
+      await api.register(calendarFeedRoutes({ meta, secret: env.ADMINIUM_SECRET, manager, viewFor: (connectionId) => factsViewFor(meta, connectionId) }));
       if (desktopSession !== null) {
         await api.register(desktopSessionRoutes({ meta, ...desktopSession }));
       }
@@ -2576,7 +2692,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(searchRoutes({ manager, meta }));
       // Towns by name from the list this server ships, and the way between stops.
       await api.register(geoRoutes({ meta }));
-      await api.register(widgetDataRoutes({ manager, meta, cache: widgetDataCache }));
+      await api.register(widgetDataRoutes({ manager, meta, cache: widgetDataCache, calendarCounts: (connectionId, tableId) => calendarSync.connectionCounts(connectionId, tableId) }));
       await api.register(
         // `emailKey` is passed explicitly rather than letting the route derive it
         // from `process.env`: the composition root already holds the parsed env,
@@ -2681,6 +2797,62 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           policy: app.trialPolicy,
         }),
       );
+      // Connected accounts: the staff doors on a row and on an install, and the fixed address a provider sends a person back to.
+      await api.register(
+        connectedAccountRoutes({
+          meta,
+          crypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
+          accounts: connectedAccounts,
+          maskedColumns: async (connectionId, tableId) => {
+            const view = await factsViewFor(meta, connectionId);
+            if (view === null || !view.model.tables.some((one) => one.id === tableId)) return new Set<string>();
+            return new Set([...view.table(tableId).columns.entries()].filter(([, column]) => column.masked === true).map(([name]) => name));
+          },
+          lastSyncedOf: (accountId) => calendarSync.lastSyncedOf(accountId),
+          reachedRow: async (request, connectionId, tableId, row, action) => {
+            const view = await factsViewFor(meta, connectionId);
+            if (view === null || !view.model.tables.some((one) => one.id === tableId)) return null;
+            const table = view.table(tableId);
+            if (table.primaryKey.length !== 1) return null;
+            let pk;
+            try {
+              pk = parseRecordId(table, row);
+            } catch {
+              return null;
+            }
+            const limits = await rowLimitContextOf(meta, await app.rbac.resolve(request), connectionId, view.model);
+            const { db } = await manager.data(connectionId);
+            const found = limits === null ? await fetchByPk(db, table, pk) : await fetchVisible(limits, db, table, pk, action);
+            return found === undefined ? null : { rowKey: rowKeyOf(table, found as Record<string, unknown>) };
+          },
+        }),
+      );
+      await api.register(connectCallbackRoutes());
+      // The calendar sync: where a calendar service calls, and what the desk asks.
+      await api.register(calendarHookRoutes({ sync: calendarSync }));
+      await api.register(
+        calendarDeskRoutes({
+          meta,
+          sync: calendarSync,
+          accounts: connectedAccounts,
+          reachedRow: async (request, connectionId, tableId, row, action) => {
+            const view = await factsViewFor(meta, connectionId);
+            if (view === null || !view.model.tables.some((one) => one.id === tableId)) return null;
+            const table = view.table(tableId);
+            if (table.primaryKey.length !== 1) return null;
+            let pk;
+            try {
+              pk = parseRecordId(table, row);
+            } catch {
+              return null;
+            }
+            const limits = await rowLimitContextOf(meta, await app.rbac.resolve(request), connectionId, view.model);
+            const { db } = await manager.data(connectionId);
+            const found = limits === null ? await fetchByPk(db, table, pk) : await fetchVisible(limits, db, table, pk, action);
+            return found === undefined ? null : { rowKey: rowKeyOf(table, found as Record<string, unknown>) };
+          },
+        }),
+      );
       // Where a payment service calls back: no session, the signature is the gate.
       await api.register(paymentWebhookRoutes({ meta, providerFor: paymentProviderLookup, enqueue: (input) => jobs.enqueue(input), notices: paymentNotices }));
       // Where a mail service tells of bounces, spam reports and its own unsubscribes: no session, its own proof is the gate.
@@ -2760,6 +2932,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           chatForget: (place, id) => chatStore.forget(place, id),
           // …and blanks the name on their reviews, keeping the words.
           reviewInstalls: () => addOnInstalls.fresh(),
+        calendars: calendarSync,
           // A new counting level is used by this process's counter at once.
           counting: counting.counter,
         }),
@@ -3617,6 +3790,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
            * configuration is part of the add-on, not the customer's data.
            */
           onAddOnRemoved: async (install) => {
+            // Its connections end first, while the registration and tokens to undo them are still there.
+            await connectedAccounts.endInstall(install.row.id).catch((error: unknown) => app.log.warn({ err: error, addOn: install.row.manifestKey }, 'connected accounts: could not end all of an add-on\'s connections'));
             // One install's: another database's copy of the add-on keeps rendering, firing and its settings.
             // A profile made before the add-on was there carries no install: it is the copy's on its own database.
             const copies = await manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET)).listByKey(install.row.manifestKey);
@@ -3819,6 +3994,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     if (expired > 0 || pruned > 0) app.log.info({ expired, pruned }, 'forms sweep');
   });
 
+  await app.register(calendarFeedDoor({ meta, secret: env.ADMINIUM_SECRET, manager, viewFor: (connectionId) => factsViewFor(meta, connectionId) }));
   await app.register(
     mailDoorRoutes({ meta, secret: env.ADMINIUM_SECRET, consent, mirror: (event, address) => consentMirror.mirrorEvent(event, address), networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY, confirm: formsConfirm }),
   );
@@ -3839,6 +4015,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         answerFiles: formsFiles.removeAnswerFiles,
         chatForget: (place, id) => chatStore.forget(place, id),
         reviewInstalls: () => addOnInstalls.fresh(),
+        calendars: calendarSync,
       },
       address,
       scope,
@@ -3908,6 +4085,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       landing: landingCatalog,
     }),
   );
+  // Where a person connects their own outside account (`/x/connect`), signed in or not.
+  await app.register(connectDoorRoutes({ meta, accounts: connectedAccounts }));
   // The visitor banner's "Yes" and "Cookie choice" (`/x/consent/visit`).
   await app.register(
     xConsentRoutes({
@@ -4066,6 +4245,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // "Came from" keeps a page's path only on one of the business's own listed websites.
     websites: formsWebsites,
   });
+  await app.register(addOnFrameRoutes({ meta, store: addOnStore, vouched: doorVouched, websites: formsWebsites }));
   await app.register(
     chatDoorRoutes({
       meta,
@@ -4367,7 +4547,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         http: addOnHttpClientFor(meta, manifest, { policy: app.trialPolicy }),
         credential: async (installId: string | undefined) => {
           const install = await installOfRecord(repo, manifest.key, installId);
-          return install === null ? null : ((await repo.getCredential(install.row.id))?.secret ?? null);
+          if (install === null) return null;
+          // Never the whole envelope: an OAuth one holds the client secret and the refresh token.
+          const held = await repo.getCredential(install.row.id);
+          return held === null ? null : addOnVisibleCredential(held);
         },
       };
     });
@@ -5015,5 +5198,6 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     addOnsLoaded,
     chat: { catalog: chatCatalog, store: chatStore, caps: chatCaps, door: chatDoor, staff: chatStaff, waiting: chatWaiting },
     leads: { deps: leadsPeopleDeps, keep: (input) => keepFoundPeople(leadsPeopleDeps, input), sweep: sweepLeads, step: companyFillDeps },
+    calendarSync,
   };
 }

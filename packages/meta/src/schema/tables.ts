@@ -1154,8 +1154,149 @@ export interface AdminiumAddOnCredentialsTable {
   payload: string;
   expiresAt: Ts | null;
   scopes: JsonColumn | null;
+  /** The provider refused this install's client (wave 0100): the install's state, not each person's. */
+  refusedCode: string | null;
+  refusedAt: Ts | null;
   createdAt: Ts;
   updatedAt: Ts;
+}
+
+/** One person's outside account on an add-on install (wave 0100). Tokens are sealed in `payload`. */
+export interface AdminiumConnectedAccountsTable {
+  id: Id;
+  manifestId: Id;
+  connectionId: string;
+  tableName: string;
+  rowKey: string;
+  subject: string;
+  address: string | null;
+  /** AES-256-GCM ciphertext. NULL after an export or a restore under another secret. */
+  payload: string | null;
+  expiresAt: Ts | null;
+  refreshExpiresAt: Ts | null;
+  scopes: JsonColumn | null;
+  state: string;
+  stateSince: Ts;
+  version: number;
+  leaseUntil: Ts | null;
+  connectedAt: Ts;
+  updatedAt: Ts;
+}
+
+/** One connected calendar's sync state (wave 0102). */
+export interface AdminiumCalendarSyncTable {
+  accountId: Id;
+  connectionId: string;
+  bookingTable: string;
+  calendarId: string | null;
+  calendarName: string | null;
+  readCalendars: JsonColumn | null;
+  countAllDay: boolean | number;
+  detail: string;
+  ownCursor: string | null;
+  readStartedAt: Ts | null;
+  lastSyncedAt: Ts | null;
+  nextPollAt: Ts;
+  noticeAt: Ts | null;
+  connectingSince: Ts | null;
+  holdUntil: Ts | null;
+  staleDroppedAt: Ts | null;
+  calendarLostAt: Ts | null;
+  calendarLostCount: number;
+  paused: string | null;
+  calendarLeaseUntil: Ts | null;
+  busyHash: string | null;
+  silentToldAt: Ts | null;
+  lastError: string | null;
+  updatedAt: Ts;
+}
+
+/** The event mirror (wave 0102): the provider's id and a hash, never a title. */
+export interface AdminiumCalendarEventsTable {
+  id: Id;
+  accountId: Id;
+  connectionId: string;
+  tableName: string;
+  rowKey: string;
+  generation: number;
+  remoteId: string | null;
+  etag: string | null;
+  appliedHash: string | null;
+  startAt: Ts | null;
+  endAt: Ts | null;
+  detail: string | null;
+  tries: number;
+  lastError: string | null;
+  updatedAt: Ts;
+}
+
+/** A row whose calendar events may be out of date (wave 0102). */
+export interface AdminiumCalendarDirtyTable {
+  id: Id;
+  connectionId: string;
+  tableName: string;
+  rowKey: string;
+  markedAt: Ts;
+  mark: number;
+}
+
+/** A push channel (wave 0102). The secret is sealed. */
+export interface AdminiumCalendarChannelsTable {
+  id: Id;
+  accountId: Id;
+  provider: string;
+  target: string;
+  state: string;
+  secretSealed: string;
+  remoteChannelId: string | null;
+  resourceId: string | null;
+  address: string;
+  expiresAt: Ts;
+  lastNoticeAt: Ts | null;
+  createdAt: Ts;
+}
+
+/** A clash told or kept (wave 0102), keyed on the clipped overlap. */
+export interface AdminiumCalendarClashesTable {
+  id: Id;
+  connectionId: string;
+  tableName: string;
+  rowKey: string;
+  overlapStart: Ts;
+  overlapEnd: Ts;
+  toldAt: Ts | null;
+  keptAt: Ts | null;
+  keptBy: string | null;
+}
+
+/** A one-time connect link (wave 0100): its hash, what it may connect, until when. */
+export interface AdminiumConnectLinksTable {
+  id: Id;
+  connectionId: string;
+  tableName: string;
+  rowKey: string;
+  providers: JsonColumn;
+  purpose: string;
+  tokenHash: string;
+  createdBy: string | null;
+  expiresAt: Ts;
+  createdAt: Ts;
+}
+
+/** A sign-in in progress (wave 0100). Never holds the client secret. */
+export interface AdminiumOauthFlowsTable {
+  id: Id;
+  stateHash: string;
+  nonceHash: string;
+  manifestId: Id;
+  connectionId: string;
+  tableName: string;
+  rowKey: string;
+  linkId: string;
+  verifierSealed: string;
+  redirectUri: string;
+  expiresAt: Ts;
+  createdAt: Ts;
 }
 
 /** drives the sidebar "what's new" badge. PK user_id. */
@@ -2037,6 +2178,17 @@ export interface AdminiumChatAiDaysTable {
 }
 
 /** Wave 0099 — the calls one source of a lead source add-on was asked on one UTC day, per spender (a staff id, `step`, or `*` for the day's total). */
+/** A person's private calendar feed: the nonce its link carries (0101). */
+export interface AdminiumCalendarFeedsTable {
+  connectionId: string;
+  appKey: string;
+  tableName: string;
+  rowKey: string;
+  nonce: string;
+  changedAt: Ts;
+  changedBy: string | null;
+}
+
 export interface AdminiumSourceDaysTable {
   installId: string;
   source: string;
@@ -2337,6 +2489,14 @@ export interface MetaDB {
   adminium_app_outboxes: AdminiumAppOutboxesTable;
   adminium_manifest_attachments: AdminiumManifestAttachmentsTable;
   adminium_add_on_credentials: AdminiumAddOnCredentialsTable;
+  adminium_connected_accounts: AdminiumConnectedAccountsTable;
+  adminium_calendar_sync: AdminiumCalendarSyncTable;
+  adminium_calendar_events: AdminiumCalendarEventsTable;
+  adminium_calendar_dirty: AdminiumCalendarDirtyTable;
+  adminium_calendar_channels: AdminiumCalendarChannelsTable;
+  adminium_calendar_clashes: AdminiumCalendarClashesTable;
+  adminium_connect_links: AdminiumConnectLinksTable;
+  adminium_oauth_flows: AdminiumOauthFlowsTable;
   adminium_changelog_seen: AdminiumChangelogSeenTable;
   adminium_locales: AdminiumLocalesTable;
   adminium_translations: AdminiumTranslationsTable;
@@ -2400,6 +2560,7 @@ export interface MetaDB {
   adminium_visitors: AdminiumVisitorsTable;
   adminium_visits: AdminiumVisitsTable;
   adminium_source_days: AdminiumSourceDaysTable;
+  adminium_calendar_feeds: AdminiumCalendarFeedsTable;
 }
 
 /**
@@ -2456,6 +2617,9 @@ export const META_TABLE_NAMES = [
   'adminium_app_outboxes',
   'adminium_manifest_attachments',
   'adminium_add_on_credentials',
+  'adminium_connected_accounts',
+  'adminium_connect_links',
+  'adminium_oauth_flows',
   'adminium_changelog_seen',
   'adminium_locales',
   'adminium_translations',
@@ -2516,4 +2680,5 @@ export const META_TABLE_NAMES = [
   'adminium_visitors',
   'adminium_visits',
   'adminium_source_days',
+  'adminium_calendar_feeds',
 ] as const satisfies readonly (keyof MetaDB)[];

@@ -18,7 +18,7 @@ import type {
   SemanticTag,
   TableModel,
 } from '@adminium/engine';
-import { isLegacyCapacity, type CapacityKind, type CapacityRule, type FormulaExpr } from '@adminium/manifest';
+import { isLegacyCapacity, type BookingCalendar, type CapacityKind, type CapacityRule, type FormulaExpr } from '@adminium/manifest';
 import { isChangeEffect, type CreateRequires, type LateMove, type Moment, type StateEffect, type TimedMove, type LinkedCondition, type SettingCondition, type StateCondition, type TimeCondition } from '@adminium/manifest';
 import type { SchemaOverride, StoredAdjust, StoredCheck, StoredPosting } from '@adminium/meta';
 
@@ -109,6 +109,8 @@ export interface ColumnLookupRule {
   table: string;
   column: string;
   where?: CodeLookupWhere[];
+  /** The address column a row named `held:<key>` is held to. */
+  held?: string;
   scope?: { column: string; equals: string; orEmpty?: true }[];
 }
 
@@ -534,6 +536,24 @@ export interface TableOccupiesRule {
   hours?: { table: string; resource: string; weekday: string; opens?: string; closes?: string };
 }
 
+/** One table of times a person is away (`table.booking.busy`); `table` is an id in the snapshot. */
+export interface BookingBusySource {
+  table: string;
+  resource: string;
+  start: string;
+  end: string;
+  countWhere?: { column: string; values: string[] };
+  engine?: { account: string };
+}
+
+/** `table.booking.sync`; `calendarName`'s table is an id in the snapshot. */
+export interface BookingSyncRule {
+  when: { column: string; values: string[] };
+  calendarName: string | CapacitySetting;
+  title: { service: string; person?: string };
+  detail?: { default: 'first-name+initial' | 'none'; max: 'first-name+initial' | 'none' };
+}
+
 /**
  * `table.booking`: booking PEOPLE. No two counted rows of one resource may
  * overlap, inside its weekly hours and outside its closures. Every nested
@@ -543,6 +563,8 @@ export interface TableOccupiesRule {
 export interface TableBookingRule {
   start: string;
   minutes: string;
+  /** Minutes kept clear after the row: an int column, copied always from the kind. */
+  buffer?: string;
   resource: string;
   kind: string;
   countWhere: { column: string; values: string[] };
@@ -554,11 +576,21 @@ export interface TableBookingRule {
   };
   hours: {
     practice: BookingHoursTable & { open?: string };
-    own?: BookingHoursTable & { resource: string };
+    own?: BookingHoursTable & { resource: string; within?: 'practice' };
   };
   closures?: { table: string; from: string; to: string; resource?: string; active?: string };
+  /** Tables of times a person is away. `engine`: Adminium's own rows, replaced per account. */
+  busy?: BookingBusySource[];
+  /** How "anyone" is given a person. Absent: the resources' order. */
+  anyone?: { pick: 'order' | 'even' | { column: string }; made?: string; flag?: string };
+  /** Bookings out to, and busy times in from, each person's connected calendar (`calendar-sync/`). */
+  sync?: BookingSyncRule;
   grid: number | CapacitySetting;
   windowDays?: number | CapacitySetting;
+  /** `guests`: the window holds guests only. Absent: everyone. */
+  windowFor?: 'everyone' | 'guests';
+  /** States that take no time, whose row is judged as a new booking when it moves into a counted one. */
+  placedFrom?: string[];
   noticeMinutes?: number | CapacitySetting;
   cancel?: {
     hours: number | CapacitySetting;
@@ -566,6 +598,8 @@ export interface TableBookingRule {
     flag?: string;
     when: { column: string; to: string };
   };
+  /** The booking as a calendar entry (`calendar/`): its tables mapped like the rest of the rule. */
+  calendar?: BookingCalendar;
 }
 
 /** `column.validation`: the checks an admin asked for, beyond the column's type. */

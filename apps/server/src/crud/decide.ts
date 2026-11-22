@@ -72,6 +72,7 @@ import type { StampTrigger, TableBookingRule } from '../connections/effective-sc
 import type { SourceDatabase } from '../connections/manager.js';
 import { ConflictError, ValidationFailedError } from '../errors.js';
 import { bookingCounts } from './booking-guard.js';
+import { revisionColumn, withRevision } from './booking-revision.js';
 import { renewCodes } from './code-renew.js';
 import { numberOf, slotInstant } from './capacity-guard.js';
 import { requiredBy, type ColumnStamp, type TableRules } from './column-rules.js';
@@ -141,6 +142,8 @@ const lateRule = (rules: TableRules | null): TableBookingRule | undefined => {
 export function needsStored(rules: TableRules | null): boolean {
   return (
     lateRule(rules) !== undefined ||
+    // A booking's calendar revision is Adminium's alone: what a writer sends for it goes, on every change.
+    revisionColumn(rules?.booking) !== undefined ||
     [...(rules?.stamps ?? []), ...(rules?.seals ?? [])].some((stamp) => stamp.on !== 'create') ||
     (rules?.formulas?.length ?? 0) > 0 ||
     // A price by the night reads the stay's other dates and its rate's link.
@@ -176,9 +179,13 @@ export async function decideRow(
   context: DecideContext,
 ): Promise<Row> {
   if (rules === null || action === 'delete') return values;
-  if (HISTORY.has(context.origin)) return context.origin === 'import' && context.stamps === 'left-out' ? stampLeftOut(rules, action, values, before, context) : values;
+  if (HISTORY.has(context.origin)) {
+    // A file says nothing about the revision: a calendar ignores a number that goes down. An undo puts back what was stored.
+    const brought = context.origin === 'import' ? withRevision(rules.booking, action, values) : values;
+    return context.origin === 'import' && context.stamps === 'left-out' ? stampLeftOut(rules, action, brought, before, context) : brought;
+  }
   // A strict stamp is the server's: what any writer sent for it is not theirs to say, and goes (a form sends back what it read).
-  const own = withoutStrictStamps(rules, values);
+  const own = withRevision(rules.booking, action, withoutStrictStamps(rules, values));
   if (action === 'update' && before === null) return own;
   let out = own;
   const late = lateRule(rules);
@@ -643,7 +650,9 @@ async function decideLate(rule: TableBookingRule, values: Row, before: Row, cont
 
   // Inside the window. A guest moving it is turned away, in either mode.
   const moved = has(values, rule.start) && slotInstant(values[rule.start])?.getTime() !== held.getTime();
-  if (guest && moved) {
+  // Another person at the same time is a move too: a guest may not swap who they see inside the window.
+  const swapped = has(values, rule.resource) && String(values[rule.resource] ?? '') !== String(before[rule.resource] ?? '');
+  if (guest && (moved || swapped)) {
     throw new ConflictError('It is too late to change this online.', 'BOOKING_TOO_LATE', { column: rule.start });
   }
 

@@ -10,6 +10,7 @@
  *    polite live list; "Add" stays off while any line fails. The save is all
  *    or none, and a refusal the server finds (the list changed meanwhile)
  *    shows on its line the same way.
+ *  - The snippet maker (`SnippetMaker.tsx`), for an app with screens for a website.
  *  - "Put it on your website": the loader line on this server's public
  *    address, to copy.
  *
@@ -19,37 +20,19 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CircleCheck, CircleX, Copy, Check, Globe, ShieldCheck } from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
-import { checkWebsiteLines, type WebsiteLine, type WebsiteLineCode } from '@adminium/add-on-contracts/forms/websites';
+import { checkWebsiteLines, type WebsiteLine } from '@adminium/add-on-contracts/forms/websites';
 import { Alert, Button, Card, Skeleton, Textarea } from '@adminium/ui';
 
 import { ApiError } from '../../app/api.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { PublicReach } from './PublicReach.js';
+import { SnippetMaker } from './SnippetMaker.js';
+import { websiteLineWords } from './websiteWords.js';
 import { addWebsites, PRIVACY_WEBSITES_QUERY_KEY, reachQuery, removeWebsite, websitesQuery, type ListedWebsite, type WebsitesList } from './privacyApi.js';
 
 function locale(): string {
   return getI18nInstance()?.language ?? 'en-US';
-}
-
-/** One line's message, by its code (the server answers codes; the page words them). */
-export function websiteLineWords(code: WebsiteLineCode): string {
-  switch (code) {
-    case 'one-per-line':
-      return t('studio:privacy.websites.line.onePerLine', 'One website per line, no *');
-    case 'https':
-      return t('studio:privacy.websites.line.https', 'Use https://');
-    case 'address':
-      return t('studio:privacy.websites.line.address', 'Not a website address');
-    case 'path':
-      return t('studio:privacy.websites.line.path', 'Just the address, no path');
-    case 'self':
-      return t('studio:privacy.websites.line.self', "That's this server's own address");
-    case 'listed':
-      return t('studio:privacy.websites.line.listed', 'Already on the list');
-    case 'ok':
-      return t('studio:privacy.websites.line.ok', 'Ready to add');
-  }
 }
 
 /** The lines of the add box worth checking: each trimmed, the empty ones left out. */
@@ -73,6 +56,7 @@ export function WebsitesTab(): ReactNode {
       ) : (
         <WebsitesCard list={websites.data} self={reach.data?.origin ?? null} />
       )}
+      <SnippetMaker origin={reach.data?.origin ?? null} />
       <EmbedCard origin={reach.data?.origin ?? null} />
     </div>
   );
@@ -139,12 +123,12 @@ function WebsitesCard({ list, self }: { list: WebsitesList; self: string | null 
     <Card padded={false} className="overflow-hidden" data-testid="privacy-websites">
       <div className="border-b border-border p-[var(--card-pad)]">
         <h2 id={headingId} className="text-[14.5px] font-bold">
-          {t('studio:privacy.websites.listHeading', 'Websites that may show your forms and chat')}
+          {t('studio:privacy.websites.listHeading', 'Websites that may show your forms, chat and booking screens')}
         </h2>
       </div>
       {list.websites.length === 0 ? (
         <p className="border-b border-border px-[var(--card-pad)] py-3.5 text-body-sm text-fg-muted" data-testid="privacy-websites-none">
-          {t('studio:privacy.websites.none', 'None yet. A form shows on another website only once that website is on this list.')}
+          {t('studio:privacy.websites.none', 'None yet. Your forms, chat and booking screens show on another website only once it is on this list.')}
         </p>
       ) : (
         <ul className="m-0 list-none p-0" data-testid="privacy-websites-list">
@@ -236,7 +220,7 @@ function WebsitesCard({ list, self }: { list: WebsitesList; self: string | null 
       </form>
       <p className="flex items-start gap-2 border-t border-border bg-surface-2 px-[var(--card-pad)] py-3 text-[12.5px] text-fg-muted">
         <ShieldCheck aria-hidden className="mt-0.5 size-[15px] shrink-0 text-info" />
-        {t('studio:privacy.websites.note', 'A listed website can show your forms and chat in a frame. It never gets access to your data.')}
+        {t('studio:privacy.websites.note', 'A listed website can show your forms, chat and booking screens in a frame. It never gets access to your data.')}
       </p>
     </Card>
   );

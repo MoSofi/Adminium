@@ -120,6 +120,8 @@ export const addOnDto = z.object({
   connectionName: z.string().nullable().optional(),
   /** `none` | `api-key` | `oauth2` — what connecting this add-on requires. */
   connectKind: z.enum(['none', 'api-key', 'oauth2']),
+  /** Each person connects their own account through one saved app. */
+  connectAccounts: z.boolean().optional(),
   /** Whether a credential is stored. Never the credential itself. */
   connected: z.boolean(),
   /**

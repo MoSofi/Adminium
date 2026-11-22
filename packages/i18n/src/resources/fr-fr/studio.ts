@@ -121,7 +121,11 @@ export default {
       "paymentsWho": "Une personne ayant l’autorisation « Configurer les paiements » le configure dans Paiements.",
       "sourcesWhere": "Configurez ses sources sur son écran « Sources ».",
       "sourceEgress": "{source} peut contacter : {hosts}",
-      "sourceWebsite": "{source} : Adminium lit lui-même le site de chaque entreprise"
+      "sourceWebsite": "{source} : Adminium lit lui-même le site de chaque entreprise",
+      "accountsNotSetUp": "Non configuré",
+      "accountsCount": "{connected} connecté(s)",
+      "accountsBoth": "{connected} connecté(s) · {reconnect} à reconnecter",
+      "accountsOpen": "Ouvrir"
     },
     "job": {
       "body": "Récupération et vérification. Rien n’est installé sans votre accord.",
@@ -4858,14 +4862,14 @@ export default {
     },
     "websites": {
       "tab": "Vos sites web",
-      "listHeading": "Sites web qui peuvent afficher vos formulaires et le chat",
+      "listHeading": "Sites autorisés à afficher vos formulaires, votre chat et vos écrans de réservation",
       "addedBy": "Ajouté par {name} · {date}",
       "addedOn": "Ajouté le {date}",
       "remove": "Retirer",
       "removeLabel": "Retirer {url}",
       "removed": "{url} retiré",
       "removeFailed": "{url} n’a pas été retiré. Réessayez.",
-      "none": "Aucun pour l’instant. Un formulaire ne s’affiche sur un autre site qu’une fois ce site sur cette liste.",
+      "none": "Aucun pour l’instant. Vos formulaires, votre chat et vos écrans de réservation ne s’affichent sur un autre site qu’une fois celui-ci dans cette liste.",
       "addLabel": "Ajouter un site web",
       "addHelp": "Un site web par ligne, commençant par https://.",
       "add": "Ajouter",
@@ -4881,7 +4885,7 @@ export default {
         "ok": "Prêt à ajouter"
       },
       "tooMany": "La liste contient au plus {max} sites web. Retirez-en un d’abord.",
-      "note": "Un site de la liste peut afficher vos formulaires et le chat dans un cadre. Il n’a jamais accès à vos données.",
+      "note": "Un site de la liste peut afficher vos formulaires, votre chat et vos écrans de réservation dans un cadre. Il n’a jamais accès à vos données.",
       "embedHeading": "Mettez-le sur votre site web",
       "copy": "Copier",
       "copied": "Copié",
@@ -4905,6 +4909,33 @@ export default {
         "setIt": "La définir",
         "checkAgain": "Vérifier à nouveau",
         "loadFailed": "Impossible de vérifier si les visiteurs peuvent atteindre ce serveur. Réessayez."
+      },
+      "maker": {
+        "heading": "Afficher un écran d’application sur votre site",
+        "app": "Application",
+        "screen": "Écran",
+        "way": "Mode d’affichage",
+        "inline": "Intégré",
+        "inlineHelp": "Placé dans la page",
+        "button": "Bouton",
+        "buttonHelp": "S’ouvre au clic",
+        "floating": "Flottant",
+        "floatingHelp": "Reste dans un coin",
+        "choice": "Ouvrir sur un élément précis",
+        "any": "N’importe lequel",
+        "words": "Texte du bouton",
+        "linkWords": "Texte du lien si l’écran ne se charge pas",
+        "site": "Le site où il apparaîtra",
+        "notListed": "Ce site n’est pas encore autorisé à afficher vos écrans.",
+        "add": "Ajouter {site}",
+        "preview": "Aperçu",
+        "nothing": "Rien ne s’affiche encore ici",
+        "nothingWhy": "Ce site n’est pas dans votre liste : vos écrans refusent de s’y charger.",
+        "close": "Fermer",
+        "snippet": "Le code à intégrer",
+        "copyLabel": "Copier le code",
+        "strict": "Si votre site définit une politique de sécurité du contenu, autorisez {origin} dans script-src et frame-src.",
+        "show": "Afficher le véritable écran"
       }
     },
     "reach": {

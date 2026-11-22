@@ -25,7 +25,7 @@
  * Two staff members adding at the same moment then both keep their websites:
  * the second waits, reads the list with the first one's in it, and adds to it.
  */
-import { checkWebsiteLine, checkWebsiteLines, WEBSITES_MAX, type WebsiteLine } from '@adminium/add-on-contracts/forms/websites';
+import { checkWebsiteLine, checkWebsiteLines, isWebsiteOrigin, WEBSITES_MAX, type WebsiteLine } from '@adminium/add-on-contracts/forms/websites';
 import { readJsonFrom, settingsRepo, SETTINGS_REGISTRY, type MetaDb } from '@adminium/meta';
 
 import { normalizePublicOrigin } from '../security/public-origin.js';
@@ -62,7 +62,8 @@ export function listedWebsitesOf(meta: MetaDb, now: () => number = Date.now): Li
   return async () => {
     const held = caches.get(meta);
     if (held !== undefined && now() < held.until) return held.origins;
-    const origins = (await readWebsites(meta)).map((site) => site.origin);
+    // A line saved before the check refused it stays on the page to be removed, and frames nothing: every door's policy is written from this.
+    const origins = (await readWebsites(meta)).map((site) => site.origin).filter(isWebsiteOrigin);
     caches.set(meta, { origins, until: now() + WEBSITES_CACHE_MS });
     return origins;
   };

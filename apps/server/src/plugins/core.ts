@@ -347,6 +347,12 @@ export const RATE_BUCKETS = {
   // A payment service calling back: few addresses, many events at once (a
   // retry storm after an outage). Generous; the signature is the real gate.
   'payment-webhook': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
+  // A calendar service calling back. An unknown channel costs one read, and a genuine notice only asks for a read.
+  'calendar-hook': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
+  // The connect door: whoever holds a connect link, by network address. A person presses it a few times at most.
+  'connect-door': { max: 60, timeWindowMs: 60_000, keyBy: 'ip' },
+  // "Check my setup": each press is a call to a provider's token endpoint with the install's secret.
+  'connect-check': { max: 10, timeWindowMs: 60_000, keyBy: 'principal' },
   // The mail door (`/m/`): whoever holds a mail's link, by network address.
   // Generous on purpose; the signed link is the gate, and a press twice
   // changes nothing. Many readers share one address: the one-click comes from
@@ -371,6 +377,9 @@ export const RATE_BUCKETS = {
   // and a busy office or a phone network puts many visitors behind one
   // address. Generous; each form's own caps on what is sent are the gate.
   'forms-door': { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
+  // A person's private calendar feed (`/x/cal/`): a genuine link is counted by a digest of itself (calendar services
+  // fetch from a few shared addresses), anything else by network address.
+  'calendar-feed': { max: 60, timeWindowMs: 60_000, keyBy: 'ip' },
   // The pages door (`/x/pages/`): whoever opens a landing page, by network
   // address. A page load is its HTML, its files, its data and its pictures;
   // a campaign link puts many visitors behind one phone network's address.

@@ -150,6 +150,20 @@ export function appRefundPermission(appKey: string): string {
 }
 const APP_REFUND_REF_PREFIX = 'payments-refund/';
 
+/** What a person may do about a row's connected account, for ONE app: named so an app's role can be given each alone. */
+export const ACCOUNT_ACTIONS = ['connect', 'send-link', 'disconnect'] as const;
+export type AccountAction = (typeof ACCOUNT_ACTIONS)[number];
+
+/**
+ * `accounts:<appKey>:<action>`. Stored like the refund right, as an `app` row
+ * whose ref holds a `/` no app key can. Concrete only: one app's accounts.
+ * The row itself is still judged by the person's row limits on every route.
+ */
+export function appAccountsPermission(appKey: string, action: AccountAction): string {
+  return `accounts:${appKey}:${action}`;
+}
+const APP_ACCOUNTS_REF = /^accounts-(connect|send-link|disconnect)\/(.+)$/;
+
 /** The matrix row ref an add-on's settings grant is stored under. */
 export function addOnSettingsRef(addOnKey: string): string {
   return `${ADD_ON_SETTINGS_REF_PREFIX}${addOnKey}`;
@@ -162,7 +176,8 @@ export type ParsedGrant =
   /** `app:<key>:staff` — an installed app's staff screens; `app:*:staff` is every app's. */
   | { kind: 'app'; appKey: string; action: 'staff' }
   | { kind: 'addOn'; addOnKey: string; action: 'settings' }
-  | { kind: 'payments'; appKey: string; action: 'refund' };
+  | { kind: 'payments'; appKey: string; action: 'refund' }
+  | { kind: 'accounts'; appKey: string; action: AccountAction };
 
 /** A concrete (wildcard-free) permission, as passed to `can()`/`require()`. */
 export type ParsedPermission =
@@ -171,7 +186,8 @@ export type ParsedPermission =
   | { kind: 'page'; pageId: string; action: PageAction }
   | { kind: 'app'; appKey: string; action: 'staff' }
   | { kind: 'addOn'; addOnKey: string; action: 'settings' }
-  | { kind: 'payments'; appKey: string; action: 'refund' };
+  | { kind: 'payments'; appKey: string; action: 'refund' }
+  | { kind: 'accounts'; appKey: string; action: AccountAction };
 
 const SYSTEM_KEY_SET: ReadonlySet<string> = new Set(SYSTEM_ACTION_KEYS);
 const TABLE_ACTION_SET: ReadonlySet<string> = new Set(TABLE_ACTIONS);
@@ -231,6 +247,13 @@ export function parseGrant(input: string): ParsedGrant | null {
     // Concrete only: one app's payments, never "every app's".
     if (!validSegment(appKey) || appKey === '*' || action !== 'refund') return null;
     return { kind: 'payments', appKey, action: 'refund' };
+  }
+
+  if (kind === 'accounts' && segments.length === 3) {
+    const [, appKey, action] = segments as [string, string, string];
+    // Concrete only: one app's accounts, never "every app's".
+    if (!validSegment(appKey) || appKey === '*' || !(ACCOUNT_ACTIONS as readonly string[]).includes(action)) return null;
+    return { kind: 'accounts', appKey, action: action as AccountAction };
   }
 
   return null;
@@ -294,6 +317,10 @@ export function grantMatches(grant: string, required: string): boolean {
       const gp = g as Extract<ParsedGrant, { kind: 'payments' }>;
       return gp.appKey === r.appKey;
     }
+    case 'accounts': {
+      const ga = g as Extract<ParsedGrant, { kind: 'accounts' }>;
+      return ga.appKey === r.appKey && ga.action === r.action;
+    }
   }
 }
 
@@ -349,7 +376,10 @@ export function grantsFromMatrixRows(rows: readonly RolePermission[]): string[] 
     }
     if (row.resourceKind === 'app') {
       if ((row.actions as { staff?: boolean }).staff !== true) continue;
-      if (row.resourceRef.startsWith(APP_REFUND_REF_PREFIX)) {
+      const accounts = APP_ACCOUNTS_REF.exec(row.resourceRef);
+      if (accounts !== null) {
+        grants.push(appAccountsPermission(accounts[2]!, accounts[1] as AccountAction));
+      } else if (row.resourceRef.startsWith(APP_REFUND_REF_PREFIX)) {
         grants.push(appRefundPermission(row.resourceRef.slice(APP_REFUND_REF_PREFIX.length)));
       } else if (row.resourceRef.startsWith(ADD_ON_SETTINGS_REF_PREFIX)) {
         grants.push(addOnSettingsPermission(row.resourceRef.slice(ADD_ON_SETTINGS_REF_PREFIX.length)));
@@ -414,6 +444,10 @@ export function matrixRowsFromGrants(grants: readonly string[]): MatrixConversio
     }
     if (parsed.kind === 'payments') {
       appRefs.add(`${APP_REFUND_REF_PREFIX}${parsed.appKey}`);
+      continue;
+    }
+    if (parsed.kind === 'accounts') {
+      appRefs.add(`accounts-${parsed.action}/${parsed.appKey}`);
       continue;
     }
     if (parsed.kind === 'table') {

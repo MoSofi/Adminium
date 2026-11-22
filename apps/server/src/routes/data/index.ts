@@ -29,6 +29,7 @@ import {
   type MetaDb,
   type RecordRef,
 } from '@adminium/meta';
+import { CAP_REACHED_PURPOSE, capReachedSubject } from '../../public-api/anonymous-caps.js';
 import type { DatabaseModel, Dialect } from '@adminium/engine';
 import type { TablePrivileges } from '@adminium/engine/adapter';
 import { builtinOptionValues } from '@adminium/engine/config';
@@ -196,6 +197,7 @@ import {
   nightlyQuery,
   nightlyReply,
   bookingSlotsReply,
+  publicCapReachedReply,
   recordLinksParams,
   recordLinksQuery,
   recordLinksReply,
@@ -221,6 +223,7 @@ import {
   findPersonReply,
 } from './schema.js';
 import { tagRoutes } from '../../security/route-audience.js';
+import { scrubUrlForLog } from '../../log-scrub.js';
 
 type TableAction = 'read' | 'create' | 'update' | 'delete';
 
@@ -626,7 +629,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           category: 'rbac',
           action: 'permission.denied',
           connectionId,
-          changes: { after: { permission, method: request.method, url: request.url } },
+          changes: { after: { permission, method: request.method, url: scrubUrlForLog(request.url) } },
         });
         throw new ForbiddenError('You do not have access to this table.', 'TABLE_FORBIDDEN', {
           permission,
@@ -1957,7 +1960,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               table: entry.table,
               reason: entry.reason,
               method: request.method,
-              url: request.url,
+              url: scrubUrlForLog(request.url),
             },
           },
         });
@@ -3358,6 +3361,22 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             ? (await bookingSlots(booking, target, query.date!, minutes, input)).slots
             : await bookingDays(booking, target, query.from!, query.days!, minutes, input),
         };
+      },
+    );
+
+    /*
+     * HOW OFTEN ONLINE BOOKING HIT ITS HOURLY LIMIT, for the desk's "Needs you":
+     * minutes of the last hour with a refused create. A count of the
+     * whole table, so a reader limited to their own rows is told nothing.
+     */
+    app.get(
+      '/data/:connectionId/:table/public-cap-reached',
+      { schema: { params: dataTableParams, response: { 200: publicCapReachedReply } } },
+      async (request) => {
+        const ctx = asReader(await contextFor(request, 'read'));
+        if (rowTestOf(ctx.rows, ctx.table.id, 'read') !== null) return { data: { lastHour: 0 } };
+        const subject = capReachedSubject(ctx.connectionId, ctx.table.id);
+        return { data: { lastHour: await publicChallengesRepo(meta).sentSince(subject, Date.now() - 3_600_000, CAP_REACHED_PURPOSE) } };
       },
     );
 

@@ -57,6 +57,13 @@ export const NEVER_ARCHIVED_TABLES: readonly string[] = [
   'adminium_visits',
   // What each source of a lead source add-on was asked today: never set back by a file.
   'adminium_source_days',
+  // A sign-in in progress and a one-time connect link: another copy of this server must not finish or open them.
+  'adminium_oauth_flows',
+  'adminium_connect_links',
+  // Which calendar link is live: a file must never bring back a link someone renewed because it got out.
+  'adminium_calendar_feeds',
+  // Push channels: their secrets are this server's, and a copy must not answer for them.
+  'adminium_calendar_channels',
 ];
 
 /** Staff API keys and the public API's keys. */

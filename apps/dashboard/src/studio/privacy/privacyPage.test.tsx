@@ -42,7 +42,7 @@ import { createQueryClient } from '../../app/query.js';
 import { createAppRouter } from '../../app/router.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
-import type { CountingState, ErasePreview, KeepingRow, ListedWebsite, PersonFound, PrivacyExport, PrivacyNotice, PublicReach } from './privacyApi.js';
+import type { CountingState, EmbedApp, ErasePreview, KeepingRow, ListedWebsite, PersonFound, PrivacyExport, PrivacyNotice, PublicReach } from './privacyApi.js';
 
 class FakeWebSocket {
   onopen: (() => void) | null = null;
@@ -74,6 +74,7 @@ const STAFF_ADDRESS = 'olga@shop.dev';
 let previewHangs = false;
 let reach: PublicReach;
 let websites: ListedWebsite[];
+let embedApps: EmbedApp[] = [];
 /** What the next add answers instead of adding (the server found the list changed). */
 let addRefusal: { lines: { line: string; code: string; origin: string | null }[]; tooMany: boolean } | null = null;
 /** The keeping table as the server answers it; null: the fixed rows and the add-ons' (the default fixture). */
@@ -197,6 +198,7 @@ function stub(): Call[] {
         return ok({ data: { ...made, jobId: 'job_1' } }, 202);
       }
       if (url === '/api/v1/privacy/reach') return ok({ data: reach });
+      if (url === '/api/v1/privacy/embeds') return ok({ data: { apps: embedApps } });
       if (url === '/api/v1/privacy/websites' && method === 'GET') return ok({ data: { websites, max: 50 } });
       if (url === '/api/v1/privacy/websites' && method === 'POST') {
         if (addRefusal !== null) return ok({ error: { code: 'VALIDATION_FAILED', message: 'Some lines are not websites that can be listed.', details: { ...addRefusal, max: 50 } } }, 422);
@@ -251,6 +253,7 @@ afterEach(() => {
   previewHangs = false;
   reach = { state: 'reachable', origin: 'https://crm.meridian.example', checkedAt: Date.now(), proxyUnchecked: false };
   websites = [];
+  embedApps = [];
   addRefusal = null;
   keepingRows = null;
   counting = countingAt('counts');
@@ -340,7 +343,7 @@ describe('who opens the privacy page', () => {
     expect(screen.getByRole('tab', { name: 'Privacy notice' }).getAttribute('aria-selected')).toBe('true');
     await userEvent.click(screen.getByRole('tab', { name: 'Your websites' }));
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'websites' }));
-    expect(await screen.findByText('Websites that may show your forms and chat')).toBeDefined();
+    expect(await screen.findByText('Websites that may show your forms, chat and booking screens')).toBeDefined();
     await userEvent.click(screen.getByRole('tab', { name: 'How long we keep things' }));
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'keeping' }));
     expect(await screen.findByText('Kept until the person is erased')).toBeDefined();
@@ -719,6 +722,103 @@ describe('your websites', () => {
     const copy = within(embed).getByRole('button', { name: 'Copy the loader line' });
     expect(copy.textContent).toBe('Copy');
     expect(within(embed).getByText('Then add a form or the chat where you want it. Each form\'s Share tab has its own line.')).toBeDefined();
+  });
+});
+
+describe('the snippet maker', () => {
+  const BOOKINGS: EmbedApp = {
+    app: 'bookings',
+    name: { 'en-US': 'Bookings', 'de-DE': 'Buchungen' },
+    mount: '/apps/bookings/customer',
+    modes: ['inline', 'button', 'floating'],
+    screens: [
+      { path: '/', label: 'Booking page', choose: null },
+      { path: '/book', label: 'Book a service', choose: { query: 'service', title: 'A particular service', any: 'Any service', values: [{ value: 'gel', label: 'Gel Manicure' }] } },
+    ],
+  };
+
+  it('stays away until an app has screens for a website, and the loader line stays either way', async () => {
+    asSuperAdmin();
+    await renderAt('/studio/privacy?tab=websites');
+    await screen.findByTestId('privacy-embed');
+    expect(screen.queryByTestId('privacy-maker')).toBeNull();
+  });
+
+  it('makes the two lines from the app, the screen, the way, the choice and the words', async () => {
+    asSuperAdmin();
+    embedApps = [BOOKINGS, { ...BOOKINGS, app: 'bookings~north', name: 'North', mount: '/apps/bookings/north/customer', modes: ['button'], screens: [{ path: '/reviews', label: null, choose: null }] }];
+    await renderAt('/studio/privacy?tab=websites');
+    const maker = await screen.findByTestId('privacy-maker');
+    const snippet = () => within(maker).getByTestId('privacy-maker-snippet').textContent;
+    expect(snippet()).toBe('<script src="https://crm.meridian.example/x/embed.js" async></script>\n<div data-adminium-app="bookings" data-path="/" data-mode="inline"><a href="https://crm.meridian.example/apps/bookings/customer/">Bookings</a></div>');
+    await userEvent.selectOptions(within(maker).getByTestId('privacy-maker-screen'), '/book');
+    await userEvent.selectOptions(within(maker).getByTestId('privacy-maker-choice'), 'gel');
+    await userEvent.click(within(maker).getByRole('radio', { name: /Floating/ }));
+    const words = within(maker).getByTestId('privacy-maker-words');
+    await userEvent.clear(words);
+    await userEvent.type(words, 'Book "now"');
+    expect(snippet()).toContain('data-path="/book?service=gel" data-mode="floating" data-label="Book &quot;now&quot;"');
+    expect(snippet()).toContain('href="https://crm.meridian.example/apps/bookings/customer/book?service=gel"');
+    // Another app starts again, and offers only its own ways.
+    await userEvent.selectOptions(within(maker).getByTestId('privacy-maker-app'), 'bookings~north');
+    expect(snippet()).toContain('<a data-adminium-app="bookings~north" data-path="/reviews" data-mode="button" data-label="North" href="https://crm.meridian.example/apps/bookings/north/customer/reviews">North</a>');
+    expect(within(maker).queryByRole('radio', { name: /Inline/ })).toBeNull();
+    expect(within(maker).queryByTestId('privacy-maker-choice')).toBeNull();
+  });
+
+  it('says plainly that a website is not on the list, adds it with one press, and shows nothing until then', async () => {
+    asSuperAdmin();
+    embedApps = [BOOKINGS];
+    const { calls } = await renderAt('/studio/privacy?tab=websites');
+    const maker = await screen.findByTestId('privacy-maker');
+    // The app's own code runs only once somebody asks for it.
+    expect(within(maker).queryByTitle('Preview')).toBeNull();
+    await userEvent.click(within(maker).getByTestId('privacy-maker-show'));
+    expect(within(maker).getByTitle('Preview').getAttribute('src')).toBe('/apps/bookings/customer/?frame=1&mode=inline');
+    expect(within(maker).getByTitle('Preview').getAttribute('sandbox')).toBe('allow-scripts allow-same-origin');
+    await userEvent.type(within(maker).getByTestId('privacy-maker-site'), 'https://lumen.example');
+    expect(await within(maker).findByTestId('privacy-maker-blocked')).toBeDefined();
+    expect(within(maker).queryByTitle('Preview')).toBeNull();
+    await userEvent.click(within(maker).getByRole('button', { name: 'Add https://lumen.example' }));
+    await waitFor(() => expect(calls.find((call) => call.url === '/api/v1/privacy/websites' && call.method === 'POST')?.body).toEqual({ lines: ['https://lumen.example'] }));
+    await waitFor(() => expect(within(maker).queryByTestId('privacy-maker-blocked')).toBeNull());
+    expect(within(maker).getByTitle('Preview')).toBeDefined();
+  });
+
+  it('words a website it cannot take, and shows nothing for it', async () => {
+    asSuperAdmin();
+    embedApps = [BOOKINGS];
+    await renderAt('/studio/privacy?tab=websites');
+    const maker = await screen.findByTestId('privacy-maker');
+    await userEvent.type(within(maker).getByTestId('privacy-maker-site'), 'http://lumen.example');
+    expect((await within(maker).findByTestId('privacy-maker-site-error')).textContent).toBe('Use https://');
+    expect(within(maker).getByTestId('privacy-maker-blocked')).toBeDefined();
+    expect(within(maker).queryByTestId('privacy-maker-add')).toBeNull();
+  });
+
+  it('previews a button as a press that opens the screen over a scrim', async () => {
+    asSuperAdmin();
+    embedApps = [BOOKINGS];
+    await renderAt('/studio/privacy?tab=websites');
+    const maker = await screen.findByTestId('privacy-maker');
+    await userEvent.click(within(maker).getByRole('radio', { name: /Button/ }));
+    expect(within(maker).queryByTitle('Preview')).toBeNull();
+    await userEvent.click(within(maker).getByTestId('privacy-maker-launcher'));
+    expect(within(maker).getByTitle('Preview')).toBeDefined();
+    await userEvent.click(within(maker).getByTestId('privacy-maker-close'));
+    expect(within(maker).queryByTitle('Preview')).toBeNull();
+  });
+
+  it('copies the snippet', async () => {
+    asSuperAdmin();
+    embedApps = [BOOKINGS];
+    const writeText = vi.fn(async () => undefined);
+    await renderAt('/studio/privacy?tab=websites');
+    const maker = await screen.findByTestId('privacy-maker');
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    await userEvent.click(within(maker).getByRole('button', { name: 'Copy the snippet' }));
+    expect(writeText).toHaveBeenCalledWith(within(maker).getByTestId('privacy-maker-snippet').textContent);
+    expect(await within(maker).findByText('Copied')).toBeDefined();
   });
 });
 

@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3835 entries. */
+/** `namespace:key` — 3861 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -2816,6 +2816,19 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:privacy.websites.added',
   'studio:privacy.websites.copyLabel',
   'studio:privacy.websites.loadFailed',
+  'studio:privacy.websites.maker.app',
+  'studio:privacy.websites.maker.button',
+  'studio:privacy.websites.maker.choice',
+  'studio:privacy.websites.maker.copyLabel',
+  'studio:privacy.websites.maker.floating',
+  'studio:privacy.websites.maker.inline',
+  'studio:privacy.websites.maker.linkWords',
+  'studio:privacy.websites.maker.notListed',
+  'studio:privacy.websites.maker.preview',
+  'studio:privacy.websites.maker.screen',
+  'studio:privacy.websites.maker.site',
+  'studio:privacy.websites.maker.way',
+  'studio:privacy.websites.maker.words',
   'studio:privacy.websites.reach.loadFailed',
   'studio:privacy.websites.removeFailed',
   'studio:privacy.websites.removeLabel',
@@ -3848,6 +3861,19 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'xChat:send',
   'xChat:with',
   'xChat:withNew',
+  'xConnect:adminTitle',
+  'xConnect:cannotTitle',
+  'xConnect:deadTitle',
+  'xConnect:differentTitle',
+  'xConnect:doneTitle',
+  'xConnect:nothingTitle',
+  'xConnect:otherTitle',
+  'xConnect:partialTitle',
+  'xConnect:setupTitle',
+  'xConnect:title',
+  'xConnect:titleBy',
+  'xConnect:titleReconnect',
+  'xConnect:titleReconnectBy',
 ]);
 
 /** Is blanking this key forbidden? `namespace` + dotted `key`. */

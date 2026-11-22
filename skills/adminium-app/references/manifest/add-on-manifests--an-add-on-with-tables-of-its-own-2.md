@@ -2,6 +2,32 @@
 
 # Manifest spec: Add-on manifests — An add-on with tables of its own
 
+A change through the link writes only the columns its entry names, and only while the row holds
+one of the values `writableWhen` lists for a column: every such entry names one (an ordered design
+is the order's, never the shopper's to change). The column an entry holds to its app
+(`appColumn`), the link's own code, its end, its stop and the address it is mailed to are never
+written through it, and an `enum` it may set lists its values (`writableValues`). The link makes
+no row (`POST`), reaches no row but its own, and a column it does not name is refused `400`. The
+human check and a change's `limits` work as on an app's entries. Needs Adminium 0.3.43.
+
+The same entry may also remove its row (`"methods": ["GET", "PATCH", "DELETE"]`): a shopper deletes
+their own saved draft (`DELETE /api/v1/public/records/<ref>/<id>`, with the link's session). It is
+held to the same `writableWhen` states (an ordered design answers `404`, as a design that is not
+there), asks no reason, and reaches no row but its own. The row's files go to the bin as a staff
+delete sends them, and a message about it lets go of it (a mailed link stays in the log as sent).
+Only an add-on's own link removes a row: `DELETE` on any other entry is refused. Needs Adminium
+0.3.43.
+
+#### A row read by its code, by whoever the app signed in
+
+An add-on's entry on each app's key may be read by a session of that app's own sign-in alone
+(`level`), and then opens one row by its own code (`unlockBy` with `self`), never a list:
+
+```json
+{ "table": "designs", "methods": ["GET"], "select": ["id", "values", "state"], "appColumn": "app",
+  "level": "lookup", "unlockBy": { "header": true, "column": "code", "self": true, "length": 16 } }
+```
+
 A guest who found their order again reads its lines, each with the code of the design it names
 (the app's own entry, read with the order), and opens each design by sending that code in the
 `x-adminium-code` header with the session. With no session it is the one `404`; a code no design

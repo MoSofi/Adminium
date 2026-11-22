@@ -43,6 +43,7 @@ import { auditRepo, OPERATOR_HOLD_REASON_WIDTH, type MetaDb, type StoredFile } f
 
 import { resolveLogoFile } from '../branding/service.js';
 import { AppError, errorEnvelope } from '../errors.js';
+import { scrubPathForLog } from '../log-scrub.js';
 import type { HiddenPageLogo, OperatorHolds } from './holds.js';
 import type { OperatorStatus } from './status.js';
 import type { PublicContent } from './public-content.js';
@@ -257,7 +258,7 @@ export async function buildOperatorEndpoint(deps: OperatorEndpointDeps): Promise
     const given = typeof header === 'string' && /^bearer /i.test(header) ? header.slice('bearer '.length).trim() : '';
     if (given !== '' && tokenMatches(given, deps.token)) return;
     failures.add(from);
-    request.log.warn({ ip: from, path: request.url.split('?')[0] }, 'operator endpoint: wrong or missing token');
+    request.log.warn({ ip: from, path: scrubPathForLog(request.url.split('?')[0] ?? '') }, 'operator endpoint: wrong or missing token');
     void reply.header('www-authenticate', 'Bearer');
     throw new AppError(401, 'UNAUTHENTICATED', 'The operator token is missing or wrong.');
   });

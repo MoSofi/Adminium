@@ -52,6 +52,7 @@ import {
   exportsViewsReply,
 } from './schema.js';
 import { requireUserId, resolveSource } from './source.js';
+import { scrubUrlForLog } from '../../log-scrub.js';
 
 export interface BuilderRoutesDeps {
   meta: MetaDb;
@@ -283,7 +284,7 @@ export async function registerBuilderRoutes(
           action: 'projection.denied',
           connectionId,
           changes: {
-            after: { alias: refusal.alias, table: refusal.table, reason: refusal.reason, method: request.method, url: request.url },
+            after: { alias: refusal.alias, table: refusal.table, reason: refusal.reason, method: request.method, url: scrubUrlForLog(request.url) },
           },
         });
       }

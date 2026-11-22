@@ -42,8 +42,8 @@ export interface HostReview {
   keeper: ReviewTables | null;
 }
 
-/** The review word of one table of an app, or null when the table carries none. */
-export async function hostReviewOf(meta: MetaDb, installs: AddOnInstalls, view: SnapshotView, appKey: string, tableId: string): Promise<HostReview | null> {
+/** The review word of one table of an app, with its tables as this database has them; whether reviews are on is {@link hostReviewOf}'s. */
+export async function reviewWordOf(meta: MetaDb, view: SnapshotView, appKey: string, tableId: string): Promise<Omit<HostReview, 'keeper'> | null> {
   const connectionId = view.connectionId;
   const records = (await appTablesRepo(meta).forConnection(connectionId)).filter((record) => record.appKey === appKey);
   const resolve = (real: string): ResolvedTable | null => {
@@ -65,6 +65,16 @@ export async function hostReviewOf(meta: MetaDb, installs: AddOnInstalls, view: 
     const record = records.find((one) => one.ref === ref);
     return record === undefined ? null : resolve(realTableOf(record));
   };
+  const refOf = (of: ResolvedTable): string => records.find((record) => resolve(realTableOf(record))?.id === of.id)?.ref ?? of.name;
+  return { app: appKey, word, tableRef: own.ref, table, refOf };
+}
+
+/** The review word of one table of an app, or null when the table carries none. */
+export async function hostReviewOf(meta: MetaDb, installs: AddOnInstalls, view: SnapshotView, appKey: string, tableId: string): Promise<HostReview | null> {
+  const host = await reviewWordOf(meta, view, appKey, tableId);
+  if (host === null) return null;
+  const connectionId = view.connectionId;
+  const { word } = host;
   // On: the keeper here, attached to the app and switched on for it, its tables there, the word's feature on.
   const installed = installs.installed(connectionId, word.by.addOn);
   const block = installed === null ? null : reviewsOf(installed.manifest);
@@ -77,6 +87,5 @@ export async function hostReviewOf(meta: MetaDb, installs: AddOnInstalls, view: 
     reviews !== null &&
     totals !== null &&
     (word.needs === undefined || installs.featureOn(connectionId, appKey, word.needs));
-  const refOf = (of: ResolvedTable): string => records.find((record) => resolve(realTableOf(record))?.id === of.id)?.ref ?? of.name;
-  return { app: appKey, word, tableRef: own.ref, table, refOf, keeper: on ? { connectionId, addOn: word.by.addOn, reviews: reviews!, totals: totals! } : null };
+  return { ...host, keeper: on ? { connectionId, addOn: word.by.addOn, reviews: reviews!, totals: totals! } : null };
 }

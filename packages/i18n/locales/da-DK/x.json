@@ -113,5 +113,9 @@
     "savedNo": "Gemt: nej. Du kan ændre det når som helst under Cookievalg.",
     "cookieChoice": "Cookievalg",
     "failed": "Dit valg kunne ikke gemmes. Prøv igen."
+  },
+  "connect": {
+    "noScript": "Det kræver JavaScript at forbinde en konto.",
+    "unavailable": "Dette link virker ikke længere. Bed om et nyt."
   }
 }

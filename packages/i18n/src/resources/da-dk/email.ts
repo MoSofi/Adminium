@@ -1030,6 +1030,22 @@ export default {
     "questions": "Spørgsmål? Skriv til {contact}. {who}.",
     "keptBy": "Gemt af {who}."
   },
+  "connectLink": {
+    "name": "Forbind din konto",
+    "subject": "{business} beder dig forbinde din konto",
+    "preheader": "Linket virker i {days} dage.",
+    "heading": "Forbind din konto",
+    "intro": "Hej {name}, {business} beder dig forbinde din egen konto. Brug den konto, der er din.",
+    "action": "Forbind min konto",
+    "notice": "Linket virker én gang, i {days} dage. Hvis du ikke ventede det, kan du se bort fra denne e-mail: Intet forbindes, før du logger ind."
+  },
+  "accountConnected": {
+    "name": "Konto forbundet",
+    "subject": "Din konto blev forbundet hos {business}",
+    "heading": "Din konto blev forbundet",
+    "intro": "Hej {name}, {provider} er nu forbundet for dig hos {business} som {account}.",
+    "notice": "Hvis det ikke var dig, så sig det til {business} med det samme."
+  },
   "emailChangeConfirm": {
     "action": "Bekræft denne adresse",
     "heading": "Bekræft din nye adresse",

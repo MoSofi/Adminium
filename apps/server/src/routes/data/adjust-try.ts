@@ -29,6 +29,7 @@ import type { RecordWriteService } from '../../crud/write-service.js';
 import { ForbiddenError, NotFoundError } from '../../errors.js';
 import { auditExempt } from '../../audit/coverage.js';
 import { appliedSchema, dataTableParams, toldSchema } from './schema.js';
+import { scrubUrlForLog } from '../../log-scrub.js';
 
 const scalar = z.union([z.string().max(4000), z.number(), z.boolean(), z.null()]);
 
@@ -110,7 +111,7 @@ export function priceTryRoutes<Context extends TryContext>(instance: FastifyInst
             for (const table of tables) {
               const permission = `table:${ctx.connectionId}:${table}:${action}`;
               if (await request.can(permission)) continue;
-              await instance.rbac.audit(request, { category: 'rbac', action: 'permission.denied', connectionId: ctx.connectionId, changes: { after: { permission, method: request.method, url: request.url } } });
+              await instance.rbac.audit(request, { category: 'rbac', action: 'permission.denied', connectionId: ctx.connectionId, changes: { after: { permission, method: request.method, url: scrubUrlForLog(request.url) } } });
               throw new ForbiddenError('You do not have access to this table.', 'TABLE_FORBIDDEN', { permission });
             }
           }

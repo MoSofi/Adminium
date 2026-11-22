@@ -13,7 +13,7 @@
 | `references/manifest/requiredschema.md` | requiredSchema | 720 |
 | `references/manifest/requiredschema--table-names-and-prefixed.md` | requiredSchema — Table names and `prefixed` | 1246 |
 | `references/manifest/requiredschema--what-the-plan-does-with-each-table.md` | requiredSchema — What the plan does with each table | 3104 |
-| `references/manifest/requiredschema--tables.md` | requiredSchema — Tables | 4982 |
+| `references/manifest/requiredschema--tables.md` | requiredSchema — Tables | 5479 |
 | `references/manifest/requiredschema--columns.md` | requiredSchema — Columns | 7389 |
 | `references/manifest/requiredschema--columns-2.md` | requiredSchema — Columns (part 2) | 3978 |
 | `references/manifest/requiredschema--column-rules.md` | requiredSchema — Column rules | 7394 |
@@ -32,7 +32,8 @@
 | `references/manifest/requiredschema--moments.md` | requiredSchema — Moments | 2748 |
 | `references/manifest/requiredschema--capacity.md` | requiredSchema — Capacity | 7647 |
 | `references/manifest/requiredschema--capacity-2.md` | requiredSchema — Capacity (part 2) | 5558 |
-| `references/manifest/requiredschema--booking.md` | requiredSchema — Booking | 5565 |
+| `references/manifest/requiredschema--booking.md` | requiredSchema — Booking | 7410 |
+| `references/manifest/requiredschema--booking-2.md` | requiredSchema — Booking (part 2) | 2165 |
 | `references/manifest/requiredschema--a-resource-and-a-time.md` | requiredSchema — A resource and a time | 5609 |
 | `references/manifest/requiredschema--states.md` | requiredSchema — States | 7604 |
 | `references/manifest/requiredschema--states-2.md` | requiredSchema — States (part 2) | 7489 |
@@ -57,7 +58,7 @@
 | `references/manifest/pages--navgroups.md` | Pages — navGroups | 789 |
 | `references/manifest/pages--a-page-kept-off-the-sidebar.md` | Pages — A page kept off the sidebar | 1236 |
 | `references/manifest/pages--navlinks.md` | Pages — navLinks | 2645 |
-| `references/manifest/frontends.md` | Frontends | 6174 |
+| `references/manifest/frontends.md` | Frontends | 6600 |
 | `references/manifest/whose-a-row-is.md` | Whose a row is | 7636 |
 | `references/manifest/whose-a-row-is-2.md` | Whose a row is (part 2) | 7680 |
 | `references/manifest/whose-a-row-is-3.md` | Whose a row is (part 3) | 1960 |
@@ -73,7 +74,7 @@
 | `references/manifest/documents--a-list-of-an-add-on-s-rows.md` | Documents — A list of an add-on's rows | 1524 |
 | `references/manifest/documents--documents-that-print-a-money-code.md` | Documents — Documents that print a money code | 987 |
 | `references/manifest/emails.md` | Emails | 850 |
-| `references/manifest/emails--outbox.md` | Emails — outbox | 7347 |
+| `references/manifest/emails--outbox.md` | Emails — outbox | 7593 |
 | `references/manifest/emails--outbox-2.md` | Emails — outbox (part 2) | 4433 |
 | `references/manifest/emails--outbox-3.md` | Emails — outbox (part 3) | 7593 |
 | `references/manifest/emails--outbox-4.md` | Emails — outbox (part 4) | 1158 |
@@ -91,6 +92,5 @@
 | `references/manifest/public-access-2.md` | Public access (part 2) | 7550 |
 | `references/manifest/public-access-3.md` | Public access (part 3) | 7679 |
 | `references/manifest/public-access--filters.md` | Public access — Filters | 835 |
-| `references/manifest/public-access--windows-on-a-moment.md` | Public access — Windows on a moment | 2049 |
 
 More: `references/manifest/INDEX-2.md`

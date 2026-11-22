@@ -121,7 +121,11 @@ export default {
       "paymentsWho": "由擁有「設定付款」權限的人在「付款」中設定。",
       "sourcesWhere": "請在它自己的「來源」頁面上設定它的來源。",
       "sourceEgress": "{source} 可以聯絡：{hosts}",
-      "sourceWebsite": "{source}：Adminium 自行讀取每家公司的網站"
+      "sourceWebsite": "{source}：Adminium 自行讀取每家公司的網站",
+      "accountsNotSetUp": "未設定",
+      "accountsCount": "已連結 {connected} 人",
+      "accountsBoth": "已連結 {connected} 人 · {reconnect} 人需重新連結",
+      "accountsOpen": "開啟"
     },
     "job": {
       "body": "Fetching and verifying. Nothing is installed until you say so.",
@@ -4858,14 +4862,14 @@ export default {
     },
     "websites": {
       "tab": "您的網站",
-      "listHeading": "可以顯示您的表單和聊天的網站",
+      "listHeading": "可顯示您的表單、聊天和預訂頁面的網站",
       "addedBy": "由 {name} 新增 · {date}",
       "addedOn": "新增於 {date}",
       "remove": "移除",
       "removeLabel": "移除 {url}",
       "removed": "已移除 {url}",
       "removeFailed": "未能移除 {url}。請再試一次。",
-      "none": "目前沒有。只有當某個網站在此清單中時，表單才會顯示在該網站上。",
+      "none": "尚無。只有列入此清單的網站才能顯示您的表單、聊天和預訂頁面。",
       "addLabel": "新增網站",
       "addHelp": "每行一個網站，以 https:// 開頭。",
       "add": "新增",
@@ -4881,7 +4885,7 @@ export default {
         "ok": "可以新增"
       },
       "tooMany": "清單最多容納 {max} 個網站。請先移除一個。",
-      "note": "清單中的網站可以在框架中顯示您的表單和聊天，但永遠無法存取您的資料。",
+      "note": "清單中的網站可在框架中顯示您的表單、聊天和預訂頁面，但絕不能存取您的資料。",
       "embedHeading": "放到您的網站上",
       "copy": "複製",
       "copied": "已複製",
@@ -4905,6 +4909,33 @@ export default {
         "setIt": "前往設定",
         "checkAgain": "重新檢查",
         "loadFailed": "無法檢查訪客能否連到此伺服器。請再試一次。"
+      },
+      "maker": {
+        "heading": "在您的網站上顯示應用程式頁面",
+        "app": "應用程式",
+        "screen": "頁面",
+        "way": "顯示方式",
+        "inline": "內嵌",
+        "inlineHelp": "顯示在頁面中",
+        "button": "按鈕",
+        "buttonHelp": "按下後開啟",
+        "floating": "浮動",
+        "floatingHelp": "固定在角落",
+        "choice": "開啟特定項目",
+        "any": "任一",
+        "words": "按鈕文字",
+        "linkWords": "頁面無法載入時的連結文字",
+        "site": "要放置的網站",
+        "notListed": "此網站尚未獲准顯示您的頁面。",
+        "add": "新增 {site}",
+        "preview": "預覽",
+        "nothing": "這裡暫時沒有內容",
+        "nothingWhy": "此網站不在您的清單中，因此您的頁面無法在其上載入。",
+        "close": "關閉",
+        "snippet": "程式碼片段",
+        "copyLabel": "複製程式碼片段",
+        "strict": "如果您的網站設定了內容安全政策，請在 script-src 和 frame-src 中允許 {origin}。",
+        "show": "顯示真實頁面"
       }
     },
     "reach": {

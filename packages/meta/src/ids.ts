@@ -90,6 +90,15 @@ export const ID_PREFIXES = {
   // with the manifest they hang off would make a stray id look valid.
   mat: 'adminium_manifest_attachments',
   aoc: 'adminium_add_on_credentials',
+  /** Connected accounts, their links and their sign-ins in progress (wave 0100). */
+  cac: 'adminium_connected_accounts',
+  clk: 'adminium_connect_links',
+  ofl: 'adminium_oauth_flows',
+  /** Calendar sync: its event mirror, rows waiting to go out, push channels and clashes (wave 0102). */
+  cev: 'adminium_calendar_events',
+  cdr: 'adminium_calendar_dirty',
+  chn: 'adminium_calendar_channels',
+  ccl: 'adminium_calendar_clashes',
   /** One table an installed app uses (wave 0039). */
   atb: 'adminium_app_tables',
   /** An installed app's outbox (wave 0042). */

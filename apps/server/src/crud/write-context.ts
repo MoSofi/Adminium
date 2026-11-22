@@ -167,6 +167,8 @@ export interface PublicConsentTick {
   /** The table the entry writes (its id in the snapshot), and the yes/no that carries the tick. */
   table: string;
   column: string;
+  /** What a ticked box says: a yes to the purpose, or the person's no ("Don't send me a review request"). */
+  means: 'yes' | 'no';
   purpose: 'newsletter' | 'surveys';
   /** The sentence shown beside the box, in each language the app wrote it in, and its version. */
   wording: { version: number; text: Readonly<Record<string, string>> };

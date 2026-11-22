@@ -89,7 +89,7 @@ Each has the columns Adminium reads and writes, by these names:
 - **reviews**: `app`, `subject_table`, `subject_key` (unique together, text of 64, 64 and 200
   characters), `about_table`, `about_key`, `about_name`, `about_detail`, `stars`, `title`, `body`,
   `shown_name`, `state` (`waiting`, `published`, `hidden`), `hide_reason` (`abusive`,
-  `names-someone`, `not-about-us`, `looks-fake`), `reply`, `replied_at`, `submitted_at`,
+  `names-someone`, `not-about-us`, `looks-fake`, and from 0.3.71 `author-asked`, which an add-on may add), `reply`, `replied_at`, `submitted_at`,
   `person_table`, `person_key`.
 - **totals**: `app`, `about_table`, `about_key` (unique together, text of 64, 64 and 200
   characters), `count`, `sum`, `c1` to `c5`. One row per thing reviewed, and one for the whole app

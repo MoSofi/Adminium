@@ -156,6 +156,8 @@ declare module 'fastify' {
     appRefundRows: { onRecordEvent(event: RecordWriteEvent): Promise<void> };
     /** A payable row's move that refunds by itself, or owes a refund (`payments/refund-moves.ts`); decorated by compose. Never throws. */
     refundMoves: { onRecordEvent(event: RecordWriteEvent): Promise<void> };
+    /** A written row whose calendar event may be out of date is marked for the sync (`calendar-sync/`); decorated by compose. Never throws. */
+    calendarRows: { onRecordEvent(event: RecordWriteEvent): Promise<void> };
     /** A row a person rehearsing their app's checkout made on its staff screens is a sample row (`payments/rehearsal.ts`). Never throws. */
     rehearsalRows: { onCreate(input: { connectionId: string; table: ResolvedTable; pk: Row; userId: string }): Promise<void> };
   }
@@ -257,6 +259,8 @@ export async function emitRecordEvent(app: FastifyInstance, event: RecordWriteEv
   if (event.action !== 'delete' && app.hasDecorator('appRefundRows')) await app.appRefundRows.onRecordEvent(event);
   // A cancellation that refunds by itself (or owes a refund): judged now, at the move, by who made it. Never throws.
   if (event.action === 'update' && app.hasDecorator('refundMoves')) await app.refundMoves.onRecordEvent(event);
+  // A booking written, or a row a booking's calendar title reads: marked, and a job makes the event right. Never throws.
+  if (app.hasDecorator('calendarRows')) await app.calendarRows.onRecordEvent(event);
   // A forms table's row may publish or change a form strangers see: the operator is told what changed. Never waits, never throws.
   app.operatorEvents?.onRecordEvent(event);
   if (!app.hasDecorator('automations')) return;

@@ -5588,6 +5588,153 @@
         }
       }
     },
+    "/api/v1/calendar-feed": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "connection",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "table",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "row",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "link": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "own": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "link",
+                        "own"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calendar-feed/renew": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connection": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "row": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "connection",
+                  "table",
+                  "row"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "link": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "own": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "link",
+                        "own"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/meta/placement": {
       "get": {
         "responses": {
@@ -19200,6 +19347,12 @@
                                   "full",
                                   "closed"
                                 ]
+                              },
+                              "lastBookable": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
                               }
                             },
                             "required": [
@@ -19211,6 +19364,60 @@
                           }
                         }
                       ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/data/{connectionId}/{table}/public-cap-reached": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "connectionId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "table",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "lastHour": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "lastHour"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -108240,7 +108447,9 @@
                         "enum": [
                           "table-query",
                           "capacity-counts",
-                          "team-figures"
+                          "team-figures",
+                          "booking-occupancy",
+                          "calendar-connections"
                         ]
                       },
                       "connectionId": {
@@ -108249,6 +108458,10 @@
                       "source": {
                         "type": "object",
                         "properties": {
+                          "addOn": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                          },
                           "schema": {
                             "type": "string"
                           },
@@ -108935,6 +109148,42 @@
                           "table"
                         ]
                       },
+                      "occupancy": {
+                        "type": "object",
+                        "properties": {
+                          "days": {
+                            "default": 28,
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 92
+                          },
+                          "offset": {
+                            "default": 1,
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 366
+                          },
+                          "states": {
+                            "minItems": 1,
+                            "maxItems": 16,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 64
+                            }
+                          },
+                          "metric": {
+                            "type": "string",
+                            "enum": [
+                              "occupancy",
+                              "booked",
+                              "working"
+                            ]
+                          }
+                        },
+                        "additionalProperties": false
+                      },
                       "team": {
                         "type": "object",
                         "propertyNames": {
@@ -109158,7 +109407,9 @@
                               "enum": [
                                 "table-query",
                                 "capacity-counts",
-                                "team-figures"
+                                "team-figures",
+                                "booking-occupancy",
+                                "calendar-connections"
                               ]
                             },
                             "connectionId": {
@@ -109167,6 +109418,10 @@
                             "source": {
                               "type": "object",
                               "properties": {
+                                "addOn": {
+                                  "type": "string",
+                                  "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                                },
                                 "schema": {
                                   "type": "string"
                                 },
@@ -109852,6 +110107,42 @@
                               "required": [
                                 "table"
                               ]
+                            },
+                            "occupancy": {
+                              "type": "object",
+                              "properties": {
+                                "days": {
+                                  "default": 28,
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 92
+                                },
+                                "offset": {
+                                  "default": 1,
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 366
+                                },
+                                "states": {
+                                  "minItems": 1,
+                                  "maxItems": 16,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 64
+                                  }
+                                },
+                                "metric": {
+                                  "type": "string",
+                                  "enum": [
+                                    "occupancy",
+                                    "booked",
+                                    "working"
+                                  ]
+                                }
+                              },
+                              "additionalProperties": false
                             },
                             "team": {
                               "type": "object",
@@ -122804,6 +123095,1555 @@
         }
       }
     },
+    "/api/v1/connected-accounts": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "query",
+            "name": "connection",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "in": "query",
+            "name": "table",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            },
+            "in": "query",
+            "name": "row",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accounts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "provider": {
+                            "type": "string"
+                          },
+                          "providerName": {
+                            "type": "string"
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "connecting",
+                              "connected",
+                              "partial",
+                              "reconnect",
+                              "disconnecting",
+                              "setup"
+                            ]
+                          },
+                          "since": {
+                            "type": "number"
+                          },
+                          "address": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "addressDiffers": {
+                            "type": "boolean"
+                          },
+                          "grantEndsAt": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "provider",
+                          "providerName",
+                          "state",
+                          "since",
+                          "address",
+                          "addressDiffers",
+                          "grantEndsAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "providers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "reach": {
+                      "type": "string",
+                      "enum": [
+                        "cannot-connect",
+                        "poll-only",
+                        "push"
+                      ]
+                    },
+                    "may": {
+                      "type": "object",
+                      "properties": {
+                        "connect": {
+                          "type": "boolean"
+                        },
+                        "sendLink": {
+                          "type": "boolean"
+                        },
+                        "copyLink": {
+                          "type": "boolean"
+                        },
+                        "disconnect": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "connect",
+                        "sendLink",
+                        "copyLink",
+                        "disconnect"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "accounts",
+                    "providers",
+                    "reach",
+                    "may"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connected-accounts/connect": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connection": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "row": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "addOn": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                  }
+                },
+                "required": [
+                  "connection",
+                  "table",
+                  "row",
+                  "addOn"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "url"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connected-accounts/link": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connection": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "row": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "copy": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "connection",
+                  "table",
+                  "row"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sentTo": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "url": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "sentTo",
+                    "url"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connected-accounts/disconnect": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connection": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "row": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "addOn": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                  }
+                },
+                "required": [
+                  "connection",
+                  "table",
+                  "row",
+                  "addOn"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "removed": {
+                      "type": "number"
+                    },
+                    "incomplete": {
+                      "type": "boolean"
+                    },
+                    "revoked": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "removed",
+                    "incomplete",
+                    "revoked"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/connect/accounts": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "per": {
+                      "type": "string",
+                      "enum": [
+                        "install",
+                        "row"
+                      ]
+                    },
+                    "registered": {
+                      "type": "boolean"
+                    },
+                    "clientId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "tenant": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "redirectUri": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "redirectMoved": {
+                      "type": "boolean"
+                    },
+                    "reach": {
+                      "type": "string",
+                      "enum": [
+                        "cannot-connect",
+                        "poll-only",
+                        "push"
+                      ]
+                    },
+                    "install": {
+                      "type": "string",
+                      "enum": [
+                        "ready",
+                        "not-set-up",
+                        "secret-refused",
+                        "cannot-read-keys"
+                      ]
+                    },
+                    "accounts": {
+                      "type": "number"
+                    },
+                    "counts": {
+                      "type": "object",
+                      "properties": {
+                        "connected": {
+                          "type": "number"
+                        },
+                        "reconnect": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "connected",
+                        "reconnect"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "secretEndsOn": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "per",
+                    "registered",
+                    "clientId",
+                    "tenant",
+                    "redirectUri",
+                    "redirectMoved",
+                    "reach",
+                    "install",
+                    "accounts",
+                    "counts",
+                    "secretEndsOn"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/connect/people": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "people": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "connection": {
+                            "type": "string"
+                          },
+                          "table": {
+                            "type": "string"
+                          },
+                          "row": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "address": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "canEmail": {
+                            "type": "boolean"
+                          },
+                          "account": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "provider": {
+                                    "type": "string"
+                                  },
+                                  "providerName": {
+                                    "type": "string"
+                                  },
+                                  "state": {
+                                    "type": "string",
+                                    "enum": [
+                                      "connecting",
+                                      "connected",
+                                      "partial",
+                                      "reconnect",
+                                      "disconnecting",
+                                      "setup"
+                                    ]
+                                  },
+                                  "since": {
+                                    "type": "number"
+                                  },
+                                  "address": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "addressDiffers": {
+                                    "type": "boolean"
+                                  },
+                                  "grantEndsAt": {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "provider",
+                                  "providerName",
+                                  "state",
+                                  "since",
+                                  "address",
+                                  "addressDiffers",
+                                  "grantEndsAt"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "lastSyncedAt": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "elsewhere": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "connection",
+                          "table",
+                          "row",
+                          "name",
+                          "address",
+                          "canEmail",
+                          "account",
+                          "lastSyncedAt",
+                          "elsewhere"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "more": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "people",
+                    "more"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/connect/check": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "grant": {
+                    "type": "string",
+                    "enum": [
+                      "pair",
+                      "app"
+                    ]
+                  },
+                  "scope": {
+                    "type": "string",
+                    "pattern": "^https:\\/\\/[a-z0-9.-]+\\/\\.default$"
+                  },
+                  "clientId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "clientSecret": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  },
+                  "tenant": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,126}[A-Za-z0-9])?$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "grant"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "string",
+                      "enum": [
+                        "accepted",
+                        "refused",
+                        "expired",
+                        "not-set-up",
+                        "unknown",
+                        "unreachable"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/connect/app": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "clientSecret": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  },
+                  "tenant": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,126}[A-Za-z0-9])?$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "secretEndsOn": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "clientId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "redirectPath": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "redirectPath"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/connect/accounts/link": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "url"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/connect/accounts/{id}/disconnect": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "removed": {
+                      "type": "number"
+                    },
+                    "incomplete": {
+                      "type": "boolean"
+                    },
+                    "revoked": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "removed",
+                    "incomplete",
+                    "revoked"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calendar-sync/row": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "query",
+            "name": "connection",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "in": "query",
+            "name": "table",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            },
+            "in": "query",
+            "name": "row",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "calendar": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "accountId": {
+                              "type": "string"
+                            },
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "connecting",
+                                "connected",
+                                "partial",
+                                "reconnect",
+                                "disconnecting"
+                              ]
+                            },
+                            "address": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "demo": {
+                              "type": "boolean"
+                            },
+                            "lastSyncedAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "busyAsOf": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "busyDropped": {
+                              "type": "boolean"
+                            },
+                            "paused": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "readCalendars": {
+                              "anyOf": [
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "countAllDay": {
+                              "type": "boolean"
+                            },
+                            "detail": {
+                              "type": "string",
+                              "enum": [
+                                "first-name+initial",
+                                "none"
+                              ]
+                            },
+                            "calendarId": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "traits": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "listsCalendars": {
+                                      "type": "boolean"
+                                    },
+                                    "allDayKnown": {
+                                      "type": "boolean"
+                                    },
+                                    "busyPush": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": [
+                                    "listsCalendars",
+                                    "allDayKnown",
+                                    "busyPush"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "calendars": {
+                              "anyOf": [
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "name": {
+                                        "type": "string"
+                                      },
+                                      "primary": {
+                                        "type": "boolean"
+                                      },
+                                      "writable": {
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "name",
+                                      "primary",
+                                      "writable"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "push": {
+                              "type": "object",
+                              "properties": {
+                                "channels": {
+                                  "type": "number"
+                                },
+                                "lastNoticeAt": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "channels",
+                                "lastNoticeAt"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "accountId",
+                            "state",
+                            "address",
+                            "demo",
+                            "lastSyncedAt",
+                            "busyAsOf",
+                            "busyDropped",
+                            "paused",
+                            "readCalendars",
+                            "countAllDay",
+                            "detail",
+                            "calendarId",
+                            "traits",
+                            "calendars",
+                            "push"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "calendar"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calendar-sync/busy": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "query",
+            "name": "connection",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "in": "query",
+            "name": "table",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            },
+            "in": "query",
+            "name": "row",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "from",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "to",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "busy": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "start": {
+                            "type": "number"
+                          },
+                          "end": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "start",
+                          "end"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "busy"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calendar-sync/row/choices": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connection": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "row": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "readCalendars": {
+                    "anyOf": [
+                      {
+                        "minItems": 1,
+                        "maxItems": 50,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 512
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "countAllDay": {
+                    "type": "boolean"
+                  },
+                  "detail": {
+                    "type": "string",
+                    "enum": [
+                      "first-name+initial",
+                      "none"
+                    ]
+                  },
+                  "resume": {
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ]
+                  }
+                },
+                "required": [
+                  "connection",
+                  "table",
+                  "row"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calendar-sync/row/sync-now": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connection": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "row": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  }
+                },
+                "required": [
+                  "connection",
+                  "table",
+                  "row"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calendar-sync/clashes": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "query",
+            "name": "connection",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "in": "query",
+            "name": "table",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "clashes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "row": {
+                            "type": "string"
+                          },
+                          "resource": {
+                            "type": "string"
+                          },
+                          "overlapStart": {
+                            "type": "number"
+                          },
+                          "overlapEnd": {
+                            "type": "number"
+                          },
+                          "kept": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "row",
+                          "resource",
+                          "overlapStart",
+                          "overlapEnd",
+                          "kept"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "clashes"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calendar-sync/clashes/keep": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connection": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "row": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "overlapStart": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "overlapEnd": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "connection",
+                  "table",
+                  "row",
+                  "overlapStart",
+                  "overlapEnd"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/payments/attempts/{id}/refund": {
       "get": {
         "parameters": [
@@ -125946,14 +127786,15 @@
                                 },
                                 "by": {
                                   "minItems": 1,
-                                  "maxItems": 3,
+                                  "maxItems": 4,
                                   "type": "array",
                                   "items": {
                                     "type": "string",
                                     "enum": [
                                       "customer",
                                       "system",
-                                      "refund-right"
+                                      "refund-right",
+                                      "staff"
                                     ]
                                   }
                                 }
@@ -126012,6 +127853,19 @@
                                   "column"
                                 ],
                                 "additionalProperties": false
+                              },
+                              "binds": {
+                                "minItems": 1,
+                                "maxItems": 3,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "customer",
+                                    "system",
+                                    "staff"
+                                  ]
+                                }
                               }
                             },
                             "required": [
@@ -126953,14 +128807,15 @@
                                 },
                                 "by": {
                                   "minItems": 1,
-                                  "maxItems": 3,
+                                  "maxItems": 4,
                                   "type": "array",
                                   "items": {
                                     "type": "string",
                                     "enum": [
                                       "customer",
                                       "system",
-                                      "refund-right"
+                                      "refund-right",
+                                      "staff"
                                     ]
                                   }
                                 }
@@ -127019,6 +128874,19 @@
                                   "column"
                                 ],
                                 "additionalProperties": false
+                              },
+                              "binds": {
+                                "minItems": 1,
+                                "maxItems": 3,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "customer",
+                                    "system",
+                                    "staff"
+                                  ]
+                                }
                               }
                             },
                             "required": [
@@ -128051,14 +129919,15 @@
                                 },
                                 "by": {
                                   "minItems": 1,
-                                  "maxItems": 3,
+                                  "maxItems": 4,
                                   "type": "array",
                                   "items": {
                                     "type": "string",
                                     "enum": [
                                       "customer",
                                       "system",
-                                      "refund-right"
+                                      "refund-right",
+                                      "staff"
                                     ]
                                   }
                                 }
@@ -128117,6 +129986,19 @@
                                   "column"
                                 ],
                                 "additionalProperties": false
+                              },
+                              "binds": {
+                                "minItems": 1,
+                                "maxItems": 3,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "customer",
+                                    "system",
+                                    "staff"
+                                  ]
+                                }
                               }
                             },
                             "required": [
@@ -131375,6 +133257,213 @@
                       "required": [
                         "websites",
                         "max"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/privacy/embeds": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "apps": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "app": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
+                              },
+                              "mount": {
+                                "type": "string"
+                              },
+                              "modes": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "inline",
+                                    "button",
+                                    "floating"
+                                  ]
+                                }
+                              },
+                              "screens": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "path": {
+                                      "type": "string"
+                                    },
+                                    "label": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string"
+                                              },
+                                              "additionalProperties": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "choose": {
+                                      "anyOf": [
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "query": {
+                                              "type": "string"
+                                            },
+                                            "title": {
+                                              "anyOf": [
+                                                {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "string"
+                                                    },
+                                                    {
+                                                      "type": "object",
+                                                      "propertyNames": {
+                                                        "type": "string"
+                                                      },
+                                                      "additionalProperties": {
+                                                        "type": "string"
+                                                      }
+                                                    }
+                                                  ]
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "any": {
+                                              "anyOf": [
+                                                {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "string"
+                                                    },
+                                                    {
+                                                      "type": "object",
+                                                      "propertyNames": {
+                                                        "type": "string"
+                                                      },
+                                                      "additionalProperties": {
+                                                        "type": "string"
+                                                      }
+                                                    }
+                                                  ]
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "values": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "value": {
+                                                    "type": "string"
+                                                  },
+                                                  "label": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "value",
+                                                  "label"
+                                                ],
+                                                "additionalProperties": false
+                                              }
+                                            }
+                                          },
+                                          "required": [
+                                            "query",
+                                            "title",
+                                            "any",
+                                            "values"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "path",
+                                    "label",
+                                    "choose"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "app",
+                              "name",
+                              "mount",
+                              "modes",
+                              "screens"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "apps"
                       ],
                       "additionalProperties": false
                     }
@@ -136042,7 +138131,8 @@
                 "payments",
                 "mailDoor",
                 "x",
-                "xChat"
+                "xChat",
+                "xConnect"
               ]
             },
             "in": "path",
@@ -136184,7 +138274,8 @@
                 "payments",
                 "mailDoor",
                 "x",
-                "xChat"
+                "xChat",
+                "xConnect"
               ]
             },
             "in": "query",
@@ -136385,7 +138476,8 @@
                       "payments",
                       "mailDoor",
                       "x",
-                      "xChat"
+                      "xChat",
+                      "xConnect"
                     ]
                   },
                   "key": {
@@ -136534,7 +138626,8 @@
                 "payments",
                 "mailDoor",
                 "x",
-                "xChat"
+                "xChat",
+                "xConnect"
               ]
             },
             "in": "query",
@@ -136687,7 +138780,8 @@
                             "payments",
                             "mailDoor",
                             "x",
-                            "xChat"
+                            "xChat",
+                            "xConnect"
                           ]
                         },
                         "key": {
@@ -158757,6 +160851,9 @@
                             "oauth2"
                           ]
                         },
+                        "connectAccounts": {
+                          "type": "boolean"
+                        },
                         "connected": {
                           "type": "boolean"
                         },
@@ -159654,6 +161751,9 @@
                             "oauth2"
                           ]
                         },
+                        "connectAccounts": {
+                          "type": "boolean"
+                        },
                         "connected": {
                           "type": "boolean"
                         },
@@ -160135,6 +162235,9 @@
                               "oauth2"
                             ]
                           },
+                          "connectAccounts": {
+                            "type": "boolean"
+                          },
                           "connected": {
                             "type": "boolean"
                           },
@@ -160605,6 +162708,9 @@
                             "api-key",
                             "oauth2"
                           ]
+                        },
+                        "connectAccounts": {
+                          "type": "boolean"
                         },
                         "connected": {
                           "type": "boolean"
@@ -161998,6 +164104,9 @@
                             "oauth2"
                           ]
                         },
+                        "connectAccounts": {
+                          "type": "boolean"
+                        },
                         "connected": {
                           "type": "boolean"
                         },
@@ -162688,6 +164797,9 @@
                             "oauth2"
                           ]
                         },
+                        "connectAccounts": {
+                          "type": "boolean"
+                        },
                         "connected": {
                           "type": "boolean"
                         },
@@ -163266,6 +165378,9 @@
                             "oauth2"
                           ]
                         },
+                        "connectAccounts": {
+                          "type": "boolean"
+                        },
                         "connected": {
                           "type": "boolean"
                         },
@@ -163728,6 +165843,9 @@
                             "api-key",
                             "oauth2"
                           ]
+                        },
+                        "connectAccounts": {
+                          "type": "boolean"
                         },
                         "connected": {
                           "type": "boolean"
@@ -184876,6 +186994,12 @@
                                   "full",
                                   "closed"
                                 ]
+                              },
+                              "lastBookable": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
                               }
                             },
                             "required": [
@@ -195581,6 +197705,893 @@
             }
           },
           "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/review-link": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "minLength": 40,
+                    "maxLength": 1600
+                  }
+                },
+                "required": [
+                  "token"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "open": {
+                          "type": "boolean"
+                        },
+                        "reviewedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "shownName": {
+                          "type": "string"
+                        },
+                        "about": {
+                          "type": "string"
+                        },
+                        "detail": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "open",
+                        "reviewedAt",
+                        "shownName",
+                        "about",
+                        "detail"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/review-link/take": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "stars": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  "title": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 400
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "body": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 8000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "token": {
+                    "type": "string",
+                    "minLength": 40,
+                    "maxLength": 1600
+                  }
+                },
+                "required": [
+                  "stars",
+                  "token"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "reviewedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "reviewedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/records/{ref}/{id}/calendar": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "ref",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "ics": {
+                          "type": "string"
+                        },
+                        "google": {
+                          "type": "string"
+                        },
+                        "outlook": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "ics",
+                        "google",
+                        "outlook"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
             "description": "Default Response",
             "content": {
               "application/json": {

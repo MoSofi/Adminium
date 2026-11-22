@@ -4,6 +4,7 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/manifest/public-access--windows-on-a-moment.md` | Public access — Windows on a moment | 2049 |
 | `references/manifest/public-access--a-person-s-own-rows.md` | Public access — A person's own rows | 7450 |
 | `references/manifest/public-access--rows-visible-with-their-parent.md` | Public access — Rows visible with their parent | 2567 |
 | `references/manifest/public-access--a-create-with-its-child-rows.md` | Public access — A create with its child rows | 5159 |
@@ -11,7 +12,7 @@
 | `references/manifest/public-access--a-person-found-by-address.md` | Public access — A person found by address | 2051 |
 | `references/manifest/public-access--a-consent-tick.md` | Public access — A consent tick | 1834 |
 | `references/manifest/public-access--a-row-s-own-link.md` | Public access — A row's own link | 3677 |
-| `references/manifest/public-access--delete-my-details.md` | Public access — Delete my details | 1240 |
+| `references/manifest/public-access--delete-my-details.md` | Public access — Delete my details | 1801 |
 | `references/manifest/public-access--reads-for-a-signed-in-guest.md` | Public access — Reads for a signed-in guest | 556 |
 | `references/manifest/public-access--withheld-columns.md` | Public access — Withheld columns | 2088 |
 | `references/manifest/public-access--limits-on-a-guest-s-change.md` | Public access — Limits on a guest's change | 1325 |
@@ -53,11 +54,11 @@
 | `references/manifest/a-self-made-app--instance.md` | A self-made app — `instance` | 2327 |
 | `references/manifest/a-self-made-app--reports-invoicelayouts-and-scheduledreports.md` | A self-made app — `reports`, `invoiceLayouts` and `scheduledReports` | 1310 |
 | `references/manifest/a-self-made-app--payments.md` | A self-made app — `payments` | 6915 |
-| `references/manifest/add-on-manifests.md` | Add-on manifests | 5579 |
-| `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own.md` | Add-on manifests — An add-on with tables of its own | 7800 |
-| `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own-2.md` | Add-on manifests — An add-on with tables of its own (part 2) | 2439 |
+| `references/manifest/add-on-manifests.md` | Add-on manifests | 5803 |
+| `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own.md` | Add-on manifests — An add-on with tables of its own | 7692 |
+| `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own-2.md` | Add-on manifests — An add-on with tables of its own (part 2) | 4149 |
 | `references/manifest/add-on-manifests--what-an-app-s-role-may-hold-of-an-add-on-s-table.md` | Add-on manifests — What an app's role may hold of an add-on's table | 4079 |
-| `references/manifest/add-on-manifests--ledgers.md` | Add-on manifests — Ledgers | 5372 |
+| `references/manifest/add-on-manifests--ledgers.md` | Add-on manifests — Ledgers | 6947 |
 | `references/manifest/add-on-manifests--the-price-question.md` | Add-on manifests — The price question | 2004 |
 | `references/manifest/add-on-manifests--the-design-question.md` | Add-on manifests — The design question | 1816 |
 | `references/manifest/add-on-manifests--shapes.md` | Add-on manifests — Shapes | 2541 |
@@ -72,4 +73,5 @@
 | `references/manifest/add-on-manifests--live-chat-2.md` | Add-on manifests — Live chat (part 2) | 1486 |
 | `references/manifest/add-on-manifests--landing-pages.md` | Add-on manifests — Landing pages | 7632 |
 | `references/manifest/add-on-manifests--landing-pages-2.md` | Add-on manifests — Landing pages (part 2) | 3553 |
-| `references/manifest/validation.md` | Validation | 3648 |
+
+More: `references/manifest/INDEX-3.md`

@@ -1030,6 +1030,22 @@ export default {
     "questions": "Fragen? Schreiben Sie an {contact}. {who}.",
     "keptBy": "Aufbewahrt von {who}."
   },
+  "connectLink": {
+    "name": "Konto verbinden",
+    "subject": "{business} bittet Sie, Ihr Konto zu verbinden",
+    "preheader": "Der Link gilt {days} Tage.",
+    "heading": "Verbinden Sie Ihr Konto",
+    "intro": "Hallo {name}, {business} bittet Sie, Ihr eigenes Konto zu verbinden. Bitte verwenden Sie das Konto, das Ihnen gehört.",
+    "action": "Mein Konto verbinden",
+    "notice": "Der Link funktioniert einmal und gilt {days} Tage. Falls Sie ihn nicht erwartet haben, können Sie diese E-Mail ignorieren: Ohne Ihre Anmeldung wird nichts verbunden."
+  },
+  "accountConnected": {
+    "name": "Konto verbunden",
+    "subject": "Ihr Konto wurde bei {business} verbunden",
+    "heading": "Ihr Konto wurde verbunden",
+    "intro": "Hallo {name}, {provider} ist bei {business} jetzt für Sie als {account} verbunden.",
+    "notice": "Falls Sie das nicht waren, informieren Sie {business} bitte sofort."
+  },
   "emailChangeConfirm": {
     "action": "Diese Adresse bestätigen",
     "heading": "Neue Adresse bestätigen",

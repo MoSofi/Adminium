@@ -177,6 +177,11 @@ export interface MarketingMail {
    */
   refusals(from: string, sender?: MarketingSenderFacts): Promise<MarketingRefusal[]>;
   carry(input: MarketingCarryInput): Promise<MarketingCarry>;
+  /**
+   * The stop link of a service mail sent for a consent purpose (a review request), and its two list headers: the
+   * same signed link and door a marketing mail's has. Null while the outside cannot reach the door.
+   */
+  serviceStop(input: { to: string; purpose: ConsentPurpose; locale: string }): Promise<{ url: string; headers: Record<string, string> } | null>;
   /** At delivery: Adminium's DKIM options for the From (when a key exists) and the relay's tracking-off headers. */
   signing(from: string, smtpHost: string): Promise<{ dkim: OutboundDkim | null; headers: Record<string, string> }>;
   /** A refusal at send time: the address goes on the do-not-email list when it says so for good (see the header). */
@@ -359,6 +364,15 @@ export function createMarketingMail(deps: MarketingMailDeps): MarketingMail {
             : t('email:marketingFooter.newsletter', { business, defaultValue: 'Unsubscribe from {business}’s newsletter' });
       const postal = await postalOf(input.postal);
       return { headers, locked: { lines: postal === null ? [] : [postal], link: { text, href: url } }, replyTo: replyTo === '' ? null : replyTo };
+    },
+
+    async serviceStop(input) {
+      const { origin, open } = await mailDoorReach(meta, reach);
+      if (origin === null || !open) return null;
+      const install = (await settings.get('system.instanceId')) ?? '';
+      const token = makeUnsubscribeToken(await linkKeys.unsubscribe(), String(install), { address: input.to, purpose: input.purpose, language: input.locale });
+      const url = unsubscribeUrl(origin, token);
+      return { url, headers: { 'List-Unsubscribe': `<${url}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } };
     },
 
     async signing(from, smtpHost) {

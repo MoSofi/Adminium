@@ -56,6 +56,8 @@ export interface CodeLookup {
   column: string;
   /** This table's text column the person types into. */
   from: string;
+  /** The address column a row named `held:<key>` is held to. */
+  held?: string | undefined;
   /** The codes table, and the key the foreign key points at. */
   table: string;
   key: string;
@@ -120,6 +122,7 @@ export function codeLookupsOf(view: Pick<SnapshotView, 'model'> | undefined, tab
       spelling: spellingOf(codes.columns?.find((c) => c.name === rule.column)),
       where: rule.where ?? [],
       scope: rule.scope ?? [],
+      ...(rule.held === undefined ? {} : { held: rule.held }),
     });
   }
   return out;
@@ -415,6 +418,16 @@ export interface LookupOptions {
   /** The row as stored, for a scope column the change does not send (read once, when needed). */
   stored?: (() => Promise<Row | null>) | undefined;
   rights?: TablePrivileges | null | undefined;
+  /** The address this write's session proved: what a row named `held:<key>` is held to. */
+  provedAddress?: string | null | undefined;
+}
+
+/** A row named by the person who holds it, in place of its code: the browser is never given the code. */
+export function heldKeyOf(typed: unknown): number | null {
+  const match = typeof typed === 'string' ? /^held:(\d{1,10})$/.exec(typed.trim()) : null;
+  const key = match === null ? null : Number(match[1]);
+  // Past what a key column holds on any engine: no row, and never a database error.
+  return key === null || key > 2147483647 ? null : key;
 }
 
 /**
@@ -444,6 +457,25 @@ export async function resolveLookups(
     if (typed === null || typed === undefined || (typeof typed === 'string' && typed.trim() === '')) {
       out[lookup.column] = null;
       (out as Clearing)[CLEARED] = [...clearedLinks(out), lookup.column];
+      continue;
+    }
+    const heldKey = lookup.held === undefined ? null : heldKeyOf(typed);
+    if (heldKey !== null) {
+      // Every miss is the one answer: not theirs, not usable, or no such row.
+      // Saved again as it was (a whole row sent back from a desk): the link it already has stands.
+      if (action === 'update') {
+        const was = await storedRow();
+        if (was !== null && was[lookup.from] === typed && was[lookup.column] !== null && was[lookup.column] !== undefined) {
+          out[lookup.column] = was[lookup.column] as unknown;
+          continue;
+        }
+      }
+      const address = options.provedAddress ?? null;
+      if (address === null) throw unknownCode(lookup.from);
+      const row = (await target.db.selectFrom(lookup.table as never).selectAll().where(sql.ref(lookup.key), '=', heldKey as never).limit(1).executeTakeFirst()) as Row | undefined;
+      // Compared here, byte for byte: a MySQL collation reads `adà@` as `ada@`.
+      if (row === undefined || row[lookup.held!] !== address || !meets(row, lookup.where, options.now ?? new Date(), options.zone ?? 'UTC')) throw unknownCode(lookup.from);
+      out[lookup.column] = row[lookup.key] as unknown;
       continue;
     }
     const canonical = canonicalCode(String(typed));
