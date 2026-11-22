@@ -255,14 +255,17 @@ describe("a guest's own account and their order's own link", () => {
   });
 
   it('signs out everywhere and deletes the details, dropping the session', async () => {
-    const { c, calls } = client((url) => (url.endsWith('/claim/link/verify') ? json(200, openLink) : json(200, { data: {} })));
+    const left = { keptBalances: 2, giftsNotLinked: true };
+    const { c, calls } = client((url) =>
+      url.endsWith('/claim/link/verify') ? json(200, openLink) : url.endsWith('/public/account') ? json(200, { data: left }) : json(200, { data: {} }),
+    );
     await c.openLink(TOKEN);
     await c.signOutEverywhere();
     expect(calls.at(-1)!.url).toBe('https://studio.example.com/api/v1/public/session/revoke-all');
     expect(calls.at(-1)!.init?.method).toBe('POST');
     expect(c.isClaimed()).toBe(false);
     await c.openLink(TOKEN);
-    await c.forgetMe();
+    await expect(c.forgetMe()).resolves.toEqual(left);
     expect(calls.at(-1)!.url).toBe('https://studio.example.com/api/v1/public/account');
     expect(calls.at(-1)!.init?.method).toBe('DELETE');
     expect(c.isClaimed()).toBe(false);
