@@ -165,7 +165,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/public-scopes/*` | 4 | Define what a public key may read — resources, columns, filters and time zone |
 | `/api/v1/readyz` | 1 | Readiness — per-dependency verdicts, 503 when a dependency is down |
 | `/api/v1/report-documents/*` | 9 | Report templates and reports — the block documents behind the report builder, the starters, duplicates, and building a report from a template |
-| `/api/v1/roles/*` | 8 | RBAC roles, their permission sets, and which rows each reaches |
+| `/api/v1/roles/*` | 9 | RBAC roles, their permission sets, and which rows each reaches |
 | `/api/v1/scheduled-reports/*` | 4 | Recurring exports delivered on a schedule |
 | `/api/v1/schema-import` | 1 | Parse a schema file (SQL, Prisma, Drizzle, the JSON IR, …) into the IR |
 | `/api/v1/search` | 1 | Cross-resource search for the command palette |
@@ -1107,6 +1107,7 @@ POST /api/v1/report-documents/{id}/from-template
 ```http
 GET /api/v1/roles
 POST /api/v1/roles
+GET /api/v1/roles/grantable
 PATCH /api/v1/roles/{id}
 DELETE /api/v1/roles/{id}
 GET /api/v1/roles/{id}/permissions

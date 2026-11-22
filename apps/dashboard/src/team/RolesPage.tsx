@@ -84,12 +84,15 @@ import {
   createRole,
   deleteRole,
   isPermissionGrant,
+  isRoleRefusal,
   matrixRows,
+  mayGrant,
   narrowDataGrantCount,
   pendingChangeCount,
   permissionCatalogQuery,
   putRoleGrants,
   renameRole,
+  roleGrantableQuery,
   roleGrantsQuery,
   rolesQuery,
   toggleGrant,
@@ -205,10 +208,20 @@ function dataAccessLabel(key: DataAccessGrant): string {
   }
 }
 
+/** A failed save in the reader's words when the server refused it for reaching above them. */
+function failureText(error: Error): string {
+  return isRoleRefusal(error)
+    ? t('roles:limits.refused', 'You can give only permissions you hold yourself, and cannot change a role that holds more than you do.')
+    : error.message;
+}
+
 export function RolesPage(): ReactNode {
   const queryClient = useQueryClient();
   const { data: roles } = useSuspenseQuery(rolesQuery());
   const { data: catalog } = useSuspenseQuery(permissionCatalogQuery());
+  // Only what to offer: unknown offers everything, and the server decides each save.
+  const { data: grantable } = useQuery({ ...roleGrantableQuery(), retry: false });
+  const aboveTheViewer = (role: RoleListItem): boolean => role.slug !== SUPER_ADMIN_SLUG && role.mayChange === false;
 
   // Locked columns are excluded from the fetch, not just from the save — see
   // rule 2 in the header.
@@ -287,6 +300,17 @@ export function RolesPage(): ReactNode {
 
   const loading = grantQueries.some((query) => query.isPending);
   const grantsFailed = grantQueries.some((query) => query.isError);
+  const limited = grantable !== undefined && !grantable.all;
+
+  /** Why this cell cannot be changed by this person. A permission the role already has can still be taken off it. */
+  const cellUnavailable = (roleId: string, key: PermissionGrant): string | null => {
+    const role = roles.find((one) => one.id === roleId);
+    if (role !== undefined && aboveTheViewer(role)) {
+      return t('roles:limits.roleAbove', 'This role holds permissions you do not, so you cannot change it.');
+    }
+    if (mayGrant(grantable, key) || baseline[roleId]?.includes(key) === true) return null;
+    return t('roles:limits.notHeld', 'You do not hold this permission, so you cannot give it.');
+  };
 
   const save = useMutation({
     mutationFn: async (roleIds: readonly string[]): Promise<void> => {
@@ -402,9 +426,14 @@ export function RolesPage(): ReactNode {
               tone="danger"
               className="mb-4"
               title={t('roles:saveFailed.title', 'Could not save every role')}
-              body={save.error.message}
+              body={failureText(save.error)}
             />
           )}
+          {limited ? (
+            <p className="mb-3 text-body-sm text-fg-muted" data-testid="roles-limited-note">
+              {t('roles:limits.note', 'You can give only the permissions you hold yourself. Anything else is shown but cannot be changed.')}
+            </p>
+          ) : null}
           {permissions.length === 0 ? (
             <EmptyState
               compact
@@ -440,6 +469,7 @@ export function RolesPage(): ReactNode {
                 grants={grants}
                 baseline={baseline}
                 disabled={loading || save.isPending}
+                getCellUnavailable={cellUnavailable}
                 onChange={({ roleId, permissionKey, granted }) => {
                   setDraft(toggleGrant(grants, roleId, permissionKey, granted));
                 }}
@@ -497,32 +527,44 @@ export function RolesPage(): ReactNode {
                           size="sm"
                           // A save of the rows writes the role's grants as the server holds them: with boxes ticked and not yet
                           // saved it would be working from one set and the matrix from another, and one would undo the other.
-                          disabled={role.slug === SUPER_ADMIN_SLUG || changed.length > 0}
+                          disabled={role.slug === SUPER_ADMIN_SLUG || aboveTheViewer(role) || changed.length > 0}
                           title={
                             role.slug === SUPER_ADMIN_SLUG
                               ? t('roles:rows.locked', 'Super Admin reaches every row.')
-                              : changed.length > 0
-                                ? t('roles:rows.saveFirst', 'Save or discard the permission changes first.')
-                                : undefined
+                              : aboveTheViewer(role)
+                                ? t('roles:limits.roleAbove', 'This role holds permissions you do not, so you cannot change it.')
+                                : changed.length > 0
+                                  ? t('roles:rows.saveFirst', 'Save or discard the permission changes first.')
+                                  : undefined
                           }
                           onClick={() => setLimiting(role)}
                           data-testid={`roles-rows-${role.slug}`}
                         >
                           {t('roles:rows.action', 'Rows')}
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setRenaming(role)}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={aboveTheViewer(role)}
+                          title={aboveTheViewer(role) ? t('roles:limits.roleAbove', 'This role holds permissions you do not, so you cannot change it.') : undefined}
+                          onClick={() => setRenaming(role)}
+                          data-testid={`roles-rename-${role.slug}`}
+                        >
                           {t('roles:action.rename', 'Rename')}
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          disabled={role.isBuiltin}
+                          disabled={role.isBuiltin || aboveTheViewer(role)}
                           title={
                             role.isBuiltin
                               ? t('roles:builtinLocked', 'Built-in roles cannot be deleted.')
-                              : undefined
+                              : aboveTheViewer(role)
+                                ? t('roles:limits.roleAbove', 'This role holds permissions you do not, so you cannot change it.')
+                                : undefined
                           }
                           onClick={() => setDeleting(role)}
+                          data-testid={`roles-delete-${role.slug}`}
                         >
                           {t('roles:action.delete', 'Delete')}
                         </Button>
@@ -539,7 +581,7 @@ export function RolesPage(): ReactNode {
       <CreateRoleDialog
         open={createOpen}
         busy={create.isPending}
-        error={create.error === null ? null : create.error.message}
+        error={create.error === null ? null : failureText(create.error)}
         onOpenChange={(open) => {
           setCreateOpen(open);
           if (!open) create.reset();
@@ -552,7 +594,7 @@ export function RolesPage(): ReactNode {
           key={renaming.id}
           role={renaming}
           busy={rename.isPending}
-          error={rename.error === null ? null : rename.error.message}
+          error={rename.error === null ? null : failureText(rename.error)}
           onClose={() => {
             setRenaming(null);
             rename.reset();
@@ -579,9 +621,10 @@ export function RolesPage(): ReactNode {
         <DeleteRoleDialog
           key={deleting.id}
           role={deleting}
-          targets={roles.filter((role) => role.id !== deleting.id)}
+          // Moving people onto a role is giving it to them: only a role the viewer could give.
+          targets={roles.filter((role) => role.id !== deleting.id && role.mayChange !== false)}
           busy={remove.isPending}
-          error={remove.error === null ? null : remove.error.message}
+          error={remove.error === null ? null : failureText(remove.error)}
           onClose={() => {
             setDeleting(null);
             remove.reset();
@@ -775,7 +818,13 @@ function DeleteRoleDialog(props: {
               })}
         </p>
 
-        {needsReassign ? (
+        {needsReassign && props.targets.length === 0 ? (
+          <p className="text-body-sm text-fg-muted" data-testid="roles-no-targets">
+            {t('roles:limits.noTargets', 'There is no role you can give that these members could move to, so this role cannot be deleted yet.')}
+          </p>
+        ) : null}
+
+        {needsReassign && props.targets.length > 0 ? (
           <FormField label={t('roles:delete.reassignTo', 'Move members to')} required>
             <Select
               value={reassignTo}
@@ -1020,7 +1069,7 @@ function RoleRowsDialog(props: { role: RoleListItem; onClose: () => void; onSave
           </>
         )}
         {save.error === null ? null : (
-          <Alert role="alert" tone="danger" title={t('roles:rows.failed', 'Could not save the row limits')} body={save.error.message} />
+          <Alert role="alert" tone="danger" title={t('roles:rows.failed', 'Could not save the row limits')} body={failureText(save.error)} />
         )}
       </ModalBody>
       <ModalFooter>

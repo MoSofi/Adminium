@@ -1867,7 +1867,9 @@ export default {
       }
     },
     "roles": {
-      "unavailable": "Roller er ikke synlige for din konto, så ingen kan tildeles her."
+      "unavailable": "Roller er ikke synlige for din konto, så ingen kan tildeles her.",
+      "above": "Roller med tilladelser, du ikke selv har, kan ikke gives eller fjernes her.",
+      "refused": "Du kan kun give roller, hvis tilladelser du selv har, og du kan ikke fjerne en rolle, der har flere tilladelser end dig."
     },
     "rolesDialog": {
       "description": "En bruger får summen af alle de roller, vedkommende har.",
