@@ -14,11 +14,14 @@ import { Alert, Button, Card, CardBody, CardHeader, IconTile } from '@adminium/u
 
 import { ApiError } from '../app/api.js';
 import { bootstrapQuery, type BootstrapData } from '../app/bootstrap.js';
+import { useCommonWords } from '../i18n/commonWords.js';
 import { t } from '../i18n/t.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { confirmEmailChange } from './meApi.js';
 
 export function ConfirmEmailPage() {
+  // This screen's words load with it, not with the first paint (the `account` group of `common`).
+  useCommonWords();
   const { token } = useParams({ from: '/app/account/confirm-email/$token' });
   const queryClient = useQueryClient();
   const confirm = useMutation({

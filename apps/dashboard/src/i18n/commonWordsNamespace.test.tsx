@@ -45,6 +45,8 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
   'account/SecurityPage.tsx': ['account/FigmaCard.tsx'],
   // The password form, on `/account` too: it waits for its own words wherever it is mounted.
   'account/PasswordCard.tsx': [],
+  // Where the link mailed to a new sign-in address lands.
+  'account/ConfirmEmailPage.tsx': [],
   'reports/ScheduledReportsPage.tsx': [],
   'changelog/ChangelogPage.tsx': [],
   'audit/AuditLogPage.tsx': [],
