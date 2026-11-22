@@ -935,20 +935,23 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
    * The counted, coming bookings of the connected people of a table (or of one
    * person), and their busy times. Nobody's first-read hold is a clash.
    */
-  async function clashInputs(bound: BoundTable, only?: string): Promise<{ bookings: ClashBooking[]; busy: Map<string, Span[]> }> {
-    const people = (await accountsRepo.forTable(bound.target.connectionId, bound.resource.id)).filter((account) => account.state !== 'connecting' && account.state !== 'disconnecting' && (only === undefined || account.rowKey === only));
+  async function clashInputs(bound: BoundTable, only?: string): Promise<{ bookings: ClashBooking[]; busy: Map<string, Span[]>; whole: boolean }> {
+    const asked = (await accountsRepo.forTable(bound.target.connectionId, bound.resource.id)).filter((account) => only === undefined || account.rowKey === only);
+    const people = asked.filter((account) => account.state !== 'connecting' && account.state !== 'disconnecting');
     const holding = new Set((await repo.states(people.map((account) => account.id))).filter((state) => state.connectingSince !== null).map((state) => state.accountId));
     const connected = people.filter((account) => !holding.has(account.id));
+    // Someone mid-read is left out for now: what is stored about them says nothing about their clashes yet.
+    const whole = connected.length === asked.length;
     const busy = new Map<string, Span[]>();
     const bookings: ClashBooking[] = [];
-    if (connected.length === 0) return { bookings, busy };
+    if (connected.length === 0) return { bookings, busy, whole };
     const zone = bound.source.timezone;
     const today = venueClock(new Date(now()), zone).day;
     const last = addDays(await lastBookableDay(bound.rule, bound.target, new Date(now())), 2);
     const db = bound.source.db;
     const resources = await Promise.all(connected.map((account) => resourceValue(bound, account.rowKey)));
     const named = resources.filter((value) => value !== null && value !== undefined);
-    if (named.length === 0) return { bookings, busy };
+    if (named.length === 0) return { bookings, busy, whole };
     for (const one of await busyIn(bound.rule, bound.target, today, last, named, (source) => source.engine !== undefined)) {
       const list = busy.get(one.resource) ?? [];
       list.push({ start: one.start, end: one.end });
@@ -971,7 +974,7 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
       if (end <= at) continue;
       bookings.push({ rowKey: rowKeyOf(bound.table, row), resource: keyOf(row[bound.rule.resource]), start, end });
     }
-    return { bookings, busy };
+    return { bookings, busy, whole };
   }
 
   /**
@@ -979,14 +982,14 @@ export function createCalendarSync(deps: CalendarSyncDeps) {
    * clashes that no longer exist are let go; asked for one person, only theirs.
    */
   async function clashesOf(bound: BoundTable, only?: string): Promise<RowClash[]> {
-    const { bookings, busy } = await clashInputs(bound, only);
+    const { bookings, busy, whole } = await clashInputs(bound, only);
     const derived = deriveClashes(bookings, busy);
     const stored = await repo.clashesOfTable(bound.target.connectionId, bound.table.id);
     const keyOfClash = (c: { rowKey: string; overlapStart: number; overlapEnd: number }) => `${c.rowKey}|${String(c.overlapStart)}|${String(c.overlapEnd)}`;
     const byKey = new Map(stored.map((row) => [keyOfClash(row), row]));
     const live = new Set(derived.map(keyOfClash));
     const theirs = new Set(bookings.map((booking) => booking.rowKey));
-    await repo.removeClashes(stored.filter((row) => !live.has(keyOfClash(row)) && (only === undefined || theirs.has(row.rowKey))).map((row) => row.id));
+    if (whole) await repo.removeClashes(stored.filter((row) => !live.has(keyOfClash(row)) && (only === undefined || theirs.has(row.rowKey))).map((row) => row.id));
     return derived.map((clash) => ({ ...clash, kept: byKey.get(keyOfClash(clash))?.keptAt != null }));
   }
 

@@ -626,6 +626,12 @@ for (const [dialect, reachable] of LEGS) {
       expect(kept.statusCode, kept.body).toBe(200);
       expect((await list())[0]!.kept).toBe(true);
 
+      // A first read in progress hides this person's clashes for a moment: a look at the list must not forget what was kept.
+      await sync.repo.patch(account.id, { connectingSince: Date.now() }, Date.now());
+      expect(await list()).toEqual([]);
+      await sync.repo.patch(account.id, { connectingSince: null }, Date.now());
+      expect((await list())[0]!.kept).toBe(true);
+
       // A busy time that grows before the booking leaves the overlap as it was.
       await setBusy('rafa', [[iso('2026-10-02', '08:00'), iso('2026-10-02', '10:30')]]);
       await sync.readAccount(account.id);
