@@ -4775,6 +4775,7 @@ export default {
       "stays": {
         "forGood": "Kept for good.",
         "days": "{count, plural, one {Kept for # day.} other {Kept for # days.}}",
+        "daysOnceRead": "{count, plural, one {Kept until read, then for # day.} other {Kept until read, then for # days.}}",
         "doNotEmail": "Their address stays on the do-not-email list as a code, so they’re never e-mailed again.",
         "lawHealth": "{count, plural, one {# row} other {# rows}} in {label}, because health law needs them.",
         "lawContract": "{count, plural, one {# row} other {# rows}} in {label}, because a contract needs them.",

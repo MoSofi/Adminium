@@ -4765,6 +4765,7 @@
       "stays": {
         "forGood": "Uchováno natrvalo.",
         "days": "{count, plural, one {Uchováno # den.} few {Uchováno # dny.} many {Uchováno # dne.} other {Uchováno # dní.}}",
+        "daysOnceRead": "{count, plural, one {Uchováno do přečtení, poté ještě # den.} few {Uchováno do přečtení, poté ještě # dny.} many {Uchováno do přečtení, poté ještě # dne.} other {Uchováno do přečtení, poté ještě # dní.}}",
         "doNotEmail": "Jejich adresa zůstane na seznamu „Neposílat e-maily“ jako kód, aby jim už nikdy nepřišel e-mail.",
         "lawHealth": "{count, plural, one {# řádek} few {# řádky} many {# řádku} other {# řádků}} v {label}, protože to vyžaduje zdravotnické právo.",
         "lawContract": "{count, plural, one {# řádek} few {# řádky} many {# řádku} other {# řádků}} v {label}, protože to vyžaduje smlouva.",

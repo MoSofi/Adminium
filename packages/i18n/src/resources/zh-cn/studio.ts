@@ -4775,6 +4775,7 @@ export default {
       "stays": {
         "forGood": "永久保留。",
         "days": "{count, plural, other {保留 # 天。}}",
+        "daysOnceRead": "{count, plural, other {保留至阅读，之后再保留 # 天。}}",
         "doNotEmail": "其地址会以代码形式保留在禁止发送邮件名单中，确保永不再向其发送邮件。",
         "lawHealth": "{label} 中的 {count, plural, other {# 行}}，因为卫生法规要求保留。",
         "lawContract": "{label} 中的 {count, plural, other {# 行}}，因为合同要求保留。",

@@ -4765,6 +4765,7 @@
       "stays": {
         "forGood": "永久保留。",
         "days": "{count, plural, other {保留 # 天。}}",
+        "daysOnceRead": "{count, plural, other {保留至閱讀，之後再保留 # 天。}}",
         "doNotEmail": "其地址會以代碼形式保留在禁止寄送郵件名單中，確保永不再寄郵件給對方。",
         "lawHealth": "{label} 中的 {count, plural, other {# 列}}，因為衛生法規要求保留。",
         "lawContract": "{label} 中的 {count, plural, other {# 列}}，因為合約要求保留。",
