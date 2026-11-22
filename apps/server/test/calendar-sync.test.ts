@@ -1279,7 +1279,7 @@ for (const [dialect, reachable] of LEGS) {
           await tryAgain(account.id);
           expect(await accountOf(name)).toBeUndefined();
           expect(demo.events(subject).some((one) => one.start === iso(day, '10:00'))).toBe(false);
-          expect((await notices()).filter((one) => one.body.includes(name) || one.title.includes(name))).toEqual([]);
+          expect((await notices()).filter((one) => `${one.title} ${one.body}`.includes(name))).toEqual([]);
         });
 
         it('sends a removed person no new booking while it waits, and uses the grant only to delete', async () => {
