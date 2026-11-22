@@ -102,6 +102,11 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
   const emailSecret = app.authContext?.env.ADMINIUM_SECRET;
 
   /**
+  /** Ends a person's open sockets and streams (`jobs/register.ts`); a server with no realtime has none. */
+  const closeConnections = (userId: string): void => {
+    (app as unknown as { closeUserConnections?: (id: string) => number }).closeUserConnections?.(userId);
+  };
+
    * Queue the invitation mail. Returns whether it was QUEUED — not whether it
    * arrived; the relay owns that, and the job's retry/dead-letter state is
    * where an operator watches it. Never throws: the activation link in the
@@ -458,8 +463,11 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
       if (Object.keys(patch).length > 0) await users.updateProfile(user.id, patch, now);
       if (status !== null) {
         await users.updateStatus(user.id, status, now);
-        // A suspended user must stop being logged in immediately.
-        if (status === 'suspended') await sessions.revokeAllForUser(user.id, now);
+        // A suspended user must stop being logged in immediately, on what is already open too.
+        if (status === 'suspended') {
+          await sessions.revokeAllForUser(user.id, now);
+          closeConnections(user.id);
+        }
       }
 
       const updated = await mustFindUser(user.id);
@@ -529,6 +537,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
         await app.rbac.audit(request, {
           category: 'rbac',
           action: 'user.delete',
+        closeConnections(user.id);
           changes: { before },
         });
         return { ok: true as const, permanent: true, user: null };
@@ -539,6 +548,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
       const suspended = await mustFindUser(user.id);
       await app.rbac.audit(request, {
         category: 'rbac',
+      closeConnections(user.id);
         action: 'user.suspend',
         changes: { before, after: { status: suspended.status } },
       });
