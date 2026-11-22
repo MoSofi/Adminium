@@ -4777,7 +4777,9 @@
         "automationRuns": "{count, plural, one {# exécution de règle dans l’historique des règles.} other {# exécutions de règles dans l’historique des règles.}}",
         "notifications": "{count, plural, one {# notification à l’équipe.} other {# notifications à l’équipe.}}",
         "campaignFailures": "{count, plural, one {# envoi de campagne échoué, conservé avec le journal d’envoi de la campagne.} other {# envois de campagne échoués, conservés avec le journal d’envoi de la campagne.}}",
-        "exports": "Les exports de données que l’équipe a faits d’une table peuvent la contenir, jusqu’à l’expiration de chacun."
+        "exports": "Les exports de données que l’équipe a faits d’une table peuvent la contenir, jusqu’à l’expiration de chacun.",
+        "heldValues": "{count, plural, one {# forfait, carte cadeau ou avoir} other {# forfaits, cartes cadeaux ou avoirs}} dans {label} avec un solde restant, pour que son titulaire puisse l’utiliser.",
+        "heldValuesKept": "Son nom et son adresse sont retirés une fois le solde épuisé ou expiré."
       },
       "mismatch": "Ce n’est pas la même adresse. Saisissez-la à nouveau.",
       "failed": "L’effacement n’est pas allé au bout. Effacez à nouveau pour le terminer : ce qui est fait reste fait.",

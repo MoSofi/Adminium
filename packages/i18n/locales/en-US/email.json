@@ -877,7 +877,9 @@
     "intro": "Hi {name}, as you asked, the details {appName} kept about you are deleted, and you are signed out everywhere.",
     "kept": "What you already have with us stays valid, and the emails you already have still open it. You won’t hear from us again unless you come back.",
     "footer": "{appName}",
-    "stopped": "The links in the emails you already have no longer work. You won’t hear from us again unless you come back."
+    "stopped": "The links in the emails you already have no longer work. You won’t hear from us again unless you come back.",
+    "held": "One exception: packs or gift cards that still have a balance keep your name and email until they are used up or expire, so you can still use them. Number kept: {count}.",
+    "gifts": "A gift card someone else bought for you is not linked to your account, so it still shows the name and email they typed. Ask us if you want those removed."
   },
   "missing": {
     "chip": "{name}: say what to write when it is missing",

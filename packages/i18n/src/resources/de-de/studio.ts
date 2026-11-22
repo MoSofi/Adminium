@@ -4787,7 +4787,9 @@ export default {
         "automationRuns": "{count, plural, one {# Regellauf im Verlauf der Regeln.} other {# Regelläufe im Verlauf der Regeln.}}",
         "notifications": "{count, plural, one {# Benachrichtigung an Mitarbeitende.} other {# Benachrichtigungen an Mitarbeitende.}}",
         "campaignFailures": "{count, plural, one {# fehlgeschlagene Kampagnen-Sendung, aufbewahrt mit dem Sendeprotokoll der Kampagne.} other {# fehlgeschlagene Kampagnen-Sendungen, aufbewahrt mit dem Sendeprotokoll der Kampagne.}}",
-        "exports": "Datenexporte, die Mitarbeitende aus einer Tabelle erstellt haben, können sie enthalten, bis jeder abläuft."
+        "exports": "Datenexporte, die Mitarbeitende aus einer Tabelle erstellt haben, können sie enthalten, bis jeder abläuft.",
+        "heldValues": "{count, plural, one {# Paket, Geschenkkarte oder Guthaben} other {# Pakete, Geschenkkarten oder Guthaben}} in {label} mit Restguthaben, damit die Person es nutzen kann.",
+        "heldValuesKept": "Name und Adresse werden entfernt, sobald es aufgebraucht oder abgelaufen ist."
       },
       "mismatch": "Das ist nicht dieselbe Adresse. Geben Sie sie erneut ein.",
       "failed": "Die Löschung wurde nicht beendet. Löschen Sie erneut, um sie abzuschließen: Was schon erledigt ist, bleibt erledigt.",

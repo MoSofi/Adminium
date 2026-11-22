@@ -131,11 +131,12 @@ export type StaysKind =
   | 'notifications'
   | 'campaign-failures'
   | 'exports'
-  | 'do-not-email';
+  | 'do-not-email'
+  | 'held-values';
 
 export interface StaysItem {
   kind: StaysKind;
-  reason: KeptByLawReason | 'issued-document' | 'payment-records' | 'kept-a-while' | 'objection';
+  reason: KeptByLawReason | 'issued-document' | 'payment-records' | 'kept-a-while' | 'objection' | 'live-balance';
   /** Null where they are not counted (exports staff made of a table). */
   count: number | null;
   keptDays: number | null;

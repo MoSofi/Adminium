@@ -49,6 +49,7 @@ import { NulInRequest } from '../../security/nul-bytes.js';
 import { availabilityOf } from '../../surfaces/settings.js';
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
 import { blankOwnCopies, ownCopyTables } from '../../privacy/forget-copies.js';
+import { forgetHeld, heldIndex, holderTablesOn, reachesGiftsOnlyBySale } from '../../privacy/held-values.js';
 import { erasedNameOf } from '../../privacy/sources.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import type { Dialect } from '@adminium/engine';
@@ -185,6 +186,7 @@ import {
 import { capKey, chargeAnonymous, linkFreeText, notPlain, PLAIN_TEXT_REFUSED, plainColumn, plainRule } from '../../public-api/anonymous-caps.js';
 import { notPlainOn, recentPlainTextOn } from '../../public-api/plain-text-on.js';
 import { appContact } from '../../outbox/sender.js';
+import { installedCustomerKey } from '../../public-api/customer-key.js';
 import { provedAddressOf } from '../../public-api/proved-address.js';
 import { createSwitches, type Switches } from '../../public-api/switches.js';
 import { dsnCryptoFromSecret } from '../../connections/crypto.js';
@@ -6033,17 +6035,26 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         // The app's word: their copies on the rows linked to them go in the same transaction as their own row.
         const ownCopies = forget.copies === true && found.table.primaryKey.length === 1 ? await ownCopyTables(meta, ok.key.connectionId, found.view, found.table) : [];
         const erasedName = ownCopies.length === 0 ? '' : await erasedNameOf(meta);
+        // What they still hold on an add-on's table (a pack, a gift card): emptied if its value has ended, kept and marked if not (`privacy/held-values.ts`).
+        const heldTables = found.table.primaryKey.length === 1 ? await holderTablesOn(meta, ok.key.connectionId, found.view) : [];
+        const heldAddress = heldTables.length === 0 ? null : provedAddressOf(ok.key.scope, session, row, addressSecret);
+        const heldNames = heldAddress === null ? null : await heldIndex(meta, ok.key.connectionId, found.view);
+        let heldKept = 0;
         let blanked: { table: string; key: string }[] = [];
         try {
           await writes.update({
             target: { connectionId: ok.key.connectionId, view: found.view, table: found.table, db: found.db, dialect: found.dialect, timezone: ok.key.scope.timezone },
             pk,
             values,
-            ...(ownCopies.length === 0
+            ...(ownCopies.length === 0 && heldNames === null
               ? {}
               : {
                   inside: async (db: Kysely<SourceDatabase>) => {
                     blanked = await blankOwnCopies(db, found.dialect, ownCopies, row[found.table.primaryKey[0]!], erasedName);
+                    if (heldAddress !== null && heldNames !== null) {
+                      const asker = { address: heldAddress, key: installedCustomerKey(ok.key.connectionId, heldAddress), person: { table: found.table, key: row[found.table.primaryKey[0]!] } };
+                      heldKept = (await forgetHeld(db, found.dialect, found.view, heldNames, heldTables, asker, now)).kept;
+                    }
                   },
                 }),
             // The row as read: the rules hear what was forgotten, and the address watch leaves a forgetting to this route.
@@ -6089,13 +6100,14 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                   appName: (await senderOf(ok.key)).appName,
                   name: name === undefined ? '' : String(row[name] ?? ''),
                   // What became of the links they hold, as this app declared it.
-                  ...detailsDeletedLines((await translatorForLocale(meta, locale)).t, (forget.links ?? []).length > 0),
+                  ...detailsDeletedLines((await translatorForLocale(meta, locale)).t, (forget.links ?? []).length > 0, { kept: heldKept, giftsUnreached: reachesGiftsOnlyBySale(heldTables) }),
                 },
               },
             );
           }
         }
-        return reply.send({ data: {} });
+        // A number and a yes/no, never a code or a value: what the page tells them stays.
+        return reply.send({ data: { keptBalances: heldKept, giftsNotLinked: reachesGiftsOnlyBySale(heldTables) } });
       },
     );
 

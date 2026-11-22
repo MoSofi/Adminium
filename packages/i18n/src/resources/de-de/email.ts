@@ -887,7 +887,9 @@ export default {
     "intro": "Hallo {name}, wie gewünscht wurden die Daten, die {appName} über Sie gespeichert hatte, gelöscht, und Sie wurden überall abgemeldet.",
     "kept": "Was Sie bereits bei uns haben, bleibt gültig, und die E-Mails, die Sie bereits haben, öffnen es weiterhin. Sie hören nicht mehr von uns, außer Sie kommen wieder.",
     "footer": "{appName}",
-    "stopped": "Die Links in den E-Mails, die Sie bereits haben, funktionieren nicht mehr. Sie hören nicht mehr von uns, außer Sie kommen wieder."
+    "stopped": "Die Links in den E-Mails, die Sie bereits haben, funktionieren nicht mehr. Sie hören nicht mehr von uns, außer Sie kommen wieder.",
+    "held": "Eine Ausnahme: Pakete oder Geschenkkarten mit Restguthaben behalten deinen Namen und deine E-Mail-Adresse, bis sie aufgebraucht oder abgelaufen sind, damit du sie weiter nutzen kannst. Anzahl: {count}.",
+    "gifts": "Eine Geschenkkarte, die jemand anderes für dich gekauft hat, ist nicht mit deinem Konto verknüpft und zeigt daher weiter den Namen und die E-Mail-Adresse, die eingegeben wurden. Schreib uns, wenn wir sie entfernen sollen."
   },
   "missing": {
     "chip": "{name}: festlegen, was geschrieben wird, wenn der Wert fehlt",

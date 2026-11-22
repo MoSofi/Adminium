@@ -4787,7 +4787,9 @@ export default {
         "automationRuns": "{count, plural, other {规则历史中的 # 次规则运行。}}",
         "notifications": "{count, plural, other {# 条发给员工的通知。}}",
         "campaignFailures": "{count, plural, other {# 次失败的活动发送，与活动的发送日志一起保留。}}",
-        "exports": "员工从表格导出的数据可能包含其内容，直到每个导出到期。"
+        "exports": "员工从表格导出的数据可能包含其内容，直到每个导出到期。",
+        "heldValues": "{label} 中有 {count, plural, other {# 个套餐、礼品卡或储值}}仍有余额，持有人可继续使用。",
+        "heldValuesKept": "用完或过期后，其姓名和地址将被删除。"
       },
       "mismatch": "地址不一致。请重新输入。",
       "failed": "删除未完成。再次删除即可完成：已完成的部分保持完成。",

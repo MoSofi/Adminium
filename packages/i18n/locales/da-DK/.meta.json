@@ -18127,9 +18127,17 @@
     "status": "src",
     "srcHash": "401110dbbabf"
   },
+  "email.detailsDeleted.gifts": {
+    "status": "mt",
+    "srcHash": "9fc52efc3885"
+  },
   "email.detailsDeleted.heading": {
     "status": "mt",
     "srcHash": "4d52e122bd5f"
+  },
+  "email.detailsDeleted.held": {
+    "status": "mt",
+    "srcHash": "b9edb19647a2"
   },
   "email.detailsDeleted.intro": {
     "status": "mt",
@@ -37714,6 +37722,14 @@
   "studio.privacy.erase.stays.forGood": {
     "status": "mt",
     "srcHash": "c3c1736d44e8"
+  },
+  "studio.privacy.erase.stays.heldValues": {
+    "status": "mt",
+    "srcHash": "f25749a03a16"
+  },
+  "studio.privacy.erase.stays.heldValuesKept": {
+    "status": "mt",
+    "srcHash": "46f592073e9f"
   },
   "studio.privacy.erase.stays.invoices": {
     "status": "mt",

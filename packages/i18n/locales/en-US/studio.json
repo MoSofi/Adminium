@@ -4777,7 +4777,9 @@
         "automationRuns": "{count, plural, one {# rule run in the rules’ history.} other {# rule runs in the rules’ history.}}",
         "notifications": "{count, plural, one {# notification to staff.} other {# notifications to staff.}}",
         "campaignFailures": "{count, plural, one {# failed campaign send, kept with the campaign’s send log.} other {# failed campaign sends, kept with the campaign’s send log.}}",
-        "exports": "Data exports staff made of a table may hold them, until each one expires."
+        "exports": "Data exports staff made of a table may hold them, until each one expires.",
+        "heldValues": "{count, plural, one {# pack, gift card or credit} other {# packs, gift cards or credits}} in {label} still with a balance, so the holder can use it.",
+        "heldValuesKept": "Their name and address go once it is used up or expires."
       },
       "mismatch": "That isn’t the same address. Type it again.",
       "failed": "The erasure did not finish. Erase again to finish it: what was already done stays done.",

@@ -85,8 +85,8 @@ export const privacyFindReply = z.object({
 
 /** One thing an erasure leaves, and why (`privacy/what-stays.ts`). */
 const staysItem = z.object({
-  kind: z.enum(['app-rows', 'documents', 'invoices', 'payments', 'payment-events', 'automation-runs', 'notifications', 'campaign-failures', 'exports', 'do-not-email']),
-  reason: z.enum([...KEPT_BY_LAW_REASONS, 'issued-document', 'payment-records', 'kept-a-while', 'objection']),
+  kind: z.enum(['app-rows', 'documents', 'invoices', 'payments', 'payment-events', 'automation-runs', 'notifications', 'campaign-failures', 'exports', 'do-not-email', 'held-values']),
+  reason: z.enum([...KEPT_BY_LAW_REASONS, 'issued-document', 'payment-records', 'kept-a-while', 'objection', 'live-balance']),
   count: z.number().nullable(),
   keptDays: z.number().nullable(),
   forever: z.boolean(),

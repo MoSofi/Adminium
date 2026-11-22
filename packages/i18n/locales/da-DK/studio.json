@@ -4777,7 +4777,9 @@
         "automationRuns": "{count, plural, one {# regelkørsel i reglernes historik.} other {# regelkørsler i reglernes historik.}}",
         "notifications": "{count, plural, one {# notifikation til personalet.} other {# notifikationer til personalet.}}",
         "campaignFailures": "{count, plural, one {# fejlet kampagneudsendelse, gemt med kampagnens udsendelseslog.} other {# fejlede kampagneudsendelser, gemt med kampagnens udsendelseslog.}}",
-        "exports": "Dataeksporter, som personalet har lavet af en tabel, kan indeholde dem, indtil hver af dem udløber."
+        "exports": "Dataeksporter, som personalet har lavet af en tabel, kan indeholde dem, indtil hver af dem udløber.",
+        "heldValues": "{count, plural, one {# pakke, gavekort eller tilgodehavende} other {# pakker, gavekort eller tilgodehavender}} i {label} med en saldo, så indehaveren kan bruge det.",
+        "heldValuesKept": "Navn og adresse fjernes, når det er brugt op eller udløbet."
       },
       "mismatch": "Det er ikke den samme adresse. Skriv den igen.",
       "failed": "Sletningen blev ikke færdig. Slet igen for at gøre den færdig: det, der allerede er gjort, forbliver gjort.",

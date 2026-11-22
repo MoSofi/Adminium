@@ -4787,7 +4787,9 @@ export default {
         "automationRuns": "{count, plural, one {# běh pravidla v historii pravidel.} few {# běhy pravidel v historii pravidel.} many {# běhu pravidel v historii pravidel.} other {# běhů pravidel v historii pravidel.}}",
         "notifications": "{count, plural, one {# oznámení pro tým.} few {# oznámení pro tým.} many {# oznámení pro tým.} other {# oznámení pro tým.}}",
         "campaignFailures": "{count, plural, one {# neúspěšné odeslání kampaně, uchované s protokolem odesílání kampaně.} few {# neúspěšná odeslání kampaní, uchovaná s protokolem odesílání kampaně.} many {# neúspěšného odeslání kampaní, uchovaného s protokolem odesílání kampaně.} other {# neúspěšných odeslání kampaní, uchovaných s protokolem odesílání kampaně.}}",
-        "exports": "Exporty dat, které tým udělal z tabulky, je mohou obsahovat, dokud každý nevyprší."
+        "exports": "Exporty dat, které tým udělal z tabulky, je mohou obsahovat, dokud každý nevyprší.",
+        "heldValues": "{count, plural, one {# balíček, dárková karta nebo kredit} few {# balíčky, dárkové karty nebo kredity} many {# balíčku, dárkové karty nebo kreditu} other {# balíčků, dárkových karet nebo kreditů}} v {label} se zůstatkem, aby je držitel mohl použít.",
+        "heldValuesKept": "Jméno a adresa zmizí, jakmile bude vyčerpán nebo mu skončí platnost."
       },
       "mismatch": "To není stejná adresa. Zadejte ji znovu.",
       "failed": "Vymazání se nedokončilo. Vymažte znovu a dokončete ho: co už je hotové, zůstane hotové.",

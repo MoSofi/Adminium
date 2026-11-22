@@ -78,6 +78,7 @@ import type { AnswerFilesRemover } from '../forms/answers.js';
 import { personHash, personHashes } from './export.js';
 import type { AppScope } from './scope.js';
 import { erasedNameOf, findPerson, searchAddress } from './sources.js';
+import { countHeldByAddress, forgetHeldByAddress } from './held-values.js';
 import { whatStays, type StaysItem } from './what-stays.js';
 
 export interface EraseDeps {
@@ -310,6 +311,8 @@ export async function previewErasure(deps: EraseDeps, rawAddress: string, scope?
   const files = new Set([...(await rowFileIds(deps.meta, people)), ...(await copyFileIds(deps.meta, copyRows(rows)))]).size;
   if (files > 0) goes.push({ kind: 'files', count: files });
   const stays = await whatStays(deps.meta, await findPerson(deps, address, apps));
+  // What they still hold with a balance keeps them until the balance ends (`held-values.ts`).
+  if (whole) for (const one of await countHeldByAddress({ meta: deps.meta, manager: deps.manager, now }, address)) stays.push({ kind: 'held-values', reason: 'live-balance', count: one.count, keptDays: null, forever: false, connectionId: one.connectionId, table: one.table, label: one.label });
   const found = goes.length > 0 || stays.some((item) => item.count !== null && item.count > 0) || (whole && (await deps.consent.stop.entryFor(address)) !== null);
   return { address, found, goes, stays, left: rows.left };
 }
@@ -412,6 +415,12 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: E
 
   // 6. Their rows.
   Object.assign(counts, await writePersonRows(rows));
+  // What they hold on an add-on's table: emptied where its value has ended, kept and marked where it has not.
+  if (whole) {
+    const held = await forgetHeldByAddress({ meta, manager: deps.manager, now }, address);
+    if (held.emptied > 0) counts['held-emptied'] = held.emptied;
+    if (held.kept > 0) counts['held-kept'] = held.kept;
+  }
   Object.assign(counts, await eraseFormRows(forms, erasedName, deps.answerFiles));
   let blanked = 0;
   for (const { db, found } of reviewed) blanked += await blankReviews(db, found);

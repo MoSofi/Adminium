@@ -415,6 +415,7 @@ import { privacyRoutes } from './routes/privacy/index.js';
 import { formsStaffRoutes } from './routes/forms/index.js';
 import { mailSettingsRoutes } from './routes/mail-settings/index.js';
 import { registerPrivacyExportHandler, sweepPrivacyExports } from './privacy/export.js';
+import { sweepKeptHolders } from './privacy/held-values.js';
 import { sweepFormAnswers } from './forms/answers.js';
 import { ADD_ON_EXPIRE_SWEEP_CRON, ADD_ON_EXPIRE_SWEEP_NAME, sweepExpiredRows } from './add-ons/expire.js';
 import { mailNoticeRoutes } from './routes/mail-door/notices.js';
@@ -1991,6 +1992,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   jobs.scheduler.registerSchedule(ADD_ON_EXPIRE_SWEEP_NAME, ADD_ON_EXPIRE_SWEEP_CRON, async () => {
     const swept = await sweepExpiredRows({ meta, manager, files: fileReconciler, log: app.log, releases: (connectionId, tableId) => outboxProducers.releasing(connectionId, tableId) });
     if (Object.keys(swept).length > 0) app.log.info({ swept }, 'add-on expired rows sweep');
+    // In the same daily run: a pack or card kept for someone who asked to be forgotten, once its value has ended.
+    const emptied = await sweepKeptHolders({ meta, manager, log: app.log });
+    if (Object.keys(emptied).length > 0) app.log.info({ emptied }, 'kept holders sweep');
   });
   // A recorded live payment emails its receipt once, to the record's customer.
   registerPaymentsRecordHandler(jobs.registry, {

@@ -205,7 +205,7 @@ export const BUILTIN_EMAIL_TEMPLATE_VARS: Readonly<
   'email-changed': ['appName', 'name', 'newEmail', 'phoneLine', 'contactLine'],
   'sign-in-link': ['appName', 'link', 'code', 'minutes'],
   // One of `keptLine` and `stoppedLine` holds a sentence (`detailsDeletedLines`), as above.
-  'details-deleted': ['appName', 'name', 'keptLine', 'stoppedLine'],
+  'details-deleted': ['appName', 'name', 'heldLine', 'giftsLine', 'keptLine', 'stoppedLine'],
   /*
    * `shop` is the shop's own name (the pay page settings), never the
    * software's. `dueLine` and `contactLine` are whole sentences or nothing
@@ -278,6 +278,8 @@ const VAR = {
   provider: '{{provider}}',
   account: '{{account}}',
   revisedLine: '{{revisedLine}}',
+  heldLine: '{{heldLine}}',
+  giftsLine: '{{giftsLine}}',
   keptLine: '{{keptLine}}',
   stoppedLine: '{{stoppedLine}}',
   shop: '{{shop}}',
@@ -664,9 +666,25 @@ function emailChangedTemplate(t: Translate): BuiltinEmailTemplate {
  * own dialog told them the opposite. Neither sentence names tickets or
  * bookings — an app may have neither.
  */
-export function detailsDeletedLines(t: Translate, linksStopped: boolean): { keptLine: string; stoppedLine: string } {
+export function detailsDeletedLines(t: Translate, linksStopped: boolean, held: { kept: number; giftsUnreached: boolean } = { kept: 0, giftsUnreached: false }): { heldLine: string; giftsLine: string; keptLine: string; stoppedLine: string } {
+  // What was not deleted is said in so many words: a whole sentence each, or nothing, which drops its paragraph.
+  const exceptions = {
+    heldLine:
+      held.kept > 0
+        ? t('email:detailsDeleted.held', {
+            count: held.kept,
+            defaultValue: 'One exception: packs or gift cards that still have a balance keep your name and email until they are used up or expire, so you can still use them. Number kept: {count}.',
+          })
+        : '',
+    giftsLine: held.giftsUnreached
+      ? t('email:detailsDeleted.gifts', {
+          defaultValue: 'A gift card someone else bought for you is not linked to your account, so it still shows the name and email they typed. Ask us if you want those removed.',
+        })
+      : '',
+  };
   if (linksStopped) {
     return {
+      ...exceptions,
       keptLine: '',
       stoppedLine: t('email:detailsDeleted.stopped', {
         defaultValue: 'The links in the emails you already have no longer work. You won’t hear from us again unless you come back.',
@@ -674,6 +692,7 @@ export function detailsDeletedLines(t: Translate, linksStopped: boolean): { kept
     };
   }
   return {
+    ...exceptions,
     keptLine: t('email:detailsDeleted.kept', {
       defaultValue: 'What you already have with us stays valid, and the emails you already have still open it. You won’t hear from us again unless you come back.',
     }),
@@ -697,6 +716,9 @@ function detailsDeletedTemplate(t: Translate): BuiltinEmailTemplate {
           defaultValue: 'Hi {name}, as you asked, the details {appName} kept about you are deleted, and you are signed out everywhere.',
         }),
       ),
+      // What was not deleted, right after the sentence that says the rest was.
+      paragraph('held', VAR.heldLine),
+      paragraph('gifts', VAR.giftsLine),
       // One of the two, never both: see `detailsDeletedLines`.
       paragraph('kept', VAR.keptLine),
       paragraph('stopped', VAR.stoppedLine),

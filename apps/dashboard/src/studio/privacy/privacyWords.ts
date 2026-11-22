@@ -81,6 +81,11 @@ export function staysWords(item: StaysItem): { line: string; kept: string | null
       ? null
       : t('studio:privacy.erase.stays.days', '{count, plural, one {Kept for # day.} other {Kept for # days.}}', { count: item.keptDays });
   switch (item.kind) {
+    case 'held-values':
+      return {
+        line: t('studio:privacy.erase.stays.heldValues', '{count, plural, one {# pack, gift card or credit} other {# packs, gift cards or credits}} in {label} still with a balance, so the holder can use it.', { count, label }),
+        kept: t('studio:privacy.erase.stays.heldValuesKept', 'Their name and address go once it is used up or expires.'),
+      };
     case 'do-not-email':
       return { line: t('studio:privacy.erase.stays.doNotEmail', 'Their address stays on the do-not-email list as a code, so they’re never e-mailed again.'), kept: null };
     case 'app-rows': {

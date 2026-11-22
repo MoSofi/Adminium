@@ -4777,7 +4777,9 @@
         "automationRuns": "{count, plural, other {規則歷史中的 # 次規則執行。}}",
         "notifications": "{count, plural, other {# 則發給員工的通知。}}",
         "campaignFailures": "{count, plural, other {# 次失敗的活動寄送，與活動的寄送紀錄一起保留。}}",
-        "exports": "員工從表格匯出的資料可能包含其內容，直到每個匯出到期。"
+        "exports": "員工從表格匯出的資料可能包含其內容，直到每個匯出到期。",
+        "heldValues": "{label} 中有 {count, plural, other {# 個套票、禮品卡或儲值}}仍有餘額，持有人可繼續使用。",
+        "heldValuesKept": "用完或到期後，其姓名和地址將被移除。"
       },
       "mismatch": "地址不一致。請重新輸入。",
       "failed": "刪除未完成。再次刪除即可完成：已完成的部分保持完成。",
