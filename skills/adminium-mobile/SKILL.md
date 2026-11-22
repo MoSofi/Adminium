@@ -45,9 +45,9 @@ const rows = (await connection.client.list(tableName(connection, 'items'), { lim
 await connection.client.create(tableName(connection, 'requests'), { message });
 ```
 
-- A public list always takes `limit`, `offset` and `cursor`. It takes `q`, `order` or `where` only
-  when that table's entry in `manifest/access.json` declares `publicAccess[n].searchable`,
-  `publicAccess[n].orderable` or `publicAccess[n].filterable` (`n` is the entry's place in the
+- A public list always takes `limit`, `offset` and `cursor`. It takes `q`, `order`, `where` or `via`
+  only when that table's entry in `manifest/access.json` declares `publicAccess[n].searchable`,
+  `publicAccess[n].orderable`, `publicAccess[n].filterable` or `publicAccess[n].via` (`n` is the entry's place in the
   `publicAccess` array). Anything undeclared is refused: sort and narrow in the screen instead.
 - An error is a `PublicApiError` with a `code`. Say your own sentence to the customer; never
   show `error.message`.

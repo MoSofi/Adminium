@@ -3,10 +3,10 @@
  * A customer screen's search, sort and filter on a public list, judged against
  * what that list's entry in `manifest/access.json` declares.
  *
- * The server takes `q`, `order` and `where` from a page when the entry names
- * them (`searchable`, `orderable`, `filterable`) and refuses the rest with 400
- * PUBLIC_QUERY_REFUSED. So each parameter is read against its own field, and a
- * finding names the exact path to declare.
+ * The server takes `q`, `order`, `where` and `via` from a page when the entry
+ * names them (`searchable`, `orderable`, `filterable`, `via`) and refuses the
+ * rest with 400 PUBLIC_QUERY_REFUSED. So each parameter is read against its own
+ * field, and a finding names the exact path to declare.
  *
  * It is a reading of the source. When a call's list cannot be told and one of
  * the lists it may be declares the parameter, nothing is said: telling a model
@@ -33,11 +33,12 @@ interface EntryLike {
   searchable?: unknown;
   orderable?: unknown;
   filterable?: unknown;
+  via?: unknown;
 }
 
 export interface ListQueryManifest {
   compatibility?: { minAdminiumVersion?: unknown } | undefined;
-  requiredSchema?: { tables?: readonly { ref: string }[] } | undefined;
+  requiredSchema?: { tables?: readonly { ref: string; columns?: readonly { ref?: string; type?: unknown; references?: unknown }[] }[] } | undefined;
   publicAccess?: readonly object[] | undefined;
 }
 
@@ -49,12 +50,13 @@ interface ServedList {
   entry: EntryLike;
 }
 
-type Field = 'searchable' | 'orderable' | 'filterable';
+type Field = 'searchable' | 'orderable' | 'filterable' | 'via';
 
-const PARAMETERS: ReadonlyMap<string, { field: Field; word: 'publicAccess.searchable' | 'publicAccess.orderable' | 'publicAccess.filterable' }> = new Map([
+const PARAMETERS: ReadonlyMap<string, { field: Field; word: 'publicAccess.searchable' | 'publicAccess.orderable' | 'publicAccess.filterable' | 'publicAccess.via' }> = new Map([
   ['q', { field: 'searchable', word: 'publicAccess.searchable' }],
   ['order', { field: 'orderable', word: 'publicAccess.orderable' }],
   ['where', { field: 'filterable', word: 'publicAccess.filterable' }],
+  ['via', { field: 'via', word: 'publicAccess.via' }],
 ]);
 
 /** Names a model reaches for that the public client does not have: it drops them, and sends nothing. */
@@ -216,6 +218,9 @@ function whyNotDeclarable(entry: EntryLike, entries: readonly EntryLike[]): stri
 const listOf = (value: unknown): readonly unknown[] => (Array.isArray(value) ? value : []);
 const quoted = (names: readonly string[]): string => names.map((name) => `"${name}"`).join(', ');
 const filterColumn = (filter: unknown): string => (typeof filter === 'string' ? filter : String((filter as { column?: unknown } | null)?.column));
+/** What an entry's `via` lets a page ask of the other list's rows. */
+const viaColumns = (entry: EntryLike): readonly unknown[] => listOf((entry.via as { columns?: unknown } | null | undefined)?.columns);
+const declares = (entry: EntryLike, field: Field): boolean => (field === 'via' ? entry.via !== undefined : listOf(entry[field]).length > 0);
 
 /** The columns a literal `order` names; a value only known when the page runs names none. */
 function orderColumns(value: string): string[] {
@@ -236,30 +241,24 @@ function whereAsks(value: string): { column: string; op: string | null }[] {
   return out;
 }
 
-/** What is wrong with a parameter the entry does declare, or null. */
-function declaredIssue(name: string, value: string, list: ServedList): string | null {
-  const at = `publicAccess[${String(list.index)}]`;
+/**
+ * What is wrong with a filter tree (`where`, or `via`) asked of a declared
+ * list of columns at `path`, or null. `of` says whose columns those are.
+ */
+function filterIssue(name: string, value: string, list: ServedList, path: string, declared: readonly unknown[], of: string): string | null {
   const head = `asks the public API for a list with "${name}" on "${list.table}"`;
-  if (name === 'order') {
-    const allowed = listOf(list.entry.orderable).map(String);
-    const outside = orderColumns(value).filter((column) => !allowed.includes(column));
-    if (outside.length === 0) return null;
-    return `${head}, and ${at}.orderable in manifest/access.json does not list ${quoted(outside)}: ${REFUSED}. Add ${quoted(outside)} to manifest/access.json, at ${at}.orderable (columns of that entry's "select" that are never empty), or order by one it lists: ${quoted(allowed)}.`;
-  }
-  if (name !== 'where') return null;
   const trimmed = value.trim();
   if (trimmed.startsWith('{') && !/^\{\s*(?:\.\.\.|['"]?(?:column|and|or)\b)/.test(trimmed)) {
-    return `${head}, and passes it as { column: value }: ${REFUSED}. "where" is a filter tree: { column: 'status', op: 'eq', value: 'open' } (several under { and: [ … ] }).`;
+    return `${head}, and passes it as { column: value }: ${REFUSED}. "${name}" is a filter tree: { column: 'status', op: 'eq', value: 'open' } (several under { and: [ … ] }).`;
   }
   if (/(?:^|[{,\s])['"]?or['"]?\s*:/.test(value.replace(/(['"`])(?:\\.|(?!\1)[^\\])*\1/g, "''"))) {
-    return `${head} using "or": ${REFUSED}. On a public list, conditions are joined by "and" only: make one request per choice, or use { column, op: 'in', value: [ … ] } when ${at}.filterable lets that column take "in".`;
+    return `${head} using "or": ${REFUSED}. On a public list, conditions are joined by "and" only: make one request per choice, or use { column, op: 'in', value: [ … ] } when ${path} lets that column take "in".`;
   }
-  const declared = listOf(list.entry.filterable);
   const allowed = declared.map(filterColumn);
   const asks = whereAsks(value);
   const outside = [...new Set(asks.map((ask) => ask.column).filter((column) => !allowed.includes(column)))];
   if (outside.length > 0) {
-    return `${head}, and ${at}.filterable in manifest/access.json does not list ${quoted(outside)}: ${REFUSED}. Add ${quoted(outside)} to manifest/access.json, at ${at}.filterable (columns of that entry's "select"), or filter by one it lists: ${quoted(allowed)}.`;
+    return `${head}, and ${path} in manifest/access.json does not list ${quoted(outside)}: ${REFUSED}. Add ${quoted(outside)} to manifest/access.json, at ${path} (${of}), or filter by one it lists: ${quoted(allowed)}.`;
   }
   for (const ask of asks) {
     if (ask.op === null) continue;
@@ -267,17 +266,60 @@ function declaredIssue(name: string, value: string, list: ServedList): string | 
     const ops = typeof filter === 'string' ? SHOPPER_DEFAULT_OPS : listOf((filter as { ops?: unknown } | undefined)?.ops).map(String);
     if (ops.includes(ask.op as never)) continue;
     const fix = (SHOPPER_OPS as readonly string[]).includes(ask.op)
-      ? `Write that column in manifest/access.json, at ${at}.filterable, as { "column": "${ask.column}", "ops": [${quoted([...ops, ask.op])}] }, or use an operator it takes.`
+      ? `Write that column in manifest/access.json, at ${path}, as { "column": "${ask.column}", "ops": [${quoted([...ops, ask.op])}] }, or use an operator it takes.`
       : `A public list never takes "${ask.op}": use one of ${quoted([...SHOPPER_OPS])}.`;
-    return `${head}, and ${at}.filterable lets "${ask.column}" take ${quoted([...ops])}, not "${ask.op}": ${REFUSED}. ${fix}`;
+    return `${head}, and ${path} lets "${ask.column}" take ${quoted([...ops])}, not "${ask.op}": ${REFUSED}. ${fix}`;
   }
   return null;
 }
 
-/** What to do to declare a parameter on the entries that may hold it. */
-function declareIssue(name: string, value: string, lists: readonly ServedList[], field: Field, floorLine: string): string {
+/** What is wrong with a parameter the entry does declare, or null. */
+function declaredIssue(name: string, value: string, list: ServedList): string | null {
+  const at = `publicAccess[${String(list.index)}]`;
+  if (name === 'order') {
+    const allowed = listOf(list.entry.orderable).map(String);
+    const outside = orderColumns(value).filter((column) => !allowed.includes(column));
+    if (outside.length === 0) return null;
+    return `asks the public API for a list with "order" on "${list.table}", and ${at}.orderable in manifest/access.json does not list ${quoted(outside)}: ${REFUSED}. Add ${quoted(outside)} to manifest/access.json, at ${at}.orderable (columns of that entry's "select" that are never empty), or order by one it lists: ${quoted(allowed)}.`;
+  }
+  if (name === 'where') return filterIssue(name, value, list, `${at}.filterable`, listOf(list.entry.filterable), 'columns of that entry\'s "select"');
+  if (name === 'via') {
+    const other = String((list.entry.via as { entry?: unknown }).entry);
+    return filterIssue(name, value, list, `${at}.via.columns`, viaColumns(list.entry), `columns of the "${other}" list's "select"`);
+  }
+  return null;
+}
+
+/** A `where` that asks about the other list's columns: the server refuses it there, and they go under `via`. */
+function belongsUnderVia(value: string, list: ServedList): string | null {
+  const through = viaColumns(list.entry).map(filterColumn);
+  const own = listOf(list.entry.filterable).map(filterColumn);
+  const moved = [...new Set(whereAsks(value).map((ask) => ask.column))].filter((column) => through.includes(column) && !own.includes(column));
+  if (moved.length === 0) return null;
+  const other = String((list.entry.via as { entry?: unknown }).entry);
+  return `asks the public API for a list with "where" on "${list.table}" about ${quoted(moved)}, and publicAccess[${String(list.index)}].via.columns in manifest/access.json says ${moved.length === 1 ? 'that is a column' : 'those are columns'} of the "${other}" list: ${REFUSED}. Send ${moved.length === 1 ? 'it' : 'them'} as "via" on this call, in the same { column, op, value } shape. Every condition under "via" must hold on ONE "${other}" row.`;
+}
+
+/** A `via` to declare, with the other list filled in when the schema says which one it is. */
+function viaExample(value: string, lists: readonly ServedList[], served: readonly ServedList[], app: ListQueryManifest): string {
+  const columns = [...new Set(whereAsks(value).map((ask) => ask.column))];
+  const table = lists.length === 1 ? (lists[0] as ServedList).table : null;
+  const links = (app.requiredSchema?.tables ?? []).flatMap((candidate) => {
+    if (table === null || candidate.ref === table || served.filter((list) => list.table === candidate.ref).length !== 1) return [];
+    const held = candidate.columns ?? [];
+    const keys = held.filter((column) => column.type === 'fk' && column.references === table);
+    if (keys.length !== 1 || columns.some((column) => !held.some((one) => one.ref === column))) return [];
+    return [{ entry: candidate.ref, on: (keys[0] as { ref?: string }).ref as string }];
+  });
+  const link = links.length === 1 ? links[0] : undefined;
+  const shown = columns.length > 0 ? quoted(columns) : '"<column of that list\'s select>"';
+  return `{ "entry": "${link?.entry ?? '<table of the other list>'}", "on": "${link?.on ?? '<its foreign key to this table>'}", "columns": [${shown}] }`;
+}
+
+/** What to do to declare a parameter on the entries that may hold it. `shape` is the value to show when it is not a list of columns. */
+function declareIssue(name: string, value: string, lists: readonly ServedList[], field: Field, floorLine: string, shape?: string): string {
   const columns = name === 'order' ? orderColumns(value) : name === 'where' ? [...new Set(whereAsks(value).map((ask) => ask.column))] : [];
-  const example = columns.length > 0 ? `[${quoted(columns)}]` : name === 'q' ? `["<text column from that entry's select>"]` : `["<column from that entry's select>"]`;
+  const example = shape ?? (columns.length > 0 ? `[${quoted(columns)}]` : name === 'q' ? `["<text column from that entry's select>"]` : `["<column from that entry's select>"]`);
   const where = lists.map((list) => (lists.length === 1 ? `publicAccess[${String(list.index)}].${field}` : `publicAccess[${String(list.index)}].${field} (table "${list.table}")`)).join(' or ');
   const on = lists.length === 1 ? `"${(lists[0] as ServedList).table}"` : 'this list';
   const rule =
@@ -285,7 +327,9 @@ function declareIssue(name: string, value: string, lists: readonly ServedList[],
       ? ` Each must be a text column, and a search must be at least ${String(SHOPPER_SEARCH_MIN)} characters, so do not send "q" for fewer.`
       : name === 'order'
         ? ' Each must be a column of that entry\'s "select" that is never empty.'
-        : ' Each must be a column of that entry\'s "select".';
+        : name === 'via'
+          ? ' "entry" is the table of the one other list customers read with "GET" and no sign-in, "on" is that table\'s foreign key to this one, and that list\'s "select" must show "on" and each of "columns". Every condition must hold on ONE of its rows.'
+          : ' Each must be a column of that entry\'s "select".';
   return `asks the public API for a list with "${name}" on ${on}, and its entry does not declare "${field}": ${REFUSED}. To keep it, declare it in manifest/access.json, at ${where}, for example "${field}": ${example}.${rule}${floorLine} Otherwise remove "${name}" from this call and sort or narrow the rows in the page.`;
 }
 
@@ -317,7 +361,14 @@ export function listQueryMessages(text: string, app: ListQueryManifest): string[
         out.add(`asks the public API for a list with "${name}" on ${table}, and no entry in manifest/access.json, at publicAccess, lets customers read ${table} with "GET": the list answers 404 PUBLIC_REF_NOT_FOUND. Add an entry that reads it; to show a person only their own row, give that entry a "claim" and call client.claim({ … }) first.`);
         continue;
       }
-      const declaring = lists.filter((list) => listOf(list.entry[field]).length > 0);
+      if (name === 'where' && lists.length === 1 && (lists[0] as ServedList).entry.via !== undefined) {
+        const moved = belongsUnderVia(value, lists[0] as ServedList);
+        if (moved !== null) {
+          out.add(moved);
+          continue;
+        }
+      }
+      const declaring = lists.filter((list) => declares(list.entry, field));
       if (declaring.length > 0) {
         // More than one list it may be, and one takes this: not told, since the screen may well be right.
         if (lists.length > 1) continue;
@@ -334,7 +385,7 @@ export function listQueryMessages(text: string, app: ListQueryManifest): string[
       }
       const needed = WORD_FLOORS[word] as string;
       const floorLine = typeof floor === 'string' && compareSemver(floor, needed) >= 0 ? '' : ` Also set manifest/app.json, at compatibility.minAdminiumVersion, to "${needed}" or later: a release before it refuses "${field}".`;
-      out.add(declareIssue(name, value, open, field, floorLine));
+      out.add(declareIssue(name, value, open, field, floorLine, name === 'via' ? viaExample(value, open, served, app) : undefined));
     }
   }
   return [...out];

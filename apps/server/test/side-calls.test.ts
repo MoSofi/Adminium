@@ -158,6 +158,91 @@ describe('a side’s calls, read from its source', () => {
       write('customer/src/App.tsx', "await client.list(loaded.value.tables['products'] ?? 'products', { q: term });\nawait client.list(loaded.value.tables['pages'] ?? 'pages', { q: term });");
       expect(messages(SHOP)).toEqual([expect.stringContaining('publicAccess[1].searchable')]);
     });
+
+    describe('a filter through another list (via)', () => {
+      const TABLES = {
+        tables: [
+          { ref: 'products', columns: [{ ref: 'id', role: 'pk' }, { ref: 'name' }, { ref: 'category' }] },
+          { ref: 'variants', columns: [{ ref: 'id', role: 'pk' }, { ref: 'product_id', type: 'fk', references: 'products' }, { ref: 'colour_code' }, { ref: 'size_code' }, { ref: 'price' }] },
+        ],
+      };
+      const VARIANTS = { table: 'variants', methods: ['GET'], select: ['id', 'product_id', 'colour_code', 'size_code', 'price'] };
+      const THROUGH = {
+        compatibility: { minAdminiumVersion: '0.3.70' },
+        requiredSchema: TABLES,
+        publicAccess: [
+          { table: 'products', methods: ['GET'], select: ['id', 'name', 'category'], filterable: ['category'], via: { entry: 'variants', on: 'product_id', columns: ['colour_code', { column: 'size_code', ops: ['eq'] }] } },
+          VARIANTS,
+        ],
+      };
+      const UNDECLARED = { ...THROUGH, publicAccess: [{ table: 'products', methods: ['GET'], select: ['id', 'name', 'category'] }, VARIANTS] };
+
+      it('says nothing of a via the entry declares', () => {
+        for (const options of [
+          '{ via }',
+          '{ via: picked, limit: 24 }',
+          "{ via: { column: 'colour_code', op: 'eq', value: colour } }",
+          "{ via: { column: 'colour_code', op: 'in', value: colours } }",
+          "{ via: { and: [{ column: 'colour_code', op: 'eq', value: colour }, { column: 'size_code', op: 'eq', value: size }] } }",
+          "{ limit: 24, ...(colour ? { via: { column: 'colour_code', op: 'eq', value: colour } } : {}) }",
+          "{ where: { column: 'category', op: 'eq', value: picked }, via: { column: 'colour_code', op: 'eq', value: colour } }",
+        ]) {
+          listing('products', options);
+          expect(messages(THROUGH), options).toEqual([]);
+        }
+      });
+
+      it('names the exact field and a ready shape for a via the entry does not declare', () => {
+        listing('products', "{ via: { and: [{ column: 'colour_code', op: 'eq', value: colour }, { column: 'size_code', op: 'eq', value: size }] } }");
+        const found = messages(UNDECLARED);
+        expect(found).toHaveLength(1);
+        expect(found[0]).toContain('a list with "via" on "products"');
+        expect(found[0]).toContain('400 PUBLIC_QUERY_REFUSED');
+        expect(found[0]).toContain('manifest/access.json, at publicAccess[0].via');
+        expect(found[0]).toContain('"via": { "entry": "variants", "on": "product_id", "columns": ["colour_code", "size_code"] }');
+        expect(found[0]).toContain('ONE');
+      });
+
+      it('leaves the shape to fill in when the source cannot say which list it goes through', () => {
+        listing('products', "{ via: { column: 'weight', op: 'eq', value: 2 } }");
+        expect(messages(UNDECLARED)).toEqual([expect.stringContaining('"via": { "entry": "<table of the other list>", "on": "<its foreign key to this table>", "columns": ["weight"] }')]);
+        // The link is there and customers read no list of that table: naming it would fail the manifest's own check.
+        listing('products', "{ via: { column: 'colour_code', op: 'eq', value: 'slate' } }");
+        expect(messages({ ...UNDECLARED, publicAccess: [UNDECLARED.publicAccess[0]] })).toEqual([expect.stringContaining('"entry": "<table of the other list>"')]);
+      });
+
+      it('names a column or an operator its columns leave out, an "or", and a plain object', () => {
+        listing('products', "{ via: { column: 'price', op: 'eq', value: 2 } }");
+        expect(messages(THROUGH)).toEqual([expect.stringMatching(/publicAccess\[0\]\.via\.columns.*"price".*"variants"/)]);
+        listing('products', "{ via: { column: 'size_code', op: 'in', value: sizes } }");
+        expect(messages(THROUGH)).toEqual([expect.stringMatching(/publicAccess\[0\]\.via\.columns.*"size_code".*"in"/)]);
+        listing('products', "{ via: { column: 'colour_code', op: 'like', value: 'sl%' } }");
+        expect(messages(THROUGH)).toEqual([expect.stringContaining('never takes "like"')]);
+        listing('products', "{ via: { or: [{ column: 'colour_code', op: 'eq', value: 1 }, { column: 'size_code', op: 'eq', value: 2 }] } }");
+        expect(messages(THROUGH)).toEqual([expect.stringContaining('joined by "and" only')]);
+        listing('products', "{ via: { colour_code: 'slate' } }");
+        expect(messages(THROUGH)).toEqual([expect.stringContaining('passes it as { column: value }')]);
+      });
+
+      it('says a where on the other list’s column belongs under via, never to declare it on this table', () => {
+        listing('products', "{ where: { column: 'colour_code', op: 'eq', value: colour } }");
+        const found = messages(THROUGH);
+        expect(found).toEqual([expect.stringContaining('Send it as "via"')]);
+        expect(found[0]).toContain('publicAccess[0].via.columns');
+        expect(found[0]).not.toContain('at publicAccess[0].filterable');
+        // Also on an entry with no filterable of its own.
+        const only = { ...THROUGH, publicAccess: [{ ...THROUGH.publicAccess[0], filterable: undefined }, VARIANTS] };
+        expect(messages(only)).toEqual([expect.stringContaining('Send it as "via"')]);
+      });
+
+      it('never tells a signed-in list to declare it, and raises a floor below its release', () => {
+        write('customer/src/App.tsx', "await client.claim({ code, email });\nconst rows = await client.list(`${loaded.value.tables['products'] ?? 'products'}_claimed`, { via: picked });");
+        expect(messages({ ...UNDECLARED, publicAccess: [{ table: 'products', methods: ['GET'], select: ['id'], claim: { match: ['code', 'email'] } }, VARIANTS] })).toEqual([expect.stringContaining('publicAccess[0] cannot declare "via"')]);
+        listing('products', '{ via: picked }');
+        expect(messages(UNDECLARED)[0]).not.toContain('compatibility.minAdminiumVersion');
+        expect(messages({ ...UNDECLARED, compatibility: { minAdminiumVersion: '0.3.60' } })[0]).toContain('manifest/app.json, at compatibility.minAdminiumVersion, to "0.3.68"');
+      });
+    });
   });
 
   it('names a picture column put in an <img> as it is, and a pictures entry whose rows carry no id', () => {

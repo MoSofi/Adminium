@@ -9,7 +9,7 @@
 | `references/guides/building-a-side--the-look.md` | The look | 2448 |
 | `references/guides/building-a-side--the-two-sides-are-not-alike.md` | The two sides are not alike | 792 |
 | `references/guides/building-a-side--a-staff-side.md` | A staff side | 6033 |
-| `references/guides/building-a-side--a-customer-side.md` | A customer side | 4757 |
+| `references/guides/building-a-side--a-customer-side.md` | A customer side | 5128 |
 | `references/guides/building-a-side--pages-and-their-addresses.md` | Pages and their addresses | 3134 |
 | `references/guides/building-a-side--every-copy-of-the-app.md` | Every copy of the app | 2535 |
 | `references/guides/building-a-side--the-venue-s-clock-and-money.md` | The venue's clock and money | 769 |

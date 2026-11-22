@@ -44,8 +44,12 @@ Five things a customer screen needs that the example above leaves out:
   - `order` (`'price.asc'`) needs the column in `publicAccess[n].orderable`.
   - `where` (`{ column: 'price', op: 'lte', value: 20 }`, several under `{ and: [ … ] }`, never
     `or`) needs the column in `publicAccess[n].filterable`.
+  - `via` (the same shape as `where`) asks about the rows of another list that link to this one,
+    such as a product's variants. It needs `publicAccess[n].via`, for example
+    `{ "entry": "variants", "on": "product_id", "columns": ["colour", "size"] }`. Every condition
+    must hold on one of those rows, and each column must be in that other list's `select`.
 
-  Each column must be in that entry's `select`. Only an entry with `"methods": ["GET"]`, no
+  Every other column must be in that entry's `select`. Only an entry with `"methods": ["GET"]`, no
   sign-in and no code may declare these, and `compatibility.minAdminiumVersion` in
   `manifest/app.json` must be `0.3.68` or later. See
   [Filters, search and sort on public lists](https://docs.adminium.dev/guides/apps/shopper-lists/). Anything undeclared is
