@@ -889,7 +889,7 @@ export default {
     "footer": "{appName}",
     "stopped": "Odkazy v e-mailech, které už máte, přestaly fungovat. Už se vám neozveme, pokud se nevrátíte.",
     "held": "Jedna výjimka: balíčky nebo dárkové karty se zůstatkem si ponechají vaše jméno a e-mail, dokud nebudou vyčerpány nebo jim neskončí platnost, abyste je mohli dál používat. Počet ponechaných: {count}.",
-    "gifts": "Dárková karta, kterou pro vás koupil někdo jiný, není propojena s vaším účtem, takže na ní zůstává zadané jméno a e-mail. Pokud je chcete odstranit, napište nám."
+    "gifts": "Pokud vám dárkovou kartu koupil někdo jiný, není propojena s vaším účtem, takže na ní zůstává zadané jméno a e-mail. Pokud je chcete odstranit, napište nám."
   },
   "missing": {
     "chip": "{name}: určete, co se napíše, když chybí",

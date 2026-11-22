@@ -254,7 +254,7 @@ describe.each(LEGS)('what a forgotten person still holds — %s', (dialect, avai
   it.skipIf(!available)('tells them, in the mail, what stays and what it could not reach', async () => {
     const sent = (await mailOf(h.meta)).filter((one) => one.template === 'details-deleted' && one.to === LEA).at(-1);
     expect(sent?.text).toContain('Number kept: 3.');
-    expect(sent?.text).toContain('A gift card someone else bought for you');
+    expect(sent?.text).toContain('If someone else bought you a gift card');
   });
 
   it.skipIf(!available)('the daily sweep leaves a row with value and empties it once its value ends', async () => {

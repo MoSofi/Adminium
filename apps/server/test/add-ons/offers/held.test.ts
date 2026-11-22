@@ -455,6 +455,8 @@ describe.each(LEGS)('what a signed-in customer holds — %s', (dialect, availabl
     const pack = async (id: unknown) => (await rows('offers_vouchers', `id = ${String(id)}`))[0]!;
     expect(await pack(over['id'])).toMatchObject({ holder_email: null, holder_name: null, holder_key: null, status: 'voided' });
     expect((await pack(live['id']))['holder_email']).toBe(address);
+    // This test wrote its customers' keys by hand: Postgres's counter is moved past them, so the next new row gets a free one.
+    if (dialect === 'postgres') await h.rows(`select setval(pg_get_serial_sequence('studio_customers', 'id'), 1000)`);
     // They come back with the same mailbox: a new row of theirs, a new proved session, and the pack is still theirs to spend.
     const again = await book(undefined, { email: address });
     expect(again.statusCode, again.body).toBe(201);

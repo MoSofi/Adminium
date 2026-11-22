@@ -678,7 +678,7 @@ export function detailsDeletedLines(t: Translate, linksStopped: boolean, held: {
         : '',
     giftsLine: held.giftsUnreached
       ? t('email:detailsDeleted.gifts', {
-          defaultValue: 'A gift card someone else bought for you is not linked to your account, so it still shows the name and email they typed. Ask us if you want those removed.',
+          defaultValue: 'If someone else bought you a gift card, it is not linked to your account, so it still shows the name and email they typed. Ask us if you want those removed.',
         })
       : '',
   };

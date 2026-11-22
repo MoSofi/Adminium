@@ -889,7 +889,7 @@ export default {
     "footer": "{appName}",
     "stopped": "Linkene i de e-mails, du allerede har, virker ikke længere. Du hører ikke fra os igen, medmindre du kommer tilbage.",
     "held": "Én undtagelse: Pakker eller gavekort med en saldo beholder dit navn og din e-mail, indtil de er brugt op eller udløbet, så du stadig kan bruge dem. Antal beholdt: {count}.",
-    "gifts": "Et gavekort, som en anden har købt til dig, er ikke knyttet til din konto, så det viser stadig det navn og den e-mail, der blev skrevet. Skriv til os, hvis du vil have dem fjernet."
+    "gifts": "Hvis en anden har købt et gavekort til dig, er det ikke knyttet til din konto, så det viser stadig det navn og den e-mail, der blev skrevet. Skriv til os, hvis du vil have dem fjernet."
   },
   "missing": {
     "chip": "{name}: angiv, hvad der skrives, når den mangler",

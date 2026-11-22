@@ -889,7 +889,7 @@ export default {
     "footer": "{appName}",
     "stopped": "The links in the emails you already have no longer work. You won’t hear from us again unless you come back.",
     "held": "One exception: packs or gift cards that still have a balance keep your name and email until they are used up or expire, so you can still use them. Number kept: {count}.",
-    "gifts": "A gift card someone else bought for you is not linked to your account, so it still shows the name and email they typed. Ask us if you want those removed."
+    "gifts": "If someone else bought you a gift card, it is not linked to your account, so it still shows the name and email they typed. Ask us if you want those removed."
   },
   "missing": {
     "chip": "{name}: say what to write when it is missing",
