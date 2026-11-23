@@ -43,6 +43,7 @@ function app(): Doc {
             { ref: 'pin_code', type: 'text', maxLength: 32, nullable: true, rules: { code: { length: 8 } } },
             { ref: 'may_email', type: 'bool', nullable: true },
             { ref: 'may_text', type: 'bool', nullable: true },
+            { ref: 'locker', type: 'text', maxLength: 32, nullable: true, rules: { code: { length: 8 } } },
           ],
         },
         {
@@ -170,7 +171,7 @@ describe('what a text template may say', () => {
   });
 
   it('refuses a column the app declares as a code, whatever it is called', () => {
-    refusedWith(body('Your door: {{patient.pin_code}}'), 'carries no sign-in link');
+    refusedWith(body('Your door: {{patient.locker}}'), 'carries no sign-in link');
     expect(codeNamesIn('{{patient.locker}} {{patient.name}}', new Set(['locker']))).toEqual(['patient.locker']);
   });
 
@@ -253,7 +254,7 @@ describe('a kind sent as a text', () => {
   });
 });
 
-describe('a person known by phone (Q8)', () => {
+describe('a person known by phone', () => {
   it('a people entry may name a phone and no address', () => {
     const doc = clone(app());
     delete doc['people'][0].email;
@@ -294,7 +295,7 @@ describe('a person known by phone (Q8)', () => {
   });
 });
 
-describe('a public form\'s box for texts (Q7)', () => {
+describe('a public form\'s box for texts', () => {
   const box = (change: (entry: Doc, doc: Doc) => void) => (doc: Doc) => change(doc['publicAccess'][0], doc);
   const visitColumn = (doc: Doc, ref: string): Doc => doc['requiredSchema'].tables[0].columns.find((column: Doc) => column.ref === ref);
 
@@ -334,6 +335,6 @@ describe('a public form\'s box for texts (Q7)', () => {
   });
 
   it('is kept for a declared person whose number erasure can find', () => {
-    refusedWith((doc) => delete doc['people'][0].phone, 'people.phone');
+    refusedWith((doc) => delete doc['people'][0].phone, 'a text answer is kept with the person');
   });
 });

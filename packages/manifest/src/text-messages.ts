@@ -229,7 +229,6 @@ export function outboxTextIssues(
     if (!isTextKind(box, kind)) continue;
     if (!texts.has(template)) out.push({ path: at('kinds', kind), message: `"${template}" is not one of the app's textTemplates` });
     if (r.phone === undefined) out.push({ path: at('channels', kind), message: `"${kind}" is sent as a text: name the column that holds the person's number (outbox.recipient.phone)` });
-    if (box.classes?.[kind] === undefined) out.push({ path: at('classes'), message: `the text kind "${kind}" says no class: say "service" or "marketing" in outbox.classes` });
     // A purpose is a mail's: it brings a stop link and reads an e-mail answer, and neither belongs to a text.
     if (box.purposes?.[kind] !== undefined) out.push({ path: at('purposes', kind), message: `"${kind}" is a text: a mail purpose brings an email stop link and an email answer, and neither counts for a text` });
     if ((box.surveyLinks ?? []).includes(kind)) out.push({ path: at('surveyLinks'), message: `"${kind}" is a text, which carries no survey link` });
