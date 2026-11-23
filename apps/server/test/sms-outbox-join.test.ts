@@ -36,6 +36,7 @@ import { TEST_SECRET } from './helpers.js';
 import { LEGS, installInvoicing, invoicingManifest, invoicingTables, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 import { SMTP } from './outbox-rows-fixture.js';
+import { servePublic, type Served } from './public-lane.helpers.js';
 import { json, stubProvider, type ProviderStep } from './sms-send.helpers.js';
 import { LEGS as WHOLE_LEGS, said, wholeServer, type WholeServer } from './whole-server.helpers.js';
 
@@ -96,6 +97,7 @@ function clinicManifest(): Record<string, unknown> {
       kinds: { confirm_text: 'clinic-confirm', reminder_text: 'clinic-reminder' },
       channels: { confirm_text: 'sms', reminder_text: 'sms' },
       classes: { confirm_text: 'service', reminder_text: 'service' },
+      waiting: ['confirm_text'],
       producers: [
         {
           kind: 'reminder_text',
@@ -631,6 +633,18 @@ describe.each(LEGS)('a text kind joined to the engine — %s', (dialect, availab
     expect(provider.posts).toHaveLength(0);
   });
 
+  it.skipIf(!available)('a kind the customer is waiting for goes at night, while a reminder waits for morning', async () => {
+    const { sender, provider, runJobs } = await wire();
+    const mia = await patient('Mia Okada', MIA);
+    await agree(MIA);
+    clock.now = NIGHT;
+    const ready = await queued(mia);
+    await sender.sendApp('clinic', clock.now);
+    await runJobs();
+    expect(await message(ready)).toMatchObject({ status: 'sent', error: null });
+    expect(provider.posts).toHaveLength(1);
+  });
+
   it.skipIf(!available)('a sample row and a rehearsal never reach the send path', async () => {
     const { sender, texts, provider, runJobs } = await wire();
     const asked: unknown[] = [];
@@ -744,5 +758,56 @@ describe.each(WHOLE_LEGS)('the composed server — %s', (dialect, reachable) => 
     }
     expect(said(await s.send('owner', 'POST', '/api/v1/jobs', { kind: 'sms.no-such-kind', payload: {} }))).not.toBe('403 FORBIDDEN');
     expect(ENDED_TRIAL_JOB_KINDS.has(SMS_SEND_JOB_KIND)).toBe(false);
+  });
+});
+
+/** The clinic with a public form whose own unticked box asks about texts. */
+function formManifest(): Record<string, unknown> {
+  const manifest = clinicManifest();
+  const tables = (manifest['requiredSchema'] as { tables: { ref: string; columns: Record<string, unknown>[] }[] }).tables.map((table) =>
+    table.ref === 'patients' ? { ...table, columns: [...table.columns, { ref: 'may_text', type: 'bool', default: false }] } : table,
+  );
+  return {
+    ...manifest,
+    requiredSchema: { prefixed: true, tables },
+    publicAccess: [
+      {
+        table: 'patients',
+        methods: ['POST'],
+        select: ['id'],
+        writable: ['name', 'mobile', 'may_text'],
+        textConsent: { column: 'may_text', phone: 'mobile', class: 'service', wording: { version: 1, text: { 'en-US': 'Text me about my visit.' } } },
+      },
+    ],
+  };
+}
+
+describe.each(LEGS)('a public box for texts, on the composed server — %s', (dialect, available) => {
+  let h: InvoicingHarness & { reply: Record<string, unknown> };
+  let served: Served;
+
+  beforeAll(async () => {
+    if (!available) return;
+    h = await installInvoicing(dialect, formManifest(), undefined, {}, { install: { publicAccess: true } });
+    const keys = (h.reply['publicAccess'] as { keys: Record<string, string> }).keys;
+    served = await servePublic(h, Object.values(keys)[0]!);
+  }, 180_000);
+  afterAll(async () => {
+    if (!available) return;
+    await served.close();
+    await h.close();
+  });
+
+  it.skipIf(!available)('a ticked box is a yes to texts for that number, and an unticked one is not', async () => {
+    const texts = createTextConsentService({ meta: h.meta, secret: TEST_SECRET });
+    const asked = (phone: string) => texts.decide({ phone, country: 'DE', class: 'service', sender: { kind: 'number' }, repliesReachUs: true });
+    expect(await asked(MIA)).toMatchObject({ send: false, reason: 'no-consent' });
+    const url = `/records/${h.real('patients')}`;
+    const ticked = await served.post(url, { values: { name: 'Mia Okada', mobile: MIA, may_text: true } });
+    expect(ticked.statusCode, ticked.body).toBe(201);
+    const unticked = await served.post(url, { values: { name: 'Kai Renner', mobile: KAI, may_text: false } });
+    expect(unticked.statusCode, unticked.body).toBe(201);
+    expect(await asked(MIA)).toMatchObject({ send: true });
+    expect(await asked(KAI)).toMatchObject({ send: false, reason: 'no-consent' });
   });
 });
