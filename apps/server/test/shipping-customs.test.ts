@@ -79,7 +79,7 @@ function shopDoc(key: string, customs: boolean): Record<string, unknown> {
     license: 'AGPL-3.0-only',
     description: { key: 'd', fallback: 'A shop.' },
     categories: ['operations'],
-    compatibility: { minAdminiumVersion: customs ? '0.3.73' : '0.3.72', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: customs ? '0.3.74' : '0.3.72', engines: ['postgres', 'mysql', 'sqlite'] },
     requiredSchema: {
       prefixed: true,
       tables: [

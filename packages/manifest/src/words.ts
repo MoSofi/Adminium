@@ -734,7 +734,7 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'addOn.slots.on': '0.3.66',
   'shipping': '0.3.72',
   // A release before refuses the key.
-  'shipping.customs': '0.3.73',
+  'shipping.customs': '0.3.74',
   'addOn.connect.accounts': '0.3.71',
   'table.connectedAccounts': '0.3.71',
   'roles.accounts': '0.3.71',

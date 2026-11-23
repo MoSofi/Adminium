@@ -4655,7 +4655,7 @@ Buying a label never moves the order's status. A label bought with a test key re
 ### Parcels going abroad
 
 An order is refused a label to another country unless its entry has a `customs` block and the shop's
-owner has listed that country. The block needs Adminium 0.3.73 or later.
+owner has listed that country. The block needs Adminium 0.3.74 or later.
 
 ```json
 "customs": {

@@ -66,7 +66,7 @@ describe('the shipping block', () => {
 
   describe('where an order\'s goods are, for a parcel going abroad', () => {
     const lines = { table: 'order_lines', order: 'order_id', quantity: 'qty', unitValue: 'unit_price', description: 'name' };
-    const withLines = (customs: unknown, floor = '0.3.73'): Doc => {
+    const withLines = (customs: unknown, floor = '0.3.74'): Doc => {
       const doc = app({ orders: [entry({ customs })] });
       doc['compatibility'].minAdminiumVersion = floor;
       doc['requiredSchema'].tables.push(
@@ -93,10 +93,10 @@ describe('the shipping block', () => {
     });
 
     it('asks for the release that reads it', () => {
-      expect(WORD_FLOORS['shipping.customs']).toBe('0.3.73');
+      expect(WORD_FLOORS['shipping.customs']).toBe('0.3.74');
       const doc = withLines({ lines }, '0.3.72');
       expect(installFloorWords(doc)).toContainEqual({ word: 'shipping.customs', path: 'shipping.orders.0.customs' });
-      expect(messages(doc).join()).toContain('"shipping.customs" is read by Adminium 0.3.73 and later');
+      expect(messages(doc).join()).toContain('"shipping.customs" is read by Adminium 0.3.74 and later');
     });
 
     it.each([
