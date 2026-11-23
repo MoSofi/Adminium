@@ -67,6 +67,30 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.72',
+    date: '2026-11-23',
+    title: 'Real shipping labels',
+    summary:
+      'Maker Shop, Print Shop and Online Shop can now buy real carrier labels through your own Shippo account, inside your own country. Shippo bills you for each label. The DHL add-on stays a demo and books no real parcel.',
+    notice: {
+      title: 'Before you upgrade',
+      items: [
+        'An order that holds a live, paid label can no longer be moved back or cancelled without saying what happens to the label: request a refund, keep it, or go back.',
+        'Super Admin gains the right to manage shipping. No other role gains a shipping right from the upgrade or from an app update.',
+        'An app must be updated before it can use a real carrier. Until then its existing screens keep working, and the engine refuses its carrier calls.',
+      ],
+    },
+    changes: [
+      { tag: 'New', text: 'A Shipping page in the Studio connects a Shippo test or live key, checks it, sets the label size and spending limits, and shows the webhook address once.' },
+      { tag: 'New', text: 'Buying a label is safe to repeat. A second press, a reload or a restart makes one shipment, and a purchase with no answer reads unknown and blocks another until someone checks it.' },
+      { tag: 'New', text: 'Each app has book, cancel and customs rights per role. A first install asks which roles get them, and an install with no answer grants none.' },
+      { tag: 'New', text: 'A label can be refunded for 30 days after buying it. The refund is tracked to its end, and a label with a refund requested can no longer be downloaded or printed.' },
+      { tag: 'New', text: 'Tracking arrives by webhook or a Refresh press, never moves an order by itself, and a Needs attention list shows the labels that need a person.' },
+      { tag: 'New', text: 'Online Shop can buy a return label on an approved return, from the customer to the shop.' },
+      { tag: 'Security', text: 'A booking keeps a hash of the address and never the address. Label files are deleted 90 days after their last state, and erasing a person deletes theirs.' },
+    ],
+  },
+  {
     version: '0.3.71',
     date: '2026-11-23',
     title: 'Online bookings, calendars and access rules',
