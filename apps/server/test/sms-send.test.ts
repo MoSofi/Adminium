@@ -134,7 +134,7 @@ describe.each(META_ENGINES)('text send path — $name', (engine) => {
     phone: DE,
     textClass: 'service',
     template: `${WORDS}, {{name}}.`,
-    values: { name: 'Tom' },
+    values: { name: 'Thomasina' },
     zone: 'UTC',
     business: { name: 'Lumen', email: 'hello@lumen.example' },
     ...more,
@@ -161,7 +161,7 @@ describe.each(META_ENGINES)('text send path — $name', (engine) => {
       expect(built.provider.posts).toHaveLength(1);
       const form = new URLSearchParams(built.provider.posts[0]!.body);
       expect(form.get('To')).toBe(DE);
-      expect(form.get('Body')).toBe(`${WORDS}, Tom. Reply STOP to opt out.`);
+      expect(form.get('Body')).toBe(`${WORDS}, Thomasina. Reply STOP to opt out.`);
       expect(await reread(id)).toMatchObject({
         state: 'accepted',
         provider: 'twilio',
@@ -920,7 +920,7 @@ describe.each(META_ENGINES)('text send path — $name', (engine) => {
         expect(text).not.toContain(DE);
         expect(text).not.toContain(DE.slice(1));
         expect(text).not.toContain(WORDS);
-        expect(text).not.toContain('Tom');
+        expect(text).not.toContain('Thomasina');
       }
       // The row's own keys are kept hashed too: a primary key can be a person's.
       expect(JSON.stringify(stored)).not.toContain('app:table');
