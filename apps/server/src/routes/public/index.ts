@@ -6041,8 +6041,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         }
         // A yes they gave is withdrawn, by them, before the column that held it is emptied: the log never says yes for a forgotten person.
         await deps.peopleConsent?.withdrawOnForget({ connectionId: ok.key.connectionId, view: found.view, table: found.table, row, columns: forget.columns });
-        // The app's word: their copies on the rows linked to them go in the same transaction as their own row.
-        const ownCopies = forget.copies === true && found.table.primaryKey.length === 1 ? await ownCopyTables(meta, ok.key.connectionId, found.view, found.table) : [];
+        // The app's word: their copies on the rows linked to them go in the same transaction as their own row. Without it, only a copy marked to go in any case.
+        const ownCopies = found.table.primaryKey.length === 1 ? await ownCopyTables(meta, ok.key.connectionId, found.view, found.table, forget.copies === true) : [];
         const erasedName = ownCopies.length === 0 ? '' : await erasedNameOf(meta);
         // What they still hold on an add-on's table (a pack, a gift card): emptied if its value has ended, kept and marked if not (`privacy/held-values.ts`).
         const heldTables = found.table.primaryKey.length === 1 ? await holderTablesOn(meta, ok.key.connectionId, found.view) : [];

@@ -39,7 +39,7 @@ function shop(word: boolean): Doc {
       { ref: 'buyer_phone', type: 'text', maxLength: 32, nullable: true },
     ],
   });
-  (manifest['compatibility'] as Doc)['minAdminiumVersion'] = word ? '0.3.74' : '0.3.71';
+  (manifest['compatibility'] as Doc)['minAdminiumVersion'] = '0.3.74';
   (manifest['outbox'] as Doc)['classes'] = { 'order-placed': 'service' };
   manifest['people'] = [
     {
@@ -52,7 +52,7 @@ function shop(word: boolean): Doc {
         { table: 'orders', column: 'name', holds: 'name', via: 'customer_id' },
         { table: 'orders', column: 'note', holds: 'details', via: 'customer_id' },
         { table: 'receipts', column: 'buyer_email', holds: 'email', via: 'customer_id' },
-        ...(word ? [{ table: 'receipts', column: 'buyer_phone', holds: 'details', via: 'customer_id', evenIfKept: true }] : []),
+        { table: 'receipts', column: 'buyer_phone', holds: 'details', via: 'customer_id', evenIfKept: true },
       ],
     },
   ];
@@ -199,10 +199,15 @@ describe.each(LEGS)('"delete my details" with its copies — %s', (dialect, avai
 
   it.skipIf(!available)('without the word, the rows linked to them stay as they were', async () => {
     const id = await order(off, 'nia@fieldmail.io', 'Nia Holt', 'Quiet table');
+    const [nia] = await off.h.rows(`select id from ${off.h.real('customers')} where email = 'nia@fieldmail.io'`);
+    await off.h.rows(`insert into ${off.h.real('receipts')} (customer_id, buyer_email, buyer_phone) values (${String(nia!['id'])}, 'nia@fieldmail.io', '+49 30 7654321')`);
     const session = await off.g.signIn('nia@fieldmail.io');
     const gone = await off.g.request('DELETE', '/account', { session });
     expect(gone.statusCode, gone.body).toBe(200);
     const row = await orderRow(off, id);
     expect([row['email'], row['name'], row['note']]).toEqual(['nia@fieldmail.io', 'Nia Holt', 'Quiet table']);
+    // A copy marked to go in any case goes all the same, and only that one.
+    const [receipt] = await off.h.rows(`select buyer_email, buyer_phone from ${off.h.real('receipts')} where customer_id = ${String(nia!['id'])}`);
+    expect([receipt!['buyer_email'], receipt!['buyer_phone']]).toEqual(['nia@fieldmail.io', null]);
   });
 });
