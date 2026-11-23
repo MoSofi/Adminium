@@ -19,7 +19,7 @@
 import { createHash } from 'node:crypto';
 
 import { GROUPED_FORM, clockShaped, emailRowsDataSchema, isCodeColumn, placeholderPattern, type Manifest, type Outbox } from '@adminium/manifest';
-import { appOutboxesRepo, emailTemplatesRepo, filesRepo, newId, type EmailTemplate, type MetaDb } from '@adminium/meta';
+import { appOutboxesRepo, emailTemplatesRepo, filesRepo, newId, textTemplatesRepo, type EmailTemplate, type MetaDb } from '@adminium/meta';
 
 import { EMAIL_BLOCK_DATA_SCHEMAS } from '../email/document.js';
 import { ValidationFailedError } from '../errors.js';
@@ -32,6 +32,7 @@ import { isSavedFile } from './saved-file.js';
 import { ownsBlocks } from './owns-blocks.js';
 import { mapTableRefs } from './real-refs.js';
 import { canonicalJson } from './sample-data.js';
+import { installTextTemplates, removeTextTemplates, type TextTemplatesResult } from './manifest-text-templates.js';
 
 type AppManifest = Extract<Manifest, { kind: 'app' }>;
 type ManifestTemplate = NonNullable<AppManifest['emailTemplates']>[number];
@@ -49,6 +50,8 @@ export interface OutboxResult {
     /** The app's unedited rows of templates it no longer ships. */
     removed: number;
   };
+  /** The app's text templates, when it has or had any. */
+  texts?: TextTemplatesResult;
 }
 
 /**
@@ -353,10 +356,12 @@ export async function installOutbox(input: {
   const templates = emailTemplatesRepo(meta);
   const { install } = input;
   const own = () => templates.listManagedBy(manifest.key, install.id);
-  const hadAny = (await outboxes.findByInstall(install.id)) !== null || (await own()).length > 0;
-  if (manifest.outbox === undefined && (manifest.emailTemplates ?? []).length === 0 && !hadAny) return undefined;
+  const hadTexts = (await textTemplatesRepo(meta).listManagedBy(manifest.key, install.id)).length > 0;
+  const shipsTexts = (manifest.textTemplates ?? []).length > 0;
+  const hadAny = (await outboxes.findByInstall(install.id)) !== null || (await own()).length > 0 || hadTexts;
+  if (manifest.outbox === undefined && (manifest.emailTemplates ?? []).length === 0 && !shipsTexts && !hadAny) return undefined;
   // A later install's templates are stored under keys of their own; the outbox names them so.
-  const shippedKeys = new Set((manifest.emailTemplates ?? []).map((template) => template.key));
+  const shippedKeys = new Set([...(manifest.emailTemplates ?? []), ...(manifest.textTemplates ?? [])].map((template) => template.key));
   const storedKey = (key: string) => (shippedKeys.has(key) ? installTemplateKey(key, install) : key);
 
   if (manifest.outbox === undefined) await outboxes.remove(install.id);
@@ -451,6 +456,7 @@ export async function installOutbox(input: {
     }
   }
   await releaseFiles(meta, dropped);
+  if (shipsTexts || hadTexts) result.texts = await installTextTemplates({ meta, manifest, install, storedKey });
   return result;
 }
 
@@ -488,5 +494,6 @@ export async function removeOutbox(meta: MetaDb, install: Pick<InstallAddress, '
     }
   }
   await releaseFiles(meta, dropped);
+  await removeTextTemplates(meta, install);
   return removed;
 }

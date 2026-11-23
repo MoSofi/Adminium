@@ -83,7 +83,7 @@ export function renameManifest(document: Json, to: string, name: string): Rename
     if (next !== null) pages.set(page.ref, next);
   }
   const templates = new Map<string, string>();
-  for (const template of (document['emailTemplates'] as { key?: unknown }[] | undefined) ?? []) {
+  for (const template of [...((document['emailTemplates'] as { key?: unknown }[] | undefined) ?? []), ...((document['textTemplates'] as { key?: unknown }[] | undefined) ?? [])]) {
     if (typeof template.key !== 'string') continue;
     const next = rekey(template.key, from, to);
     if (next !== null) templates.set(template.key, next);
