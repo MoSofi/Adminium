@@ -10,6 +10,7 @@ import { asksForYes, checkTextTemplate, codeNamesIn, isTextKind, isWaitingKind, 
 import { validateManifest } from '../src/validate.js';
 import { INSTALL_FLOOR_WORD_NAMES, installFloorWords, SMS_WORDS_FLOOR, WORD_FLOORS } from '../src/words.js';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- a loose fixture, changed by path in each case
 type Doc = Record<string, any>;
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 const WORDING = { version: 1, text: { 'en-US': 'Text me about this booking.' } };

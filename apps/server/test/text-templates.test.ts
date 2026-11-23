@@ -5,7 +5,7 @@
  * text install leaves exactly as it was. Then a public form's box for texts,
  * which is its own answer and never a condition of the write.
  */
-import { connectionsRepo, emailTemplatesRepo, manifestsRepo, textTemplatesRepo } from '@adminium/meta';
+import { appOutboxesRepo, connectionsRepo, emailTemplatesRepo, manifestsRepo, textTemplatesRepo } from '@adminium/meta';
 import { SMS_WORDS_FLOOR, validateManifest, type Manifest } from '@adminium/manifest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -21,6 +21,7 @@ import { checkTextTemplate } from '../src/sms/send/template.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 import { makeTextConsentTables } from './sms-consent.helpers.js';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- a loose fixture, changed by path in each case
 type Doc = Record<string, any>;
 
 const manifest = (body = '{{appName}}: visit soon. Reply STOP to opt out.', extra: Doc = {}): Manifest => {
@@ -155,6 +156,17 @@ describe.each(META_ENGINES)('text templates — $name', (engine) => {
     expect(await textTemplatesRepo(handle.meta).listByKey('clinic-reminder-text')).toEqual([]);
   });
 
+  it.skipIf(!engine.available)('a later install keeps its texts under keys of its own, and its outbox names them', async () => {
+    const second = await manifestsRepo(handle.meta, CRYPTO as never).install({ manifestKey: 'clinic', version: '1.0.0', kind: 'app', source: 'file', document: {}, scopeKey: 'scope_two', instanceSlug: 'two' });
+    const install = { id: second.row.id, key: 'clinic', slug: 'two' };
+    await put(manifest(), install);
+    expect((await textTemplatesRepo(handle.meta).findByKeyLocale('clinic-two-reminder-text', 'en_US'))?.installId).toBe(install.id);
+    const stored = JSON.parse((await appOutboxesRepo(handle.meta).findByInstall(install.id))!.definition as string) as { kinds: Record<string, string> };
+    expect(stored.kinds['reminder_text']).toBe('clinic-two-reminder-text');
+    await removeOutbox(handle.meta, install);
+    expect(await textTemplatesRepo(handle.meta).listByKey('clinic-two-reminder-text')).toEqual([]);
+  });
+
   it.skipIf(!engine.available)('a public box reaches the real text log as its own answer, and unlocks only that number and class', async () => {
     const base = manifest() as Doc;
     const tables = base['requiredSchema'].tables.map((table: Doc) => (table['ref'] === 'patients' ? { ...table, columns: [...table['columns'], { ref: 'may_email', type: 'bool', nullable: true }, { ref: 'may_text', type: 'bool', nullable: true }] } : table));
@@ -245,7 +257,8 @@ describe('a public box for texts', () => {
   const make = (standing: 'yes' | 'no' | 'not-asked' = 'not-asked', failing?: Error, log?: { warn: ReturnType<typeof vi.fn> }) => {
     const door = {
       standing: vi.fn(async () => ({ state: standing })),
-      record: vi.fn(async (_input: Parameters<TextConsentDoor['record']>[0]): Promise<unknown> => {
+      record: vi.fn(async (input: Parameters<TextConsentDoor['record']>[0]): Promise<unknown> => {
+        void input;
         if (failing !== undefined) throw failing;
         return {};
       }),
