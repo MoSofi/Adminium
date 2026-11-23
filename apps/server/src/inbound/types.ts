@@ -25,6 +25,12 @@ export type InboundState = (typeof INBOUND_STATES)[number];
 export type InboundReason = string;
 const REASON = /^[a-z0-9-]{1,32}$/;
 
+/** The longest source a door or a catch-up may name: the width of the `source` column. */
+export const INBOUND_SOURCE_MAX = 32;
+
+/** Why an event left the queue after its claims kept dying with the process. A bulk retry leaves these alone. */
+export const INBOUND_CRASHED_REASON = 'crashed-repeatedly';
+
 /** The reason as given, or a fixed word when it is not one of the plain shape. */
 export function safeReason(reason: unknown, fallback = 'handler-error'): InboundReason {
   return typeof reason === 'string' && REASON.test(reason) ? reason : fallback;
@@ -43,7 +49,10 @@ export interface InboundEventRecord {
   /** The keyed hash of the sender, for erasure. Never the address. */
   subject: AddressHash | null;
   sealedBody: string | null;
+  /** Every claim that ran the event, except those an outage gave back. */
   attempts: number;
+  /** Claims that never came back: each was taken over from a worker that had gone. */
+  lostClaims: number;
   reason: InboundReason | null;
   occurredAt: number | null;
   receivedAt: number;
@@ -51,6 +60,9 @@ export interface InboundEventRecord {
   finishedAt: number | null;
   retainUntil: number | null;
 }
+
+/** An event without its body, which can be large: what a list or a repeat check needs. */
+export type InboundEventHead = Omit<InboundEventRecord, 'sealedBody'> & { hasBody: boolean };
 
 /** One event a proved delivery holds. */
 export interface InboundCandidate {
@@ -121,6 +133,10 @@ export interface InboundChannel {
   readonly channel: string;
   /** The largest delivery this channel takes, in bytes. */
   readonly bodyLimit: number;
+  /** How long a failed event keeps its body for a retry. The core's default when left out. */
+  readonly failedBodyMs?: number | undefined;
+  /** Whether anything is connected, so the sweep has a reason to run. Asked anyway when left out. */
+  hasSource?(): Promise<boolean>;
   /** Whether the outside can reach this channel's door now. */
   reach(): Promise<{ open: boolean; origin: string | null }>;
   account(source: string): Promise<InboundAccount>;
@@ -156,6 +172,21 @@ export class InboundRetryError extends Error {
     super(`inbound event will be retried: ${safeReason(reason)}`);
     this.reason = safeReason(reason);
     this.finally = options.finally;
+  }
+}
+
+/**
+ * What this event needs is away for now (the database, the app). The event goes
+ * back to waiting without using a try, the job ends cleanly and the sweep brings
+ * it back, so an outage of any length does not fill the failed list.
+ */
+export class InboundDeferError extends Error {
+  override readonly name = 'InboundDeferError';
+  readonly reason: InboundReason;
+
+  constructor(reason: InboundReason) {
+    super(`inbound event deferred: ${safeReason(reason)}`);
+    this.reason = safeReason(reason);
   }
 }
 

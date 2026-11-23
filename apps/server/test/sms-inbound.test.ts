@@ -36,8 +36,17 @@ import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 const SECRET = 'an-sms-inbound-test-secret-of-length';
 const ORIGIN = 'https://texts.lumen.example';
 const T0 = 1_800_000_000_000;
-const ONE = { attempt: 1, maxAttempts: 5 };
-const LAST = { attempt: 5, maxAttempts: 5 };
+/** Runs the job until it stops asking for another try, as the worker would. */
+async function toTheEnd(core: Pick<InboundCore, 'run'>, id: string): Promise<{ state: string }> {
+  for (let tries = 0; tries < 5; tries += 1) {
+    try {
+      return await core.run(id);
+    } catch (error) {
+      if (!(error instanceof InboundJobError)) throw error;
+    }
+  }
+  throw new Error('The event never ended.');
+}
 const PERSON = '+4915123456789';
 const OURS = '+15005550006';
 const ACCOUNT_SID = `AC${'ab'.repeat(16)}`;
@@ -164,10 +173,10 @@ describe.each(META_ENGINES)('SMS inbound — $name', (engine) => {
     },
   });
 
-  async function drain(attempt = ONE): Promise<void> {
+  async function drain(): Promise<void> {
     const ids = queued;
     queued = [];
-    for (const id of ids) await core.run(id, attempt);
+    for (const id of ids) await core.run(id);
   }
 
   const stopped = (phone = PERSON) => consent.stop.has(phone, null);
@@ -433,7 +442,7 @@ describe.each(META_ENGINES)('SMS inbound — $name', (engine) => {
       envelope.data.payload.messaging_profile_id = randomUUID();
       envelope.data.payload.from = { phone_number: '+15005550099' };
       await postTelnyx(envelope);
-      await core.run(queued[0]!, LAST);
+      await toTheEnd(core, queued[0]!);
       expect(await stopped()).toBe(true);
     });
 
@@ -497,9 +506,9 @@ describe.each(META_ENGINES)('SMS inbound — $name', (engine) => {
       await postTelnyx(telnyxReply('STOP'));
       const [first, second] = queued;
       queued = [];
-      await core.run(second!, ONE);
+      await core.run(second!);
       expect(await stopped()).toBe(true);
-      await core.run(first!, ONE);
+      await core.run(first!);
       expect(await stopped()).toBe(true);
       expect(startAt).toBeLessThan(clock);
     });
@@ -541,10 +550,10 @@ describe.each(META_ENGINES)('SMS inbound — $name', (engine) => {
       });
       expect((await twilioReply('STOP')).statusCode).toBe(200);
       const id = queued[0]!;
-      const error = await core.run(id, ONE).catch((caught: unknown) => caught);
+      const error = await core.run(id).catch((caught: unknown) => caught);
       expect(error).toBeInstanceOf(InboundJobError);
       expect((error as Error).message).not.toContain('+49');
-      expect(await core.run(id, LAST)).toEqual({ state: 'failed' });
+      expect(await toTheEnd(core, id)).toEqual({ state: 'failed' });
       const { events } = await core.failed.list({ limit: 5 });
       expect(events).toHaveLength(1);
       expect(events[0]).toMatchObject({ kind: 'reply', reason: 'handler-error', retryable: true });
@@ -694,14 +703,14 @@ describe.each(META_ENGINES)('SMS inbound — $name', (engine) => {
       const sid = nextSid();
       await status(sid, 'sent');
       const id = queued[0]!;
-      await expect(core.run(id, ONE)).rejects.toBeInstanceOf(InboundJobError);
+      await expect(core.run(id)).rejects.toBeInstanceOf(InboundJobError);
       ledger.track(sid);
-      expect(await core.run(id, { attempt: 2, maxAttempts: 5 })).toEqual({ state: 'processed' });
+      expect(await core.run(id)).toEqual({ state: 'processed' });
 
       const stranger = nextSid();
       await status(stranger, 'sent');
       const other = queued.at(-1)!;
-      expect(await core.run(other, LAST)).toEqual({ state: 'ignored' });
+      expect(await toTheEnd(core, other)).toEqual({ state: 'ignored' });
       expect((await core.failed.list({ limit: 5 })).events).toHaveLength(0);
     });
 
@@ -725,7 +734,7 @@ describe.each(META_ENGINES)('SMS inbound — $name', (engine) => {
     only('Telnyx\'s "opted out" error goes on the stop list, even for a message it does not know', async () => {
       useTelnyx();
       await postTelnyx(telnyxStatus(randomUUID(), 'sending_failed', 'message.finalized', [{ code: '40300', title: 'blocked' }]));
-      await core.run(queued[0]!, LAST);
+      await toTheEnd(core, queued[0]!);
       expect(await stopped()).toBe(true);
     });
 

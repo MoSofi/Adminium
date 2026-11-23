@@ -5,20 +5,19 @@
  * Building them does nothing outward. No provider is called, no timer starts
  * and no setting is required: an install with no account answers exactly as
  * one without this code, and the sweep queues no job while there is neither an
- * account nor a stored event.
+ * account nor a stored event. The inbound core itself is built in
+ * `compose.ts`, and this adds SMS to it as one channel.
  *
  * The send path is built in `compose.ts`, because it needs the job queue and
  * the outbox, and joined through {@link SmsWiring.joinSendPath}. Before that a
  * delivery report finds no message and no STOP confirmation is sent: the STOP
  * itself still goes on the list.
  */
-import { jobsRepo, type EnqueueJobInput, type MetaDb } from '@adminium/meta';
-import type { FastifyPluginAsync } from 'fastify';
+import type { EnqueueJobInput, MetaDb } from '@adminium/meta';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import { storedPublicOrigin } from '../email/door-reach.js';
-import { createInboundCore, inboundRoutes, INBOUND_SWEEP_JOB, registerInboundJobs, type InboundCore } from '../inbound/index.js';
-import type { JobRegistry } from '../jobs/registry.js';
+import type { InboundCore, InboundWiring } from '../inbound/index.js';
 import { PERMISSIONS } from '../rbac/permissions.js';
 import type { LockReason } from '../trial/operator-lock.js';
 import { createSmsAccountStore } from './account-store.js';
@@ -30,14 +29,12 @@ import { smsRoutes } from './routes.js';
 import { createTextSendStore, textPhoneKeys, TEXT_SETTLE_JOB, TEXT_SETTLE_SCHEDULE, type TextReport, type TextSendPath, type TextSendStore } from './send/index.js';
 import { createSmsService, type SmsService } from './service.js';
 
-export const INBOUND_SWEEP_SCHEDULE = 'inbound-sweep';
-/** Often enough for an event whose job could not be queued. The channel limits how often it asks the provider. */
-export const INBOUND_SWEEP_CRON = '*/10 * * * *';
-
 export interface SmsWiringDeps {
   meta: MetaDb;
   /** `ADMINIUM_SECRET`. */
   secret: string;
+  /** The server's one inbound core, which this adds its channel to. */
+  inbound: Pick<InboundWiring, 'core' | 'addChannel'>;
   networkFeatures: boolean;
   desktop: boolean;
   trustProxy: boolean;
@@ -63,10 +60,6 @@ export interface SmsWiring {
   erasure: TextErasure;
   defaultCountry: () => Promise<string | null>;
   settingsRoutes(): FastifyPluginAsyncZod;
-  doorRoutes(): FastifyPluginAsync;
-  registerJobs(registry: JobRegistry): void;
-  /** Queues the sweep when there is something for it to do. */
-  enqueueSweep(enqueue?: (input: EnqueueJobInput) => Promise<{ id: string }>): Promise<{ id: string } | null>;
   /** Queues the clean-up of the send path, when there is a delivery for it to look at. */
   enqueueTextSettle(enqueue: (input: EnqueueJobInput) => Promise<{ id: string }>): Promise<{ id: string } | null>;
   /** Asks the provider what arrived while the server was down. Null when it may not reach out. */
@@ -116,13 +109,9 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
     fetch: deps.fetch,
     now,
   });
-  const inbound = createInboundCore({ meta, secret, channels: [channel], now });
+  deps.inbound.addChannel(channel);
+  const inbound = deps.inbound.core;
   const erasure = createTextErasure({ meta, consent, inbound, deliveries, phoneKeys: textPhoneKeys(meta, secret), country: defaultCountry });
-
-  async function sweepWanted(): Promise<boolean> {
-    if ((await accounts.read()) !== null) return true;
-    return (await meta.db.selectFrom('adminium_inbound_events').select('id').limit(1).executeTakeFirst()) !== undefined;
-  }
 
   return {
     service,
@@ -147,16 +136,6 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
         trustProxy: deps.trustProxy,
         publicOrigin: () => storedPublicOrigin(meta),
       }),
-
-    doorRoutes: () => inboundRoutes({ core: inbound, channels: [channel], secret, now }),
-
-    registerJobs: (registry) => registerInboundJobs(registry, inbound),
-
-    async enqueueSweep(enqueue) {
-      if (!(await sweepWanted())) return null;
-      const input: EnqueueJobInput = { kind: INBOUND_SWEEP_JOB, payload: {}, dedupeKey: INBOUND_SWEEP_SCHEDULE, maxAttempts: 1 };
-      return enqueue === undefined ? jobsRepo(meta).enqueue(input, now()) : enqueue(input);
-    },
 
     async enqueueTextSettle(enqueue) {
       const any = await meta.db.selectFrom('adminium_text_deliveries').select('id').limit(1).executeTakeFirst();

@@ -269,6 +269,8 @@ export function createSmsInboundChannel(deps: SmsInboundDeps): SmsInboundChannel
       deps.onCatchUp?.(result);
     },
 
+    hasSource: async () => (await deps.sms.view()) !== null,
+
     async handle(event) {
       if (!isProvider(event.source)) throw new InboundFailedError('unknown-source');
       let parsed: unknown;

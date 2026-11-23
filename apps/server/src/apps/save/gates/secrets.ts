@@ -43,6 +43,7 @@ import { storageCryptoFromSecret } from '../../../files/crypto.js';
 import { linkSealFromSecret } from '../../../payments/links.js';
 import { SIGN_IN_LINK_JOB_KIND } from '../../../public-api/sign-in-link.js';
 import { smsSecretKey } from '../../../sms/credentials.js';
+import { SMS_INBOUND_CHANNEL } from '../../../sms/inbound/payload.js';
 import type { CheckItem } from '../check.js';
 import type { SaveChoices } from '../types.js';
 import { itemTargetOf, targetOf, type GateContent, type Leaf, type PathPart } from './content.js';
@@ -113,6 +114,8 @@ export const SECRET_ENV_NAME =
   /SECRET|TOKEN|PASSW|API_?KEY|PRIVATE|CREDENTIAL|DSN|SALT|CONNECTION_STRING|(?:^|_)(?:KEYS?|PASS|PWD|AUTH|SIGNING)(?:_|$)|(?:DATABASE|(?:^|_)DB|REDIS|MONGO(?:DB)?|POSTGRES(?:QL)?|PG|MYSQL|AMQP|RABBITMQ)_UR[LI]$/i;
 
 /** `.env` files that hold examples, not this project's values. */
+/** Stored bodies opened at a time by the scan. */
+const INBOUND_SCAN_PAGE = 50;
 const ENV_EXAMPLE = /\.(?:example|sample|template|dist|defaults?)$/i;
 
 /** Shorter than this, a value means nothing on its own and is not looked for. */
@@ -431,12 +434,28 @@ export async function collectKnownSecrets(meta: MetaDb, masterSecret: string, pr
   for (const row of await db.selectFrom('adminium_text_stop_list').select(['phoneEncrypted']).execute()) {
     list.add('a number on the do-not-text list', textStop(row.phoneEncrypted), 'whole');
   }
-  for (const row of await db.selectFrom('adminium_inbound_events').select(['sealedBody']).where('sealedBody', 'is not', null).execute()) {
-    const event = parseJsonObject(inboundBody(row.sealedBody) ?? '') as { from?: unknown; to?: unknown; phone?: unknown; text?: unknown } | undefined;
-    list.add('a customer\'s number in a stored message', event?.from, 'whole');
-    list.add('a customer\'s number in a stored message', event?.to, 'whole');
-    list.add('a customer\'s number in a stored message', event?.phone, 'whole');
-    list.add('a customer\'s stored message', event?.text, 'whole');
+  // Stored texts only, a page at a time: this runs on every app save, and another channel's bodies can be large.
+  let after = '';
+  let morePages = true;
+  while (morePages) {
+    const rows = await db
+      .selectFrom('adminium_inbound_events')
+      .select(['id', 'sealedBody'])
+      .where('channel', '=', SMS_INBOUND_CHANNEL)
+      .where('sealedBody', 'is not', null)
+      .where('id', '>', after)
+      .orderBy('id', 'asc')
+      .limit(INBOUND_SCAN_PAGE)
+      .execute();
+    for (const row of rows) {
+      const event = parseJsonObject(inboundBody(row.sealedBody) ?? '') as { from?: unknown; to?: unknown; phone?: unknown; text?: unknown } | undefined;
+      list.add('a customer\'s number in a stored message', event?.from, 'whole');
+      list.add('a customer\'s number in a stored message', event?.to, 'whole');
+      list.add('a customer\'s number in a stored message', event?.phone, 'whole');
+      list.add('a customer\'s stored message', event?.text, 'whole');
+    }
+    morePages = rows.length === INBOUND_SCAN_PAGE;
+    after = rows.at(-1)?.id ?? after;
   }
   for (const row of await db.selectFrom('adminium_automations').select(['graph']).execute()) {
     walkWebhookSteps(readJsonFrom(meta, row.graph), (step) => {

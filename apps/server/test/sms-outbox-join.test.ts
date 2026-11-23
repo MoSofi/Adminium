@@ -29,6 +29,7 @@ import { createTextErasure } from '../src/sms/erasure.js';
 import { SMS_STOP_CONFIRMATION, SMS_STOP_EVENT_KINDS, createSmsInboundChannel, type SmsInboundChannel } from '../src/sms/inbound/index.js';
 import { createSmsService, type SmsCredentialInput } from '../src/sms/index.js';
 import { SEALED_TEXT_GONE, SMS_SEND_JOB_KIND, TEXT_SETTLE_JOB, TextRetryLater, createTextSendPath, createTextSendStore, smsSendPayloadSchema, textPhoneKeys, type TextSendPath, type TextSendStore } from '../src/sms/send/index.js';
+import { createInboundWiring } from '../src/inbound/index.js';
 import { createSmsWiring } from '../src/sms/wiring.js';
 import { ENDED_TRIAL_JOB_KINDS } from '../src/trial/ended-jobs.js';
 import { memorySmsStore } from './helpers/sms-store.js';
@@ -243,7 +244,7 @@ describe.each(LEGS)('a text kind joined to the engine — %s', (dialect, availab
       return app!.inject({ method: 'POST', url: door, payload: form.toString(), headers: { 'content-type': 'application/x-www-form-urlencoded', 'x-twilio-signature': createHmac('sha1', SIGNING_VALUE).update(signed, 'utf8').digest('base64') } });
     };
     const drain = async () => {
-      for (const eventId of inboundJobs.splice(0)) await core.run(eventId, { attempt: 1, maxAttempts: 5 });
+      for (const eventId of inboundJobs.splice(0)) await core.run(eventId);
     };
 
     /** The worker's own moves on the real jobs table: claim, run, complete or fail. */
@@ -600,7 +601,7 @@ describe.each(LEGS)('a text kind joined to the engine — %s', (dialect, availab
   });
 
   it.skipIf(!available)('the clean-up queues nothing on an install that has never sent a text', async () => {
-    const wiring = createSmsWiring({ meta, secret: TEST_SECRET, networkFeatures: false, desktop: false, trustProxy: false, operator: () => ({ allowed: true, reason: null }), log: { info: () => undefined } });
+    const wiring = createSmsWiring({ meta, secret: TEST_SECRET, inbound: createInboundWiring({ meta, secret: TEST_SECRET }), networkFeatures: false, desktop: false, trustProxy: false, operator: () => ({ allowed: true, reason: null }), log: { info: () => undefined } });
     expect(wiring.texts).toBeNull();
     const enqueued: EnqueueJobInput[] = [];
     const enqueue = async (input: EnqueueJobInput) => {

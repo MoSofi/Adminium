@@ -7,11 +7,14 @@
 export * from './types.js';
 export {
   INBOUND_DEFAULT_RETAIN_MS,
+  INBOUND_DEFER_MAX_MS,
   INBOUND_FAILED_BODY_MS,
   INBOUND_FAILED_ROW_MS,
   INBOUND_ID_PURPOSE,
   INBOUND_MAX_ATTEMPTS,
+  INBOUND_MAX_LOST_CLAIMS,
   INBOUND_PARSE_JOB,
+  INBOUND_PARSE_PRIORITY,
   INBOUND_REQUEUE_AFTER_MS,
   INBOUND_STALE_MS,
   INBOUND_SWEEP_BATCH,
@@ -27,3 +30,4 @@ export {
 export { INBOUND_API_PREFIX, INBOUND_PATH, inboundAddress, inboundRoutes, inboundToken, type InboundRoutesDeps } from './door.js';
 export { scrubInboundPath } from './log.js';
 export { createInboundEventStore, type InboundEventStore, type InboundFinish, type InboundPut } from './store.js';
+export { createInboundWiring, INBOUND_SWEEP_CRON, INBOUND_SWEEP_SCHEDULE, type InboundWiring, type InboundWiringDeps } from './wiring.js';
