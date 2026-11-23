@@ -67,6 +67,15 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.73',
+    date: '2026-11-23',
+    title: 'Add-ons 1.0.35',
+    summary: 'This release carries add-ons 1.0.35, with the screens for real shipping labels: refunds, the question before an order with a paid label moves back, and DHL named plainly as a demo.',
+    changes: [
+      { tag: 'Improved', text: 'The bundled add-ons move to 1.0.35.' },
+    ],
+  },
+  {
     version: '0.3.72',
     date: '2026-11-23',
     title: 'Real shipping labels',
