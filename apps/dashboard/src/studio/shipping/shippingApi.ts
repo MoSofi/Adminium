@@ -57,6 +57,8 @@ export interface ShippingStatus {
   shipFrom: { country: string } | null;
   shipFromMissing: string[];
   international: boolean;
+  /** The countries this shop sends to, once its owner has saved any. */
+  customs?: { countries: string[] } | null;
   labelSize: LabelSize;
   limits: {
     perLabel: { amount: string; currency: string } | null;
@@ -186,6 +188,7 @@ export async function saveLabelSize(app: ShippingApp, size: LabelSize): Promise<
 export interface LimitsBody {
   perLabel: { amount: string; currency: string } | null;
   dailyLabels: number | null;
+  packersAbroad?: boolean;
 }
 
 export async function saveLimits(app: ShippingApp, body: LimitsBody): Promise<ShippingStatus> {

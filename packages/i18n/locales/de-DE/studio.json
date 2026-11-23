@@ -6209,6 +6209,7 @@
     },
     "close": "Schließen",
     "disclosure": "Etiketten werden über Ihr Shippo-Konto gekauft und Ihnen in Rechnung gestellt. Namen und Adressen der Kundschaft und, wenn ein Versanddienstleister sie verlangt, Telefonnummern werden an Shippo und den Versanddienstleister übermittelt.",
+    "disclosureCustoms": "Bei Paketen ins Ausland gehen auch Warenbeschreibungen und angegebene Werte an {carrier} und den Versanddienstleister.",
     "disclosureOther": "Etiketten werden über Ihr {carrier}-Konto gekauft und Ihnen in Rechnung gestellt. Namen und Adressen der Kundschaft und, wenn ein Versanddienstleister sie verlangt, Telefonnummern werden an {carrier} und den Versanddienstleister übermittelt.",
     "error": {
       "generic": "Das hat nicht funktioniert. Versuchen Sie es erneut.",
@@ -6265,6 +6266,11 @@
     },
     "limits": {
       "aDay": "pro Tag, alle Packer zusammen.",
+      "abroadBody": "Wenn dies aktiviert ist, sehen Packer mit Zollrecht die angegebenen Werte auf der Zollrechnung. Die unter Zoll-Standardwerte genannte Person bleibt Unterzeichner.",
+      "abroadLabel": "Packer dürfen ins Ausland versenden",
+      "abroadNeedsLimit": "Das wirkt erst, wenn ein Limit für Packer festgelegt ist.",
+      "abroadOff": "Packer dürfen nicht ins Ausland versenden.",
+      "abroadOn": "Packer dürfen ins Ausland versenden.",
       "bought": "von allen Packern zusammen gekauft",
       "cancel": "Abbrechen",
       "count": "{used} von {limit}",

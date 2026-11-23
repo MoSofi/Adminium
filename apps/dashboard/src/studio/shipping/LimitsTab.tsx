@@ -4,7 +4,7 @@
  *
  * The daily limit is ONE count for the whole install, so every word about it
  * says "all packers together". With no limit set, the owner books. The
- * abroad switch is Release 2 and is not drawn.
+ * abroad switch is drawn only once the shop sends parcels abroad.
  *
  * The currency is the saved limit's, else the one the app's database is set
  * to. A rate in any other currency counts as above the limit on the server, so
@@ -13,7 +13,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Lock, Plus, UsersRound } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
-import { Alert, Button, Card, IconTile, Input, ProgressBar } from '@adminium/ui';
+import { Alert, Button, Card, IconTile, Input, ProgressBar, Switch } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
@@ -67,7 +67,14 @@ export function LimitsTab({ app, status, connectionCurrency }: { app: ShippingAp
       setOpening(false);
       toasts.push({
         variant: 'success',
-        title: body.perLabel === null ? t('studio:shipping.limits.stopped', "Packers can't buy labels now. You book them.") : t('studio:shipping.limits.saved', 'Limits saved.'),
+        title:
+          body.packersAbroad !== undefined
+            ? body.packersAbroad
+              ? t('studio:shipping.limits.abroadOn', 'Packers can ship abroad.')
+              : t('studio:shipping.limits.abroadOff', "Packers can't ship abroad.")
+            : body.perLabel === null
+              ? t('studio:shipping.limits.stopped', "Packers can't buy labels now. You book them.")
+              : t('studio:shipping.limits.saved', 'Limits saved.'),
       });
     },
   });
@@ -209,6 +216,27 @@ export function LimitsTab({ app, status, connectionCurrency }: { app: ShippingAp
             </div>
           </>
         )}
+        {status.international ? (
+          <div className="flex flex-wrap items-start gap-3.5 border-t border-border pt-3.5" data-testid="shipping-abroad">
+            <div className="min-w-[220px] flex-1">
+              <span id={`${ids}-abroad`} className="text-[14px] font-bold">
+                {t('studio:shipping.limits.abroadLabel', 'Packers can ship abroad')}
+              </span>
+              <p id={`${ids}-abroad-body`} className="mt-[3px] text-[12.5px] text-fg-muted">
+                {t('studio:shipping.limits.abroadBody', 'When this is on, packers with the customs right see the declared values on the customs invoice. The person named in Customs defaults stays the signer.')}
+                {isSet ? null : ` ${t('studio:shipping.limits.abroadNeedsLimit', 'This has no effect until a packer limit is set.')}`}
+              </p>
+            </div>
+            <Switch
+              aria-labelledby={`${ids}-abroad`}
+              aria-describedby={`${ids}-abroad-body`}
+              checked={saved.packersAbroad}
+              disabled={write.isPending}
+              onCheckedChange={(next) => write.mutate({ perLabel: saved.perLabel, dailyLabels: saved.dailyLabels, packersAbroad: next })}
+              data-testid="shipping-abroad-switch"
+            />
+          </div>
+        ) : null}
       </div>
     </Card>
   );

@@ -841,6 +841,7 @@ export function KeyCarrierCard({
         {isShippo
           ? t('studio:shipping.disclosure', 'Labels are bought on your Shippo account and billed to you. Customer names, addresses and, when a carrier needs it, phone numbers are sent to Shippo and the carrier.')
           : t('studio:shipping.disclosureOther', 'Labels are bought on your {carrier} account and billed to you. Customer names, addresses and, when a carrier needs it, phone numbers are sent to {carrier} and the carrier.', { carrier: name })}
+        {status.international ? ` ${t('studio:shipping.disclosureCustoms', 'For parcels going abroad, goods descriptions and declared values also go to {carrier} and the carrier.', { carrier: name })}` : null}
       </span>
     </p>
   );

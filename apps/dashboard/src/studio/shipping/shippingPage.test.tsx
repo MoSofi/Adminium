@@ -538,6 +538,23 @@ describe('Label size', () => {
   });
 });
 
+describe('what the owner is told goes to the carrier', () => {
+  const opened = async (international: boolean) => {
+    const user = userEvent.setup();
+    mount({ status: statusOf([shippo()], { international }) });
+    const card = await openConnection(user);
+    return within(card).findByText(/billed to you/);
+  };
+
+  it('stays word for word for a shop that keeps to its own country', async () => {
+    expect((await opened(false)).textContent).not.toContain('declared values');
+  });
+
+  it('adds goods and declared values once the shop sends parcels abroad', async () => {
+    expect((await opened(true)).textContent).toContain('goods descriptions and declared values also go to Shippo');
+  });
+});
+
 describe('Who can buy labels', () => {
   it('ties one error to each field and sends nothing', async () => {
     const user = userEvent.setup();
@@ -554,6 +571,31 @@ describe('Who can buy labels', () => {
     expect(describedBy(per)).toContain('most a packer can spend');
     expect(describedBy(day)).toContain('all packers together');
     expect(writes()).toHaveLength(0);
+  });
+
+  it('draws no abroad switch for a shop that does not send parcels abroad', async () => {
+    const user = userEvent.setup();
+    mount({ status: statusOf([connected()], { limits: { perLabel: { amount: '25.00', currency: 'USD' }, dailyLabels: 20, packersAbroad: false, usedToday: 0 } }) });
+    await openTab(user, 'Who can buy labels');
+    await screen.findByTestId('shipping-limit-per');
+    expect(screen.queryByTestId('shipping-abroad')).toBeNull();
+  });
+
+  it('turns packers abroad on with the limits as they are', async () => {
+    const user = userEvent.setup();
+    const status = statusOf([connected()], { international: true, limits: { perLabel: { amount: '25.00', currency: 'USD' }, dailyLabels: 20, packersAbroad: false, usedToday: 0 } });
+    const { writes } = mount({ status, replies: { 'PUT /limits': { status: 200, body: { data: status } } } });
+    await openTab(user, 'Who can buy labels');
+    await user.click(await screen.findByTestId('shipping-abroad-switch'));
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    expect(writes()[0]!.body).toEqual({ perLabel: { amount: '25.00', currency: 'USD' }, dailyLabels: 20, packersAbroad: true });
+  });
+
+  it('says the abroad switch does nothing until a limit is set', async () => {
+    const user = userEvent.setup();
+    mount({ status: statusOf([connected()], { international: true }) });
+    await openTab(user, 'Who can buy labels');
+    expect((await screen.findByTestId('shipping-abroad')).textContent).toContain('no effect until a packer limit is set');
   });
 
   it('saves both limits, with a comma read as a decimal point', async () => {

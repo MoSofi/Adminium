@@ -6219,6 +6219,7 @@ export default {
     },
     "close": "Close",
     "disclosure": "Labels are bought on your Shippo account and billed to you. Customer names, addresses and, when a carrier needs it, phone numbers are sent to Shippo and the carrier.",
+    "disclosureCustoms": "For parcels going abroad, goods descriptions and declared values also go to {carrier} and the carrier.",
     "disclosureOther": "Labels are bought on your {carrier} account and billed to you. Customer names, addresses and, when a carrier needs it, phone numbers are sent to {carrier} and the carrier.",
     "error": {
       "generic": "That did not work. Try again.",
@@ -6275,6 +6276,11 @@ export default {
     },
     "limits": {
       "aDay": "a day, all packers together.",
+      "abroadBody": "When this is on, packers with the customs right see the declared values on the customs invoice. The person named in Customs defaults stays the signer.",
+      "abroadLabel": "Packers can ship abroad",
+      "abroadNeedsLimit": "This has no effect until a packer limit is set.",
+      "abroadOff": "Packers can't ship abroad.",
+      "abroadOn": "Packers can ship abroad.",
       "bought": "bought by all packers together",
       "cancel": "Cancel",
       "count": "{used} of {limit}",

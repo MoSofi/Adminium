@@ -6219,6 +6219,7 @@ export default {
     },
     "close": "Zavřít",
     "disclosure": "Štítky se kupují na vašem účtu Shippo a jsou vám účtovány. Jména zákazníků, adresy a, když to dopravce vyžaduje, telefonní čísla se odesílají Shippo a dopravci.",
+    "disclosureCustoms": "U zásilek do zahraničí se společnosti {carrier} a dopravci posílají také popisy zboží a deklarované hodnoty.",
     "disclosureOther": "Štítky se kupují na vašem účtu {carrier} a jsou vám účtovány. Jména zákazníků, adresy a, když to dopravce vyžaduje, telefonní čísla se odesílají {carrier} a dopravci.",
     "error": {
       "generic": "To se nepovedlo. Zkuste to znovu.",
@@ -6275,6 +6276,11 @@ export default {
     },
     "limits": {
       "aDay": "za den, všichni baliči dohromady.",
+      "abroadBody": "Když je to zapnuté, baliči s celním oprávněním vidí deklarované hodnoty na celní faktuře. Podepisuje dál osoba uvedená ve výchozích celních údajích.",
+      "abroadLabel": "Baliči mohou posílat do zahraničí",
+      "abroadNeedsLimit": "Nemá to žádný účinek, dokud není nastaven limit pro baliče.",
+      "abroadOff": "Baliči nemohou posílat do zahraničí.",
+      "abroadOn": "Baliči mohou posílat do zahraničí.",
       "bought": "koupeno všemi baliči dohromady",
       "cancel": "Zrušit",
       "count": "{used} z {limit}",

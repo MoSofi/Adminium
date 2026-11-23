@@ -6209,6 +6209,7 @@
     },
     "close": "关闭",
     "disclosure": "标签在你的 Shippo 账户上购买，费用向你收取。顾客姓名、地址，以及在承运商需要时的电话号码，会发送给 Shippo 和承运商。",
+    "disclosureCustoms": "对于发往国外的包裹，货物描述和申报价值也会发送给 {carrier} 和承运商。",
     "disclosureOther": "标签在你的 {carrier} 账户上购买，费用向你收取。顾客姓名、地址，以及在承运商需要时的电话号码，会发送给 {carrier} 和承运商。",
     "error": {
       "generic": "没有成功。请重试。",
@@ -6265,6 +6266,11 @@
     },
     "limits": {
       "aDay": "张，所有打包员合计。",
+      "abroadBody": "开启后，拥有海关权限的打包员可在海关发票上看到申报价值。签署人仍为海关默认设置中指定的人员。",
+      "abroadLabel": "打包员可寄往国外",
+      "abroadNeedsLimit": "在设置打包员限额之前，此项不起作用。",
+      "abroadOff": "打包员不可寄往国外。",
+      "abroadOn": "打包员可寄往国外。",
       "bought": "所有打包员合计已购买",
       "cancel": "取消",
       "count": "{used} / {limit}",

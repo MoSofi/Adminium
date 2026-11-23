@@ -43103,6 +43103,10 @@
     "status": "mt",
     "srcHash": "78fa0c5ad5e6"
   },
+  "studio.shipping.disclosureCustoms": {
+    "status": "mt",
+    "srcHash": "1625e85326ad"
+  },
   "studio.shipping.disclosureOther": {
     "status": "mt",
     "srcHash": "75ea06b3ce7e"
@@ -43282,6 +43286,26 @@
   "studio.shipping.limits.aDay": {
     "status": "mt",
     "srcHash": "b9f6c9e2bf9d"
+  },
+  "studio.shipping.limits.abroadBody": {
+    "status": "mt",
+    "srcHash": "0db1dcc2f7d4"
+  },
+  "studio.shipping.limits.abroadLabel": {
+    "status": "mt",
+    "srcHash": "f6ddedeeac35"
+  },
+  "studio.shipping.limits.abroadNeedsLimit": {
+    "status": "mt",
+    "srcHash": "e10f5d81a620"
+  },
+  "studio.shipping.limits.abroadOff": {
+    "status": "mt",
+    "srcHash": "652e809d687a"
+  },
+  "studio.shipping.limits.abroadOn": {
+    "status": "mt",
+    "srcHash": "4187f661ea14"
   },
   "studio.shipping.limits.bought": {
     "status": "mt",

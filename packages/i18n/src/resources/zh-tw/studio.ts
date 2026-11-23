@@ -6219,6 +6219,7 @@ export default {
     },
     "close": "關閉",
     "disclosure": "標籤是在你的 Shippo 帳戶上購買，費用向你收取。顧客姓名、地址，以及在貨運業者需要時的電話號碼，會傳送給 Shippo 和貨運業者。",
+    "disclosureCustoms": "對於寄往國外的包裹，貨物描述和申報價值也會傳送給 {carrier} 和承運商。",
     "disclosureOther": "標籤是在你的 {carrier} 帳戶上購買，費用向你收取。顧客姓名、地址，以及在貨運業者需要時的電話號碼，會傳送給 {carrier} 和貨運業者。",
     "error": {
       "generic": "沒有成功。請再試一次。",
@@ -6275,6 +6276,11 @@ export default {
     },
     "limits": {
       "aDay": "張，所有打包人員合計。",
+      "abroadBody": "開啟後，擁有海關權限的包裝人員可在海關發票上看到申報價值。簽署人仍為海關預設設定中指定的人員。",
+      "abroadLabel": "包裝人員可寄往國外",
+      "abroadNeedsLimit": "在設定包裝人員限額之前，此項不起作用。",
+      "abroadOff": "包裝人員不可寄往國外。",
+      "abroadOn": "包裝人員可寄往國外。",
       "bought": "所有打包人員合計已購買",
       "cancel": "取消",
       "count": "{used} / {limit}",

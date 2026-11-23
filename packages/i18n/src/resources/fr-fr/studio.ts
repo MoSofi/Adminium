@@ -6219,6 +6219,7 @@ export default {
     },
     "close": "Fermer",
     "disclosure": "Les étiquettes sont achetées sur votre compte Shippo et vous sont facturées. Les noms, les adresses des clients et, lorsqu’un transporteur l’exige, leurs numéros de téléphone sont transmis à Shippo et au transporteur.",
+    "disclosureCustoms": "Pour les colis vers l'étranger, la description des marchandises et les valeurs déclarées sont aussi envoyées à {carrier} et au transporteur.",
     "disclosureOther": "Les étiquettes sont achetées sur votre compte {carrier} et vous sont facturées. Les noms, les adresses des clients et, lorsqu’un transporteur l’exige, leurs numéros de téléphone sont transmis à {carrier} et au transporteur.",
     "error": {
       "generic": "Cela n’a pas fonctionné. Réessayez.",
@@ -6275,6 +6276,11 @@ export default {
     },
     "limits": {
       "aDay": "par jour, tous préparateurs confondus.",
+      "abroadBody": "Une fois activé, les préparateurs ayant le droit douane voient les valeurs déclarées sur la facture douanière. La personne désignée dans Valeurs douanières par défaut reste signataire.",
+      "abroadLabel": "Les préparateurs peuvent expédier à l'étranger",
+      "abroadNeedsLimit": "Sans effet tant qu'aucune limite n'est fixée pour les préparateurs.",
+      "abroadOff": "Les préparateurs ne peuvent pas expédier à l'étranger.",
+      "abroadOn": "Les préparateurs peuvent expédier à l'étranger.",
       "bought": "achetées par tous les préparateurs ensemble",
       "cancel": "Annuler",
       "count": "{used} sur {limit}",

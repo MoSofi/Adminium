@@ -6219,6 +6219,7 @@ export default {
     },
     "close": "Luk",
     "disclosure": "Etiketter købes på din Shippo-konto og faktureres til dig. Kundernes navne, adresser og, når et fragtfirma kræver det, telefonnumre sendes til Shippo og fragtfirmaet.",
+    "disclosureCustoms": "For pakker til udlandet sendes varebeskrivelser og angivne værdier også til {carrier} og transportøren.",
     "disclosureOther": "Etiketter købes på din {carrier}-konto og faktureres til dig. Kundernes navne, adresser og, når et fragtfirma kræver det, telefonnumre sendes til {carrier} og fragtfirmaet.",
     "error": {
       "generic": "Det virkede ikke. Prøv igen.",
@@ -6275,6 +6276,11 @@ export default {
     },
     "limits": {
       "aDay": "om dagen, alle pakkere tilsammen.",
+      "abroadBody": "Når dette er slået til, ser pakkere med toldrettigheden de angivne værdier på toldfakturaen. Personen under Toldstandarder er fortsat underskriver.",
+      "abroadLabel": "Pakkere kan sende til udlandet",
+      "abroadNeedsLimit": "Dette har ingen virkning, før der er sat en grænse for pakkere.",
+      "abroadOff": "Pakkere kan ikke sende til udlandet.",
+      "abroadOn": "Pakkere kan sende til udlandet.",
       "bought": "købt af alle pakkere tilsammen",
       "cancel": "Annuller",
       "count": "{used} af {limit}",
