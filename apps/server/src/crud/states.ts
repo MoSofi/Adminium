@@ -167,13 +167,39 @@ export interface StateGuard {
   paidLabelMove?: ((row: Row, from: string, to: string) => Promise<void>) | undefined;
 }
 
+/** How many steps each state is from where a row starts. An undo is never a step forward. */
+function stepsFromStart(states: Pick<TableStatesRule, 'moves'> & Partial<Pick<TableStatesRule, 'initial'>>): ReadonlyMap<string, number> {
+  const forward = (name: string) => (states.moves[name] ?? []).flatMap((next) => (typeof next === 'string' ? [next] : next.undo === true ? [] : [next.to]));
+  const reached = new Set(Object.keys(states.moves).flatMap(forward));
+  const starts = Object.keys(states.moves).filter((name) => !reached.has(name));
+  if (states.initial !== undefined && !starts.includes(states.initial)) starts.push(states.initial);
+  const steps = new Map(starts.map((name) => [name, 0]));
+  const queue = [...starts];
+  for (let at = 0; at < queue.length; at += 1) {
+    const name = queue[at]!;
+    for (const target of forward(name)) {
+      if (steps.has(target)) continue;
+      steps.set(target, steps.get(name)! + 1);
+      queue.push(target);
+    }
+  }
+  return steps;
+}
+
 /**
  * Whether a move takes a row back: a declared undo, a cancel, or a move to a
- * state the row can come forward from to where it is now.
+ * state nearer the start. Two states that can each reach the other are told
+ * apart by that distance, so the step forward of a reversible pair is not a
+ * move back. Where the distance cannot say, a move to a state the row can come
+ * forward from counts as back, and the person is asked.
  */
-export function movesBack(states: Pick<TableStatesRule, 'moves'>, from: string, to: string, move: unknown): boolean {
+export function movesBack(states: Pick<TableStatesRule, 'moves'> & Partial<Pick<TableStatesRule, 'initial'>>, from: string, to: string, move: unknown): boolean {
   if (typeof move === 'object' && move !== null && (move as { undo?: unknown }).undo === true) return true;
   if (/^cancell?ed$/i.test(to)) return true;
+  const steps = stepsFromStart(states);
+  const fromSteps = steps.get(from);
+  const toSteps = steps.get(to);
+  if (fromSteps !== undefined && toSteps !== undefined && fromSteps !== toSteps) return toSteps < fromSteps;
   const seen = new Set<string>([to]);
   const walk = [to];
   while (walk.length > 0) {

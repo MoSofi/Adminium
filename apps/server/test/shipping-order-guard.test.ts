@@ -29,6 +29,18 @@ describe('which moves take an order back', () => {
     expect(movesBack({ moves: MOVES }, 'packed', 'shipped', { to: 'shipped' })).toBe(false);
     expect(movesBack({ moves: MOVES }, 'ready', 'posted', 'posted')).toBe(false);
   });
+
+  // The three shops' real order states: each has a pair of states that can reach each other.
+  it.each([
+    ['Maker Shop', 'placed', { placed: ['making', 'cancelled'], making: ['ready', 'cancelled'], ready: ['posted', 'making'] }, [['making', 'ready'], ['ready', 'posted'], ['placed', 'making']], [['ready', 'making']]],
+    ['Print Shop', 'placed', { placed: ['ready', 'cancelled'], ready: ['collected', 'dispatched', 'placed'] }, [['placed', 'ready'], ['ready', 'dispatched']], [['ready', 'placed']]],
+    ['Online Shop', 'paying', { paying: ['paid', 'cancelled'], awaiting_transfer: ['paid', 'cancelled'], paid: ['packed', 'sent', 'cancelled'], packed: ['shipped', { to: 'paid', undo: true }, 'cancelled'], sent: ['cancelled'] }, [['paid', 'packed'], ['packed', 'shipped'], ['paying', 'paid'], ['awaiting_transfer', 'paid']], [['packed', 'paid']]],
+  ] as const)('%s: the step forward of a reversible pair is not a move back', (_shop, initial, moves, forward, back) => {
+    const states = { initial, moves: moves as never };
+    const move = (from: string, to: string) => ((moves as unknown as Record<string, (string | { to: string })[]>)[from] ?? []).find((one) => (typeof one === 'string' ? one : one.to) === to);
+    for (const [from, to] of forward) expect(movesBack(states, from, to, move(from, to)), `${from} to ${to}`).toBe(false);
+    for (const [from, to] of back) expect(movesBack(states, from, to, move(from, to)), `${from} to ${to}`).toBe(true);
+  });
 });
 
 describe('the state machine asks the guard', () => {
