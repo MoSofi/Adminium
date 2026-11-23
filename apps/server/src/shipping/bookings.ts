@@ -291,6 +291,8 @@ async function recordAnswer(deps: BookingDeps, booking: ShippingBooking, heard: 
   }
   // A sample label on a key that says live: neither a real label nor a clear no, so a person looks at it.
   if (parsed.success && parsed.data.test === true && booking.mode === 'live') return unknown('test-on-live');
+  // The reverse costs real money: a label the carrier calls live must never be filed as a sample that reaches no order.
+  if (parsed.success && parsed.data.test === false && booking.mode === 'test') return unknown('live-on-test');
   return { booking: await recordBought(deps, booking, fields, 0), refusal: null };
 }
 
