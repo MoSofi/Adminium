@@ -85,8 +85,7 @@ export function inboundRoutes(deps: InboundRoutesDeps): FastifyPluginAsync {
         {
           bodyLimit: channel.bodyLimit,
           config: {
-            // Shares the mail notices' budget until the bucket of its own lands with the merge.
-            rateLimitBucket: 'mail-notice',
+            rateLimitBucket: 'inbound-door',
             csrf: 'exempt',
             audit: auditExempt('a provider calling back: the stored event is the record, and a refused call writes nothing'),
           },

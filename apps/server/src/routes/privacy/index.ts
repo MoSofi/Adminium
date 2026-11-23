@@ -17,6 +17,8 @@
  *   GET  /privacy/exports/:id/download   its file, for the person who asked alone
  *   POST /privacy/erase/preview          what an erasure would do: what goes and what stays, with counts
  *   POST /privacy/erase                  erase the person in place, confirmed by the address typed again
+ *   POST /privacy/phone/erase/preview    the same preview for a person known only by phone
+ *   POST /privacy/phone/erase            erase them, confirmed by the number typed again
  *   GET  /privacy/reach                  "Can visitors reach your public pages?": the forms door's own answer
  *   GET  /privacy/counting               "Visitor counting": the level, when counting started, the banner's words, the notice
  *   PUT  /privacy/counting               change the level and the banner's words ("Per visitor" needs the notice: 409)
@@ -81,7 +83,7 @@ import { embeddableApps } from '../../privacy/embeds.js';
 import { addWebsites, readWebsites, removeWebsite, type ListedWebsite } from '../../forms/websites.js';
 import { refuseUnlistedWebsites } from '../../trial/operator-hosts.js';
 import { businessName, privacyNoticeOf, senderPostalAddress } from '../../privacy/business.js';
-import { erasePerson, previewErasure, type EraseDeps } from '../../privacy/erase.js';
+import { erasePerson, erasePhonePerson, previewErasure, previewPhoneErasure, type EraseDeps } from '../../privacy/erase.js';
 import { peopleFoundNotice } from '../../leads/notice.js';
 import type { AnswerFilesRemover } from '../../forms/answers.js';
 import { countsOf, PRIVACY_EXPORT_KIND, personHash } from '../../privacy/export.js';
@@ -95,6 +97,9 @@ import { findPerson, searchAddress, type PersonFound } from '../../privacy/sourc
 import { normaliseAddress } from '../../public-api/claim-code.js';
 import { whatStays } from '../../privacy/what-stays.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { maskPhone } from '../../sms/consent/redact.js';
+import { textSubject } from '../../sms/consent/service.js';
+import type { TextErasure } from '../../sms/erasure.js';
 import {
   countingBody,
   countingReply,
@@ -103,6 +108,8 @@ import {
   eraseReply,
   keepingBody,
   keepingReply,
+  phoneEraseBody,
+  phoneEraseConfirmBody,
   postalAddressBody,
   postalAddressReply,
   privacyAddressBody,
@@ -142,6 +149,8 @@ export interface PrivacyRoutesDeps {
   reviewInstalls?: (() => Promise<AddOnInstalls>) | undefined;
   /** The calendar sync, told of what an erasure wrote. */
   calendars?: EraseDeps['calendars'];
+  /** A phone number's text records, for an erasure (`sms/erasure.ts`). */
+  texts?: TextErasure | undefined;
   /** The view counter of this process: told a new level at once (`views/counter.ts`). */
   counting?: { setLevel: (level: TrackingLevel) => void } | undefined;
 }
@@ -170,7 +179,7 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
   const { meta, secret } = deps;
   const settings = settingsRepo(meta);
   const exports = privacyExportsRepo(meta);
-  const eraseDeps = { meta, manager: deps.manager, consent: deps.consent, storage: deps.storage, secret, signIns: deps.signIns, answerFiles: deps.answerFiles, chatForget: deps.chatForget, reviewInstalls: deps.reviewInstalls, calendars: deps.calendars };
+  const eraseDeps = { meta, manager: deps.manager, consent: deps.consent, storage: deps.storage, secret, signIns: deps.signIns, answerFiles: deps.answerFiles, chatForget: deps.chatForget, reviewInstalls: deps.reviewInstalls, calendars: deps.calendars, texts: deps.texts };
 
   /** Locked keys refused rather than read as "nothing found" (or, for an erasure, half done). */
   async function unlocked<T>(work: () => Promise<T>): Promise<T> {
@@ -530,6 +539,57 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
           action: 'privacy.erase',
           // A person a source found leaves only the days they were told on ("told on {date}"), beside the hash.
           changes: { after: { address: result.address, counts: result.counts, left: result.left.length, filesFailed: result.filesFailed, ...(result.told.length === 0 ? {} : { told: result.told }) } },
+        });
+        return { data: { counts: result.counts, left: result.left, filesFailed: result.filesFailed } };
+      },
+    );
+
+    // ── erasing a person known only by phone ────────────────────────────────
+    // As above. The number goes in a body, never a URL, and only its keyed hash reaches the audit log.
+    const phoneOf = async (raw: string): Promise<string> => {
+      const texts = deps.texts;
+      if (texts === undefined) throw new NotFoundError('Erasing by phone is not available here.');
+      const e164 = texts.exact(raw, await unlocked(() => texts.country()));
+      if (e164 === null) throw new ValidationFailedError('That is not a phone number that can be read. Write it with its country code.', { field: 'phone' });
+      return e164;
+    };
+    const peopleScope = async (request: FastifyRequest): Promise<PrivacyScope> => {
+      const scope = await privacyScopeOf(meta, personOf(request));
+      if (scope === null) throw new ForbiddenError('You do not have the required permission.', 'FORBIDDEN', { permission: PERMISSIONS.privacyPeople });
+      return scope;
+    };
+
+    app.post(
+      '/privacy/phone/erase/preview',
+      { preHandler: people, config: { audit: audited('rbac'), rateLimitBucket: 'privacy-find' }, schema: { body: phoneEraseBody, response: { 200: erasePreviewReply } } },
+      async (request) => {
+        const userId = personOf(request);
+        const e164 = await phoneOf(request.body.phone);
+        const scope = await peopleScope(request);
+        const preview = await unlocked(() => previewPhoneErasure(eraseDeps, e164, { apps: scope.apps, by: userId }));
+        await app.rbac.audit(request, {
+          category: 'data',
+          action: 'privacy.erase.preview',
+          changes: { after: { phone: await hashOf(textSubject(e164)), goes: Object.fromEntries(preview.goes.map((item) => [item.table ?? item.kind, item.count])) } },
+        });
+        return { data: { ...preview, address: maskPhone(e164) } };
+      },
+    );
+
+    app.post(
+      '/privacy/phone/erase',
+      { preHandler: people, config: { audit: audited('rbac'), rateLimitBucket: 'privacy-erase' }, schema: { body: phoneEraseConfirmBody, response: { 200: eraseReply } } },
+      async (request) => {
+        const userId = personOf(request);
+        const e164 = await phoneOf(request.body.phone);
+        const scope = await peopleScope(request);
+        // Typed again, as the dialog asks. Compared as numbers, and the refusal never repeats it.
+        if ((await phoneOf(request.body.confirm).catch(() => null)) !== e164) throw new ConflictError('Type the number again to confirm the erasure.', 'CONFLICT', { reason: 'confirm-mismatch' });
+        const result = await unlocked(() => erasePhonePerson(eraseDeps, e164, { apps: scope.apps, by: userId }));
+        await app.rbac.audit(request, {
+          category: 'data',
+          action: 'privacy.erase',
+          changes: { after: { phone: result.address, counts: result.counts, left: result.left.length, filesFailed: result.filesFailed } },
         });
         return { data: { counts: result.counts, left: result.left, filesFailed: result.filesFailed } };
       },

@@ -124698,6 +124698,963 @@
         }
       }
     },
+    "/api/v1/sms/setup": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "reachability": {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "operator-off",
+                                "network-off",
+                                "desktop",
+                                "not-set",
+                                "this-computer",
+                                "private-network",
+                                "dot-local",
+                                "not-https",
+                                "proxy-hidden",
+                                "reachable"
+                              ]
+                            },
+                            "origin": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "notPort443": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "origin",
+                            "notPort443"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "repliesCanArrive": {
+                          "type": "boolean"
+                        },
+                        "account": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "provider": {
+                                  "type": "string",
+                                  "enum": [
+                                    "twilio",
+                                    "telnyx"
+                                  ]
+                                },
+                                "accountName": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "accountHint": {
+                                  "type": "string"
+                                },
+                                "accountType": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "full",
+                                        "trial"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "keyReadable": {
+                                  "type": "boolean"
+                                },
+                                "sender": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "type": "string",
+                                          "enum": [
+                                            "number",
+                                            "name",
+                                            "pool"
+                                          ]
+                                        },
+                                        "value": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 64
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "value"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "senderTakesReplies": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "yes",
+                                        "no",
+                                        "depends"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "defaultCountry": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "check": {
+                                  "type": "object",
+                                  "properties": {
+                                    "ok": {
+                                      "type": "boolean"
+                                    },
+                                    "reason": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "enum": [
+                                            "credentials-refused",
+                                            "profile-not-found",
+                                            "account-suspended",
+                                            "account-closed",
+                                            "account-disabled",
+                                            "unreachable"
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "at": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "ok",
+                                    "reason",
+                                    "at"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "savedAt": {
+                                  "type": "number"
+                                },
+                                "timeoutRetry": {
+                                  "type": "string",
+                                  "enum": [
+                                    "never",
+                                    "same-key"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "provider",
+                                "accountName",
+                                "accountHint",
+                                "accountType",
+                                "keyReadable",
+                                "sender",
+                                "senderTakesReplies",
+                                "defaultCountry",
+                                "check",
+                                "savedAt",
+                                "timeoutRetry"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "reachability",
+                        "repliesCanArrive",
+                        "account"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sms/account": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "provider": {
+                        "type": "string",
+                        "enum": [
+                          "twilio"
+                        ]
+                      },
+                      "accountSid": {
+                        "type": "string",
+                        "maxLength": 1024
+                      },
+                      "authToken": {
+                        "type": "string",
+                        "maxLength": 1024
+                      }
+                    },
+                    "required": [
+                      "provider",
+                      "accountSid",
+                      "authToken"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "provider": {
+                        "type": "string",
+                        "enum": [
+                          "telnyx"
+                        ]
+                      },
+                      "apiKey": {
+                        "type": "string",
+                        "maxLength": 1024
+                      },
+                      "publicKey": {
+                        "type": "string",
+                        "maxLength": 1024
+                      },
+                      "messagingProfileId": {
+                        "type": "string",
+                        "maxLength": 1024
+                      }
+                    },
+                    "required": [
+                      "provider",
+                      "apiKey",
+                      "publicKey",
+                      "messagingProfileId"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "enum": [
+                            "twilio",
+                            "telnyx"
+                          ]
+                        },
+                        "accountName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "accountHint": {
+                          "type": "string"
+                        },
+                        "accountType": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "full",
+                                "trial"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "keyReadable": {
+                          "type": "boolean"
+                        },
+                        "sender": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "number",
+                                    "name",
+                                    "pool"
+                                  ]
+                                },
+                                "value": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "value"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "senderTakesReplies": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "yes",
+                                "no",
+                                "depends"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "defaultCountry": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "check": {
+                          "type": "object",
+                          "properties": {
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "credentials-refused",
+                                    "profile-not-found",
+                                    "account-suspended",
+                                    "account-closed",
+                                    "account-disabled",
+                                    "unreachable"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "at": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "ok",
+                            "reason",
+                            "at"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "savedAt": {
+                          "type": "number"
+                        },
+                        "timeoutRetry": {
+                          "type": "string",
+                          "enum": [
+                            "never",
+                            "same-key"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "provider",
+                        "accountName",
+                        "accountHint",
+                        "accountType",
+                        "keyReadable",
+                        "sender",
+                        "senderTakesReplies",
+                        "defaultCountry",
+                        "check",
+                        "savedAt",
+                        "timeoutRetry"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/sms/sending": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sender": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "number",
+                          "name",
+                          "pool"
+                        ]
+                      },
+                      "value": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "defaultCountry": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 2
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "sender",
+                  "defaultCountry"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "enum": [
+                            "twilio",
+                            "telnyx"
+                          ]
+                        },
+                        "accountName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "accountHint": {
+                          "type": "string"
+                        },
+                        "accountType": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "full",
+                                "trial"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "keyReadable": {
+                          "type": "boolean"
+                        },
+                        "sender": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "number",
+                                    "name",
+                                    "pool"
+                                  ]
+                                },
+                                "value": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "value"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "senderTakesReplies": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "yes",
+                                "no",
+                                "depends"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "defaultCountry": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "check": {
+                          "type": "object",
+                          "properties": {
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "credentials-refused",
+                                    "profile-not-found",
+                                    "account-suspended",
+                                    "account-closed",
+                                    "account-disabled",
+                                    "unreachable"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "at": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "ok",
+                            "reason",
+                            "at"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "savedAt": {
+                          "type": "number"
+                        },
+                        "timeoutRetry": {
+                          "type": "string",
+                          "enum": [
+                            "never",
+                            "same-key"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "provider",
+                        "accountName",
+                        "accountHint",
+                        "accountType",
+                        "keyReadable",
+                        "sender",
+                        "senderTakesReplies",
+                        "defaultCountry",
+                        "check",
+                        "savedAt",
+                        "timeoutRetry"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sms/check": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "enum": [
+                            "twilio",
+                            "telnyx"
+                          ]
+                        },
+                        "accountName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "accountHint": {
+                          "type": "string"
+                        },
+                        "accountType": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "full",
+                                "trial"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "keyReadable": {
+                          "type": "boolean"
+                        },
+                        "sender": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "number",
+                                    "name",
+                                    "pool"
+                                  ]
+                                },
+                                "value": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "value"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "senderTakesReplies": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "yes",
+                                "no",
+                                "depends"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "defaultCountry": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "check": {
+                          "type": "object",
+                          "properties": {
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "credentials-refused",
+                                    "profile-not-found",
+                                    "account-suspended",
+                                    "account-closed",
+                                    "account-disabled",
+                                    "unreachable"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "at": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "ok",
+                            "reason",
+                            "at"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "savedAt": {
+                          "type": "number"
+                        },
+                        "timeoutRetry": {
+                          "type": "string",
+                          "enum": [
+                            "never",
+                            "same-key"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "provider",
+                        "accountName",
+                        "accountHint",
+                        "accountType",
+                        "keyReadable",
+                        "sender",
+                        "senderTakesReplies",
+                        "defaultCountry",
+                        "check",
+                        "savedAt",
+                        "timeoutRetry"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sms/test": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "to"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "type": "string",
+                          "enum": [
+                            "accepted",
+                            "not-taken",
+                            "refused",
+                            "unknown"
+                          ]
+                        },
+                        "reason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "detail": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "resend": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "same-key",
+                                "check-first"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "providerCode": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "outcome",
+                        "reason",
+                        "detail",
+                        "resend",
+                        "providerCode"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/payments/attempts/{id}/refund": {
       "get": {
         "parameters": [
@@ -135097,7 +136054,8 @@
                                   "chat-conversations",
                                   "page-visits",
                                   "found-people",
-                                  "reviews"
+                                  "reviews",
+                                  "text-records"
                                 ]
                               },
                               "count": {
@@ -135269,6 +136227,314 @@
                   "address",
                   "confirm"
                 ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "counts": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "number"
+                          }
+                        },
+                        "left": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "connectionId": {
+                                "type": "string"
+                              },
+                              "table": {
+                                "type": "string"
+                              },
+                              "column": {
+                                "type": "string"
+                              },
+                              "rows": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "connectionId",
+                              "table",
+                              "column",
+                              "rows"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "filesFailed": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "counts",
+                        "left",
+                        "filesFailed"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/privacy/phone/erase/preview": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "phone"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "address": {
+                          "type": "string"
+                        },
+                        "found": {
+                          "type": "boolean"
+                        },
+                        "goes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "people",
+                                  "copy",
+                                  "outbox",
+                                  "consent",
+                                  "campaign-mail",
+                                  "files",
+                                  "form-answers",
+                                  "form-invitations",
+                                  "form-files",
+                                  "chat-conversations",
+                                  "page-visits",
+                                  "found-people",
+                                  "reviews",
+                                  "text-records"
+                                ]
+                              },
+                              "count": {
+                                "type": "number"
+                              },
+                              "connectionId": {
+                                "type": "string"
+                              },
+                              "table": {
+                                "type": "string"
+                              },
+                              "app": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "count"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "stays": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "app-rows",
+                                  "documents",
+                                  "invoices",
+                                  "payments",
+                                  "payment-events",
+                                  "automation-runs",
+                                  "notifications",
+                                  "campaign-failures",
+                                  "exports",
+                                  "do-not-email",
+                                  "held-values"
+                                ]
+                              },
+                              "reason": {
+                                "type": "string",
+                                "enum": [
+                                  "tax",
+                                  "health",
+                                  "contract",
+                                  "safety",
+                                  "issued-document",
+                                  "payment-records",
+                                  "kept-a-while",
+                                  "objection",
+                                  "live-balance"
+                                ]
+                              },
+                              "count": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "keptDays": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "forever": {
+                                "type": "boolean"
+                              },
+                              "connectionId": {
+                                "type": "string"
+                              },
+                              "table": {
+                                "type": "string"
+                              },
+                              "app": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "reason",
+                              "count",
+                              "keptDays",
+                              "forever"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "left": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "connectionId": {
+                                "type": "string"
+                              },
+                              "table": {
+                                "type": "string"
+                              },
+                              "column": {
+                                "type": "string"
+                              },
+                              "rows": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "connectionId",
+                              "table",
+                              "column",
+                              "rows"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "address",
+                        "found",
+                        "goes",
+                        "stays",
+                        "left"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/privacy/phone/erase": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 64
+                  },
+                  "confirm": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "phone",
+                  "confirm"
+                ],
+                "additionalProperties": false
               }
             }
           }

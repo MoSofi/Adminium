@@ -83,6 +83,10 @@ const SWEEP: Record<PolicyQuestion, BothWays> = {
     refused: p('trial-mode.test.ts', 'in trial mode: payments say the operator switched them off and refuse a key'),
     allowed: p('trial-mode.test.ts', 'on an ordinary server and a hosted one: payments reach the service code, maps keep their servers'),
   },
+  smsProviders: {
+    refused: p('sms-wiring.test.ts', 'in trial mode: text messages are off, and no provider is asked'),
+    allowed: p('sms-wiring.test.ts', 'on an ordinary server and a hosted one: text messages reach the provider'),
+  },
   geoServers: {
     refused: p('trial-mode.test.ts', 'in trial mode: payments say the operator switched them off and refuse a key; maps and routing are off'),
     allowed: p('trial-mode.test.ts', 'on an ordinary server and a hosted one: payments reach the service code, maps keep their servers'),

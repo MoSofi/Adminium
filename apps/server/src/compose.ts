@@ -405,6 +405,7 @@ import { schemaImportRoutes } from './routes/schema-import/index.js';
 import { searchRoutes } from './routes/search/index.js';
 import { geoRoutes } from './routes/geo/index.js';
 import { paymentsRoutes } from './routes/payments/index.js';
+import { createSmsWiring, INBOUND_SWEEP_CRON, INBOUND_SWEEP_SCHEDULE } from './sms/wiring.js';
 import { paymentPayablesRoutes } from './routes/payments/payables.js';
 import { paymentWaysRoutes } from './routes/payments/ways.js';
 import { createLinkRights, paymentLinksRoutes } from './routes/payments/links.js';
@@ -1981,6 +1982,28 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // …and the declared columns that mirror it: a write told to the log, a log event written into the column.
   peopleConsent = createPeopleConsent({ meta, consent, tables: consentTables, viewFor: (connectionId) => publicViews.viewFor(connectionId), log: app.log });
   const consentMirror = peopleConsent;
+  // Text messages: the provider account, text consent and the inbound door. Built whether or not an account is
+  // connected, and silent until one is: no provider call, no required setting, and the sweep queues nothing.
+  const sms = createSmsWiring({
+    meta,
+    secret: env.ADMINIUM_SECRET,
+    networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+    desktop: env.ADMINIUM_RUNTIME === 'desktop',
+    trustProxy: env.ADMINIUM_TRUST_PROXY,
+    operator: () => app.trialPolicy.allows('smsProviders'),
+    log: app.log,
+  });
+  sms.registerJobs(jobs.registry);
+  // Without this a stored event whose job could not be queued is never processed, and a STOP lost while the server was up is never found.
+  jobs.scheduler.registerSchedule(INBOUND_SWEEP_SCHEDULE, INBOUND_SWEEP_CRON, async () => sms.enqueueSweep((input) => jobs.enqueue(input)));
+  // What the provider took while this server was down. After start-up and never holding it up; a copy told to run nothing asks nothing.
+  if (env.ADMINIUM_SCHEDULER) {
+    app.addHook('onReady', async () => {
+      void sms.catchUpAtBoot().catch(() => {
+        app.log.warn('sms catch-up could not run at start');
+      });
+    });
+  }
   // A person's data downloaded for them ("Download everything"): written by a job, deleted once its time is up.
   // "Download everything": their reviews among their data too.
   registerPrivacyExportHandler(jobs.registry, { meta, manager, consent, storage, secret: env.ADMINIUM_SECRET, reviewInstalls: () => addOnInstalls.fresh() });
@@ -2892,6 +2915,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(paymentWebhookRoutes({ meta, providerFor: paymentProviderLookup, enqueue: (input) => jobs.enqueue(input), notices: paymentNotices }));
       // Where a mail service tells of bounces, spam reports and its own unsubscribes: no session, its own proof is the gate.
       await api.register(mailNoticeRoutes({ meta, secret: env.ADMINIUM_SECRET, consent, networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY }));
+      // Studio → Text messages, and the door a provider hands texts and reports to. Its token is scrubbed from the request log (`log-scrub.ts`).
+      await api.register(sms.settingsRoutes());
+      await api.register(sms.doorRoutes());
       // Refunding a payment: what the dialog shows, and the confirm step.
       await api.register(paymentRefundRoutes(paymentRefundDeps));
       await api.register(paymentActivityRoutes({ meta }));
@@ -2968,6 +2994,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           // …and blanks the name on their reviews, keeping the words.
           reviewInstalls: () => addOnInstalls.fresh(),
         calendars: calendarSync,
+          // A phone number's text records, for an erasure.
+          texts: sms.erasure,
           // A new counting level is used by this process's counter at once.
           counting: counting.counter,
         }),
@@ -4051,6 +4079,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         chatForget: (place, id) => chatStore.forget(place, id),
         reviewInstalls: () => addOnInstalls.fresh(),
         calendars: calendarSync,
+        texts: sms.erasure,
       },
       address,
       scope,

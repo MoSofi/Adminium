@@ -228,4 +228,14 @@ describe('the inbound door in the request log', () => {
     expect(logged()).not.toContain('14155552671');
     expect(logged()).toContain(`"url":"${scrubbed}"`);
   });
+
+  it('is registered, and with no provider connected answers 503 so the provider keeps the event', async () => {
+    const res = await composed.app.inject({ method: 'POST', url: `/api/v1/inbound/sms/twilio/${secret}`, headers: { 'content-type': 'application/x-www-form-urlencoded' }, payload: 'Body=STOP' });
+    expect(res.statusCode).toBe(503);
+    expect(res.json()).toEqual({ received: false });
+  });
+
+  it('keeps the sweep on the schedule', () => {
+    expect(composed.jobs.scheduler.names()).toContain('inbound-sweep');
+  });
 });

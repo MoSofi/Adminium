@@ -299,6 +299,15 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'GET /api/v1/email-blocks': noRows('Reusable blocks of an email design.'),
   'POST /api/v1/email-blocks': noRows('Reusable blocks of an email design.'),
   'DELETE /api/v1/email-blocks/:id': noRows('Reusable blocks of an email design.'),
+  // --- /inbound
+  'POST /api/v1/inbound/sms/:source/:token': noRows('A text message provider calling back: the event is stored once in meta; no source row is read.'),
+  // --- /sms
+  'GET /api/v1/sms/setup': noRows('The server\'s text message account, as hints, and whether replies can arrive: kept in meta.'),
+  'PUT /api/v1/sms/account': noRows('The server\'s text message provider key, kept encrypted in meta.'),
+  'PUT /api/v1/sms/sending': noRows('The sender and default country of the text message account, kept in meta.'),
+  'POST /api/v1/sms/check': noRows('Asks the text message provider about the saved key; nothing of a source table.'),
+  'POST /api/v1/sms/test': noRows('One fixed test text to a number typed by the person; reads no row.'),
+  'DELETE /api/v1/sms/account': noRows('Removes the text message provider key from meta.'),
   // --- /email/notices
   'POST /api/v1/email/notices/:service/:token': noRows('A mail service calling back: the addresses it reports go on the do-not-email list in meta; no source row is read.'),
   // --- /email-audience
@@ -583,6 +592,8 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'GET /api/v1/privacy/exports/:id': noRows('One of the person\'s own downloads: a meta row.'),
   'GET /api/v1/privacy/exports/:id/download': rows('own', 'The file is its requester\'s alone, and only while they hold the privacy action.'),
   'POST /api/v1/privacy/erase/preview': rows('system', 'A person\'s rows by their address, read whole under the privacy action, past every role\'s table and row limits, to count what an erasure takes; answers counts only.'),
+  'POST /api/v1/privacy/phone/erase/preview': rows('system', 'A person\'s rows by their exact phone number, read whole under the privacy action, past every role\'s table and row limits, to count what an erasure takes; answers counts only.'),
+  'POST /api/v1/privacy/phone/erase': rows('system', 'A person known only by phone erased in place under the privacy action, as the system: the rows holding that exact number on every people table, past every role\'s table and row limits.'),
   'POST /api/v1/privacy/erase': rows('system', 'A person erased in place under the privacy action, as the system: every row of theirs on every people table, their declared copies and their outbox mail, past every role\'s table and row limits (a role\'s reach would stop it half-way).'),
   'GET /api/v1/privacy/reach': noRows('Whether visitors can reach the public pages: settings and the request, no source row.'),
   'GET /api/v1/forms/mail': noRows('Whether mail a stranger causes through a form goes: two settings, no source row.'),
@@ -746,6 +757,8 @@ export const JOB_ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'noop-progress': noRows('A test job that counts to a hundred.'),
   'llm-run': rows('all', 'Sends figures of the tables its requester reaches wholly; a limited or private table gives none.'),
   'email.send': noRows('One mail to an address already chosen; reads no row.'),
+  'inbound.parse': noRows('Acts on one stored inbound event: the text stop list, consent and delivery records in meta; reads no source row.'),
+  'inbound.sweep': noRows('Re-queues stored inbound events and applies their retention, in meta; reads no source row.'),
   'email.campaign-run': rows(['list', 'visible'], 'Mail to the server\'s users reads Adminium\'s own tables; a table\'s people are listed as the run\'s sender lists them, and each row is read again through their row test at every batch.'),
   'document.render': rows(['visible', 'whole'], 'Renders as its requester: the head record as its reader, the body whole or refused; a private table is refused.'),
   'assistant.turn': rows(['list', 'sub', 'link'], 'A turn reads and writes as the person who asked, resolved when it runs.'),

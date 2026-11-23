@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The SMS account store for tests, and the contract any store must meet. The
- * real one waits for its migration: at merge, run {@link describeSmsStoreContract}
- * over it on SQLite, Postgres and MySQL.
+ * The SMS account store for tests, and the contract any store must meet.
+ * `sms-wiring.test.ts` runs {@link describeSmsStoreContract} over the real one
+ * on SQLite, Postgres and MySQL.
  */
 import { describe, expect, it } from 'vitest';
 
