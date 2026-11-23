@@ -230,6 +230,8 @@ export interface AppRoutesDeps {
    * that does is refused with a reason rather than half-applied.
    */
   schemaTarget?: AppSchemaTarget | undefined;
+  /** Tables an uninstall is about to delete: their shipping labels let go of them. */
+  retireShippingTables?: ((connectionId: string, tableNames: readonly string[]) => Promise<unknown>) | undefined;
   /**
    * The consent log and the do-not-email list, for what an update carries
    * over once (`people-carry.ts`). Absent, an update with a carry says so in
@@ -734,6 +736,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     meta: deps.meta,
     credentialCrypto: deps.credentialCrypto,
     schemaTarget: deps.schemaTarget,
+    retireShippingTables: deps.retireShippingTables,
     invalidateKey: (keyId) => deps.publicAccess?.invalidateKey?.(keyId),
     names: () => installedAppNames(),
     dropEndpointGrants: async (connectionId, endpointIds) => deps.publicAccess?.service.dropEndpointGrants({ connectionId, endpointIds }),

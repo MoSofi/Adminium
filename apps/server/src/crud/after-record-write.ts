@@ -40,6 +40,7 @@
  * stamped here at the source.
  */
 
+import { rowKeyOf } from '../payments/payables.js';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyInstance } from 'fastify';
 import {
@@ -238,6 +239,10 @@ export async function emitRecordEvent(app: FastifyInstance, event: RecordWriteEv
   if (event.action === 'delete' && event.table.table?.removal?.history === true && app.hasDecorator('rbac')) {
     const by: RemovalActor = event.by ?? (event.origin === 'automation' ? { kind: 'automation', id: null, label: 'Automation' } : { kind: 'system', id: null, label: 'Adminium' });
     await keepRemoved(app.rbac.meta, { connectionId: event.connectionId, table: event.table, rows: [{ pk: event.entity.pk as Row, before: event.before }], reason: event.reason ?? null, actor: by }, (error) => app.log.warn({ err: error, table: event.table.id }, 'removals: the removed row could not be kept'));
+  }
+  // A deleted row's id can come back on a new row, so its settled shipping labels let go of it. Never throws.
+  if (event.action === 'delete' && event.before !== null && app.hasDecorator('shippingRows')) {
+    await app.shippingRows.onRowDeleted(event.connectionId, event.table.id, rowKeyOf(event.table, event.before));
   }
   // An app's emails are queued whether or not any rule exists; the producers never throw.
   if (app.hasDecorator('outbox')) await app.outbox.onRecordEvent(event);

@@ -37,6 +37,8 @@ export { SHIPPING_CARRIER_TEXT_WIDTH, SHIPPING_LABEL_SIZE_WIDTH, SHIPPING_REASON
 
 /** What a stored label file is filed as. */
 export const SHIPPING_LABEL_FILE_KIND = 'ship-label';
+/** Where a booking points once its row is gone for good. No real table can have this name, so no new row can ever match it. */
+export const SHIPPING_RETIRED_TABLE = '~retired';
 
 /** The documents a booking can hold a stored file of. */
 export type ShippingDocumentKind = 'label' | 'customs-invoice';
@@ -684,6 +686,28 @@ export function shippingBookingsRepo(meta: MetaDb) {
       const row = await db.selectFrom('adminium_shipping_bookings').select(['labelRef', 'customsRef']).where('id', '=', id).executeTakeFirst();
       await db.updateTable('adminium_shipping_bookings').set({ labelRef: null, customsRef: null, labelSizeGot: null }).where('id', '=', id).execute();
       return [row?.labelRef ?? null, row?.customsRef ?? null].filter((one): one is string => one !== null);
+    },
+
+    /** Every booking on these tables. */
+    async onTables(connectionId: string, tableNames: readonly string[]): Promise<ShippingBooking[]> {
+      if (tableNames.length === 0) return [];
+      const rows = await db.selectFrom('adminium_shipping_bookings').selectAll().where('connectionId', '=', connectionId).where('tableName', 'in', [...tableNames]).orderBy('id', 'asc').execute();
+      return rows.map(toBooking);
+    },
+
+    /**
+     * These bookings' rows are gone and their ids can come back on new rows.
+     * Each lets go of its row and its place for good, and nothing is left to
+     * write to the order. The record of the purchase stays.
+     */
+    async retire(ids: readonly string[], at: number): Promise<void> {
+      for (const id of ids) {
+        await db
+          .updateTable('adminium_shipping_bookings')
+          .set((eb) => ({ tableName: SHIPPING_RETIRED_TABLE, tableRef: SHIPPING_RETIRED_TABLE, rowKey: id, openKey: null, appliedAt: eb.fn.coalesce('appliedAt', eb.val(at)), updatedAt: at }))
+          .where('id', '=', id)
+          .execute();
+      }
     },
 
     /** The real tables of this database that have ever had a booking. */

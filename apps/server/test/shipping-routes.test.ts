@@ -1968,6 +1968,31 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
     expect(await settings().quote((home.json() as Doc)['data']['quoteId'])).not.toBeNull();
   });
 
+  it.skipIf(!available)('a reinstall after deleting its tables hands no old label to a new order', async () => {
+    const goneId = installs['gone']!;
+    const id = await order('gone');
+    // A real bought label with its file, moved onto this app's order.
+    const { booking } = await bookedWithLabel();
+    const label = booking['id'] as string;
+    await h.meta.db.updateTable('adminium_shipping_bookings').set({ installId: goneId, tableName: tables[`${conn}:gone`]!, rowKey: id }).where('id', '=', label).execute();
+    const removed = await composed.app.inject({ method: 'DELETE', url: `/api/v1/apps/gone?connectionId=${encodeURIComponent(conn)}`, headers: { cookie: cookies['boss']! }, payload: { dropTables: true, confirmKey: 'gone' } });
+    expect(removed.statusCode, removed.body).toBe(200);
+    delete installs['gone'];
+    await h.stageApp(shopDoc('gone', true));
+    expect((await h.install('gone', '1.0.0', { shippingUnticked: [] })).statusCode).toBe(200);
+    installs['gone'] = (await repo.findInScope('gone', conn))!.row.id;
+    await order('gone', { id: Number(id) });
+    await settings().setShipFrom(installs['gone']!, SHIP_FROM, null, 1);
+    await settings().setActiveCarrier(installs['gone']!, 'carrier-one', null, 1);
+    const listed = await composed.app.inject({ method: 'GET', url: `/api/v1/apps/gone/shipping/bookings?connectionId=${encodeURIComponent(conn)}&table=orders&id=${id}`, headers: { cookie: cookies['boss']! } });
+    expect(listed.statusCode, listed.body).toBe(200);
+    const shown = (listed.json() as Doc)['data'] as Doc;
+    expect(shown['bookings']).toEqual([]);
+    // This test app has no carrier attached. What matters is that no old booking holds the parcel's place.
+    expect(shown['blockedBy']).not.toBe('booking');
+    expect(await bookings().byId(label)).toMatchObject({ tableName: '~retired', labelRef: null, labelGoneWhy: 'erased', openKey: null });
+  });
+
   it.skipIf(!available)('forgets an app\'s choice, Ship from and quotes when it is uninstalled', async () => {
     const goneId = installs['gone']!;
     await settings().setShipFrom(goneId, SHIP_FROM, null, 1);

@@ -431,7 +431,7 @@ import { registerPrivacyExportHandler, sweepPrivacyExports } from './privacy/exp
 import { moveHeldToAddress, sweepKeptHolders } from './privacy/held-values.js';
 import { installedCustomerKey } from './public-api/customer-key.js';
 import { sweepFormAnswers } from './forms/answers.js';
-import { SHIPPING_LABELS_SWEEP_CRON, SHIPPING_LABELS_SWEEP_NAME, sweepLabelFiles } from './shipping/labels.js';
+import { retireDeletedRow, retireDroppedTables, SHIPPING_LABELS_SWEEP_CRON, SHIPPING_LABELS_SWEEP_NAME, sweepLabelFiles } from './shipping/labels.js';
 import { ADD_ON_EXPIRE_SWEEP_CRON, ADD_ON_EXPIRE_SWEEP_NAME, sweepExpiredRows } from './add-ons/expire.js';
 import { mailNoticeRoutes } from './routes/mail-door/notices.js';
 import { createPayPageReader, payRoutes, type PayRoutesDeps } from './routes/pay/index.js';
@@ -1440,6 +1440,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // A guest's file for an app's file column: held for the public write that names it, then that row's own.
   const columnUploads = createColumnUploads({ meta, data: (connectionId) => manager.data(connectionId), viewFor: (connectionId) => publicViews.viewFor(connectionId), log: app.log });
   app.decorate('formsFiles', formsFiles);
+  app.decorate('shippingRows', {
+    onRowDeleted: async (connectionId: string, tableName: string, rowKey: string) => {
+      try {
+        await retireDeletedRow({ meta, storage }, connectionId, tableName, rowKey, Date.now());
+      } catch (error) {
+        app.log.warn({ err: error, connectionId, tableName }, 'a deleted row kept its shipping labels');
+      }
+    },
+  });
   const ledgers = createLedgerRuntime({
     installs: () => addOnInstalls.current(),
     refresh: () => addOnInstalls.fresh(),
@@ -3124,6 +3133,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       });
       const appDeps: AppRoutesDeps = {
         meta,
+        retireShippingTables: (connectionId, tableNames) => retireDroppedTables({ meta, storage }, connectionId, tableNames, Date.now()),
         store: appStore,
         files: appFiles,
         installed: installedApps,
