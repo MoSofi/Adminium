@@ -98,6 +98,7 @@ function shopDoc(key: string, customs: boolean): Record<string, unknown> {
             { ref: 'qty', type: 'int', nullable: true },
             { ref: 'unit_price', type: 'decimal', scale: 'currency', nullable: true },
             { ref: 'grams', type: 'int', nullable: true },
+            text('cancelled_at'),
           ],
         },
       ],
@@ -117,7 +118,7 @@ function shopDoc(key: string, customs: boolean): Record<string, unknown> {
           carrier: 'carrier_name',
           address: { name: 'ship_name', lines: ['ship_line1'], city: 'ship_city', postcode: 'ship_postcode', country: 'ship_country', phone: 'ship_phone', email: 'ship_email' },
           ...(customs
-            ? { customs: { lines: { table: 'order_lines', order: 'order_id', quantity: 'qty', unitValue: 'unit_price', description: 'name', unitWeight: 'grams', weightUnit: 'g', product: { column: 'product_id', table: 'products', sku: 'code' } } } }
+            ? { customs: { lines: { table: 'order_lines', order: 'order_id', quantity: 'qty', unitValue: 'unit_price', description: 'name', unitWeight: 'grams', weightUnit: 'g', product: { column: 'product_id', table: 'products', sku: 'code' }, unlessSet: 'cancelled_at' } } }
             : {}),
         },
       ],
@@ -293,6 +294,17 @@ describe.each(LEGS)('a parcel going abroad on %s', (dialect, available) => {
     const id = await order({}, [{ name: 'Cards', qty: 1, unit_price: '5.00', grams: 10 }], 'plain');
     expect(code(await quote(id, ticked, 'boss', 'plain'))).toBe('OUTSIDE_OWN_COUNTRY');
     expect(fake().made).toBe(0);
+  });
+
+  it.skipIf(!available)('declares only the lines still in the parcel, with a cancelled one left off', async () => {
+    expect((await setUp()).statusCode).toBe(200);
+    const id = await order({}, [
+      { name: 'Kept cards', qty: 2, unit_price: '5.00', grams: 100, product_id: 1 },
+      { name: 'Cancelled posters', qty: 9, unit_price: '9.00', grams: 100, product_id: 1, cancelled_at: '2026-11-23' },
+    ]);
+    const lines = ((await form(id)).json() as Doc)['data']['lines'] as { description: string; quantity: number }[];
+    expect(lines.map((line) => [line.description, line.quantity])).toEqual([['Kept cards', 2]]);
+    expect((await setUp({ countries: [] })).statusCode).toBe(200);
   });
 
   it.skipIf(!available)('listing no country takes a shop back to its own', async () => {

@@ -267,6 +267,7 @@ export async function readGoods(
     .selectFrom(lineTable.id)
     .select(wanted.map((column) => db.dynamic.ref<string>(column)))
     .where((eb) => eb(db.dynamic.ref(lines.order), '=', order[orderKey]))
+    .$if(lines.unlessSet !== undefined, (query) => query.where((eb) => eb(db.dynamic.ref(lines.unlessSet!), 'is', null)))
     .orderBy(db.dynamic.ref(lineKey))
     .limit(MAX_CUSTOMS_LINES + 1)
     .execute()) as Row[];

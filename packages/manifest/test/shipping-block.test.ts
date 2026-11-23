@@ -89,7 +89,7 @@ describe('the shipping block', () => {
 
     it('takes the required columns, and every optional one', () => {
       expect(messages(withLines({ lines }))).toEqual([]);
-      expect(messages(withLines({ currency: 'ship_country', lines: { ...lines, sku: 'code', unitWeight: 'grams', weightUnit: 'g', product: { column: 'order_id', table: 'products', sku: 'sku' } } }))).toEqual([]);
+      expect(messages(withLines({ currency: 'ship_country', lines: { ...lines, sku: 'code', unitWeight: 'grams', weightUnit: 'g', product: { column: 'order_id', table: 'products', sku: 'sku' }, unlessSet: 'code' } }))).toEqual([]);
     });
 
     it('asks for the release that reads it', () => {
@@ -107,6 +107,7 @@ describe('the shipping block', () => {
       ['a weight with no unit', { lines: { ...lines, unitWeight: 'grams' } }, 'unitWeight and weightUnit go together'],
       ['a unit with no weight', { lines: { ...lines, weightUnit: 'kg' } }, 'unitWeight and weightUnit go together'],
       ['a product table it does not have', { lines: { ...lines, product: { column: 'order_id', table: 'nope', sku: 'sku' } } }, 'is not a table of this app'],
+      ['a cancelled-line column it does not have', { lines: { ...lines, unlessSet: 'nope' } }, 'has no column "nope"'],
       ['a product SKU it does not have', { lines: { ...lines, product: { column: 'order_id', table: 'products', sku: 'nope' } } }, 'has no column "nope"'],
     ])('refuses %s', (_name, customs, message) => {
       expect(messages(withLines(customs)).join()).toContain(message);

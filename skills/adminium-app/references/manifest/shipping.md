@@ -72,6 +72,7 @@ owner has listed that country. The block needs Adminium 0.3.74 or later.
 | `lines.sku` | no | A text column on the line. |
 | `lines.product` | no | Where a line's SKU is kept when the line has none: its column, the products table and that table's text column. |
 | `lines.unitWeight`, `lines.weightUnit` | no | One unit's net weight and `g` or `kg`, both or neither. Without them the parcel's weight is shared across its units. |
+| `lines.unlessSet` | no | A column of the line that, once filled, means the line is not in the parcel (`cancelled_at`). Such a line is never declared. |
 | `currency` | no | The order's column holding its currency. Without it the shop's customs currency is used. |
 
 Quantities and values are read from these columns and cannot be changed by a request.

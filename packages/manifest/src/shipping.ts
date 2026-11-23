@@ -79,6 +79,8 @@ const shippingCustomsSchema = z
         weightUnit: z.enum(['g', 'kg']).optional(),
         /** Where a line's SKU is kept when the line itself does not hold one. */
         product: z.object({ column: refSchema, table: refSchema, sku: refSchema }).strict().optional(),
+        /** A column that, once filled, says this line is not in the parcel: a cancelled line is never declared. */
+        unlessSet: refSchema.optional(),
       })
       .strict(),
     /** The order's column holding its currency. Without one, the shop's customs currency is used. */
@@ -177,6 +179,7 @@ export function shippingIssues<C extends { ref: string; type: string }>(m: { shi
         if (lines.sku !== undefined) onTable(lines.table, lines.sku, TEXT_TYPES, inLines('sku'));
         if (lines.unitWeight !== undefined) onTable(lines.table, lines.unitWeight, WEIGHT_TYPES, inLines('unitWeight'));
         if (lines.product !== undefined) onTable(lines.table, lines.product.column, null, inLines('product', 'column'));
+        if (lines.unlessSet !== undefined) onTable(lines.table, lines.unlessSet, null, inLines('unlessSet'));
       }
       if (lines.product !== undefined) {
         if (index.table(lines.product.table) === undefined) out.push({ path: inLines('product', 'table'), message: `"${lines.product.table}" is not a table of this app` });
