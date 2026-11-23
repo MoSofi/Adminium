@@ -448,11 +448,12 @@ export const importZip: ImportZip = async (opts) => {
 
     // An app's role takes the bundle's rows, which may be older than the record of whose limit is whose: sorted at the next
     // start, and until then no update changes them.
+    // Only the install each role names: a role left behind by an install that went names none, and has nothing to sort it.
     if (targetRoleIds.length > 0) {
-      const appRoles = await trx.selectFrom('adminium_roles').select(['appKey', 'manifestId']).where('id', 'in', targetRoleIds).where('appKey', 'is not', null).execute();
-      if (appRoles.length > 0) {
-        const keys = [...new Set(appRoles.map((one) => one.appKey as string))];
-        const installs = await trx.selectFrom('adminium_manifests').select('id').where('manifestKey', 'in', keys).execute();
+      const appRoles = await trx.selectFrom('adminium_roles').select('manifestId').where('id', 'in', targetRoleIds).where('appKey', 'is not', null).where('manifestId', 'is not', null).execute();
+      const named = [...new Set(appRoles.map((one) => one.manifestId as string))];
+      const installs = named.length === 0 ? [] : await trx.selectFrom('adminium_manifests').select('id').where('id', 'in', named).execute();
+      if (installs.length > 0) {
         const pending = await settings.get('system.ownerRowLimitsPending');
         await settings.set('system.ownerRowLimitsPending', [...new Set([...pending, ...installs.map((one) => one.id)])].sort(), { at });
       }

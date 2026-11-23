@@ -106,6 +106,34 @@ describe('a record tab\'s declaration', () => {
     expect(issues((tab) => { delete tab.summary; }, TABLES, [])).toEqual([]);
   });
 
+  it('shows a date as there or not only on a tab that lists, and only of a date column it shows', () => {
+    const dated = structuredClone(TABLES);
+    (dated[0]!.columns as RecordTabTable['columns'][number][]).push({ ref: 'seen_at', type: 'timestamptz' }, { ref: 'due_on', type: 'date' });
+    const there = (column: string) => ({ column, yes: { key: 'kit.yes', fallback: 'Seen' }, no: { key: 'kit.no', fallback: 'Not yet' } });
+    const listed = (change: Parameters<typeof issues>[0]) =>
+      issues((tab) => {
+        delete tab.edit;
+        delete tab.form;
+        delete tab.add;
+        delete tab.remove;
+        delete tab.actions;
+        tab.columns = [...tab.columns, 'seen_at', 'due_on'];
+        change(tab);
+      }, dated);
+
+    expect(listed((tab) => { tab.presence = [there('seen_at'), there('due_on')]; })).toEqual([]);
+    expect(recordTabsSchema.safeParse([{ ...TAB, presence: [there('seen_at')] }]).success).toBe(true);
+    expect(recordTabsSchema.safeParse([{ ...TAB, presence: [] }]).success).toBe(false);
+    expect(listed((tab) => { tab.presence = [there('seen_at'), there('seen_at')]; })).toEqual(['addOn.recordTabs.0.presence.1.column: "seen_at" is named twice']);
+    expect(listed((tab) => { tab.columns = ['item_id']; tab.presence = [there('seen_at')]; })).toEqual(['addOn.recordTabs.0.presence.0.column: "seen_at" is shown as there or not: list it in "columns" too']);
+    expect(listed((tab) => { tab.presence = [there('qty')]; })).toEqual(['addOn.recordTabs.0.presence.0.column: "links.qty" is a decimal: only a date or time column is shown as there or not']);
+
+    const whole: Record<string, unknown> = { ...TAB };
+    for (const key of ['edit', 'form', 'add', 'remove', 'actions']) {
+      expect(listed((tab) => { tab[key] = structuredClone(whole[key]); tab.presence = [there('seen_at')]; })).toContain('addOn.recordTabs.0.presence: a tab that shows a date as there or not only lists rows: it has no edit, form, add, remove or actions');
+    }
+  });
+
   it('a button makes a row of another own table for the same record', () => {
     const action = TAB.actions![0]!;
     expect(issues((tab) => { tab.actions = [action, action]; }).join()).toContain('two actions of the tab share the id "use"');
