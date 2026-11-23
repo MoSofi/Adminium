@@ -351,7 +351,8 @@ export function draftOf(goods: readonly GoodsLine[], settings: InternationalSett
   const lines = goods.map((good): DeclaredLine => {
     const edit = edits.find((one) => one.line === good.key);
     const product = good.sku === undefined ? undefined : settings.products.find((one) => one.sku === good.sku);
-    const description = edit?.description ?? settings.description ?? good.description;
+    // The line's own name first: a shop-wide default over it would declare one product as another on a single tick.
+    const description = edit?.description ?? good.description ?? settings.description ?? null;
     const editedHs = edit?.hsCode === undefined ? '' : hsDigits(edit.hsCode);
     const hsCode = editedHs !== '' ? editedHs : (product?.hsCode ?? settings.hsCode);
     const manufacturerCode = edit?.manufacturerCode ?? product?.manufacturerCode;

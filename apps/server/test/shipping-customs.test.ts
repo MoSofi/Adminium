@@ -406,7 +406,7 @@ describe.each(LEGS)('a parcel going abroad on %s', (dialect, available) => {
       signer: 'boss name',
       certified: true,
       nonDelivery: 'return',
-      items: [{ description: 'Printed greeting cards', quantity: 3, currency: 'GBP', unitWeightKg: 0.1, originCountry: 'GB', hsCode: '490900', skuCode: 'CARD-1' }],
+      items: [{ description: 'Thank-you cards', quantity: 3, currency: 'GBP', unitWeightKg: 0.1, originCountry: 'GB', hsCode: '490900', skuCode: 'CARD-1' }],
     });
     expect(Number(sent.options['customs'].items[0].unitValue)).toBe(19.99);
 
@@ -595,6 +595,9 @@ describe('what a declaration states', () => {
   });
 
   it('never makes up a code, and warns only where the rule applies', () => {
+    // A line's own name wins: a shop-wide default must not declare one product as another on a single tick.
+    expect(draftOf([good({ description: 'Waxed cap' })], { ...settings, description: 'Canvas bags' }, undefined, { country: 'US' }).lines[0]!.description).toBe('Waxed cap');
+    expect(draftOf([good({ description: null })], { ...settings, description: 'Canvas bags' }, undefined, { country: 'US' }).lines[0]!.description).toBe('Canvas bags');
     const toEu = draftOf([good()], settings, undefined, { country: 'FR' });
     expect(toEu.warnings.map((one) => one.field)).toEqual(['hsCode', 'skuCode', 'manufacturerCode']);
     expect(toEu.lines[0]).not.toHaveProperty('hsCode');
