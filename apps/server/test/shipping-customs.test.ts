@@ -21,7 +21,7 @@ import { composeServer, type ComposedServer } from '../src/compose.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
-import { cleanInternational, declarationOf, draftOf, exporterFor, hsDigits, internationalBody, type GoodsLine, type InternationalSettings } from '../src/shipping/customs.js';
+import { cleanInternational, declarationOf, draftOf, exporterFor, filingCodeFor, hsDigits, internationalBody, type GoodsLine, type InternationalSettings } from '../src/shipping/customs.js';
 import { accountFingerprintOf, credentialHash } from '../src/shipping/fingerprint.js';
 import { ShippingRefusal } from '../src/shipping/refusals.js';
 import { addOnHarness, addOnManifest, type Harness } from './app-add-ons.helpers.js';
@@ -561,6 +561,14 @@ describe.each(LEGS)('a parcel going abroad on %s', (dialect, available) => {
     expect(written).not.toContain('123456789');
     expect(written).not.toContain('IM3720000224');
 
+    // This shop ships from outside the US: its statement is kept and shown, and never reaches the carrier.
+    const filed = await setUp({ filingCode: 'NOEEI_30_37_a' });
+    expect(filed.statusCode, filed.body).toBe(200);
+    expect((filed.json() as Doc)['data']['customs']['filingCode']).toBe('NOEEI_30_37_a');
+    expect((await quote(id, ticked)).statusCode).toBe(200);
+    expect(fake().quotes.at(-1)!.options['customs']).not.toHaveProperty('filingCode');
+    expect((await setUp({ filingCode: null })).json()['data']['customs']).not.toHaveProperty('filingCode');
+
     const cleared = await setUp({ exporter: { eori: '', ioss: '', taxId: { type: 'VAT', number: '' } } });
     expect((cleared.json() as Doc)['data']['customs']).not.toHaveProperty('exporter');
     expect((await setUp({ exporter: { ioss: 'not-a-number' } })).statusCode).toBe(422);
@@ -657,6 +665,57 @@ describe('what a declaration states', () => {
       expect(cleanInternational(internationalBody.parse(base), 'usr_1', withNumbers).exporter).toEqual(numbers);
       expect(cleanInternational(internationalBody.parse({ ...base, exporter: { eori: ' gb 123456789000 ' } }), 'usr_1').exporter).toEqual({ eori: 'GB123456789000' });
       expect(cleanInternational(internationalBody.parse({ ...base, exporter: { eori: '' } }), 'usr_1', withNumbers)).not.toHaveProperty('exporter');
+    });
+  });
+
+  describe('the shop\'s US export filing statement', () => {
+    const low: InternationalSettings = { ...settings, filingCode: 'NOEEI_30_37_a' };
+    const canada: InternationalSettings = { ...settings, filingCode: 'NOEEI_30_36' };
+    const us = { country: 'US' };
+    const code = (held: InternationalSettings, from: { country: string }, to: { country: string }, goods: GoodsLine[], currency = 'USD') =>
+      filingCodeFor(held, from, to, draftOf(goods, held, currency, to));
+
+    it('states nothing for a shop that chose none', () => {
+      expect(code(settings, us, { country: 'DE' }, [good()])).toBeUndefined();
+      expect(declarationOf(draftOf([good()], settings, 'USD', { country: 'DE' }), 'Ada', 1)).not.toHaveProperty('filingCode');
+    });
+
+    it('carries a chosen statement on the declaration', () => {
+      const draft = draftOf([good()], low, 'USD', { country: 'DE' });
+      expect(declarationOf(draft, 'Ada', 1, undefined, filingCodeFor(low, us, { country: 'DE' }, draft)).filingCode).toBe('NOEEI_30_37_a');
+    });
+
+    it('never states a US filing on a parcel leaving another country', () => {
+      expect(code(low, { country: 'GB' }, { country: 'DE' }, [good()])).toBeUndefined();
+      expect(code(canada, { country: 'GB' }, { country: 'CA' }, [good()])).toBeUndefined();
+    });
+
+    it('keeps the Canadian exemption to parcels into Canada', () => {
+      expect(code(canada, us, { country: 'CA' }, [good()])).toBe('NOEEI_30_36');
+      expect(code(canada, us, { country: 'MX' }, [good()])).toBeUndefined();
+    });
+
+    it('holds the low-value exemption to 2,500 dollars a commodity code, to the cent', () => {
+      const line = (key: string, unitValue: string, hsCode?: string) => good({ key, quantity: 1, unitValue, ...(hsCode === undefined ? {} : { sku: hsCode }) });
+      const coded: InternationalSettings = { ...low, products: [{ sku: 'A', hsCode: '111111' }, { sku: 'B', hsCode: '222222' }] };
+      expect(code(coded, us, { country: 'DE' }, [line('1', '2500.00', 'A')])).toBe('NOEEI_30_37_a');
+      expect(code(coded, us, { country: 'DE' }, [line('1', '2500.01', 'A')])).toBeUndefined();
+      expect(code(coded, us, { country: 'DE' }, [line('1', '2000.00', 'A'), line('2', '2000.00', 'B')])).toBe('NOEEI_30_37_a');
+      expect(code(coded, us, { country: 'DE' }, [line('1', '2000.00', 'A'), line('2', '501.00', 'A')])).toBeUndefined();
+      // Lines with no code cannot be told apart, so they count as one.
+      expect(code(low, us, { country: 'DE' }, [line('1', '2000.00'), line('2', '501.00')])).toBeUndefined();
+    });
+
+    it('guesses no exchange rate for the low-value exemption', () => {
+      expect(code(low, us, { country: 'DE' }, [good()], 'EUR')).toBeUndefined();
+    });
+
+    it('keeps a statement a save left out, removes one on null, and refuses one a sale cannot make', () => {
+      const base = { countries: ['DE'], currency: 'USD', originCountry: 'US' };
+      expect(cleanInternational(internationalBody.parse(base), 'usr_1', low).filingCode).toBe('NOEEI_30_37_a');
+      expect(cleanInternational(internationalBody.parse({ ...base, filingCode: 'NOEEI_30_36' }), 'usr_1', low).filingCode).toBe('NOEEI_30_36');
+      expect(cleanInternational(internationalBody.parse({ ...base, filingCode: null }), 'usr_1', low)).not.toHaveProperty('filingCode');
+      for (const refused of ['NOEEI_30_37_h', 'NOEEI_30_37_f', 'AES_ITN']) expect(internationalBody.safeParse({ ...base, filingCode: refused }).success).toBe(false);
     });
   });
 

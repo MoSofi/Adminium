@@ -14,7 +14,7 @@
  *    final word.
  *  - A value is an exact decimal, and no exchange rate is guessed.
  */
-import { CUSTOMS_TAX_ID_TYPES, customsExporterSchema, type Address, type CustomsDeclaration, type CustomsExporter, type CustomsItem } from '@adminium/add-on-contracts';
+import { CUSTOMS_TAX_ID_TYPES, customsExporterSchema, type Address, type CustomsDeclaration, type CustomsExporter, type CustomsFilingCode, type CustomsItem } from '@adminium/add-on-contracts';
 import type { ShippingOrder } from '@adminium/manifest';
 import { usersRepo, type InstalledManifest, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
@@ -80,6 +80,13 @@ const exporterBody = z
   })
   .strict();
 
+/**
+ * The US export filing statements a shop may choose. Every declaration here is
+ * a sale of goods, so the exemptions for gifts and for technology are not
+ * among them: stating one on a sale would be false.
+ */
+export const SHOP_FILING_CODES = ['NOEEI_30_37_a', 'NOEEI_30_36'] as const satisfies readonly CustomsFilingCode[];
+
 const productBody = z
   .object({
     sku: codeText,
@@ -106,6 +113,8 @@ export const internationalBody = z
       .optional(),
     /** The shop's export numbers. Left out, they stay as they were. A blank removes one. */
     exporter: exporterBody.optional(),
+    /** The shop's US export filing statement. Left out, it stays as it was. Null removes it. */
+    filingCode: z.enum(SHOP_FILING_CODES).nullable().optional(),
   })
   .strict();
 
@@ -128,6 +137,7 @@ const internationalSchema = z
     signerId: z.string().min(1),
     products: z.array(storedProduct),
     exporter: customsExporterSchema.optional(),
+    filingCode: z.enum(SHOP_FILING_CODES).optional(),
   })
   .strict();
 
@@ -143,6 +153,7 @@ export function readInternational(stored: unknown): InternationalSettings | null
 export function cleanInternational(body: z.infer<typeof internationalBody>, signerId: string, before: InternationalSettings | null = null): InternationalSettings {
   const hs = hsDigits(body.hsCode ?? '');
   const exporter = body.exporter === undefined ? before?.exporter : cleanExporter(body.exporter);
+  const filingCode = body.filingCode === undefined ? before?.filingCode : (body.filingCode ?? undefined);
   return internationalSchema.parse({
     countries: [...new Set(body.countries)].sort(),
     currency: body.currency,
@@ -155,6 +166,7 @@ export function cleanInternational(body: z.infer<typeof internationalBody>, sign
       return { sku, ...(own === '' ? {} : { hsCode: own }), ...(originCountry === undefined ? {} : { originCountry }), ...(manufacturerCode === undefined ? {} : { manufacturerCode }) };
     }),
     ...(exporter === undefined ? {} : { exporter }),
+    ...(filingCode === undefined ? {} : { filingCode }),
   });
 }
 
@@ -412,6 +424,32 @@ function totalMillionths(lines: readonly DeclaredLine[]): bigint | null {
   return total;
 }
 
+/** The most the low-value exemption covers per commodity code, in dollars, with six decimal places. */
+const LOW_VALUE_CEILING = 2_500_000_000n;
+
+/** Whether every commodity code's goods fit the exemption. Lines with no code count as one, so they cannot slip under it apart. */
+function fitsLowValue(lines: readonly DeclaredLine[]): boolean {
+  const byCode = new Map<string, DeclaredLine[]>();
+  for (const line of lines) byCode.set(line.hsCode ?? '', [...(byCode.get(line.hsCode ?? '') ?? []), line]);
+  return [...byCode.values()].every((group) => {
+    const total = totalMillionths(group);
+    return total !== null && total <= LOW_VALUE_CEILING;
+  });
+}
+
+/**
+ * The shop's US filing statement, only on a parcel it is true of: leaving the
+ * US, to Canada for the Canadian exemption, and in dollars within the ceiling
+ * for the low-value one. No exchange rate is guessed, so another currency
+ * states nothing, and the carrier has the last word.
+ */
+export function filingCodeFor(settings: InternationalSettings, from: Pick<Address, 'country'>, to: Pick<Address, 'country'>, draft: CustomsDraft): CustomsFilingCode | undefined {
+  const code = settings.filingCode;
+  if (code === undefined || from.country !== 'US') return undefined;
+  if (code === 'NOEEI_30_36') return to.country === 'CA' ? code : undefined;
+  return draft.currency === 'USD' && fitsLowValue(draft.lines) ? code : undefined;
+}
+
 /**
  * The shop's numbers that belong on this parcel. An IOSS number covers goods
  * sold into the EU, up to 150 euros, so it stays off any other parcel and off
@@ -427,7 +465,7 @@ export function exporterFor(settings: InternationalSettings, to: Pick<Address, '
 }
 
 /** The declaration a carrier is given, or a refusal saying which lines stop it. */
-export function declarationOf(draft: CustomsDraft, signer: string, parcelKg: number, exporter?: CustomsExporter): CustomsDeclaration {
+export function declarationOf(draft: CustomsDraft, signer: string, parcelKg: number, exporter?: CustomsExporter, filingCode?: CustomsFilingCode): CustomsDeclaration {
   const refuse = (problems: readonly CustomsProblem[]) => new ShippingRefusal('CUSTOMS_INCOMPLETE', 'The customs details for this order are not complete.', { problems });
   if (draft.problems.length > 0 || draft.currency === null) throw refuse(draft.problems);
   const weights = unitWeights(draft.lines, parcelKg);
@@ -445,7 +483,7 @@ export function declarationOf(draft: CustomsDraft, signer: string, parcelKg: num
     ...(line.manufacturerCode === undefined ? {} : { manufacturerCode: line.manufacturerCode }),
   }));
   // A shop's order is a sale, and undelivered goods come back to it.
-  return { contents: 'merchandise', signer, certified: true, nonDelivery: 'return', items, ...(exporter === undefined ? {} : { exporter }) };
+  return { contents: 'merchandise', signer, certified: true, nonDelivery: 'return', items, ...(exporter === undefined ? {} : { exporter }), ...(filingCode === undefined ? {} : { filingCode }) };
 }
 
 /** A person's name, while they may still sign for this install. Asked of their real grants, never of a role's name. */
