@@ -9,8 +9,6 @@
  *   POST   /sms/test      one fixed test text
  *   DELETE /sms/account   remove the keys
  *
- * Not registered by `compose.ts` yet.
- *
  * Everything needs `sms.manage`, and every change a signed-in person: an API
  * key may never point a business's texts, or its bill, somewhere else.
  *
@@ -34,13 +32,9 @@ import { SMS_CHECK_REASONS, SMS_PROVIDERS } from './types.js';
 
 export interface SmsRoutesDeps {
   service: SmsService;
-  /**
-   * The grant the routes require. Passed in because `system:sms:manage` joins
-   * the closed list only at merge (`permission.ts`). `rbac.require` throws at
-   * registration on anything outside that list.
-   */
+  /** The grant the routes require: `PERMISSIONS.smsManage`. */
   manageGrant: string;
-  /** The operator's answer for SMS (`trial/policy.ts`, a new `smsProviders` question at merge). */
+  /** The operator's answer for SMS (`smsProviders` in `trial/policy.ts`). */
   operator: () => { allowed: boolean; reason: LockReason | null };
   /** `ADMINIUM_NETWORK_FEATURES`. */
   networkFeatures: boolean;
@@ -166,6 +160,8 @@ export function smsRoutes(deps: SmsRoutesDeps): FastifyPluginAsyncZod {
       { preHandler: manage, config: { audit: audited('rbac') }, schema: { body: sendingBody, response: { 200: accountReply } } },
       async (request) => {
         const person = requirePerson(request);
+        // Saving a Telnyx number asks Telnyx which profile holds it.
+        refuseOffline();
         const view = await service.setSending(request.body, person);
         await app.rbac.audit(request, {
           category: 'settings',
@@ -219,14 +215,14 @@ export function smsRoutes(deps: SmsRoutesDeps): FastifyPluginAsyncZod {
 
     app.delete(
       '/sms/account',
-      { preHandler: manage, config: { audit: audited('rbac') } },
+      { preHandler: manage, config: { audit: audited('rbac') }, schema: { response: { 204: z.null() } } },
       async (request, reply) => {
         requirePerson(request);
         const before = await service.view();
         if (await service.disconnect()) {
           await app.rbac.audit(request, { category: 'settings', action: 'sms.account.removed', changes: { before: before === null ? {} : auditedView(before) } });
         }
-        return reply.status(204).send();
+        return reply.status(204).send(null);
       },
     );
   };

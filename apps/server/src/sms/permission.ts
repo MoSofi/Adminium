@@ -4,10 +4,6 @@
  * sending a test text. The key spends the business's money, so only the Super
  * Admin holds it unless it is granted on purpose, and every change needs a
  * signed-in person, never an API key.
- *
- * Until `sms.manage` joins the closed list of system actions,
- * `system:sms:manage` is outside the grammar and `rbac.require` refuses it when
- * the routes are registered: they cannot go live unguarded.
  */
 export const SMS_MANAGE_ACTION = 'sms.manage';
 export const SMS_MANAGE_PERMISSION = 'system:sms:manage';

@@ -4769,6 +4769,7 @@ export default {
         "invitations": "{label} 中的 {count, plural, other {# 份問卷邀請}}，保留但不含地址",
         "answerFiles": "{label} 中隨表單回覆傳送的 {count, plural, other {# 個檔案}}",
         "chats": "{label} 中的 {count, plural, other {# 個聊天對話}}，連同其訊息",
+        "textRecords": "{count, plural, other {# 筆簡訊記錄}}",
         "foundPeople": "{label} 中關於其被找到之處的 {count, plural, other {# 筆紀錄}}，以及告知其本人的電子郵件",
         "reviews": "{label} 中的 {count, plural, other {# 則評價}}，保留但不含姓名"
       },

@@ -2223,6 +2223,7 @@ export default {
     "aiProvider": "Operatøren tillader kun din egen nøgle til Anthropic, OpenAI eller Google på denne installation.",
     "aiAddress": "Operatøren tillader ikke en egen AI-adresse på denne installation.",
     "payments": "Operatøren har slået betalingstjenester fra for denne installation.",
+    "smsProviders": "Operatøren har slået sms-beskeder fra for denne installation.",
     "askOperator": "Kun den, der driver denne installation, kan ændre det.",
     "dataOverCap": "Denne database er over prøvens størrelsesgrænse, så den er skrivebeskyttet. Slet nogle rækker for at fortsætte.",
     "storageOverCap": "Denne installations filer er over prøvens grænse, så der kan ikke gemmes mere. Slet nogle filer for at fortsætte.",

@@ -4759,6 +4759,7 @@
         "invitations": "{count, plural, one {# Umfrageeinladung} other {# Umfrageeinladungen}} in {label}, ohne ihre Adresse aufbewahrt",
         "answerFiles": "{count, plural, one {# Datei} other {# Dateien}} aus Formularantworten in {label}",
         "chats": "{count, plural, one {# Chat-Unterhaltung} other {# Chat-Unterhaltungen}} in {label}, mit ihren Nachrichten",
+        "textRecords": "{count, plural, one {# Textnachrichten-Eintrag} other {# Textnachrichten-Einträge}}",
         "foundPeople": "{count, plural, one {# Eintrag} other {# Einträge}} darüber, wo die Person gefunden wurde, in {label}, mit den E-Mails, die es ihr sagten",
         "reviews": "{count, plural, one {# Bewertung} other {# Bewertungen}} in {label}, behalten ohne ihren Namen"
       },

@@ -91,6 +91,7 @@ export default {
     "paymentsManage": "إعداد المدفوعات",
     "paymentsRefund": "إصدار المبالغ المستردة",
     "paymentsView": "رؤية نشاط المدفوعات وتصديره",
+    "smsManage": "إعداد الرسائل النصية",
     "privacyManage": "العثور على بيانات شخص وتنزيلها وإدارتها",
     "privacyPeople": "العثور على بيانات شخص وتنزيلها ومحوها"
   },

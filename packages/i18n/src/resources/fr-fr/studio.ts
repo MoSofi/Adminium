@@ -4769,6 +4769,7 @@ export default {
         "invitations": "{count, plural, one {# invitation à une enquête} other {# invitations à des enquêtes}} dans {label}, conservées sans l’adresse",
         "answerFiles": "{count, plural, one {# fichier envoyé} other {# fichiers envoyés}} avec des réponses à des formulaires dans {label}",
         "chats": "{count, plural, one {# conversation de chat} other {# conversations de chat}} dans {label}, avec leurs messages",
+        "textRecords": "{count, plural, one {# enregistrement de SMS} other {# enregistrements de SMS}}",
         "foundPeople": "{count, plural, one {# fiche} other {# fiches}} indiquant où la personne a été trouvée dans {label}, avec les e-mails qui l’en ont informée",
         "reviews": "{count, plural, one {# avis} other {# avis}} dans {label}, conservés sans leur nom"
       },

@@ -4759,6 +4759,7 @@
         "invitations": "{label} 中的 {count, plural, other {# 份调查邀请}}，保留但不含地址",
         "answerFiles": "{label} 中随表单回答发送的 {count, plural, other {# 个文件}}",
         "chats": "{label} 中的 {count, plural, other {# 个聊天对话}}，连同其消息",
+        "textRecords": "{count, plural, other {# 条短信记录}}",
         "foundPeople": "{label} 中关于其被找到之处的 {count, plural, other {# 条记录}}，以及告知其本人的邮件",
         "reviews": "{label} 中的 {count, plural, other {# 条评价}}，保留但不含姓名"
       },

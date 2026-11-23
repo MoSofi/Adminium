@@ -1,28 +1,27 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The SMS settings routes, registered here because `compose.ts` waits for the
- * merge. `sms.manage` joins the closed list of grants at merge too, so these
- * run on another grant no built-in role but the Super Admin holds. Provider
- * replies are stubs; no real provider is called.
+ * The SMS settings routes, under the real `sms.manage` grant: as a role that
+ * holds it, and as one that does not. Provider replies are stubs; no real
+ * provider is called.
  */
 import BetterSqlite3 from 'better-sqlite3';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { apiKeysRepo, auditRepo, createSqliteMetaDb, firstRun, permissionsRepo, rolesRepo, usersRepo, type MetaDb, type User } from '@adminium/meta';
+import { apiKeysRepo, auditRepo, BUILTIN_ROLES, createSqliteMetaDb, firstRun, permissionsRepo, rolesRepo, usersRepo, type MetaDb, type User } from '@adminium/meta';
 
 import { errorEnvelope } from '../src/errors.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { generateApiKey } from '../src/rbac/api-keys.js';
-import { parsePermission } from '../src/rbac/permissions.js';
+import { parsePermission, PERMISSIONS } from '../src/rbac/permissions.js';
 import { createSmsService, SMS_MANAGE_PERMISSION, smsRoutes, type SmsRoutesDeps } from '../src/sms/index.js';
 import { memorySmsStore } from './helpers/sms-store.js';
 
 const SECRET = 'an-sms-routes-test-secret-of-length';
 const SID = `AC${'ab'.repeat(16)}`;
 const TOKEN = 'made-up-token-for-these-tests';
-const GRANT = 'system:payments:manage';
+const GRANT = SMS_MANAGE_PERMISSION;
 const NUMBER = '+447400123456';
 
 const json = (status: number, value: unknown): Response => new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } });
@@ -102,7 +101,7 @@ describe('SMS settings routes', () => {
     await roles.assignToUser(owner.id, (await roles.findBySlug('super-admin'))!.id);
     const role = await roles.create({ slug: 'texts', name: 'Texts' });
     managerRole = role.id;
-    await permissionsRepo(meta).grant(role.id, 'system', 'payments.manage', { allowed: true });
+    await permissionsRepo(meta).grant(role.id, 'system', 'sms.manage', { allowed: true });
     manager = await users.create({ email: 'manager@adminium.test', name: 'Mo Manager', status: 'active' });
     await roles.assignToUser(manager.id, role.id);
     clerk = await users.create({ email: 'clerk@adminium.test', name: 'Tom Clerk', status: 'active' });
@@ -155,9 +154,27 @@ describe('SMS settings routes', () => {
     expect((await connect(owner)).statusCode).toBe(200);
   });
 
-  it('`sms.manage` cannot be registered until the grant exists, so the routes cannot go live unguarded', async () => {
-    if (parsePermission(SMS_MANAGE_PERMISSION) !== null) return; // At merge the grant exists and this no longer applies.
-    await expect(serve({ manageGrant: SMS_MANAGE_PERMISSION })).rejects.toThrow(/invalid permission/);
+  it('saving a sender reaches no provider while the operator or the network says no', async () => {
+    expect((await connect()).statusCode).toBe(200);
+    calls.length = 0;
+    operatorAllowed = false;
+    expect((await setSender()).statusCode).toBe(403);
+    operatorAllowed = true;
+    networkFeatures = false;
+    const refused = await setSender();
+    expect(refused.statusCode).toBe(422);
+    expect(refused.json()).toMatchObject({ error: { details: { reason: 'network-off' } } });
+    expect(calls).toHaveLength(0);
+  });
+
+  it('`sms.manage` is a real grant of the closed list, and one outside it cannot be registered', async () => {
+    expect(parsePermission(SMS_MANAGE_PERMISSION)).not.toBeNull();
+    expect(PERMISSIONS.smsManage).toBe(SMS_MANAGE_PERMISSION);
+    await expect(serve({ manageGrant: 'system:sms:everything' })).rejects.toThrow(/invalid permission/);
+  });
+
+  it('no built-in role but the Super Admin holds it', async () => {
+    for (const role of BUILTIN_ROLES) expect(role.systemActions.includes('sms.manage'), role.slug).toBe(role.slug === 'super-admin');
   });
 
   it('never gives a key back, in any reply or audit row', async () => {

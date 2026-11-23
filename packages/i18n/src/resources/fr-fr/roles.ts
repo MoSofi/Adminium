@@ -91,6 +91,7 @@ export default {
     "paymentsManage": "Configurer les paiements",
     "paymentsRefund": "Effectuer des remboursements",
     "paymentsView": "Voir l’activité des paiements et l’exporter",
+    "smsManage": "Configurer les SMS",
     "privacyManage": "Trouver, télécharger et gérer les données d’une personne",
     "privacyPeople": "Trouver, télécharger et effacer les données d’une personne"
   },
