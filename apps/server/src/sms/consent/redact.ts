@@ -40,6 +40,11 @@ function spellings(value: string, country: string | null): RegExp[] {
   return [...literal, spaced(phone.e164.slice(1)), spaced(phone.nationalDigits)];
 }
 
+/** Whether a text quotes this exact number, in any spelling {@link redactPhones} would remove. */
+export function quotesPhone(text: string, e164: string, country: string | null = null): boolean {
+  return spellings(e164, country).some((pattern) => text.search(pattern) !== -1);
+}
+
 /**
  * The text with every phone number masked. `known` names numbers to remove
  * however they are written, such as the recipient of the send that failed;

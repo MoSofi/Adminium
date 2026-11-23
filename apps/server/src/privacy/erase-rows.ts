@@ -39,7 +39,7 @@
  * write the name into the audit log's before-image. None of that happens
  * here, and nothing is told to the consent log: the erasure deletes it.
  */
-import type { Outbox } from '@adminium/manifest';
+import type { KeptByLawReason, Outbox } from '@adminium/manifest';
 import { appOutboxesRepo, manifestsRepo, type MetaDb } from '@adminium/meta';
 import type { Dialect } from '@adminium/engine';
 import { sql, type Kysely } from 'kysely';
@@ -51,10 +51,12 @@ import type { Row } from '../crud/mask.js';
 import { bindWriteValue } from '../crud/write-values.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { rowKeyOf } from '../payments/payables.js';
+import { parsePhone } from '../phone/index.js';
 import type { DeclaredPeopleTable } from '../people/declared.js';
 import { peopleTablesOf } from '../people/tables-of.js';
 import { forgetOf, forgetsOn, type TableForgets } from '../public-api/forgets-on.js';
-import { inList, linkColumnsOf, theirCopyRows } from './copy-rows.js';
+import { findRowsByPhone } from '../sms/consent/find-rows.js';
+import { inList, linkColumnsOf, phoneColumnsOf, theirCopyRows } from './copy-rows.js';
 import { alreadyBlank, blankValue, columnFacts, erasedColumns, type ErasedRole } from './erase-values.js';
 import { addressIs, keptTablesOf, NO_SECRETS, PRESENT, tableOf, type AppOnDatabase } from './sources.js';
 import { inScope, type AppScope } from './scope.js';
@@ -88,6 +90,12 @@ export interface ErasedSource {
   copies?: { column: string; via: string | null }[];
   /** For an outbox source: its status column (a waiting message is skipped only while it still waits). */
   status?: string;
+  /**
+   * Found by the number alone on a row that names someone by address: a shared
+   * number does not make the row theirs, so the number goes and nothing else,
+   * and nothing is followed from this row (its chats, its other copies).
+   */
+  numberOnly?: true;
   rows: ErasedRow[];
 }
 
@@ -99,10 +107,28 @@ export interface LeftColumn {
   rows: number;
 }
 
+/** An erasure by phone: the exact number, and the country its local spellings are read in. */
+export interface PhoneTarget {
+  e164: string;
+  country: string | null;
+}
+
+/** A table the law keeps that holds this number: left whole, and listed under what stays. */
+export interface KeptPhoneRows {
+  connectionId: string;
+  table: string;
+  app: string;
+  label: string;
+  reason: KeptByLawReason;
+  count: number;
+}
+
 export interface PersonRows {
   address: string;
   databases: { connectionId: string; db: Kysely<SourceDatabase>; dialect: Dialect; view: SnapshotView; sources: ErasedSource[] }[];
   left: LeftColumn[];
+  /** An erasure by phone: rows of a table the law keeps. */
+  keptByPhone?: KeptPhoneRows[];
 }
 
 export interface EraseRowsDeps {
@@ -162,6 +188,29 @@ async function rowsWhere(db: Kysely<SourceDatabase>, table: ResolvedTable, condi
     .execute()) as Row[];
 }
 
+/** The rows holding exactly this number in one of `columns`, each with the columns that hold it. */
+async function rowsHoldingNumber(db: Kysely<SourceDatabase>, table: ResolvedTable, columns: readonly string[], phone: PhoneTarget): Promise<{ row: Row; columns: string[] }[]> {
+  const keys = new Map<string, Row>();
+  for (const column of columns) {
+    for (const pk of await findRowsByPhone({ db, table, column, e164: phone.e164, country: phone.country })) keys.set(rowKeyOf(table, pk), pk);
+  }
+  const out: { row: Row; columns: string[] }[] = [];
+  const wanted = [...keys.values()];
+  for (let at = 0; at < wanted.length; at += 200) {
+    const conditions = wanted.slice(at, at + 200).map((pk) => sql<boolean>`(${sql.join(table.primaryKey.map((column) => sql<boolean>`${sql.ref(column)} = ${pk[column] as never}`), sql` and `)})`);
+    for (const row of await rowsWhere(db, table, conditions)) {
+      const holding = columns.filter((column) => {
+        const read = parsePhone(row[column], phone.country);
+        return read.ok && read.e164 === phone.e164;
+      });
+      if (holding.length > 0) out.push({ row, columns: holding });
+    }
+  }
+  return out;
+}
+
+const isFilled = (value: unknown): boolean => value !== null && value !== undefined && String(value).trim() !== '';
+
 export const pkOf = (table: ResolvedTable, row: Row): Row => Object.fromEntries(table.primaryKey.map((column) => [column, row[column]]));
 
 /**
@@ -186,9 +235,9 @@ export function blankRow(table: ResolvedTable, row: Row, columns: ReadonlyMap<st
 }
 
 /** Everything of a person in the apps' own databases, with what each row gets (nothing is written). */
-export async function findPersonRows(deps: EraseRowsDeps, address: string, scope?: AppScope): Promise<PersonRows> {
+export async function findPersonRows(deps: EraseRowsDeps, address: string, scope?: AppScope, phone?: PhoneTarget): Promise<PersonRows> {
   const { meta } = deps;
-  const out: PersonRows = { address, databases: [], left: [] };
+  const out: PersonRows = { address, databases: [], left: [], ...(phone === undefined ? {} : { keptByPhone: [] }) };
   // Only the apps of the scope (`scope.ts`), as the search reads them.
   const installed = (await manifestsRepo(meta, NO_SECRETS).list('app')).filter((entry) => entry.row.connectionId !== null && PRESENT.has(entry.row.status) && inScope(scope, entry.row.manifestKey));
   const outboxes = await appOutboxesRepo(meta).list();
@@ -223,9 +272,30 @@ export async function findPersonRows(deps: EraseRowsDeps, address: string, scope
     // ── their own rows ───────────────────────────────────────────────────────
     for (const entry of declared) {
       const table = tableOf(view, entry.table);
-      if (table === null || entry.email === null || table.primaryKey.length === 0) continue;
-      const rows = await rowsWhere(db, table, [addressIs(entry.email, address)]);
+      if (table === null || table.primaryKey.length === 0) continue;
+      // By the address; by phone, a person's row is one that holds the number and names no address.
+      const byAddress = entry.email === null || address === '' ? [] : await rowsWhere(db, table, [addressIs(entry.email, address)]);
+      const byNumber = phone === undefined ? [] : await rowsHoldingNumber(db, table, phoneColumnsOf(table), phone);
+      const email = entry.email;
+      const namesAddress = (row: Row): boolean => email !== null && isFilled(row[email]);
+      const soleRows = entry.kind === 'people' ? byNumber.filter((one) => !namesAddress(one.row)) : [];
+      const sharedRows = byNumber.filter((one) => !soleRows.includes(one));
+      if (phone !== undefined && kept.has(table.id) && byNumber.length > 0) {
+        out.keptByPhone!.push({ connectionId, table: table.id, app: entry.appKey, label: table.table.label ?? table.name, reason: kept.get(table.id)!.reason, count: byNumber.length });
+      }
+      if (sharedRows.length > 0 && !kept.has(table.id)) {
+        const links = linkColumnsOf(view, table.id);
+        const source: ErasedSource = { id: `phone-${entry.appKey}-${entry.ref}`, kind: 'copy', connectionId, table, app: entry.appKey, ref: entry.ref, label: table.table.label ?? table.name, copies: [], numberOnly: true, rows: [] };
+        for (const one of sharedRows) {
+          const theirs = new Map<string, ErasedRole>(one.columns.filter((column) => !links.has(column) && table.columns.get(column)?.isPrimaryKey !== true).map((column): [string, ErasedRole] => [column, 'other']));
+          const blank = blankRow(table, one.row, theirs, dialect, deps.erasedName, leftOf(table));
+          if (blank.columns.length > 0) source.rows.push({ key: rowKeyOf(table, one.row), pk: pkOf(table, one.row), before: one.row, ...blank });
+        }
+        if (source.rows.length > 0) sources.push(source);
+      }
+      const rows = [...byAddress, ...soleRows.map((one) => one.row)];
       if (rows.length === 0) continue;
+      const numberColumns = new Map<Row, string[]>(soleRows.map((one): [Row, string[]] => [one.row, one.columns]));
       if (table.primaryKey.length === 1) keysOf.set(table.id, [...(keysOf.get(table.id) ?? []), ...rows.map((row) => row[table.primaryKey[0]!])]);
       rowsOf.set(table.id, [...(rowsOf.get(table.id) ?? []), ...rows]);
       // A table the law keeps stays whole ("What stays" lists it).
@@ -234,7 +304,10 @@ export async function findPersonRows(deps: EraseRowsDeps, address: string, scope
       const stamp = entry.kind === 'people' ? forgetOf(forgets, table.id)?.stamp : undefined;
       const source: ErasedSource = { id: `people-${entry.appKey}-${entry.ref}`, kind: 'people', connectionId, table, app: entry.appKey, ref: entry.ref, label: table.table.label ?? table.name, entry, rows: [] };
       for (const row of rows) {
-        const blank = blankRow(table, row, columns, dialect, deps.erasedName, leftOf(table));
+        // The number that found them goes even where no rule marks its column personal.
+        const held = numberColumns.get(row) ?? [];
+        const rowColumns = held.length === 0 ? columns : new Map<string, ErasedRole>([...columns, ...held.filter((column) => !linkColumnsOf(view, table.id).has(column) && table.columns.get(column)?.isPrimaryKey !== true).map((column): [string, ErasedRole] => [column, 'other'])]);
+        const blank = blankRow(table, row, rowColumns, dialect, deps.erasedName, leftOf(table));
         // As "delete my details" says when: their outbox reads them as forgotten from now on.
         const stampColumn = stamp === undefined ? undefined : table.columns.get(stamp);
         if (stampColumn !== undefined && (row[stampColumn.name] === null || row[stampColumn.name] === undefined)) blank.values[stampColumn.name] = bindWriteValue(stampColumn, new Date(deps.now()).toISOString(), dialect);
@@ -248,7 +321,7 @@ export async function findPersonRows(deps: EraseRowsDeps, address: string, scope
       const owner = tableOf(view, entry.table);
       const pks = owner === null ? [] : (keysOf.get(owner.id) ?? []);
       const ownRows = owner === null ? [] : (rowsOf.get(owner.id) ?? []);
-      const copyTables = await theirCopyRows({ db, view, copies: entry.copies, address, pks, ownRows, ownTable: owner, tableOf: (id) => tableOf(view, id) });
+      const copyTables = await theirCopyRows({ db, view, copies: entry.copies, address, pks, ownRows, ownTable: owner, tableOf: (id) => tableOf(view, id), phone: phone?.e164 });
       for (const { table, copies, rows } of copyTables) {
         // A table the law keeps stays whole, their copies on it included.
         if (kept.has(table.id)) continue;
@@ -283,7 +356,11 @@ export async function findPersonRows(deps: EraseRowsDeps, address: string, scope
       if (table === null || table.primaryKey.length === 0 || kept.has(table.id)) continue;
       const recipients = tableOf(view, definition.recipient.table);
       const pks = recipients === null ? [] : (keysOf.get(recipients.id) ?? []);
-      const rows = await rowsWhere(db, table, [addressIs(definition.columns.to, address), ...(pks.length > 0 ? inList(definition.recipient.via, pks) : [])]);
+      const matched = await rowsWhere(db, table, [...(address === '' ? [] : [addressIs(definition.columns.to, address)]), ...(pks.length > 0 ? inList(definition.recipient.via, pks) : [])]);
+      // A text's row holds the number in `to`.
+      const toNumber = phone === undefined || !table.columns.has(definition.columns.to) ? [] : await rowsHoldingNumber(db, table, [definition.columns.to], phone);
+      const seen = new Set(matched.map((row) => rowKeyOf(table, row)));
+      const rows = [...matched, ...toNumber.map((one) => one.row).filter((row) => !seen.has(rowKeyOf(table, row)))];
       if (rows.length === 0) continue;
       const cols = definition.columns;
       const columns = new Map<string, ErasedRole>([[cols.to, 'email']]);

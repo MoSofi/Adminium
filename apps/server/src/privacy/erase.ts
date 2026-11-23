@@ -52,6 +52,15 @@
  * history's text that holds the address is still swept: it is the
  * customer's (a staff account's address never comes this far).
  *
+ * ─── A person known only by phone ──────────────────────────────────────────
+ * {@link erasePhonePerson} runs these same steps from one exact number. Their
+ * row is one on a people table that holds the number and names no address. A
+ * row that names an address may be someone else's on a shared line, so only
+ * the number leaves it. The stores found by address alone are not touched.
+ * Either way in, the number's text records go too (`sms/erasure.ts`): its stop
+ * entry stays as a hash alone, and its consent log, inbound events, delivery
+ * records and any job error quoting it are removed.
+ *
  * "What stays" (`what-stays.ts`) is what the erasure leaves on purpose: rows
  * of a table the law keeps (an invoice), the documents and payments Adminium
  * keeps, the stores kept for a set time, and the do-not-email entry.
@@ -62,9 +71,13 @@ import type { ConsentService } from '../consent/index.js';
 import type { ConnectionManager } from '../connections/manager.js';
 import type { RecordWriteEvent } from '../crud/after-record-write.js';
 import { pkLabel } from '../crud/records.js';
+import { ValidationFailedError } from '../errors.js';
 import type { FileStore } from '../files/store.js';
+import { textSubject } from '../sms/consent/service.js';
+import type { TextErased, TextErasure } from '../sms/erasure.js';
 import { blankCampaignSends, campaignSendIds, copyFileIds, purgeRowFiles, rowFileIds, scrubAuditImages, scrubRemovedRows, sweepAddress, sweepMailAddress, type CopyLink, type CopyRowFiles, type ImageTarget, type PersonRowRef } from './erase-meta.js';
-import { blankRow, findPersonRows, pkOf, writePersonRows, type ErasedSource, type LeftColumn, type PersonRows } from './erase-rows.js';
+import { blankRow, findPersonRows, pkOf, writePersonRows, type ErasedSource, type LeftColumn, type PersonRows, type PhoneTarget } from './erase-rows.js';
+import { phoneColumnsOf } from './copy-rows.js';
 import { eraseFormRows, findFormRows, formImageTargets } from './form-answers.js';
 import { blankReviews } from '../reviews/erase.js';
 import { findReviewsOf } from './reviews.js';
@@ -101,6 +114,8 @@ export interface EraseDeps {
   reviewInstalls?: (() => Promise<AddOnInstalls>) | undefined;
   /** The calendar sync: their events in staff calendars lose their name, and a connected account at this address ends. */
   calendars?: { onErased(input: { address: string; rows: readonly { connectionId: string; table: string; key: string }[] }): Promise<{ events: number; accounts: number }> } | undefined;
+  /** What an erasure does to a phone number (`sms/erasure.ts`). */
+  texts?: TextErasure | undefined;
   now?: (() => number) | undefined;
 }
 
@@ -172,7 +187,7 @@ async function withSoleTraders(deps: EraseDeps, rows: PersonRows, found: readonl
 }
 
 /** What goes, as the erase dialog counts it. */
-export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations' | 'page-visits' | 'found-people' | 'reviews';
+export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations' | 'page-visits' | 'found-people' | 'reviews' | 'text-records';
 
 export interface GoesItem {
   kind: GoesKind;
@@ -255,8 +270,78 @@ function copyLinks(rows: PersonRows): CopyLink[] {
 /** Their own rows and their copies: what a chat that became one of them is found by. */
 function theirRows(rows: PersonRows): TheirRow[] {
   return rows.databases.flatMap((database) =>
-    database.sources.filter((source) => source.kind === 'people' || source.kind === 'copy').flatMap((source) => source.rows.map((row) => ({ connectionId: source.connectionId, table: source.table.id, key: row.key }))),
+    database.sources.filter((source) => (source.kind === 'people' || source.kind === 'copy') && source.numberOnly !== true).flatMap((source) => source.rows.map((row) => ({ connectionId: source.connectionId, table: source.table.id, key: row.key }))),
   );
+}
+
+/** The numbers on their own rows, each with the row it is on. A row with no number is listed too: its log rows are still theirs. */
+function textTargets(rows: PersonRows): { phone: unknown; person: { connectionId: string; table: string; key: string } }[] {
+  const out: { phone: unknown; person: { connectionId: string; table: string; key: string } }[] = [];
+  for (const database of rows.databases) {
+    for (const source of database.sources) {
+      if (source.kind !== 'people') continue;
+      const columns = phoneColumnsOf(source.table);
+      for (const row of source.rows) {
+        const person = { connectionId: source.connectionId, table: source.table.id, key: row.key };
+        const held = columns.map((column) => row.before[column]).filter((value) => value !== null && value !== undefined && String(value).trim() !== '');
+        if (held.length === 0) out.push({ phone: null, person });
+        for (const phone of held) out.push({ phone, person });
+      }
+    }
+  }
+  return out;
+}
+
+const addErased = (total: TextErased, more: TextErased): void => {
+  total.stopEntry += more.stopEntry;
+  total.consentRows += more.consentRows;
+  total.inboundEvents += more.inboundEvents;
+  total.deliveries += more.deliveries;
+};
+
+/** What the erasure takes of their text records: by each number on their rows, and by the number they were found with. */
+async function countTexts(texts: TextErasure, rows: PersonRows, phone: PhoneTarget | undefined, whole: boolean): Promise<TextErased> {
+  const total: TextErased = { stopEntry: 0, consentRows: 0, inboundEvents: 0, deliveries: 0 };
+  const country = phone?.country ?? (await texts.country());
+  const seen = new Set<string>();
+  if (phone !== undefined) {
+    seen.add(phone.e164);
+    addErased(total, await texts.count({ phone: phone.e164, country, person: null, everywhere: whole }));
+  }
+  for (const target of textTargets(rows)) {
+    const e164 = texts.exact(target.phone, country);
+    const repeat = e164 !== null && seen.has(e164);
+    if (e164 !== null) seen.add(e164);
+    addErased(total, await texts.count({ phone: repeat ? null : target.phone, country, person: target.person, everywhere: whole && !repeat }));
+  }
+  return total;
+}
+
+/** Their text records gone, and the numbers that were read, for the job errors. */
+async function eraseTexts(texts: TextErasure, rows: PersonRows, phone: PhoneTarget | undefined, whole: boolean, at: number): Promise<{ erased: TextErased; numbers: string[]; country: string | null }> {
+  const total: TextErased = { stopEntry: 0, consentRows: 0, inboundEvents: 0, deliveries: 0 };
+  const country = phone?.country ?? (await texts.country());
+  const numbers = new Set<string>();
+  if (phone !== undefined) {
+    numbers.add(phone.e164);
+    addErased(total, await texts.erase({ phone: phone.e164, country, person: null, at, everywhere: whole }));
+  }
+  for (const target of textTargets(rows)) {
+    const e164 = texts.exact(target.phone, country);
+    const repeat = e164 !== null && numbers.has(e164);
+    if (e164 !== null) numbers.add(e164);
+    addErased(total, await texts.erase({ phone: repeat ? null : target.phone, country, person: target.person, at, everywhere: whole && !repeat }));
+  }
+  return { erased: total, numbers: [...numbers], country };
+}
+
+/** One exact number from what was typed, read in the server's country. */
+async function phoneTargetOf(deps: EraseDeps, raw: string): Promise<PhoneTarget> {
+  if (deps.texts === undefined) throw new ValidationFailedError('Erasing by phone is not available here.', { field: 'phone' });
+  const country = await deps.texts.country();
+  const e164 = deps.texts.exact(raw, country);
+  if (e164 === null) throw new ValidationFailedError('That is not a phone number that can be read. Write it with its country code.', { field: 'phone' });
+  return { e164, country };
 }
 
 /** Their consent rows: by the address, and by each of their rows. */
@@ -269,11 +354,21 @@ async function consentIds(consent: ConsentService, address: string, people: read
 
 /** What an erasure of this address would do, and what it would leave (nothing is written). */
 export async function previewErasure(deps: EraseDeps, rawAddress: string, scope?: EraseScope): Promise<ErasePreview> {
-  const address = searchAddress(rawAddress);
+  return previewTarget(deps, searchAddress(rawAddress), undefined, scope);
+}
+
+/** {@link previewErasure} for a person known only by phone. `address` in the answer is the number, masked by the route. */
+export async function previewPhoneErasure(deps: EraseDeps, rawPhone: string, scope?: EraseScope): Promise<ErasePreview> {
+  return previewTarget(deps, '', await phoneTargetOf(deps, rawPhone), scope);
+}
+
+async function previewTarget(deps: EraseDeps, address: string, phone: PhoneTarget | undefined, scope?: EraseScope): Promise<ErasePreview> {
   const now = deps.now ?? Date.now;
   const apps = scope?.apps ?? null;
   const whole = apps === null;
-  const rows = await findPersonRows({ meta: deps.meta, manager: deps.manager, erasedName: await erasedNameOf(deps.meta), now }, address, apps);
+  // The stores found by the address alone: never asked about an empty one.
+  const byAddress = whole && address !== '';
+  const rows = await findPersonRows({ meta: deps.meta, manager: deps.manager, erasedName: await erasedNameOf(deps.meta), now }, address, apps, phone);
   const people = peopleRefs(rows);
   const goes: GoesItem[] = [];
   for (const database of rows.databases) {
@@ -282,7 +377,7 @@ export async function previewErasure(deps: EraseDeps, rawAddress: string, scope?
       goes.push({ kind: source.kind, count: source.rows.length, connectionId: source.connectionId, table: source.table.id, app: source.app, label: source.label });
     }
   }
-  for (const one of whole ? await findFormRows(deps, address) : []) {
+  for (const one of byAddress ? await findFormRows(deps, address) : []) {
     if (one.answers.length > 0 && one.addOn.answers !== null) goes.push({ kind: 'form-answers', count: one.answers.length, connectionId: one.connectionId, table: one.addOn.answers.id, app: one.addOn.key, label: one.addOn.answers.table.label ?? one.addOn.answers.name });
     if (one.files.length > 0 && one.addOn.files !== null) goes.push({ kind: 'form-files', count: one.files.length, connectionId: one.connectionId, table: one.addOn.files.id, app: one.addOn.key, label: one.addOn.files.table.label ?? one.addOn.files.name });
     if (one.invitations.length > 0 && one.addOn.invitations !== null) {
@@ -294,7 +389,7 @@ export async function previewErasure(deps: EraseDeps, rawAddress: string, scope?
     if (table !== null && one.conversations.length > 0) goes.push({ kind: 'chat-conversations', count: one.conversations.length, connectionId: one.connectionId, table: table.id, app: one.addOn.key, label: table.table.label ?? table.name });
   }
   // A narrowed erasure reaches the found people its rows' links reach, never one found by the address alone.
-  for (const one of await findFoundPeopleRows(deps, whole ? address : '', theirRows(rows))) {
+  for (const one of await findFoundPeopleRows(deps, byAddress ? address : '', theirRows(rows))) {
     const table = one.addOn.foundPeople;
     if (table !== null && one.found.length > 0) goes.push({ kind: 'found-people', count: one.found.length, connectionId: one.connectionId, table: table.id, app: one.addOn.key, label: table.table.label ?? table.name });
   }
@@ -302,39 +397,57 @@ export async function previewErasure(deps: EraseDeps, rawAddress: string, scope?
   for (const { found } of await findReviewsOf(deps, people, apps)) {
     goes.push({ kind: 'reviews', count: found.keys.length, connectionId: found.connectionId, table: found.table.id, app: found.addOn, label: found.table.table.label ?? found.table.name });
   }
-  const consent = await consentIds(deps.consent, address, people, whole);
+  const texts = deps.texts === undefined ? null : await countTexts(deps.texts, rows, phone, whole);
+  const consent = (await consentIds(deps.consent, address, people, byAddress)) + (texts?.consentRows ?? 0);
   if (consent > 0) goes.push({ kind: 'consent', count: consent });
-  const visits = whole ? (await findPageVisits(deps.meta, deps.secret, address, 0)).count : 0;
+  const textRecords = (texts?.inboundEvents ?? 0) + (texts?.deliveries ?? 0);
+  if (textRecords > 0) goes.push({ kind: 'text-records', count: textRecords });
+  const visits = byAddress ? (await findPageVisits(deps.meta, deps.secret, address, 0)).count : 0;
   if (visits > 0) goes.push({ kind: 'page-visits', count: visits });
-  const sends = (await campaignSendIds(deps.meta, address, people, whole)).length;
+  const sends = (await campaignSendIds(deps.meta, address, people, byAddress)).length;
   if (sends > 0) goes.push({ kind: 'campaign-mail', count: sends });
   const files = new Set([...(await rowFileIds(deps.meta, people)), ...(await copyFileIds(deps.meta, copyRows(rows)))]).size;
   if (files > 0) goes.push({ kind: 'files', count: files });
-  const stays = await whatStays(deps.meta, await findPerson(deps, address, apps));
+  // By phone there is no address to search the stores with: what stays is the law's tables that hold the number.
+  const stays: StaysItem[] =
+    address === ''
+      ? (rows.keptByPhone ?? []).map((one) => ({ kind: 'app-rows', reason: one.reason, count: one.count, keptDays: null, forever: true, connectionId: one.connectionId, table: one.table, app: one.app, label: one.label }))
+      : await whatStays(deps.meta, await findPerson(deps, address, apps));
   // What they still hold with a balance keeps them until the balance ends (`held-values.ts`).
-  if (whole) for (const one of await countHeldByAddress({ meta: deps.meta, manager: deps.manager, now }, address)) stays.push({ kind: 'held-values', reason: 'live-balance', count: one.count, keptDays: null, forever: false, connectionId: one.connectionId, table: one.table, label: one.label });
-  const found = goes.length > 0 || stays.some((item) => item.count !== null && item.count > 0) || (whole && (await deps.consent.stop.entryFor(address)) !== null);
+  if (byAddress) for (const one of await countHeldByAddress({ meta: deps.meta, manager: deps.manager, now }, address)) stays.push({ kind: 'held-values', reason: 'live-balance', count: one.count, keptDays: null, forever: false, connectionId: one.connectionId, table: one.table, label: one.label });
+  const found = goes.length > 0 || stays.some((item) => item.count !== null && item.count > 0) || (texts?.stopEntry ?? 0) > 0 || (byAddress && (await deps.consent.stop.entryFor(address)) !== null);
   return { address, found, goes, stays, left: rows.left };
 }
 
 /** Erases the person with this address (see the header). */
 export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: EraseScope): Promise<EraseResult> {
+  return eraseTarget(deps, searchAddress(rawAddress), undefined, scope);
+}
+
+/** Erases the person known by this phone number (see the header). */
+export async function erasePhonePerson(deps: EraseDeps, rawPhone: string, scope?: EraseScope): Promise<EraseResult> {
+  return eraseTarget(deps, '', await phoneTargetOf(deps, rawPhone), scope);
+}
+
+async function eraseTarget(deps: EraseDeps, address: string, phone: PhoneTarget | undefined, scope?: EraseScope): Promise<EraseResult> {
   const { meta, consent } = deps;
   const now = deps.now ?? Date.now;
-  const address = searchAddress(rawAddress);
   const apps = scope?.apps ?? null;
   const only = scope?.only;
-  const whole = apps === null && only === undefined;
+  const workspace = apps === null && only === undefined;
+  // The stores found by the address alone: never asked about an empty one.
+  const whole = workspace && address !== '';
   const started = now();
   // The keys first: while they cannot be read, nothing is touched (the caller answers 503).
-  const hash = await personHash(meta, deps.secret, address);
-  const hashes = await personHashes(meta, deps.secret, address);
+  const subject = phone === undefined ? address : textSubject(phone.e164);
+  const hash = await personHash(meta, deps.secret, subject);
+  const hashes = await personHashes(meta, deps.secret, subject);
   const erasedName = await erasedNameOf(meta);
-  const all = await findPersonRows({ meta, manager: deps.manager, erasedName, now }, address, apps);
+  const all = await findPersonRows({ meta, manager: deps.manager, erasedName, now }, address, apps, phone);
   const narrowed = only === undefined ? all : onlyTheseRows(all, only.rows);
   const forms = whole ? await findFormRows(deps, address) : [];
   // Found before their rows are emptied: a chat that became one of them is found by the row's key, which stays.
-  const chats = whole ? await findChatRows(deps, address, theirRows(narrowed)) : [];
+  const chats = workspace ? await findChatRows(deps, address, theirRows(narrowed)) : [];
   // …and so is a found person's row, which names their row by its key (a narrowed erasure: only by their rows).
   const foundPeople = only !== undefined ? only.found : await findFoundPeopleRows(deps, whole ? address : '', theirRows(narrowed));
   // A sole trader's company row is theirs: emptied with them.
@@ -344,9 +457,20 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: E
 
   // 1. Still stopped, by the hash alone. The do-not-email list is the workspace's: an erasure for some apps leaves it.
   //    The keeping sweep's stops the found person: a source that finds them again is refused.
-  if (whole || only !== undefined) {
+  if (whole || (only !== undefined && address !== '')) {
     await consent.eraseDisplay(address, { addIfMissing: true, at: started });
     counts['stop-list'] = 1;
+  }
+
+  // The number's stop entry too, first for the same reason. The keeping sweep's found person was never texted.
+  let quoted: { numbers: string[]; country: string | null } | null = null;
+  if (deps.texts !== undefined && only === undefined) {
+    const { erased, numbers, country } = await eraseTexts(deps.texts, rows, phone, workspace, started);
+    if (erased.stopEntry > 0) counts['text-stop-list'] = erased.stopEntry;
+    if (erased.consentRows > 0) counts['text-consent'] = erased.consentRows;
+    if (erased.inboundEvents > 0) counts['inbound-events'] = erased.inboundEvents;
+    if (erased.deliveries > 0) counts['text-deliveries'] = erased.deliveries;
+    if (workspace) quoted = { numbers, country };
   }
 
   // 2. Their sessions and open sign-in links.
@@ -381,6 +505,10 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: E
     counts['campaign-failures'] = mail.runs;
     counts['mail-errors'] = mail.sends + mail.jobs;
   }
+  if (quoted !== null && deps.texts !== undefined) {
+    const cleared = await deps.texts.clearQuotedErrors(quoted.numbers, quoted.country);
+    if (cleared > 0) counts['text-errors'] = cleared;
+  }
   const downloads = await privacyExportsRepo(meta).deleteAboutPerson(hashes, whole || scope === undefined ? {} : { requestedBy: scope.by });
   let filesFailed = 0;
   for (const fileId of downloads.fileIds) {
@@ -410,7 +538,8 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: E
   ];
   const removed = await scrubRemovedRows(meta, targets, copyLinks(rows));
   let audit = await scrubAuditImages(meta, [...targets, ...removed.copies]);
-  const swept = await sweepAddress(meta, address);
+  // With no address there is nothing to look for, and the search would read the whole log.
+  const swept = address === '' ? { audit: 0, removedRows: 0 } : await sweepAddress(meta, address);
   counts['removed-rows'] = removed.changed + swept.removedRows;
 
   // 6. Their rows.

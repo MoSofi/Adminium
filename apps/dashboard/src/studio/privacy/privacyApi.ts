@@ -147,7 +147,7 @@ export interface StaysItem {
   label?: string | undefined;
 }
 
-export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations' | 'page-visits' | 'found-people' | 'reviews';
+export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations' | 'page-visits' | 'found-people' | 'reviews' | 'text-records';
 
 export interface GoesItem {
   kind: GoesKind;

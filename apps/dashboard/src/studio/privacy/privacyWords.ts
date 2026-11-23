@@ -66,6 +66,8 @@ export function goesWords(item: GoesItem): string {
       return t('studio:privacy.sources.visitsGoes', '{count, plural, one {# page visit} other {# page visits}}', { count });
     case 'reviews':
       return t('studio:privacy.erase.goes.reviews', '{count, plural, one {# review} other {# reviews}} in {label}, kept without their name', { count, label });
+    case 'text-records':
+      return t('studio:privacy.erase.goes.textRecords', '{count, plural, one {# text message record} other {# text message records}}', { count });
     case 'found-people':
       return t('studio:privacy.erase.goes.foundPeople', '{count, plural, one {# record} other {# records}} of where they were found in {label}, with the mails that told them', { count, label });
   }
