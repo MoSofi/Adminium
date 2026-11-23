@@ -62,6 +62,11 @@ export function stopListAddressKey(secret: string): Buffer {
   return deriveKey(secret, 'adminium-stop-list-v1', 'adminium:stop-list-address');
 }
 
+/** What a stopped number's display copy is sealed under (`sms/consent`), through {@link AddressKeyRing.derivedForWrite}. */
+export const TEXT_STOP_PHONE_PURPOSE = 'adminium:text-stop-phone';
+/** What a stored inbound event is sealed under (`inbound/core.ts`). */
+export const INBOUND_BODY_PURPOSE = 'adminium:inbound-body';
+
 const KEY_BYTES = 32;
 
 function openKey(token: string, wrap: Buffer): Buffer {
