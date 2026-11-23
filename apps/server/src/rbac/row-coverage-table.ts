@@ -771,6 +771,8 @@ export const JOB_ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'automation.run': rows('system', 'A rule runs as the system: its author decided who is told what; a private table is no rule\'s to read.'),
   'app-outbox-send': rows('system', 'Sends the mail an app\'s outbox row asks for, as the system.'),
   'app-outbox-effect': rows('system', 'Writes what a sent or failed mail does to its row, as the system.'),
+  'sms.send': rows('system', 'Sends one queued text, after asking its outbox row whether it is still wanted, and writes how it ended to that row, as the system.'),
+  'sms.settle': rows('system', 'Ends texts nothing will come back for and writes that to their outbox rows, as the system.'),
   'app.timed-moves': rows('system', 'Moves rows whose time has come, as the system.'),
   'connected-accounts.end': rows('system', 'Ends a connection whose row is gone or switched off: a system job, reading that one row by key.'),
   'calendar.sync-row': rows('system', 'Reads one booking as the system and writes its event to its person\'s own calendar.'),

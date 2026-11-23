@@ -7,9 +7,10 @@
  * one without this code, and the sweep queues no job while there is neither an
  * account nor a stored event.
  *
- * The send path is joined later through {@link SmsWiring.joinSendPath}. Until
- * then a delivery report finds no message, and no STOP confirmation is sent:
- * the STOP itself still goes on the list.
+ * The send path is built in `compose.ts`, because it needs the job queue and
+ * the outbox, and joined through {@link SmsWiring.joinSendPath}. Before that a
+ * delivery report finds no message and no STOP confirmation is sent: the STOP
+ * itself still goes on the list.
  */
 import { jobsRepo, type EnqueueJobInput, type MetaDb } from '@adminium/meta';
 import type { FastifyPluginAsync } from 'fastify';
@@ -26,7 +27,7 @@ import { storedDefaultCountry } from './country.js';
 import { createTextErasure, type TextErasure } from './erasure.js';
 import { createSmsCatchUp, createSmsInboundChannel, type SmsCatchUpResult, type SmsInboundChannel, type SmsStopConfirmation } from './inbound/index.js';
 import { smsRoutes } from './routes.js';
-import { createTextSendStore, textPhoneKeys, type TextReport, type TextSendStore } from './send/index.js';
+import { createTextSendStore, textPhoneKeys, TEXT_SETTLE_JOB, TEXT_SETTLE_SCHEDULE, type TextReport, type TextSendPath, type TextSendStore } from './send/index.js';
 import { createSmsService, type SmsService } from './service.js';
 
 export const INBOUND_SWEEP_SCHEDULE = 'inbound-sweep';
@@ -66,9 +67,13 @@ export interface SmsWiring {
   registerJobs(registry: JobRegistry): void;
   /** Queues the sweep when there is something for it to do. */
   enqueueSweep(enqueue?: (input: EnqueueJobInput) => Promise<{ id: string }>): Promise<{ id: string } | null>;
+  /** Queues the clean-up of the send path, when there is a delivery for it to look at. */
+  enqueueTextSettle(enqueue: (input: EnqueueJobInput) => Promise<{ id: string }>): Promise<{ id: string } | null>;
   /** Asks the provider what arrived while the server was down. Null when it may not reach out. */
   catchUpAtBoot(): Promise<SmsCatchUpResult | null>;
-  joinSendPath(path: SmsSendPathSeam): void;
+  /** The text send path, for whatever sends a text. Null until it is joined. */
+  readonly texts: TextSendPath | null;
+  joinSendPath(path: TextSendPath): void;
 }
 
 export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
@@ -92,7 +97,7 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
     },
   });
 
-  let sendPath: SmsSendPathSeam | null = null;
+  let sendPath: TextSendPath | null = null;
   const channel = createSmsInboundChannel({
     meta,
     secret,
@@ -128,6 +133,10 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
     erasure,
     defaultCountry,
 
+    get texts() {
+      return sendPath;
+    },
+
     settingsRoutes: () =>
       smsRoutes({
         service,
@@ -147,6 +156,12 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
       if (!(await sweepWanted())) return null;
       const input: EnqueueJobInput = { kind: INBOUND_SWEEP_JOB, payload: {}, dedupeKey: INBOUND_SWEEP_SCHEDULE, maxAttempts: 1 };
       return enqueue === undefined ? jobsRepo(meta).enqueue(input, now()) : enqueue(input);
+    },
+
+    async enqueueTextSettle(enqueue) {
+      const any = await meta.db.selectFrom('adminium_text_deliveries').select('id').limit(1).executeTakeFirst();
+      if (any === undefined) return null;
+      return enqueue({ kind: TEXT_SETTLE_JOB, payload: {}, dedupeKey: TEXT_SETTLE_SCHEDULE, maxAttempts: 1 });
     },
 
     async catchUpAtBoot() {

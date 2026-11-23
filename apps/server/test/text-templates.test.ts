@@ -12,7 +12,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { installOutbox, removeOutbox } from '../src/apps/manifest-outbox.js';
 import { saveTextTemplateWords } from '../src/apps/manifest-text-templates.js';
 import type { PeopleWrite, PublicTextConsentTick } from '../src/crud/write-context.js';
-import { UNBUILT_MANIFEST_WORDS, unbuiltInManifest } from '../src/crud/unbuilt-rules.js';
+import { MANIFEST_WORDS_RUN, UNBUILT_MANIFEST_WORDS, unbuiltInManifest } from '../src/crud/unbuilt-rules.js';
 import { createPeopleConsent, type TextConsentDoor } from '../src/people/consent-writes.js';
 import { renameManifest } from '../src/project/apps/copy-app.js';
 import { createConsentTicks } from '../src/public-api/consent-tick.js';
@@ -218,7 +218,7 @@ describe.each(META_ENGINES)('text templates — $name', (engine) => {
   });
 });
 
-describe('until the send path is joined', () => {
+describe('once the send path is joined', () => {
   it('a copy of the app takes its texts under its new key, and its kinds follow', () => {
     const copied = renameManifest(manifest() as unknown as Record<string, unknown>, 'surgery', 'Surgery').manifest as Doc;
     expect(copied['textTemplates'][0].key).toBe('surgery-reminder-text');
@@ -226,11 +226,12 @@ describe('until the send path is joined', () => {
     expect(validateManifest(copied, { allowLocalPublisher: true }).ok).toBe(true);
   });
 
-  it('a manifest that uses a text word is refused at install, with the release', () => {
-    const words = unbuiltInManifest(manifest());
-    expect(new Set(words.map((one) => one.word))).toEqual(new Set(['textTemplates', 'outbox.channels', 'outbox.recipient.phone', 'people.phone']));
-    for (const one of words) expect(one.release).toBe(SMS_WORDS_FLOOR);
-    expect(UNBUILT_MANIFEST_WORDS['publicAccess.textConsent']).toBe(SMS_WORDS_FLOOR);
+  it('a manifest that uses a text word is no longer refused at install', () => {
+    expect(unbuiltInManifest(manifest())).toEqual([]);
+    for (const word of ['textTemplates', 'outbox.channels', 'outbox.recipient.phone', 'outbox.waiting', 'people.phone', 'publicAccess.textConsent'] as const) {
+      expect(UNBUILT_MANIFEST_WORDS[word]).toBeUndefined();
+      expect(MANIFEST_WORDS_RUN).toContain(word);
+    }
   });
 
   it('the send path asks the manifest package\'s own check', () => {

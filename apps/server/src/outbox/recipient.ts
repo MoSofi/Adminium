@@ -12,7 +12,7 @@
  * `identity` is the person's row when the address came from it: the only row
  * a sign-in link may ever be minted for.
  */
-import type { Outbox, OutboxProducer } from '@adminium/manifest';
+import { isTextKind, type Outbox, type OutboxProducer } from '@adminium/manifest';
 import type { Kysely } from 'kysely';
 
 import type { SourceDatabase } from '../connections/manager.js';
@@ -38,6 +38,16 @@ export interface Addressed {
 // One plain `local@domain` and nothing else (`email/plain-address.ts`), as the do-not-email list and the mail server read it alike.
 export const plausibleAddress = (value: unknown): value is string => typeof value === 'string' && PLAIN_DOTTED.test(value.trim());
 
+
+/** The longest value read as a phone number: anything longer is not one, and a row's `to` never takes it. */
+const NUMBER_MAX = 32;
+
+/** A number as a row holds it, for the send path to read properly. Null when the column holds nothing like one. */
+export function numberOnFile(value: unknown): string | null {
+  if (typeof value !== 'string' && typeof value !== 'number') return null;
+  const text = String(value).trim();
+  return text === '' || text.length > NUMBER_MAX || !/[0-9]/.test(text) ? null : text;
+}
 
 /** The table a column's foreign key points at. */
 export function referenced(view: SnapshotView, tableId: string, column: string): string | undefined {
@@ -79,6 +89,21 @@ export async function addressFor(
   const recipient = definition.recipient;
   const person = await rowOf(ctx.db, ctx.view, recipient.table, row[recipient.via]);
   const text = (value: unknown) => (typeof value === 'string' && value !== '' ? value : null);
+  // A text goes to the number on the person's row: `address` holds it, and no sign-in link is ever made from it.
+  if (isTextKind(definition, String(producer?.kind ?? row[definition.columns.kind] ?? ''))) {
+    const language = (from: Row | null, column: unknown) => (typeof column === 'string' && from !== null ? text(from[column]) : null);
+    if (person !== null) return { ...none, person, address: recipient.phone === undefined ? null : numberOnFile(person[recipient.phone]), language: language(person, recipient.language) };
+    const back = recipient.fallback;
+    if (back === undefined) return none;
+    const backTable = referenced(ctx.view, ctx.outboxId, back.via);
+    const backRow =
+      backTable === undefined
+        ? null
+        : holder !== undefined && holder.tableId === backTable && row[back.via] !== undefined && holder.row[ctx.view.table(backTable).primaryKey[0] ?? ''] === row[back.via]
+          ? holder.row
+          : await rowOf(ctx.db, ctx.view, backTable, row[back.via]);
+    return { ...none, address: back.phone === undefined || backRow === null ? null : numberOnFile(backRow[back.phone]), language: language(backRow, back.language) };
+  }
   if (person !== null) {
     const address = person[recipient.email ?? ''];
     return {

@@ -138,6 +138,10 @@ import {
   placeholderPattern,
   requiredPlaceholderNames,
   showWhenNames,
+  codeNamesIn,
+  isCodeColumn,
+  isTextKind,
+  isWaitingKind,
   mailClassOf,
   mailPurposeOf,
   printsSurveyLink,
@@ -148,7 +152,7 @@ import {
   type Outbox,
   type OutboxProducer,
 } from '@adminium/manifest';
-import { CUSTOMER_KEY_PURPOSE, addOnSettingsRepo, appOutboxesRepo, appTablesRepo, connectionTenantConfig, filesRepo, jobsRepo, overridesRepo, settingsRepo, usersRepo, type MetaDb, type RecordRef } from '@adminium/meta';
+import { CUSTOMER_KEY_PURPOSE, addOnSettingsRepo, appOutboxesRepo, appTablesRepo, connectionTenantConfig, filesRepo, jobsRepo, overridesRepo, settingsRepo, textTemplatesRepo, usersRepo, type MetaDb, type RecordRef } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 import { z } from 'zod';
 
@@ -156,6 +160,7 @@ import type { ConnectionManager, SourceDatabase } from '../connections/manager.j
 import { resolveColumnOptions, resolveEnumLabels, type EffectiveColumn } from '../connections/effective-schema.js';
 import type { RecordWriteEvent } from '../crud/after-record-write.js';
 import { slotInstant } from '../crud/capacity-guard.js';
+import { pkLabel } from '../crud/records.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { rowPictures, type ReadRow } from './row-pictures.js';
 import type { Row } from '../crud/mask.js';
@@ -193,8 +198,10 @@ import type { EffectsAnnouncement } from '../states/effects.js';
 import { outboxContext, outboxEffectContext } from './context.js';
 import { usableLanguage } from './language.js';
 import { rehearsalRowOwner } from '../payments/rehearsal-state.js';
-import { isSampleRow, verdictsFor, type LiveOutbox, type OutboxLogger } from './producers.js';
-import { addressFor, plausibleAddress, referenced, rowOf, type Addressed } from './recipient.js';
+import { holds, isSampleRow, verdictsFor, type LiveOutbox, type OutboxLogger } from './producers.js';
+import { addressFor, numberOnFile, plausibleAddress, referenced, rowOf, type Addressed } from './recipient.js';
+import type { TextDelivery, TextPrepared, TextSendPath, TextSendReport } from '../sms/send/index.js';
+import { TEXT_EARLIER_OPEN, TEXT_NO_NUMBER, TEXT_NO_WORDS, TEXT_NOT_CHECKED, TEXT_NOT_CONNECTED, TEXT_NOT_PREPARED, TEXT_NOT_QUEUED, TEXT_REHEARSAL, TEXT_SAMPLE, textReasonSentence, textRowMark } from './text-words.js';
 import { columnRecipientOf } from './column-recipient.js';
 import { staffReplyTo } from './staff-reply-to.js';
 import { CALENDAR_GOOGLE_VARIABLE, CALENDAR_OUTLOOK_VARIABLE, calendarPartFor } from './calendar-part.js';
@@ -202,7 +209,7 @@ import { reviewLinkFor } from './review-link.js';
 import { invitationOf, invitationPerson, keepSurveyToken, SURVEY_LINK_SKIPS, surveyLinkFor, type SurveyLink } from './survey-link.js';
 import { peopleNames } from '../widget-data/people-names.js';
 import type { SignInLinkMinter } from './sign-in-link.js';
-import { producerOf, settingReader, skipSentence, sourceOf } from './timing.js';
+import { dropReason, producerOf, settingReader, skipSentence, sourceOf } from './timing.js';
 import { PAYMENT_HOLD_RETRY_MS, createPaymentHolds, paymentHoldSentence } from '../payments/reminder-hold.js';
 import { createMemoryHolds } from './memory-holds.js';
 import { OBJECT_LINK_VARIABLE } from '../leads/object-token.js';
@@ -308,6 +315,12 @@ export interface OutboxSenderDeps {
    * `UntoldUnjudgedError`, and the message waits. Absent: none is skipped.
    */
   untold?: ((address: string, connectionId: string) => Promise<string | null>) | undefined;
+  /**
+   * The text send path (`sms/send`), for a kind `outbox.channels` names `sms`.
+   * Read when a text goes, as it is composed after the sender. Null or absent:
+   * no provider call is made and the row says so; email kinds never reach it.
+   */
+  texts?: (() => Pick<TextSendPath, 'prepare' | 'queue'> | null) | undefined;
 }
 
 export interface OutboxSender {
@@ -317,6 +330,10 @@ export interface OutboxSender {
   sweep(now?: number): Promise<number>;
   /** A message sent for a row could not be delivered after every try. */
   markUndelivered(report: EmailSendReport, error: unknown): Promise<void>;
+  /** How a text ended, or a later change: written to its row. Safe to call twice. */
+  markText(report: TextSendReport, delivery: TextDelivery): Promise<void>;
+  /** Whether a text waiting in the queue is still wanted by its row, and still for this number. */
+  textStillWanted(report: TextSendReport, e164: string): Promise<boolean>;
   /** The retry job of a sent message's change. */
   retryEffect(input: { app: string; pk: string | number; sentAt: number }): Promise<void>;
 }
@@ -2048,6 +2065,28 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         withholds ??= await withholdsOn(deps.meta, box.connectionId, { key: box.appKey, manifest: (await appFacts(box.row.manifestId)).manifest });
         forgets ??= await forgetsOn(deps.meta, box.connectionId, { key: box.appKey, manifest: (await appFacts(box.row.manifestId)).manifest });
         labels ??= await choiceLabels(deps.meta, box.connectionId);
+        // A text kind leaves here: it shares the claim's guards and nothing of the mail's making.
+        if (isTextKind(box.definition, String(row[cols.kind] ?? ''))) {
+          let written: Awaited<ReturnType<typeof sendText>>;
+          try {
+            written = await sendText(box, { db, view, outbox, zone, clock: tenant?.timezone ?? null, currency: tenant?.currency ?? null, now, shareCodes, withholds, forgets, labels }, row, {
+              at,
+              claim: (values) => settle(box, target, pk, values, unchanged(row)),
+              afterClaim: (values) => settle(box, target, pk, values, sentAtWindow),
+            });
+          } catch {
+            // Its own handling, and no error's words in the log: a database's message can quote the value it refused.
+            deps.logger?.warn({ appKey: box.appKey, pk: row[key] }, 'an app text could not be written');
+            const values: Row = { [cols.status]: 'failed' };
+            if (cols.error !== undefined) values[cols.error] = TEXT_NOT_PREPARED;
+            const failed = await settle(box, target, pk, values, (q) => q.where(sql.ref(cols.status), '=', 'queued')).catch(() => null);
+            if (failed !== null) settled.push(failed);
+            continue;
+          }
+          if (written !== null) settled.push(written.row);
+          if (written?.queued === true) await effectOf(box, view, written.row, now);
+          continue;
+        }
         const ready = await prepare(box, { db, view, outbox, zone, currency: tenant?.currency ?? null, now, shareCodes, withholds, forgets, labels }, row);
         if ('wait' in ready) {
           // Still queued, for a later pass: this process keeps the wait, so the row does not head every batch.
@@ -2152,6 +2191,158 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     }
     for (const row of settled) deps.announce?.(box.connectionId, outbox, row);
     return settled.length;
+  }
+
+  /**
+   * One text kind's row: judged by the send path, claimed as an email is, then
+   * queued as a sealed job. Its due column is NEVER written: a shut window
+   * holds the job, because the scan knows a reminder by its due column and a
+   * new date would make it queue another reminder every minute. Nothing here
+   * logs an error's own words, which could quote the number.
+   */
+  async function sendText(
+    box: LiveOutbox,
+    ctx: Parameters<typeof prepareText>[1],
+    row: Row,
+    write: { at: string; claim: (values: Row) => Promise<Row | null>; afterClaim: (values: Row) => Promise<Row | null> },
+  ): Promise<{ row: Row; queued: boolean } | null> {
+    const cols = box.definition.columns;
+    const key = ctx.outbox.primaryKey[0]!;
+    const refused = async (status: 'skipped' | 'failed', error: string) => {
+      const values: Row = { [cols.status]: status };
+      if (cols.error !== undefined) values[cols.error] = sentence(error);
+      const done = await write.claim(values);
+      return done === null ? null : { row: done, queued: false };
+    };
+    let ready: Awaited<ReturnType<typeof prepareText>>;
+    try {
+      ready = await prepareText(box, ctx, row);
+    } catch {
+      deps.logger?.warn({ appKey: box.appKey, pk: row[key] }, 'an app text could not be prepared');
+      return refused('failed', TEXT_NOT_PREPARED);
+    }
+    if ('status' in ready) return refused(ready.status, ready.error ?? TEXT_NOT_PREPARED);
+
+    const claim: Row = { [cols.status]: 'sent', [cols.to]: ready.text.text.to };
+    if (cols.sentAt !== undefined) claim[cols.sentAt] = write.at;
+    if (cols.error !== undefined) claim[cols.error] = null;
+    if (ready.language !== undefined && cols.language !== undefined) claim[cols.language] = ready.language;
+    const claimed = await write.claim(claim);
+    if (claimed === null) return null;
+
+    let queued: Awaited<ReturnType<TextSendPath['queue']>>;
+    try {
+      queued = await ready.path.queue(ready.text, {
+        // The message, stable across re-queues: what stops a second delivery opening while the first is unsettled.
+        messageKey: `app-outbox:${box.appKey}:${ctx.outbox.id}:${String(row[key])}`,
+        claimKey: String(ctx.now),
+        report: { app: box.appKey, connectionId: box.connectionId, table: ctx.outbox.id, pk: { [key]: row[key] as string | number }, sentAt: ctx.now },
+      });
+    } catch {
+      deps.logger?.warn({ appKey: box.appKey, pk: row[key] }, 'an app text could not be queued');
+      queued = { queued: false, reason: 'could-not-queue' };
+    }
+    if (queued.queued) return { row: claimed, queued: true };
+    if (queued.reason === 'earlier-send-open') {
+      // It stays sent: the earlier try may have gone, and this row must not read as safe to queue again.
+      if (cols.error === undefined) return { row: claimed, queued: false };
+      return { row: (await write.afterClaim({ [cols.error]: TEXT_EARLIER_OPEN })) ?? claimed, queued: false };
+    }
+    const values: Row = { [cols.status]: 'failed' };
+    if (cols.error !== undefined) values[cols.error] = TEXT_NOT_QUEUED;
+    if (cols.sentAt !== undefined) values[cols.sentAt] = null;
+    return { row: (await write.afterClaim(values)) ?? claimed, queued: false };
+  }
+
+  /** One text made ready: the send path's own checks, on the number and the words as they are now. Writes nothing. */
+  async function prepareText(
+    box: LiveOutbox,
+    ctx: {
+      db: Kysely<SourceDatabase>;
+      view: SnapshotView;
+      outbox: ResolvedTable;
+      zone: string;
+      /** The business's clock as set, or null: the send window then reads UTC. */
+      clock: string | null;
+      currency: string | null;
+      now: number;
+      shareCodes: ShareCodes;
+      withholds: TableWithholds;
+      forgets: TableForgets;
+      labels?: ((locale: string) => ChoiceLabels) | undefined;
+    },
+    row: Row,
+  ): Promise<Outcome | { path: Pick<TextSendPath, 'prepare' | 'queue'>; text: Extract<TextPrepared, { action: 'send' }>; language?: string }> {
+    const cols = box.definition.columns;
+    const recipient = box.definition.recipient;
+    const kind = String(row[cols.kind] ?? '');
+    const producer = producerOf(box.definition, kind);
+    // A preview is never a real text: staff have no phone field to send a rehearsal to.
+    const key = Object.fromEntries(ctx.outbox.primaryKey.map((column) => [column, row[column]]));
+    const noted = await rehearsalRowOwner(deps.meta, box.connectionId, ctx.outbox.id, key);
+    const sample = await isSampleRow(deps.meta, ctx.db, box, ctx.outbox, key);
+    if (noted === null && sample) return { status: 'skipped', error: TEXT_SAMPLE };
+    if (noted !== null && (await rehearsalOf(box, ctx, producer, row, noted, sample)) !== null) return { status: 'skipped', error: TEXT_REHEARSAL };
+
+    const path = deps.texts?.() ?? null;
+    if (path === null) return { status: 'skipped', error: TEXT_NOT_CONNECTED };
+
+    // The number as the person's row holds it now. Only a row that links nobody keeps the number typed on it.
+    const addressed = await addressFor({ db: ctx.db, view: ctx.view, outboxId: ctx.outbox.id, read: settingReader(deps.meta, ctx.db, ctx.view, box.connectionId) }, box.definition, producer, row);
+    const linksNobody = (row[recipient.via] === null || row[recipient.via] === undefined) && (recipient.fallback === undefined || row[recipient.fallback.via] === null || row[recipient.fallback.via] === undefined);
+    const phone = addressed.address ?? (linksNobody ? numberOnFile(row[cols.to]) : null);
+    if (phone === null) return { status: 'skipped', error: TEXT_NO_NUMBER };
+    if (await toForgotten(ctx, box.definition, row, addressed, undefined)) return { status: 'skipped', error: TEXT_NO_NUMBER };
+
+    const templateKey = box.definition.kinds[kind];
+    if (templateKey === undefined) return { status: 'failed', error: sentence(`No text is set for "${kind}"`) };
+    const own = cols.language === undefined ? undefined : row[cols.language];
+    const language = usableLanguage(own) ?? addressed.language ?? undefined;
+    const locale = (typeof language === 'string' && language !== '' ? negotiateLocale(language.replace(/_/g, '-')) : null) ?? (await recipientLocale(deps.meta, null));
+    const stored = await textTemplatesRepo(deps.meta).findSendable(templateKey, locale);
+    if (stored === null) return { status: 'failed', error: TEXT_NO_WORDS };
+
+    const facts = await appFacts(box.row.manifestId);
+    const manifest = facts.manifest ?? ({} as AppManifest);
+    const codeColumns = new Set((manifest.requiredSchema?.tables ?? []).flatMap((table) => table.columns.filter((column) => isCodeColumn(column as never)).map((column) => column.ref)));
+    // A person's wording goes through the same checks, and reads only what the template reads.
+    const reads = new Set(placeholders([stored.body]));
+    const typed = cols.bodyOverride === undefined ? undefined : row[cols.bodyOverride];
+    const body = typeof typed === 'string' && typed.trim() !== '' ? onlyReads(typed, reads) : stored.body;
+
+    const forms = valueForms({ locale: formatTag(typeof language === 'string' ? language : null, stored.locale), zone: ctx.zone, currency: ctx.currency, now: ctx.now });
+    const labels = ctx.labels?.(stored.locale);
+    // No holder: a text carries nobody's codes.
+    const { vars } = await variables(box, { ...ctx, forms, labels, blankOf: heldElsewhere(box, ctx, '', addressed) }, row, addressed, null, null);
+
+    const settings = box.definition.settings;
+    const house = settings === undefined ? undefined : ((await ctx.db.selectFrom(settings.table as never).selectAll().limit(1).executeTakeFirst()) as Row | undefined);
+    const line = (column: string | undefined): string | null => {
+      const value = column === undefined ? undefined : house?.[column];
+      const text = typeof value === 'string' ? value.replaceAll(/\s+/g, ' ').trim() : '';
+      return text === '' ? null : text;
+    };
+    const table = ctx.view.table(recipient.table);
+    const personKey = table.primaryKey[0];
+    const person = addressed.person === null || personKey === undefined || addressed.person[personKey] === null || addressed.person[personKey] === undefined
+      ? null
+      : { connectionId: box.connectionId, table: table.id, key: pkLabel(table, { [personKey]: addressed.person[personKey] }) };
+
+    const prepared = await path.prepare({
+      phone,
+      textClass: mailClassOf(manifest as never, { outboxKind: kind }) === 'marketing' ? 'marketing' : 'service',
+      waiting: isWaitingKind(box.definition, kind),
+      template: body,
+      values: vars,
+      codeNames: codeNamesIn(body, codeColumns),
+      zone: ctx.clock,
+      notAfter: producer !== undefined && 'before' in producer ? (slotInstant(cols.due === undefined ? null : row[cols.due])?.getTime() ?? null) : null,
+      business: { name: vars['appName'] ?? '', phone: line(settings?.phone), email: line(settings?.replyTo) },
+      person,
+    });
+    if (prepared.action === 'skip') return { status: 'skipped', error: textReasonSentence(prepared.reason) };
+    if (prepared.action === 'fail') return { status: 'failed', error: TEXT_NOT_CHECKED };
+    return { path, text: prepared, ...(typeof language === 'string' && language !== '' && language !== own ? { language } : {}) };
   }
 
   /**
@@ -2421,7 +2612,100 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     }
   }
 
-  return { sendApp, sweep, markUndelivered, retryEffect };
+  /** The stored outbox and the row a delivery reports to, or null when either is gone. */
+  async function textRowOf(report: TextSendReport) {
+    const stored = await appOutboxesRepo(deps.meta).findOnConnection(report.app, report.connectionId);
+    if (stored === null) return null;
+    const definition = JSON.parse(stored.definition) as LiveOutbox['definition'];
+    if (definition.table !== report.table) return null;
+    const view = await deps.viewFor(report.connectionId);
+    if (view === null) return null;
+    return { definition, view, handle: await deps.manager.data(report.connectionId), outbox: view.table(definition.table) };
+  }
+
+  async function markText(report: TextSendReport, delivery: TextDelivery): Promise<void> {
+    const mark = textRowMark(delivery);
+    if (mark === null) return;
+    const found = await textRowOf(report);
+    if (found === null) return;
+    const { definition, view, handle, outbox } = found;
+    const cols = definition.columns;
+    const values: Row = {};
+    let from: readonly string[] = ['sent'];
+    if (mark.mark === 'went') {
+      // Clears what an earlier report wrote: a provider can move a message from failed to delivered.
+      if (cols.error === undefined) return;
+      values[cols.status] = 'sent';
+      values[cols.error] = null;
+      from = ['sent', 'failed'];
+    } else if (mark.mark === 'unknown') {
+      // Stays sent, so nobody reads it as safe to queue again.
+      if (cols.error === undefined) return;
+      values[cols.error] = mark.error;
+    } else {
+      values[cols.status] = mark.mark === 'dropped' ? 'skipped' : 'failed';
+      if (cols.error !== undefined) values[cols.error] = sentence(mark.error);
+      else if (mark.mark === 'failed' && cols.sentAt !== undefined) values[cols.sentAt] = null;
+      if (mark.mark === 'dropped' && cols.skipReason !== undefined) {
+        const skip = outbox.table.columns.find((column) => column.name === cols.skipReason);
+        if (skip?.logicalType !== 'enum' || (view.model.enums ?? []).some((one) => one.id === skip.enumRef && one.values.includes('no-longer-needed'))) values[cols.skipReason] = 'no-longer-needed';
+      }
+    }
+    const result = await deps.writes.update({
+      target: { connectionId: report.connectionId, view, table: outbox, db: handle.db, dialect: handle.dialect },
+      pk: report.pk,
+      values,
+      context: outboxContext(report.app, outbox.id),
+      // A row queued again since is the desk's, and one sent again since is another message's.
+      refine: (query) => {
+        let still = query.where(sql.ref(cols.status), 'in', from as never);
+        const sentAt = cols.sentAt === undefined ? undefined : outbox.columns.get(cols.sentAt);
+        if (sentAt !== undefined && report.sentAt !== undefined) {
+          const spelled = (ms: number) => bindWriteValue(sentAt, new Date(ms).toISOString(), handle.dialect);
+          still = still.where(sql.ref(sentAt.name), '>', spelled(report.sentAt - 1_000)).where(sql.ref(sentAt.name), '<', spelled(report.sentAt + 1_000));
+        }
+        // Nothing to clear: a report that says what the row already says writes nothing, and audits nothing.
+        if (mark.mark === 'went') still = still.where((eb) => eb.or([eb(sql.ref(cols.status), '=', 'failed'), eb(sql.ref(cols.error!), 'is not', null)]));
+        return still;
+      },
+      skipIfNone: true,
+      announce: async () => {},
+    });
+    if (result.count > 0 && result.after !== null) deps.announce?.(report.connectionId, outbox, result.after);
+  }
+
+  async function textStillWanted(report: TextSendReport, e164: string): Promise<boolean> {
+    const found = await textRowOf(report);
+    // The app or its table is gone: nothing wants this text.
+    if (found === null) return false;
+    const { definition, view, handle, outbox } = found;
+    const cols = definition.columns;
+    const key = outbox.primaryKey[0];
+    if (key === undefined) return false;
+    const row = await rowOf(handle.db, view, outbox.id, report.pk[key]);
+    if (row === null || row[cols.status] !== 'sent') return false;
+    // An erasure blanks `to`: this text is no longer for anybody.
+    if (row[cols.to] !== e164) return false;
+    if (cols.sentAt !== undefined && report.sentAt !== undefined) {
+      const sentAt = slotInstant(row[cols.sentAt]);
+      if (sentAt === null || Math.abs(sentAt.getTime() - report.sentAt) >= 1_000) return false;
+    }
+    const producer = producerOf(definition, row[cols.kind]);
+    if (producer === undefined) return true;
+    const aboutId = referenced(view, outbox.id, producer.link);
+    const about = aboutId === undefined ? null : await rowOf(handle.db, view, aboutId, row[producer.link]);
+    if (dropReason(producer.dropWhen, about) !== null) return false;
+    if ('before' in producer) {
+      // A reminder is about one moment: its visit gone, no longer matching, or moved (the scan queues the new one).
+      if (about === null || !holds(producer.before.where, about)) return false;
+      const moment = slotInstant(about[producer.before.at]);
+      const due = slotInstant(cols.due === undefined ? null : row[cols.due]);
+      if (moment === null || due === null || Math.abs(moment.getTime() - due.getTime()) >= 1_000) return false;
+    }
+    return true;
+  }
+
+  return { sendApp, sweep, markUndelivered, markText, textStillWanted, retryEffect };
 }
 
 /**

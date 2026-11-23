@@ -24,7 +24,7 @@
  * Each detector is removed in the change that builds its rule. A release
  * ships with no word it claims to run itself (a test says so).
  */
-import { installFloorWords, SMS_WORDS_FLOOR, type ManifestWordName } from '@adminium/manifest';
+import { installFloorWords, type ManifestWordName } from '@adminium/manifest';
 
 import { AppError, ValidationFailedError } from '../errors.js';
 import type { EffectiveModel, EffectiveTable } from '../connections/effective-schema.js';
@@ -57,14 +57,6 @@ export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [];
  * in one of the two, and a test says so.
  */
 export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {
-  // Texts: read and checked now, refused at install until the send path, the text log and the erasure are joined.
-  // The join moves each to MANIFEST_WORDS_RUN.
-  textTemplates: SMS_WORDS_FLOOR,
-  'outbox.channels': SMS_WORDS_FLOOR,
-  'outbox.recipient.phone': SMS_WORDS_FLOOR,
-  'outbox.waiting': SMS_WORDS_FLOOR,
-  'people.phone': SMS_WORDS_FLOOR,
-  'publicAccess.textConsent': SMS_WORDS_FLOOR,
 };
 
 /** The newer words of a manifest this server runs: nothing is refused for using one. */
@@ -532,6 +524,15 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'table.booking.sync',
   'addOn.reviews',
   'appGrants.appColumn',
+  // Text messages: a kind sent as a text through the outbox sender and the `sms.send` job (outbox/sender.ts, sms/send/),
+  // to a person's number; a kind the customer is waiting for, which may go outside the sending hours.
+  'textTemplates',
+  'outbox.channels',
+  'outbox.recipient.phone',
+  'outbox.waiting',
+  // A person's number, found and erased by it (privacy/erase.ts); a public form's own unticked box for texts (people/consent-writes.ts).
+  'people.phone',
+  'publicAccess.textConsent',
 ];
 
 /**

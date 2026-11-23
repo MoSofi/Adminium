@@ -76,6 +76,7 @@ import {
   type PayableRef,
 } from '@adminium/meta';
 
+import { z } from 'zod';
 import { buildServer, type AdminiumServer, type BuildServerOptions } from './app.js';
 import type { HostedSurface } from './cli/surfaces-root.js';
 import type { Env } from './config/env.js';
@@ -405,6 +406,9 @@ import { schemaImportRoutes } from './routes/schema-import/index.js';
 import { searchRoutes } from './routes/search/index.js';
 import { geoRoutes } from './routes/geo/index.js';
 import { paymentsRoutes } from './routes/payments/index.js';
+import { textSubject } from './sms/consent/index.js';
+import { SMS_STOP_EVENT_KINDS } from './sms/inbound/index.js';
+import { createTextSendPath, registerSmsSendHandler, textPhoneKeys, TEXT_SETTLE_AFTER_MS, TEXT_SETTLE_CRON, TEXT_SETTLE_JOB, TEXT_SETTLE_SCHEDULE, type TextSendPath } from './sms/send/index.js';
 import { createSmsWiring, INBOUND_SWEEP_CRON, INBOUND_SWEEP_SCHEDULE } from './sms/wiring.js';
 import { paymentPayablesRoutes } from './routes/payments/payables.js';
 import { paymentWaysRoutes } from './routes/payments/ways.js';
@@ -1558,6 +1562,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     reach: { networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY },
     ...(opts.marketingSeams ?? {}),
   });
+  let textSendPath: TextSendPath | null = null;
   const outboxSender = createOutboxSender({
     meta,
     manager,
@@ -1601,6 +1606,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     tell: createTellMail({ meta, secret: env.ADMINIUM_SECRET }),
     // …and no other message reaches them until it has gone (one on a database whose found people cannot be read waits).
     untold: (address, on) => untoldBy({ meta, manager, viewFor: (connectionId) => publicViews.viewFor(connectionId) }, address, { on }),
+    // Text kinds: read when one goes, because the send path is composed further down.
+    texts: () => textSendPath,
   });
   app.decorate('outboxSender', outboxSender);
   const projectActions =
@@ -1980,8 +1987,6 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const consentTables = consentTableSource({ meta, manager });
   const consent = createConsentService({ meta, secret: env.ADMINIUM_SECRET, tables: consentTables });
   // …and the declared columns that mirror it: a write told to the log, a log event written into the column.
-  peopleConsent = createPeopleConsent({ meta, consent, tables: consentTables, viewFor: (connectionId) => publicViews.viewFor(connectionId), log: app.log });
-  const consentMirror = peopleConsent;
   // Text messages: the provider account, text consent and the inbound door. Built whether or not an account is
   // connected, and silent until one is: no provider call, no required setting, and the sweep queues nothing.
   const sms = createSmsWiring({
@@ -1993,7 +1998,40 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     operator: () => app.trialPolicy.allows('smsProviders'),
     log: app.log,
   });
+  peopleConsent = createPeopleConsent({
+    meta,
+    consent,
+    tables: consentTables,
+    viewFor: (connectionId) => publicViews.viewFor(connectionId),
+    log: app.log,
+    // A public form's own box for texts: its yes is kept apart from any yes to mail.
+    textConsent: sms.consent,
+    textCountry: sms.defaultCountry,
+  });
+  const consentMirror = peopleConsent;
   sms.registerJobs(jobs.registry);
+  // The send path: an outbox text kind goes prepare, queue, then the sealed `sms.send` job. Never in the ended-trial list.
+  textSendPath = createTextSendPath({
+    sms: sms.service,
+    consent: sms.consent,
+    store: sms.deliveries,
+    secret: env.ADMINIUM_SECRET,
+    phoneKeys: textPhoneKeys(meta, env.ADMINIUM_SECRET),
+    // The console's own setting comes with its page. Until then, the defaults: 500 a day, 08:00 to 21:00, counted in UTC.
+    policy: async () => null,
+    repliesReachUs: async () => (await sms.channel.replyReach()).canReceiveStop,
+    operatorAllows: () => app.trialPolicy.allows('smsProviders').allowed,
+    enqueue: (job) => jobs.enqueue(job),
+    callbackUrl: async () => (await sms.channel.replyReach()).address,
+    inboundWaiting: (e164) => sms.inbound.waitingFrom(textSubject(e164), SMS_STOP_EVENT_KINDS),
+    stillWanted: (report, e164) => outboxSender.textStillWanted(report, e164),
+    onSettled: (report, delivery) => outboxSender.markText(report, delivery),
+  });
+  registerSmsSendHandler(jobs.registry, textSendPath.handOver);
+  sms.joinSendPath(textSendPath);
+  jobs.registry.registerJobHandler(TEXT_SETTLE_JOB, z.object({}).passthrough(), async () => ({ ended: await textSendPath?.settleAbandoned(Date.now() - TEXT_SETTLE_AFTER_MS) }), { internal: true });
+  // A text whose worker died, a source row a failed telling never reached, an envelope a job could not blank.
+  jobs.scheduler.registerSchedule(TEXT_SETTLE_SCHEDULE, TEXT_SETTLE_CRON, async () => sms.enqueueTextSettle((input) => jobs.enqueue(input)));
   // Without this a stored event whose job could not be queued is never processed, and a STOP lost while the server was up is never found.
   jobs.scheduler.registerSchedule(INBOUND_SWEEP_SCHEDULE, INBOUND_SWEEP_CRON, async () => sms.enqueueSweep((input) => jobs.enqueue(input)));
   // What the provider took while this server was down. After start-up and never holding it up; a copy told to run nothing asks nothing.

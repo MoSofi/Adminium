@@ -39,7 +39,7 @@
  * write the name into the audit log's before-image. None of that happens
  * here, and nothing is told to the consent log: the erasure deletes it.
  */
-import type { KeptByLawReason, Outbox } from '@adminium/manifest';
+import { isTextKind, type KeptByLawReason, type Outbox } from '@adminium/manifest';
 import { appOutboxesRepo, manifestsRepo, type MetaDb } from '@adminium/meta';
 import type { Dialect } from '@adminium/engine';
 import { sql, type Kysely } from 'kysely';
@@ -57,6 +57,7 @@ import { peopleTablesOf } from '../people/tables-of.js';
 import { forgetOf, forgetsOn, type TableForgets } from '../public-api/forgets-on.js';
 import { findRowsByPhone } from '../sms/consent/find-rows.js';
 import { inList, linkColumnsOf, phoneColumnsOf, theirCopyRows } from './copy-rows.js';
+import { TEXT_NO_NUMBER } from '../outbox/text-words.js';
 import { alreadyBlank, blankValue, columnFacts, erasedColumns, type ErasedRole } from './erase-values.js';
 import { addressIs, keptTablesOf, NO_SECRETS, PRESENT, tableOf, type AppOnDatabase } from './sources.js';
 import { inScope, type AppScope } from './scope.js';
@@ -373,7 +374,7 @@ export async function findPersonRows(deps: EraseRowsDeps, address: string, scope
         if (row[cols.status] === 'queued') {
           // Skipped as a message to a person who deleted their details is (`outbox/forgotten.ts`).
           const skip: Row = { [cols.status]: 'skipped' };
-          if (cols.error !== undefined) skip[cols.error] = 'No email on file';
+          if (cols.error !== undefined) skip[cols.error] = isTextKind(definition, String(row[cols.kind] ?? '')) ? TEXT_NO_NUMBER : 'No email on file';
           if (skipReason !== undefined && (skipReason.logicalType !== 'enum' || (view.model.enums ?? []).some((one) => one.id === skipReason.enumRef && one.values.includes('no-longer-needed')))) skip[cols.skipReason!] = 'no-longer-needed';
           erased.skip = skip;
         }

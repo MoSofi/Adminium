@@ -85,7 +85,7 @@
  */
 import { appPartIsOn } from '../rbac/app-parts.js';
 import type { Dialect } from '@adminium/engine';
-import { removalTableOf, resendAddressOf, sameDecimal, type Outbox, type OutboxProducer, type SettingSource } from '@adminium/manifest';
+import { isTextKind, removalTableOf, resendAddressOf, sameDecimal, type Outbox, type OutboxProducer, type SettingSource } from '@adminium/manifest';
 import { appOutboxesRepo, appTablesRepo, connectionTenantConfig, manifestsRepo, usersRepo, type AppOutboxRow, type MetaDb } from '@adminium/meta';
 
 import { noteRehearsalRow, rehearsalRowOwner } from '../payments/rehearsal-state.js';
@@ -110,6 +110,7 @@ import { producedLanguage } from './language.js';
 import { expiringLinksOf, releasedLinksOf, withLinks, type ReleasedLink } from './release.js';
 import { repeatKeyOf } from './repeat-key.js';
 import { addressFor, referenced, rowOf } from './recipient.js';
+import { TEXT_NO_NUMBER } from './text-words.js';
 import { cameDue, dropReason, dueFor, groupRanks, producerOf, settingReader, skipSentence, sourceOf, type SettingReader, type SkipReason } from './timing.js';
 import { asksForPayment } from '../payments/reminder-hold.js';
 
@@ -199,7 +200,7 @@ export function wasOf(table: ResolvedTable, columns: readonly string[], before: 
 
 type Condition = { column: string; eq?: unknown; in?: unknown[] | undefined; isNull?: boolean | undefined };
 
-function holds(condition: Condition | undefined, row: Row): boolean {
+export function holds(condition: Condition | undefined, row: Row): boolean {
   if (condition === undefined) return true;
   const value = row[condition.column];
   if (condition.isNull !== undefined) return (value === null || value === undefined) === condition.isNull;
@@ -600,7 +601,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       if (cols.language !== undefined && language !== null) values[cols.language] = language;
       // A held message waits for a person whatever its address: it is looked up again when approved.
       values[cols.status] = producer.hold === true ? 'held' : addressed.address !== null ? 'queued' : 'skipped';
-      if (values[cols.status] === 'skipped' && cols.error !== undefined) values[cols.error] = 'No email on file';
+      if (values[cols.status] === 'skipped' && cols.error !== undefined) values[cols.error] = isTextKind(box.definition, producer.kind) ? TEXT_NO_NUMBER : 'No email on file';
       // The changed row as it was (a stay's old dates and total), kept on the message for its template.
       if (producer.was !== undefined && cols.was !== undefined) {
         const kept = wasOf(source, producer.was, opts.before ?? null);
