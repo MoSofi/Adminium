@@ -73,9 +73,11 @@ export interface LabelView {
   /** The carrier answered with another size than the one asked for. */
   sizeDiffers: boolean;
   customsInvoice: boolean;
+  /** The carrier made a customs invoice and it has not been stored yet: a person retries. */
+  customsInvoiceOwed: boolean;
 }
 
-type LabelFields = Pick<ShippingBooking, 'state' | 'labelRef' | 'customsRef' | 'labelSize' | 'labelSizeGot' | 'labelGoneAt'>;
+type LabelFields = Pick<ShippingBooking, 'state' | 'labelRef' | 'customsRef' | 'customsDue' | 'labelSize' | 'labelSizeGot' | 'labelGoneAt'>;
 
 /**
  * How a booking's label stands. Only `booked` can have one to hand out: a list
@@ -96,6 +98,7 @@ export function labelView(booking: LabelFields): LabelView {
     sizeGot: booking.labelSizeGot,
     sizeDiffers: booking.labelSize !== null && booking.labelSizeGot !== null && booking.labelSize !== booking.labelSizeGot,
     customsInvoice: state === 'ready' && booking.customsRef !== null,
+    customsInvoiceOwed: (state === 'ready' || state === 'owed') && booking.customsDue && booking.customsRef === null,
   };
 }
 
@@ -246,7 +249,11 @@ export async function fetchDocument(deps: LabelDeps, booking: ShippingBooking, r
  */
 export async function firstFetch(deps: LabelDeps, booking: ShippingBooking, resolved: ResolvedCarrier, owner: LabelOwner, by: string, waitMs: number = LABEL_WAIT_MS): Promise<ShippingBooking> {
   if (booking.state !== 'booked') return booking;
-  const work = fetchDocument(deps, booking, resolved, owner, 'label', by).catch(() => booking);
+  const work = (async () => {
+    const labelled = await fetchDocument(deps, booking, resolved, owner, 'label', by).catch(() => booking);
+    if (!labelled.customsDue || labelled.customsRef !== null) return labelled;
+    return fetchDocument(deps, labelled, resolved, owner, 'customs-invoice', by).catch(() => labelled);
+  })();
   let timer: NodeJS.Timeout | undefined;
   const late = new Promise<ShippingBooking>((resolve) => {
     timer = setTimeout(() => resolve(booking), waitMs);

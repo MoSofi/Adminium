@@ -129,6 +129,7 @@ import { up as up0109 } from './0109_shipping_bookings.js';
 import { up as up0110 } from './0110_shipping_labels.js';
 import { up as up0111 } from './0111_shipping_tracking.js';
 import { up as up0112 } from './0112_shipping_refunds.js';
+import { up as up0113 } from './0113_shipping_customs.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -245,4 +246,5 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0110_shipping_labels', up: up0110 },
   { name: '0111_shipping_tracking', up: up0111 },
   { name: '0112_shipping_refunds', up: up0112 },
+  { name: '0113_shipping_customs', up: up0113 },
 ];

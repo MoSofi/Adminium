@@ -56,7 +56,7 @@ export interface ShippingStatus {
   activeCarrier: string | null;
   shipFrom: { country: string } | null;
   shipFromMissing: string[];
-  international: false;
+  international: boolean;
   labelSize: LabelSize;
   limits: {
     perLabel: { amount: string; currency: string } | null;

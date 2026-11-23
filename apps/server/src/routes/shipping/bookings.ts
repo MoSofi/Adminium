@@ -15,7 +15,7 @@
  * Every route is for a signed-in person who reaches the order. No reply holds
  * a carrier's handle, and someone who cannot see money is told none.
  */
-import type { Address, Parcel, ShipmentPurpose } from '@adminium/add-on-contracts';
+import type { Address, CustomsDeclaration, Parcel, ShipmentPurpose } from '@adminium/add-on-contracts';
 import { SHIPPING_CARRIER_TEXT_WIDTH, shippingBookingsRepo, shippingRepo, type InstalledManifest, type ManifestsRepo, type MetaDb, type ShippingBooking, type ShippingSlot, shippingTrackingRepo } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -30,7 +30,8 @@ import { pkOfRowKey, type PayableSources } from '../../payments/payables.js';
 import { appShippingPermission, PERMISSIONS } from '../../rbac/permissions.js';
 import { tagRoutes } from '../../security/route-audience.js';
 import { pricesHiddenFrom, shippingPerson, shippingViewerOf, type ShippingViewer } from '../../shipping/access.js';
-import { recipientForRates } from '../../shipping/addresses.js';
+import { recipientAbroad, recipientForRates } from '../../shipping/addresses.js';
+import { readCustomsChoice, type CustomsChoice, type InternationalSettings } from '../../shipping/customs.js';
 import { checkRefund, requestRefund } from '../../shipping/refunds.js';
 import { trackViewOf } from '../../shipping/tracking.js';
 import { FOREIGN_LABEL_REASON, bookingView, buyLabel, foreignLabelOn, lookUpBooking, releaseBooking, settleStale, type BookingDeps } from '../../shipping/bookings.js';
@@ -60,6 +61,8 @@ export interface ShippableOrder extends ReachedOrder {
   limits: Awaited<ReturnType<ReturnType<typeof shippingRepo>['limits']>>;
   venueDay: string;
   pricesHidden: boolean;
+  /** The shop's countries and customs defaults, once its owner has saved them. */
+  international: InternationalSettings | null;
 }
 
 export interface ShippingBookingRoutesDeps {
@@ -72,6 +75,8 @@ export interface ShippingBookingRoutesDeps {
   reachOrder(request: FastifyRequest, install: InstalledManifest, connectionId: string, source: { table: string; id: string }): Promise<ReachedOrder>;
   shippableOrder(request: FastifyRequest, install: InstalledManifest, connectionId: string, viewer: ShippingViewer, source: { table: string; id: string }): Promise<ShippableOrder>;
   withoutCarrierWords(error: unknown): unknown;
+  /** What is declared for this parcel, read from the order again. */
+  declareCustoms(install: InstalledManifest, connectionId: string, order: ShippableOrder, parcel: Parcel, choice: CustomsChoice): Promise<{ declaration: CustomsDeclaration; signerId: string }>;
   bookingDeps(request: FastifyRequest): BookingDeps;
   /** A return label's place on its order, once the return is known to be approved and this person the owner. */
   returnPlace(request: FastifyRequest, install: InstalledManifest, connectionId: string, viewer: ShippingViewer, order: ReachedOrder, returnId: string | undefined): Promise<number>;
@@ -189,6 +194,13 @@ export function shippingBookingRoutes(deps: ShippingBookingRoutesDeps): FastifyP
         const slot: ShippingSlot = { installId: install.row.id, connectionId, tableRef: stored.tableRef, rowKey: order.rowKey, purpose, parcelNumber: stored.parcelNumber };
         const place = { ...slot, tableName: order.table.id };
 
+        const abroad = order.to.country !== order.from.country;
+        const customsChoice = abroad ? readCustomsChoice(stored.customs) : null;
+        // A quote with no ticked declaration was not given for a parcel going abroad.
+        if (abroad && customsChoice === null) throw new ShippingRefusal('QUOTE_STALE', 'That quote can no longer be bought. Get rates again.');
+        const declared = customsChoice === null ? null : await deps.declareCustoms(install, connectionId, order, parcel.data as Parcel, customsChoice);
+        const customs = declared === null ? {} : { customs: declared.declaration };
+
         const seam = deps.carrierDeps(request);
         const resolved = await shippingCarrierFor(seam, order.carrierKey, connectionId, order.venueDay);
         const account = await checkedAccount(meta, secret, resolved);
@@ -198,7 +210,7 @@ export function shippingBookingRoutes(deps: ShippingBookingRoutesDeps): FastifyP
           slot,
           carrierKey: order.carrierKey,
           accountFingerprint: account.fingerprint,
-          details: { parcel: parcel.data as Parcel, from: order.from, to: order.to },
+          details: { parcel: parcel.data as Parcel, from: order.from, to: order.to, ...customs },
           now: app.rbac.now(),
         });
         if (!held.ok) throw new ShippingRefusal(held.code, 'That quote can no longer be bought. Get rates again.');
@@ -262,7 +274,7 @@ export function shippingBookingRoutes(deps: ShippingBookingRoutesDeps): FastifyP
             detailsHash: held.detailsHash,
             rate: held.rate,
             // A carrier that binds at quote time ignores these. A customer's phone and email stay here until one needs them.
-            details: { parcel: parcel.data as Parcel, ...(purpose === 'return' ? { from: recipientForRates(order.to), to: order.from } : { from: order.from, to: recipientForRates(order.to) }), labelSize: await labelSizeOf(meta, install.row.id) },
+            details: { parcel: parcel.data as Parcel, ...(purpose === 'return' ? { from: recipientForRates(order.to), to: order.from } : { from: order.from, to: abroad ? recipientAbroad(order.to) : recipientForRates(order.to) }), ...customs, labelSize: await labelSizeOf(meta, install.row.id) },
             by,
             counted: viewer.manages || dailyLabels === null ? null : { day: order.venueDay, dailyLabels },
             confirmEarlier: viewer.manages && confirmEarlier === true,
@@ -277,7 +289,7 @@ export function shippingBookingRoutes(deps: ShippingBookingRoutesDeps): FastifyP
         await app.rbac.audit(request, {
           category: 'settings',
           action: 'shipping.booking.made',
-          changes: { after: { app: install.row.manifestKey, booking: booking.id, carrier: booking.carrierKey, reference: booking.reference, purpose: booking.purpose, parcel: booking.parcelNumber, mode: booking.mode, state: booking.state } },
+          changes: { after: { app: install.row.manifestKey, booking: booking.id, carrier: booking.carrierKey, reference: booking.reference, purpose: booking.purpose, parcel: booking.parcelNumber, mode: booking.mode, state: booking.state, ...(declared === null || customsChoice === null ? {} : { customs: { declaredBy: customsChoice.certifiedBy, signer: declared.signerId, to: order.to.country, lines: declared.declaration.items.length } }) } },
         });
         return { data: bookingView(booking, app.rbac.now(), order.pricesHidden) };
       },

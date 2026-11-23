@@ -15,7 +15,6 @@ import type { ShippingAddressColumns } from '@adminium/manifest';
 import { z } from 'zod';
 
 import type { Row } from '../crud/mask.js';
-import { INTERNATIONAL_ENABLED } from './locks.js';
 import { ShippingRefusal } from './refusals.js';
 
 const ISO_COUNTRY = /^[A-Z]{2}$/;
@@ -123,14 +122,16 @@ function text(row: Row, column: string | undefined): string | undefined {
  *
  * The country is asked first, because an order abroad cannot be sent however
  * its other fields are filled in, and the owner should hear that before being
- * asked to fix a phone number.
+ * asked to fix a phone number. `abroad` is the shop's own list of countries,
+ * empty until its owner sets one up.
  */
-export function orderAddress(row: Row, columns: ShippingAddressColumns, sender: Address): Address {
+export function orderAddress(row: Row, columns: ShippingAddressColumns, sender: Address, abroad: readonly string[] = []): Address {
   const raw = text(row, columns.country)?.toUpperCase();
   if (raw === undefined || !ISO_COUNTRY.test(raw)) {
     throw new ShippingRefusal('COUNTRY_NOT_RECORDED', 'This order has no two-letter country code.', { field: 'country' });
   }
-  if (!INTERNATIONAL_ENABLED && raw !== sender.country) {
+  if (raw !== sender.country && !abroad.includes(raw)) {
+    if (abroad.length > 0) throw new ShippingRefusal('COUNTRY_NOT_OFFERED', 'This shop does not deliver to that country.', { from: sender.country, to: raw });
     throw new ShippingRefusal('OUTSIDE_OWN_COUNTRY', 'This order is going to another country, and shipping abroad is not available yet.', { from: sender.country, to: raw });
   }
   const name = text(row, columns.name);
@@ -158,11 +159,23 @@ export function orderAddress(row: Row, columns: ShippingAddressColumns, sender: 
   };
 }
 
+/** The order's country as a two-letter code, or null when it has none. */
+export function orderCountry(row: Row, columns: ShippingAddressColumns): string | null {
+  const raw = text(row, columns.country)?.toUpperCase();
+  return raw !== undefined && ISO_COUNTRY.test(raw) ? raw : null;
+}
+
 /**
  * The recipient as a rate needs them. A price depends on where a parcel goes,
  * so a customer's phone and email stay here until a label needs them.
  */
 export function recipientForRates(to: Address): Address {
   const { phone: _phone, email: _email, ...rest } = to;
+  return rest;
+}
+
+/** The recipient of a parcel going abroad: carriers need a phone to clear it. The email stays here. */
+export function recipientAbroad(to: Address): Address {
+  const { email: _email, ...rest } = to;
   return rest;
 }

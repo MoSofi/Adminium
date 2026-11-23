@@ -2213,6 +2213,8 @@ export interface AdminiumShippingSettingsTable {
   shipFrom: ColumnType<unknown, string | null | undefined, string | null>;
   /** Wave 0110: the label size this shop asks carriers for. */
   labelSize: ColumnType<string | null, string | null | undefined, string | null>;
+  /** Wave 0113: the countries this shop delivers to and its customs defaults. */
+  international: ColumnType<unknown, string | null | undefined, string | null>;
   updatedBy: string | null;
   updatedAt: Ts;
 }
@@ -2234,6 +2236,8 @@ export interface AdminiumShippingQuotesTable {
   accountFingerprint: ColumnType<string | null, string | null | undefined, string | null>;
   /** Wave 0109: what was weighed and measured, so a purchase names only a quote and a rate. */
   parcel: ColumnType<unknown, string | null | undefined, string | null>;
+  /** Wave 0113: what the person who ticked the customs declaration chose. */
+  customs: ColumnType<unknown, string | null | undefined, string | null>;
   detailsHash: string;
   rates: JsonColumn;
   createdBy: string | null;
@@ -2357,6 +2361,8 @@ export interface AdminiumShippingBookingsTable {
   labelRef: string | null;
   /** Wave 0110: the stored customs invoice, the size asked for and got, and when the label's file stops being kept. */
   customsRef: ColumnType<string | null, string | null | undefined, string | null>;
+  /** Wave 0113: the carrier said this label has a customs invoice. */
+  customsDue: ColumnType<unknown, boolean | null | undefined, boolean | null>;
   labelSize: ColumnType<string | null, string | null | undefined, string | null>;
   labelSizeGot: ColumnType<string | null, string | null | undefined, string | null>;
   labelClockAt: ColumnType<Ts | null, number | null | undefined, number | null>;

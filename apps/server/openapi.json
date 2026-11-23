@@ -170287,9 +170287,78 @@
                           }
                         },
                         "international": {
-                          "type": "boolean",
-                          "enum": [
-                            false
+                          "type": "boolean"
+                        },
+                        "customs": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "countries": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "currency": {
+                                  "type": "string"
+                                },
+                                "originCountry": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "hsCode": {
+                                  "type": "string"
+                                },
+                                "signerId": {
+                                  "type": "string"
+                                },
+                                "signerName": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "products": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "sku": {
+                                        "type": "string"
+                                      },
+                                      "hsCode": {
+                                        "type": "string"
+                                      },
+                                      "originCountry": {
+                                        "type": "string"
+                                      },
+                                      "manufacturerCode": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "sku"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "countries",
+                                "currency",
+                                "originCountry",
+                                "signerId",
+                                "signerName",
+                                "products"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
                           ]
                         },
                         "labelSize": {
@@ -170355,6 +170424,7 @@
                         "shipFrom",
                         "shipFromMissing",
                         "international",
+                        "customs",
                         "labelSize",
                         "limits"
                       ],
@@ -170580,9 +170650,78 @@
                           }
                         },
                         "international": {
-                          "type": "boolean",
-                          "enum": [
-                            false
+                          "type": "boolean"
+                        },
+                        "customs": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "countries": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "currency": {
+                                  "type": "string"
+                                },
+                                "originCountry": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "hsCode": {
+                                  "type": "string"
+                                },
+                                "signerId": {
+                                  "type": "string"
+                                },
+                                "signerName": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "products": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "sku": {
+                                        "type": "string"
+                                      },
+                                      "hsCode": {
+                                        "type": "string"
+                                      },
+                                      "originCountry": {
+                                        "type": "string"
+                                      },
+                                      "manufacturerCode": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "sku"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "countries",
+                                "currency",
+                                "originCountry",
+                                "signerId",
+                                "signerName",
+                                "products"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
                           ]
                         },
                         "labelSize": {
@@ -170648,6 +170787,7 @@
                         "shipFrom",
                         "shipFromMissing",
                         "international",
+                        "customs",
                         "labelSize",
                         "limits"
                       ],
@@ -171040,9 +171180,78 @@
                           }
                         },
                         "international": {
-                          "type": "boolean",
-                          "enum": [
-                            false
+                          "type": "boolean"
+                        },
+                        "customs": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "countries": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "currency": {
+                                  "type": "string"
+                                },
+                                "originCountry": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "hsCode": {
+                                  "type": "string"
+                                },
+                                "signerId": {
+                                  "type": "string"
+                                },
+                                "signerName": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "products": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "sku": {
+                                        "type": "string"
+                                      },
+                                      "hsCode": {
+                                        "type": "string"
+                                      },
+                                      "originCountry": {
+                                        "type": "string"
+                                      },
+                                      "manufacturerCode": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "sku"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "countries",
+                                "currency",
+                                "originCountry",
+                                "signerId",
+                                "signerName",
+                                "products"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
                           ]
                         },
                         "labelSize": {
@@ -171108,6 +171317,7 @@
                         "shipFrom",
                         "shipFromMissing",
                         "international",
+                        "customs",
                         "labelSize",
                         "limits"
                       ],
@@ -171323,6 +171533,9 @@
                                   },
                                   "customsInvoice": {
                                     "type": "boolean"
+                                  },
+                                  "customsInvoiceOwed": {
+                                    "type": "boolean"
                                   }
                                 },
                                 "required": [
@@ -171330,7 +171543,8 @@
                                   "size",
                                   "sizeGot",
                                   "sizeDiffers",
-                                  "customsInvoice"
+                                  "customsInvoice",
+                                  "customsInvoiceOwed"
                                 ],
                                 "additionalProperties": false
                               },
@@ -171726,6 +171940,9 @@
                             },
                             "customsInvoice": {
                               "type": "boolean"
+                            },
+                            "customsInvoiceOwed": {
+                              "type": "boolean"
                             }
                           },
                           "required": [
@@ -171733,7 +171950,8 @@
                             "size",
                             "sizeGot",
                             "sizeDiffers",
-                            "customsInvoice"
+                            "customsInvoice",
+                            "customsInvoiceOwed"
                           ],
                           "additionalProperties": false
                         },
@@ -172088,6 +172306,9 @@
                                 },
                                 "customsInvoice": {
                                   "type": "boolean"
+                                },
+                                "customsInvoiceOwed": {
+                                  "type": "boolean"
                                 }
                               },
                               "required": [
@@ -172095,7 +172316,8 @@
                                 "size",
                                 "sizeGot",
                                 "sizeDiffers",
-                                "customsInvoice"
+                                "customsInvoice",
+                                "customsInvoiceOwed"
                               ],
                               "additionalProperties": false
                             },
@@ -172480,6 +172702,9 @@
                                 },
                                 "customsInvoice": {
                                   "type": "boolean"
+                                },
+                                "customsInvoiceOwed": {
+                                  "type": "boolean"
                                 }
                               },
                               "required": [
@@ -172487,7 +172712,8 @@
                                 "size",
                                 "sizeGot",
                                 "sizeDiffers",
-                                "customsInvoice"
+                                "customsInvoice",
+                                "customsInvoiceOwed"
                               ],
                               "additionalProperties": false
                             },
@@ -172850,6 +173076,9 @@
                                 },
                                 "customsInvoice": {
                                   "type": "boolean"
+                                },
+                                "customsInvoiceOwed": {
+                                  "type": "boolean"
                                 }
                               },
                               "required": [
@@ -172857,7 +173086,8 @@
                                 "size",
                                 "sizeGot",
                                 "sizeDiffers",
-                                "customsInvoice"
+                                "customsInvoice",
+                                "customsInvoiceOwed"
                               ],
                               "additionalProperties": false
                             },
@@ -173226,6 +173456,9 @@
                             },
                             "customsInvoice": {
                               "type": "boolean"
+                            },
+                            "customsInvoiceOwed": {
+                              "type": "boolean"
                             }
                           },
                           "required": [
@@ -173233,7 +173466,8 @@
                             "size",
                             "sizeGot",
                             "sizeDiffers",
-                            "customsInvoice"
+                            "customsInvoice",
+                            "customsInvoiceOwed"
                           ],
                           "additionalProperties": false
                         },
@@ -173420,6 +173654,761 @@
                         "refund"
                       ],
                       "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/shipping/international": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "countries": {
+                    "maxItems": 120,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[A-Z]{2}$"
+                    }
+                  },
+                  "currency": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}$"
+                  },
+                  "originCountry": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{2}$"
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "hsCode": {
+                    "type": "string",
+                    "maxLength": 24
+                  },
+                  "signerId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "products": {
+                    "maxItems": 500,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "sku": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64
+                        },
+                        "hsCode": {
+                          "type": "string",
+                          "maxLength": 24
+                        },
+                        "originCountry": {
+                          "type": "string",
+                          "pattern": "^[A-Z]{2}$"
+                        },
+                        "manufacturerCode": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64
+                        }
+                      },
+                      "required": [
+                        "sku"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "countries",
+                  "currency",
+                  "originCountry"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "appUpdated": {
+                          "type": "boolean"
+                        },
+                        "carriers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "locked": {
+                                "type": "boolean"
+                              },
+                              "on": {
+                                "type": "boolean"
+                              },
+                              "connected": {
+                                "type": "boolean"
+                              },
+                              "account": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "mode": {
+                                        "type": "string",
+                                        "enum": [
+                                          "live",
+                                          "test"
+                                        ]
+                                      },
+                                      "keyHint": {
+                                        "type": "string"
+                                      },
+                                      "state": {
+                                        "type": "string",
+                                        "enum": [
+                                          "ok",
+                                          "refused"
+                                        ]
+                                      },
+                                      "carriers": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "checkedAt": {
+                                        "type": "number"
+                                      }
+                                    },
+                                    "required": [
+                                      "mode",
+                                      "keyHint",
+                                      "state",
+                                      "carriers",
+                                      "checkedAt"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "openBookings": {
+                                "type": "object",
+                                "properties": {
+                                  "count": {
+                                    "type": "number"
+                                  },
+                                  "orders": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "count",
+                                  "orders"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "name",
+                              "locked",
+                              "on",
+                              "connected",
+                              "account",
+                              "openBookings"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "activeCarrier": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "shipFrom": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "lines": {
+                                  "minItems": 1,
+                                  "maxItems": 3,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 120
+                                  }
+                                },
+                                "city": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "region": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "postcode": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 32
+                                },
+                                "country": {
+                                  "type": "string",
+                                  "pattern": "^[A-Z]{2}$"
+                                },
+                                "phone": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 40
+                                },
+                                "company": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                },
+                                "email": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 254
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "shipFromMissing": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "international": {
+                          "type": "boolean"
+                        },
+                        "customs": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "countries": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "currency": {
+                                  "type": "string"
+                                },
+                                "originCountry": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "hsCode": {
+                                  "type": "string"
+                                },
+                                "signerId": {
+                                  "type": "string"
+                                },
+                                "signerName": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "products": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "sku": {
+                                        "type": "string"
+                                      },
+                                      "hsCode": {
+                                        "type": "string"
+                                      },
+                                      "originCountry": {
+                                        "type": "string"
+                                      },
+                                      "manufacturerCode": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "sku"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "countries",
+                                "currency",
+                                "originCountry",
+                                "signerId",
+                                "signerName",
+                                "products"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "labelSize": {
+                          "type": "string",
+                          "enum": [
+                            "a4",
+                            "a6",
+                            "4x6"
+                          ]
+                        },
+                        "limits": {
+                          "type": "object",
+                          "properties": {
+                            "perLabel": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "amount": {
+                                      "type": "string"
+                                    },
+                                    "currency": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "amount",
+                                    "currency"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "dailyLabels": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "packersAbroad": {
+                              "type": "boolean"
+                            },
+                            "usedToday": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "perLabel",
+                            "dailyLabels",
+                            "packersAbroad",
+                            "usedToday"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "appUpdated",
+                        "carriers",
+                        "activeCarrier",
+                        "shipFrom",
+                        "shipFromMissing",
+                        "international",
+                        "customs",
+                        "labelSize",
+                        "limits"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/shipping/customs/signers": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "signers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "signers"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/shipping/customs": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "connectionId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "table",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 191
+            },
+            "in": "query",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "abroad": {
+                              "type": "boolean",
+                              "enum": [
+                                false
+                              ]
+                            }
+                          },
+                          "required": [
+                            "abroad"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "abroad": {
+                              "type": "boolean",
+                              "enum": [
+                                true
+                              ]
+                            },
+                            "offered": {
+                              "type": "boolean",
+                              "enum": [
+                                false
+                              ]
+                            },
+                            "to": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "abroad",
+                            "offered",
+                            "to"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "abroad": {
+                              "type": "boolean",
+                              "enum": [
+                                true
+                              ]
+                            },
+                            "offered": {
+                              "type": "boolean",
+                              "enum": [
+                                true
+                              ]
+                            },
+                            "to": {
+                              "type": "string"
+                            },
+                            "signer": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "currency": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "lines": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "line": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "quantity": {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  },
+                                  "unitValue": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "originCountry": {
+                                    "type": "string"
+                                  },
+                                  "hsCode": {
+                                    "type": "string"
+                                  },
+                                  "skuCode": {
+                                    "type": "string"
+                                  },
+                                  "manufacturerCode": {
+                                    "type": "string"
+                                  },
+                                  "unitWeightKg": {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "line",
+                                  "description",
+                                  "quantity",
+                                  "unitValue",
+                                  "originCountry",
+                                  "unitWeightKg"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "problems": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "line": {
+                                    "type": "string"
+                                  },
+                                  "field": {
+                                    "type": "string",
+                                    "enum": [
+                                      "lines",
+                                      "description",
+                                      "quantity",
+                                      "unitValue",
+                                      "currency",
+                                      "originCountry",
+                                      "weight"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "field"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "warnings": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "line": {
+                                    "type": "string"
+                                  },
+                                  "field": {
+                                    "type": "string",
+                                    "enum": [
+                                      "hsCode",
+                                      "skuCode",
+                                      "manufacturerCode"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "line",
+                                  "field"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "abroad",
+                            "offered",
+                            "to",
+                            "signer",
+                            "currency",
+                            "lines",
+                            "problems",
+                            "warnings"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -173626,6 +174615,9 @@
                             },
                             "customsInvoice": {
                               "type": "boolean"
+                            },
+                            "customsInvoiceOwed": {
+                              "type": "boolean"
                             }
                           },
                           "required": [
@@ -173633,7 +174625,8 @@
                             "size",
                             "sizeGot",
                             "sizeDiffers",
-                            "customsInvoice"
+                            "customsInvoice",
+                            "customsInvoiceOwed"
                           ],
                           "additionalProperties": false
                         },
@@ -174302,6 +175295,9 @@
                                       },
                                       "customsInvoice": {
                                         "type": "boolean"
+                                      },
+                                      "customsInvoiceOwed": {
+                                        "type": "boolean"
                                       }
                                     },
                                     "required": [
@@ -174309,7 +175305,8 @@
                                       "size",
                                       "sizeGot",
                                       "sizeDiffers",
-                                      "customsInvoice"
+                                      "customsInvoice",
+                                      "customsInvoiceOwed"
                                     ],
                                     "additionalProperties": false
                                   },
@@ -174883,6 +175880,9 @@
                         "mayCustoms": {
                           "type": "boolean"
                         },
+                        "mayShipAbroad": {
+                          "type": "boolean"
+                        },
                         "pricesHidden": {
                           "type": "boolean"
                         },
@@ -174910,6 +175910,7 @@
                         "mayBook",
                         "mayCancel",
                         "mayCustoms",
+                        "mayShipAbroad",
                         "pricesHidden",
                         "booking"
                       ],
@@ -175128,9 +176129,78 @@
                           }
                         },
                         "international": {
-                          "type": "boolean",
-                          "enum": [
-                            false
+                          "type": "boolean"
+                        },
+                        "customs": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "countries": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "currency": {
+                                  "type": "string"
+                                },
+                                "originCountry": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "hsCode": {
+                                  "type": "string"
+                                },
+                                "signerId": {
+                                  "type": "string"
+                                },
+                                "signerName": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "products": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "sku": {
+                                        "type": "string"
+                                      },
+                                      "hsCode": {
+                                        "type": "string"
+                                      },
+                                      "originCountry": {
+                                        "type": "string"
+                                      },
+                                      "manufacturerCode": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "sku"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "countries",
+                                "currency",
+                                "originCountry",
+                                "signerId",
+                                "signerName",
+                                "products"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
                           ]
                         },
                         "labelSize": {
@@ -175196,6 +176266,7 @@
                         "shipFrom",
                         "shipFromMissing",
                         "international",
+                        "customs",
                         "labelSize",
                         "limits"
                       ],
@@ -175434,9 +176505,78 @@
                           }
                         },
                         "international": {
-                          "type": "boolean",
-                          "enum": [
-                            false
+                          "type": "boolean"
+                        },
+                        "customs": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "countries": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "currency": {
+                                  "type": "string"
+                                },
+                                "originCountry": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "hsCode": {
+                                  "type": "string"
+                                },
+                                "signerId": {
+                                  "type": "string"
+                                },
+                                "signerName": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "products": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "sku": {
+                                        "type": "string"
+                                      },
+                                      "hsCode": {
+                                        "type": "string"
+                                      },
+                                      "originCountry": {
+                                        "type": "string"
+                                      },
+                                      "manufacturerCode": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "sku"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "countries",
+                                "currency",
+                                "originCountry",
+                                "signerId",
+                                "signerName",
+                                "products"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
                           ]
                         },
                         "labelSize": {
@@ -175502,6 +176642,7 @@
                         "shipFrom",
                         "shipFromMissing",
                         "international",
+                        "customs",
                         "labelSize",
                         "limits"
                       ],
@@ -175772,9 +176913,78 @@
                           }
                         },
                         "international": {
-                          "type": "boolean",
-                          "enum": [
-                            false
+                          "type": "boolean"
+                        },
+                        "customs": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "countries": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "currency": {
+                                  "type": "string"
+                                },
+                                "originCountry": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "hsCode": {
+                                  "type": "string"
+                                },
+                                "signerId": {
+                                  "type": "string"
+                                },
+                                "signerName": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "products": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "sku": {
+                                        "type": "string"
+                                      },
+                                      "hsCode": {
+                                        "type": "string"
+                                      },
+                                      "originCountry": {
+                                        "type": "string"
+                                      },
+                                      "manufacturerCode": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "sku"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "countries",
+                                "currency",
+                                "originCountry",
+                                "signerId",
+                                "signerName",
+                                "products"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
                           ]
                         },
                         "labelSize": {
@@ -175840,6 +177050,7 @@
                         "shipFrom",
                         "shipFromMissing",
                         "international",
+                        "customs",
                         "labelSize",
                         "limits"
                       ],
@@ -175941,6 +177152,53 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 64
+                  },
+                  "customs": {
+                    "type": "object",
+                    "properties": {
+                      "certified": {
+                        "type": "boolean",
+                        "enum": [
+                          true
+                        ]
+                      },
+                      "lines": {
+                        "maxItems": 100,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "line": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 64
+                            },
+                            "description": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "hsCode": {
+                              "type": "string",
+                              "maxLength": 24
+                            },
+                            "manufacturerCode": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 64
+                            }
+                          },
+                          "required": [
+                            "line"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "certified"
+                    ],
+                    "additionalProperties": false
                   }
                 },
                 "required": [

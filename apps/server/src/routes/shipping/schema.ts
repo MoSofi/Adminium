@@ -12,6 +12,7 @@ import { z } from 'zod';
 
 import { shipFromBodySchema, shipFromSchema } from '../../shipping/addresses.js';
 import { ATTENTION_REASONS } from '../../shipping/attention.js';
+import { customsQuoteBody } from '../../shipping/customs.js';
 
 const finite = (max: number) => z.number().finite().gt(0).max(max);
 
@@ -61,6 +62,8 @@ export const quoteBody = z
     parcelNumber: z.number().int().min(1).max(99).optional(),
     /** The approved return a return label is for. The server works out its place from it. */
     returnId: z.string().min(1).max(64).optional(),
+    /** A parcel going abroad: the person's tick and their corrections. Values are the order's. */
+    customs: customsQuoteBody.optional(),
   })
   .strict();
 
@@ -87,7 +90,23 @@ export const shippingStatusReply = z.object({
     activeCarrier: z.string().nullable(),
     shipFrom: shipFromSchema.nullable(),
     shipFromMissing: z.array(z.string()),
-    international: z.literal(false),
+    /** Whether this shop sends parcels abroad: it listed a country and its app says where the goods are. */
+    international: z.boolean(),
+    /** Its countries and customs defaults, once its owner has saved them. */
+    customs: z
+      .object({
+        countries: z.array(z.string()),
+        currency: z.string(),
+        originCountry: z.string(),
+        description: z.string().optional(),
+        hsCode: z.string().optional(),
+        signerId: z.string(),
+        /** Null when the person named no longer holds the customs right. */
+        signerName: z.string().nullable(),
+        products: z.array(z.object({ sku: z.string(), hsCode: z.string().optional(), originCountry: z.string().optional(), manufacturerCode: z.string().optional() }).strict()),
+      })
+      .strict()
+      .nullable(),
     /** The label size this shop asks carriers for. */
     labelSize: z.enum(LABEL_SIZES),
     limits: z.object({
@@ -112,6 +131,8 @@ export const shippingAccessReply = z.object({
       mayBook: z.boolean(),
       mayCancel: z.boolean(),
       mayCustoms: z.boolean(),
+      /** May send a parcel abroad: the owner, or someone with the customs right once the owner allowed it. */
+      mayShipAbroad: z.boolean(),
       pricesHidden: z.boolean(),
       booking: z.enum(['open', 'no-limit', 'daily-limit', 'no-right']),
       usedToday: z.number().optional(),
@@ -143,6 +164,50 @@ const offeredRate = z
     tracked: z.boolean().optional(),
   })
   .strict();
+
+export const customsSignersReply = z.object({ data: z.object({ signers: z.array(z.object({ id: z.string(), name: z.string() }).strict()) }).strict() });
+
+export const customsFormQuery = z.object({
+  /** Which install of the app this means, when it is on several databases. */
+  connectionId: z.string().min(1).max(SHIPPING_ID_WIDTH).optional(),
+  table: z.string().min(1).max(SHIPPING_TABLE_WIDTH),
+  id: z.string().min(1).max(SHIPPING_ROW_WIDTH),
+});
+
+const customsLineView = z
+  .object({
+    line: z.string(),
+    description: z.string().nullable(),
+    quantity: z.number().nullable(),
+    unitValue: z.string().nullable(),
+    originCountry: z.string(),
+    hsCode: z.string().optional(),
+    skuCode: z.string().optional(),
+    manufacturerCode: z.string().optional(),
+    unitWeightKg: z.number().nullable(),
+  })
+  .strict();
+
+/** One order's customs form. Quantities and values are the order's, and read-only. */
+export const customsFormReply = z.object({
+  data: z.union([
+    z.object({ abroad: z.literal(false) }).strict(),
+    z.object({ abroad: z.literal(true), offered: z.literal(false), to: z.string() }).strict(),
+    z
+      .object({
+        abroad: z.literal(true),
+        offered: z.literal(true),
+        to: z.string(),
+        /** Null when the person named no longer holds the customs right. */
+        signer: z.string().nullable(),
+        currency: z.string().nullable(),
+        lines: z.array(customsLineView),
+        problems: z.array(z.object({ line: z.string().optional(), field: z.enum(['lines', 'description', 'quantity', 'unitValue', 'currency', 'originCountry', 'weight']) }).strict()),
+        warnings: z.array(z.object({ line: z.string(), field: z.enum(['hsCode', 'skuCode', 'manufacturerCode']) }).strict()),
+      })
+      .strict(),
+  ]),
+});
 
 export const bookingIdParams = z.object({ key: z.string().min(1).max(120), id: z.string().min(1).max(64) });
 
@@ -232,6 +297,7 @@ const bookingView = z
         sizeGot: z.string().nullable(),
         sizeDiffers: z.boolean(),
         customsInvoice: z.boolean(),
+        customsInvoiceOwed: z.boolean(),
       })
       .strict(),
     refund: refundView.nullable(),

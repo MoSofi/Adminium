@@ -160,6 +160,7 @@ const PAYMENT_ROUTES: ReadonlySet<string> = new Set([
 /** A packer's bench. Releasing an unknown purchase, keys and limits stay the dashboard's. */
 const SHIPPING_BENCH_ROUTES: ReadonlySet<string> = new Set([
   'GET /apps/:key/shipping/access',
+  'GET /apps/:key/shipping/customs',
   'POST /apps/:key/shipping/quotes',
   'GET /apps/:key/shipping/bookings',
   'POST /apps/:key/shipping/bookings',

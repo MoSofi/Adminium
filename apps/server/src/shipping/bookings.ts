@@ -224,6 +224,7 @@ function fieldsOf(booking: ShippingBooking, shipment: Shipment, at: number): Shi
     carrierName: shipment.carrier ?? null,
     carrierToken: shipment.carrierToken ?? null,
     trackingUrl: safeTrackingUrl(shipment.trackingUrl),
+    ...(shipment.documents?.some((document) => document.kind === 'customs-invoice') === true ? { customsDue: true } : {}),
     amount,
     currency: currency.length === 3 ? currency : null,
     chargeDiffers: !same,

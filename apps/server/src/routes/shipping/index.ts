@@ -25,7 +25,7 @@
  * Every refusal that needs no carrier is made before a carrier is built, so a
  * parcel abroad, an incomplete address or a locked carrier never reads a key.
  */
-import type { Parcel, ShipmentPurpose } from '@adminium/add-on-contracts';
+import type { CustomsDeclaration, Parcel, ShipmentPurpose } from '@adminium/add-on-contracts';
 import { validateManifest, type ShippingOrder } from '@adminium/manifest';
 import { appTablesRepo, realTableOf, shippingRepo, type InstalledManifest, type ManifestsRepo, type MetaDb, type ShippingSlot } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
@@ -44,9 +44,10 @@ import { appShippingPermission, PERMISSIONS } from '../../rbac/permissions.js';
 import { tagRoutes } from '../../security/route-audience.js';
 import { orderOfBooking, shippingTrackingRoutes } from './tracking.js';
 import { pricesHiddenFrom, readsPartOf, shippingPerson, shippingViewerOf, type ShippingViewer } from '../../shipping/access.js';
-import { cleanShipFrom, orderAddress, readShipFrom, recipientForRates, shipFromAddress, shipFromChanges } from '../../shipping/addresses.js';
+import { cleanShipFrom, orderAddress, readShipFrom, recipientAbroad, recipientForRates, shipFromAddress, shipFromChanges } from '../../shipping/addresses.js';
 import { askForRates, carrierHttpFor, shippingCarrierFor, type ShippingCarrierDeps } from '../../shipping/carriers.js';
 import type { BookingDeps, BookingFaults } from '../../shipping/bookings.js';
+import { declarationOf, deliversTo, draftOf, readGoods, readInternational, signerName, type CustomsChoice } from '../../shipping/customs.js';
 import { checkedAccount, type KeyLock, type OpenBookings } from '../../shipping/keys.js';
 import { bookingState, createQuoteGate, mayShipAbroad, rateWithinLimit } from '../../shipping/limits.js';
 import { carrierLocked } from '../../shipping/locks.js';
@@ -56,6 +57,7 @@ import { attachedCarriers, carrierAccounts, shopShipping } from '../../shipping/
 import { ORDINARY_POLICY, type TrialPolicy } from '../../trial/policy.js';
 import { factsViewFor } from '../pages/column-facts.js';
 import { shippingBookingRoutes, type ReachedOrder, type ShippableOrder } from './bookings.js';
+import { shippingCustomsRoutes } from './customs.js';
 import { shippingKeyRoutes } from './keys.js';
 import { shippingLabelRoutes } from './labels.js';
 import { labelSizeOf } from '../../shipping/labels.js';
@@ -154,6 +156,8 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
     const repo = shippingRepo(meta);
     const limits = await repo.limits(install.row.id);
     const usedToday = await repo.dayLabels(install.row.id, await venueDayOf(meta, connectionId));
+    const international = readInternational((await repo.settings(install.row.id))?.international ?? null);
+    const declares = (shippingOrders(install) ?? []).some((order) => order.customs !== undefined);
     return {
       data: {
         appUpdated: shippingOrders(install) !== null,
@@ -165,7 +169,8 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
             return { ...carrier, account: accounts[carrier.key] ?? null, openBookings };
           }),
         ),
-        international: false as const,
+        international: declares && international !== null && international.countries.length > 0,
+        customs: international === null ? null : { ...international, signerName: await signerName(meta, install, international.signerId) },
         labelSize: await labelSizeOf(meta, install.row.id),
         limits: {
           perLabel: limits?.labelLimit != null && limits.labelCurrency !== null ? { amount: limits.labelLimit, currency: limits.labelCurrency } : null,
@@ -210,6 +215,7 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
   function withoutOrderValues(error: unknown): unknown {
     if (!(error instanceof ShippingRefusal)) return error;
     if (error.code === 'OUTSIDE_OWN_COUNTRY') return new ShippingRefusal('OUTSIDE_OWN_COUNTRY', 'This order is going to another country, and shipping abroad is not available yet.');
+    if (error.code === 'COUNTRY_NOT_OFFERED') return new ShippingRefusal('COUNTRY_NOT_OFFERED', 'This shop does not deliver to that country.');
     if (error.code === 'ADDRESS_INCOMPLETE') return new ShippingRefusal('ADDRESS_INCOMPLETE', "This order's delivery address is not complete.");
     return error;
   }
@@ -284,17 +290,46 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
     }
 
     const from = shipFromAddress(shop.shipFrom);
+    const international = readInternational((await repo.settings(install.row.id))?.international ?? null);
     let to: ReturnType<typeof orderAddress>;
     try {
-      to = orderAddress(row, mapping.address, from);
+      to = orderAddress(row, mapping.address, from, deliversTo(mapping.customs, international));
     } catch (error) {
       throw !viewer.manages && readsPartOf(request, connectionId, table.id) ? withoutOrderValues(error) : error;
     }
-    // Holds while parcels abroad are locked off, and is what stands once they are not.
-    if (to.country !== from.country && !mayShipAbroad(viewer, limits)) throw new ShippingRefusal('OWNER_BOOKS', 'The owner books parcels going abroad.', { reason: 'abroad' });
+    if (to.country !== from.country) {
+      if (!mayShipAbroad(viewer, limits)) throw new ShippingRefusal('OWNER_BOOKS', 'The owner books parcels going abroad.', { reason: 'abroad' });
+      // Carriers need a number to clear a parcel through customs.
+      if (to.phone === undefined) {
+        const missing = new ShippingRefusal('ADDRESS_INCOMPLETE', "This order's delivery address is not complete.", { fields: ['phone'] });
+        throw !viewer.manages && readsPartOf(request, connectionId, table.id) ? withoutOrderValues(missing) : missing;
+      }
+    }
 
     if (!deps.networkFeatures()) throw new ShippingRefusal('CARRIER_UNAVAILABLE', 'Network features are off on this server, so no carrier can be asked.', { carrier: carrierKey, reason: 'network-off' });
-    return { ...reached, carrierKey, from, to, limits, venueDay, pricesHidden };
+    return { ...reached, carrierKey, from, to, limits, venueDay, pricesHidden, international };
+  }
+
+  /**
+   * What is declared for this parcel, read from the order each time it is asked:
+   * a quote and its purchase each build it, and must come to the same thing.
+   */
+  async function declareCustoms(install: InstalledManifest, connectionId: string, order: ShippableOrder, parcel: Parcel, choice: CustomsChoice): Promise<{ declaration: CustomsDeclaration; signerId: string }> {
+    const mapping = order.mapping as ShippingOrder;
+    const { international } = order;
+    if (mapping.customs === undefined || international === null) throw new ShippingRefusal('CUSTOMS_NOT_DECLARED', 'This app does not say where an order\'s goods are.');
+    const signer = await signerName(meta, install, international.signerId);
+    if (signer === null) throw new ShippingRefusal('CUSTOMS_SIGNER', 'The person named on customs declarations no longer holds the customs right.', { reason: 'not-allowed' });
+    const goods = await readGoods({
+      sources: deps.sources,
+      tableOf: (ref) => orderTable(connectionId, install.row.manifestKey, ref),
+      connectionId,
+      columns: mapping.customs,
+      order: order.row,
+      orderTable: order.table as unknown as Pick<ResolvedTable, 'primaryKey'>,
+    });
+    const currency = mapping.customs.currency === undefined ? undefined : order.row[mapping.customs.currency];
+    return { declaration: declarationOf(draftOf(goods, international, currency, order.to, choice.edits), signer, parcel.weightKg), signerId: international.signerId };
   }
 
   /** A refusal as someone who cannot see money is told it: what it was about, and none of the carrier's own words. */
@@ -344,11 +379,14 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
         reachOrder,
         shippableOrder,
         withoutCarrierWords,
+        declareCustoms,
         ...(deps.storage === undefined ? {} : { labelDeps: (request: FastifyRequest) => ({ meta, storage: deps.storage!, now: () => app.rbac.now(), log: (message: string, fields: Record<string, unknown>) => request.log.warn(fields, message) }) }),
         bookingDeps,
         returnPlace,
       }),
     );
+
+    await app.register(shippingCustomsRoutes({ meta, manifests, sources: deps.sources, appOf, reachOrder, orderTable, shippingOrders, statusOf: view }));
 
     if (deps.storage !== undefined) {
       await app.register(shippingLabelRoutes({ meta, secret, storage: deps.storage, sources: deps.sources, carrierDeps, appOf, reachOrder }));
@@ -378,6 +416,7 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
             mayBook: viewer.mayBook,
             mayCancel: viewer.mayCancel,
             mayCustoms: viewer.mayCustoms,
+            mayShipAbroad: mayShipAbroad(viewer, limits),
             pricesHidden: await hiddenOnAnyOrderTable(request, viewer, install, connectionId),
             booking: viewer.mayBook ? bookingState(viewer.manages, limits, usedToday) : ('no-right' as const),
             ...(viewer.mayBook && !viewer.manages && dailyLabels !== null ? { usedToday, dailyLabels } : {}),
@@ -466,6 +505,13 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
         const parcelNumber = purpose === 'return' ? await returnPlace(request, install, connectionId, viewer, order, request.body.returnId) : (number ?? 1);
         const { rowKey, limits, pricesHidden, from, to, carrierKey, venueDay } = order;
         const mapping = order.mapping;
+        const abroad = to.country !== from.country;
+        if (!abroad && request.body.customs !== undefined) throw new ShippingRefusal('CUSTOMS_NOT_NEEDED', 'This parcel stays in the country, so it has no customs declaration.');
+        // One declaration covers the whole order, so a second parcel or a part of it would state values it does not hold.
+        if (abroad && (purpose !== 'outbound' || parcelNumber !== 1)) throw new ShippingRefusal('CUSTOMS_ONE_PARCEL', 'A parcel going abroad is sent as the order\'s one outbound parcel.', { purpose, parcelNumber });
+        if (abroad && request.body.customs === undefined) throw new ShippingRefusal('CUSTOMS_NOT_CONFIRMED', 'Tick the customs declaration before getting rates.');
+        const customsChoice: CustomsChoice | null = abroad ? { certifiedBy: by, edits: request.body.customs!.lines ?? [] } : null;
+        const customs = customsChoice === null ? undefined : (await declareCustoms(install, connectionId, order, parcel, customsChoice)).declaration;
 
         const room = quoteGate.take(by, app.rbac.now());
         if (!room.ok) throw new ShippingRefusal('QUOTES_TOO_FAST', 'Too many quotes in a minute. Try again shortly.', { retryAfterSeconds: room.retryAfterSeconds });
@@ -473,12 +519,12 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
         const resolved = await shippingCarrierFor(carrierSeam, carrierKey, connectionId, venueDay);
         // Which account this would spend on, and whether it is a test one, is known before the carrier is asked.
         const account = await checkedAccount(meta, secret, resolved);
-        const rates = await askForRates(resolved, parcel, purpose === 'return' ? recipientForRates(to) : from, purpose === 'return' ? from : recipientForRates(to), { purpose }, carrierSeam.log).catch((error: unknown) => {
+        const rates = await askForRates(resolved, parcel, purpose === 'return' ? recipientForRates(to) : from, purpose === 'return' ? from : abroad ? recipientAbroad(to) : recipientForRates(to), { purpose, ...(customs === undefined ? {} : { customs }) }, carrierSeam.log).catch((error: unknown) => {
           throw pricesHidden ? withoutCarrierWords(error) : error;
         });
 
         const slot: ShippingSlot = { installId: install.row.id, connectionId, tableRef: mapping.table, rowKey, purpose, parcelNumber };
-        const stored = await storeQuote(meta, secret, { slot, carrierKey, accountFingerprint: account.fingerprint, details: { parcel, from, to, purpose, parcelNumber }, rates, createdBy: by, now: app.rbac.now() });
+        const stored = await storeQuote(meta, secret, { slot, carrierKey, accountFingerprint: account.fingerprint, details: { parcel, from, to, purpose, parcelNumber, ...(customs === undefined ? {} : { customs }) }, ...(customsChoice === null ? {} : { customsChoice }), rates, createdBy: by, now: app.rbac.now() });
         const within = (rate: { amountDecimal: string; currency: string }) => rateWithinLimit(viewer.manages, limits, rate);
         if (pricesHidden) {
           const priceless = stored.rates

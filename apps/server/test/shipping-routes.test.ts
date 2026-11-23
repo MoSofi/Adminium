@@ -1375,7 +1375,7 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
 
   it.skipIf(!available)('hands a label over as an attachment, after the purchase fetched it, and leaks no address for it', async () => {
     const { booking } = await bookedWithLabel();
-    expect(booking['label']).toEqual({ state: 'ready', size: 'a4', sizeGot: 'a6', sizeDiffers: true, customsInvoice: false });
+    expect(booking['label']).toEqual({ state: 'ready', size: 'a4', sizeGot: 'a6', sizeDiffers: true, customsInvoice: false, customsInvoiceOwed: false });
     expect(fake().books.at(-1)!.details['labelSize']).toBe('a4');
     const res = await call('boss', 'GET', documentPath(booking['id'] as string));
     expect(res.statusCode, res.body).toBe(200);

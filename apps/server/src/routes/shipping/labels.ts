@@ -10,7 +10,9 @@
  * Each document route asks for the right to book on this install, the order
  * row as this person reaches it, and `read_pii` on the order's table: a label
  * shows a name, an address and perhaps a phone, which that person's read of
- * the order may mask. A booking they cannot reach is one that is not there.
+ * the order may mask. A customs invoice also states what the goods are worth,
+ * so it asks for the right to send this parcel abroad as well. A booking they
+ * cannot reach is one that is not there.
  *
  * The file goes out as an attachment with `nosniff` and is never cached. No
  * reply, log line or audit row holds a carrier's key or an address for a file.
@@ -35,6 +37,7 @@ import { pricesHiddenFrom, shippingPerson, shippingViewerOf } from '../../shippi
 import { bookingView } from '../../shipping/bookings.js';
 import { shippingCarrierFor, type ShippingCarrierDeps } from '../../shipping/carriers.js';
 import { checkedAccount } from '../../shipping/keys.js';
+import { mayShipAbroad } from '../../shipping/limits.js';
 import { fetchDocument, labelSizeOf, storedDocument, type LabelDeps } from '../../shipping/labels.js';
 import { ShippingRefusal } from '../../shipping/refusals.js';
 import type { PayableSources } from '../../payments/payables.js';
@@ -64,7 +67,7 @@ export function shippingLabelRoutes(deps: ShippingLabelRoutesDeps): FastifyPlugi
   const { meta, secret, storage } = deps;
 
   /** The booking and its order, for someone who may see the address on its label. */
-  async function reached(request: FastifyRequest, key: string, id: string): Promise<{ install: InstalledManifest; connectionId: string; booking: ShippingBooking; order: ReachedOrder; by: string; hidden: boolean }> {
+  async function reached(request: FastifyRequest, key: string, id: string, kind?: ShipmentDocumentKind): Promise<{ install: InstalledManifest; connectionId: string; booking: ShippingBooking; order: ReachedOrder; by: string; hidden: boolean }> {
     const by = shippingPerson(request);
     const { app: install, connectionId } = await deps.appOf(request, key);
     const viewer = await shippingViewerOf(request, install);
@@ -83,6 +86,9 @@ export function shippingLabelRoutes(deps: ShippingLabelRoutesDeps): FastifyPlugi
     if (!(await canReadPii(request, connectionId, order.table.id))) {
       throw new ForbiddenError('A label shows a customer\'s address, which you may not see on this table.', 'FORBIDDEN', { permission: `table:${connectionId}:${order.table.id}:read_pii` });
     }
+    if (kind === 'customs-invoice' && !mayShipAbroad(viewer, await shippingRepo(meta).limits(install.row.id))) {
+      throw new ForbiddenError('A customs invoice shows what the goods are worth, which you may not see here.', 'FORBIDDEN', { permission: appShippingPermission(grantKeyOf(install.row), 'customs') });
+    }
     const hidden = await pricesHiddenFrom(request, viewer, deps.sources, connectionId, order.table);
     return { install, connectionId, booking, order, by, hidden };
   }
@@ -95,8 +101,8 @@ export function shippingLabelRoutes(deps: ShippingLabelRoutesDeps): FastifyPlugi
       '/apps/:key/shipping/bookings/:id/documents/:kind',
       { config: { audit: audited('rbac') }, schema: { params: documentParams } },
       async (request, reply) => {
-        const { booking, install } = await reached(request, request.params.key, request.params.id);
         const kind: ShipmentDocumentKind = request.params.kind;
+        const { booking, install } = await reached(request, request.params.key, request.params.id, kind);
         const { file, opened } = await storedDocument(labelDeps(request), booking, kind);
         await app.rbac.audit(request, {
           category: 'data',
@@ -117,7 +123,7 @@ export function shippingLabelRoutes(deps: ShippingLabelRoutesDeps): FastifyPlugi
       '/apps/:key/shipping/bookings/:id/documents/:kind',
       { config: { audit: audited('rbac') }, schema: { params: documentParams, response: { 200: bookingReply } } },
       async (request) => {
-        const { booking, connectionId, install, order, by, hidden } = await reached(request, request.params.key, request.params.id);
+        const { booking, connectionId, install, order, by, hidden } = await reached(request, request.params.key, request.params.id, request.params.kind);
         const seam = deps.carrierDeps(request);
         const resolved = await shippingCarrierFor(seam, booking.carrierKey, connectionId, await venueDayOf(meta, connectionId));
         // The key must still open the account that bought it, or the carrier would be asked for another shop's label.

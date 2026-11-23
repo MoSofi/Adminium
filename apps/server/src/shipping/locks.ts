@@ -14,7 +14,10 @@
  *  - Polling: per carrier, on top of the background lock. A shop's own setting
  *    cannot reach past either, and while both are off the job is not even
  *    scheduled (`polling.ts`).
- *  - International parcels: this release ships inside one country.
+ *
+ * A parcel going abroad is not locked here: it is refused unless the shop's
+ * owner has listed the country and its app says where the goods are
+ * (`customs.ts`).
  */
 
 export const DHL_CARRIER_KEY = 'shipping-dhl';
@@ -25,8 +28,6 @@ export const BACKGROUND_CARRIER_CALLS_ENABLED = false;
 
 /** Which carriers may be asked about a parcel with nobody at the screen. Shippo's terms are with the owner. */
 export const POLLING_ALLOWED: Readonly<Record<string, boolean>> = { 'shipping-shippo': false };
-
-export const INTERNATIONAL_ENABLED = false;
 
 /** Whether this carrier may not be called for real at all. Asked before its credential is read. */
 export function carrierLocked(key: string): boolean {

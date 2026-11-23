@@ -17,7 +17,7 @@
  */
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
-import { rateSchema, type Address, type Parcel, type Rate, type ShipmentPurpose } from '@adminium/add-on-contracts';
+import { rateSchema, type Address, type CustomsDeclaration, type Parcel, type Rate, type ShipmentPurpose } from '@adminium/add-on-contracts';
 import { shippingRepo, type MetaDb, type ShippingSlot } from '@adminium/meta';
 import { z } from 'zod';
 
@@ -32,6 +32,8 @@ export interface QuoteDetails {
   to: Address;
   purpose: ShipmentPurpose;
   parcelNumber: number;
+  /** Only on a parcel going abroad: any change to what is declared voids the quote. */
+  customs?: CustomsDeclaration;
 }
 
 const hashKeyOf = (secret: string) => deriveKey(secret, 'adminium:shipping-details:v1', 'details');
@@ -52,7 +54,7 @@ function canonical(value: unknown): string {
 /** The keyed hash of what a quote was given for. */
 export function detailsHash(secret: string, details: QuoteDetails): string {
   return createHmac('sha256', hashKeyOf(secret))
-    .update(canonical({ parcel: details.parcel, from: details.from, to: details.to, purpose: details.purpose, parcelNumber: details.parcelNumber }))
+    .update(canonical({ parcel: details.parcel, from: details.from, to: details.to, purpose: details.purpose, parcelNumber: details.parcelNumber, customs: details.customs }))
     .digest('hex');
 }
 
@@ -130,12 +132,12 @@ export interface StoredQuoteReply {
 }
 
 /** Keeps the carrier's rates as this slot's one quote, in place of any before it. */
-export async function storeQuote(meta: MetaDb, secret: string, input: { slot: ShippingSlot; carrierKey: string; accountFingerprint: string; details: QuoteDetails; rates: readonly Rate[]; createdBy: string | null; now: number }): Promise<StoredQuoteReply> {
+export async function storeQuote(meta: MetaDb, secret: string, input: { slot: ShippingSlot; carrierKey: string; accountFingerprint: string; details: QuoteDetails; customsChoice?: unknown; rates: readonly Rate[]; createdBy: string | null; now: number }): Promise<StoredQuoteReply> {
   const stated = input.rates.flatMap((rate) => (rate.expiresAt === undefined ? [] : [Date.parse(rate.expiresAt)]));
   const expiresAt = Math.min(input.now + QUOTE_LIFE_MS, ...stated);
   const rates = input.rates.map((rate) => toStored(secret, rate));
   const quote = await shippingRepo(meta).replaceQuote(
-    { ...input.slot, carrierKey: input.carrierKey, accountFingerprint: input.accountFingerprint, parcel: input.details.parcel, detailsHash: detailsHash(secret, input.details), rates, createdBy: input.createdBy, expiresAt },
+    { ...input.slot, carrierKey: input.carrierKey, accountFingerprint: input.accountFingerprint, parcel: input.details.parcel, customs: input.customsChoice ?? null, detailsHash: detailsHash(secret, input.details), rates, createdBy: input.createdBy, expiresAt },
     input.now,
   );
   return { quoteId: quote.id, carrier: input.carrierKey, expiresAt, rates: rates.map(toOffered) };

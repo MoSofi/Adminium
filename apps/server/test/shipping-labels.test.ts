@@ -181,14 +181,14 @@ describe('what a label file is', () => {
   });
 
   it('says a carrier answered with another size only when both are known', () => {
-    const base = { state: 'booked', labelRef: 'f', customsRef: null, labelGoneAt: null } as const;
+    const base = { state: 'booked', labelRef: 'f', customsRef: null, customsDue: false, labelGoneAt: null } as const;
     expect(labelView({ ...base, labelSize: 'a4', labelSizeGot: 'a6' }).sizeDiffers).toBe(true);
     expect(labelView({ ...base, labelSize: 'a4', labelSizeGot: 'a4' }).sizeDiffers).toBe(false);
     expect(labelView({ ...base, labelSize: 'a4', labelSizeGot: null }).sizeDiffers).toBe(false);
   });
 
   it('hands out a label only while it is plainly booked: a state added later is refused', () => {
-    const base = { labelRef: 'f', customsRef: null, labelSize: null, labelSizeGot: null, labelGoneAt: null };
+    const base = { labelRef: 'f', customsRef: null, customsDue: false, labelSize: null, labelSizeGot: null, labelGoneAt: null };
     expect(labelView({ ...base, state: 'booked' }).state).toBe('ready');
     for (const state of ['reserved', 'calling', 'refused', 'unknown', 'released', 'void-requested'] as never[]) {
       expect(labelView({ ...base, state }).state, String(state)).toBe('none');

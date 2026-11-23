@@ -98,6 +98,8 @@ export interface ShippingBooking extends ShippingSlot {
   labelRef: string | null;
   /** The stored customs invoice, when the parcel has one. */
   customsRef: string | null;
+  /** The carrier said this label has a customs invoice, so a missing file is owed. */
+  customsDue: boolean;
   /** The size asked for when it was bought. */
   labelSize: string | null;
   /** The size the stored file really is: `a4`, `a6`, `4x6`, `other`, or null when the file cannot say. */
@@ -170,6 +172,7 @@ export type ShippingBookingFields = Partial<
     | 'carrierToken'
     | 'trackingUrl'
     | 'labelRef'
+    | 'customsDue'
     | 'reason'
     | 'duplicates'
     | 'releasedBy'
@@ -256,6 +259,7 @@ export function shippingBookingsRepo(meta: MetaDb) {
       trackingUrl: row.trackingUrl,
       labelRef: row.labelRef,
       customsRef: row.customsRef ?? null,
+      customsDue: row.customsDue === null || row.customsDue === undefined ? false : readBool(row.customsDue),
       labelSize: row.labelSize ?? null,
       labelSizeGot: row.labelSizeGot ?? null,
       labelClockAt: number(row.labelClockAt),
@@ -289,8 +293,12 @@ export function shippingBookingsRepo(meta: MetaDb) {
 
   const packed = (fields: ShippingBookingFields) => {
     checkFields(fields);
-    const { chargeDiffers, ...rest } = fields;
-    return { ...rest, ...(chargeDiffers === undefined ? {} : { chargeDiffers: writeBool(meta, chargeDiffers) as boolean }) };
+    const { chargeDiffers, customsDue, ...rest } = fields;
+    return {
+      ...rest,
+      ...(chargeDiffers === undefined ? {} : { chargeDiffers: writeBool(meta, chargeDiffers) as boolean }),
+      ...(customsDue === undefined ? {} : { customsDue: writeBool(meta, customsDue) as boolean }),
+    };
   };
 
   const voidAnswer = (answer: ShippingVoidAnswer) => {

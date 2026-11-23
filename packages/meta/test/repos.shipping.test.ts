@@ -115,6 +115,7 @@ for (const dialect of TEST_DIALECTS) {
         activeCarrier: 'shipping-shippo',
         shipFrom: { name: 'Marlow Press', lines: ['1 Mill Lane'] },
         labelSize: null,
+        international: null,
         updatedBy: 'usr_b',
         updatedAt: T0 + 1,
       });

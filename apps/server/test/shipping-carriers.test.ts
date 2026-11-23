@@ -14,7 +14,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { AddOnRuntimeState } from '../src/add-ons/runtime.js';
 import { CARRIER_HTTP_TIMEOUT_MS, askForRates, carrierHttpFor, cleanCarrierMessage, shippingCarrierFor, type ResolvedCarrier, type ShippingCarrierDeps } from '../src/shipping/carriers.js';
-import { BACKGROUND_CARRIER_CALLS_ENABLED, DHL_CARRIER_KEY, DHL_REAL_MODE_ENABLED, INTERNATIONAL_ENABLED, carrierLocked } from '../src/shipping/locks.js';
+import { BACKGROUND_CARRIER_CALLS_ENABLED, DHL_CARRIER_KEY, DHL_REAL_MODE_ENABLED, carrierLocked } from '../src/shipping/locks.js';
 import { ShippingRefusal } from '../src/shipping/refusals.js';
 import { chooseActive, type AttachedCarrier } from '../src/shipping/shop.js';
 import { addOnManifest } from './app-add-ons.helpers.js';
@@ -71,9 +71,8 @@ describe('the locks', () => {
   it('are literal false, and nothing is read into them', () => {
     expect(DHL_REAL_MODE_ENABLED).toBe(false);
     expect(BACKGROUND_CARRIER_CALLS_ENABLED).toBe(false);
-    expect(INTERNATIONAL_ENABLED).toBe(false);
     const source = readFileSync(new URL('../src/shipping/locks.ts', import.meta.url), 'utf8');
-    for (const name of ['DHL_REAL_MODE_ENABLED', 'BACKGROUND_CARRIER_CALLS_ENABLED', 'INTERNATIONAL_ENABLED']) expect(source).toContain(`export const ${name} = false;`);
+    for (const name of ['DHL_REAL_MODE_ENABLED', 'BACKGROUND_CARRIER_CALLS_ENABLED']) expect(source).toContain(`export const ${name} = false;`);
     expect(source).not.toMatch(/process\.env|import\s|require\(/);
   });
 

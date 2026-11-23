@@ -26,6 +26,20 @@ export const SHIPPING_REFUSAL_STATUS = {
   ADDRESS_INCOMPLETE: 422,
   COUNTRY_NOT_RECORDED: 422,
   OUTSIDE_OWN_COUNTRY: 422,
+  /** The shop sends parcels abroad, but this country is not on its list. */
+  COUNTRY_NOT_OFFERED: 422,
+  /** The app does not say where an order's goods are, so nothing can be declared. */
+  CUSTOMS_NOT_DECLARED: 409,
+  /** A parcel abroad needs a person to tick the declaration. */
+  CUSTOMS_NOT_CONFIRMED: 422,
+  /** A declaration was sent for a parcel that stays in the country. */
+  CUSTOMS_NOT_NEEDED: 422,
+  /** Something the declaration must state is missing or wrong. The reply names the lines. */
+  CUSTOMS_INCOMPLETE: 422,
+  /** A declaration covers one whole order, so only its first outbound parcel can carry one. */
+  CUSTOMS_ONE_PARCEL: 422,
+  /** The person named on declarations no longer holds the customs right. */
+  CUSTOMS_SIGNER: 409,
   CARRIER_REFUSED: 422,
   CARRIER_UNAVAILABLE: 502,
   CARRIER_BAD_ANSWER: 502,

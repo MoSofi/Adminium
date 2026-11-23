@@ -4652,6 +4652,41 @@ its parcel goes. The country must hold a two-letter ISO code; Adminium never gue
 
 Buying a label never moves the order's status. A label bought with a test key reaches neither column.
 
+### Parcels going abroad
+
+An order is refused a label to another country unless its entry has a `customs` block and the shop's
+owner has listed that country. The block needs Adminium 0.3.73 or later.
+
+```json
+"customs": {
+  "currency": "currency",
+  "lines": {
+    "table": "order_lines",
+    "order": "order_id",
+    "quantity": "qty",
+    "unitValue": "unit_price",
+    "description": "product_name",
+    "unitWeight": "grams",
+    "weightUnit": "g",
+    "product": { "column": "product_id", "table": "products", "sku": "code" }
+  }
+}
+```
+
+| Field | Required | What it is |
+|---|---|---|
+| `lines.table` | yes | The table holding the order's goods. |
+| `lines.order` | yes | Its column naming the order. |
+| `lines.quantity` | yes | A whole-number column. |
+| `lines.unitValue` | yes | A `decimal` or `money` column: what one unit was sold for. |
+| `lines.description` | yes | Text or enum. The shop's own customs description replaces it when one is set. |
+| `lines.sku` | no | A text column on the line. |
+| `lines.product` | no | Where a line's SKU is kept when the line has none: its column, the products table and that table's text column. |
+| `lines.unitWeight`, `lines.weightUnit` | no | One unit's net weight and `g` or `kg`, both or neither. Without them the parcel's weight is shared across its units. |
+| `currency` | no | The order's column holding its currency. Without it the shop's customs currency is used. |
+
+Quantities and values are read from these columns and cannot be changed by a request.
+
 An app's role can be given three rights on this install's labels. They need the `shipping` block
 and Adminium 0.3.72 or later. The install's check lists each one, ticked, and an update that adds
 one asks first.

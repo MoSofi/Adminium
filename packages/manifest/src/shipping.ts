@@ -24,6 +24,11 @@
  * `carrier` name text columns the engine fills once a real label is bought; it
  * never moves the order's status.
  *
+ * `customs` says where an order's goods are, for a parcel that leaves the
+ * shop's country: the lines table, the column naming the order, and each line's
+ * quantity, one unit's value and description. Without it the engine sends this
+ * order nowhere abroad, whatever the shop's settings say.
+ *
  * Pure.
  */
 import { z } from 'zod';
@@ -36,6 +41,12 @@ const ADDRESS_TYPES: readonly string[] = ['text', 'enum'];
 const TEXT_TYPES: readonly string[] = ['text'];
 /** What may hold an order's reference: `MP-4118`, or a plain number. */
 const REFERENCE_TYPES: readonly string[] = ['text', 'int', 'bigint', 'uuid'];
+/** What may hold how many of a thing were ordered. */
+const COUNT_TYPES: readonly string[] = ['int', 'bigint'];
+/** What may hold one unit's value, in the shop's main currency unit. */
+const VALUE_TYPES: readonly string[] = ['decimal', 'money'];
+/** What may hold one unit's weight. */
+const WEIGHT_TYPES: readonly string[] = ['int', 'bigint', 'decimal', 'float'];
 
 const shippingAddressSchema = z
   .object({
@@ -48,6 +59,30 @@ const shippingAddressSchema = z
     phone: refSchema.optional(),
     email: refSchema.optional(),
     company: refSchema.optional(),
+  })
+  .strict();
+
+const shippingCustomsSchema = z
+  .object({
+    lines: z
+      .object({
+        table: refSchema,
+        /** The column naming the order. */
+        order: refSchema,
+        quantity: refSchema,
+        /** One unit's value, as the customer paid it. */
+        unitValue: refSchema,
+        description: refSchema,
+        sku: refSchema.optional(),
+        /** One unit's net weight, in `weightUnit`. Both or neither. */
+        unitWeight: refSchema.optional(),
+        weightUnit: z.enum(['g', 'kg']).optional(),
+        /** Where a line's SKU is kept when the line itself does not hold one. */
+        product: z.object({ column: refSchema, table: refSchema, sku: refSchema }).strict().optional(),
+      })
+      .strict(),
+    /** The order's column holding its currency. Without one, the shop's customs currency is used. */
+    currency: refSchema.optional(),
   })
   .strict();
 
@@ -74,6 +109,8 @@ export const shippingOrderSchema = z
       })
       .strict()
       .optional(),
+    /** Where this order's goods are, for a parcel going abroad. */
+    customs: shippingCustomsSchema.optional(),
   })
   .strict();
 
@@ -119,6 +156,31 @@ export function shippingIssues<C extends { ref: string; type: string }>(m: { shi
       else {
         if (index.column(table, link) === undefined) out.push({ path: at('returns', 'order'), message: `"${table}" has no column "${link}"` });
         if (index.column(table, status) === undefined) out.push({ path: at('returns', 'status'), message: `"${table}" has no column "${status}"` });
+      }
+    }
+    if (order.customs !== undefined) {
+      const { lines, currency } = order.customs;
+      if (currency !== undefined) column(currency, ADDRESS_TYPES, at('customs', 'currency'));
+      const onTable = (table: string, ref: string, types: readonly string[] | null, path: (string | number)[]): void => {
+        const found = index.column(table, ref);
+        if (found === undefined) out.push({ path, message: `"${table}" has no column "${ref}"` });
+        else if (types !== null && !types.includes(found.type)) out.push({ path, message: `"${table}.${ref}" is a ${found.type} column, which cannot hold this` });
+      };
+      const inLines = (...rest: (string | number)[]) => at('customs', 'lines', ...rest);
+      if ((lines.unitWeight === undefined) !== (lines.weightUnit === undefined)) out.push({ path: inLines('weightUnit'), message: 'unitWeight and weightUnit go together' });
+      if (index.table(lines.table) === undefined) out.push({ path: inLines('table'), message: `"${lines.table}" is not a table of this app` });
+      else {
+        onTable(lines.table, lines.order, null, inLines('order'));
+        onTable(lines.table, lines.quantity, COUNT_TYPES, inLines('quantity'));
+        onTable(lines.table, lines.unitValue, VALUE_TYPES, inLines('unitValue'));
+        onTable(lines.table, lines.description, ADDRESS_TYPES, inLines('description'));
+        if (lines.sku !== undefined) onTable(lines.table, lines.sku, TEXT_TYPES, inLines('sku'));
+        if (lines.unitWeight !== undefined) onTable(lines.table, lines.unitWeight, WEIGHT_TYPES, inLines('unitWeight'));
+        if (lines.product !== undefined) onTable(lines.table, lines.product.column, null, inLines('product', 'column'));
+      }
+      if (lines.product !== undefined) {
+        if (index.table(lines.product.table) === undefined) out.push({ path: inLines('product', 'table'), message: `"${lines.product.table}" is not a table of this app` });
+        else onTable(lines.product.table, lines.product.sku, TEXT_TYPES, inLines('product', 'sku'));
       }
     }
   });

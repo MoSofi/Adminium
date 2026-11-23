@@ -64,6 +64,59 @@ describe('the shipping block', () => {
     expect(messages(old).join()).toContain('"shipping" is read by Adminium 0.3.72 and later');
   });
 
+  describe('where an order\'s goods are, for a parcel going abroad', () => {
+    const lines = { table: 'order_lines', order: 'order_id', quantity: 'qty', unitValue: 'unit_price', description: 'name' };
+    const withLines = (customs: unknown, floor = '0.3.73'): Doc => {
+      const doc = app({ orders: [entry({ customs })] });
+      doc['compatibility'].minAdminiumVersion = floor;
+      doc['requiredSchema'].tables.push(
+        {
+          ref: 'order_lines',
+          columns: [
+            { ref: 'id', type: 'int', role: 'pk' },
+            { ref: 'order_id', type: 'fk', references: 'orders' },
+            text('name'),
+            text('code'),
+            { ref: 'qty', type: 'int', nullable: true },
+            { ref: 'unit_price', type: 'decimal', scale: 'currency', nullable: true },
+            { ref: 'grams', type: 'int', nullable: true },
+          ],
+        },
+        { ref: 'products', columns: [{ ref: 'id', type: 'int', role: 'pk' }, text('sku')] },
+      );
+      return doc;
+    };
+
+    it('takes the required columns, and every optional one', () => {
+      expect(messages(withLines({ lines }))).toEqual([]);
+      expect(messages(withLines({ currency: 'ship_country', lines: { ...lines, sku: 'code', unitWeight: 'grams', weightUnit: 'g', product: { column: 'order_id', table: 'products', sku: 'sku' } } }))).toEqual([]);
+    });
+
+    it('asks for the release that reads it', () => {
+      expect(WORD_FLOORS['shipping.customs']).toBe('0.3.73');
+      const doc = withLines({ lines }, '0.3.72');
+      expect(installFloorWords(doc)).toContainEqual({ word: 'shipping.customs', path: 'shipping.orders.0.customs' });
+      expect(messages(doc).join()).toContain('"shipping.customs" is read by Adminium 0.3.73 and later');
+    });
+
+    it.each([
+      ['a table the app does not have', { lines: { ...lines, table: 'nope' } }, 'is not a table of this app'],
+      ['a column the lines do not have', { lines: { ...lines, quantity: 'nope' } }, 'has no column "nope"'],
+      ['a quantity that is not a whole number', { lines: { ...lines, quantity: 'name' } }, 'cannot hold this'],
+      ['a value that is not money', { lines: { ...lines, unitValue: 'qty' } }, 'cannot hold this'],
+      ['a weight with no unit', { lines: { ...lines, unitWeight: 'grams' } }, 'unitWeight and weightUnit go together'],
+      ['a unit with no weight', { lines: { ...lines, weightUnit: 'kg' } }, 'unitWeight and weightUnit go together'],
+      ['a product table it does not have', { lines: { ...lines, product: { column: 'order_id', table: 'nope', sku: 'sku' } } }, 'is not a table of this app'],
+      ['a product SKU it does not have', { lines: { ...lines, product: { column: 'order_id', table: 'products', sku: 'nope' } } }, 'has no column "nope"'],
+    ])('refuses %s', (_name, customs, message) => {
+      expect(messages(withLines(customs)).join()).toContain(message);
+    });
+
+    it('refuses a key it does not know', () => {
+      expect(messages(withLines({ lines: { ...lines, value: 'unit_price' } })).length).toBeGreaterThan(0);
+    });
+  });
+
   it('takes a full entry, and one with only the required fields', () => {
     expect(messages(app({ orders: [entry()] }))).toEqual([]);
     expect(messages(app({ orders: [entry({ address: { name: 'ship_name', lines: ['ship_line1'], city: 'ship_city', postcode: 'ship_postcode', country: 'ship_country' } })] }))).toEqual([]);

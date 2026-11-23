@@ -31,6 +31,8 @@ export interface ShippingSettings {
   shipFrom: unknown;
   /** The label size this shop asks carriers for, or null before anyone chose. */
   labelSize: string | null;
+  /** The countries this shop delivers to and its customs defaults, as stored; the engine parses it. */
+  international: unknown;
   updatedBy: string | null;
   updatedAt: number;
 }
@@ -52,6 +54,8 @@ export interface ShippingQuote extends ShippingSlot {
   accountFingerprint: string | null;
   /** What was weighed and measured, as stored; the engine parses it. */
   parcel: unknown;
+  /** What the person who ticked the customs declaration chose, as stored. Null for a parcel with none. */
+  customs: unknown;
   detailsHash: string;
   /** As stored; the engine parses it. */
   rates: unknown;
@@ -60,7 +64,7 @@ export interface ShippingQuote extends ShippingSlot {
   expiresAt: number;
 }
 
-export type NewShippingQuote = Omit<ShippingQuote, 'id' | 'createdAt' | 'accountFingerprint' | 'parcel'> & { accountFingerprint?: string | null; parcel?: unknown };
+export type NewShippingQuote = Omit<ShippingQuote, 'id' | 'createdAt' | 'accountFingerprint' | 'parcel' | 'customs'> & { accountFingerprint?: string | null; parcel?: unknown; customs?: unknown };
 
 export type ShippingKeyMode = 'live' | 'test';
 export type ShippingAccountState = 'ok' | 'refused';
@@ -120,14 +124,14 @@ export function shippingRepo(meta: MetaDb) {
    * changed nothing, so a row that is there is met by the insert's duplicate
    * key and the update runs once more.
    */
-  async function writeSettings(installId: string, fields: { activeCarrier?: string | null; shipFrom?: string | null; labelSize?: string | null }, by: string | null, at: number): Promise<void> {
+  async function writeSettings(installId: string, fields: { activeCarrier?: string | null; shipFrom?: string | null; labelSize?: string | null; international?: string | null }, by: string | null, at: number): Promise<void> {
     const change = { ...fields, updatedBy: by, updatedAt: at };
     const updated = await db.updateTable('adminium_shipping_settings').set(change).where('installId', '=', installId).executeTakeFirst();
     if (affected(updated.numUpdatedRows) > 0) return;
     try {
       await db
         .insertInto('adminium_shipping_settings')
-        .values({ installId, activeCarrier: fields.activeCarrier ?? null, shipFrom: fields.shipFrom ?? null, labelSize: fields.labelSize ?? null, updatedBy: by, updatedAt: at })
+        .values({ installId, activeCarrier: fields.activeCarrier ?? null, shipFrom: fields.shipFrom ?? null, labelSize: fields.labelSize ?? null, international: fields.international ?? null, updatedBy: by, updatedAt: at })
         .execute();
     } catch (error) {
       if (!isDuplicateKeyError(error)) throw error;
@@ -139,7 +143,7 @@ export function shippingRepo(meta: MetaDb) {
     async settings(installId: string): Promise<ShippingSettings | null> {
       const row = await db.selectFrom('adminium_shipping_settings').selectAll().where('installId', '=', installId).executeTakeFirst();
       if (row === undefined) return null;
-      return { installId: row.installId, activeCarrier: row.activeCarrier, shipFrom: readJsonOrNull(row.shipFrom), labelSize: row.labelSize ?? null, updatedBy: row.updatedBy, updatedAt: Number(row.updatedAt) };
+      return { installId: row.installId, activeCarrier: row.activeCarrier, shipFrom: readJsonOrNull(row.shipFrom), labelSize: row.labelSize ?? null, international: readJsonOrNull(row.international), updatedBy: row.updatedBy, updatedAt: Number(row.updatedAt) };
     },
 
     async setActiveCarrier(installId: string, carrier: string, by: string | null, at: number): Promise<void> {
@@ -157,6 +161,11 @@ export function shippingRepo(meta: MetaDb) {
       await writeSettings(installId, { labelSize }, by, at);
     },
 
+    /** The countries this shop delivers to and its customs defaults. */
+    async setInternational(installId: string, international: unknown, by: string | null, at: number): Promise<void> {
+      await writeSettings(installId, { international: packJson(international) }, by, at);
+    },
+
     /**
      * The slot's one quote, in one transaction: the old one goes as the new one
      * arrives, and whatever has expired anywhere goes with it. Two quotes at
@@ -167,7 +176,7 @@ export function shippingRepo(meta: MetaDb) {
       if (input.carrierKey.length === 0 || input.carrierKey.length > SHIPPING_CARRIER_WIDTH) throw new Error('A carrier key is empty or longer than its column.');
       if (input.detailsHash.length !== SHIPPING_HASH_WIDTH) throw new Error('A quote holds a full details hash.');
       if (input.accountFingerprint != null && input.accountFingerprint.length !== SHIPPING_HASH_WIDTH) throw new Error('A quote holds a full account fingerprint.');
-      const quote: ShippingQuote = { ...input, accountFingerprint: input.accountFingerprint ?? null, parcel: input.parcel ?? null, id: newId('shq'), createdAt: at };
+      const quote: ShippingQuote = { ...input, accountFingerprint: input.accountFingerprint ?? null, parcel: input.parcel ?? null, customs: input.customs ?? null, id: newId('shq'), createdAt: at };
       const write = () =>
         db.transaction().execute(async (trx) => {
           await trx.deleteFrom('adminium_shipping_quotes').where('expiresAt', '<=', at).execute();
@@ -193,6 +202,7 @@ export function shippingRepo(meta: MetaDb) {
               carrierKey: input.carrierKey,
               accountFingerprint: quote.accountFingerprint,
               parcel: quote.parcel === null ? null : packJson(quote.parcel),
+              customs: quote.customs === null ? null : packJson(quote.customs),
               detailsHash: input.detailsHash,
               rates: packJson(input.rates),
               createdBy: input.createdBy,
@@ -227,6 +237,7 @@ export function shippingRepo(meta: MetaDb) {
         carrierKey: row.carrierKey,
         accountFingerprint: row.accountFingerprint,
         parcel: readJsonOrNull(row.parcel),
+        customs: readJsonOrNull(row.customs),
         detailsHash: row.detailsHash,
         rates: readJson(row.rates),
         createdBy: row.createdBy,
