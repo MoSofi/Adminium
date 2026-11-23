@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { composeManifest, splitManifest } from '../src/compose.js';
 import { asksForYes, checkTextTemplate, codeNamesIn, isTextKind, isWaitingKind, readsCredential } from '../src/text-messages.js';
 import { validateManifest } from '../src/validate.js';
 import { INSTALL_FLOOR_WORD_NAMES, installFloorWords, SMS_WORDS_FLOOR, WORD_FLOORS } from '../src/words.js';
@@ -150,6 +151,15 @@ describe('the words of texts', () => {
     delete doc['outbox'].recipient.phone;
     expect(messages(doc)).toEqual([]);
     expect(installFloorWords(doc).filter((one) => (SMS_WORDS as readonly string[]).includes(one.word))).toEqual([]);
+  });
+
+  it('a folder keeps its texts with its emails, and reads them back', () => {
+    const files = splitManifest(app());
+    const emails = files.find((file) => file.path.endsWith('emails.json'));
+    expect(JSON.stringify(emails)).toContain('clinic-reminder-text');
+    const composed = composeManifest(files);
+    expect(composed.problems ?? []).toEqual([]);
+    expect((composed.document as Doc)['textTemplates']).toEqual(app()['textTemplates']);
   });
 
   it('reads a kind with no channel as email, and knows a waiting text', () => {

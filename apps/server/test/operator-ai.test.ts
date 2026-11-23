@@ -468,6 +468,7 @@ describe('every Designer tool is listed with what it may reach on the operatorâ€
         ['access.json', { publicAccess: [{ table: 'jobs', methods: ['GET'], select: ['id'] }] }],
         ['access.json', { publicAccess: [{ key: 'forms', table: 'jobs', methods: ['POST'], writable: ['note'] }] }],
         ['emails.json', { outbox: { table: 'mail' } }],
+        ['emails.json', { textTemplates: [{ key: 'repairs-ready', name: 'Ready', locales: { 'en-US': { body: 'Your repair is ready.' } } }] }],
         ['saved.json', { payments: { links: [] } }],
       ];
       for (const [file, content] of grows) {
