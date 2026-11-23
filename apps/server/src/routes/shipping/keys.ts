@@ -40,10 +40,17 @@ export interface ShippingKeyRoutesDeps {
   statusOf(request: FastifyRequest, install: InstalledManifest, connectionId: string): Promise<{ data: Record<string, unknown> }>;
   /** What holds a carrier's key, as this person may be told it. */
   keyLockOf(request: FastifyRequest, install: InstalledManifest, connectionId: string, carrierInstallId: string): Promise<KeyLock>;
+  /** Whether this app version declares where its orders keep a carrier's details. */
+  appReady(install: InstalledManifest): boolean;
 }
 
 export function shippingKeyRoutes(deps: ShippingKeyRoutesDeps): FastifyPluginAsyncZod {
   const { meta, manifests, secret } = deps;
+
+  /** Checking a key is a real call to the carrier, so an app released before real carriers cannot make it. */
+  function refuseNotUpdated(install: InstalledManifest): void {
+    if (!deps.appReady(install)) throw new ShippingRefusal('APP_NOT_UPDATED', 'This app has not been updated for real carriers yet.', { app: install.row.manifestKey });
+  }
 
   /** This database's own install of a carrier attached to the app. A carrier kept once per server takes no key. */
   async function carrierHere(install: InstalledManifest, connectionId: string, carrier: string): Promise<{ row: InstalledManifest; manifest: AddOnManifest }> {
@@ -85,6 +92,7 @@ export function shippingKeyRoutes(deps: ShippingKeyRoutesDeps): FastifyPluginAsy
         const { carrier } = request.params;
         // Before anything is read: a locked carrier never takes a key.
         if (carrierLocked(carrier)) throw new ShippingRefusal('CARRIER_LOCKED', `"${carrier}" runs as a demo for now, so it takes no key.`, { carrier });
+        refuseNotUpdated(install);
         const { row, manifest } = await carrierHere(install, connectionId, carrier);
 
         const expected = keyFieldsOf(manifest);
@@ -153,6 +161,7 @@ export function shippingKeyRoutes(deps: ShippingKeyRoutesDeps): FastifyPluginAsy
         const { app: install, connectionId } = await deps.appOf(request, request.params.key);
         const { carrier } = request.params;
         if (carrierLocked(carrier)) throw new ShippingRefusal('CARRIER_LOCKED', `"${carrier}" runs as a demo for now, so it has no key to check.`, { carrier });
+        refuseNotUpdated(install);
         const { row } = await carrierHere(install, connectionId, carrier);
         requireNetwork(carrier);
 

@@ -43107,6 +43107,10 @@
     "status": "mt",
     "srcHash": "75ea06b3ce7e"
   },
+  "studio.shipping.error.appNotUpdated": {
+    "status": "mt",
+    "srcHash": "6ea55e6a16d5"
+  },
   "studio.shipping.error.generic": {
     "status": "mt",
     "srcHash": "fa9c0cf87f18"

@@ -6234,7 +6234,8 @@ export default {
       "notLoaded": "{carrier} konnte auf diesem Server nicht geladen werden.",
       "serverWide": "{carrier} wird für den ganzen Server geführt und nimmt daher keinen Schlüssel für einen einzelnen Shop an.",
       "switchedOff": "{carrier} ist für diese App ausgeschaltet.",
-      "noPublicAddress": "Dieser Server braucht eine öffentliche https-Adresse, bevor {carrier} ihn aufrufen kann. Die bisherige Adresse funktioniert weiter."
+      "noPublicAddress": "Dieser Server braucht eine öffentliche https-Adresse, bevor {carrier} ihn aufrufen kann. Die bisherige Adresse funktioniert weiter.",
+      "appNotUpdated": "Aktualisieren Sie diese App, bevor Sie einen Versanddienstleister verbinden."
     },
     "gate": {
       "body": "Bitten Sie die Person, die diesen Server betreibt, Ihnen die Berechtigung „Versand einrichten“ zu geben.",

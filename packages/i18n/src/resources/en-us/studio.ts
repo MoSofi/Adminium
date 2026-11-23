@@ -6234,7 +6234,8 @@ export default {
       "notLoaded": "{carrier} could not be loaded on this server.",
       "serverWide": "{carrier} is kept for the whole server, so it takes no key for one shop.",
       "switchedOff": "{carrier} is switched off for this app.",
-      "noPublicAddress": "This server needs a public https address before {carrier} can call it. The address you have keeps working."
+      "noPublicAddress": "This server needs a public https address before {carrier} can call it. The address you have keeps working.",
+      "appNotUpdated": "Update this app before connecting a carrier."
     },
     "gate": {
       "body": "Ask whoever runs this server to give you the “Set up shipping” permission.",

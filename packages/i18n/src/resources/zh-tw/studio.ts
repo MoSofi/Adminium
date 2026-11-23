@@ -6234,7 +6234,8 @@ export default {
       "notLoaded": "{carrier} 無法在這台伺服器上載入。",
       "serverWide": "{carrier} 由整台伺服器統一管理，因此單一店家不需要金鑰。",
       "switchedOff": "{carrier} 對此應用程式已關閉。",
-      "noPublicAddress": "這台伺服器需要一個公開的 https 網址，{carrier} 才能呼叫它。現有網址仍然有效。"
+      "noPublicAddress": "這台伺服器需要一個公開的 https 網址，{carrier} 才能呼叫它。現有網址仍然有效。",
+      "appNotUpdated": "請先更新此應用程式，再連接貨運公司。"
     },
     "gate": {
       "body": "請讓營運這台伺服器的人授予你「設定寄送」權限。",

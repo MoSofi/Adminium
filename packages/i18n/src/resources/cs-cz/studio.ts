@@ -6234,7 +6234,8 @@ export default {
       "notLoaded": "{carrier} se na tomto serveru nepodařilo načíst.",
       "serverWide": "{carrier} se vede pro celý server, proto nepřijímá klíč pro jeden obchod.",
       "switchedOff": "Dopravce {carrier} je pro tuto aplikaci vypnut.",
-      "noPublicAddress": "Tento server potřebuje veřejnou adresu https, než ho {carrier} může zavolat. Stávající adresa dál funguje."
+      "noPublicAddress": "Tento server potřebuje veřejnou adresu https, než ho {carrier} může zavolat. Stávající adresa dál funguje.",
+      "appNotUpdated": "Než připojíte dopravce, aktualizujte tuto aplikaci."
     },
     "gate": {
       "body": "Požádejte toho, kdo tento server provozuje, aby vám dal oprávnění „Nastavit dopravu“.",

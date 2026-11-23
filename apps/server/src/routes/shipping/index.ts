@@ -319,6 +319,7 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
         appOf,
         statusOf: view,
         keyLockOf,
+        appReady: (install) => shippingOrders(install) !== null,
       }),
     );
 

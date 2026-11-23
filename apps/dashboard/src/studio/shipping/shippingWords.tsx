@@ -104,6 +104,8 @@ export function sizeLine(size: LabelSize): string {
 export function refusalWords(error: unknown, carrier: string): string {
   if (isNetworkOff(error)) return t('studio:shipping.error.networkOff', 'This server is set to work without the internet, so no carrier can be asked.');
   switch (refusalCode(error)) {
+    case 'APP_NOT_UPDATED':
+      return t('studio:shipping.error.appNotUpdated', 'Update this app before connecting a carrier.');
     case 'KEY_REFUSED':
       return t('studio:shipping.error.keyRefused', '{carrier} did not accept this key. Nothing was saved.', { carrier });
     case 'CARRIER_UNAVAILABLE':

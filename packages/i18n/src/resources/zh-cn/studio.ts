@@ -6234,7 +6234,8 @@ export default {
       "notLoaded": "{carrier} 无法在这台服务器上加载。",
       "serverWide": "{carrier} 由整个服务器统一管理，因此单个店铺不需要密钥。",
       "switchedOff": "{carrier} 对此应用已关闭。",
-      "noPublicAddress": "这台服务器需要一个公网 https 地址，{carrier} 才能调用它。现有地址仍然有效。"
+      "noPublicAddress": "这台服务器需要一个公网 https 地址，{carrier} 才能调用它。现有地址仍然有效。",
+      "appNotUpdated": "请先更新此应用，再连接承运商。"
     },
     "gate": {
       "body": "请让运营这台服务器的人授予你“设置发货”权限。",

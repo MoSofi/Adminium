@@ -6234,7 +6234,8 @@ export default {
       "notLoaded": "{carrier} kunne ikke indlæses på denne server.",
       "serverWide": "{carrier} holdes for hele serveren, så det tager ingen nøgle for én butik.",
       "switchedOff": "{carrier} er slået fra for denne app.",
-      "noPublicAddress": "Denne server skal have en offentlig https-adresse, før {carrier} kan kalde den. Den nuværende adresse virker stadig."
+      "noPublicAddress": "Denne server skal have en offentlig https-adresse, før {carrier} kan kalde den. Den nuværende adresse virker stadig.",
+      "appNotUpdated": "Opdater denne app, før du tilslutter et fragtfirma."
     },
     "gate": {
       "body": "Bed den, der driver denne server, om at give dig tilladelsen “Indstil forsendelse”.",

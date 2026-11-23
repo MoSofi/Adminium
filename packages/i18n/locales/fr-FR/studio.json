@@ -6224,7 +6224,8 @@
       "notLoaded": "{carrier} n’a pas pu être chargé sur ce serveur.",
       "serverWide": "{carrier} est géré pour tout le serveur : il n’accepte donc aucune clé pour une seule boutique.",
       "switchedOff": "{carrier} est désactivé pour cette application.",
-      "noPublicAddress": "Ce serveur a besoin d’une adresse https publique avant que {carrier} puisse l’appeler. L’adresse actuelle continue de fonctionner."
+      "noPublicAddress": "Ce serveur a besoin d’une adresse https publique avant que {carrier} puisse l’appeler. L’adresse actuelle continue de fonctionner.",
+      "appNotUpdated": "Mettez cette application à jour avant de connecter un transporteur."
     },
     "gate": {
       "body": "Demandez à la personne qui gère ce serveur de vous donner l’autorisation « Configurer l’expédition ».",

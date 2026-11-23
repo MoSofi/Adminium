@@ -433,6 +433,18 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
     expect((status.json() as Doc)['data']['appUpdated']).toBe(false);
   });
 
+  it.skipIf(!available)('an app released with no shipping block cannot make a key call to the carrier either', async () => {
+    fake().checks.length = 0;
+    const saved = await call('boss', 'PUT', 'legacy/shipping/carriers/carrier-one/key', { fields: { api_key: 'legacy-key' } });
+    expect(saved.statusCode, saved.body).toBe(409);
+    expect((saved.json() as Doc)['error']).toMatchObject({ code: 'APP_NOT_UPDATED', details: { app: 'legacy' } });
+    const checked = await call('boss', 'POST', 'legacy/shipping/carriers/carrier-one/check');
+    expect(checked.statusCode, checked.body).toBe(409);
+    expect((checked.json() as Doc)['error']).toMatchObject({ code: 'APP_NOT_UPDATED', details: { app: 'legacy' } });
+    expect(fake().checks).toEqual([]);
+    expect(fake().made).toEqual([]);
+  });
+
   it.skipIf(!available)('refuses a table the app did not declare', async () => {
     const res = await quote('shop', { ...body('1'), source: { table: 'notes', id: '1' } });
     expect(res.statusCode, res.body).toBe(422);
