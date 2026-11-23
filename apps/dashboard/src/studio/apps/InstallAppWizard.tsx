@@ -744,12 +744,14 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
     onBusy?.(busy);
   }, [busy, onBusy]);
 
-  /** What comes with the app: public access, the add-ons it brings, sample data. */
+  /**
+   * What comes with the app: public access, the add-ons it brings, sample data.
+   * A card with nothing to say renders nothing, and the row with no card hides
+   * itself: no second list of the cards here to fall out of step with them.
+   */
   const cardsOfPlan =
-    plan === null
-      ? null
-      : plan.publicAccess !== undefined || plan.sampleData === true || addOnRows.length > 0 || plan.modules !== undefined || plan.maps === true || plan.privacyGrants !== undefined || plan.shippingGrants !== undefined ? (
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(272px,1fr))] gap-3">
+    plan === null ? null : (
+      <div data-part="plan-cards" className="grid grid-cols-[repeat(auto-fit,minmax(272px,1fr))] gap-3 empty:hidden">
         {plan.publicAccess === undefined ? null : (
           <PublicAccessInstallCard access={plan.publicAccess} checked={allowPublic} onChange={setAllowPublic} />
         )}
@@ -820,7 +822,7 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
         ) : null}
         {plan.sampleData === true ? <SampleInstallCard checked={addSample} onChange={setAddSample} withAddOns={addOnRows.length > 0} /> : null}
       </div>
-    ) : null;
+    );
 
   return (
     <section className={quick ? 'flex flex-col gap-5' : 'flex min-h-full flex-col gap-6'}>
