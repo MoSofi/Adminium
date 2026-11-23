@@ -180,7 +180,7 @@ describe.each(LEGS)('tracking through the server on %s', (dialect, available) =>
     conn = h.connectionId;
     repo = manifestsRepo(h.meta, addOnCredentialCryptoFromSecret(TEST_SECRET));
     await h.stageApp(shopDoc('shop'));
-    const res = await h.install('shop', '1.0.0');
+    const res = await h.install('shop', '1.0.0', { shippingUnticked: [] });
     expect(res.statusCode, res.body).toBe(200);
     shop = (await repo.findInScope('shop', conn))!.row.id;
     for (const record of await h.meta.db.selectFrom('adminium_app_tables').select(['connectionId', 'appKey', 'ref', 'tableName', 'schemaName']).execute()) {

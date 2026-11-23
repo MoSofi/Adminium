@@ -42,7 +42,13 @@ its parcel goes. The country must hold a two-letter ISO code; Adminium never gue
 Buying a label never moves the order's status. A label bought with a test key reaches neither column.
 
 An app's role can be given three rights on this install's labels. They need the `shipping` block
-and Adminium 0.3.72 or later, and an update that adds one asks first.
+and Adminium 0.3.72 or later. The install's check lists each one, ticked, and an update that adds
+one asks first.
+
+An install through the API answers in `shippingUnticked`, a list of `{ "role", "action" }` to leave
+out, and `[]` grants them all. An install that sends no answer, a workspace file included, gives
+none of them and names each in `shippingWithheld`. An update never hands them over afterwards, so
+the owner gives them on the Roles page. A right a role already holds is kept.
 
 | Grant | What it allows |
 |---|---|

@@ -144485,6 +144485,34 @@
                                   }
                                 ]
                               },
+                              "shippingWithheld": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "role": {
+                                      "type": "string"
+                                    },
+                                    "roleName": {
+                                      "type": "string"
+                                    },
+                                    "action": {
+                                      "type": "string",
+                                      "enum": [
+                                        "book",
+                                        "cancel",
+                                        "customs"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "role",
+                                    "roleName",
+                                    "action"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
                               "route": {
                                 "type": "string",
                                 "enum": [
@@ -144755,6 +144783,34 @@
                                       "type": "null"
                                     }
                                   ]
+                                },
+                                "shippingWithheld": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "role": {
+                                        "type": "string"
+                                      },
+                                      "roleName": {
+                                        "type": "string"
+                                      },
+                                      "action": {
+                                        "type": "string",
+                                        "enum": [
+                                          "book",
+                                          "cancel",
+                                          "customs"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "role",
+                                      "roleName",
+                                      "action"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 },
                                 "route": {
                                   "type": "string",
@@ -145037,6 +145093,34 @@
                                     "type": "null"
                                   }
                                 ]
+                              },
+                              "shippingWithheld": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "role": {
+                                      "type": "string"
+                                    },
+                                    "roleName": {
+                                      "type": "string"
+                                    },
+                                    "action": {
+                                      "type": "string",
+                                      "enum": [
+                                        "book",
+                                        "cancel",
+                                        "customs"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "role",
+                                    "roleName",
+                                    "action"
+                                  ],
+                                  "additionalProperties": false
+                                }
                               },
                               "route": {
                                 "type": "string",
@@ -146209,6 +146293,34 @@
                                   }
                                 ]
                               },
+                              "shippingWithheld": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "role": {
+                                      "type": "string"
+                                    },
+                                    "roleName": {
+                                      "type": "string"
+                                    },
+                                    "action": {
+                                      "type": "string",
+                                      "enum": [
+                                        "book",
+                                        "cancel",
+                                        "customs"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "role",
+                                    "roleName",
+                                    "action"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
                               "route": {
                                 "type": "string",
                                 "enum": [
@@ -146488,6 +146600,34 @@
                                   }
                                 ]
                               },
+                              "shippingWithheld": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "role": {
+                                      "type": "string"
+                                    },
+                                    "roleName": {
+                                      "type": "string"
+                                    },
+                                    "action": {
+                                      "type": "string",
+                                      "enum": [
+                                        "book",
+                                        "cancel",
+                                        "customs"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "role",
+                                    "roleName",
+                                    "action"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
                               "route": {
                                 "type": "string",
                                 "enum": [
@@ -146685,6 +146825,34 @@
                               "reused"
                             ],
                             "additionalProperties": false
+                          },
+                          "shippingWithheld": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "role": {
+                                  "type": "string"
+                                },
+                                "roleName": {
+                                  "type": "string"
+                                },
+                                "action": {
+                                  "type": "string",
+                                  "enum": [
+                                    "book",
+                                    "cancel",
+                                    "customs"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "role",
+                                "roleName",
+                                "action"
+                              ],
+                              "additionalProperties": false
+                            }
                           },
                           "source": {
                             "type": "string"
@@ -150612,6 +150780,34 @@
                       ],
                       "additionalProperties": false
                     },
+                    "shippingWithheld": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "role": {
+                            "type": "string"
+                          },
+                          "roleName": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "type": "string",
+                            "enum": [
+                              "book",
+                              "cancel",
+                              "customs"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "role",
+                          "roleName",
+                          "action"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "source": {
                       "type": "string"
                     },
@@ -151582,6 +151778,34 @@
                             "reused"
                           ],
                           "additionalProperties": false
+                        },
+                        "shippingWithheld": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "role": {
+                                "type": "string"
+                              },
+                              "roleName": {
+                                "type": "string"
+                              },
+                              "action": {
+                                "type": "string",
+                                "enum": [
+                                  "book",
+                                  "cancel",
+                                  "customs"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "role",
+                              "roleName",
+                              "action"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "source": {
                           "type": "string"
@@ -152723,6 +152947,34 @@
                             "reused"
                           ],
                           "additionalProperties": false
+                        },
+                        "shippingWithheld": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "role": {
+                                "type": "string"
+                              },
+                              "roleName": {
+                                "type": "string"
+                              },
+                              "action": {
+                                "type": "string",
+                                "enum": [
+                                  "book",
+                                  "cancel",
+                                  "customs"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "role",
+                              "roleName",
+                              "action"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "source": {
                           "type": "string"

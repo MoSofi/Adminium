@@ -151,10 +151,42 @@ for (const [dialect, available] of ENGINES) {
         { role: 'shop-owner', roleName: 'Owner', action: 'cancel' },
         { role: 'shop-owner', roleName: 'Owner', action: 'customs' },
       ]);
-      const installed = await h.install('shop', '1.0.0');
+      const installed = await h.install('shop', '1.0.0', { shippingUnticked: [] });
       expect(installed.statusCode, installed.body).toBe(200);
+      expect(installed.json().shippingWithheld).toBeUndefined();
       expect(await rights('shop-packer')).toEqual(['book', 'cancel']);
       expect(await rights('shop-owner')).toEqual(['book', 'cancel', 'customs']);
+    });
+
+    it('gives none to a first install nobody was asked about, says which, and an update does not hand them over', async () => {
+      h = await addOnHarness(dialect, { unbuiltWords: {} });
+      await h.stageApp(shop());
+      const installed = await h.install('shop', '1.0.0');
+      expect(installed.statusCode, installed.body).toBe(200);
+      expect(await rights('shop-packer')).toEqual([]);
+      expect(await rights('shop-owner')).toEqual([]);
+      expect(installed.json().shippingWithheld).toEqual([
+        { role: 'shop-packer', roleName: 'Packer', action: 'book' },
+        { role: 'shop-packer', roleName: 'Packer', action: 'cancel' },
+        { role: 'shop-owner', roleName: 'Owner', action: 'book' },
+        { role: 'shop-owner', roleName: 'Owner', action: 'cancel' },
+        { role: 'shop-owner', roleName: 'Owner', action: 'customs' },
+      ]);
+
+      await h.stageApp(shop('1.1.0'));
+      const updated = await update();
+      expect(updated.statusCode, updated.body).toBe(200);
+      expect(await rights('shop-packer')).toEqual([]);
+    });
+
+    it('leaves a right a role already holds when an install is run again with no answer', async () => {
+      h = await addOnHarness(dialect, { unbuiltWords: {} });
+      await h.stageApp(shop());
+      expect((await h.install('shop', '1.0.0', { shippingUnticked: [{ role: 'shop-packer', action: 'cancel' }] })).statusCode).toBe(200);
+      const again = await h.install('shop', '1.0.0');
+      expect(again.statusCode, again.body).toBe(200);
+      expect(await rights('shop-packer')).toEqual(['book']);
+      expect(again.json().shippingWithheld).toEqual([{ role: 'shop-packer', roleName: 'Packer', action: 'cancel' }]);
     });
 
     it('lets one role keep book and lose cancel, and an update never hands it over', async () => {
@@ -207,7 +239,7 @@ for (const [dialect, available] of ENGINES) {
     it('takes back a right unticked when the install is run again', async () => {
       h = await addOnHarness(dialect, { unbuiltWords: {} });
       await h.stageApp(shop());
-      expect((await h.install('shop', '1.0.0')).statusCode).toBe(200);
+      expect((await h.install('shop', '1.0.0', { shippingUnticked: [] })).statusCode).toBe(200);
       expect(await rights('shop-packer')).toEqual(['book', 'cancel']);
       const again = await h.install('shop', '1.0.0', { shippingUnticked: [{ role: 'shop-packer', action: 'cancel' }] });
       expect(again.statusCode, again.body).toBe(200);
@@ -243,7 +275,7 @@ for (const [dialect, available] of ENGINES) {
     it("honours an untick on a later copy, whose role's slug differs from the check's", async () => {
       h = await addOnHarness(dialect, { unbuiltWords: {} });
       await h.stageApp(shop());
-      expect((await h.install('shop', '1.0.0')).statusCode).toBe(200);
+      expect((await h.install('shop', '1.0.0', { shippingUnticked: [] })).statusCode).toBe(200);
       const other = await anotherDatabase(h, dialect);
       second = other;
       const installed = await h.install('shop', '1.0.0', { connectionId: other.id, shippingUnticked: [{ role: 'shop-packer', action: 'cancel' }] });

@@ -426,6 +426,8 @@ export interface RolesResult {
   seeded: number;
   /** What the roles hold of the tables of the add-ons here for the app (the role-table writer's answer), when it asks for any. */
   tables?: RoleTableResult[];
+  /** Label rights a first install did not give because nobody was asked. The owner can give them on the Roles page. */
+  shippingWithheld?: { role: string; roleName: string; action: ShippingAction }[];
 }
 
 /**
@@ -450,6 +452,11 @@ export async function writeManifestRoles(input: {
    * answered: no role is then given a right the ledger has already settled, even a role made again after a delete.
    */
   shippingUnticked?: readonly { role: string; action: ShippingAction }[] | undefined;
+  /**
+   * An install that showed no card and got no answer (a workspace file, the API, the CLI). It gives no label right,
+   * remembers each as settled so an update never hands it over, and leaves alone a right the role already holds.
+   */
+  shippingUnanswered?: boolean | undefined;
 }): Promise<RolesResult> {
   const { meta, manifest, connectionId } = input;
   const result: RolesResult = { created: [], seeded: 0 };
@@ -628,6 +635,14 @@ export async function writeManifestRoles(input: {
           // Remembered as settled, so an update never hands it over. A stopped install tried again may have given it already.
           if (!fresh) await revokeGrant(role.id, grant);
           seeded.add(pair);
+          continue;
+        }
+        if (input.shippingUnticked === undefined && input.shippingUnanswered === true) {
+          const row = matrixRowsFromGrants([appShippingPermission(grantKeyOf({ manifestKey: manifest.key, instanceSlug: input.install.slug }), shipping)]).rows[0];
+          const existing = fresh || row === undefined ? null : await permissions.find(role.id, row.resourceKind, row.resourceRef);
+          const held = row !== undefined && existing !== null && Object.entries(row.actions).every(([name, on]) => !on || (existing.actions as Record<string, boolean>)[name] === true);
+          seeded.add(pair);
+          if (!held) (result.shippingWithheld ??= []).push({ role: checkSlug, roleName: declared.name, action: shipping });
           continue;
         }
         // The card showed this right ticked and the person pressed Install: what the screen said is what happens.
