@@ -449,6 +449,30 @@
       "skipped": "kein Beleg gezeichnet · {reason}",
       "would": "Würde {kind} zeichnen · {name}",
       "off": "Zuordnung ist ausgeschaltet · {name}"
+    },
+    "text": {
+      "queued": "SMS für {to} eingeplant",
+      "held": "SMS für {to} zurückgehalten bis {at}: außerhalb der Sendezeiten",
+      "would": "Würde eine SMS an {to} senden",
+      "wouldHold": "Würde eine SMS für {to} bis {at} zurückhalten: außerhalb der Sendezeiten",
+      "notSent": "Keine SMS gesendet: {reason}",
+      "reason": {
+        "number": "die Nummer ist nicht lesbar",
+        "cannotReceive": "diese Nummer kann keine SMS empfangen",
+        "country": "in dieses Land gehen keine SMS",
+        "kind": "diese Art von SMS kann von hier nicht gesendet werden",
+        "stopped": "diese Person möchte keine SMS mehr",
+        "noConsent": "diese Person hat SMS nicht zugestimmt",
+        "template": "die Vorlage oder ein Wert darin kann nicht gesendet werden",
+        "unfilled": "ein Platzhalter hat keinen Wert",
+        "optOut": "für diesen Absender kann keine Abmeldemöglichkeit angegeben werden",
+        "notConnected": "kein SMS-Anbieter verbunden",
+        "off": "SMS sind auf diesem Server ausgeschaltet",
+        "limit": "das heutige SMS-Limit ist erreicht",
+        "hours": "die Sendezeiten würden sie zu lange zurückhalten",
+        "sample": "dies ist eine Beispielzeile",
+        "open": "ein früherer Versand dieses Schritts ist noch offen"
+      }
     }
   },
   "dur": {

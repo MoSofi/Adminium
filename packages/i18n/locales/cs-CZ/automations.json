@@ -449,6 +449,30 @@
       "skipped": "žádný doklad nenakreslen · {reason}",
       "would": "Nakreslil by {kind} · {name}",
       "off": "přiřazení je vypnuté · {name}"
+    },
+    "text": {
+      "queued": "SMS zařazena do fronty pro {to}",
+      "held": "SMS pro {to} pozdržena do {at}: mimo časy odesílání",
+      "would": "Odeslalo by SMS na {to}",
+      "wouldHold": "Pozdrželo by SMS pro {to} do {at}: mimo časy odesílání",
+      "notSent": "SMS nebyla odeslána: {reason}",
+      "reason": {
+        "number": "číslo nelze přečíst",
+        "cannotReceive": "toto číslo nemůže přijímat SMS",
+        "country": "do této země se SMS neposílají",
+        "kind": "tento druh SMS odtud nelze odeslat",
+        "stopped": "tato osoba si nepřeje další SMS",
+        "noConsent": "tato osoba nesouhlasila se SMS",
+        "template": "šablonu nebo hodnotu v ní nelze odeslat",
+        "unfilled": "zástupný znak nemá hodnotu",
+        "optOut": "pro tohoto odesílatele nelze uvést způsob odhlášení",
+        "notConnected": "není připojen žádný poskytovatel SMS",
+        "off": "SMS jsou na tomto serveru vypnuté",
+        "limit": "dnešní limit SMS je vyčerpán",
+        "hours": "časy odesílání by ji pozdržely příliš dlouho",
+        "sample": "toto je ukázkový řádek",
+        "open": "dřívější odeslání tohoto kroku je stále otevřené"
+      }
     }
   },
   "dur": {

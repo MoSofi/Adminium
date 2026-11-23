@@ -449,6 +449,30 @@
       "skipped": "未繪製單據 · {reason}",
       "would": "將繪製 {kind} · {name}",
       "off": "對應已關閉 · {name}"
+    },
+    "text": {
+      "queued": "簡訊已排隊傳送給 {to}",
+      "held": "傳給 {to} 的簡訊暫緩至 {at}：不在傳送時段內",
+      "would": "將傳送簡訊給 {to}",
+      "wouldHold": "將暫緩傳給 {to} 的簡訊至 {at}：不在傳送時段內",
+      "notSent": "未傳送簡訊：{reason}",
+      "reason": {
+        "number": "無法辨識此號碼",
+        "cannotReceive": "此號碼無法接收簡訊",
+        "country": "不傳送簡訊至此國家或地區",
+        "kind": "此類簡訊無法從這裡傳送",
+        "stopped": "此人已要求不再接收簡訊",
+        "noConsent": "此人未同意接收簡訊",
+        "template": "範本或其中的值無法傳送",
+        "unfilled": "有預留位置沒有值",
+        "optOut": "無法為此傳送者提供退訂方式",
+        "notConnected": "未連接簡訊服務商",
+        "off": "此伺服器已關閉簡訊",
+        "limit": "今日簡訊額度已用完",
+        "hours": "傳送時段會使其等待過久",
+        "sample": "這是範例資料列",
+        "open": "此步驟先前的傳送仍未結束"
+      }
     }
   },
   "dur": {

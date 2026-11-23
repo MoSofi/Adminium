@@ -459,6 +459,30 @@ export default {
       "skipped": "未绘制单据 · {reason}",
       "would": "将绘制 {kind} · {name}",
       "off": "映射已关闭 · {name}"
+    },
+    "text": {
+      "queued": "短信已排队发送给 {to}",
+      "held": "发给 {to} 的短信暂缓至 {at}：不在发送时段内",
+      "would": "将向 {to} 发送短信",
+      "wouldHold": "将暂缓发给 {to} 的短信至 {at}：不在发送时段内",
+      "notSent": "未发送短信：{reason}",
+      "reason": {
+        "number": "无法识别该号码",
+        "cannotReceive": "该号码无法接收短信",
+        "country": "不向该国家或地区发送短信",
+        "kind": "此类短信无法从这里发送",
+        "stopped": "此人已要求不再接收短信",
+        "noConsent": "此人未同意接收短信",
+        "template": "模板或其中的值无法发送",
+        "unfilled": "有占位符没有值",
+        "optOut": "无法为此发送方提供退订方式",
+        "notConnected": "未连接短信服务商",
+        "off": "此服务器已关闭短信",
+        "limit": "今日短信额度已用完",
+        "hours": "发送时段会使其等待过久",
+        "sample": "这是示例数据行",
+        "open": "此步骤之前的发送仍未结束"
+      }
     }
   },
   "dur": {
