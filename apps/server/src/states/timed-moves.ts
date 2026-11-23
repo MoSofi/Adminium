@@ -72,7 +72,7 @@ import { createWriteService, type RecordWriteService, type WriteContext, type Wr
 import { writeStores } from '../crud/write-stores.js';
 import { bindWriteValue, normalizeWriteValue } from '../crud/write-values.js';
 import { isWriteConflict } from '../crud/db-errors.js';
-import { AppError } from '../errors.js';
+import { AppError, isConnectionWideError } from '../errors.js';
 import { paymentInFlight } from '../payments/in-flight.js';
 import type { JobRegistry } from '../jobs/registry.js';
 import { createPublicViews } from '../public-api/runtime.js';
@@ -132,21 +132,6 @@ export interface TimedMovesDeps {
   ledgers?: LedgerRuntime | undefined;
   /** What a hold let go did, once it committed: announced as any posting is. */
   released?: ((input: { connectionId: string; view: SnapshotView; table: ResolvedTable; row: Row; postings: PostedOutcome[] }) => Promise<void>) | undefined;
-}
-
-/**
- * A failure of the connection itself, not of one row — the database gone,
- * refusing new connections, shutting down: the minute's job stops, and the
- * next minute starts again. Anything else a row's move meets is that row's.
- */
-function connectionWide(error: unknown): boolean {
-  if (typeof error !== 'object' || error === null) return false;
-  const code = String((error as { code?: unknown }).code ?? '');
-  const message = String((error as { message?: unknown }).message ?? '');
-  return (
-    /^(ECONNREFUSED|ECONNRESET|ETIMEDOUT|EPIPE|ENOTFOUND|EHOSTUNREACH|EAI_AGAIN|PROTOCOL_CONNECTION_LOST|ER_CON_COUNT_ERROR|ER_ACCESS_DENIED_ERROR|08\w{3}|57P0[1-3]|53300|SQLITE_CANTOPEN|SQLITE_NOTADB|SQLITE_CORRUPT)$/.test(code) ||
-    /Connection terminated|connection is closed|Pool is closed|pool has ended|Cannot enqueue|database connection is not open/i.test(message)
-  );
 }
 
 export interface TimedMovesTick {
@@ -370,7 +355,7 @@ async function moveDue(deps: TimedMovesDeps, connectionId: string, view: Snapsho
       if (await moveOne(deps, writes, one)) tick.moved += 1;
     } catch (error) {
       // The database itself is gone: nothing more moves this minute.
-      if (connectionWide(error)) throw error;
+      if (isConnectionWideError(error)) throw error;
       const refusal = error instanceof AppError && error.statusCode < 500;
       // Two writers at once: the next minute tries again.
       if ((refusal && TRANSIENT.has(error.code)) || isWriteConflict(error)) continue;
@@ -473,7 +458,7 @@ async function releaseDue(deps: TimedMovesDeps, connectionId: string, view: Snap
           deps.log?.warn({ connectionId, ledger: ledger.id, source: receipt.sourceTable, row: receipt.sourceRow, posting: receipt.posting }, 'a hold past its time could not be given back (its rule cannot be asked); left alone for an hour');
         }
       } catch (error) {
-        if (connectionWide(error)) throw error;
+        if (isConnectionWideError(error)) throw error;
         const refusal = error instanceof AppError && error.statusCode < 500;
         if ((refusal && TRANSIENT.has(error.code)) || isWriteConflict(error)) continue;
         tick.refused += 1;
