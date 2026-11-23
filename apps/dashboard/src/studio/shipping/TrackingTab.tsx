@@ -22,7 +22,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, CircleCheckBig, Clock, Copy, RadioTower, RefreshCw } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
-import { Alert, Badge, Button, Card, IconTile, Modal, ModalBody, ModalFooter, ModalHeader, Spinner } from '@adminium/ui';
+import { Alert, Badge, Button, Card, IconTile, Modal, ModalBody, ModalFooter, ModalHeader, ModalTrigger, Spinner } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
 import { SHIPPING_LINKS } from './shippingLinks.js';
@@ -262,9 +262,26 @@ function CarrierTracking({ app, carrier }: { app: ShippingApp; carrier: CarrierV
             <code dir="ltr" className="min-w-0 break-all rounded-sm bg-surface-3 px-[9px] py-1 font-mono text-[12px] font-medium" data-testid="shipping-webhook-masked">
               {webhook.address}
             </code>
-            <Button variant="secondary" size="sm" onClick={() => setConfirming(true)} data-testid="shipping-webhook-new">
-              {t('studio:shipping.tracking.makeNew', 'Make a new address')}
-            </Button>
+            {/* The button is the dialog's trigger, so Escape puts focus back on it. */}
+            <Modal open={confirming} onOpenChange={setConfirming}>
+              <ModalTrigger asChild>
+                <Button variant="secondary" size="sm" data-testid="shipping-webhook-new">
+                  {t('studio:shipping.tracking.makeNew', 'Make a new address')}
+                </Button>
+              </ModalTrigger>
+              <ModalHeader title={t('studio:shipping.tracking.confirmTitle', 'Make a new address?')} closeLabel={t('studio:shipping.close', 'Close')} />
+              <ModalBody className="text-[13px]" data-testid="shipping-webhook-warning">
+                <p>{t('studio:shipping.tracking.confirmBody', 'The old address stops working at once. Updates stop until you paste the new one into {carrier}.', { carrier: name })}</p>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="ghost" onClick={() => setConfirming(false)}>
+                  {t('studio:shipping.limits.cancel', 'Cancel')}
+                </Button>
+                <Button disabled={make.isPending} onClick={() => make.mutate()} data-testid="shipping-webhook-confirm">
+                  {t('studio:shipping.tracking.makeNew', 'Make a new address')}
+                </Button>
+              </ModalFooter>
+            </Modal>
           </div>
         ) : (
           <div>
@@ -291,21 +308,6 @@ function CarrierTracking({ app, carrier }: { app: ShippingApp; carrier: CarrierV
       ) : null}
 
       <ParcelCounts parcels={data.parcels} />
-
-      <Modal open={confirming} onOpenChange={(open) => (open ? null : setConfirming(false))}>
-        <ModalHeader title={t('studio:shipping.tracking.confirmTitle', 'Make a new address?')} closeLabel={t('studio:shipping.close', 'Close')} />
-        <ModalBody className="text-[13px]" data-testid="shipping-webhook-warning">
-          <p>{t('studio:shipping.tracking.confirmBody', 'The old address stops working at once. Updates stop until you paste the new one into {carrier}.', { carrier: name })}</p>
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="ghost" onClick={() => setConfirming(false)}>
-            {t('studio:shipping.limits.cancel', 'Cancel')}
-          </Button>
-          <Button disabled={make.isPending} onClick={() => make.mutate()} data-testid="shipping-webhook-confirm">
-            {t('studio:shipping.tracking.makeNew', 'Make a new address')}
-          </Button>
-        </ModalFooter>
-      </Modal>
     </Shell>
   );
 }

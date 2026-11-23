@@ -843,6 +843,8 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
       ) : null}
       <header className={quick ? 'hidden' : undefined}>
         <Stepper
+          // Its labels do not shrink, so on a phone the row scrolls inside itself and not the whole page.
+          className="overflow-x-auto"
           steps={steps}
           activeIndex={stepIndex}
           label={t('studio:hostedApps.install.progress', 'Install progress')}

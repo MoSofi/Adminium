@@ -11,7 +11,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, ArrowRight, Check, CircleCheckBig, CircleX, CloudOff, FlaskConical, Hash, Info, KeyRound, Lock, Package, PlugZap, RefreshCw, Search, Store, Truck } from 'lucide-react';
-import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Alert, Badge, Button, Card, IconTile, Input, Modal, ModalBody, ModalFooter, ModalHeader, Spinner } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
@@ -111,7 +111,9 @@ export function ShipWithCard({ app, status, onOpenCarrier }: { app: ShippingApp;
     mutationFn: (carrier: string) => setActiveCarrier(app, carrier),
     onSuccess: (data) => client.setQueryData(shippingStatusKey(app), data),
   });
-  const keys = status.carriers.map((carrier) => carrier.key);
+  // A real carrier reads first, and a locked demo after it, as the comp draws them.
+  const listed = [...status.carriers].sort((a, b) => Number(a.locked) - Number(b.locked));
+  const keys = listed.map((carrier) => carrier.key);
   const tabStop = focused !== null && keys.includes(focused) ? focused : (status.activeCarrier ?? keys[0] ?? '');
   const active = status.carriers.find((carrier) => carrier.key === status.activeCarrier) ?? null;
   const choose = (carrier: CarrierView) => {
@@ -137,7 +139,7 @@ export function ShipWithCard({ app, status, onOpenCarrier }: { app: ShippingApp;
       </div>
       <div className="flex flex-col gap-4 p-5">
         <div role="radiogroup" aria-label={t('studio:shipping.shipWith.group', 'Ship with')} className="flex flex-col gap-2">
-          {status.carriers.map((carrier) => (
+          {listed.map((carrier) => (
             <CarrierRow
               key={carrier.key}
               carrier={carrier}
@@ -293,6 +295,20 @@ function KeyForm({
   const [problem, setProblem] = useState<string | null>(null);
   const [emptyField, setEmptyField] = useState<string | null>(null);
   const [asking, setAsking] = useState<OtherAccount | null>(null);
+
+  // A server's answer opens the account dialog, so it has no trigger to hand focus back to.
+  const wasAsking = useRef(false);
+  const firstField = `${ids}-${names[0] ?? ''}`;
+  useEffect(() => {
+    if (asking !== null) {
+      wasAsking.current = true;
+      return;
+    }
+    if (!wasAsking.current) return;
+    wasAsking.current = false;
+    const timer = window.setTimeout(() => document.getElementById(firstField)?.focus(), 0);
+    return () => window.clearTimeout(timer);
+  }, [asking, firstField]);
 
   const labelOf = (field: string): string => {
     if (names.length === 1) return t('studio:shipping.key.label', '{carrier} API key', { carrier: name });
