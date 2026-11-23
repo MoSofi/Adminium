@@ -228,4 +228,27 @@ describe.each(LEGS)('a role never reaches more rows than it did — %s', (dialec
     await update('1.0.1', FIRST);
     expect((await rowOf('rep')).actions.rowLimit).toEqual({ read: OWN });
   }, 120_000);
+
+  it.skipIf(!available)('holds only the install whose roles a bundle takes, and none for a role an install left behind', async () => {
+    await sort();
+    const dir = await mkdtemp(join(tmpdir(), 'owner-rows-'));
+    try {
+      // Exported before the second install existed, so it carries none of that install's roles.
+      const bundle = await exportZip({ meta: h.meta, outPath: join(dir, 'config.zip'), dataDir: h.dataDir, includeSecrets: false });
+      const first = await h.meta.db.selectFrom('adminium_manifests').selectAll().where('manifestKey', '=', 'shop').executeTakeFirstOrThrow();
+      const elsewhere = await h.addConnection('elsewhere');
+      const copy = Object.fromEntries(Object.entries(first).map(([column, value]) => [column, typeof value === 'object' && value !== null ? JSON.stringify(value) : value]));
+      await h.meta.db.insertInto('adminium_manifests').values({ ...copy, id: 'shop-elsewhere', connectionId: elsewhere, scopeKey: elsewhere, instanceSlug: 'elsewhere' } as never).execute();
+
+      await importZip({ meta: h.meta, inPath: bundle.path });
+      expect(await settingsRepo(h.meta).get(PENDING)).toEqual([first.id]);
+
+      await settingsRepo(h.meta).set(PENDING, []);
+      await h.meta.db.updateTable('adminium_roles').set({ manifestId: null }).where('appKey', '=', 'shop').execute();
+      await importZip({ meta: h.meta, inPath: bundle.path });
+      expect(await settingsRepo(h.meta).get(PENDING)).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 120_000);
 });
