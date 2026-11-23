@@ -175,6 +175,27 @@ describe('a card that is its plan’s only card', () => {
     expect((await install(user))['refundsUnticked']).toEqual(['clients-deputy']);
   });
 
+  it('shipping rights: shown, and unticking sends that role and right alone', async () => {
+    plan = planWith({
+      shippingGrants: [
+        { role: 'clients-packer', roleName: 'Packer', action: 'book' },
+        { role: 'clients-packer', roleName: 'Packer', action: 'cancel' },
+      ],
+    });
+    const user = userEvent.setup();
+    await reachCheck(user);
+    await user.click(within(onlyCard('shipping-grants')).getByRole('checkbox', { name: /refund/i }));
+    expect((await install(user))['shippingUnticked']).toEqual([{ role: 'clients-packer', action: 'cancel' }]);
+  });
+
+  it('shipping rights: left ticked, the install says so with an empty answer', async () => {
+    plan = planWith({ shippingGrants: [{ role: 'clients-packer', roleName: 'Packer', action: 'book' }] });
+    const user = userEvent.setup();
+    await reachCheck(user);
+    onlyCard('shipping-grants');
+    expect((await install(user))['shippingUnticked']).toEqual([]);
+  });
+
   it('parts: shown, and unticking sends the part off', async () => {
     plan = planWith({ modules: [{ id: 'bookings', label: { 'en-US': 'Bookings' }, default: 'on', needs: [], leftOut: false, tables: [], roles: [] }] });
     const user = userEvent.setup();
