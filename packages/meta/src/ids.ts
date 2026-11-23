@@ -192,6 +192,15 @@ export const ID_PREFIXES = {
   cai: 'adminium_chat_ai_addresses',
   // wave 0097 — one counted view of a visitor who said yes to "Per visitor".
   vst: 'adminium_visits',
+  // wave 0125 — the server's SMS account.
+  sms: 'adminium_sms_accounts',
+  // wave 0126 — a stopped number, and a text consent event.
+  tsp: 'adminium_text_stop_list',
+  tcn: 'adminium_text_consent_log',
+  // wave 0127 — one event a provider handed this server.
+  ibe: 'adminium_inbound_events',
+  // wave 0128 — one text's delivery. Also the Telnyx `Idempotency-Key`, so it keeps to `[A-Za-z0-9_-]`.
+  tdl: 'adminium_text_deliveries',
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;

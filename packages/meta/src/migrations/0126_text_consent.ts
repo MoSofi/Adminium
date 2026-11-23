@@ -1,22 +1,33 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The two text consent tables, as the migration will make them.
+ * Wave 0126 — who said yes or no to texts, and who must never get one.
  *
- * No migration makes them yet. This body is what moves into
- * `packages/meta/src/migrations/` when one does, under the next free number.
+ * Two tables of their own rather than a `channel` column on the e-mail ones:
+ * every e-mail stop-list path reads its whole table, and with separate tables
+ * an e-mail yes physically cannot be read as a text yes.
+ *
+ * `text_stop_list`: one row per stopped number, found by its keyed hash under
+ * `key_version` (unique together). `phone_encrypted` is the display copy,
+ * sealed under a key taken from the address keys. An erased person's row keeps
+ * the hash alone, so the objection outlives them.
+ *
+ * `text_consent_log`: every yes, no and START, with the words the person was
+ * shown. A row names a person, a number's hash, or both.
  */
-import { columnHelpers, metaTable, type MetaDb } from '@adminium/meta';
 import type { Kysely } from 'kysely';
 
+import type { ColumnHelpers } from '../columns.js';
+import { metaTable } from '../prefix.js';
+import { createIndexUnlessMade } from './probe.js';
+
 const PERSON_KEY_MAX = 200;
+/** A keyed hash: HMAC-SHA256 as hex. */
 const HASH_LENGTH = 64;
 
-export async function makeTextConsentTables(meta: MetaDb): Promise<void> {
-  const db = meta.db as unknown as Kysely<unknown>;
-  const c = columnHelpers(meta.dialect);
-
+export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
   await db.schema
     .createTable(metaTable('text_stop_list'))
+    .ifNotExists()
     .addColumn('id', c.id, (col) => col.primaryKey())
     .addColumn('phone_hash', c.str(HASH_LENGTH), (col) => col.notNull())
     .addColumn('key_version', c.int, (col) => col.notNull())
@@ -28,11 +39,12 @@ export async function makeTextConsentTables(meta: MetaDb): Promise<void> {
     .addColumn('added_by_label', c.str(255))
     .addColumn('erased_at', c.ts)
     .execute();
-  await db.schema.createIndex('ux_adminium_text_stop_list_phone').on(metaTable('text_stop_list')).columns(['phone_hash', 'key_version']).unique().execute();
-  await db.schema.createIndex('ix_adminium_text_stop_list_added').on(metaTable('text_stop_list')).columns(['added_at', 'id']).execute();
+  await createIndexUnlessMade(db, c.dialect, 'ux_adminium_text_stop_list_phone', metaTable('text_stop_list'), ['phone_hash', 'key_version'], { unique: true });
+  await createIndexUnlessMade(db, c.dialect, 'ix_adminium_text_stop_list_added', metaTable('text_stop_list'), ['added_at', 'id']);
 
   await db.schema
     .createTable(metaTable('text_consent_log'))
+    .ifNotExists()
     .addColumn('id', c.id, (col) => col.primaryKey())
     .addColumn('connection_id', c.id)
     .addColumn('person_table', c.str(PERSON_KEY_MAX))
@@ -54,6 +66,6 @@ export async function makeTextConsentTables(meta: MetaDb): Promise<void> {
     .addColumn('at', c.ts, (col) => col.notNull())
     .addColumn('confirmed_at', c.ts)
     .execute();
-  await db.schema.createIndex('ix_adminium_text_consent_person').on(metaTable('text_consent_log')).columns(['connection_id', 'person_table', 'person_key', 'purpose', 'at']).execute();
-  await db.schema.createIndex('ix_adminium_text_consent_phone').on(metaTable('text_consent_log')).columns(['phone_hash', 'key_version', 'purpose', 'at']).execute();
+  await createIndexUnlessMade(db, c.dialect, 'ix_adminium_text_consent_person', metaTable('text_consent_log'), ['connection_id', 'person_table', 'person_key', 'purpose', 'at']);
+  await createIndexUnlessMade(db, c.dialect, 'ix_adminium_text_consent_phone', metaTable('text_consent_log'), ['phone_hash', 'key_version', 'purpose', 'at']);
 }

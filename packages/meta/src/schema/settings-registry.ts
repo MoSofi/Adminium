@@ -919,6 +919,14 @@ export const SETTINGS_REGISTRY = {
     'Whom a person writes to about their details (a data privacy officer), as one plain e-mail address',
     P,
   ),
+  // The country a local phone number is read in, where nothing narrower says: the SMS account's own
+  // choice comes first. Unset, only numbers written with a `+` can be read, and a text to any other is
+  // refused. Not portable: it describes this business, and a bundle may land at another one's.
+  'phone.defaultCountry': def<string | null>(
+    z.string().regex(/^[A-Z]{2}$/, 'must be a two-letter country code').nullable(),
+    null,
+    'The country a local phone number is read in, as a two-letter code',
+  ),
   // ── "Your websites": the sites that may show a form in a frame ────────────
   //
   // Each an origin (`https://shop.example`: lower case, no path, no default

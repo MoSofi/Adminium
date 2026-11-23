@@ -41,7 +41,6 @@ import {
   type InboundOpened,
   type InboundProof,
 } from '../src/inbound/index.js';
-import { makeInboundTables } from './inbound.helpers.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 
 const SECRET = 'an-inbound-core-test-secret-of-length';
@@ -87,7 +86,6 @@ describe.each(META_ENGINES)('inbound core — $name', (engine) => {
   beforeAll(async () => {
     if (!engine.available) return;
     handle = await engine.make();
-    await makeInboundTables(handle.meta);
   });
   afterAll(async () => {
     if (engine.available) await handle.destroy();
@@ -440,7 +438,6 @@ describe('the door', () => {
 
   beforeAll(async () => {
     handle = await META_ENGINES[0]!.make();
-    await makeInboundTables(handle.meta);
   });
   afterAll(async () => {
     await handle.destroy();

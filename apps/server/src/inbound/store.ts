@@ -3,8 +3,8 @@
  * Where inbound events are kept: `adminium_inbound_events`, one row per
  * `(channel, account, provider_id)`.
  *
- * No migration makes the table yet. Until one does every call throws on the
- * missing table, so the door answers 503 and the provider keeps the event.
+ * A store that cannot be written throws, so the door answers 503 and the
+ * provider keeps the event.
  *
  * Each step that moves a row names the state it expects, and a job's finish
  * names the claim it holds. So a worker that lost its claim cannot overwrite
@@ -75,6 +75,8 @@ export interface InboundEventStore {
   deleteExpired(at: number, limit: number): Promise<number>;
   /** Their events keep only the mark that stops a re-delivery. Returns how many. */
   eraseSubject(hashes: readonly AddressHash[], at: number, retainUntil: number): Promise<number>;
+  /** How many events still hold something of theirs: what an erasure would empty. */
+  countSubject(hashes: readonly AddressHash[]): Promise<number>;
 }
 
 const orNull = (value: number | string | null): number | null => (value === null ? null : Number(value));
@@ -137,7 +139,7 @@ export function createInboundEventStore(meta: MetaDb): InboundEventStore {
 
     async put(input) {
       const row: InboundEventsTable = {
-        id: newId('job'),
+        id: newId('ibe'),
         channel: input.channel,
         account: input.account,
         providerId: input.providerId,
@@ -302,6 +304,16 @@ export function createInboundEventStore(meta: MetaDb): InboundEventStore {
         .where((eb) => eb.or(hashes.map((one) => eb.and([eb('subjectHash', '=', one.hash), eb('keyVersion', '=', one.version)]))))
         .executeTakeFirst();
       return Number(result.numUpdatedRows);
+    },
+
+    async countSubject(hashes) {
+      if (hashes.length === 0) return 0;
+      const row = await db
+        .selectFrom(TABLE)
+        .select((eb) => eb.fn.countAll<number | string>().as('count'))
+        .where((eb) => eb.or(hashes.map((one) => eb.and([eb('subjectHash', '=', one.hash), eb('keyVersion', '=', one.version)]))))
+        .executeTakeFirstOrThrow();
+      return Number(row.count);
     },
   };
 }
