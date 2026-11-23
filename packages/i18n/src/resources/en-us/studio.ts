@@ -2961,6 +2961,11 @@ export default {
       "wrongPassword": "That is not your password.",
       "lockedRefused": "The server’s operator has locked this off.",
       "failed": "The switch could not be changed. Try again."
+    },
+    "shippingCard": {
+      "body": "Choose the carrier each app ships with, connect its key, and set label size and who can buy labels.",
+      "cta": "Open shipping",
+      "heading": "Shipping"
     }
   },
   "source": {
@@ -5852,6 +5857,7 @@ export default {
       "notFinished": "not finished",
       "on": "They are on {server}.",
       "onDatabase": "on {database}",
+      "shippingWithheld": "Shipping rights were not given to {roles}. You can give them on the Roles page.",
       "openWorkspace": "Open the workspace",
       "rest": "Install the rest",
       "stoppedPartWay": "{done} of {total} installed. {app} stopped part way. Nothing was removed, and Install the rest finishes from where it stopped.",
@@ -6179,5 +6185,248 @@ export default {
     "reason": "Reason: {reason}",
     "reply": "Reply to the operator’s email if this is a mistake.",
     "chip": "Hidden"
+  },
+  "shipping": {
+    "back": "Back to Ship with",
+    "carrier": {
+      "demoName": "{name} (demo)"
+    },
+    "carrierGone": "This carrier is not attached to this app any more.",
+    "check": {
+      "again": "Check again",
+      "bad": "{carrier} did not accept this key.",
+      "badBody": "Copy the key again from Shippo's API settings, with nothing before or after it. If the key was deleted in Shippo, create a new one and paste it here.",
+      "badBodyOther": "Copy the key again, with nothing before or after it, and paste it here.",
+      "busy": "Checking…",
+      "button": "Check connection",
+      "goLive": "Go live",
+      "live": "Live key. These carriers answer for {country}: {list}.",
+      "liveActive": "Staff who may buy labels can now get rates on orders.",
+      "liveChoose": "The key works. Choose {carrier} under Ship with to use it.",
+      "liveNoCountry": "Live key. These carriers answer: {list}.",
+      "nextStep": "Next step",
+      "noAnswer": "{carrier} did not answer. Try again.",
+      "noAnswerBody": "This says nothing about your key. It stays as it was.",
+      "none": "{carrier} has no carrier for {country} on this account. Connect your own carrier account in {carrier}, then check again.",
+      "noneNoCountry": "{carrier} has no carrier on this account. Connect your own carrier account in {carrier}, then check again.",
+      "pasteNew": "Paste a new key",
+      "replaceLive": "Replace with a live key",
+      "saveFirst": "Save a key first.",
+      "testBody": "Labels bought with it are samples. No tracking number reaches an order or a customer. These carriers answer for {country} in test: {list}.",
+      "testBodyNoCountry": "Labels bought with it are samples. No tracking number reaches an order or a customer. These carriers answer in test: {list}.",
+      "testTitle": "Test key. Nothing will be delivered",
+      "useCarrier": "Ship with {carrier}"
+    },
+    "close": "Close",
+    "disclosure": "Labels are bought on your Shippo account and billed to you. Customer names, addresses and, when a carrier needs it, phone numbers are sent to Shippo and the carrier.",
+    "disclosureOther": "Labels are bought on your {carrier} account and billed to you. Customer names, addresses and, when a carrier needs it, phone numbers are sent to {carrier} and the carrier.",
+    "error": {
+      "generic": "That did not work. Try again.",
+      "keyFields": "This key is made of other fields. Reload the page and try again.",
+      "keyRefused": "{carrier} did not accept this key. Nothing was saved.",
+      "locked": "{carrier} runs as a demo for now, so it takes no key.",
+      "networkOff": "This server is set to work without the internet, so no carrier can be asked.",
+      "noAnswer": "{carrier} did not answer. Nothing was changed. Try again.",
+      "noKey": "Save a {carrier} key first.",
+      "noWebhook": "{carrier} does not send tracking updates to a webhook.",
+      "notChecked": "Check the {carrier} connection first.",
+      "notInstalled": "{carrier} is not attached to this app any more.",
+      "notLoaded": "{carrier} could not be loaded on this server.",
+      "serverWide": "{carrier} is kept for the whole server, so it takes no key for one shop.",
+      "switchedOff": "{carrier} is switched off for this app.",
+      "noPublicAddress": "This server needs a public https address before {carrier} can call it. The address you have keeps working."
+    },
+    "gate": {
+      "body": "Ask whoever runs this server to give you the “Set up shipping” permission.",
+      "title": "You need permission to manage shipping"
+    },
+    "goLive": {
+      "step1": "In Shippo, open Settings, then API.",
+      "step2": "Copy the live key. It starts with shippo_live_.",
+      "step3": "Press Replace with a live key below and paste it.",
+      "step4": "Check connection again."
+    },
+    "guide": {
+      "events": "Add a webhook for each of the events {first}, {second} and {third}, in the same mode as your key.",
+      "eventsLive": "Add a webhook for each of the events {first}, {second} and {third}, and choose Live.",
+      "eventsTest": "Add a webhook for each of the events {first}, {second} and {third}, and choose Test.",
+      "heading": "Paste this into {carrier}",
+      "moved": "If this server's public address changes, make a new address and paste it in again.",
+      "open": "In Shippo, open Settings, then Webhooks.",
+      "paste": "Paste the address above and save."
+    },
+    "intro": "Labels for {shop}'s orders, bought on the shop's own Shippo account. Adminium holds no account and takes no money.",
+    "introPlain": "Labels for your orders, bought on your own carrier account. Adminium holds no account and takes no money.",
+    "key": {
+      "empty": "Paste your {carrier} key.",
+      "hint": "After saving, only the last four characters are shown.",
+      "inUse": "This key cannot change while a booking on it has no final answer.",
+      "inUseMore": "and {count} more",
+      "inUseOrders": "Orders:",
+      "keep": "Keep current key",
+      "label": "{carrier} API key",
+      "replace": "Replace",
+      "save": "Save key",
+      "saving": "Checking with {carrier}…",
+      "shape": "This does not look like a Shippo key. They start with shippo_live_ or shippo_test_. Shippo decides when you save.",
+      "tryAgain": "Try again"
+    },
+    "limits": {
+      "aDay": "a day, all packers together.",
+      "bought": "bought by all packers together",
+      "cancel": "Cancel",
+      "count": "{used} of {limit}",
+      "currencyError": "Enter the three-letter currency code, such as EUR.",
+      "currencyLabel": "Currency of the limit",
+      "daily": "Most labels all packers together can buy in a day",
+      "dayError": "Enter how many labels all packers together can buy in a day, 1 or more.",
+      "each": "each, and",
+      "heading": "Who can buy labels",
+      "meter": "Labels bought by all packers together today",
+      "none": "Packers can't buy labels yet. You book them.",
+      "open": "Let packers buy labels",
+      "perError": "Enter the most a packer can spend on one label, above zero.",
+      "perLabel": "Most a packer can spend on one label",
+      "save": "Save limits",
+      "saved": "Limits saved.",
+      "stop": "Stop packers buying labels",
+      "stopped": "Packers can't buy labels now. You book them.",
+      "subtitle": "You can always buy labels. Packers buy only within these limits.",
+      "today": "Today:",
+      "upTo": "Packers can buy labels up to"
+    },
+    "line": {
+      "demo": "Books no real labels. You type the tracking number.",
+      "live": "Connected · Live key",
+      "none": "Add a {carrier} key before you can ship with it.",
+      "off": "Switched off for this app.",
+      "refused": "{carrier} did not accept this key. Paste a new one before you can ship with it.",
+      "test": "Connected · Test key",
+      "unchecked": "Key saved. Check the connection before you can ship with it."
+    },
+    "link": {
+      "api": "Shippo API settings",
+      "billing": "Shippo billing settings",
+      "carriers": "Carrier accounts in Shippo",
+      "dhlSite": "DHL's own site",
+      "newTab": "(opens in a new tab)",
+      "open": "Open Shippo",
+      "webhooks": "Shippo webhook settings"
+    },
+    "loadFailed": "Shipping could not be loaded",
+    "loadFailedApp": "{app} could not be loaded",
+    "locked": {
+      "sentence": "Real DHL booking is not available yet. This add-on is a demo. To ship now, use Shippo, or book on DHL's own site and type the tracking number.",
+      "subtitle": "Demo add-on. Books no real labels.",
+      "useShippo": "Ship with Shippo"
+    },
+    "noApps": "No app here ships yet. Attach a shipping add-on to an app, then set it up here.",
+    "notAffiliated": "Adminium is not affiliated with Shippo or any carrier shown.",
+    "other": {
+      "body": "Labels bought from now on are billed to the new account. Labels already bought stay on the old one, and this key cannot reach them.",
+      "confirm": "Use the new account",
+      "current": "The key in use now ends in",
+      "kept": "Nothing has changed yet. The current key stays in force until you confirm.",
+      "title": "This key opens a different {carrier} account"
+    },
+    "parcels": {
+      "never": "Never checked",
+      "noCheck": "None yet",
+      "oldest": "Oldest check",
+      "open": "Open parcels",
+      "quiet": "Quiet for 7 days"
+    },
+    "picker": "App",
+    "preview": {
+      "addTracking": "Add tracking number",
+      "demo": "Demo only. Book on DHL's own site, then type the tracking number here.",
+      "getRates": "Get rates",
+      "heading": "How this reads on {app}",
+      "real": "Staff choose from the rates {carrier} returns, then press Book this label."
+    },
+    "shipWith": {
+      "active": "Ships with {name}",
+      "connection": "Connection",
+      "group": "Ship with",
+      "noneActive": "No carrier chosen",
+      "subtitle": "Choose which add-on this app buys labels with. One is active at a time.",
+      "whyDemo": "Why it's a demo"
+    },
+    "shippo": {
+      "subtitle": "Labels from many carriers, on your own Shippo account"
+    },
+    "size": {
+      "a4Line": "Office inkjet and laser printers, on plain A4 paper.",
+      "a6Line": "Desktop label printers and sticky A6 labels.",
+      "fourBySix": "4×6 in",
+      "fourBySixLine": "Thermal label printers that take 4 × 6 in rolls or stacks.",
+      "heading": "Label size",
+      "saved": "Label size saved.",
+      "subtitle": "The size Adminium asks the carrier for. A carrier may return another size, and the booking says so.",
+      "which": "Which printers each size suits"
+    },
+    "state": {
+      "demo": "Demo",
+      "live": "Connected",
+      "none": "Not connected",
+      "off": "Switched off",
+      "refused": "Not accepted",
+      "test": "Test key",
+      "unchecked": "Not checked"
+    },
+    "step": {
+      "account": "Create your Shippo account",
+      "accountBody": "Sign up on Shippo's site with the shop's own email. The account belongs to the shop, not to Adminium.",
+      "check": "Check connection",
+      "checkBody": "Adminium asks Shippo which carriers answer for {country}.",
+      "checkBodyNoCountry": "Adminium asks Shippo which carriers answer for this shop.",
+      "done": "Done",
+      "heading": "Setup checklist",
+      "key": "Create an API key and paste it here",
+      "keyBody": "In Shippo, open Settings, then API, and create a live key. Copy it and paste it below.",
+      "known": "{done} of {total} confirmed here",
+      "payment": "Add a payment method in Shippo",
+      "paymentBody": "Shippo charges this card or bank account for every label you buy. Carriers can add charges later, for example for a heavier parcel.",
+      "word": "Step {n}"
+    },
+    "tab": {
+      "labels": "Label size",
+      "people": "Who can buy labels",
+      "setup": "Setup",
+      "tracking": "Tracking"
+    },
+    "test": {
+      "apps": "On a test key: {apps}",
+      "body": "Labels read SAMPLE. No number reaches an order or a customer.",
+      "title": "Test mode: nothing will be delivered"
+    },
+    "title": "Shipping",
+    "tracking": {
+      "address": "Webhook address",
+      "confirmBody": "The old address stops working at once. Updates stop until you paste the new one into {carrier}.",
+      "confirmTitle": "Make a new address?",
+      "copied": "Copied",
+      "copy": "Copy",
+      "copyFailed": "Could not copy. Select the address and copy it.",
+      "copyLabel": "Copy webhook address",
+      "goTo": "Open Tracking",
+      "goneBody": "Make a new address, then paste it into {carrier}. Until then, tracking changes only when someone presses Refresh.",
+      "goneTitle": "The webhook address stopped working when the key changed",
+      "heading": "Tracking updates",
+      "last": "Last update received:",
+      "make": "Make the address",
+      "makeNew": "Make a new address",
+      "never": "No update has arrived yet. Check that the address is saved in {carrier}.",
+      "noCarrier": "A demo carrier sends no updates. You type the tracking number on the order.",
+      "noCarrierSubtitle": "No carrier here sends tracking updates.",
+      "notSet": "Not set up",
+      "once": "Copy it now. This is the only time the whole address is shown.",
+      "private": "This server can't receive updates. Tracking changes when someone presses Refresh.",
+      "privateSubtitle": "Tracking updates when someone presses Refresh.",
+      "receiving": "Receiving",
+      "refreshOnly": "Refresh only",
+      "subtitle": "{carrier} sends each carrier scan to this server.",
+      "waiting": "Waiting"
+    }
   }
 } as const;

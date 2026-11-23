@@ -10043,6 +10043,10 @@
     "srcHash": "f54fbca187d2",
     "status": "mt"
   },
+  "common.topbar.shipping": {
+    "status": "mt",
+    "srcHash": "694e6062a668"
+  },
   "common.topbar.signOut": {
     "srcHash": "dc1649a16c14",
     "status": "mt"
@@ -30612,23 +30616,23 @@
     "srcHash": "cffdc90e0c27"
   },
   "studio.hostedApps.install.shippingGrants.body": {
-    "status": "src",
+    "status": "mt",
     "srcHash": "bf55b1783384"
   },
   "studio.hostedApps.install.shippingGrants.book": {
-    "status": "src",
+    "status": "mt",
     "srcHash": "3aa0c0060f43"
   },
   "studio.hostedApps.install.shippingGrants.cancel": {
-    "status": "src",
+    "status": "mt",
     "srcHash": "9b4cf1578d20"
   },
   "studio.hostedApps.install.shippingGrants.customs": {
-    "status": "src",
+    "status": "mt",
     "srcHash": "606279953f9b"
   },
   "studio.hostedApps.install.shippingGrants.title": {
-    "status": "src",
+    "status": "mt",
     "srcHash": "f097e1b5380b"
   },
   "studio.hostedApps.install.staged": {
@@ -42843,6 +42847,18 @@
     "srcHash": "63f04eef6ee9",
     "status": "mt"
   },
+  "studio.settingsHub.shippingCard.body": {
+    "status": "mt",
+    "srcHash": "90423589387b"
+  },
+  "studio.settingsHub.shippingCard.cta": {
+    "status": "mt",
+    "srcHash": "4e05324c6a0d"
+  },
+  "studio.settingsHub.shippingCard.heading": {
+    "status": "mt",
+    "srcHash": "694e6062a668"
+  },
   "studio.settingsHub.storageCard.body": {
     "status": "mt",
     "srcHash": "25af668eb416"
@@ -42962,6 +42978,794 @@
   "studio.settingsMaps.title": {
     "status": "mt",
     "srcHash": "80071cd75107"
+  },
+  "studio.shipping.back": {
+    "status": "mt",
+    "srcHash": "552fda4daa79"
+  },
+  "studio.shipping.carrier.demoName": {
+    "status": "mt",
+    "srcHash": "7cfaa7144051"
+  },
+  "studio.shipping.carrierGone": {
+    "status": "mt",
+    "srcHash": "0a184563348b"
+  },
+  "studio.shipping.check.again": {
+    "status": "mt",
+    "srcHash": "e185048ce3c0"
+  },
+  "studio.shipping.check.bad": {
+    "status": "mt",
+    "srcHash": "72d36e199ca8"
+  },
+  "studio.shipping.check.badBody": {
+    "status": "mt",
+    "srcHash": "6041028fceff"
+  },
+  "studio.shipping.check.badBodyOther": {
+    "status": "mt",
+    "srcHash": "2c293797fe6f"
+  },
+  "studio.shipping.check.busy": {
+    "status": "mt",
+    "srcHash": "820d6004b037"
+  },
+  "studio.shipping.check.button": {
+    "status": "mt",
+    "srcHash": "14caeff07376"
+  },
+  "studio.shipping.check.goLive": {
+    "status": "mt",
+    "srcHash": "b8d1bae42c36"
+  },
+  "studio.shipping.check.live": {
+    "status": "mt",
+    "srcHash": "a72eaed7c9e4"
+  },
+  "studio.shipping.check.liveActive": {
+    "status": "mt",
+    "srcHash": "d5072b88bee6"
+  },
+  "studio.shipping.check.liveChoose": {
+    "status": "mt",
+    "srcHash": "502ced666947"
+  },
+  "studio.shipping.check.liveNoCountry": {
+    "status": "mt",
+    "srcHash": "f66f29e30baf"
+  },
+  "studio.shipping.check.nextStep": {
+    "status": "mt",
+    "srcHash": "5500eef9fdb1"
+  },
+  "studio.shipping.check.noAnswer": {
+    "status": "mt",
+    "srcHash": "478b5478049d"
+  },
+  "studio.shipping.check.noAnswerBody": {
+    "status": "mt",
+    "srcHash": "c93c4c18261e"
+  },
+  "studio.shipping.check.none": {
+    "status": "mt",
+    "srcHash": "668490ffee4e"
+  },
+  "studio.shipping.check.noneNoCountry": {
+    "status": "mt",
+    "srcHash": "efa0e1b8a98d"
+  },
+  "studio.shipping.check.pasteNew": {
+    "status": "mt",
+    "srcHash": "2f38f9222e15"
+  },
+  "studio.shipping.check.replaceLive": {
+    "status": "mt",
+    "srcHash": "b23f02a2481f"
+  },
+  "studio.shipping.check.saveFirst": {
+    "status": "mt",
+    "srcHash": "00a56d3f9344"
+  },
+  "studio.shipping.check.testBody": {
+    "status": "mt",
+    "srcHash": "bc7e36466c41"
+  },
+  "studio.shipping.check.testBodyNoCountry": {
+    "status": "mt",
+    "srcHash": "61e76c9c8638"
+  },
+  "studio.shipping.check.testTitle": {
+    "status": "mt",
+    "srcHash": "77a18241da22"
+  },
+  "studio.shipping.check.useCarrier": {
+    "status": "mt",
+    "srcHash": "953174596d07"
+  },
+  "studio.shipping.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "studio.shipping.disclosure": {
+    "status": "mt",
+    "srcHash": "78fa0c5ad5e6"
+  },
+  "studio.shipping.disclosureOther": {
+    "status": "mt",
+    "srcHash": "75ea06b3ce7e"
+  },
+  "studio.shipping.error.generic": {
+    "status": "mt",
+    "srcHash": "fa9c0cf87f18"
+  },
+  "studio.shipping.error.keyFields": {
+    "status": "mt",
+    "srcHash": "d49ec24d1b2d"
+  },
+  "studio.shipping.error.keyRefused": {
+    "status": "mt",
+    "srcHash": "0d5cf11bf3e1"
+  },
+  "studio.shipping.error.locked": {
+    "status": "mt",
+    "srcHash": "422a13a258f5"
+  },
+  "studio.shipping.error.networkOff": {
+    "status": "mt",
+    "srcHash": "18f0b880db6c"
+  },
+  "studio.shipping.error.noAnswer": {
+    "status": "mt",
+    "srcHash": "8758f9428aab"
+  },
+  "studio.shipping.error.noKey": {
+    "status": "mt",
+    "srcHash": "5a4cce16fa43"
+  },
+  "studio.shipping.error.noPublicAddress": {
+    "status": "mt",
+    "srcHash": "92e4b29682c2"
+  },
+  "studio.shipping.error.noWebhook": {
+    "status": "mt",
+    "srcHash": "276c0c966461"
+  },
+  "studio.shipping.error.notChecked": {
+    "status": "mt",
+    "srcHash": "cbed289c9d1a"
+  },
+  "studio.shipping.error.notInstalled": {
+    "status": "mt",
+    "srcHash": "2d7926a0afdd"
+  },
+  "studio.shipping.error.notLoaded": {
+    "status": "mt",
+    "srcHash": "8afb6e5cb055"
+  },
+  "studio.shipping.error.serverWide": {
+    "status": "mt",
+    "srcHash": "0112e3af0246"
+  },
+  "studio.shipping.error.switchedOff": {
+    "status": "mt",
+    "srcHash": "20f01c459191"
+  },
+  "studio.shipping.gate.body": {
+    "status": "mt",
+    "srcHash": "eda53b4b4ec8"
+  },
+  "studio.shipping.gate.title": {
+    "status": "mt",
+    "srcHash": "1037232f87e0"
+  },
+  "studio.shipping.goLive.step1": {
+    "status": "mt",
+    "srcHash": "fe3741489add"
+  },
+  "studio.shipping.goLive.step2": {
+    "status": "mt",
+    "srcHash": "fdc1bb0d22cc"
+  },
+  "studio.shipping.goLive.step3": {
+    "status": "mt",
+    "srcHash": "f4d5b008bcbf"
+  },
+  "studio.shipping.goLive.step4": {
+    "status": "mt",
+    "srcHash": "674a91f50d51"
+  },
+  "studio.shipping.guide.events": {
+    "status": "mt",
+    "srcHash": "f59fbec7aacf"
+  },
+  "studio.shipping.guide.eventsLive": {
+    "status": "mt",
+    "srcHash": "9763871f2a01"
+  },
+  "studio.shipping.guide.eventsTest": {
+    "status": "mt",
+    "srcHash": "646faa94ab64"
+  },
+  "studio.shipping.guide.heading": {
+    "status": "mt",
+    "srcHash": "fa20ae8e6199"
+  },
+  "studio.shipping.guide.moved": {
+    "status": "mt",
+    "srcHash": "06cb3dab03c6"
+  },
+  "studio.shipping.guide.open": {
+    "status": "mt",
+    "srcHash": "8cd2eb35b81e"
+  },
+  "studio.shipping.guide.paste": {
+    "status": "mt",
+    "srcHash": "2f017468daf2"
+  },
+  "studio.shipping.intro": {
+    "status": "mt",
+    "srcHash": "3b0e66f8f2d1"
+  },
+  "studio.shipping.introPlain": {
+    "status": "mt",
+    "srcHash": "c242b7ef407b"
+  },
+  "studio.shipping.key.empty": {
+    "status": "mt",
+    "srcHash": "75cf6503fb0f"
+  },
+  "studio.shipping.key.hint": {
+    "status": "mt",
+    "srcHash": "8709e3453539"
+  },
+  "studio.shipping.key.inUse": {
+    "status": "mt",
+    "srcHash": "b987f184e400"
+  },
+  "studio.shipping.key.inUseMore": {
+    "status": "mt",
+    "srcHash": "0aa2abb24fd4"
+  },
+  "studio.shipping.key.inUseOrders": {
+    "status": "mt",
+    "srcHash": "b55d4b1f2901"
+  },
+  "studio.shipping.key.keep": {
+    "status": "mt",
+    "srcHash": "620746233a69"
+  },
+  "studio.shipping.key.label": {
+    "status": "mt",
+    "srcHash": "4ec9014dfe10"
+  },
+  "studio.shipping.key.replace": {
+    "status": "mt",
+    "srcHash": "a7cf7b25a703"
+  },
+  "studio.shipping.key.save": {
+    "status": "mt",
+    "srcHash": "f5216b3af802"
+  },
+  "studio.shipping.key.saving": {
+    "status": "mt",
+    "srcHash": "1c1638f4a25f"
+  },
+  "studio.shipping.key.shape": {
+    "status": "mt",
+    "srcHash": "736cd7d13b4f"
+  },
+  "studio.shipping.key.tryAgain": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "studio.shipping.limits.aDay": {
+    "status": "mt",
+    "srcHash": "b9f6c9e2bf9d"
+  },
+  "studio.shipping.limits.bought": {
+    "status": "mt",
+    "srcHash": "541356c237cd"
+  },
+  "studio.shipping.limits.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "studio.shipping.limits.count": {
+    "status": "mt",
+    "srcHash": "43baaa37c9e1"
+  },
+  "studio.shipping.limits.currencyError": {
+    "status": "mt",
+    "srcHash": "824206ef9e3f"
+  },
+  "studio.shipping.limits.currencyLabel": {
+    "status": "mt",
+    "srcHash": "d91a68634821"
+  },
+  "studio.shipping.limits.daily": {
+    "status": "mt",
+    "srcHash": "7ac803f9d0ca"
+  },
+  "studio.shipping.limits.dayError": {
+    "status": "mt",
+    "srcHash": "e4827f901c86"
+  },
+  "studio.shipping.limits.each": {
+    "status": "mt",
+    "srcHash": "a5ce3c4944d3"
+  },
+  "studio.shipping.limits.heading": {
+    "status": "mt",
+    "srcHash": "085b552b55f5"
+  },
+  "studio.shipping.limits.meter": {
+    "status": "mt",
+    "srcHash": "770f0144bbab"
+  },
+  "studio.shipping.limits.none": {
+    "status": "mt",
+    "srcHash": "36a38198bc8c"
+  },
+  "studio.shipping.limits.open": {
+    "status": "mt",
+    "srcHash": "322aa3474e4c"
+  },
+  "studio.shipping.limits.perError": {
+    "status": "mt",
+    "srcHash": "9eccb7baadad"
+  },
+  "studio.shipping.limits.perLabel": {
+    "status": "mt",
+    "srcHash": "b9804839b693"
+  },
+  "studio.shipping.limits.save": {
+    "status": "mt",
+    "srcHash": "6231c5bdceef"
+  },
+  "studio.shipping.limits.saved": {
+    "status": "mt",
+    "srcHash": "bc78668de7db"
+  },
+  "studio.shipping.limits.stop": {
+    "status": "mt",
+    "srcHash": "fea242a40995"
+  },
+  "studio.shipping.limits.stopped": {
+    "status": "mt",
+    "srcHash": "2bbc1a726246"
+  },
+  "studio.shipping.limits.subtitle": {
+    "status": "mt",
+    "srcHash": "42f565ec7d4a"
+  },
+  "studio.shipping.limits.today": {
+    "status": "mt",
+    "srcHash": "f200b23686d5"
+  },
+  "studio.shipping.limits.upTo": {
+    "status": "mt",
+    "srcHash": "b3791de1896e"
+  },
+  "studio.shipping.line.demo": {
+    "status": "mt",
+    "srcHash": "f0d631dcec06"
+  },
+  "studio.shipping.line.live": {
+    "status": "mt",
+    "srcHash": "0a1000a2d663"
+  },
+  "studio.shipping.line.none": {
+    "status": "mt",
+    "srcHash": "0b90e3d68bda"
+  },
+  "studio.shipping.line.off": {
+    "status": "mt",
+    "srcHash": "cf592c03c7ab"
+  },
+  "studio.shipping.line.refused": {
+    "status": "mt",
+    "srcHash": "eda8e8c3df42"
+  },
+  "studio.shipping.line.test": {
+    "status": "mt",
+    "srcHash": "59114be83412"
+  },
+  "studio.shipping.line.unchecked": {
+    "status": "mt",
+    "srcHash": "0041a197a290"
+  },
+  "studio.shipping.link.api": {
+    "status": "mt",
+    "srcHash": "936d1c88d2c5"
+  },
+  "studio.shipping.link.billing": {
+    "status": "mt",
+    "srcHash": "d90bdfb804d9"
+  },
+  "studio.shipping.link.carriers": {
+    "status": "mt",
+    "srcHash": "d658fe7dae3e"
+  },
+  "studio.shipping.link.dhlSite": {
+    "status": "mt",
+    "srcHash": "479bbf1e9f1c"
+  },
+  "studio.shipping.link.newTab": {
+    "status": "mt",
+    "srcHash": "bf5b990386c7"
+  },
+  "studio.shipping.link.open": {
+    "status": "mt",
+    "srcHash": "8bd91cca00ca"
+  },
+  "studio.shipping.link.webhooks": {
+    "status": "mt",
+    "srcHash": "d38d9072cd99"
+  },
+  "studio.shipping.loadFailed": {
+    "status": "mt",
+    "srcHash": "c73149b51d63"
+  },
+  "studio.shipping.loadFailedApp": {
+    "status": "mt",
+    "srcHash": "4bd380288cf3"
+  },
+  "studio.shipping.locked.sentence": {
+    "status": "mt",
+    "srcHash": "02719c834f10"
+  },
+  "studio.shipping.locked.subtitle": {
+    "status": "mt",
+    "srcHash": "ac25d10d56d5"
+  },
+  "studio.shipping.locked.useShippo": {
+    "status": "mt",
+    "srcHash": "2226b3a5c50e"
+  },
+  "studio.shipping.noApps": {
+    "status": "mt",
+    "srcHash": "6adae86e8c9d"
+  },
+  "studio.shipping.notAffiliated": {
+    "status": "mt",
+    "srcHash": "4a12b9ba4360"
+  },
+  "studio.shipping.other.body": {
+    "status": "mt",
+    "srcHash": "85c6ad1a7d3a"
+  },
+  "studio.shipping.other.confirm": {
+    "status": "mt",
+    "srcHash": "cf2fcff0146a"
+  },
+  "studio.shipping.other.current": {
+    "status": "mt",
+    "srcHash": "74944132661a"
+  },
+  "studio.shipping.other.kept": {
+    "status": "mt",
+    "srcHash": "b8f2c59e0635"
+  },
+  "studio.shipping.other.title": {
+    "status": "mt",
+    "srcHash": "0f2ccc2d1a37"
+  },
+  "studio.shipping.parcels.never": {
+    "status": "mt",
+    "srcHash": "e738e9bad33e"
+  },
+  "studio.shipping.parcels.noCheck": {
+    "status": "mt",
+    "srcHash": "80e9901fb4fa"
+  },
+  "studio.shipping.parcels.oldest": {
+    "status": "mt",
+    "srcHash": "eb0c34a64acb"
+  },
+  "studio.shipping.parcels.open": {
+    "status": "mt",
+    "srcHash": "a4be8f0c4dc1"
+  },
+  "studio.shipping.parcels.quiet": {
+    "status": "mt",
+    "srcHash": "85f8bb07dabe"
+  },
+  "studio.shipping.picker": {
+    "status": "mt",
+    "srcHash": "fc4a695f02a8"
+  },
+  "studio.shipping.preview.addTracking": {
+    "status": "mt",
+    "srcHash": "d48ce222e7fc"
+  },
+  "studio.shipping.preview.demo": {
+    "status": "mt",
+    "srcHash": "549292c6d888"
+  },
+  "studio.shipping.preview.getRates": {
+    "status": "mt",
+    "srcHash": "c3ad2349acdd"
+  },
+  "studio.shipping.preview.heading": {
+    "status": "mt",
+    "srcHash": "28863b9323c2"
+  },
+  "studio.shipping.preview.real": {
+    "status": "mt",
+    "srcHash": "d99fea02adc1"
+  },
+  "studio.shipping.shipWith.active": {
+    "status": "mt",
+    "srcHash": "430651bb8cd4"
+  },
+  "studio.shipping.shipWith.connection": {
+    "status": "mt",
+    "srcHash": "6512ee1541e9"
+  },
+  "studio.shipping.shipWith.group": {
+    "status": "mt",
+    "srcHash": "09c1d75870b1"
+  },
+  "studio.shipping.shipWith.noneActive": {
+    "status": "mt",
+    "srcHash": "dca889aa423f"
+  },
+  "studio.shipping.shipWith.subtitle": {
+    "status": "mt",
+    "srcHash": "d224428bf1ec"
+  },
+  "studio.shipping.shipWith.whyDemo": {
+    "status": "mt",
+    "srcHash": "92039d020207"
+  },
+  "studio.shipping.shippo.subtitle": {
+    "status": "mt",
+    "srcHash": "937e9af53c10"
+  },
+  "studio.shipping.size.a4Line": {
+    "status": "mt",
+    "srcHash": "a00cd9e1ba4b"
+  },
+  "studio.shipping.size.a6Line": {
+    "status": "mt",
+    "srcHash": "65f130db8a09"
+  },
+  "studio.shipping.size.fourBySix": {
+    "status": "mt",
+    "srcHash": "63753b22978a"
+  },
+  "studio.shipping.size.fourBySixLine": {
+    "status": "mt",
+    "srcHash": "b859cd457602"
+  },
+  "studio.shipping.size.heading": {
+    "status": "mt",
+    "srcHash": "f6a3ad4a5b9b"
+  },
+  "studio.shipping.size.saved": {
+    "status": "mt",
+    "srcHash": "bf6d1ce04761"
+  },
+  "studio.shipping.size.subtitle": {
+    "status": "mt",
+    "srcHash": "494303a6b8e8"
+  },
+  "studio.shipping.size.which": {
+    "status": "mt",
+    "srcHash": "020d97d31205"
+  },
+  "studio.shipping.state.demo": {
+    "status": "mt",
+    "srcHash": "e52c854d5631"
+  },
+  "studio.shipping.state.live": {
+    "status": "mt",
+    "srcHash": "c2f9b7b4897f"
+  },
+  "studio.shipping.state.none": {
+    "status": "mt",
+    "srcHash": "8b02f3de3906"
+  },
+  "studio.shipping.state.off": {
+    "status": "mt",
+    "srcHash": "a18609ea6505"
+  },
+  "studio.shipping.state.refused": {
+    "status": "mt",
+    "srcHash": "7cccebc0d9c3"
+  },
+  "studio.shipping.state.test": {
+    "status": "mt",
+    "srcHash": "b4d40aaebbac"
+  },
+  "studio.shipping.state.unchecked": {
+    "status": "mt",
+    "srcHash": "22705e738a7a"
+  },
+  "studio.shipping.step.account": {
+    "status": "mt",
+    "srcHash": "dbcd9ba16975"
+  },
+  "studio.shipping.step.accountBody": {
+    "status": "mt",
+    "srcHash": "ac0686550377"
+  },
+  "studio.shipping.step.check": {
+    "status": "mt",
+    "srcHash": "14caeff07376"
+  },
+  "studio.shipping.step.checkBody": {
+    "status": "mt",
+    "srcHash": "5f426db72ec4"
+  },
+  "studio.shipping.step.checkBodyNoCountry": {
+    "status": "mt",
+    "srcHash": "a322060bd8d5"
+  },
+  "studio.shipping.step.done": {
+    "status": "mt",
+    "srcHash": "e9b450d14bc2"
+  },
+  "studio.shipping.step.heading": {
+    "status": "mt",
+    "srcHash": "33e304036dbc"
+  },
+  "studio.shipping.step.key": {
+    "status": "mt",
+    "srcHash": "43293f9f7944"
+  },
+  "studio.shipping.step.keyBody": {
+    "status": "mt",
+    "srcHash": "a69372ffb681"
+  },
+  "studio.shipping.step.known": {
+    "status": "mt",
+    "srcHash": "40cabd22cc34"
+  },
+  "studio.shipping.step.payment": {
+    "status": "mt",
+    "srcHash": "fbcb606b8f85"
+  },
+  "studio.shipping.step.paymentBody": {
+    "status": "mt",
+    "srcHash": "8421133e8c0c"
+  },
+  "studio.shipping.step.word": {
+    "status": "mt",
+    "srcHash": "6706d4ba55e5"
+  },
+  "studio.shipping.tab.labels": {
+    "status": "mt",
+    "srcHash": "f6a3ad4a5b9b"
+  },
+  "studio.shipping.tab.people": {
+    "status": "mt",
+    "srcHash": "085b552b55f5"
+  },
+  "studio.shipping.tab.setup": {
+    "status": "mt",
+    "srcHash": "cdd7bb2816b7"
+  },
+  "studio.shipping.tab.tracking": {
+    "status": "mt",
+    "srcHash": "e81a151bd050"
+  },
+  "studio.shipping.test.apps": {
+    "status": "mt",
+    "srcHash": "ce10b07f8e5f"
+  },
+  "studio.shipping.test.body": {
+    "status": "mt",
+    "srcHash": "9cfc6dee54ca"
+  },
+  "studio.shipping.test.title": {
+    "status": "mt",
+    "srcHash": "5963c95a8e35"
+  },
+  "studio.shipping.title": {
+    "status": "mt",
+    "srcHash": "694e6062a668"
+  },
+  "studio.shipping.tracking.address": {
+    "status": "mt",
+    "srcHash": "5884da3c3f53"
+  },
+  "studio.shipping.tracking.confirmBody": {
+    "status": "mt",
+    "srcHash": "c09e92edb64a"
+  },
+  "studio.shipping.tracking.confirmTitle": {
+    "status": "mt",
+    "srcHash": "e67f37827bb5"
+  },
+  "studio.shipping.tracking.copied": {
+    "status": "mt",
+    "srcHash": "8e3df45a49db"
+  },
+  "studio.shipping.tracking.copy": {
+    "status": "mt",
+    "srcHash": "af74f7c5362a"
+  },
+  "studio.shipping.tracking.copyFailed": {
+    "status": "mt",
+    "srcHash": "92eda1386a5c"
+  },
+  "studio.shipping.tracking.copyLabel": {
+    "status": "mt",
+    "srcHash": "64500c56457e"
+  },
+  "studio.shipping.tracking.goTo": {
+    "status": "mt",
+    "srcHash": "9cdceb29c440"
+  },
+  "studio.shipping.tracking.goneBody": {
+    "status": "mt",
+    "srcHash": "2a0469e298e3"
+  },
+  "studio.shipping.tracking.goneTitle": {
+    "status": "mt",
+    "srcHash": "d232e4690391"
+  },
+  "studio.shipping.tracking.heading": {
+    "status": "mt",
+    "srcHash": "c95a2fbd8173"
+  },
+  "studio.shipping.tracking.last": {
+    "status": "mt",
+    "srcHash": "4432e9476772"
+  },
+  "studio.shipping.tracking.make": {
+    "status": "mt",
+    "srcHash": "fcc1cf806eb4"
+  },
+  "studio.shipping.tracking.makeNew": {
+    "status": "mt",
+    "srcHash": "02b3c2f0905c"
+  },
+  "studio.shipping.tracking.never": {
+    "status": "mt",
+    "srcHash": "4e9012d6a69f"
+  },
+  "studio.shipping.tracking.noCarrier": {
+    "status": "mt",
+    "srcHash": "dfe1423e03b3"
+  },
+  "studio.shipping.tracking.noCarrierSubtitle": {
+    "status": "mt",
+    "srcHash": "a8927c2a89e8"
+  },
+  "studio.shipping.tracking.notSet": {
+    "status": "mt",
+    "srcHash": "be8f2e94e7b3"
+  },
+  "studio.shipping.tracking.once": {
+    "status": "mt",
+    "srcHash": "957286e53ff6"
+  },
+  "studio.shipping.tracking.private": {
+    "status": "mt",
+    "srcHash": "6b504c4344ab"
+  },
+  "studio.shipping.tracking.privateSubtitle": {
+    "status": "mt",
+    "srcHash": "05fae1a0e40d"
+  },
+  "studio.shipping.tracking.receiving": {
+    "status": "mt",
+    "srcHash": "2f8f376ad77b"
+  },
+  "studio.shipping.tracking.refreshOnly": {
+    "status": "mt",
+    "srcHash": "128ab9d074d0"
+  },
+  "studio.shipping.tracking.subtitle": {
+    "status": "mt",
+    "srcHash": "4dd4e4915e1f"
+  },
+  "studio.shipping.tracking.waiting": {
+    "status": "mt",
+    "srcHash": "33d30632848d"
   },
   "studio.source.dsn.helper": {
     "srcHash": "4de3a937fe87",
@@ -44146,6 +44950,10 @@
   "studio.workspaceFiles.done.rest": {
     "status": "mt",
     "srcHash": "902a68b491bd"
+  },
+  "studio.workspaceFiles.done.shippingWithheld": {
+    "status": "mt",
+    "srcHash": "00410d1bc51b"
   },
   "studio.workspaceFiles.done.stoppedPartWay": {
     "status": "mt",

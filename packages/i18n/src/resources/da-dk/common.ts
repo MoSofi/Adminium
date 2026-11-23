@@ -169,7 +169,8 @@ export default {
     "signOut": "Log ud",
     "toggleSidebar": "Slå sidepanelet til/fra",
     "payments": "Betalinger",
-    "putOnline": "Læg det online…"
+    "putOnline": "Læg det online…",
+    "shipping": "Forsendelse"
   },
   "palette": {
     "dialog": "Kommandopalet",
