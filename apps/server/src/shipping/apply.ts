@@ -103,8 +103,8 @@ async function copyToCarrierTable(deps: ApplyDeps, booking: ShippingBooking): Pr
   } catch (error) {
     if (isDuplicateKeyError(error) || isUniqueViolation(error)) return;
     // The shop's own rule said no. Trying again would say no again and hold the tracking number back, so the booking table stays the record.
-    if (error instanceof HookRejectedError || error instanceof ValidationFailedError || error instanceof CheckRefusedError || error instanceof StateMoveRefused) {
-      deps.app?.log.warn({ bookingId: booking.id, code: error.code }, 'a shop rule refused the carrier copy of a booking');
+    if (ruleSaidNo(error)) {
+      deps.app?.log.warn({ bookingId: booking.id, code: (error as { code?: string }).code }, 'a shop rule refused the carrier copy of a booking');
       return;
     }
     throw error;
@@ -170,12 +170,102 @@ async function writeTracking(deps: ApplyDeps, booking: ShippingBooking): Promise
   });
 }
 
+/** Told as Adminium's own background work is: no person pressed anything here. */
+function announceUpdate(deps: ApplyDeps, found: { target: { connectionId: string }; table: Parameters<typeof pkLabel>[0] & Parameters<typeof afterRecordWrite>[1]['table'] }, pk: Record<string, unknown>, stored: Record<string, unknown> | null) {
+  return async (outcome: { count: number; before?: Record<string, unknown> | null | undefined; after?: unknown }): Promise<void> => {
+    if (deps.app === undefined || outcome.count === 0) return;
+    await afterRecordWrite(deps.app, {
+      request: null,
+      actor: ACTOR,
+      meta: deps.meta,
+      connectionId: found.target.connectionId,
+      table: found.table,
+      action: 'update',
+      entity: { connectionId: found.target.connectionId, table: found.table.id, pk, label: pkLabel(found.table, pk) },
+      before: outcome.before ?? stored,
+      after: outcome.after as never,
+      origin: 'schedule',
+    });
+  };
+}
+
+/** A shop rule that says no to Adminium's own tidy-up: the booking table stays the record. */
+const ruleSaidNo = (error: unknown): boolean => error instanceof HookRejectedError || error instanceof ValidationFailedError || error instanceof CheckRefusedError || error instanceof StateMoveRefused;
+
+/**
+ * A refunded label's number comes off the order, so nobody is sent to a dead
+ * number and the next label can be written there. Only while the column still
+ * holds THIS number, in the UPDATE itself: whatever a person typed stays.
+ */
+async function clearTracking(deps: ApplyDeps, booking: ShippingBooking): Promise<void> {
+  if (booking.tracking === null || booking.purpose !== 'outbound' || booking.parcelNumber !== 1) return;
+  const mapping = await mappingOf(deps, booking);
+  if (mapping?.tracking === undefined) return;
+  const found = await deps.sources.table(booking.connectionId, booking.tableName);
+  if (found === null) return;
+  const pk = pkOfRowKey(found.table, booking.rowKey);
+  const row = await deps.sources.readRow(booking.connectionId, booking.tableName, booking.rowKey);
+  if (pk === null || row === null || String(row[mapping.tracking] ?? '').trim() !== booking.tracking) return;
+  const trackingName = mapping.tracking;
+  if (found.table.columns.get(trackingName)?.nullable !== true) return;
+  const values: Record<string, unknown> = { [trackingName]: null };
+  if (mapping.carrier !== undefined && found.table.columns.get(mapping.carrier)?.nullable === true && String(row[mapping.carrier] ?? '') === (booking.carrierName ?? booking.carrierKey)) values[mapping.carrier] = null;
+  try {
+    await deps.writes.update({
+      target: found.target,
+      pk,
+      values,
+      context: { origin: 'shipping', hops: 0, actor: ACTOR, request: null },
+      refine: (query) => query.where((eb) => eb(found.target.db.dynamic.ref(trackingName), '=', booking.tracking)),
+      skipIfNone: true,
+      announce: announceUpdate(deps, found, pk, row),
+    });
+  } catch (error) {
+    if (!ruleSaidNo(error)) throw error;
+    deps.app?.log.warn({ bookingId: booking.id }, 'a shop rule kept a refunded label\'s number on its order');
+  }
+}
+
+/** The carrier's copy says the label is dead, so it can never read as a label on the order. */
+async function cancelCopy(deps: ApplyDeps, booking: ShippingBooking): Promise<void> {
+  const copies = await carrierCopyTable(deps.meta, deps.sources, booking.connectionId, booking.carrierKey);
+  if (copies === null || !copies.table.columns.has('status')) return;
+  const { table, target } = copies;
+  const status = table.columns.get('status')!;
+  try {
+    await deps.writes.update({
+      target,
+      pk: { id: booking.id },
+      values: { status: normalizeWriteValue(status, 'cancelled') },
+      context: { origin: 'shipping', hops: 0, actor: ACTOR, request: null },
+      skipIfNone: true,
+      announce: announceUpdate(deps, { target, table }, { id: booking.id }, null),
+    });
+  } catch (error) {
+    if (!ruleSaidNo(error)) throw error;
+    deps.app?.log.warn({ bookingId: booking.id }, 'a shop rule kept a refunded label\'s carrier copy');
+  }
+}
+
+/** What a refund undoes. `applied_at` going back to null is what says it is done, so a crash runs it again. */
+async function undoApplied(deps: ApplyDeps, booking: ShippingBooking, now: () => number): Promise<ApplyOutcome> {
+  const repo = shippingBookingsRepo(deps.meta);
+  if (booking.appliedAt === null) return { state: 'applied', already: true };
+  if (!isTestBooking(booking)) {
+    await cancelCopy(deps, booking);
+    await clearTracking(deps, booking);
+  }
+  await repo.note(booking.id, ['voided'], { appliedAt: null }, now());
+  return { state: 'applied', already: false };
+}
+
 /** Runs what is still owed for one bought label. Each step says it is done only once it is. */
 export async function applyBooking(deps: ApplyDeps, id: string): Promise<ApplyOutcome> {
   const repo = shippingBookingsRepo(deps.meta);
   const now = deps.now ?? Date.now;
   const booking = await repo.byId(id);
   if (booking === null) return { state: 'skipped', reason: 'no such booking' };
+  if (booking.state === 'voided') return undoApplied(deps, booking, now);
   if (booking.state !== 'booked') return { state: 'skipped', reason: `the booking is ${booking.state}` };
   if (booking.appliedAt !== null) return { state: 'applied', already: true };
   if (isTestBooking(booking)) {

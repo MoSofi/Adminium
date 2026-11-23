@@ -46,7 +46,7 @@ import { shippingTrackingRoutes } from './tracking.js';
 import { pricesHiddenFrom, readsPartOf, shippingPerson, shippingViewerOf, type ShippingViewer } from '../../shipping/access.js';
 import { cleanShipFrom, orderAddress, readShipFrom, recipientForRates, shipFromAddress, shipFromChanges } from '../../shipping/addresses.js';
 import { askForRates, carrierHttpFor, shippingCarrierFor, type ShippingCarrierDeps } from '../../shipping/carriers.js';
-import type { BookingFaults } from '../../shipping/bookings.js';
+import type { BookingDeps, BookingFaults } from '../../shipping/bookings.js';
 import { checkedAccount, type OpenBooking } from '../../shipping/keys.js';
 import { bookingState, createQuoteGate, mayShipAbroad, rateWithinLimit } from '../../shipping/limits.js';
 import { carrierLocked } from '../../shipping/locks.js';
@@ -268,6 +268,16 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
       }),
     );
 
+    const bookingDeps = (request: FastifyRequest): BookingDeps => ({
+      meta,
+      secret,
+      now: () => app.rbac.now(),
+      enqueueApply: deps.enqueueApply,
+      log: (message, fields) => request.log.warn(fields, message),
+      ...(deps.bookingFaults === undefined ? {} : { faults: deps.bookingFaults }),
+      ...(deps.bookAnswerMs === undefined ? {} : { answerMs: deps.bookAnswerMs }),
+    });
+
     await app.register(
       shippingBookingRoutes({
         meta,
@@ -280,22 +290,14 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
         shippableOrder,
         withoutCarrierWords,
         ...(deps.storage === undefined ? {} : { labelDeps: (request: FastifyRequest) => ({ meta, storage: deps.storage!, now: () => app.rbac.now(), log: (message: string, fields: Record<string, unknown>) => request.log.warn(fields, message) }) }),
-        bookingDeps: (request) => ({
-          meta,
-          secret,
-          now: () => app.rbac.now(),
-          enqueueApply: deps.enqueueApply,
-          log: (message, fields) => request.log.warn(fields, message),
-          ...(deps.bookingFaults === undefined ? {} : { faults: deps.bookingFaults }),
-          ...(deps.bookAnswerMs === undefined ? {} : { answerMs: deps.bookAnswerMs }),
-        }),
+        bookingDeps,
       }),
     );
 
     if (deps.storage !== undefined) {
       await app.register(shippingLabelRoutes({ meta, secret, storage: deps.storage, sources: deps.sources, carrierDeps, appOf, reachOrder }));
     }
-    await app.register(shippingTrackingRoutes({ meta, manifests, secret, sources: deps.sources, networkFeatures: deps.networkFeatures, carrierDeps, appOf, reachOrder }));
+    await app.register(shippingTrackingRoutes({ meta, manifests, secret, sources: deps.sources, networkFeatures: deps.networkFeatures, bookingDeps, carrierDeps, appOf, reachOrder }));
 
     app.get(
       '/apps/:key/shipping/access',

@@ -17,18 +17,22 @@ import { REFRESH_OPEN_WINDOW_MS } from './refresh.js';
 /** After this long with no change, an open parcel is listed as quiet. */
 export const QUIET_PARCEL_MS = 7 * 24 * 60 * 60_000;
 
+/** How long a refused refund stays on the list. The label is live again, so it is news and not a standing fault. */
+export const REFUND_REFUSED_LISTED_MS = 14 * 24 * 60 * 60_000;
+
 /** The most bookings one reading of the list looks through. */
 export const ATTENTION_SCAN = 500;
 
 /** Most pressing first. */
-export const ATTENTION_REASONS = ['unknown', 'duplicates', 'label-owed', 'new-number', 'tracking-failed', 'returned', 'ambiguous', 'quiet'] as const;
+export const ATTENTION_REASONS = ['unknown', 'duplicates', 'refund-refused', 'refund-pending', 'label-owed', 'new-number', 'tracking-failed', 'returned', 'ambiguous', 'quiet'] as const;
 export type AttentionReason = (typeof ATTENTION_REASONS)[number];
 
 /** The moments the stored rows are judged against, all from one clock reading. */
-export const attentionCutoffs = (now: number): { calledBefore: number; openSince: number; quietBefore: number } => ({
+export const attentionCutoffs = (now: number): { calledBefore: number; openSince: number; quietBefore: number; refusedSince: number } => ({
   calledBefore: now - BOOK_ANSWER_MS,
   openSince: now - REFRESH_OPEN_WINDOW_MS,
   quietBefore: now - QUIET_PARCEL_MS,
+  refusedSince: now - REFUND_REFUSED_LISTED_MS,
 });
 
 /** Open as "Refresh open parcels" means it, so this list and that count agree. */
@@ -45,6 +49,8 @@ export function attentionReasons(booking: ShippingBooking, parcel: ShippingParce
   const held = new Set<AttentionReason>();
   if (state === 'unknown') held.add('unknown');
   if (booking.duplicates > 0) held.add('duplicates');
+  if (state === 'voiding') held.add('refund-pending');
+  if (state === 'booked' && booking.voidState === 'refused' && (booking.voidSettledAt ?? 0) >= now - REFUND_REFUSED_LISTED_MS) held.add('refund-refused');
   if (state === 'booked') {
     if (labelStateOf(booking) === 'owed') held.add('label-owed');
     if (parcel?.numberChangedAt != null) held.add('new-number');

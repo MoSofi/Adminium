@@ -65,6 +65,11 @@ export const SHIPPING_REFUSAL_STATUS = {
   LABEL_EXPIRED: 410,
   /** A booking with no usable label: not bought, refused, or being refunded. */
   LABEL_NOT_AVAILABLE: 409,
+  REFUND_NOT_OPEN: 409,
+  REFUND_OTHER_ACCOUNT: 409,
+  REFUND_NOT_OFFERED: 409,
+  REFUND_TOO_LATE: 409,
+  LABEL_SCANNED: 409,
   /** This carrier has no way to hand the file over. */
   LABEL_NOT_OFFERED: 409,
   /** The key saved now opens another account than the one that bought this label. */

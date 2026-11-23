@@ -160,11 +160,16 @@ export const bookBody = z
     rateId: z.string().min(1).max(64),
     /** Someone who manages shipping saw that an earlier attempt cannot be looked up, and means to buy anyway. */
     confirmEarlier: z.boolean().optional(),
+    /** Someone who may cancel was told both labels stay paid until the refund lands, and means to book another. */
+    replaceRefunding: z.boolean().optional(),
   })
   .strict();
 
 /** What a person declares, in so many words, to free an order whose purchase has no known result. */
 export const releaseBody = z.object({ declaration: z.literal('no-label-exists') }).strict();
+
+/** A person says in so many words that this label was not used and will be destroyed. */
+export const refundBody = z.object({ declaration: z.literal('label-not-used') }).strict();
 
 /** Where a parcel is. `checkedAt` is a person's Refresh, never a webhook. */
 export const trackView = z
@@ -177,10 +182,29 @@ export const trackView = z
   })
   .strict();
 
+/** How a label's refund stands. An amount appears only if the carrier reported one. */
+const refundView = z
+  .object({
+    state: z.enum(['requested', 'pending', 'refunded', 'refused']).nullable(),
+    askedAt: z.number().nullable(),
+    settledAt: z.number().nullable(),
+    heardAt: z.number().nullable(),
+    unconfirmed: z.boolean(),
+    expectedBy: z.number().nullable(),
+    claimBy: z.number(),
+    tooLate: z.boolean(),
+    scanned: z.boolean(),
+    canRequest: z.boolean(),
+    message: z.string().nullable(),
+    amount: z.string().optional(),
+    currency: z.string().optional(),
+  })
+  .strict();
+
 const bookingView = z
   .object({
     id: z.string(),
-    state: z.enum(['reserved', 'calling', 'booked', 'refused', 'unknown', 'released']),
+    state: z.enum(['reserved', 'calling', 'booked', 'refused', 'unknown', 'released', 'voiding', 'voided']),
     test: z.boolean(),
     purpose: z.string(),
     parcelNumber: z.number(),
@@ -204,6 +228,7 @@ const bookingView = z
         customsInvoice: z.boolean(),
       })
       .strict(),
+    refund: refundView.nullable(),
     amount: z.string().optional(),
     currency: z.string().optional(),
     chargeDiffers: z.boolean().optional(),
@@ -212,6 +237,10 @@ const bookingView = z
   .strict();
 
 export const bookingReply = z.object({ data: bookingView });
+
+export const refundReply = z.object({
+  data: z.object({ outcome: z.enum(['requested', 'pending', 'refunded', 'refused', 'no-answer', 'other-account', 'cannot-check', 'not-open']), booking: bookingView }).strict(),
+});
 
 export const bookingsReply = z.object({
   data: z

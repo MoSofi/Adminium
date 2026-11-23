@@ -31,6 +31,7 @@ import { appShippingPermission, PERMISSIONS } from '../../rbac/permissions.js';
 import { tagRoutes } from '../../security/route-audience.js';
 import { pricesHiddenFrom, shippingPerson, shippingViewerOf, type ShippingViewer } from '../../shipping/access.js';
 import { recipientForRates } from '../../shipping/addresses.js';
+import { checkRefund, requestRefund } from '../../shipping/refunds.js';
 import { trackViewOf } from '../../shipping/tracking.js';
 import { FOREIGN_LABEL_REASON, bookingView, buyLabel, foreignLabelOn, lookUpBooking, releaseBooking, settleStale, type BookingDeps } from '../../shipping/bookings.js';
 import { shippingCarrierFor, type ShippingCarrierDeps } from '../../shipping/carriers.js';
@@ -40,7 +41,7 @@ import { rateWithinLimit } from '../../shipping/limits.js';
 import { readQuoteForBooking } from '../../shipping/quotes.js';
 import { ShippingRefusal } from '../../shipping/refusals.js';
 import { carrierAccounts, shopShipping } from '../../shipping/shop.js';
-import { bookBody, bookingIdParams, bookingQuery, bookingReply, bookingsReply, lookUpReply, releaseBody, shippingParams } from './schema.js';
+import { bookBody, bookingIdParams, bookingQuery, bookingReply, bookingsReply, lookUpReply, refundBody, refundReply, releaseBody, shippingParams } from './schema.js';
 
 /** The order, as this person reaches it. */
 export interface ReachedOrder {
@@ -156,7 +157,7 @@ export function shippingBookingRoutes(deps: ShippingBookingRoutesDeps): FastifyP
         }
         const now = app.rbac.now();
         const parcels = await shippingTrackingRepo(meta).parcels(settled.map((one) => one.id));
-        return { data: { bookings: settled.map((one) => ({ ...bookingView(one, now, hidden), track: trackViewOf(parcels.get(one.id)) })), bookable: blockedBy === null && viewer.mayBook, blockedBy } };
+        return { data: { bookings: settled.map((one) => ({ ...bookingView(one, now, hidden, parcels.get(one.id)), track: trackViewOf(parcels.get(one.id)) })), bookable: blockedBy === null && viewer.mayBook, blockedBy } };
       },
     );
 
@@ -168,7 +169,7 @@ export function shippingBookingRoutes(deps: ShippingBookingRoutesDeps): FastifyP
         const { app: install, connectionId } = await deps.appOf(request, request.params.key);
         const viewer = await shippingViewerOf(request, install);
         if (!viewer.mayBook) throw refuseNoRight(install);
-        const { quoteId, rateId, confirmEarlier } = request.body;
+        const { quoteId, rateId, confirmEarlier, replaceRefunding } = request.body;
 
         const repo = shippingRepo(meta);
         const stored = await repo.quote(quoteId);
@@ -258,6 +259,7 @@ export function shippingBookingRoutes(deps: ShippingBookingRoutesDeps): FastifyP
             by,
             counted: viewer.manages || dailyLabels === null ? null : { day: order.venueDay, dailyLabels },
             confirmEarlier: viewer.manages && confirmEarlier === true,
+            replaceRefunding: viewer.mayCancel && replaceRefunding === true,
           },
           order.pricesHidden,
         ).catch((error: unknown) => {
@@ -295,6 +297,54 @@ export function shippingBookingRoutes(deps: ShippingBookingRoutesDeps): FastifyP
           changes: { after: { app: install.row.manifestKey, booking: booking.id, outcome: result.outcome, state: result.booking.state } },
         });
         return { data: { outcome: result.outcome, booking: bookingView(result.booking, app.rbac.now(), hidden) } };
+      },
+    );
+
+    app.post(
+      '/apps/:key/shipping/bookings/:id/refund',
+      { config: { audit: audited('rbac') }, schema: { params: bookingIdParams, body: refundBody, response: { 200: refundReply } } },
+      async (request) => {
+        const by = shippingPerson(request);
+        const { app: install, connectionId } = await deps.appOf(request, request.params.key);
+        const viewer = await shippingViewerOf(request, install);
+        if (!viewer.mayCancel) throw new ForbiddenError('You may not request refunds for this app.', 'FORBIDDEN', { permission: appShippingPermission(grantKeyOf(install.row), 'cancel') });
+        const { booking, order } = await bookingOf(request, install, connectionId, request.params.id, viewer);
+        const hidden = order === null ? !viewer.manages : await pricesHiddenFrom(request, viewer, deps.sources, connectionId, order.table);
+        const resolved = await shippingCarrierFor(deps.carrierDeps(request), booking.carrierKey, connectionId, await venueDayOf(meta, connectionId));
+        const account = await checkedAccount(meta, secret, resolved);
+        const result = await requestRefund(deps.bookingDeps(request), booking, resolved, account, by).catch((error: unknown) => {
+          throw hidden ? deps.withoutCarrierWords(error) : error;
+        });
+        await app.rbac.audit(request, {
+          category: 'settings',
+          action: 'shipping.refund.requested',
+          changes: { before: { booking: booking.id, state: booking.state }, after: { app: install.row.manifestKey, booking: booking.id, carrier: booking.carrierKey, reference: booking.reference, declaration: request.body.declaration, outcome: result.outcome, state: result.booking.state } },
+        });
+        const parcel = await shippingTrackingRepo(meta).parcel(booking.id);
+        return { data: { outcome: result.outcome, booking: { ...bookingView(result.booking, app.rbac.now(), hidden, parcel), track: trackViewOf(parcel) } } };
+      },
+    );
+
+    app.post(
+      '/apps/:key/shipping/bookings/:id/refund/check',
+      { config: { audit: audited('rbac') }, schema: { params: bookingIdParams, response: { 200: refundReply } } },
+      async (request) => {
+        shippingPerson(request);
+        const { app: install, connectionId } = await deps.appOf(request, request.params.key);
+        const viewer = await shippingViewerOf(request, install);
+        if (!viewer.mayCancel && !viewer.mayBook) throw refuseNoRight(install);
+        const { booking, order } = await bookingOf(request, install, connectionId, request.params.id, viewer);
+        const hidden = order === null ? !viewer.manages : await pricesHiddenFrom(request, viewer, deps.sources, connectionId, order.table);
+        const resolved = await shippingCarrierFor(deps.carrierDeps(request), booking.carrierKey, connectionId, await venueDayOf(meta, connectionId));
+        const account = await checkedAccount(meta, secret, resolved);
+        const result = await checkRefund(deps.bookingDeps(request), booking, resolved, account);
+        await app.rbac.audit(request, {
+          category: 'settings',
+          action: 'shipping.refund.checked',
+          changes: { after: { app: install.row.manifestKey, booking: booking.id, outcome: result.outcome, state: result.booking.state } },
+        });
+        const parcel = await shippingTrackingRepo(meta).parcel(booking.id);
+        return { data: { outcome: result.outcome, booking: { ...bookingView(result.booking, app.rbac.now(), hidden, parcel), track: trackViewOf(parcel) } } };
       },
     );
 
