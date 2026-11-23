@@ -80,7 +80,7 @@ export async function addressFor(
   const person = await rowOf(ctx.db, ctx.view, recipient.table, row[recipient.via]);
   const text = (value: unknown) => (typeof value === 'string' && value !== '' ? value : null);
   if (person !== null) {
-    const address = person[recipient.email];
+    const address = person[recipient.email ?? ''];
     return {
       ...none,
       person,
@@ -99,7 +99,7 @@ export async function addressFor(
       : holder !== undefined && holder.tableId === holderTable && row[fallback.via] !== undefined && holder.row[ctx.view.table(holderTable).primaryKey[0] ?? ''] === row[fallback.via]
         ? holder.row
         : await rowOf(ctx.db, ctx.view, holderTable, row[fallback.via]);
-  const address = found?.[fallback.email];
+  const address = found?.[fallback.email ?? ''];
   return {
     ...none,
     address: plausibleAddress(address) ? address.trim() : null,

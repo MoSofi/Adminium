@@ -318,7 +318,7 @@ const NUMBERS = ['int', 'bigint', 'decimal', 'money', 'float'];
 export function peopleIssues<C extends PeopleColumn>(
   m: {
     people?: People | undefined;
-    outbox?: { recipient: { table: string; email: string } } | undefined;
+    outbox?: { recipient: { table: string; email?: string | undefined } } | undefined;
     publicAccess?: readonly { table: string; claim?: unknown }[] | undefined;
     requiredSchema: { tables: readonly { ref: string; keyField?: string | undefined; columns?: readonly C[] }[] };
     addOns?: { requires?: readonly { key: string }[] | undefined } | undefined;
@@ -493,7 +493,7 @@ export function peopleIssues<C extends PeopleColumn>(
 
     // The same table's address, said three times, is one address.
     const recipient = m.outbox?.recipient;
-    if (recipient !== undefined && recipient.table === entry.table && entry.email !== recipient.email) {
+    if (recipient?.email !== undefined && recipient.table === entry.table && entry.email !== recipient.email) {
       out.push({ path: at('email'), message: `the outbox writes to "${entry.table}.${recipient.email}" (outbox.recipient.email), so the people of "${entry.table}" have that address: name it here` });
     }
     (m.publicAccess ?? []).forEach((access, a) => {

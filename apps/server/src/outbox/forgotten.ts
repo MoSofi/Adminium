@@ -51,7 +51,7 @@ export async function toForgotten(
   const people = ctx.view.table(definition.recipient.table).id;
   const rule = forgetOf(ctx.forgets, people);
   if (rule === undefined) return false;
-  const email = definition.recipient.email;
+  const email = definition.recipient.email ?? '';
   const onRow = addressed?.byColumn;
   if (onRow !== undefined && column !== undefined) {
     const producing = await rowOf(ctx.db, ctx.view, onRow.table, onRow.id);

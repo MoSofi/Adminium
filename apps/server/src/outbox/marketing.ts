@@ -43,7 +43,7 @@ export async function recipientPerson(
   const recipient = box.definition.recipient;
   const record = addressed?.person ?? (await rowOf(ctx.db, ctx.view, recipient.table, row[recipient.via]));
   if (record === null) return null;
-  const stored = record[recipient.email];
+  const stored = recipient.email === undefined ? undefined : record[recipient.email];
   if (typeof stored !== 'string' || stored.trim().toLowerCase() !== to.trim().toLowerCase()) return null;
   const table = ctx.view.table(recipient.table);
   const key = table.primaryKey[0];

@@ -1063,7 +1063,7 @@ export function ownLinksOfPerson(entries: readonly PublicAccess[], identityTable
 /** The outbox as a resend reads it: its recipient, its links and the producers that declare a kind's recipient. */
 export interface ResendOutbox {
   table: string;
-  recipient: { table: string; via: string; email: string; fallback?: { via: string; email: string } | undefined };
+  recipient: { table: string; via: string; email?: string | undefined; fallback?: { via: string; email?: string | undefined } | undefined };
   producers?:
     | readonly { kind: string; link: string; hold?: boolean | undefined; repeatBy?: string | undefined; recipient?: { setting: unknown } | { column: string; name?: string | undefined; language?: string | undefined } | undefined }[]
     | undefined;
@@ -1106,12 +1106,12 @@ export function resendAddressOf(outbox: ResendOutbox, kind: string, table: strin
   let person: ResendAddress['person'];
   const keys = (columnsOf(table) ?? []).filter((c) => c.references === outbox.recipient.table);
   const link = find(table, outbox.recipient.via) !== undefined ? outbox.recipient.via : keys.length === 1 ? keys[0]!.name : undefined;
-  if (link !== undefined) {
+  if (link !== undefined && outbox.recipient.email !== undefined) {
     columns.push(link);
     person = { table: outbox.recipient.table, column: outbox.recipient.email };
   }
   const fallback = outbox.recipient.fallback;
-  if (fallback !== undefined && find(outbox.table, fallback.via)?.references === table && find(table, fallback.email) !== undefined) columns.push(fallback.email);
+  if (fallback?.email !== undefined && find(outbox.table, fallback.via)?.references === table && find(table, fallback.email) !== undefined) columns.push(fallback.email);
   if (columns.length === 0) return null;
   return { columns, ...(person === undefined ? {} : { person }) };
 }

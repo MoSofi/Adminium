@@ -312,7 +312,8 @@ const recipientSchema = z
     /** The outbox column pointing at the person, and their table's columns. */
     via: refSchema,
     table: refSchema,
-    email: refSchema,
+    /** Where an email goes. Left out only by an outbox whose every kind is a text: a person known only by phone. */
+    email: refSchema.optional(),
     name: refSchema.optional(),
     /**
      * The language the message is written in: a text column of the person's
@@ -333,7 +334,7 @@ const recipientSchema = z
      * by someone not yet on file carries their details on the row itself.
      */
     fallback: z
-      .object({ via: refSchema, email: refSchema, phone: refSchema.optional(), name: refSchema.optional(), language: refSchema.optional() })
+      .object({ via: refSchema, email: refSchema.optional(), phone: refSchema.optional(), name: refSchema.optional(), language: refSchema.optional() })
       .strict()
       .optional(),
   })
@@ -887,7 +888,10 @@ export function outboxIssues(
 
   const r = box.recipient;
   fk(box.table, r.via, r.table, at('recipient', 'via'));
-  col(r.table, r.email, ['text'], at('recipient', 'email'), 'a text column');
+  // A kind not named in `channels` is an email, and an email needs an address to go to.
+  const sendsEmail = Object.keys(box.kinds).some((kind) => box.channels?.[kind] !== 'sms');
+  if (r.email !== undefined) col(r.table, r.email, ['text'], at('recipient', 'email'), 'a text column');
+  else if (sendsEmail) out.push({ path: at('recipient', 'email'), message: 'an outbox that sends email names the column holding the address: only an outbox of texts alone can leave it out' });
   if (r.name !== undefined) col(r.table, r.name, ['text'], at('recipient', 'name'), 'a text column');
   if (typeof r.language === 'string') col(r.table, r.language, ['text'], at('recipient', 'language'), 'a text column');
   else if (r.language !== undefined && box.columns.language === undefined) {
@@ -898,7 +902,8 @@ export function outboxIssues(
     const via = fk(box.table, r.fallback.via, undefined, at('recipient', 'fallback', 'via'));
     const holder = via?.references;
     if (holder !== undefined) {
-      col(holder, r.fallback.email, ['text'], at('recipient', 'fallback', 'email'), 'a text column');
+      if (r.fallback.email !== undefined) col(holder, r.fallback.email, ['text'], at('recipient', 'fallback', 'email'), 'a text column');
+      else if (sendsEmail) out.push({ path: at('recipient', 'fallback', 'email'), message: 'an outbox that sends email names the column holding the fallback address' });
       if (r.fallback.name !== undefined) col(holder, r.fallback.name, ['text'], at('recipient', 'fallback', 'name'), 'a text column');
       if (r.fallback.language !== undefined) col(holder, r.fallback.language, ['text'], at('recipient', 'fallback', 'language'), 'a text column');
     }

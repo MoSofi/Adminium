@@ -58,7 +58,7 @@ export async function reviewLinkFor(
   // The review's person, and the mail going to the address on their own row.
   const person = await followPath(db, view, table, row, host.word.person, 'row');
   const recipient = input.definition.recipient;
-  if (person === null || person.table.id !== view.table(recipient.table).id || !same(person.row[recipient.email], input.to)) return { skip: REVIEW_LINK_SKIPS.otherAddress };
+  if (recipient.email === undefined || person === null || person.table.id !== view.table(recipient.table).id || !same(person.row[recipient.email], input.to)) return { skip: REVIEW_LINK_SKIPS.otherAddress };
   if (deps.base === null) return { skip: REVIEW_LINK_SKIPS.noAddress };
   const install = await settingsRepo(deps.meta).get('system.instanceId');
   if (typeof install !== 'string' || install === '') return { skip: REVIEW_LINK_SKIPS.noAddress };

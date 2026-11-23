@@ -1205,7 +1205,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         if (addressed?.bySetting !== true && holderTable !== undefined && holderTable === ctx.view.table(recipient.table).id) {
           const cacheKey = `${holderTable}\u0000${String(holder)}`;
           if (!people.has(cacheKey)) people.set(cacheKey, rowOf(ctx.db, ctx.view, holderTable, holder));
-          const stored = (await people.get(cacheKey))?.[recipient.email];
+          const stored = (await people.get(cacheKey))?.[recipient.email ?? ''];
           theirs = plausibleAddress(stored) && sameAddress(stored.trim(), to);
         }
         if (!theirs) for (const column of rule.columns) out.add(column);
@@ -1237,7 +1237,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       if (rule.unlessHolder === undefined) continue;
       const person = record?.[rule.unlessHolder];
       if (person === null || person === undefined || referenced(ctx.view, table.id, rule.unlessHolder) !== people) continue;
-      const stored = (await rowOf(ctx.db, ctx.view, people, person))?.[box.definition.recipient.email];
+      const stored = (await rowOf(ctx.db, ctx.view, people, person))?.[box.definition.recipient.email ?? ''];
       if (plausibleAddress(stored) && sameAddress(stored.trim(), to)) return { table: people, value: person };
     }
     return null;
@@ -1339,7 +1339,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // Nobody on file (a guest whose address looked like another's, a desk-made row): the row the fallback reads the
     // address from holds its own codes, when the message goes to that row's own address.
     if (person === null) return fallbackHolder(box, ctx, row, to);
-    const stored = person[recipient.email];
+    const stored = person[recipient.email ?? ''];
     if (!plausibleAddress(stored) || !sameAddress(stored.trim(), to)) return null;
     const key = ctx.view.table(recipient.table).primaryKey[0];
     const id = key === undefined ? undefined : person[key];
@@ -1352,7 +1352,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     if (fallback === undefined) return null;
     const tableId = referenced(ctx.view, box.definition.table, fallback.via);
     const holder = await rowOf(ctx.db, ctx.view, tableId, row[fallback.via]);
-    const stored = holder?.[fallback.email];
+    const stored = holder?.[fallback.email ?? ''];
     if (tableId === undefined || holder === null || !plausibleAddress(stored) || !sameAddress(stored.trim(), to)) return null;
     const key = ctx.view.table(tableId).primaryKey[0];
     const id = key === undefined ? undefined : holder[key];
@@ -1413,7 +1413,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const recipient = box.definition.recipient;
     const identity = addressed?.identity ?? (await rowOf(ctx.db, ctx.view, recipient.table, row[recipient.via]));
     if (identity === null) return none;
-    const stored = identity[recipient.email];
+    const stored = identity[recipient.email ?? ''];
     if (!plausibleAddress(stored)) return none;
     const exact = stored.trim();
     const ascii = (text: string) => /^[\x21-\x7e]+$/.test(text);
