@@ -30,6 +30,7 @@ export * from './notifications.js';
 export * from './notification-prefs.js';
 export * from './scheduled-reports.js';
 export * from './email-templates.js';
+export * from './text-templates.js';
 export * from './email-blocks.js';
 export * from './email-runs.js';
 export * from './invoice-documents.js';
