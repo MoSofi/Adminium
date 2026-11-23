@@ -18,18 +18,20 @@ import BetterSqlite3 from 'better-sqlite3';
 import type { Kysely } from 'kysely';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { outboundSteps } from '../src/apps/manifest-automations.js';
+import { installAutomations, outboundSteps } from '../src/apps/manifest-automations.js';
 import { actionKinds, ruleFormat } from '../src/assistant/contexts/automation-format.js';
 import { TEXT_NOT_SENT } from '../src/automations/actions/text.js';
 import { walkRule, type RunOutcome } from '../src/automations/runner.js';
 import { TRACE_EN } from '../src/automations/trace.js';
-import { resolveRule } from '../src/automations/validate.js';
+import { wasColumnsOf } from '../src/automations/matcher.js';
+import { requiredGrants, resolveRule } from '../src/automations/validate.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { runIntrospection } from '../src/connections/introspect.js';
 import { loadSnapshotView } from '../src/data-io/snapshot-view.js';
 import { ConnectionManager } from '../src/connections/manager.js';
 import { registerAdapters } from '../src/connections/register-adapters.js';
 import { unbuiltInManifest, UNBUILT_MANIFEST_WORDS } from '../src/crud/unbuilt-rules.js';
+import { installTemplateKey } from '../src/installs/resolve.js';
 import { createTextConsentService, type TextConsentService } from '../src/sms/consent/index.js';
 import { createTextSendPath, createTextSendStore, SMS_SEND_ATTEMPTS, SMS_SEND_JOB_KIND, textPhoneKeys, type SmsSendPayload, type TextSendPath, type TextSendStore } from '../src/sms/send/index.js';
 import { createSmsService } from '../src/sms/service.js';
@@ -439,6 +441,33 @@ describe.each(META_ENGINES)('the Send text step — $name', (engine) => {
     it.runIf(engine.available)('refuses a column that is not there', async () => {
       const run = await check(graphOf(textStep({ to: { kind: 'field', column: 'nope' } })));
       expect(run).toThrow(/has no column nope/);
+    });
+
+    it.runIf(engine.available)('lets a linked row\'s personal column fill the text, and asks the author to read that table', async () => {
+      const view = await loadSnapshotView(meta, connectionId);
+      const trigger = { kind: 'record', event: 'created', connectionId, table: 'main.orders', watch: false } as never;
+      const graph = graphOf(step({ kind: 'text', templateKey: 'visit-text', to: { kind: 'field', column: 'customer_id.mobile' }, vars: { name: '{{customer_id.mobile}}' } }));
+      expect(view.table('main.customers').columns.get('mobile')?.masked).toBe(true);
+      expect(() => resolveRule(trigger, graph, { view, templateKeys: new Set(), textTemplateKeys: new Set(['visit-text']), blockLoopback: false })).not.toThrow();
+      const toOnly = graphOf(step({ kind: 'text', templateKey: 'visit-text', to: { kind: 'field', column: 'customer_id.mobile' } }));
+      expect(requiredGrants(trigger, toOnly, connectionId, view).map((one) => one.permission)).toContain(`table:${connectionId}:main.customers:read`);
+    });
+
+    it.runIf(engine.available)('keeps the column a text template reads as it was', async () => {
+      await template('It was {{was.notes}}.');
+      const rule = await ruleOf(graphOf(textStep()));
+      expect([...(await wasColumnsOf(meta, rule))]).toContain('notes');
+    });
+
+    it.runIf(engine.available)('a second install of an app sends its own copy of the template', async () => {
+      const checked = validateManifest(shipped(step1()), { allowLocalPublisher: true });
+      if (!checked.ok) throw new Error(JSON.stringify(checked.issues));
+      const install = { id: 'mfs_second', key: 'clinic', slug: 'second' };
+      await installAutomations({ meta, manifest: checked.manifest, install: install as never, connectionId, view: await loadSnapshotView(meta, connectionId), realId: () => 'main.customers', sampleTables: new Set() });
+      const [stored] = await automationsRepo(meta).listManagedBy('clinic', connectionId);
+      const node = stored!.graph.nodes.find((one) => one.kind === 'action');
+      expect(node?.kind === 'action' ? node.action : null).toMatchObject({ kind: 'text', templateKey: installTemplateKey('clinic-reminder-text', install) });
+      await automationsRepo(meta).remove(stored!.id);
     });
 
     it.runIf(engine.available)('refuses a moment that is not a date and time', async () => {
