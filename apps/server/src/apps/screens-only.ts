@@ -166,6 +166,11 @@ const SHIPPING_BENCH_ROUTES: ReadonlySet<string> = new Set([
   'POST /apps/:key/shipping/bookings/:id/check',
   'POST /apps/:key/shipping/bookings/:id/refund',
   'POST /apps/:key/shipping/bookings/:id/refund/check',
+  'GET /apps/:key/shipping/bookings/:id/documents/:kind',
+  'POST /apps/:key/shipping/bookings/:id/documents/:kind',
+  'POST /apps/:key/shipping/bookings/:id/refresh',
+  'POST /apps/:key/shipping/tracking/refresh',
+  'GET /apps/:key/shipping/attention',
 ]);
 
 /**
