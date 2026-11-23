@@ -92,6 +92,16 @@ export interface PermissionCatalogReply {
    */
   tableActions: string[];
   pageActions: string[];
+  /** Each app install that declares shipping, one entry per copy. Absent from a server older than this screen. */
+  shippingApps?: ShippingAppEntry[];
+}
+
+/** One app install whose labels a role can be given rights on. */
+export interface ShippingAppEntry {
+  /** The name its grants use: `shop`, or `shop~kiln` for a later copy. */
+  grantKey: string;
+  name: string;
+  connectionName: string | null;
 }
 
 // --- the grammar + the reserved filter (pure) --------------------------------
@@ -115,6 +125,7 @@ const SYSTEM_GRANT = /^system:[^:\s/]+:[^:\s/]+$/;
 const TABLE_GRANT = /^table:[^:\s/]+:[^:\s/]+:(read|create|update|delete|export|import|read_pii|\*)$/;
 const PAGE_GRANT = /^page:[^:\s/]+:(view|edit|\*)$/;
 const APP_GRANT = /^app:[^:\s/]+:staff$/;
+const SHIPPING_GRANT = /^shipping:([^:\s/*]+):(book|cancel|customs)$/;
 
 /**
  * Does this string parse as a grant?
@@ -126,7 +137,7 @@ const APP_GRANT = /^app:[^:\s/]+:staff$/;
  * own parser.
  */
 export function isPermissionGrant(key: string): key is PermissionGrant {
-  return SYSTEM_GRANT.test(key) || TABLE_GRANT.test(key) || PAGE_GRANT.test(key) || APP_GRANT.test(key);
+  return SYSTEM_GRANT.test(key) || TABLE_GRANT.test(key) || PAGE_GRANT.test(key) || APP_GRANT.test(key) || SHIPPING_GRANT.test(key);
 }
 
 /** A catalog entry that survived {@link catalogPermissions} — key is a grant. */
@@ -205,6 +216,44 @@ export function appStaffRows(
       .sort((a, b) => a[1].localeCompare(b[1]))
       .map(([key, label]) => ({ key: `app:${key}:staff` as const, app: { key, label } })),
   ];
+}
+
+export const SHIPPING_RIGHTS = ['book', 'cancel', 'customs'] as const;
+export type ShippingRight = (typeof SHIPPING_RIGHTS)[number];
+
+/**
+ * Three rows per app install that declares shipping, and per any other install
+ * a role already holds one of these rights on, so a grant is never invisible.
+ * A later copy has its own grant key, so its own rows. Two installs with one
+ * name are told apart by their database.
+ */
+export function appShippingRows(
+  apps: readonly ShippingAppEntry[],
+  grants: GrantMap,
+): { key: PermissionGrant; app: string; right: ShippingRight }[] {
+  const byKey = new Map(apps.map((app) => [app.grantKey, app]));
+  for (const list of Object.values(grants)) {
+    for (const key of list) {
+      const grantKey = SHIPPING_GRANT.exec(key)?.[1];
+      if (grantKey !== undefined && !byKey.has(grantKey)) byKey.set(grantKey, { grantKey, name: grantKey, connectionName: null });
+    }
+  }
+  const named = [...byKey.values()];
+  const labelOf = (app: ShippingAppEntry): string =>
+    named.filter((one) => one.name === app.name).length > 1 ? `${app.name} (${app.connectionName ?? app.grantKey})` : app.name;
+  return named
+    .map((app) => ({ grantKey: app.grantKey, label: labelOf(app) }))
+    .sort((a, b) => a.label.localeCompare(b.label) || a.grantKey.localeCompare(b.grantKey))
+    .flatMap(({ grantKey, label }) => SHIPPING_RIGHTS.map((right) => ({ key: `shipping:${grantKey}:${right}` as const, app: label, right })));
+}
+
+/**
+ * What a matrix save sends: the rows as edited, and every stored grant the
+ * matrix does not draw (an app's refund, account or add-on-settings right).
+ * The endpoint replaces the whole list, so one left out is taken away.
+ */
+export function grantsToSave(edited: readonly PermissionGrant[], stored: readonly string[]): string[] {
+  return [...edited, ...stored.filter((key) => !isPermissionGrant(key))];
 }
 
 /** Page/table grants on ONE page or table — held, preserved, not drawn here. */
@@ -349,7 +398,7 @@ export function deleteRole(id: string, reassignTo: string | null): Promise<unkno
   return api.delete<unknown>(roleDeletePath(id, reassignTo));
 }
 
-export function putRoleGrants(id: string, grants: readonly PermissionGrant[]): Promise<unknown> {
+export function putRoleGrants(id: string, grants: readonly string[]): Promise<unknown> {
   return api.put<unknown>(`/api/v1/roles/${id}/permissions`, { grants: [...grants] });
 }
 

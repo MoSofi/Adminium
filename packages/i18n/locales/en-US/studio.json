@@ -6253,6 +6253,7 @@
       "inUse": "This key cannot change while a booking on it has no final answer.",
       "inUseMore": "and {count} more",
       "inUseOrders": "Orders:",
+      "inUseUnnamed": "{count, plural, one {# booking holds it, on an order you cannot open here.} other {# bookings hold it, on orders you cannot open here.}}",
       "keep": "Keep current key",
       "label": "{carrier} API key",
       "replace": "Replace",

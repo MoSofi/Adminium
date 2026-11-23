@@ -6253,6 +6253,7 @@
       "inUse": "在使用此金鑰的預約還沒有最終結果之前，金鑰不能更換。",
       "inUseMore": "另有 {count} 個",
       "inUseOrders": "訂單：",
+      "inUseUnnamed": "{count, plural, other {有 # 個預約正在占用它，所在訂單你無法在此開啟。}}",
       "keep": "保留目前的金鑰",
       "label": "{carrier} API 金鑰",
       "replace": "替換",

@@ -6263,6 +6263,7 @@ export default {
       "inUse": "Cette clé ne peut pas changer tant qu’une réservation faite avec elle n’a pas de réponse définitive.",
       "inUseMore": "et {count} autres",
       "inUseOrders": "Commandes :",
+      "inUseUnnamed": "{count, plural, one {# réservation la retient, sur une commande que vous ne pouvez pas ouvrir ici.} other {# réservations la retiennent, sur des commandes que vous ne pouvez pas ouvrir ici.}}",
       "keep": "Garder la clé actuelle",
       "label": "Clé d’API {carrier}",
       "replace": "Remplacer",

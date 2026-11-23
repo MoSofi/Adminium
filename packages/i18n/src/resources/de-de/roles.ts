@@ -118,7 +118,10 @@ export default {
   },
   "apps": {
     "every": "Mitarbeiterbildschirme aller Apps öffnen",
-    "one": "Mitarbeiterbildschirme von {app} öffnen"
+    "one": "Mitarbeiterbildschirme von {app} öffnen",
+    "shippingBook": "{app}: Etiketten kaufen, innerhalb der von Ihnen festgelegten Grenzen",
+    "shippingCancel": "{app}: die Erstattung eines Etiketts beantragen",
+    "shippingCustoms": "{app}: Zoll deklarieren"
   },
   "rows": {
     "locked": "Super Admin erreicht jede Zeile.",

@@ -108,7 +108,10 @@
   },
   "apps": {
     "every": "Otevírat obrazovky pro personál všech aplikací",
-    "one": "Otevírat obrazovky pro personál aplikace {app}"
+    "one": "Otevírat obrazovky pro personál aplikace {app}",
+    "shippingBook": "{app}: kupovat štítky v mezích, které nastavíte",
+    "shippingCancel": "{app}: žádat o vrácení peněz za štítek",
+    "shippingCustoms": "{app}: podávat celní prohlášení"
   },
   "rows": {
     "locked": "Super Admin dosáhne na každý řádek.",

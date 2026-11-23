@@ -118,7 +118,10 @@ export default {
   },
   "apps": {
     "every": "Open every app’s staff screens",
-    "one": "Open {app}’s staff screens"
+    "one": "Open {app}’s staff screens",
+    "shippingBook": "{app}: buy labels, within the limits you set",
+    "shippingCancel": "{app}: ask for a label’s refund",
+    "shippingCustoms": "{app}: declare customs"
   },
   "rows": {
     "locked": "Super Admin reaches every row.",

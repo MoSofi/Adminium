@@ -24287,6 +24287,18 @@
     "status": "mt",
     "srcHash": "ee4a95e7e5a3"
   },
+  "roles.apps.shippingBook": {
+    "status": "mt",
+    "srcHash": "bd4609a29cff"
+  },
+  "roles.apps.shippingCancel": {
+    "status": "mt",
+    "srcHash": "726c9cbf7a00"
+  },
+  "roles.apps.shippingCustoms": {
+    "status": "mt",
+    "srcHash": "c40a9b812dc3"
+  },
   "roles.builtinLocked": {
     "status": "mt",
     "srcHash": "68169c1d618b"
@@ -43230,6 +43242,10 @@
   "studio.shipping.key.inUseOrders": {
     "status": "mt",
     "srcHash": "b55d4b1f2901"
+  },
+  "studio.shipping.key.inUseUnnamed": {
+    "status": "mt",
+    "srcHash": "3fa7a429e32a"
   },
   "studio.shipping.key.keep": {
     "status": "mt",

@@ -6263,6 +6263,7 @@ export default {
       "inUse": "Tento klíč nelze změnit, dokud objednání s ním nemá konečnou odpověď.",
       "inUseMore": "a dalších: {count}",
       "inUseOrders": "Zakázky:",
+      "inUseUnnamed": "{count, plural, one {Drží ho # objednání, u objednávky, kterou zde nemůžete otevřít.} few {Drží ho # objednání, u objednávek, které zde nemůžete otevřít.} many {Drží ho # objednání, u objednávek, které zde nemůžete otevřít.} other {Drží ho # objednání, u objednávek, které zde nemůžete otevřít.}}",
       "keep": "Ponechat stávající klíč",
       "label": "Klíč API {carrier}",
       "replace": "Nahradit",

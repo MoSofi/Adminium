@@ -108,7 +108,10 @@
   },
   "apps": {
     "every": "開啟所有應用程式的員工畫面",
-    "one": "開啟 {app} 的員工畫面"
+    "one": "開啟 {app} 的員工畫面",
+    "shippingBook": "{app}：在你設定的額度內購買標籤",
+    "shippingCancel": "{app}：申請退還標籤費用",
+    "shippingCustoms": "{app}：申報海關"
   },
   "rows": {
     "locked": "超級管理員可存取每一列。",

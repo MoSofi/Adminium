@@ -6263,6 +6263,7 @@ export default {
       "inUse": "Dieser Schlüssel kann sich nicht ändern, solange eine Buchung damit noch keine endgültige Antwort hat.",
       "inUseMore": "und {count} weitere",
       "inUseOrders": "Bestellungen:",
+      "inUseUnnamed": "{count, plural, one {# Buchung hält ihn, zu einer Bestellung, die Sie hier nicht öffnen können.} other {# Buchungen halten ihn, zu Bestellungen, die Sie hier nicht öffnen können.}}",
       "keep": "Aktuellen Schlüssel behalten",
       "label": "{carrier}-API-Schlüssel",
       "replace": "Ersetzen",

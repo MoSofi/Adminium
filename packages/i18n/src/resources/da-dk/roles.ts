@@ -118,7 +118,10 @@ export default {
   },
   "apps": {
     "every": "Åbn alle apps’ personaleskærme",
-    "one": "Åbn personaleskærmene i {app}"
+    "one": "Åbn personaleskærmene i {app}",
+    "shippingBook": "{app}: købe etiketter inden for de grænser, du sætter",
+    "shippingCancel": "{app}: bede om refusion af en etiket",
+    "shippingCustoms": "{app}: lave tolddeklaration"
   },
   "rows": {
     "locked": "Super Admin når alle rækker.",

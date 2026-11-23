@@ -40,7 +40,12 @@ const ROLES = [
 
 const VIEWER_GRANTS = ['page:*:view', 'table:*:*:read', 'table:conn_1:main.orders:export', 'app:*:staff', 'app:booking:staff'];
 
-function installFetch(opts: { roles?: RoleListItem[]; grantable?: { all: boolean; grants: string[] }; refuseSave?: boolean } = {}) {
+const SHIPPING_APPS = [
+  { grantKey: 'shop', name: 'Print Shop', connectionName: 'Main' },
+  { grantKey: 'shop~kiln', name: 'Print Shop', connectionName: 'Kiln' },
+];
+
+function installFetch(opts: { roles?: RoleListItem[]; grantable?: { all: boolean; grants: string[] }; refuseSave?: boolean; shippingApps?: typeof SHIPPING_APPS; viewerGrants?: string[] } = {}) {
   const puts: { url: string; body: unknown }[] = [];
   vi.stubGlobal(
     'fetch',
@@ -72,11 +77,12 @@ function installFetch(opts: { roles?: RoleListItem[]; grantable?: { all: boolean
             system: [{ key: 'system:users:manage', label: 'Manage users', category: 'access' }],
             tableActions: ['read', 'create', 'update', 'delete', 'export', 'import'],
             pageActions: ['view', 'edit'],
+            ...(opts.shippingApps === undefined ? {} : { shippingApps: opts.shippingApps }),
           }),
         );
       }
       if (url === '/api/v1/roles/role_viewer/permissions') {
-        return Promise.resolve(jsonResponse(200, { roleId: 'role_viewer', grants: VIEWER_GRANTS }));
+        return Promise.resolve(jsonResponse(200, { roleId: 'role_viewer', grants: opts.viewerGrants ?? VIEWER_GRANTS }));
       }
       return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: url } }));
     }),
@@ -244,5 +250,53 @@ describe('RolesPage — apps', () => {
     await user.click(screen.getByTestId('roles-save'));
     await waitFor(() => expect(puts).toHaveLength(1));
     expect((puts[0]!.body as { grants: string[] }).grants).toContain('app:pos:staff');
+  });
+});
+
+describe('RolesPage — an app install’s shipping rights', () => {
+  const BOOK = 'Print Shop (Kiln): buy labels, within the limits you set — Viewer';
+
+  it('draws book, cancel and customs for each copy, apart from Set up shipping', async () => {
+    installFetch({ shippingApps: SHIPPING_APPS });
+    renderRoles();
+    for (const copy of ['Main', 'Kiln']) {
+      expect(await screen.findByText(`Print Shop (${copy}): buy labels, within the limits you set`)).toBeTruthy();
+      expect(screen.getByText(`Print Shop (${copy}): ask for a label’s refund`)).toBeTruthy();
+      expect(screen.getByText(`Print Shop (${copy}): declare customs`)).toBeTruthy();
+    }
+  });
+
+  it('saves one copy’s right by its own name, and keeps the rights the matrix does not draw', async () => {
+    const stored = [...VIEWER_GRANTS, 'payments:shop:refund', 'accounts:shop:connect', 'addOn:invoices:settings', 'shipping:shop:cancel'];
+    const puts = installFetch({ shippingApps: SHIPPING_APPS, viewerGrants: stored });
+    const user = userEvent.setup();
+    renderRoles();
+    const toggle = await screen.findByRole('button', { name: BOOK });
+    await waitFor(() => expect((toggle as HTMLButtonElement).disabled).toBe(false));
+    await user.click(toggle);
+    await user.click(screen.getByTestId('roles-save'));
+    await waitFor(() => expect(puts).toHaveLength(1));
+    const sent = (puts[0]!.body as { grants: string[] }).grants;
+    expect([...sent].sort()).toEqual([...stored, 'shipping:shop~kiln:book'].sort());
+    expect(sent).not.toContain('system:shipping:manage');
+  });
+
+  it('shows a right the role already holds as ticked', async () => {
+    installFetch({ shippingApps: SHIPPING_APPS, viewerGrants: [...VIEWER_GRANTS, 'shipping:shop~kiln:book'] });
+    renderRoles();
+    const held = await screen.findByRole('button', { name: BOOK });
+    await waitFor(() => expect(held.getAttribute('aria-pressed')).toBe('true'));
+  });
+
+  it('a person who does not hold a right cannot give it', async () => {
+    installFetch({
+      roles: [{ ...role('role_viewer', 'viewer', 'Viewer'), isBuiltin: false, mayChange: true }],
+      grantable: { all: false, grants: ['shipping:shop:book', 'system:roles:manage'] },
+      shippingApps: SHIPPING_APPS,
+    });
+    renderRoles();
+    const lacking = await screen.findByRole('button', { name: BOOK });
+    await waitFor(() => expect(lacking.getAttribute('aria-disabled')).toBe('true'));
+    expect(screen.getByRole('button', { name: 'Print Shop (Main): buy labels, within the limits you set — Viewer' }).getAttribute('aria-disabled')).not.toBe('true');
   });
 });

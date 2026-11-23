@@ -77,7 +77,9 @@ import {
   type RowLimit,
   type RowReach,
   type RowWay,
+  appShippingRows,
   appStaffRows,
+  grantsToSave,
   SUPER_ADMIN_SLUG,
   catalogPermissions,
   changedRoleIds,
@@ -101,6 +103,7 @@ import {
   type GrantableCatalogEntry,
   type PermissionCategory,
   type RoleListItem,
+  type ShippingRight,
 } from './rolesApi.js';
 
 function categoryLabel(category: PermissionCategory): string {
@@ -210,6 +213,18 @@ function dataAccessLabel(key: DataAccessGrant): string {
   }
 }
 
+/** One app's right on its labels. "Set up shipping" is another row: it is not held to the limits these are. */
+function shippingRightLabel(right: ShippingRight, app: string): string {
+  switch (right) {
+    case 'book':
+      return t('roles:apps.shippingBook', '{app}: buy labels, within the limits you set', { app });
+    case 'cancel':
+      return t('roles:apps.shippingCancel', '{app}: ask for a label’s refund', { app });
+    case 'customs':
+      return t('roles:apps.shippingCustoms', '{app}: declare customs', { app });
+  }
+}
+
 /** A failed save in the reader's words when the server refused it for reaching above them. */
 function failureText(error: Error): string {
   return isRoleRefusal(error)
@@ -288,6 +303,11 @@ export function RolesPage(): ReactNode {
             : t('roles:apps.one', 'Open {app}’s staff screens', { app: row.app.label }),
         category: appCategory,
       })),
+      ...appShippingRows(catalog.shippingApps ?? [], baseline).map((row) => ({
+        key: row.key,
+        label: shippingRightLabel(row.right, row.app),
+        category: appCategory,
+      })),
       ...matrixRows(catalogPermissions(catalog), permissionLabel, (entry) => categoryLabel(entry.category)),
     ];
   }, [catalog, installedApps, baseline, words]);
@@ -320,7 +340,9 @@ export function RolesPage(): ReactNode {
       // partial failure has to leave the earlier roles saved and say so rather
       // than resolving a race in an unspecified order.
       for (const roleId of roleIds) {
-        await putRoleGrants(roleId, grants[roleId] ?? []);
+        // The whole list is replaced, so what the matrix does not draw goes back with it.
+        const stored = grantQueries[editableRoles.findIndex((role) => role.id === roleId)]?.data ?? [];
+        await putRoleGrants(roleId, grantsToSave(grants[roleId] ?? [], stored));
       }
     },
     onSuccess: async () => {

@@ -6263,6 +6263,7 @@ export default {
       "inUse": "Denne nøgle kan ikke ændres, så længe en booking med den ikke har et endeligt svar.",
       "inUseMore": "og {count} flere",
       "inUseOrders": "Ordrer:",
+      "inUseUnnamed": "{count, plural, one {# booking holder den, på en ordre du ikke kan åbne her.} other {# bookinger holder den, på ordrer du ikke kan åbne her.}}",
       "keep": "Behold den nuværende nøgle",
       "label": "{carrier}-API-nøgle",
       "replace": "Erstat",

@@ -6253,6 +6253,7 @@
       "inUse": "在使用此密钥的预约还没有最终结果之前，密钥不能更换。",
       "inUseMore": "另有 {count} 个",
       "inUseOrders": "订单：",
+      "inUseUnnamed": "{count, plural, other {有 # 个预约正在占用它，所在订单你无法在此打开。}}",
       "keep": "保留当前密钥",
       "label": "{carrier} API 密钥",
       "replace": "替换",
