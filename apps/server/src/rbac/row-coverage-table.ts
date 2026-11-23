@@ -517,6 +517,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'PUT /api/v1/apps/:key/shipping/label-size': noRows('The label size a shop asks carriers for, kept in meta.'),
   'POST /api/v1/apps/:key/shipping/bookings/:id/refresh': rows('visible', 'Asks the carrier about one parcel only for an order its reader reaches (a row their row limit hides is not there).'),
   'POST /api/v1/apps/:key/shipping/tracking/refresh': rows('visible', 'Refreshes only the open parcels whose orders this person reaches, and counts only those.'),
+  'GET /api/v1/apps/:key/shipping/attention': rows('visible', 'Lists the labels that need a person, only on orders this person reaches: a row their row limit hides is neither listed nor counted.'),
   'GET /api/v1/apps/:key/shipping/carriers/:carrier/tracking': noRows("A carrier's webhook health and the age of its parcels, kept in meta, for people who manage shipping."),
   'POST /api/v1/apps/:key/shipping/carriers/:carrier/webhook': noRows("Makes a carrier's webhook address, whose token is kept hashed in meta."),
   'PUT /api/v1/apps/:key/shipping/carriers/:carrier/polling': noRows('The switch for background tracking, kept in meta and refused while it is locked.'),

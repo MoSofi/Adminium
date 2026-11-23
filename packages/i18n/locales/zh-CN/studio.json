@@ -872,6 +872,13 @@
       "refundGrants": {
         "title": "谁可以退还在线付款",
         "body": "这些角色可以退还客户为此应用的记录在线支付的款项。取消勾选不应拥有此权限的角色。"
+      },
+      "shippingGrants": {
+        "title": "谁可以处理运单标签",
+        "body": "这些角色可以对此应用的运单标签执行以下操作。取消勾选角色不该做的操作。",
+        "book": "在你设定的限额内购买标签",
+        "cancel": "申请退还标签费用",
+        "customs": "申报海关"
       }
     },
     "installed": {
@@ -2944,6 +2951,11 @@
       "wrongPassword": "这不是你的密码。",
       "lockedRefused": "服务器运营方已锁定此项。",
       "failed": "无法更改此开关，请重试。"
+    },
+    "shippingCard": {
+      "body": "选择每个应用使用的承运商，连接它的密钥，并设置标签尺寸以及谁可以购买标签。",
+      "cta": "打开发货设置",
+      "heading": "发货"
     }
   },
   "source": {
@@ -5835,6 +5847,7 @@
       "notFinished": "未完成",
       "on": "它们在 {server} 上。",
       "onDatabase": "在 {database} 上",
+      "shippingWithheld": "未向以下角色授予发货权限：{roles}。你可以在“角色”页面授予。",
       "openWorkspace": "打开工作区",
       "rest": "安装其余应用",
       "stoppedPartWay": "已安装 {done}/{total}。{app} 中途停止。没有删除任何内容，“安装其余应用”会从停止的位置继续。",
@@ -6162,5 +6175,248 @@
     "reason": "原因：{reason}",
     "reply": "如有误，请回复运营方的邮件。",
     "chip": "已隐藏"
+  },
+  "shipping": {
+    "back": "返回“发货方式”",
+    "carrier": {
+      "demoName": "{name}（演示）"
+    },
+    "carrierGone": "此承运商已不再关联到这个应用。",
+    "check": {
+      "again": "再次检查",
+      "bad": "{carrier} 不接受这个密钥。",
+      "badBody": "请重新从 Shippo 的 API 设置中复制密钥，前后不要带任何字符。如果密钥已在 Shippo 中删除，请新建一个并粘贴到这里。",
+      "badBodyOther": "请重新复制密钥，前后不要带任何字符，然后粘贴到这里。",
+      "busy": "正在检查…",
+      "button": "检查连接",
+      "goLive": "切换到正式环境",
+      "live": "正式密钥。以下承运商可为 {country} 提供服务：{list}。",
+      "liveActive": "有权购买标签的员工现在可以在订单上获取运费了。",
+      "liveChoose": "密钥可用。要使用它，请在“发货方式”下选择 {carrier}。",
+      "liveNoCountry": "正式密钥。以下承运商有回应：{list}。",
+      "nextStep": "下一步",
+      "noAnswer": "{carrier} 没有回应。请重试。",
+      "noAnswerBody": "这与你的密钥无关。密钥保持原样。",
+      "none": "此账户在 {carrier} 中没有适用于 {country} 的承运商。请在 {carrier} 中连接你自己的承运商账户，然后再次检查。",
+      "noneNoCountry": "此账户在 {carrier} 中没有任何承运商。请在 {carrier} 中连接你自己的承运商账户，然后再次检查。",
+      "pasteNew": "粘贴新密钥",
+      "replaceLive": "替换为正式密钥",
+      "saveFirst": "请先保存密钥。",
+      "testBody": "用它购买的标签只是样张。任何运单号都不会进入订单或到达顾客手中。以下承运商在测试中可为 {country} 提供服务：{list}。",
+      "testBodyNoCountry": "用它购买的标签只是样张。任何运单号都不会进入订单或到达顾客手中。以下承运商在测试中有回应：{list}。",
+      "testTitle": "测试密钥。不会送出任何东西",
+      "useCarrier": "使用 {carrier} 发货"
+    },
+    "close": "关闭",
+    "disclosure": "标签在你的 Shippo 账户上购买，费用向你收取。顾客姓名、地址，以及在承运商需要时的电话号码，会发送给 Shippo 和承运商。",
+    "disclosureOther": "标签在你的 {carrier} 账户上购买，费用向你收取。顾客姓名、地址，以及在承运商需要时的电话号码，会发送给 {carrier} 和承运商。",
+    "error": {
+      "generic": "没有成功。请重试。",
+      "keyFields": "这个密钥由其他字段组成。请刷新页面后重试。",
+      "keyRefused": "{carrier} 不接受这个密钥。没有保存任何内容。",
+      "locked": "{carrier} 目前以演示方式运行，因此不需要密钥。",
+      "networkOff": "此服务器设置为不联网运行，所以无法询问任何承运商。",
+      "noAnswer": "{carrier} 没有回应。没有任何改动。请重试。",
+      "noKey": "请先保存 {carrier} 密钥。",
+      "noWebhook": "{carrier} 不会通过 webhook 发送物流跟踪更新。",
+      "notChecked": "请先检查与 {carrier} 的连接。",
+      "notInstalled": "{carrier} 已不再关联到这个应用。",
+      "notLoaded": "{carrier} 无法在这台服务器上加载。",
+      "serverWide": "{carrier} 由整个服务器统一管理，因此单个店铺不需要密钥。",
+      "switchedOff": "{carrier} 对此应用已关闭。",
+      "noPublicAddress": "这台服务器需要一个公网 https 地址，{carrier} 才能调用它。现有地址仍然有效。"
+    },
+    "gate": {
+      "body": "请让运营这台服务器的人授予你“设置发货”权限。",
+      "title": "你需要权限才能管理发货"
+    },
+    "goLive": {
+      "step1": "在 Shippo 中打开“设置”，然后打开 API。",
+      "step2": "复制正式密钥。它以 shippo_live_ 开头。",
+      "step3": "点击下方的“替换为正式密钥”并粘贴。",
+      "step4": "再次检查连接。"
+    },
+    "guide": {
+      "events": "为 {first}、{second} 和 {third} 这几个事件分别添加一个 webhook，模式与你的密钥相同。",
+      "eventsLive": "为 {first}、{second} 和 {third} 这几个事件分别添加一个 webhook，并选择 Live。",
+      "eventsTest": "为 {first}、{second} 和 {third} 这几个事件分别添加一个 webhook，并选择 Test。",
+      "heading": "粘贴到 {carrier}",
+      "moved": "如果这台服务器的公网地址变了，请生成新地址并重新粘贴。",
+      "open": "在 Shippo 中打开“设置”，然后打开 Webhooks。",
+      "paste": "粘贴上面的地址并保存。"
+    },
+    "intro": "{shop} 订单所用的标签，在店铺自己的 Shippo 账户上购买。Adminium 不持有任何账户，也不收取任何款项。",
+    "introPlain": "你订单所用的标签，在你自己的承运商账户上购买。Adminium 不持有任何账户，也不收取任何款项。",
+    "key": {
+      "empty": "请粘贴你的 {carrier} 密钥。",
+      "hint": "保存后只显示最后四个字符。",
+      "inUse": "在使用此密钥的预约还没有最终结果之前，密钥不能更换。",
+      "inUseMore": "另有 {count} 个",
+      "inUseOrders": "订单：",
+      "keep": "保留当前密钥",
+      "label": "{carrier} API 密钥",
+      "replace": "替换",
+      "save": "保存密钥",
+      "saving": "正在向 {carrier} 检查…",
+      "shape": "这看起来不像 Shippo 密钥。它们以 shippo_live_ 或 shippo_test_ 开头。保存时由 Shippo 判定。",
+      "tryAgain": "重试"
+    },
+    "limits": {
+      "aDay": "张，所有打包员合计。",
+      "bought": "所有打包员合计已购买",
+      "cancel": "取消",
+      "count": "{used} / {limit}",
+      "currencyError": "请输入三个字母的货币代码，例如 EUR。",
+      "currencyLabel": "限额所用货币",
+      "daily": "所有打包员合计每天最多可购买的标签数",
+      "dayError": "请输入所有打包员合计每天可购买的标签数，至少为 1。",
+      "each": "，每天最多",
+      "heading": "谁可以购买标签",
+      "meter": "今天所有打包员合计已购买的标签",
+      "none": "打包员目前还不能购买标签。由你来预约。",
+      "open": "允许打包员购买标签",
+      "perError": "请输入打包员单张标签最多可花费的金额，须大于零。",
+      "perLabel": "打包员单张标签最多可花费的金额",
+      "save": "保存限额",
+      "saved": "限额已保存。",
+      "stop": "停止打包员购买标签",
+      "stopped": "打包员现在不能购买标签。由你来预约。",
+      "subtitle": "你随时可以购买标签。打包员只能在这些限额内购买。",
+      "today": "今天：",
+      "upTo": "打包员可购买标签，每张不超过"
+    },
+    "line": {
+      "demo": "不预约任何真实标签。运单号由你自己填写。",
+      "live": "已连接 · 正式密钥",
+      "none": "请先添加 {carrier} 密钥，才能用它发货。",
+      "off": "对此应用已关闭。",
+      "refused": "{carrier} 不接受这个密钥。请粘贴新密钥后才能用它发货。",
+      "test": "已连接 · 测试密钥",
+      "unchecked": "密钥已保存。请先检查连接，才能用它发货。"
+    },
+    "link": {
+      "api": "Shippo API 设置",
+      "billing": "Shippo 账单设置",
+      "carriers": "Shippo 中的承运商账户",
+      "dhlSite": "DHL 官方网站",
+      "newTab": "（在新标签页中打开）",
+      "open": "打开 Shippo",
+      "webhooks": "Shippo webhook 设置"
+    },
+    "loadFailed": "无法加载发货设置",
+    "loadFailedApp": "无法加载 {app}",
+    "locked": {
+      "sentence": "目前还不能进行真实的 DHL 预约。这个插件只是演示。要现在发货，请使用 Shippo，或到 DHL 官方网站预约后填写运单号。",
+      "subtitle": "演示插件。不预约任何真实标签。",
+      "useShippo": "使用 Shippo 发货"
+    },
+    "noApps": "这里还没有应用在发货。请为某个应用关联发货插件，然后在这里设置。",
+    "notAffiliated": "Adminium 与 Shippo 及所显示的任何承运商均无关联。",
+    "other": {
+      "body": "从现在起购买的标签将向新账户收费。已购买的标签仍在旧账户上，这个密钥无法访问它们。",
+      "confirm": "使用新账户",
+      "current": "当前使用的密钥末尾为",
+      "kept": "目前还没有任何改动。在你确认之前，当前密钥继续有效。",
+      "title": "这个密钥属于另一个 {carrier} 账户"
+    },
+    "parcels": {
+      "never": "从未检查",
+      "noCheck": "暂无",
+      "oldest": "最早的检查",
+      "open": "未完成包裹",
+      "quiet": "已 7 天没有动静"
+    },
+    "picker": "应用",
+    "preview": {
+      "addTracking": "添加运单号",
+      "demo": "仅为演示。请到 DHL 官方网站预约，然后在这里填写运单号。",
+      "getRates": "获取运费",
+      "heading": "在 {app} 中的显示效果",
+      "real": "员工从 {carrier} 返回的运费中选择，然后点击“预约这张标签”。"
+    },
+    "shipWith": {
+      "active": "使用 {name} 发货",
+      "connection": "连接",
+      "group": "发货方式",
+      "noneActive": "未选择承运商",
+      "subtitle": "选择这个应用用哪个插件购买标签。同一时间只有一个生效。",
+      "whyDemo": "为什么是演示"
+    },
+    "shippo": {
+      "subtitle": "多家承运商的标签，使用你自己的 Shippo 账户"
+    },
+    "size": {
+      "a4Line": "办公室的喷墨和激光打印机，使用普通 A4 纸。",
+      "a6Line": "桌面标签打印机和 A6 不干胶标签。",
+      "fourBySix": "4×6 英寸",
+      "fourBySixLine": "使用 4 × 6 英寸卷纸或叠纸的热敏标签打印机。",
+      "heading": "标签尺寸",
+      "saved": "标签尺寸已保存。",
+      "subtitle": "Adminium 向承运商请求的尺寸。承运商可能返回其他尺寸，预约中会注明。",
+      "which": "各尺寸适合哪些打印机"
+    },
+    "state": {
+      "demo": "演示",
+      "live": "已连接",
+      "none": "未连接",
+      "off": "已关闭",
+      "refused": "未被接受",
+      "test": "测试密钥",
+      "unchecked": "未检查"
+    },
+    "step": {
+      "account": "创建你的 Shippo 账户",
+      "accountBody": "用店铺自己的邮箱在 Shippo 网站注册。账户属于店铺，而不是 Adminium。",
+      "check": "检查连接",
+      "checkBody": "Adminium 会向 Shippo 询问哪些承运商可为 {country} 提供服务。",
+      "checkBodyNoCountry": "Adminium 会向 Shippo 询问哪些承运商可为这家店铺提供服务。",
+      "done": "完成",
+      "heading": "设置清单",
+      "key": "创建 API 密钥并粘贴到这里",
+      "keyBody": "在 Shippo 中打开“设置”，再打开 API，创建一个正式密钥。复制后粘贴到下方。",
+      "known": "这里已确认 {done} / {total}",
+      "payment": "在 Shippo 中添加付款方式",
+      "paymentBody": "你每购买一张标签，Shippo 都会从这张卡或银行账户扣款。承运商之后可能追加费用，例如包裹更重时。",
+      "word": "第 {n} 步"
+    },
+    "tab": {
+      "labels": "标签尺寸",
+      "people": "谁可以购买标签",
+      "setup": "设置",
+      "tracking": "物流跟踪"
+    },
+    "test": {
+      "apps": "使用测试密钥的应用：{apps}",
+      "body": "标签上印有 SAMPLE。任何单号都不会进入订单或到达顾客手中。",
+      "title": "测试模式：不会送出任何东西"
+    },
+    "title": "发货",
+    "tracking": {
+      "address": "Webhook 地址",
+      "confirmBody": "旧地址会立即失效。在你把新地址粘贴到 {carrier} 之前，更新会停止。",
+      "confirmTitle": "生成新地址吗？",
+      "copied": "已复制",
+      "copy": "复制",
+      "copyFailed": "无法复制。请选中地址后手动复制。",
+      "copyLabel": "复制 webhook 地址",
+      "goTo": "打开物流跟踪",
+      "goneBody": "请生成新地址，然后粘贴到 {carrier}。在此之前，只有有人点击“刷新”时物流跟踪才会变化。",
+      "goneTitle": "密钥更换后，webhook 地址已失效",
+      "heading": "物流跟踪更新",
+      "last": "最近一次收到的更新：",
+      "make": "生成地址",
+      "makeNew": "生成新地址",
+      "never": "还没有收到任何更新。请检查地址是否已保存在 {carrier} 中。",
+      "noCarrier": "演示承运商不会发送更新。运单号由你在订单上填写。",
+      "noCarrierSubtitle": "这里没有任何承运商会发送物流跟踪更新。",
+      "notSet": "未设置",
+      "once": "请现在复制。完整地址只会显示这一次。",
+      "private": "这台服务器无法接收更新。有人点击“刷新”时，物流跟踪才会变化。",
+      "privateSubtitle": "有人点击“刷新”时，物流跟踪才会更新。",
+      "receiving": "正在接收",
+      "refreshOnly": "仅手动刷新",
+      "subtitle": "{carrier} 会把承运商的每次扫描发送到这台服务器。",
+      "waiting": "等待中"
+    }
   }
 }

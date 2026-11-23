@@ -260,6 +260,17 @@ export function shippingBookingsRepo(meta: MetaDb) {
       return row === undefined ? null : toBooking(row);
     },
 
+    /** These bookings, in the order asked for. One that is gone is left out. */
+    async byIds(ids: readonly string[]): Promise<ShippingBooking[]> {
+      if (ids.length === 0) return [];
+      const rows = await db.selectFrom('adminium_shipping_bookings').selectAll().where('id', 'in', [...ids]).execute();
+      const found = new Map(rows.map((row) => [row.id, row]));
+      return ids.flatMap((id) => {
+        const row = found.get(id);
+        return row === undefined ? [] : [toBooking(row)];
+      });
+    },
+
     /** The live booking holding this slot, if any. */
     async open(slot: ShippingBookingSlot, mode: ShippingKeyMode): Promise<ShippingBooking | null> {
       const row = await db.selectFrom('adminium_shipping_bookings').selectAll().where('openKey', '=', shippingOpenKey(slot, mode)).executeTakeFirst();

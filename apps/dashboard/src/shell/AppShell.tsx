@@ -362,6 +362,7 @@ export function AppShell() {
             onOpenStudio={() => void navigate({ to: '/studio' })}
             onOpenStudioSettings={() => void navigate({ to: '/studio/settings' })}
             onOpenPayments={() => void navigate({ to: '/studio/payments' })}
+            onOpenShipping={() => void navigate({ to: '/studio/shipping' })}
             onOpenHelp={() => void navigate({ to: '/help' })}
             onOpenChangelog={() => void navigate({ to: '/changelog' })}
           />

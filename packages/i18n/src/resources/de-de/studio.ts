@@ -882,6 +882,13 @@ export default {
       "refundGrants": {
         "title": "Wer Online-Zahlungen erstatten darf",
         "body": "Diese Rollen dürfen Geld zurückgeben, das Kunden online für Datensätze dieser App bezahlt haben. Entfernen Sie den Haken bei einer Rolle, die das nicht darf."
+      },
+      "shippingGrants": {
+        "title": "Wer Versandetiketten bearbeiten darf",
+        "body": "Diese Rollen dürfen Folgendes mit den Versandetiketten dieser App tun. Entfernen Sie das Häkchen bei allem, was eine Rolle nicht tun soll.",
+        "book": "Etiketten kaufen, innerhalb der von Ihnen festgelegten Grenzen",
+        "cancel": "Die Erstattung eines Etiketts beantragen",
+        "customs": "Zoll deklarieren"
       }
     },
     "installed": {
@@ -2954,6 +2961,11 @@ export default {
       "wrongPassword": "Das ist nicht Ihr Passwort.",
       "lockedRefused": "Der Betreiber des Servers hat dies gesperrt.",
       "failed": "Der Schalter konnte nicht geändert werden. Versuchen Sie es erneut."
+    },
+    "shippingCard": {
+      "body": "Wählen Sie den Versanddienstleister, mit dem jede App versendet, verbinden Sie seinen Schlüssel und legen Sie die Etikettengröße fest und wer Etiketten kaufen darf.",
+      "cta": "Versand öffnen",
+      "heading": "Versand"
     }
   },
   "source": {
@@ -5845,6 +5857,7 @@ export default {
       "notFinished": "nicht fertig",
       "on": "Sie sind auf {server}.",
       "onDatabase": "auf {database}",
+      "shippingWithheld": "Versandrechte wurden nicht vergeben an: {roles}. Du kannst sie auf der Seite „Rollen“ vergeben.",
       "openWorkspace": "Arbeitsbereich öffnen",
       "rest": "Den Rest installieren",
       "stoppedPartWay": "{done} von {total} installiert. {app} wurde mittendrin abgebrochen. Nichts wurde entfernt, und „Den Rest installieren“ macht dort weiter, wo es angehalten hat.",
@@ -6172,5 +6185,248 @@ export default {
     "reason": "Grund: {reason}",
     "reply": "Antworten Sie auf die E-Mail des Betreibers, falls es sich um einen Irrtum handelt.",
     "chip": "Ausgeblendet"
+  },
+  "shipping": {
+    "back": "Zurück zu Versenden mit",
+    "carrier": {
+      "demoName": "{name} (Demo)"
+    },
+    "carrierGone": "Dieser Versanddienstleister ist dieser App nicht mehr zugeordnet.",
+    "check": {
+      "again": "Erneut prüfen",
+      "bad": "{carrier} hat diesen Schlüssel nicht akzeptiert.",
+      "badBody": "Kopieren Sie den Schlüssel erneut aus den API-Einstellungen von Shippo, ohne Zeichen davor oder danach. Wurde der Schlüssel in Shippo gelöscht, erstellen Sie einen neuen und fügen Sie ihn hier ein.",
+      "badBodyOther": "Kopieren Sie den Schlüssel erneut, ohne Zeichen davor oder danach, und fügen Sie ihn hier ein.",
+      "busy": "Wird geprüft…",
+      "button": "Verbindung prüfen",
+      "goLive": "Live schalten",
+      "live": "Live-Schlüssel. Diese Versanddienstleister antworten für {country}: {list}.",
+      "liveActive": "Mitarbeitende, die Etiketten kaufen dürfen, können jetzt bei Bestellungen Preise abrufen.",
+      "liveChoose": "Der Schlüssel funktioniert. Wählen Sie unter Versenden mit {carrier}, um ihn zu nutzen.",
+      "liveNoCountry": "Live-Schlüssel. Diese Versanddienstleister antworten: {list}.",
+      "nextStep": "Nächster Schritt",
+      "noAnswer": "{carrier} hat nicht geantwortet. Versuchen Sie es erneut.",
+      "noAnswerBody": "Das sagt nichts über Ihren Schlüssel aus. Er bleibt, wie er war.",
+      "none": "{carrier} hat für {country} bei diesem Konto keinen Versanddienstleister. Verbinden Sie Ihr eigenes Versanddienstleister-Konto in {carrier} und prüfen Sie dann erneut.",
+      "noneNoCountry": "{carrier} hat bei diesem Konto keinen Versanddienstleister. Verbinden Sie Ihr eigenes Versanddienstleister-Konto in {carrier} und prüfen Sie dann erneut.",
+      "pasteNew": "Neuen Schlüssel einfügen",
+      "replaceLive": "Durch einen Live-Schlüssel ersetzen",
+      "saveFirst": "Speichern Sie zuerst einen Schlüssel.",
+      "testBody": "Damit gekaufte Etiketten sind Muster. Keine Sendungsnummer erreicht eine Bestellung oder einen Kunden. Diese Versanddienstleister antworten im Test für {country}: {list}.",
+      "testBodyNoCountry": "Damit gekaufte Etiketten sind Muster. Keine Sendungsnummer erreicht eine Bestellung oder einen Kunden. Diese Versanddienstleister antworten im Test: {list}.",
+      "testTitle": "Testschlüssel. Es wird nichts zugestellt",
+      "useCarrier": "Mit {carrier} versenden"
+    },
+    "close": "Schließen",
+    "disclosure": "Etiketten werden über Ihr Shippo-Konto gekauft und Ihnen in Rechnung gestellt. Namen und Adressen der Kundschaft und, wenn ein Versanddienstleister sie verlangt, Telefonnummern werden an Shippo und den Versanddienstleister übermittelt.",
+    "disclosureOther": "Etiketten werden über Ihr {carrier}-Konto gekauft und Ihnen in Rechnung gestellt. Namen und Adressen der Kundschaft und, wenn ein Versanddienstleister sie verlangt, Telefonnummern werden an {carrier} und den Versanddienstleister übermittelt.",
+    "error": {
+      "generic": "Das hat nicht funktioniert. Versuchen Sie es erneut.",
+      "keyFields": "Dieser Schlüssel besteht aus anderen Feldern. Laden Sie die Seite neu und versuchen Sie es erneut.",
+      "keyRefused": "{carrier} hat diesen Schlüssel nicht akzeptiert. Es wurde nichts gespeichert.",
+      "locked": "{carrier} läuft vorerst als Demo und nimmt daher keinen Schlüssel an.",
+      "networkOff": "Dieser Server ist so eingestellt, dass er ohne Internet arbeitet, daher kann kein Versanddienstleister angefragt werden.",
+      "noAnswer": "{carrier} hat nicht geantwortet. Es wurde nichts geändert. Versuchen Sie es erneut.",
+      "noKey": "Speichern Sie zuerst einen {carrier}-Schlüssel.",
+      "noWebhook": "{carrier} sendet keine Sendungsverfolgungs-Aktualisierungen an einen Webhook.",
+      "notChecked": "Prüfen Sie zuerst die {carrier}-Verbindung.",
+      "notInstalled": "{carrier} ist dieser App nicht mehr zugeordnet.",
+      "notLoaded": "{carrier} konnte auf diesem Server nicht geladen werden.",
+      "serverWide": "{carrier} wird für den ganzen Server geführt und nimmt daher keinen Schlüssel für einen einzelnen Shop an.",
+      "switchedOff": "{carrier} ist für diese App ausgeschaltet.",
+      "noPublicAddress": "Dieser Server braucht eine öffentliche https-Adresse, bevor {carrier} ihn aufrufen kann. Die bisherige Adresse funktioniert weiter."
+    },
+    "gate": {
+      "body": "Bitten Sie die Person, die diesen Server betreibt, Ihnen die Berechtigung „Versand einrichten“ zu geben.",
+      "title": "Sie brauchen eine Berechtigung, um den Versand zu verwalten"
+    },
+    "goLive": {
+      "step1": "Öffnen Sie in Shippo die Einstellungen, dann API.",
+      "step2": "Kopieren Sie den Live-Schlüssel. Er beginnt mit shippo_live_.",
+      "step3": "Drücken Sie unten auf Durch einen Live-Schlüssel ersetzen und fügen Sie ihn ein.",
+      "step4": "Prüfen Sie die Verbindung erneut."
+    },
+    "guide": {
+      "events": "Fügen Sie für jedes der Ereignisse {first}, {second} und {third} einen Webhook hinzu, im selben Modus wie Ihr Schlüssel.",
+      "eventsLive": "Fügen Sie für jedes der Ereignisse {first}, {second} und {third} einen Webhook hinzu und wählen Sie Live.",
+      "eventsTest": "Fügen Sie für jedes der Ereignisse {first}, {second} und {third} einen Webhook hinzu und wählen Sie Test.",
+      "heading": "In {carrier} einfügen",
+      "moved": "Wenn sich die öffentliche Adresse dieses Servers ändert, erstellen Sie eine neue Adresse und fügen Sie sie erneut ein.",
+      "open": "Öffnen Sie in Shippo die Einstellungen, dann Webhooks.",
+      "paste": "Fügen Sie die Adresse von oben ein und speichern Sie."
+    },
+    "intro": "Etiketten für die Bestellungen von {shop}, gekauft über das eigene Shippo-Konto des Geschäfts. Adminium führt kein Konto und nimmt kein Geld ein.",
+    "introPlain": "Etiketten für Ihre Bestellungen, gekauft über Ihr eigenes Versanddienstleister-Konto. Adminium führt kein Konto und nimmt kein Geld ein.",
+    "key": {
+      "empty": "Fügen Sie Ihren {carrier}-Schlüssel ein.",
+      "hint": "Nach dem Speichern werden nur die letzten vier Zeichen angezeigt.",
+      "inUse": "Dieser Schlüssel kann sich nicht ändern, solange eine Buchung damit noch keine endgültige Antwort hat.",
+      "inUseMore": "und {count} weitere",
+      "inUseOrders": "Bestellungen:",
+      "keep": "Aktuellen Schlüssel behalten",
+      "label": "{carrier}-API-Schlüssel",
+      "replace": "Ersetzen",
+      "save": "Schlüssel speichern",
+      "saving": "Prüfung bei {carrier}…",
+      "shape": "Das sieht nicht nach einem Shippo-Schlüssel aus. Er beginnt mit shippo_live_ oder shippo_test_. Shippo entscheidet beim Speichern.",
+      "tryAgain": "Erneut versuchen"
+    },
+    "limits": {
+      "aDay": "pro Tag, alle Packer zusammen.",
+      "bought": "von allen Packern zusammen gekauft",
+      "cancel": "Abbrechen",
+      "count": "{used} von {limit}",
+      "currencyError": "Geben Sie den dreistelligen Währungscode ein, zum Beispiel EUR.",
+      "currencyLabel": "Währung der Grenze",
+      "daily": "Höchstzahl an Etiketten, die alle Packer zusammen pro Tag kaufen dürfen",
+      "dayError": "Geben Sie ein, wie viele Etiketten alle Packer zusammen pro Tag kaufen dürfen, mindestens 1.",
+      "each": "pro Stück, und",
+      "heading": "Wer Etiketten kaufen darf",
+      "meter": "Heute von allen Packern zusammen gekaufte Etiketten",
+      "none": "Packer können noch keine Etiketten kaufen. Sie buchen sie selbst.",
+      "open": "Packern den Etikettenkauf erlauben",
+      "perError": "Geben Sie den Höchstbetrag ein, den ein Packer für ein Etikett ausgeben darf, größer als null.",
+      "perLabel": "Höchstbetrag, den ein Packer für ein Etikett ausgeben darf",
+      "save": "Grenzen speichern",
+      "saved": "Grenzen gespeichert.",
+      "stop": "Packern den Etikettenkauf entziehen",
+      "stopped": "Packer können jetzt keine Etiketten kaufen. Sie buchen sie selbst.",
+      "subtitle": "Sie können jederzeit Etiketten kaufen. Packer kaufen nur innerhalb dieser Grenzen.",
+      "today": "Heute:",
+      "upTo": "Packer dürfen Etiketten kaufen bis zu"
+    },
+    "line": {
+      "demo": "Bucht keine echten Etiketten. Sie tippen die Sendungsnummer selbst ein.",
+      "live": "Verbunden · Live-Schlüssel",
+      "none": "Fügen Sie einen {carrier}-Schlüssel hinzu, bevor Sie damit versenden können.",
+      "off": "Für diese App ausgeschaltet.",
+      "refused": "{carrier} hat diesen Schlüssel nicht akzeptiert. Fügen Sie einen neuen ein, bevor Sie damit versenden können.",
+      "test": "Verbunden · Testschlüssel",
+      "unchecked": "Schlüssel gespeichert. Prüfen Sie die Verbindung, bevor Sie damit versenden können."
+    },
+    "link": {
+      "api": "API-Einstellungen in Shippo",
+      "billing": "Abrechnungseinstellungen in Shippo",
+      "carriers": "Versanddienstleister-Konten in Shippo",
+      "dhlSite": "Eigene Website von DHL",
+      "newTab": "(öffnet in einem neuen Tab)",
+      "open": "Shippo öffnen",
+      "webhooks": "Webhook-Einstellungen in Shippo"
+    },
+    "loadFailed": "Der Versand konnte nicht geladen werden",
+    "loadFailedApp": "{app} konnte nicht geladen werden",
+    "locked": {
+      "sentence": "Echte DHL-Buchungen sind noch nicht verfügbar. Dieses Add-on ist eine Demo. Um jetzt zu versenden, nutzen Sie Shippo, oder buchen Sie auf der eigenen Website von DHL und tippen Sie die Sendungsnummer ein.",
+      "subtitle": "Demo-Add-on. Bucht keine echten Etiketten.",
+      "useShippo": "Mit Shippo versenden"
+    },
+    "noApps": "Noch keine App versendet hier. Ordnen Sie einer App ein Versand-Add-on zu und richten Sie es dann hier ein.",
+    "notAffiliated": "Adminium steht in keiner Verbindung zu Shippo oder zu einem der gezeigten Versanddienstleister.",
+    "other": {
+      "body": "Ab jetzt gekaufte Etiketten werden dem neuen Konto in Rechnung gestellt. Bereits gekaufte Etiketten bleiben beim alten Konto, und dieser Schlüssel kommt nicht an sie heran.",
+      "confirm": "Das neue Konto verwenden",
+      "current": "Der aktuell verwendete Schlüssel endet auf",
+      "kept": "Noch hat sich nichts geändert. Der aktuelle Schlüssel bleibt gültig, bis Sie bestätigen.",
+      "title": "Dieser Schlüssel öffnet ein anderes {carrier}-Konto"
+    },
+    "parcels": {
+      "never": "Nie geprüft",
+      "noCheck": "Noch keine",
+      "oldest": "Älteste Prüfung",
+      "open": "Offene Pakete",
+      "quiet": "7 Tage ohne Bewegung"
+    },
+    "picker": "App auswählen",
+    "preview": {
+      "addTracking": "Sendungsnummer hinzufügen",
+      "demo": "Nur Demo. Buchen Sie auf der eigenen Website von DHL und tippen Sie dann die Sendungsnummer hier ein.",
+      "getRates": "Preise abrufen",
+      "heading": "So erscheint es in {app}",
+      "real": "Mitarbeitende wählen aus den Preisen, die {carrier} zurückgibt, und drücken dann auf Dieses Etikett buchen."
+    },
+    "shipWith": {
+      "active": "Versendet mit {name}",
+      "connection": "Verbindung",
+      "group": "Versenden mit",
+      "noneActive": "Kein Versanddienstleister gewählt",
+      "subtitle": "Wählen Sie, mit welchem Add-on diese App Etiketten kauft. Es ist immer genau eines aktiv.",
+      "whyDemo": "Warum es eine Demo ist"
+    },
+    "shippo": {
+      "subtitle": "Etiketten vieler Versanddienstleister, über Ihr eigenes Shippo-Konto"
+    },
+    "size": {
+      "a4Line": "Tintenstrahl- und Laserdrucker im Büro, auf normalem A4-Papier.",
+      "a6Line": "Etikettendrucker für den Schreibtisch und selbstklebende A6-Etiketten.",
+      "fourBySix": "4×6 Zoll",
+      "fourBySixLine": "Thermo-Etikettendrucker für Rollen oder Stapel im Format 4 × 6 Zoll.",
+      "heading": "Etikettengröße",
+      "saved": "Etikettengröße gespeichert.",
+      "subtitle": "Die Größe, die Adminium beim Versanddienstleister anfragt. Ein Versanddienstleister kann eine andere Größe liefern, und die Buchung weist darauf hin.",
+      "which": "Welche Drucker zu welcher Größe passen"
+    },
+    "state": {
+      "demo": "Demo-Modus",
+      "live": "Verbunden",
+      "none": "Nicht verbunden",
+      "off": "Ausgeschaltet",
+      "refused": "Nicht akzeptiert",
+      "test": "Testschlüssel",
+      "unchecked": "Nicht geprüft"
+    },
+    "step": {
+      "account": "Shippo-Konto anlegen",
+      "accountBody": "Registrieren Sie sich auf der Website von Shippo mit der eigenen E-Mail-Adresse des Geschäfts. Das Konto gehört dem Geschäft, nicht Adminium.",
+      "check": "Verbindung prüfen",
+      "checkBody": "Adminium fragt bei Shippo nach, welche Versanddienstleister für {country} antworten.",
+      "checkBodyNoCountry": "Adminium fragt bei Shippo nach, welche Versanddienstleister für diesen Shop antworten.",
+      "done": "Erledigt",
+      "heading": "Einrichtungs-Checkliste",
+      "key": "API-Schlüssel erstellen und hier einfügen",
+      "keyBody": "Öffnen Sie in Shippo die Einstellungen, dann API, und erstellen Sie einen Live-Schlüssel. Kopieren Sie ihn und fügen Sie ihn unten ein.",
+      "known": "{done} von {total} hier bestätigt",
+      "payment": "Zahlungsmethode in Shippo hinterlegen",
+      "paymentBody": "Shippo belastet diese Karte oder dieses Bankkonto für jedes gekaufte Etikett. Versanddienstleister können später Gebühren nachberechnen, etwa für ein schwereres Paket.",
+      "word": "Schritt {n}"
+    },
+    "tab": {
+      "labels": "Etikettengröße",
+      "people": "Wer Etiketten kaufen darf",
+      "setup": "Einrichtung",
+      "tracking": "Sendungsverfolgung"
+    },
+    "test": {
+      "apps": "Mit Testschlüssel: {apps}",
+      "body": "Etiketten tragen den Aufdruck SAMPLE. Keine Nummer erreicht eine Bestellung oder einen Kunden.",
+      "title": "Testmodus: Es wird nichts zugestellt"
+    },
+    "title": "Versand",
+    "tracking": {
+      "address": "Webhook-Adresse",
+      "confirmBody": "Die alte Adresse funktioniert sofort nicht mehr. Aktualisierungen bleiben aus, bis Sie die neue in {carrier} einfügen.",
+      "confirmTitle": "Neue Adresse erstellen?",
+      "copied": "Kopiert",
+      "copy": "Kopieren",
+      "copyFailed": "Kopieren nicht möglich. Markieren Sie die Adresse und kopieren Sie sie.",
+      "copyLabel": "Webhook-Adresse kopieren",
+      "goTo": "Sendungsverfolgung öffnen",
+      "goneBody": "Erstellen Sie eine neue Adresse und fügen Sie sie in {carrier} ein. Bis dahin ändert sich die Sendungsverfolgung nur, wenn jemand auf Aktualisieren drückt.",
+      "goneTitle": "Die Webhook-Adresse funktioniert nicht mehr, seit der Schlüssel geändert wurde",
+      "heading": "Sendungsverfolgung",
+      "last": "Letzte Aktualisierung erhalten:",
+      "make": "Adresse erstellen",
+      "makeNew": "Neue Adresse erstellen",
+      "never": "Es ist noch keine Aktualisierung eingetroffen. Prüfen Sie, ob die Adresse in {carrier} gespeichert ist.",
+      "noCarrier": "Ein Demo-Versanddienstleister sendet keine Aktualisierungen. Sie tippen die Sendungsnummer in der Bestellung ein.",
+      "noCarrierSubtitle": "Kein Versanddienstleister hier sendet Sendungsverfolgungs-Aktualisierungen.",
+      "notSet": "Nicht eingerichtet",
+      "once": "Kopieren Sie sie jetzt. Nur dieses eine Mal wird die ganze Adresse angezeigt.",
+      "private": "Dieser Server kann keine Aktualisierungen empfangen. Die Sendungsverfolgung ändert sich, wenn jemand auf Aktualisieren drückt.",
+      "privateSubtitle": "Die Sendungsverfolgung aktualisiert sich, wenn jemand auf Aktualisieren drückt.",
+      "receiving": "Empfängt",
+      "refreshOnly": "Nur Aktualisieren",
+      "subtitle": "{carrier} sendet jeden Scan der Versanddienstleister an diesen Server.",
+      "waiting": "Wartet"
+    }
   }
 } as const;

@@ -317,10 +317,10 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
 
     for (const [key, withBlock] of [['shop', true], ['legacy', false], ['solo', true], ['bare', true], ['gone', true]] as const) {
       await h.stageApp(shopDoc(key, withBlock));
-      const res = await h.install(key, '1.0.0');
+      const res = await h.install(key, '1.0.0', { shippingUnticked: [] });
       expect(res.statusCode, res.body).toBe(200);
     }
-    const onSecond = await h.inject({ method: 'POST', url: '/apps/install', payload: { key: 'shop', version: '1.0.0', connectionId: second.id } });
+    const onSecond = await h.inject({ method: 'POST', url: '/apps/install', payload: { shippingUnticked: [], key: 'shop', version: '1.0.0', connectionId: second.id } });
     expect(onSecond.statusCode, onSecond.body).toBe(200);
 
     for (const install of await repo.list('app')) if (install.row.scopeKey === conn) installs[install.row.manifestKey] = install.row.id;
@@ -1262,7 +1262,7 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
     expect(left).toEqual(['shipping-book/shop']);
     // Put back for the test that uninstalls it.
     await h.stageApp(shopDoc('gone', true));
-    expect((await h.install('gone', '1.0.0')).statusCode).toBe(200);
+    expect((await h.install('gone', '1.0.0', { shippingUnticked: [] })).statusCode).toBe(200);
     installs['gone'] = (await repo.findInScope('gone', conn))!.row.id;
   });
 
@@ -1809,6 +1809,7 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
     await apiKeysRepo(h.meta).create({ name: `book-${String(nextId)}`, tokenHash: token.tokenHash, prefix: token.prefix, roleId: (await rolesRepo(h.meta).findBySlug('super-admin'))!.id, createdBy: ids['boss']! });
     for (const [method, path, payload] of [
       ['GET', 'shop/shipping/bookings', undefined],
+      ['GET', 'shop/shipping/attention', undefined],
       ['POST', 'shop/shipping/bookings', { quoteId: 'shq_x', rateId: 'rate_x' }],
       ['POST', 'shop/shipping/bookings/shb_x/check', undefined],
       ['POST', 'shop/shipping/bookings/shb_x/release', { declaration: 'no-label-exists' }],
@@ -1944,7 +1945,7 @@ describe('a server with network features off', () => {
         ],
       });
       await h.stageApp(shopDoc('shop', true));
-      expect((await h.install('shop', '1.0.0')).statusCode).toBe(200);
+      expect((await h.install('shop', '1.0.0', { shippingUnticked: [] })).statusCode).toBe(200);
       const manifests = manifestsRepo(h.meta, addOnCredentialCryptoFromSecret(TEST_SECRET));
       const app = (await manifests.findInScope('shop', h.connectionId))!;
       const carrier = await manifests.install({ manifestKey: 'carrier-one', version: '1.0.0', kind: 'add-on', source: 'file', document: carrierDoc('carrier-one'), connectionId: h.connectionId, status: 'installed', attachTo: [{ key: 'shop', hostInstall: app.row.id }] });
@@ -1988,7 +1989,7 @@ describe('the door of a key still in use, and the pace of quotes', () => {
         ],
       });
       await h.stageApp(shopDoc('shop', true));
-      expect((await h.install('shop', '1.0.0')).statusCode).toBe(200);
+      expect((await h.install('shop', '1.0.0', { shippingUnticked: [] })).statusCode).toBe(200);
       const manifests = manifestsRepo(h.meta, addOnCredentialCryptoFromSecret(TEST_SECRET));
       const app = (await manifests.findInScope('shop', h.connectionId))!;
       const carrier = await manifests.install({ manifestKey: 'carrier-one', version: '1.0.0', kind: 'add-on', source: 'file', document: carrierDoc('carrier-one'), connectionId: h.connectionId, status: 'installed', attachTo: [{ key: 'shop', hostInstall: app.row.id }] });

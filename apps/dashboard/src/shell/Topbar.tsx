@@ -32,6 +32,7 @@ import {
   SlidersHorizontal,
   Sun,
   User,
+  Truck,
 } from 'lucide-react';
 import {
   Avatar,
@@ -129,6 +130,8 @@ export interface TopbarProps {
    * finds Payments by its address alone.
    */
   onOpenPayments?: () => void;
+  /** `/studio/shipping`, for someone who holds `shipping.manage` but is not an admin. */
+  onOpenShipping?: () => void;
   /**
    * `/help` and `/changelog`. Both shipped with a route, a built page and NO
    * entry point anywhere — not the rail, not this menu, not the palette. They
@@ -233,6 +236,7 @@ export function Topbar({
   onOpenStudio,
   onOpenStudioSettings,
   onOpenPayments,
+  onOpenShipping,
   onOpenHelp,
   onOpenChangelog,
 }: TopbarProps) {
@@ -433,6 +437,14 @@ export function Topbar({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem icon={<Banknote />} onSelect={onOpenPayments} data-testid="topbar-payments">
                   {t('topbar.payments', 'Payments')}
+                </DropdownMenuItem>
+              </>
+            ) : null}
+            {!admin && onOpenShipping !== undefined && holdsSystemAction(bootstrap, 'shipping.manage') ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem icon={<Truck />} onSelect={onOpenShipping} data-testid="topbar-shipping">
+                  {t('topbar.shipping', 'Shipping')}
                 </DropdownMenuItem>
               </>
             ) : null}

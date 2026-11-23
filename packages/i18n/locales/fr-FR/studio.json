@@ -872,6 +872,13 @@
       "refundGrants": {
         "title": "Qui peut rembourser les paiements en ligne",
         "body": "Ces rôles peuvent rendre l’argent payé en ligne par les clients pour les fiches de cette application. Décochez un rôle qui ne doit pas le faire."
+      },
+      "shippingGrants": {
+        "title": "Qui peut gérer les étiquettes d’expédition",
+        "body": "Ces rôles peuvent faire ce qui suit avec les étiquettes d’expédition de cette application. Décochez tout ce qu’un rôle ne doit pas faire.",
+        "book": "Acheter des étiquettes, dans les limites que vous fixez",
+        "cancel": "Demander le remboursement d’une étiquette",
+        "customs": "Faire la déclaration en douane"
       }
     },
     "installed": {
@@ -2944,6 +2951,11 @@
       "wrongPassword": "Ce n’est pas votre mot de passe.",
       "lockedRefused": "L’opérateur du serveur a verrouillé ce réglage.",
       "failed": "L’interrupteur n’a pas pu être modifié. Réessayez."
+    },
+    "shippingCard": {
+      "body": "Choisissez le transporteur avec lequel chaque application expédie, connectez sa clé, puis réglez la taille des étiquettes et qui peut en acheter.",
+      "cta": "Ouvrir l’expédition",
+      "heading": "Expédition"
     }
   },
   "source": {
@@ -5835,6 +5847,7 @@
       "notFinished": "pas terminée",
       "on": "Elles sont sur {server}.",
       "onDatabase": "sur {database}",
+      "shippingWithheld": "Les droits d’expédition n’ont pas été accordés à ces rôles : {roles}. Vous pouvez les accorder sur la page Rôles.",
       "openWorkspace": "Ouvrir l’espace de travail",
       "rest": "Installer le reste",
       "stoppedPartWay": "{done} sur {total} installées. {app} s’est arrêtée en cours de route. Rien n’a été supprimé, et Installer le reste reprend là où cela s’est arrêté.",
@@ -6162,5 +6175,248 @@
     "reason": "Motif : {reason}",
     "reply": "Répondez à l’e-mail de l’opérateur s’il s’agit d’une erreur.",
     "chip": "Masquée"
+  },
+  "shipping": {
+    "back": "Retour à Expédier avec",
+    "carrier": {
+      "demoName": "{name} (démo)"
+    },
+    "carrierGone": "Ce transporteur n’est plus rattaché à cette application.",
+    "check": {
+      "again": "Vérifier à nouveau",
+      "bad": "{carrier} n’a pas accepté cette clé.",
+      "badBody": "Copiez de nouveau la clé depuis les réglages d’API de Shippo, sans rien avant ni après. Si la clé a été supprimée dans Shippo, créez-en une nouvelle et collez-la ici.",
+      "badBodyOther": "Copiez de nouveau la clé, sans rien avant ni après, et collez-la ici.",
+      "busy": "Vérification…",
+      "button": "Vérifier la connexion",
+      "goLive": "Passer en réel",
+      "live": "Clé réelle. Ces transporteurs répondent pour {country} : {list}.",
+      "liveActive": "Le personnel autorisé à acheter des étiquettes peut désormais obtenir les tarifs sur les commandes.",
+      "liveChoose": "La clé fonctionne. Choisissez {carrier} sous Expédier avec pour l’utiliser.",
+      "liveNoCountry": "Clé réelle. Ces transporteurs répondent : {list}.",
+      "nextStep": "Étape suivante",
+      "noAnswer": "{carrier} n’a pas répondu. Réessayez.",
+      "noAnswerBody": "Cela ne dit rien sur votre clé. Elle reste comme elle était.",
+      "none": "{carrier} n’a aucun transporteur pour {country} sur ce compte. Connectez votre propre compte de transporteur dans {carrier}, puis vérifiez à nouveau.",
+      "noneNoCountry": "{carrier} n’a aucun transporteur sur ce compte. Connectez votre propre compte de transporteur dans {carrier}, puis vérifiez à nouveau.",
+      "pasteNew": "Coller une nouvelle clé",
+      "replaceLive": "Remplacer par une clé réelle",
+      "saveFirst": "Enregistrez d’abord une clé.",
+      "testBody": "Les étiquettes achetées avec elle sont des échantillons. Aucun numéro de suivi n’atteint une commande ni un client. Ces transporteurs répondent pour {country} en test : {list}.",
+      "testBodyNoCountry": "Les étiquettes achetées avec elle sont des échantillons. Aucun numéro de suivi n’atteint une commande ni un client. Ces transporteurs répondent en test : {list}.",
+      "testTitle": "Clé de test. Rien ne sera livré",
+      "useCarrier": "Expédier avec {carrier}"
+    },
+    "close": "Fermer",
+    "disclosure": "Les étiquettes sont achetées sur votre compte Shippo et vous sont facturées. Les noms, les adresses des clients et, lorsqu’un transporteur l’exige, leurs numéros de téléphone sont transmis à Shippo et au transporteur.",
+    "disclosureOther": "Les étiquettes sont achetées sur votre compte {carrier} et vous sont facturées. Les noms, les adresses des clients et, lorsqu’un transporteur l’exige, leurs numéros de téléphone sont transmis à {carrier} et au transporteur.",
+    "error": {
+      "generic": "Cela n’a pas fonctionné. Réessayez.",
+      "keyFields": "Cette clé est composée d’autres champs. Rechargez la page et réessayez.",
+      "keyRefused": "{carrier} n’a pas accepté cette clé. Rien n’a été enregistré.",
+      "locked": "{carrier} fonctionne pour l’instant en démo et n’accepte donc aucune clé.",
+      "networkOff": "Ce serveur est réglé pour fonctionner sans internet : aucun transporteur ne peut donc être interrogé.",
+      "noAnswer": "{carrier} n’a pas répondu. Rien n’a été modifié. Réessayez.",
+      "noKey": "Enregistrez d’abord une clé {carrier}.",
+      "noWebhook": "{carrier} n’envoie pas les mises à jour de suivi à un webhook.",
+      "notChecked": "Vérifiez d’abord la connexion à {carrier}.",
+      "notInstalled": "{carrier} n’est plus rattaché à cette application.",
+      "notLoaded": "{carrier} n’a pas pu être chargé sur ce serveur.",
+      "serverWide": "{carrier} est géré pour tout le serveur : il n’accepte donc aucune clé pour une seule boutique.",
+      "switchedOff": "{carrier} est désactivé pour cette application.",
+      "noPublicAddress": "Ce serveur a besoin d’une adresse https publique avant que {carrier} puisse l’appeler. L’adresse actuelle continue de fonctionner."
+    },
+    "gate": {
+      "body": "Demandez à la personne qui gère ce serveur de vous donner l’autorisation « Configurer l’expédition ».",
+      "title": "Vous avez besoin d’une autorisation pour gérer l’expédition"
+    },
+    "goLive": {
+      "step1": "Dans Shippo, ouvrez Réglages, puis API.",
+      "step2": "Copiez la clé réelle. Elle commence par shippo_live_.",
+      "step3": "Appuyez ci-dessous sur Remplacer par une clé réelle et collez-la.",
+      "step4": "Vérifiez à nouveau la connexion."
+    },
+    "guide": {
+      "events": "Ajoutez un webhook pour chacun des événements {first}, {second} et {third}, dans le même mode que votre clé.",
+      "eventsLive": "Ajoutez un webhook pour chacun des événements {first}, {second} et {third}, puis choisissez Live.",
+      "eventsTest": "Ajoutez un webhook pour chacun des événements {first}, {second} et {third}, puis choisissez Test.",
+      "heading": "À coller dans {carrier}",
+      "moved": "Si l’adresse publique de ce serveur change, créez une nouvelle adresse et collez-la à nouveau.",
+      "open": "Dans Shippo, ouvrez Réglages, puis Webhooks.",
+      "paste": "Collez l’adresse ci-dessus et enregistrez."
+    },
+    "intro": "Étiquettes pour les commandes de {shop}, achetées sur le propre compte Shippo de la boutique. Adminium ne détient aucun compte et ne prend aucun argent.",
+    "introPlain": "Étiquettes pour vos commandes, achetées sur votre propre compte de transporteur. Adminium ne détient aucun compte et ne prend aucun argent.",
+    "key": {
+      "empty": "Collez votre clé {carrier}.",
+      "hint": "Après l’enregistrement, seuls les quatre derniers caractères sont affichés.",
+      "inUse": "Cette clé ne peut pas changer tant qu’une réservation faite avec elle n’a pas de réponse définitive.",
+      "inUseMore": "et {count} autres",
+      "inUseOrders": "Commandes :",
+      "keep": "Garder la clé actuelle",
+      "label": "Clé d’API {carrier}",
+      "replace": "Remplacer",
+      "save": "Enregistrer la clé",
+      "saving": "Vérification auprès de {carrier}…",
+      "shape": "Cela ne ressemble pas à une clé Shippo. Elles commencent par shippo_live_ ou shippo_test_. Shippo tranche à l’enregistrement.",
+      "tryAgain": "Réessayer"
+    },
+    "limits": {
+      "aDay": "par jour, tous préparateurs confondus.",
+      "bought": "achetées par tous les préparateurs ensemble",
+      "cancel": "Annuler",
+      "count": "{used} sur {limit}",
+      "currencyError": "Saisissez le code de devise à trois lettres, par exemple EUR.",
+      "currencyLabel": "Devise de la limite",
+      "daily": "Nombre maximal d’étiquettes que tous les préparateurs ensemble peuvent acheter par jour",
+      "dayError": "Saisissez combien d’étiquettes tous les préparateurs ensemble peuvent acheter par jour, 1 ou plus.",
+      "each": "par étiquette, et",
+      "heading": "Qui peut acheter des étiquettes",
+      "meter": "Étiquettes achetées aujourd’hui par tous les préparateurs ensemble",
+      "none": "Les préparateurs ne peuvent pas encore acheter d’étiquettes. C’est vous qui les réservez.",
+      "open": "Laisser les préparateurs acheter des étiquettes",
+      "perError": "Saisissez le montant maximal qu’un préparateur peut dépenser pour une étiquette, supérieur à zéro.",
+      "perLabel": "Montant maximal qu’un préparateur peut dépenser pour une étiquette",
+      "save": "Enregistrer les limites",
+      "saved": "Limites enregistrées.",
+      "stop": "Empêcher les préparateurs d’acheter des étiquettes",
+      "stopped": "Les préparateurs ne peuvent plus acheter d’étiquettes. C’est vous qui les réservez.",
+      "subtitle": "Vous pouvez toujours acheter des étiquettes. Les préparateurs n’achètent que dans ces limites.",
+      "today": "Aujourd’hui :",
+      "upTo": "Les préparateurs peuvent acheter des étiquettes jusqu’à"
+    },
+    "line": {
+      "demo": "Ne réserve aucune vraie étiquette. Vous saisissez vous-même le numéro de suivi.",
+      "live": "Connecté · Clé réelle",
+      "none": "Ajoutez une clé {carrier} avant de pouvoir expédier avec lui.",
+      "off": "Désactivé pour cette application.",
+      "refused": "{carrier} n’a pas accepté cette clé. Collez-en une nouvelle avant de pouvoir expédier avec lui.",
+      "test": "Connecté · Clé de test",
+      "unchecked": "Clé enregistrée. Vérifiez la connexion avant de pouvoir expédier avec lui."
+    },
+    "link": {
+      "api": "Réglages d’API de Shippo",
+      "billing": "Réglages de facturation de Shippo",
+      "carriers": "Comptes de transporteurs dans Shippo",
+      "dhlSite": "Le site propre de DHL",
+      "newTab": "(s’ouvre dans un nouvel onglet)",
+      "open": "Ouvrir Shippo",
+      "webhooks": "Réglages de webhooks de Shippo"
+    },
+    "loadFailed": "L’expédition n’a pas pu être chargée",
+    "loadFailedApp": "{app} n’a pas pu être chargé",
+    "locked": {
+      "sentence": "La vraie réservation DHL n’est pas encore disponible. Ce module est une démo. Pour expédier maintenant, utilisez Shippo, ou réservez sur le site propre de DHL et saisissez le numéro de suivi.",
+      "subtitle": "Module de démo. Ne réserve aucune vraie étiquette.",
+      "useShippo": "Expédier avec Shippo"
+    },
+    "noApps": "Aucune application n’expédie encore ici. Rattachez un module d’expédition à une application, puis configurez-le ici.",
+    "notAffiliated": "Adminium n’est affilié ni à Shippo ni à aucun transporteur affiché.",
+    "other": {
+      "body": "Les étiquettes achetées à partir de maintenant sont facturées au nouveau compte. Les étiquettes déjà achetées restent sur l’ancien, et cette clé ne peut pas y accéder.",
+      "confirm": "Utiliser le nouveau compte",
+      "current": "La clé actuellement utilisée se termine par",
+      "kept": "Rien n’a encore changé. La clé actuelle reste en vigueur jusqu’à votre confirmation.",
+      "title": "Cette clé ouvre un autre compte {carrier}"
+    },
+    "parcels": {
+      "never": "Jamais vérifié",
+      "noCheck": "Aucune pour l’instant",
+      "oldest": "Vérification la plus ancienne",
+      "open": "Colis ouverts",
+      "quiet": "Sans mouvement depuis 7 jours"
+    },
+    "picker": "Application",
+    "preview": {
+      "addTracking": "Ajouter un numéro de suivi",
+      "demo": "Démo uniquement. Réservez sur le site propre de DHL, puis saisissez ici le numéro de suivi.",
+      "getRates": "Obtenir les tarifs",
+      "heading": "Aperçu dans {app}",
+      "real": "Le personnel choisit parmi les tarifs renvoyés par {carrier}, puis appuie sur Réserver cette étiquette."
+    },
+    "shipWith": {
+      "active": "Expédie avec {name}",
+      "connection": "Connexion",
+      "group": "Expédier avec",
+      "noneActive": "Aucun transporteur choisi",
+      "subtitle": "Choisissez le module avec lequel cette application achète ses étiquettes. Un seul est actif à la fois.",
+      "whyDemo": "Pourquoi c’est une démo"
+    },
+    "shippo": {
+      "subtitle": "Des étiquettes de nombreux transporteurs, sur votre propre compte Shippo"
+    },
+    "size": {
+      "a4Line": "Imprimantes de bureau à jet d’encre et laser, sur papier A4 ordinaire.",
+      "a6Line": "Imprimantes d’étiquettes de bureau et étiquettes adhésives A6.",
+      "fourBySix": "4×6 po",
+      "fourBySixLine": "Imprimantes d’étiquettes thermiques qui prennent des rouleaux ou des piles de 4 × 6 po.",
+      "heading": "Taille des étiquettes",
+      "saved": "Taille des étiquettes enregistrée.",
+      "subtitle": "La taille qu’Adminium demande au transporteur. Un transporteur peut renvoyer une autre taille, et la réservation l’indique.",
+      "which": "Quelles imprimantes conviennent à chaque taille"
+    },
+    "state": {
+      "demo": "Démo",
+      "live": "Connecté",
+      "none": "Non connecté",
+      "off": "Désactivé",
+      "refused": "Non accepté",
+      "test": "Clé de test",
+      "unchecked": "Non vérifié"
+    },
+    "step": {
+      "account": "Créez votre compte Shippo",
+      "accountBody": "Inscrivez-vous sur le site de Shippo avec l’adresse e-mail propre de la boutique. Le compte appartient à la boutique, pas à Adminium.",
+      "check": "Vérifier la connexion",
+      "checkBody": "Adminium demande à Shippo quels transporteurs répondent pour {country}.",
+      "checkBodyNoCountry": "Adminium demande à Shippo quels transporteurs répondent pour cette boutique.",
+      "done": "Terminé",
+      "heading": "Liste de configuration",
+      "key": "Créez une clé d’API et collez-la ici",
+      "keyBody": "Dans Shippo, ouvrez Réglages, puis API, et créez une clé réelle. Copiez-la et collez-la ci-dessous.",
+      "known": "{done} sur {total} confirmés ici",
+      "payment": "Ajoutez un moyen de paiement dans Shippo",
+      "paymentBody": "Shippo débite cette carte ou ce compte bancaire pour chaque étiquette que vous achetez. Les transporteurs peuvent ajouter des frais plus tard, par exemple pour un colis plus lourd.",
+      "word": "Étape {n}"
+    },
+    "tab": {
+      "labels": "Taille des étiquettes",
+      "people": "Qui peut acheter des étiquettes",
+      "setup": "Configuration",
+      "tracking": "Suivi"
+    },
+    "test": {
+      "apps": "Avec une clé de test : {apps}",
+      "body": "Les étiquettes portent la mention SAMPLE. Aucun numéro n’atteint une commande ni un client.",
+      "title": "Mode test : rien ne sera livré"
+    },
+    "title": "Expédition",
+    "tracking": {
+      "address": "Adresse du webhook",
+      "confirmBody": "L’ancienne adresse cesse de fonctionner immédiatement. Les mises à jour s’arrêtent jusqu’à ce que vous colliez la nouvelle dans {carrier}.",
+      "confirmTitle": "Créer une nouvelle adresse ?",
+      "copied": "Copié",
+      "copy": "Copier",
+      "copyFailed": "Copie impossible. Sélectionnez l’adresse et copiez-la.",
+      "copyLabel": "Copier l’adresse du webhook",
+      "goTo": "Ouvrir le suivi",
+      "goneBody": "Créez une nouvelle adresse, puis collez-la dans {carrier}. D’ici là, le suivi ne change que lorsque quelqu’un appuie sur Actualiser.",
+      "goneTitle": "L’adresse du webhook a cessé de fonctionner quand la clé a changé",
+      "heading": "Mises à jour du suivi",
+      "last": "Dernière mise à jour reçue :",
+      "make": "Créer l’adresse",
+      "makeNew": "Créer une nouvelle adresse",
+      "never": "Aucune mise à jour n’est encore arrivée. Vérifiez que l’adresse est enregistrée dans {carrier}.",
+      "noCarrier": "Un transporteur de démo n’envoie aucune mise à jour. Vous saisissez le numéro de suivi sur la commande.",
+      "noCarrierSubtitle": "Aucun transporteur ici n’envoie de mises à jour de suivi.",
+      "notSet": "Non configuré",
+      "once": "Copiez-la maintenant. C’est la seule fois où l’adresse entière est affichée.",
+      "private": "Ce serveur ne peut pas recevoir de mises à jour. Le suivi change lorsque quelqu’un appuie sur Actualiser.",
+      "privateSubtitle": "Le suivi se met à jour lorsque quelqu’un appuie sur Actualiser.",
+      "receiving": "Réception",
+      "refreshOnly": "Actualisation seule",
+      "subtitle": "{carrier} envoie chaque scan de transporteur à ce serveur.",
+      "waiting": "En attente"
+    }
   }
 }

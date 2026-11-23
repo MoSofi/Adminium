@@ -159,7 +159,8 @@
     "signOut": "登出",
     "toggleSidebar": "切換側邊欄",
     "payments": "付款",
-    "putOnline": "將其上線…"
+    "putOnline": "將其上線…",
+    "shipping": "寄送"
   },
   "palette": {
     "dialog": "命令面板",

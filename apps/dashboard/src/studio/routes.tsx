@@ -108,6 +108,11 @@ const PaymentsPageLazy = lazy(async () => {
   return { default: mod.PaymentsPage };
 });
 
+const ShippingPageLazy = lazy(async () => {
+  const mod = await import('./shipping/ShippingPage.js');
+  return { default: mod.ShippingPage };
+});
+
 const StoragePageLazy = lazy(async () => {
   const mod = await import('./storage/StoragePage.js');
   return { default: mod.StoragePage };
@@ -324,6 +329,7 @@ function SettingsRouteComponent() {
           onOpenPages={() => void navigate({ to: '/studio/pages' })}
           onOpenStorage={() => void navigate({ to: '/studio/storage' })}
           onOpenPayments={() => void navigate({ to: '/studio/payments' })}
+          onOpenShipping={() => void navigate({ to: '/studio/shipping' })}
           onOpenLists={() => void navigate({ to: '/studio/lists' })}
           onOpenAddOns={() => void navigate({ to: '/studio/add-ons' })}
           onOpenDocuments={() => void navigate({ to: '/studio/documents' })}
@@ -459,6 +465,15 @@ function PaymentsRouteComponent() {
         <PaymentsPageLazy onOpenSettings={() => void navigate({ to: '/studio/settings' })} />
       </StudioBody>
     </StudioGuard>
+  );
+}
+
+function ShippingRouteComponent() {
+  // No `StudioGuard`: the page gates on `shipping.manage` itself, and tells anyone else who to ask.
+  return (
+    <StudioBody>
+      <ShippingPageLazy />
+    </StudioBody>
   );
 }
 
@@ -677,6 +692,12 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     component: PaymentsRouteComponent,
   });
 
+  const shippingRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/studio/shipping',
+    component: ShippingRouteComponent,
+  });
+
   const addOnsRoute = createRoute({
     getParentRoute: () => parent,
     path: '/studio/add-ons',
@@ -703,6 +724,7 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     listsRoute,
     storageRoute,
     paymentsRoute,
+    shippingRoute,
     addOnsRoute,
     reviewRoute,
     remapRoute,

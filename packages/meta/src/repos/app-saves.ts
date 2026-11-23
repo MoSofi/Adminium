@@ -273,6 +273,8 @@ export interface WorkspaceInstallApp {
   /** Why it was refused or where it stopped: a stable reason and a sentence. */
   reason?: string;
   error?: string;
+  /** Label rights its install did not give, because a workspace file carries no answer for them. */
+  shippingWithheld?: { role: string; roleName: string; action: 'book' | 'cancel' | 'customs' }[];
 }
 
 export interface WorkspaceInstall {

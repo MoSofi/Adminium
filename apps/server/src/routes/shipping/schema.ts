@@ -11,6 +11,7 @@ import { SHIPPING_ID_WIDTH, SHIPPING_ROW_WIDTH, SHIPPING_TABLE_WIDTH } from '@ad
 import { z } from 'zod';
 
 import { shipFromBodySchema, shipFromSchema } from '../../shipping/addresses.js';
+import { ATTENTION_REASONS } from '../../shipping/attention.js';
 
 const finite = (max: number) => z.number().finite().gt(0).max(max);
 
@@ -72,6 +73,8 @@ const carrierView = z.object({
     .object({ mode: z.enum(['live', 'test']), keyHint: z.string(), state: z.enum(['ok', 'refused']), carriers: z.array(z.string()), checkedAt: z.number() })
     .strict()
     .nullable(),
+  /** Bookings on this carrier with no final answer: while any stands, its key cannot change. */
+  openBookings: z.object({ count: z.number(), orders: z.array(z.string()) }).strict(),
 });
 
 export const shippingStatusReply = z.object({
@@ -217,6 +220,29 @@ export const bookingsReply = z.object({
       /** True only on a positive "no booking": anything unsure is false, and says why. */
       bookable: z.boolean(),
       blockedBy: z.enum(['booking', 'label-on-order', 'no-carrier']).nullable(),
+    })
+    .strict(),
+});
+
+/** The labels that need a person. Only rows this person reaches, and no carrier handle, key or address. */
+export const attentionReply = z.object({
+  data: z
+    .object({
+      items: z.array(
+        z
+          .object({
+            /** Most pressing first. */
+            reasons: z.array(z.enum(ATTENTION_REASONS)),
+            reference: z.string(),
+            source: z.object({ table: z.string(), id: z.string() }).strict(),
+            /** The order was deleted, so there is none to open. Only ever true for someone who manages shipping. */
+            orderGone: z.boolean(),
+            booking: bookingView,
+          })
+          .strict(),
+      ),
+      /** The scan was cut, so more may be waiting. */
+      more: z.boolean(),
     })
     .strict(),
 });

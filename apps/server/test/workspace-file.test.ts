@@ -599,6 +599,26 @@ describe('workspace files on one engine', () => {
     expect(await workspaceSavesRepo(src.h.meta).list()).toEqual([]);
   });
 
+  it('keeps what an install withheld, so the result can say it', async () => {
+    const src = await source('sqlite', open);
+    const saved = await src.service.save(src.workspaceId, {}, HOST);
+    const dst = await target('sqlite', open);
+    const file = fileOf(await upload(dst.h, saved.tarball));
+    const shippingWithheld = [{ role: 'clinic-packer', roleName: 'Packer', action: 'book' as const }];
+    const installer = createWorkspaceInstaller({
+      meta: dst.h.meta,
+      stagedIntegrity: async (key, version) => (await dst.h.deps.store.verifyTree(key, version)).integrity,
+      discardStaged: async () => undefined,
+      copiesOf: async () => [],
+      install: async () => ({ shippingWithheld }),
+      update: async () => undefined,
+      checkUpdate: async () => undefined,
+      connectionExists: async () => true,
+    });
+    const run = await installer.run(file.id, { apps: [{ key: 'clinic', connectionId: dst.h.connectionId }] }, { userId: null, managesConnections: false });
+    expect(run.apps.find((app) => app.key === 'clinic')).toMatchObject({ state: 'installed', shippingWithheld });
+  });
+
   it('runs one install at a time per row', async () => {
     const src = await source('sqlite', open);
     const saved = await src.service.save(src.workspaceId, {}, HOST);

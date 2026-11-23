@@ -872,6 +872,13 @@
       "refundGrants": {
         "title": "Hvem må refundere onlinebetalinger",
         "body": "Disse roller må give penge tilbage, som kunder har betalt online for denne apps poster. Fjern fluebenet ved en rolle, der ikke skal."
+      },
+      "shippingGrants": {
+        "title": "Hvem må håndtere forsendelsesetiketter",
+        "body": "Disse roller må gøre følgende med denne apps forsendelsesetiketter. Fjern fluebenet ved alt, som en rolle ikke skal gøre.",
+        "book": "Købe etiketter inden for de grænser, du sætter",
+        "cancel": "Bede om refusion af en etiket",
+        "customs": "Lave tolddeklaration"
       }
     },
     "installed": {
@@ -2944,6 +2951,11 @@
       "wrongPassword": "Det er ikke din adgangskode.",
       "lockedRefused": "Serverens operatør har låst dette.",
       "failed": "Kontakten kunne ikke ændres. Prøv igen."
+    },
+    "shippingCard": {
+      "body": "Vælg det fragtfirma, hver app sender med, tilslut dets nøgle, og indstil etiketstørrelse og hvem der må købe etiketter.",
+      "cta": "Åbn forsendelse",
+      "heading": "Forsendelse"
     }
   },
   "source": {
@@ -5835,6 +5847,7 @@
       "notFinished": "ikke færdig",
       "on": "De er på {server}.",
       "onDatabase": "på {database}",
+      "shippingWithheld": "Forsendelsesrettigheder blev ikke givet til {roles}. Du kan give dem på siden Roller.",
       "openWorkspace": "Åbn arbejdsområdet",
       "rest": "Installér resten",
       "stoppedPartWay": "{done} af {total} installeret. {app} stoppede halvvejs. Intet blev fjernet, og Installér resten fortsætter, hvor den stoppede.",
@@ -6162,5 +6175,248 @@
     "reason": "Årsag: {reason}",
     "reply": "Svar på operatørens e-mail, hvis det er en fejl.",
     "chip": "Skjult"
+  },
+  "shipping": {
+    "back": "Tilbage til Send med",
+    "carrier": {
+      "demoName": "{name} (demonstration)"
+    },
+    "carrierGone": "Dette fragtfirma er ikke længere knyttet til denne app.",
+    "check": {
+      "again": "Tjek igen",
+      "bad": "{carrier} accepterede ikke denne nøgle.",
+      "badBody": "Kopiér nøglen igen fra Shippos API-indstillinger, uden noget før eller efter. Hvis nøglen blev slettet i Shippo, så opret en ny og indsæt den her.",
+      "badBodyOther": "Kopiér nøglen igen, uden noget før eller efter, og indsæt den her.",
+      "busy": "Tjekker…",
+      "button": "Tjek forbindelsen",
+      "goLive": "Gå live",
+      "live": "Live-nøgle. Disse fragtfirmaer svarer for {country}: {list}.",
+      "liveActive": "Medarbejdere, der må købe etiketter, kan nu hente priser på ordrer.",
+      "liveChoose": "Nøglen virker. Vælg {carrier} under Send med for at bruge den.",
+      "liveNoCountry": "Live-nøgle. Disse fragtfirmaer svarer: {list}.",
+      "nextStep": "Næste trin",
+      "noAnswer": "{carrier} svarede ikke. Prøv igen.",
+      "noAnswerBody": "Det siger intet om din nøgle. Den forbliver, som den var.",
+      "none": "{carrier} har intet fragtfirma til {country} på denne konto. Tilslut din egen fragtkonto i {carrier}, og tjek så igen.",
+      "noneNoCountry": "{carrier} har intet fragtfirma på denne konto. Tilslut din egen fragtkonto i {carrier}, og tjek så igen.",
+      "pasteNew": "Indsæt en ny nøgle",
+      "replaceLive": "Erstat med en live-nøgle",
+      "saveFirst": "Gem først en nøgle.",
+      "testBody": "Etiketter købt med den er prøveeksemplarer. Intet sporingsnummer når en ordre eller en kunde. Disse fragtfirmaer svarer for {country} i test: {list}.",
+      "testBodyNoCountry": "Etiketter købt med den er prøveeksemplarer. Intet sporingsnummer når en ordre eller en kunde. Disse fragtfirmaer svarer i test: {list}.",
+      "testTitle": "Testnøgle. Intet bliver leveret",
+      "useCarrier": "Send med {carrier}"
+    },
+    "close": "Luk",
+    "disclosure": "Etiketter købes på din Shippo-konto og faktureres til dig. Kundernes navne, adresser og, når et fragtfirma kræver det, telefonnumre sendes til Shippo og fragtfirmaet.",
+    "disclosureOther": "Etiketter købes på din {carrier}-konto og faktureres til dig. Kundernes navne, adresser og, når et fragtfirma kræver det, telefonnumre sendes til {carrier} og fragtfirmaet.",
+    "error": {
+      "generic": "Det virkede ikke. Prøv igen.",
+      "keyFields": "Denne nøgle består af andre felter. Genindlæs siden, og prøv igen.",
+      "keyRefused": "{carrier} accepterede ikke denne nøgle. Intet blev gemt.",
+      "locked": "{carrier} kører foreløbig som demo og tager derfor ingen nøgle.",
+      "networkOff": "Denne server er sat til at arbejde uden internet, så intet fragtfirma kan spørges.",
+      "noAnswer": "{carrier} svarede ikke. Intet blev ændret. Prøv igen.",
+      "noKey": "Gem først en {carrier}-nøgle.",
+      "noWebhook": "{carrier} sender ikke sporingsopdateringer til en webhook.",
+      "notChecked": "Tjek først forbindelsen til {carrier}.",
+      "notInstalled": "{carrier} er ikke længere knyttet til denne app.",
+      "notLoaded": "{carrier} kunne ikke indlæses på denne server.",
+      "serverWide": "{carrier} holdes for hele serveren, så det tager ingen nøgle for én butik.",
+      "switchedOff": "{carrier} er slået fra for denne app.",
+      "noPublicAddress": "Denne server skal have en offentlig https-adresse, før {carrier} kan kalde den. Den nuværende adresse virker stadig."
+    },
+    "gate": {
+      "body": "Bed den, der driver denne server, om at give dig tilladelsen “Indstil forsendelse”.",
+      "title": "Du skal have tilladelse for at styre forsendelse"
+    },
+    "goLive": {
+      "step1": "Åbn Indstillinger i Shippo, og derefter API.",
+      "step2": "Kopiér live-nøglen. Den begynder med shippo_live_.",
+      "step3": "Tryk på Erstat med en live-nøgle nedenfor, og indsæt den.",
+      "step4": "Tjek forbindelsen igen."
+    },
+    "guide": {
+      "events": "Tilføj en webhook for hver af hændelserne {first}, {second} og {third}, i samme tilstand som din nøgle.",
+      "eventsLive": "Tilføj en webhook for hver af hændelserne {first}, {second} og {third}, og vælg Live.",
+      "eventsTest": "Tilføj en webhook for hver af hændelserne {first}, {second} og {third}, og vælg Test.",
+      "heading": "Indsæt dette i {carrier}",
+      "moved": "Hvis denne servers offentlige adresse ændres, så lav en ny adresse og indsæt den igen.",
+      "open": "Åbn Indstillinger i Shippo, og derefter Webhooks.",
+      "paste": "Indsæt adressen ovenfor, og gem."
+    },
+    "intro": "Etiketter til {shop}s ordrer, købt på butikkens egen Shippo-konto. Adminium har ingen konto og tager ingen penge.",
+    "introPlain": "Etiketter til dine ordrer, købt på din egen fragtkonto. Adminium har ingen konto og tager ingen penge.",
+    "key": {
+      "empty": "Indsæt din {carrier}-nøgle.",
+      "hint": "Efter gemning vises kun de sidste fire tegn.",
+      "inUse": "Denne nøgle kan ikke ændres, så længe en booking med den ikke har et endeligt svar.",
+      "inUseMore": "og {count} flere",
+      "inUseOrders": "Ordrer:",
+      "keep": "Behold den nuværende nøgle",
+      "label": "{carrier}-API-nøgle",
+      "replace": "Erstat",
+      "save": "Gem nøgle",
+      "saving": "Tjekker hos {carrier}…",
+      "shape": "Det ligner ikke en Shippo-nøgle. De begynder med shippo_live_ eller shippo_test_. Shippo afgør det, når du gemmer.",
+      "tryAgain": "Prøv igen"
+    },
+    "limits": {
+      "aDay": "om dagen, alle pakkere tilsammen.",
+      "bought": "købt af alle pakkere tilsammen",
+      "cancel": "Annuller",
+      "count": "{used} af {limit}",
+      "currencyError": "Skriv valutakoden på tre bogstaver, f.eks. EUR.",
+      "currencyLabel": "Grænsens valuta",
+      "daily": "Flest etiketter, alle pakkere tilsammen må købe på en dag",
+      "dayError": "Skriv, hvor mange etiketter alle pakkere tilsammen må købe på en dag, mindst 1.",
+      "each": "pr. etiket, og",
+      "heading": "Hvem må købe etiketter",
+      "meter": "Etiketter købt i dag af alle pakkere tilsammen",
+      "none": "Pakkere kan endnu ikke købe etiketter. Du booker dem selv.",
+      "open": "Lad pakkere købe etiketter",
+      "perError": "Skriv det højeste beløb, en pakker må bruge på én etiket, over nul.",
+      "perLabel": "Højeste beløb, en pakker må bruge på én etiket",
+      "save": "Gem grænser",
+      "saved": "Grænser gemt.",
+      "stop": "Stop pakkere i at købe etiketter",
+      "stopped": "Pakkere kan ikke købe etiketter nu. Du booker dem selv.",
+      "subtitle": "Du kan altid købe etiketter. Pakkere køber kun inden for disse grænser.",
+      "today": "I dag:",
+      "upTo": "Pakkere må købe etiketter op til"
+    },
+    "line": {
+      "demo": "Booker ingen rigtige etiketter. Du skriver selv sporingsnummeret.",
+      "live": "Tilsluttet · Live-nøgle",
+      "none": "Tilføj en {carrier}-nøgle, før du kan sende med det.",
+      "off": "Slået fra for denne app.",
+      "refused": "{carrier} accepterede ikke denne nøgle. Indsæt en ny, før du kan sende med det.",
+      "test": "Tilsluttet · Testnøgle",
+      "unchecked": "Nøgle gemt. Tjek forbindelsen, før du kan sende med det."
+    },
+    "link": {
+      "api": "Shippos API-indstillinger",
+      "billing": "Shippos faktureringsindstillinger",
+      "carriers": "Fragtkonti i Shippo",
+      "dhlSite": "DHL’s eget websted",
+      "newTab": "(åbner i en ny fane)",
+      "open": "Åbn Shippo",
+      "webhooks": "Shippos webhook-indstillinger"
+    },
+    "loadFailed": "Forsendelse kunne ikke indlæses",
+    "loadFailedApp": "{app} kunne ikke indlæses",
+    "locked": {
+      "sentence": "Rigtig DHL-booking er endnu ikke tilgængelig. Denne tilføjelse er en demo. For at sende nu kan du bruge Shippo, eller booke på DHL’s eget websted og skrive sporingsnummeret.",
+      "subtitle": "Demotilføjelse. Booker ingen rigtige etiketter.",
+      "useShippo": "Send med Shippo"
+    },
+    "noApps": "Ingen app sender endnu herfra. Knyt en forsendelsestilføjelse til en app, og indstil den så her.",
+    "notAffiliated": "Adminium er ikke tilknyttet Shippo eller nogen af de viste fragtfirmaer.",
+    "other": {
+      "body": "Etiketter købt fra nu af faktureres til den nye konto. Allerede købte etiketter bliver på den gamle, og denne nøgle kan ikke nå dem.",
+      "confirm": "Brug den nye konto",
+      "current": "Den nøgle, der bruges nu, ender på",
+      "kept": "Intet er ændret endnu. Den nuværende nøgle gælder, til du bekræfter.",
+      "title": "Denne nøgle åbner en anden {carrier}-konto"
+    },
+    "parcels": {
+      "never": "Aldrig tjekket",
+      "noCheck": "Ingen endnu",
+      "oldest": "Ældste tjek",
+      "open": "Åbne pakker",
+      "quiet": "Intet nyt i 7 dage"
+    },
+    "picker": "Vælg app",
+    "preview": {
+      "addTracking": "Tilføj sporingsnummer",
+      "demo": "Kun demo. Book på DHL’s eget websted, og skriv så sporingsnummeret her.",
+      "getRates": "Hent priser",
+      "heading": "Sådan ser det ud i {app}",
+      "real": "Medarbejdere vælger blandt de priser, {carrier} returnerer, og trykker så på Book denne etiket."
+    },
+    "shipWith": {
+      "active": "Sender med {name}",
+      "connection": "Forbindelse",
+      "group": "Send med",
+      "noneActive": "Intet fragtfirma valgt",
+      "subtitle": "Vælg, hvilken tilføjelse denne app køber etiketter med. Én er aktiv ad gangen.",
+      "whyDemo": "Hvorfor det er en demo"
+    },
+    "shippo": {
+      "subtitle": "Etiketter fra mange fragtfirmaer, på din egen Shippo-konto"
+    },
+    "size": {
+      "a4Line": "Inkjet- og laserprintere på kontoret, på almindeligt A4-papir.",
+      "a6Line": "Etiketprintere til skrivebordet og selvklæbende A6-etiketter.",
+      "fourBySix": "4×6 tommer",
+      "fourBySixLine": "Termiske etiketprintere, der tager ruller eller stakke på 4 × 6 tommer.",
+      "heading": "Etiketstørrelse",
+      "saved": "Etiketstørrelse gemt.",
+      "subtitle": "Den størrelse, Adminium beder fragtfirmaet om. Et fragtfirma kan returnere en anden størrelse, og bookingen siger det.",
+      "which": "Hvilke printere der passer til hver størrelse"
+    },
+    "state": {
+      "demo": "Demotilstand",
+      "live": "Tilsluttet",
+      "none": "Ikke tilsluttet",
+      "off": "Slået fra",
+      "refused": "Ikke accepteret",
+      "test": "Testnøgle",
+      "unchecked": "Ikke tjekket"
+    },
+    "step": {
+      "account": "Opret din Shippo-konto",
+      "accountBody": "Tilmeld dig på Shippos websted med butikkens egen e-mail. Kontoen tilhører butikken, ikke Adminium.",
+      "check": "Tjek forbindelsen",
+      "checkBody": "Adminium spørger Shippo, hvilke fragtfirmaer der svarer for {country}.",
+      "checkBodyNoCountry": "Adminium spørger Shippo, hvilke fragtfirmaer der svarer for denne butik.",
+      "done": "Færdig",
+      "heading": "Tjekliste til opsætning",
+      "key": "Opret en API-nøgle, og indsæt den her",
+      "keyBody": "Åbn Indstillinger i Shippo, derefter API, og opret en live-nøgle. Kopiér den, og indsæt den nedenfor.",
+      "known": "{done} af {total} bekræftet her",
+      "payment": "Tilføj en betalingsmetode i Shippo",
+      "paymentBody": "Shippo trækker på dette kort eller bankkonto for hver etiket, du køber. Fragtfirmaer kan lægge gebyrer til senere, f.eks. for en tungere pakke.",
+      "word": "Trin {n}"
+    },
+    "tab": {
+      "labels": "Etiketstørrelse",
+      "people": "Hvem må købe etiketter",
+      "setup": "Opsætning",
+      "tracking": "Sporing"
+    },
+    "test": {
+      "apps": "På en testnøgle: {apps}",
+      "body": "Etiketter har påskriften SAMPLE. Intet nummer når en ordre eller en kunde.",
+      "title": "Testtilstand: Intet bliver leveret"
+    },
+    "title": "Forsendelse",
+    "tracking": {
+      "address": "Webhook-adresse",
+      "confirmBody": "Den gamle adresse holder op med at virke med det samme. Opdateringer stopper, til du indsætter den nye i {carrier}.",
+      "confirmTitle": "Lave en ny adresse?",
+      "copied": "Kopieret",
+      "copy": "Kopiér",
+      "copyFailed": "Kunne ikke kopiere. Markér adressen, og kopiér den.",
+      "copyLabel": "Kopiér webhook-adresse",
+      "goTo": "Åbn sporing",
+      "goneBody": "Lav en ny adresse, og indsæt den i {carrier}. Indtil da ændres sporing kun, når nogen trykker på Opdater.",
+      "goneTitle": "Webhook-adressen holdt op med at virke, da nøglen blev ændret",
+      "heading": "Sporingsopdateringer",
+      "last": "Seneste opdatering modtaget:",
+      "make": "Lav adressen",
+      "makeNew": "Lav en ny adresse",
+      "never": "Der er endnu ikke kommet nogen opdatering. Tjek, at adressen er gemt i {carrier}.",
+      "noCarrier": "Et demo-fragtfirma sender ingen opdateringer. Du skriver sporingsnummeret på ordren.",
+      "noCarrierSubtitle": "Intet fragtfirma her sender sporingsopdateringer.",
+      "notSet": "Ikke sat op",
+      "once": "Kopiér den nu. Det er den eneste gang, hele adressen vises.",
+      "private": "Denne server kan ikke modtage opdateringer. Sporing ændres, når nogen trykker på Opdater.",
+      "privateSubtitle": "Sporing opdateres, når nogen trykker på Opdater.",
+      "receiving": "Modtager",
+      "refreshOnly": "Kun opdatering",
+      "subtitle": "{carrier} sender hver scanning fra fragtfirmaerne til denne server.",
+      "waiting": "Venter"
+    }
   }
 }
