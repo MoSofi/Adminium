@@ -1898,6 +1898,9 @@ export interface RecordWriteService {
   settlesInside(target: WriteTarget, values: Row, before: Row): boolean;
 }
 
+/** Where a person is behind a write, so a move back can be asked about a paid label. */
+const PAID_LABEL_ORIGINS: ReadonlySet<WriteOrigin> = new Set<WriteOrigin>(['dashboard', 'bulk', 'public', 'action', 'undo']);
+
 export interface WriteServiceOptions {
   /** Read on every write, so a reload swaps the hooks for the next one. */
   hooks?: (() => RecordHooks) | undefined;
@@ -2049,6 +2052,8 @@ export interface WriteServiceOptions {
    * Without it, no payment is known of and no move is refused for one.
    */
   paymentInFlight?: ((target: Pick<WriteTarget, 'connectionId' | 'table'>, row: Row) => Promise<boolean>) | undefined;
+  /** A person's move back or to cancelled on a row with a paid shipping label: refuses it (`shipping/order-guard.ts`). */
+  paidLabelMove?: ((target: Pick<WriteTarget, 'connectionId' | 'table'>, context: Pick<WriteContext, 'origin' | 'request'>, row: Row, from: string, to: string) => Promise<void>) | undefined;
 }
 
 /** What {@link WriteServiceOptions.paymentRows} says of a payable's payments table, or of an app's refund table. */
@@ -3021,6 +3026,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         // A move that waits for no payment on its way asks, on the row as held.
         ...(action === 'update' && opts.paymentInFlight !== undefined && waitsForNoPayment(rules)
           ? { paymentInFlight: (row: Row) => opts.paymentInFlight!(target, row) }
+          : {}),
+        // A person's move, wherever it was made. A move Adminium makes itself has nobody to answer the question.
+        ...(action === 'update' && !history && context.declared === undefined && opts.paidLabelMove !== undefined && PAID_LABEL_ORIGINS.has(context.origin)
+          ? { paidLabelMove: (row: Row, from: string, to: string) => opts.paidLabelMove!(target, context, row, from, to) }
           : {}),
       });
     }

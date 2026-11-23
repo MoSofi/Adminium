@@ -70,6 +70,7 @@ export const SHIPPING_REFUSAL_STATUS = {
   REFUND_NOT_OFFERED: 409,
   REFUND_TOO_LATE: 409,
   LABEL_SCANNED: 409,
+  ORDER_HAS_PAID_LABEL: 409,
   /** This carrier has no way to hand the file over. */
   LABEL_NOT_OFFERED: 409,
   /** The key saved now opens another account than the one that bought this label. */

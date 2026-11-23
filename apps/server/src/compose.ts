@@ -97,6 +97,7 @@ import { createLocalDatabases, localDatabasesMode } from './connections/local-da
 import type { ConnectionManager } from './connections/manager.js';
 import { privilegesOf } from './connections/privileges.js';
 import { addOnWriteJudges } from './crud/add-on-write-judges.js';
+import { paidLabelJudge } from './shipping/order-guard.js';
 import { UndoStore } from './crud/undo.js';
 import { seedBuiltinEmailTemplatesIfChanged } from './email/builtins.js';
 import { configureSmtpNetwork, emailSecretKey } from './email/config.js';
@@ -1501,6 +1502,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // A landing pages add-on's pages: a page goes live, or its published copy is written, only whole, unmarked and at an address no other page holds.
     // What is installed is read once per write for all of them (`crud/add-on-write-judges.ts`).
     ...addOnWriteJudges(addOnInstalls),
+    // A person's move back or to cancelled on an order with a paid label is asked about first (`shipping/order-guard.ts`).
+    paidLabelMove: paidLabelJudge(meta, appManifests),
     // A file column names only a file its writer uploaded and no record holds; a picture, one cleaned as it came in.
     // A page's file column too, when a person saves it: what it newly names is an upload of theirs.
     files: createFileColumnJudge({
