@@ -15,6 +15,15 @@ import type { SealedText, SmsSendOutcome, TextSendReport } from './types.js';
 export const SMS_SEND_JOB_KIND = 'sms.send';
 /** Tries of one message, counting only those the provider certainly did not take or can de-duplicate. */
 export const SMS_SEND_ATTEMPTS = 5;
+/** What stands in a job's envelope once its text has ended or been erased. It opens as nothing, so it can never be sent. */
+export const SEALED_TEXT_GONE = 'gone';
+
+/** The periodic clean-up of what a dead worker left. */
+export const TEXT_SETTLE_JOB = 'sms.settle';
+export const TEXT_SETTLE_SCHEDULE = 'text-settle-sweep';
+export const TEXT_SETTLE_CRON = '*/10 * * * *';
+/** A marker older than this is given up on: it may have gone, and nobody came back. */
+export const TEXT_SETTLE_AFTER_MS = 3_600_000;
 
 const ENVELOPE_SALT = 'adminium:sms-envelope:v1';
 
@@ -25,6 +34,7 @@ const reportSchema: z.ZodType<TextSendReport> = z.object({
   connectionId: z.string().min(1).max(64),
   table: z.string().min(1).max(200),
   pk: z.record(z.string(), z.union([z.string(), z.number()])),
+  sentAt: z.number().int().optional(),
 });
 /** The stored report target; null when there is none or it cannot be read. */
 export function readReportTarget(stored: string | null): TextSendReport | null {

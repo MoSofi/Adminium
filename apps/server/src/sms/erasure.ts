@@ -8,9 +8,9 @@
  * log rows on the person's own row: the stop list and the stores matched by
  * the number alone are the whole workspace's.
  *
- * NOT REACHED: the sealed payload of an `sms.send` job. It holds the number and
- * the words until the jobs clean-up, and it cannot be searched because it is
- * sealed. A delivery row erased here leaves that job nothing to report to.
+ * The sealed payload of an `sms.send` job goes with its delivery row: it is
+ * found by the delivery id beside the envelope, so no other person's envelope
+ * is opened, and what is left can never be sent.
  */
 import type { ConsentPerson, MetaDb } from '@adminium/meta';
 

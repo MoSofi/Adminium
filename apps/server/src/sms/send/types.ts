@@ -66,7 +66,9 @@ export type TextSkipReason =
   /** No moment within two weeks has the window open in every time zone. */
   | 'no-send-window'
   /** The way to opt out changed after the text was written, so its last line would be wrong. */
-  | 'opt-out-changed';
+  | 'opt-out-changed'
+  /** What it is about was called off while it waited for its window, or its row no longer holds this number. */
+  | 'no-longer-needed';
 
 export type TextNotSentReason = SmsNotTakenReason | 'envelope-unreadable' | 'could-not-check' | 'could-not-queue';
 
@@ -128,6 +130,8 @@ export interface TextSendReport {
   connectionId: string;
   table: string;
   pk: Record<string, string | number>;
+  /** When the source row was claimed: a row sent again since is another message's. */
+  sentAt?: number | undefined;
 }
 
 /** What is sealed into the job: the only place the number and the words are held. */

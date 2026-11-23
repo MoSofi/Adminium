@@ -118,7 +118,7 @@ export interface TextSendPath {
   resolveUnknown(id: string, to: 'checked-went' | 'checked-not-sent'): Promise<TextDelivery | null>;
   /** Ends what nothing will come back for, and retries telling source rows what they are owed. */
   settleAbandoned(before: number): Promise<number>;
-  /** The erasure: every delivery record of this number. */
+  /** The erasure: every delivery record of this number, and the sealed number and words in their jobs. */
   eraseFor(phone: unknown, country: string | null): Promise<number>;
 }
 
@@ -236,6 +236,8 @@ export function createTextSendPath(deps: TextSendDeps): TextSendPath {
     async settleAbandoned(before) {
       const ended = await store.settleAbandoned(before, now());
       for (const row of await store.owedSettlements(OWED_BATCH)) await tellSource(deps, row);
+      // A job that died before it could blank its own envelope, whose delivery has since ended.
+      await store.forgetEndedSealed(OWED_BATCH);
       return ended;
     },
 

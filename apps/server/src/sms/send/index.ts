@@ -6,7 +6,7 @@
 export { composeText, type ComposeInput, type ComposeResult } from './compose.js';
 export { createStopConfirmer, type StopConfirmDeps, type StopConfirmOutcome } from './confirm-stop.js';
 export { createHandOver, earlierOf, TextRetryLater, type HandOverDeps, type TextLimitWarning } from './handover.js';
-export { openText, registerSmsSendHandler, sealText, SMS_SEND_ATTEMPTS, SMS_SEND_JOB_KIND, smsSendPayloadSchema, textEnvelopeKey, type SmsSendPayload } from './job.js';
+export { openText, registerSmsSendHandler, sealText, SEALED_TEXT_GONE, SMS_SEND_ATTEMPTS, SMS_SEND_JOB_KIND, TEXT_SETTLE_AFTER_MS, TEXT_SETTLE_CRON, TEXT_SETTLE_JOB, TEXT_SETTLE_SCHEDULE, smsSendPayloadSchema, textEnvelopeKey, type SmsSendPayload } from './job.js';
 export { estimateLength, limitsFor, TEXT_MAX_SEGMENTS, type LengthLimits, type TextEstimate } from './length.js';
 export { optOutLine, repliesWithStopWord, saysStop, withoutStopSentence, type BusinessContact } from './opt-out.js';
 export { createTextSendPath, textPhoneKeys, type TextPhoneKeys, type TextPrepared, type TextPrepareInput, type TextQueued, type TextQueueInput, type TextSendDeps, type TextSendPath, type TextUsage } from './path.js';

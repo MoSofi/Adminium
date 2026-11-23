@@ -26,12 +26,12 @@
  *
  * The row holds no message body and no number, only its keyed hash and a mask.
  */
-import { newId, type AddressHash, type MetaDb } from '@adminium/meta';
+import { jobsRepo, newId, type AddressHash, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely, type Updateable } from 'kysely';
 
 import { deliveryMoves, deliveryStatusOf } from '../inbound/delivery.js';
 import type { SmsPrice, SmsProviderKey } from '../types.js';
-import { readReportTarget } from './job.js';
+import { readReportTarget, SEALED_TEXT_GONE, SMS_SEND_JOB_KIND } from './job.js';
 import { warningAt } from './policy.js';
 import { TEXT_DELIVERY_STATES, TEXT_OPEN_STATES, TEXT_UNSETTLED_STATES, type TextDelivery, type TextDeliveryReason, type TextDeliveryState, type TextSendReport } from './types.js';
 
@@ -70,8 +70,12 @@ interface TextDeliveryTable {
 }
 
 interface JobKeyTable {
+  id: string;
+  kind: string;
+  payload: unknown;
   dedupeKey: string | null;
   status: string;
+  finishedAt: number | null;
 }
 
 interface TextSendDayTable {
@@ -161,8 +165,16 @@ export interface TextSendStore {
   /** A person's answer to an `unknown`. The slot stays used either way. */
   resolveUnknown(id: string, to: 'checked-went' | 'checked-not-sent', at: number): Promise<TextDelivery | null>;
   applyReport(report: TextReport): Promise<TextDelivery | null>;
-  /** Removes every delivery of these hashes. */
+  /** Removes every delivery of these hashes, and blanks the sealed number and words of every job that held one. */
   eraseFor(hashes: readonly AddressHash[]): Promise<number>;
+  /**
+   * Blanks the sealed envelope of every `sms.send` job of these deliveries,
+   * whatever its status. Found by the delivery id beside the envelope: nobody's
+   * envelope is opened. Answers how many jobs changed.
+   */
+  forgetSealed(deliveryIds: readonly string[]): Promise<number>;
+  /** Finds finished jobs still holding an envelope whose delivery has ended, and blanks them. */
+  forgetEndedSealed(limit: number): Promise<number>;
   /** How many delivery records {@link TextSendStore.eraseFor} would delete. */
   countFor(hashes: readonly AddressHash[]): Promise<number>;
 }
@@ -214,6 +226,17 @@ function decode(row: TextDeliveryTable): TextDelivery {
     createdAt: Number(row.createdAt),
     updatedAt: Number(row.updatedAt),
   };
+}
+
+/** Delivery ids asked about in one statement. */
+const SEALED_BATCH = 200;
+
+/** One text field of a job's JSON payload, in each engine's spelling. */
+function payloadText(dialect: MetaDb['dialect'], field: 'deliveryId' | 'envelope') {
+  const payload = sql.ref('payload');
+  if (dialect === 'postgres') return sql<string | null>`(${payload} ->> ${sql.lit(field)})`;
+  if (dialect === 'mysql') return sql<string | null>`json_unquote(json_extract(${payload}, ${sql.lit(`$.${field}`)}))`;
+  return sql<string | null>`json_extract(${payload}, ${sql.lit(`$.${field}`)})`;
 }
 
 /** Thrown inside a transaction to roll it back; never leaves this file. */
@@ -282,9 +305,57 @@ export function createTextSendStore(meta: MetaDb): TextSendStore {
     return row !== undefined;
   }
 
+  async function forgetSealed(deliveryIds: readonly string[]): Promise<number> {
+    const jobs = jobsRepo(meta);
+    const deliveryId = payloadText(dialect, 'deliveryId');
+    const envelope = payloadText(dialect, 'envelope');
+    let changed = 0;
+    for (let at = 0; at < deliveryIds.length; at += SEALED_BATCH) {
+      const chunk = deliveryIds.slice(at, at + SEALED_BATCH);
+      const held = await db
+        .selectFrom('adminium_jobs')
+        .select(['id', deliveryId.as('deliveryId')])
+        .where('kind', '=', SMS_SEND_JOB_KIND)
+        .where(deliveryId, 'in', chunk)
+        .where(envelope, '<>', SEALED_TEXT_GONE)
+        .execute();
+      for (const job of held) {
+        // The exact id: a column's collation never widens whose job this is.
+        if (job.deliveryId === null || !chunk.includes(job.deliveryId)) continue;
+        await jobs.setPayload(job.id, { v: 1, deliveryId: job.deliveryId, envelope: SEALED_TEXT_GONE });
+        changed += 1;
+      }
+    }
+    return changed;
+  }
+
   return {
     byId,
     usedOn,
+    forgetSealed,
+
+    async forgetEndedSealed(limit) {
+      const deliveryId = payloadText(dialect, 'deliveryId');
+      const envelope = payloadText(dialect, 'envelope');
+      const finished = await db
+        .selectFrom('adminium_jobs')
+        .select([deliveryId.as('deliveryId')])
+        .where('kind', '=', SMS_SEND_JOB_KIND)
+        .where('status', 'in', ['succeeded', 'failed', 'cancelled'])
+        .where(envelope, '<>', SEALED_TEXT_GONE)
+        .orderBy('finishedAt', 'asc')
+        .limit(limit)
+        .execute();
+      const ended: string[] = [];
+      for (const job of finished) {
+        if (job.deliveryId === null || ended.includes(job.deliveryId)) continue;
+        const row = await byId(job.deliveryId);
+        // Still open, or still owed to the stop list: it needs the number.
+        if (row !== null && (TEXT_OPEN_STATES.includes(row.state) || row.stopOwedAt !== null)) continue;
+        ended.push(job.deliveryId);
+      }
+      return forgetSealed(ended);
+    },
 
     async create(input) {
       const id = newId('tdl');
@@ -508,6 +579,13 @@ export function createTextSendStore(meta: MetaDb): TextSendStore {
 
     async eraseFor(hashes) {
       if (hashes.length === 0) return 0;
+      const theirs = await db
+        .selectFrom('adminium_text_deliveries')
+        .select('id')
+        .where((eb) => eb.or(hashes.map((one) => eb.and([eb('phoneHash', '=', one.hash), eb('keyVersion', '=', one.version)]))))
+        .execute();
+      // The envelopes first: a crash between the two leaves a row whose job can no longer send.
+      await forgetSealed(theirs.map((row) => row.id));
       const result = await db
         .deleteFrom('adminium_text_deliveries')
         .where((eb) => eb.or(hashes.map((one) => eb.and([eb('phoneHash', '=', one.hash), eb('keyVersion', '=', one.version)]))))

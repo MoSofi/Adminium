@@ -68,6 +68,12 @@ export interface HandOverDeps {
    * obeyed up to the last moment".
    */
   inboundWaiting?: ((e164: string) => Promise<boolean>) | undefined;
+  /**
+   * Whether the source row still wants this text, asked at the last moment: a
+   * job can wait overnight for its window, and the visit may be called off or
+   * the person erased meanwhile. Only for a delivery with a source row.
+   */
+  stillWanted?: ((report: TextSendReport, e164: string) => Promise<boolean>) | undefined;
   /** Tells the source row how its message ended, and of a later change. Must be safe to call twice. */
   onSettled?: ((report: TextSendReport, delivery: TextDelivery) => Promise<void>) | undefined;
   onLimitWarning?: ((warning: TextLimitWarning) => Promise<void> | void) | undefined;
@@ -114,12 +120,18 @@ export function createHandOver(deps: HandOverDeps) {
     // Thrown on purpose when it fails: the job runs again, and this is all that run does.
     if (row.stopOwedAt !== null && text !== null) await writeStop(row, text.to);
     await tellSource(deps, row);
+    // Nothing is left to do with the number and the words, so the job stops holding them. A failure here is the sweep's to mend.
+    if (row.stopOwedAt === null || text !== null) await store.forgetSealed([row.id]).catch(() => 0);
     return { outcome: row.state as Extract<SmsSendOutcome, { reason: unknown }>['outcome'], reason: row.reason };
   }
 
   return async function handOver(payload: SmsSendPayload, ctx: { attempt: number; maxAttempts: number; signal: AbortSignal }): Promise<SmsSendOutcome> {
     const found = await store.byId(payload.deliveryId);
-    if (found === null) return { outcome: 'missing' };
+    if (found === null) {
+      // Erased, perhaps while this job was being queued: it holds the number no longer than this.
+      await store.forgetSealed([payload.deliveryId]).catch(() => 0);
+      return { outcome: 'missing' };
+    }
     let row: TextDelivery = found;
     const text = openText(payload.envelope, deps.secret);
     if (!TEXT_OPEN_STATES.includes(row.state)) return afterEnd(row, text);
@@ -192,6 +204,15 @@ export function createHandOver(deps: HandOverDeps) {
     }
     if (!decision.send) return close('skipped', decision.reason);
     if (decision.optOut !== text.optOut) return close('skipped', 'opt-out-changed');
+    if (row.reportTarget !== null && deps.stillWanted !== undefined) {
+      let wanted: boolean;
+      try {
+        wanted = await deps.stillWanted(row.reportTarget, decision.e164);
+      } catch {
+        return cannotCheck();
+      }
+      if (!wanted) return close('skipped', 'no-longer-needed');
+    }
 
     // A reply already stored and not yet read may be their STOP. It is read within moments, so this waits for it.
     let callbackUrl: string | null;
