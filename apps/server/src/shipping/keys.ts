@@ -20,9 +20,29 @@ export type KeyCheck =
   | { outcome: 'refused'; carrierMessage?: string }
   | { outcome: 'unreachable' };
 
-/** A booking that still depends on a key, named so the screen can list it. */
+/** A booking that still depends on a key: enough to ask whether this person reaches its order. */
 export interface OpenBooking {
-  reference: string;
+  connectionId: string;
+  installId: string;
+  tableRef: string;
+  tableName: string;
+  rowKey: string;
+}
+
+/**
+ * The bookings holding a carrier's key. `count` is every one of them, whichever
+ * app made it, because that is why the key is locked. `own` is this app
+ * install's alone: the only ones that could be named to its manager.
+ */
+export interface OpenBookings {
+  count: number;
+  own: readonly OpenBooking[];
+}
+
+/** How a key's lock reads to one person: the true count, and the orders they may be told of. */
+export interface KeyLock {
+  count: number;
+  orders: string[];
 }
 
 /** The names of the fields a carrier's key is made of. */

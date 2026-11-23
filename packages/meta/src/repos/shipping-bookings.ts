@@ -260,6 +260,17 @@ export function shippingBookingsRepo(meta: MetaDb) {
       return row === undefined ? null : toBooking(row);
     },
 
+    /** These bookings, in the order asked for. One that is gone is left out. */
+    async byIds(ids: readonly string[]): Promise<ShippingBooking[]> {
+      if (ids.length === 0) return [];
+      const rows = await db.selectFrom('adminium_shipping_bookings').selectAll().where('id', 'in', [...ids]).execute();
+      const found = new Map(rows.map((row) => [row.id, row]));
+      return ids.flatMap((id) => {
+        const row = found.get(id);
+        return row === undefined ? [] : [toBooking(row)];
+      });
+    },
+
     /** The live booking holding this slot, if any. */
     async open(slot: ShippingBookingSlot, mode: ShippingKeyMode): Promise<ShippingBooking | null> {
       const row = await db.selectFrom('adminium_shipping_bookings').selectAll().where('openKey', '=', shippingOpenKey(slot, mode)).executeTakeFirst();
@@ -441,6 +452,32 @@ export function shippingBookingsRepo(meta: MetaDb) {
         .where('carrierInstallId', '=', carrierInstallId)
         .where('state', 'in', [...UNRESOLVED_BOOKING_STATES])
         .orderBy('createdAt', 'asc')
+        .limit(limit)
+        .execute();
+      return rows.map(toBooking);
+    },
+
+    /** How many attempts on this carrier install have no final answer, whichever app made them. */
+    async countUnresolved(carrierInstallId: string): Promise<number> {
+      const row = await db
+        .selectFrom('adminium_shipping_bookings')
+        .select((eb) => eb.fn.countAll().as('count'))
+        .where('carrierInstallId', '=', carrierInstallId)
+        .where('state', 'in', [...UNRESOLVED_BOOKING_STATES])
+        .executeTakeFirstOrThrow();
+      return Number(row.count);
+    },
+
+    /** One app install's attempts on this carrier install with no final answer, oldest first. */
+    async unresolvedOfAppOn(carrierInstallId: string, installId: string, limit: number): Promise<ShippingBooking[]> {
+      const rows = await db
+        .selectFrom('adminium_shipping_bookings')
+        .selectAll()
+        .where('carrierInstallId', '=', carrierInstallId)
+        .where('installId', '=', installId)
+        .where('state', 'in', [...UNRESOLVED_BOOKING_STATES])
+        .orderBy('createdAt', 'asc')
+        .orderBy('id', 'asc')
         .limit(limit)
         .execute();
       return rows.map(toBooking);

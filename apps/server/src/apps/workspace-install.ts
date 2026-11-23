@@ -91,7 +91,8 @@ export interface WorkspaceInstallerDeps {
   /** Discard a staged package that nothing installed. */
   discardStaged(key: string, version: string): Promise<void>;
   copiesOf(key: string): Promise<AppCopy[]>;
-  install(input: { key: string; version: string; connectionId: string; answers: Record<string, unknown> }): Promise<void>;
+  /** Answers with what the install withheld, when it withheld anything. */
+  install(input: { key: string; version: string; connectionId: string; answers: Record<string, unknown> }): Promise<Pick<WorkspaceInstallApp, 'shippingWithheld'> | void>;
   update(input: { key: string; installId: string; connectionId: string | null; answers: Record<string, unknown> }): Promise<void>;
   /**
    * What that update would refuse, asked with nothing moved: throws its
@@ -208,7 +209,7 @@ export function createWorkspaceInstaller(deps: WorkspaceInstallerDeps) {
   }
 
   /** Install or update one app; returns its new state. Throws only what is a stop. */
-  async function runApp(app: WorkspaceInstallApp, asked: WorkspaceInstallAppRequest | undefined): Promise<Pick<WorkspaceInstallApp, 'state' | 'reason' | 'error'>> {
+  async function runApp(app: WorkspaceInstallApp, asked: WorkspaceInstallAppRequest | undefined): Promise<Pick<WorkspaceInstallApp, 'state' | 'reason' | 'error' | 'shippingWithheld'>> {
     const target = app.target!;
     try {
       const staged = await deps.stagedIntegrity(app.key, app.version);
@@ -240,8 +241,8 @@ export function createWorkspaceInstaller(deps: WorkspaceInstallerDeps) {
       const older = copies.filter((copy) => compareSemver(app.version, copy.version) > 0);
       // A newer version moves every copy; one already newer is refused by the update itself.
       for (const copy of older) await deps.update({ key: app.key, installId: copy.installId, connectionId: copy.connectionId, answers: answersFor(copy) });
-      if (!copies.some((copy) => copy.connectionId === target)) await deps.install({ key: app.key, version: app.version, connectionId: target, answers: asked?.install ?? SAFE_INSTALL_ANSWERS });
-      return { state: older.length > 0 || unfinished.length > 0 ? 'updated' : 'installed' };
+      const made = copies.some((copy) => copy.connectionId === target) ? undefined : await deps.install({ key: app.key, version: app.version, connectionId: target, answers: asked?.install ?? SAFE_INSTALL_ANSWERS });
+      return { state: older.length > 0 || unfinished.length > 0 ? 'updated' : 'installed', ...(made?.shippingWithheld === undefined ? {} : { shippingWithheld: made.shippingWithheld }) };
     } catch (error) {
       if (error instanceof AppError && error.statusCode < 500 && !STOP_CODES.has(error.code)) {
         const details = error.details as { reason?: unknown } | undefined;
@@ -291,7 +292,7 @@ export function createWorkspaceInstaller(deps: WorkspaceInstallerDeps) {
           // Not named in this run: it waits for its answers, never installs with an earlier run's place and none.
           if (DONE.has(app.state) || app.target === null || !asked.has(app.key)) continue;
           await stillHeld(id, runId);
-          let outcome: Pick<WorkspaceInstallApp, 'state' | 'reason' | 'error'>;
+          let outcome: Pick<WorkspaceInstallApp, 'state' | 'reason' | 'error' | 'shippingWithheld'>;
           try {
             outcome = await runApp(app, asked.get(app.key));
           } catch (error) {

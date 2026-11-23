@@ -10,6 +10,8 @@ import type { PermissionGrant } from '@adminium/ui';
 import { jsonResponse } from '../test/fixtures.js';
 import {
   RESERVED_GRANTS,
+  appShippingRows,
+  grantsToSave,
   createRole,
   deleteRole,
   permissionCatalogQuery,
@@ -42,6 +44,50 @@ describe('isPermissionGrant', () => {
     expect(isPermissionGrant('table:pg-main:orders:destroy')).toBe(false);
     expect(isPermissionGrant('page:billing:delete')).toBe(false);
     expect(isPermissionGrant('system:users:man age')).toBe(false);
+  });
+});
+
+describe('the shipping rights of an app install', () => {
+  it('reads as a grant, by install, and never for every install', () => {
+    expect(isPermissionGrant('shipping:shop:book')).toBe(true);
+    expect(isPermissionGrant('shipping:shop~kiln:customs')).toBe(true);
+    expect(isPermissionGrant('shipping:*:book')).toBe(false);
+    expect(isPermissionGrant('shipping:shop:refund')).toBe(false);
+  });
+
+  it('gives each copy its own three rows, told apart by its database', () => {
+    const rows = appShippingRows(
+      [
+        { grantKey: 'shop', name: 'Shop', connectionName: 'Main' },
+        { grantKey: 'shop~kiln', name: 'Shop', connectionName: 'Kiln' },
+      ],
+      {},
+    );
+    expect(rows.map((row) => row.key)).toEqual([
+      'shipping:shop~kiln:book',
+      'shipping:shop~kiln:cancel',
+      'shipping:shop~kiln:customs',
+      'shipping:shop:book',
+      'shipping:shop:cancel',
+      'shipping:shop:customs',
+    ]);
+    expect(rows[0]!.app).toBe('Shop (Kiln)');
+    expect(rows[3]!.app).toBe('Shop (Main)');
+  });
+
+  it('keeps a row for a right a role holds on an install no longer listed', () => {
+    const rows = appShippingRows([], { role_a: ['shipping:gone:cancel'] });
+    expect(rows.map((row) => row.key)).toEqual(['shipping:gone:book', 'shipping:gone:cancel', 'shipping:gone:customs']);
+    expect(rows[0]!.app).toBe('gone');
+  });
+
+  it('a save keeps the stored rights the matrix does not draw', () => {
+    expect(grantsToSave(['page:*:view'], ['page:*:view', 'payments:shop:refund', 'accounts:shop:connect', 'addOn:invoices:settings'])).toEqual([
+      'page:*:view',
+      'payments:shop:refund',
+      'accounts:shop:connect',
+      'addOn:invoices:settings',
+    ]);
   });
 });
 

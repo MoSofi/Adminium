@@ -416,6 +416,30 @@ describe('installing a workspace file', () => {
     expect(sent.apps).toEqual([expect.objectContaining({ key: 'suppliers', connectionId: 'c-suppliers' })]);
   });
 
+  it('says which roles an install left without shipping rights', async () => {
+    planRoutes();
+    const done = stagedFile({
+      state: 'done',
+      apps: [
+        app({
+          key: 'suppliers',
+          name: 'Suppliers',
+          target: 'c-suppliers',
+          state: 'installed',
+          shippingWithheld: [
+            { role: 'suppliers-packer', roleName: 'Packer', action: 'book' },
+            { role: 'suppliers-packer', roleName: 'Packer', action: 'cancel' },
+            { role: 'suppliers-owner', roleName: 'Owner', action: 'book' },
+          ],
+        }),
+      ],
+    });
+    routes['GET /api/v1/apps/workspace/wsi-1/install'] = () => ({ status: 200, body: { workspaceFile: done } });
+    withClient(<WorkspaceFileInstall resumeId="wsi-1" onClose={() => {}} />);
+    const line = await screen.findByTestId('withheld-suppliers');
+    expect(line.textContent).toBe('Shipping rights were not given to Packer, Owner. You can give them on the Roles page.');
+  });
+
   it('says why a whole file is refused', async () => {
     routes['POST /api/v1/apps/upload-workspace'] = () => ({ status: 422, body: { error: { code: 'VALIDATION_FAILED', message: 'x', requestId: 'r', details: { reason: 'WORKSPACE_FILE_INTEGRITY' } } } });
     withClient(<WorkspaceFileInstall file={new File(['x'], 'f.workspace.tgz')} onClose={() => {}} />);

@@ -14,6 +14,7 @@ import type { ToggleMatrixCellState, ToggleMatrixGroup } from '../toggle-matrix/
  * table:<connectionId>:<table>:<action>   // read|create|update|delete|export|import|read_pii
  * page:<pageId>:<view|edit>
  * app:<appKey>:staff                      // an installed app's staff screens
+ * shipping:<installKey>:<book|cancel|customs>  // one app install's labels
  * ```
  *
  * `*` may stand in for any single `table:`/`page:` segment in *stored*
@@ -24,7 +25,8 @@ export type SystemGrant = `system:${string}:${string}`;
 export type TableGrant = `table:${string}:${string}:${TableGrantAction | '*'}`;
 export type PageGrant = `page:${string}:${'view' | 'edit' | '*'}`;
 export type AppGrant = `app:${string}:staff`;
-export type PermissionGrant = SystemGrant | TableGrant | PageGrant | AppGrant;
+export type ShippingGrant = `shipping:${string}:${'book' | 'cancel' | 'customs'}`;
+export type PermissionGrant = SystemGrant | TableGrant | PageGrant | AppGrant | ShippingGrant;
 
 export interface PermissionMatrixRole {
   /** Server role id (`RoleDto.id`) — echoed in `onChange`. */

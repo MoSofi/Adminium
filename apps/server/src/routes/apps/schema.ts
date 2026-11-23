@@ -794,6 +794,19 @@ export const installAppBody = z.object({
    */
   refundsUnticked: z.array(z.string().min(1).max(160)).max(32).optional(),
   /**
+   * The rights on the app's labels the installer unticked on the check, each
+   * by role and right as `shippingGrants` names them, so a role can keep
+   * `book` and lose `cancel`. Remembered, so an update never hands one over
+   * unasked. One naming a role or right the app does not grant changes
+   * nothing. A list is the answer: `[]` grants every listed right. Absent:
+   * nobody was asked, so a first install gives none of them and says which in
+   * `shippingWithheld`; a right a role already holds stays.
+   */
+  shippingUnticked: z
+    .array(z.object({ role: z.string().min(1).max(160), action: z.enum(['book', 'cancel', 'customs']) }).strict())
+    .max(300)
+    .optional(),
+  /**
    * The add-ons to install, connect or update with the app. A required one
    * that needs only installing or connecting is done without being listed; a
    * suggested one only when listed; an update only with `update: true`.
@@ -913,6 +926,12 @@ export const installedAppReply = z.object({
   screensFirstOnly: z.literal(true).optional(),
   /** Absent when the app declares no tables and none were touched. */
   schema: appliedSchema.optional(),
+  /**
+   * On an install's own reply: the label rights it did not give because the
+   * request carried no `shippingUnticked` answer. The owner can give them on
+   * the Roles page, or install again with `shippingUnticked: []`.
+   */
+  shippingWithheld: z.array(z.object({ role: z.string(), roleName: z.string(), action: z.enum(['book', 'cancel', 'customs']) })).optional(),
   /** `file` (a package: uploaded, downloaded or bundled) or `folder` (an app this project's folder carries). */
   source: z.string(),
   /**

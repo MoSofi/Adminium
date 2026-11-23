@@ -24,7 +24,7 @@ import { tagRoutes } from '../../security/route-audience.js';
 import { shippingPerson } from '../../shipping/access.js';
 import { readShipFrom } from '../../shipping/addresses.js';
 import { shippingCarrierFor, type ShippingCarrierDeps } from '../../shipping/carriers.js';
-import { checkCarrierKey, keyFieldsOf, type KeyCheck, type OpenBooking } from '../../shipping/keys.js';
+import { checkCarrierKey, keyFieldsOf, type KeyCheck, type KeyLock } from '../../shipping/keys.js';
 import { carrierLocked } from '../../shipping/locks.js';
 import { ShippingRefusal } from '../../shipping/refusals.js';
 import { attachedCarriers } from '../../shipping/shop.js';
@@ -37,9 +37,9 @@ export interface ShippingKeyRoutesDeps {
   networkFeatures: () => boolean;
   carrierDeps(request: FastifyRequest): ShippingCarrierDeps;
   appOf(request: FastifyRequest, param: string): Promise<{ app: InstalledManifest; connectionId: string }>;
-  statusOf(install: InstalledManifest, connectionId: string): Promise<{ data: Record<string, unknown> }>;
-  /** The bookings on a carrier install with no final answer yet. */
-  openBookings(carrierInstallId: string): Promise<readonly OpenBooking[]>;
+  statusOf(request: FastifyRequest, install: InstalledManifest, connectionId: string): Promise<{ data: Record<string, unknown> }>;
+  /** What holds a carrier's key, as this person may be told it. */
+  keyLockOf(request: FastifyRequest, install: InstalledManifest, connectionId: string, carrierInstallId: string): Promise<KeyLock>;
 }
 
 export function shippingKeyRoutes(deps: ShippingKeyRoutesDeps): FastifyPluginAsyncZod {
@@ -60,14 +60,10 @@ export function shippingKeyRoutes(deps: ShippingKeyRoutesDeps): FastifyPluginAsy
     return { row, manifest: manifest.data };
   }
 
-  async function refuseWhileOpen(carrierInstallId: string, carrier: string): Promise<void> {
-    const open = await deps.openBookings(carrierInstallId);
-    if (open.length === 0) return;
-    throw new ShippingRefusal('KEY_IN_USE', 'A booking on this key has no final answer yet, so the key cannot change.', {
-      carrier,
-      count: open.length,
-      orders: open.slice(0, 20).map((booking) => booking.reference),
-    });
+  async function refuseWhileOpen(request: FastifyRequest, install: InstalledManifest, connectionId: string, carrierInstallId: string, carrier: string): Promise<void> {
+    const lock = await deps.keyLockOf(request, install, connectionId, carrierInstallId);
+    if (lock.count === 0) return;
+    throw new ShippingRefusal('KEY_IN_USE', 'A booking on this key has no final answer yet, so the key cannot change.', { carrier, count: lock.count, orders: lock.orders });
   }
 
   const shopCountry = async (install: InstalledManifest) => readShipFrom((await shippingRepo(meta).settings(install.row.id))?.shipFrom ?? null)?.country ?? null;
@@ -97,7 +93,7 @@ export function shippingKeyRoutes(deps: ShippingKeyRoutesDeps): FastifyPluginAsy
         if (expected.length === 0 || supplied.length !== expected.length || supplied.some((name) => !expected.includes(name))) {
           throw new ShippingRefusal('KEY_FIELDS', `The key for "${carrier}" is made of other fields.`, { carrier, expected });
         }
-        await refuseWhileOpen(row.row.id, carrier);
+        await refuseWhileOpen(request, install, connectionId, row.row.id, carrier);
         requireNetwork(carrier);
 
         const fields = request.body.fields;
@@ -118,7 +114,7 @@ export function shippingKeyRoutes(deps: ShippingKeyRoutesDeps): FastifyPluginAsy
           throw new ShippingRefusal('KEY_OTHER_ACCOUNT', 'This key opens a different account. Nothing was saved.', { carrier, from: { mode: before.mode, keyHint: before.keyHint }, to: { mode: check.mode } });
         }
         // The carrier took seconds to answer: a booking may have started on the old key meanwhile.
-        await refuseWhileOpen(row.row.id, carrier);
+        await refuseWhileOpen(request, install, connectionId, row.row.id, carrier);
 
         const keyHash = resolved.keyHash(secret);
         const account: ShippingAccount = {
@@ -145,7 +141,7 @@ export function shippingKeyRoutes(deps: ShippingKeyRoutesDeps): FastifyPluginAsy
           action: 'shipping.key.saved',
           changes: { after: { app: install.row.manifestKey, carrier, fields: expected, mode: check.mode, accountChanged: otherAccount } },
         });
-        return (await deps.statusOf(install, connectionId)) as never;
+        return (await deps.statusOf(request, install, connectionId)) as never;
       },
     );
 
@@ -201,14 +197,14 @@ export function shippingKeyRoutes(deps: ShippingKeyRoutesDeps): FastifyPluginAsy
         const { carrier } = request.params;
         // A locked carrier may still hold a key from before the lock, and its owner may always remove it.
         const { row } = await carrierHere(install, connectionId, carrier);
-        await refuseWhileOpen(row.row.id, carrier);
+        await refuseWhileOpen(request, install, connectionId, row.row.id, carrier);
         const repo = shippingRepo(meta);
         await repo.forgetAccount(row.row.id);
         const credentialsDeleted = await manifests.deleteCredential(row.row.id);
         await shippingTrackingRepo(meta).clearToken(row.row.id, app.rbac.now());
         await repo.clearCarrierQuotes(connectionId, carrier);
         await app.rbac.audit(request, { category: 'settings', action: 'shipping.key.removed', changes: { after: { app: install.row.manifestKey, carrier, credentialsDeleted } } });
-        return (await deps.statusOf(install, connectionId)) as never;
+        return (await deps.statusOf(request, install, connectionId)) as never;
       },
     );
 
@@ -237,7 +233,7 @@ export function shippingKeyRoutes(deps: ShippingKeyRoutesDeps): FastifyPluginAsy
           action: 'shipping.limits.saved',
           changes: { before: { app: install.row.manifestKey, limits: shown(before) }, after: { app: install.row.manifestKey, limits: shown(next) } },
         });
-        return (await deps.statusOf(install, connectionId)) as never;
+        return (await deps.statusOf(request, install, connectionId)) as never;
       },
     );
   };

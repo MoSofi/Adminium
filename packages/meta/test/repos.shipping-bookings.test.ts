@@ -129,6 +129,17 @@ for (const dialect of TEST_DIALECTS) {
       expect((await repo.unresolvedOfInstall('mft_shop')).map((one) => one.id)).toEqual([open.id]);
     });
 
+    it('counts every unresolved attempt on a carrier, and lists one app\'s own', async () => {
+      const repo = shippingBookingsRepo(meta());
+      const mine = await made();
+      const done = await made({ rowKey: '42' });
+      await repo.move(done.id, ['reserved'], 'booked', {}, T0);
+      await made({ rowKey: '43', installId: 'mft_other' });
+      await made({ rowKey: '44', carrierInstallId: 'mft_other' });
+      expect(await repo.countUnresolved(mine.carrierInstallId)).toBe(2);
+      expect((await repo.unresolvedOfAppOn(mine.carrierInstallId, 'mft_shop', 10)).map((one) => one.id)).toEqual([mine.id]);
+    });
+
     it('takes an attempt off the day\'s count once', async () => {
       const repo = shippingBookingsRepo(meta());
       const { id } = await made();

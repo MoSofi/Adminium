@@ -201,6 +201,24 @@ describe('the install wizard', () => {
     expect(screen.getByText('/apps/clinic/staff/')).toBeTruthy();
   });
 
+  it('sends the one shipping right unticked on the check, by role and right', async () => {
+    plan = {
+      ...checkPlan({ action: 'rename-existing', renameExistingTo: 'clinic_shifts_old' }),
+      shippingGrants: [
+        { role: 'clinic-packer', roleName: 'Packer', action: 'book' },
+        { role: 'clinic-packer', roleName: 'Packer', action: 'cancel' },
+      ],
+    };
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+    await user.click(screen.getByTestId('shipping-grant-clinic-packer-cancel'));
+    await user.click(screen.getByRole('button', { name: 'Install' }));
+    await screen.findByText(/^Clinic Desk \S+ is installed on /);
+    const install = calls.find((call) => call.url === '/api/v1/apps/install');
+    expect(install?.body).toMatchObject({ shippingUnticked: [{ role: 'clinic-packer', action: 'cancel' }] });
+  });
+
   it('sends back the checksum of the plan it showed, and re-checks when the database moved', async () => {
     plan = { ...plan, checksum: 'a'.repeat(64) };
     installReplies = [

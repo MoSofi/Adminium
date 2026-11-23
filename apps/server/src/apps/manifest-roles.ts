@@ -29,8 +29,10 @@
  *   `shipping:@:book`          buy labels for THIS install's orders, within the
  *   `shipping:@:cancel`        limits its owner sets; ask for a label's refund;
  *   `shipping:@:customs`       declare customs. Three rights, because a packer
- *                              who books is promised never to cancel. An
- *                              update that adds one asks first.
+ *                              who books is promised never to cancel. Shown on
+ *                              the install check, each ticked; the installer
+ *                              may untick one right of one role. An update
+ *                              that adds one asks first.
  *
  * `read_pii` shows the table's personal columns in clear (crud/mask.ts): a
  * reception that rings patients holds it on the patients table.
@@ -424,6 +426,8 @@ export interface RolesResult {
   seeded: number;
   /** What the roles hold of the tables of the add-ons here for the app (the role-table writer's answer), when it asks for any. */
   tables?: RoleTableResult[];
+  /** Label rights a first install did not give because nobody was asked. The owner can give them on the Roles page. */
+  shippingWithheld?: { role: string; roleName: string; action: ShippingAction }[];
 }
 
 /**
@@ -441,6 +445,18 @@ export async function writeManifestRoles(input: {
   names: Readonly<Record<string, string>>;
   /** The roles (by slug) the installer unticked on the check: not given the app's refund right (`payments:@:refund`). */
   refundsUnticked?: readonly string[] | undefined;
+  /**
+   * An install's answer on the app's label rights: the rights the installer unticked, each named as the check's
+   * `shippingGrants` names it (the role by its plain `<key>-<role>` slug, whichever copy this is). Empty: the card was
+   * shown and all were kept, so each is given even if an earlier install left it settled. Undefined when no card was
+   * answered: no role is then given a right the ledger has already settled, even a role made again after a delete.
+   */
+  shippingUnticked?: readonly { role: string; action: ShippingAction }[] | undefined;
+  /**
+   * An install that showed no card and got no answer (a workspace file, the API, the CLI). It gives no label right,
+   * remembers each as settled so an update never hands it over, and leaves alone a right the role already holds.
+   */
+  shippingUnanswered?: boolean | undefined;
 }): Promise<RolesResult> {
   const { meta, manifest, connectionId } = input;
   const result: RolesResult = { created: [], seeded: 0 };
@@ -609,8 +625,31 @@ export async function writeManifestRoles(input: {
       seeded.delete(pair);
       changed = true;
     }
+    // The check names a role without its copy's slug, so a later copy's untick is matched on that name.
+    const checkSlug = roleSlugFor(manifest.key, declared.key);
     for (const grant of wanted) {
       const pair = `${slug}|${grant}`;
+      const shipping = manifest.kind === 'app' ? (SHIPPING_GRANT.exec(grant)?.[1] as ShippingAction | undefined) : undefined;
+      if (shipping !== undefined) {
+        if (input.shippingUnticked?.some((one) => one.role === checkSlug && one.action === shipping) === true) {
+          // Remembered as settled, so an update never hands it over. A stopped install tried again may have given it already.
+          if (!fresh) await revokeGrant(role.id, grant);
+          seeded.add(pair);
+          continue;
+        }
+        if (input.shippingUnticked === undefined && input.shippingUnanswered === true) {
+          const row = matrixRowsFromGrants([appShippingPermission(grantKeyOf({ manifestKey: manifest.key, instanceSlug: input.install.slug }), shipping)]).rows[0];
+          const existing = fresh || row === undefined ? null : await permissions.find(role.id, row.resourceKind, row.resourceRef);
+          const held = row !== undefined && existing !== null && Object.entries(row.actions).every(([name, on]) => !on || (existing.actions as Record<string, boolean>)[name] === true);
+          seeded.add(pair);
+          if (!held) (result.shippingWithheld ??= []).push({ role: checkSlug, roleName: declared.name, action: shipping });
+          continue;
+        }
+        // The card showed this right ticked and the person pressed Install: what the screen said is what happens.
+        if (input.shippingUnticked !== undefined) seeded.delete(pair);
+        // A role deleted and made again by an update: the ledger cannot say whether this right was unticked, so it stays away.
+        else if (fresh && seeded.has(pair)) continue;
+      }
       // A role made a moment ago has been given nothing, whatever the ledger
       // remembers of an earlier install's role of the same name.
       if (!fresh && seeded.has(pair)) continue;

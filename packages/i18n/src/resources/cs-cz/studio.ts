@@ -882,6 +882,13 @@ export default {
       "refundGrants": {
         "title": "Kdo smí vracet online platby",
         "body": "Tyto role smí vracet peníze, které zákazníci zaplatili online za záznamy této aplikace. Odškrtněte roli, která to dělat nemá."
+      },
+      "shippingGrants": {
+        "title": "Kdo smí pracovat s přepravními štítky",
+        "body": "Tyto role smějí s přepravními štítky této aplikace dělat následující. Zrušte zaškrtnutí všeho, co by role dělat neměla.",
+        "book": "Kupovat štítky v mezích, které nastavíte",
+        "cancel": "Žádat o vrácení peněz za štítek",
+        "customs": "Podávat celní prohlášení"
       }
     },
     "installed": {
@@ -2954,6 +2961,11 @@ export default {
       "wrongPassword": "To není vaše heslo.",
       "lockedRefused": "Provozovatel serveru toto zamkl.",
       "failed": "Přepínač se nepodařilo změnit. Zkuste to znovu."
+    },
+    "shippingCard": {
+      "body": "Vyberte dopravce, s nímž každá aplikace odesílá, připojte jeho klíč a nastavte velikost štítků a kdo je smí kupovat.",
+      "cta": "Otevřít dopravu",
+      "heading": "Doprava"
     }
   },
   "source": {
@@ -5845,6 +5857,7 @@ export default {
       "notFinished": "nedokončeno",
       "on": "Jsou na serveru {server}.",
       "onDatabase": "na {database}",
+      "shippingWithheld": "Práva k odesílání nebyla udělena těmto rolím: {roles}. Můžete je udělit na stránce Role.",
       "openWorkspace": "Otevřít pracovní prostor",
       "rest": "Nainstalovat zbytek",
       "stoppedPartWay": "Nainstalováno {done} z {total}. {app} se zastavila v půlce. Nic nebylo odstraněno a Nainstalovat zbytek pokračuje tam, kde se zastavila.",
@@ -6172,5 +6185,249 @@ export default {
     "reason": "Důvod: {reason}",
     "reply": "Pokud jde o omyl, odpovězte na e-mail provozovatele.",
     "chip": "Skryto"
+  },
+  "shipping": {
+    "back": "Zpět na Odesílat přes",
+    "carrier": {
+      "demoName": "{name} (ukázka)"
+    },
+    "carrierGone": "Tento dopravce už není k této aplikaci připojen.",
+    "check": {
+      "again": "Zkontrolovat znovu",
+      "bad": "Klíč nebyl u {carrier} přijat.",
+      "badBody": "Zkopírujte klíč znovu z nastavení API u Shippo, bez čehokoli před ním a za ním. Pokud byl klíč v Shippo smazán, vytvořte nový a vložte ho sem.",
+      "badBodyOther": "Zkopírujte klíč znovu, bez čehokoli před ním a za ním, a vložte ho sem.",
+      "busy": "Kontroluje se…",
+      "button": "Zkontrolovat připojení",
+      "goLive": "Přepnout na ostrý provoz",
+      "live": "Ostrý klíč. Tito dopravci odpovídají pro {country}: {list}.",
+      "liveActive": "Zaměstnanci, kteří smějí kupovat štítky, teď mohou u zakázek zjišťovat sazby.",
+      "liveChoose": "Klíč funguje. Chcete-li ho použít, vyberte {carrier} v části Odesílat přes.",
+      "liveNoCountry": "Ostrý klíč. Tito dopravci odpovídají: {list}.",
+      "nextStep": "Další krok",
+      "noAnswer": "Od {carrier} nepřišla odpověď. Zkuste to znovu.",
+      "noAnswerBody": "O vašem klíči to nic neříká. Zůstává, jak byl.",
+      "none": "{carrier} nemá na tomto účtu žádného dopravce pro {country}. Připojte v {carrier} svůj vlastní účet dopravce a pak zkontrolujte znovu.",
+      "noneNoCountry": "{carrier} nemá na tomto účtu žádného dopravce. Připojte v {carrier} svůj vlastní účet dopravce a pak zkontrolujte znovu.",
+      "pasteNew": "Vložit nový klíč",
+      "replaceLive": "Nahradit ostrým klíčem",
+      "saveFirst": "Nejdřív uložte klíč.",
+      "testBody": "Štítky koupené s ním jsou vzorky. Žádné sledovací číslo se nedostane k zakázce ani k zákazníkovi. Tito dopravci odpovídají pro {country} v testu: {list}.",
+      "testBodyNoCountry": "Štítky koupené s ním jsou vzorky. Žádné sledovací číslo se nedostane k zakázce ani k zákazníkovi. Tito dopravci odpovídají v testu: {list}.",
+      "testTitle": "Zkušební klíč. Nic se nedoručí",
+      "useCarrier": "Odesílat přes {carrier}"
+    },
+    "close": "Zavřít",
+    "disclosure": "Štítky se kupují na vašem účtu Shippo a jsou vám účtovány. Jména zákazníků, adresy a, když to dopravce vyžaduje, telefonní čísla se odesílají Shippo a dopravci.",
+    "disclosureOther": "Štítky se kupují na vašem účtu {carrier} a jsou vám účtovány. Jména zákazníků, adresy a, když to dopravce vyžaduje, telefonní čísla se odesílají {carrier} a dopravci.",
+    "error": {
+      "generic": "To se nepovedlo. Zkuste to znovu.",
+      "keyFields": "Tento klíč se skládá z jiných polí. Načtěte stránku znovu a zkuste to znovu.",
+      "keyRefused": "Klíč nebyl u {carrier} přijat. Nic se neuložilo.",
+      "locked": "{carrier} zatím běží jako ukázka, proto nepřijímá klíč.",
+      "networkOff": "Tento server je nastaven tak, aby pracoval bez internetu, takže se nelze dopravce zeptat.",
+      "noAnswer": "Od {carrier} nepřišla odpověď. Nic se nezměnilo. Zkuste to znovu.",
+      "noKey": "Nejdřív uložte klíč {carrier}.",
+      "noWebhook": "{carrier} neposílá aktualizace sledování na webhook.",
+      "notChecked": "Nejdřív zkontrolujte připojení k {carrier}.",
+      "notInstalled": "Dopravce {carrier} už není k této aplikaci připojen.",
+      "notLoaded": "{carrier} se na tomto serveru nepodařilo načíst.",
+      "serverWide": "{carrier} se vede pro celý server, proto nepřijímá klíč pro jeden obchod.",
+      "switchedOff": "Dopravce {carrier} je pro tuto aplikaci vypnut.",
+      "noPublicAddress": "Tento server potřebuje veřejnou adresu https, než ho {carrier} může zavolat. Stávající adresa dál funguje."
+    },
+    "gate": {
+      "body": "Požádejte toho, kdo tento server provozuje, aby vám dal oprávnění „Nastavit dopravu“.",
+      "title": "Ke správě dopravy potřebujete oprávnění"
+    },
+    "goLive": {
+      "step1": "V Shippo otevřete Nastavení a pak API.",
+      "step2": "Zkopírujte ostrý klíč. Začíná shippo_live_.",
+      "step3": "Stiskněte níže Nahradit ostrým klíčem a vložte ho.",
+      "step4": "Zkontrolujte připojení znovu."
+    },
+    "guide": {
+      "events": "Přidejte webhook pro každou z událostí {first}, {second} a {third}, ve stejném režimu jako váš klíč.",
+      "eventsLive": "Přidejte webhook pro každou z událostí {first}, {second} a {third} a zvolte Live.",
+      "eventsTest": "Přidejte webhook pro každou z událostí {first}, {second} a {third} a zvolte Test.",
+      "heading": "Vložte to do {carrier}",
+      "moved": "Pokud se veřejná adresa tohoto serveru změní, vytvořte novou adresu a vložte ji znovu.",
+      "open": "V Shippo otevřete Nastavení a pak Webhooks.",
+      "paste": "Vložte adresu výše a uložte."
+    },
+    "intro": "Štítky k zakázkám {shop}, koupené na vlastním účtu Shippo obchodu. Adminium nevede žádný účet a nebere žádné peníze.",
+    "introPlain": "Štítky k vašim zakázkám, koupené na vašem vlastním účtu dopravce. Adminium nevede žádný účet a nebere žádné peníze.",
+    "key": {
+      "empty": "Vložte svůj klíč {carrier}.",
+      "hint": "Po uložení se zobrazí jen poslední čtyři znaky.",
+      "inUse": "Tento klíč nelze změnit, dokud objednání s ním nemá konečnou odpověď.",
+      "inUseMore": "a dalších: {count}",
+      "inUseOrders": "Zakázky:",
+      "inUseUnnamed": "{count, plural, one {Drží ho # objednání, u objednávky, kterou zde nemůžete otevřít.} few {Drží ho # objednání, u objednávek, které zde nemůžete otevřít.} many {Drží ho # objednání, u objednávek, které zde nemůžete otevřít.} other {Drží ho # objednání, u objednávek, které zde nemůžete otevřít.}}",
+      "keep": "Ponechat stávající klíč",
+      "label": "Klíč API {carrier}",
+      "replace": "Nahradit",
+      "save": "Uložit klíč",
+      "saving": "Kontrola u {carrier}…",
+      "shape": "Tohle nevypadá jako klíč Shippo. Začínají shippo_live_ nebo shippo_test_. Rozhodne Shippo při uložení.",
+      "tryAgain": "Zkusit znovu"
+    },
+    "limits": {
+      "aDay": "za den, všichni baliči dohromady.",
+      "bought": "koupeno všemi baliči dohromady",
+      "cancel": "Zrušit",
+      "count": "{used} z {limit}",
+      "currencyError": "Zadejte třípísmenný kód měny, například EUR.",
+      "currencyLabel": "Měna limitu",
+      "daily": "Nejvíce štítků, které smějí všichni baliči dohromady koupit za den",
+      "dayError": "Zadejte, kolik štítků smějí všichni baliči dohromady koupit za den, nejméně 1.",
+      "each": "za štítek, a",
+      "heading": "Kdo smí kupovat štítky",
+      "meter": "Štítky koupené dnes všemi baliči dohromady",
+      "none": "Baliči zatím nemohou kupovat štítky. Objednáváte je vy.",
+      "open": "Dovolit baličům kupovat štítky",
+      "perError": "Zadejte nejvyšší částku, kterou může balič utratit za jeden štítek, větší než nula.",
+      "perLabel": "Nejvyšší částka, kterou může balič utratit za jeden štítek",
+      "save": "Uložit limity",
+      "saved": "Limity uloženy.",
+      "stop": "Zakázat baličům kupovat štítky",
+      "stopped": "Baliči teď nemohou kupovat štítky. Objednáváte je vy.",
+      "subtitle": "Štítky můžete kupovat vždy. Baliči kupují jen v těchto mezích.",
+      "today": "Dnes:",
+      "upTo": "Baliči mohou kupovat štítky až do"
+    },
+    "line": {
+      "demo": "Neobjednává žádné skutečné štítky. Sledovací číslo píšete sami.",
+      "live": "Připojeno · Ostrý klíč",
+      "none": "Přidejte klíč {carrier}, než s ním budete moci odesílat.",
+      "off": "Pro tuto aplikaci vypnuto.",
+      "refused": "Klíč nebyl u {carrier} přijat. Vložte nový, než s ním budete moci odesílat.",
+      "test": "Připojeno · Zkušební klíč",
+      "unchecked": "Klíč uložen. Zkontrolujte připojení, než s ním budete moci odesílat."
+    },
+    "link": {
+      "api": "Nastavení API u Shippo",
+      "billing": "Nastavení fakturace u Shippo",
+      "carriers": "Účty dopravců u Shippo",
+      "dhlSite": "Vlastní web DHL",
+      "newTab": "(otevře se na nové kartě)",
+      "open": "Otevřít Shippo",
+      "webhooks": "Nastavení webhooků u Shippo"
+    },
+    "loadFailed": "Dopravu se nepodařilo načíst",
+    "loadFailedApp": "{app} se nepodařilo načíst",
+    "locked": {
+      "sentence": "Skutečné objednávání u DHL zatím není k dispozici. Tento doplněk je ukázka. Chcete-li odesílat hned, použijte Shippo, nebo objednejte na vlastním webu DHL a napište sledovací číslo.",
+      "subtitle": "Ukázkový doplněk. Neobjednává žádné skutečné štítky.",
+      "useShippo": "Odesílat přes Shippo"
+    },
+    "noApps": "Zatím tu žádná aplikace neodesílá. Připojte k aplikaci doplněk dopravy a nastavte ho tady.",
+    "notAffiliated": "Adminium není nijak spojeno se Shippo ani s žádným zobrazeným dopravcem.",
+    "other": {
+      "body": "Štítky koupené od teď se účtují novému účtu. Už koupené štítky zůstávají na starém a tento klíč k nim nedosáhne.",
+      "confirm": "Použít nový účet",
+      "current": "Právě používaný klíč končí na",
+      "kept": "Zatím se nic nezměnilo. Stávající klíč platí, dokud nepotvrdíte.",
+      "title": "Tento klíč otevírá jiný účet {carrier}"
+    },
+    "parcels": {
+      "never": "Nikdy nezkontrolováno",
+      "noCheck": "Zatím žádná",
+      "oldest": "Nejstarší kontrola",
+      "open": "Otevřené balíky",
+      "quiet": "Beze změny 7 dní"
+    },
+    "picker": "Aplikace",
+    "preview": {
+      "addTracking": "Přidat sledovací číslo",
+      "demo": "Jen ukázka. Objednejte na vlastním webu DHL a sledovací číslo pak napište sem.",
+      "getRates": "Zjistit sazby",
+      "heading": "Jak to vypadá v {app}",
+      "real": "Zaměstnanci vybírají ze sazeb, které {carrier} vrátí, a pak stisknou Objednat tento štítek."
+    },
+    "shipWith": {
+      "active": "Odesílá přes {name}",
+      "connection": "Připojení",
+      "group": "Odesílat přes",
+      "noneActive": "Nevybrán žádný dopravce",
+      "subtitle": "Vyberte, přes který doplněk tato aplikace kupuje štítky. Aktivní je vždy jen jeden.",
+      "whyDemo": "Proč je to ukázka"
+    },
+    "shippo": {
+      "subtitle": "Štítky od mnoha dopravců, na vašem vlastním účtu Shippo"
+    },
+    "size": {
+      "a4Line": "Kancelářské inkoustové a laserové tiskárny, na obyčejný papír A4.",
+      "a6Line": "Stolní tiskárny štítků a samolepicí štítky A6.",
+      "fourBySix": "4×6 palců",
+      "fourBySixLine": "Termální tiskárny štítků, které berou role nebo stohy 4 × 6 palců.",
+      "heading": "Velikost štítku",
+      "saved": "Velikost štítku uložena.",
+      "subtitle": "Velikost, o kterou Adminium žádá dopravce. Dopravce může vrátit jinou velikost a objednání to uvede.",
+      "which": "Které tiskárny se ke které velikosti hodí"
+    },
+    "state": {
+      "demo": "Ukázka",
+      "live": "Připojeno",
+      "none": "Nepřipojeno",
+      "off": "Vypnuto",
+      "refused": "Nepřijato",
+      "test": "Zkušební klíč",
+      "unchecked": "Nezkontrolováno"
+    },
+    "step": {
+      "account": "Vytvořte si účet Shippo",
+      "accountBody": "Zaregistrujte se na webu Shippo vlastním e-mailem obchodu. Účet patří obchodu, ne Adminium.",
+      "check": "Zkontrolovat připojení",
+      "checkBody": "Adminium se Shippo ptá, kteří dopravci odpovídají pro {country}.",
+      "checkBodyNoCountry": "Adminium se Shippo ptá, kteří dopravci odpovídají pro tento obchod.",
+      "done": "Hotovo",
+      "heading": "Kontrolní seznam nastavení",
+      "key": "Vytvořte klíč API a vložte ho sem",
+      "keyBody": "V Shippo otevřete Nastavení, pak API a vytvořte ostrý klíč. Zkopírujte ho a vložte níže.",
+      "known": "Potvrzeno zde: {done} z {total}",
+      "payment": "Přidejte platební metodu v Shippo",
+      "paymentBody": "Shippo strhává z této karty nebo z tohoto bankovního účtu platbu za každý koupený štítek. Dopravci mohou později připsat poplatky, například za těžší balík.",
+      "word": "Krok {n}"
+    },
+    "tab": {
+      "labels": "Velikost štítku",
+      "people": "Kdo smí kupovat štítky",
+      "setup": "Nastavení",
+      "tracking": "Sledování"
+    },
+    "test": {
+      "apps": "Na zkušebním klíči: {apps}",
+      "body": "Štítky nesou nápis SAMPLE. Žádné číslo se nedostane k zakázce ani k zákazníkovi.",
+      "title": "Zkušební režim: nic se nedoručí"
+    },
+    "title": "Doprava",
+    "tracking": {
+      "address": "Adresa webhooku",
+      "confirmBody": "Stará adresa přestane fungovat okamžitě. Aktualizace se zastaví, dokud novou nevložíte do {carrier}.",
+      "confirmTitle": "Vytvořit novou adresu?",
+      "copied": "Zkopírováno",
+      "copy": "Kopírovat",
+      "copyFailed": "Kopírování se nepovedlo. Označte adresu a zkopírujte ji.",
+      "copyLabel": "Kopírovat adresu webhooku",
+      "goTo": "Otevřít sledování",
+      "goneBody": "Vytvořte novou adresu a vložte ji do {carrier}. Do té doby se sledování mění, jen když někdo stiskne Obnovit.",
+      "goneTitle": "Adresa webhooku přestala fungovat, když se změnil klíč",
+      "heading": "Aktualizace sledování",
+      "last": "Poslední přijatá aktualizace:",
+      "make": "Vytvořit adresu",
+      "makeNew": "Vytvořit novou adresu",
+      "never": "Zatím nedorazila žádná aktualizace. Zkontrolujte, zda je adresa uložena v {carrier}.",
+      "noCarrier": "Ukázkový dopravce neposílá žádné aktualizace. Sledovací číslo píšete u zakázky.",
+      "noCarrierSubtitle": "Žádný dopravce tu neposílá aktualizace sledování.",
+      "notSet": "Nenastaveno",
+      "once": "Zkopírujte ji hned. Celá adresa se zobrazí jen tentokrát.",
+      "private": "Tento server nemůže přijímat aktualizace. Sledování se mění, když někdo stiskne Obnovit.",
+      "privateSubtitle": "Sledování se aktualizuje, když někdo stiskne Obnovit.",
+      "receiving": "Přijímá se",
+      "refreshOnly": "Jen obnovení",
+      "subtitle": "{carrier} posílá každý sken dopravce na tento server.",
+      "waiting": "Čeká se"
+    }
   }
 } as const;

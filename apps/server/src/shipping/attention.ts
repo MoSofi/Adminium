@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * WHICH LABELS NEED A PERSON, and why.
+ *
+ * A booking's reasons are worked out from what is stored: nothing here calls a
+ * carrier or reads a key. The first reason is the one a screen leads with.
+ *
+ * A test booking counts only while its purchase has no answer, because a test
+ * number can repeat and is never tracked: it has no tracking reasons at all.
+ */
+import { SHIPPING_TRACK_FINAL_RANK, type ShippingBooking, type ShippingParcel } from '@adminium/meta';
+
+import { BOOK_ANSWER_MS, isTestBooking, readsAs } from './bookings.js';
+import { labelStateOf } from './labels.js';
+import { REFRESH_OPEN_WINDOW_MS } from './refresh.js';
+
+/** After this long with no change, an open parcel is listed as quiet. */
+export const QUIET_PARCEL_MS = 7 * 24 * 60 * 60_000;
+
+/** The most labels one reading of the list returns. */
+export const ATTENTION_SHOWN = 200;
+/** How many candidates are read at a time, until enough this person reaches are found. */
+export const ATTENTION_BATCH = 250;
+/** The most candidates one reading looks through, reached or not. */
+export const ATTENTION_EXAMINED = 2000;
+
+/** Most pressing first. */
+export const ATTENTION_REASONS = ['unknown', 'duplicates', 'label-owed', 'new-number', 'tracking-failed', 'returned', 'ambiguous', 'quiet'] as const;
+export type AttentionReason = (typeof ATTENTION_REASONS)[number];
+
+/** The moments the stored rows are judged against, all from one clock reading. */
+export const attentionCutoffs = (now: number): { calledBefore: number; openSince: number; quietBefore: number } => ({
+  calledBefore: now - BOOK_ANSWER_MS,
+  openSince: now - REFRESH_OPEN_WINDOW_MS,
+  quietBefore: now - QUIET_PARCEL_MS,
+});
+
+/** Open as "Refresh open parcels" means it, so this list and that count agree. */
+function isQuiet(booking: ShippingBooking, parcel: ShippingParcel | null, now: number): boolean {
+  if (booking.tracking === null || booking.createdAt < now - REFRESH_OPEN_WINDOW_MS) return false;
+  if ((parcel?.statusRank ?? -1) >= SHIPPING_TRACK_FINAL_RANK) return false;
+  return now - (parcel?.statusAt ?? booking.createdAt) >= QUIET_PARCEL_MS;
+}
+
+/** Why this booking needs a person, most pressing first. Empty when it does not. */
+export function attentionReasons(booking: ShippingBooking, parcel: ShippingParcel | null, now: number): AttentionReason[] {
+  const state = readsAs(booking, now);
+  if (isTestBooking(booking)) return state === 'unknown' ? ['unknown'] : [];
+  const held = new Set<AttentionReason>();
+  if (state === 'unknown') held.add('unknown');
+  if (booking.duplicates > 0) held.add('duplicates');
+  if (state === 'booked') {
+    if (labelStateOf(booking) === 'owed') held.add('label-owed');
+    if (parcel?.numberChangedAt != null) held.add('new-number');
+    if (parcel?.status === 'FAILURE') held.add('tracking-failed');
+    if (parcel?.status === 'RETURNED') held.add('returned');
+    if (parcel?.flag === 'ambiguous') held.add('ambiguous');
+    if (isQuiet(booking, parcel, now)) held.add('quiet');
+  }
+  return ATTENTION_REASONS.filter((reason) => held.has(reason));
+}

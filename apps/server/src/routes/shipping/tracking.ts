@@ -4,6 +4,7 @@
  *
  *  - `POST …/bookings/:id/refresh`        one person asks about one parcel.
  *  - `POST …/tracking/refresh`            "Refresh open parcels", on a budget.
+ *  - `GET  …/attention`                   the labels that need a person. Calls nothing.
  *  - `GET  …/carriers/:carrier/tracking`  the webhook's health and the parcels' age.
  *  - `POST …/carriers/:carrier/webhook`   makes the address, shown this once.
  *  - `PUT  …/carriers/:carrier/polling`   refused while the code lock is off.
@@ -12,7 +13,7 @@
  * the carrier's terms allow. No reply, log or audit row holds the token.
  */
 import { addOnManifestSchema } from '@adminium/manifest';
-import { SHIPPING_TRACK_FINAL_RANK, settingsRepo, shippingBookingsRepo, shippingTrackingRepo, type InstalledManifest, type ManifestsRepo, type MetaDb, type ShippingBooking } from '@adminium/meta';
+import { SHIPPING_TRACK_FINAL_RANK, settingsRepo, shippingBookingsRepo, shippingTrackingRepo, type InstalledManifest, type ManifestsRepo, type MetaDb, type ShippingBooking, type ShippingParcel } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -21,9 +22,12 @@ import { auditExempt, audited } from '../../audit/coverage.js';
 import { venueDayOf } from '../../crud/row-limit-context.js';
 import { ForbiddenError, NotFoundError } from '../../errors.js';
 import { grantKeyOf } from '../../installs/resolve.js';
+import type { PayableSources } from '../../payments/payables.js';
 import { appShippingPermission, PERMISSIONS } from '../../rbac/permissions.js';
 import { tagRoutes } from '../../security/route-audience.js';
-import { shippingPerson, shippingViewerOf, type ShippingViewer } from '../../shipping/access.js';
+import { pricesHiddenFrom, shippingPerson, shippingViewerOf, type ShippingViewer } from '../../shipping/access.js';
+import { ATTENTION_BATCH, ATTENTION_EXAMINED, ATTENTION_SHOWN, attentionCutoffs, attentionReasons, QUIET_PARCEL_MS } from '../../shipping/attention.js';
+import { bookingView } from '../../shipping/bookings.js';
 import { shippingCarrierFor, type ShippingCarrierDeps } from '../../shipping/carriers.js';
 import { checkedAccount } from '../../shipping/keys.js';
 import { mayPoll } from '../../shipping/locks.js';
@@ -33,16 +37,15 @@ import { attachedCarriers, shopShipping } from '../../shipping/shop.js';
 import { maskedWebhookAddress, newWebhookToken, trackViewOf, webhookAddress } from '../../shipping/tracking.js';
 import { trackingReaderFor } from '../../shipping/tracking-readers.js';
 import type { ReachedOrder } from './bookings.js';
-import { bookingIdParams, carrierParams, shippingParams, trackView } from './schema.js';
+import { attentionReply, bookingIdParams, carrierParams, shippingParams, trackView } from './schema.js';
 
-/** After this long with no change, an open parcel is listed as quiet. */
-export const QUIET_PARCEL_MS = 7 * 24 * 60 * 60_000;
 const SUMMARY_SCAN = 500;
 
 export interface ShippingTrackingRoutesDeps {
   meta: MetaDb;
   manifests: ManifestsRepo;
   secret: string;
+  sources: PayableSources;
   networkFeatures: () => boolean;
   carrierDeps(request: FastifyRequest): ShippingCarrierDeps;
   appOf(request: FastifyRequest, param: string): Promise<{ app: InstalledManifest; connectionId: string }>;
@@ -79,6 +82,10 @@ const trackingReply = z.object({
           /** The address with its token masked. The full one is shown once, when made. */
           address: z.string().nullable(),
           made: z.boolean(),
+          /** An address was made and has ended (its key was replaced or removed): the carrier must be given a new one. */
+          ended: z.boolean(),
+          /** Whether this server has a public https address a carrier could call. */
+          publicAddress: z.boolean(),
           madeAt: z.number().nullable(),
           firstAt: z.number().nullable(),
           /** The last webhook accepted. A person's Refresh never sets this. */
@@ -96,6 +103,27 @@ const webhookReply = z.object({ data: z.object({ address: z.string(), madeAt: z.
 const pollingBody = z.object({ on: z.boolean() }).strict();
 const pollingReply = z.object({ data: z.object({ on: z.boolean() }).strict() });
 
+/**
+ * The order a booking is on, as this person reaches it, and only when the
+ * booking is this app install's own. A row they cannot see is null.
+ */
+export async function orderOfBooking(
+  reachOrder: ShippingTrackingRoutesDeps['reachOrder'],
+  request: FastifyRequest,
+  install: InstalledManifest,
+  connectionId: string,
+  booking: Pick<ShippingBooking, 'connectionId' | 'installId' | 'tableRef' | 'tableName' | 'rowKey'>,
+): Promise<ReachedOrder | null> {
+  if (booking.connectionId !== connectionId || booking.installId !== install.row.id) return null;
+  try {
+    const order = await reachOrder(request, install, connectionId, { table: booking.tableRef, id: booking.rowKey });
+    return order.table.id === booking.tableName ? order : null;
+  } catch (error) {
+    if (error instanceof ForbiddenError || error instanceof ShippingRefusal || error instanceof NotFoundError) return null;
+    throw error;
+  }
+}
+
 export function shippingTrackingRoutes(deps: ShippingTrackingRoutesDeps): FastifyPluginAsyncZod {
   const { meta, manifests, secret } = deps;
 
@@ -106,17 +134,11 @@ export function shippingTrackingRoutes(deps: ShippingTrackingRoutesDeps): Fastif
     if (!deps.networkFeatures()) throw new ShippingRefusal('CARRIER_UNAVAILABLE', 'Network features are off on this server, so no carrier can be asked.', { carrier, reason: 'network-off' });
   }
 
-  /** Whether this person reaches the order a booking is on. A row they cannot see is one they cannot refresh. */
-  async function reaches(request: FastifyRequest, install: InstalledManifest, connectionId: string, booking: ShippingBooking): Promise<boolean> {
-    if (booking.connectionId !== connectionId || booking.installId !== install.row.id) return false;
-    try {
-      const order = await deps.reachOrder(request, install, connectionId, { table: booking.tableRef, id: booking.rowKey });
-      return order.table.id === booking.tableName;
-    } catch (error) {
-      if (error instanceof ForbiddenError || error instanceof ShippingRefusal || error instanceof NotFoundError) return false;
-      throw error;
-    }
-  }
+  const orderReached = (request: FastifyRequest, install: InstalledManifest, connectionId: string, booking: ShippingBooking): Promise<ReachedOrder | null> =>
+    orderOfBooking(deps.reachOrder, request, install, connectionId, booking);
+
+  const reaches = async (request: FastifyRequest, install: InstalledManifest, connectionId: string, booking: ShippingBooking): Promise<boolean> =>
+    (await orderReached(request, install, connectionId, booking)) !== null;
 
   /** This database's own install of a carrier attached to the app. */
   async function carrierHere(install: InstalledManifest, connectionId: string, carrier: string): Promise<InstalledManifest> {
@@ -188,6 +210,74 @@ export function shippingTrackingRoutes(deps: ShippingTrackingRoutesDeps): Fastif
     );
 
     app.get(
+      '/apps/:key/shipping/attention',
+      { config: { audit: auditExempt('lists the labels that need a person from what is stored: no carrier is called and nothing is changed') }, schema: { params: shippingParams, response: { 200: attentionReply } } },
+      async (request) => {
+        shippingPerson(request);
+        const { app: install, connectionId } = await deps.appOf(request, request.params.key);
+        const viewer = await shippingViewerOf(request, install);
+        if (!mayTrack(viewer)) throw refuseNoRight(install);
+        const now = app.rbac.now();
+        const tracking = shippingTrackingRepo(meta);
+        const scope = { connectionId, installId: install.row.id, ...attentionCutoffs(now) };
+        const hiddenOn = new Map<string, boolean>();
+        const seen = new Set<string>();
+
+        /** This booking as this person is shown it, or null when it needs nobody or they do not reach it. */
+        const itemOf = async (booking: ShippingBooking, parcel: ShippingParcel | null) => {
+          const reasons = attentionReasons(booking, parcel, now);
+          if (reasons.length === 0) return null;
+          // Asked of each row: one this person cannot see is neither listed nor counted.
+          const order = await orderReached(request, install, connectionId, booking);
+          if (order === null) {
+            // A purchase with no answer on an order since deleted: only someone who manages shipping can settle it, and nothing else would show it.
+            if (viewer.manages && reasons.includes('unknown') && (await deps.sources.readRow(connectionId, booking.tableName, booking.rowKey).catch(() => undefined)) === null) {
+              return { reasons, reference: booking.reference, source: { table: booking.tableRef, id: booking.rowKey }, orderGone: true, booking: { ...bookingView(booking, now, false), track: trackViewOf(parcel) } };
+            }
+            return null;
+          }
+          let hidden = hiddenOn.get(order.table.id);
+          if (hidden === undefined) {
+            hidden = await pricesHiddenFrom(request, viewer, deps.sources, connectionId, order.table);
+            hiddenOn.set(order.table.id, hidden);
+          }
+          return {
+            reasons,
+            reference: order.reference,
+            source: { table: booking.tableRef, id: order.rowKey },
+            orderGone: false,
+            booking: { ...bookingView(booking, now, hidden), track: trackViewOf(parcel) },
+          };
+        };
+
+        const items: NonNullable<Awaited<ReturnType<typeof itemOf>>>[] = [];
+        // Read in batches until enough rows THIS person reaches are found: a row-limited reader's own can sit far down the list.
+        // `more` says only what is true: one more row they reach was found, or candidates were left unread.
+        let more = false;
+        for (let offset = 0; offset < ATTENTION_EXAMINED && !more; offset += ATTENTION_BATCH) {
+          const found = await tracking.attentionIds(scope, ATTENTION_BATCH + 1, offset);
+          const page = found.slice(0, ATTENTION_BATCH);
+          // A booking made between two batches moves the rest down one: what was read is not read twice.
+          const ids = page.filter((id) => !seen.has(id));
+          for (const id of ids) seen.add(id);
+          const [bookings, parcels] = await Promise.all([shippingBookingsRepo(meta).byIds(ids), tracking.parcels(ids)]);
+          for (const booking of bookings) {
+            const item = await itemOf(booking, parcels.get(booking.id) ?? null);
+            if (item === null) continue;
+            if (items.length === ATTENTION_SHOWN) {
+              more = true;
+              break;
+            }
+            items.push(item);
+          }
+          if (found.length <= ATTENTION_BATCH) break;
+          if (offset + ATTENTION_BATCH >= ATTENTION_EXAMINED) more = true;
+        }
+        return { data: { items, more } };
+      },
+    );
+
+    app.get(
       '/apps/:key/shipping/carriers/:carrier/tracking',
       { preHandler: guard, config: { audit: auditExempt('says how a carrier\'s webhook and parcels stand: nothing is called or changed') }, schema: { params: carrierParams, response: { 200: trackingReply } } },
       async (request) => {
@@ -209,7 +299,10 @@ export function shippingTrackingRoutes(deps: ShippingTrackingRoutesDeps): Fastif
               supported: trackingReaderFor(carrier) !== null,
               address: made ? maskedWebhookAddress(publicOrigin, row.row.id, state.tokenHint!) : null,
               made,
-              madeAt: state?.tokenMadeAt ?? null,
+              ended: !made && state?.tokenMadeAt != null,
+              // Built and thrown away: only whether one could be made is said.
+              publicAddress: webhookAddress(publicOrigin, row.row.id, newWebhookToken(secret, row.row.id).token) !== null,
+              madeAt: made ? (state?.tokenMadeAt ?? null) : null,
               firstAt: state?.firstAt ?? null,
               lastAt: state?.lastAt ?? null,
               lastBadAt: state?.lastBadAt ?? null,

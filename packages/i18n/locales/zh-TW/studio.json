@@ -872,6 +872,13 @@
       "refundGrants": {
         "title": "誰可以退還線上付款",
         "body": "這些角色可以退還客戶為此應用程式的記錄線上支付的款項。取消勾選不應擁有此權限的角色。"
+      },
+      "shippingGrants": {
+        "title": "誰可以處理貨運標籤",
+        "body": "這些角色可以對此應用程式的貨運標籤執行以下操作。取消勾選角色不該做的操作。",
+        "book": "在你設定的額度內購買標籤",
+        "cancel": "申請退還標籤費用",
+        "customs": "申報海關"
       }
     },
     "installed": {
@@ -2944,6 +2951,11 @@
       "wrongPassword": "這不是你的密碼。",
       "lockedRefused": "伺服器營運方已鎖定此項。",
       "failed": "無法變更此開關，請重試。"
+    },
+    "shippingCard": {
+      "body": "選擇每個應用程式使用的貨運業者，連接它的金鑰，並設定標籤尺寸以及誰可以購買標籤。",
+      "cta": "開啟寄送設定",
+      "heading": "寄送"
     }
   },
   "source": {
@@ -5835,6 +5847,7 @@
       "notFinished": "未完成",
       "on": "它們在 {server} 上。",
       "onDatabase": "在 {database} 上",
+      "shippingWithheld": "未向以下角色授予出貨權限：{roles}。你可以在「角色」頁面授予。",
       "openWorkspace": "開啟工作區",
       "rest": "安裝其餘應用程式",
       "stoppedPartWay": "已安裝 {done}/{total}。{app} 中途停止。沒有移除任何內容，「安裝其餘應用程式」會從停止的地方繼續。",
@@ -6162,5 +6175,249 @@
     "reason": "原因：{reason}",
     "reply": "如有誤，請回覆營運方的電子郵件。",
     "chip": "已隱藏"
+  },
+  "shipping": {
+    "back": "回到「寄送方式」",
+    "carrier": {
+      "demoName": "{name}（示範）"
+    },
+    "carrierGone": "此貨運業者已不再與這個應用程式關聯。",
+    "check": {
+      "again": "再次檢查",
+      "bad": "{carrier} 不接受這個金鑰。",
+      "badBody": "請重新從 Shippo 的 API 設定複製金鑰，前後不要帶任何字元。如果金鑰已在 Shippo 中刪除，請建立一個新的並貼到這裡。",
+      "badBodyOther": "請重新複製金鑰，前後不要帶任何字元，然後貼到這裡。",
+      "busy": "檢查中…",
+      "button": "檢查連線",
+      "goLive": "切換到正式環境",
+      "live": "正式金鑰。以下貨運業者可為 {country} 提供服務：{list}。",
+      "liveActive": "有權購買標籤的員工現在可以在訂單上取得運費了。",
+      "liveChoose": "金鑰可用。要使用它，請在「寄送方式」下選擇 {carrier}。",
+      "liveNoCountry": "正式金鑰。以下貨運業者有回應：{list}。",
+      "nextStep": "下一步",
+      "noAnswer": "{carrier} 沒有回應。請再試一次。",
+      "noAnswerBody": "這與你的金鑰無關。金鑰維持原樣。",
+      "none": "此帳戶在 {carrier} 中沒有適用於 {country} 的貨運業者。請在 {carrier} 中連接你自己的貨運業者帳戶，然後再次檢查。",
+      "noneNoCountry": "此帳戶在 {carrier} 中沒有任何貨運業者。請在 {carrier} 中連接你自己的貨運業者帳戶，然後再次檢查。",
+      "pasteNew": "貼上新金鑰",
+      "replaceLive": "替換為正式金鑰",
+      "saveFirst": "請先儲存金鑰。",
+      "testBody": "用它購買的標籤只是樣本。任何追蹤號碼都不會進入訂單，也不會到顧客手中。以下貨運業者在測試中可為 {country} 提供服務：{list}。",
+      "testBodyNoCountry": "用它購買的標籤只是樣本。任何追蹤號碼都不會進入訂單，也不會到顧客手中。以下貨運業者在測試中有回應：{list}。",
+      "testTitle": "測試金鑰。不會送出任何東西",
+      "useCarrier": "使用 {carrier} 寄送"
+    },
+    "close": "關閉",
+    "disclosure": "標籤是在你的 Shippo 帳戶上購買，費用向你收取。顧客姓名、地址，以及在貨運業者需要時的電話號碼，會傳送給 Shippo 和貨運業者。",
+    "disclosureOther": "標籤是在你的 {carrier} 帳戶上購買，費用向你收取。顧客姓名、地址，以及在貨運業者需要時的電話號碼，會傳送給 {carrier} 和貨運業者。",
+    "error": {
+      "generic": "沒有成功。請再試一次。",
+      "keyFields": "這個金鑰由其他欄位組成。請重新載入頁面後再試一次。",
+      "keyRefused": "{carrier} 不接受這個金鑰。沒有儲存任何內容。",
+      "locked": "{carrier} 目前以示範方式運作，因此不需要金鑰。",
+      "networkOff": "這台伺服器設定為不連網運作，所以無法詢問任何貨運業者。",
+      "noAnswer": "{carrier} 沒有回應。沒有任何變動。請再試一次。",
+      "noKey": "請先儲存 {carrier} 金鑰。",
+      "noWebhook": "{carrier} 不會透過 webhook 傳送追蹤更新。",
+      "notChecked": "請先檢查與 {carrier} 的連線。",
+      "notInstalled": "{carrier} 已不再與這個應用程式關聯。",
+      "notLoaded": "{carrier} 無法在這台伺服器上載入。",
+      "serverWide": "{carrier} 由整台伺服器統一管理，因此單一店家不需要金鑰。",
+      "switchedOff": "{carrier} 對此應用程式已關閉。",
+      "noPublicAddress": "這台伺服器需要一個公開的 https 網址，{carrier} 才能呼叫它。現有網址仍然有效。"
+    },
+    "gate": {
+      "body": "請讓營運這台伺服器的人授予你「設定寄送」權限。",
+      "title": "你需要權限才能管理寄送"
+    },
+    "goLive": {
+      "step1": "在 Shippo 中開啟「設定」，然後開啟 API。",
+      "step2": "複製正式金鑰。它以 shippo_live_ 開頭。",
+      "step3": "點選下方的「替換為正式金鑰」並貼上。",
+      "step4": "再次檢查連線。"
+    },
+    "guide": {
+      "events": "為 {first}、{second} 和 {third} 這幾個事件分別新增一個 webhook，模式與你的金鑰相同。",
+      "eventsLive": "為 {first}、{second} 和 {third} 這幾個事件分別新增一個 webhook，並選擇 Live。",
+      "eventsTest": "為 {first}、{second} 和 {third} 這幾個事件分別新增一個 webhook，並選擇 Test。",
+      "heading": "貼到 {carrier}",
+      "moved": "如果這台伺服器的公開網址變了，請產生新的網址並重新貼上。",
+      "open": "在 Shippo 中開啟「設定」，然後開啟 Webhooks。",
+      "paste": "貼上上方的網址並儲存。"
+    },
+    "intro": "{shop} 訂單所用的標籤，在店家自己的 Shippo 帳戶上購買。Adminium 不持有任何帳戶，也不收取任何款項。",
+    "introPlain": "你訂單所用的標籤，在你自己的貨運業者帳戶上購買。Adminium 不持有任何帳戶，也不收取任何款項。",
+    "key": {
+      "empty": "請貼上你的 {carrier} 金鑰。",
+      "hint": "儲存後只會顯示最後四個字元。",
+      "inUse": "在使用此金鑰的預約還沒有最終結果之前，金鑰不能更換。",
+      "inUseMore": "另有 {count} 個",
+      "inUseOrders": "訂單：",
+      "inUseUnnamed": "{count, plural, other {有 # 個預約正在占用它，所在訂單你無法在此開啟。}}",
+      "keep": "保留目前的金鑰",
+      "label": "{carrier} API 金鑰",
+      "replace": "替換",
+      "save": "儲存金鑰",
+      "saving": "正在向 {carrier} 檢查…",
+      "shape": "這看起來不像 Shippo 金鑰。它們以 shippo_live_ 或 shippo_test_ 開頭。儲存時由 Shippo 判定。",
+      "tryAgain": "再試一次"
+    },
+    "limits": {
+      "aDay": "張，所有打包人員合計。",
+      "bought": "所有打包人員合計已購買",
+      "cancel": "取消",
+      "count": "{used} / {limit}",
+      "currencyError": "請輸入三個字母的貨幣代碼，例如 EUR。",
+      "currencyLabel": "額度所用貨幣",
+      "daily": "所有打包人員合計每天最多可購買的標籤數",
+      "dayError": "請輸入所有打包人員合計每天可購買的標籤數，至少為 1。",
+      "each": "，每天最多",
+      "heading": "誰可以購買標籤",
+      "meter": "今天所有打包人員合計已購買的標籤",
+      "none": "打包人員目前還不能購買標籤。由你來預約。",
+      "open": "允許打包人員購買標籤",
+      "perError": "請輸入打包人員單張標籤最多可花費的金額，須大於零。",
+      "perLabel": "打包人員單張標籤最多可花費的金額",
+      "save": "儲存額度",
+      "saved": "額度已儲存。",
+      "stop": "停止打包人員購買標籤",
+      "stopped": "打包人員現在不能購買標籤。由你來預約。",
+      "subtitle": "你隨時可以購買標籤。打包人員只能在這些額度內購買。",
+      "today": "今天：",
+      "upTo": "打包人員可購買標籤，每張不超過"
+    },
+    "line": {
+      "demo": "不預約任何真實標籤。追蹤號碼由你自己填寫。",
+      "live": "已連接 · 正式金鑰",
+      "none": "請先新增 {carrier} 金鑰，才能用它寄送。",
+      "off": "對此應用程式已關閉。",
+      "refused": "{carrier} 不接受這個金鑰。請貼上新金鑰後才能用它寄送。",
+      "test": "已連接 · 測試金鑰",
+      "unchecked": "金鑰已儲存。請先檢查連線，才能用它寄送。"
+    },
+    "link": {
+      "api": "Shippo API 設定",
+      "billing": "Shippo 帳務設定",
+      "carriers": "Shippo 中的貨運業者帳戶",
+      "dhlSite": "DHL 官方網站",
+      "newTab": "（在新分頁中開啟）",
+      "open": "開啟 Shippo",
+      "webhooks": "Shippo webhook 設定"
+    },
+    "loadFailed": "無法載入寄送設定",
+    "loadFailedApp": "無法載入 {app}",
+    "locked": {
+      "sentence": "目前還不能進行真實的 DHL 預約。這個附加元件只是示範。要現在寄送，請使用 Shippo，或到 DHL 官方網站預約後填寫追蹤號碼。",
+      "subtitle": "示範附加元件。不預約任何真實標籤。",
+      "useShippo": "使用 Shippo 寄送"
+    },
+    "noApps": "這裡還沒有應用程式在寄送。請為某個應用程式關聯寄送附加元件，然後在這裡設定。",
+    "notAffiliated": "Adminium 與 Shippo 及所顯示的任何貨運業者皆無關聯。",
+    "other": {
+      "body": "從現在起購買的標籤將向新帳戶收費。已購買的標籤仍在舊帳戶上，這個金鑰無法存取它們。",
+      "confirm": "使用新帳戶",
+      "current": "目前使用的金鑰結尾為",
+      "kept": "目前還沒有任何變動。在你確認之前，目前的金鑰繼續有效。",
+      "title": "這個金鑰屬於另一個 {carrier} 帳戶"
+    },
+    "parcels": {
+      "never": "從未檢查",
+      "noCheck": "暫無",
+      "oldest": "最早的檢查",
+      "open": "未完成的包裹",
+      "quiet": "已 7 天沒有動靜"
+    },
+    "picker": "應用程式",
+    "preview": {
+      "addTracking": "新增追蹤號碼",
+      "demo": "僅為示範。請到 DHL 官方網站預約，然後在這裡填寫追蹤號碼。",
+      "getRates": "取得運費",
+      "heading": "在 {app} 中的顯示效果",
+      "real": "員工從 {carrier} 回傳的運費中選擇，然後點選「預約這張標籤」。"
+    },
+    "shipWith": {
+      "active": "使用 {name} 寄送",
+      "connection": "連線",
+      "group": "寄送方式",
+      "noneActive": "未選擇貨運業者",
+      "subtitle": "選擇這個應用程式用哪個附加元件購買標籤。同一時間只有一個生效。",
+      "whyDemo": "為什麼是示範"
+    },
+    "shippo": {
+      "subtitle": "多家貨運業者的標籤，使用你自己的 Shippo 帳戶"
+    },
+    "size": {
+      "a4Line": "辦公室的噴墨與雷射印表機，使用一般 A4 紙。",
+      "a6Line": "桌上型標籤印表機與 A6 不乾膠標籤。",
+      "fourBySix": "4×6 英寸",
+      "fourBySixLine": "使用 4 × 6 英寸捲紙或疊紙的熱感式標籤印表機。",
+      "heading": "標籤尺寸",
+      "saved": "標籤尺寸已儲存。",
+      "subtitle": "Adminium 向貨運業者要求的尺寸。貨運業者可能回傳其他尺寸，預約中會註明。",
+      "which": "各尺寸適合哪些印表機"
+    },
+    "state": {
+      "demo": "示範",
+      "live": "已連接",
+      "none": "未連接",
+      "off": "已關閉",
+      "refused": "未被接受",
+      "test": "測試金鑰",
+      "unchecked": "未檢查"
+    },
+    "step": {
+      "account": "建立你的 Shippo 帳戶",
+      "accountBody": "用店家自己的電子郵件在 Shippo 網站註冊。帳戶屬於店家，而不是 Adminium。",
+      "check": "檢查連線",
+      "checkBody": "Adminium 會向 Shippo 詢問哪些貨運業者可為 {country} 提供服務。",
+      "checkBodyNoCountry": "Adminium 會向 Shippo 詢問哪些貨運業者可為這家店提供服務。",
+      "done": "完成",
+      "heading": "設定檢查表",
+      "key": "建立 API 金鑰並貼到這裡",
+      "keyBody": "在 Shippo 中開啟「設定」，再開啟 API，建立一個正式金鑰。複製後貼到下方。",
+      "known": "這裡已確認 {done} / {total}",
+      "payment": "在 Shippo 中新增付款方式",
+      "paymentBody": "你每購買一張標籤，Shippo 都會從這張卡或銀行帳戶扣款。貨運業者之後可能追加費用，例如包裹較重時。",
+      "word": "第 {n} 步"
+    },
+    "tab": {
+      "labels": "標籤尺寸",
+      "people": "誰可以購買標籤",
+      "setup": "設定",
+      "tracking": "追蹤"
+    },
+    "test": {
+      "apps": "使用測試金鑰的應用程式：{apps}",
+      "body": "標籤上印有 SAMPLE。任何單號都不會進入訂單，也不會到顧客手中。",
+      "title": "測試模式：不會送出任何東西"
+    },
+    "title": "寄送",
+    "tracking": {
+      "address": "Webhook 網址",
+      "confirmBody": "舊網址會立即失效。在你把新網址貼到 {carrier} 之前，更新會停止。",
+      "confirmTitle": "要產生新網址嗎？",
+      "copied": "已複製",
+      "copy": "複製",
+      "copyFailed": "無法複製。請選取網址後手動複製。",
+      "copyLabel": "複製 webhook 網址",
+      "goTo": "開啟追蹤",
+      "goneBody": "請產生新網址，然後貼到 {carrier}。在此之前，只有有人點選「重新整理」時追蹤資訊才會變化。",
+      "goneTitle": "金鑰更換後，webhook 網址已失效",
+      "heading": "追蹤更新",
+      "last": "最近一次收到的更新：",
+      "make": "產生網址",
+      "makeNew": "產生新網址",
+      "never": "還沒有收到任何更新。請檢查網址是否已儲存在 {carrier} 中。",
+      "noCarrier": "示範貨運業者不會傳送更新。追蹤號碼由你在訂單上填寫。",
+      "noCarrierSubtitle": "這裡沒有任何貨運業者會傳送追蹤更新。",
+      "notSet": "尚未設定",
+      "once": "請現在複製。完整網址只會顯示這一次。",
+      "private": "這台伺服器無法接收更新。有人點選「重新整理」時，追蹤資訊才會變化。",
+      "privateSubtitle": "有人點選「重新整理」時，追蹤資訊才會更新。",
+      "receiving": "接收中",
+      "refreshOnly": "僅手動重新整理",
+      "subtitle": "{carrier} 會把貨運業者的每次掃描傳送到這台伺服器。",
+      "waiting": "等待中"
+    }
   }
 }

@@ -169,7 +169,8 @@ export default {
     "signOut": "تسجيل الخروج",
     "toggleSidebar": "إظهار/إخفاء الشريط الجانبي",
     "payments": "المدفوعات",
-    "putOnline": "انشر هذا على الإنترنت…"
+    "putOnline": "انشر هذا على الإنترنت…",
+    "shipping": "الشحن"
   },
   "palette": {
     "dialog": "لوحة الأوامر",

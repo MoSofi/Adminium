@@ -18,7 +18,7 @@
  * Choosing a workspace needs managing connections besides.
  */
 import { WORKSPACE_FILE_FLOOR, compareSemver, workspaceFileKey } from '@adminium/manifest';
-import { connectionsRepo, workspaceInstallsRepo, workspacesRepo, type WorkspaceInstall } from '@adminium/meta';
+import { connectionsRepo, workspaceInstallsRepo, workspacesRepo, type WorkspaceInstall, type WorkspaceInstallApp } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -56,6 +56,8 @@ const workspaceFileApp = z.object({
   state: z.enum(['pending', 'installed', 'updated', 'refused', 'stopped']),
   /** Why it was refused, or where it stopped, when it was. */
   refusal: z.object({ reason: z.string(), message: z.string() }).nullable(),
+  /** Label rights its install did not give, because a workspace file carries no answer for them. The owner can give them on the Roles page. */
+  shippingWithheld: z.array(z.object({ role: z.string(), roleName: z.string(), action: z.enum(['book', 'cancel', 'customs']) })).optional(),
   /**
    * Where it goes on this server, as an app file uploaded alone says: nowhere
    * yet (`install`), over every copy (`update`), or beside the copies at its
@@ -179,6 +181,7 @@ export function workspaceFileRoutes(w: WorkspaceFileRoutesDeps): FastifyPluginAs
         target: app.target,
         state: app.state,
         refusal: app.state === 'refused' || app.state === 'stopped' ? { reason: app.reason ?? 'REFUSED', message: app.error ?? '' } : null,
+        ...(app.shippingWithheld === undefined ? {} : { shippingWithheld: app.shippingWithheld }),
         route,
         installs: copies.map((copy) => ({ installId: copy.installId, connectionId: copy.connectionId, connectionName: copy.connectionName, version: copy.version })),
       });
@@ -212,7 +215,8 @@ export function workspaceFileRoutes(w: WorkspaceFileRoutesDeps): FastifyPluginAs
       discardStaged: (key, version) => deps.store.removeVersion(key, version),
       copiesOf: async (key): Promise<AppCopy[]> => (await w.copiesOf(key)).map((copy) => ({ installId: copy.installId, connectionId: copy.connectionId, version: copy.version, status: copy.status })),
       install: async ({ key, version, connectionId, answers }) => {
-        await w.install(request, { ...(answers as object), key, version, connectionId } as z.infer<typeof installAppBody>);
+        const made = (await w.install(request, { ...(answers as object), key, version, connectionId } as z.infer<typeof installAppBody>)) as Pick<WorkspaceInstallApp, 'shippingWithheld'>;
+        return made.shippingWithheld === undefined ? undefined : { shippingWithheld: made.shippingWithheld };
       },
       update: async ({ key, installId, connectionId, answers }) => {
         await w.update(request, { key, installId, connectionId, body: answers as z.infer<typeof updateAppBody> });

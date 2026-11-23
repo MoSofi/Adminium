@@ -189,6 +189,7 @@ import { PublicAccessInstallCard, publicAccessBlocked } from './PublicAccessInst
 import { AppsRoleTablesWiderCard } from './RoleTablesList.js';
 import { PrivacyGrantsCard } from './PrivacyGrantsCard.js';
 import { RefundGrantsCard } from './RefundGrantsCard.js';
+import { ShippingGrantsCard } from './ShippingGrantsCard.js';
 import { SampleInstallCard, runSampleAdd } from './SampleData.js';
 
 type StepId = 'bundle' | 'database' | 'plan' | 'done';
@@ -277,6 +278,17 @@ export interface InstallAppWizardProps {
   onWorkspaceFile?: ((file: File) => void) | undefined;
 }
 
+/** What the install says of the label rights: only those unticked that the check on screen still lists. */
+function shippingAnswerOf(
+  grants: AppInstallPlan['shippingGrants'],
+  unticked: readonly { role: string; action: 'book' | 'cancel' | 'customs' }[],
+): { shippingUnticked?: { role: string; action: 'book' | 'cancel' | 'customs' }[] } {
+  if (grants === undefined || grants.length === 0) return {};
+  // Sent even when empty: it says the card was shown and every right on it was kept.
+  const listed = unticked.filter((one) => grants.some((grant) => grant.role === one.role && grant.action === one.action));
+  return { shippingUnticked: listed.map(({ role, action }) => ({ role, action })) };
+}
+
 export function InstallAppWizard({ onClose, preselected, quick = false, onMoreChoices, onBusy, onWorkspaceFile }: InstallAppWizardProps) {
   // The operator keeps uploads off: the upload step says so, and takes no file.
   const uploadsOff = useOwnCodeOff('packageUploads');
@@ -292,6 +304,8 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
   const [refusal, setRefusal] = useState<{ title: string; body: ReactNode } | null>(null);
   // The roles unticked on the check's refund card: not given the app's refund right.
   const [refundsUnticked, setRefundsUnticked] = useState<ReadonlySet<string>>(() => new Set());
+  // The rights unticked on the check's shipping card, by role and right: a role can keep one and lose another.
+  const [shippingUnticked, setShippingUnticked] = useState<readonly { role: string; action: 'book' | 'cancel' | 'customs' }[]>([]);
   /** The fingerprint typed on the review, compared in this browser with the uploaded file's own. */
   const [fingerprint, setFingerprint] = useState('');
   /*
@@ -466,6 +480,7 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
         ...(plan?.modules === undefined ? {} : { modules: partChoicesOf(plan.modules, partPicks) }),
         ...(plan?.maps === true ? { maps: showMaps } : {}),
         ...((plan?.refundGrants ?? []).some((grant) => refundsUnticked.has(grant.role)) ? { refundsUnticked: (plan?.refundGrants ?? []).filter((grant) => refundsUnticked.has(grant.role)).map((grant) => grant.role) } : {}),
+        ...shippingAnswerOf(plan?.shippingGrants, shippingUnticked),
         // Shown on the check: what an add-on it updates gives other apps' roles more of its tables. The Install button is the say.
         ...((plan?.roleTables ?? []).some((entry) => entry.app !== undefined && entry.wider !== undefined) ? { roleTables: true } : {}),
         ...checked,
@@ -779,6 +794,16 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
             })
           }
         />
+        <ShippingGrantsCard
+          grants={plan.shippingGrants ?? []}
+          unticked={shippingUnticked}
+          onTick={(role, action, given) =>
+            setShippingUnticked((now) => {
+              const others = now.filter((one) => one.role !== role || one.action !== action);
+              return given ? others : [...others, { role, action }];
+            })
+          }
+        />
         {plan.modules === undefined ? null : (
           <PartsInstallCard
             appName={appName}
@@ -820,6 +845,8 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
       ) : null}
       <header className={quick ? 'hidden' : undefined}>
         <Stepper
+          // Its labels do not shrink, so on a phone the row scrolls inside itself and not the whole page.
+          className="overflow-x-auto"
           steps={steps}
           activeIndex={stepIndex}
           label={t('studio:hostedApps.install.progress', 'Install progress')}

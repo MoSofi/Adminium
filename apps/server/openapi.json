@@ -144485,6 +144485,34 @@
                                   }
                                 ]
                               },
+                              "shippingWithheld": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "role": {
+                                      "type": "string"
+                                    },
+                                    "roleName": {
+                                      "type": "string"
+                                    },
+                                    "action": {
+                                      "type": "string",
+                                      "enum": [
+                                        "book",
+                                        "cancel",
+                                        "customs"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "role",
+                                    "roleName",
+                                    "action"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
                               "route": {
                                 "type": "string",
                                 "enum": [
@@ -144755,6 +144783,34 @@
                                       "type": "null"
                                     }
                                   ]
+                                },
+                                "shippingWithheld": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "role": {
+                                        "type": "string"
+                                      },
+                                      "roleName": {
+                                        "type": "string"
+                                      },
+                                      "action": {
+                                        "type": "string",
+                                        "enum": [
+                                          "book",
+                                          "cancel",
+                                          "customs"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "role",
+                                      "roleName",
+                                      "action"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 },
                                 "route": {
                                   "type": "string",
@@ -145038,6 +145094,34 @@
                                   }
                                 ]
                               },
+                              "shippingWithheld": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "role": {
+                                      "type": "string"
+                                    },
+                                    "roleName": {
+                                      "type": "string"
+                                    },
+                                    "action": {
+                                      "type": "string",
+                                      "enum": [
+                                        "book",
+                                        "cancel",
+                                        "customs"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "role",
+                                    "roleName",
+                                    "action"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
                               "route": {
                                 "type": "string",
                                 "enum": [
@@ -145241,6 +145325,33 @@
                                 "type": "string",
                                 "minLength": 1,
                                 "maxLength": 160
+                              }
+                            },
+                            "shippingUnticked": {
+                              "maxItems": 300,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "role": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 160
+                                  },
+                                  "action": {
+                                    "type": "string",
+                                    "enum": [
+                                      "book",
+                                      "cancel",
+                                      "customs"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "role",
+                                  "action"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "addOns": {
@@ -146182,6 +146293,34 @@
                                   }
                                 ]
                               },
+                              "shippingWithheld": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "role": {
+                                      "type": "string"
+                                    },
+                                    "roleName": {
+                                      "type": "string"
+                                    },
+                                    "action": {
+                                      "type": "string",
+                                      "enum": [
+                                        "book",
+                                        "cancel",
+                                        "customs"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "role",
+                                    "roleName",
+                                    "action"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
                               "route": {
                                 "type": "string",
                                 "enum": [
@@ -146461,6 +146600,34 @@
                                   }
                                 ]
                               },
+                              "shippingWithheld": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "role": {
+                                      "type": "string"
+                                    },
+                                    "roleName": {
+                                      "type": "string"
+                                    },
+                                    "action": {
+                                      "type": "string",
+                                      "enum": [
+                                        "book",
+                                        "cancel",
+                                        "customs"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "role",
+                                    "roleName",
+                                    "action"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
                               "route": {
                                 "type": "string",
                                 "enum": [
@@ -146658,6 +146825,34 @@
                               "reused"
                             ],
                             "additionalProperties": false
+                          },
+                          "shippingWithheld": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "role": {
+                                  "type": "string"
+                                },
+                                "roleName": {
+                                  "type": "string"
+                                },
+                                "action": {
+                                  "type": "string",
+                                  "enum": [
+                                    "book",
+                                    "cancel",
+                                    "customs"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "role",
+                                "roleName",
+                                "action"
+                              ],
+                              "additionalProperties": false
+                            }
                           },
                           "source": {
                             "type": "string"
@@ -150223,6 +150418,33 @@
                       "maxLength": 160
                     }
                   },
+                  "shippingUnticked": {
+                    "maxItems": 300,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 160
+                        },
+                        "action": {
+                          "type": "string",
+                          "enum": [
+                            "book",
+                            "cancel",
+                            "customs"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "action"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
                   "addOns": {
                     "maxItems": 16,
                     "type": "array",
@@ -150557,6 +150779,34 @@
                         "reused"
                       ],
                       "additionalProperties": false
+                    },
+                    "shippingWithheld": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "role": {
+                            "type": "string"
+                          },
+                          "roleName": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "type": "string",
+                            "enum": [
+                              "book",
+                              "cancel",
+                              "customs"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "role",
+                          "roleName",
+                          "action"
+                        ],
+                        "additionalProperties": false
+                      }
                     },
                     "source": {
                       "type": "string"
@@ -151528,6 +151778,34 @@
                             "reused"
                           ],
                           "additionalProperties": false
+                        },
+                        "shippingWithheld": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "role": {
+                                "type": "string"
+                              },
+                              "roleName": {
+                                "type": "string"
+                              },
+                              "action": {
+                                "type": "string",
+                                "enum": [
+                                  "book",
+                                  "cancel",
+                                  "customs"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "role",
+                              "roleName",
+                              "action"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "source": {
                           "type": "string"
@@ -152669,6 +152947,34 @@
                             "reused"
                           ],
                           "additionalProperties": false
+                        },
+                        "shippingWithheld": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "role": {
+                                "type": "string"
+                              },
+                              "roleName": {
+                                "type": "string"
+                              },
+                              "action": {
+                                "type": "string",
+                                "enum": [
+                                  "book",
+                                  "cancel",
+                                  "customs"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "role",
+                              "roleName",
+                              "action"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "source": {
                           "type": "string"
@@ -169873,6 +170179,25 @@
                                     "type": "null"
                                   }
                                 ]
+                              },
+                              "openBookings": {
+                                "type": "object",
+                                "properties": {
+                                  "count": {
+                                    "type": "number"
+                                  },
+                                  "orders": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "count",
+                                  "orders"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -169881,7 +170206,8 @@
                               "locked",
                               "on",
                               "connected",
-                              "account"
+                              "account",
+                              "openBookings"
                             ],
                             "additionalProperties": false
                           }
@@ -170146,6 +170472,25 @@
                                     "type": "null"
                                   }
                                 ]
+                              },
+                              "openBookings": {
+                                "type": "object",
+                                "properties": {
+                                  "count": {
+                                    "type": "number"
+                                  },
+                                  "orders": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "count",
+                                  "orders"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -170154,7 +170499,8 @@
                               "locked",
                               "on",
                               "connected",
-                              "account"
+                              "account",
+                              "openBookings"
                             ],
                             "additionalProperties": false
                           }
@@ -170586,6 +170932,25 @@
                                     "type": "null"
                                   }
                                 ]
+                              },
+                              "openBookings": {
+                                "type": "object",
+                                "properties": {
+                                  "count": {
+                                    "type": "number"
+                                  },
+                                  "orders": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "count",
+                                  "orders"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -170594,7 +170959,8 @@
                               "locked",
                               "on",
                               "connected",
-                              "account"
+                              "account",
+                              "openBookings"
                             ],
                             "additionalProperties": false
                           }
@@ -172495,6 +172861,314 @@
         }
       }
     },
+    "/api/v1/apps/{key}/shipping/attention": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "reasons": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "unknown",
+                                    "duplicates",
+                                    "label-owed",
+                                    "new-number",
+                                    "tracking-failed",
+                                    "returned",
+                                    "ambiguous",
+                                    "quiet"
+                                  ]
+                                }
+                              },
+                              "reference": {
+                                "type": "string"
+                              },
+                              "source": {
+                                "type": "object",
+                                "properties": {
+                                  "table": {
+                                    "type": "string"
+                                  },
+                                  "id": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "table",
+                                  "id"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "orderGone": {
+                                "type": "boolean"
+                              },
+                              "booking": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "state": {
+                                    "type": "string",
+                                    "enum": [
+                                      "reserved",
+                                      "calling",
+                                      "booked",
+                                      "refused",
+                                      "unknown",
+                                      "released"
+                                    ]
+                                  },
+                                  "test": {
+                                    "type": "boolean"
+                                  },
+                                  "purpose": {
+                                    "type": "string"
+                                  },
+                                  "parcelNumber": {
+                                    "type": "number"
+                                  },
+                                  "carrier": {
+                                    "type": "string"
+                                  },
+                                  "service": {
+                                    "type": "string"
+                                  },
+                                  "tracking": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "carrierName": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "reason": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "duplicates": {
+                                    "type": "number"
+                                  },
+                                  "createdAt": {
+                                    "type": "number"
+                                  },
+                                  "calledAt": {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  },
+                                  "checkedAt": {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  },
+                                  "releaseAfter": {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  },
+                                  "applied": {
+                                    "type": "boolean"
+                                  },
+                                  "label": {
+                                    "type": "object",
+                                    "properties": {
+                                      "state": {
+                                        "type": "string",
+                                        "enum": [
+                                          "none",
+                                          "ready",
+                                          "owed",
+                                          "gone"
+                                        ]
+                                      },
+                                      "size": {
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
+                                      },
+                                      "sizeGot": {
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
+                                      },
+                                      "sizeDiffers": {
+                                        "type": "boolean"
+                                      },
+                                      "customsInvoice": {
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": [
+                                      "state",
+                                      "size",
+                                      "sizeGot",
+                                      "sizeDiffers",
+                                      "customsInvoice"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "amount": {
+                                    "type": "string"
+                                  },
+                                  "currency": {
+                                    "type": "string"
+                                  },
+                                  "chargeDiffers": {
+                                    "type": "boolean"
+                                  },
+                                  "track": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "UNKNOWN",
+                                                  "PRE_TRANSIT",
+                                                  "TRANSIT",
+                                                  "FAILURE",
+                                                  "RETURNED",
+                                                  "DELIVERED"
+                                                ]
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "statusAt": {
+                                            "type": [
+                                              "number",
+                                              "null"
+                                            ]
+                                          },
+                                          "checkedAt": {
+                                            "type": [
+                                              "number",
+                                              "null"
+                                            ]
+                                          },
+                                          "flag": {
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          },
+                                          "newNumber": {
+                                            "type": "boolean"
+                                          }
+                                        },
+                                        "required": [
+                                          "status",
+                                          "statusAt",
+                                          "checkedAt",
+                                          "flag",
+                                          "newNumber"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "state",
+                                  "test",
+                                  "purpose",
+                                  "parcelNumber",
+                                  "carrier",
+                                  "service",
+                                  "tracking",
+                                  "carrierName",
+                                  "reason",
+                                  "duplicates",
+                                  "createdAt",
+                                  "calledAt",
+                                  "checkedAt",
+                                  "releaseAfter",
+                                  "applied",
+                                  "label"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "reasons",
+                              "reference",
+                              "source",
+                              "orderGone",
+                              "booking"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "more": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "more"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/apps/{key}/shipping/carriers/{carrier}/tracking": {
       "get": {
         "parameters": [
@@ -172547,6 +173221,12 @@
                             "made": {
                               "type": "boolean"
                             },
+                            "ended": {
+                              "type": "boolean"
+                            },
+                            "publicAddress": {
+                              "type": "boolean"
+                            },
                             "madeAt": {
                               "type": [
                                 "number",
@@ -172576,6 +173256,8 @@
                             "supported",
                             "address",
                             "made",
+                            "ended",
+                            "publicAddress",
                             "madeAt",
                             "firstAt",
                             "lastAt",
@@ -172977,6 +173659,25 @@
                                     "type": "null"
                                   }
                                 ]
+                              },
+                              "openBookings": {
+                                "type": "object",
+                                "properties": {
+                                  "count": {
+                                    "type": "number"
+                                  },
+                                  "orders": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "count",
+                                  "orders"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -172985,7 +173686,8 @@
                               "locked",
                               "on",
                               "connected",
-                              "account"
+                              "account",
+                              "openBookings"
                             ],
                             "additionalProperties": false
                           }
@@ -173263,6 +173965,25 @@
                                     "type": "null"
                                   }
                                 ]
+                              },
+                              "openBookings": {
+                                "type": "object",
+                                "properties": {
+                                  "count": {
+                                    "type": "number"
+                                  },
+                                  "orders": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "count",
+                                  "orders"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -173271,7 +173992,8 @@
                               "locked",
                               "on",
                               "connected",
-                              "account"
+                              "account",
+                              "openBookings"
                             ],
                             "additionalProperties": false
                           }
@@ -173581,6 +174303,25 @@
                                     "type": "null"
                                   }
                                 ]
+                              },
+                              "openBookings": {
+                                "type": "object",
+                                "properties": {
+                                  "count": {
+                                    "type": "number"
+                                  },
+                                  "orders": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "count",
+                                  "orders"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -173589,7 +174330,8 @@
                               "locked",
                               "on",
                               "connected",
-                              "account"
+                              "account",
+                              "openBookings"
                             ],
                             "additionalProperties": false
                           }
@@ -180184,12 +180926,39 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "shippingApps": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "grantKey": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "connectionName": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "grantKey",
+                          "name",
+                          "connectionName"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
                     "system",
                     "tableActions",
-                    "pageActions"
+                    "pageActions",
+                    "shippingApps"
                   ],
                   "additionalProperties": false
                 }

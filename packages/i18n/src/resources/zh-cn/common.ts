@@ -169,7 +169,8 @@ export default {
     "signOut": "退出登录",
     "toggleSidebar": "切换侧边栏",
     "payments": "付款",
-    "putOnline": "将其上线…"
+    "putOnline": "将其上线…",
+    "shipping": "发货"
   },
   "palette": {
     "dialog": "命令面板",

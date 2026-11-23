@@ -9,7 +9,8 @@
  * route's own 403 or 404, as if the key were installed once.
  *
  * A person reaches an install when they manage installs (`manifests.manage`),
- * hold that install's own grant (its staff screens, or its add-on settings),
+ * hold that install's own grant (its staff screens, a right on its labels, or
+ * its add-on settings),
  * or hold a right on a table of its database. An install kept once per
  * server names no database, so it is never hidden.
  */
@@ -17,7 +18,7 @@ import type { InstalledManifest, MetaDb } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 
 import { addOnSettingsGrantHeld } from '../rbac/add-on-grant.js';
-import { parseGrant, PERMISSIONS } from '../rbac/permissions.js';
+import { appShippingPermission, parseGrant, PERMISSIONS, SHIPPING_ACTIONS } from '../rbac/permissions.js';
 import { getPrincipal } from '../rbac/principal.js';
 import type { PermissionSet } from '../rbac/resolver.js';
 import { grantKeyOf } from './resolve.js';
@@ -40,6 +41,9 @@ export function installReachOf(meta: MetaDb, request: FastifyRequest): InstallRe
     if (connectionId === null) return true;
     const grantKey = grantKeyOf(install.row);
     if (install.row.kind === 'app' && (await request.can(`app:${grantKey}:staff` as never))) return true;
+    if (install.row.kind === 'app') {
+      for (const action of SHIPPING_ACTIONS) if (await request.can(appShippingPermission(grantKey, action) as never)) return true;
+    }
     if (install.row.kind === 'add-on') {
       const principal = getPrincipal(request);
       if (principal !== null && (await addOnSettingsGrantHeld(meta, principal, install))) return true;

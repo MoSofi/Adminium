@@ -118,7 +118,10 @@ export default {
   },
   "apps": {
     "every": "Ouvrir les écrans du personnel de toutes les apps",
-    "one": "Ouvrir les écrans du personnel de {app}"
+    "one": "Ouvrir les écrans du personnel de {app}",
+    "shippingBook": "{app} : acheter des étiquettes, dans les limites que vous fixez",
+    "shippingCancel": "{app} : demander le remboursement d’une étiquette",
+    "shippingCustoms": "{app} : faire la déclaration en douane"
   },
   "rows": {
     "locked": "Super Admin atteint toutes les lignes.",
