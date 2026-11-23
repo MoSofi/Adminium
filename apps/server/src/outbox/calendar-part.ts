@@ -24,8 +24,7 @@ import { referenced } from './recipient.js';
 import { settingReader } from './timing.js';
 
 /** The names a template prints the two "add to calendar" links under. */
-export const CALENDAR_GOOGLE_VARIABLE = 'calendarGoogle';
-export const CALENDAR_OUTLOOK_VARIABLE = 'calendarOutlook';
+export { CALENDAR_GOOGLE_VARIABLE, CALENDAR_OUTLOOK_VARIABLE } from '@adminium/manifest';
 
 /** The entry for one message, or null when it names no booking that can be one. */
 export async function calendarPartFor(

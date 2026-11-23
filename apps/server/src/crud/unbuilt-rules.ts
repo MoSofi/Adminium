@@ -24,7 +24,7 @@
  * Each detector is removed in the change that builds its rule. A release
  * ships with no word it claims to run itself (a test says so).
  */
-import { installFloorWords, type ManifestWordName } from '@adminium/manifest';
+import { installFloorWords, SMS_WORDS_FLOOR, type ManifestWordName } from '@adminium/manifest';
 
 import { AppError, ValidationFailedError } from '../errors.js';
 import type { EffectiveModel, EffectiveTable } from '../connections/effective-schema.js';
@@ -56,7 +56,16 @@ export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [];
  * to {@link MANIFEST_WORDS_RUN}: every word the manifest package can name is
  * in one of the two, and a test says so.
  */
-export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {};
+export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {
+  // Texts: read and checked now, refused at install until the send path, the text log and the erasure are joined.
+  // The join moves each to MANIFEST_WORDS_RUN.
+  textTemplates: SMS_WORDS_FLOOR,
+  'outbox.channels': SMS_WORDS_FLOOR,
+  'outbox.recipient.phone': SMS_WORDS_FLOOR,
+  'outbox.waiting': SMS_WORDS_FLOOR,
+  'people.phone': SMS_WORDS_FLOOR,
+  'publicAccess.textConsent': SMS_WORDS_FLOOR,
+};
 
 /** The newer words of a manifest this server runs: nothing is refused for using one. */
 export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [

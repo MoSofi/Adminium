@@ -65,6 +65,7 @@ import { appsBlockSchema, requiredAppIssues } from './app-requires.js';
 import { instanceIssues, instanceSchema } from './instance.js';
 import { assistantIssues, type AssistantTableShape } from './assistant.js';
 import { stepsIssues, type StepTableShape } from './steps.js';
+import { outboxTextIssues, publicTextConsentIssues, textTemplateIssues, textTemplateSchema, TEXT_TEMPLATES_MAX } from './text-messages.js';
 import { WORD_FLOORS, installFloorWords } from './words.js';
 import { savedPartsIssues, savedPartsShape } from './saved-parts.js';
 import { tableNameIssue, tableSchemaIssue } from './table-names.js';
@@ -4041,6 +4042,8 @@ export const appManifestSchema = z
     pages: z.array(pageSchema).min(1),
     settings: z.array(settingSchema).optional(),
     ...installBlocksShape,
+    /** The app's text messages, each language's words (see `text-messages.ts`). An app's alone: an add-on's outbox sends email. */
+    textTemplates: z.array(textTemplateSchema).max(TEXT_TEMPLATES_MAX).optional(),
     /** Report documents, invoice layouts, scheduled reports and payments: a file made on an Adminium only (see `saved-parts.ts`). */
     ...savedPartsShape,
     widgets: z.array(manifestWidgetSchema).optional(),
@@ -4090,6 +4093,9 @@ export const appManifestSchema = z
     for (const issue of mailClassFloorIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of peopleIssues(m, tableIndex(m.requiredSchema.tables))) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of publicConsentIssues(m, tableIndex(m.requiredSchema.tables))) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    for (const issue of textTemplateIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    for (const issue of outboxTextIssues(m, tableIndex(m.requiredSchema.tables))) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    for (const issue of publicTextConsentIssues(m, tableIndex(m.requiredSchema.tables))) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of addOnOnlyWordIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of appReferenceIssues(m)) {
       ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
@@ -4160,6 +4166,8 @@ export const addOnManifestSchema = z
     for (const issue of mailClassFloorIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     // An add-on keeps no people of its own: a tick on its public entry has nobody to be kept for.
     for (const issue of publicConsentIssues(m, tableIndex(m.requiredSchema?.tables ?? []))) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    for (const issue of outboxTextIssues(m, tableIndex(m.requiredSchema?.tables ?? []))) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    for (const issue of publicTextConsentIssues(m, tableIndex(m.requiredSchema?.tables ?? []))) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of addOnModuleIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     // An add-on is never self-made: a page envelope, views and the table marks are read the same way as an app's.
     for (const issue of savedAppIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });

@@ -38,7 +38,7 @@ import { addressKeyRing } from '../consent/keys.js';
 /** Where the mail door serves the Object page. */
 export const OBJECT_PATH = '/m/o/';
 /** The name a tell mail's template prints the link under. */
-export const OBJECT_LINK_VARIABLE = 'object_link';
+export { OBJECT_LINK_VARIABLE } from '@adminium/manifest';
 
 const KEY_NAME = 'mail-link:object:v1';
 const SIGN_SALT = 'adminium:object-token:sign:v1';
