@@ -66,7 +66,7 @@ for (const dialect of TEST_DIALECTS) {
     it('lists what needs a person with no answer first, then newest first, a page at a time', async () => {
       const repo = shippingTrackingRepo(meta());
       const bookings = shippingBookingsRepo(meta());
-      const scope = { connectionId: input('x').connectionId, installId: input('x').installId, calledBefore: T0 + 10_000, openSince: T0 - 10_000, quietBefore: T0 - 10_000 };
+      const scope = { connectionId: input('x').connectionId, installId: input('x').installId, calledBefore: T0 + 10_000, openSince: T0 - 10_000, quietBefore: T0 - 10_000, refusedSince: T0 - 10_000 };
       const oldest = await booked('a1', {}, T0);
       const middle = await booked('a2', {}, T0 + 10);
       const newest = await booked('a3', {}, T0 + 20);
