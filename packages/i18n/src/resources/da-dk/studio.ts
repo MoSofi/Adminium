@@ -4769,6 +4769,7 @@ export default {
         "invitations": "{count, plural, one {# invitation til en undersøgelse} other {# invitationer til undersøgelser}} i {label}, gemt uden adressen",
         "answerFiles": "{count, plural, one {# fil} other {# filer}} sendt med formularsvar i {label}",
         "chats": "{count, plural, one {# chatsamtale} other {# chatsamtaler}} i {label}, med deres beskeder",
+        "textRecords": "{count, plural, one {# sms-registrering} other {# sms-registreringer}}",
         "foundPeople": "{count, plural, one {# post} other {# poster}} om, hvor de blev fundet, i {label}, med de e-mails, der fortalte dem det",
         "reviews": "{count, plural, one {# anmeldelse} other {# anmeldelser}} i {label}, beholdt uden navn"
       },

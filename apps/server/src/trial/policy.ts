@@ -124,6 +124,8 @@ const QUESTIONS = {
   addOnHttp: profiles(false, true),
   /** Payment provider connections. */
   paymentProviders: profiles(false, true),
+  /** Text message providers: connecting one, its door, and asking it what was missed. */
+  smsProviders: profiles(false, true),
   /** Map pictures and routing servers (`ADMINIUM_MAP_SERVER` / `_ROUTING_SERVER`, enforced off in trial mode). */
   geoServers: profiles(false, true),
   /** The Designer's picture search and Figma. */

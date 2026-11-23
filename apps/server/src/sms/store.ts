@@ -2,8 +2,9 @@
 /**
  * Where the one SMS account of this server is kept.
  *
- * An interface, because its table does not exist yet. Whatever implements this
- * holds the keys only as the sealed `enc:v1:` value and never opens it.
+ * An interface, so the service can be tested without a database. Whatever
+ * implements this (`account-store.ts`) holds the keys only as the sealed
+ * `enc:v1:` value and never opens it.
  *
  * Writes are compare-and-set on `revision`: checking a key with the provider is
  * slow and happens outside any lock, so two saves at once must not let the

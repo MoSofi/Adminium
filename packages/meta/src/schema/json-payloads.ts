@@ -311,6 +311,8 @@ export const SYSTEM_ACTION_KEYS = [
   'payments.manage',
   'payments.refund',
   'payments.view',
+  // Connecting the business's text message provider: its key spends the business's money.
+  'sms.manage',
   // A person's data: finding everything kept about one address, downloading
   // it for them, and the privacy notice. It reads every people table whole,
   // past any role's table and row limits, so it is a key of its own. Only the

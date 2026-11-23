@@ -117,7 +117,8 @@ export async function findChatRows(deps: ChatRowsDeps, address: string, theirs: 
       const table = addOn.conversations;
       if (table === null) continue;
       const conditions = [
-        ...(table.columns.has('email') ? [addressIs('email', address)] : []),
+        // No address (an erasure by phone): a chat with an empty address is nobody's.
+        ...(table.columns.has('email') && address !== '' ? [addressIs('email', address)] : []),
         ...(table.columns.has('became_table') && table.columns.has('became_key')
           ? linked.map(
               (one) =>

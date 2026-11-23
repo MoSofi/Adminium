@@ -25,7 +25,7 @@
 import type { AddressHash, MetaDb } from '@adminium/meta';
 
 import { decryptSecret, encryptSecret, SecretFormatError, SecretIntegrityError } from '../../config/secrets.js';
-import { AddressKeysLockedError, addressKeyRing } from '../../consent/keys.js';
+import { AddressKeysLockedError, addressKeyRing, TEXT_STOP_PHONE_PURPOSE } from '../../consent/keys.js';
 import { ValidationFailedError } from '../../errors.js';
 import { parsePhone } from '../../phone/index.js';
 import { maskPhone, redactPhones } from './redact.js';
@@ -52,7 +52,7 @@ export function textSubject(e164: string): string {
 }
 
 /** The purpose the sealed display copy's key is taken for: it lives on the address key, so a changed secret keeps it readable. */
-const SEAL_PURPOSE = 'adminium:text-stop-phone';
+const SEAL_PURPOSE = TEXT_STOP_PHONE_PURPOSE;
 
 const SOURCE_OF: Readonly<Record<Exclude<TextStopReason, 'erased'>, TextConsentSource>> = { 'text-stop': 'reply', 'provider-opt-out': 'provider', staff: 'staff' };
 

@@ -81,6 +81,8 @@ export interface CopyRowsInput {
   tableOf: (id: string) => ResolvedTable | null;
   /** The most rows a table gives (the search's cap); none for the erasure. */
   limit?: number;
+  /** An erasure by phone: the number itself, for a person with no row of their own to read it from. */
+  phone?: string | undefined;
 }
 
 /** The fewest digits a number has to share at its end to be the same number written another way. */
@@ -144,7 +146,7 @@ async function rowsWhere(db: Kysely<SourceDatabase>, table: ResolvedTable, condi
 }
 
 /** The phone columns of a table, as the schema reads them. */
-function phoneColumnsOf(table: ResolvedTable): string[] {
+export function phoneColumnsOf(table: ResolvedTable): string[] {
   return table.table.columns.filter((column) => column.semantics?.primary === 'phone' && table.columns.get(column.name)?.secret !== true).map((column) => column.name);
 }
 
@@ -165,7 +167,8 @@ function judge(table: ResolvedTable, row: Row, copies: readonly DeclaredCopy[], 
     if (linked) linkedTo.add(copy.via!);
     if (copy.via !== null && isSet(via) && !linked) someoneElse = true;
     const value = row[copy.column];
-    const holdsTheirs = (copy.holds === 'email' && isAddress(value, address)) || (copy.holds === 'phone' && holdsPhone(value, phones));
+    // No address (an erasure by phone): an empty copy is nobody's, never a match.
+    const holdsTheirs = (copy.holds === 'email' && address !== '' && isAddress(value, address)) || (copy.holds === 'phone' && holdsPhone(value, phones));
     if (linked || holdsTheirs) {
       matched = true;
       if (linked || copy.holds === 'email') surely = true;
@@ -209,6 +212,7 @@ export async function theirCopyRows(input: CopyRowsInput): Promise<TheirCopyTabl
     const digits = phoneDigits(value);
     if (digits !== null && !phones.includes(digits)) phones.push(digits);
   };
+  if (input.phone !== undefined) addPhone(input.phone);
   if (input.ownTable !== null) for (const row of input.ownRows) for (const column of phoneColumnsOf(input.ownTable)) addPhone(row[column]);
 
   const out: TheirCopyTable[] = [];
@@ -218,7 +222,7 @@ export async function theirCopyRows(input: CopyRowsInput): Promise<TheirCopyTabl
     if (table === null || table.primaryKey.length === 0) continue;
     const links = linkColumnsOf(view, table.id);
     // JSON is never compared as an address (Postgres has no lower() of it): such a row is theirs by its link.
-    const conditions = copies.flatMap((copy) => [...(copy.holds === 'email' && copy.json !== true ? [addressIs(copy.column, address)] : []), ...(copy.via !== null && pks.length > 0 ? inList(copy.via, pks) : [])]);
+    const conditions = copies.flatMap((copy) => [...(copy.holds === 'email' && copy.json !== true && address !== '' ? [addressIs(copy.column, address)] : []), ...(copy.via !== null && pks.length > 0 ? inList(copy.via, pks) : [])]);
     const rows = new Map<string, TheirCopyRow>();
     for (const row of await rowsWhere(db, table, conditions, limit)) {
       const theirs = judge(table, row, copies, pkSet, address, phones, links);

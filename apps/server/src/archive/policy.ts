@@ -94,7 +94,7 @@ const EXPORT_SKIPPED_SETTINGS: readonly string[] = ['system.instanceId', 'system
  * cannot be read. Only a full restore with `--drop-secrets` reaches this; an
  * export leaves the sealed values out entirely.
  */
-const KEEP_SEALED_ROWS: readonly string[] = ['adminium_stop_list', 'adminium_address_keys'];
+const KEEP_SEALED_ROWS: readonly string[] = ['adminium_stop_list', 'adminium_text_stop_list', 'adminium_address_keys'];
 
 export interface SanitizeOptions {
   /** `export`: no password hashes, secrets, keys or tokens. */
@@ -198,6 +198,7 @@ const NOT_NULL_SEALED: ReadonlySet<string> = new Set([
   'adminium_email_notice_endpoints.secretEncrypted',
   'adminium_email_dkim_keys.privateKeyEncrypted',
   'adminium_payment_links.tokenSealed',
+  'adminium_sms_accounts.sealedCredentials',
 ]);
 
 function bump(record: Record<string, number>, key: string, by = 1): void {

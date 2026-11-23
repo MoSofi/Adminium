@@ -24,7 +24,7 @@ import { jobsRepo, type AddressHash, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
 
 import { decryptSecret, encryptSecret, SecretFormatError, SecretIntegrityError } from '../config/secrets.js';
-import { AddressKeysLockedError, addressKeyRing } from '../consent/keys.js';
+import { AddressKeysLockedError, addressKeyRing, INBOUND_BODY_PURPOSE } from '../consent/keys.js';
 import { ValidationFailedError } from '../errors.js';
 import type { JobHandlerContext, JobRegistry } from '../jobs/registry.js';
 import { createInboundEventStore, type InboundEventStore } from './store.js';
@@ -58,7 +58,7 @@ export const INBOUND_FAILED_ROW_MS = 400 * DAY_MS;
 /** Rows handled in one sweep step. */
 export const INBOUND_SWEEP_BATCH = 500;
 
-const BODY_PURPOSE = 'adminium:inbound-body';
+const BODY_PURPOSE = INBOUND_BODY_PURPOSE;
 /** The purpose of the key provider ids are digested under. */
 export const INBOUND_ID_PURPOSE = 'adminium:inbound-provider-id';
 const PROVIDER_ID_MAX = 1024;
@@ -122,6 +122,8 @@ export interface InboundCore {
   waitingFrom(subject: string, kinds: readonly string[]): Promise<boolean>;
   /** `subject` as the channel wrote it (`tel:+49…`, `mailto:a@b`). */
   erase(input: { subject: string }): Promise<{ events: number }>;
+  /** How many events {@link InboundCore.erase} would empty for this subject. Writes nothing. */
+  countFrom(subject: string): Promise<number>;
 }
 
 function cursorOf(event: { receivedAt: number; id: string }): string {
@@ -323,12 +325,16 @@ export function createInboundCore(deps: InboundCoreDeps): InboundCore {
       const hashes: AddressHash[] = await ring.hashesOf(input.subject);
       return { events: await store.eraseSubject(hashes, at, at + INBOUND_DEFAULT_RETAIN_MS) };
     },
+
+    async countFrom(subject) {
+      return store.countSubject(await ring.hashesOf(subject));
+    },
   };
 }
 
 const parsePayload = z.object({ eventId: z.string().min(1).max(64) });
 
-/** The two job kinds. Registered by the server at merge; internal, because a payload names a stored event. */
+/** The two job kinds. Internal, because a payload names a stored event. */
 export function registerInboundJobs(registry: JobRegistry, core: InboundCore): void {
   registry.registerJobHandler(
     INBOUND_PARSE_JOB,

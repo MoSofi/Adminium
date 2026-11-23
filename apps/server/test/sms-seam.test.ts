@@ -31,10 +31,8 @@ import {
   type TextSendStore,
 } from '../src/sms/send/index.js';
 import { memorySmsStore } from './helpers/sms-store.js';
-import { makeInboundTables } from './inbound.helpers.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
-import { makeTextConsentTables } from './sms-consent.helpers.js';
-import { json, makeTextSendTables, stubProvider, type ProviderStep } from './sms-send.helpers.js';
+import { json, stubProvider, type ProviderStep } from './sms-send.helpers.js';
 
 const SECRET = 'a-seam-test-secret-of-some-length';
 const ORIGIN = 'https://texts.lumen.example';
@@ -65,9 +63,6 @@ describe.each(META_ENGINES)('the send path and the inbound channel, wired — $n
   beforeAll(async () => {
     if (!engine.available) return;
     handle = await engine.make();
-    await makeTextConsentTables(handle.meta);
-    await makeTextSendTables(handle.meta);
-    await makeInboundTables(handle.meta);
   }, 120_000);
   afterAll(async () => {
     if (engine.available) await handle.destroy();

@@ -108,6 +108,9 @@ export const PERMISSIONS = {
   paymentsManage: 'system:payments:manage',
   paymentsRefund: 'system:payments:refund',
   paymentsView: 'system:payments:view',
+  // Text messages: connecting the business's own provider account, its sender and a test text. The key spends the
+  // business's money, so only the Super Admin holds it unless it is granted on purpose.
+  smsManage: 'system:sms:manage',
   // A person's data, by address: find, download, the privacy notice. Read past
   // every role's table and row limits, so only the Super Admin holds it unless
   // granted on purpose.

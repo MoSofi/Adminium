@@ -24,6 +24,7 @@ import { sweepChatTranscripts } from '../src/chat/transcripts.js';
 import { createConsentService } from '../src/consent/index.js';
 import { bindWriteValue } from '../src/crud/write-values.js';
 import type { FileStore } from '../src/files/store.js';
+import { findChatRows } from '../src/privacy/chat-transcripts.js';
 import { erasePerson, previewErasure } from '../src/privacy/erase.js';
 import { personZip } from '../src/privacy/export.js';
 import { chatTranscriptsKeeping } from '../src/privacy/keeping.js';
@@ -165,6 +166,15 @@ describe.each(LEGS)('website chats in a person\'s data — %s', (dialect, availa
     expect(forgotten.sort()).toEqual(['1', '2']);
     // Found again, nothing of hers is left in the chat.
     expect((await findPerson(deps(), MARTA)).sources.filter((one) => one.kind.startsWith('chat-'))).toEqual([]);
+  });
+
+  it.skipIf(!available)('an erasure with no address (by phone) never reads an empty address as a match', async () => {
+    await chat(7, { email: '' });
+    expect(await findChatRows(deps(), '', [])).toEqual([]);
+    const { db } = await h.manager.data(h.connectionId);
+    await db.deleteFrom(names['choices']! as never).where('conversation_id' as never, '=', 7 as never).execute();
+    await db.deleteFrom(names['messages']! as never).where('conversation_id' as never, '=', 7 as never).execute();
+    await db.deleteFrom(names['conversations']! as never).where('id' as never, '=', 7 as never).execute();
   });
 
   it.skipIf(!available)('the keeping row reads the add-on\'s setting, and the sweep removes an old conversation with its messages and choices, and keeps a fresh one', async () => {

@@ -38,6 +38,7 @@ const EXPECTED: Record<PolicyQuestion, [true | PolicyReason, true | PolicyReason
   webhooks: [true, 'trial-mode', true],
   addOnHttp: [true, 'trial-mode', true],
   paymentProviders: [true, 'trial-mode', true],
+  smsProviders: [true, 'trial-mode', true],
   geoServers: [true, 'trial-mode', true],
   designerNetwork: [true, 'trial-mode', true],
   updateCheck: [true, 'trial-mode', true],

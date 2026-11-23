@@ -4759,6 +4759,7 @@
         "invitations": "{count, plural, one {# survey invitation} other {# survey invitations}} in {label}, kept without their address",
         "answerFiles": "{count, plural, one {# file} other {# files}} sent with form answers in {label}",
         "chats": "{count, plural, one {# chat conversation} other {# chat conversations}} in {label}, with their messages",
+        "textRecords": "{count, plural, one {# text message record} other {# text message records}}",
         "foundPeople": "{count, plural, one {# record} other {# records}} of where they were found in {label}, with the mails that told them",
         "reviews": "{count, plural, one {# review} other {# reviews}} in {label}, kept without their name"
       },

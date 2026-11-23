@@ -31,9 +31,7 @@ import {
   type SmsStopConfirmation,
 } from '../src/sms/inbound/index.js';
 import type { SmsAccountView } from '../src/sms/service.js';
-import { makeInboundTables } from './inbound.helpers.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
-import { makeTextConsentTables } from './sms-consent.helpers.js';
 
 const SECRET = 'an-sms-inbound-test-secret-of-length';
 const ORIGIN = 'https://texts.lumen.example';
@@ -214,8 +212,6 @@ describe.each(META_ENGINES)('SMS inbound — $name', (engine) => {
   beforeAll(async () => {
     if (!engine.available) return;
     handle = await engine.make();
-    await makeInboundTables(handle.meta);
-    await makeTextConsentTables(handle.meta);
   });
   afterAll(async () => {
     if (engine.available) await handle.destroy();

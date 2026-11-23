@@ -211,3 +211,31 @@ describe('the tokens of the other doors in the request log', () => {
     expect(logged()).toContain(`"url":"${scrubbed}"`);
   });
 });
+
+describe('the inbound door in the request log', () => {
+  const secret = 'S3cr3tInb0undT0ken-abc_DEF123';
+
+  it.each([
+    ['a Twilio call', `/api/v1/inbound/sms/twilio/${secret}`, '/api/v1/inbound/sms/twilio/[REDACTED]'],
+    ['a Telnyx call', `/api/v1/inbound/sms/telnyx/${secret}`, '/api/v1/inbound/sms/telnyx/[REDACTED]'],
+    ['its door encoded', `/api/v1/%69nbound/sms/twilio/${secret}`, '/api/v1/%69nbound/sms/twilio/[REDACTED]'],
+    ['its source encoded', `/api/v1/inbound/sms/twil%69o/${secret}`, '/api/v1/inbound/sms/twil%69o/[REDACTED]'],
+    ['a token pasted a segment early', `/api/v1/inbound/sms/${secret}`, '/api/v1/inbound/sms/[REDACTED]'],
+    ['a channel it does not know', `/api/v1/inbound/${secret}/twilio/more`, '/api/v1/inbound/[REDACTED]'],
+  ] as const)('scrubs %s', async (_name, url, scrubbed) => {
+    await composed.app.inject({ method: 'POST', url, headers: { 'content-type': 'application/x-www-form-urlencoded' }, payload: 'From=%2B14155552671&Body=STOP' });
+    expect(logged()).not.toContain(secret);
+    expect(logged()).not.toContain('14155552671');
+    expect(logged()).toContain(`"url":"${scrubbed}"`);
+  });
+
+  it('is registered, and with no provider connected answers 503 so the provider keeps the event', async () => {
+    const res = await composed.app.inject({ method: 'POST', url: `/api/v1/inbound/sms/twilio/${secret}`, headers: { 'content-type': 'application/x-www-form-urlencoded' }, payload: 'Body=STOP' });
+    expect(res.statusCode).toBe(503);
+    expect(res.json()).toEqual({ received: false });
+  });
+
+  it('keeps the sweep on the schedule', () => {
+    expect(composed.jobs.scheduler.names()).toContain('inbound-sweep');
+  });
+});

@@ -27,6 +27,7 @@ import {
 } from '@adminium/meta';
 
 import { PAGE_ACTIONS, PERMISSIONS, TABLE_ACTIONS } from '../../rbac/permissions.js';
+import { SMS_MANAGE_LABEL } from '../../sms/permission.js';
 
 /** Grouping for the matrix's row headers — presentation only. */
 export const permissionCategory = z.enum(['access', 'data', 'workspace', 'operations']);
@@ -103,6 +104,7 @@ const SYSTEM_PERMISSION_META: Record<
   'payments.manage': { label: 'Set up payments', category: 'workspace' },
   'payments.refund': { label: 'Give refunds', category: 'workspace' },
   'payments.view': { label: 'See payment activity and export it', category: 'workspace' },
+  'sms.manage': SMS_MANAGE_LABEL,
   // `workspace`: the privacy notice is the business's own words, and finding a
   // person's data reads every people table past the role's limits.
   'privacy.manage': { label: "Find, download and manage a person's data", category: 'workspace' },

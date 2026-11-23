@@ -135,6 +135,17 @@ export const SECRET_FIELD_NAMES_CANONICAL: readonly string[] = [
   // mail as the owner's domain.
   'signingKey',
   'privateKey',
+  // A text message provider's token, as `PUT /sms/account` carries it, and the sealed
+  // places SMS keeps: the keys, a stopped number's copy, and a stored inbound event.
+  'authToken',
+  'sealedCredentials',
+  'phoneEncrypted',
+  'sealedBody',
+  // A person's number. A provider's error can quote one too: those go through `redactPhones`
+  // before they are kept or logged.
+  'phone',
+  'e164',
+  'mobile',
 ];
 
 /**

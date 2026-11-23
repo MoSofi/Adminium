@@ -4759,6 +4759,7 @@
         "invitations": "{count, plural, zero {لا دعوات استبيان} one {دعوة استبيان واحدة} two {دعوتا استبيان} few {# دعوات استبيان} many {# دعوة استبيان} other {# دعوة استبيان}} في {label}، تُحفظ دون عنوانها",
         "answerFiles": "{count, plural, zero {لا ملفات} one {ملف واحد} two {ملفان} few {# ملفات} many {# ملفًا} other {# ملف}} أُرسلت مع إجابات النماذج في {label}",
         "chats": "{count, plural, zero {لا محادثات دردشة} one {محادثة دردشة واحدة} two {محادثتا دردشة} few {# محادثات دردشة} many {# محادثة دردشة} other {# محادثة دردشة}} في {label}، مع رسائلها",
+        "textRecords": "{count, plural, zero {لا سجلات رسائل نصية} one {سجل رسالة نصية واحد} two {سجلا رسائل نصية} few {# سجلات رسائل نصية} many {# سجلًا للرسائل النصية} other {# سجل رسائل نصية}}",
         "foundPeople": "{count, plural, zero {لا سجلات} one {سجل واحد} two {سجلان} few {# سجلات} many {# سجلًا} other {# سجل}} عن مكان العثور عليهم في {label}، مع الرسائل التي أخبرتهم",
         "reviews": "{count, plural, zero {لا تقييمات} one {تقييم واحد} two {تقييمان} few {# تقييمات} many {# تقييمًا} other {# تقييم}} في {label}، محفوظة دون الاسم"
       },

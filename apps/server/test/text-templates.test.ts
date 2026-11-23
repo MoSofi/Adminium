@@ -20,7 +20,6 @@ import { publicEntryRefs, servedPublicEntries } from '../src/apps/manifest-publi
 import { createTextConsentService } from '../src/sms/consent/index.js';
 import { checkTextTemplate } from '../src/sms/send/template.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
-import { makeTextConsentTables } from './sms-consent.helpers.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- a loose fixture, changed by path in each case
 type Doc = Record<string, any>;
@@ -78,7 +77,6 @@ describe.each(META_ENGINES)('text templates — $name', (engine) => {
     connectionId = (await connectionsRepo(handle.meta, CRYPTO as never).create({ name: 'Clinic', engine: 'sqlite', introspectDsn: 'sqlite::memory:' })).id;
     const installed = await manifestsRepo(handle.meta, CRYPTO as never).install({ manifestKey: 'clinic', version: '1.0.0', kind: 'app', source: 'file', document: {} });
     INSTALL = { id: installed.row.id, key: 'clinic', slug: '' };
-    await makeTextConsentTables(handle.meta);
   });
   afterAll(async () => {
     if (engine.available) await handle.destroy();

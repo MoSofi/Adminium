@@ -312,6 +312,9 @@ export const X_PREFIX = '/x';
 /** Where a mail service tells of bounces and spam reports. Public by nature: each service proves its call. */
 export const MAIL_NOTICE_PREFIX = '/api/v1/email/notices/';
 
+/** Where a provider hands over what a customer sent. Public by nature: each provider proves its call. */
+export const INBOUND_PREFIX = '/api/v1/inbound/';
+
 /** Where a provider sends a person back after a sign-in. Registered at the provider, so served on whichever host the public address is. */
 const OAUTH_CALLBACK = /^\/api\/v1\/add-ons\/[a-z][a-z0-9-]{1,79}\/oauth\/callback$/;
 
@@ -326,6 +329,7 @@ export function customerHostAllows(path: string, appKey: string): boolean {
   if (path.startsWith(PUBLIC_API_PREFIX)) return true;
   if (path.startsWith(PAYMENT_WEBHOOK_PREFIX)) return true;
   if (path.startsWith(MAIL_NOTICE_PREFIX)) return true;
+  if (path.startsWith(INBOUND_PREFIX)) return true;
   if (OAUTH_CALLBACK.test(path)) return true;
   if (path === PAY_PREFIX || path.startsWith(`${PAY_PREFIX}/`)) return true;
   // The mail door: the default below lets it through too; named here so a narrower default keeps it.
@@ -360,6 +364,7 @@ export function pagesHostAllows(path: string): boolean {
   if (path === PAY_PREFIX || path.startsWith(`${PAY_PREFIX}/`)) return true;
   if (path.startsWith(PAYMENT_WEBHOOK_PREFIX)) return true;
   if (path.startsWith(MAIL_NOTICE_PREFIX)) return true;
+  if (path.startsWith(INBOUND_PREFIX)) return true;
   if (OAUTH_CALLBACK.test(path)) return true;
   return false;
 }

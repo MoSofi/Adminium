@@ -34,7 +34,7 @@ import { totpEncryptionKey } from '../../../auth/totp.js';
 import { webhookSecretKey } from '../../../automations/actions/webhook.js';
 import { decryptSecret, deriveKey, encryptSecret, isEncryptedSecret } from '../../../config/secrets.js';
 import { dsnCryptoFromSecret } from '../../../connections/crypto.js';
-import { addressKeysWrapKey, stopListAddressKey } from '../../../consent/keys.js';
+import { addressKeyRing, addressKeysWrapKey, INBOUND_BODY_PURPOSE, stopListAddressKey, TEXT_STOP_PHONE_PURPOSE } from '../../../consent/keys.js';
 import { FIGMA_TOKEN_SALT } from '../../../designer/figma/tokens.js';
 import { emailSecretKey } from '../../../email/config.js';
 import { NOTICE_KEY_SALT } from '../../../email/notices/endpoints.js';
@@ -42,6 +42,7 @@ import { DKIM_KEY_SALT } from '../../../email/sender/dkim-keys.js';
 import { storageCryptoFromSecret } from '../../../files/crypto.js';
 import { linkSealFromSecret } from '../../../payments/links.js';
 import { SIGN_IN_LINK_JOB_KIND } from '../../../public-api/sign-in-link.js';
+import { smsSecretKey } from '../../../sms/credentials.js';
 import type { CheckItem } from '../check.js';
 import type { SaveChoices } from '../types.js';
 import { itemTargetOf, targetOf, type GateContent, type Leaf, type PathPart } from './content.js';
@@ -71,6 +72,9 @@ export const SECRET_SOURCES = [
   'adminium_email_notice_endpoints.tokenEncrypted',
   'adminium_email_notice_endpoints.secretEncrypted',
   'adminium_email_dkim_keys.privateKeyEncrypted',
+  'adminium_sms_accounts.sealedCredentials',
+  'adminium_text_stop_list.phoneEncrypted',
+  'adminium_inbound_events.sealedBody',
   'adminium_automations.graph#headerValueEncrypted',
   'adminium_jobs.payload#address',
 ] as const;
@@ -309,6 +313,27 @@ function openedOrPlain(open: (token: unknown) => string | null, value: unknown):
 }
 
 /**
+ * Opens a value sealed under a key taken from the address keys, trying every
+ * version. Locked keys open nothing, as any other secret that cannot be read.
+ */
+async function ringOpener(meta: MetaDb, masterSecret: string, purpose: string): Promise<(token: unknown) => string | null> {
+  let keys: string[] = [];
+  try {
+    keys = await addressKeyRing(meta, masterSecret).derivedAll(purpose);
+  } catch {
+    keys = [];
+  }
+  const openers = keys.map((key) => opener(withKey(Buffer.from(key, 'hex'))));
+  return (token) => {
+    for (const open of openers) {
+      const opened = open(token);
+      if (opened !== null) return opened;
+    }
+    return null;
+  };
+}
+
+/**
  * Every secret this server keeps, opened. Reads each sealed column with the
  * key its feature derives; a value that does not open (another secret, a
  * sentinel) is skipped, since nothing could put it in a file either.
@@ -329,6 +354,9 @@ export async function collectKnownSecrets(meta: MetaDb, masterSecret: string, pr
   const addressKeys = opener(withKey(addressKeysWrapKey(masterSecret)));
   const stopList = opener(withKey(stopListAddressKey(masterSecret)));
   const link = opener(linkSealFromSecret(masterSecret).unseal);
+  const smsAccount = opener(withKey(smsSecretKey(masterSecret)));
+  const textStop = await ringOpener(meta, masterSecret, TEXT_STOP_PHONE_PURPOSE);
+  const inboundBody = await ringOpener(meta, masterSecret, INBOUND_BODY_PURPOSE);
   const llmOpen = opener(llmKeyCryptoFromSecret(masterSecret, { deriveKey, encryptSecret, decryptSecret }).decrypt);
   /** For a column no feature reads: every key there is, first that opens it. */
   const anyKey = (token: unknown): string | null => {
@@ -396,6 +424,19 @@ export async function collectKnownSecrets(meta: MetaDb, masterSecret: string, pr
   }
   for (const row of await db.selectFrom('adminium_email_dkim_keys').select(['privateKeyEncrypted']).execute()) {
     list.addAny('a sending domain\'s private key', dkim(row.privateKeyEncrypted) ?? '');
+  }
+  for (const row of await db.selectFrom('adminium_sms_accounts').select(['sealedCredentials']).execute()) {
+    list.addOpened('the text message provider\'s key', smsAccount(row.sealedCredentials));
+  }
+  for (const row of await db.selectFrom('adminium_text_stop_list').select(['phoneEncrypted']).execute()) {
+    list.add('a number on the do-not-text list', textStop(row.phoneEncrypted), 'whole');
+  }
+  for (const row of await db.selectFrom('adminium_inbound_events').select(['sealedBody']).where('sealedBody', 'is not', null).execute()) {
+    const event = parseJsonObject(inboundBody(row.sealedBody) ?? '') as { from?: unknown; to?: unknown; phone?: unknown; text?: unknown } | undefined;
+    list.add('a customer\'s number in a stored message', event?.from, 'whole');
+    list.add('a customer\'s number in a stored message', event?.to, 'whole');
+    list.add('a customer\'s number in a stored message', event?.phone, 'whole');
+    list.add('a customer\'s stored message', event?.text, 'whole');
   }
   for (const row of await db.selectFrom('adminium_automations').select(['graph']).execute()) {
     walkWebhookSteps(readJsonFrom(meta, row.graph), (step) => {

@@ -29,6 +29,8 @@
  * be sure about.
  */
 import { NOTICE_SERVICES } from './email/notices/types.js';
+import { scrubInboundPath } from './inbound/log.js';
+import { SMS_PROVIDERS } from './sms/types.js';
 
 /** The pino censor string used everywhere else (`app.ts` `REDACT_PATHS`). */
 export const REDACTED = '[REDACTED]';
@@ -233,10 +235,14 @@ function scrubSessionCodePath(segments: readonly string[]): string | null {
   return null;
 }
 
+/** The channels of the inbound door, each with the sources that stay readable in a logged path. */
+const INBOUND_DOORS: Readonly<Record<string, readonly string[]>> = { sms: SMS_PROVIDERS };
+
 /**
  * The path with a door's token replaced by {@link REDACTED}: a mail link's, a
  * calendar feed's, a password or invitation link's, a pay link's (or a way
- * back's nonce), a notice address's, or a signed-in door's one-use code.
+ * back's nonce), a notice address's, an inbound door's, or a signed-in door's
+ * one-use code.
  *
  * Compared segment by segment, decoded, because the router also accepts
  * `/p%61y/…` and `/m/%6F/…`. What is kept is kept as it was sent.
@@ -251,6 +257,7 @@ export function scrubPathForLog(path: string): string {
     scrubResetPath(segments) ??
     scrubPayPath(segments) ??
     scrubNoticePath(segments) ??
+    scrubInboundPath(segments, INBOUND_DOORS) ??
     scrubSessionCodePath(segments);
   return scrubbed === null ? path : `${origin}${extra}${scrubbed}`;
 }

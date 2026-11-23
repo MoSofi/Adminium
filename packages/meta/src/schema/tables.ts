@@ -2208,6 +2208,135 @@ export interface AdminiumCalendarFeedsTable {
   changedBy: string | null;
 }
 
+// waves 0125–0128 — SMS: the account, text consent, inbound events, deliveries
+
+/** The server's one SMS provider account (0125). */
+export interface AdminiumSmsAccountsTable {
+  id: Id;
+  slot: string;
+  revision: number;
+  provider: string;
+  /** `enc:v1:` under the SMS key: the provider's keys. */
+  sealedCredentials: string;
+  accountName: string | null;
+  accountHint: string;
+  accountType: string | null;
+  senderKind: string | null;
+  senderValue: string | null;
+  defaultCountry: string | null;
+  checkOk: number | boolean;
+  checkReason: string | null;
+  checkAt: Ts;
+  savedAt: Ts;
+  savedBy: Id | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
+/** A number that must get no text, by its keyed hash (0126). */
+export interface AdminiumTextStopListTable {
+  id: Id;
+  phoneHash: string;
+  keyVersion: number;
+  /** The display copy, sealed under a key from the address keys. Empty once erased. */
+  phoneEncrypted: string | null;
+  reason: string;
+  origin: string | null;
+  addedAt: Ts;
+  addedById: Id | null;
+  addedByLabel: string | null;
+  erasedAt: Ts | null;
+}
+
+/** One yes, no or START about texts (0126). */
+export interface AdminiumTextConsentLogTable {
+  id: Id;
+  connectionId: string | null;
+  personTable: string | null;
+  personKey: string | null;
+  phoneHash: string | null;
+  keyVersion: number | null;
+  purpose: string | null;
+  state: string;
+  source: string;
+  detail: string | null;
+  how: string | null;
+  note: string | null;
+  staffId: string | null;
+  staffLabel: string | null;
+  wording: string | null;
+  wordingVersion: string | null;
+  ip: string | null;
+  userAgent: string | null;
+  at: Ts;
+  confirmedAt: Ts | null;
+}
+
+/** One event a provider handed this server, stored once (0127). */
+export interface AdminiumInboundEventsTable {
+  id: Id;
+  channel: string;
+  account: string;
+  /** A keyed digest of the provider's id, never the id. */
+  providerId: string;
+  source: string;
+  kind: string;
+  state: string;
+  subjectHash: string | null;
+  keyVersion: number | null;
+  /** The event, sealed under a key from the address keys. Gone once it finishes. */
+  sealedBody: string | null;
+  attempts: number;
+  reason: string | null;
+  occurredAt: Ts | null;
+  receivedAt: Ts;
+  claimedAt: Ts | null;
+  finishedAt: Ts | null;
+  retainUntil: Ts | null;
+}
+
+/** What became of one text. Holds no body and no number (0128). */
+export interface AdminiumTextDeliveriesTable {
+  id: Id;
+  claimHash: string;
+  messageHash: string;
+  openMessageHash: string | null;
+  phoneHash: string | null;
+  keyVersion: number | null;
+  phoneMasked: string | null;
+  textClass: string;
+  state: string;
+  reason: string | null;
+  provider: string | null;
+  providerMessageId: string | null;
+  providerStatus: string | null;
+  providerErrorCode: string | null;
+  segments: number | null;
+  priceAmount: string | null;
+  priceCurrency: string | null;
+  estimatedSegments: number;
+  encoding: string;
+  version: number;
+  attempts: number;
+  attemptStartedAt: Ts | null;
+  attemptAccount: string | null;
+  mayHaveGoneAt: Ts | null;
+  mayHaveGoneAccount: string | null;
+  slotDay: string | null;
+  stopOwedAt: Ts | null;
+  reportTarget: string | null;
+  settleOwedAt: Ts | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
+/** The daily limit's count for one business day (0128). */
+export interface AdminiumTextSendDaysTable {
+  day: string;
+  used: number;
+  updatedAt: Ts;
+}
+
 export interface AdminiumSourceDaysTable {
   installId: string;
   source: string;
@@ -2581,6 +2710,12 @@ export interface MetaDB {
   adminium_visits: AdminiumVisitsTable;
   adminium_source_days: AdminiumSourceDaysTable;
   adminium_calendar_feeds: AdminiumCalendarFeedsTable;
+  adminium_sms_accounts: AdminiumSmsAccountsTable;
+  adminium_text_stop_list: AdminiumTextStopListTable;
+  adminium_text_consent_log: AdminiumTextConsentLogTable;
+  adminium_inbound_events: AdminiumInboundEventsTable;
+  adminium_text_deliveries: AdminiumTextDeliveriesTable;
+  adminium_text_send_days: AdminiumTextSendDaysTable;
 }
 
 /**
@@ -2702,4 +2837,10 @@ export const META_TABLE_NAMES = [
   'adminium_visits',
   'adminium_source_days',
   'adminium_calendar_feeds',
+  'adminium_sms_accounts',
+  'adminium_text_stop_list',
+  'adminium_text_consent_log',
+  'adminium_inbound_events',
+  'adminium_text_deliveries',
+  'adminium_text_send_days',
 ] as const satisfies readonly (keyof MetaDB)[];

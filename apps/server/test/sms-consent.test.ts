@@ -33,7 +33,6 @@ import {
 } from '../src/sms/consent/index.js';
 import { judgeBeforeLookup } from '../src/sms/consent/rules.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
-import { makeTextConsentTables } from './sms-consent.helpers.js';
 
 const SECRET = 'a-text-consent-test-secret-of-some-length';
 const NEXT = 'the-secret-it-was-changed-to-later-on';
@@ -192,7 +191,6 @@ describe.each(META_ENGINES)('text consent — $name', (engine) => {
   beforeAll(async () => {
     if (!engine.available) return;
     handle = await engine.make();
-    await makeTextConsentTables(handle.meta);
   }, 120_000);
   afterAll(async () => {
     if (engine.available) await handle.destroy();
@@ -649,7 +647,7 @@ describe.each(META_ENGINES)('text consent — $name', (engine) => {
   });
 });
 
-describe.each(META_ENGINES)('before the tables exist — $name', (engine) => {
+describe.each(META_ENGINES)('when the tables cannot be read — $name', (engine) => {
   let handle: MetaHandle;
   beforeAll(async () => {
     if (engine.available) handle = await engine.make();
@@ -662,6 +660,7 @@ describe.each(META_ENGINES)('before the tables exist — $name', (engine) => {
     const service = createTextConsentService({ meta: handle.meta, secret: SECRET });
     // A key exists, so the lookup reaches the store.
     await createConsentService({ meta: handle.meta, secret: SECRET }).stop.add({ address: 'a@example.test', reason: 'link' });
+    await sql`drop table adminium_text_stop_list`.execute(handle.meta.db);
     await expect(service.decide(serviceFrom(DE))).rejects.toThrow(/adminium_text_stop_list/);
   });
 });

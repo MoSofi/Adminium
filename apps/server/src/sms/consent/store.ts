@@ -3,9 +3,8 @@
  * Where text consent is kept: `adminium_text_stop_list` and
  * `adminium_text_consent_log`.
  *
- * No migration makes them yet. Until one does, every call here throws on the
- * missing table, and the decision throws with it, so no text can pass for want
- * of a store.
+ * A store that cannot be read throws, and the decision throws with it, so no
+ * text can pass for want of a store.
  *
  * A phone arrives already hashed and sealed. The keys are the service's.
  */
@@ -162,7 +161,7 @@ function storeOver(db: Kysely<TextTables>, dialect: MetaDb['dialect']): TextCons
 
       async add(input) {
         const row: TextStopTable = {
-          id: newId('stp'),
+          id: newId('tsp'),
           phoneHash: input.phone.hash,
           keyVersion: input.phone.version,
           phoneEncrypted: input.phoneEncrypted,
@@ -213,7 +212,7 @@ function storeOver(db: Kysely<TextTables>, dialect: MetaDb['dialect']): TextCons
           if (part.length === 0 || part.length > CONSENT_PERSON_KEY_MAX) throw new ValidationFailedError('A consent row is named by a table and a key of 1 to 200 characters.', { field: 'person' });
         }
         const row: TextLogTable = {
-          id: newId('cns'),
+          id: newId('tcn'),
           connectionId: input.person?.connectionId ?? null,
           personTable: input.person?.table ?? null,
           personKey: input.person?.key ?? null,

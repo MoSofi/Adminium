@@ -3,8 +3,7 @@
  * Where deliveries and the day's count are kept: `adminium_text_deliveries`
  * and `adminium_text_send_days`.
  *
- * No migration makes them yet. Until one does, every call here throws on the
- * missing table, and a job that throws sends nothing.
+ * A store that cannot be read throws, and a job that throws sends nothing.
  *
  * ─── THE TWO GUARANTEES ─────────────────────────────────────────────────────
  *
@@ -164,6 +163,8 @@ export interface TextSendStore {
   applyReport(report: TextReport): Promise<TextDelivery | null>;
   /** Removes every delivery of these hashes. */
   eraseFor(hashes: readonly AddressHash[]): Promise<number>;
+  /** How many delivery records {@link TextSendStore.eraseFor} would delete. */
+  countFor(hashes: readonly AddressHash[]): Promise<number>;
 }
 
 const STATE_SET: ReadonlySet<string> = new Set(TEXT_DELIVERY_STATES);
@@ -286,7 +287,7 @@ export function createTextSendStore(meta: MetaDb): TextSendStore {
     usedOn,
 
     async create(input) {
-      const id = newId('job');
+      const id = newId('tdl');
       const row: TextDeliveryTable = {
         id,
         claimHash: input.claimHash,
@@ -512,6 +513,16 @@ export function createTextSendStore(meta: MetaDb): TextSendStore {
         .where((eb) => eb.or(hashes.map((one) => eb.and([eb('phoneHash', '=', one.hash), eb('keyVersion', '=', one.version)]))))
         .executeTakeFirst();
       return Number(result.numDeletedRows);
+    },
+
+    async countFor(hashes) {
+      if (hashes.length === 0) return 0;
+      const row = await db
+        .selectFrom('adminium_text_deliveries')
+        .select((eb) => eb.fn.countAll<number | string>().as('count'))
+        .where((eb) => eb.or(hashes.map((one) => eb.and([eb('phoneHash', '=', one.hash), eb('keyVersion', '=', one.version)]))))
+        .executeTakeFirstOrThrow();
+      return Number(row.count);
     },
   };
 }

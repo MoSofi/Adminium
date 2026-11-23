@@ -130,6 +130,8 @@ export interface SmsServiceDeps {
   /** `ADMINIUM_SECRET`. */
   secret: string;
   stopList: SmsStopList;
+  /** The server's own default country, for an account that has not chosen one. */
+  defaultCountry?: (() => Promise<string | null>) | undefined;
   fetch?: typeof globalThis.fetch | undefined;
   now?: (() => number) | undefined;
   timeoutMs?: number | undefined;
@@ -171,7 +173,10 @@ export function createSmsService(deps: SmsServiceDeps): SmsService {
 
   const opened = (row: SmsAccountRow): SmsCredentials | null => openCredentials(row.sealedCredentials, row.provider, key);
 
-  function viewOf(row: SmsAccountRow): SmsAccountView {
+  /** The account's own choice, then the server's. */
+  const countryOf = async (row: SmsAccountRow | null): Promise<string | null> => row?.defaultCountry ?? (await deps.defaultCountry?.()) ?? null;
+
+  async function viewOf(row: SmsAccountRow): Promise<SmsAccountView> {
     return {
       provider: row.provider,
       accountName: row.accountName,
@@ -180,7 +185,7 @@ export function createSmsService(deps: SmsServiceDeps): SmsService {
       keyReadable: opened(row) !== null,
       sender: row.sender,
       senderTakesReplies: row.sender === null ? null : senderTakesReplies(row.sender),
-      defaultCountry: row.defaultCountry,
+      defaultCountry: await countryOf(row),
       check: row.check,
       savedAt: row.savedAt,
       timeoutRetry: SMS_PROVIDER_ADAPTERS[row.provider].timeoutRetry,
@@ -222,7 +227,7 @@ export function createSmsService(deps: SmsServiceDeps): SmsService {
     if (callbackUrl !== null && !validCallback(callbackUrl)) return refusedResult('bad-request', null);
 
     const row = await deps.store.read();
-    const destination = checkDestination(request.to, row?.defaultCountry ?? null);
+    const destination = checkDestination(request.to, await countryOf(row));
     if (!destination.ok) return refusedResult(destination.reason, destination.e164, { detail: destination.detail });
     const to = destination.phone.e164;
 
@@ -256,7 +261,7 @@ export function createSmsService(deps: SmsServiceDeps): SmsService {
   return {
     async view() {
       const row = await deps.store.read();
-      return row === null ? null : viewOf(row);
+      return row === null ? null : await viewOf(row);
     },
 
     async connect(input, by) {
@@ -287,7 +292,7 @@ export function createSmsService(deps: SmsServiceDeps): SmsService {
         before?.revision ?? null,
       );
       if (row === null) throw changedWhileChecking();
-      return { view: viewOf(row), replaced: before !== null, accountChanged: before !== null && !sameAccount };
+      return { view: await viewOf(row), replaced: before !== null, accountChanged: before !== null && !sameAccount };
     },
 
     async setSending(input, by) {
@@ -304,7 +309,7 @@ export function createSmsService(deps: SmsServiceDeps): SmsService {
       }
       const next = await deps.store.write({ ...fieldsOf(row), sender: sender.sender, defaultCountry: input.defaultCountry, savedAt: now(), savedBy: by }, row.revision);
       if (next === null) throw changedWhileChecking();
-      return viewOf(next);
+      return await viewOf(next);
     },
 
     async recheck() {
@@ -318,7 +323,7 @@ export function createSmsService(deps: SmsServiceDeps): SmsService {
         : { ...fieldsOf(row), check: { ok: false, reason: checked.reason, at } };
       const next = await deps.store.write(fields, row.revision);
       if (next === null) throw changedWhileChecking();
-      return viewOf(next);
+      return await viewOf(next);
     },
 
     async disconnect() {
@@ -332,7 +337,7 @@ export function createSmsService(deps: SmsServiceDeps): SmsService {
 
     async sendTest(to) {
       const row = await deps.store.read();
-      const destination = checkDestination(to, row?.defaultCountry ?? null);
+      const destination = checkDestination(to, await countryOf(row));
       if (!destination.ok) return refusedResult(destination.reason, destination.e164, { detail: destination.detail });
       const e164 = destination.phone.e164;
       if (row === null) return refusedResult('not-connected', e164);

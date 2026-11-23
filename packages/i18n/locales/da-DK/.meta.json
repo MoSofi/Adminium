@@ -7463,6 +7463,10 @@
     "status": "src",
     "srcHash": "8f61a9b558b3"
   },
+  "common.operatorSwitches.smsProviders": {
+    "status": "mt",
+    "srcHash": "61786cca5479"
+  },
   "common.operatorSwitches.sqlite": {
     "status": "mt",
     "srcHash": "24ec4991288d"
@@ -24599,6 +24603,10 @@
     "status": "mt",
     "srcHash": "2e38dd338230"
   },
+  "roles.permission.smsManage": {
+    "status": "mt",
+    "srcHash": "8de0e328dd82"
+  },
   "roles.permission.storageManage": {
     "status": "mt",
     "srcHash": "3a4d20b7746a"
@@ -37794,6 +37802,10 @@
   "studio.privacy.erase.goes.reviews": {
     "status": "mt",
     "srcHash": "9faa73c8c231"
+  },
+  "studio.privacy.erase.goes.textRecords": {
+    "status": "mt",
+    "srcHash": "36e275159cd4"
   },
   "studio.privacy.erase.goesLabel": {
     "status": "mt",

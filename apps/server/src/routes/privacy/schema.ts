@@ -15,6 +15,12 @@ const addressField = z.string().trim().min(3).max(320);
 
 export const privacyAddressBody = z.object({ address: addressField });
 
+/** A number as typed; read as one exact number by the erasure. */
+const phoneField = z.string().trim().min(3).max(64);
+export const phoneEraseBody = z.object({ phone: phoneField }).strict();
+/** The erasure by phone, confirmed by the number typed again. */
+export const phoneEraseConfirmBody = z.object({ phone: phoneField, confirm: phoneField }).strict();
+
 /** Each field is cleared by null or an empty text; the route checks what is left (an address must be https). */
 export const privacyNoticeBody = z.object({
   businessName: z.string().trim().max(120).nullable(),
@@ -111,7 +117,7 @@ export const erasePreviewReply = z.object({
     /** What goes: their rows, copies of them, their mail, consent entries, campaign sends, files on their rows. */
     goes: z.array(
       z.object({
-        kind: z.enum(['people', 'copy', 'outbox', 'consent', 'campaign-mail', 'files', 'form-answers', 'form-invitations', 'form-files', 'chat-conversations', 'page-visits', 'found-people', 'reviews']),
+        kind: z.enum(['people', 'copy', 'outbox', 'consent', 'campaign-mail', 'files', 'form-answers', 'form-invitations', 'form-files', 'chat-conversations', 'page-visits', 'found-people', 'reviews', 'text-records']),
         count: z.number(),
         connectionId: z.string().optional(),
         table: z.string().optional(),

@@ -2223,6 +2223,7 @@ export default {
     "aiProvider": "Der Betreiber erlaubt in dieser Installation nur deinen eigenen Schlüssel für Anthropic, OpenAI oder Google.",
     "aiAddress": "Der Betreiber erlaubt in dieser Installation keine eigene KI-Adresse.",
     "payments": "Der Betreiber hat Zahlungsdienste für diese Installation ausgeschaltet.",
+    "smsProviders": "Der Betreiber hat Textnachrichten für diese Installation ausgeschaltet.",
     "askOperator": "Nur wer diese Installation betreibt, kann das ändern.",
     "dataOverCap": "Diese Datenbank liegt über dem Größenlimit des Tests und ist daher schreibgeschützt. Löschen Sie einige Zeilen, um weiterzumachen.",
     "storageOverCap": "Die Dateien dieser Installation liegen über dem Limit des Tests, daher kann nichts mehr gespeichert werden. Löschen Sie einige Dateien, um weiterzumachen.",

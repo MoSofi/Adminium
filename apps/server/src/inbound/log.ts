@@ -3,8 +3,8 @@
  * Keeping the door's token out of the request log.
  *
  * The path token is part of what lets a call in, and the request log prints
- * paths. `log-scrub.ts` calls this at merge, beside its other doors. Segments
- * are compared decoded, because the router also accepts `/api/v1/%69nbound/…`.
+ * paths. `log-scrub.ts` calls this beside its other doors. Segments are
+ * compared decoded, because the router also accepts `/api/v1/%69nbound/…`.
  */
 
 /** The censor `log-scrub.ts` writes. Not imported from it, because that file calls this one. */

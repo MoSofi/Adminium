@@ -4769,6 +4769,7 @@ export default {
         "invitations": "{count, plural, one {# pozvánka do průzkumu} few {# pozvánky do průzkumu} many {# pozvánky do průzkumu} other {# pozvánek do průzkumu}} v {label}, uchováno bez adresy",
         "answerFiles": "{count, plural, one {# soubor} few {# soubory} many {# souboru} other {# souborů}} z odpovědí na formuláře v {label}",
         "chats": "{count, plural, one {# konverzace v chatu} few {# konverzace v chatu} many {# konverzace v chatu} other {# konverzací v chatu}} v {label}, i se zprávami",
+        "textRecords": "{count, plural, one {# záznam textové zprávy} few {# záznamy textových zpráv} many {# záznamu textových zpráv} other {# záznamů textových zpráv}}",
         "foundPeople": "{count, plural, one {# záznam} few {# záznamy} many {# záznamu} other {# záznamů}} o tom, kde byli nalezeni, v {label}, s e-maily, které jim to sdělily",
         "reviews": "{count, plural, one {# recenze} few {# recenze} many {# recenze} other {# recenzí}} v {label}, ponechané bez jména"
       },

@@ -54,6 +54,8 @@ export function offByOperatorWords(question: string, reason?: string): string {
       return t('operatorSwitches.aiAddress', 'The operator does not allow an AI address of your own on this installation.');
     case 'paymentProviders':
       return t('operatorSwitches.payments', 'The operator has switched payment services off for this installation.');
+    case 'smsProviders':
+      return t('operatorSwitches.smsProviders', 'The operator has switched text messages off for this installation.');
     case 'payPages':
       return t('operatorSwitches.payPages', 'The operator has switched pay pages off for this installation.');
     case 'paymentWebhooks':

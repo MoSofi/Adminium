@@ -2223,6 +2223,7 @@ export default {
     "aiProvider": "Provozovatel v této instalaci povoluje jen váš vlastní klíč k Anthropic, OpenAI nebo Google.",
     "aiAddress": "Provozovatel v této instalaci nepovoluje vlastní adresu AI.",
     "payments": "Provozovatel pro tuto instalaci vypnul platební služby.",
+    "smsProviders": "Provozovatel pro tuto instalaci vypnul textové zprávy.",
     "askOperator": "Změnit to může jen ten, kdo tuto instalaci provozuje.",
     "dataOverCap": "Tato databáze překročila limit velikosti zkušební verze, a je proto jen pro čtení. Pokračujte smazáním několika řádků.",
     "storageOverCap": "Soubory této instalace překročily limit zkušební verze, a nic dalšího proto nelze uložit. Pokračujte smazáním několika souborů.",
