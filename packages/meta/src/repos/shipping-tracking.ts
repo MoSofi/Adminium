@@ -477,11 +477,12 @@ export function shippingTrackingRepo(meta: MetaDb) {
 
     /**
      * The bookings of one app install that may need a person: purchases with
-     * no answer first, then oldest first, so a cut scan never drops one of
-     * those for a later parcel. A list to judge, not a verdict: the caller
-     * works out each row's reasons. Reads through the connection's index.
+     * no answer first, then newest first, so rows that stay on the list for
+     * good (a returned parcel, a changed number) never hide a new one. One
+     * page of a list to judge, not a verdict: the caller works out each row's
+     * reasons and who reaches it. Reads through the connection's index.
      */
-    async attentionIds(scope: { connectionId: string; installId: string; calledBefore: number; openSince: number; quietBefore: number }, limit: number): Promise<string[]> {
+    async attentionIds(scope: { connectionId: string; installId: string; calledBefore: number; openSince: number; quietBefore: number }, limit: number, offset = 0): Promise<string[]> {
       const rows = await db
         .selectFrom('adminium_shipping_bookings as b')
         .leftJoin('adminium_shipping_parcels as p', 'p.bookingId', 'b.id')
@@ -524,9 +525,10 @@ export function shippingTrackingRepo(meta: MetaDb) {
             .else(eb.lit(1))
             .end(),
         )
-        .orderBy('b.createdAt')
-        .orderBy('b.id')
+        .orderBy('b.createdAt', 'desc')
+        .orderBy('b.id', 'desc')
         .limit(limit)
+        .offset(offset)
         .execute();
       return rows.map((row) => row.id);
     },

@@ -131,7 +131,7 @@ function mount(stage: Stage) {
       </AppToastProvider>
     </QueryClientProvider>,
   );
-  return { calls, view, writes: () => calls.filter((call) => call.method !== 'GET') };
+  return { calls, client, view, writes: () => calls.filter((call) => call.method !== 'GET') };
 }
 
 const refusal = (status: number, code: string, details: unknown): Reply => ({ status, body: { error: { code, message: 'English sentence the screen must not depend on', requestId: 'r', details } } });
@@ -258,6 +258,43 @@ describe('the key', () => {
     await user.click(within(card).getByTestId('shipping-key-save'));
     await screen.findByTestId('shipping-key-hint');
     expect(writes().map((call) => Object.keys((call.body as { fields: object }).fields))).toEqual([['key'], ['api_key']]);
+  });
+
+  it('keeps the paste under its real field name through a different-account confirmation, then clears it', async () => {
+    const user = userEvent.setup();
+    const saved = statusOf([connected({ keyHint: '••••z9Y8' }), dhl()]);
+    const { writes } = mount({
+      status: statusOf([connected(), dhl()]),
+      addOns: [{ ...addOn('shipping-shippo', 'Shipping labels'), settings: [] }, addOn('shipping-dhl', 'DHL Shipping')],
+      replies: {
+        'PUT /carriers/shipping-shippo/key': [
+          refusal(422, 'KEY_FIELDS', { carrier: 'shipping-shippo', expected: ['api_key'] }),
+          refusal(409, 'KEY_OTHER_ACCOUNT', { carrier: 'shipping-shippo', from: { mode: 'live', keyHint: '••••a1B2' }, to: { mode: 'live' } }),
+          { status: 200, body: { data: saved } },
+        ],
+      },
+    });
+    const card = await openConnection(user);
+    await user.click(within(card).getByTestId('shipping-key-replace'));
+    await user.type(within(card).getByLabelText('Shippo API key'), PASTED);
+    await user.click(within(card).getByTestId('shipping-key-save'));
+    await screen.findByTestId('shipping-other-account');
+    await user.click(screen.getByTestId('shipping-other-confirm'));
+    await waitFor(() => expect(writes()).toHaveLength(3));
+    expect(writes()[2]!.body).toEqual({ fields: { api_key: PASTED }, confirmAccountChange: true });
+    expect(textOf(await screen.findByTestId('shipping-key-hint'))).toContain('••••z9Y8');
+    expect(document.body.innerHTML).not.toContain(PASTED);
+    expect(screen.queryByLabelText('Shippo API key')).toBeNull();
+  });
+
+  it('says how many bookings hold the key when it may name none of their orders', async () => {
+    const user = userEvent.setup();
+    mount({ status: statusOf([connected({}, { openBookings: { count: 3, orders: [] } }), dhl()]) });
+    const card = await openConnection(user);
+    const locked = within(card).getByTestId('shipping-key-locked');
+    expect(textOf(within(locked).getByTestId('shipping-key-locked-unnamed'))).toContain('3 bookings hold it, on orders you cannot open here.');
+    expect(textOf(locked)).not.toContain('Orders:');
+    expect(within(card).getByTestId('shipping-key-replace').getAttribute('aria-disabled')).toBe('true');
   });
 
   it('a shape that looks wrong is a hint and still reaches the server', async () => {
@@ -573,6 +610,18 @@ describe('Tracking', () => {
     expect(textOf(await screen.findByTestId('shipping-webhook-masked'))).toContain(masked);
     expect(screen.queryByTestId('shipping-webhook-full')).toBeNull();
     expect(document.body.innerHTML).not.toContain('fixturetokenvalue');
+  });
+
+  it('keeps the whole address out of the mutation cache', async () => {
+    const user = userEvent.setup();
+    const stage = { status: statusOf([connected()], { activeCarrier: 'shipping-shippo' }), tracking: trackingOf(), replies: { 'POST /carriers/shipping-shippo/webhook': { status: 200, body: { data: { address, madeAt: 5 } } } } };
+    const { client } = mount(stage);
+    await openTab(user, 'Tracking');
+    stage.tracking.webhook = { ...stage.tracking.webhook, made: true, address: masked, madeAt: 5 };
+    await user.click(await screen.findByTestId('shipping-webhook-make'));
+    expect(textOf(await screen.findByTestId('shipping-webhook-full'))).toContain(address);
+    const held = client.getMutationCache().getAll().map((mutation) => JSON.stringify(mutation.state.data ?? null));
+    expect(held.join(' ')).not.toContain('fixturetokenvalue');
   });
 
   it('warns that the old address stops working before making a new one', async () => {

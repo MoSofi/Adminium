@@ -14,11 +14,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { addOnCredentialCryptoFromSecret } from '../src/add-ons/credential-crypto.js';
 import { buildLogger } from '../src/app.js';
 import { composeServer, type ComposedServer } from '../src/compose.js';
+import { venueDayOf } from '../src/crud/row-limit-context.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
 import { factsViewFor } from '../src/routes/pages/column-facts.js';
-import { ATTENTION_SCAN, QUIET_PARCEL_MS } from '../src/shipping/attention.js';
+import { ATTENTION_EXAMINED, ATTENTION_SHOWN, QUIET_PARCEL_MS } from '../src/shipping/attention.js';
 import { BOOK_ANSWER_MS } from '../src/shipping/bookings.js';
 import { accountFingerprintOf, credentialHash } from '../src/shipping/fingerprint.js';
 import { REFRESH_OPEN_WINDOW_MS } from '../src/shipping/refresh.js';
@@ -446,7 +447,7 @@ describe.each(LEGS)('tracking through the server on %s', (dialect, available) =>
     expect(item['booking']['track']).toMatchObject({ status: 'FAILURE' });
   });
 
-  it.skipIf(!available)('puts a purchase with no answer first, then the oldest, and changes nothing by reading', async () => {
+  it.skipIf(!available)('puts a purchase with no answer first, then the newest, and changes nothing by reading', async () => {
     const now = Date.now();
     const bookings = shippingBookingsRepo(h.meta);
     const oldest = await booked('TRK-A', { at: now - BOOK_ANSWER_MS - 5_000_000 });
@@ -459,7 +460,7 @@ describe.each(LEGS)('tracking through the server on %s', (dialect, available) =>
     const stillCalling = await attempt();
 
     const list = await attention('boss');
-    expect(list.items.map((one) => one['booking']['id'])).toEqual([stale.id, unanswered.id, oldest.id, middle.id]);
+    expect(list.items.map((one) => one['booking']['id'])).toEqual([unanswered.id, stale.id, middle.id, oldest.id]);
     expect(reasonsOf(list, stale.id)).toEqual(['unknown']);
     expect(list.items[0]!['booking']['state']).toBe('unknown');
     expect(reasonsOf(list, stillCalling.id)).toBeUndefined();
@@ -566,18 +567,150 @@ describe.each(LEGS)('tracking through the server on %s', (dialect, available) =>
     expect((await attention('boss')).items[0]).toMatchObject({ orderGone: false, booking: { id: hidden.id } });
   });
 
-  it.skipIf(!available)('says when the scan was cut, keeping what has no answer in front', async () => {
-    const seed = await booked('TRK-SEED');
-    const source = await h.meta.db.selectFrom('adminium_shipping_bookings').selectAll().where('id', '=', seed.id).executeTakeFirstOrThrow();
-    const copies = Array.from({ length: ATTENTION_SCAN }, (_, index) => ({ ...source, id: `shb_scan_${String(index)}`, openKey: null, createdAt: Number(source.createdAt) - 1000 - index }));
+  /** `count` more bookings on the seed's own order, each older than the last. */
+  async function copiesOf(seedId: string, count: number): Promise<void> {
+    const source = await h.meta.db.selectFrom('adminium_shipping_bookings').selectAll().where('id', '=', seedId).executeTakeFirstOrThrow();
+    const copies = Array.from({ length: count }, (_, index) => ({ ...source, id: `shb_scan_${String(index)}`, openKey: null, createdAt: Number(source.createdAt) - 1000 - index }));
     for (let at = 0; at < copies.length; at += 100) await h.meta.db.insertInto('adminium_shipping_bookings').values(copies.slice(at, at + 100) as never).execute();
+  }
+
+  it.skipIf(!available)('says when the list was cut, keeping what has no answer in front', async () => {
+    const seed = await booked('TRK-SEED');
+    await copiesOf(seed.id, ATTENTION_SHOWN);
     const unknown = await attempt();
     await shippingBookingsRepo(h.meta).move(unknown.id, ['calling'], 'unknown', { reason: 'no-answer' }, Date.now());
 
     const list = await attention('boss');
     expect(list.more).toBe(true);
-    expect(list.items).toHaveLength(ATTENTION_SCAN);
+    expect(list.items).toHaveLength(ATTENTION_SHOWN);
     expect(list.items[0]!['booking']['id']).toBe(unknown.id);
+  }, 120_000);
+
+  it.skipIf(!available)('does not say there is more when exactly a full list is all there is', async () => {
+    const seed = await booked('TRK-SEED');
+    await copiesOf(seed.id, ATTENTION_SHOWN - 1);
+    const list = await attention('boss');
+    expect(list.items).toHaveLength(ATTENTION_SHOWN);
+    expect(list.more).toBe(false);
+  }, 120_000);
+
+  it.skipIf(!available)('shows a new label ahead of 500 old rows that stay on the list', async () => {
+    const seed = await booked('TRK-OLD', { at: Date.now() - 60_000 });
+    await copiesOf(seed.id, 500);
+    const fresh = await booked('TRK-NEW');
+    const list = await attention('boss');
+    expect(list.items[0]!['booking']['id']).toBe(fresh.id);
+    expect(list.items[0]!['reasons']).toEqual(['label-owed']);
+    expect(list.more).toBe(true);
+  }, 120_000);
+
+  it.skipIf(!available)('finds a row-limited person\'s own label past a full batch of rows they do not reach', async () => {
+    const mine = await booked('TRK-MINE', { owner: userIds['ownrep']!, at: Date.now() - 86_400_000 });
+    const theirs = await booked('TRK-THEIRS', { owner: userIds['boss']! });
+    await copiesOf(theirs.id, 400);
+    const list = await attention('ownrep');
+    expect(list.items.map((one) => one['booking']['id'])).toEqual([mine.id]);
+    expect(list.more).toBe(false);
+  }, 120_000);
+
+  it.skipIf(!available)('says there is more only because candidates were left unread', async () => {
+    const theirs = await booked('TRK-THEIRS', { owner: userIds['boss']! });
+    await copiesOf(theirs.id, ATTENTION_EXAMINED + 5);
+    const list = await attention('ownrep');
+    expect(list.items).toEqual([]);
+    expect(list.more).toBe(true);
+  }, 240_000);
+
+  it.skipIf(!available)('a role given book on the Roles route reads mayBook, and stays bound by the limits', async () => {
+    const asBoss = (method: 'GET' | 'POST' | 'PUT', url: string, payload?: Doc) =>
+      composed.app.inject({ method, url: `/api/v1${url}`, headers: { cookie: cookies['boss']! }, ...(payload === undefined ? {} : { payload }) });
+
+    const catalog = await asBoss('GET', '/permissions/catalog');
+    expect(catalog.statusCode, catalog.body).toBe(200);
+    expect((catalog.json() as Doc)['shippingApps']).toContainEqual(expect.objectContaining({ grantKey: 'shop', name: 'shop' }));
+
+    const made = await asBoss('POST', '/roles', { name: 'Label desk' });
+    expect(made.statusCode, made.body).toBe(201);
+    const role = made.json() as { id: string; slug: string };
+    const grants = ['shipping:shop:book', `table:${conn}:${ordersReal}:read`];
+    const saved = await asBoss('PUT', `/roles/${role.id}/permissions`, { grants });
+    expect(saved.statusCode, saved.body).toBe(200);
+    expect((saved.json() as { grants: string[] }).grants).toEqual(expect.arrayContaining(grants));
+    const audit = await h.meta.db.selectFrom('adminium_audit_log').selectAll().where('action', '=', 'role.permission.change').execute();
+    expect(JSON.stringify(audit)).toContain('shipping:shop:book');
+
+    await person('desk', [role.slug]);
+    const access = async () => {
+      const res = await call('desk', 'GET', 'access');
+      expect(res.statusCode, res.body).toBe(200);
+      return (res.json() as Doc)['data'] as Doc;
+    };
+    // The right alone: no cancel, no customs, not a manager, and with no limit set the owner books.
+    expect(await access()).toMatchObject({ manages: false, mayBook: true, mayCancel: false, mayCustoms: false, booking: 'no-limit' });
+
+    const limits = await call('boss', 'PUT', 'limits', { perLabel: { amount: '5.00', currency: 'GBP' }, dailyLabels: 1 });
+    expect(limits.statusCode, limits.body).toBe(200);
+    expect(await access()).toMatchObject({ mayBook: true, booking: 'open', usedToday: 0, dailyLabels: 1 });
+
+    await shippingRepo(h.meta).addDayLabel(shop, await venueDayOf(h.meta, conn));
+    expect(await access()).toMatchObject({ mayBook: true, booking: 'daily-limit' });
+    const order = await attempt();
+    const quote = await call('desk', 'POST', 'quotes', { source: { table: 'orders', id: order.rowKey }, parcel: { weightKg: 1.25, lengthCm: 30, widthCm: 20, heightCm: 10, contents: 'Printed books' } });
+    expect(quote.json()).toMatchObject({ error: { code: 'OWNER_BOOKS', details: { reason: 'daily-limit' } } });
+    await h.meta.db.deleteFrom('adminium_shipping_limits').execute();
+    await h.meta.db.deleteFrom('adminium_shipping_day_labels').execute();
+  }, 120_000);
+
+  it.skipIf(!available)('a later copy\'s rights are its own: one copy\'s grant opens nothing on the other', async () => {
+    const kiln = await h.addConnection('Kiln');
+    const first = (await repo.findInScope('shop', conn))!;
+    const copy = await repo.install({ manifestKey: 'shop', version: '1.0.0', kind: 'app', source: 'file', document: first.document, connectionId: kiln, scopeKey: kiln, instanceSlug: 'kiln' });
+    try {
+      const catalog = await composed.app.inject({ method: 'GET', url: '/api/v1/permissions/catalog', headers: { cookie: cookies['boss']! } });
+      expect(((catalog.json() as Doc)['shippingApps'] as Doc[]).map((one) => one['grantKey'])).toEqual(expect.arrayContaining(['shop', 'shop~kiln']));
+
+      const made = await composed.app.inject({ method: 'POST', url: '/api/v1/roles', headers: { cookie: cookies['boss']! }, payload: { name: 'Kiln desk' } });
+      const role = made.json() as { id: string; slug: string };
+      const saved = await composed.app.inject({ method: 'PUT', url: `/api/v1/roles/${role.id}/permissions`, headers: { cookie: cookies['boss']! }, payload: { grants: ['shipping:shop~kiln:book'] } });
+      expect(saved.statusCode, saved.body).toBe(200);
+      await person('kilndesk', [role.slug]);
+
+      const onCopy = await composed.app.inject({ method: 'GET', url: '/api/v1/apps/shop~kiln/shipping/access', headers: { cookie: cookies['kilndesk']! } });
+      expect(onCopy.statusCode, onCopy.body).toBe(200);
+      expect((onCopy.json() as Doc)['data']).toMatchObject({ mayBook: true, manages: false });
+      expect((await call('kilndesk', 'GET', 'access')).statusCode).toBe(403);
+    } finally {
+      await h.meta.db.deleteFrom('adminium_manifests').where('id', '=', copy.row.id).execute();
+    }
+  }, 120_000);
+
+  it.skipIf(!available)('a key\'s lock counts every booking and names only this app\'s orders this person reaches', async () => {
+    const mine = await attempt({ owner: userIds['ownmanager']! });
+    const hidden = await attempt({ owner: userIds['boss']! });
+    const other = await repo.install({ manifestKey: 'second-shop', version: '1.0.0', kind: 'app', source: 'file', document: shopDoc('second-shop'), connectionId: conn, status: 'installed' });
+    const foreign = await attempt({ owner: userIds['ownmanager']! });
+    await h.meta.db.updateTable('adminium_shipping_bookings').set({ installId: other.row.id, reference: 'FOREIGN-REF' }).where('id', '=', foreign.id).execute();
+    const reference = (rowKey: string) => `MP-${rowKey}`;
+    try {
+      for (const who of ['boss', 'ownmanager']) {
+        const res = await composed.app.inject({ method: 'GET', url: `/api/v1/apps/shop/shipping?connectionId=${encodeURIComponent(conn)}`, headers: { cookie: cookies[who]! } });
+        expect(res.statusCode, res.body).toBe(200);
+        const lock = ((res.json() as Doc)['data']['carriers'] as Doc[]).find((one) => one['key'] === CARRIER)!['openBookings'] as { count: number; orders: string[] };
+        expect(lock.count, who).toBe(3);
+        expect(lock.orders, who).toEqual(who === 'boss' ? [reference(mine.rowKey), reference(hidden.rowKey)] : [reference(mine.rowKey)]);
+        expect(res.body).not.toContain('FOREIGN-REF');
+      }
+      for (const [method, payload] of [['PUT', { fields: { api_key: 'another-value' } }], ['DELETE', undefined]] as const) {
+        const res = await call('ownmanager', method, `carriers/${CARRIER}/key`, payload);
+        expect(res.statusCode, res.body).toBe(409);
+        expect((res.json() as Doc)['error']).toMatchObject({ code: 'KEY_IN_USE', details: { count: 3, orders: [reference(mine.rowKey)] } });
+        expect(res.body).not.toContain('FOREIGN-REF');
+        expect(res.body).not.toContain(reference(hidden.rowKey));
+      }
+    } finally {
+      await h.meta.db.deleteFrom('adminium_shipping_bookings').where('id', '=', foreign.id).execute();
+      await h.meta.db.deleteFrom('adminium_manifests').where('id', '=', other.row.id).execute();
+    }
   }, 120_000);
 
   it.skipIf(!available)('writes neither the carrier key nor a webhook token to any reply, log line or audit row', async () => {

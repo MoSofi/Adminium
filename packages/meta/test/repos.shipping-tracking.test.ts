@@ -63,6 +63,22 @@ for (const dialect of TEST_DIALECTS) {
       return id;
     };
 
+    it('lists what needs a person with no answer first, then newest first, a page at a time', async () => {
+      const repo = shippingTrackingRepo(meta());
+      const bookings = shippingBookingsRepo(meta());
+      const scope = { connectionId: input('x').connectionId, installId: input('x').installId, calledBefore: T0 + 10_000, openSince: T0 - 10_000, quietBefore: T0 - 10_000 };
+      const oldest = await booked('a1', {}, T0);
+      const middle = await booked('a2', {}, T0 + 10);
+      const newest = await booked('a3', {}, T0 + 20);
+      const noAnswer = await reserved('a4', {}, T0 - 50);
+      expect(await bookings.move(noAnswer, ['reserved'], 'unknown', { reason: 'no-answer' }, T0)).toBe(true);
+
+      expect(await repo.attentionIds(scope, 10)).toEqual([noAnswer, newest, middle, oldest]);
+      expect(await repo.attentionIds(scope, 2)).toEqual([noAnswer, newest]);
+      expect(await repo.attentionIds(scope, 2, 2)).toEqual([middle, oldest]);
+      expect(await repo.attentionIds(scope, 2, 4)).toEqual([]);
+    });
+
     it('moves a status forward only, and lets a failed delivery be sent out again', async () => {
       const repo = shippingTrackingRepo(meta());
       const id = await booked('1');

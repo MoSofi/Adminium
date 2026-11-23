@@ -17,8 +17,12 @@ import { REFRESH_OPEN_WINDOW_MS } from './refresh.js';
 /** After this long with no change, an open parcel is listed as quiet. */
 export const QUIET_PARCEL_MS = 7 * 24 * 60 * 60_000;
 
-/** The most bookings one reading of the list looks through. */
-export const ATTENTION_SCAN = 500;
+/** The most labels one reading of the list returns. */
+export const ATTENTION_SHOWN = 200;
+/** How many candidates are read at a time, until enough this person reaches are found. */
+export const ATTENTION_BATCH = 250;
+/** The most candidates one reading looks through, reached or not. */
+export const ATTENTION_EXAMINED = 2000;
 
 /** Most pressing first. */
 export const ATTENTION_REASONS = ['unknown', 'duplicates', 'label-owed', 'new-number', 'tracking-failed', 'returned', 'ambiguous', 'quiet'] as const;

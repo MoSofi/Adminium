@@ -332,11 +332,14 @@ function KeyForm({
       }
       setAsking(null);
       const expected = expectedFieldsOf(error);
-      if (expected !== null && expected.length > 0 && names.length === 1 && names[0] === UNNAMED_FIELD) {
-        const pasted = fields[UNNAMED_FIELD] ?? '';
+      if (expected !== null && expected.length > 0 && names.length === 1 && names[0] === UNNAMED_FIELD && fields[UNNAMED_FIELD] !== undefined) {
+        const pasted = fields[UNNAMED_FIELD];
         setNames(expected);
         if (expected.length === 1) {
-          await send({ [expected[0]!]: pasted }, confirm);
+          // The paste moves to its real field name: a confirmation below reads it from there.
+          const named = { [expected[0]!]: pasted };
+          setValues(named);
+          await send(named, confirm);
           return;
         }
         setValues({});
@@ -763,7 +766,11 @@ export function KeyCarrierCard({
             </span>
             {keyLock.count > keyLock.orders.length ? ` ${t('studio:shipping.key.inUseMore', 'and {count} more', { count: format.number(keyLock.count - keyLock.orders.length) })}` : ''}
           </p>
-        ) : null}
+        ) : (
+          <p data-testid="shipping-key-locked-unnamed">
+            {t('studio:shipping.key.inUseUnnamed', '{count, plural, one {# booking holds it, on an order you cannot open here.} other {# bookings hold it, on orders you cannot open here.}}', { count: keyLock.count })}
+          </p>
+        )}
         <div>
           <Button
             variant="ghost"

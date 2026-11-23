@@ -3919,7 +3919,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           policy: app.trialPolicy,
           sources: paymentSources,
           storage,
-          openBookings: (carrierInstallId) => shippingBookingsRepo(meta).unresolved(carrierInstallId),
+          openBookings: async (carrierInstallId, installId) => {
+            const bookings = shippingBookingsRepo(meta);
+            const [count, own] = await Promise.all([bookings.countUnresolved(carrierInstallId), bookings.unresolvedOfAppOn(carrierInstallId, installId, 100)]);
+            return { count, own };
+          },
           ...(opts.shippingQuotesPerMinute === undefined ? {} : { quotesPerMinute: opts.shippingQuotesPerMinute }),
           enqueueApply: (bookingId) => enqueueApply((input) => jobs.enqueue(input), bookingId),
           readRow: (request, connectionId, tableId, row) => readReachedRow({ meta, data: (id) => manager.data(id), resolve: (one) => app.rbac.resolve(one) }, request, connectionId, tableId, row),

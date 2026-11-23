@@ -180926,12 +180926,39 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "shippingApps": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "grantKey": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "connectionName": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "grantKey",
+                          "name",
+                          "connectionName"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
                     "system",
                     "tableActions",
-                    "pageActions"
+                    "pageActions",
+                    "shippingApps"
                   ],
                   "additionalProperties": false
                 }

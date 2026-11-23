@@ -42,12 +42,12 @@ import { grantKeyOf, installOnConnection, requireInstall, selectorOf, splitInsta
 import { rowKeyOf, type PayableSources } from '../../payments/payables.js';
 import { appShippingPermission, PERMISSIONS } from '../../rbac/permissions.js';
 import { tagRoutes } from '../../security/route-audience.js';
-import { shippingTrackingRoutes } from './tracking.js';
+import { orderOfBooking, shippingTrackingRoutes } from './tracking.js';
 import { pricesHiddenFrom, readsPartOf, shippingPerson, shippingViewerOf, type ShippingViewer } from '../../shipping/access.js';
 import { cleanShipFrom, orderAddress, readShipFrom, recipientForRates, shipFromAddress, shipFromChanges } from '../../shipping/addresses.js';
 import { askForRates, carrierHttpFor, shippingCarrierFor, type ShippingCarrierDeps } from '../../shipping/carriers.js';
 import type { BookingFaults } from '../../shipping/bookings.js';
-import { checkedAccount, type OpenBooking } from '../../shipping/keys.js';
+import { checkedAccount, type KeyLock, type OpenBookings } from '../../shipping/keys.js';
 import { bookingState, createQuoteGate, mayShipAbroad, rateWithinLimit } from '../../shipping/limits.js';
 import { carrierLocked } from '../../shipping/locks.js';
 import { storeQuote } from '../../shipping/quotes.js';
@@ -77,8 +77,12 @@ export interface ShippingRoutesDeps {
   readRow(request: FastifyRequest, connectionId: string, tableId: string, row: string): Promise<Row | undefined>;
   /** Where a table's money columns are named, to judge who may see a price. */
   sources: PayableSources;
-  /** The bookings on a carrier install with no final answer yet. Required, so no caller can leave the check out. */
-  openBookings: (carrierInstallId: string) => Promise<readonly OpenBooking[]>;
+  /**
+   * The bookings on a carrier install with no final answer yet: how many in
+   * all, and this app install's own. Required, so no caller can leave the
+   * check out.
+   */
+  openBookings: (carrierInstallId: string, installId: string) => Promise<OpenBookings>;
   /** How many quotes one person may ask for in a minute. */
   quotesPerMinute?: number;
   /** Queues the repeatable steps after a bought label. */
@@ -87,6 +91,9 @@ export interface ShippingRoutesDeps {
   bookingFaults?: BookingFaults;
   bookAnswerMs?: number;
 }
+
+/** The most orders a key's lock names. */
+const KEY_LOCK_NAMED = 20;
 
 /** The record states in which an app still holds a table. */
 const HELD = new Set(['created', 'adopted', 'shared']);
@@ -121,7 +128,27 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
     log: (message, fields) => request.log.warn(fields, message),
   });
 
-  async function view(install: InstalledManifest, connectionId: string) {
+  /**
+   * What holds a carrier's key, for this person. The count is the truth about
+   * the key. An order is named only when it is this app's own and this person
+   * reaches its row, and by the reference as they may read it.
+   */
+  async function keyLockOf(request: FastifyRequest, install: InstalledManifest, connectionId: string, carrierInstallId: string): Promise<KeyLock> {
+    const { count, own } = await deps.openBookings(carrierInstallId, install.row.id);
+    const orders: string[] = [];
+    for (const booking of own) {
+      if (orders.length === KEY_LOCK_NAMED) break;
+      // A database that cannot be read names nothing, and must not take the setup page or the lock's refusal down with it.
+      const order = await orderOfBooking(reachOrder, request, install, connectionId, booking).catch((error: unknown) => {
+        request.log.warn({ err: error instanceof Error ? error.name : 'unknown' }, 'shipping: an open booking\'s order could not be read');
+        return null;
+      });
+      if (order !== null) orders.push(order.reference);
+    }
+    return { count, orders };
+  }
+
+  async function view(request: FastifyRequest, install: InstalledManifest, connectionId: string) {
     const shop = await shopShipping(meta, manifests, install, connectionId);
     const accounts = await carrierAccounts(meta, manifests, shop.carriers, connectionId);
     const repo = shippingRepo(meta);
@@ -134,8 +161,8 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
         carriers: await Promise.all(
           shop.carriers.map(async (carrier) => {
             const here = await installOnConnection(manifests, carrier.key, connectionId);
-            const open = here === null ? [] : await deps.openBookings(here.row.id);
-            return { ...carrier, account: accounts[carrier.key] ?? null, openBookings: { count: open.length, orders: open.slice(0, 20).map((booking) => booking.reference) } };
+            const openBookings = here === null ? { count: 0, orders: [] } : await keyLockOf(request, install, connectionId, here.row.id);
+            return { ...carrier, account: accounts[carrier.key] ?? null, openBookings };
           }),
         ),
         international: false as const,
@@ -264,7 +291,7 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
         carrierDeps,
         appOf,
         statusOf: view,
-        openBookings: deps.openBookings,
+        keyLockOf,
       }),
     );
 
@@ -331,7 +358,7 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
     app.get('/apps/:key/shipping', { preHandler: guard, schema: { params: shippingParams, response: { 200: shippingStatusReply } } }, async (request) => {
       shippingPerson(request);
       const { app: install, connectionId } = await appOf(request, request.params.key);
-      return view(install, connectionId);
+      return view(request, install, connectionId);
     });
 
     app.put(
@@ -362,7 +389,7 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
           action: 'shipping.active-carrier.set',
           changes: { before: { app: install.row.manifestKey, carrier: before }, after: { app: install.row.manifestKey, carrier } },
         });
-        return view(install, connectionId);
+        return view(request, install, connectionId);
       },
     );
 
@@ -385,7 +412,7 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
           // The fields' names, never their values: this is a business's address and phone.
           changes: { after: { app: install.row.manifestKey, fields } },
         });
-        return view(install, connectionId);
+        return view(request, install, connectionId);
       },
     );
 

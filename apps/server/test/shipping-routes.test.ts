@@ -39,9 +39,11 @@ import { readReachedRow } from '../src/crud/row-reached.js';
 import { createWriteService, HookRejectedError } from '../src/crud/write-service.js';
 import { writeStores } from '../src/crud/write-stores.js';
 import { createPayableSources, type PayableSources } from '../src/payments/payables.js';
+import { factsViewFor } from '../src/routes/pages/column-facts.js';
 import { shippingRoutes } from '../src/routes/shipping/index.js';
 import { orderAddress, shipFromAddress } from '../src/shipping/addresses.js';
 import { accountFingerprintOf, credentialHash } from '../src/shipping/fingerprint.js';
+import type { OpenBookings } from '../src/shipping/keys.js';
 import { applyBooking, type ApplyDeps } from '../src/shipping/apply.js';
 import { RELEASE_QUIET_MS } from '../src/shipping/bookings.js';
 import { QUOTE_LIFE_MS, readQuoteForBooking } from '../src/shipping/quotes.js';
@@ -1938,7 +1940,7 @@ describe('a server with network features off', () => {
             },
             networkFeatures: () => false,
             sources: NO_PAYABLES,
-            openBookings: async () => [],
+            openBookings: async () => ({ count: 0, own: [] }),
             enqueueApply: async () => undefined,
             readRow: (request, connectionId, tableId, row) => readReachedRow({ meta, data: (id) => manager.data(id), resolve: (one) => request.server.rbac.resolve(one) }, request, connectionId, tableId, row),
           }),
@@ -1969,7 +1971,8 @@ describe('a server with network features off', () => {
 describe('the door of a key still in use, and the pace of quotes', () => {
   it('refuses to replace or remove a key with a booking unresolved, naming the orders, and stops a runaway quoter', async () => {
     let h: Harness | undefined;
-    let open: { reference: string }[] = [{ reference: 'MP-1059' }, { reference: 'MP-1063' }];
+    let open: OpenBookings = { count: 0, own: [] };
+    let readFails = false;
     try {
       h = await addOnHarness('sqlite', {
         unbuiltWords: {},
@@ -1984,7 +1987,10 @@ describe('the door of a key still in use, and the pace of quotes', () => {
             openBookings: async () => open,
             enqueueApply: async () => undefined,
             quotesPerMinute: 2,
-            readRow: (request, connectionId, tableId, row) => readReachedRow({ meta, data: (id) => manager.data(id), resolve: (one) => request.server.rbac.resolve(one) }, request, connectionId, tableId, row),
+            readRow: async (request, connectionId, tableId, row) => {
+              if (readFails) throw new Error('the database is away');
+              return readReachedRow({ meta, data: (id) => manager.data(id), resolve: (one) => request.server.rbac.resolve(one) }, request, connectionId, tableId, row);
+            },
           }),
         ],
       });
@@ -1998,14 +2004,24 @@ describe('the door of a key still in use, and the pace of quotes', () => {
       const table = (await h.meta.db.selectFrom('adminium_app_tables').select('tableName').where('ref', '=', 'orders').executeTakeFirstOrThrow()).tableName;
       const { db } = await h.manager.data(h.connectionId);
       await db.insertInto(table as never).values({ id: 7, number: 'MP-7', ship_name: NAME, ship_line1: STREET, ship_city: 'Leeds', ship_postcode: 'LS1 4AB', ship_country: 'GB' } as never).execute();
+      await db.insertInto(table as never).values({ id: 8, number: 'MP-8', ship_name: NAME, ship_line1: STREET, ship_city: 'Leeds', ship_postcode: 'LS1 4AB', ship_country: 'GB' } as never).execute();
+      const tableName = (await factsViewFor(h.meta, h.connectionId))!.table(table).id;
+      const onOrder = (rowKey: string) => ({ connectionId: h!.connectionId, installId: app.row.id, tableRef: 'orders', tableName, rowKey });
+      open = { count: 2, own: [onOrder('7'), onOrder('8')] };
 
       for (const [method, payload] of [['PUT', { fields: { api_key: 'another-value' } }], ['DELETE', undefined]] as const) {
         const res = await h.inject({ method, url: '/apps/shop/shipping/carriers/carrier-one/key', ...(payload === undefined ? {} : { payload }) });
         expect(res.statusCode, res.body).toBe(409);
-        expect(res.json().error).toMatchObject({ code: 'KEY_IN_USE', details: { count: 2, orders: ['MP-1059', 'MP-1063'] } });
+        expect(res.json().error).toMatchObject({ code: 'KEY_IN_USE', details: { count: 2, orders: ['MP-7', 'MP-8'] } });
       }
       expect((await manifests.getCredential(carrier.row.id))?.secret).toEqual({ api_key: KEY_ONE });
-      open = [];
+      // A database that cannot be read names no order, and the count and the page still stand.
+      readFails = true;
+      const status = await h.inject({ method: 'GET', url: '/apps/shop/shipping' });
+      expect(status.statusCode, status.body).toBe(200);
+      expect(status.json().data.carriers[0].openBookings).toEqual({ count: 2, orders: [] });
+      readFails = false;
+      open = { count: 0, own: [] };
 
       const ask = () => h!.inject({ method: 'POST', url: '/apps/shop/shipping/quotes', payload: { source: { table: 'orders', id: '7' }, parcel: PARCEL } });
       // No runtime here, so each counted quote stops at the carrier that did not load.

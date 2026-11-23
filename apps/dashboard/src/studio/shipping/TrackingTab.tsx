@@ -168,9 +168,12 @@ function CarrierTracking({ app, carrier }: { app: ShippingApp; carrier: CarrierV
   const [confirming, setConfirming] = useState(false);
 
   const make = useMutation({
-    mutationFn: () => makeWebhook(app, carrier.key),
-    onSuccess: async (made) => {
-      setFresh(made.address);
+    // The reply goes straight to this component's state, so the mutation's own result never holds the address.
+    gcTime: 0,
+    mutationFn: async (): Promise<void> => {
+      setFresh((await makeWebhook(app, carrier.key)).address);
+    },
+    onSuccess: async () => {
       setIsPrivate(false);
       setConfirming(false);
       await client.invalidateQueries({ queryKey: shippingTrackingKey(app, carrier.key) });

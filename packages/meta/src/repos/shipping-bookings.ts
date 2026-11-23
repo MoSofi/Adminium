@@ -457,6 +457,32 @@ export function shippingBookingsRepo(meta: MetaDb) {
       return rows.map(toBooking);
     },
 
+    /** How many attempts on this carrier install have no final answer, whichever app made them. */
+    async countUnresolved(carrierInstallId: string): Promise<number> {
+      const row = await db
+        .selectFrom('adminium_shipping_bookings')
+        .select((eb) => eb.fn.countAll().as('count'))
+        .where('carrierInstallId', '=', carrierInstallId)
+        .where('state', 'in', [...UNRESOLVED_BOOKING_STATES])
+        .executeTakeFirstOrThrow();
+      return Number(row.count);
+    },
+
+    /** One app install's attempts on this carrier install with no final answer, oldest first. */
+    async unresolvedOfAppOn(carrierInstallId: string, installId: string, limit: number): Promise<ShippingBooking[]> {
+      const rows = await db
+        .selectFrom('adminium_shipping_bookings')
+        .selectAll()
+        .where('carrierInstallId', '=', carrierInstallId)
+        .where('installId', '=', installId)
+        .where('state', 'in', [...UNRESOLVED_BOOKING_STATES])
+        .orderBy('createdAt', 'asc')
+        .orderBy('id', 'asc')
+        .limit(limit)
+        .execute();
+      return rows.map(toBooking);
+    },
+
     /** Attempts of this app install with no final answer: it cannot be removed while they stand. */
     async unresolvedOfInstall(installId: string, limit = 20): Promise<ShippingBooking[]> {
       const rows = await db
