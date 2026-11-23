@@ -436,6 +436,10 @@ const ALLOWED_HOSTS = [
     test: /^$|^\[\^$/,
     why: 'not an address: a bare scheme where a typed address is checked or shown as a hint (the Designer\'s template plan asks for a link that starts with "https://"), and the start of a pattern that tests for one (`https:\\/\\/[^…]`). No host follows, so nothing can be asked for',
   },
+  {
+    test: /^apps\.goshippo\.com$|^www\.dhl\.com$/,
+    why: 'links a person opens from the shipping setup page (`studio/shipping/shippingLinks.ts`, drawn by `OutLink`). The dashboard never fetches them; carrier calls are made by the server',
+  },
 ];
 
 /**
