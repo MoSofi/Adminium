@@ -650,7 +650,11 @@ describe('a text step in a manifest', () => {
   });
 
   it('needs the release that reads it: an older floor is refused by name', () => {
-    expect(problems(shipped(step1(), { compatibility: { minAdminiumVersion: '0.3.40' } }))).toContain(SMS_WORDS_FLOOR);
+    const checked = validateManifest(shipped(step1(), { compatibility: { minAdminiumVersion: '0.3.40' } }), { allowLocalPublisher: true });
+    if (checked.ok) throw new Error('an older floor was accepted');
+    // The step's own word, at the place it is written: the templates' word alone would not say so.
+    const atStep = checked.issues.filter((issue) => [issue.path].flat().join('.').includes('automations.0.graph.nodes.1.action'));
+    expect(atStep.map((issue) => issue.message).join(' ')).toContain(SMS_WORDS_FLOOR);
   });
 
   it('a server that does not run it refuses the install, with the release', () => {
