@@ -452,3 +452,17 @@ export class CheckRefusedError extends AppError {
     super(409, 'CHECK_REFUSED', message, details);
   }
 }
+
+/**
+ * The database as a whole is away: refused, reset, out of connections,
+ * shutting down. Anything else an operation meets is that operation's own.
+ */
+export function isConnectionWideError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const code = String((error as { code?: unknown }).code ?? '');
+  const message = String((error as { message?: unknown }).message ?? '');
+  return (
+    /^(ECONNREFUSED|ECONNRESET|ETIMEDOUT|EPIPE|ENOTFOUND|EHOSTUNREACH|EAI_AGAIN|PROTOCOL_CONNECTION_LOST|ER_CON_COUNT_ERROR|ER_ACCESS_DENIED_ERROR|08\w{3}|57P0[1-3]|53300|SQLITE_CANTOPEN|SQLITE_NOTADB|SQLITE_CORRUPT)$/.test(code) ||
+    /Connection terminated|connection is closed|Pool is closed|pool has ended|Cannot enqueue|database connection is not open/i.test(message)
+  );
+}

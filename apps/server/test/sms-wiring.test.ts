@@ -12,7 +12,7 @@ import { jobsRepo, settingsRepo, type MetaTableDump } from '@adminium/meta';
 import { collectKnownSecrets } from '../src/apps/save/gates/secrets.js';
 import { sanitizeDump } from '../src/archive/policy.js';
 import { addressKeyRing } from '../src/consent/keys.js';
-import { createInboundEventStore, INBOUND_PARSE_JOB, INBOUND_SWEEP_JOB } from '../src/inbound/index.js';
+import { createInboundEventStore, createInboundWiring, INBOUND_PARSE_JOB, INBOUND_SWEEP_JOB } from '../src/inbound/index.js';
 import { scrubSecretFields } from '../src/log-redaction.js';
 import { customerHostAllows, pagesHostAllows } from '../src/plugins/surfaces.js';
 import { createSmsAccountStore } from '../src/sms/account-store.js';
@@ -78,10 +78,12 @@ describe.each(META_ENGINES)('the SMS parts together — $name', (engine) => {
     return json(200, { messages: [], next_page_uri: null, data: [] });
   }) as typeof fetch;
 
-  const wire = (over: Partial<SmsWiringDeps> = {}) =>
-    createSmsWiring({
+  const wire = (over: Partial<SmsWiringDeps> = {}) => {
+    const inbound = createInboundWiring({ meta: handle.meta, secret: SECRET });
+    const sms = createSmsWiring({
       meta: handle.meta,
       secret: SECRET,
+      inbound,
       networkFeatures,
       desktop: false,
       trustProxy: true,
@@ -90,6 +92,8 @@ describe.each(META_ENGINES)('the SMS parts together — $name', (engine) => {
       fetch: stubFetch,
       ...over,
     });
+    return Object.assign(sms, { enqueueSweep: inbound.enqueueSweep });
+  };
 
   beforeAll(async () => {
     if (engine.available) handle = await engine.make();
@@ -231,7 +235,7 @@ describe('the operator\'s switch for text messages', () => {
   }) as typeof fetch;
   const wired = (env: Record<string, string>) => {
     const policy = trialPolicy(makeEnv(env));
-    return createSmsWiring({ meta: handle.meta, secret: SECRET, networkFeatures: true, desktop: false, trustProxy: true, operator: () => policy.allows('smsProviders'), log: { info: () => undefined }, fetch: stubFetch });
+    return createSmsWiring({ meta: handle.meta, secret: SECRET, inbound: createInboundWiring({ meta: handle.meta, secret: SECRET }), networkFeatures: true, desktop: false, trustProxy: true, operator: () => policy.allows('smsProviders'), log: { info: () => undefined }, fetch: stubFetch });
   };
 
   beforeAll(async () => {

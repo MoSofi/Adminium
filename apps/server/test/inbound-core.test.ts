@@ -45,10 +45,20 @@ import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 
 const SECRET = 'an-inbound-core-test-secret-of-length';
 const T0 = 1_800_000_000_000;
-const ONE = { attempt: 1, maxAttempts: 5 };
-const LAST = { attempt: 5, maxAttempts: 5 };
 const PRIVATE_TEXT = 'my private message about a rash';
 const SUBJECT = 'mailto:marta@lumen.example';
+
+/** Runs the job until it stops asking for another try, as the worker would. */
+async function toTheEnd(core: Pick<InboundCore, 'run'>, id: string): Promise<{ state: string }> {
+  for (let tries = 0; tries < 5; tries += 1) {
+    try {
+      return await core.run(id);
+    } catch (error) {
+      if (!(error instanceof InboundJobError)) throw error;
+    }
+  }
+  throw new Error('The event never ended.');
+}
 
 const candidate = (id: string, extra: Partial<InboundCandidate> = {}): InboundCandidate => ({ providerId: id, kind: 'message', subject: SUBJECT, body: PRIVATE_TEXT, occurredAt: T0 - 1000, ...extra });
 
@@ -162,11 +172,11 @@ describe.each(META_ENGINES)('inbound core — $name', (engine) => {
       return { outcome: 'processed' };
     };
     clock += 5 * 60_000 + 1;
-    await expect(core.run(id, { attempt: 2, maxAttempts: 5 })).rejects.toBeInstanceOf(InboundJobError);
+    await expect(core.run(id)).rejects.toBeInstanceOf(InboundJobError);
     expect(ran).toBe(0);
     expect((await store.byId(id))?.state).toBe('working');
     clock += INBOUND_STALE_MS;
-    expect(await core.run(id, { attempt: 3, maxAttempts: 5 })).toEqual({ state: 'processed' });
+    expect(await core.run(id)).toEqual({ state: 'processed' });
     expect(ran).toBe(1);
   });
 
@@ -186,7 +196,7 @@ describe.each(META_ENGINES)('inbound core — $name', (engine) => {
     expect(await core.waitingFrom(SUBJECT, [candidate('a').kind])).toBe(true);
     expect(await core.waitingFrom(SUBJECT, ['some-other-kind'])).toBe(false);
     expect(await core.waitingFrom('tel:+4915100000000', [candidate('a').kind])).toBe(false);
-    await core.run(queued[0]!, ONE);
+    await core.run(queued[0]!);
     expect(await core.waitingFrom(SUBJECT, [candidate('a').kind])).toBe(false);
   });
 
@@ -206,7 +216,7 @@ describe.each(META_ENGINES)('inbound core — $name', (engine) => {
     await accept([candidate('a')]);
     await accept([candidate('a')]);
     expect(queued).toHaveLength(2);
-    await core.run(queued[0]!, ONE);
+    await core.run(queued[0]!);
     queued = [];
     await accept([candidate('a')]);
     expect(queued).toHaveLength(0);
@@ -214,7 +224,7 @@ describe.each(META_ENGINES)('inbound core — $name', (engine) => {
 
   only('opens the body for its channel, then drops it', async () => {
     await accept([candidate('a')]);
-    expect(await core.run(queued[0]!, ONE)).toEqual({ state: 'processed' });
+    expect(await core.run(queued[0]!)).toEqual({ state: 'processed' });
     expect(channel.handled[0]?.body).toBe(PRIVATE_TEXT);
     const row = await theOne();
     expect(row['state']).toBe('processed');
@@ -225,7 +235,7 @@ describe.each(META_ENGINES)('inbound core — $name', (engine) => {
   only('honours a channel asking to keep the row longer', async () => {
     channel.next = async () => ({ outcome: 'ignored', retainMs: 5, reason: 'nothing-here' });
     await accept([candidate('a')]);
-    expect(await core.run(queued[0]!, ONE)).toEqual({ state: 'ignored' });
+    expect(await core.run(queued[0]!)).toEqual({ state: 'ignored' });
     const row = await theOne();
     expect(Number(row['retainUntil'])).toBe(T0 + 5);
     expect(row['reason']).toBe('nothing-here');
@@ -233,15 +243,15 @@ describe.each(META_ENGINES)('inbound core — $name', (engine) => {
 
   only('runs an event once: a second job finds nothing to do', async () => {
     await accept([candidate('a')]);
-    await core.run(queued[0]!, ONE);
-    expect(await core.run(queued[0]!, ONE)).toEqual({ state: 'skipped' });
+    await core.run(queued[0]!);
+    expect(await core.run(queued[0]!)).toEqual({ state: 'skipped' });
     expect(channel.handled).toHaveLength(1);
   });
 
   only('a throw gives the claim back and asks for a retry, with a message that quotes nothing', async () => {
     channel.next = async () => { throw new Error(`could not read ${PRIVATE_TEXT} from +4915123456789`); };
     await accept([candidate('a')]);
-    const error = await core.run(queued[0]!, ONE).catch((caught: unknown) => caught);
+    const error = await core.run(queued[0]!).catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(InboundJobError);
     expect((error as Error).message).not.toContain('rash');
     expect((error as Error).message).not.toContain('+49');
@@ -254,7 +264,7 @@ describe.each(META_ENGINES)('inbound core — $name', (engine) => {
   only('the last failed try lands on the failed list with its body kept', async () => {
     channel.next = async () => { throw new Error('nope'); };
     await accept([candidate('a')]);
-    expect(await core.run(queued[0]!, LAST)).toEqual({ state: 'failed' });
+    expect(await toTheEnd(core, queued[0]!)).toEqual({ state: 'failed' });
     const row = await theOne();
     expect(row['state']).toBe('failed');
     expect(row['sealedBody']).not.toBeNull();
@@ -264,15 +274,15 @@ describe.each(META_ENGINES)('inbound core — $name', (engine) => {
   only('a permanent failure goes to the list on its first try', async () => {
     channel.next = async () => { throw new InboundFailedError('unreadable-number'); };
     await accept([candidate('a')]);
-    expect(await core.run(queued[0]!, ONE)).toEqual({ state: 'failed' });
+    expect(await core.run(queued[0]!)).toEqual({ state: 'failed' });
     expect((await theOne())['reason']).toBe('unreadable-number');
   });
 
   only('a retry error can end as ignored instead of failed', async () => {
     channel.next = async () => { throw new InboundRetryError('no-such-message', { finally: 'ignored' }); };
     await accept([candidate('a')]);
-    await expect(core.run(queued[0]!, ONE)).rejects.toBeInstanceOf(InboundJobError);
-    expect(await core.run(queued[0]!, LAST)).toEqual({ state: 'ignored' });
+    await expect(core.run(queued[0]!)).rejects.toBeInstanceOf(InboundJobError);
+    expect(await toTheEnd(core, queued[0]!)).toEqual({ state: 'ignored' });
     expect((await theOne())['sealedBody']).toBeNull();
   });
 
@@ -297,7 +307,7 @@ describe.each(META_ENGINES)('inbound core — $name', (engine) => {
     await accept([candidate('b')]);
     clock += 1;
     await accept([candidate('c')]);
-    for (const id of queued) await core.run(id, ONE);
+    for (const id of queued) await core.run(id);
 
     const first = await core.failed.list({ limit: 2 });
     expect(first.events.map((one) => one.reason)).toEqual(['bad-thing', 'bad-thing']);
@@ -313,7 +323,7 @@ describe.each(META_ENGINES)('inbound core — $name', (engine) => {
     const target = second.events[0]!.id;
     expect(await core.failed.retry(target)).toBe(true);
     expect(queued).toEqual([target]);
-    expect(await core.run(target, ONE)).toEqual({ state: 'processed' });
+    expect(await core.run(target)).toEqual({ state: 'processed' });
     expect(await core.failed.retry(target)).toBe(false);
 
     const closing = first.events[0]!.id;
@@ -327,7 +337,7 @@ describe.each(META_ENGINES)('inbound core — $name', (engine) => {
     channel.next = async () => { throw new InboundFailedError('bad-thing'); };
     await accept([candidate('a')]);
     const id = queued[0]!;
-    await core.run(id, ONE);
+    await core.run(id);
     clock += INBOUND_FAILED_BODY_MS + 1;
     expect((await core.sweep()).bodiesWiped).toBe(1);
     const row = await store.byId(id);
@@ -339,7 +349,7 @@ describe.each(META_ENGINES)('inbound core — $name', (engine) => {
 
   only('the sweep deletes finished rows past their time and nothing still to do', async () => {
     await accept([candidate('done')]);
-    await core.run(queued[0]!, ONE);
+    await core.run(queued[0]!);
     await accept([candidate('waiting')]);
     clock += INBOUND_DEFAULT_RETAIN_MS;
     expect((await core.sweep()).deleted).toBe(1);
@@ -356,7 +366,7 @@ describe.each(META_ENGINES)('inbound core — $name', (engine) => {
     await core.sweep();
     expect(queued).toEqual([id]);
     clock += INBOUND_STALE_MS;
-    expect(await core.run(id, ONE)).toEqual({ state: 'processed' });
+    expect(await core.run(id)).toEqual({ state: 'processed' });
   });
 
   only('erasure keeps only the mark, so a re-delivery stays a duplicate', async () => {
@@ -383,7 +393,7 @@ describe.each(META_ENGINES)('inbound core — $name', (engine) => {
       await core.erase({ subject: SUBJECT });
       return { outcome: 'processed' };
     };
-    expect(await core.run(id, ONE)).toEqual({ state: 'skipped' });
+    expect(await core.run(id)).toEqual({ state: 'skipped' });
     expect((await store.byId(id))?.state).toBe('erased');
   });
 

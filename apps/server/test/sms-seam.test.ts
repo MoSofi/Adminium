@@ -169,7 +169,7 @@ describe.each(META_ENGINES)('the send path and the inbound channel, wired — $n
       return app!.inject({ method: 'POST', url: door, payload: raw, headers: { 'content-type': 'application/json', 'telnyx-signature-ed25519': signature, 'telnyx-timestamp': timestamp } });
     };
     const drain = async (): Promise<void> => {
-      for (const id of inboundJobs.splice(0)) await core.run(id, { attempt: 1, maxAttempts: 5 });
+      for (const id of inboundJobs.splice(0)) await core.run(id);
     };
     const sendOne = async (more: Partial<TextPrepareInput> = {}, messageKey = 'app-outbox:bistro:outbox:7') => {
       const ready = await texts.prepare(input(more));

@@ -29,14 +29,14 @@ import { auditExempt } from '../audit/coverage.js';
 import { deriveKey } from '../config/secrets.js';
 import { tagRoutes } from '../security/route-audience.js';
 import type { InboundCore } from './core.js';
-import type { InboundChannel } from './types.js';
+import { INBOUND_SOURCE_MAX, type InboundChannel } from './types.js';
 
 /** Where the routes are mounted, and so what a provider is given. */
 export const INBOUND_API_PREFIX = '/api/v1';
 export const INBOUND_PATH = '/inbound';
 
 const TOKEN_SALT = 'adminium:inbound-door:v1';
-const params = z.object({ source: z.string().max(40), token: z.string().max(200) });
+const params = z.object({ source: z.string().max(INBOUND_SOURCE_MAX), token: z.string().max(200) });
 
 /**
  * The path token of one source at one account. Derived rather than stored:

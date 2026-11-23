@@ -115,6 +115,7 @@ import {
   providersFor,
   type AddOnRuntimeState,
 } from './add-ons/runtime.js';
+import { createInboundWiring, INBOUND_SWEEP_CRON, INBOUND_SWEEP_SCHEDULE } from './inbound/index.js';
 import { addOnStateOn, installOfRecord, resolveInstall } from './installs/resolve.js';
 import type { LooseTableIdModel } from './installs/table-id.js';
 import { keepAddOnInstalls } from './apps/table-ref.js';
@@ -409,7 +410,7 @@ import { paymentsRoutes } from './routes/payments/index.js';
 import { textSubject } from './sms/consent/index.js';
 import { SMS_STOP_EVENT_KINDS } from './sms/inbound/index.js';
 import { createTextSendPath, registerSmsSendHandler, textPhoneKeys, TEXT_SETTLE_AFTER_MS, TEXT_SETTLE_CRON, TEXT_SETTLE_JOB, TEXT_SETTLE_SCHEDULE, type TextSendPath } from './sms/send/index.js';
-import { createSmsWiring, INBOUND_SWEEP_CRON, INBOUND_SWEEP_SCHEDULE } from './sms/wiring.js';
+import { createSmsWiring } from './sms/wiring.js';
 import { paymentPayablesRoutes } from './routes/payments/payables.js';
 import { paymentWaysRoutes } from './routes/payments/ways.js';
 import { createLinkRights, paymentLinksRoutes } from './routes/payments/links.js';
@@ -1991,9 +1992,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // …and the declared columns that mirror it: a write told to the log, a log event written into the column.
   // Text messages: the provider account, text consent and the inbound door. Built whether or not an account is
   // connected, and silent until one is: no provider call, no required setting, and the sweep queues nothing.
+  const inboundEvents = createInboundWiring({ meta, secret: env.ADMINIUM_SECRET });
   const sms = createSmsWiring({
     meta,
     secret: env.ADMINIUM_SECRET,
+    inbound: inboundEvents,
     networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
     desktop: env.ADMINIUM_RUNTIME === 'desktop',
     trustProxy: env.ADMINIUM_TRUST_PROXY,
@@ -2011,7 +2014,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     textCountry: sms.defaultCountry,
   });
   const consentMirror = peopleConsent;
-  sms.registerJobs(jobs.registry);
+  inboundEvents.registerJobs(jobs.registry);
   // The send path: an outbox text kind goes prepare, queue, then the sealed `sms.send` job. Never in the ended-trial list.
   textSendPath = createTextSendPath({
     sms: sms.service,
@@ -2035,7 +2038,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // A text whose worker died, a source row a failed telling never reached, an envelope a job could not blank.
   jobs.scheduler.registerSchedule(TEXT_SETTLE_SCHEDULE, TEXT_SETTLE_CRON, async () => sms.enqueueTextSettle((input) => jobs.enqueue(input)));
   // Without this a stored event whose job could not be queued is never processed, and a STOP lost while the server was up is never found.
-  jobs.scheduler.registerSchedule(INBOUND_SWEEP_SCHEDULE, INBOUND_SWEEP_CRON, async () => sms.enqueueSweep((input) => jobs.enqueue(input)));
+  jobs.scheduler.registerSchedule(INBOUND_SWEEP_SCHEDULE, INBOUND_SWEEP_CRON, async () => inboundEvents.enqueueSweep((input) => jobs.enqueue(input)));
   // What the provider took while this server was down. After start-up and never holding it up; a copy told to run nothing asks nothing.
   if (env.ADMINIUM_SCHEDULER) {
     app.addHook('onReady', async () => {
@@ -2957,7 +2960,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(mailNoticeRoutes({ meta, secret: env.ADMINIUM_SECRET, consent, networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY }));
       // Studio → Text messages, and the door a provider hands texts and reports to. Its token is scrubbed from the request log (`log-scrub.ts`).
       await api.register(sms.settingsRoutes());
-      await api.register(sms.doorRoutes());
+      await api.register(inboundEvents.doorRoutes());
       // Refunding a payment: what the dialog shows, and the confirm step.
       await api.register(paymentRefundRoutes(paymentRefundDeps));
       await api.register(paymentActivityRoutes({ meta }));

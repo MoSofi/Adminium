@@ -3,8 +3,8 @@
  * THE INBOUND CORE: what happens to an event once its delivery is proved.
  *
  *   accept   seals the body, hashes the sender, stores it once, queues its job
- *   run      the job: one claim, the channel's work, then done, retry or failed
- *   failed   the list staff see, with retry and dismiss
+ *   run      the job: one claim, the channel's work, then done, retry, wait or failed
+ *   failed   the list staff see, with retry, retry all and dismiss
  *   sweep    re-queues what lost its job, and applies retention
  *   erase    a person's events keep only the mark that stops a re-delivery
  *
@@ -17,6 +17,14 @@
  * The body is sealed under a key taken from the address keys, so a changed
  * server secret leaves it readable. Nothing here logs a body or an address, and
  * a handler's error is reduced to a stable reason before anything stores it.
+ *
+ * ─── Three ways a try can end badly ────────────────────────────────────────
+ * An ordinary error uses one of {@link INBOUND_MAX_ATTEMPTS} tries. An outage
+ * uses none: the event waits, for up to {@link INBOUND_DEFER_MAX_MS}. A claim
+ * that never comes back took the process with it, and the worker runs inside
+ * the API, so {@link INBOUND_MAX_LOST_CLAIMS} of those end the event before it can
+ * take every app on the server down again. The count lives on the event because
+ * the sweep starts a new job, whose own attempts begin at nought.
  */
 import { createHmac } from 'node:crypto';
 
@@ -25,16 +33,20 @@ import { z } from 'zod';
 
 import { decryptSecret, encryptSecret, SecretFormatError, SecretIntegrityError } from '../config/secrets.js';
 import { AddressKeysLockedError, addressKeyRing, INBOUND_BODY_PURPOSE } from '../consent/keys.js';
-import { ValidationFailedError } from '../errors.js';
-import type { JobHandlerContext, JobRegistry } from '../jobs/registry.js';
+import { isConnectionWideError, ValidationFailedError } from '../errors.js';
+import type { JobRegistry } from '../jobs/registry.js';
 import { createInboundEventStore, type InboundEventStore } from './store.js';
 import {
+  INBOUND_CRASHED_REASON,
+  INBOUND_SOURCE_MAX,
+  InboundDeferError,
   InboundFailedError,
   InboundJobError,
   InboundRetryError,
   safeReason,
   type InboundAccept,
   type InboundChannel,
+  type InboundEventHead,
   type InboundEventRecord,
   type InboundReason,
   type InboundState,
@@ -43,6 +55,10 @@ import {
 export const INBOUND_PARSE_JOB = 'inbound.parse';
 export const INBOUND_SWEEP_JOB = 'inbound.sweep';
 export const INBOUND_MAX_ATTEMPTS = 5;
+/** Claims that may die with the process before the event goes to the failed list. */
+export const INBOUND_MAX_LOST_CLAIMS = 3;
+/** Below every ordinary job, so a burst of events never runs ahead of a password reset or a payment mail. */
+export const INBOUND_PARSE_PRIORITY = -1;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** A job quiet this long has lost its worker. */
@@ -51,7 +67,9 @@ export const INBOUND_STALE_MS = 10 * 60 * 1000;
 export const INBOUND_REQUEUE_AFTER_MS = 2 * 60 * 1000;
 /** A finished row stays this long, unless the channel asks for longer, so a late re-delivery is still a duplicate. */
 export const INBOUND_DEFAULT_RETAIN_MS = 35 * DAY_MS;
-/** A failed event's body is kept this long for a retry. */
+/** How long an outage may hold an event before its tries start to count, so nothing waits for ever. */
+export const INBOUND_DEFER_MAX_MS = 7 * DAY_MS;
+/** A failed event's body is kept this long for a retry, unless its channel says otherwise. */
 export const INBOUND_FAILED_BODY_MS = 90 * DAY_MS;
 /** A failed row, after its body has gone, so staff can still see that something was lost. */
 export const INBOUND_FAILED_ROW_MS = 400 * DAY_MS;
@@ -110,15 +128,17 @@ export interface InboundCore {
   /** Stores each event once. Throws when one cannot be stored safely. */
   accept: InboundAccept;
   /** One run of the parse job. Throws only to ask the worker for another try, including while another claim is still live. */
-  run(eventId: string, attempt: { attempt: number; maxAttempts: number }): Promise<{ state: InboundState | 'skipped' }>;
+  run(eventId: string): Promise<{ state: InboundState | 'skipped' }>;
   failed: {
     list(opts: { channel?: string | undefined; limit: number; cursor?: string | null | undefined }): Promise<{ events: InboundFailedView[]; next: string | null }>;
     retry(id: string): Promise<boolean>;
+    /** Retries up to `limit` of them, leaving any that crashed the server: those are retried one at a time, on purpose. */
+    retryAll(opts: { channel?: string | undefined; limit: number }): Promise<{ retried: number; more: boolean }>;
     dismiss(id: string): Promise<boolean>;
   };
   /** Re-queues, applies retention, then lets each channel catch up. A channel's failure never fails the sweep. */
   sweep(): Promise<InboundSweepResult>;
-  /** Whether an event of these kinds from this subject is stored and not yet acted on. */
+  /** Whether an event of these kinds from this subject is stored and not yet acted on, a failed one included. */
   waitingFrom(subject: string, kinds: readonly string[]): Promise<boolean>;
   /** `subject` as the channel wrote it (`tel:+49…`, `mailto:a@b`). */
   erase(input: { subject: string }): Promise<{ events: number }>;
@@ -141,7 +161,7 @@ function readCursor(cursor: string | null | undefined): { receivedAt: number; id
   throw new ValidationFailedError('That page cursor is not one this list gave.', { field: 'cursor' });
 }
 
-const viewOf = (event: InboundEventRecord): InboundFailedView => ({
+const viewOf = (event: InboundEventHead): InboundFailedView => ({
   id: event.id,
   channel: event.channel,
   source: event.source,
@@ -151,18 +171,19 @@ const viewOf = (event: InboundEventRecord): InboundFailedView => ({
   receivedAt: event.receivedAt,
   occurredAt: event.occurredAt,
   finishedAt: event.finishedAt,
-  retryable: event.sealedBody !== null,
+  retryable: event.hasBody,
 });
 
 export function createInboundCore(deps: InboundCoreDeps): InboundCore {
   const now = deps.now ?? Date.now;
   const store = deps.store ?? createInboundEventStore(deps.meta);
   const ring = addressKeyRing(deps.meta, deps.secret);
-  const channels = new Map(deps.channels.map((channel) => [channel.channel, channel]));
+  // Read each time, because the wiring adds channels after the core is built.
+  const channelNamed = (name: string): InboundChannel | undefined => deps.channels.find((channel) => channel.channel === name);
 
   const enqueue =
     deps.enqueue ??
-    ((eventId: string) => jobsRepo(deps.meta).enqueue({ kind: INBOUND_PARSE_JOB, payload: { eventId }, dedupeKey: `inbound:${eventId}`, maxAttempts: INBOUND_MAX_ATTEMPTS }, now()));
+    ((eventId: string) => jobsRepo(deps.meta).enqueue({ kind: INBOUND_PARSE_JOB, payload: { eventId }, dedupeKey: `inbound:${eventId}`, maxAttempts: INBOUND_MAX_ATTEMPTS, priority: INBOUND_PARSE_PRIORITY }, now()));
 
   async function seal(body: string): Promise<string> {
     return encryptSecret(body, Buffer.from(await ring.derivedForWrite(BODY_PURPOSE), 'hex'));
@@ -195,7 +216,9 @@ export function createInboundCore(deps: InboundCoreDeps): InboundCore {
   }
 
   const accept: InboundAccept = async (input) => {
-    if (!channels.has(input.channel)) throw new Error('No such inbound channel.');
+    if (channelNamed(input.channel) === undefined) throw new Error('No such inbound channel.');
+    // SQLite would keep what Postgres and MySQL refuse.
+    if (input.source.length > INBOUND_SOURCE_MAX) throw new Error('An inbound source name is too long.');
     let stored = 0;
     let duplicates = 0;
     if (input.events.length === 0) return { stored, duplicates };
@@ -230,18 +253,20 @@ export function createInboundCore(deps: InboundCoreDeps): InboundCore {
   return {
     accept,
 
-    async run(eventId, attempt) {
+    async run(eventId) {
       const claimedAtTry = now();
       const event = await store.claim(eventId, claimedAtTry, claimedAtTry - INBOUND_STALE_MS);
       if (event === null || event.claimedAt === null) {
         // The worker's lock goes stale before this claim does. Ending here would finish the job with the event
         // unhandled, so a claim that may be a dead worker's is waited out.
-        if ((await store.byId(eventId))?.state === 'working') throw new InboundJobError('claim-live');
+        // The claim is not this run's, so waiting it out uses none of the event's tries.
+        if ((await store.stateOf(eventId)) === 'working') throw new InboundJobError('claim-live');
         return { state: 'skipped' };
       }
       const claimedAt = event.claimedAt;
+      if (event.lostClaims >= INBOUND_MAX_LOST_CLAIMS) return endFailed(event, claimedAt, INBOUND_CRASHED_REASON);
 
-      const channel = channels.get(event.channel);
+      const channel = channelNamed(event.channel);
       if (channel === undefined) return endFailed(event, claimedAt, 'unknown-channel');
       if (event.sealedBody === null) return endFailed(event, claimedAt, 'body-gone');
 
@@ -266,8 +291,21 @@ export function createInboundCore(deps: InboundCoreDeps): InboundCore {
         return { state: done ? handled.outcome : 'skipped' };
       } catch (error) {
         if (error instanceof InboundFailedError) return endFailed(event, claimedAt, error.reason);
-        const reason = error instanceof InboundRetryError ? error.reason : error instanceof AddressKeysLockedError ? 'keys-locked' : 'handler-error';
-        if (attempt.attempt >= attempt.maxAttempts) {
+        const outage = error instanceof InboundDeferError || isConnectionWideError(error);
+        const reason =
+          error instanceof InboundRetryError || error instanceof InboundDeferError
+            ? error.reason
+            : error instanceof AddressKeysLockedError
+              ? 'keys-locked'
+              : outage
+                ? 'store-unreachable'
+                : 'handler-error';
+        if (outage && now() - event.receivedAt < INBOUND_DEFER_MAX_MS) {
+          // The job ends cleanly; the sweep brings this back once there is something to come back to.
+          await store.defer(event.id, claimedAt, reason);
+          return { state: 'pending' };
+        }
+        if (event.attempts >= INBOUND_MAX_ATTEMPTS) {
           if (error instanceof InboundRetryError && error.finally === 'ignored') {
             const at = now();
             const done = await store.finish(event.id, claimedAt, { state: 'ignored', reason, at, retainUntil: at + INBOUND_DEFAULT_RETAIN_MS });
@@ -294,6 +332,18 @@ export function createInboundCore(deps: InboundCoreDeps): InboundCore {
         return true;
       },
 
+      async retryAll(opts) {
+        const limit = Math.min(Math.max(opts.limit, 1), INBOUND_SWEEP_BATCH);
+        const ids = await store.retryableIds({ channel: opts.channel, limit: limit + 1 });
+        let retried = 0;
+        for (const id of ids.slice(0, limit)) {
+          if (!(await store.retry(id))) continue;
+          retried += 1;
+          await queue(id);
+        }
+        return { retried, more: ids.length > limit };
+      },
+
       async dismiss(id) {
         const at = now();
         return store.dismiss(id, at, at + INBOUND_DEFAULT_RETAIN_MS);
@@ -304,7 +354,9 @@ export function createInboundCore(deps: InboundCoreDeps): InboundCore {
       const at = now();
       const stuck = await store.stuck(at - INBOUND_REQUEUE_AFTER_MS, INBOUND_SWEEP_BATCH);
       for (const id of stuck) await queue(id);
-      const bodiesWiped = await store.wipeFailedBodies(at - INBOUND_FAILED_BODY_MS, INBOUND_SWEEP_BATCH);
+      const ownLimit = deps.channels.flatMap((channel) => (channel.failedBodyMs === undefined ? [] : [{ name: channel.channel, ms: channel.failedBodyMs }]));
+      let bodiesWiped = await store.wipeFailedBodies(at - INBOUND_FAILED_BODY_MS, INBOUND_SWEEP_BATCH, { except: ownLimit.map((one) => one.name) });
+      for (const one of ownLimit) bodiesWiped += await store.wipeFailedBodies(at - one.ms, INBOUND_SWEEP_BATCH, { only: one.name });
       const deleted = await store.deleteExpired(at, INBOUND_SWEEP_BATCH);
       for (const channel of deps.channels) {
         try {
@@ -339,9 +391,9 @@ export function registerInboundJobs(registry: JobRegistry, core: InboundCore): v
   registry.registerJobHandler(
     INBOUND_PARSE_JOB,
     parsePayload,
-    async (payload, ctx: JobHandlerContext) => {
+    async (payload) => {
       try {
-        return await core.run(payload.eventId, { attempt: ctx.attempt, maxAttempts: ctx.maxAttempts });
+        return await core.run(payload.eventId);
       } catch (error) {
         // The worker stores this message: only a stable reason may reach it.
         throw error instanceof InboundJobError ? error : new InboundJobError('store-error');
