@@ -36,9 +36,10 @@ function shop(word: boolean): Doc {
       { ref: 'id', type: 'int', role: 'pk' },
       { ref: 'customer_id', type: 'fk', references: 'customers', nullable: true },
       { ref: 'buyer_email', type: 'text', maxLength: 254, nullable: true },
+      { ref: 'buyer_phone', type: 'text', maxLength: 32, nullable: true },
     ],
   });
-  (manifest['compatibility'] as Doc)['minAdminiumVersion'] = '0.3.71';
+  (manifest['compatibility'] as Doc)['minAdminiumVersion'] = word ? '0.3.74' : '0.3.71';
   (manifest['outbox'] as Doc)['classes'] = { 'order-placed': 'service' };
   manifest['people'] = [
     {
@@ -51,6 +52,7 @@ function shop(word: boolean): Doc {
         { table: 'orders', column: 'name', holds: 'name', via: 'customer_id' },
         { table: 'orders', column: 'note', holds: 'details', via: 'customer_id' },
         { table: 'receipts', column: 'buyer_email', holds: 'email', via: 'customer_id' },
+        ...(word ? [{ table: 'receipts', column: 'buyer_phone', holds: 'details', via: 'customer_id', evenIfKept: true }] : []),
       ],
     },
   ];
@@ -111,7 +113,7 @@ describe.each(LEGS)('"delete my details" with its copies — %s', (dialect, avai
     await on.h.rows(`insert into ${on.h.real('orders')} (email, name, note, status) values ('lea@fieldmail.io', 'Someone Else', 'Not hers', 'placed')`);
     const [unlinked] = await on.h.rows(`select id from ${on.h.real('orders')} where name = 'Someone Else'`);
     ids['unlinked'] = Number(unlinked!['id']);
-    await on.h.rows(`insert into ${on.h.real('receipts')} (customer_id, buyer_email) values (${String(ids['lea'])}, 'lea@fieldmail.io')`);
+    await on.h.rows(`insert into ${on.h.real('receipts')} (customer_id, buyer_email, buyer_phone) values (${String(ids['lea'])}, 'lea@fieldmail.io', '+49 30 1234567')`);
     const session = await on.g.signIn('lea@fieldmail.io');
     const gone = await on.g.request('DELETE', '/account', { session });
     expect(gone.statusCode, gone.body).toBe(200);
@@ -150,9 +152,10 @@ describe.each(LEGS)('"delete my details" with its copies — %s', (dialect, avai
     expect([row['email'], row['name'], row['note']]).toEqual(['lea@fieldmail.io', 'Someone Else', 'Not hers']);
   });
 
-  it.skipIf(!available)('leaves a table the law keeps', async () => {
-    const [row] = await on.h.rows(`select buyer_email from ${on.h.real('receipts')} where customer_id = ${String(ids['lea'])}`);
+  it.skipIf(!available)('leaves a table the law keeps, but for a detail the record does not need', async () => {
+    const [row] = await on.h.rows(`select buyer_email, buyer_phone from ${on.h.real('receipts')} where customer_id = ${String(ids['lea'])}`);
     expect(row!['buyer_email']).toBe('lea@fieldmail.io');
+    expect(row!['buyer_phone']).toBeNull();
   });
 
   it.skipIf(!available)('empties their own row as before', async () => {

@@ -29,7 +29,8 @@
  *    for it are emptied; one still waiting is skipped, with the same
  *    sentence a message to a person who deleted their details gets.
  *  - A table the app marks kept by law (`keep: {law}`) is left whole, their
- *    copies on it included: "What stays" lists it.
+ *    copies on it included: "What stays" lists it. The one exception is a copy
+ *    declared `evenIfKept`, a detail the record does not need.
  *
  * The writes are the erasure's own: one UPDATE per row, as the system, in
  * one transaction per database. Not a staff save: a save would run under a
@@ -249,9 +250,12 @@ export async function findPersonRows(deps: EraseRowsDeps, address: string, scope
       const pks = owner === null ? [] : (keysOf.get(owner.id) ?? []);
       const ownRows = owner === null ? [] : (rowsOf.get(owner.id) ?? []);
       const copyTables = await theirCopyRows({ db, view, copies: entry.copies, address, pks, ownRows, ownTable: owner, tableOf: (id) => tableOf(view, id) });
-      for (const { table, copies, rows } of copyTables) {
-        // A table the law keeps stays whole, their copies on it included.
-        if (kept.has(table.id)) continue;
+      for (const { table, copies: found, rows } of copyTables) {
+        // A table the law keeps stays whole, their copies on it included, but for a copy the record does not need.
+        const onKept = kept.has(table.id);
+        const copies = onKept ? found.filter((copy) => copy.evenIfKept === true) : found;
+        if (copies.length === 0) continue;
+        const named = new Set(copies.map((copy) => copy.column));
         const source: ErasedSource = {
           id: `copy-${entry.appKey}-${entry.ref}-${copies[0]!.ref}`,
           kind: 'copy',
@@ -264,8 +268,9 @@ export async function findPersonRows(deps: EraseRowsDeps, address: string, scope
           rows: [],
         };
         for (const theirs of rows) {
-          if (theirs.columns.size === 0) continue;
-          source.rows.push({ key: theirs.key, pk: pkOf(table, theirs.row), before: theirs.row, ...blankRow(table, theirs.row, theirs.columns, dialect, deps.erasedName, leftOf(table)) });
+          const columns = onKept ? new Map([...theirs.columns].filter(([column]) => named.has(column))) : theirs.columns;
+          if (columns.size === 0) continue;
+          source.rows.push({ key: theirs.key, pk: pkOf(table, theirs.row), before: theirs.row, ...blankRow(table, theirs.row, columns, dialect, deps.erasedName, leftOf(table)) });
         }
         if (source.rows.length > 0) sources.push(source);
       }

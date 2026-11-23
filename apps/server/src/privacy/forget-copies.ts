@@ -54,7 +54,7 @@ export async function ownCopyTables(meta: MetaDb, connectionId: string, view: Sn
       // A copy on an add-on's table is reached through the app's own line: the add-on keeps it, and other people's lines may name it.
       if (copy.via === null || copy.through !== undefined) continue;
       const table = tableOf(view, copy.table);
-      if (table === null || table.primaryKey.length === 0 || kept.has(table.id)) continue;
+      if (table === null || table.primaryKey.length === 0 || (kept.has(table.id) && copy.evenIfKept !== true)) continue;
       // Only a link that really points at the person's table.
       const linked = view.model.relations.some((relation) => relation.from.tableId === table.id && relation.to.tableId === person.id && relation.from.columns.length === 1 && relation.from.columns[0] === copy.via);
       if (!linked) continue;

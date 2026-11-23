@@ -45,6 +45,8 @@ export interface DeclaredCopy {
   holds: PeopleCopy['holds'];
   /** The copy table's link back to the person, when there is one. */
   via: string | null;
+  /** Erased with the person even on a table the law keeps. */
+  evenIfKept?: true;
   /**
    * The column keeps JSON (a design's words), as its manifest declares it or
    * the database says: blanked to an empty value of its own, and downloaded
@@ -334,7 +336,8 @@ export function resolveDeclaredPeople(source: PeopleSource): DeclaredPeopleTable
         if (held === undefined || !held.table.columns.some((candidate) => candidate.name === copy.column)) return [];
         const via = copy.via !== undefined && held.table.columns.some((candidate) => candidate.name === copy.via) ? copy.via : null;
         const json = keepsJson(appJson, copy.table, copy.column, held.table);
-        return [{ table: held.table.id, ref: copy.table, column: copy.column, holds: copy.holds, via, ...(json ? { json: true as const } : {}) }];
+        const own: DeclaredCopy = { table: held.table.id, ref: copy.table, column: copy.column, holds: copy.holds, via, ...(copy.evenIfKept === true ? { evenIfKept: true as const } : {}), ...(json ? { json: true as const } : {}) };
+        return [own];
       });
       const firstName = entry.firstName === undefined ? null : typeof entry.firstName === 'object' ? (column(entry.firstName.column) === null ? null : { column: entry.firstName.column }) : FIRST_WORD_OF_NAME;
       const consentColumn = entry.consent === undefined ? null : column(entry.consent.column);
