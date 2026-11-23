@@ -27,7 +27,8 @@ import { appShippingPermission, PERMISSIONS } from '../../rbac/permissions.js';
 import { tagRoutes } from '../../security/route-audience.js';
 import { pricesHiddenFrom, shippingPerson, shippingViewerOf, type ShippingViewer } from '../../shipping/access.js';
 import { ATTENTION_BATCH, ATTENTION_EXAMINED, ATTENTION_SHOWN, attentionCutoffs, attentionReasons, QUIET_PARCEL_MS } from '../../shipping/attention.js';
-import { bookingView } from '../../shipping/bookings.js';
+import { bookingView, type BookingDeps } from '../../shipping/bookings.js';
+import { checkRefund } from '../../shipping/refunds.js';
 import { shippingCarrierFor, type ShippingCarrierDeps } from '../../shipping/carriers.js';
 import { checkedAccount } from '../../shipping/keys.js';
 import { mayPoll } from '../../shipping/locks.js';
@@ -47,6 +48,8 @@ export interface ShippingTrackingRoutesDeps {
   secret: string;
   sources: PayableSources;
   networkFeatures: () => boolean;
+  /** What settles a pending refund when "Refresh open parcels" hears its answer. */
+  bookingDeps?(request: FastifyRequest): BookingDeps;
   carrierDeps(request: FastifyRequest): ShippingCarrierDeps;
   appOf(request: FastifyRequest, param: string): Promise<{ app: InstalledManifest; connectionId: string }>;
   reachOrder(request: FastifyRequest, install: InstalledManifest, connectionId: string, source: { table: string; id: string }): Promise<ReachedOrder>;
@@ -199,6 +202,7 @@ export function shippingTrackingRoutes(deps: ShippingTrackingRoutesDeps): Fastif
           resolved,
           accountFingerprint: account.fingerprint,
           reaches: (booking) => reaches(request, install, connectionId, booking),
+          ...(deps.bookingDeps === undefined ? {} : { checkRefund: async (booking: ShippingBooking) => (await checkRefund(deps.bookingDeps!(request), booking, resolved, account)).outcome }),
         });
         await app.rbac.audit(request, {
           category: 'settings',
@@ -232,7 +236,7 @@ export function shippingTrackingRoutes(deps: ShippingTrackingRoutesDeps): Fastif
           if (order === null) {
             // A purchase with no answer on an order since deleted: only someone who manages shipping can settle it, and nothing else would show it.
             if (viewer.manages && reasons.includes('unknown') && (await deps.sources.readRow(connectionId, booking.tableName, booking.rowKey).catch(() => undefined)) === null) {
-              return { reasons, reference: booking.reference, source: { table: booking.tableRef, id: booking.rowKey }, orderGone: true, booking: { ...bookingView(booking, now, false), track: trackViewOf(parcel) } };
+              return { reasons, reference: booking.reference, source: { table: booking.tableRef, id: booking.rowKey }, orderGone: true, booking: { ...bookingView(booking, now, false, parcel), track: trackViewOf(parcel) } };
             }
             return null;
           }
@@ -246,7 +250,7 @@ export function shippingTrackingRoutes(deps: ShippingTrackingRoutesDeps): Fastif
             reference: order.reference,
             source: { table: booking.tableRef, id: order.rowKey },
             orderGone: false,
-            booking: { ...bookingView(booking, now, hidden), track: trackViewOf(parcel) },
+            booking: { ...bookingView(booking, now, hidden, parcel), track: trackViewOf(parcel) },
           };
         };
 

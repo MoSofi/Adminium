@@ -35,6 +35,7 @@ import { normalizePublicOrigin } from '../security/public-origin.js';
 import { recordBought, type BookingDeps } from './bookings.js';
 import { sameHash } from './fingerprint.js';
 import { openRateHandle } from './quotes.js';
+import { settleRefund } from './refunds.js';
 import { sameHostUrl, trackingReaderFor } from './tracking-readers.js';
 
 export const SHIPPING_TRACK_JOB = 'shipping.track';
@@ -220,7 +221,14 @@ async function followTransaction(deps: TrackDeps, event: ShippingTrackEvent): Pr
   const repo = shippingTrackingRepo(deps.meta);
   const bookings = shippingBookingsRepo(deps.meta);
   const install = event.carrierInstallId;
-  // Only a success says anything here. A failed or refunded transaction never frees a parcel's place.
+  // A pending refund's answer: said by the carrier, and settled with no call back. It frees a place only through the refund.
+  if (event.transactionId !== null && (event.status === 'REFUNDED' || event.status === 'REFUNDREJECTED')) {
+    const pending = await repo.liveVoidingByShipment(install, event.transactionId);
+    if (pending.length !== 1) return 'ignored';
+    await settleRefund(deps, pending[0]!, event.status === 'REFUNDED' ? 'refunded' : 'refused', {});
+    return 'settled';
+  }
+  // Only a success says anything else here. A failed or refunded transaction never frees a parcel's place.
   if (event.status !== 'SUCCESS' || event.transactionId === null) return 'ignored';
 
   const booked = await repo.liveBookedByShipment(install, event.transactionId);

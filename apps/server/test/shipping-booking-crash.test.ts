@@ -427,6 +427,22 @@ describe.each(LEGS)('buying a label once, with the booking table on %s', (dialec
     expect((await releaseBooking(deps, made, 'usr_owner')).openKey).toBeNull();
   });
 
+  it.skipIf(!available)('a test purchase the carrier marks as live is never filed as a sample', async () => {
+    const slot = nextSlot();
+    const testKey = { account: { mode: 'test' as const, fingerprint: FINGERPRINT } };
+    book = async () => ({ ...SHIPMENT, test: false });
+    const made = await buy(slot, testKey);
+    expect(made).toMatchObject({ state: 'unknown', mode: 'test', reason: 'live-on-test', tracking: null, carrierShipmentId: null });
+    expect(queued).not.toContain(made.id);
+    // It holds the parcel: buying again could pay for a second real label.
+    const before = purchases;
+    expect(await codeOf(buy(slot, testKey))).toBe('BOOKING_EXISTS');
+    expect(purchases).toBe(before);
+    // A carrier that says nothing about the mode is still a sample under a test key.
+    book = async () => ({ ...SHIPMENT, id: 'tx_quiet', tracking: 'TRK-QUIET' });
+    expect(await buy(nextSlot(), testKey)).toMatchObject({ state: 'booked', mode: 'test' });
+  });
+
   it.skipIf(!available)('a success that arrives after the row was read as not bought takes its place back and counts again', async () => {
     const slot = nextSlot();
     const day = '2026-11-26';

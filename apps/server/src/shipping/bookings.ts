@@ -42,6 +42,7 @@ import {
   type ShippingBooking,
   type ShippingBookingFields,
   type ShippingBookingState,
+  type ShippingParcel,
   type ShippingSlot,
 } from '@adminium/meta';
 
@@ -50,6 +51,7 @@ import { CARRIER_HTTP_TIMEOUT_MS, cleanCarrierMessage, type ResolvedCarrier } fr
 import { labelView, type LabelView } from './labels.js';
 import { decimalAtMost } from './limits.js';
 import { openRateHandle, sealRateHandle } from './quotes.js';
+import { refundView, type RefundView } from './refund-view.js';
 import { ShippingRefusal } from './refusals.js';
 import { safeTrackingUrl } from './tracking-readers.js';
 
@@ -98,6 +100,8 @@ export interface PurchaseInput {
   counted: { day: string; dailyLabels: number } | null;
   /** Someone who manages shipping saw that an earlier attempt cannot be looked up, and means to buy anyway. */
   confirmEarlier?: boolean;
+  /** Someone who may cancel was told both labels stay paid until the refund lands, and means to book another. */
+  replaceRefunding?: boolean;
 }
 
 export interface BookingRefusal {
@@ -137,13 +141,15 @@ export interface BookingView {
   applied: boolean;
   /** How its label file stands. Never where the file is. */
   label: LabelView;
+  /** Null for an attempt that never became a label. */
+  refund: RefundView | null;
   amount?: string;
   currency?: string;
   chargeDiffers?: boolean;
 }
 
 /** A booking as a screen is told it: no carrier handle, and no money for someone who cannot see it. */
-export function bookingView(booking: ShippingBooking, now: number, pricesHidden: boolean): BookingView {
+export function bookingView(booking: ShippingBooking, now: number, pricesHidden: boolean, parcel?: Pick<ShippingParcel, 'status'> | null): BookingView {
   const state = readsAs(booking, now);
   const amount = booking.amount ?? booking.quotedAmount;
   const currency = booking.currency ?? booking.quotedCurrency;
@@ -165,6 +171,7 @@ export function bookingView(booking: ShippingBooking, now: number, pricesHidden:
     releaseAfter: state === 'unknown' ? releaseAfterOf(booking) : null,
     applied: booking.appliedAt !== null,
     label: labelView(booking),
+    refund: refundView(booking, parcel, now, pricesHidden),
     ...(pricesHidden ? {} : { amount, currency, chargeDiffers: booking.chargeDiffers }),
   };
 }
@@ -291,6 +298,8 @@ async function recordAnswer(deps: BookingDeps, booking: ShippingBooking, heard: 
   }
   // A sample label on a key that says live: neither a real label nor a clear no, so a person looks at it.
   if (parsed.success && parsed.data.test === true && booking.mode === 'live') return unknown('test-on-live');
+  // The reverse costs real money: a label the carrier calls live must never be filed as a sample that reaches no order.
+  if (parsed.success && parsed.data.test === false && booking.mode === 'test') return unknown('live-on-test');
   return { booking: await recordBought(deps, booking, fields, 0), refusal: null };
 }
 
@@ -385,7 +394,11 @@ export async function buyLabel(deps: BookingDeps, input: PurchaseInput, pricesHi
   const holder = await repo.open(slot, account.mode);
   if (holder !== null) {
     const settled = await settleStale(deps, holder);
-    if (settled.openKey !== null) throw exists(settled, deps.now(), pricesHidden);
+    if (settled.openKey !== null) {
+      // The refund stays pending and the old label stays blocked. Only its hold on the parcel goes.
+      if (settled.state !== 'voiding' || input.replaceRefunding !== true) throw exists(settled, deps.now(), pricesHidden);
+      await repo.letGoForReplacement(settled.id, deps.now());
+    }
   }
 
   const handle = rate.ref === undefined && rate.carrierToken === undefined ? null : sealRateHandle(deps.secret, { ...(rate.ref === undefined ? {} : { ref: rate.ref }), ...(rate.carrierToken === undefined ? {} : { carrierToken: rate.carrierToken }) });
@@ -571,7 +584,7 @@ export async function foreignLabelOn(
   order: { connectionId: string; tableName: string; rowKey: string; reference: string; carrierKey: string; tracking: string | null },
 ): Promise<string | null> {
   const all = await shippingBookingsRepo(meta).forRow(order.connectionId, order.tableName, order.rowKey);
-  const known = new Set(all.flatMap((one) => (one.tracking !== null && (one.state === 'booked' || (one.state === 'released' && one.reason === FOREIGN_LABEL_REASON)) ? [one.tracking] : [])));
+  const known = new Set(all.flatMap((one) => (one.tracking !== null && (one.state === 'booked' || one.state === 'voiding' || one.state === 'voided' || (one.state === 'released' && one.reason === FOREIGN_LABEL_REASON)) ? [one.tracking] : [])));
   // A number a booked label used to have is still that label: the order keeps showing it until staff act on the new one.
   const parcels = await shippingTrackingRepo(meta).parcels(all.filter((one) => one.state === 'booked').map((one) => one.id));
   for (const parcel of parcels.values()) for (const number of parcel.oldNumbers) known.add(number);

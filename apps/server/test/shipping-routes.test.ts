@@ -159,6 +159,7 @@ function shopDoc(key: string, shipping: boolean): Record<string, unknown> {
           belongs: [{ column: 'owner_id', set: 'team' }],
         },
         { ref: 'notes', columns: [{ ref: 'id', type: 'int', role: 'pk' }, text('body')] },
+        { ref: 'returns', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'order_id', type: 'int', nullable: true }, { ref: 'status', type: 'text', maxLength: 20, nullable: true }] },
       ],
     },
     roles: [
@@ -184,6 +185,7 @@ function shopDoc(key: string, shipping: boolean): Record<string, unknown> {
                 reference: 'number',
                 tracking: 'tracking',
                 carrier: 'carrier_name',
+                returns: { table: 'returns', order: 'order_id', status: 'status', approved: ['approved'] },
                 address: { name: 'ship_name', lines: ['ship_line1', 'ship_line2'], city: 'ship_city', region: 'ship_region', postcode: 'ship_postcode', country: 'ship_country', phone: 'ship_phone', email: 'ship_email', company: 'ship_company' },
               },
             ],
@@ -329,6 +331,7 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
     installs['shop@second'] = (await repo.findInScope('shop', second.id))!.row.id;
     for (const record of await h.meta.db.selectFrom('adminium_app_tables').select(['connectionId', 'appKey', 'ref', 'tableName']).execute()) {
       if (record.ref === 'orders') tables[`${record.connectionId}:${record.appKey}`] = record.tableName;
+      if (record.ref === 'returns') tables[`${record.connectionId}:${record.appKey}:returns`] = record.tableName;
     }
 
     const CARRIERS = ['carrier-one', 'carrier-two', 'carrier-keyless', 'shipping-dhl', 'carrier-unvouched', 'carrier-no-factory', 'carrier-solo', 'carrier-elsewhere'];
@@ -742,7 +745,7 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
     const id = await order('shop');
     const first = ((await quote('shop', body(id, { parcelNumber: 1 }))).json() as Doc)['data'];
     const parcelTwo = ((await quote('shop', body(id, { parcelNumber: 2 }))).json() as Doc)['data'];
-    const returned = ((await quote('shop', body(id, { purpose: 'return' }))).json() as Doc)['data'];
+    const returned = ((await quote('shop', body(id, { purpose: 'replacement' }))).json() as Doc)['data'];
     expect(new Set([first.quoteId, parcelTwo.quoteId, returned.quoteId]).size).toBe(3);
     for (const one of [first, parcelTwo, returned]) expect(await settings().quote(one.quoteId)).not.toBeNull();
 
@@ -758,6 +761,59 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
     expect(await settings().quote(again.quoteId)).not.toBeNull();
     expect((await call('boss', 'PUT', 'shop/shipping/active-carrier', { carrier: 'carrier-two' })).statusCode).toBe(200);
     expect(await settings().quote(again.quoteId)).toBeNull();
+  });
+
+  it.skipIf(!available)('sells a return label only to the owner, only on an approved return of this order, with the customer as sender', async () => {
+    const id = await order('shop');
+    const other = await order('shop');
+    const { db } = await h.manager.data(conn);
+    const returns = tables[`${conn}:shop:returns`]!;
+    const made = async (rowId: number, orderId: string, status: string) => {
+      await db.insertInto(returns as never).values({ id: rowId, order_id: Number(orderId), status } as never).execute();
+      return String(rowId);
+    };
+    const base = nextId * 10;
+    const asked = await made(base + 1, id, 'asked');
+    const approved = await made(base + 2, id, 'approved');
+    const elsewhere = await made(base + 3, other, 'approved');
+    const ask = (returnId: string | undefined, who = 'boss') => quote('shop', body(id, { purpose: 'return', ...(returnId === undefined ? {} : { returnId }) }), who);
+
+    expect(code(await ask(undefined))).toBe('RETURN_NOT_OFFERED');
+    expect(code(await ask(asked))).toBe('RETURN_NOT_APPROVED');
+    expect(code(await ask(elsewhere))).toBe('RETURN_NOT_APPROVED');
+    expect((await ask(approved, 'picker')).statusCode).toBe(403);
+
+    fake().quotes.length = 0;
+    const good = await ask(approved);
+    expect(good.statusCode, good.body).toBe(200);
+    const sent = fake().quotes.at(-1) as unknown as { from: { name: string; phone?: string; email?: string }; to: { postcode: string }; options: { purpose: string } };
+    expect(sent.options.purpose).toBe('return');
+    expect(sent.from.name).toBe(NAME);
+    expect(sent.from.phone).toBeUndefined();
+    expect(sent.from.email).toBeUndefined();
+    expect(sent.to.postcode).toBe(SHIP_FROM.postcode);
+
+    // Its place is the return's second position on the order, whatever the client sends.
+    const data = (good.json() as Doc)['data'];
+    expect((await settings().quote(data.quoteId))).toMatchObject({ purpose: 'return', parcelNumber: 2 });
+    const listed = await call('boss', 'GET', '', undefined, `/api/v1/apps/shop/shipping/bookings?connectionId=${encodeURIComponent(conn)}&table=orders&id=${id}&purpose=return&returnId=${approved}`);
+    expect((listed.json() as Doc)['data']['parcelNumber']).toBe(2);
+
+    // Moved on since the quote: nothing is bought.
+    await db.updateTable(returns as never).set({ status: 'declined' } as never).where('id' as never, '=', Number(approved) as never).execute();
+    const before = fake().books.length;
+    const late = await call('boss', 'POST', 'shop/shipping/bookings', { quoteId: data.quoteId, rateId: data.rates[0].rateId, returnId: approved });
+    expect(code(late)).toBe('RETURN_NOT_APPROVED');
+    expect(fake().books.length).toBe(before);
+    await db.updateTable(returns as never).set({ status: 'approved' } as never).where('id' as never, '=', Number(approved) as never).execute();
+    const wrong = await call('boss', 'POST', 'shop/shipping/bookings', { quoteId: data.quoteId, rateId: data.rates[0].rateId });
+    expect(code(wrong)).toBe('RETURN_NOT_OFFERED');
+    expect(fake().books.length).toBe(before);
+    const bought = await call('boss', 'POST', 'shop/shipping/bookings', { quoteId: data.quoteId, rateId: data.rates[0].rateId, returnId: approved });
+    expect(bought.statusCode, bought.body).toBe(200);
+    const paid = fake().books.at(-1) as unknown as { details: { from: { name: string }; to: { postcode: string } } };
+    expect(paid.details.from.name).toBe(NAME);
+    expect(paid.details.to.postcode).toBe(SHIP_FROM.postcode);
   });
 
   it.skipIf(!available)('shows no carrier handle or address in a reply, a quote row, a log line or an audit row', async () => {

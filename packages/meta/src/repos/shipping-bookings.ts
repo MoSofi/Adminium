@@ -8,10 +8,15 @@
  *      │            └──────> unknown ──> booked | refused | released
  *      └──> released
  *
+ *   booked ──> voiding ──> voided
+ *      ^          │
+ *      └──────────┘  a refund the carrier refused: the label is live again
+ *
  * Every move is one guarded UPDATE, read by its affected rows, so two runs can
  * never both take the same step. `open_key` holds the order's slot while the
  * attempt is live: its unique index is the one-live-booking rule on all three
- * databases, and it is cleared by a refusal or a person's release.
+ * databases, and it is cleared by a refusal, a person's release or a refund
+ * that landed.
  */
 import { createHash } from 'node:crypto';
 
@@ -23,11 +28,12 @@ import { SHIPPING_CARRIER_WIDTH, SHIPPING_HASH_WIDTH, SHIPPING_ID_WIDTH, SHIPPIN
 import { SHIPPING_MONEY_WIDTH } from '../migrations/0108_shipping_keys.js';
 import { SHIPPING_CARRIER_TEXT_WIDTH, SHIPPING_REASON_WIDTH, SHIPPING_URL_WIDTH } from '../migrations/0109_shipping_bookings.js';
 import { SHIPPING_LABEL_GONE_WIDTH, SHIPPING_LABEL_SIZE_WIDTH } from '../migrations/0110_shipping_labels.js';
+import { SHIPPING_VOID_MESSAGE_WIDTH } from '../migrations/0112_shipping_refunds.js';
 import type { AdminiumShippingBookingsTable } from '../schema/tables.js';
 import { affected, isDuplicateKeyError, readBool, writeBool } from './util.js';
 import type { ShippingKeyMode, ShippingSlot } from './shipping.js';
 
-export { SHIPPING_CARRIER_TEXT_WIDTH, SHIPPING_LABEL_SIZE_WIDTH, SHIPPING_REASON_WIDTH, SHIPPING_URL_WIDTH };
+export { SHIPPING_CARRIER_TEXT_WIDTH, SHIPPING_LABEL_SIZE_WIDTH, SHIPPING_REASON_WIDTH, SHIPPING_URL_WIDTH, SHIPPING_VOID_MESSAGE_WIDTH };
 
 /** What a stored label file is filed as. */
 export const SHIPPING_LABEL_FILE_KIND = 'ship-label';
@@ -38,14 +44,25 @@ export type ShippingDocumentKind = 'label' | 'customs-invoice';
 /** Why a booking's files are gone for good: past their keeping time, or their person was erased. */
 export type ShippingLabelGoneWhy = 'kept-90' | 'erased';
 
-export const SHIPPING_BOOKING_STATES = ['reserved', 'calling', 'booked', 'refused', 'unknown', 'released'] as const;
+export const SHIPPING_BOOKING_STATES = ['reserved', 'calling', 'booked', 'refused', 'unknown', 'released', 'voiding', 'voided'] as const;
 export type ShippingBookingState = (typeof SHIPPING_BOOKING_STATES)[number];
 
-/** A purchase that may have happened and has no final answer: the key it was made under cannot change. */
-export const UNRESOLVED_BOOKING_STATES: readonly ShippingBookingState[] = ['reserved', 'calling', 'unknown'];
+/** A purchase or a refund with no final answer: the key it was made under cannot change, or nobody could ever hear the answer. */
+export const UNRESOLVED_BOOKING_STATES: readonly ShippingBookingState[] = ['reserved', 'calling', 'unknown', 'voiding'];
+
+/** What a carrier last said about a refund. */
+export type ShippingVoidState = 'requested' | 'pending' | 'refunded' | 'refused';
+
+/** What a carrier's answer about a refund adds to the booking. */
+export interface ShippingVoidAnswer {
+  reference?: string | undefined;
+  amount?: string | undefined;
+  currency?: string | undefined;
+  message?: string | undefined;
+}
 
 /** The states that give the slot up. */
-const SLOT_FREED: readonly ShippingBookingState[] = ['refused', 'released'];
+const SLOT_FREED: readonly ShippingBookingState[] = ['refused', 'released', 'voided'];
 
 /** One parcel's place: the real table, because two apps on one database may both call theirs `orders`. */
 export type ShippingBookingSlot = Pick<ShippingSlot, 'connectionId' | 'rowKey' | 'purpose' | 'parcelNumber'> & { tableName: string };
@@ -90,6 +107,19 @@ export interface ShippingBooking extends ShippingSlot {
   /** Set once its files are deleted for good: nothing may fetch them again. */
   labelGoneAt: number | null;
   labelGoneWhy: ShippingLabelGoneWhy | null;
+  /** The carrier's last word on a refund, if one was ever asked for. */
+  voidState: ShippingVoidState | null;
+  voidBy: string | null;
+  /** Written before the carrier is called. */
+  voidAskedAt: number | null;
+  /** The carrier answered the request at all. Null means it may never have arrived. */
+  voidHeardAt: number | null;
+  voidSettledAt: number | null;
+  voidReference: string | null;
+  /** Only what the carrier reported. */
+  voidAmount: string | null;
+  voidCurrency: string | null;
+  voidMessage: string | null;
   /** The shop day this attempt counts against the daily limit, when it was bound by one. */
   countedDay: string | null;
   /** Whether it counts now: a refusal gives it back, and a label that turns up late takes it again. */
@@ -231,6 +261,15 @@ export function shippingBookingsRepo(meta: MetaDb) {
       labelClockAt: number(row.labelClockAt),
       labelGoneAt: number(row.labelGoneAt),
       labelGoneWhy: row.labelGoneWhy === 'kept-90' || row.labelGoneWhy === 'erased' ? row.labelGoneWhy : null,
+      voidState: row.voidState === 'requested' || row.voidState === 'pending' || row.voidState === 'refunded' || row.voidState === 'refused' ? row.voidState : null,
+      voidBy: row.voidBy ?? null,
+      voidAskedAt: number(row.voidAskedAt),
+      voidHeardAt: number(row.voidHeardAt),
+      voidSettledAt: number(row.voidSettledAt),
+      voidReference: row.voidReference ?? null,
+      voidAmount: row.voidAmount ?? null,
+      voidCurrency: row.voidCurrency ?? null,
+      voidMessage: row.voidMessage ?? null,
       countedDay: row.countedDay,
       countHeld: readBool(row.countHeld),
       reason: row.reason,
@@ -252,6 +291,20 @@ export function shippingBookingsRepo(meta: MetaDb) {
     checkFields(fields);
     const { chargeDiffers, ...rest } = fields;
     return { ...rest, ...(chargeDiffers === undefined ? {} : { chargeDiffers: writeBool(meta, chargeDiffers) as boolean }) };
+  };
+
+  const voidAnswer = (answer: ShippingVoidAnswer) => {
+    const fits = (value: string | undefined, width: number) => (value === undefined || value.length > width ? undefined : value);
+    const reference = fits(answer.reference, SHIPPING_CARRIER_TEXT_WIDTH);
+    const amount = fits(answer.amount, SHIPPING_MONEY_WIDTH);
+    const currency = fits(answer.currency, 3);
+    const message = answer.message === undefined ? undefined : answer.message.slice(0, SHIPPING_VOID_MESSAGE_WIDTH);
+    return {
+      ...(reference === undefined ? {} : { voidReference: reference }),
+      // An amount and its currency are kept together, or not at all.
+      ...(amount === undefined || currency === undefined ? {} : { voidAmount: amount, voidCurrency: currency }),
+      ...(message === undefined ? {} : { voidMessage: message }),
+    };
   };
 
   const repo = {
@@ -383,6 +436,75 @@ export function shippingBookingsRepo(meta: MetaDb) {
         if (isDuplicateKeyError(error)) return false;
         throw error;
       }
+    },
+
+    /**
+     * A refund is asked for, written before the carrier is called. From here the
+     * label must not be used. Answers true for the one call that took the step.
+     */
+    async askVoid(id: string, by: string, at: number): Promise<boolean> {
+      const moved = await db
+        .updateTable('adminium_shipping_bookings')
+        .set({ state: 'voiding', voidState: 'requested', voidBy: by, voidAskedAt: at, voidHeardAt: null, voidSettledAt: null, voidReference: null, voidAmount: null, voidCurrency: null, voidMessage: null, updatedAt: at })
+        .where('id', '=', id)
+        .where('state', '=', 'booked')
+        .executeTakeFirst();
+      return affected(moved.numUpdatedRows) > 0;
+    },
+
+    /** The carrier answered and has not decided yet. */
+    async voidHeard(id: string, state: 'requested' | 'pending', answer: ShippingVoidAnswer, at: number): Promise<boolean> {
+      const moved = await db
+        .updateTable('adminium_shipping_bookings')
+        .set({ voidState: state, voidHeardAt: at, ...voidAnswer(answer), updatedAt: at })
+        .where('id', '=', id)
+        .where('state', '=', 'voiding')
+        .executeTakeFirst();
+      return affected(moved.numUpdatedRows) > 0;
+    },
+
+    /** The refund landed: the place is free, and the label's keeping clock moves to now. */
+    async settleVoided(id: string, answer: ShippingVoidAnswer, at: number): Promise<boolean> {
+      const moved = await db
+        .updateTable('adminium_shipping_bookings')
+        .set({ state: 'voided', openKey: null, voidState: 'refunded', voidHeardAt: at, voidSettledAt: at, ...voidAnswer(answer), updatedAt: at })
+        .where('id', '=', id)
+        .where('state', '=', 'voiding')
+        .executeTakeFirst();
+      if (affected(moved.numUpdatedRows) === 0) return false;
+      await moveLabelClock(db, id, at);
+      return true;
+    },
+
+    /**
+     * The carrier said no: the label is live again. If a replacement took the
+     * place meanwhile, both are paid, and the answer names who holds it so a
+     * person can be told.
+     */
+    async settleVoidRefused(id: string, answer: ShippingVoidAnswer, at: number): Promise<{ moved: boolean; holder: ShippingBooking | null }> {
+      const moved = await db
+        .updateTable('adminium_shipping_bookings')
+        .set({ state: 'booked', voidState: 'refused', voidHeardAt: at, voidSettledAt: at, ...voidAnswer(answer), updatedAt: at })
+        .where('id', '=', id)
+        .where('state', '=', 'voiding')
+        .executeTakeFirst();
+      if (affected(moved.numUpdatedRows) === 0) return { moved: false, holder: null };
+      await moveLabelClock(db, id, at);
+      const booking = (await repo.byId(id))!;
+      if (booking.openKey !== null) return { moved: true, holder: null };
+      try {
+        await db.updateTable('adminium_shipping_bookings').set({ openKey: shippingOpenKey(booking, booking.mode), updatedAt: at }).where('id', '=', id).where('openKey', 'is', null).execute();
+        return { moved: true, holder: null };
+      } catch (error) {
+        if (!isDuplicateKeyError(error)) throw error;
+        return { moved: true, holder: await repo.open(booking, booking.mode) };
+      }
+    },
+
+    /** Someone chose to book a replacement while the refund is pending: this label gives up its place, and stays blocked. */
+    async letGoForReplacement(id: string, at: number): Promise<boolean> {
+      const moved = await db.updateTable('adminium_shipping_bookings').set({ openKey: null, updatedAt: at }).where('id', '=', id).where('state', '=', 'voiding').where('openKey', 'is not', null).executeTakeFirst();
+      return affected(moved.numUpdatedRows) > 0;
     },
 
     /** Says this attempt counts against that day. */
@@ -614,13 +736,13 @@ export function shippingBookingsRepo(meta: MetaDb) {
       return rows.map((row) => row.id);
     },
 
-    /** Bought labels whose steps after the purchase did not finish, last touched before `before`. */
+    /** Labels whose steps after the purchase, or after a refund, did not finish, last touched before `before`. */
     async unapplied(before: number, limit = 200): Promise<ShippingBooking[]> {
       const rows = await db
         .selectFrom('adminium_shipping_bookings')
         .selectAll()
-        .where('state', '=', 'booked')
-        .where('appliedAt', 'is', null)
+        // A bought label with steps owed, or a refunded one whose steps are still to undo.
+        .where((eb) => eb.or([eb.and([eb('state', '=', 'booked'), eb('appliedAt', 'is', null)]), eb.and([eb('state', '=', 'voided'), eb('appliedAt', 'is not', null)])]))
         .where('updatedAt', '<', before)
         .orderBy('updatedAt', 'asc')
         .limit(limit)

@@ -16,6 +16,7 @@ import { z } from 'zod';
 
 import { isTestBooking } from './bookings.js';
 import type { ResolvedCarrier } from './carriers.js';
+import type { RefundOutcome } from './refunds.js';
 import { FUTURE_SKEW_MS } from './tracking.js';
 import { trackStatusOf } from './tracking-readers.js';
 
@@ -77,7 +78,7 @@ export type RefreshOutcome = 'updated' | 'unchanged' | 'no-events' | 'recent' | 
 /** One parcel, for one person's press. Writes "last checked" only when the carrier really answered. */
 export async function refreshParcel(deps: RefreshDeps, given: ShippingBooking, resolved: ResolvedCarrier, accountFingerprint: string): Promise<RefreshOutcome> {
   if (isTestBooking(given)) return 'test';
-  if (given.state !== 'booked' || given.tracking === null) return 'not-open';
+  if ((given.state !== 'booked' && given.state !== 'voiding') || given.tracking === null) return 'not-open';
   if (given.accountFingerprint !== accountFingerprint) return 'other-account';
   const repo = shippingTrackingRepo(deps.meta);
   const now = deps.now();
@@ -86,7 +87,7 @@ export async function refreshParcel(deps: RefreshDeps, given: ShippingBooking, r
   // The parcel first, then the booking: a number that changes after this cannot have its old status written on it.
   const before = await repo.parcel(given.id);
   const booking = await shippingBookingsRepo(deps.meta).byId(given.id);
-  if (before === null || booking === null || booking.state !== 'booked' || booking.tracking === null) return 'not-open';
+  if (before === null || booking === null || (booking.state !== 'booked' && booking.state !== 'voiding') || booking.tracking === null) return 'not-open';
   const answer = await askCarrierForTrack(resolved, booking, now);
   if (answer.kind === 'rate-limited') return 'rate-limited';
   if (answer.kind === 'no-answer') {
@@ -118,7 +119,7 @@ export interface RefreshOpenResult {
 /** "Refresh open parcels": as many of the longest-untried as the budget allows. */
 export async function refreshOpenParcels(
   deps: RefreshDeps,
-  input: { carrierInstallId: string; installId: string; connectionId: string; resolved: ResolvedCarrier; accountFingerprint: string; reaches: (booking: ShippingBooking) => Promise<boolean> },
+  input: { carrierInstallId: string; installId: string; connectionId: string; resolved: ResolvedCarrier; accountFingerprint: string; reaches: (booking: ShippingBooking) => Promise<boolean>; checkRefund?: (booking: ShippingBooking) => Promise<RefundOutcome> },
 ): Promise<RefreshOpenResult> {
   const repo = shippingTrackingRepo(deps.meta);
   const bookings = shippingBookingsRepo(deps.meta);
@@ -168,13 +169,22 @@ export async function refreshOpenParcels(
       outcome = 'rate-limited';
       break;
     }
+    // A pending refund is asked about too, or a private install hears its answer only by opening each order (S3-F19).
+    let refundMoved = false;
+    if (booking.state === 'voiding' && input.checkRefund !== undefined && calls < REFRESH_OPEN_BATCH) {
+      calls += 1;
+      const said = await input.checkRefund(booking);
+      if (said === 'no-answer') failed += 1;
+      refundMoved = said === 'refunded' || said === 'refused';
+    }
     if (result === 'no-answer') {
       failed += 1;
+      if (refundMoved) updated += 1;
       continue;
     }
     checked += 1;
     answered.add(booking.id);
-    if (result === 'updated') updated += 1;
+    if (result === 'updated' || refundMoved) updated += 1;
   }
   const parcels = await repo.parcels(reached.map((one) => one.id));
   const stillOpen = reached.filter((one) => (parcels.get(one.id)?.statusRank ?? -1) < SHIPPING_TRACK_FINAL_RANK).map((one) => one.id);

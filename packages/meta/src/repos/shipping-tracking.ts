@@ -304,6 +304,12 @@ export function shippingTrackingRepo(meta: MetaDb) {
       return rows.map((row) => row.id);
     },
 
+    /** The live label with a refund pending that a carrier's event is about. */
+    async liveVoidingByShipment(carrierInstallId: string, shipmentId: string): Promise<string[]> {
+      const rows = await db.selectFrom('adminium_shipping_bookings').select('id').where('carrierInstallId', '=', carrierInstallId).where('carrierShipmentId', '=', shipmentId).where('state', '=', 'voiding').where('mode', '=', 'live').limit(5).execute();
+      return rows.map((row) => row.id);
+    },
+
     /** Test bookings are never in this list: test numbers repeat. */
     async liveBookedByTracking(carrierInstallId: string, tracking: string): Promise<string[]> {
       const rows = await db.selectFrom('adminium_shipping_bookings').select('id').where('carrierInstallId', '=', carrierInstallId).where('tracking', '=', tracking).where('state', '=', 'booked').where('mode', '=', 'live').limit(5).execute();
@@ -450,7 +456,8 @@ export function shippingTrackingRepo(meta: MetaDb) {
         .leftJoin('adminium_shipping_parcels as p', 'p.bookingId', 'b.id')
         .select(['b.id as bookingId', 'b.createdAt as createdAt', 'p.statusRank as rank', 'p.statusAt as statusAt', 'p.checkedAt as checkedAt', 'p.polledAt as polledAt'])
         .where('b.carrierInstallId', '=', scope.carrierInstallId)
-        .where('b.state', '=', 'booked')
+        // A label with a refund pending stays open: a press is how a private install hears the answer (S3-F19).
+        .where('b.state', 'in', ['booked', 'voiding'])
         .where('b.mode', '=', 'live')
         .where('b.tracking', 'is not', null)
         .where('b.createdAt', '>=', since)
@@ -482,7 +489,7 @@ export function shippingTrackingRepo(meta: MetaDb) {
      * page of a list to judge, not a verdict: the caller works out each row's
      * reasons and who reaches it. Reads through the connection's index.
      */
-    async attentionIds(scope: { connectionId: string; installId: string; calledBefore: number; openSince: number; quietBefore: number }, limit: number, offset = 0): Promise<string[]> {
+    async attentionIds(scope: { connectionId: string; installId: string; calledBefore: number; openSince: number; quietBefore: number; refusedSince: number }, limit: number, offset = 0): Promise<string[]> {
       const rows = await db
         .selectFrom('adminium_shipping_bookings as b')
         .leftJoin('adminium_shipping_parcels as p', 'p.bookingId', 'b.id')
@@ -498,6 +505,8 @@ export function shippingTrackingRepo(meta: MetaDb) {
               eb('b.mode', '=', 'live'),
               eb.or([
                 eb('b.duplicates', '>', 0),
+                eb('b.state', '=', 'voiding'),
+                eb.and([eb('b.state', '=', 'booked'), eb('b.voidState', '=', 'refused'), eb('b.voidSettledAt', '>=', scope.refusedSince)]),
                 eb.and([
                   eb('b.state', '=', 'booked'),
                   eb.or([

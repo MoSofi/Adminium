@@ -59,6 +59,8 @@ export const quoteBody = z
       .strict(),
     purpose: z.enum(SHIPMENT_PURPOSES).optional(),
     parcelNumber: z.number().int().min(1).max(99).optional(),
+    /** The approved return a return label is for. The server works out its place from it. */
+    returnId: z.string().min(1).max(64).optional(),
   })
   .strict();
 
@@ -151,6 +153,8 @@ export const bookingQuery = z.object({
   id: z.string().min(1).max(SHIPPING_ROW_WIDTH),
   purpose: z.enum(SHIPMENT_PURPOSES).optional(),
   parcelNumber: z.coerce.number().int().min(1).max(99).optional(),
+  /** Reads a return's own place, worked out by the server. */
+  returnId: z.string().min(1).max(64).optional(),
 });
 
 /** A purchase names a stored quote and one of its rates. The order, parcel and price are the server's. */
@@ -160,11 +164,18 @@ export const bookBody = z
     rateId: z.string().min(1).max(64),
     /** Someone who manages shipping saw that an earlier attempt cannot be looked up, and means to buy anyway. */
     confirmEarlier: z.boolean().optional(),
+    /** Someone who may cancel was told both labels stay paid until the refund lands, and means to book another. */
+    replaceRefunding: z.boolean().optional(),
+    /** The approved return this label is for, asked again at purchase. */
+    returnId: z.string().min(1).max(64).optional(),
   })
   .strict();
 
 /** What a person declares, in so many words, to free an order whose purchase has no known result. */
 export const releaseBody = z.object({ declaration: z.literal('no-label-exists') }).strict();
+
+/** A person says in so many words that this label was not used and will be destroyed. */
+export const refundBody = z.object({ declaration: z.literal('label-not-used') }).strict();
 
 /** Where a parcel is. `checkedAt` is a person's Refresh, never a webhook. */
 export const trackView = z
@@ -177,10 +188,29 @@ export const trackView = z
   })
   .strict();
 
+/** How a label's refund stands. An amount appears only if the carrier reported one. */
+const refundView = z
+  .object({
+    state: z.enum(['requested', 'pending', 'refunded', 'refused']).nullable(),
+    askedAt: z.number().nullable(),
+    settledAt: z.number().nullable(),
+    heardAt: z.number().nullable(),
+    unconfirmed: z.boolean(),
+    expectedBy: z.number().nullable(),
+    claimBy: z.number(),
+    tooLate: z.boolean(),
+    scanned: z.boolean(),
+    canRequest: z.boolean(),
+    message: z.string().nullable(),
+    amount: z.string().optional(),
+    currency: z.string().optional(),
+  })
+  .strict();
+
 const bookingView = z
   .object({
     id: z.string(),
-    state: z.enum(['reserved', 'calling', 'booked', 'refused', 'unknown', 'released']),
+    state: z.enum(['reserved', 'calling', 'booked', 'refused', 'unknown', 'released', 'voiding', 'voided']),
     test: z.boolean(),
     purpose: z.string(),
     parcelNumber: z.number(),
@@ -204,6 +234,7 @@ const bookingView = z
         customsInvoice: z.boolean(),
       })
       .strict(),
+    refund: refundView.nullable(),
     amount: z.string().optional(),
     currency: z.string().optional(),
     chargeDiffers: z.boolean().optional(),
@@ -213,6 +244,10 @@ const bookingView = z
 
 export const bookingReply = z.object({ data: bookingView });
 
+export const refundReply = z.object({
+  data: z.object({ outcome: z.enum(['requested', 'pending', 'refunded', 'refused', 'no-answer', 'other-account', 'cannot-check', 'not-open']), booking: bookingView }).strict(),
+});
+
 export const bookingsReply = z.object({
   data: z
     .object({
@@ -220,6 +255,8 @@ export const bookingsReply = z.object({
       /** True only on a positive "no booking": anything unsure is false, and says why. */
       bookable: z.boolean(),
       blockedBy: z.enum(['booking', 'label-on-order', 'no-carrier']).nullable(),
+      /** The parcel number the answer is about: a return's is worked out here. */
+      parcelNumber: z.number().optional(),
     })
     .strict(),
 });

@@ -2362,6 +2362,15 @@ export interface AdminiumShippingBookingsTable {
   labelClockAt: ColumnType<Ts | null, number | null | undefined, number | null>;
   labelGoneAt: ColumnType<Ts | null, number | null | undefined, number | null>;
   labelGoneWhy: ColumnType<string | null, string | null | undefined, string | null>;
+  voidState: ColumnType<string | null, string | null | undefined, string | null>;
+  voidBy: ColumnType<string | null, string | null | undefined, string | null>;
+  voidAskedAt: ColumnType<number | null, number | null | undefined, number | null>;
+  voidHeardAt: ColumnType<number | null, number | null | undefined, number | null>;
+  voidSettledAt: ColumnType<number | null, number | null | undefined, number | null>;
+  voidReference: ColumnType<string | null, string | null | undefined, string | null>;
+  voidAmount: ColumnType<string | null, string | null | undefined, string | null>;
+  voidCurrency: ColumnType<string | null, string | null | undefined, string | null>;
+  voidMessage: ColumnType<string | null, string | null | undefined, string | null>;
   countedDay: string | null;
   countHeld: ColumnType<unknown, boolean, boolean>;
   reason: string | null;
