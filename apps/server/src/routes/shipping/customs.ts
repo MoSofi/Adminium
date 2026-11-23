@@ -27,7 +27,7 @@ import { appShippingPermission, PERMISSIONS } from '../../rbac/permissions.js';
 import { tagRoutes } from '../../security/route-audience.js';
 import { shippingPerson, shippingViewerOf } from '../../shipping/access.js';
 import { orderCountry, readShipFrom } from '../../shipping/addresses.js';
-import { cleanInternational, customsSigners, deliversTo, draftOf, internationalBody, readGoods, readInternational, signerName } from '../../shipping/customs.js';
+import { cleanInternational, customsSigners, deliversTo, draftOf, internationalBody, readGoods, readInternational, signerName, codeListUrlOf } from '../../shipping/customs.js';
 import { mayShipAbroad } from '../../shipping/limits.js';
 import { ShippingRefusal } from '../../shipping/refusals.js';
 import type { ReachedOrder } from './bookings.js';
@@ -68,11 +68,11 @@ export function shippingCustomsRoutes(deps: ShippingCustomsRoutesDeps): FastifyP
         if ((await signerName(meta, install, signerId)) === null) {
           throw new ShippingRefusal('CUSTOMS_SIGNER', 'The person named on customs declarations must hold the customs right.', { reason: 'not-allowed' });
         }
-        const next = cleanInternational(body, signerId);
+        const next = cleanInternational(body, signerId, before);
         await repo.setInternational(install.row.id, next, by, app.rbac.now());
         // A rate was priced for the declaration these defaults made.
         await repo.clearQuotes(install.row.id);
-        const shown = (one: typeof before) => (one === null ? null : { countries: one.countries, currency: one.currency, originCountry: one.originCountry, signer: one.signerId, products: one.products.length });
+        const shown = (one: typeof before) => (one === null ? null : { countries: one.countries, currency: one.currency, originCountry: one.originCountry, signer: one.signerId, products: one.products.length, exporter: { eori: one.exporter?.eori !== undefined, ioss: one.exporter?.ioss !== undefined, taxId: one.exporter?.taxId !== undefined } });
         await app.rbac.audit(request, {
           category: 'settings',
           action: 'shipping.international.saved',
@@ -126,7 +126,7 @@ export function shippingCustomsRoutes(deps: ShippingCustomsRoutesDeps): FastifyP
         });
         const draft = draftOf(goods, international, mapping.customs.currency === undefined ? undefined : order.row[mapping.customs.currency], { country: to });
         const signer = await signerName(meta, install, international.signerId);
-        return { data: { abroad: true as const, offered: true as const, to, signer, ...draft } };
+        return { data: { abroad: true as const, offered: true as const, ownCountry: from, to, codeListUrl: codeListUrlOf(from), signer, ...draft } };
       },
     );
   };

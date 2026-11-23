@@ -14,7 +14,7 @@
  *    final word.
  *  - A value is an exact decimal, and no exchange rate is guessed.
  */
-import type { Address, CustomsDeclaration, CustomsItem } from '@adminium/add-on-contracts';
+import { CUSTOMS_TAX_ID_TYPES, customsExporterSchema, type Address, type CustomsDeclaration, type CustomsExporter, type CustomsItem } from '@adminium/add-on-contracts';
 import type { ShippingOrder } from '@adminium/manifest';
 import { usersRepo, type InstalledManifest, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
@@ -40,6 +40,16 @@ const MAX_VALUE_PLACES = 6;
 /** The EU's member states: the destinations that ask for product codes. */
 export const EU_COUNTRIES: ReadonlySet<string> = new Set(['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE']);
 
+const OFFICIAL_CODE_LISTS: Readonly<Record<string, string>> = {
+  GB: 'https://www.trade-tariff.service.gov.uk/find_commodity',
+  US: 'https://hts.usitc.gov/',
+};
+
+/** The official code list for a shop's own country, where one is known. No link beats a wrong one. */
+export function codeListUrlOf(country: string | null | undefined): string | null {
+  return country === null || country === undefined ? null : (OFFICIAL_CODE_LISTS[country] ?? null);
+}
+
 /** An HS code as a person types it: 6 to 10 digits, with spaces or dots if they copied them. Blank is allowed. */
 const hsText = z
   .string()
@@ -53,6 +63,22 @@ export function hsDigits(value: string): string {
 
 const countryText = z.string().trim().toUpperCase().regex(ISO_COUNTRY, 'a two-letter country code');
 const codeText = z.string().trim().min(1).max(64);
+
+/** A number as a person pastes it: spaces out, capitals in. Blank means the shop has none. */
+const numberText = (pattern: RegExp, message: string) =>
+  z
+    .string()
+    .max(40)
+    .transform((value) => value.replace(/\s/g, '').toUpperCase())
+    .refine((value) => value === '' || pattern.test(value), message);
+
+const exporterBody = z
+  .object({
+    eori: numberText(/^[A-Z]{2}[A-Z0-9]{6,17}$/, 'An EORI number is a two-letter country code and 6 to 17 letters or digits.').optional(),
+    ioss: numberText(/^IM\d{10}$/, 'An IOSS number is IM and 10 digits.').optional(),
+    taxId: z.object({ type: z.enum(CUSTOMS_TAX_ID_TYPES), number: numberText(/^[A-Z0-9-]{1,15}$/, 'A tax number is up to 15 letters, digits or dashes.') }).strict().optional(),
+  })
+  .strict();
 
 const productBody = z
   .object({
@@ -78,6 +104,8 @@ export const internationalBody = z
       .max(MAX_PRODUCTS)
       .refine((rows) => new Set(rows.map((row) => row.sku)).size === rows.length, 'A product is listed once.')
       .optional(),
+    /** The shop's export numbers. Left out, they stay as they were. A blank removes one. */
+    exporter: exporterBody.optional(),
   })
   .strict();
 
@@ -99,6 +127,7 @@ const internationalSchema = z
     hsCode: z.string().regex(/^\d{6,10}$/).optional(),
     signerId: z.string().min(1),
     products: z.array(storedProduct),
+    exporter: customsExporterSchema.optional(),
   })
   .strict();
 
@@ -111,8 +140,9 @@ export function readInternational(stored: unknown): InternationalSettings | null
 }
 
 /** A form's values as stored: blanks out, codes as bare digits, countries once each. */
-export function cleanInternational(body: z.infer<typeof internationalBody>, signerId: string): InternationalSettings {
+export function cleanInternational(body: z.infer<typeof internationalBody>, signerId: string, before: InternationalSettings | null = null): InternationalSettings {
   const hs = hsDigits(body.hsCode ?? '');
+  const exporter = body.exporter === undefined ? before?.exporter : cleanExporter(body.exporter);
   return internationalSchema.parse({
     countries: [...new Set(body.countries)].sort(),
     currency: body.currency,
@@ -124,7 +154,18 @@ export function cleanInternational(body: z.infer<typeof internationalBody>, sign
       const own = hsDigits(hsCode ?? '');
       return { sku, ...(own === '' ? {} : { hsCode: own }), ...(originCountry === undefined ? {} : { originCountry }), ...(manufacturerCode === undefined ? {} : { manufacturerCode }) };
     }),
+    ...(exporter === undefined ? {} : { exporter }),
   });
+}
+
+/** The numbers a form holds, with the blanks gone. Nothing at all when none is left. */
+function cleanExporter(body: z.infer<typeof exporterBody>): CustomsExporter | undefined {
+  const out: CustomsExporter = {
+    ...(body.eori === undefined || body.eori === '' ? {} : { eori: body.eori }),
+    ...(body.ioss === undefined || body.ioss === '' ? {} : { ioss: body.ioss }),
+    ...(body.taxId === undefined || body.taxId.number === '' ? {} : { taxId: body.taxId }),
+  };
+  return Object.keys(out).length === 0 ? undefined : out;
 }
 
 /** The countries an order may go to: none, unless the shop listed some and its app says where the goods are. */
@@ -356,8 +397,36 @@ function unitWeights(lines: readonly DeclaredLine[], parcelKg: number): number[]
   return each < 0.001 ? null : lines.map(() => each);
 }
 
+/** The most an IOSS number may cover, in euros, with six decimal places. */
+const IOSS_CEILING = 150_000_000n;
+
+/** The goods' total in millionths of the currency, or null if a line has no value yet. */
+function totalMillionths(lines: readonly DeclaredLine[]): bigint | null {
+  let total = 0n;
+  for (const line of lines) {
+    if (line.quantity === null || line.unitValue === null) return null;
+    const [whole = '0', fraction = ''] = line.unitValue.split('.');
+    total += BigInt(`${whole}${fraction.padEnd(MAX_VALUE_PLACES, '0')}`) * BigInt(line.quantity);
+  }
+  return total;
+}
+
+/**
+ * The shop's numbers that belong on this parcel. An IOSS number covers goods
+ * sold into the EU, up to 150 euros, so it stays off any other parcel and off
+ * one in euros above that. No exchange rate is guessed for another currency.
+ */
+export function exporterFor(settings: InternationalSettings, to: Pick<Address, 'country'>, draft: CustomsDraft): CustomsExporter | undefined {
+  if (settings.exporter === undefined) return undefined;
+  const { eori, ioss, taxId } = settings.exporter;
+  const total = draft.currency === 'EUR' ? totalMillionths(draft.lines) : null;
+  const iossFits = ioss !== undefined && EU_COUNTRIES.has(to.country) && (draft.currency !== 'EUR' || (total !== null && total <= IOSS_CEILING));
+  const out: CustomsExporter = { ...(eori === undefined ? {} : { eori }), ...(iossFits ? { ioss } : {}), ...(taxId === undefined ? {} : { taxId }) };
+  return Object.keys(out).length === 0 ? undefined : out;
+}
+
 /** The declaration a carrier is given, or a refusal saying which lines stop it. */
-export function declarationOf(draft: CustomsDraft, signer: string, parcelKg: number): CustomsDeclaration {
+export function declarationOf(draft: CustomsDraft, signer: string, parcelKg: number, exporter?: CustomsExporter): CustomsDeclaration {
   const refuse = (problems: readonly CustomsProblem[]) => new ShippingRefusal('CUSTOMS_INCOMPLETE', 'The customs details for this order are not complete.', { problems });
   if (draft.problems.length > 0 || draft.currency === null) throw refuse(draft.problems);
   const weights = unitWeights(draft.lines, parcelKg);
@@ -375,7 +444,7 @@ export function declarationOf(draft: CustomsDraft, signer: string, parcelKg: num
     ...(line.manufacturerCode === undefined ? {} : { manufacturerCode: line.manufacturerCode }),
   }));
   // A shop's order is a sale, and undelivered goods come back to it.
-  return { contents: 'merchandise', signer, certified: true, nonDelivery: 'return', items };
+  return { contents: 'merchandise', signer, certified: true, nonDelivery: 'return', items, ...(exporter === undefined ? {} : { exporter }) };
 }
 
 /** A person's name, while they may still sign for this install. Asked of their real grants, never of a role's name. */

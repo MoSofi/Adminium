@@ -21,7 +21,7 @@ import { composeServer, type ComposedServer } from '../src/compose.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
-import { declarationOf, draftOf, hsDigits, type GoodsLine, type InternationalSettings } from '../src/shipping/customs.js';
+import { cleanInternational, declarationOf, draftOf, exporterFor, hsDigits, internationalBody, type GoodsLine, type InternationalSettings } from '../src/shipping/customs.js';
 import { accountFingerprintOf, credentialHash } from '../src/shipping/fingerprint.js';
 import { ShippingRefusal } from '../src/shipping/refusals.js';
 import { addOnHarness, addOnManifest, type Harness } from './app-add-ons.helpers.js';
@@ -529,6 +529,43 @@ describe.each(LEGS)('a parcel going abroad on %s', (dialect, available) => {
     expect((res.json() as Doc)['error']['details']['problems']).toEqual([{ field: 'weight' }]);
   });
 
+  it.skipIf(!available)('says whether the shop sends parcels abroad, to anyone with a right on its labels', async () => {
+    const shipsAbroad = async () => ((await call('boss', 'GET', 'shop/shipping/access')).json() as Doc)['data']['shipsAbroad'];
+    expect(await shipsAbroad()).toBe(false);
+    await setUp();
+    expect(await shipsAbroad()).toBe(true);
+    await setUp({ countries: [] });
+    expect(await shipsAbroad()).toBe(false);
+  });
+
+  it.skipIf(!available)('states the shop\'s export numbers only when it has them, and audits that they changed, never what they are', async () => {
+    const id = await order();
+    await setUp();
+    expect((await quote(id, ticked)).statusCode).toBe(200);
+    expect(fake().quotes.at(-1)!.options['customs']).not.toHaveProperty('exporter');
+    expect(fake().quotes.at(-1)!.options['customs']).not.toHaveProperty('filingCode');
+
+    const saved = await setUp({ exporter: { eori: 'gb 123456789000', ioss: 'IM3720000224', taxId: { type: 'VAT', number: 'GB123456789' } } });
+    expect(saved.statusCode, saved.body).toBe(200);
+    expect((saved.json() as Doc)['data']['customs']['exporter']).toEqual({ eori: 'GB123456789000', ioss: 'IM3720000224', taxId: { type: 'VAT', number: 'GB123456789' } });
+    expect((await quote(id, ticked)).statusCode).toBe(200);
+    expect(fake().quotes.at(-1)!.options['customs']['exporter']).toEqual({ eori: 'GB123456789000', ioss: 'IM3720000224', taxId: { type: 'VAT', number: 'GB123456789' } });
+
+    // A save that does not mention them keeps them, and an IOSS number never leaves on a parcel outside the EU.
+    expect((await setUp({ description: 'Cards' })).statusCode).toBe(200);
+    expect((await quote(await order({ ship_country: 'US' }), ticked)).statusCode).toBe(200);
+    expect(fake().quotes.at(-1)!.options['customs']['exporter']).toEqual({ eori: 'GB123456789000', taxId: { type: 'VAT', number: 'GB123456789' } });
+
+    const rows = await h.meta.db.selectFrom('adminium_audit_log').select(['changes']).where('action', '=', 'shipping.international.saved').execute();
+    const written = JSON.stringify(rows);
+    expect(written).not.toContain('123456789');
+    expect(written).not.toContain('IM3720000224');
+
+    const cleared = await setUp({ exporter: { eori: '', ioss: '', taxId: { type: 'VAT', number: '' } } });
+    expect((cleared.json() as Doc)['data']['customs']).not.toHaveProperty('exporter');
+    expect((await setUp({ exporter: { ioss: 'not-a-number' } })).statusCode).toBe(422);
+  });
+
   it.skipIf(!available)('the form is filled in from the order and warns of a code the EU asks for', async () => {
     await setUp();
     const res = await form(await order());
@@ -590,6 +627,34 @@ describe('what a declaration states', () => {
   it('refuses a correction to a line the order does not have', () => {
     const draft = draftOf([good()], settings, undefined, { country: 'US' }, [{ line: '99', description: 'Other' }]);
     expect(draft.problems).toEqual([{ line: '99', field: 'lines' }]);
+  });
+
+  describe('the shop\'s export numbers', () => {
+    const numbers = { eori: 'GB123456789000', ioss: 'IM3720000224', taxId: { type: 'VAT' as const, number: 'GB123456789' } };
+    const withNumbers: InternationalSettings = { ...settings, exporter: numbers };
+
+    it('states nothing for a shop that has none', () => {
+      expect(exporterFor(settings, { country: 'DE' }, draftOf([good()], settings, 'EUR', { country: 'DE' }))).toBeUndefined();
+      expect(declarationOf(draftOf([good()], settings, undefined, { country: 'US' }), 'Ada', 1)).not.toHaveProperty('exporter');
+    });
+
+    it('keeps an IOSS number to parcels into the EU', () => {
+      expect(exporterFor(withNumbers, { country: 'FR' }, draftOf([good()], withNumbers, 'GBP', { country: 'FR' }))).toEqual(numbers);
+      expect(exporterFor(withNumbers, { country: 'US' }, draftOf([good()], withNumbers, 'GBP', { country: 'US' }))).toEqual({ eori: numbers.eori, taxId: numbers.taxId });
+    });
+
+    it('leaves an IOSS number off goods in euros above its 150 ceiling, to the cent', () => {
+      const at = (unitValue: string) => exporterFor(withNumbers, { country: 'FR' }, draftOf([good({ quantity: 2, unitValue })], withNumbers, 'EUR', { country: 'FR' }));
+      expect(at('75.00')).toHaveProperty('ioss');
+      expect(at('75.01')).not.toHaveProperty('ioss');
+    });
+
+    it('drops blanks, and keeps what a save did not mention', () => {
+      const base = { countries: ['DE'], currency: 'GBP', originCountry: 'GB' };
+      expect(cleanInternational(internationalBody.parse(base), 'usr_1', withNumbers).exporter).toEqual(numbers);
+      expect(cleanInternational(internationalBody.parse({ ...base, exporter: { eori: ' gb 123456789000 ' } }), 'usr_1').exporter).toEqual({ eori: 'GB123456789000' });
+      expect(cleanInternational(internationalBody.parse({ ...base, exporter: { eori: '' } }), 'usr_1', withNumbers)).not.toHaveProperty('exporter');
+    });
   });
 
   it('reads an order\'s own currency, and an HS code with its dots and spaces', () => {

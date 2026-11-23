@@ -277,3 +277,30 @@ describe('a real-shaped carrier', () => {
     expect(second.tracking).not.toBe(first.tracking);
   });
 });
+
+describe('a declaration\'s export numbers', () => {
+  const declaration = {
+    contents: 'merchandise',
+    signer: 'Ada',
+    certified: true,
+    nonDelivery: 'return',
+    items: [{ description: 'Cards', quantity: 1, unitValue: '4.50', currency: 'GBP', unitWeightKg: 0.1, originCountry: 'GB' }],
+  };
+
+  it('are optional', () => {
+    expect(customsDeclarationSchema.safeParse(declaration).success).toBe(true);
+  });
+
+  it('take the numbers in their real shapes', () => {
+    const exporter = { eori: 'GB123456789000', ioss: 'IM3720000224', taxId: { type: 'VAT', number: 'GB123456789' } };
+    expect(customsDeclarationSchema.safeParse({ ...declaration, exporter, filingCode: 'NOEEI_30_37_a' }).success).toBe(true);
+  });
+
+  it.each([{ eori: 'nope' }, { ioss: 'IM12' }, { taxId: { type: 'IOSS', number: 'IM3720000224' } }, { taxId: { type: 'VAT', number: 'much-too-long-for-a-carrier' } }, { other: 'x' }])('refuse %j', (exporter) => {
+    expect(customsDeclarationSchema.safeParse({ ...declaration, exporter }).success).toBe(false);
+  });
+
+  it('refuse a filing code nobody defined', () => {
+    expect(customsDeclarationSchema.safeParse({ ...declaration, filingCode: 'AES_ITN' }).success).toBe(false);
+  });
+});

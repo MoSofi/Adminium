@@ -6,7 +6,7 @@
  * reads where a parcel goes from the order, so nothing a client sends can
  * change it. A bad weight or size is refused, never replaced with a guess.
  */
-import { HANDOVER_KINDS, LABEL_SIZES, SHIPMENT_PURPOSES } from '@adminium/add-on-contracts';
+import { customsExporterSchema, HANDOVER_KINDS, LABEL_SIZES, SHIPMENT_PURPOSES } from '@adminium/add-on-contracts';
 import { SHIPPING_ID_WIDTH, SHIPPING_ROW_WIDTH, SHIPPING_TABLE_WIDTH } from '@adminium/meta';
 import { z } from 'zod';
 
@@ -104,9 +104,13 @@ export const shippingStatusReply = z.object({
         /** Null when the person named no longer holds the customs right. */
         signerName: z.string().nullable(),
         products: z.array(z.object({ sku: z.string(), hsCode: z.string().optional(), originCountry: z.string().optional(), manufacturerCode: z.string().optional() }).strict()),
+        /** The shop's export numbers. This reply is only for who manages shipping. */
+        exporter: customsExporterSchema.optional(),
       })
       .strict()
       .nullable(),
+    /** The official code list for the shop's own country, where one is known. */
+    codeListUrl: z.string().nullable(),
     /** The label size this shop asks carriers for. */
     labelSize: z.enum(LABEL_SIZES),
     limits: z.object({
@@ -133,6 +137,8 @@ export const shippingAccessReply = z.object({
       mayCustoms: z.boolean(),
       /** May send a parcel abroad: the owner, or someone with the customs right once the owner allowed it. */
       mayShipAbroad: z.boolean(),
+      /** The shop has listed a country abroad and its app says where an order's goods are. */
+      shipsAbroad: z.boolean(),
       pricesHidden: z.boolean(),
       booking: z.enum(['open', 'no-limit', 'daily-limit', 'no-right']),
       usedToday: z.number().optional(),
@@ -197,7 +203,11 @@ export const customsFormReply = z.object({
       .object({
         abroad: z.literal(true),
         offered: z.literal(true),
+        /** The shop's own country: which official tariff a person looks a code up in. */
+        ownCountry: z.string(),
         to: z.string(),
+        /** The official code list for that country, where one is known. */
+        codeListUrl: z.string().nullable(),
         /** Null when the person named no longer holds the customs right. */
         signer: z.string().nullable(),
         currency: z.string().nullable(),

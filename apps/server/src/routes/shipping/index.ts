@@ -47,7 +47,7 @@ import { pricesHiddenFrom, readsPartOf, shippingPerson, shippingViewerOf, type S
 import { cleanShipFrom, orderAddress, readShipFrom, recipientAbroad, recipientForRates, shipFromAddress, shipFromChanges } from '../../shipping/addresses.js';
 import { askForRates, carrierHttpFor, shippingCarrierFor, type ShippingCarrierDeps } from '../../shipping/carriers.js';
 import type { BookingDeps, BookingFaults } from '../../shipping/bookings.js';
-import { declarationOf, deliversTo, draftOf, readGoods, readInternational, signerName, type CustomsChoice } from '../../shipping/customs.js';
+import { declarationOf, deliversTo, draftOf, exporterFor, readGoods, readInternational, signerName, codeListUrlOf, type CustomsChoice, type InternationalSettings } from '../../shipping/customs.js';
 import { checkedAccount, type KeyLock, type OpenBookings } from '../../shipping/keys.js';
 import { bookingState, createQuoteGate, mayShipAbroad, orderCancelled, rateWithinLimit } from '../../shipping/limits.js';
 import { carrierLocked } from '../../shipping/locks.js';
@@ -164,7 +164,6 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
     const limits = await repo.limits(install.row.id);
     const usedToday = await repo.dayLabels(install.row.id, await venueDayOf(meta, connectionId));
     const international = readInternational((await repo.settings(install.row.id))?.international ?? null);
-    const declares = (shippingOrders(install) ?? []).some((order) => order.customs !== undefined);
     return {
       data: {
         appUpdated: shippingOrders(install) !== null,
@@ -176,8 +175,9 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
             return { ...carrier, account: accounts[carrier.key] ?? null, openBookings };
           }),
         ),
-        international: declares && international !== null && international.countries.length > 0,
+        international: sendsAbroad(install, international),
         customs: international === null ? null : { ...international, signerName: await signerName(meta, install, international.signerId) },
+        codeListUrl: codeListUrlOf(shop.shipFrom?.country),
         labelSize: await labelSizeOf(meta, install.row.id),
         limits: {
           perLabel: limits?.labelLimit != null && limits.labelCurrency !== null ? { amount: limits.labelLimit, currency: limits.labelCurrency } : null,
@@ -187,6 +187,11 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
         },
       },
     };
+  }
+
+  /** Whether this shop sends parcels abroad: its owner listed a country and its app says where an order's goods are. */
+  function sendsAbroad(install: InstalledManifest, international: InternationalSettings | null): boolean {
+    return international !== null && international.countries.length > 0 && (shippingOrders(install) ?? []).some((order) => order.customs !== undefined);
   }
 
   /** The order's table, as this database has it, or a refusal when the app does not declare it. */
@@ -338,7 +343,8 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
       orderTable: order.table as unknown as Pick<ResolvedTable, 'primaryKey'>,
     });
     const currency = mapping.customs.currency === undefined ? undefined : order.row[mapping.customs.currency];
-    return { declaration: declarationOf(draftOf(goods, international, currency, order.to, choice.edits), signer, parcel.weightKg), signerId: international.signerId };
+    const draft = draftOf(goods, international, currency, order.to, choice.edits);
+    return { declaration: declarationOf(draft, signer, parcel.weightKg, exporterFor(international, order.to, draft)), signerId: international.signerId };
   }
 
   /** A refusal as someone who cannot see money is told it: what it was about, and none of the carrier's own words. */
@@ -426,6 +432,7 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
             mayCancel: viewer.mayCancel,
             mayCustoms: viewer.mayCustoms,
             mayShipAbroad: mayShipAbroad(viewer, limits),
+            shipsAbroad: sendsAbroad(install, readInternational((await repo.settings(install.row.id))?.international ?? null)),
             pricesHidden: await hiddenOnAnyOrderTable(request, viewer, install, connectionId),
             booking: viewer.mayBook ? bookingState(viewer.manages, limits, usedToday) : ('no-right' as const),
             ...(viewer.mayBook && !viewer.manages && dailyLabels !== null ? { usedToday, dailyLabels } : {}),

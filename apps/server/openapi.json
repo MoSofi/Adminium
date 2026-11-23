@@ -170344,6 +170344,42 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "exporter": {
+                                  "type": "object",
+                                  "properties": {
+                                    "eori": {
+                                      "type": "string",
+                                      "pattern": "^[A-Z]{2}[A-Z0-9]{6,17}$"
+                                    },
+                                    "ioss": {
+                                      "type": "string",
+                                      "pattern": "^IM\\d{10}$"
+                                    },
+                                    "taxId": {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "enum": [
+                                            "EIN",
+                                            "VAT",
+                                            "ARN"
+                                          ]
+                                        },
+                                        "number": {
+                                          "type": "string",
+                                          "pattern": "^[A-Z0-9-]{1,15}$"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "number"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
@@ -170359,6 +170395,12 @@
                             {
                               "type": "null"
                             }
+                          ]
+                        },
+                        "codeListUrl": {
+                          "type": [
+                            "string",
+                            "null"
                           ]
                         },
                         "labelSize": {
@@ -170425,6 +170467,7 @@
                         "shipFromMissing",
                         "international",
                         "customs",
+                        "codeListUrl",
                         "labelSize",
                         "limits"
                       ],
@@ -170707,6 +170750,42 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "exporter": {
+                                  "type": "object",
+                                  "properties": {
+                                    "eori": {
+                                      "type": "string",
+                                      "pattern": "^[A-Z]{2}[A-Z0-9]{6,17}$"
+                                    },
+                                    "ioss": {
+                                      "type": "string",
+                                      "pattern": "^IM\\d{10}$"
+                                    },
+                                    "taxId": {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "enum": [
+                                            "EIN",
+                                            "VAT",
+                                            "ARN"
+                                          ]
+                                        },
+                                        "number": {
+                                          "type": "string",
+                                          "pattern": "^[A-Z0-9-]{1,15}$"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "number"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
@@ -170722,6 +170801,12 @@
                             {
                               "type": "null"
                             }
+                          ]
+                        },
+                        "codeListUrl": {
+                          "type": [
+                            "string",
+                            "null"
                           ]
                         },
                         "labelSize": {
@@ -170788,6 +170873,7 @@
                         "shipFromMissing",
                         "international",
                         "customs",
+                        "codeListUrl",
                         "labelSize",
                         "limits"
                       ],
@@ -171237,6 +171323,42 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "exporter": {
+                                  "type": "object",
+                                  "properties": {
+                                    "eori": {
+                                      "type": "string",
+                                      "pattern": "^[A-Z]{2}[A-Z0-9]{6,17}$"
+                                    },
+                                    "ioss": {
+                                      "type": "string",
+                                      "pattern": "^IM\\d{10}$"
+                                    },
+                                    "taxId": {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "enum": [
+                                            "EIN",
+                                            "VAT",
+                                            "ARN"
+                                          ]
+                                        },
+                                        "number": {
+                                          "type": "string",
+                                          "pattern": "^[A-Z0-9-]{1,15}$"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "number"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
@@ -171252,6 +171374,12 @@
                             {
                               "type": "null"
                             }
+                          ]
+                        },
+                        "codeListUrl": {
+                          "type": [
+                            "string",
+                            "null"
                           ]
                         },
                         "labelSize": {
@@ -171318,6 +171446,7 @@
                         "shipFromMissing",
                         "international",
                         "customs",
+                        "codeListUrl",
                         "labelSize",
                         "limits"
                       ],
@@ -173735,6 +173864,42 @@
                       ],
                       "additionalProperties": false
                     }
+                  },
+                  "exporter": {
+                    "type": "object",
+                    "properties": {
+                      "eori": {
+                        "type": "string",
+                        "maxLength": 40
+                      },
+                      "ioss": {
+                        "type": "string",
+                        "maxLength": 40
+                      },
+                      "taxId": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "EIN",
+                              "VAT",
+                              "ARN"
+                            ]
+                          },
+                          "number": {
+                            "type": "string",
+                            "maxLength": 40
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "number"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "additionalProperties": false
                   }
                 },
                 "required": [
@@ -174003,6 +174168,42 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "exporter": {
+                                  "type": "object",
+                                  "properties": {
+                                    "eori": {
+                                      "type": "string",
+                                      "pattern": "^[A-Z]{2}[A-Z0-9]{6,17}$"
+                                    },
+                                    "ioss": {
+                                      "type": "string",
+                                      "pattern": "^IM\\d{10}$"
+                                    },
+                                    "taxId": {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "enum": [
+                                            "EIN",
+                                            "VAT",
+                                            "ARN"
+                                          ]
+                                        },
+                                        "number": {
+                                          "type": "string",
+                                          "pattern": "^[A-Z0-9-]{1,15}$"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "number"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
@@ -174018,6 +174219,12 @@
                             {
                               "type": "null"
                             }
+                          ]
+                        },
+                        "codeListUrl": {
+                          "type": [
+                            "string",
+                            "null"
                           ]
                         },
                         "labelSize": {
@@ -174084,6 +174291,7 @@
                         "shipFromMissing",
                         "international",
                         "customs",
+                        "codeListUrl",
                         "labelSize",
                         "limits"
                       ],
@@ -174273,8 +174481,17 @@
                                 true
                               ]
                             },
+                            "ownCountry": {
+                              "type": "string"
+                            },
                             "to": {
                               "type": "string"
+                            },
+                            "codeListUrl": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
                             },
                             "signer": {
                               "type": [
@@ -174399,7 +174616,9 @@
                           "required": [
                             "abroad",
                             "offered",
+                            "ownCountry",
                             "to",
+                            "codeListUrl",
                             "signer",
                             "currency",
                             "lines",
@@ -175883,6 +176102,9 @@
                         "mayShipAbroad": {
                           "type": "boolean"
                         },
+                        "shipsAbroad": {
+                          "type": "boolean"
+                        },
                         "pricesHidden": {
                           "type": "boolean"
                         },
@@ -175911,6 +176133,7 @@
                         "mayCancel",
                         "mayCustoms",
                         "mayShipAbroad",
+                        "shipsAbroad",
                         "pricesHidden",
                         "booking"
                       ],
@@ -176186,6 +176409,42 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "exporter": {
+                                  "type": "object",
+                                  "properties": {
+                                    "eori": {
+                                      "type": "string",
+                                      "pattern": "^[A-Z]{2}[A-Z0-9]{6,17}$"
+                                    },
+                                    "ioss": {
+                                      "type": "string",
+                                      "pattern": "^IM\\d{10}$"
+                                    },
+                                    "taxId": {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "enum": [
+                                            "EIN",
+                                            "VAT",
+                                            "ARN"
+                                          ]
+                                        },
+                                        "number": {
+                                          "type": "string",
+                                          "pattern": "^[A-Z0-9-]{1,15}$"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "number"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
@@ -176201,6 +176460,12 @@
                             {
                               "type": "null"
                             }
+                          ]
+                        },
+                        "codeListUrl": {
+                          "type": [
+                            "string",
+                            "null"
                           ]
                         },
                         "labelSize": {
@@ -176267,6 +176532,7 @@
                         "shipFromMissing",
                         "international",
                         "customs",
+                        "codeListUrl",
                         "labelSize",
                         "limits"
                       ],
@@ -176562,6 +176828,42 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "exporter": {
+                                  "type": "object",
+                                  "properties": {
+                                    "eori": {
+                                      "type": "string",
+                                      "pattern": "^[A-Z]{2}[A-Z0-9]{6,17}$"
+                                    },
+                                    "ioss": {
+                                      "type": "string",
+                                      "pattern": "^IM\\d{10}$"
+                                    },
+                                    "taxId": {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "enum": [
+                                            "EIN",
+                                            "VAT",
+                                            "ARN"
+                                          ]
+                                        },
+                                        "number": {
+                                          "type": "string",
+                                          "pattern": "^[A-Z0-9-]{1,15}$"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "number"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
@@ -176577,6 +176879,12 @@
                             {
                               "type": "null"
                             }
+                          ]
+                        },
+                        "codeListUrl": {
+                          "type": [
+                            "string",
+                            "null"
                           ]
                         },
                         "labelSize": {
@@ -176643,6 +176951,7 @@
                         "shipFromMissing",
                         "international",
                         "customs",
+                        "codeListUrl",
                         "labelSize",
                         "limits"
                       ],
@@ -176970,6 +177279,42 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "exporter": {
+                                  "type": "object",
+                                  "properties": {
+                                    "eori": {
+                                      "type": "string",
+                                      "pattern": "^[A-Z]{2}[A-Z0-9]{6,17}$"
+                                    },
+                                    "ioss": {
+                                      "type": "string",
+                                      "pattern": "^IM\\d{10}$"
+                                    },
+                                    "taxId": {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "enum": [
+                                            "EIN",
+                                            "VAT",
+                                            "ARN"
+                                          ]
+                                        },
+                                        "number": {
+                                          "type": "string",
+                                          "pattern": "^[A-Z0-9-]{1,15}$"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "number"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
@@ -176985,6 +177330,12 @@
                             {
                               "type": "null"
                             }
+                          ]
+                        },
+                        "codeListUrl": {
+                          "type": [
+                            "string",
+                            "null"
                           ]
                         },
                         "labelSize": {
@@ -177051,6 +177402,7 @@
                         "shipFromMissing",
                         "international",
                         "customs",
+                        "codeListUrl",
                         "labelSize",
                         "limits"
                       ],
