@@ -73,6 +73,8 @@ export interface ShippingBookingRoutesDeps {
   shippableOrder(request: FastifyRequest, install: InstalledManifest, connectionId: string, viewer: ShippingViewer, source: { table: string; id: string }): Promise<ShippableOrder>;
   withoutCarrierWords(error: unknown): unknown;
   bookingDeps(request: FastifyRequest): BookingDeps;
+  /** A return label's place on its order, once the return is known to be approved and this person the owner. */
+  returnPlace(request: FastifyRequest, install: InstalledManifest, connectionId: string, viewer: ShippingViewer, order: ReachedOrder, returnId: string | undefined): Promise<number>;
   /** What stores a bought label's file. Without it, every label is owed. */
   labelDeps?(request: FastifyRequest): LabelDeps;
 }
@@ -125,8 +127,9 @@ export function shippingBookingRoutes(deps: ShippingBookingRoutesDeps): FastifyP
         const { app: install, connectionId } = await deps.appOf(request, request.params.key);
         const viewer = await shippingViewerOf(request, install);
         if (!viewer.mayBook && !viewer.mayCancel && !viewer.mayCustoms) throw refuseNoRight(install);
-        const { table: ref, id, purpose = 'outbound', parcelNumber = 1 } = request.query;
+        const { table: ref, id, purpose = 'outbound', returnId } = request.query;
         const order = await deps.reachOrder(request, install, connectionId, { table: ref, id });
+        const parcelNumber = purpose === 'return' && returnId !== undefined ? await deps.returnPlace(request, install, connectionId, viewer, order, returnId) : (request.query.parcelNumber ?? 1);
         const hidden = await pricesHiddenFrom(request, viewer, deps.sources, connectionId, order.table);
         const bookingDeps = deps.bookingDeps(request);
         const repo = shippingBookingsRepo(meta);
@@ -157,7 +160,7 @@ export function shippingBookingRoutes(deps: ShippingBookingRoutesDeps): FastifyP
         }
         const now = app.rbac.now();
         const parcels = await shippingTrackingRepo(meta).parcels(settled.map((one) => one.id));
-        return { data: { bookings: settled.map((one) => ({ ...bookingView(one, now, hidden, parcels.get(one.id)), track: trackViewOf(parcels.get(one.id)) })), bookable: blockedBy === null && viewer.mayBook, blockedBy } };
+        return { data: { bookings: settled.map((one) => ({ ...bookingView(one, now, hidden, parcels.get(one.id)), track: trackViewOf(parcels.get(one.id)) })), bookable: blockedBy === null && viewer.mayBook, blockedBy, parcelNumber } };
       },
     );
 
@@ -169,7 +172,7 @@ export function shippingBookingRoutes(deps: ShippingBookingRoutesDeps): FastifyP
         const { app: install, connectionId } = await deps.appOf(request, request.params.key);
         const viewer = await shippingViewerOf(request, install);
         if (!viewer.mayBook) throw refuseNoRight(install);
-        const { quoteId, rateId, confirmEarlier, replaceRefunding } = request.body;
+        const { quoteId, rateId, confirmEarlier, replaceRefunding, returnId } = request.body;
 
         const repo = shippingRepo(meta);
         const stored = await repo.quote(quoteId);
@@ -179,6 +182,10 @@ export function shippingBookingRoutes(deps: ShippingBookingRoutesDeps): FastifyP
 
         const order = await deps.shippableOrder(request, install, connectionId, viewer, { table: stored.tableRef, id: stored.rowKey });
         const purpose = stored.purpose as ShipmentPurpose;
+        // Asked again at purchase: the return may have moved on since the quote, and it must be this return's place.
+        if (purpose === 'return' && (await deps.returnPlace(request, install, connectionId, viewer, order, returnId)) !== stored.parcelNumber) {
+          throw new ShippingRefusal('QUOTE_NOT_FOUND', 'That quote is no longer there. Get rates again.');
+        }
         const slot: ShippingSlot = { installId: install.row.id, connectionId, tableRef: stored.tableRef, rowKey: order.rowKey, purpose, parcelNumber: stored.parcelNumber };
         const place = { ...slot, tableName: order.table.id };
 
@@ -255,7 +262,7 @@ export function shippingBookingRoutes(deps: ShippingBookingRoutesDeps): FastifyP
             detailsHash: held.detailsHash,
             rate: held.rate,
             // A carrier that binds at quote time ignores these. A customer's phone and email stay here until one needs them.
-            details: { parcel: parcel.data as Parcel, from: order.from, to: recipientForRates(order.to), labelSize: await labelSizeOf(meta, install.row.id) },
+            details: { parcel: parcel.data as Parcel, ...(purpose === 'return' ? { from: recipientForRates(order.to), to: order.from } : { from: order.from, to: recipientForRates(order.to) }), labelSize: await labelSizeOf(meta, install.row.id) },
             by,
             counted: viewer.manages || dailyLabels === null ? null : { day: order.venueDay, dailyLabels },
             confirmEarlier: viewer.manages && confirmEarlier === true,

@@ -204,6 +204,33 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
     return { mapping, table, row, rowKey: rowKeyOf(table, row), reference: reference === null || reference === undefined ? source.id : String(reference) };
   }
 
+  /**
+   * A return label's place on its order: only the owner, only on a return of
+   * THIS order that the app says is approved (D12). The place is the return's
+   * position among the order's returns, worked out here, so one return is one
+   * label however the client asks.
+   */
+  async function returnPlace(request: FastifyRequest, install: InstalledManifest, connectionId: string, viewer: ShippingViewer, order: ReachedOrder, returnId: string | undefined): Promise<number> {
+    if (!viewer.manages) throw new ForbiddenError('Only the owner sends a return label.', 'FORBIDDEN', { reason: 'return-owner-only' });
+    const declared = (order.mapping as ShippingOrder).returns;
+    if (declared === undefined || returnId === undefined) throw new ShippingRefusal('RETURN_NOT_OFFERED', 'This app has no return labels for this order.');
+    const table = await orderTable(connectionId, install.row.manifestKey, declared.table);
+    if (!(await request.can(`table:${connectionId}:${table.id}:read`))) throw new ForbiddenError('You may not read this table.', 'TABLE_FORBIDDEN', { table: declared.table });
+    const row = await deps.readRow(request, connectionId, table.id, returnId);
+    if (row === undefined) throw new NotFoundError('That return was not found.');
+    if (String(row[declared.order] ?? '') !== order.rowKey || !declared.approved.includes(String(row[declared.status] ?? ''))) {
+      throw new ShippingRefusal('RETURN_NOT_APPROVED', 'A return label is for an approved return of this order.');
+    }
+    const key = table.primaryKey[0];
+    const found = await deps.sources.table(connectionId, table.id);
+    if (key === undefined || table.primaryKey.length !== 1 || found === null) throw new ShippingRefusal('RETURN_NOT_OFFERED', 'This app has no return labels for this order.');
+    const { db } = found.target;
+    const rows = await db.selectFrom(table.id).select(db.dynamic.ref<string>(key)).where((eb) => eb(db.dynamic.ref(declared.order), '=', row[declared.order])).orderBy(db.dynamic.ref(key)).limit(100).execute();
+    const place = (rows as Record<string, unknown>[]).findIndex((one) => String(one[key]) === String(row[key])) + 1;
+    if (place < 1 || place > 99) throw new ShippingRefusal('RETURN_NOT_OFFERED', 'This order has too many returns for a return label.');
+    return place;
+  }
+
   /** The order, with everything a quote or a purchase refuses on already asked, and no carrier called or key read. */
   async function shippableOrder(request: FastifyRequest, install: InstalledManifest, connectionId: string, viewer: ShippingViewer, source: { table: string; id: string }): Promise<ShippableOrder> {
     const reached = await reachOrder(request, install, connectionId, source);
@@ -291,6 +318,7 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
         withoutCarrierWords,
         ...(deps.storage === undefined ? {} : { labelDeps: (request: FastifyRequest) => ({ meta, storage: deps.storage!, now: () => app.rbac.now(), log: (message: string, fields: Record<string, unknown>) => request.log.warn(fields, message) }) }),
         bookingDeps,
+        returnPlace,
       }),
     );
 
@@ -405,9 +433,9 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
         const { source, parcelNumber: number } = request.body;
         const parcel = request.body.parcel as Parcel;
         const purpose: ShipmentPurpose = request.body.purpose ?? 'outbound';
-        const parcelNumber = number ?? 1;
-
         const order = await shippableOrder(request, install, connectionId, viewer, source);
+        // A return's place comes from the return, never from what the client says.
+        const parcelNumber = purpose === 'return' ? await returnPlace(request, install, connectionId, viewer, order, request.body.returnId) : (number ?? 1);
         const { rowKey, limits, pricesHidden, from, to, carrierKey, venueDay } = order;
         const mapping = order.mapping;
 
@@ -417,7 +445,7 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
         const resolved = await shippingCarrierFor(carrierSeam, carrierKey, connectionId, venueDay);
         // Which account this would spend on, and whether it is a test one, is known before the carrier is asked.
         const account = await checkedAccount(meta, secret, resolved);
-        const rates = await askForRates(resolved, parcel, from, recipientForRates(to), { purpose }, carrierSeam.log).catch((error: unknown) => {
+        const rates = await askForRates(resolved, parcel, purpose === 'return' ? recipientForRates(to) : from, purpose === 'return' ? from : recipientForRates(to), { purpose }, carrierSeam.log).catch((error: unknown) => {
           throw pricesHidden ? withoutCarrierWords(error) : error;
         });
 

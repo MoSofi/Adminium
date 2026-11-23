@@ -59,6 +59,8 @@ export const quoteBody = z
       .strict(),
     purpose: z.enum(SHIPMENT_PURPOSES).optional(),
     parcelNumber: z.number().int().min(1).max(99).optional(),
+    /** The approved return a return label is for. The server works out its place from it. */
+    returnId: z.string().min(1).max(64).optional(),
   })
   .strict();
 
@@ -151,6 +153,8 @@ export const bookingQuery = z.object({
   id: z.string().min(1).max(SHIPPING_ROW_WIDTH),
   purpose: z.enum(SHIPMENT_PURPOSES).optional(),
   parcelNumber: z.coerce.number().int().min(1).max(99).optional(),
+  /** Reads a return's own place, worked out by the server. */
+  returnId: z.string().min(1).max(64).optional(),
 });
 
 /** A purchase names a stored quote and one of its rates. The order, parcel and price are the server's. */
@@ -162,6 +166,8 @@ export const bookBody = z
     confirmEarlier: z.boolean().optional(),
     /** Someone who may cancel was told both labels stay paid until the refund lands, and means to book another. */
     replaceRefunding: z.boolean().optional(),
+    /** The approved return this label is for, asked again at purchase. */
+    returnId: z.string().min(1).max(64).optional(),
   })
   .strict();
 
@@ -249,6 +255,8 @@ export const bookingsReply = z.object({
       /** True only on a positive "no booking": anything unsure is false, and says why. */
       bookable: z.boolean(),
       blockedBy: z.enum(['booking', 'label-on-order', 'no-carrier']).nullable(),
+      /** The parcel number the answer is about: a return's is worked out here. */
+      parcelNumber: z.number().optional(),
     })
     .strict(),
 });
