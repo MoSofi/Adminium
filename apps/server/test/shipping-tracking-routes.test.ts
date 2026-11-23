@@ -91,6 +91,7 @@ const shopDoc = (key: string): Record<string, unknown> => ({
   roles: [
     { key: 'packer', name: 'Packer', permissions: ['table:@orders:read', 'shipping:@:book'] },
     { key: 'ownrep', name: 'Own rep', permissions: ['table:@orders:read', 'shipping:@:book'], limits: { orders: { rows: { read: { reach: 'own' } } } } },
+    { key: 'owncancel', name: 'Own cancel', permissions: ['table:@orders:read', 'shipping:@:book', 'shipping:@:cancel'], limits: { orders: { rows: { read: { reach: 'own' } } } } },
     { key: 'reader', name: 'Reader', permissions: ['table:@orders:read'] },
     // Reads an order's address and never its money.
     { key: 'nomoney', name: 'No money', permissions: ['table:@orders:read', 'shipping:@:book'], limits: { orders: { readable: ['id', 'number', 'ship_name', 'ship_line1', 'ship_city', 'ship_postcode', 'ship_country', 'tracking'] } } },
@@ -254,6 +255,7 @@ describe.each(LEGS)('tracking through the server on %s', (dialect, available) =>
     await person('boss', ['super-admin']);
     await person('packer', ['shop-packer']);
     await person('ownrep', ['shop-ownrep']);
+    await person('owncancel', ['shop-owncancel']);
     await person('reader', ['shop-reader']);
     await person('nomoney', ['shop-nomoney']);
     // Manages shipping, and still reads only their own orders.
@@ -380,6 +382,17 @@ describe.each(LEGS)('tracking through the server on %s', (dialect, available) =>
     expect(globals.__trackingFake!.calls).toEqual(['TRK-OWN']);
     expect((await shippingTrackingRepo(h.meta).parcel(mine.id))!.checkedAt).toEqual(expect.any(Number));
     expect(await shippingTrackingRepo(h.meta).parcel(theirs.id)).toBeNull();
+  });
+
+  it.skipIf(!available)('refuses a refund on an order this person does not reach, and asks the carrier nothing', async () => {
+    const mine = await booked('TRK-OWN-REFUND', { owner: userIds['owncancel']! });
+    const theirs = await booked('TRK-OTHER-REFUND', { owner: userIds['boss']! });
+    expect((await call('owncancel', 'POST', `bookings/${theirs.id}/refund`, { declaration: 'label-not-used' })).statusCode).toBe(404);
+    expect((await call('owncancel', 'POST', `bookings/${theirs.id}/refund/check`)).statusCode).toBe(404);
+    expect(globals.__trackingFake!.calls).toEqual([]);
+    expect((await shippingBookingsRepo(h.meta).byId(theirs.id))?.state).toBe('booked');
+    const own = await call('owncancel', 'POST', `bookings/${mine.id}/refund`, { declaration: 'label-not-used' });
+    expect(own.statusCode, own.body).toBe(200);
   });
 
   it.skipIf(!available)('never asks about a test booking, even through the route', async () => {
