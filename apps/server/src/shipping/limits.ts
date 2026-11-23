@@ -74,3 +74,10 @@ export function createQuoteGate(perMinute: number = QUOTES_PER_MINUTE) {
     },
   };
 }
+
+/** Whether an order is cancelled, read from its table's own status column. A table with no states has no such thing. */
+export function orderCancelled(states: { column: string } | undefined, row: Record<string, unknown>): boolean {
+  if (states === undefined) return false;
+  const status = row[states.column];
+  return typeof status === 'string' && /^cancell?ed$/i.test(status);
+}

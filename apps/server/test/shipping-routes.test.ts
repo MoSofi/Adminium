@@ -1560,6 +1560,24 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
     expect(await rowOf(id)).toMatchObject({ tracking: 'TRK-1001', status: 'packed' });
   });
 
+  it.skipIf(!available)('puts a replacement label\'s number on the order once the first label\'s refund lands', async () => {
+    const id = await order('shop', { status: 'packed' });
+    const first = ((await buy(await quoted(id))).json() as Doc)['data']['id'] as string;
+    await applyBooking(applyDeps(), first);
+    const firstNumber = (await rowOf(id))['tracking'];
+    expect(await bookings().askVoid(first, 'usr_owner', Date.now())).toBe(true);
+    const offered = await quoted(id);
+    const replaced = await call('boss', 'POST', 'shop/shipping/bookings', { quoteId: offered['quoteId'], rateId: offered['rates'][0]['rateId'], replaceRefunding: true });
+    expect(replaced.statusCode, replaced.body).toBe(200);
+    const second = (replaced.json() as Doc)['data']['id'] as string;
+    await h.meta.db.updateTable('adminium_shipping_bookings').set({ tracking: 'TRK-REPLACED' }).where('id', '=', second).execute();
+    await applyBooking(applyDeps(), second);
+    expect((await rowOf(id))['tracking']).toBe(firstNumber);
+    expect(await bookings().settleVoided(first, {} as never, Date.now())).toBe(true);
+    await applyBooking(applyDeps(), first);
+    expect((await rowOf(id))['tracking']).toBe('TRK-REPLACED');
+  });
+
   it.skipIf(!available)('copies a label into the carrier\'s own table once, keyed by the booking', async () => {
     const copies = `carrier_copies_${String(nextId)}`;
     const { db } = await h.manager.data(conn);

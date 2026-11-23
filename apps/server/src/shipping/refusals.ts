@@ -26,6 +26,8 @@ export const SHIPPING_REFUSAL_STATUS = {
   ADDRESS_INCOMPLETE: 422,
   COUNTRY_NOT_RECORDED: 422,
   OUTSIDE_OWN_COUNTRY: 422,
+  /** Cancelled while rates were open: postage for it would be money spent on nothing. */
+  ORDER_CANCELLED: 409,
   CARRIER_REFUSED: 422,
   CARRIER_UNAVAILABLE: 502,
   CARRIER_BAD_ANSWER: 502,

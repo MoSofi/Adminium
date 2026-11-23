@@ -340,7 +340,7 @@ const orderRefOf = (booking: Pick<ShippingBooking, 'reference' | 'purpose' | 'pa
 async function lateLabel(deps: BookingDeps, reserved: ShippingBooking, resolved: ResolvedCarrier, confirmEarlier: boolean): Promise<ShippingBooking | null> {
   const repo = shippingBookingsRepo(deps.meta);
   const earlier = (await repo.forRow(reserved.connectionId, reserved.tableName, reserved.rowKey)).filter(
-    (one) => one.id !== reserved.id && one.state === 'released' && one.calledAt !== null && one.purpose === reserved.purpose && one.parcelNumber === reserved.parcelNumber && one.mode === reserved.mode,
+    (one) => one.id !== reserved.id && one.state === 'released' && (one.calledAt !== null || one.reason === 'restored') && one.purpose === reserved.purpose && one.parcelNumber === reserved.parcelNumber && one.mode === reserved.mode,
   );
   if (earlier.length === 0) return null;
   const recover = resolved.carrier.recover;
