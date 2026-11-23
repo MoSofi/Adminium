@@ -774,7 +774,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Download the shards' blob reports
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: server-blob-*
           path: apps/server/.vitest-reports
