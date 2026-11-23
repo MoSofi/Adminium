@@ -88,7 +88,7 @@
 | `references/manifest/people.md` | People | 979 |
 | `references/manifest/people-2.md` | People (part 2) | 7722 |
 | `references/manifest/people-3.md` | People (part 3) | 308 |
-| `references/manifest/shipping.md` | Shipping | 2951 |
+| `references/manifest/shipping.md` | Shipping | 2923 |
 | `references/manifest/public-access.md` | Public access | 2014 |
 | `references/manifest/public-access-2.md` | Public access (part 2) | 7550 |
 | `references/manifest/public-access-3.md` | Public access (part 3) | 7679 |

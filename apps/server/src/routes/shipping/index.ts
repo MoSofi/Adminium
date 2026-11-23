@@ -131,7 +131,13 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
       data: {
         appUpdated: shippingOrders(install) !== null,
         ...shop,
-        carriers: shop.carriers.map((carrier) => ({ ...carrier, account: accounts[carrier.key] ?? null })),
+        carriers: await Promise.all(
+          shop.carriers.map(async (carrier) => {
+            const here = await installOnConnection(manifests, carrier.key, connectionId);
+            const open = here === null ? [] : await deps.openBookings(here.row.id);
+            return { ...carrier, account: accounts[carrier.key] ?? null, openBookings: { count: open.length, orders: open.slice(0, 20).map((booking) => booking.reference) } };
+          }),
+        ),
         international: false as const,
         labelSize: await labelSizeOf(meta, install.row.id),
         limits: {
@@ -289,7 +295,7 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
     if (deps.storage !== undefined) {
       await app.register(shippingLabelRoutes({ meta, secret, storage: deps.storage, sources: deps.sources, carrierDeps, appOf, reachOrder }));
     }
-    await app.register(shippingTrackingRoutes({ meta, manifests, secret, networkFeatures: deps.networkFeatures, carrierDeps, appOf, reachOrder }));
+    await app.register(shippingTrackingRoutes({ meta, manifests, secret, sources: deps.sources, networkFeatures: deps.networkFeatures, carrierDeps, appOf, reachOrder }));
 
     app.get(
       '/apps/:key/shipping/access',

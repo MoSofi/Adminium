@@ -172,7 +172,7 @@ for (const dialect of TEST_DIALECTS) {
       expect(await repo.install(CARRIER)).toMatchObject({ pollMonth: '2026-12', pollCalls: 1 });
 
       await repo.clearToken(CARRIER, T0 + 3);
-      expect(await repo.install(CARRIER)).toMatchObject({ tokenHash: null, tokenHint: null, tokenMadeAt: null, firstAt: T0 + 10 });
+      expect(await repo.install(CARRIER)).toMatchObject({ tokenHash: null, tokenHint: null, tokenMadeAt: T0 + 1, firstAt: T0 + 10 });
     });
 
     it('stores an event once, finishes it once, and prunes it when its use is past', async () => {

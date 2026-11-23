@@ -177,7 +177,8 @@ export function shippingTrackingRepo(meta: MetaDb) {
 
     /** The key behind this webhook changed or went: its address stops working. */
     async clearToken(carrierInstallId: string, at: number): Promise<void> {
-      await db.updateTable('adminium_shipping_track_installs').set({ tokenHash: null, tokenHint: null, tokenMadeAt: null, updatedAt: at }).where('carrierInstallId', '=', carrierInstallId).execute();
+      // `tokenMadeAt` stays: it is how a screen tells an address that ended from one never made.
+      await db.updateTable('adminium_shipping_track_installs').set({ tokenHash: null, tokenHint: null, updatedAt: at }).where('carrierInstallId', '=', carrierInstallId).execute();
     },
 
     /** A webhook accepted. Only this writes the health a screen reads as "last update received". */
@@ -472,6 +473,62 @@ export function shippingTrackingRepo(meta: MetaDb) {
         checkedAt: num(row.checkedAt),
         polledAt: num(row.polledAt),
       }));
+    },
+
+    /**
+     * The bookings of one app install that may need a person: purchases with
+     * no answer first, then oldest first, so a cut scan never drops one of
+     * those for a later parcel. A list to judge, not a verdict: the caller
+     * works out each row's reasons. Reads through the connection's index.
+     */
+    async attentionIds(scope: { connectionId: string; installId: string; calledBefore: number; openSince: number; quietBefore: number }, limit: number): Promise<string[]> {
+      const rows = await db
+        .selectFrom('adminium_shipping_bookings as b')
+        .leftJoin('adminium_shipping_parcels as p', 'p.bookingId', 'b.id')
+        .select('b.id as id')
+        .where('b.connectionId', '=', scope.connectionId)
+        .where('b.installId', '=', scope.installId)
+        .where((eb) =>
+          eb.or([
+            eb('b.state', '=', 'unknown'),
+            eb.and([eb('b.state', '=', 'calling'), eb(eb.fn.coalesce('b.calledAt', 'b.updatedAt'), '<=', scope.calledBefore)]),
+            // Test numbers repeat and are never tracked, so nothing below is about a test label.
+            eb.and([
+              eb('b.mode', '=', 'live'),
+              eb.or([
+                eb('b.duplicates', '>', 0),
+                eb.and([
+                  eb('b.state', '=', 'booked'),
+                  eb.or([
+                    eb.and([eb('b.labelRef', 'is', null), eb('b.labelGoneAt', 'is', null)]),
+                    eb('p.numberChangedAt', 'is not', null),
+                    eb('p.status', 'in', ['FAILURE', 'RETURNED']),
+                    eb('p.flag', '=', 'ambiguous'),
+                    eb.and([
+                      eb('b.tracking', 'is not', null),
+                      eb('b.createdAt', '>=', scope.openSince),
+                      eb.or([eb('p.statusRank', 'is', null), eb('p.statusRank', '<', SHIPPING_TRACK_FINAL_RANK)]),
+                      eb(eb.fn.coalesce('p.statusAt', 'b.createdAt'), '<=', scope.quietBefore),
+                    ]),
+                  ]),
+                ]),
+              ]),
+            ]),
+          ]),
+        )
+        .orderBy((eb) =>
+          eb
+            .case()
+            .when(eb.or([eb('b.state', '=', 'unknown'), eb.and([eb('b.state', '=', 'calling'), eb(eb.fn.coalesce('b.calledAt', 'b.updatedAt'), '<=', scope.calledBefore)])]))
+            .then(eb.lit(0))
+            .else(eb.lit(1))
+            .end(),
+        )
+        .orderBy('b.createdAt')
+        .orderBy('b.id')
+        .limit(limit)
+        .execute();
+      return rows.map((row) => row.id);
     },
   };
   return repo;

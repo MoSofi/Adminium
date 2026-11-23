@@ -1809,6 +1809,7 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
     await apiKeysRepo(h.meta).create({ name: `book-${String(nextId)}`, tokenHash: token.tokenHash, prefix: token.prefix, roleId: (await rolesRepo(h.meta).findBySlug('super-admin'))!.id, createdBy: ids['boss']! });
     for (const [method, path, payload] of [
       ['GET', 'shop/shipping/bookings', undefined],
+      ['GET', 'shop/shipping/attention', undefined],
       ['POST', 'shop/shipping/bookings', { quoteId: 'shq_x', rateId: 'rate_x' }],
       ['POST', 'shop/shipping/bookings/shb_x/check', undefined],
       ['POST', 'shop/shipping/bookings/shb_x/release', { declaration: 'no-label-exists' }],

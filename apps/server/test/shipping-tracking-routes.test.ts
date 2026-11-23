@@ -8,7 +8,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { manifestsRepo, realTableOf, rolesRepo, settingsRepo, shippingBookingsRepo, shippingRepo, shippingTrackingRepo, usersRepo, type ManifestsRepo } from '@adminium/meta';
+import { manifestsRepo, permissionsRepo, realTableOf, rolesRepo, settingsRepo, shippingBookingsRepo, shippingRepo, shippingTrackingRepo, usersRepo, type ManifestsRepo } from '@adminium/meta';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { addOnCredentialCryptoFromSecret } from '../src/add-ons/credential-crypto.js';
@@ -16,8 +16,12 @@ import { buildLogger } from '../src/app.js';
 import { composeServer, type ComposedServer } from '../src/compose.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
+import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
 import { factsViewFor } from '../src/routes/pages/column-facts.js';
+import { ATTENTION_SCAN, QUIET_PARCEL_MS } from '../src/shipping/attention.js';
+import { BOOK_ANSWER_MS } from '../src/shipping/bookings.js';
 import { accountFingerprintOf, credentialHash } from '../src/shipping/fingerprint.js';
+import { REFRESH_OPEN_WINDOW_MS } from '../src/shipping/refresh.js';
 import { followTrackEvent } from '../src/shipping/tracking.js';
 import { addOnHarness, addOnManifest, type Harness } from './app-add-ons.helpers.js';
 import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
@@ -87,6 +91,8 @@ const shopDoc = (key: string): Record<string, unknown> => ({
     { key: 'packer', name: 'Packer', permissions: ['table:@orders:read', 'shipping:@:book'] },
     { key: 'ownrep', name: 'Own rep', permissions: ['table:@orders:read', 'shipping:@:book'], limits: { orders: { rows: { read: { reach: 'own' } } } } },
     { key: 'reader', name: 'Reader', permissions: ['table:@orders:read'] },
+    // Reads an order's address and never its money.
+    { key: 'nomoney', name: 'No money', permissions: ['table:@orders:read', 'shipping:@:book'], limits: { orders: { readable: ['id', 'number', 'ship_name', 'ship_line1', 'ship_city', 'ship_postcode', 'ship_country', 'tracking'] } } },
   ],
   pages: [{ ref: `${key}-orders`, template: 'page-crud', title: { key: 't', fallback: 'Orders' }, nav: { group: 'shop', icon: 'home', order: 1 }, bindings: { rows: 'orders' } }],
   frontends: [{ side: 'staff', kind: 'spa', entry: 'index.html' }],
@@ -130,17 +136,22 @@ describe.each(LEGS)('tracking through the server on %s', (dialect, available) =>
   const hook = (id: string, token: string, body: string) =>
     composed.app.inject({ method: 'POST', url: `/api/v1/shipping/webhook/${id}?token=${encodeURIComponent(token)}`, headers: { 'content-type': 'application/json' }, payload: body });
 
-  async function person(key: string, roles: string[]): Promise<void> {
+  async function person(key: string, roles: string[], grants: string[] = []): Promise<void> {
     const user = await usersRepo(h.meta).create({ email: `${key}@track.example`, name: key, passwordHash: await adminPasswordHash() });
     userIds[key] = user.id;
     for (const slug of roles) await rolesRepo(h.meta).assignToUser(user.id, (await rolesRepo(h.meta).findBySlug(slug))!.id);
+    if (grants.length > 0) {
+      const role = await rolesRepo(h.meta).create({ slug: `track-${key}`, name: `Track ${key}` });
+      for (const one of matrixRowsFromGrants(grants).rows) await permissionsRepo(h.meta).grant(role.id, one.resourceKind, one.resourceRef, one.actions as never);
+      await rolesRepo(h.meta).assignToUser(user.id, role.id);
+    }
     signIns += 1;
     const res = await composed.app.inject({ method: 'POST', url: '/api/v1/auth/login', remoteAddress: `10.8.0.${String(signIns)}`, payload: { email: `${key}@track.example`, password: ADMIN_PASSWORD } });
     expect(res.statusCode, res.body).toBe(200);
     cookies[key] = sessionCookie(res.headers['set-cookie']);
   }
 
-  async function booked(number: string, over: { mode?: 'live' | 'test'; owner?: string | null } = {}): Promise<{ id: string; rowKey: string }> {
+  async function attempt(over: { mode?: 'live' | 'test'; owner?: string | null; at?: number } = {}): Promise<{ id: string; rowKey: string }> {
     nextId += 1;
     row += 1;
     const { db } = await h.manager.data(conn);
@@ -148,13 +159,32 @@ describe.each(LEGS)('tracking through the server on %s', (dialect, available) =>
     const mode = over.mode ?? 'live';
     const made = await shippingBookingsRepo(h.meta).reserve(
       { installId: shop, carrierInstallId: carrierId, carrierKey: CARRIER, connectionId: conn, tableRef: 'orders', tableName: ordersReal, rowKey: String(nextId), purpose: 'outbound', parcelNumber: 1, reference: `MP-${String(nextId)}`, mode, accountFingerprint: accountFingerprintOf(TEST_SECRET, CARRIER, 'live', undefined, fields), detailsHash: 'd'.repeat(64), service: 'Evri 48', rateCode: 'evri-48', handleSealed: null, quotedAmount: '3.10', quotedCurrency: 'GBP', createdBy: null },
-      Date.now(),
+      over.at ?? Date.now(),
     );
     if (!made.ok) throw new Error('no booking');
-    await shippingBookingsRepo(h.meta).move(made.booking.id, ['reserved'], 'calling', { calledAt: Date.now() }, Date.now());
-    await shippingBookingsRepo(h.meta).move(made.booking.id, ['calling'], 'booked', { tracking: number, carrierShipmentId: `tx-${String(row)}`, answeredAt: Date.now() }, Date.now());
+    await shippingBookingsRepo(h.meta).move(made.booking.id, ['reserved'], 'calling', { calledAt: over.at ?? Date.now() }, over.at ?? Date.now());
     return { id: made.booking.id, rowKey: String(nextId) };
   }
+
+  async function booked(number: string, over: { mode?: 'live' | 'test'; owner?: string | null; at?: number } = {}): Promise<{ id: string; rowKey: string }> {
+    const made = await attempt(over);
+    await shippingBookingsRepo(h.meta).move(made.id, ['calling'], 'booked', { tracking: number, carrierShipmentId: `tx-${String(row)}`, answeredAt: Date.now() }, Date.now());
+    return made;
+  }
+
+  /** A bought label with its file in hand, so it needs nobody until something else happens to it. */
+  async function filed(number: string, over: { mode?: 'live' | 'test'; owner?: string | null; at?: number } = {}): Promise<{ id: string; rowKey: string }> {
+    const made = await booked(number, over);
+    await shippingBookingsRepo(h.meta).note(made.id, ['booked'], { labelRef: `file-${made.id}` }, Date.now());
+    return made;
+  }
+
+  async function attention(who: string): Promise<{ items: Doc[]; more: boolean }> {
+    const res = await call(who, 'GET', 'attention');
+    expect(res.statusCode, res.body).toBe(200);
+    return (res.json() as Doc)['data'] as { items: Doc[]; more: boolean };
+  }
+  const reasonsOf = (list: { items: Doc[] }, id: string): string[] | undefined => list.items.find((one) => one['booking']['id'] === id)?.['reasons'] as string[] | undefined;
 
   async function saveKey(value: string): Promise<void> {
     const saved = { api_key: value };
@@ -224,6 +254,9 @@ describe.each(LEGS)('tracking through the server on %s', (dialect, available) =>
     await person('packer', ['shop-packer']);
     await person('ownrep', ['shop-ownrep']);
     await person('reader', ['shop-reader']);
+    await person('nomoney', ['shop-nomoney']);
+    // Manages shipping, and still reads only their own orders.
+    await person('ownmanager', ['shop-ownrep'], ['system:shipping:manage']);
   }, 300_000);
 
   afterAll(async () => {
@@ -369,6 +402,183 @@ describe.each(LEGS)('tracking through the server on %s', (dialect, available) =>
     expect(kinds).not.toContain('shipping.poll');
     if (registry.has !== undefined) expect(registry.has('shipping.poll')).toBe(false);
   });
+
+  it.skipIf(!available)('lists each reason a label needs a person, and leaves a healthy one out', async () => {
+    const now = Date.now();
+    const tracking = shippingTrackingRepo(h.meta);
+    const bookings = shippingBookingsRepo(h.meta);
+    const unknown = await attempt();
+    await bookings.move(unknown.id, ['calling'], 'unknown', { reason: 'no-answer' }, now);
+    const paidTwice = await filed('TRK-DUP');
+    await bookings.raiseDuplicates(paidTwice.id, 2, now);
+    const owed = await booked('TRK-OWED');
+    const renumbered = await filed('TRK-OLD');
+    expect(await tracking.changeNumber({ bookingId: renumbered.id, carrierInstallId: carrierId, from: 'TRK-OLD', to: 'TRK-NEW', trackingUrl: null, carrierAt: now, at: now })).toBe('changed');
+    const failed = await filed('TRK-FAIL');
+    await tracking.ensureParcel(failed.id, carrierId, now);
+    await tracking.applyStatus(failed.id, 'FAILURE', now - 1000, now);
+    const returned = await filed('TRK-BACK');
+    await tracking.ensureParcel(returned.id, carrierId, now);
+    await tracking.applyStatus(returned.id, 'RETURNED', now - 1000, now);
+    const twoMatches = await filed('TRK-TWO');
+    await tracking.flag(twoMatches.id, carrierId, 'ambiguous', now);
+    const quiet = await filed('TRK-QUIET', { at: now - QUIET_PARCEL_MS - 60_000 });
+    const healthy = await filed('TRK-FINE');
+    const delivered = await filed('TRK-DONE', { at: now - QUIET_PARCEL_MS - 60_000 });
+    await tracking.ensureParcel(delivered.id, carrierId, now);
+    await tracking.applyStatus(delivered.id, 'DELIVERED', now - QUIET_PARCEL_MS - 1000, now);
+    const pastWindow = await filed('TRK-ANCIENT', { at: now - REFRESH_OPEN_WINDOW_MS - 60_000 });
+
+    const list = await attention('boss');
+    expect(reasonsOf(list, unknown.id)).toEqual(['unknown']);
+    expect(reasonsOf(list, paidTwice.id)).toEqual(['duplicates']);
+    expect(reasonsOf(list, owed.id)).toEqual(['label-owed']);
+    expect(reasonsOf(list, renumbered.id)).toEqual(['new-number']);
+    expect(reasonsOf(list, failed.id)).toEqual(['tracking-failed']);
+    expect(reasonsOf(list, returned.id)).toEqual(['returned']);
+    expect(reasonsOf(list, twoMatches.id)).toEqual(['ambiguous']);
+    expect(reasonsOf(list, quiet.id)).toEqual(['quiet']);
+    for (const none of [healthy, delivered, pastWindow]) expect(reasonsOf(list, none.id)).toBeUndefined();
+    expect(list.more).toBe(false);
+    const item = list.items.find((one) => one['booking']['id'] === failed.id)!;
+    expect(item['reference']).toBe(`MP-${failed.rowKey}`);
+    expect(item['source']).toEqual({ table: 'orders', id: failed.rowKey });
+    expect(item['booking']['track']).toMatchObject({ status: 'FAILURE' });
+  });
+
+  it.skipIf(!available)('puts a purchase with no answer first, then the oldest, and changes nothing by reading', async () => {
+    const now = Date.now();
+    const bookings = shippingBookingsRepo(h.meta);
+    const oldest = await booked('TRK-A', { at: now - BOOK_ANSWER_MS - 5_000_000 });
+    const middle = await booked('TRK-B', { at: now - BOOK_ANSWER_MS - 3_000_000 });
+    // Nobody is waiting on this call any more, so it reads as unknown though the row still says calling.
+    const staleAt = now - BOOK_ANSWER_MS - 60_000;
+    const stale = await attempt({ at: staleAt });
+    const unanswered = await attempt({ at: staleAt + 1_000 });
+    await bookings.move(unanswered.id, ['calling'], 'unknown', { reason: 'no-answer' }, now);
+    const stillCalling = await attempt();
+
+    const list = await attention('boss');
+    expect(list.items.map((one) => one['booking']['id'])).toEqual([stale.id, unanswered.id, oldest.id, middle.id]);
+    expect(reasonsOf(list, stale.id)).toEqual(['unknown']);
+    expect(list.items[0]!['booking']['state']).toBe('unknown');
+    expect(reasonsOf(list, stillCalling.id)).toBeUndefined();
+    expect((await bookings.byId(stale.id))!.state).toBe('calling');
+  });
+
+  it.skipIf(!available)('lists only the rows this person reaches, and counts no other', async () => {
+    const mine = await booked('TRK-MINE', { owner: userIds['ownrep']! });
+    const theirs = await booked('TRK-THEIRS', { owner: userIds['boss']! });
+    const list = await attention('ownrep');
+    expect(list.items.map((one) => one['booking']['id'])).toEqual([mine.id]);
+    expect(list.more).toBe(false);
+    expect(JSON.stringify(list)).not.toContain('TRK-THEIRS');
+    expect(reasonsOf(await attention('boss'), theirs.id)).toEqual(['label-owed']);
+  });
+
+  it.skipIf(!available)('gives someone who cannot see money no amount', async () => {
+    const parcel = await booked('TRK-PRICE');
+    const seen = await attention('boss');
+    expect(seen.items[0]!['booking']).toMatchObject({ id: parcel.id, amount: '3.10', currency: 'GBP' });
+    const res = await call('nomoney', 'GET', 'attention');
+    expect(res.statusCode, res.body).toBe(200);
+    const booking = (res.json() as Doc)['data']['items'][0]['booking'];
+    expect(booking['id']).toBe(parcel.id);
+    for (const field of ['amount', 'currency', 'chargeDiffers']) expect(booking).not.toHaveProperty(field);
+    expect(res.body).not.toContain('3.10');
+    expect(res.body).not.toContain('GBP');
+  });
+
+  it.skipIf(!available)('shows a test booking only while its purchase has no answer, with no tracking reason', async () => {
+    const now = Date.now();
+    const tracking = shippingTrackingRepo(h.meta);
+    const bookings = shippingBookingsRepo(h.meta);
+    const unknown = await attempt({ mode: 'test' });
+    await bookings.move(unknown.id, ['calling'], 'unknown', { reason: 'no-answer' }, now);
+    await bookings.raiseDuplicates(unknown.id, 1, now);
+    const sample = await booked('SHIPPO_TRANSIT', { mode: 'test', at: now - QUIET_PARCEL_MS - 60_000 });
+    await bookings.raiseDuplicates(sample.id, 1, now);
+    await tracking.ensureParcel(sample.id, carrierId, now);
+    await tracking.applyStatus(sample.id, 'FAILURE', now - 1000, now);
+    await tracking.flag(sample.id, carrierId, 'ambiguous', now);
+
+    const list = await attention('boss');
+    expect(list.items.map((one) => one['booking']['id'])).toEqual([unknown.id]);
+    expect(list.items[0]!['reasons']).toEqual(['unknown']);
+    expect(list.items[0]!['booking']['test']).toBe(true);
+  });
+
+  it.skipIf(!available)('refuses someone with no right on the labels, and calls no carrier for anyone', async () => {
+    const parcel = await booked('TRK-QUIETLY');
+    const refused = await call('reader', 'GET', 'attention');
+    expect(refused.statusCode).toBe(403);
+    expect(refused.body).not.toContain('TRK-QUIETLY');
+    const res = await call('boss', 'GET', 'attention');
+    expect(res.statusCode, res.body).toBe(200);
+    expect(res.body).toContain(parcel.id);
+    expect(globals.__trackingFake!.calls).toEqual([]);
+    for (const secret of [KEY, 'tx-', 'Ada', 'Kiln']) expect(res.body).not.toContain(secret);
+  });
+
+  async function unknownOnDeletedOrder(over: { owner?: string | null } = {}): Promise<{ id: string; rowKey: string }> {
+    const made = await attempt(over);
+    await shippingBookingsRepo(h.meta).move(made.id, ['calling'], 'unknown', { reason: 'no-answer' }, Date.now());
+    const { db } = await h.manager.data(conn);
+    await db.deleteFrom(orders as never).where('id' as never, '=', Number(made.rowKey) as never).execute();
+    return made;
+  }
+
+  it.skipIf(!available)('shows someone who manages shipping an unknown booking whose order was deleted', async () => {
+    const gone = await unknownOnDeletedOrder();
+    const live = await booked('TRK-STILL-HERE');
+    const list = await attention('boss');
+    const item = list.items.find((one) => one['booking']['id'] === gone.id)!;
+    expect(item).toMatchObject({ reasons: ['unknown'], orderGone: true, reference: `MP-${gone.rowKey}`, source: { table: 'orders', id: gone.rowKey }, booking: { state: 'unknown', amount: '3.10' } });
+    expect(list.items.find((one) => one['booking']['id'] === live.id)!['orderGone']).toBe(false);
+    expect(globals.__trackingFake!.calls).toEqual([]);
+  });
+
+  it.skipIf(!available)('does not show that booking to someone who only books', async () => {
+    const gone = await unknownOnDeletedOrder();
+    const res = await call('packer', 'GET', 'attention');
+    expect(res.statusCode, res.body).toBe(200);
+    expect((res.json() as Doc)['data']['items']).toEqual([]);
+    expect(res.body).not.toContain(gone.id);
+    expect(res.body).not.toContain(`MP-${gone.rowKey}`);
+  });
+
+  it.skipIf(!available)('leaves out a label on a deleted order once it no longer has an unknown result', async () => {
+    const made = await booked('TRK-ORDER-GONE');
+    const { db } = await h.manager.data(conn);
+    await db.deleteFrom(orders as never).where('id' as never, '=', Number(made.rowKey) as never).execute();
+    expect(reasonsOf(await attention('boss'), made.id)).toBeUndefined();
+  });
+
+  it.skipIf(!available)('never calls a row someone merely cannot reach a deleted order', async () => {
+    const hidden = await attempt({ owner: userIds['boss']! });
+    await shippingBookingsRepo(h.meta).move(hidden.id, ['calling'], 'unknown', { reason: 'no-answer' }, Date.now());
+    for (const who of ['ownrep', 'ownmanager']) {
+      const res = await call(who, 'GET', 'attention');
+      expect(res.statusCode, res.body).toBe(200);
+      expect((res.json() as Doc)['data']['items'], who).toEqual([]);
+      expect(res.body).not.toContain(hidden.id);
+    }
+    expect((await attention('boss')).items[0]).toMatchObject({ orderGone: false, booking: { id: hidden.id } });
+  });
+
+  it.skipIf(!available)('says when the scan was cut, keeping what has no answer in front', async () => {
+    const seed = await booked('TRK-SEED');
+    const source = await h.meta.db.selectFrom('adminium_shipping_bookings').selectAll().where('id', '=', seed.id).executeTakeFirstOrThrow();
+    const copies = Array.from({ length: ATTENTION_SCAN }, (_, index) => ({ ...source, id: `shb_scan_${String(index)}`, openKey: null, createdAt: Number(source.createdAt) - 1000 - index }));
+    for (let at = 0; at < copies.length; at += 100) await h.meta.db.insertInto('adminium_shipping_bookings').values(copies.slice(at, at + 100) as never).execute();
+    const unknown = await attempt();
+    await shippingBookingsRepo(h.meta).move(unknown.id, ['calling'], 'unknown', { reason: 'no-answer' }, Date.now());
+
+    const list = await attention('boss');
+    expect(list.more).toBe(true);
+    expect(list.items).toHaveLength(ATTENTION_SCAN);
+    expect(list.items[0]!['booking']['id']).toBe(unknown.id);
+  }, 120_000);
 
   it.skipIf(!available)('writes neither the carrier key nor a webhook token to any reply, log line or audit row', async () => {
     const one = await makeAddress();
