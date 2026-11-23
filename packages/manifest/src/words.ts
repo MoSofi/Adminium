@@ -419,6 +419,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'outbox.waiting',
   'people.phone',
   'publicAccess.textConsent',
+  // A rule's step that sends one of those templates as a text.
+  'automations.text',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -772,6 +774,7 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'outbox.waiting': SMS_WORDS_FLOOR,
   'people.phone': SMS_WORDS_FLOOR,
   'publicAccess.textConsent': SMS_WORDS_FLOOR,
+  'automations.text': SMS_WORDS_FLOOR,
 };
 
 /** The kinds of file a column takes from the release that cleans SVG and reads models and fonts whole (`ASSET_FILE_KINDS`). */
@@ -1279,6 +1282,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
         if (action['kind'] === 'record.create' && action['name'] !== undefined) out.push({ word: 'automations.stepName', path: `${at}.${String(n)}.action.name` });
         if (action['kind'] === 'webhook') out.push({ word: 'automations.webhook', path: `${at}.${String(n)}.action` });
         if (action['kind'] === 'document.render') out.push({ word: 'automations.documentRender', path: `${at}.${String(n)}.action` });
+        if (action['kind'] === 'text') out.push({ word: 'automations.text', path: `${at}.${String(n)}.action` });
         if (action['kind'] === 'email' && to['kind'] === 'fixed') out.push({ word: 'automations.fixedAddress', path: `${at}.${String(n)}.action.to` });
         if (action['kind'] === 'email' && action['purpose'] !== undefined) out.push({ word: 'automations.purpose', path: `${at}.${String(n)}.action.purpose` });
         // A value read from the settings row, a day so many days on.

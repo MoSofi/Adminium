@@ -2470,6 +2470,7 @@ export function appReferenceIssues(
     roles?: readonly RoleShape[] | undefined;
     outbox?: z.infer<typeof outboxSchema> | undefined;
     emailTemplates?: readonly z.infer<typeof emailTemplateSchema>[] | undefined;
+    textTemplates?: readonly z.infer<typeof textTemplateSchema>[] | undefined;
     addOns?: AddOnNeeds | undefined;
     documents?: readonly AppDocument[] | undefined;
     pages?: readonly { ref?: string | undefined; feature?: string | undefined }[] | undefined;
@@ -3378,6 +3379,7 @@ export function appReferenceIssues(
         tables: m.requiredSchema.tables as unknown as readonly AutomationTableShape[],
         roles: (m.roles ?? []).map((role) => role.key),
         templates: m.emailTemplates ?? [],
+        textTemplates: m.textTemplates ?? [],
         decided: (table) => decided.get(table) ?? new Set<string>(),
         ...(ownSteps === undefined ? {} : { steps: ownSteps }),
         addOns: new Set([...(m.kind === 'add-on' ? [m.key] : []), ...[...(m.addOns?.requires ?? []), ...(m.addOns?.suggests ?? [])].map((need) => need.key)]),

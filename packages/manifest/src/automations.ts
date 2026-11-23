@@ -26,7 +26,7 @@
 import { z } from 'zod';
 
 import { MAIL_CLASSES, MAIL_PURPOSES } from './mail-classes.js';
-import { placeholderNames, requiredNamesOfEmail, showWhenNames } from './placeholders.js';
+import { placeholderNames, placeholdersIn, requiredNamesOfEmail, showWhenNames } from './placeholders.js';
 import { bcp47TagSchema, refSchema, type ReferenceIssue } from './refs.js';
 
 /** The most rules one manifest ships, and the most steps one rule holds. */
@@ -362,6 +362,24 @@ export const manifestActionSchema = z.discriminatedUnion('kind', [
     })
     .strict(),
   /**
+   * A text to the number in a column of the record, from one of the manifest's
+   * own `textTemplates`. A service text, sent through the same path as an
+   * outbox text. `notAfter`: a date-and-time column of the record that the
+   * text is about; it is never sent after that moment.
+   */
+  z
+    .object({
+      kind: z.literal('text'),
+      templateKey: z.string().regex(/^[a-z][a-z0-9-]{1,79}$/, 'a template key'),
+      to: z.object({ kind: z.literal('field'), column: refSchema }).strict(),
+      vars: z
+        .record(z.string().regex(/^[A-Za-z0-9_.-]{1,120}$/), z.string().max(2000))
+        .refine((value) => Object.keys(value).length <= 60, 'at most 60 placeholders')
+        .optional(),
+      notAfter: refSchema.optional(),
+    })
+    .strict(),
+  /**
    * A step an add-on gives (its `addOn.steps`): which add-on, which step, and
    * what fills each of the step's inputs: text, which may carry `{{record.<column>}}`.
    */
@@ -508,6 +526,8 @@ export function automationIssues(m: {
   tables: readonly AutomationTableShape[];
   roles: readonly string[];
   templates: readonly AutomationTemplateShape[];
+  /** The manifest's text templates: the only ones a rule's text step may name. */
+  textTemplates?: readonly { key: string; locales: Readonly<Record<string, { body: string }>> }[] | undefined;
   /** The columns Adminium decides beyond a column's own rule (a balance, what a posting fills), by table. */
   decided?: (table: string) => ReadonlySet<string>;
   /** An add-on's own steps, when the manifest is one that gives any: a rule of its own that names one is checked against them. */
@@ -940,6 +960,46 @@ export function automationIssues(m: {
           }
           for (const input of step.inputs) {
             if (input.required === true && (action.inputs[input.key] ?? '').trim() === '') out.push({ path: here('inputs'), message: `the step "${step.key}" needs its input "${input.key}"` });
+          }
+          return;
+        }
+        if (action.kind === 'text') {
+          if (record === undefined) out.push({ path: here(), message: 'this rule runs for no record, so there is no number to text' });
+          column(record, action.to.column, here('to', 'column'));
+          if (action.notAfter !== undefined) {
+            const moment = column(record, action.notAfter, here('notAfter'));
+            if (moment !== undefined && moment.type !== 'timestamptz') out.push({ path: here('notAfter'), message: `"${record?.ref ?? ''}.${action.notAfter}" is ${moment.type}: a text is held to a moment, so this is a timestamptz column` });
+          }
+          const vars = action.vars ?? {};
+          for (const [name, text] of Object.entries(vars)) tokens(text, here('vars', name));
+          const template = (m.textTemplates ?? []).find((candidate) => candidate.key === action.templateKey);
+          if (template === undefined) {
+            out.push({ path: here('templateKey'), message: `"${action.templateKey}" is not one of this manifest's textTemplates: a shipped rule sends only its own` });
+            return;
+          }
+          const columns = new Set((record?.columns ?? []).map((candidate) => candidate.ref));
+          const auditOnly = new Set((record?.columns ?? []).filter((candidate) => candidate.rules?.['history'] === 'audit').map((candidate) => candidate.ref));
+          const people = new Set((record?.columns ?? []).filter((candidate) => candidate.rules?.['staff'] === true).flatMap((candidate) => [`${candidate.ref}.name`, `record.${candidate.ref}.name`]));
+          const filled = (name: string): boolean =>
+            (RULE_EMAIL_VARS as readonly string[]).includes(name) ||
+            Object.hasOwn(vars, name) ||
+            columns.has(name) ||
+            (name.startsWith('record.') && columns.has(name.slice('record.'.length))) ||
+            people.has(name) ||
+            (changing && name.startsWith('was.') && columns.has(name.slice('was.'.length)) && !auditOnly.has(name.slice('was.'.length)));
+          for (const [locale, content] of Object.entries(template.locales)) {
+            const placeholders = placeholdersIn(content.body);
+            hiddenCodes(placeholders.map((one) => one.name).filter((name) => !Object.hasOwn(vars, name)), here('templateKey'));
+            // A text with an unfilled placeholder is refused when it would go, so a rule that can never fill one is refused here.
+            const unfilled = [...new Set(placeholders.filter((one) => (one.backup ?? '') === '' && !filled(one.name)).map((one) => one.name))];
+            if (unfilled.length > 0) {
+              out.push({ path: here(), message: `"${action.templateKey}" (${locale}) reads ${unfilled.map((name) => `{{${name}}}`).join(', ')}, which a rule cannot fill. Add "vars": { "${unfilled[0]!}": "{{record.<column>}}" } to this step, or give it a backup.` });
+            }
+          }
+          for (const name of Object.keys(vars)) {
+            if (!Object.values(template.locales).some((content) => placeholdersIn(content.body).some((one) => one.name === name))) {
+              out.push({ path: here('vars', name), message: `"${action.templateKey}" reads no {{${name}}} in any language: take it out, or fix the name` });
+            }
           }
           return;
         }
