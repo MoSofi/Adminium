@@ -5,19 +5,19 @@
  * THE ADDRESS IS SHOWN ONCE. Its token is stored hashed, so the reply that makes
  * it is the only time the whole address exists here. It lives in this
  * component's state and nowhere else: not in the query cache, a toast or an
- * announcement. Every later visit shows it masked (F1).
+ * announcement. Every later visit shows it masked.
  *
  * "Last update received" reads `webhook.lastAt`, which only an accepted webhook
- * writes, and never the time of someone's Refresh (F3).
+ * writes, and never the time of someone's Refresh.
  *
  * A PRIVATE SERVER is `webhook.publicAddress: false`, shown from the first
- * paint with no way to make an address (F4). `NO_PUBLIC_ADDRESS` is the fallback
+ * paint with no way to make an address. `NO_PUBLIC_ADDRESS` is the fallback
  * for an address that went away after this page read it.
  *
  * AN ENDED ADDRESS is `webhook.ended`: the server remembers that one was made
  * and that its key was then replaced or removed, so this holds on any visit.
  *
- * Background tracking is locked in code (D7), so there is no switch.
+ * Background tracking is locked in code, so there is no switch.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, CircleCheckBig, Clock, Copy, RadioTower, RefreshCw } from 'lucide-react';

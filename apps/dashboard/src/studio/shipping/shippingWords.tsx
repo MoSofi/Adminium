@@ -33,7 +33,7 @@ export function carrierStateOf(carrier: CarrierView): CarrierState {
   return carrier.account.mode;
 }
 
-/** A locked carrier runs its demo and takes no key; any other needs a check that passed (F9). */
+/** A locked carrier runs its demo and takes no key; any other needs a check that passed. */
 export function mayPick(carrier: CarrierView): boolean {
   return carrier.on && (carrier.locked || carrier.account?.state === 'ok');
 }
@@ -136,7 +136,7 @@ export function refusalWords(error: unknown, carrier: string): string {
   }
 }
 
-/** Figures, dates, lists and countries in the viewer's language (F21). Digits stay Latin, as every figure in the product. */
+/** Figures, dates, lists and countries in the viewer's language. Digits stay Latin, as every figure in the product. */
 export function useShippingFormat() {
   const tag = useLocaleTag();
   return useMemo(
@@ -165,7 +165,7 @@ export function useShippingFormat() {
   );
 }
 
-/** A link out of Adminium: no referrer, and a screen reader is told it opens a new tab (F13). */
+/** A link out of Adminium: no referrer, and a screen reader is told it opens a new tab. */
 export function OutLink({ href, children }: { href: string; children: ReactNode }) {
   return (
     <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 self-start text-[12.5px] font-bold text-accent underline-offset-2 hover:underline">

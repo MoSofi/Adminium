@@ -3,14 +3,14 @@
  * `/studio/shipping`: Workspace settings → Shipping (comp `Shipping Setup`).
  *
  * THE GATE is `system:shipping:manage`, through `holdsSystemAction` and never a
- * role's name. Anyone else gets a plain notice (S1-F8), so this route carries
+ * role's name. Anyone else gets a plain notice, so this route carries
  * no `StudioGuard`: the guard's generic forbidden page would not say who to ask.
  *
  * Four tabs: Setup, Label size, Who can buy labels and Tracking. One card per
  * app that has a carrier attached. With two or more, a plain picker above the
- * tabs says which app the rest of the page is about (F10). A test key puts a
- * banner over every tab (D5), and the not-affiliated line sits once, in a
- * footer under them (F14).
+ * tabs says which app the rest of the page is about. A test key puts a
+ * banner over every tab, and the not-affiliated line sits once, in a
+ * footer under them.
  */
 import { useQueries, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { FlaskConical, Lock } from 'lucide-react';

@@ -456,7 +456,7 @@ export function shippingTrackingRepo(meta: MetaDb) {
         .leftJoin('adminium_shipping_parcels as p', 'p.bookingId', 'b.id')
         .select(['b.id as bookingId', 'b.createdAt as createdAt', 'p.statusRank as rank', 'p.statusAt as statusAt', 'p.checkedAt as checkedAt', 'p.polledAt as polledAt'])
         .where('b.carrierInstallId', '=', scope.carrierInstallId)
-        // A label with a refund pending stays open: a press is how a private install hears the answer (S3-F19).
+        // A label with a refund pending stays open: a press is how a private install hears the answer.
         .where('b.state', 'in', ['booked', 'voiding'])
         .where('b.mode', '=', 'live')
         .where('b.tracking', 'is not', null)

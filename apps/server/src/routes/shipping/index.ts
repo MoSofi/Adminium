@@ -233,7 +233,7 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
 
   /**
    * A return label's place on its order: only the owner, only on a return of
-   * THIS order that the app says is approved (D12). The place is the return's
+   * THIS order that the app says is approved. The place is the return's
    * position among the order's returns, worked out here, so one return is one
    * label however the client asks.
    */

@@ -3,8 +3,8 @@
  * Shipping → Who can buy labels (comp state S06).
  *
  * The daily limit is ONE count for the whole install, so every word about it
- * says "all packers together" (F18). With no limit set, the owner books. The
- * abroad switch is Release 2 and is not drawn (F17).
+ * says "all packers together". With no limit set, the owner books. The
+ * abroad switch is Release 2 and is not drawn.
  *
  * The currency is the saved limit's, else the one the app's database is set
  * to. A rate in any other currency counts as above the limit on the server, so

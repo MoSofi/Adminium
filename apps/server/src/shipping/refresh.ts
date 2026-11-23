@@ -169,7 +169,7 @@ export async function refreshOpenParcels(
       outcome = 'rate-limited';
       break;
     }
-    // A pending refund is asked about too, or a private install hears its answer only by opening each order (S3-F19).
+    // A pending refund is asked about too, or a private install hears its answer only by opening each order.
     let refundMoved = false;
     if (booking.state === 'voiding' && input.checkRefund !== undefined && calls < REFRESH_OPEN_BATCH) {
       calls += 1;

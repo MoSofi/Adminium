@@ -4,7 +4,7 @@
  *
  * Saved once, on commit: a click, Space or Enter, or focus leaving the group.
  * An arrow key moves the choice and saves nothing, so walking across the three
- * sizes is one write and not three (F19). It is the size ASKED for: a carrier
+ * sizes is one write and not three. It is the size ASKED for: a carrier
  * may return another, and the booking says so when one does.
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query';

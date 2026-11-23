@@ -3,11 +3,11 @@
  * Shipping → Setup (comp states S01–S04).
  *
  *  - S01: one card per app, with the carrier it ships with. A carrier cannot be
- *    picked until a check of its key has passed (F9).
+ *    picked until a check of its key has passed.
  *  - S02: the guide and the key form. Steps Adminium cannot know are never
- *    ticked (F15). The shape of a key is a hint: the server decides.
- *  - S03: the five results of a check, each with Check again (F7).
- *  - S04: a locked carrier takes no key and has no switch (D7).
+ *    ticked. The shape of a key is a hint: the server decides.
+ *  - S03: the five results of a check, each with Check again.
+ *  - S04: a locked carrier takes no key and has no switch.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, ArrowRight, Check, CircleCheckBig, CircleX, CloudOff, FlaskConical, Hash, Info, KeyRound, Lock, Package, PlugZap, RefreshCw, Search, Store, Truck } from 'lucide-react';
@@ -677,7 +677,7 @@ function CheckResult({
     );
   }
 
-  // Never reads as a bad key: nothing was learned about it (F7).
+  // Never reads as a bad key: nothing was learned about it.
   return (
     <ResultBox tone="neutral" icon={<CloudOff className="text-fg-muted" />}>
       <p className="text-[14px] font-bold" data-testid="shipping-result-no-answer">
@@ -941,7 +941,7 @@ export function KeyCarrierCard({
             <div className="flex flex-col gap-2.5 border-b border-border p-5">
               <div className="flex flex-wrap items-center gap-2">
                 <span className={fieldCaption}>{t('studio:shipping.step.heading', 'Setup checklist')}</span>
-                {/* Counts only what Adminium can know: a key saved and a check passed (F15). */}
+                {/* Counts only what Adminium can know: a key saved and a check passed. */}
                 <span className="ms-auto font-mono text-[11.5px] font-medium text-fg-subtle" data-testid="shipping-known-count">
                   {t('studio:shipping.step.known', '{done} of {total} confirmed here', { done: format.number(knownDone), total: format.number(2) })}
                 </span>
