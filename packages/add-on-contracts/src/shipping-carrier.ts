@@ -413,6 +413,7 @@ export const orderRefSchema = z
     reference: z.string().min(1),
     purpose: z.enum(SHIPMENT_PURPOSES).optional(),
     parcel: z.number().int().positive().optional(),
+    rateRefs: z.array(z.string().min(1)).optional(),
   })
   .strict();
 
