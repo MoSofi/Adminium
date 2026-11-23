@@ -2287,6 +2287,8 @@ export interface AdminiumInboundEventsTable {
   /** The event, sealed under a key from the address keys. Gone once it finishes. */
   sealedBody: string | null;
   attempts: number;
+  /** Claims that never came back, because the process died with them. */
+  lostClaims: number;
   reason: string | null;
   occurredAt: Ts | null;
   receivedAt: Ts;

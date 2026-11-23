@@ -128,6 +128,7 @@ import { up as up0125 } from './0125_sms_accounts.js';
 import { up as up0126 } from './0126_text_consent.js';
 import { up as up0127 } from './0127_inbound_events.js';
 import { up as up0128 } from './0128_text_deliveries.js';
+import { up as up0129 } from './0129_inbound_lost_claims.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -243,4 +244,5 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0126_text_consent', up: up0126 },
   { name: '0127_inbound_events', up: up0127 },
   { name: '0128_text_deliveries', up: up0128 },
+  { name: '0129_inbound_lost_claims', up: up0129 },
 ];
