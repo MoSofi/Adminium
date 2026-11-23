@@ -46,8 +46,8 @@ and Adminium 0.3.72 or later. The install's check lists each one, ticked, and an
 one asks first.
 
 An install through the API answers in `shippingUnticked`, a list of `{ "role", "action" }` to leave
-out, and `[]` grants them all. An install that sends no answer, a workspace file included, gives
-none of them and names each in `shippingWithheld`. An update never hands them over afterwards, so
+out, and `[]` grants them all. An install that sends no answer gives none of them and names each
+in `shippingWithheld`. An update never hands them over afterwards, so
 the owner gives them on the Roles page. A right a role already holds is kept.
 
 | Grant | What it allows |
