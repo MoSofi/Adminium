@@ -53,6 +53,9 @@ export const OUTBOX_PRODUCERS_BEFORE = 24;
 /** The statuses an outbox table's status column must offer. */
 export const OUTBOX_STATUSES = ['queued', 'sent', 'failed', 'skipped'] as const;
 
+/** How a kind reaches a person. One kind has one: "email and text" is two kinds. A kind that names none is email. */
+export const OUTBOX_CHANNELS = ['email', 'sms'] as const;
+
 /** The status a held message waits in, when any producer holds. */
 export const OUTBOX_HELD = 'held';
 
@@ -320,11 +323,17 @@ const recipientSchema = z
     /** A bool the person sets: false means no reminders. */
     optIn: refSchema.optional(),
     /**
+     * The text column of the person's row that holds their mobile number,
+     * which a text kind (`channels`) is sent to. A row with a number and an
+     * empty address is a person who can be texted.
+     */
+    phone: refSchema.optional(),
+    /**
      * Where the address comes from when `via` is empty — a first visit made
      * by someone not yet on file carries their details on the row itself.
      */
     fallback: z
-      .object({ via: refSchema, email: refSchema, name: refSchema.optional(), language: refSchema.optional() })
+      .object({ via: refSchema, email: refSchema, phone: refSchema.optional(), name: refSchema.optional(), language: refSchema.optional() })
       .strict()
       .optional(),
   })
@@ -413,6 +422,18 @@ export const outboxSchema = z
      * Adminium has none, and its mail reads as service.
      */
     classes: z.record(z.string().min(1).max(40), z.enum(MAIL_CLASSES)).optional(),
+    /**
+     * How a kind reaches a person, beside `kinds` so nothing that reads an
+     * email kind changes. `sms`: its template is one of the app's
+     * `textTemplates`, sent to `recipient.phone`. A kind not named is email.
+     */
+    channels: z.record(z.string().min(1).max(40), z.enum(OUTBOX_CHANNELS)).optional(),
+    /**
+     * The text kinds a customer is waiting for right now ("your order is
+     * ready"): these may go outside the business's sending hours. Only a
+     * service text can be one.
+     */
+    waiting: z.array(z.string().min(1).max(40)).min(1).max(16).optional(),
     /**
      * The consent purpose a kind is sent for (`newsletter`, `surveys`). A
      * marketing kind is judged by the consent log's answer for it instead of
@@ -896,7 +917,8 @@ export function outboxIssues(
     if (kind !== undefined && !(kind.enum ?? []).includes(value)) {
       out.push({ path: at('kinds', value), message: `"${value}" is not a value of "${box.table}.${kind.ref}"` });
     }
-    if (!templates.has(template)) out.push({ path: at('kinds', value), message: `"${template}" is not one of the app's emailTemplates` });
+    // A text kind's template is one of the app's textTemplates (`text-messages.ts`).
+    if (box.channels?.[value] !== 'sms' && !templates.has(template)) out.push({ path: at('kinds', value), message: `"${template}" is not one of the app's emailTemplates` });
   }
   // A class is said of a kind the outbox sends.
   for (const value of Object.keys(box.classes ?? {})) {

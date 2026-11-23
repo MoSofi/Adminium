@@ -756,6 +756,23 @@ export interface AdminiumEmailTemplatesTable {
   sendAs: ColumnType<string | null, string | null | undefined, string | null>;
 }
 
+/** An app's or an operator's text-message template, one row per key and language (wave 0120). */
+export interface AdminiumTextTemplatesTable {
+  key: string;
+  locale: string;
+  name: string;
+  body: string;
+  enabled: BoolColumn;
+  /** The app that shipped it; NULL for the operator's. */
+  managedBy: ColumnType<string | null, string | null | undefined, string | null>;
+  installId: ColumnType<Id | null, Id | null | undefined, Id | null>;
+  /** The hash of what the app shipped; a row that no longer hashes to it was edited. */
+  contentHash: ColumnType<string | null, string | null | undefined, string | null>;
+  updatedBy: Id | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
 /** Saved reusable email blocks, workspace-wide. */
 export interface AdminiumEmailBlocksTable {
   id: Id;
@@ -2475,6 +2492,7 @@ export interface MetaDB {
   adminium_exports: AdminiumExportsTable;
   adminium_imports: AdminiumImportsTable;
   adminium_email_templates: AdminiumEmailTemplatesTable;
+  adminium_text_templates: AdminiumTextTemplatesTable;
   adminium_email_blocks: AdminiumEmailBlocksTable;
   adminium_email_runs: AdminiumEmailRunsTable;
   adminium_invoice_documents: AdminiumInvoiceDocumentsTable;
@@ -2604,6 +2622,7 @@ export const META_TABLE_NAMES = [
   'adminium_exports',
   'adminium_imports',
   'adminium_email_templates',
+  'adminium_text_templates',
   'adminium_email_blocks',
   'adminium_email_runs',
   'adminium_invoice_documents',

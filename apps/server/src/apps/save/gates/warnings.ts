@@ -25,6 +25,7 @@ import { leafPlace } from './secrets.js';
 const TYPED_BLOCKS = new Set([
   'pages',
   'emailTemplates',
+  'textTemplates',
   'outbox',
   'publicAccess',
   'publicKeys',

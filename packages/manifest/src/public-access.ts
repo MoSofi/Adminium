@@ -28,7 +28,7 @@
  */
 import { z } from 'zod';
 
-import { publicConsentSchema } from './people.js';
+import { publicConsentSchema, publicTextConsentSchema } from './people.js';
 
 import { kindOf, rulesOf, type Capacity } from './capacity.js';
 import { formulaColumns, type FormulaExpr } from './formula.js';
@@ -680,6 +680,12 @@ export const publicAccessSchema = z
      * unticked writes nothing: it takes back no earlier yes.
      */
     consent: publicConsentSchema.optional(),
+    /**
+     * A separate box for texts, beside `consent` and never the same one: an
+     * e-mail yes is not a text yes. It starts unticked, and no create or
+     * change is ever refused for leaving it so (see `text-messages.ts`).
+     */
+    textConsent: publicTextConsentSchema.optional(),
     /**
      * On an add-on's entry, which rides the key of every app it is attached
      * to: a text column of the table that holds the key of the app a row is

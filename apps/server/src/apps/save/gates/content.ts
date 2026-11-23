@@ -132,6 +132,7 @@ export const BLOCK_KINDS: Readonly<Record<string, string>> = {
   roles: 'role',
   automations: 'automation',
   emailTemplates: 'email',
+  textTemplates: 'email',
   outbox: 'email',
   documents: 'document',
   reports: 'report',

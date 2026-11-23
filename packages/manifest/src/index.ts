@@ -200,7 +200,30 @@ export {
   LINK_PATH,
   type PeopleEntry,
   type PublicConsent,
+  publicTextConsentSchema,
+  TEXT_CONSENT_CLASSES,
+  type PublicTextConsent,
 } from './people.js';
+export {
+  CALENDAR_GOOGLE_VARIABLE,
+  CALENDAR_OUTLOOK_VARIABLE,
+  OBJECT_LINK_VARIABLE,
+  TEXT_TEMPLATE_BODY_MAX,
+  TEXT_TEMPLATES_MAX,
+  asksForYes,
+  checkTextTemplate,
+  codeNamesIn,
+  isTextKind,
+  isWaitingKind,
+  outboxTextIssues,
+  publicTextConsentIssues,
+  readsCredential,
+  textTemplateIssues,
+  textTemplateSchema,
+  type TextTemplate,
+  type TextTemplateRefusal,
+  type TextTemplateVerdict,
+} from './text-messages.js';
 export { EXPIRE_DAYS_MAX, EXPIRE_DAYS_MIN, expireIssues, expireSchema, type Expire } from './expire.js';
 export { holdersIssues, holdersSchema, type Holders } from './holders.js';
 export {
@@ -284,6 +307,7 @@ export {
   emailTemplateAttachmentSchema,
   emailTemplateBrandSchema,
   emailRowsDataSchema,
+  OUTBOX_CHANNELS,
   outboxProducerSchema,
   outboxSchema,
   type EmailTemplate,
@@ -679,7 +703,7 @@ export {
   type PartOrigin,
 } from './compose.js';
 export { EMBED_MAX_PATHS, EMBED_MODES, embedOfDocument, frontendEmbedSchema, isEmbedPath, type EmbedMode, type EmbedScreen, type FrontendEmbed } from './embed.js';
-export { ADD_ON_INSTALL_BLOCKS, FILE_COLUMN_EARLIER_MAX_BYTES, INSTALL_FLOOR_WORD_NAMES, WORD_FLOORS, installFloorWords, type ManifestWord, type ManifestWordName } from './words.js';
+export { ADD_ON_INSTALL_BLOCKS, FILE_COLUMN_EARLIER_MAX_BYTES, INSTALL_FLOOR_WORD_NAMES, SMS_WORDS_FLOOR, WORD_FLOORS, installFloorWords, type ManifestWord, type ManifestWordName } from './words.js';
 export {
   LEDGERS_MAX,
   LEDGER_ACTIONS_MAX,

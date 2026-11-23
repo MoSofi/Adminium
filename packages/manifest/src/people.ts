@@ -18,7 +18,10 @@
  * An entry:
  *  - `table`, and `kind`: `people`, or `companies` (a company may have no
  *    address of its own; its people are mailed);
- *  - `email`: the address column (a `people` entry has one);
+ *  - `email`: the address column (a `people` entry has one, or a `phone`);
+ *  - `phone`: the column that holds the person's mobile number, for texts, the
+ *    text stop list and an erasure by phone. A person may be known by it alone:
+ *    a `people` entry that names it needs no `email`;
  *  - `name`: the column that names the person (default: the table's
  *    `keyField`, never the address column; a name kept in parts is joined
  *    by a formula column of the app's); `company`: a link to the company
@@ -117,6 +120,34 @@ export const publicConsentSchema = z
   })
   .strict();
 export type PublicConsent = z.infer<typeof publicConsentSchema>;
+
+/** What a text box is a yes to: texts about what the person booked or bought, or offers. Never one for the other. */
+export const TEXT_CONSENT_CLASSES = ['service', 'marketing'] as const;
+
+/**
+ * A public entry's box for texts (`textConsent`), beside its e-mail tick and
+ * never the same box. `column` is the row's own bool, `phone` the text column
+ * of the same row that holds the number the answer is for, `class` what it
+ * agrees to, and `wording` the sentence shown beside it with its version. It
+ * starts unticked and nothing is ever refused for leaving it so.
+ */
+export const publicTextConsentSchema = z
+  .object({
+    column: refSchema,
+    phone: refSchema,
+    class: z.enum(TEXT_CONSENT_CLASSES),
+    means: z.enum(['yes', 'no']).optional(),
+    wording: z
+      .object({
+        version: z.number().int().min(1).max(9999),
+        text: z
+          .record(bcp47TagSchema, z.string().min(1).max(CONSENT_WORDING_MAX))
+          .refine((texts) => texts['en-US'] !== undefined, { message: 'the wording is given in several languages, en-US among them' }),
+      })
+      .strict(),
+  })
+  .strict();
+export type PublicTextConsent = z.infer<typeof publicTextConsentSchema>;
 
 /** A table's `keep`: the law keeps its rows, for this reason. */
 export const keepSchema = z.object({ law: z.enum(KEPT_BY_LAW_REASONS) }).strict();
@@ -237,6 +268,8 @@ export const peopleEntrySchema = z
     table: refSchema,
     kind: z.enum(PEOPLE_KINDS),
     email: refSchema.optional(),
+    /** The person's mobile number. From Adminium's first release with texts (`people.phone`). */
+    phone: refSchema.optional(),
     name: refSchema.optional(),
     company: refSchema.optional(),
     language: refSchema.optional(),
@@ -249,7 +282,8 @@ export const peopleEntrySchema = z
     lead: leadSchema.optional(),
   })
   .strict()
-  .refine((entry) => entry.kind !== 'people' || entry.email !== undefined, { message: 'a people table names the column that holds the address ("email")', path: ['email'] })
+  .refine((entry) => entry.kind !== 'people' || entry.email !== undefined || entry.phone !== undefined, { message: 'a people table names the column that holds the address ("email")', path: ['email'] })
+  .refine((entry) => entry.kind === 'people' || entry.phone === undefined, { message: 'a company\'s number is its details\' ("lead.phone"): "phone" is a person\'s mobile', path: ['phone'] })
   .refine((entry) => entry.kind === 'companies' || entry.lead === undefined, { message: 'a company\'s details ("lead") are said on a companies entry, not on a table of people', path: ['lead'] });
 export type PeopleEntry = z.infer<typeof peopleEntrySchema>;
 
@@ -307,11 +341,16 @@ export function peopleIssues<C extends PeopleColumn>(
     };
 
     if (entry.email !== undefined) col(entry.table, entry.email, ['text'], at('email'), 'a text column (an address)');
+    if (entry.phone !== undefined) {
+      col(entry.table, entry.phone, ['text'], at('phone'), 'a text column (a phone number)');
+      if (entry.phone === entry.email) out.push({ path: at('phone'), message: `"${entry.table}.${entry.phone}" is the address: a phone number is kept in a column of its own` });
+    }
     const keyField = m.requiredSchema.tables.find((table) => table.ref === entry.table)?.keyField;
     const name = entry.name ?? keyField;
     if (name === undefined) out.push({ path: at('name'), message: `"${entry.table}" has no keyField: name the column that names a person ("name")` });
     else if (entry.name !== undefined) col(entry.table, entry.name, ['text'], at('name'), 'a text column');
     // A person is not named by their address: a table whose keyField is the address names the name column (a formula that joins two, when the name is kept in parts).
+    if (name !== undefined && entry.phone !== undefined && name === entry.phone) out.push({ path: at('name'), message: `"${entry.table}" is named by its phone number ("${name}"${entry.name === undefined ? ', its keyField' : ''}): name the column that holds the person's name ("name")` });
     if (name !== undefined && name === entry.email) out.push({ path: at('name'), message: `"${entry.table}" is named by its address ("${name}"${entry.name === undefined ? ', its keyField' : ''}): name the column that holds the person's name ("name"), a formula column when the name is kept in parts` });
     if (entry.company !== undefined) {
       const link = col(entry.table, entry.company, ['fk'], at('company'), 'a link to the company');

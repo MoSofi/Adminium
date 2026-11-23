@@ -251,6 +251,8 @@ export function publicReach(root: string, appKey: string): Set<string> {
     if (keys !== null && typeof keys === 'object') for (const [name, value] of Object.entries(keys)) out.add(`key:${name}:${stable(value)}`);
     if (document['outbox'] !== undefined) out.add('mail:outbox').add(`mail:outbox:${stable(document['outbox'])}`);
     for (const template of list(document['emailTemplates'])) out.add(`mail:template:${String(template['kind'] ?? template['key'] ?? '')}:${stable(template)}`);
+    // A text reaches the public as a mail does: a change of its words is new reach.
+    for (const template of list(document['textTemplates'])) out.add(`mail:template:text:${String(template['key'] ?? '')}:${stable(template)}`);
     // An automation's email to a record's own address (or any address that is not a staff member's): mail to the public.
     for (const rule of list(document['automations'])) {
       for (const step of emailSteps(rule)) out.add(`mail:automation:${String(rule['key'])}:${stable(step)}`);

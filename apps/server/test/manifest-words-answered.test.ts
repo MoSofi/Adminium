@@ -6,7 +6,7 @@
  * wrong — so the two lists together are the manifest package's own list,
  * with no word in both.
  */
-import { INSTALL_FLOOR_WORD_NAMES, RULE_EMAIL_VARS as MANIFEST_EMAIL_VARS, templatePlaceholdersOf } from '@adminium/manifest';
+import { INSTALL_FLOOR_WORD_NAMES, RULE_EMAIL_VARS as MANIFEST_EMAIL_VARS, SMS_WORDS_FLOOR, templatePlaceholdersOf } from '@adminium/manifest';
 import { describe, expect, it } from 'vitest';
 
 import { RULE_EMAIL_VARS, templatePlaceholders } from '../src/automations/actions/email.js';
@@ -25,7 +25,7 @@ describe('the newer words of a manifest', () => {
   });
 
   it('a refused word names a release', () => {
-    for (const [word, release] of Object.entries(UNBUILT_MANIFEST_WORDS)) expect(release, word).toMatch(/^0\.3\.(28|64|65)$/);
+    for (const [word, release] of Object.entries(UNBUILT_MANIFEST_WORDS)) expect(['0.3.28', '0.3.64', '0.3.65', SMS_WORDS_FLOOR], word).toContain(release);
   });
 });
 

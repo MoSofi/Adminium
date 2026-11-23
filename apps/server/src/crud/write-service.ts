@@ -2541,6 +2541,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   const mirrored = async (target: WriteTarget, context?: WriteContext): Promise<boolean> => {
     if (opts.people?.written === undefined) return false;
     if (context?.consentTick !== undefined && context.consentTick.table === target.table.id) return true;
+    if (context?.textConsentTick !== undefined && context.textConsentTick.table === target.table.id) return true;
     return (await opts.people.tableOf(target))?.consent != null;
   };
 

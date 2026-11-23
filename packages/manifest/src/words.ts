@@ -31,6 +31,12 @@ const list = (value: unknown): readonly unknown[] => (Array.isArray(value) ? val
 /** The most a file column took before guests could upload into it: past this, a column needs the release that reads it. */
 export const FILE_COLUMN_EARLIER_MAX_BYTES = 25 * 1024 * 1024;
 
+/**
+ * The first Adminium that reads the words of texts. The one place it is
+ * written: if the release number moves, this line moves.
+ */
+export const SMS_WORDS_FLOOR = '0.3.72';
+
 /** The top-level blocks an add-on shares with an app since the install floor. */
 export const ADD_ON_INSTALL_BLOCKS = [
   'pages',
@@ -405,6 +411,14 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'table.connectedAccounts',
   // An app role that connects, sends a link for or disconnects a row's outside account.
   'roles.accounts',
+  // An app's text messages: their templates, a kind sent as a text, the person's mobile, a text a customer is waiting
+  // for, a person known by phone, and a public form's own unticked box for texts.
+  'textTemplates',
+  'outbox.channels',
+  'outbox.recipient.phone',
+  'outbox.waiting',
+  'people.phone',
+  'publicAccess.textConsent',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -752,6 +766,12 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'table.booking.sync': '0.3.71',
   'addOn.reviews': '0.3.68',
   'appGrants.appColumn': '0.3.68',
+  textTemplates: SMS_WORDS_FLOOR,
+  'outbox.channels': SMS_WORDS_FLOOR,
+  'outbox.recipient.phone': SMS_WORDS_FLOOR,
+  'outbox.waiting': SMS_WORDS_FLOOR,
+  'people.phone': SMS_WORDS_FLOOR,
+  'publicAccess.textConsent': SMS_WORDS_FLOOR,
 };
 
 /** The kinds of file a column takes from the release that cleans SVG and reads models and fonts whole (`ASSET_FILE_KINDS`). */
@@ -919,6 +939,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
         if (isDoc(copy) && copy['from'] !== undefined) out.push({ word: 'people.addOnCopyFrom', path: `people.${String(e)}.copies.${String(c)}.from` });
       });
       if (isDoc(entry) && entry['lead'] !== undefined) out.push({ word: 'people.lead', path: `people.${String(e)}.lead` });
+      if (isDoc(entry) && entry['phone'] !== undefined) out.push({ word: 'people.phone', path: `people.${String(e)}.phone` });
     });
   }
 
@@ -926,6 +947,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
   list(document['publicAccess']).forEach((entry, e) => {
     if (isDoc(entry) && entry['pay'] !== undefined) out.push({ word: 'publicAccess.pay', path: `publicAccess.${String(e)}.pay` });
     if (isDoc(entry) && isDoc(entry['consent']) && entry['consent']['means'] !== undefined) out.push({ word: 'publicAccess.consent.no', path: `publicAccess.${String(e)}.consent.means` });
+    if (isDoc(entry) && entry['textConsent'] !== undefined) out.push({ word: 'publicAccess.textConsent', path: `publicAccess.${String(e)}.textConsent` });
     if (isDoc(entry) && entry['requirePayments'] !== undefined) out.push({ word: 'publicAccess.requirePayments', path: `publicAccess.${String(e)}.requirePayments` });
     // A choice in the settings row that must hold one of some values.
     list(isDoc(entry) ? entry['requireSetting'] : undefined).forEach((setting, r) => {
@@ -1177,6 +1199,11 @@ export function installFloorWords(document: unknown): ManifestWord[] {
   if (outbox['purposes'] !== undefined) out.push({ word: 'outbox.purposes', path: 'outbox.purposes' });
   if (outbox['surveyLinks'] !== undefined) out.push({ word: 'outbox.surveyLinks', path: 'outbox.surveyLinks' });
   if (outbox['reviewLinks'] !== undefined) out.push({ word: 'outbox.reviewLinks', path: 'outbox.reviewLinks' });
+  if (document['textTemplates'] !== undefined) out.push({ word: 'textTemplates', path: 'textTemplates' });
+  if (outbox['channels'] !== undefined) out.push({ word: 'outbox.channels', path: 'outbox.channels' });
+  if (outbox['waiting'] !== undefined) out.push({ word: 'outbox.waiting', path: 'outbox.waiting' });
+  if (isDoc(outbox['recipient']) && outbox['recipient']['phone'] !== undefined) out.push({ word: 'outbox.recipient.phone', path: 'outbox.recipient.phone' });
+  if (isDoc(outbox['recipient']) && isDoc(outbox['recipient']['fallback']) && outbox['recipient']['fallback']['phone'] !== undefined) out.push({ word: 'outbox.recipient.phone', path: 'outbox.recipient.fallback.phone' });
   if (list(outbox['producers']).length > OUTBOX_PRODUCERS_BEFORE) out.push({ word: 'outbox.manyProducers', path: 'outbox.producers' });
   list(outbox['producers']).forEach((producer, p) => {
     if (isDoc(producer) && producer['payments'] !== undefined) out.push({ word: 'outbox.producerPayments', path: `outbox.producers.${String(p)}.payments` });
