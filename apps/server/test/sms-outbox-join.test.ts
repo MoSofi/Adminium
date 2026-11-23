@@ -28,13 +28,16 @@ import { createTextConsentService, textSubject, type TextConsentService } from '
 import { createTextErasure } from '../src/sms/erasure.js';
 import { SMS_STOP_CONFIRMATION, SMS_STOP_EVENT_KINDS, createSmsInboundChannel, type SmsInboundChannel } from '../src/sms/inbound/index.js';
 import { createSmsService, type SmsCredentialInput } from '../src/sms/index.js';
-import { SEALED_TEXT_GONE, SMS_SEND_JOB_KIND, TextRetryLater, createTextSendPath, createTextSendStore, smsSendPayloadSchema, textPhoneKeys, type TextSendPath, type TextSendStore } from '../src/sms/send/index.js';
+import { SEALED_TEXT_GONE, SMS_SEND_JOB_KIND, TEXT_SETTLE_JOB, TextRetryLater, createTextSendPath, createTextSendStore, smsSendPayloadSchema, textPhoneKeys, type TextSendPath, type TextSendStore } from '../src/sms/send/index.js';
+import { createSmsWiring } from '../src/sms/wiring.js';
+import { ENDED_TRIAL_JOB_KINDS } from '../src/trial/ended-jobs.js';
 import { memorySmsStore } from './helpers/sms-store.js';
 import { TEST_SECRET } from './helpers.js';
 import { LEGS, installInvoicing, invoicingManifest, invoicingTables, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 import { SMTP } from './outbox-rows-fixture.js';
 import { json, stubProvider, type ProviderStep } from './sms-send.helpers.js';
+import { LEGS as WHOLE_LEGS, said, wholeServer, type WholeServer } from './whole-server.helpers.js';
 
 vi.mock('../src/version.js', async (original) => ({ ...(await original<typeof import('../src/version.js')>()), APP_VERSION: SMS_WORDS_FLOOR }));
 
@@ -580,6 +583,54 @@ describe.each(LEGS)('a text kind joined to the engine — %s', (dialect, availab
     expect(logged.join('\n')).not.toContain(MIA);
   });
 
+  it.skipIf(!available)('a job whose delivery was erased stops holding the number when it runs', async () => {
+    const { sender, provider, runJobs } = await wire();
+    const mia = await patient('Mia Okada', MIA);
+    await agree(MIA);
+    await queued(mia);
+    await sender.sendApp('clinic', clock.now);
+    expect((await envelopes())[0]!.envelope).not.toBe(SEALED_TEXT_GONE);
+    // What is left if a job was queued just as the erasure ran: its envelope, and no delivery.
+    await meta.db.deleteFrom('adminium_text_deliveries').execute();
+    await runJobs();
+    expect(provider.posts).toHaveLength(0);
+    expect((await envelopes())[0]!.envelope).toBe(SEALED_TEXT_GONE);
+  });
+
+  it.skipIf(!available)('the clean-up queues nothing on an install that has never sent a text', async () => {
+    const wiring = createSmsWiring({ meta, secret: TEST_SECRET, networkFeatures: false, desktop: false, trustProxy: false, operator: () => ({ allowed: true, reason: null }), log: { info: () => undefined } });
+    expect(wiring.texts).toBeNull();
+    const enqueued: EnqueueJobInput[] = [];
+    const enqueue = async (input: EnqueueJobInput) => {
+      enqueued.push(input);
+      return { id: 'job_test' };
+    };
+    expect(await wiring.enqueueTextSettle(enqueue)).toBeNull();
+    expect(enqueued).toHaveLength(0);
+
+    const { sender, texts } = await wire();
+    await agree(MIA);
+    await queued(await patient('Mia Okada', MIA));
+    await sender.sendApp('clinic', clock.now);
+    expect(await wiring.enqueueTextSettle(enqueue)).toEqual({ id: 'job_test' });
+    expect(enqueued.map((one) => one.kind)).toEqual([TEXT_SETTLE_JOB]);
+    wiring.joinSendPath(texts);
+    expect(wiring.texts).toBe(texts);
+  });
+
+  it.skipIf(!available)('a reminder for a person with no number is made as a row that says so', async () => {
+    const { sender, provider, runJobs } = await wire();
+    const nobody = await patient('No Number', null);
+    await h.rows(`INSERT INTO ${h.real('visits')} (patient_id, starts_at, state) VALUES (${nobody}, ${visitAt()}, 'booked')`);
+    clock.now = NIGHT;
+    await producers.scan(clock.now);
+    await sender.sendApp('clinic', clock.now);
+    await runJobs();
+    const [row] = await h.rows(`SELECT id FROM ${h.real('messages')}`);
+    expect(await message(Number(row!['id']))).toMatchObject({ status: 'skipped', error: TEXT_NO_NUMBER });
+    expect(provider.posts).toHaveLength(0);
+  });
+
   it.skipIf(!available)('a sample row and a rehearsal never reach the send path', async () => {
     const { sender, texts, provider, runJobs } = await wire();
     const asked: unknown[] = [];
@@ -674,5 +725,24 @@ describe.each(LEGS)('an app with both channels and no text provider — %s', (di
     expect(rows[1]).toMatchObject({ kind: 'confirm_text', status: 'skipped', error: TEXT_NOT_CONNECTED });
     expect(await h.meta.db.selectFrom('adminium_jobs').select('id').where('kind', '=', 'email.send').execute()).toHaveLength(1);
     expect(await h.meta.db.selectFrom('adminium_jobs').select('id').where('kind', '=', SMS_SEND_JOB_KIND).execute()).toHaveLength(0);
+  });
+});
+
+describe.each(WHOLE_LEGS)('the composed server — %s', (dialect, reachable) => {
+  let s: WholeServer;
+
+  beforeAll(async () => {
+    if (reachable) s = await wholeServer(dialect, clinicManifest(), { people: {} });
+  }, 180_000);
+  afterAll(async () => {
+    if (reachable) await s?.close();
+  });
+
+  it.skipIf(!reachable)('registers both text jobs, and nobody can queue one by hand', async () => {
+    for (const kind of [SMS_SEND_JOB_KIND, TEXT_SETTLE_JOB]) {
+      expect(said(await s.send('owner', 'POST', '/api/v1/jobs', { kind, payload: {} })), kind).toBe('403 FORBIDDEN');
+    }
+    expect(said(await s.send('owner', 'POST', '/api/v1/jobs', { kind: 'sms.no-such-kind', payload: {} }))).not.toBe('403 FORBIDDEN');
+    expect(ENDED_TRIAL_JOB_KINDS.has(SMS_SEND_JOB_KIND)).toBe(false);
   });
 });
