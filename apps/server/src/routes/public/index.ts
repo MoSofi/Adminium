@@ -1051,6 +1051,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     // A consent tick the entry declares: what the write path keeps of it, and whose it is.
     const view = await viewFor(ok.key.connectionId);
     const consentTick = view === null ? undefined : await consentTicks.tickFor({ request, key: ok.key, view });
+    const textConsentTick = view === null ? undefined : await consentTicks.textTickFor({ request, key: ok.key, view });
     return {
     origin: 'public',
     hops: 0,
@@ -1060,6 +1061,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     request,
     claimed,
     ...(consentTick === undefined ? {} : { consentTick }),
+    ...(textConsentTick === undefined ? {} : { textConsentTick }),
     provedAddress: provedAddressOf(ok.key.scope, ok.session, claimed, addressSecret),
     adjust: {
       ...(negotiateLocale(request.headers['accept-language']) === null ? {} : { locale: negotiateLocale(request.headers['accept-language'])! }),

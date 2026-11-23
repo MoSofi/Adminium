@@ -140,6 +140,8 @@ export interface WriteContext {
   optOut?: { shown: boolean; carried: unknown } | undefined;
   /** A public entry's consent tick, on a write through that entry (`public-api/consent-tick.ts`). */
   consentTick?: PublicConsentTick | undefined;
+  /** A public entry's separate box for texts, on a write through that entry (`public-api/consent-tick.ts`). */
+  textConsentTick?: PublicTextConsentTick | undefined;
   /**
    * The public API key a stranger's write came through (`routes/public`):
    * set there, and only there. Such a write is a stranger's, never
@@ -187,6 +189,16 @@ export interface PublicConsentTick {
   userAgent: string | null;
   /** The request's `Accept-Language`: the wording's language when the person table keeps none. */
   acceptLanguage: string | null;
+}
+
+/**
+ * A public entry's box for texts, as the write through that entry carries it.
+ * Its own answer in its own log: never read as, or written from, the e-mail
+ * tick beside it. `phone` is the column of the written row holding the number.
+ */
+export interface PublicTextConsentTick extends Omit<PublicConsentTick, 'purpose'> {
+  phone: string;
+  purpose: 'text-service' | 'text-marketing';
 }
 
 /** What the write path reads of a table an app declares as people (`people/declared.ts`). */

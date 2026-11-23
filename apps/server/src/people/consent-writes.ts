@@ -58,7 +58,7 @@ import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import { literalDefault } from '../crud/column-rules.js';
 import { fetchByPk } from '../crud/records.js';
-import type { PeopleWrite, PublicConsentTick, WriteContext } from '../crud/write-context.js';
+import type { PeopleWrite, PublicConsentTick, PublicTextConsentTick, WriteContext } from '../crud/write-context.js';
 import { booleanOf } from '../crud/write-values.js';
 import { pkOfRowKey, rowKeyOf } from '../payments/payables.js';
 import { normaliseAddress } from '../public-api/claim-code.js';
@@ -80,6 +80,27 @@ export interface PeopleConsentDeps {
   viewFor: (connectionId: string) => Promise<SnapshotView | null>;
   people?: PeopleTables | undefined;
   log?: { warn(fields: object, message: string): void } | undefined;
+  /** The log of text answers (`sms/consent`). Without it a public box for texts records nothing, so nobody counts as agreeing. */
+  textConsent?: TextConsentDoor | undefined;
+  /** The business's country, to read a local number in; null when none is set. */
+  textCountry?: (() => Promise<string | null>) | undefined;
+}
+
+/** What the write path asks of the text consent log. */
+export interface TextConsentDoor {
+  standing(who: { phone: unknown; country: string | null; person: ConsentPerson }, purpose: PublicTextConsentTick['purpose']): Promise<{ state: 'yes' | 'no' | 'not-asked' }>;
+  record(input: {
+    phone: unknown;
+    country: string | null;
+    person: ConsentPerson;
+    purpose: PublicTextConsentTick['purpose'];
+    state: 'yes' | 'no';
+    source: 'form';
+    detail: string;
+    wording: { text: string; version: string };
+    ip: string | null;
+    userAgent: string | null;
+  }): Promise<unknown>;
 }
 
 export interface PeopleConsent {
@@ -271,6 +292,47 @@ export function createPeopleConsent(deps: PeopleConsentDeps): PeopleConsent {
     if (declared !== null) await applyTo(declared, key, event);
   }
 
+  /**
+   * A public box for texts on the row written: one row of the text log, for
+   * the number on that row. Nobody has proved they hold a number they typed,
+   * so a yes never overrules a "no" already standing for it. The box is never
+   * a condition of the booking or the sale, so a log that cannot be written
+   * costs the yes and not the write: no text goes without it.
+   */
+  async function textTick(write: PeopleWrite, given: PublicTextConsentTick): Promise<void> {
+    const door = deps.textConsent;
+    if (door === undefined) return;
+    const { target, record, before } = write;
+    if (booleanOf(record[given.column]) !== true || (before !== null && booleanOf(before[given.column]) === true)) return;
+    const phone = record[given.phone];
+    if (typeof phone !== 'string' || phone.trim() === '') return;
+    const theirs = given.person.link === null ? rowKeyOf(target.table, record) : record[given.person.link];
+    if (theirs === null || theirs === undefined || theirs === '') return;
+    const person: ConsentPerson = { connectionId: target.connectionId, table: given.person.table, key: String(theirs) };
+    try {
+      const declared = await people.of(target.connectionId, target.view?.model, given.person.table);
+      const own = given.person.link === null && declared?.language != null ? record[declared.language] : null;
+      const language = wordingLanguage(given.wording.text, own, given.acceptLanguage);
+      const country = (await deps.textCountry?.()) ?? null;
+      if ((await door.standing({ phone, country, person }, given.purpose)).state === 'no') return;
+      await door.record({
+        phone,
+        country,
+        person,
+        purpose: given.purpose,
+        state: given.means,
+        source: 'form',
+        detail: given.form,
+        wording: { text: given.wording.text[language]!, version: `v${String(given.wording.version)} ${language}` },
+        ip: given.ip === null ? null : given.ip.slice(0, IP_MAX),
+        userAgent: given.userAgent === null ? null : given.userAgent.slice(0, USER_AGENT_MAX),
+      });
+    } catch (error) {
+      // Its name alone: a message here can quote the number.
+      deps.log?.warn({ table: given.table, error: error instanceof Error ? error.name : 'unknown' }, 'A public text consent box was not recorded');
+    }
+  }
+
   /** A row's declared consent column changed by the write: told to the log as its writer. */
   async function mirrorColumn(write: PeopleWrite, model: EffectiveModel | undefined): Promise<void> {
     const { action, target, context, record, before } = write;
@@ -320,6 +382,8 @@ export function createPeopleConsent(deps: PeopleConsentDeps): PeopleConsent {
     async written(write) {
       const given = write.context.consentTick;
       if (write.context.origin === 'public' && given !== undefined && given.table === write.target.table.id) await tick(write, given);
+      const text = write.context.textConsentTick;
+      if (write.context.origin === 'public' && text !== undefined && text.table === write.target.table.id) await textTick(write, text);
       await mirrorColumn(write, write.target.view?.model);
     },
 

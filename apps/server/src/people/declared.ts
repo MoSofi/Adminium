@@ -91,6 +91,8 @@ export interface DeclaredPeopleTable {
   table: string;
   kind: 'people' | 'companies';
   email: string | null;
+  /** The column holding the person's mobile (`people.phone`), when the app names one the table still has. */
+  phone?: string;
   name: string | null;
   firstName: { column: string } | typeof FIRST_WORD_OF_NAME | null;
   language: string | null;
@@ -361,6 +363,7 @@ export function resolveDeclaredPeople(source: PeopleSource): DeclaredPeopleTable
         optOutMarkFrom: markFrom,
         canEmail: email !== null && !switchedOff,
         ...(Object.keys(lead).length === 0 ? {} : { lead }),
+        ...(column(entry.phone) === null ? {} : { phone: column(entry.phone)! }),
       };
 
       // One declaration a real table: the app that made it says it, else the first app by key.
