@@ -134,7 +134,7 @@ function ParcelCounts({ parcels }: { parcels: TrackingView['parcels'] }) {
       {rows.map((row) => (
         <div key={row.id} className="flex flex-col gap-0.5 rounded-[10px] bg-surface-2 px-3 py-2">
           <dt className="text-[11.5px] text-fg-muted">{row.label}</dt>
-          <dd className="font-mono text-[13px] font-semibold" data-testid={`shipping-parcels-${row.id}`}>
+          <dd className="text-[13px] font-semibold" data-testid={`shipping-parcels-${row.id}`}>
             {row.value}
           </dd>
         </div>

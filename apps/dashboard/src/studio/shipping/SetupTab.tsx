@@ -128,8 +128,8 @@ export function ShipWithCard({ app, status, onOpenCarrier }: { app: ShippingApp;
         <IconTile tone="neutral" icon={<Store />} />
         <div className="min-w-[180px] flex-1">
           <h2 id={`${ids}-name`} className="text-[14.5px] font-bold tracking-[-.01em]">
-            {app.name}
-            {app.connectionName !== null ? <span className="ms-2 text-[12px] font-medium text-fg-muted">{app.connectionName}</span> : null}
+            <bdi>{app.name}</bdi>
+            {app.connectionName !== null ? <bdi className="ms-2 text-[12px] font-medium text-fg-muted">{app.connectionName}</bdi> : null}
           </h2>
           <p className="mt-0.5 text-[11.5px] text-fg-subtle">{t('studio:shipping.shipWith.subtitle', 'Choose which add-on this app buys labels with. One is active at a time.')}</p>
         </div>

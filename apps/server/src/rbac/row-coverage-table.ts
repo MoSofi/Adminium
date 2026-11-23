@@ -515,6 +515,8 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'GET /api/v1/apps/:key/shipping/bookings/:id/documents/:kind': rows('visible', 'Hands over a label only for an order its reader reaches (a row their row limit hides is not there), with read_pii on its table.'),
   'POST /api/v1/apps/:key/shipping/bookings/:id/documents/:kind': rows('visible', 'Fetches a label only for an order its reader reaches, with read_pii on its table.'),
   'PUT /api/v1/apps/:key/shipping/label-size': noRows('The label size a shop asks carriers for, kept in meta.'),
+  'POST /api/v1/apps/:key/shipping/bookings/:id/refund': rows('visible', 'Requests a refund only for a label on an order its reader reaches (a row their row limit hides is not there).'),
+  'POST /api/v1/apps/:key/shipping/bookings/:id/refund/check': rows('visible', 'Asks the carrier about a refund only for a label on an order its reader reaches.'),
   'POST /api/v1/apps/:key/shipping/bookings/:id/refresh': rows('visible', 'Asks the carrier about one parcel only for an order its reader reaches (a row their row limit hides is not there).'),
   'POST /api/v1/apps/:key/shipping/tracking/refresh': rows('visible', 'Refreshes only the open parcels whose orders this person reaches, and counts only those.'),
   'GET /api/v1/apps/:key/shipping/attention': rows('visible', 'Lists the labels that need a person, only on orders this person reaches: a row their row limit hides is neither listed nor counted.'),
