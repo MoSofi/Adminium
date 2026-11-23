@@ -62,7 +62,7 @@ export function paidLabelJudge(meta: MetaDb, manifests: Pick<ManifestsRepo, 'fin
       labels: live.map((one) => {
         const scanned = labelScanned(one, parcels.get(one.id));
         const claimBy = claimByOf(one);
-        return { booking: one.id, carrier: one.carrierName ?? one.carrierKey, parcel: one.parcelNumber, scanned, claimBy, canRequest: !scanned && now <= claimBy && one.carrierShipmentId !== null };
+        return { booking: one.id, carrier: one.carrierName ?? one.carrierKey, parcel: one.parcelNumber, scanned, claimBy, tooLate: now > claimBy, canRequest: !scanned && now <= claimBy && one.carrierShipmentId !== null };
       }),
     });
   };
