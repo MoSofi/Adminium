@@ -533,6 +533,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // A person's number, found and erased by it (privacy/erase.ts); a public form's own unticked box for texts (people/consent-writes.ts).
   'people.phone',
   'publicAccess.textConsent',
+  // A rule's text step, sent through the same path by the automation runner (automations/actions/text.ts).
+  'automations.text',
 ];
 
 /**

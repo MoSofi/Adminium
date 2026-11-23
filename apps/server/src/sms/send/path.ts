@@ -35,7 +35,7 @@ import type { TextEstimate } from './length.js';
 import type { BusinessContact } from './opt-out.js';
 import { dayKey, readTextPolicy, warningAt } from './policy.js';
 import type { TextReport } from './store.js';
-import { TEXT_OPEN_STATES, type SealedText, type TextDelivery, type TextSendReport, type TextSkipReason, type TextTiming } from './types.js';
+import { TEXT_OPEN_STATES, type SealedText, type TextDelivery, type TextPrepareSkipReason, type TextSendReport, type TextTiming } from './types.js';
 import { judgeWindow } from './window.js';
 
 /** How a number is hashed for the delivery record: the same keyed hash as the stop list's. */
@@ -82,7 +82,7 @@ export interface TextPrepareInput {
 export type TextPrepared =
   /** `opensAt`: the window is shut, so the job is held in the queue until then. The source row's own dates are never touched. */
   | { action: 'send'; text: SealedText; estimate: TextEstimate; opensAt: number | null }
-  | { action: 'skip'; reason: TextSkipReason; phoneReason?: string | undefined }
+  | { action: 'skip'; reason: TextPrepareSkipReason; phoneReason?: string | undefined }
   /** The stop list or the settings could not be read: it does not go, and may be queued again. */
   | { action: 'fail'; reason: 'could-not-check' };
 

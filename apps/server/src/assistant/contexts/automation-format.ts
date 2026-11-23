@@ -122,7 +122,16 @@ export const NOT_FOR_A_DRAFT: Readonly<Record<string, string>> = {
   // Words of 0.3.35, an app's to write, on the same spent budget.
   locales: 'a notice in each reader\'s own language is written in an app\'s manifest',
   within: 'a summary held to this year or the last days is written in an app\'s manifest',
+  // Of the text step, which a draft does not write at all (`NOT_DRAFTED_STEPS`).
+  notAfter: 'a text step is a person\'s or an app\'s to write',
 };
+
+/**
+ * The kinds of step the assistant is not told of. A text goes to a customer
+ * and is paid for, the format's budget is spent, and `rule_parts` lists no
+ * text template, so a draft could only guess at one. A person adds this step.
+ */
+export const NOT_DRAFTED_STEPS: ReadonlySet<string> = new Set(['text']);
 
 /** `, a: T, b?: T` — a field that may be left out, or that has a default, carries the `?`. */
 function fields(schema: Json, printer: Printer, skip: readonly string[] = [], inCondition = false): string {
@@ -170,7 +179,7 @@ function nodeVariants(graph: Json): Json[] {
 function actionVariants(): Json[] {
   const action = nodeVariants(schemas().graph).find((variant) => kindsOf(variant).includes('action'));
   const of = action !== undefined && isJson(action['properties']) && isJson(action['properties']['action']) ? action['properties']['action'] : {};
-  return alternatives(of);
+  return alternatives(of).filter((variant) => !kindsOf(variant).some((kind) => NOT_DRAFTED_STEPS.has(kind)));
 }
 
 /** The rule format, rendered for the prompt. */

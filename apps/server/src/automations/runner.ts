@@ -73,6 +73,7 @@ import {
   runDocumentRenderAction,
 } from './actions/document-render.js';
 import { dryRunCompanyFillAction, runCompanyFillAction } from './actions/company-fill.js';
+import { dryRunTextAction, runTextAction, textRecipientNumbers } from './actions/text.js';
 import type { RenderDeps } from '../documents/render.js';
 import { ActionFailure, type ActionContext, type ActionSource } from './actions/types.js';
 import { evaluateCondition, type ConditionContext } from './conditions.js';
@@ -86,6 +87,7 @@ import { readsSettings, ruleSettingReader, withSettingAmounts } from './setting-
 import type { StepLookup } from './add-on-steps.js';
 import { flattenNodes } from './validate.js';
 import { tokensFor } from './templating.js';
+import { redactPhones } from '../sms/consent/redact.js';
 import { TRACE_EN, TraceBuilder, triggerSummary, type TraceText } from './trace.js';
 
 export interface RunnerDeps {
@@ -117,6 +119,8 @@ export interface RunnerDeps {
   steps?: (() => Promise<StepLookup>) | undefined;
   /** How a `company.fill` step reaches a lead source add-on (`actions/company-fill.ts`). */
   leadSources?: ActionContext['leadSources'];
+  /** The text send path, for a `text` step (`actions/text.ts`). Absent: such a step says no text can go. */
+  texts?: ActionContext['texts'];
   /**
    * The installed add-ons' ledgers, for a condition step that asks an
    * add-on's words (`words-condition.ts`). Absent: such a condition is false.
@@ -248,6 +252,7 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
     secret: deps.secret,
     documents: deps.documents,
     ...(deps.leadSources === undefined ? {} : { leadSources: deps.leadSources }),
+    ...(deps.texts === undefined ? {} : { texts: deps.texts }),
     ...(deps.storage === undefined ? {} : { storage: deps.storage }),
     ...(deps.hub === undefined ? {} : { hub: deps.hub }),
     ...(deps.createTransport === undefined ? {} : { createTransport: deps.createTransport }),
@@ -353,7 +358,7 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
         log:
           source === null
             ? text.scheduleTick(new Date(input.event.occurredAt).toISOString())
-            : text.trigger(source.record.label, triggerSummary(source.table, source.row)),
+            : triggerLine(text, source, textRecipientNumbers(input.rule.graph, source)),
       });
       continue;
     }
@@ -436,7 +441,7 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
         nodeId: node.id,
         name: node.title,
         kind: 'action',
-        status: 'ok',
+        status: result.skipped === true ? 'skip' : 'ok',
         startedAt,
         durationMs: (deps.now ?? Date.now)() - startedAt,
         log: result.log,
@@ -476,6 +481,16 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
   };
 }
 
+/**
+ * The run's first log line. A number a text step sends to is masked in it,
+ * whatever column holds it: one a classifier does not read as personal (`cell`)
+ * would otherwise be printed, in the summary or as the record's label.
+ */
+function triggerLine(text: TraceText, source: ActionSource, numbers: readonly string[]): string {
+  const line = text.trigger(source.record.label, triggerSummary(source.table, source.row));
+  return numbers.length === 0 ? line : redactPhones(line, numbers);
+}
+
 function kindOf(node: AutomationNode): 'trigger' | 'action' | 'condition' | 'branch' | 'wait' | 'stop' {
   return node.kind;
 }
@@ -507,6 +522,8 @@ async function runAction(node: AutomationNode, ctx: ActionContext) {
       return runAddOnStepAction(node.action, ctx);
     case 'company.fill':
       return runCompanyFillAction(node.action, ctx);
+    case 'text':
+      return runTextAction(node.action, ctx, node.id);
   }
 }
 
@@ -531,6 +548,8 @@ async function dryRunAction(node: AutomationNode, ctx: ActionContext) {
       return dryRunAddOnStepAction(node.action, ctx);
     case 'company.fill':
       return dryRunCompanyFillAction(node.action, ctx);
+    case 'text':
+      return dryRunTextAction(node.action, ctx);
   }
 }
 

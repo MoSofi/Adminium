@@ -100,7 +100,7 @@ import { UntoldUnjudgedError, untoldBy, untoldSentence } from '../../leads/peopl
 type EmailAction = Extract<AutomationAction, { kind: 'email' }>;
 
 /** Addresses this step will send to, resolved from the record or the fixed list. */
-export function recipientsFor(action: EmailAction, ctx: ActionContext): string[] {
+export function recipientsFor(action: Pick<EmailAction, 'to'>, ctx: ActionContext): string[] {
   const to = action.to;
   if (to === null) return [];
   if (to.kind === 'fixed') {
@@ -215,7 +215,7 @@ async function formattedValues(ctx: ActionContext, locale: string): Promise<Toke
  * and sent about many tables, and `{{first_name}}` on a table whose column
  * is `name` is filled by the step saying so, not by renaming a column.
  */
-async function varsFor(action: EmailAction, ctx: ActionContext, locale: string, reader?: RecordReader): Promise<Record<string, string>> {
+export async function varsFor(action: Pick<EmailAction, 'vars'>, ctx: ActionContext, locale: string, reader?: RecordReader): Promise<Record<string, string>> {
   const appName = await settingsRepo(ctx.meta).get('branding.appName');
   // A mail to a person: the record as they read it, a personal column only of a table whose personal columns they are shown.
   if (reader !== undefined) {
@@ -512,7 +512,7 @@ export async function dryRunEmailAction(
 }
 
 /** The person a mail to the record's own address is about: the record, or the related row whose address it is. */
-function personOf(action: EmailAction, ctx: ActionContext): ConsentPerson | null {
+export function personOf(action: Pick<EmailAction, 'to'>, ctx: ActionContext): ConsentPerson | null {
   const source = ctx.source;
   if (source === null || action.to?.kind !== 'field') return null;
   const related = parseRelated(action.to.column);

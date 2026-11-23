@@ -70,6 +70,9 @@ export type TextSkipReason =
   /** What it is about was called off while it waited for its window, or its row no longer holds this number. */
   | 'no-longer-needed';
 
+/** What `prepare` can answer. Calling a text off is only ever found at the hand-over. */
+export type TextPrepareSkipReason = Exclude<TextSkipReason, 'no-longer-needed'>;
+
 export type TextNotSentReason = SmsNotTakenReason | 'envelope-unreadable' | 'could-not-check' | 'could-not-queue';
 
 export type TextDeliveryReason = TextSkipReason | TextNotSentReason | SmsRefusalReason | SmsUnknownReason;

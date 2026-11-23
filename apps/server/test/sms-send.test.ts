@@ -53,6 +53,15 @@ const UK_LANDLINE = '+442079460958';
 const NOON = Date.parse('2026-06-15T12:00:00Z');
 const WORDS = 'Your table at Lumen is ready';
 
+/** Waits for what another running call is about to do. A slow database must not turn this into a different test. */
+async function until(happened: () => boolean | Promise<boolean>): Promise<void> {
+  const deadline = Date.now() + 10_000;
+  while (!(await happened())) {
+    if (Date.now() > deadline) throw new Error('It never happened.');
+    await new Promise((resolve) => setTimeout(resolve, 2));
+  }
+}
+
 const attempt = (n = 1, signal: AbortSignal = new AbortController().signal) => ({ attempt: n, maxAttempts: SMS_SEND_ATTEMPTS, signal });
 
 describe.each(META_ENGINES)('text send path — $name', (engine) => {
@@ -540,8 +549,8 @@ describe.each(META_ENGINES)('text send path — $name', (engine) => {
       });
       const { id, payload } = await queued(built);
       const first = slow.handOver(payload, attempt(1));
-      for (let turn = 0; turn < 200 && (await reread(id)).state !== 'handing-over'; turn += 1) await new Promise((resolve) => setTimeout(resolve, 2));
-      for (let turn = 0; turn < 200 && built.provider.posts.length === 0; turn += 1) await new Promise((resolve) => setTimeout(resolve, 2));
+      await until(async () => (await reread(id)).state === 'handing-over');
+      await until(() => built.provider.posts.length > 0);
       // The reclaiming worker reads the marker and writes unknown.
       expect(await built.path.handOver(payload, attempt(2))).toMatchObject({ outcome: 'unknown' });
       release();
@@ -606,9 +615,32 @@ describe.each(META_ENGINES)('text send path — $name', (engine) => {
       const built = await rig({ credentials: TELNYX, script: ['hang'] });
       const { id, payload } = await queued(built);
       const run = built.path.handOver(payload, attempt(1, stop.signal));
-      for (let turn = 0; turn < 200 && built.provider.posts.length === 0; turn += 1) await new Promise((resolve) => setTimeout(resolve, 1));
+      await until(() => built.provider.posts.length > 0);
       stop.abort();
       expect(await run).toMatchObject({ outcome: 'unknown' });
+      expect((await reread(id)).state).toBe('unknown');
+    });
+
+    it.runIf(engine.available)('a job stopped before its call left is not sent, because nothing went', async () => {
+      await agree(DE);
+      const stop = new AbortController();
+      const built = await rig({ credentials: TELNYX, script: ['hang'], over: { callbackUrl: async () => { stop.abort(); return null; } } });
+      const { id, payload } = await queued(built);
+      expect(await built.path.handOver(payload, attempt(1, stop.signal))).toEqual({ outcome: 'not-sent', reason: 'cancelled' });
+      expect(built.provider.posts).toHaveLength(0);
+      expect(await reread(id)).toMatchObject({ state: 'not-sent', slotDay: null });
+    });
+
+    it.runIf(engine.available)('a job stopped before its call, after an earlier try may have gone, stays unknown', async () => {
+      await agree(DE);
+      const stop = new AbortController();
+      let stopNext = false;
+      const built = await rig({ credentials: TELNYX, script: ['hang'], over: { callbackUrl: async () => { if (stopNext) stop.abort(); return null; } } });
+      const { id, payload } = await queued(built);
+      await expect(built.path.handOver(payload, attempt(1))).rejects.toBeInstanceOf(TextRetryLater);
+      stopNext = true;
+      expect(await built.path.handOver(payload, attempt(2, stop.signal))).toMatchObject({ outcome: 'unknown' });
+      expect(built.provider.posts).toHaveLength(1);
       expect((await reread(id)).state).toBe('unknown');
     });
 

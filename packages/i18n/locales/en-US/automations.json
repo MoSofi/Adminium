@@ -449,6 +449,30 @@
       "skipped": "no document drawn · {reason}",
       "would": "Would draw {kind} · {name}",
       "off": "mapping is switched off · {name}"
+    },
+    "text": {
+      "queued": "Text queued for {to}",
+      "held": "Text held for {to} until {at}: outside the sending hours",
+      "would": "Would send a text to {to}",
+      "wouldHold": "Would hold a text for {to} until {at}: outside the sending hours",
+      "notSent": "No text sent: {reason}",
+      "reason": {
+        "number": "the number cannot be read",
+        "cannotReceive": "this number cannot receive texts",
+        "country": "texts do not go to this country",
+        "kind": "this kind of text cannot go from here",
+        "stopped": "this person asked for no more texts",
+        "noConsent": "this person has not agreed to texts",
+        "template": "the template or a value in it cannot be sent",
+        "unfilled": "a placeholder has no value",
+        "optOut": "no way to opt out can be given for this sender",
+        "notConnected": "no text provider is connected",
+        "off": "texts are switched off on this server",
+        "limit": "today’s text limit is used",
+        "hours": "the sending hours would hold it too long",
+        "sample": "this is a sample row",
+        "open": "an earlier send of this step is still open"
+      }
     }
   },
   "dur": {

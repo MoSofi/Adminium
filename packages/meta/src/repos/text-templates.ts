@@ -80,6 +80,12 @@ export function textTemplatesRepo(meta: MetaDb) {
       return fallback?.enabled === true ? fallback : null;
     },
 
+    /** Every key with a language switched on: what a rule's text step may name. */
+    async liveKeys(): Promise<string[]> {
+      const rows = await db.selectFrom('adminium_text_templates').select('key').where('enabled', '=', writeBool(meta, true)).distinct().orderBy('key').execute();
+      return rows.map((row) => row.key);
+    },
+
     /** An app's rows; one install's only when it is named. */
     async listManagedBy(appKey: string, installId?: string): Promise<StoredTextTemplate[]> {
       let query = db.selectFrom('adminium_text_templates').selectAll().where('managedBy', '=', appKey);

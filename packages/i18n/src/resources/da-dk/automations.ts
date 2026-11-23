@@ -459,6 +459,30 @@ export default {
       "skipped": "intet bilag tegnet · {reason}",
       "would": "Ville tegne {kind} · {name}",
       "off": "tilknytning er slået fra · {name}"
+    },
+    "text": {
+      "queued": "Sms sat i kø til {to}",
+      "held": "Sms holdt tilbage til {to} indtil {at}: uden for sendetiderne",
+      "would": "Ville sende en sms til {to}",
+      "wouldHold": "Ville holde en sms tilbage til {to} indtil {at}: uden for sendetiderne",
+      "notSent": "Ingen sms sendt: {reason}",
+      "reason": {
+        "number": "nummeret kan ikke læses",
+        "cannotReceive": "dette nummer kan ikke modtage sms",
+        "country": "der sendes ikke sms til dette land",
+        "kind": "denne type sms kan ikke sendes herfra",
+        "stopped": "denne person vil ikke have flere sms",
+        "noConsent": "denne person har ikke sagt ja til sms",
+        "template": "skabelonen eller en værdi i den kan ikke sendes",
+        "unfilled": "en pladsholder har ingen værdi",
+        "optOut": "der kan ikke angives en afmelding for denne afsender",
+        "notConnected": "ingen sms-udbyder er forbundet",
+        "off": "sms er slået fra på denne server",
+        "limit": "dagens sms-grænse er brugt",
+        "hours": "sendetiderne ville holde den tilbage for længe",
+        "sample": "dette er en eksempelrække",
+        "open": "en tidligere afsendelse af dette trin er stadig åben"
+      }
     }
   },
   "dur": {

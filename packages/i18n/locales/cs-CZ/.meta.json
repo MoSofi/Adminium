@@ -3415,6 +3415,86 @@
     "status": "mt",
     "srcHash": "026dfb27234f"
   },
+  "automations.trace.text.held": {
+    "status": "mt",
+    "srcHash": "f8b06a645137"
+  },
+  "automations.trace.text.notSent": {
+    "status": "mt",
+    "srcHash": "17bd119d5673"
+  },
+  "automations.trace.text.queued": {
+    "status": "mt",
+    "srcHash": "8d2d67989816"
+  },
+  "automations.trace.text.reason.cannotReceive": {
+    "status": "mt",
+    "srcHash": "ee6978bf3f7c"
+  },
+  "automations.trace.text.reason.country": {
+    "status": "mt",
+    "srcHash": "4c26394b6d8e"
+  },
+  "automations.trace.text.reason.hours": {
+    "status": "mt",
+    "srcHash": "ddb1b808d96a"
+  },
+  "automations.trace.text.reason.kind": {
+    "status": "mt",
+    "srcHash": "a795b5bc2c10"
+  },
+  "automations.trace.text.reason.limit": {
+    "status": "mt",
+    "srcHash": "a1c39ae6963f"
+  },
+  "automations.trace.text.reason.noConsent": {
+    "status": "mt",
+    "srcHash": "4eff0588b70e"
+  },
+  "automations.trace.text.reason.notConnected": {
+    "status": "mt",
+    "srcHash": "f17ab8d2845a"
+  },
+  "automations.trace.text.reason.number": {
+    "status": "mt",
+    "srcHash": "80ecae89e185"
+  },
+  "automations.trace.text.reason.off": {
+    "status": "mt",
+    "srcHash": "a2e7d14e85c4"
+  },
+  "automations.trace.text.reason.open": {
+    "status": "mt",
+    "srcHash": "fa49d963ccc2"
+  },
+  "automations.trace.text.reason.optOut": {
+    "status": "mt",
+    "srcHash": "0215438133c2"
+  },
+  "automations.trace.text.reason.sample": {
+    "status": "mt",
+    "srcHash": "355bbabbc4b5"
+  },
+  "automations.trace.text.reason.stopped": {
+    "status": "mt",
+    "srcHash": "999e517778b9"
+  },
+  "automations.trace.text.reason.template": {
+    "status": "mt",
+    "srcHash": "0f326970d78c"
+  },
+  "automations.trace.text.reason.unfilled": {
+    "status": "mt",
+    "srcHash": "331f374a1652"
+  },
+  "automations.trace.text.would": {
+    "status": "mt",
+    "srcHash": "1b16fd695fb8"
+  },
+  "automations.trace.text.wouldHold": {
+    "status": "mt",
+    "srcHash": "d52f26cf1b99"
+  },
   "automations.trace.trigger": {
     "status": "mt",
     "srcHash": "2fc5cd0f015b"

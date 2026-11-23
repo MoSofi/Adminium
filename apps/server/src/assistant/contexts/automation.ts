@@ -29,6 +29,7 @@ import {
   automationsRepo,
   type AutomationGraph,
   type AutomationTrigger,
+  textTemplatesRepo,
 } from '@adminium/meta';
 import { z } from 'zod';
 
@@ -345,6 +346,7 @@ const automationDocument: AssistantDocument = {
       resolveRule(trigger, graph, {
         view,
         templateKeys: new Set((await liveTemplateKeys(deps)).map((row) => row.key)),
+        textTemplateKeys: new Set(await textTemplatesRepo(deps.meta).liveKeys()),
         blockLoopback: process.env['NODE_ENV'] === 'production',
         steps,
       });

@@ -2528,6 +2528,27 @@ export const automationActionSchema = z.discriminatedUnion('kind', [
   }),
   z.object({
     /*
+     * SEND A TEXT: one installed text template (`adminium_text_templates`),
+     * to the phone number in a column of the record or of the row a link of
+     * it names. It goes through the same send path as an outbox text, so the
+     * consent, stop list, country, send window and daily limit are that
+     * path's. Service texts only: marketing texts have their own release.
+     */
+    kind: z.literal('text'),
+    /** `adminium_text_templates.key`. Null while the step is being written. */
+    templateKey: z.string().max(120).nullable().default(null),
+    /** The column that holds the number: `mobile`, or `<link>.<column>` of the row a link names. */
+    to: z.object({ kind: z.literal('field'), column: z.string().max(260) }).nullable().default(null),
+    /** What fills a placeholder of the template that the record does not, as on an email step. */
+    vars: z
+      .record(z.string().regex(/^[A-Za-z0-9_.-]{1,120}$/), z.string().max(2000))
+      .refine((value) => Object.keys(value).length <= 60, 'At most 60 placeholders')
+      .default({}),
+    /** A date-and-time column of the record this text is about (the visit): it is never sent after that moment. */
+    notAfter: z.string().max(128).optional(),
+  }),
+  z.object({
+    /*
      * FILL IN THE COMPANY: the record's EMPTY company details, from the free
      * registers of a lead source add-on, by the company number, else its
      * name and town. Never a website, never a paid source, never a people

@@ -263,10 +263,20 @@ export function outboundSteps(manifest: Manifest, sampleTables?: ReadonlySet<str
     }
     return leaks.get(key) === true;
   };
+  // A text's words, in every language: a link that carries a value of the record, or one nobody can tell.
+  const texts = new Map(((manifest as { textTemplates?: { key: string; locales: Record<string, { body: string }> }[] }).textTemplates ?? []).map((template) => [template.key, template]));
+  const textLeaks = (key: unknown): boolean => {
+    const template = typeof key === 'string' ? texts.get(key) : undefined;
+    if (template === undefined) return false;
+    return Object.values(template.locales).some((content) => {
+      const links = emailLinks({ text: content.body });
+      return links.problems.length > 0 || links.carried.length > 0;
+    });
+  };
   const stepsOf = (rule: ManifestAutomation): ManifestStep[] => manifestSteps(rule.graph.nodes as unknown as ManifestStep[]);
   const fieldOf = (action: Record<string, unknown>): string | null => {
     const to = action['to'] as { kind?: string; column?: unknown } | undefined;
-    return action['kind'] === 'email' && to?.kind === 'field' && typeof to.column === 'string' ? to.column : null;
+    return (action['kind'] === 'email' || action['kind'] === 'text') && to?.kind === 'field' && typeof to.column === 'string' ? to.column : null;
   };
 
   // The columns a mail goes to, and those a step writes words of its own into (or any value that is not words: a setting's, a date).
@@ -307,6 +317,12 @@ export function outboundSteps(manifest: Manifest, sampleTables?: ReadonlySet<str
         if (field !== null && (written.has(field) || fileChosenColumn(manifest, recordTableOf(rule), field, sampleTables))) sends = true;
         if (templateLeaks(action['templateKey'])) sends = true;
         for (const value of Object.values((action['vars'] ?? {}) as Record<string, unknown>)) if (typeof value === 'string' && reachesOut(value, false)) sends = true;
+      }
+      if (action.kind === 'text') {
+        const field = fieldOf(action);
+        if (field !== null && (written.has(field) || fileChosenColumn(manifest, recordTableOf(rule), field, sampleTables))) sends = true;
+        if (textLeaks(action['templateKey'])) sends = true;
+        for (const value of Object.values((action['vars'] ?? {}) as Record<string, unknown>)) if (typeof value === 'string' && reachesOut(value, true)) sends = true;
       }
       if (action.kind === 'digest' && templateLeaks(action['templateKey'])) sends = true;
       if (action.kind === 'add-on.step') {
@@ -574,7 +590,7 @@ function bind(rule: ManifestAutomation, b: Binding): { name: string; description
  */
 function withInstallTemplates<T extends { graph: AutomationGraph }>(bound: T, manifest: Manifest, install: InstallAddress): T {
   if (install.slug === '') return bound;
-  const shipped = new Set(((manifest as { emailTemplates?: { key: string }[] }).emailTemplates ?? []).map((template) => template.key));
+  const shipped = new Set([...((manifest as { emailTemplates?: { key: string }[] }).emailTemplates ?? []), ...((manifest as { textTemplates?: { key: string }[] }).textTemplates ?? [])].map((template) => template.key));
   const walk = (value: unknown): unknown => {
     if (Array.isArray(value)) return value.map(walk);
     if (value === null || typeof value !== 'object') return value;

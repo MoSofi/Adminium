@@ -128,6 +128,8 @@ export function isActionComplete(action: AutomationAction): boolean {
     case 'company.fill':
       // An add-on and at least one register; whether each is still a free register is judged when the step runs.
       return action.addOn !== '' && action.sources.length > 0;
+    case 'text':
+      return action.templateKey !== null && action.templateKey !== '' && action.to !== null && action.to.column !== '';
     case 'document.render':
       /*
        * The ONE field. Everything else about the document — the mapping, the
@@ -150,6 +152,8 @@ export interface ResolveContext {
   view: SnapshotView | null;
   /** Live template keys — an archived one is not offerable. */
   templateKeys: ReadonlySet<string>;
+  /** Text templates with a language switched on. Absent: a text step's template is judged when it runs. */
+  textTemplateKeys?: ReadonlySet<string> | undefined;
   blockLoopback: boolean;
   /** `ADMINIUM_NETWORK_POLICY=strict`: a webhook written to an address on the server's own network is refused at the save too. */
   blockPrivate?: boolean | undefined;
@@ -373,6 +377,26 @@ function checkAction(
         const wrong = action.to.addresses.map((address) => address.trim()).find((address) => address !== '' && !ADDRESS.test(address));
         if (wrong !== undefined) {
           throw new ValidationFailedError(`${where}: “${wrong}” is not an email address.`, { address: wrong, reason: 'not-an-address' });
+        }
+      }
+      return;
+    }
+    case 'text': {
+      if (action.templateKey !== null && action.templateKey !== '' && ctx.textTemplateKeys !== undefined && !ctx.textTemplateKeys.has(action.templateKey)) {
+        throw new ValidationFailedError(`${where}: there is no live text template with the key ${action.templateKey}.`, { templateKey: action.templateKey });
+      }
+      if (action.to !== null && action.to.column !== '') {
+        if (table === null) throw new ValidationFailedError(`${where}: this rule has no record to read a number from. ${NO_RECORD_REMEDY}`, {});
+        const related = parseRelated(action.to.column);
+        if (related !== null) relatedColumn(table, related, ctx, where);
+        else if (readColumn(table, action.to.column, where) === undefined) throw new ValidationFailedError(`${where}: ${table.id} has no column ${action.to.column}.`, { column: action.to.column });
+      }
+      if (action.notAfter !== undefined) {
+        if (table === null) throw new ValidationFailedError(`${where}: this rule has no record, so it has no moment to hold a text to. ${NO_RECORD_REMEDY}`, {});
+        const moment = readColumn(table, action.notAfter, where);
+        if (moment === undefined) throw new ValidationFailedError(`${where}: ${table.id} has no column ${action.notAfter}.`, { column: action.notAfter });
+        if (moment.logicalType !== 'timestamp' && moment.logicalType !== 'timestamptz') {
+          throw new ValidationFailedError(`${where}: ${action.notAfter} holds no date and time, so a text cannot be held to it.`, { column: action.notAfter, reason: 'not-a-moment' });
         }
       }
       return;
@@ -762,7 +786,7 @@ export function resolveRule(
       const { column } = relatedColumn(table, use, ctx, where);
       // As for the record's own columns: a mail's values may carry a personal column (the mail
       // goes to that person), no other step may, and a secret is carried by nothing.
-      if (column.secret || (column.masked && use.step !== 'email' && !mayReadPersonal(graph, use, ctx))) {
+      if (column.secret || (column.masked && use.step !== 'email' && use.step !== 'text' && !mayReadPersonal(graph, use, ctx))) {
         throw new ValidationFailedError(`${where}: ${use.link}.${use.column} is a protected column and cannot be a placeholder.`, { column: `${use.link}.${use.column}` });
       }
     }

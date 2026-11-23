@@ -459,6 +459,30 @@ export default {
       "skipped": "aucun document établi · {reason}",
       "would": "Établirait {kind} · {name}",
       "off": "correspondance désactivée · {name}"
+    },
+    "text": {
+      "queued": "SMS mis en file pour {to}",
+      "held": "SMS retenu pour {to} jusqu’à {at} : hors des heures d’envoi",
+      "would": "Enverrait un SMS à {to}",
+      "wouldHold": "Retiendrait un SMS pour {to} jusqu’à {at} : hors des heures d’envoi",
+      "notSent": "Aucun SMS envoyé : {reason}",
+      "reason": {
+        "number": "le numéro est illisible",
+        "cannotReceive": "ce numéro ne peut pas recevoir de SMS",
+        "country": "les SMS ne partent pas vers ce pays",
+        "kind": "ce type de SMS ne peut pas partir d’ici",
+        "stopped": "cette personne ne veut plus de SMS",
+        "noConsent": "cette personne n’a pas accepté les SMS",
+        "template": "le modèle ou une valeur qu’il contient ne peut pas être envoyé",
+        "unfilled": "un champ n’a pas de valeur",
+        "optOut": "aucun moyen de désinscription possible pour cet expéditeur",
+        "notConnected": "aucun fournisseur de SMS n’est connecté",
+        "off": "les SMS sont désactivés sur ce serveur",
+        "limit": "la limite de SMS du jour est atteinte",
+        "hours": "les heures d’envoi le retiendraient trop longtemps",
+        "sample": "ceci est une ligne d’exemple",
+        "open": "un envoi précédent de cette étape est encore ouvert"
+      }
     }
   },
   "dur": {
