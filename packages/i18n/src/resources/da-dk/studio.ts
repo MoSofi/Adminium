@@ -882,6 +882,13 @@ export default {
       "refundGrants": {
         "title": "Hvem må refundere onlinebetalinger",
         "body": "Disse roller må give penge tilbage, som kunder har betalt online for denne apps poster. Fjern fluebenet ved en rolle, der ikke skal."
+      },
+      "shippingGrants": {
+        "title": "Who may handle shipping labels",
+        "body": "These roles may do the following with this app’s shipping labels. Untick anything a role should not do.",
+        "book": "Buy labels, within the limits you set",
+        "cancel": "Ask for a label’s refund",
+        "customs": "Declare customs"
       }
     },
     "installed": {

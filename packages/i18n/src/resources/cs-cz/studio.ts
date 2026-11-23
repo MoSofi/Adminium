@@ -882,6 +882,13 @@ export default {
       "refundGrants": {
         "title": "Kdo smí vracet online platby",
         "body": "Tyto role smí vracet peníze, které zákazníci zaplatili online za záznamy této aplikace. Odškrtněte roli, která to dělat nemá."
+      },
+      "shippingGrants": {
+        "title": "Who may handle shipping labels",
+        "body": "These roles may do the following with this app’s shipping labels. Untick anything a role should not do.",
+        "book": "Buy labels, within the limits you set",
+        "cancel": "Ask for a label’s refund",
+        "customs": "Declare customs"
       }
     },
     "installed": {

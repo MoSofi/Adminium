@@ -882,6 +882,13 @@ export default {
       "refundGrants": {
         "title": "誰可以退還線上付款",
         "body": "這些角色可以退還客戶為此應用程式的記錄線上支付的款項。取消勾選不應擁有此權限的角色。"
+      },
+      "shippingGrants": {
+        "title": "Who may handle shipping labels",
+        "body": "These roles may do the following with this app’s shipping labels. Untick anything a role should not do.",
+        "book": "Buy labels, within the limits you set",
+        "cancel": "Ask for a label’s refund",
+        "customs": "Declare customs"
       }
     },
     "installed": {

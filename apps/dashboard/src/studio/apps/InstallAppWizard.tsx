@@ -189,6 +189,7 @@ import { PublicAccessInstallCard, publicAccessBlocked } from './PublicAccessInst
 import { AppsRoleTablesWiderCard } from './RoleTablesList.js';
 import { PrivacyGrantsCard } from './PrivacyGrantsCard.js';
 import { RefundGrantsCard } from './RefundGrantsCard.js';
+import { ShippingGrantsCard } from './ShippingGrantsCard.js';
 import { SampleInstallCard, runSampleAdd } from './SampleData.js';
 
 type StepId = 'bundle' | 'database' | 'plan' | 'done';
@@ -277,6 +278,17 @@ export interface InstallAppWizardProps {
   onWorkspaceFile?: ((file: File) => void) | undefined;
 }
 
+/** What the install says of the label rights: only those unticked that the check on screen still lists. */
+function shippingAnswerOf(
+  grants: AppInstallPlan['shippingGrants'],
+  unticked: readonly { role: string; action: 'book' | 'cancel' | 'customs' }[],
+): { shippingUnticked?: { role: string; action: 'book' | 'cancel' | 'customs' }[] } {
+  if (grants === undefined || grants.length === 0) return {};
+  // Sent even when empty: it says the card was shown and every right on it was kept.
+  const listed = unticked.filter((one) => grants.some((grant) => grant.role === one.role && grant.action === one.action));
+  return { shippingUnticked: listed.map(({ role, action }) => ({ role, action })) };
+}
+
 export function InstallAppWizard({ onClose, preselected, quick = false, onMoreChoices, onBusy, onWorkspaceFile }: InstallAppWizardProps) {
   // The operator keeps uploads off: the upload step says so, and takes no file.
   const uploadsOff = useOwnCodeOff('packageUploads');
@@ -292,6 +304,8 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
   const [refusal, setRefusal] = useState<{ title: string; body: ReactNode } | null>(null);
   // The roles unticked on the check's refund card: not given the app's refund right.
   const [refundsUnticked, setRefundsUnticked] = useState<ReadonlySet<string>>(() => new Set());
+  // The rights unticked on the check's shipping card, by role and right: a role can keep one and lose another.
+  const [shippingUnticked, setShippingUnticked] = useState<readonly { role: string; action: 'book' | 'cancel' | 'customs' }[]>([]);
   /** The fingerprint typed on the review, compared in this browser with the uploaded file's own. */
   const [fingerprint, setFingerprint] = useState('');
   /*
@@ -466,6 +480,7 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
         ...(plan?.modules === undefined ? {} : { modules: partChoicesOf(plan.modules, partPicks) }),
         ...(plan?.maps === true ? { maps: showMaps } : {}),
         ...((plan?.refundGrants ?? []).some((grant) => refundsUnticked.has(grant.role)) ? { refundsUnticked: (plan?.refundGrants ?? []).filter((grant) => refundsUnticked.has(grant.role)).map((grant) => grant.role) } : {}),
+        ...shippingAnswerOf(plan?.shippingGrants, shippingUnticked),
         // Shown on the check: what an add-on it updates gives other apps' roles more of its tables. The Install button is the say.
         ...((plan?.roleTables ?? []).some((entry) => entry.app !== undefined && entry.wider !== undefined) ? { roleTables: true } : {}),
         ...checked,
@@ -733,7 +748,7 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
   const cardsOfPlan =
     plan === null
       ? null
-      : plan.publicAccess !== undefined || plan.sampleData === true || addOnRows.length > 0 || plan.modules !== undefined || plan.maps === true || plan.privacyGrants !== undefined ? (
+      : plan.publicAccess !== undefined || plan.sampleData === true || addOnRows.length > 0 || plan.modules !== undefined || plan.maps === true || plan.privacyGrants !== undefined || plan.shippingGrants !== undefined ? (
       <div className="grid grid-cols-[repeat(auto-fit,minmax(272px,1fr))] gap-3">
         {plan.publicAccess === undefined ? null : (
           <PublicAccessInstallCard access={plan.publicAccess} checked={allowPublic} onChange={setAllowPublic} />
@@ -774,6 +789,16 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
               if (given) next.delete(role);
               else next.add(role);
               return next;
+            })
+          }
+        />
+        <ShippingGrantsCard
+          grants={plan.shippingGrants ?? []}
+          unticked={shippingUnticked}
+          onTick={(role, action, given) =>
+            setShippingUnticked((now) => {
+              const others = now.filter((one) => one.role !== role || one.action !== action);
+              return given ? others : [...others, { role, action }];
             })
           }
         />

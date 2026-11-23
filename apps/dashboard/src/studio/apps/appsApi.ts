@@ -1132,6 +1132,8 @@ export function installApp(
     publicAccess?: boolean;
     /** The roles (by slug) unticked on the check: not given the app's refund right. */
     refundsUnticked?: string[];
+    /** The rights on the app's labels unticked on the check, by role and right: those are not given. */
+    shippingUnticked?: { role: string; action: 'book' | 'cancel' | 'customs' }[];
     /** The add-ons to install, connect or update with the app. */
     addOns?: AddOnChoice[];
     /** The parts of the app to start with, by id; one left out starts as the app says. */

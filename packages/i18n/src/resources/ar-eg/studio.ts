@@ -882,6 +882,13 @@ export default {
       "refundGrants": {
         "title": "من يمكنه استرداد المدفوعات الإلكترونية",
         "body": "يمكن لهذه الأدوار رد الأموال التي دفعها العملاء إلكترونيًا مقابل سجلات هذا التطبيق. ألغِ تحديد الدور الذي لا ينبغي له ذلك."
+      },
+      "shippingGrants": {
+        "title": "Who may handle shipping labels",
+        "body": "These roles may do the following with this app’s shipping labels. Untick anything a role should not do.",
+        "book": "Buy labels, within the limits you set",
+        "cancel": "Ask for a label’s refund",
+        "customs": "Declare customs"
       }
     },
     "installed": {

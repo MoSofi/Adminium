@@ -882,6 +882,13 @@ export default {
       "refundGrants": {
         "title": "Wer Online-Zahlungen erstatten darf",
         "body": "Diese Rollen dürfen Geld zurückgeben, das Kunden online für Datensätze dieser App bezahlt haben. Entfernen Sie den Haken bei einer Rolle, die das nicht darf."
+      },
+      "shippingGrants": {
+        "title": "Who may handle shipping labels",
+        "body": "These roles may do the following with this app’s shipping labels. Untick anything a role should not do.",
+        "book": "Buy labels, within the limits you set",
+        "cancel": "Ask for a label’s refund",
+        "customs": "Declare customs"
       }
     },
     "installed": {

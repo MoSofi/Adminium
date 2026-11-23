@@ -872,6 +872,13 @@
       "refundGrants": {
         "title": "Qui peut rembourser les paiements en ligne",
         "body": "Ces rôles peuvent rendre l’argent payé en ligne par les clients pour les fiches de cette application. Décochez un rôle qui ne doit pas le faire."
+      },
+      "shippingGrants": {
+        "title": "Who may handle shipping labels",
+        "body": "These roles may do the following with this app’s shipping labels. Untick anything a role should not do.",
+        "book": "Buy labels, within the limits you set",
+        "cancel": "Ask for a label’s refund",
+        "customs": "Declare customs"
       }
     },
     "installed": {

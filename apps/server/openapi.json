@@ -145243,6 +145243,33 @@
                                 "maxLength": 160
                               }
                             },
+                            "shippingUnticked": {
+                              "maxItems": 300,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "role": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 160
+                                  },
+                                  "action": {
+                                    "type": "string",
+                                    "enum": [
+                                      "book",
+                                      "cancel",
+                                      "customs"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "role",
+                                  "action"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
                             "addOns": {
                               "maxItems": 16,
                               "type": "array",
@@ -150221,6 +150248,33 @@
                       "type": "string",
                       "minLength": 1,
                       "maxLength": 160
+                    }
+                  },
+                  "shippingUnticked": {
+                    "maxItems": 300,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 160
+                        },
+                        "action": {
+                          "type": "string",
+                          "enum": [
+                            "book",
+                            "cancel",
+                            "customs"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "action"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "addOns": {

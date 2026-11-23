@@ -128,7 +128,7 @@ import { AddOnStoreError } from '../add-ons/store.js';
 import { refusalReason } from '../add-ons/upload-refusal.js';
 import { SURFACE_SIDES, type SurfaceSide } from '../cli/surfaces-root.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.js';
-import { PERMISSIONS } from '../rbac/permissions.js';
+import { PERMISSIONS, type ShippingAction } from '../rbac/permissions.js';
 import {
   type SampleDataDeps,
 } from './sample-data.js';
@@ -1993,6 +1993,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     wider?: ReadonlyMap<string, readonly string[]>,
     /** The roles the installer unticked on the check: not given the app's refund right (`payments:@:refund`). */
     refundsUnticked?: readonly string[],
+    /** An install's answer on the app's label rights (`writeManifestRoles`); undefined when nothing asked. */
+    shippingUnticked?: readonly { role: string; action: ShippingAction }[],
   ): Promise<
     | {
         pages: MaterialiseResult;
@@ -2054,6 +2056,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
               connectionId,
               names: names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key)),
               ...(refundsUnticked === undefined ? {} : { refundsUnticked }),
+              ...(shippingUnticked === undefined ? {} : { shippingUnticked }),
             });
       // What the app's roles hold of the tables of the add-ons that are here for it: written with the roles, taken back for any that is not.
       const roleTables = connectionId === null || manifest.kind !== 'app' ? [] : await settleRoleTables({ meta: deps.meta, app: manifest, connectionId, live: await liveAddOnsFor(deps.meta, manifest, connectionId) });
@@ -3347,6 +3350,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         answers.pages,
         undefined,
         input.refundsUnticked,
+        // A list is the card's answer, none unticked included. Absent, nobody was asked.
+        input.shippingUnticked,
       );
       /*
        * The rows its tables start with (`seeds`): after the rules, so each

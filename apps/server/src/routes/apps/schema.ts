@@ -794,6 +794,18 @@ export const installAppBody = z.object({
    */
   refundsUnticked: z.array(z.string().min(1).max(160)).max(32).optional(),
   /**
+   * The rights on the app's labels the installer unticked on the check, each
+   * by role and right as `shippingGrants` names them, so a role can keep
+   * `book` and lose `cancel`. Remembered, so an update never hands one over
+   * unasked. One naming a role or right the app does not grant changes
+   * nothing. A list, even empty, is the card's answer: a right it left ticked
+   * is given. Absent: nobody was asked, and a right already settled stays so.
+   */
+  shippingUnticked: z
+    .array(z.object({ role: z.string().min(1).max(160), action: z.enum(['book', 'cancel', 'customs']) }).strict())
+    .max(300)
+    .optional(),
+  /**
    * The add-ons to install, connect or update with the app. A required one
    * that needs only installing or connecting is done without being listed; a
    * suggested one only when listed; an update only with `update: true`.

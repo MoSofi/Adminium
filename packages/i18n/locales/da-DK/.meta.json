@@ -30611,6 +30611,26 @@
     "status": "mt",
     "srcHash": "cffdc90e0c27"
   },
+  "studio.hostedApps.install.shippingGrants.body": {
+    "status": "src",
+    "srcHash": "bf55b1783384"
+  },
+  "studio.hostedApps.install.shippingGrants.book": {
+    "status": "src",
+    "srcHash": "3aa0c0060f43"
+  },
+  "studio.hostedApps.install.shippingGrants.cancel": {
+    "status": "src",
+    "srcHash": "9b4cf1578d20"
+  },
+  "studio.hostedApps.install.shippingGrants.customs": {
+    "status": "src",
+    "srcHash": "606279953f9b"
+  },
+  "studio.hostedApps.install.shippingGrants.title": {
+    "status": "src",
+    "srcHash": "f097e1b5380b"
+  },
   "studio.hostedApps.install.staged": {
     "status": "mt",
     "srcHash": "fe5c8eabb34e"
