@@ -45,6 +45,7 @@ import {
   settingsRepo,
   type AssistantContextKey,
   type MetaDb,
+  textTemplatesRepo,
 } from '@adminium/meta';
 
 import { ConflictError, ForbiddenError, ValidationFailedError } from '../errors.js';
@@ -366,6 +367,7 @@ async function createDraft(input: AssistantActionInput, at: number): Promise<Ass
     resolveRule(trigger, graph, {
       view: whole === null || input.actor.id === null ? whole : await readViewForUser(input.meta, input.actor.id, whole),
       templateKeys: new Set((await liveTemplateKeys({ meta: input.meta })).map((row) => row.key)),
+      textTemplateKeys: new Set(await textTemplatesRepo(input.meta).liveKeys()),
       blockLoopback: process.env['NODE_ENV'] === 'production',
       steps,
     });

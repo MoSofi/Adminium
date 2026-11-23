@@ -54,6 +54,12 @@ export interface TraceText {
   /** A notice or a mail held to the end of a person's quiet hours. */
   heldUntil(name: string, at: string): string;
   emailQueued(name: string): string;
+  /** A text step: the number only ever as `+49 ••• 789`, and never a word of the message. */
+  textQueued(to: string): string;
+  textHeld(to: string, at: string): string;
+  textWould(to: string): string;
+  textWouldHold(to: string, at: string): string;
+  textNotSent(reason: string): string;
   digestNobody(): string;
   digestQueued(people: number, later: number): string;
   digestWould(people: number): string;
@@ -170,6 +176,11 @@ export const TRACE_EN: TraceText = {
     listed === 0 ? `Nobody is listed in ${table} on this record: nobody was told.` : `Nobody of the ${String(listed)} listed in ${table} on this record can sign in and open it: nobody was told.`,
   heldUntil: (name, at) => `Held for ${name} until ${at}: their quiet hours.`,
   emailQueued: (name) => `Queued for ${name}.`,
+  textQueued: (to) => `Text queued for ${to}`,
+  textHeld: (to, at) => `Text held for ${to} until ${at}: outside the sending hours`,
+  textWould: (to) => `Would send a text to ${to}`,
+  textWouldHold: (to, at) => `Would hold a text for ${to} until ${at}: outside the sending hours`,
+  textNotSent: (reason) => `No text sent: ${reason}`,
   digestNobody: () => 'Nobody who holds the roles this summary is for takes summaries: none was made.',
   digestQueued: (people, later) => (later === 0 ? `A summary queued for ${String(people)} ${people === 1 ? 'person' : 'people'}.` : `A summary queued for ${String(people)} ${people === 1 ? 'person' : 'people'}, ${String(later)} at the time they chose.`),
   digestWould: (people) => `Would make a summary for ${String(people)} ${people === 1 ? 'person' : 'people'}, each of their own rows.`,

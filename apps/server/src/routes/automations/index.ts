@@ -43,6 +43,7 @@ import {
   type EnqueueJobInput,
   type Job,
   type MetaDb,
+  textTemplatesRepo,
 } from '@adminium/meta';
 
 import { audited, auditExempt } from '../../audit/coverage.js';
@@ -350,6 +351,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
       // As its author reads the schema: a rule names no column their role is not shown, its own or one a link leads to.
       view,
       templateKeys: await liveTemplateKeySet(meta),
+      textTemplateKeys: new Set(await textTemplatesRepo(meta).liveKeys()),
       blockLoopback: deps.blockLoopback ?? process.env['NODE_ENV'] === 'production',
       blockPrivate: deps.manager.networkPolicy === 'strict',
       steps: await stepsFor(input.connectionId),

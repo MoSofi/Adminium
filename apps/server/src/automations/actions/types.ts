@@ -28,6 +28,7 @@ import type { EmailTransport, SmtpConfig } from '../../email/types.js';
 import type { RenderDeps } from '../../documents/render.js';
 import type { FileStore } from '../../files/store.js';
 import type { NotificationPublisher } from '../../notifications/notify.js';
+import type { TextSendPath } from '../../sms/send/index.js';
 import type { TokenMap } from '../templating.js';
 import type { TraceText } from '../trace.js';
 import type { CompanyFillDeps } from './company-fill-deps.js';
@@ -113,6 +114,12 @@ export interface ActionContext {
    * the step runs. Absent, the step refuses with a sentence.
    */
   leadSources?: (() => CompanyFillDeps) | undefined;
+  /**
+   * The text send path, for a `text` step: the same one an outbox text goes
+   * through. A function, because the path is built after the run handler is
+   * registered. No answer: no text can go, and the step says so.
+   */
+  texts?: (() => Pick<TextSendPath, 'prepare' | 'queue'> | undefined) | undefined;
 }
 
 export interface ActionResult {
@@ -120,6 +127,8 @@ export interface ActionResult {
   log: string | null;
   /** The row a named "create a row" step made, kept in the trace for the steps after it (`step-rows.ts`). */
   made?: AutomationTraceStep['made'];
+  /** The step did not do its work, for a reason its log says, and the run goes on. The trace shows it as skipped. */
+  skipped?: true | undefined;
 }
 
 /** A step that failed. The message becomes the trace line AND the run's error. */

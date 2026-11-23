@@ -46,6 +46,7 @@ import {
   type Job,
   type MetaDb,
   type RecordRef,
+  textTemplatesRepo,
 } from '@adminium/meta';
 
 import type { RecordWriteEvent } from '../crud/after-record-write.js';
@@ -444,6 +445,12 @@ export async function wasColumnsOf(meta: MetaDb, rule: Pick<Automation, 'graph'>
     const shipped = await resolveRuleTemplate(meta, key, 'en_US');
     if (shipped !== null) take(JSON.stringify(shipped));
   }
+  // A text step's template, in any language.
+  const textKeys = new Set<string>();
+  for (const node of flattenNodes(rule.graph)) {
+    if (node.kind === 'action' && node.action.kind === 'text' && node.action.templateKey !== null && node.action.templateKey !== '') textKeys.add(node.action.templateKey);
+  }
+  for (const key of textKeys) for (const row of await textTemplatesRepo(meta).listByKey(key)) take(row.body);
   return out;
 }
 

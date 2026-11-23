@@ -65,6 +65,8 @@ export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, s
   'outbox.waiting': SMS_WORDS_FLOOR,
   'people.phone': SMS_WORDS_FLOOR,
   'publicAccess.textConsent': SMS_WORDS_FLOOR,
+  // A rule's text step runs once the send path is handed to the runner (`texts`).
+  'automations.text': SMS_WORDS_FLOOR,
 };
 
 /** The newer words of a manifest this server runs: nothing is refused for using one. */

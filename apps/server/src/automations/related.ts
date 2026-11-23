@@ -137,6 +137,11 @@ export function relatedUses(graph: AutomationGraph): RelatedUse[] {
       const ref = parseRelated(action.replyTo.staff);
       if (ref !== null) out.push({ ...ref, nodeId: node.id, title: node.title, as: 'recipient', step: action.kind });
     }
+    // The number a text goes to, when it is a linked row's (the order's customer's mobile).
+    if (action.kind === 'text' && action.to !== null) {
+      const ref = parseRelated(action.to.column);
+      if (ref !== null) out.push({ ...ref, nodeId: node.id, title: node.title, as: 'recipient', step: action.kind });
+    }
     // The person a notice tells, when that is somebody of a linked row (the quote's deal's owner).
     if (action.kind === 'notification' && action.to !== null && 'column' in action.to) {
       const ref = parseRelated(action.to.column);

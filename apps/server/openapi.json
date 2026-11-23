@@ -27890,6 +27890,80 @@
                                                     "kind": {
                                                       "type": "string",
                                                       "enum": [
+                                                        "text"
+                                                      ]
+                                                    },
+                                                    "templateKey": {
+                                                      "default": null,
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "string",
+                                                          "maxLength": 120
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    },
+                                                    "to": {
+                                                      "default": null,
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "object",
+                                                          "properties": {
+                                                            "kind": {
+                                                              "type": "string",
+                                                              "enum": [
+                                                                "field"
+                                                              ]
+                                                            },
+                                                            "column": {
+                                                              "type": "string",
+                                                              "maxLength": 260
+                                                            }
+                                                          },
+                                                          "required": [
+                                                            "kind",
+                                                            "column"
+                                                          ],
+                                                          "additionalProperties": false
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    },
+                                                    "vars": {
+                                                      "default": {},
+                                                      "type": "object",
+                                                      "propertyNames": {
+                                                        "type": "string",
+                                                        "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                      },
+                                                      "additionalProperties": {
+                                                        "type": "string",
+                                                        "maxLength": 2000
+                                                      }
+                                                    },
+                                                    "notAfter": {
+                                                      "type": "string",
+                                                      "maxLength": 128
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "kind",
+                                                    "templateKey",
+                                                    "to",
+                                                    "vars"
+                                                  ],
+                                                  "additionalProperties": false
+                                                },
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "kind": {
+                                                      "type": "string",
+                                                      "enum": [
                                                         "company.fill"
                                                       ]
                                                     },
@@ -29796,6 +29870,80 @@
                                                                           "kind": {
                                                                             "type": "string",
                                                                             "enum": [
+                                                                              "text"
+                                                                            ]
+                                                                          },
+                                                                          "templateKey": {
+                                                                            "default": null,
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "string",
+                                                                                "maxLength": 120
+                                                                              },
+                                                                              {
+                                                                                "type": "null"
+                                                                              }
+                                                                            ]
+                                                                          },
+                                                                          "to": {
+                                                                            "default": null,
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "kind": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                      "field"
+                                                                                    ]
+                                                                                  },
+                                                                                  "column": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 260
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "kind",
+                                                                                  "column"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              },
+                                                                              {
+                                                                                "type": "null"
+                                                                              }
+                                                                            ]
+                                                                          },
+                                                                          "vars": {
+                                                                            "default": {},
+                                                                            "type": "object",
+                                                                            "propertyNames": {
+                                                                              "type": "string",
+                                                                              "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                            },
+                                                                            "additionalProperties": {
+                                                                              "type": "string",
+                                                                              "maxLength": 2000
+                                                                            }
+                                                                          },
+                                                                          "notAfter": {
+                                                                            "type": "string",
+                                                                            "maxLength": 128
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "kind",
+                                                                          "templateKey",
+                                                                          "to",
+                                                                          "vars"
+                                                                        ],
+                                                                        "additionalProperties": false
+                                                                      },
+                                                                      {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "kind": {
+                                                                            "type": "string",
+                                                                            "enum": [
                                                                               "company.fill"
                                                                             ]
                                                                           },
@@ -31508,6 +31656,80 @@
                                                                           "step",
                                                                           "addOnName",
                                                                           "inputs"
+                                                                        ],
+                                                                        "additionalProperties": false
+                                                                      },
+                                                                      {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "kind": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "text"
+                                                                            ]
+                                                                          },
+                                                                          "templateKey": {
+                                                                            "default": null,
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "string",
+                                                                                "maxLength": 120
+                                                                              },
+                                                                              {
+                                                                                "type": "null"
+                                                                              }
+                                                                            ]
+                                                                          },
+                                                                          "to": {
+                                                                            "default": null,
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "kind": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                      "field"
+                                                                                    ]
+                                                                                  },
+                                                                                  "column": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 260
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "kind",
+                                                                                  "column"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              },
+                                                                              {
+                                                                                "type": "null"
+                                                                              }
+                                                                            ]
+                                                                          },
+                                                                          "vars": {
+                                                                            "default": {},
+                                                                            "type": "object",
+                                                                            "propertyNames": {
+                                                                              "type": "string",
+                                                                              "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                            },
+                                                                            "additionalProperties": {
+                                                                              "type": "string",
+                                                                              "maxLength": 2000
+                                                                            }
+                                                                          },
+                                                                          "notAfter": {
+                                                                            "type": "string",
+                                                                            "maxLength": 128
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "kind",
+                                                                          "templateKey",
+                                                                          "to",
+                                                                          "vars"
                                                                         ],
                                                                         "additionalProperties": false
                                                                       },
@@ -34085,6 +34307,75 @@
                                             "kind": {
                                               "type": "string",
                                               "enum": [
+                                                "text"
+                                              ]
+                                            },
+                                            "templateKey": {
+                                              "default": null,
+                                              "anyOf": [
+                                                {
+                                                  "type": "string",
+                                                  "maxLength": 120
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "to": {
+                                              "default": null,
+                                              "anyOf": [
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "kind": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "field"
+                                                      ]
+                                                    },
+                                                    "column": {
+                                                      "type": "string",
+                                                      "maxLength": 260
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "kind",
+                                                    "column"
+                                                  ]
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "vars": {
+                                              "default": {},
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string",
+                                                "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                              },
+                                              "additionalProperties": {
+                                                "type": "string",
+                                                "maxLength": 2000
+                                              }
+                                            },
+                                            "notAfter": {
+                                              "type": "string",
+                                              "maxLength": 128
+                                            }
+                                          },
+                                          "required": [
+                                            "kind"
+                                          ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
                                                 "company.fill"
                                               ]
                                             },
@@ -35899,6 +36190,75 @@
                                                                   "kind": {
                                                                     "type": "string",
                                                                     "enum": [
+                                                                      "text"
+                                                                    ]
+                                                                  },
+                                                                  "templateKey": {
+                                                                    "default": null,
+                                                                    "anyOf": [
+                                                                      {
+                                                                        "type": "string",
+                                                                        "maxLength": 120
+                                                                      },
+                                                                      {
+                                                                        "type": "null"
+                                                                      }
+                                                                    ]
+                                                                  },
+                                                                  "to": {
+                                                                    "default": null,
+                                                                    "anyOf": [
+                                                                      {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "kind": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "field"
+                                                                            ]
+                                                                          },
+                                                                          "column": {
+                                                                            "type": "string",
+                                                                            "maxLength": 260
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "kind",
+                                                                          "column"
+                                                                        ]
+                                                                      },
+                                                                      {
+                                                                        "type": "null"
+                                                                      }
+                                                                    ]
+                                                                  },
+                                                                  "vars": {
+                                                                    "default": {},
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "string",
+                                                                      "maxLength": 2000
+                                                                    }
+                                                                  },
+                                                                  "notAfter": {
+                                                                    "type": "string",
+                                                                    "maxLength": 128
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
                                                                       "company.fill"
                                                                     ]
                                                                   },
@@ -37524,6 +37884,75 @@
                                                                       "type": "string",
                                                                       "maxLength": 2000
                                                                     }
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "text"
+                                                                    ]
+                                                                  },
+                                                                  "templateKey": {
+                                                                    "default": null,
+                                                                    "anyOf": [
+                                                                      {
+                                                                        "type": "string",
+                                                                        "maxLength": 120
+                                                                      },
+                                                                      {
+                                                                        "type": "null"
+                                                                      }
+                                                                    ]
+                                                                  },
+                                                                  "to": {
+                                                                    "default": null,
+                                                                    "anyOf": [
+                                                                      {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "kind": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "field"
+                                                                            ]
+                                                                          },
+                                                                          "column": {
+                                                                            "type": "string",
+                                                                            "maxLength": 260
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "kind",
+                                                                          "column"
+                                                                        ]
+                                                                      },
+                                                                      {
+                                                                        "type": "null"
+                                                                      }
+                                                                    ]
+                                                                  },
+                                                                  "vars": {
+                                                                    "default": {},
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "string",
+                                                                      "maxLength": 2000
+                                                                    }
+                                                                  },
+                                                                  "notAfter": {
+                                                                    "type": "string",
+                                                                    "maxLength": 128
                                                                   }
                                                                 },
                                                                 "required": [
@@ -40043,6 +40472,80 @@
                                               "kind": {
                                                 "type": "string",
                                                 "enum": [
+                                                  "text"
+                                                ]
+                                              },
+                                              "templateKey": {
+                                                "default": null,
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "maxLength": 120
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "to": {
+                                                "default": null,
+                                                "anyOf": [
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "kind": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                          "field"
+                                                        ]
+                                                      },
+                                                      "column": {
+                                                        "type": "string",
+                                                        "maxLength": 260
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "kind",
+                                                      "column"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "vars": {
+                                                "default": {},
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string",
+                                                  "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                },
+                                                "additionalProperties": {
+                                                  "type": "string",
+                                                  "maxLength": 2000
+                                                }
+                                              },
+                                              "notAfter": {
+                                                "type": "string",
+                                                "maxLength": 128
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "templateKey",
+                                              "to",
+                                              "vars"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
                                                   "company.fill"
                                                 ]
                                               },
@@ -41949,6 +42452,80 @@
                                                                     "kind": {
                                                                       "type": "string",
                                                                       "enum": [
+                                                                        "text"
+                                                                      ]
+                                                                    },
+                                                                    "templateKey": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "string",
+                                                                          "maxLength": 120
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    },
+                                                                    "to": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "kind": {
+                                                                              "type": "string",
+                                                                              "enum": [
+                                                                                "field"
+                                                                              ]
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 260
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "kind",
+                                                                            "column"
+                                                                          ],
+                                                                          "additionalProperties": false
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    },
+                                                                    "vars": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
+                                                                    },
+                                                                    "notAfter": {
+                                                                      "type": "string",
+                                                                      "maxLength": 128
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "templateKey",
+                                                                    "to",
+                                                                    "vars"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
                                                                         "company.fill"
                                                                       ]
                                                                     },
@@ -43661,6 +44238,80 @@
                                                                     "step",
                                                                     "addOnName",
                                                                     "inputs"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "text"
+                                                                      ]
+                                                                    },
+                                                                    "templateKey": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "string",
+                                                                          "maxLength": 120
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    },
+                                                                    "to": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "kind": {
+                                                                              "type": "string",
+                                                                              "enum": [
+                                                                                "field"
+                                                                              ]
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 260
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "kind",
+                                                                            "column"
+                                                                          ],
+                                                                          "additionalProperties": false
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    },
+                                                                    "vars": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
+                                                                    },
+                                                                    "notAfter": {
+                                                                      "type": "string",
+                                                                      "maxLength": 128
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "templateKey",
+                                                                    "to",
+                                                                    "vars"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 },
@@ -47097,6 +47748,80 @@
                                               "kind": {
                                                 "type": "string",
                                                 "enum": [
+                                                  "text"
+                                                ]
+                                              },
+                                              "templateKey": {
+                                                "default": null,
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "maxLength": 120
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "to": {
+                                                "default": null,
+                                                "anyOf": [
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "kind": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                          "field"
+                                                        ]
+                                                      },
+                                                      "column": {
+                                                        "type": "string",
+                                                        "maxLength": 260
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "kind",
+                                                      "column"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "vars": {
+                                                "default": {},
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string",
+                                                  "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                },
+                                                "additionalProperties": {
+                                                  "type": "string",
+                                                  "maxLength": 2000
+                                                }
+                                              },
+                                              "notAfter": {
+                                                "type": "string",
+                                                "maxLength": 128
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "templateKey",
+                                              "to",
+                                              "vars"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
                                                   "company.fill"
                                                 ]
                                               },
@@ -49003,6 +49728,80 @@
                                                                     "kind": {
                                                                       "type": "string",
                                                                       "enum": [
+                                                                        "text"
+                                                                      ]
+                                                                    },
+                                                                    "templateKey": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "string",
+                                                                          "maxLength": 120
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    },
+                                                                    "to": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "kind": {
+                                                                              "type": "string",
+                                                                              "enum": [
+                                                                                "field"
+                                                                              ]
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 260
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "kind",
+                                                                            "column"
+                                                                          ],
+                                                                          "additionalProperties": false
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    },
+                                                                    "vars": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
+                                                                    },
+                                                                    "notAfter": {
+                                                                      "type": "string",
+                                                                      "maxLength": 128
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "templateKey",
+                                                                    "to",
+                                                                    "vars"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
                                                                         "company.fill"
                                                                       ]
                                                                     },
@@ -50715,6 +51514,80 @@
                                                                     "step",
                                                                     "addOnName",
                                                                     "inputs"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "text"
+                                                                      ]
+                                                                    },
+                                                                    "templateKey": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "string",
+                                                                          "maxLength": 120
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    },
+                                                                    "to": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "kind": {
+                                                                              "type": "string",
+                                                                              "enum": [
+                                                                                "field"
+                                                                              ]
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 260
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "kind",
+                                                                            "column"
+                                                                          ],
+                                                                          "additionalProperties": false
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    },
+                                                                    "vars": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
+                                                                    },
+                                                                    "notAfter": {
+                                                                      "type": "string",
+                                                                      "maxLength": 128
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "templateKey",
+                                                                    "to",
+                                                                    "vars"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 },
@@ -53279,6 +54152,75 @@
                                             "kind": {
                                               "type": "string",
                                               "enum": [
+                                                "text"
+                                              ]
+                                            },
+                                            "templateKey": {
+                                              "default": null,
+                                              "anyOf": [
+                                                {
+                                                  "type": "string",
+                                                  "maxLength": 120
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "to": {
+                                              "default": null,
+                                              "anyOf": [
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "kind": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "field"
+                                                      ]
+                                                    },
+                                                    "column": {
+                                                      "type": "string",
+                                                      "maxLength": 260
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "kind",
+                                                    "column"
+                                                  ]
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "vars": {
+                                              "default": {},
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string",
+                                                "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                              },
+                                              "additionalProperties": {
+                                                "type": "string",
+                                                "maxLength": 2000
+                                              }
+                                            },
+                                            "notAfter": {
+                                              "type": "string",
+                                              "maxLength": 128
+                                            }
+                                          },
+                                          "required": [
+                                            "kind"
+                                          ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
                                                 "company.fill"
                                               ]
                                             },
@@ -55093,6 +56035,75 @@
                                                                   "kind": {
                                                                     "type": "string",
                                                                     "enum": [
+                                                                      "text"
+                                                                    ]
+                                                                  },
+                                                                  "templateKey": {
+                                                                    "default": null,
+                                                                    "anyOf": [
+                                                                      {
+                                                                        "type": "string",
+                                                                        "maxLength": 120
+                                                                      },
+                                                                      {
+                                                                        "type": "null"
+                                                                      }
+                                                                    ]
+                                                                  },
+                                                                  "to": {
+                                                                    "default": null,
+                                                                    "anyOf": [
+                                                                      {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "kind": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "field"
+                                                                            ]
+                                                                          },
+                                                                          "column": {
+                                                                            "type": "string",
+                                                                            "maxLength": 260
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "kind",
+                                                                          "column"
+                                                                        ]
+                                                                      },
+                                                                      {
+                                                                        "type": "null"
+                                                                      }
+                                                                    ]
+                                                                  },
+                                                                  "vars": {
+                                                                    "default": {},
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "string",
+                                                                      "maxLength": 2000
+                                                                    }
+                                                                  },
+                                                                  "notAfter": {
+                                                                    "type": "string",
+                                                                    "maxLength": 128
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
                                                                       "company.fill"
                                                                     ]
                                                                   },
@@ -56718,6 +57729,75 @@
                                                                       "type": "string",
                                                                       "maxLength": 2000
                                                                     }
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "text"
+                                                                    ]
+                                                                  },
+                                                                  "templateKey": {
+                                                                    "default": null,
+                                                                    "anyOf": [
+                                                                      {
+                                                                        "type": "string",
+                                                                        "maxLength": 120
+                                                                      },
+                                                                      {
+                                                                        "type": "null"
+                                                                      }
+                                                                    ]
+                                                                  },
+                                                                  "to": {
+                                                                    "default": null,
+                                                                    "anyOf": [
+                                                                      {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "kind": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "field"
+                                                                            ]
+                                                                          },
+                                                                          "column": {
+                                                                            "type": "string",
+                                                                            "maxLength": 260
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "kind",
+                                                                          "column"
+                                                                        ]
+                                                                      },
+                                                                      {
+                                                                        "type": "null"
+                                                                      }
+                                                                    ]
+                                                                  },
+                                                                  "vars": {
+                                                                    "default": {},
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "string",
+                                                                      "maxLength": 2000
+                                                                    }
+                                                                  },
+                                                                  "notAfter": {
+                                                                    "type": "string",
+                                                                    "maxLength": 128
                                                                   }
                                                                 },
                                                                 "required": [
@@ -59242,6 +60322,80 @@
                                               "kind": {
                                                 "type": "string",
                                                 "enum": [
+                                                  "text"
+                                                ]
+                                              },
+                                              "templateKey": {
+                                                "default": null,
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "maxLength": 120
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "to": {
+                                                "default": null,
+                                                "anyOf": [
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "kind": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                          "field"
+                                                        ]
+                                                      },
+                                                      "column": {
+                                                        "type": "string",
+                                                        "maxLength": 260
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "kind",
+                                                      "column"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "vars": {
+                                                "default": {},
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string",
+                                                  "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                },
+                                                "additionalProperties": {
+                                                  "type": "string",
+                                                  "maxLength": 2000
+                                                }
+                                              },
+                                              "notAfter": {
+                                                "type": "string",
+                                                "maxLength": 128
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "templateKey",
+                                              "to",
+                                              "vars"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
                                                   "company.fill"
                                                 ]
                                               },
@@ -61148,6 +62302,80 @@
                                                                     "kind": {
                                                                       "type": "string",
                                                                       "enum": [
+                                                                        "text"
+                                                                      ]
+                                                                    },
+                                                                    "templateKey": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "string",
+                                                                          "maxLength": 120
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    },
+                                                                    "to": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "kind": {
+                                                                              "type": "string",
+                                                                              "enum": [
+                                                                                "field"
+                                                                              ]
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 260
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "kind",
+                                                                            "column"
+                                                                          ],
+                                                                          "additionalProperties": false
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    },
+                                                                    "vars": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
+                                                                    },
+                                                                    "notAfter": {
+                                                                      "type": "string",
+                                                                      "maxLength": 128
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "templateKey",
+                                                                    "to",
+                                                                    "vars"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
                                                                         "company.fill"
                                                                       ]
                                                                     },
@@ -62860,6 +64088,80 @@
                                                                     "step",
                                                                     "addOnName",
                                                                     "inputs"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "text"
+                                                                      ]
+                                                                    },
+                                                                    "templateKey": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "string",
+                                                                          "maxLength": 120
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    },
+                                                                    "to": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "kind": {
+                                                                              "type": "string",
+                                                                              "enum": [
+                                                                                "field"
+                                                                              ]
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 260
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "kind",
+                                                                            "column"
+                                                                          ],
+                                                                          "additionalProperties": false
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    },
+                                                                    "vars": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
+                                                                    },
+                                                                    "notAfter": {
+                                                                      "type": "string",
+                                                                      "maxLength": 128
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "templateKey",
+                                                                    "to",
+                                                                    "vars"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 },
@@ -65583,6 +66885,80 @@
                                               "kind": {
                                                 "type": "string",
                                                 "enum": [
+                                                  "text"
+                                                ]
+                                              },
+                                              "templateKey": {
+                                                "default": null,
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "maxLength": 120
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "to": {
+                                                "default": null,
+                                                "anyOf": [
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "kind": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                          "field"
+                                                        ]
+                                                      },
+                                                      "column": {
+                                                        "type": "string",
+                                                        "maxLength": 260
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "kind",
+                                                      "column"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "vars": {
+                                                "default": {},
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string",
+                                                  "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                },
+                                                "additionalProperties": {
+                                                  "type": "string",
+                                                  "maxLength": 2000
+                                                }
+                                              },
+                                              "notAfter": {
+                                                "type": "string",
+                                                "maxLength": 128
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "templateKey",
+                                              "to",
+                                              "vars"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
                                                   "company.fill"
                                                 ]
                                               },
@@ -67489,6 +68865,80 @@
                                                                     "kind": {
                                                                       "type": "string",
                                                                       "enum": [
+                                                                        "text"
+                                                                      ]
+                                                                    },
+                                                                    "templateKey": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "string",
+                                                                          "maxLength": 120
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    },
+                                                                    "to": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "kind": {
+                                                                              "type": "string",
+                                                                              "enum": [
+                                                                                "field"
+                                                                              ]
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 260
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "kind",
+                                                                            "column"
+                                                                          ],
+                                                                          "additionalProperties": false
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    },
+                                                                    "vars": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
+                                                                    },
+                                                                    "notAfter": {
+                                                                      "type": "string",
+                                                                      "maxLength": 128
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "templateKey",
+                                                                    "to",
+                                                                    "vars"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
                                                                         "company.fill"
                                                                       ]
                                                                     },
@@ -69201,6 +70651,80 @@
                                                                     "step",
                                                                     "addOnName",
                                                                     "inputs"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "text"
+                                                                      ]
+                                                                    },
+                                                                    "templateKey": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "string",
+                                                                          "maxLength": 120
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    },
+                                                                    "to": {
+                                                                      "default": null,
+                                                                      "anyOf": [
+                                                                        {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "kind": {
+                                                                              "type": "string",
+                                                                              "enum": [
+                                                                                "field"
+                                                                              ]
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 260
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "kind",
+                                                                            "column"
+                                                                          ],
+                                                                          "additionalProperties": false
+                                                                        },
+                                                                        {
+                                                                          "type": "null"
+                                                                        }
+                                                                      ]
+                                                                    },
+                                                                    "vars": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
+                                                                    },
+                                                                    "notAfter": {
+                                                                      "type": "string",
+                                                                      "maxLength": 128
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "templateKey",
+                                                                    "to",
+                                                                    "vars"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 },
@@ -71762,6 +73286,75 @@
                                             "kind": {
                                               "type": "string",
                                               "enum": [
+                                                "text"
+                                              ]
+                                            },
+                                            "templateKey": {
+                                              "default": null,
+                                              "anyOf": [
+                                                {
+                                                  "type": "string",
+                                                  "maxLength": 120
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "to": {
+                                              "default": null,
+                                              "anyOf": [
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "kind": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "field"
+                                                      ]
+                                                    },
+                                                    "column": {
+                                                      "type": "string",
+                                                      "maxLength": 260
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "kind",
+                                                    "column"
+                                                  ]
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "vars": {
+                                              "default": {},
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string",
+                                                "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                              },
+                                              "additionalProperties": {
+                                                "type": "string",
+                                                "maxLength": 2000
+                                              }
+                                            },
+                                            "notAfter": {
+                                              "type": "string",
+                                              "maxLength": 128
+                                            }
+                                          },
+                                          "required": [
+                                            "kind"
+                                          ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
                                                 "company.fill"
                                               ]
                                             },
@@ -73576,6 +75169,75 @@
                                                                   "kind": {
                                                                     "type": "string",
                                                                     "enum": [
+                                                                      "text"
+                                                                    ]
+                                                                  },
+                                                                  "templateKey": {
+                                                                    "default": null,
+                                                                    "anyOf": [
+                                                                      {
+                                                                        "type": "string",
+                                                                        "maxLength": 120
+                                                                      },
+                                                                      {
+                                                                        "type": "null"
+                                                                      }
+                                                                    ]
+                                                                  },
+                                                                  "to": {
+                                                                    "default": null,
+                                                                    "anyOf": [
+                                                                      {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "kind": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "field"
+                                                                            ]
+                                                                          },
+                                                                          "column": {
+                                                                            "type": "string",
+                                                                            "maxLength": 260
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "kind",
+                                                                          "column"
+                                                                        ]
+                                                                      },
+                                                                      {
+                                                                        "type": "null"
+                                                                      }
+                                                                    ]
+                                                                  },
+                                                                  "vars": {
+                                                                    "default": {},
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "string",
+                                                                      "maxLength": 2000
+                                                                    }
+                                                                  },
+                                                                  "notAfter": {
+                                                                    "type": "string",
+                                                                    "maxLength": 128
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
                                                                       "company.fill"
                                                                     ]
                                                                   },
@@ -75201,6 +76863,75 @@
                                                                       "type": "string",
                                                                       "maxLength": 2000
                                                                     }
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "text"
+                                                                    ]
+                                                                  },
+                                                                  "templateKey": {
+                                                                    "default": null,
+                                                                    "anyOf": [
+                                                                      {
+                                                                        "type": "string",
+                                                                        "maxLength": 120
+                                                                      },
+                                                                      {
+                                                                        "type": "null"
+                                                                      }
+                                                                    ]
+                                                                  },
+                                                                  "to": {
+                                                                    "default": null,
+                                                                    "anyOf": [
+                                                                      {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "kind": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "field"
+                                                                            ]
+                                                                          },
+                                                                          "column": {
+                                                                            "type": "string",
+                                                                            "maxLength": 260
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "kind",
+                                                                          "column"
+                                                                        ]
+                                                                      },
+                                                                      {
+                                                                        "type": "null"
+                                                                      }
+                                                                    ]
+                                                                  },
+                                                                  "vars": {
+                                                                    "default": {},
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "string",
+                                                                      "maxLength": 2000
+                                                                    }
+                                                                  },
+                                                                  "notAfter": {
+                                                                    "type": "string",
+                                                                    "maxLength": 128
                                                                   }
                                                                 },
                                                                 "required": [
