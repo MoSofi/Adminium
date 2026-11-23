@@ -1,5 +1,30 @@
 # @adminium/dashboard
 
+## 0.3.73
+
+### Patch Changes
+
+- @adminium/add-on-contracts@0.3.73
+  - @adminium/charts@0.3.73
+  - @adminium/engine@0.3.73
+  - @adminium/i18n@0.3.73
+  - @adminium/tokens@0.3.73
+  - @adminium/ui@0.3.73
+  - @adminium/widgets@0.3.73
+
+## 0.3.72
+
+### Patch Changes
+
+- Updated dependencies [d4db103]
+  - @adminium/add-on-contracts@0.3.72
+  - @adminium/widgets@0.3.72
+  - @adminium/charts@0.3.72
+  - @adminium/engine@0.3.72
+  - @adminium/i18n@0.3.72
+  - @adminium/tokens@0.3.72
+  - @adminium/ui@0.3.72
+
 ## 0.3.71
 
 ### Patch Changes

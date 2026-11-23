@@ -254,6 +254,9 @@ async function undoApplied(deps: ApplyDeps, booking: ShippingBooking, now: () =>
   if (!isTestBooking(booking)) {
     await cancelCopy(deps, booking);
     await clearTracking(deps, booking);
+    // A replacement bought while this refund was open found the column taken. It is free now.
+    const holder = await repo.open(booking, booking.mode);
+    if (holder !== null && holder.id !== booking.id && holder.state === 'booked') await writeTracking(deps, holder);
   }
   await repo.note(booking.id, ['voided'], { appliedAt: null }, now());
   return { state: 'applied', already: false };

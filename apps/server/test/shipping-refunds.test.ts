@@ -15,6 +15,7 @@ import { attentionCutoffs, attentionReasons } from '../src/shipping/attention.js
 import { bookingView, buyLabel, type BookingDeps, type PurchaseInput } from '../src/shipping/bookings.js';
 import type { ResolvedCarrier } from '../src/shipping/carriers.js';
 import { addWorkingDays, claimByOf, refundView } from '../src/shipping/refund-view.js';
+import { retireDeletedRow, retireDroppedTables } from '../src/shipping/labels.js';
 import { checkRefund, requestRefund, settleRefund } from '../src/shipping/refunds.js';
 import { ShippingRefusal } from '../src/shipping/refusals.js';
 
@@ -148,6 +149,29 @@ describe.each(LEGS)('a refund on a label, with the booking table on %s', (dialec
       throw error;
     }
   };
+
+  it.skipIf(!available)('a deleted table lets go of its labels, so a new order with the same id starts clean', async () => {
+    const label = await bought();
+    const removed: string[] = [];
+    const store = { meta: db.meta, storage: { remove: async (file: { id: string }) => void removed.push(file.id) } as never };
+    await retireDroppedTables(store, 'conn_one', [label.tableName], clock);
+    expect((await repo().forRow('conn_one', label.tableName, label.rowKey)).map((one) => one.id)).not.toContain(label.id);
+    expect(await repo().open(slotOf(label.rowKey), 'live')).toBeNull();
+    const kept = (await repo().byId(label.id))!;
+    expect(kept).toMatchObject({ state: 'booked', tracking: label.tracking, labelGoneWhy: 'erased', labelRef: null, tableName: '~retired', tableRef: '~retired', rowKey: label.id, openKey: null });
+    expect(kept.appliedAt).not.toBeNull();
+  });
+
+  it.skipIf(!available)('a deleted order lets go of a settled label, and keeps one still being refunded', async () => {
+    const settled = await bought();
+    const refunding = await bought();
+    expect(await repo().askVoid(refunding.id, 'usr_owner', clock)).toBe(true);
+    const store = { meta: db.meta, storage: { remove: async () => undefined } as never };
+    await retireDeletedRow(store, 'conn_one', settled.tableName, settled.rowKey, clock);
+    await retireDeletedRow(store, 'conn_one', refunding.tableName, refunding.rowKey, clock);
+    expect(await repo().forRow('conn_one', settled.tableName, settled.rowKey)).toEqual([]);
+    expect((await repo().forRow('conn_one', refunding.tableName, refunding.rowKey)).map((one) => one.id)).toEqual([refunding.id]);
+  });
 
   beforeAll(async () => {
     if (available) db = await metaOn(dialect);

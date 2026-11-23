@@ -49,7 +49,7 @@ import { askForRates, carrierHttpFor, shippingCarrierFor, type ShippingCarrierDe
 import type { BookingDeps, BookingFaults } from '../../shipping/bookings.js';
 import { declarationOf, deliversTo, draftOf, readGoods, readInternational, signerName, type CustomsChoice } from '../../shipping/customs.js';
 import { checkedAccount, type KeyLock, type OpenBookings } from '../../shipping/keys.js';
-import { bookingState, createQuoteGate, mayShipAbroad, rateWithinLimit } from '../../shipping/limits.js';
+import { bookingState, createQuoteGate, mayShipAbroad, orderCancelled, rateWithinLimit } from '../../shipping/limits.js';
 import { carrierLocked } from '../../shipping/locks.js';
 import { storeQuote } from '../../shipping/quotes.js';
 import { ShippingRefusal } from '../../shipping/refusals.js';
@@ -105,6 +105,13 @@ function shippingOrders(install: InstalledManifest): readonly ShippingOrder[] | 
   const read = validateManifest(install.document);
   if (!read.ok || read.manifest.kind !== 'app') return null;
   return read.manifest.shipping?.orders ?? null;
+}
+
+/** The status rule the app declares for its order table, as its manifest was stored. */
+function orderStates(install: InstalledManifest, tableRef: string): { column: string } | undefined {
+  const read = validateManifest(install.document);
+  if (!read.ok || read.manifest.kind !== 'app') return undefined;
+  return read.manifest.requiredSchema?.tables.find((table) => table.ref === tableRef)?.states;
 }
 
 export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod {
@@ -265,10 +272,12 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
   }
 
   /** The order, with everything a quote or a purchase refuses on already asked, and no carrier called or key read. */
-  async function shippableOrder(request: FastifyRequest, install: InstalledManifest, connectionId: string, viewer: ShippingViewer, source: { table: string; id: string }): Promise<ShippableOrder> {
+  async function shippableOrder(request: FastifyRequest, install: InstalledManifest, connectionId: string, viewer: ShippingViewer, source: { table: string; id: string }, purpose: ShipmentPurpose): Promise<ShippableOrder> {
     const reached = await reachOrder(request, install, connectionId, source);
     const { table, row } = reached;
     const mapping = reached.mapping as ShippingOrder;
+    // It may have been cancelled while its rates were open. A return is for an order that went out, and is judged by its own state.
+    if (purpose === 'outbound' && orderCancelled(orderStates(install, mapping.table), row)) throw new ShippingRefusal('ORDER_CANCELLED', 'This order was cancelled, so no label can be bought for it.');
 
     // Refused before a carrier is asked or a key read: a quote can cost the shop money.
     const repo = shippingRepo(meta);
@@ -500,7 +509,7 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
         const { source, parcelNumber: number } = request.body;
         const parcel = request.body.parcel as Parcel;
         const purpose: ShipmentPurpose = request.body.purpose ?? 'outbound';
-        const order = await shippableOrder(request, install, connectionId, viewer, source);
+        const order = await shippableOrder(request, install, connectionId, viewer, source, purpose);
         // A return's place comes from the return, never from what the client says.
         const parcelNumber = purpose === 'return' ? await returnPlace(request, install, connectionId, viewer, order, request.body.returnId) : (number ?? 1);
         const { rowKey, limits, pricesHidden, from, to, carrierKey, venueDay } = order;

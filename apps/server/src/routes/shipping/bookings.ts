@@ -73,7 +73,7 @@ export interface ShippingBookingRoutesDeps {
   carrierDeps(request: FastifyRequest): ShippingCarrierDeps;
   appOf(request: FastifyRequest, param: string): Promise<{ app: InstalledManifest; connectionId: string }>;
   reachOrder(request: FastifyRequest, install: InstalledManifest, connectionId: string, source: { table: string; id: string }): Promise<ReachedOrder>;
-  shippableOrder(request: FastifyRequest, install: InstalledManifest, connectionId: string, viewer: ShippingViewer, source: { table: string; id: string }): Promise<ShippableOrder>;
+  shippableOrder(request: FastifyRequest, install: InstalledManifest, connectionId: string, viewer: ShippingViewer, source: { table: string; id: string }, purpose: ShipmentPurpose): Promise<ShippableOrder>;
   withoutCarrierWords(error: unknown): unknown;
   /** What is declared for this parcel, read from the order again. */
   declareCustoms(install: InstalledManifest, connectionId: string, order: ShippableOrder, parcel: Parcel, choice: CustomsChoice): Promise<{ declaration: CustomsDeclaration; signerId: string }>;
@@ -185,8 +185,8 @@ export function shippingBookingRoutes(deps: ShippingBookingRoutesDeps): FastifyP
         const parcel = parcelSchema.safeParse(stored.parcel);
         if (!parcel.success) throw new ShippingRefusal('QUOTE_NOT_FOUND', 'That quote is no longer there. Get rates again.');
 
-        const order = await deps.shippableOrder(request, install, connectionId, viewer, { table: stored.tableRef, id: stored.rowKey });
         const purpose = stored.purpose as ShipmentPurpose;
+        const order = await deps.shippableOrder(request, install, connectionId, viewer, { table: stored.tableRef, id: stored.rowKey }, purpose);
         // Asked again at purchase: the return may have moved on since the quote, and it must be this return's place.
         if (purpose === 'return' && (await deps.returnPlace(request, install, connectionId, viewer, order, returnId)) !== stored.parcelNumber) {
           throw new ShippingRefusal('QUOTE_NOT_FOUND', 'That quote is no longer there. Get rates again.');

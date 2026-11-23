@@ -1560,6 +1560,24 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
     expect(await rowOf(id)).toMatchObject({ tracking: 'TRK-1001', status: 'packed' });
   });
 
+  it.skipIf(!available)('puts a replacement label\'s number on the order once the first label\'s refund lands', async () => {
+    const id = await order('shop', { status: 'packed' });
+    const first = ((await buy(await quoted(id))).json() as Doc)['data']['id'] as string;
+    await applyBooking(applyDeps(), first);
+    const firstNumber = (await rowOf(id))['tracking'];
+    expect(await bookings().askVoid(first, 'usr_owner', Date.now())).toBe(true);
+    const offered = await quoted(id);
+    const replaced = await call('boss', 'POST', 'shop/shipping/bookings', { quoteId: offered['quoteId'], rateId: offered['rates'][0]['rateId'], replaceRefunding: true });
+    expect(replaced.statusCode, replaced.body).toBe(200);
+    const second = (replaced.json() as Doc)['data']['id'] as string;
+    await h.meta.db.updateTable('adminium_shipping_bookings').set({ tracking: 'TRK-REPLACED' }).where('id', '=', second).execute();
+    await applyBooking(applyDeps(), second);
+    expect((await rowOf(id))['tracking']).toBe(firstNumber);
+    expect(await bookings().settleVoided(first, {} as never, Date.now())).toBe(true);
+    await applyBooking(applyDeps(), first);
+    expect((await rowOf(id))['tracking']).toBe('TRK-REPLACED');
+  });
+
   it.skipIf(!available)('copies a label into the carrier\'s own table once, keyed by the booking', async () => {
     const copies = `carrier_copies_${String(nextId)}`;
     const { db } = await h.manager.data(conn);
@@ -1966,6 +1984,31 @@ describe.each(LEGS)('an app\'s shipping on %s', (dialect, available) => {
     await call('boss', 'PUT', '', { ...otherShipFrom, city: 'Hanley' }, `/api/v1/apps/${at('shop/shipping/ship-from')}`);
     expect(await settings().quote((away.json() as Doc)['data']['quoteId'])).toBeNull();
     expect(await settings().quote((home.json() as Doc)['data']['quoteId'])).not.toBeNull();
+  });
+
+  it.skipIf(!available)('a reinstall after deleting its tables hands no old label to a new order', async () => {
+    const goneId = installs['gone']!;
+    const id = await order('gone');
+    // A real bought label with its file, moved onto this app's order.
+    const { booking } = await bookedWithLabel();
+    const label = booking['id'] as string;
+    await h.meta.db.updateTable('adminium_shipping_bookings').set({ installId: goneId, tableName: tables[`${conn}:gone`]!, rowKey: id }).where('id', '=', label).execute();
+    const removed = await composed.app.inject({ method: 'DELETE', url: `/api/v1/apps/gone?connectionId=${encodeURIComponent(conn)}`, headers: { cookie: cookies['boss']! }, payload: { dropTables: true, confirmKey: 'gone' } });
+    expect(removed.statusCode, removed.body).toBe(200);
+    delete installs['gone'];
+    await h.stageApp(shopDoc('gone', true));
+    expect((await h.install('gone', '1.0.0', { shippingUnticked: [] })).statusCode).toBe(200);
+    installs['gone'] = (await repo.findInScope('gone', conn))!.row.id;
+    await order('gone', { id: Number(id) });
+    await settings().setShipFrom(installs['gone']!, SHIP_FROM, null, 1);
+    await settings().setActiveCarrier(installs['gone']!, 'carrier-one', null, 1);
+    const listed = await composed.app.inject({ method: 'GET', url: `/api/v1/apps/gone/shipping/bookings?connectionId=${encodeURIComponent(conn)}&table=orders&id=${id}`, headers: { cookie: cookies['boss']! } });
+    expect(listed.statusCode, listed.body).toBe(200);
+    const shown = (listed.json() as Doc)['data'] as Doc;
+    expect(shown['bookings']).toEqual([]);
+    // This test app has no carrier attached. What matters is that no old booking holds the parcel's place.
+    expect(shown['blockedBy']).not.toBe('booking');
+    expect(await bookings().byId(label)).toMatchObject({ tableName: '~retired', labelRef: null, labelGoneWhy: 'erased', openKey: null });
   });
 
   it.skipIf(!available)('forgets an app\'s choice, Ship from and quotes when it is uninstalled', async () => {

@@ -621,6 +621,16 @@ describe.each(LEGS)('buying a label once, with the booking table on %s', (dialec
     expect(queued).toContain(booking.id);
   });
 
+  it.skipIf(!available)('looks up a purchase restored from a backup before buying again', async () => {
+    const { slot, booking } = await unknownBooking();
+    await db.meta.db.updateTable('adminium_shipping_bookings').set({ calledAt: null, reason: 'restored' }).where('id', '=', booking.id).execute();
+    clock += RELEASE_QUIET_MS;
+    await releaseBooking(deps, (await repo().byId(booking.id))!, 'usr_owner');
+    recover = async () => ({ outcome: 'found', shipment: SHIPMENT });
+    expect(await codeOf(buy(slot, { rate: { ...RATE, ref: 'rate-handle-2' } }))).toBe('ALREADY_BOUGHT');
+    expect(purchases).toBe(0);
+  });
+
   it.skipIf(!available)('refuses to buy over an earlier attempt nobody can look up, unless someone who manages shipping confirms', async () => {
     for (const earlier of ['no-recover', 'other-account', 'unreadable'] as const) {
       const { slot, booking } = await unknownBooking();

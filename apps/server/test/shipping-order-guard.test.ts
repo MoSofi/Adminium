@@ -12,6 +12,7 @@ import { Kysely, SqliteDialect, sql } from 'kysely';
 
 import { attachGuard, guardedUpdate, movesBack } from '../src/crud/states.js';
 import { PAID_LABEL_HEADER, paidLabelJudge } from '../src/shipping/order-guard.js';
+import { orderCancelled } from '../src/shipping/limits.js';
 import { ShippingRefusal } from '../src/shipping/refusals.js';
 
 const MOVES = {
@@ -20,6 +21,16 @@ const MOVES = {
   making: ['ready'],
   ready: ['making', 'posted'],
 } as never;
+
+describe('a cancelled order', () => {
+  it('is read from the table\'s own status column, in either spelling', () => {
+    expect(orderCancelled({ column: 'status' }, { status: 'cancelled' })).toBe(true);
+    expect(orderCancelled({ column: 'stage' }, { stage: 'Canceled' })).toBe(true);
+    expect(orderCancelled({ column: 'status' }, { status: 'packed' })).toBe(false);
+    expect(orderCancelled({ column: 'status' }, { status: null })).toBe(false);
+    expect(orderCancelled(undefined, { status: 'cancelled' })).toBe(false);
+  });
+});
 
 describe('which moves take an order back', () => {
   it('counts an undo, a cancel and a step to an earlier state, and no step forward', () => {

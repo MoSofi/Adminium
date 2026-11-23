@@ -303,6 +303,35 @@ async function deleteFilesOf(deps: Pick<LabelDeps, 'meta' | 'storage'>, id: stri
   return { deleted, failed };
 }
 
+declare module 'fastify' {
+  interface FastifyInstance {
+    shippingRows: { onRowDeleted(connectionId: string, tableName: string, rowKey: string): Promise<void> };
+  }
+}
+
+/** States whose purchase is still being settled: they keep their row, so someone can finish them. */
+const STILL_SETTLING: ReadonlySet<string> = new Set(['reserved', 'calling', 'unknown', 'voiding']);
+
+async function retire(deps: Pick<LabelDeps, 'meta' | 'storage'>, bookings: readonly ShippingBooking[], at: number): Promise<void> {
+  for (const booking of bookings) await deleteFilesOf(deps, booking.id, 'erased', at);
+  await shippingBookingsRepo(deps.meta).retire(bookings.map((booking) => booking.id), at);
+}
+
+/**
+ * An app's tables are being deleted. A reinstall makes the same table names
+ * and starts the ids again, so a new customer's order would otherwise inherit
+ * an old customer's label, address and tracking number.
+ */
+export async function retireDroppedTables(deps: Pick<LabelDeps, 'meta' | 'storage'>, connectionId: string, tableNames: readonly string[], at: number): Promise<void> {
+  await retire(deps, await shippingBookingsRepo(deps.meta).onTables(connectionId, tableNames), at);
+}
+
+/** A row was deleted, and its id can be used again (SQLite reuses the highest). Its settled labels let go of it. */
+export async function retireDeletedRow(deps: Pick<LabelDeps, 'meta' | 'storage'>, connectionId: string, tableName: string, rowKey: string, at: number): Promise<void> {
+  const held = await shippingBookingsRepo(deps.meta).forRow(connectionId, tableName, rowKey);
+  await retire(deps, held.filter((booking) => !STILL_SETTLING.has(booking.state)), at);
+}
+
 /** The daily sweep: labels past their 90 days, then stored files no booking names. */
 export async function sweepLabelFiles(deps: LabelDeps): Promise<{ deleted: number; failed: number; orphans: number }> {
   const repo = shippingBookingsRepo(deps.meta);

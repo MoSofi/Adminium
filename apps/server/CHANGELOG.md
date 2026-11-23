@@ -1,5 +1,38 @@
 # @adminium/server
 
+## 0.3.73
+
+### Patch Changes
+
+- 3a9ded6: Bundle add-ons 1.0.35.
+- @adminium/adapter-mysql@0.3.73
+  - @adminium/adapter-postgres@0.3.73
+  - @adminium/adapter-sqlite@0.3.73
+  - @adminium/add-on-contracts@0.3.73
+  - @adminium/engine@0.3.73
+  - @adminium/i18n@0.3.73
+  - @adminium/llm@0.3.73
+  - @adminium/manifest@0.3.73
+  - @adminium/meta@0.3.73
+  - @adminium/schema-import@0.3.73
+
+## 0.3.72
+
+### Patch Changes
+
+- 33a687c: Real shipping, inside one country: buy carrier labels through your own Shippo account, with test and live keys, spending limits, a safe unknown-purchase flow, tracking, refunds, return labels on Online Shop, and a question before an order with a paid label moves back or is cancelled. DHL stays a demo carrier.
+- Updated dependencies [d4db103]
+  - @adminium/add-on-contracts@0.3.72
+  - @adminium/manifest@0.3.72
+  - @adminium/adapter-mysql@0.3.72
+  - @adminium/adapter-postgres@0.3.72
+  - @adminium/adapter-sqlite@0.3.72
+  - @adminium/engine@0.3.72
+  - @adminium/i18n@0.3.72
+  - @adminium/llm@0.3.72
+  - @adminium/meta@0.3.72
+  - @adminium/schema-import@0.3.72
+
 ## 0.3.71
 
 ### Patch Changes

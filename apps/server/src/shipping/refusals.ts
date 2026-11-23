@@ -40,6 +40,8 @@ export const SHIPPING_REFUSAL_STATUS = {
   CUSTOMS_ONE_PARCEL: 422,
   /** The person named on declarations no longer holds the customs right. */
   CUSTOMS_SIGNER: 409,
+  /** Cancelled while rates were open: postage for it would be money spent on nothing. */
+  ORDER_CANCELLED: 409,
   CARRIER_REFUSED: 422,
   CARRIER_UNAVAILABLE: 502,
   CARRIER_BAD_ANSWER: 502,
