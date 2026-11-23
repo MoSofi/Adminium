@@ -92,6 +92,10 @@ describe('the shipping block', () => {
       expect(messages(withLines({ currency: 'ship_country', lines: { ...lines, sku: 'code', unitWeight: 'grams', weightUnit: 'g', product: { column: 'order_id', table: 'products', sku: 'sku' }, unlessSet: 'code' } }))).toEqual([]);
     });
 
+    it('takes a line priced as a whole, in place of one unit\'s value', () => {
+      expect(messages(withLines({ lines: { table: 'order_lines', order: 'order_id', quantity: 'qty', description: 'name', lineTotal: 'unit_price' } }))).toEqual([]);
+    });
+
     it('asks for the release that reads it', () => {
       expect(WORD_FLOORS['shipping.customs']).toBe('0.3.74');
       const doc = withLines({ lines }, '0.3.72');
@@ -104,6 +108,9 @@ describe('the shipping block', () => {
       ['a column the lines do not have', { lines: { ...lines, quantity: 'nope' } }, 'has no column "nope"'],
       ['a quantity that is not a whole number', { lines: { ...lines, quantity: 'name' } }, 'cannot hold this'],
       ['a value that is not money', { lines: { ...lines, unitValue: 'qty' } }, 'cannot hold this'],
+      ['a line total that is not money', { lines: { table: 'order_lines', order: 'order_id', quantity: 'qty', description: 'name', lineTotal: 'name' } }, 'cannot hold this'],
+      ['both a unit value and a line total', { lines: { ...lines, lineTotal: 'unit_price' } }, 'name one of unitValue and lineTotal'],
+      ['neither a unit value nor a line total', { lines: { table: 'order_lines', order: 'order_id', quantity: 'qty', description: 'name' } }, 'name one of unitValue and lineTotal'],
       ['a weight with no unit', { lines: { ...lines, unitWeight: 'grams' } }, 'unitWeight and weightUnit go together'],
       ['a unit with no weight', { lines: { ...lines, weightUnit: 'kg' } }, 'unitWeight and weightUnit go together'],
       ['a product table it does not have', { lines: { ...lines, product: { column: 'order_id', table: 'nope', sku: 'sku' } } }, 'is not a table of this app'],

@@ -70,8 +70,10 @@ const shippingCustomsSchema = z
         /** The column naming the order. */
         order: refSchema,
         quantity: refSchema,
-        /** One unit's value, as the customer paid it. */
-        unitValue: refSchema,
+        /** One unit's value, as the customer paid it. Or `lineTotal`, for a line priced as a whole. */
+        unitValue: refSchema.optional(),
+        /** What the customer paid for the whole line. One unit's value is worked out from it, exact to six places. */
+        lineTotal: refSchema.optional(),
         description: refSchema,
         sku: refSchema.optional(),
         /** One unit's net weight, in `weightUnit`. Both or neither. */
@@ -174,7 +176,9 @@ export function shippingIssues<C extends { ref: string; type: string }>(m: { shi
       else {
         onTable(lines.table, lines.order, null, inLines('order'));
         onTable(lines.table, lines.quantity, COUNT_TYPES, inLines('quantity'));
-        onTable(lines.table, lines.unitValue, VALUE_TYPES, inLines('unitValue'));
+        if ((lines.unitValue === undefined) === (lines.lineTotal === undefined)) out.push({ path: inLines('unitValue'), message: 'name one of unitValue and lineTotal' });
+        if (lines.unitValue !== undefined) onTable(lines.table, lines.unitValue, VALUE_TYPES, inLines('unitValue'));
+        if (lines.lineTotal !== undefined) onTable(lines.table, lines.lineTotal, VALUE_TYPES, inLines('lineTotal'));
         onTable(lines.table, lines.description, ADDRESS_TYPES, inLines('description'));
         if (lines.sku !== undefined) onTable(lines.table, lines.sku, TEXT_TYPES, inLines('sku'));
         if (lines.unitWeight !== undefined) onTable(lines.table, lines.unitWeight, WEIGHT_TYPES, inLines('unitWeight'));

@@ -4678,11 +4678,12 @@ owner has listed that country. The block needs Adminium 0.3.74 or later.
 | `lines.table` | yes | The table holding the order's goods. |
 | `lines.order` | yes | Its column naming the order. |
 | `lines.quantity` | yes | A whole-number column. |
-| `lines.unitValue` | yes | A `decimal` or `money` column: what one unit was sold for. |
+| `lines.unitValue` | one of | A `decimal` or `money` column: what one unit was sold for. |
 | `lines.description` | yes | Text or enum. The shop's own customs description replaces it when one is set. |
 | `lines.sku` | no | A text column on the line. |
 | `lines.product` | no | Where a line's SKU is kept when the line has none: its column, the products table and that table's text column. |
 | `lines.unitWeight`, `lines.weightUnit` | no | One unit's net weight and `g` or `kg`, both or neither. Without them the parcel's weight is shared across its units. |
+| `lines.lineTotal` | one of | What the customer paid for the whole line, in place of `unitValue`, for a line priced as a whole. One unit's value is worked out from it, exact to six places. |
 | `lines.unlessSet` | no | A column of the line that, once filled, means the line is not in the parcel (`cancelled_at`). Such a line is never declared. |
 | `currency` | no | The order's column holding its currency. Without it the shop's customs currency is used. |
 

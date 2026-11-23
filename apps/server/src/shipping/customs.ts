@@ -220,6 +220,20 @@ function valueText(value: unknown): string | null {
   return (text.split('.')[1]?.length ?? 0) > MAX_VALUE_PLACES ? null : text;
 }
 
+/** One unit's value from what the whole line cost, exact to six places, half up. Too small to state is no value. */
+export function unitValueOf(total: unknown, quantity: number | null): string | null {
+  const text = valueText(total);
+  if (text === null || quantity === null) return null;
+  const [whole = '0', fraction = ''] = text.split('.');
+  const millionths = BigInt(`${whole}${fraction.padEnd(MAX_VALUE_PLACES, '0')}`);
+  const count = BigInt(quantity);
+  const unit = (millionths * 2n + count) / (count * 2n);
+  if (unit === 0n) return null;
+  const digits = unit.toString().padStart(MAX_VALUE_PLACES + 1, '0');
+  const cut = digits.length - MAX_VALUE_PLACES;
+  return `${digits.slice(0, cut)}.${digits.slice(cut)}`.replace(/\.?0+$/, '');
+}
+
 function quantityOf(value: unknown): number | null {
   const number = typeof value === 'string' && /^\d+$/.test(value.trim()) ? Number(value) : typeof value === 'bigint' ? Number(value) : value;
   return typeof number === 'number' && Number.isSafeInteger(number) && number >= 1 && number <= MAX_QUANTITY ? number : null;
@@ -262,7 +276,9 @@ export async function readGoods(
   const found = await sources.table(connectionId, lineTable.id);
   if (found === null) throw notMapped();
   const { db } = found.target;
-  const wanted = [...new Set([lineKey, lines.quantity, lines.unitValue, lines.description, ...(lines.sku === undefined ? [] : [lines.sku]), ...(lines.unitWeight === undefined ? [] : [lines.unitWeight]), ...(lines.product === undefined ? [] : [lines.product.column])])];
+  const valueColumn = lines.unitValue ?? lines.lineTotal;
+  if (valueColumn === undefined) throw notMapped();
+  const wanted = [...new Set([lineKey, lines.quantity, valueColumn, lines.description, ...(lines.sku === undefined ? [] : [lines.sku]), ...(lines.unitWeight === undefined ? [] : [lines.unitWeight]), ...(lines.product === undefined ? [] : [lines.product.column])])];
   const rows = (await db
     .selectFrom(lineTable.id)
     .select(wanted.map((column) => db.dynamic.ref<string>(column)))
@@ -297,11 +313,12 @@ export async function readGoods(
 
   return rows.map((row) => {
     const sku = lines.sku === undefined ? (lines.product === undefined ? undefined : skuByProduct.get(String(row[lines.product.column]))) : textOf(row[lines.sku]);
+    const quantity = quantityOf(row[lines.quantity]);
     return {
       key: String(row[lineKey]),
       description: textOf(row[lines.description]) ?? null,
-      quantity: quantityOf(row[lines.quantity]),
-      unitValue: valueText(row[lines.unitValue]),
+      quantity,
+      unitValue: lines.unitValue === undefined ? unitValueOf(row[valueColumn], quantity) : valueText(row[valueColumn]),
       ...(sku === undefined ? {} : { sku }),
       unitWeightKg: lines.unitWeight === undefined ? null : weightKgOf(row[lines.unitWeight], lines.weightUnit),
     };
