@@ -199,7 +199,10 @@ interface ResolveTarget {
 }
 
 /** What finding a typed code needs of the write (`crud/code-lookup.ts`); absent: a write that finds none. */
-export type ResolveOptions = LookupOptions;
+export type ResolveOptions = LookupOptions & {
+  /** A column's own `default {from}` as it stands now: what a change of link falls back on where the new row holds nothing. */
+  defaultOf?: (column: string) => Promise<unknown>;
+};
 
 /** Whether two values of a link name the same row: a key reads as a number from one door and as text from another. */
 const sameLink = (a: unknown, b: unknown): boolean =>
@@ -285,6 +288,15 @@ export async function resolveRow(
     }
     // A link to nothing is the database's to refuse, with its own words.
     if (copied === undefined) continue;
+    // A move to a row that holds nothing is no reason to empty a column with a default of its own: an order moved
+    // to a home postage service takes the shop's country, and keeps what it has where the shop names none.
+    if (copied === null && action === 'update' && copy.mode === 'default' && lookups?.defaultOf !== undefined && rules.defaultsFrom?.some((one) => one.column === copy.column)) {
+      const fallback = await lookups.defaultOf(copy.column);
+      if (fallback === null || fallback === undefined || fallback === '') continue;
+      out ??= { ...looked };
+      out[copy.column] = fallback;
+      continue;
+    }
     out ??= { ...looked };
     out[copy.column] = copied;
     const read = ((out as Copying)[COPIED] = { ...((out as Copying)[COPIED] ?? {}) });

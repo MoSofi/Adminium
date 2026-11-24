@@ -134,7 +134,7 @@ import { inTransaction, withNamedLock } from './capacity-guard.js';
 import { evaluateAll, placesFor, touchedFormulas, workOut } from './formulas.js';
 import { bandsAfterFormulas, settleBands } from './band.js';
 import { claimsNumbers, insertNumbered, numberLockName, prepareNumbers, seriesOf, withSeriesLocks } from './gapless.js';
-import { fillFromElsewhere, fillLinksFromElsewhere, settingsReaderOn, type RuleSettingsStore } from './rule-settings.js';
+import { defaultOfColumn, fillFromElsewhere, fillLinksFromElsewhere, settingsReaderOn, type RuleSettingsStore } from './rule-settings.js';
 import { attachSeals, sealRows, sealsOf, type WriteSeals } from './seal.js';
 import { attachExpect, attachGuard, createdBy, dayOf, deleteRefusal, expectOf, guardOf, guardedDelete, holdLinkedFirst, holdParentsFirst, instantOf, guardedInsert, guardedUpdate, movesParentsOnCreate, rowMoved, StateMoveRefused, supersedesOnCreate, tiedToStates, type ClearColumns, type EffectWriter, type EffectWritten } from './states.js';
 import { attachWindows, holds, statesReadClock, waitVias, type StateWindow } from './state-conditions.js';
@@ -3363,7 +3363,15 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         await fillLinksFromElsewhere(rules, action, target, localize(rules, target, fill(rules, action, target, context, withoutTypedCodes(rules, context, values), now), await zoneFor(rules, target)), settingsReaderOn(opts.settings, target.connectionId)),
         memo,
         context.origin === 'undo',
-        { origin: context.origin, provedAddress: context.provedAddress ?? null, zone: await zoneFor(rules, target), now, stored, rights: target.rights },
+        {
+          origin: context.origin,
+          provedAddress: context.provedAddress ?? null,
+          zone: await zoneFor(rules, target),
+          now,
+          stored,
+          rights: target.rights,
+          defaultOf: (column) => defaultOfColumn(rules, column, target, settingsReaderOn(opts.settings, target.connectionId)),
+        },
       ),
       settingsReaderOn(opts.settings, target.connectionId),
     );
