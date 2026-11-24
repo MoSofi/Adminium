@@ -98,7 +98,7 @@ export function createSmsAccountStore(meta: MetaDb): SmsAccountStore {
       if (expected === null) {
         const id = newId('sms');
         const at = fields.savedAt;
-        const insert = db.insertInto(TABLE).values({ id, slot: SLOT, revision: 1, ...columns(fields), createdAt: at, updatedAt: at });
+        const insert = db.insertInto('adminium_sms_accounts').values({ id, slot: SLOT, revision: 1, ...columns(fields), createdAt: at, updatedAt: at });
         // Never a caught duplicate: the loser of two first saves simply wrote nothing.
         if (meta.dialect === 'mysql') await insert.onDuplicateKeyUpdate({ id: sql`id` }).execute();
         else await insert.onConflict((conflict) => conflict.column('slot').doNothing()).execute();
@@ -106,7 +106,7 @@ export function createSmsAccountStore(meta: MetaDb): SmsAccountStore {
         return held?.id === id ? read() : null;
       }
       const result = await db
-        .updateTable(TABLE)
+        .updateTable('adminium_sms_accounts')
         .set({ ...columns(fields), revision: expected + 1, updatedAt: fields.savedAt })
         .where('slot', '=', SLOT)
         .where('revision', '=', expected)
@@ -115,7 +115,7 @@ export function createSmsAccountStore(meta: MetaDb): SmsAccountStore {
     },
 
     async remove(expected) {
-      const result = await db.deleteFrom(TABLE).where('slot', '=', SLOT).where('revision', '=', expected).executeTakeFirst();
+      const result = await db.deleteFrom('adminium_sms_accounts').where('slot', '=', SLOT).where('revision', '=', expected).executeTakeFirst();
       return Number(result.numDeletedRows) > 0;
     },
   };

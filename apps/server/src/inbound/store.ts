@@ -186,7 +186,7 @@ export function createInboundEventStore(meta: MetaDb): InboundEventStore {
         retainUntil: null,
       };
       // Never a caught duplicate, and never MySQL's INSERT IGNORE, which would also swallow a value that does not fit.
-      const insert = db.insertInto(TABLE).values(row);
+      const insert = db.insertInto('adminium_inbound_events').values(row);
       if (dialect === 'mysql') await insert.onDuplicateKeyUpdate({ id: sql`id` }).execute();
       else await insert.onConflict((conflict) => conflict.columns(['channel', 'account', 'providerId']).doNothing()).execute();
       const stored = await heads().where('channel', '=', input.channel).where('account', '=', input.account).where('providerId', '=', input.providerId).executeTakeFirst();
@@ -196,7 +196,7 @@ export function createInboundEventStore(meta: MetaDb): InboundEventStore {
 
     async claim(id, at, staleBefore) {
       const waiting = await db
-        .updateTable(TABLE)
+        .updateTable('adminium_inbound_events')
         .set((eb) => ({ state: 'working', claimedAt: at, attempts: eb('attempts', '+', 1) }))
         .where('id', '=', id)
         .where('state', '=', 'pending')
@@ -204,7 +204,7 @@ export function createInboundEventStore(meta: MetaDb): InboundEventStore {
       if (moved(waiting)) return byId(id);
       // Two statements, because MySQL reads a column already set earlier in the same SET.
       const takenOver = await db
-        .updateTable(TABLE)
+        .updateTable('adminium_inbound_events')
         .set((eb) => ({ claimedAt: at, attempts: eb('attempts', '+', 1), lostClaims: eb('lostClaims', '+', 1) }))
         .where('id', '=', id)
         .where('state', '=', 'working')
@@ -215,7 +215,7 @@ export function createInboundEventStore(meta: MetaDb): InboundEventStore {
 
     async finish(id, claimedAt, outcome) {
       const result = await db
-        .updateTable(TABLE)
+        .updateTable('adminium_inbound_events')
         .set({
           state: outcome.state,
           reason: outcome.reason,
@@ -233,7 +233,7 @@ export function createInboundEventStore(meta: MetaDb): InboundEventStore {
 
     async release(id, claimedAt, reason) {
       const result = await db
-        .updateTable(TABLE)
+        .updateTable('adminium_inbound_events')
         .set({ state: 'pending', reason, claimedAt: null })
         .where('id', '=', id)
         .where('state', '=', 'working')
@@ -244,7 +244,7 @@ export function createInboundEventStore(meta: MetaDb): InboundEventStore {
 
     async defer(id, claimedAt, reason) {
       const result = await db
-        .updateTable(TABLE)
+        .updateTable('adminium_inbound_events')
         .set((eb) => ({ state: 'pending', reason, claimedAt: null, attempts: eb('attempts', '-', 1) }))
         .where('id', '=', id)
         .where('state', '=', 'working')
@@ -280,7 +280,7 @@ export function createInboundEventStore(meta: MetaDb): InboundEventStore {
 
     async retry(id) {
       const result = await db
-        .updateTable(TABLE)
+        .updateTable('adminium_inbound_events')
         .set({ state: 'pending', reason: null, finishedAt: null, retainUntil: null, claimedAt: null, attempts: 0, lostClaims: 0 })
         .where('id', '=', id)
         .where('state', '=', 'failed')
@@ -303,7 +303,7 @@ export function createInboundEventStore(meta: MetaDb): InboundEventStore {
 
     async dismiss(id, at, retainUntil) {
       const result = await db
-        .updateTable(TABLE)
+        .updateTable('adminium_inbound_events')
         .set({ state: 'ignored', reason: 'dismissed', sealedBody: null, finishedAt: at, retainUntil })
         .where('id', '=', id)
         .where('state', '=', 'failed')
@@ -318,7 +318,7 @@ export function createInboundEventStore(meta: MetaDb): InboundEventStore {
       const rows = await query.orderBy('receivedAt', 'asc').limit(limit).execute();
       if (rows.length === 0) return 0;
       const result = await db
-        .updateTable(TABLE)
+        .updateTable('adminium_inbound_events')
         .set({ sealedBody: null })
         .where('id', 'in', rows.map((row) => row.id))
         .where('state', '=', 'failed')
@@ -338,7 +338,7 @@ export function createInboundEventStore(meta: MetaDb): InboundEventStore {
         .execute();
       if (rows.length === 0) return 0;
       const result = await db
-        .deleteFrom(TABLE)
+        .deleteFrom('adminium_inbound_events')
         .where('id', 'in', rows.map((row) => row.id))
         .where('state', 'in', ['processed', 'ignored', 'failed', 'erased'])
         .executeTakeFirst();
@@ -348,7 +348,7 @@ export function createInboundEventStore(meta: MetaDb): InboundEventStore {
     async eraseSubject(hashes, at, retainUntil) {
       if (hashes.length === 0) return 0;
       const result = await db
-        .updateTable(TABLE)
+        .updateTable('adminium_inbound_events')
         .set({ state: 'erased', sealedBody: null, subjectHash: null, keyVersion: null, reason: null, claimedAt: null, finishedAt: at, retainUntil })
         .where((eb) => eb.or(hashes.map((one) => eb.and([eb('subjectHash', '=', one.hash), eb('keyVersion', '=', one.version)]))))
         .executeTakeFirst();
