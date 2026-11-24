@@ -6696,7 +6696,12 @@
       "no": "Keine Antworten",
       "ok": "Antworten und Zustellberichte können diesen Server erreichen.",
       "problem": "Dieser Server hat keine öffentliche https-Adresse. Er kann Service-SMS senden, aber keine STOP-Antworten oder Zustellberichte empfangen. Marketing-SMS sind aus.",
-      "yes": "Antworten kommen an"
+      "yes": "Antworten kommen an",
+      "waiting": "Noch nichts empfangen",
+      "heardAt": "Die erste Antwort kam am {date} an.",
+      "waitingLine": "Eingerichtet, aber noch ist keine Antwort angekommen. Geben Sie Ihrem Anbieter die Antwortadresse dieses Servers und senden Sie dann eine Testantwort.",
+      "waitingWhy": "Bis eine Antwort ankommt, nennen SMS zum Abbestellen Ihre Telefonnummer oder E-Mail statt „Antworten Sie STOP“, und Marketing-SMS sind aus.",
+      "connectFirst": "Verbinden Sie unten Ihren Anbieter. Danach zeigt diese Karte die Antwortadresse, die Sie dort einfügen."
     },
     "reason": {
       "badNumber": "Nicht gesendet. Die Nummer lässt sich nicht als echte Telefonnummer lesen.",
@@ -6892,6 +6897,27 @@
       "toHelp": "Mit + und der Ländervorwahl, oder eine lokale Nummer des oben eingestellten Landes.",
       "unknownLine": "Wir haben keine Antwort von {provider} erhalten. Sehen Sie in dessen Nachrichtenprotokoll nach, bevor Sie eine weitere senden."
     },
-    "title": "SMS"
+    "title": "SMS",
+    "address": {
+      "copied": "In die Zwischenablage kopiert.",
+      "twilio": {
+        "open": "Öffnen Sie in Twilio „Phone Numbers“, dann „Active numbers“, und wählen Sie die Nummer, von der Sie senden.",
+        "paste": "Stellen Sie unter „Messaging“ „A message comes in“ auf „Webhook“, fügen Sie die Antwortadresse vollständig ein, einschließlich des Teils nach #, und lassen Sie HTTP POST stehen. Speichern.",
+        "service": "Gehört die Nummer zu einem Messaging Service, fügen Sie die Adresse stattdessen in dessen Integration-Einstellungen ein."
+      },
+      "test": "Schicken Sie von Ihrem eigenen Telefon ein beliebiges Wort an Ihre Nummer. Sobald es ankommt, zeigt diese Karte „Antworten kommen an“.",
+      "telnyx": {
+        "open": "Öffnen Sie in Telnyx „Messaging“ und wählen Sie Ihr Messaging-Profil.",
+        "paste": "Fügen Sie unter „Inbound“ die Antwortadresse als Webhook-URL ein, mit API-Version 2. Speichern."
+      },
+      "show": "Antwortadresse zeigen",
+      "none": "Es gibt noch keine Adresse: Dieser Server ist von außen nicht erreichbar.",
+      "inbound": "Antwortadresse",
+      "copyInbound": "Antwortadresse kopieren",
+      "status": "Zustellberichte (Status-Callback)",
+      "copyStatus": "Adresse für Zustellberichte kopieren",
+      "statusLine": "Dieselbe Adresse. Adminium gibt sie mit jeder SMS mit, Sie fügen sie also nur dort ein, wo Ihr Anbieter nach einem Status-Callback fragt.",
+      "secret": "Geben Sie diese Adresse nur Ihrem Anbieter. Wer sie kennt, kann nur anklopfen: Jede Nachricht muss trotzdem von Ihrem Anbieter signiert sein."
+    }
   }
 }

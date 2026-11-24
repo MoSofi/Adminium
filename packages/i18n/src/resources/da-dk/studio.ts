@@ -6706,7 +6706,12 @@ export default {
       "no": "Ingen svar",
       "ok": "Svar og leveringsrapporter kan nå denne server.",
       "problem": "Denne server har ingen offentlig https-adresse. Den kan sende service-sms’er, men den kan ikke modtage STOP-svar eller leveringsrapporter. Markedsførings-sms’er er slået fra.",
-      "yes": "Svar kommer frem"
+      "yes": "Svar kommer frem",
+      "waiting": "Intet modtaget endnu",
+      "heardAt": "Det første svar kom den {date}.",
+      "waitingLine": "Sat op, men der er endnu ikke kommet noget svar. Giv din udbyder denne servers svaradresse, og send derefter et testsvar.",
+      "waitingWhy": "Indtil et svar kommer frem, giver sms’er din telefon eller e-mail til afmelding i stedet for “Svar STOP”, og markedsførings-sms’er er slået fra.",
+      "connectFirst": "Forbind din udbyder nedenfor. Derefter giver dette kort den svaradresse, du skal indsætte der."
     },
     "reason": {
       "badNumber": "Ikke sendt. Nummeret kan ikke læses som et rigtigt telefonnummer.",
@@ -6902,6 +6907,27 @@ export default {
       "toHelp": "Med + og landekoden, eller et lokalt nummer fra det land, der er valgt ovenfor.",
       "unknownLine": "Vi fik intet svar fra {provider}. Se i dens beskedlog, før du sender en til."
     },
-    "title": "Sms"
+    "title": "Sms",
+    "address": {
+      "copied": "Kopieret til udklipsholderen.",
+      "twilio": {
+        "open": "Åbn Phone Numbers og derefter Active numbers i Twilio, og vælg det nummer, du sender fra.",
+        "paste": "Under Messaging skal du sætte “A message comes in” til Webhook, indsætte hele svaradressen, også delen efter #, og beholde HTTP POST. Gem.",
+        "service": "Hvis nummeret hører til en Messaging Service, skal du i stedet indsætte den i tjenestens Integration-indstillinger."
+      },
+      "test": "Send et vilkårligt ord til dit nummer fra din egen telefon. Når det kommer frem, står der “Svar kommer frem” på dette kort.",
+      "telnyx": {
+        "open": "Åbn Messaging i Telnyx, og vælg din beskedprofil.",
+        "paste": "Under Inbound skal du indsætte svaradressen som webhook-URL med API-version 2. Gem."
+      },
+      "show": "Vis svaradressen",
+      "none": "Der er endnu ingen adresse at give: Denne server kan ikke nås udefra.",
+      "inbound": "Svaradresse",
+      "copyInbound": "Kopiér svaradressen",
+      "status": "Leveringsrapporter (status callback)",
+      "copyStatus": "Kopiér adressen til leveringsrapporter",
+      "statusLine": "Den samme adresse. Adminium sender den med hver sms, så du indsætter den kun, hvor din udbyder beder om en status callback.",
+      "secret": "Hold denne adresse mellem dig og din udbyder. Den, der har den, kan kun banke på: Hver besked skal stadig være signeret af din udbyder."
+    }
   }
 } as const;

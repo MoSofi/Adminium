@@ -6706,7 +6706,12 @@ export default {
       "no": "No replies",
       "ok": "Replies and delivery reports can reach this server.",
       "problem": "This server has no public https address. It can send service texts, but it can’t receive STOP replies or delivery reports. Marketing texts are off.",
-      "yes": "Replies arrive"
+      "yes": "Replies arrive",
+      "waiting": "Not yet heard from",
+      "heardAt": "The first reply arrived on {date}.",
+      "waitingLine": "Set up, but no reply has arrived yet. Give your provider this server’s reply address, then send a test reply.",
+      "waitingWhy": "Until a reply arrives, texts give your phone or e-mail for stopping instead of “Reply STOP”, and marketing texts are off.",
+      "connectFirst": "Connect your provider below. Then this card gives the reply address to paste into it."
     },
     "reason": {
       "badNumber": "Not sent. The number can’t be read as a real phone number.",
@@ -6902,6 +6907,27 @@ export default {
       "toHelp": "With + and the country code, or a local number of the country set above.",
       "unknownLine": "We didn’t get an answer from {provider}. Look in its message log before sending another."
     },
-    "title": "Texts"
+    "title": "Texts",
+    "address": {
+      "copied": "Copied to the clipboard.",
+      "twilio": {
+        "open": "In Twilio, open Phone Numbers, then Active numbers, and choose the number you send from.",
+        "paste": "Under Messaging, set “A message comes in” to Webhook, paste the reply address in full, including the part after #, and keep HTTP POST. Save.",
+        "service": "If the number belongs to a Messaging Service, paste it in that service’s Integration settings instead."
+      },
+      "test": "From your own phone, text any word to your number. When it arrives, this card says “Replies arrive”.",
+      "telnyx": {
+        "open": "In Telnyx, open Messaging and choose your messaging profile.",
+        "paste": "Under Inbound, paste the reply address as the webhook URL, with API version 2. Save."
+      },
+      "show": "Show the reply address",
+      "none": "There is no address to give yet: this server can’t be reached from outside.",
+      "inbound": "Reply address",
+      "copyInbound": "Copy the reply address",
+      "status": "Delivery reports (status callback)",
+      "copyStatus": "Copy the delivery report address",
+      "statusLine": "The same address. Adminium gives it with each text, so you paste it only where your provider asks for a status callback.",
+      "secret": "Keep this address to yourself and your provider. Anyone who has it can only knock: every message must still be signed by your provider."
+    }
   }
 } as const;

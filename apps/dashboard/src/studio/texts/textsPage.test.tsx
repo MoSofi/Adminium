@@ -39,7 +39,7 @@ const account = (over: Partial<SmsAccount> = {}): SmsAccount => ({
   ...over,
 });
 
-const setupOf = (over: Partial<SmsSetup> = {}): SmsSetup => ({ reachability: { state: 'reachable', origin: 'https://admin.wren.example', notPort443: false }, repliesCanArrive: true, account: account(), ...over });
+const setupOf = (over: Partial<SmsSetup> = {}): SmsSetup => ({ reachability: { state: 'reachable', origin: 'https://admin.wren.example', notPort443: false }, repliesCanArrive: true, replies: { state: 'reachable', heardAt: AT }, account: account(), ...over });
 const limitsOf = (over: Partial<SendingLimits> = {}): SendingLimits => ({ dailyLimit: 500, serviceHours: { from: '08:00', to: '21:00' }, usedToday: 412, warnAt: 400, day: '2026-07-28', dayZone: 'UTC', ...over });
 
 const delivery = (over: Partial<Delivery>): Delivery => ({
@@ -166,9 +166,32 @@ describe('the gate', () => {
 
 describe('Setup', () => {
   it('says plainly when replies cannot arrive, and keeps the provider card usable', async () => {
-    mount({ setup: setupOf({ repliesCanArrive: false, reachability: { state: 'not-set', origin: null, notPort443: false }, account: null }) });
+    mount({ setup: setupOf({ repliesCanArrive: false, replies: { state: 'not-set', heardAt: null }, reachability: { state: 'not-set', origin: null, notPort443: false }, account: null }) });
     expect((await screen.findByTestId('texts-reach-problem')).textContent).toContain('can’t receive STOP replies or delivery reports. Marketing texts are off.');
     expect(screen.getByTestId('texts-connect')).toBeTruthy();
+  });
+
+  it('says “not yet heard from” until a reply arrives, and gives the address only when asked', async () => {
+    const user = userEvent.setup();
+    const address = 'https://admin.wren.example/api/v1/inbound/sms/twilio/made-up-door#rp=all&rc=5';
+    const { calls } = mount({
+      setup: setupOf({ repliesCanArrive: false, replies: { state: 'not-heard', heardAt: null } }),
+      replies: { 'GET /reply-address': { status: 200, body: { data: { provider: 'twilio', state: 'not-heard', heardAt: null, inbound: address, statusCallback: address } } } },
+    });
+    const card = await screen.findByTestId('texts-reach');
+    expect(card.textContent).toContain('Not yet heard from');
+    expect(screen.getByTestId('texts-reach-waiting').textContent).toContain('marketing texts are off');
+    expect(calls.some((call) => call.url.includes('/reply-address'))).toBe(false);
+    await user.click(screen.getByTestId('texts-address-show'));
+    expect((await screen.findByTestId('texts-address-inbound')).textContent).toBe(address);
+    expect(screen.getByTestId('texts-address-steps-twilio').textContent).toContain('A message comes in');
+    expect(calls.filter((call) => call.url.includes('/reply-address'))).toHaveLength(1);
+  });
+
+  it('says replies arrive once one has, with the day the first came', async () => {
+    mount();
+    expect((await screen.findByTestId('texts-reach')).textContent).toContain('Replies arrive');
+    expect(screen.getByTestId('texts-reach-heard')).toBeTruthy();
   });
 
   it('connects Twilio: secrets are password fields, and the keys go out once', async () => {

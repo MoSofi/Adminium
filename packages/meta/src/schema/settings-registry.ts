@@ -941,6 +941,28 @@ export const SETTINGS_REGISTRY = {
     null,
     'The daily text limit and the service hours for texts',
   ),
+  // Texts: when a signed reply first reached this server at its reply address, and which address that was (a
+  // digest of it, never the address, which holds a token). Until it is set for the address in use now, nobody
+  // knows the provider was given it, so no text promises "Reply STOP". Instance state: not portable.
+  'sms.replyHeard': def<{ door: string; at: number } | null>(
+    z.object({ door: z.string().regex(/^[0-9a-f]{64}$/), at: z.number().int().nonnegative() }).strict().nullable(),
+    null,
+    'When a signed reply first reached this server for texts',
+  ),
+  // Texts: how far the provider's message list has been read through in whole days, for the catch-up that finds
+  // replies a webhook missed. It moves only past a day read to its end, so it can never hide one. Instance state.
+  'sms.catchUpMark': def<{ account: string; day: string; next: string | null } | null>(
+    z
+      .object({
+        account: z.string().regex(/^[0-9a-f]{1,64}$/),
+        day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        next: z.string().max(2048).nullable(),
+      })
+      .strict()
+      .nullable(),
+    null,
+    'How far the text catch-up has read the provider\'s message list',
+  ),
   // ── "Your websites": the sites that may show a form in a frame ────────────
   //
   // Each an origin (`https://shop.example`: lower case, no path, no default

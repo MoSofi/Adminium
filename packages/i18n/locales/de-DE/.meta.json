@@ -45047,6 +45047,66 @@
     "status": "mt",
     "srcHash": "7661e6591fd9"
   },
+  "studio.texts.address.copied": {
+    "status": "mt",
+    "srcHash": "fee2a7f7af20"
+  },
+  "studio.texts.address.copyInbound": {
+    "status": "mt",
+    "srcHash": "e0d1a5245ab5"
+  },
+  "studio.texts.address.copyStatus": {
+    "status": "mt",
+    "srcHash": "8deca3265c7b"
+  },
+  "studio.texts.address.inbound": {
+    "status": "mt",
+    "srcHash": "9358c1b7fdad"
+  },
+  "studio.texts.address.none": {
+    "status": "mt",
+    "srcHash": "9eda38b22612"
+  },
+  "studio.texts.address.secret": {
+    "status": "mt",
+    "srcHash": "d36e9e03c362"
+  },
+  "studio.texts.address.show": {
+    "status": "mt",
+    "srcHash": "b015e1e84919"
+  },
+  "studio.texts.address.status": {
+    "status": "mt",
+    "srcHash": "2495407a707d"
+  },
+  "studio.texts.address.statusLine": {
+    "status": "mt",
+    "srcHash": "957b52cdc494"
+  },
+  "studio.texts.address.telnyx.open": {
+    "status": "mt",
+    "srcHash": "5129a491a5f5"
+  },
+  "studio.texts.address.telnyx.paste": {
+    "status": "mt",
+    "srcHash": "2898f3f82c5b"
+  },
+  "studio.texts.address.test": {
+    "status": "mt",
+    "srcHash": "43f2752a5782"
+  },
+  "studio.texts.address.twilio.open": {
+    "status": "mt",
+    "srcHash": "c07399a6b30e"
+  },
+  "studio.texts.address.twilio.paste": {
+    "status": "mt",
+    "srcHash": "f5250e0633e6"
+  },
+  "studio.texts.address.twilio.service": {
+    "status": "mt",
+    "srcHash": "b08d0f190185"
+  },
   "studio.texts.askOwner.body": {
     "status": "mt",
     "srcHash": "0f440d37e7d8"
@@ -45675,9 +45735,17 @@
     "status": "mt",
     "srcHash": "bd2dba42d865"
   },
+  "studio.texts.reach.connectFirst": {
+    "status": "mt",
+    "srcHash": "343fdcee3cf8"
+  },
   "studio.texts.reach.heading": {
     "status": "mt",
     "srcHash": "2e4b6b4c7c13"
+  },
+  "studio.texts.reach.heardAt": {
+    "status": "mt",
+    "srcHash": "2b4d7e57db96"
   },
   "studio.texts.reach.no": {
     "status": "mt",
@@ -45690,6 +45758,18 @@
   "studio.texts.reach.problem": {
     "status": "mt",
     "srcHash": "59145bbd4f94"
+  },
+  "studio.texts.reach.waiting": {
+    "status": "mt",
+    "srcHash": "9b413cf2321e"
+  },
+  "studio.texts.reach.waitingLine": {
+    "status": "mt",
+    "srcHash": "9186a1d4cb79"
+  },
+  "studio.texts.reach.waitingWhy": {
+    "status": "mt",
+    "srcHash": "472d8d82a13f"
   },
   "studio.texts.reach.yes": {
     "status": "mt",

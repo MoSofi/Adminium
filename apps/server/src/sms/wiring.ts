@@ -196,6 +196,7 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
         desktop: deps.desktop,
         trustProxy: deps.trustProxy,
         publicOrigin: () => storedPublicOrigin(meta),
+        replyReach: () => channel.replyReach(),
       }),
 
     consoleRoutes: () =>

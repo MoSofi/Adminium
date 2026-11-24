@@ -6706,7 +6706,12 @@ export default {
       "no": "Pas de réponses",
       "ok": "Les réponses et les rapports de remise peuvent atteindre ce serveur.",
       "problem": "Ce serveur n’a pas d’adresse https publique. Il peut envoyer des SMS de service, mais il ne peut pas recevoir les réponses STOP ni les rapports de remise. Les SMS marketing sont désactivés.",
-      "yes": "Les réponses arrivent"
+      "yes": "Les réponses arrivent",
+      "waiting": "Rien reçu pour l’instant",
+      "heardAt": "La première réponse est arrivée le {date}.",
+      "waitingLine": "Configuré, mais aucune réponse n’est encore arrivée. Donnez à votre fournisseur l’adresse de réponse de ce serveur, puis envoyez une réponse de test.",
+      "waitingWhy": "Tant qu’aucune réponse n’arrive, les SMS donnent votre téléphone ou votre e-mail pour se désinscrire au lieu de « Répondez STOP », et les SMS marketing sont désactivés.",
+      "connectFirst": "Connectez votre fournisseur ci-dessous. Cette carte donnera ensuite l’adresse de réponse à y coller."
     },
     "reason": {
       "badNumber": "Non envoyé. Le numéro ne peut pas être lu comme un vrai numéro de téléphone.",
@@ -6902,6 +6907,27 @@ export default {
       "toHelp": "Avec + et l’indicatif du pays, ou un numéro local du pays défini ci-dessus.",
       "unknownLine": "Nous n’avons pas reçu de réponse de {provider}. Consultez son journal des messages avant d’en envoyer un autre."
     },
-    "title": "SMS"
+    "title": "SMS",
+    "address": {
+      "copied": "Copié dans le presse-papiers.",
+      "twilio": {
+        "open": "Dans Twilio, ouvrez « Phone Numbers », puis « Active numbers », et choisissez le numéro depuis lequel vous envoyez.",
+        "paste": "Sous « Messaging », réglez « A message comes in » sur « Webhook », collez l’adresse de réponse en entier, y compris la partie après #, et gardez HTTP POST. Enregistrez.",
+        "service": "Si le numéro fait partie d’un Messaging Service, collez-la plutôt dans les réglages Integration de ce service."
+      },
+      "test": "Depuis votre propre téléphone, envoyez n’importe quel mot à votre numéro. Dès son arrivée, cette carte indique « Les réponses arrivent ».",
+      "telnyx": {
+        "open": "Dans Telnyx, ouvrez « Messaging » et choisissez votre profil de messagerie.",
+        "paste": "Sous « Inbound », collez l’adresse de réponse comme URL de webhook, avec la version 2 de l’API. Enregistrez."
+      },
+      "show": "Afficher l’adresse de réponse",
+      "none": "Il n’y a pas encore d’adresse à donner : ce serveur n’est pas joignable de l’extérieur.",
+      "inbound": "Adresse de réponse",
+      "copyInbound": "Copier l’adresse de réponse",
+      "status": "Rapports de remise (status callback)",
+      "copyStatus": "Copier l’adresse des rapports de remise",
+      "statusLine": "La même adresse. Adminium la transmet avec chaque SMS : collez-la seulement là où votre fournisseur demande un status callback.",
+      "secret": "Gardez cette adresse pour vous et votre fournisseur. Qui l’a ne peut que frapper à la porte : chaque message doit quand même être signé par votre fournisseur."
+    }
   }
 } as const;

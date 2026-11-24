@@ -6706,7 +6706,12 @@ export default {
       "no": "Bez odpovědí",
       "ok": "Odpovědi a doručenky se na tento server dostanou.",
       "problem": "Tento server nemá veřejnou adresu https. Může posílat servisní SMS, ale nemůže přijímat odpovědi STOP ani doručenky. Marketingové SMS jsou vypnuté.",
-      "yes": "Odpovědi přicházejí"
+      "yes": "Odpovědi přicházejí",
+      "waiting": "Zatím nic nepřišlo",
+      "heardAt": "První odpověď přišla {date}.",
+      "waitingLine": "Nastaveno, ale zatím nepřišla žádná odpověď. Předejte poskytovateli adresu pro odpovědi tohoto serveru a pošlete zkušební odpověď.",
+      "waitingWhy": "Dokud nepřijde odpověď, SMS uvádějí k odhlášení váš telefon nebo e-mail místo „Odpovězte STOP“ a marketingové SMS jsou vypnuté.",
+      "connectFirst": "Níže připojte svého poskytovatele. Pak vám tato karta dá adresu pro odpovědi, kterou do něj vložíte."
     },
     "reason": {
       "badNumber": "Neodesláno. Číslo nelze přečíst jako skutečné telefonní číslo.",
@@ -6902,6 +6907,27 @@ export default {
       "toHelp": "S + a předvolbou země, nebo místní číslo země nastavené výše.",
       "unknownLine": "Od poskytovatele {provider} nepřišla odpověď. Než pošlete další, podívejte se do jeho protokolu zpráv."
     },
-    "title": "SMS"
+    "title": "SMS",
+    "address": {
+      "copied": "Zkopírováno do schránky.",
+      "twilio": {
+        "open": "V Twiliu otevřete Phone Numbers, pak Active numbers, a vyberte číslo, ze kterého posíláte.",
+        "paste": "V části Messaging nastavte „A message comes in“ na Webhook, vložte celou adresu pro odpovědi včetně části za #, a ponechte HTTP POST. Uložte.",
+        "service": "Pokud číslo patří do služby Messaging Service, vložte ji místo toho do nastavení Integration této služby."
+      },
+      "test": "Ze svého telefonu pošlete na své číslo libovolné slovo. Jakmile dorazí, tato karta ukáže „Odpovědi přicházejí“.",
+      "telnyx": {
+        "open": "V Telnyxu otevřete Messaging a vyberte svůj profil zpráv.",
+        "paste": "V části Inbound vložte adresu pro odpovědi jako URL webhooku, s verzí API 2. Uložte."
+      },
+      "show": "Zobrazit adresu pro odpovědi",
+      "none": "Zatím není co předat: tento server není zvenku dosažitelný.",
+      "inbound": "Adresa pro odpovědi",
+      "copyInbound": "Zkopírovat adresu pro odpovědi",
+      "status": "Zprávy o doručení (status callback)",
+      "copyStatus": "Zkopírovat adresu pro zprávy o doručení",
+      "statusLine": "Stejná adresa. Adminium ji předává s každou SMS, takže ji vložíte jen tam, kde se váš poskytovatel ptá na status callback.",
+      "secret": "Tuto adresu znáte jen vy a váš poskytovatel. Kdo ji má, může jen zaklepat: každá zpráva musí být stejně podepsána vaším poskytovatelem."
+    }
   }
 } as const;

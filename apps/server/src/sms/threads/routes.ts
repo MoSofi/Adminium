@@ -140,7 +140,7 @@ const listReply = z.object({
     next: z.string().nullable(),
     unread: z.number(),
     /** False: this server cannot hear a reply, so none will arrive here. */
-    replies: z.object({ canArrive: z.boolean(), state: z.enum([...REACHABILITY_STATES, 'not-connected', 'key-unreadable']) }),
+    replies: z.object({ canArrive: z.boolean(), state: z.enum([...REACHABILITY_STATES, 'not-connected', 'key-unreadable', 'not-heard']) }),
   }),
 });
 

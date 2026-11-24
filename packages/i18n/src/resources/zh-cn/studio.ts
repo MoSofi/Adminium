@@ -6706,7 +6706,12 @@ export default {
       "no": "无法回复",
       "ok": "回复和送达报告可以到达此服务器。",
       "problem": "此服务器没有公网 https 地址。它可以发送服务短信，但无法接收 STOP 回复或送达报告。营销短信已关闭。",
-      "yes": "可接收回复"
+      "yes": "可接收回复",
+      "waiting": "尚未收到回复",
+      "heardAt": "第一条回复于 {date} 送达。",
+      "waitingLine": "已设置，但还没有收到任何回复。请把此服务器的回复地址交给你的服务商，然后发送一条测试回复。",
+      "waitingWhy": "在收到回复之前，短信会提供你的电话或电子邮件用于退订，而不是“回复 STOP”，营销短信也处于关闭状态。",
+      "connectFirst": "请在下方连接你的服务商。之后此卡片会给出要粘贴到服务商处的回复地址。"
     },
     "reason": {
       "badNumber": "未发送。无法将该号码识别为真实的电话号码。",
@@ -6902,6 +6907,27 @@ export default {
       "toHelp": "以 + 和国家代码开头，或填写上方所设国家/地区的本地号码。",
       "unknownLine": "我们没有收到 {provider} 的回应。再次发送之前，请先查看它的消息日志。"
     },
-    "title": "短信"
+    "title": "短信",
+    "address": {
+      "copied": "已复制到剪贴板。",
+      "twilio": {
+        "open": "在 Twilio 中打开 Phone Numbers，再打开 Active numbers，选择你用来发送的号码。",
+        "paste": "在 Messaging 下，把“A message comes in”设为 Webhook，完整粘贴回复地址（包括 # 之后的部分），并保留 HTTP POST。保存。",
+        "service": "如果该号码属于某个 Messaging Service，请改为粘贴到该服务的 Integration 设置中。"
+      },
+      "test": "用你自己的手机给你的号码发送任意一个词。收到后，此卡片会显示“可接收回复”。",
+      "telnyx": {
+        "open": "在 Telnyx 中打开 Messaging，选择你的消息配置文件。",
+        "paste": "在 Inbound 下，把回复地址粘贴为 webhook URL，API 版本选 2。保存。"
+      },
+      "show": "显示回复地址",
+      "none": "暂时没有可提供的地址：外部无法访问此服务器。",
+      "inbound": "回复地址",
+      "copyInbound": "复制回复地址",
+      "status": "送达报告（状态回调）",
+      "copyStatus": "复制送达报告地址",
+      "statusLine": "同一个地址。Adminium 会随每条短信一并提供，因此只在服务商要求填写状态回调的地方粘贴即可。",
+      "secret": "此地址只给你自己和你的服务商。拿到它的人也只能敲门：每条消息仍须由你的服务商签名。"
+    }
   }
 } as const;

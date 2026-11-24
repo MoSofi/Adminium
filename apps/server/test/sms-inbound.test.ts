@@ -229,6 +229,7 @@ describe.each(META_ENGINES)('SMS inbound — $name', (engine) => {
     if (!engine.available) return;
     for (const table of ['adminium_inbound_events', 'adminium_text_stop_list', 'adminium_text_consent_log']) await sql`delete from ${sql.table(table)}`.execute(handle.meta.db);
     await settingsRepo(handle.meta).set('system.publicOrigin', ORIGIN, { updatedBy: null });
+    await settingsRepo(handle.meta).unset('sms.replyHeard');
     clock = T0;
     queued = [];
     asked = [];
@@ -985,10 +986,57 @@ describe.each(META_ENGINES)('SMS inbound — $name', (engine) => {
   });
 
   describe('can this server hear a STOP', () => {
-    only('reachable: yes, with the address to give the provider', async () => {
+    only('reachable but never heard from: not yet, with the address to give the provider, and the door open for it', async () => {
       const reach = await channel.replyReach();
-      expect(reach).toMatchObject({ state: 'reachable', canReceiveStop: true, origin: ORIGIN });
+      expect(reach).toMatchObject({ state: 'not-heard', canReceiveStop: false, origin: ORIGIN, heardAt: null });
       expect(reach.address).toBe(`${ORIGIN}${path('twilio', twilio)}#rp=all&rc=5`);
+      expect((await channel.reach()).open).toBe(true);
+    });
+
+    only('a signed reply at the address makes it heard; a delivery report does not', async () => {
+      ledger.track('SM00000000000000000000000000000abc');
+      expect((await postTwilio({ MessageSid: 'SM00000000000000000000000000000abc', MessageStatus: 'delivered', To: PERSON })).statusCode).toBe(200);
+      expect(await channel.replyReach()).toMatchObject({ state: 'not-heard', canReceiveStop: false });
+      clock = T0 + 5_000;
+      expect((await twilioReply('see you then')).statusCode).toBe(200);
+      expect(await channel.replyReach()).toMatchObject({ state: 'reachable', canReceiveStop: true, heardAt: T0 + 5_000 });
+      // Remembered by the server, not by this process.
+      await serve();
+      expect(await channel.replyReach()).toMatchObject({ state: 'reachable', canReceiveStop: true, heardAt: T0 + 5_000 });
+    });
+
+    only('a forged reply proves nothing', async () => {
+      expect((await postTwilio({ MessageSid: nextSid(), From: PERSON, To: OURS, Body: 'hi' }, { value: 'not-the-signing-value' })).statusCode).toBe(403);
+      expect((await channel.replyReach()).canReceiveStop).toBe(false);
+    });
+
+    only('heard belongs to one address: another account, or another public address, is not heard', async () => {
+      await twilioReply('hello');
+      expect((await channel.replyReach()).canReceiveStop).toBe(true);
+      await settingsRepo(handle.meta).set('system.publicOrigin', 'https://other.lumen.example', { updatedBy: null });
+      expect(await channel.replyReach()).toMatchObject({ state: 'not-heard', canReceiveStop: false });
+      await settingsRepo(handle.meta).set('system.publicOrigin', ORIGIN, { updatedBy: null });
+      useTelnyx();
+      expect(await channel.replyReach()).toMatchObject({ state: 'not-heard', canReceiveStop: false });
+      expect((await postTelnyx(telnyxReply('hi'))).statusCode).toBe(200);
+      expect(await channel.replyReach()).toMatchObject({ state: 'reachable', canReceiveStop: true });
+    });
+
+    only('a reply the catch-up found proves nothing about the address', async () => {
+      const sid = nextSid();
+      const fetch = (async () => json(200, { messages: [{ sid, direction: 'inbound', from: PERSON, to: OURS, body: 'hi', date_sent: new Date(clock).toUTCString() }], next_page_uri: null })) as typeof globalThis.fetch;
+      await createSmsCatchUp({ core, sms: { credentials: async () => credentials, view: async () => view }, fetch, now: () => clock }).run();
+      expect((await channel.replyReach()).canReceiveStop).toBe(false);
+    });
+
+    only('a fresh connect with a reachable address refuses marketing until a reply is heard', async () => {
+      const US = '+12065550123';
+      await consent.record({ phone: US, purpose: 'text-marketing', state: 'yes', source: 'form', wording: { text: 'Offers.', version: 'v1' } });
+      const before = await channel.replyReach();
+      expect(await consent.decide({ phone: US, country: null, class: 'marketing', sender: { kind: 'number' }, repliesReachUs: before.canReceiveStop })).toMatchObject({ send: false, reason: 'marketing-without-replies' });
+      await twilioReply('hello');
+      const after = await channel.replyReach();
+      expect(await consent.decide({ phone: US, country: null, class: 'marketing', sender: { kind: 'number' }, repliesReachUs: after.canReceiveStop })).toMatchObject({ send: true, optOut: 'reply-stop' });
     });
 
     only.each([

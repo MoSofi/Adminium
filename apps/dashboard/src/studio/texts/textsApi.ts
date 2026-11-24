@@ -40,11 +40,24 @@ export interface SmsAccount {
   timeoutRetry: 'never' | 'same-key';
 }
 
+/** Whether replies reach this server: `not-heard` until the first signed reply arrives at the address in use now. */
+export type ReplyState = ReachabilityState | 'not-connected' | 'key-unreadable' | 'not-heard';
+
 export interface SmsSetup {
   reachability: { state: ReachabilityState; origin: string | null; notPort443: boolean };
-  /** False: texts can go, but STOP replies and delivery reports cannot arrive. */
+  /** True once a signed reply has reached this server. Until then texts give the business's own contact for stopping, and marketing is off. */
   repliesCanArrive: boolean;
+  replies: { state: ReplyState; heardAt: number | null };
   account: SmsAccount | null;
+}
+
+/** The address to paste into the provider. It holds a secret part, so it is fetched only when a person asks for it. */
+export interface ReplyAddress {
+  provider: SmsProvider | null;
+  state: ReplyState;
+  heardAt: number | null;
+  inbound: string | null;
+  statusCallback: string | null;
 }
 
 export interface SendingLimits {
@@ -129,6 +142,11 @@ export const stopListKey = [...TEXTS_QUERY_KEY, 'stop-list'] as const;
 export const templatesKey = [...TEXTS_QUERY_KEY, 'templates'] as const;
 
 export const smsSetupQuery = () => queryOptions({ queryKey: setupKey, queryFn: async () => (await api.get<{ data: SmsSetup }>(`${BASE}/setup`)).data });
+/** Audited on the server: called when a person opens the address, never on page load. */
+export async function fetchReplyAddress(): Promise<ReplyAddress> {
+  return (await api.get<{ data: ReplyAddress }>(`${BASE}/reply-address`)).data;
+}
+
 export const sendingLimitsQuery = () => queryOptions({ queryKey: limitsKey, queryFn: async () => (await api.get<{ data: SendingLimits }>(`${BASE}/sending-limits`)).data });
 
 export const deliveriesQuery = () =>

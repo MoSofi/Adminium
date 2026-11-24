@@ -6696,7 +6696,12 @@
       "no": "無法接收回覆",
       "ok": "回覆和送達回報可以送達這台伺服器。",
       "problem": "這台伺服器沒有公開的 https 網址。它可以傳送服務簡訊，但無法接收 STOP 回覆或送達回報。行銷簡訊已關閉。",
-      "yes": "可接收回覆"
+      "yes": "可接收回覆",
+      "waiting": "尚未收到回覆",
+      "heardAt": "第一則回覆於 {date} 送達。",
+      "waitingLine": "已設定，但還沒有收到任何回覆。請把此伺服器的回覆地址交給你的服務商，然後傳送一則測試回覆。",
+      "waitingWhy": "在收到回覆之前，簡訊會提供你的電話或電子郵件用於退訂，而不是「回覆 STOP」，行銷簡訊也處於關閉狀態。",
+      "connectFirst": "請在下方連接你的服務商。之後此卡片會給出要貼到服務商處的回覆地址。"
     },
     "reason": {
       "badNumber": "未傳送。無法將此號碼辨識為有效的電話號碼。",
@@ -6892,6 +6897,27 @@
       "toHelp": "加上 + 和國碼，或使用上方所設國家或地區的本地號碼。",
       "unknownLine": "{provider} 沒有回應。再傳送另一則之前，請先查看它的訊息記錄。"
     },
-    "title": "簡訊"
+    "title": "簡訊",
+    "address": {
+      "copied": "已複製到剪貼簿。",
+      "twilio": {
+        "open": "在 Twilio 中開啟 Phone Numbers，再開啟 Active numbers，選擇你用來傳送的號碼。",
+        "paste": "在 Messaging 下，把「A message comes in」設為 Webhook，完整貼上回覆地址（包括 # 之後的部分），並保留 HTTP POST。儲存。",
+        "service": "如果該號碼屬於某個 Messaging Service，請改為貼到該服務的 Integration 設定中。"
+      },
+      "test": "用你自己的手機傳任意一個字到你的號碼。收到後，此卡片會顯示「可接收回覆」。",
+      "telnyx": {
+        "open": "在 Telnyx 中開啟 Messaging，選擇你的訊息設定檔。",
+        "paste": "在 Inbound 下，把回覆地址貼為 webhook URL，API 版本選 2。儲存。"
+      },
+      "show": "顯示回覆地址",
+      "none": "暫時沒有可提供的地址：外部無法連到此伺服器。",
+      "inbound": "回覆地址",
+      "copyInbound": "複製回覆地址",
+      "status": "送達報告（狀態回呼）",
+      "copyStatus": "複製送達報告地址",
+      "statusLine": "同一個地址。Adminium 會隨每則簡訊一併提供，因此只在服務商要求填寫狀態回呼的地方貼上即可。",
+      "secret": "此地址只給你自己和你的服務商。拿到它的人也只能敲門：每則訊息仍須由你的服務商簽署。"
+    }
   }
 }
