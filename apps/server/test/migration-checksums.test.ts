@@ -72,6 +72,15 @@
  * tree being released, hashed under plain node; cross-check them against the
  * published `@adminiumjs/adminium@0.3.71` once it is on npm.
  *
+ * 0107 to 0113 shipped in 0.3.72 to 0.3.75 and were pinned late, with 0.3.76's.
+ * Their files are unchanged since 0.3.75; cross-check them against the
+ * published `@adminiumjs/adminium@0.3.75`.
+ *
+ * 0120 to 0136 (0121 to 0124 and 0133 unused) ship in 0.3.76. They were read
+ * out of the built `dist` of the tree being released, hashed under plain node;
+ * cross-check them against the published `@adminiumjs/adminium@0.3.76` once it
+ * is on npm.
+ *
  * WHERE THE NEXT ROW COMES FROM. That package stops being published once the
  * CLI bundles its internal packages, so 0033 onwards cannot be pinned by the
  * command above — it will simply 404. The successor source is the flagship
@@ -308,6 +317,27 @@ const SHIPPED_CHECKSUMS: Readonly<Record<string, string>> = Object.freeze({
   '0104_connect_link_address': 'a53a963b43b113db5e09e88fe7532913ca051ce602331fb91a28d1c09fbc1d31',
   '0105_revoke_stopped_keys': '23e4c361f4a48f99e826a4b9adebb331b2c2943530458a2bde7c1f9021b57733',
   '0106_owner_row_limits_pending': '148af042ac4f7472354307f6203ab858ab78ae928ab03b26162a6fd6723c6a45',
+  // --- v0.3.72 to v0.3.75 ---
+  '0107_shipping': 'e38809c705c4f34cb8becb7a1638ddbf7e4fe364a1f1eb60f0927334a2112aad',
+  '0108_shipping_keys': '338406d62fcf250ef26ea718eca198129ff459ddd6332cff3afa7689ef977936',
+  '0109_shipping_bookings': '77d4c0c8c1e016aadca2b9949dc53b90c77c5cd8aec6a2301d8cd4a8c9a43dee',
+  '0110_shipping_labels': 'dca815ee2f1904d56b709c2429534f58301939d12a598d40849831895be0da9f',
+  '0111_shipping_tracking': '7d7bd3e813bf52b5e0cf6429c7922dfab3065ee330e54be288c7f7735d449bd0',
+  '0112_shipping_refunds': 'f400a7247b876cf0930780bc45b463ca696f8dd32c723132c9772a01d77ae450',
+  '0113_shipping_customs': '941906d913fd82f6102137459b1194ee7ca52b7223493e13ba1c4dd84db6b71c',
+  // --- v0.3.76 ---
+  '0120_text_templates': 'd938a65d326bd030483602216cb79469474da97650abeaa8022d50df7191e397',
+  '0125_sms_accounts': 'f02ad526da52204082bab944a69f4b43b06fefe336dc16ec8c6cfa73d1c53c3b',
+  '0126_text_consent': 'b9590fde8de4a7d2ad63e6f7c826eb8bb5dbed23210c5c6d044f083c689215dc',
+  '0127_inbound_events': 'fd80902de76e018aca36e937ed5e516e142c607803600b4d6fa5a64b21e94fa5',
+  '0128_text_deliveries': '21091226e3e23dcfbf5302c9dbaa26641a9a53ab57b4c65e1b08b07519ae9ce8',
+  '0129_inbound_lost_claims': '28bf6aa0bd2cad15e189bc473691c1a556ef27987c93f036759d5fce91f8f4a2',
+  '0130_text_runs': 'd316e571d0e22d4af1c4891f31da4c559ee99e98f6e5e96820dacca4c575cd1b',
+  '0131_text_run_recipients': '3e7c2aa470fcab72b0d0f7eed3e5bed4f7077dd111ea39a4f6906a5d8a0eaec0',
+  '0132_text_confirmations': 'ce7cb478acbd20589e68450994df51e962e34264d5b944945fa298db8703e7c5',
+  '0134_text_threads': 'ce3ba7b51c1b16a1fccb64457c416e53a1c9d37954d276fd2c94b003e1ac8aba',
+  '0135_text_reply_switches': '0ef2169a3239e085bb24456347bbd4ea8aa8c8c2811b0226068a0fd34d5aafbf',
+  '0136_text_delivery_about': '08a253a1efc7834de371b17bbad394cb6d4ee8d5187b51e55c5d760ac7df7997',
 });
 
 describe('shipped migration checksums', () => {
