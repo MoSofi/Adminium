@@ -211,7 +211,7 @@ describe.each(META_ENGINES)('two-way text conversations — $name', (engine) => 
     await app.register(
       async (api) => {
         await api.register(inboundRoutes({ core, channels: [channel], secret: SECRET, now: () => clock.now }));
-        await api.register(textsRoutes({ threads, manageGrant: PERMISSIONS.smsManage, replyReach: () => channel.replyReach(), country: async () => 'DE', recordPhone: async () => recordPhone.value }));
+        await api.register(textsRoutes({ threads, manageGrant: PERMISSIONS.smsManage, replyReach: () => channel.replyReach(), country: async () => 'DE', recordPhone: async (request, input) => ((await request.can(`table:${input.connection}:${input.table}:read`)) ? recordPhone.value : null) }));
       },
       { prefix: '/api/v1' },
     );
@@ -601,7 +601,7 @@ describe.each(META_ENGINES)('two-way text conversations — $name', (engine) => 
     it.runIf(engine.available)('goes to the number on the record, as the app\'s, into its thread, and needs the app\'s reply right', async () => {
       const s = await stack({ apps: [{ key: 'crm', name: 'Sales CRM', replies: 'on' }] });
       await consent.record({ phone: GUEST, purpose: 'text-service', state: 'yes', source: 'staff', staff: { id: s.people.owner.id, label: 'Owner' }, wording: { text: 'May we text you?', version: 'v1' }, at: clock.now - 1000 });
-      s.recordPhone.value = { rowKey: '7', app: 'crm', phoneColumn: true, value: '0151 23456789', mayReadNumber: false };
+      s.recordPhone.value = { tableId: 'main.crm_contacts', mayChange: false, rowKey: '7', app: 'crm', phoneColumn: true, value: '0151 23456789', mayReadNumber: false };
       // The record is not read without the table's own read.
       expect((await s.call(s.people.reader, 'POST', '/texts/send', SEND)).statusCode).toBe(404);
       const sent = await s.call(s.people.owner, 'POST', '/texts/send', SEND);
@@ -613,7 +613,7 @@ describe.each(META_ENGINES)('two-way text conversations — $name', (engine) => 
       expect(thread).toMatchObject({ appKey: 'crm', recordConnection: 'con_1', recordTable: 'main.crm_contacts', recordKey: '7', lastKind: 'text' });
       expect(await auditText()).toContain('texts.record.texted');
       // A column that is not a phone, and a record out of reach.
-      s.recordPhone.value = { rowKey: '7', app: 'crm', phoneColumn: false, value: null, mayReadNumber: true };
+      s.recordPhone.value = { tableId: 'main.crm_contacts', mayChange: false, rowKey: '7', app: 'crm', phoneColumn: false, value: null, mayReadNumber: true };
       expect((await s.call(s.people.owner, 'POST', '/texts/send', { ...SEND, clientKey: 'cccccccccccccccccccccccccccccccc' })).statusCode).toBe(422);
       s.recordPhone.value = null;
       expect((await s.call(s.people.owner, 'POST', '/texts/send', SEND)).statusCode).toBe(404);
@@ -621,7 +621,7 @@ describe.each(META_ENGINES)('two-way text conversations — $name', (engine) => 
 
     it.runIf(engine.available)('is refused to a role without the app\'s reply right, and by the send path to someone who never agreed', async () => {
       const s = await stack({ apps: [{ key: 'crm', name: 'Sales CRM', replies: 'on' }] });
-      s.recordPhone.value = { rowKey: '7', app: 'crm', phoneColumn: true, value: GUEST, mayReadNumber: true };
+      s.recordPhone.value = { tableId: 'main.crm_contacts', mayChange: false, rowKey: '7', app: 'crm', phoneColumn: true, value: GUEST, mayReadNumber: true };
       // Reads the table, but holds bistro's right, not crm's.
       expect((await s.call(s.people.bistroReplier, 'POST', '/texts/send', SEND)).statusCode).toBe(403);
       const refused = await s.call(s.people.owner, 'POST', '/texts/send', SEND);
@@ -635,7 +635,7 @@ describe.each(META_ENGINES)('two-way text conversations — $name', (engine) => 
       const s = await stack({ apps: [{ key: 'crm', name: 'Sales CRM', replies: 'on' }, { key: 'clinic', name: 'Clinic', replies: 'off' }] });
       const yes = (person: { connectionId: string; table: string; key: string }, at: number) =>
         consent.record({ phone: GUEST, person, purpose: 'text-service', state: 'yes', source: 'form', detail: 'Booking form', wording: { text: 'Remind me of my visits by text.', version: 'v1' }, at });
-      s.recordPhone.value = { rowKey: '7', app: 'crm', phoneColumn: true, value: GUEST, mayReadNumber: true };
+      s.recordPhone.value = { tableId: 'main.crm_contacts', mayChange: false, rowKey: '7', app: 'crm', phoneColumn: true, value: GUEST, mayReadNumber: true };
       // The patient ticked the clinic's box: the sales team may not write to them on it.
       await yes({ connectionId: 'con_1', table: 'main.patients', key: '3' }, clock.now - 2000);
       const refused = await s.call(s.people.owner, 'POST', '/texts/send', SEND);
