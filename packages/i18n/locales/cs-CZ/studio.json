@@ -6721,7 +6721,9 @@
       "stopped": "Neodesláno. Tato osoba požádala, aby jí už SMS nechodily.",
       "tooLate": "Neodesláno. Nejbližší doba odesílání připadá až po okamžiku, pro který byla SMS určena.",
       "waitingRegistration": "Neodesláno. Vaše registrace pro tuto zemi stále čeká na vyřízení.",
-      "words": "Neodesláno. Šablonu nebo hodnotu v ní nelze odeslat jako SMS."
+      "words": "Neodesláno. Šablonu nebo hodnotu v ní nelze odeslat jako SMS.",
+      "marketingLocked": "Neodesláno. Marketingové SMS v této verzi zatím nejsou k dispozici.",
+      "senderChanged": "Neodesláno. Odesílatel se změnil, zatímco čekala na své hodiny, a její řádek pro odhlášení byl psán pro původního."
     },
     "registration": {
       "between": "Registrace je věcí vaší firmy a poskytovatele {provider}. Adminium ji nemůže vidět, schválit ani urychlit.",
@@ -6892,7 +6894,10 @@
       "title": "Odeslat testovací SMS",
       "to": "Telefonní číslo",
       "toHelp": "S + a předvolbou země, nebo místní číslo země nastavené výše.",
-      "unknownLine": "Od poskytovatele {provider} nepřišla odpověď. Než pošlete další, podívejte se do jeho protokolu zpráv."
+      "unknownLine": "Od poskytovatele {provider} nepřišla odpověď. Než pošlete další, podívejte se do jeho protokolu zpráv.",
+      "own": "Pošlete ji na svůj vlastní telefon. Započítá se do dnešního limitu SMS a denně můžete otestovat nejvýš dvě různá čísla.",
+      "ownNumber": "Testovací SMS jde na vaše vlastní číslo. Dnes jste už testovali jiná čísla: zkuste to zítra.",
+      "dailyLimit": "Dnešní limit SMS je vyčerpán, včetně testovacích."
     },
     "title": "SMS",
     "conv": {
@@ -6953,14 +6958,15 @@
         "notAllowed": "Tuto konverzaci můžete číst, ale ne na ni odpovídat. Požádejte vlastníka o právo odpovídat.",
         "stopped": "Tato osoba požádala, aby jí už SMS nechodily. Zde nemůžete odpovědět.",
         "notConnected": "Není připojen žádný poskytovatel, nic nelze odeslat. Připojte ho v Nastavení.",
-        "noConsent": "Tato osoba nesouhlasila se SMS a za posledních 7 dní nepsala, odpověď tedy nemůže odejít.",
+        "noConsent": "Tato osoba nedala této aplikaci souhlas se SMS a za posledních 7 dní nepsala, odpověď tedy nemůže odejít.",
         "cannotReceive": "Toto číslo nemůže přijímat SMS.",
         "other": "Odsud teď nemůže odejít žádná odpověď."
       },
       "refused": {
         "notAllowed": "Neodesláno. Tuto konverzaci smíte číst, ale ne na ni odpovídat.",
         "earlierOpen": "Neodesláno. Stejná odpověď je ještě na cestě. Počkejte na ni, než odešlete znovu.",
-        "other": "Neodesláno."
+        "other": "Neodesláno.",
+        "noConsent": "Neodesláno. Tato osoba nedala této aplikaci souhlas se SMS."
       },
       "fail": {
         "forbidden": "Na tuto konverzaci nesmíte odpovídat.",
@@ -7022,7 +7028,9 @@
         "noOrigin": "Tento server nemá veřejnou adresu, odkaz v e-mailu by se neotevřel. Zeptejte se osobně.",
         "noMail": "Není nastaven poštovní server, žádný e-mail nemůže odejít. Zeptejte se osobně.",
         "notSent": "Žádný potvrzovací e-mail neodešel. Zeptejte se osobně.",
-        "locked": "Dokud nejsou marketingové SMS v této verzi k dispozici, žádný potvrzovací e-mail neodchází."
+        "locked": "Dokud nejsou marketingové SMS v této verzi k dispozici, žádný potvrzovací e-mail neodchází.",
+        "held": "Potvrzovací e-mail už dnes odešel této osobě nebo na tuto adresu. Požádejte znovu zítra.",
+        "doNotEmail": "Jejich e-mailová adresa je na seznamu bez e-mailů, takže potvrzovací e-mail neodejde. Zeptejte se osobně."
       },
       "who": {
         "ok": "Kdo ji dostane",

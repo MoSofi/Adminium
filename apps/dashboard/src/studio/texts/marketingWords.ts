@@ -128,8 +128,11 @@ export function audienceRefusalWords(reason: string): string {
 export function confirmRequestWords(outcome: ConfirmRequestOutcome): string {
   switch (outcome) {
     case 'sent':
-    case 'held':
       return t('studio:texts.mkt.confirm.sent', 'A confirmation e-mail is on its way. They get marketing texts once they confirm.');
+    case 'held':
+      return t('studio:texts.mkt.confirm.held', 'A confirmation e-mail already went to them, or to that address, today. Ask again tomorrow.');
+    case 'do-not-email':
+      return t('studio:texts.mkt.confirm.doNotEmail', 'Their e-mail address is on the do-not-email list, so no confirmation e-mail goes. Ask them in person.');
     case 'not-yet-available':
       return t('studio:texts.mkt.confirm.locked', 'No confirmation e-mail goes while marketing texts are not yet available in this version.');
     case 'not-needed':

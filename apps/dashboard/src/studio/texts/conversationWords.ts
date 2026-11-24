@@ -19,7 +19,7 @@ export function blockWords(reason: ReplyBlock | null): string {
     case 'not-connected':
       return t('studio:texts.conv.block.notConnected', 'No provider is connected, so nothing can be sent. Connect one in Setup.');
     case 'no-consent':
-      return t('studio:texts.conv.block.noConsent', 'This person has not agreed to texts and has not written in the last 7 days, so an answer can’t go.');
+      return t('studio:texts.conv.block.noConsent', 'This person has not given this app a yes to texts and has not written in the last 7 days, so an answer can’t go.');
     case 'cannot-receive-text':
       return t('studio:texts.conv.block.cannotReceive', 'This number can’t receive texts.');
     case 'country-blocked':
@@ -34,6 +34,8 @@ export function refusedWords(reason: string | null): string {
   switch (reason) {
     case 'not-allowed':
       return t('studio:texts.conv.refused.notAllowed', 'Not sent. You may read this conversation, but not answer it.');
+    case 'no-consent':
+      return t('studio:texts.conv.refused.noConsent', 'Not sent. This person has not given this app a yes to texts.');
     case 'earlier-send-open':
       return t('studio:texts.conv.refused.earlierOpen', 'Not sent. The same answer is still on its way. Wait for it before sending again.');
     default:

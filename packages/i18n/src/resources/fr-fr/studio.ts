@@ -6731,7 +6731,9 @@ export default {
       "stopped": "Non envoyé. Cette personne a demandé à ne plus recevoir de SMS.",
       "tooLate": "Non envoyé. Les prochaines heures d’envoi tombent après le moment prévu pour ce SMS.",
       "waitingRegistration": "Non envoyé. Votre enregistrement pour ce pays est toujours en attente.",
-      "words": "Non envoyé. Le modèle, ou une valeur qu’il contient, ne peut pas être envoyé par SMS."
+      "words": "Non envoyé. Le modèle, ou une valeur qu’il contient, ne peut pas être envoyé par SMS.",
+      "marketingLocked": "Non envoyé. Les SMS marketing ne sont pas encore disponibles dans cette version.",
+      "senderChanged": "Non envoyé. L’expéditeur a changé pendant qu’il attendait ses heures, et sa ligne de désinscription était écrite pour l’ancien."
     },
     "registration": {
       "between": "L’enregistrement se fait entre votre entreprise et {provider}. Adminium ne peut ni le voir, ni l’approuver, ni l’accélérer.",
@@ -6902,7 +6904,10 @@ export default {
       "title": "Envoyer un SMS de test",
       "to": "Numéro de téléphone",
       "toHelp": "Avec + et l’indicatif du pays, ou un numéro local du pays défini ci-dessus.",
-      "unknownLine": "Nous n’avons pas reçu de réponse de {provider}. Consultez son journal des messages avant d’en envoyer un autre."
+      "unknownLine": "Nous n’avons pas reçu de réponse de {provider}. Consultez son journal des messages avant d’en envoyer un autre.",
+      "own": "Envoyez-le sur votre propre téléphone. Il compte dans la limite de SMS du jour, et vous pouvez tester au plus deux numéros différents par jour.",
+      "ownNumber": "Un SMS de test part vers votre propre numéro. Vous avez déjà testé d’autres numéros aujourd’hui : réessayez demain.",
+      "dailyLimit": "La limite de SMS du jour est atteinte, SMS de test compris."
     },
     "title": "SMS",
     "conv": {
@@ -6963,14 +6968,15 @@ export default {
         "notAllowed": "Vous pouvez lire cette conversation, mais pas y répondre. Demandez au propriétaire le droit de répondre.",
         "stopped": "Cette personne a demandé à ne plus recevoir de SMS. Vous ne pouvez pas répondre ici.",
         "notConnected": "Aucun fournisseur n’est connecté : rien ne peut partir. Connectez-en un dans Configuration.",
-        "noConsent": "Cette personne n’a pas accepté les SMS et n’a pas écrit ces 7 derniers jours : aucune réponse ne peut partir.",
+        "noConsent": "Cette personne n’a pas donné son oui aux SMS à cette app et n’a pas écrit ces 7 derniers jours : aucune réponse ne peut partir.",
         "cannotReceive": "Ce numéro ne peut pas recevoir de SMS.",
         "other": "Aucune réponse ne peut partir d’ici pour le moment."
       },
       "refused": {
         "notAllowed": "Non envoyé. Vous pouvez lire cette conversation, mais pas y répondre.",
         "earlierOpen": "Non envoyé. La même réponse est encore en route. Attendez-la avant de renvoyer.",
-        "other": "Non envoyé."
+        "other": "Non envoyé.",
+        "noConsent": "Non envoyé. Cette personne n’a pas donné son oui aux SMS à cette app."
       },
       "fail": {
         "forbidden": "Vous ne pouvez pas répondre à cette conversation.",
@@ -7032,7 +7038,9 @@ export default {
         "noOrigin": "Ce serveur n’a pas d’adresse publique : le lien de l’e-mail ne pourrait pas s’ouvrir. Demandez-lui en personne.",
         "noMail": "Aucun serveur de messagerie n’est configuré : aucun e-mail ne peut partir. Demandez-lui en personne.",
         "notSent": "Aucun e-mail de confirmation n’est parti. Demandez-lui en personne.",
-        "locked": "Aucun e-mail de confirmation ne part tant que les SMS marketing ne sont pas disponibles dans cette version."
+        "locked": "Aucun e-mail de confirmation ne part tant que les SMS marketing ne sont pas disponibles dans cette version.",
+        "held": "Un e-mail de confirmation est déjà parti aujourd’hui vers cette personne ou cette adresse. Redemandez demain.",
+        "doNotEmail": "Son adresse e-mail est sur la liste « pas d’e-mail » : aucun e-mail de confirmation ne part. Demandez-lui en personne."
       },
       "who": {
         "ok": "Qui le reçoit",

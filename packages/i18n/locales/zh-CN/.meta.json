@@ -45431,6 +45431,10 @@
     "status": "mt",
     "srcHash": "767ac2e23ae6"
   },
+  "studio.texts.conv.refused.noConsent": {
+    "status": "mt",
+    "srcHash": "62e8b989178e"
+  },
   "studio.texts.conv.refused.notAllowed": {
     "status": "mt",
     "srcHash": "ed05142b76a8"
@@ -45982,6 +45986,14 @@
   "studio.texts.mkt.confirm.ask": {
     "status": "mt",
     "srcHash": "d42ba424dab3"
+  },
+  "studio.texts.mkt.confirm.doNotEmail": {
+    "status": "mt",
+    "srcHash": "45cca002b2db"
+  },
+  "studio.texts.mkt.confirm.held": {
+    "status": "mt",
+    "srcHash": "cb466dd5d78e"
   },
   "studio.texts.mkt.confirm.inPerson": {
     "status": "mt",
@@ -46559,6 +46571,10 @@
     "status": "mt",
     "srcHash": "53413c2fd3b4"
   },
+  "studio.texts.reason.marketingLocked": {
+    "status": "mt",
+    "srcHash": "ccc1c6d9f29b"
+  },
   "studio.texts.reason.marketingName": {
     "status": "mt",
     "srcHash": "cb25a1da1e6f"
@@ -46610,6 +46626,10 @@
   "studio.texts.reason.sender": {
     "status": "mt",
     "srcHash": "525a76fdf085"
+  },
+  "studio.texts.reason.senderChanged": {
+    "status": "mt",
+    "srcHash": "a1e33cee0e42"
   },
   "studio.texts.reason.spendLimit": {
     "status": "mt",
@@ -47175,6 +47195,10 @@
     "status": "mt",
     "srcHash": "8f96ac9aed31"
   },
+  "studio.texts.test.dailyLimit": {
+    "status": "mt",
+    "srcHash": "00470daee2da"
+  },
   "studio.texts.test.fixed": {
     "status": "mt",
     "srcHash": "338009568861"
@@ -47198,6 +47222,14 @@
   "studio.texts.test.open": {
     "status": "mt",
     "srcHash": "4a8afe239454"
+  },
+  "studio.texts.test.own": {
+    "status": "mt",
+    "srcHash": "ebb727b130b3"
+  },
+  "studio.texts.test.ownNumber": {
+    "status": "mt",
+    "srcHash": "9b3d48dc7450"
   },
   "studio.texts.test.refused": {
     "status": "mt",

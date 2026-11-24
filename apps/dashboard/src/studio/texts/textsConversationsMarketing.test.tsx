@@ -533,3 +533,16 @@ describe('Marketing', () => {
     await waitFor(() => expect(writes().map((call) => call.url)).toEqual(['/api/v1/sms/marketing/runs/txr_1/cancel']));
   });
 });
+
+describe('words for the send path’s newer answers', () => {
+  it('words a held confirmation, a do-not-email address, a changed sender and the lock', async () => {
+    const { confirmRequestWords } = await import('./marketingWords.js');
+    const { reasonWords } = await import('./textsWords.js');
+    const { refusedWords } = await import('./conversationWords.js');
+    expect(confirmRequestWords('held')).toBe('A confirmation e-mail already went to them, or to that address, today. Ask again tomorrow.');
+    expect(confirmRequestWords('do-not-email')).toContain('do-not-email list');
+    expect(reasonWords('sender-changed')).toContain('The sender changed while it waited');
+    expect(reasonWords('marketing-not-yet-available')).toBe('Not sent. Marketing texts are not yet available in this version.');
+    expect(refusedWords('no-consent')).toBe('Not sent. This person has not given this app a yes to texts.');
+  });
+});

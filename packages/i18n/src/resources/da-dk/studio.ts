@@ -6731,7 +6731,9 @@ export default {
       "stopped": "Ikke sendt. Denne person har bedt om ikke at få flere sms’er.",
       "tooLate": "Ikke sendt. De næste sendetider ligger efter det tidspunkt, sms’en var tiltænkt.",
       "waitingRegistration": "Ikke sendt. Din registrering for dette land afventer stadig.",
-      "words": "Ikke sendt. Skabelonen eller en værdi i den kan ikke sendes som sms."
+      "words": "Ikke sendt. Skabelonen eller en værdi i den kan ikke sendes som sms.",
+      "marketingLocked": "Ikke sendt. Markedsførings-sms’er er endnu ikke tilgængelige i denne version.",
+      "senderChanged": "Ikke sendt. Afsenderen blev ændret, mens den ventede på sine tider, og afmeldingslinjen var skrevet til den gamle."
     },
     "registration": {
       "between": "Registreringen er mellem din virksomhed og {provider}. Adminium kan ikke se den, godkende den eller fremskynde den.",
@@ -6902,7 +6904,10 @@ export default {
       "title": "Send en test-sms",
       "to": "Telefonnummer",
       "toHelp": "Med + og landekoden, eller et lokalt nummer fra det land, der er valgt ovenfor.",
-      "unknownLine": "Vi fik intet svar fra {provider}. Se i dens beskedlog, før du sender en til."
+      "unknownLine": "Vi fik intet svar fra {provider}. Se i dens beskedlog, før du sender en til.",
+      "own": "Send den til din egen telefon. Den tæller med i dagens sms-grænse, og du kan højst teste to forskellige numre om dagen.",
+      "ownNumber": "En test-sms går til dit eget nummer. Du har testet andre numre i dag: prøv igen i morgen.",
+      "dailyLimit": "Dagens sms-grænse er brugt, test-sms’er medregnet."
     },
     "title": "Sms",
     "conv": {
@@ -6963,14 +6968,15 @@ export default {
         "notAllowed": "Du kan læse samtalen, men ikke svare. Bed ejeren om retten til at svare.",
         "stopped": "Denne person har bedt om ikke at få flere sms’er. Du kan ikke svare her.",
         "notConnected": "Ingen udbyder er forbundet, så intet kan sendes. Forbind en under Opsætning.",
-        "noConsent": "Denne person har ikke sagt ja til sms og har ikke skrevet de sidste 7 dage, så et svar kan ikke sendes.",
+        "noConsent": "Denne person har ikke givet denne app et ja til sms og har ikke skrevet de sidste 7 dage, så et svar kan ikke sendes.",
         "cannotReceive": "Dette nummer kan ikke modtage sms’er.",
         "other": "Et svar kan ikke sendes herfra lige nu."
       },
       "refused": {
         "notAllowed": "Ikke sendt. Du må læse samtalen, men ikke svare.",
         "earlierOpen": "Ikke sendt. Det samme svar er stadig på vej. Vent på det, før du sender igen.",
-        "other": "Ikke sendt."
+        "other": "Ikke sendt.",
+        "noConsent": "Ikke sendt. Denne person har ikke givet denne app et ja til sms."
       },
       "fail": {
         "forbidden": "Du må ikke svare i denne samtale.",
@@ -7032,7 +7038,9 @@ export default {
         "noOrigin": "Serveren har ingen offentlig adresse, så linket i e-mailen kunne ikke åbnes. Spørg personligt.",
         "noMail": "Der er ingen mailserver sat op, så ingen e-mail kan sendes. Spørg personligt.",
         "notSent": "Der blev ikke sendt nogen bekræftelsesmail. Spørg personligt.",
-        "locked": "Der sendes ingen bekræftelsesmail, så længe markedsførings-sms’er ikke er tilgængelige i denne version."
+        "locked": "Der sendes ingen bekræftelsesmail, så længe markedsførings-sms’er ikke er tilgængelige i denne version.",
+        "held": "En bekræftelsesmail er allerede sendt til personen eller adressen i dag. Spørg igen i morgen.",
+        "doNotEmail": "E-mailadressen er på ingen-e-mail-listen, så der sendes ingen bekræftelsesmail. Spørg personligt."
       },
       "who": {
         "ok": "Hvem der får den",

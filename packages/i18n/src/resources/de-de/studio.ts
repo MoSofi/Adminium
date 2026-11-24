@@ -6731,7 +6731,9 @@ export default {
       "stopped": "Nicht gesendet. Diese Person möchte keine SMS mehr.",
       "tooLate": "Nicht gesendet. Die nächsten Sendezeiten liegen nach dem Zeitpunkt, für den diese SMS bestimmt war.",
       "waitingRegistration": "Nicht gesendet. Ihre Registrierung für dieses Land steht noch aus.",
-      "words": "Nicht gesendet. Die Vorlage oder ein Wert darin kann nicht als SMS gesendet werden."
+      "words": "Nicht gesendet. Die Vorlage oder ein Wert darin kann nicht als SMS gesendet werden.",
+      "marketingLocked": "Nicht gesendet. Marketing-SMS sind in dieser Version noch nicht verfügbar.",
+      "senderChanged": "Nicht gesendet. Der Absender hat sich geändert, während sie auf ihre Zeiten wartete, und ihre Abmeldezeile war für den alten geschrieben."
     },
     "registration": {
       "between": "Die Registrierung läuft zwischen Ihrem Unternehmen und {provider}. Adminium kann sie weder sehen noch genehmigen noch beschleunigen.",
@@ -6902,7 +6904,10 @@ export default {
       "title": "Test-SMS senden",
       "to": "Telefonnummer",
       "toHelp": "Mit + und der Ländervorwahl, oder eine lokale Nummer des oben eingestellten Landes.",
-      "unknownLine": "Wir haben keine Antwort von {provider} erhalten. Sehen Sie in dessen Nachrichtenprotokoll nach, bevor Sie eine weitere senden."
+      "unknownLine": "Wir haben keine Antwort von {provider} erhalten. Sehen Sie in dessen Nachrichtenprotokoll nach, bevor Sie eine weitere senden.",
+      "own": "Senden Sie sie an Ihr eigenes Telefon. Sie zählt zum heutigen SMS-Limit, und Sie können höchstens zwei verschiedene Nummern am Tag testen.",
+      "ownNumber": "Eine Test-SMS geht an Ihre eigene Nummer. Sie haben heute schon andere Nummern getestet: Versuchen Sie es morgen wieder.",
+      "dailyLimit": "Das heutige SMS-Limit ist aufgebraucht, Test-SMS eingeschlossen."
     },
     "title": "SMS",
     "conv": {
@@ -6963,14 +6968,15 @@ export default {
         "notAllowed": "Sie können diese Unterhaltung lesen, aber nicht beantworten. Bitten Sie den Inhaber um das Recht zu antworten.",
         "stopped": "Diese Person möchte keine SMS mehr. Sie können hier nicht antworten.",
         "notConnected": "Kein Anbieter ist verbunden, daher kann nichts gesendet werden. Verbinden Sie einen unter Einrichtung.",
-        "noConsent": "Diese Person hat SMS nicht zugestimmt und in den letzten 7 Tagen nicht geschrieben, daher kann keine Antwort gehen.",
+        "noConsent": "Diese Person hat dieser App kein Ja zu SMS gegeben und in den letzten 7 Tagen nicht geschrieben, daher kann keine Antwort gehen.",
         "cannotReceive": "Diese Nummer kann keine SMS empfangen.",
         "other": "Von hier kann gerade keine Antwort gehen."
       },
       "refused": {
         "notAllowed": "Nicht gesendet. Sie dürfen diese Unterhaltung lesen, aber nicht beantworten.",
         "earlierOpen": "Nicht gesendet. Dieselbe Antwort ist noch unterwegs. Warten Sie darauf, bevor Sie erneut senden.",
-        "other": "Nicht gesendet."
+        "other": "Nicht gesendet.",
+        "noConsent": "Nicht gesendet. Diese Person hat dieser App kein Ja zu SMS gegeben."
       },
       "fail": {
         "forbidden": "Sie dürfen diese Unterhaltung nicht beantworten.",
@@ -7032,7 +7038,9 @@ export default {
         "noOrigin": "Dieser Server hat keine öffentliche Adresse, daher könnte sich der Link in der E-Mail nicht öffnen. Fragen Sie persönlich.",
         "noMail": "Kein Mailserver ist eingerichtet, daher kann keine E-Mail gehen. Fragen Sie persönlich.",
         "notSent": "Keine Bestätigungs-E-Mail ging hinaus. Fragen Sie persönlich.",
-        "locked": "Solange Marketing-SMS in dieser Version noch nicht verfügbar sind, geht keine Bestätigungs-E-Mail hinaus."
+        "locked": "Solange Marketing-SMS in dieser Version noch nicht verfügbar sind, geht keine Bestätigungs-E-Mail hinaus.",
+        "held": "Eine Bestätigungs-E-Mail ging heute schon an die Person oder an diese Adresse. Fragen Sie morgen erneut.",
+        "doNotEmail": "Die E-Mail-Adresse steht auf der Keine-E-Mail-Liste, daher geht keine Bestätigungs-E-Mail. Fragen Sie persönlich."
       },
       "who": {
         "ok": "Wer sie bekommt",

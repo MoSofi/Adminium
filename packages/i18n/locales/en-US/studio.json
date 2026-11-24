@@ -6721,7 +6721,9 @@
       "stopped": "Not sent. This person asked for no more texts.",
       "tooLate": "Not sent. The next sending hours fall after the moment this text was for.",
       "waitingRegistration": "Not sent. Your registration for this country is still waiting.",
-      "words": "Not sent. The template, or a value in it, can’t be sent as a text."
+      "words": "Not sent. The template, or a value in it, can’t be sent as a text.",
+      "marketingLocked": "Not sent. Marketing texts are not yet available in this version.",
+      "senderChanged": "Not sent. The sender changed while it waited for its hours, and its opt-out line was written for the old one."
     },
     "registration": {
       "between": "Registration is between your business and {provider}. Adminium can’t see it, approve it or speed it up.",
@@ -6892,7 +6894,10 @@
       "title": "Send a test text",
       "to": "Phone number",
       "toHelp": "With + and the country code, or a local number of the country set above.",
-      "unknownLine": "We didn’t get an answer from {provider}. Look in its message log before sending another."
+      "unknownLine": "We didn’t get an answer from {provider}. Look in its message log before sending another.",
+      "own": "Send it to your own phone. It counts toward today’s text limit, and you can test at most two different numbers a day.",
+      "ownNumber": "A test text goes to your own number. You have tested other numbers today: try again tomorrow.",
+      "dailyLimit": "Today’s text limit is used up, test texts included."
     },
     "title": "Texts",
     "conv": {
@@ -6953,14 +6958,15 @@
         "notAllowed": "You can read this conversation, but not answer it. Ask the owner for the right to answer.",
         "stopped": "This person asked for no more texts. You can’t reply here.",
         "notConnected": "No provider is connected, so nothing can be sent. Connect one in Setup.",
-        "noConsent": "This person has not agreed to texts and has not written in the last 7 days, so an answer can’t go.",
+        "noConsent": "This person has not given this app a yes to texts and has not written in the last 7 days, so an answer can’t go.",
         "cannotReceive": "This number can’t receive texts.",
         "other": "An answer can’t go from here now."
       },
       "refused": {
         "notAllowed": "Not sent. You may read this conversation, but not answer it.",
         "earlierOpen": "Not sent. The same answer is still on its way. Wait for it before sending again.",
-        "other": "Not sent."
+        "other": "Not sent.",
+        "noConsent": "Not sent. This person has not given this app a yes to texts."
       },
       "fail": {
         "forbidden": "You may not answer this conversation.",
@@ -7022,7 +7028,9 @@
         "noOrigin": "This server has no public address, so the link in the e-mail couldn’t open. Ask them in person.",
         "noMail": "No mail server is set up, so no e-mail can go. Ask them in person.",
         "notSent": "No confirmation e-mail went. Ask them in person.",
-        "locked": "No confirmation e-mail goes while marketing texts are not yet available in this version."
+        "locked": "No confirmation e-mail goes while marketing texts are not yet available in this version.",
+        "held": "A confirmation e-mail already went to them, or to that address, today. Ask again tomorrow.",
+        "doNotEmail": "Their e-mail address is on the do-not-email list, so no confirmation e-mail goes. Ask them in person."
       },
       "who": {
         "ok": "Who gets it",
