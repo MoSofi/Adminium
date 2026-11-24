@@ -2,7 +2,11 @@
 /**
  * When a text may go.
  *
- *   service    the business's hours on its own clock, 08:00 to 21:00 unless edited
+ *   service    the business's hours on its own clock, 08:00 to 21:00 unless edited.
+ *              With no clock set (or one that cannot be read), the hours must
+ *              be open in EVERY time zone of the destination country, as
+ *              marketing's are: never UTC, which puts a Seattle reminder at
+ *              midnight
  *   waiting    any time: the customer is waiting for this message now
  *   marketing  09:00 to 20:00, Monday to Saturday, in EVERY time zone of the
  *              destination country at once
@@ -90,9 +94,9 @@ function firstOpen(zones: readonly string[], quiet: NotificationQuiet, at: numbe
 export interface WindowQuestion {
   timing: TextTiming;
   at: number;
-  /** The business's clock. An unusable zone reads as UTC. */
+  /** The business's clock. None, or one that cannot be read: the destination country's zones. */
   zone: string | null;
-  /** The destination's country, for marketing. */
+  /** The destination's country: its zones for marketing, and for service when the business has no clock. */
   country: string;
   serviceHours: DailyHours;
   /** The moment this text is about, if any. */
@@ -106,8 +110,8 @@ export function judgeWindow(question: WindowQuestion): WindowVerdict {
   if (notAfter !== null && at >= notAfter) return { go: false, skip: 'past-its-moment' };
   if (timing === 'waiting') return { go: true };
 
-  // The quiet-hours maths reads a zone it does not know as UTC.
-  const zones = timing === 'marketing' ? zonesOfCountry(question.country) : [question.zone ?? 'UTC'];
+  const own = question.zone === null ? null : usableZone(question.zone);
+  const zones = timing === 'marketing' || own === null ? zonesOfCountry(question.country) : [own];
   if (zones.length === 0) return { go: false, skip: 'no-send-window' };
   const opens = firstOpen(zones, timing === 'marketing' ? marketingQuiet() : quietOf(question.serviceHours), at);
   if (opens === null) return { go: false, skip: 'no-send-window' };

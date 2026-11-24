@@ -2264,7 +2264,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       view: SnapshotView;
       outbox: ResolvedTable;
       zone: string;
-      /** The business's clock as set, or null: the send window then reads UTC. */
+      /** The business's clock as set, or null: the send window then reads the destination country's zones. */
       clock: string | null;
       currency: string | null;
       now: number;
