@@ -201,7 +201,7 @@ import { rehearsalRowOwner } from '../payments/rehearsal-state.js';
 import { holds, isSampleRow, verdictsFor, type LiveOutbox, type OutboxLogger } from './producers.js';
 import { addressFor, numberOnFile, plausibleAddress, referenced, rowOf, type Addressed } from './recipient.js';
 import type { TextDelivery, TextPrepared, TextSendPath, TextSendReport } from '../sms/send/index.js';
-import { TEXT_EARLIER_OPEN, TEXT_NO_NUMBER, TEXT_NO_WORDS, TEXT_NOT_CHECKED, TEXT_NOT_CONNECTED, TEXT_NOT_PREPARED, TEXT_NOT_QUEUED, TEXT_REHEARSAL, TEXT_SAMPLE, textReasonSentence, textRowMark } from './text-words.js';
+import { TEXT_EARLIER_OPEN, TEXT_NO_NUMBER, TEXT_NO_WORDS, TEXT_NOT_CHECKED, TEXT_NOT_CONNECTED, TEXT_NOT_PREPARED, TEXT_NOT_QUEUED, TEXT_REHEARSAL, TEXT_SAMPLE, textReasonSentence, textRowMark, textWaitingSentence } from './text-words.js';
 import { columnRecipientOf } from './column-recipient.js';
 import { staffReplyTo } from './staff-reply-to.js';
 import { CALENDAR_GOOGLE_VARIABLE, CALENDAR_OUTLOOK_VARIABLE, calendarPartFor } from './calendar-part.js';
@@ -2225,7 +2225,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
 
     const claim: Row = { [cols.status]: 'sent', [cols.to]: ready.text.text.to };
     if (cols.sentAt !== undefined) claim[cols.sentAt] = write.at;
-    if (cols.error !== undefined) claim[cols.error] = null;
+    // Held for its sending hours: `sent` keeps it from being queued again, and the line says it has not gone yet.
+    if (cols.error !== undefined) claim[cols.error] = ready.text.opensAt === null ? null : textWaitingSentence(ready.text.opensAt);
     if (ready.language !== undefined && cols.language !== undefined) claim[cols.language] = ready.language;
     const claimed = await write.claim(claim);
     if (claimed === null) return null;
