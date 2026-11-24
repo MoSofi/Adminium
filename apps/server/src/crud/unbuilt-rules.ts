@@ -546,6 +546,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'publicAccess.textConsent',
   // A rule's text step, sent through the same path by the automation runner (automations/actions/text.ts).
   'automations.text',
+  // An edited copy of the mail that asks a person to confirm marketing texts (sms/marketing/confirm.ts).
+  'instance.textMarketingConfirm',
 ];
 
 /**

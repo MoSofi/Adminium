@@ -215,6 +215,8 @@ export const PAYMENT_LINK_TEMPLATE_KEY = 'payment-link';
 export const PAYMENT_RECEIPT_TEMPLATE_KEY = 'payment-receipt';
 /** A stranger's sign-up on a form, waiting for its click (`forms/mail.ts`). */
 export const SIGN_UP_CONFIRM_TEMPLATE_KEY = 'sign-up-confirm';
+/** The mail that asks a person to confirm marketing texts (`sms/marketing/confirm.ts`). */
+export const TEXT_MARKETING_CONFIRM_TEMPLATE_KEY = 'text-marketing-confirm';
 /** A staff member's reply in a website chat, to the address the visitor left (`chat/reply-mail.ts`). */
 export const CHAT_REPLY_TEMPLATE_KEY = 'chat-reply';
 /** A one-time link for a person to connect their own outside account (`connected-accounts/notices.ts`). */

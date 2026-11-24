@@ -84,6 +84,8 @@ export interface PeopleConsentDeps {
   textConsent?: TextConsentDoor | undefined;
   /** The business's country, to read a local number in; null when none is set. */
   textCountry?: (() => Promise<string | null>) | undefined;
+  /** After a public box records a marketing yes to texts: where the country expects it, the mail that asks them to confirm (`sms/marketing/confirm.ts`). */
+  textMarketingYes?: ((person: ConsentPerson) => Promise<unknown>) | undefined;
 }
 
 /** What the write path asks of the text consent log. */
@@ -327,6 +329,7 @@ export function createPeopleConsent(deps: PeopleConsentDeps): PeopleConsent {
         ip: given.ip === null ? null : given.ip.slice(0, IP_MAX),
         userAgent: given.userAgent === null ? null : given.userAgent.slice(0, USER_AGENT_MAX),
       });
+      if (given.purpose === 'text-marketing' && given.means === 'yes') await deps.textMarketingYes?.(person);
     } catch (error) {
       // Its name alone: a message here can quote the number.
       deps.log?.warn({ table: given.table, error: error instanceof Error ? error.name : 'unknown' }, 'A public text consent box was not recorded');

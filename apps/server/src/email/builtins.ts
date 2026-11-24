@@ -167,6 +167,12 @@ export const BUILTIN_EMAIL_TEMPLATE_KEYS = [
    */
   'connect-link',
   'account-connected',
+  /*
+   * A person who agreed to marketing texts, in a country that expects the yes
+   * confirmed (double opt-in): one button to the confirm page. Never a text
+   * that asks them to reply, because a provider reads YES as an opt-in.
+   */
+  'text-marketing-confirm',
 ] as const;
 
 export type BuiltinEmailTemplateKey = (typeof BUILTIN_EMAIL_TEMPLATE_KEYS)[number];
@@ -231,6 +237,11 @@ export const BUILTIN_EMAIL_TEMPLATE_VARS: Readonly<
   'chat-reply': ['business', 'reply', 'postal'],
   'connect-link': ['business', 'name', 'link', 'days'],
   'account-connected': ['business', 'name', 'provider', 'account'],
+  /*
+   * `greeting` is a whole sentence (`signUpConfirmLines`' greeting); `phone`
+   * is the number masked to its last digits (`+49 ••• 34`), never whole.
+   */
+  'text-marketing-confirm': ['business', 'greeting', 'phone', 'link', 'days', 'postal'],
 };
 
 /**
@@ -999,6 +1010,36 @@ function connectLinkTemplate(t: Translate): BuiltinEmailTemplate {
   };
 }
 
+/**
+ * A marketing yes to texts waiting for its click (double opt-in): nothing
+ * counts as a confirmed yes until the person presses Confirm on the page this
+ * mail's button opens. Service mail: no unsubscribe line, the postal address in
+ * the footer. It never asks the person to reply to a text.
+ */
+function textMarketingConfirmTemplate(t: Translate): BuiltinEmailTemplate {
+  return {
+    key: 'text-marketing-confirm',
+    name: t('email:textMarketingConfirm.name', { defaultValue: 'Confirm marketing texts' }),
+    subject: t('email:textMarketingConfirm.subject', { business: VAR.business, defaultValue: 'Confirm offers by text from {business}' }),
+    preheader: t('email:textMarketingConfirm.preheader', { defaultValue: 'One click, and nothing happens without it.' }),
+    category: 'transactional',
+    blocks: [
+      heading(t('email:textMarketingConfirm.heading', { defaultValue: 'Please confirm you want offers by text' })),
+      paragraph('greeting', VAR.greeting),
+      paragraph('purpose', t('email:textMarketingConfirm.purpose', { business: VAR.business, phone: VAR.phone, defaultValue: 'Press Confirm to get offers from {business} by text at {phone}.' })),
+      button(t('email:textMarketingConfirm.action', { defaultValue: 'Confirm' }), VAR.link),
+      paragraph(
+        'notice',
+        t('email:textMarketingConfirm.notice', {
+          days: VAR.days,
+          defaultValue: 'The link works for {days} days. If you didn’t ask for this, ignore this e-mail: you get no offers by text unless you press Confirm.',
+        }),
+      ),
+    ],
+    footer: VAR.postal,
+  };
+}
+
 /** Told at the address on file, so a connection made by someone else does not go unnoticed. */
 function accountConnectedTemplate(t: Translate): BuiltinEmailTemplate {
   return {
@@ -1033,6 +1074,7 @@ export function builtinEmailTemplates(t: Translate): BuiltinEmailTemplate[] {
     chatReplyTemplate(t),
     connectLinkTemplate(t),
     accountConnectedTemplate(t),
+    textMarketingConfirmTemplate(t),
   ];
 }
 

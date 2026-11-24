@@ -108,9 +108,9 @@ const PAY_WAYS: ReadonlySet<string> = new Set(['back', 'demo']);
 /**
  * The mail door's links: `/m/u/<token>` unsubscribe, `/m/l/<token>` a counted
  * click, `/m/c/<token>` a sign-up's confirm, `/m/o/<token>` a found person's
- * objection, which erases them.
+ * objection, which erases them, `/m/t/<token>` a marketing text yes confirmed.
  */
-const MAIL_DOORS: ReadonlySet<string> = new Set(['c', 'u', 'l', 'o']);
+const MAIL_DOORS: ReadonlySet<string> = new Set(['c', 'u', 'l', 'o', 't']);
 
 /**
  * Query parameters whose value is a credential only on the stranger pages
