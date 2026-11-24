@@ -51,6 +51,8 @@ import { availabilityOf } from '../../surfaces/settings.js';
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
 import { scrubAuditImages, scrubRemovedRows, type ImageTarget } from '../../privacy/erase-meta.js';
 import { blankOwnCopies, ownCopyTables } from '../../privacy/forget-copies.js';
+import { parcelRowsOfPerson } from '../../privacy/forget-labels.js';
+import { eraseLabelsOfRows } from '../../shipping/labels.js';
 import { forgetHeld, heldIndex, holderTablesOn, moveHeldToAddress, reachesGiftsOnlyBySale } from '../../privacy/held-values.js';
 import { erasedNameOf } from '../../privacy/sources.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
@@ -6039,6 +6041,19 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           }
         }
+        // Their stored labels and customs invoices: first, so a person told they are forgotten is. A file that cannot be removed now is already out of reach, and the daily sweep tries it again.
+        const labelStore = deps.storage;
+        let parcelRows: Awaited<ReturnType<typeof parcelRowsOfPerson>> = [];
+        if (labelStore !== undefined) {
+          try {
+            parcelRows = await parcelRowsOfPerson(meta, found.db, ok.key.connectionId, found.view, found.table, row);
+            await eraseLabelsOfRows({ meta, storage: labelStore }, parcelRows, now);
+          } catch (error) {
+            request.log.warn({ err: error }, 'a forgotten person\'s labels could not be erased');
+            if (lostRace(error)) return busy(reply);
+            return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+          }
+        }
         // A yes they gave is withdrawn, by them, before the column that held it is emptied: the log never says yes for a forgotten person.
         await deps.peopleConsent?.withdrawOnForget({ connectionId: ok.key.connectionId, view: found.view, table: found.table, row, columns: forget.columns });
         // The app's word: their copies on the rows linked to them go in the same transaction as their own row. Without it, only a copy marked to go in any case.
@@ -6089,6 +6104,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (blanked.length > 0) {
           await deps.calendars?.onErased({ address: '', rows: blanked.map((one) => ({ connectionId: ok.key.connectionId, ...one })) }).catch((error: unknown) => {
             request.log.warn({ err: error }, 'a forgotten person\'s calendar events could not be queued');
+          });
+        }
+        // Once more, now the row is empty: for a label bought in the moment before it was.
+        if (labelStore !== undefined) {
+          await eraseLabelsOfRows({ meta, storage: labelStore }, parcelRows, Date.now()).catch((error: unknown) => {
+            request.log.warn({ err: error }, 'a forgotten person\'s labels could not all be erased');
           });
         }
         // What the log and the removed-row history kept of these rows goes too, as in the staff erasure.
