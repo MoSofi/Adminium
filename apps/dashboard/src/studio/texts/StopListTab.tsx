@@ -5,7 +5,7 @@
  *
  * Nobody here gets any text from this business, including service texts.
  *
- *  - Record a stop request (N1): a text from a sender name cannot take a STOP
+ *  - Record a stop request: a text from a sender name cannot take a STOP
  *    reply, so the person phones, e-mails or asks in person, and staff record
  *    it here. A desk may do this. Saving is immediate.
  *  - An erased person stays as a hash alone, with no number and no Remove.

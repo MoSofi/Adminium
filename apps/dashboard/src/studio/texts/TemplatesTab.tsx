@@ -85,7 +85,7 @@ function mostSegments(template: TextTemplate, repliesReachUs: boolean): number {
   return most;
 }
 
-// ─── The list (X21, X22) ────────────────────────────────────────────────────
+// ─── The list ───────────────────────────────────────────────────────────────
 
 function TemplateList({ templates, repliesReachUs, onOpen }: { templates: readonly TextTemplate[]; repliesReachUs: boolean; onOpen: (key: string) => void }) {
   if (templates.length === 0) {
@@ -145,7 +145,7 @@ function TemplateList({ templates, repliesReachUs, onOpen }: { templates: readon
   );
 }
 
-// ─── What the editor refuses (X31–X33) ──────────────────────────────────────
+// ─── What the editor refuses ────────────────────────────────────────────────
 
 function problemWords(problem: TextProblem): string {
   switch (problem.kind) {
@@ -233,7 +233,7 @@ function PhonePreview({ composed, locale, country, fallbackNote }: { composed: C
   );
 }
 
-// ─── The editor (X23–X30, X34) ──────────────────────────────────────────────
+// ─── The editor ─────────────────────────────────────────────────────────────
 
 function Editor({ template, repliesReachUs, defaultCountry, defaultSender, onBack, onSaved }: { template: TextTemplate; repliesReachUs: boolean; defaultCountry: string; defaultSender: 'number' | 'name'; onBack: () => void; onSaved: (next: TextTemplate) => void }) {
   const ids = useId();

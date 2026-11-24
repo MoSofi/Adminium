@@ -54,7 +54,7 @@ export function countryName(code: string, locale: string): string {
   }
 }
 
-/** Whether marketing may go there at all (N2, N3). */
+/** Whether marketing may go there at all. */
 export const marketingAllowed = (country: TextCountry): boolean => country.blocked !== true && !NO_REPLY_COUNTRIES.has(country.code);
 
 /** What each country asks for, in one line. */
