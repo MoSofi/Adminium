@@ -1,5 +1,24 @@
 # @adminium/server
 
+## 0.3.74
+
+### Patch Changes
+
+- 88683b5: A shop that sends parcels abroad can keep its EORI, IOSS and tax numbers, which go on a declaration only when they are filled in. The Shipping page gains the switch that lets packers holding the customs right ship abroad, and says what goes to the carrier. Nothing changes for a shop that has not listed a country.
+- 8dca6ae: Parcels abroad, for a shop whose owner has listed the countries it delivers to: customs values come from the order, the named signer must hold the customs right, and the customs invoice is kept with the label. Every other shop stays inside its own country, exactly as before.
+- 5b59073: A customs declaration now stops, with a plain reason, when its values cannot be trusted: an order with a refund, a shop whose currency is empty or has changed, an order placed before that change, or a line with no weight among lines that have one. A cancelled line is left off, a shop-wide tariff code no longer hides a missing code on an order of several products, and an IOSS number is sent only on a parcel into the EU in euros, worth 150 euros or less. "Delete my details" now also deletes that person's stored labels and customs invoices. Changing an order's postage no longer empties its country.
+- 33a8f39: Shipping abroad for Maker Shop and Print Shop: listed countries with their prices, a customs form filled from the order, customs invoices and optional export numbers. Nothing changes until a shop lists a country. Also fixes a label bought for a just-cancelled order, a replacement label's number and the look-up after a restore.
+- @adminium/adapter-mysql@0.3.74
+  - @adminium/adapter-postgres@0.3.74
+  - @adminium/adapter-sqlite@0.3.74
+  - @adminium/add-on-contracts@0.3.74
+  - @adminium/engine@0.3.74
+  - @adminium/i18n@0.3.74
+  - @adminium/llm@0.3.74
+  - @adminium/manifest@0.3.74
+  - @adminium/meta@0.3.74
+  - @adminium/schema-import@0.3.74
+
 ## 0.3.73
 
 ### Patch Changes
