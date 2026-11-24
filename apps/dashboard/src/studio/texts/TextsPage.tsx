@@ -124,7 +124,7 @@ function TextsConsole({ rights, allowed }: { rights: Rights; allowed: readonly T
   return (
     <Frame>
       <Tabs value={tab} onValueChange={(next) => setTab(next as TabName)}>
-        <TabsList aria-label={t('studio:texts.title', 'Texts')} className="max-w-full overflow-x-auto">
+        <TabsList aria-label={t('studio:texts.title', 'Texts')} className="max-w-full overflow-x-auto [&>*]:shrink-0 [&>*]:whitespace-nowrap">
           {has('setup') ? <TabsTrigger value="setup">{t('studio:texts.tab.setup', 'Setup')}</TabsTrigger> : null}
           {has('templates') ? <TabsTrigger value="templates">{t('studio:texts.tab.templates', 'Templates')}</TabsTrigger> : null}
           {has('activity') ? <TabsTrigger value="activity">{t('studio:texts.tab.activity', 'Activity')}</TabsTrigger> : null}

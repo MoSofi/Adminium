@@ -76,6 +76,9 @@ const countryLabel = (code: string | null): string => (code === null ? '—' : c
 
 const daysWord = (): string => t('studio:texts.mkt.hours.days', 'Monday to Saturday');
 
+/** The hours as one left-to-right run, so a right-to-left sentence keeps 09:00 before 20:00. Display only. */
+const hoursRun = (hours: { from: string; to: string }): { from: string; to: string } => ({ from: `\u2066${hours.from}`, to: `${hours.to}\u2069` });
+
 /** The run-level refusals, as one panel: every reason and what to do. Nothing in it lets anyone send anyway. */
 function RefusalPanel({ refusals, testId = 'texts-mkt-refusals' }: { refusals: readonly RunRefusal[]; testId?: string }) {
   const shown = refusals.filter((one) => one.reason !== LOCKED);
@@ -489,7 +492,7 @@ function NewRun({ setup, onClose, onMade }: { setup: MarketingSetup; onClose: ()
         ) : null}
         <p className="flex items-start gap-2 text-[12px] text-fg-muted" data-testid="texts-mkt-hours">
           <Clock aria-hidden className="mt-px size-4 shrink-0" />
-          {t('studio:texts.mkt.hours.line', 'Marketing texts go {from}–{to}, {days}, on each person’s clock. A time outside them moves to the next opening. A country with several time zones gets them only when the hours are open in all of them.', { from: setup.hours.from, to: setup.hours.to, days: daysWord() })}
+          {t('studio:texts.mkt.hours.line', 'Marketing texts go {from}–{to}, {days}, on each person’s clock. A time outside them moves to the next opening. A country with several time zones gets them only when the hours are open in all of them.', { ...hoursRun(setup.hours), days: daysWord() })}
         </p>
         <div>
           <Button variant="secondary" iconLeft={<Users className="size-4" />} disabled={!ready} loading={preview.isPending} onClick={() => preview.mutate()} data-testid="texts-mkt-check">
@@ -688,7 +691,7 @@ export function MarketingTab(): ReactNode {
           </div>
         </CardHeader>
         <CardBody className="flex flex-col gap-2 text-[12.5px] text-fg-muted">
-          <p>{t('studio:texts.mkt.hours.short', 'They go {from}–{to}, {days}, on each person’s clock.', { from: data.hours.from, to: data.hours.to, days: daysWord() })}</p>
+          <p>{t('studio:texts.mkt.hours.short', 'They go {from}–{to}, {days}, on each person’s clock.', { ...hoursRun(data.hours), days: daysWord() })}</p>
           <p data-testid="texts-mkt-today">{t('studio:texts.mkt.daily.used', 'Today: {used} of {limit} texts used, service texts included.', { used: data.daily.used, limit: data.daily.limit })}</p>
           <p>{t('studio:texts.mkt.never', 'Never to a found lead or a bought list, never from a sender name, and never where people can’t reply STOP.')}</p>
           <div className="pt-1.5">
