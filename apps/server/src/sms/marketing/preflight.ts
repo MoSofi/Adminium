@@ -11,9 +11,9 @@
  *  - texts switched off by the operator, or marketing switched off;
  *  - no provider connected, or its key cannot be read; no sender;
  *  - the sender is a name, or a pool that may hold names: a name cannot
- *    receive STOP (N1);
+ *    receive STOP;
  *  - no STOP can reach this server: no public https address, the network
- *    features off, or the desktop app (80-sms-integration.md §4.5). Service
+ *    features off, or the desktop app. Service
  *    texts can still go there; marketing cannot.
  *
  * The template's own checks are {@link templateRefusals}.

@@ -8,7 +8,7 @@
  * stub, written from its public documentation, so this proves the join and not
  * the live API.
  *
- * 80-sms-integration.md §4.4 and §4.7: marketing needs its own yes (never an
+ * Marketing needs its own yes (never an
  * e-mail one), double opt-in where the country expects it, no found lead, no
  * country where nobody can reply STOP, no +86, no sender name, a server that
  * reads STOP, 09:00–20:00 Monday to Saturday, and the day's limit.

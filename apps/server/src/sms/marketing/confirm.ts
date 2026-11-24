@@ -8,9 +8,9 @@
  * ─── How it is confirmed, and why by e-mail ───────────────────────────────
  * A text cannot carry the question. A provider reads YES (and START) as an
  * opt-in, so no text may ask anyone to "Reply YES"; a text never carries a
- * sign-in link or a code (80-sms-integration.md §4.4, §4.2); and the German
+ * sign-in link or a code; and the German
  * regulators rate an SMS code as weak evidence of consent
- * (80-research/C-outside-facts.md, "Germany: double opt-in practice"). So:
+ * (their 2022 guidance on advertising). So:
  *
  *  - BY E-MAIL. The person's row holds an e-mail address: they get one mail
  *    (`text-marketing-confirm`) with one button to a page of the mail door

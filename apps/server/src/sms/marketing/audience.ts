@@ -15,7 +15,7 @@
  *   2. a row of the app's sample data: left out (`sample`);
  *   3. a person a lead finder found: left out (`found-lead`), whatever the
  *      log says. A found lead, or a bought or imported list, never gets a
- *      marketing text (80-sms-integration.md §4.7);
+ *      marketing text;
  *   4. the text consent service decides the rest, exactly as it decides at
  *      the last moment before the provider: mainland China, a number that
  *      cannot take a text, a country where nobody can reply STOP, the stop

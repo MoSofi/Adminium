@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * MARKETING TEXTS (80-sms-integration.md §4.7, the second release): their own
+ * MARKETING TEXTS: their own
  * explicit consent, double opt-in where a country expects it, the audience,
  * runs through the one send path, and the console's routes.
  *

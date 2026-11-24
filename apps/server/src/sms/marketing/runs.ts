@@ -21,7 +21,7 @@
  * its people show "sending" until their texts go. A run cancelled meanwhile
  * stops them: the hand-over asks the run whether the text is still wanted.
  *
- * ─── The day's limit (Q10) ────────────────────────────────────────────────
+ * ─── The day's limit ──────────────────────────────────────────────────────
  * A batch takes no more people than the day leaves, counting this run's texts
  * that will take a slot when they go. When the day is used up the run waits
  * (`waiting`) until the next business day on the limit's own clock. A text the

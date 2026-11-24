@@ -47,9 +47,9 @@ export const TEXT_RUN_REFUSALS = [
   /** No provider is connected, or its key cannot be read. */
   'not-connected',
   'no-sender',
-  /** The sender is a name (or a pool that may hold names), which cannot receive STOP (N1). */
+  /** The sender is a name (or a pool that may hold names), which cannot receive STOP. */
   'marketing-from-name',
-  /** No STOP can reach this server: no public https address, network features off, or the desktop app (§4.5). */
+  /** No STOP can reach this server: no public https address, network features off, or the desktop app. */
   'marketing-without-replies',
   /** The template is gone, or every language of it is switched off. */
   'template-off',
@@ -86,7 +86,7 @@ export type TextRecipientSkip =
   | 'no-phone'
   /** A row of the app's sample data: nobody agreed to anything. */
   | 'sample'
-  /** A person a lead finder found: never texted marketing, whatever the log says (§4.7). */
+  /** A person a lead finder found: never texted marketing, whatever the log says. */
   | 'found-lead'
   /** Two rows hold one number: it gets one text. */
   | 'same-number'
