@@ -131,7 +131,7 @@ export interface SavedView {
   refused: 'view-search' | 'view-hidden-column' | null;
 }
 
-export type ConfirmRequestOutcome = 'sent' | 'held' | 'not-needed' | 'already-confirmed' | 'no-consent' | 'stopped' | 'no-phone' | 'no-row' | 'no-email' | 'no-public-origin' | 'no-mail-server' | string;
+export type ConfirmRequestOutcome = 'sent' | 'not-yet-available' | 'held' | 'not-needed' | 'already-confirmed' | 'no-consent' | 'stopped' | 'no-phone' | 'no-row' | 'no-email' | 'no-public-origin' | 'no-mail-server' | string;
 export type InPersonOutcome = 'confirmed' | 'already' | 'not-needed' | 'no-consent' | 'stopped' | 'no-phone' | 'no-row' | 'superseded' | string;
 export type ConsentHow = 'in-person' | 'phone' | 'email' | 'paper';
 

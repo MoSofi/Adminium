@@ -130,6 +130,8 @@ export function confirmRequestWords(outcome: ConfirmRequestOutcome): string {
     case 'sent':
     case 'held':
       return t('studio:texts.mkt.confirm.sent', 'A confirmation e-mail is on its way. They get marketing texts once they confirm.');
+    case 'not-yet-available':
+      return t('studio:texts.mkt.confirm.locked', 'No confirmation e-mail goes while marketing texts are not yet available in this version.');
     case 'not-needed':
       return t('studio:texts.mkt.confirm.notNeeded', 'Their country needs no confirmation.');
     case 'already-confirmed':

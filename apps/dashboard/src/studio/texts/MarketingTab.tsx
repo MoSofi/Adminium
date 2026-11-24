@@ -114,14 +114,15 @@ function LockedCard() {
 
 // ─── "See who" and a person's marketing yes ─────────────────────────────────
 
-function RecordYes({ person, audience, onClose, onDone }: { person: GroupPerson; audience: Audience; onClose: () => void; onDone: (words: string) => void }) {
+function RecordYes({ person, audience, locked, onClose, onDone }: { person: GroupPerson; audience: Audience; locked: boolean; onClose: () => void; onDone: (words: string) => void }) {
   const ids = useId();
   const [how, setHow] = useState<ConsentHow>('in-person');
   const [text, setText] = useState('');
   const [version, setVersion] = useState('1');
   const save = useMutation({
     mutationFn: () => recordMarketingYes({ connectionId: audience.connectionId, table: audience.table, key: person.key, how, wording: { text: text.trim(), version: version.trim() } }),
-    onSuccess: () => onDone(t('studio:texts.mkt.yes.saved', 'Their marketing yes is recorded under your name. Where their country expects it, a confirmation e-mail goes to them now.')),
+    // While marketing is locked the server mails no confirmation, so the page does not say one went.
+    onSuccess: () => onDone(locked ? t('studio:texts.mkt.yes.savedLocked', 'Their marketing yes is recorded under your name.') : t('studio:texts.mkt.yes.saved', 'Their marketing yes is recorded under your name. Where their country expects it, a confirmation e-mail goes to them now.')),
   });
   return (
     <Modal open size="md" onOpenChange={(open) => (open || save.isPending ? undefined : onClose())}>
@@ -194,6 +195,7 @@ function PersonActions({ person, audience, reason, locked }: { person: GroupPers
         <RecordYes
           person={person}
           audience={audience}
+          locked={locked}
           onClose={() => setRecording(false)}
           onDone={(words) => {
             setRecording(false);
