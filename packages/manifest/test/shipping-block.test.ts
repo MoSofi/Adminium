@@ -80,6 +80,7 @@ describe('the shipping block', () => {
             { ref: 'qty', type: 'int', nullable: true },
             { ref: 'unit_price', type: 'decimal', scale: 'currency', nullable: true },
             { ref: 'grams', type: 'int', nullable: true },
+            { ref: 'stage', type: 'enum', nullable: true, enum: ['make', 'ready', 'cancelled'] },
           ],
         },
         { ref: 'products', columns: [{ ref: 'id', type: 'int', role: 'pk' }, text('sku')] },
@@ -94,6 +95,28 @@ describe('the shipping block', () => {
 
     it('takes a line priced as a whole, in place of one unit\'s value', () => {
       expect(messages(withLines({ lines: { table: 'order_lines', order: 'order_id', quantity: 'qty', description: 'name', lineTotal: 'unit_price' } }))).toEqual([]);
+    });
+
+    it('takes the values that leave a line out, and the order column that holds its refunds', () => {
+      expect(messages(withLines({ refunded: 'weight', lines: { ...lines, unless: { column: 'stage', in: ['cancelled'] } } }))).toEqual([]);
+    });
+
+    it.each([
+      ['a value column it does not have', { lines: { ...lines, unless: { column: 'nope', in: ['cancelled'] } } }, 'has no column "nope"'],
+      ['no values', { lines: { ...lines, unless: { column: 'stage', in: [] } } }, 'unless'],
+      ['a value the column can never hold', { lines: { ...lines, unless: { column: 'stage', in: ['lost'] } } }, 'can never hold "lost"'],
+      ['a refund column it does not have', { refunded: 'nope', lines }, 'has no column "nope"'],
+      ['a refund column that is not money', { refunded: 'ship_name', lines }, 'cannot hold this'],
+    ])('refuses %s', (_name, customs, message) => {
+      expect(messages(withLines(customs)).join()).toContain(message);
+    });
+
+    it('asks for the release that reads each of them', () => {
+      expect(WORD_FLOORS['shipping.customs.lineUnless']).toBe('0.3.74');
+      expect(WORD_FLOORS['shipping.customs.refunded']).toBe('0.3.74');
+      const doc = withLines({ refunded: 'weight', lines: { ...lines, unless: { column: 'stage', in: ['cancelled'] } } }, '0.3.72');
+      expect(installFloorWords(doc)).toContainEqual({ word: 'shipping.customs.lineUnless', path: 'shipping.orders.0.customs.lines.unless' });
+      expect(installFloorWords(doc)).toContainEqual({ word: 'shipping.customs.refunded', path: 'shipping.orders.0.customs.refunded' });
     });
 
     it('asks for the release that reads it', () => {
