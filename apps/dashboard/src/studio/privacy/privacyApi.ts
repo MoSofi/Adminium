@@ -219,6 +219,11 @@ export async function requestExport(address: string): Promise<PrivacyExport> {
   return (await api.post<{ data: PrivacyExport }>('/api/v1/privacy/exports', { address })).data;
 }
 
+/** "Download everything" for a person known only by phone. The number goes in the body, never in an address or a query key. */
+export async function requestPhoneExport(phone: string): Promise<PrivacyExport> {
+  return (await api.post<{ data: PrivacyExport }>('/api/v1/privacy/phone/exports', { phone })).data;
+}
+
 /** Where a ready download is fetched: the signed-in person's own, by its id (never the address). */
 export function exportDownloadHref(id: string): string {
   return `/api/v1/privacy/exports/${encodeURIComponent(id)}/download`;

@@ -25,7 +25,10 @@ export function runRefusalWords(reason: string, detail: string | null): string {
     case 'marketing-from-name':
       return t('studio:texts.mkt.refusal.fromName', 'Marketing can’t go from a sender name because it can’t receive STOP. Add a number for this country in your provider’s account.');
     case 'marketing-without-replies':
-      return t('studio:texts.mkt.refusal.noDoor', 'This server can’t receive STOP, so marketing texts are off.');
+      // Set up but not yet heard from is not "can't receive": it waits for the first reply.
+      return detail === 'not-heard'
+        ? t('studio:texts.mkt.refusal.notHeard', 'No reply has reached this server yet, so marketing texts are off until one does.')
+        : t('studio:texts.mkt.refusal.noDoor', 'This server can’t receive STOP, so marketing texts are off.');
     case 'template-off':
       return t('studio:texts.mkt.refusal.templateOff', 'This template has no language switched on.');
     case 'template-refused':
@@ -37,9 +40,10 @@ export function runRefusalWords(reason: string, detail: string | null): string {
   }
 }
 
-/** What the "no public address" refusal adds: why STOP can't arrive. */
+/** What the "no replies" refusal adds: why STOP can't arrive, or what proves that it can. */
 export function noDoorDetail(state: string | null): string | null {
   if (state === null || state === 'reachable' || state === 'not-connected' || state === 'key-unreadable') return null;
+  if (state === 'not-heard') return t('studio:texts.mkt.refusal.notHeardDetail', 'In Setup, choose “Show the reply address”, give it to your provider, then send a test reply.');
   if (state === 'desktop') return t('studio:texts.mkt.refusal.desktop', 'The desktop app can’t receive replies from a provider.');
   if (state === 'network-off' || state === 'operator-off') return t('studio:texts.mkt.refusal.networkOff', 'This server’s network features are switched off, so a STOP reply can’t reach it.');
   return t('studio:texts.mkt.refusal.noDoorDetail', 'It has no public https address, so a STOP reply can’t reach it.');

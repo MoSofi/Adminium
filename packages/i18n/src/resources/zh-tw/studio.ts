@@ -5020,6 +5020,12 @@ export default {
       "visits": "其看過的頁面",
       "visitsCount": "{count, plural, other {# 次頁面造訪}}",
       "visitsGoes": "{count, plural, other {# 次頁面造訪}}"
+    },
+    "phone": {
+      "q": "電話號碼",
+      "sub": "適用於只知道電話號碼的人：與該號碼一起保存的所有內容、其簡訊及簡訊同意紀錄，打包為一個 .zip。請連同國碼一起填寫。",
+      "notNumber": "這不是可辨識的電話號碼。請連同國碼一起填寫。",
+      "unavailable": "此伺服器不支援依電話號碼下載。"
     }
   },
   "marketingMail": {
@@ -6650,7 +6656,8 @@ export default {
       "unicode": "這個字元以 Unicode 計費：",
       "whereTo": "傳送對象與傳送者",
       "words": "簡訊內容",
-      "optOutCounts": "這段文字計入長度，且無法編輯。"
+      "optOutCounts": "這段文字計入長度，且無法編輯。",
+      "notHeard": "此伺服器還沒有收到任何回覆，因此每則簡訊都會附上你的退訂電話或電子郵件。請在「設定」中選擇「顯示回覆地址」，然後傳送一則測試回覆。"
     },
     "field": {
       "accountSid": "Account SID",
@@ -6973,7 +6980,9 @@ export default {
         "notConnected": "未連接服務商，因此這裡不會收到回覆。請在「設定」中連接。",
         "desktop": "桌面應用程式可以傳送簡訊，但回覆和 STOP 無法到達，因此這裡不會收到新訊息。",
         "keyUnreadable": "此伺服器無法讀取服務商金鑰，因此這裡不會收到回覆。請在「設定」中重新貼上。",
-        "noDoor": "此伺服器沒有公開的 https 位址。它可以傳送簡訊，但回覆和 STOP 無法到達，因此這裡不會收到新訊息。"
+        "noDoor": "此伺服器沒有公開的 https 位址。它可以傳送簡訊，但回覆和 STOP 無法到達，因此這裡不會收到新訊息。",
+        "notHeardTitle": "此伺服器還沒有收到任何回覆",
+        "notHeard": "已設定，但還沒有收到任何回覆。請在「設定」中選擇「顯示回覆地址」，把它交給你的服務商，然後傳送一則測試回覆。收到回覆後，客戶的回覆會顯示在這裡。"
       },
       "filterApp": "應用程式",
       "allApps": "所有應用程式",
@@ -7004,7 +7013,9 @@ export default {
         "forbidden": "您無權回覆此對話。",
         "gone": "此對話已不存在。",
         "network": "無法連線到伺服器。未傳送任何內容。請重試。"
-      }
+      },
+      "maskedForYou": "你的角色無法查看完整的電話號碼。",
+      "maskedList": "你的角色只能看到每個號碼的一部分。"
     },
     "replies": {
       "title": "依應用程式設定回覆",
@@ -7169,7 +7180,9 @@ export default {
         "other": "此伺服器目前無法傳送行銷簡訊。",
         "desktop": "桌面應用程式無法接收服務商轉來的回覆。",
         "networkOff": "此伺服器的網路功能已關閉，因此 STOP 回覆無法到達。",
-        "noDoorDetail": "它沒有公開的 https 位址，因此 STOP 回覆無法到達。"
+        "noDoorDetail": "它沒有公開的 https 位址，因此 STOP 回覆無法到達。",
+        "notHeard": "此伺服器還沒有收到任何回覆，因此在收到之前，行銷簡訊保持關閉。",
+        "notHeardDetail": "請在「設定」中選擇「顯示回覆地址」，把它交給你的服務商，然後傳送一則測試回覆。"
       },
       "skip": {
         "noPhone": "未傳送。其記錄中沒有手機號碼。",

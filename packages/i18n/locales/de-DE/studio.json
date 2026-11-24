@@ -5010,6 +5010,12 @@
       "visits": "Seiten, die sie sahen",
       "visitsCount": "{count, plural, one {# Seitenaufruf} other {# Seitenaufrufe}}",
       "visitsGoes": "{count, plural, one {# Seitenaufruf} other {# Seitenaufrufe}}"
+    },
+    "phone": {
+      "q": "Telefonnummer",
+      "sub": "Für jemanden, den Sie nur über die Telefonnummer kennen: alles, was zu der Nummer gespeichert ist, ihre SMS und die SMS-Einwilligung, als eine .zip-Datei. Geben Sie sie mit Ländervorwahl ein.",
+      "notNumber": "Das ist keine lesbare Telefonnummer. Geben Sie sie mit Ländervorwahl ein.",
+      "unavailable": "Downloads nach Telefonnummer sind auf diesem Server nicht verfügbar."
     }
   },
   "marketingMail": {
@@ -6640,7 +6646,8 @@
       "unicode": "Dieses Zeichen nutzt den Unicode-Satz:",
       "whereTo": "Wohin sie geht und von wem sie kommt",
       "words": "Der Text",
-      "optOutCounts": "Sie zählt zur Länge und kann nicht bearbeitet werden."
+      "optOutCounts": "Sie zählt zur Länge und kann nicht bearbeitet werden.",
+      "notHeard": "Noch hat keine Antwort diesen Server erreicht, daher nennt jede SMS Ihr Telefon oder Ihre E-Mail zum Abbestellen. Wählen Sie unter Einrichtung „Antwortadresse zeigen“ und senden Sie eine Testantwort."
     },
     "field": {
       "accountSid": "Account SID",
@@ -6963,7 +6970,9 @@
         "notConnected": "Kein Anbieter ist verbunden, daher kann hier keine Antwort ankommen. Verbinden Sie einen unter Einrichtung.",
         "desktop": "Die Desktop-App kann SMS senden, aber Antworten und STOP erreichen sie nicht, daher kommt hier keine neue Nachricht an.",
         "keyUnreadable": "Der Anbieterschlüssel kann auf diesem Server nicht gelesen werden, daher kommt hier keine Antwort an. Fügen Sie ihn unter Einrichtung erneut ein.",
-        "noDoor": "Dieser Server hat keine öffentliche https-Adresse. Er kann SMS senden, aber Antworten und STOP erreichen ihn nicht, daher kommt hier keine neue Nachricht an."
+        "noDoor": "Dieser Server hat keine öffentliche https-Adresse. Er kann SMS senden, aber Antworten und STOP erreichen ihn nicht, daher kommt hier keine neue Nachricht an.",
+        "notHeardTitle": "Noch hat keine Antwort diesen Server erreicht",
+        "notHeard": "Eingerichtet, aber noch ist keine Antwort angekommen. Wählen Sie unter Einrichtung „Antwortadresse zeigen“, geben Sie sie Ihrem Anbieter und senden Sie dann eine Testantwort. Antworten von Kunden erscheinen hier, sobald eine ankommt."
       },
       "filterApp": "App",
       "allApps": "Jede App",
@@ -6994,7 +7003,9 @@
         "forbidden": "Sie dürfen diese Unterhaltung nicht beantworten.",
         "gone": "Diese Unterhaltung gibt es nicht mehr.",
         "network": "Der Server war nicht erreichbar. Nichts wurde gesendet. Versuchen Sie es erneut."
-      }
+      },
+      "maskedForYou": "Ihre Rolle zeigt keine vollständigen Telefonnummern.",
+      "maskedList": "Ihre Rolle zeigt von jeder Nummer nur einen Teil."
     },
     "replies": {
       "title": "Antworten je App",
@@ -7159,7 +7170,9 @@
         "other": "Marketing-SMS können gerade nicht von diesem Server gehen.",
         "desktop": "Die Desktop-App kann keine Antworten von einem Anbieter empfangen.",
         "networkOff": "Die Netzwerkfunktionen dieses Servers sind ausgeschaltet, daher erreicht ihn keine STOP-Antwort.",
-        "noDoorDetail": "Er hat keine öffentliche https-Adresse, daher erreicht ihn keine STOP-Antwort."
+        "noDoorDetail": "Er hat keine öffentliche https-Adresse, daher erreicht ihn keine STOP-Antwort.",
+        "notHeard": "Noch hat keine Antwort diesen Server erreicht, daher sind Marketing-SMS aus, bis eine ankommt.",
+        "notHeardDetail": "Wählen Sie unter Einrichtung „Antwortadresse zeigen“, geben Sie sie Ihrem Anbieter und senden Sie dann eine Testantwort."
       },
       "skip": {
         "noPhone": "Nicht gesendet. Ihre Zeile hat keine Mobilnummer.",

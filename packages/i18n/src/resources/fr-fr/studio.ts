@@ -5020,6 +5020,12 @@ export default {
       "visits": "Pages vues",
       "visitsCount": "{count, plural, one {# visite de page} many {# visites de page} other {# visites de page}}",
       "visitsGoes": "{count, plural, one {# visite de page} many {# visites de page} other {# visites de page}}"
+    },
+    "phone": {
+      "q": "Numéro de téléphone",
+      "sub": "Pour une personne connue seulement par son téléphone : tout ce qui est conservé avec son numéro, ses SMS et son consentement aux SMS, en un seul .zip. Saisissez-le avec l’indicatif du pays.",
+      "notNumber": "Ce n’est pas un numéro de téléphone lisible. Saisissez-le avec l’indicatif du pays.",
+      "unavailable": "Les téléchargements par numéro de téléphone ne sont pas disponibles sur ce serveur."
     }
   },
   "marketingMail": {
@@ -6650,7 +6656,8 @@ export default {
       "unicode": "Ce caractère utilise le tarif Unicode :",
       "whereTo": "Où il va et de qui il vient",
       "words": "Le texte",
-      "optOutCounts": "Elle compte dans la longueur et ne peut pas être modifiée."
+      "optOutCounts": "Elle compte dans la longueur et ne peut pas être modifiée.",
+      "notHeard": "Aucune réponse n’a encore atteint ce serveur : chaque SMS indique donc votre téléphone ou votre e-mail pour se désinscrire. Dans Configuration, choisissez « Afficher l’adresse de réponse » et envoyez une réponse de test."
     },
     "field": {
       "accountSid": "Account SID",
@@ -6973,7 +6980,9 @@ export default {
         "notConnected": "Aucun fournisseur n’est connecté : aucune réponse ne peut arriver ici. Connectez-en un dans Configuration.",
         "desktop": "L’app de bureau peut envoyer des SMS, mais les réponses et STOP ne l’atteignent pas : aucun nouveau message n’arrivera ici.",
         "keyUnreadable": "La clé du fournisseur est illisible sur ce serveur : aucune réponse ne peut arriver ici. Collez-la de nouveau dans Configuration.",
-        "noDoor": "Ce serveur n’a pas d’adresse https publique. Il peut envoyer des SMS, mais les réponses et STOP ne l’atteignent pas : aucun nouveau message n’arrivera ici."
+        "noDoor": "Ce serveur n’a pas d’adresse https publique. Il peut envoyer des SMS, mais les réponses et STOP ne l’atteignent pas : aucun nouveau message n’arrivera ici.",
+        "notHeardTitle": "Aucune réponse n’a encore atteint ce serveur",
+        "notHeard": "Configuré, mais aucune réponse n’est encore arrivée. Dans Configuration, choisissez « Afficher l’adresse de réponse », donnez-la à votre fournisseur, puis envoyez une réponse de test. Les réponses des clients s’affichent ici dès qu’une arrive."
       },
       "filterApp": "App",
       "allApps": "Toutes les apps",
@@ -7004,7 +7013,9 @@ export default {
         "forbidden": "Vous ne pouvez pas répondre à cette conversation.",
         "gone": "Cette conversation n’existe plus.",
         "network": "Le serveur est injoignable. Rien n’est parti. Réessayez."
-      }
+      },
+      "maskedForYou": "Votre rôle n’affiche pas les numéros de téléphone en entier.",
+      "maskedList": "Votre rôle n’affiche qu’une partie de chaque numéro."
     },
     "replies": {
       "title": "Réponses par app",
@@ -7169,7 +7180,9 @@ export default {
         "other": "Les SMS marketing ne peuvent pas partir de ce serveur pour le moment.",
         "desktop": "L’app de bureau ne peut pas recevoir les réponses d’un fournisseur.",
         "networkOff": "Les fonctions réseau de ce serveur sont désactivées : une réponse STOP ne peut pas l’atteindre.",
-        "noDoorDetail": "Il n’a pas d’adresse https publique : une réponse STOP ne peut pas l’atteindre."
+        "noDoorDetail": "Il n’a pas d’adresse https publique : une réponse STOP ne peut pas l’atteindre.",
+        "notHeard": "Aucune réponse n’a encore atteint ce serveur : les SMS marketing sont désactivés jusqu’à ce qu’une arrive.",
+        "notHeardDetail": "Dans Configuration, choisissez « Afficher l’adresse de réponse », donnez-la à votre fournisseur, puis envoyez une réponse de test."
       },
       "skip": {
         "noPhone": "Non envoyé. Sa ligne n’a pas de numéro de mobile.",

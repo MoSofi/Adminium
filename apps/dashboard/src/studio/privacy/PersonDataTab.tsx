@@ -11,10 +11,13 @@
  *    keeps about them, each with its count.
  *  - "Download everything" queues a .zip; this person's downloads are listed
  *    below with their expiry, each fetched by its id alone.
+ *  - A person known only by phone gets the same .zip from their number
+ *    (`POST /privacy/phone/exports`): the rows that hold it, its texts, its
+ *    text consent and its do-not-text entry.
  *  - "Erase…" opens the erase dialog (`EraseDialog.tsx`); once it is done,
  *    the "Erased" line with the way to the audit log.
  *
- * The address typed is held in this tab's state alone: it goes to the
+ * The address (or number) typed is held in this tab's state alone: it goes to the
  * server in request bodies, never in the page's address, a query key or a
  * log line.
  */
@@ -50,9 +53,10 @@ import {
   Workflow,
   type LucideIcon,
   Package,
+  Smartphone,
   Star,
 } from 'lucide-react';
-import { useRef, useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import { Alert, Button, Card, Input, Skeleton } from '@adminium/ui';
 
 import { ApiError } from '../../app/api.js';
@@ -61,7 +65,7 @@ import { getI18nInstance, t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { EraseDialog } from './EraseDialog.js';
 import { isStaffAddress, lockedWords, staffAddressWords } from './privacyWords.js';
-import { PRIVACY_EXPORTS_QUERY_KEY, exportDownloadHref, findPerson, privacyExportsQuery, requestExport, type FoundSource, type PersonFound, type PrivacyExport, type SourceKind } from './privacyApi.js';
+import { PRIVACY_EXPORTS_QUERY_KEY, exportDownloadHref, findPerson, privacyExportsQuery, requestExport, requestPhoneExport, type FoundSource, type PersonFound, type PrivacyExport, type SourceKind } from './privacyApi.js';
 
 const ICONS: Record<SourceKind, LucideIcon> = {
   people: Contact,
@@ -311,6 +315,8 @@ export function PersonDataTab(): ReactNode {
         </section>
       )}
 
+      <PhoneDownload />
+
       <Downloads />
 
       {erasing && found !== null ? (
@@ -328,6 +334,88 @@ export function PersonDataTab(): ReactNode {
         />
       ) : null}
     </div>
+  );
+}
+
+/** Why a download by phone could not be asked for, in words of its own. */
+function phoneFailureWords(failure: unknown): string {
+  if (failure instanceof ApiError && failure.status === 503) return lockedWords();
+  if (failure instanceof ApiError && failure.status === 422) return t('studio:privacy.phone.notNumber', 'That isn’t a phone number that can be read. Write it with its country code.');
+  if (failure instanceof ApiError && failure.status === 404) return t('studio:privacy.phone.unavailable', 'Downloads by phone number aren’t available on this server.');
+  return t('studio:privacy.person.downloadFailed', 'The download could not be asked for. Try again.');
+}
+
+/** "Download everything" for someone known only by phone, beside the search by address: same .zip, same Downloads list. */
+function PhoneDownload(): ReactNode {
+  const toasts = useAppToasts();
+  const queryClient = useQueryClient();
+  const ids = useId();
+  const [phone, setPhone] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function ask(): Promise<void> {
+    if (phone.trim() === '') return;
+    setBusy(true);
+    setError(null);
+    try {
+      await requestPhoneExport(phone.trim());
+      setPhone('');
+      await queryClient.invalidateQueries({ queryKey: PRIVACY_EXPORTS_QUERY_KEY });
+      toasts.push({ variant: 'success', title: t('studio:privacy.person.downloadQueued', 'The download is being made. It shows under Downloads when it’s ready.') });
+    } catch (failure) {
+      setError(phoneFailureWords(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card data-testid="privacy-phone">
+      <form
+        className="flex flex-col gap-1.5"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void ask();
+        }}
+      >
+        <label htmlFor={`${ids}-phone`} className="flex items-center gap-2 text-body-sm font-bold text-fg">
+          <Smartphone aria-hidden className="size-4 shrink-0 text-fg-muted" />
+          {t('studio:privacy.phone.q', 'Phone number')}
+        </label>
+        <p id={`${ids}-sub`} className="text-caption text-fg-subtle">
+          {t('studio:privacy.phone.sub', 'For someone known only by phone: everything kept with their number, its texts and their text consent, as one .zip. Write it with its country code.')}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Input
+            id={`${ids}-phone`}
+            type="tel"
+            inputMode="tel"
+            dir="ltr"
+            mono
+            autoComplete="off"
+            spellCheck={false}
+            value={phone}
+            aria-describedby={error === null ? `${ids}-sub` : `${ids}-sub ${ids}-error`}
+            aria-invalid={error === null ? undefined : true}
+            onChange={(event) => {
+              setPhone(event.target.value);
+              setError(null);
+            }}
+            className="min-w-[200px] flex-1 bg-surface-2 text-[12.5px] max-sm:min-h-11"
+            data-testid="privacy-phone-q"
+          />
+          <Button type="submit" variant="secondary" iconLeft={<Download />} loading={busy} disabled={phone.trim() === ''} className="font-bold max-sm:min-h-11" data-testid="privacy-phone-download">
+            {t('studio:privacy.person.download', 'Download everything')}
+          </Button>
+        </div>
+        {error === null ? null : (
+          <p id={`${ids}-error`} role="alert" className="text-body-sm text-danger" data-testid="privacy-phone-error">
+            {error}
+          </p>
+        )}
+      </form>
+    </Card>
   );
 }
 

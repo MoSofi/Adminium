@@ -198,6 +198,13 @@ function stub(): Call[] {
         exportsList = [made, ...exportsList];
         return ok({ data: { ...made, jobId: 'job_1' } }, 202);
       }
+      if (url === '/api/v1/privacy/phone/exports' && method === 'POST') {
+        // The server reads a number only with its country code here; anything else is refused as the route refuses it.
+        if (!(body as { phone: string }).phone.startsWith('+')) return ok({ error: { code: 'VALIDATION_FAILED', message: 'That is not a phone number that can be read.', details: { field: 'phone' } } }, 422);
+        const made: PrivacyExport = { id: 'pex_phone', status: 'ready', counts: { 'texts-messages': 2 }, createdAt: Date.now(), completedAt: Date.now(), expiresAt: Date.now() + 24 * HOUR };
+        exportsList = [made, ...exportsList];
+        return ok({ data: { ...made, jobId: 'job_2' } }, 202);
+      }
       if (url === '/api/v1/privacy/reach') return ok({ data: reach });
       if (url === '/api/v1/privacy/embeds') return ok({ data: { apps: embedApps } });
       if (url === '/api/v1/privacy/websites' && method === 'GET') return ok({ data: { websites, max: 50 } });
@@ -468,6 +475,35 @@ describe('a person’s data', () => {
     const link = await screen.findByTestId('privacy-download-get');
     expect(link.getAttribute('href')).toBe('/api/v1/privacy/exports/pex_2/download');
     expect(screen.getByTestId('privacy-download-status').textContent).toBe('Ready');
+  });
+
+  it('"Download everything" by phone asks for the .zip of a person known only by their number, beside the search by address', async () => {
+    roles = ['shop-owner'];
+    systemActions = ['privacy.people'];
+    const { calls, router } = await renderAt('/studio/privacy?tab=person');
+    const field = await screen.findByLabelText('Phone number');
+    expect(screen.getByTestId('privacy-phone-download').hasAttribute('disabled')).toBe(true);
+    await userEvent.type(field, '+44 7700 900123');
+    await userEvent.click(screen.getByTestId('privacy-phone-download'));
+    await waitFor(() => expect(calls.some((call) => call.url === '/api/v1/privacy/phone/exports' && call.method === 'POST')).toBe(true));
+    expect(calls.find((call) => call.url === '/api/v1/privacy/phone/exports')!.body).toEqual({ phone: '+44 7700 900123' });
+    expect((await screen.findByTestId('privacy-download-get')).getAttribute('href')).toBe('/api/v1/privacy/exports/pex_phone/download');
+    expect((screen.getByLabelText('Phone number') as HTMLInputElement).value).toBe('');
+    // The number goes in the body alone: never in the page's address or any other request.
+    expect(router.state.location.href).not.toContain('7700');
+    expect(calls.filter((call) => call.url.includes('7700'))).toHaveLength(0);
+    // The search by address is untouched.
+    expect(calls.some((call) => call.url === '/api/v1/privacy/find' || (call.url === '/api/v1/privacy/exports' && call.method === 'POST'))).toBe(false);
+  });
+
+  it('says plainly when a number can’t be read, and queues nothing', async () => {
+    asSuperAdmin();
+    await renderAt('/studio/privacy?tab=person');
+    await userEvent.type(await screen.findByLabelText('Phone number'), '07700 900123');
+    await userEvent.click(screen.getByTestId('privacy-phone-download'));
+    expect((await screen.findByTestId('privacy-phone-error')).textContent).toBe('That isn’t a phone number that can be read. Write it with its country code.');
+    expect(screen.getByLabelText('Phone number').getAttribute('aria-invalid')).toBe('true');
+    expect(screen.queryByTestId('privacy-download-row')).toBeNull();
   });
 
   it('the erase dialog shows the server’s lists and opens "Erase for good" only to the typed address', async () => {

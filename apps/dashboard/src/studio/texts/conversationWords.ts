@@ -83,8 +83,14 @@ export function deliveryLabel(status: ThreadDeliveryStatus): string {
   }
 }
 
+/** The heading over `reachWords`: a server that is set up but not yet heard from is not called unreachable. */
+export function reachTitle(state: string): string {
+  return state === 'not-heard' ? t('studio:texts.conv.reach.notHeardTitle', 'No reply has reached this server yet') : t('studio:texts.conv.reach.title', 'Replies can’t reach this server');
+}
+
 /** Where the replies of this server stand, when they cannot arrive. */
 export function reachWords(state: string): string {
+  if (state === 'not-heard') return t('studio:texts.conv.reach.notHeard', 'Set up, but no reply has arrived yet. In Setup, choose “Show the reply address”, give it to your provider, then send a test reply. Customers’ replies show here once one arrives.');
   if (state === 'not-connected') return t('studio:texts.conv.reach.notConnected', 'No provider is connected, so no reply can arrive here. Connect one in Setup.');
   if (state === 'desktop') return t('studio:texts.conv.reach.desktop', 'The desktop app can send texts, but replies and STOP can’t reach it, so no new message will arrive here.');
   if (state === 'key-unreadable') return t('studio:texts.conv.reach.keyUnreadable', 'The provider key can’t be read on this server, so no reply can arrive here. Paste it again in Setup.');

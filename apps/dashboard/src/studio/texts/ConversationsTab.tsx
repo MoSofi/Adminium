@@ -7,7 +7,9 @@
  * `holdsSystemAction`) open every conversation; an app role's
  * `texts:<app>:read|reply` (the bootstrap's `textApps`) opens that app's
  * alone. The server judges every request again and writes an audit row for
- * every read and answer, which the page says plainly.
+ * every read and answer, which the page says plainly. A number comes in
+ * full only to whoever may read it; anyone else gets its mask with
+ * `phoneHidden`, and the page says so quietly and never asks for more.
  *
  * WHAT A THREAD SHOWS. A customer's words and staff answers as bubbles, each
  * taking the direction of its own words, so an Arabic message reads right to
@@ -21,7 +23,7 @@
  * and the list would otherwise stay wrong until a reload.
  */
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { ArrowLeft, CheckCheck, ExternalLink, MessageSquareText, MessagesSquare, Send, Settings2 } from 'lucide-react';
+import { ArrowLeft, CheckCheck, ExternalLink, EyeOff, MessageSquareText, MessagesSquare, Send, Settings2 } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Alert, Badge, Button, Card, EmptyState, Select, Skeleton, Switch, Textarea } from '@adminium/ui';
 
@@ -30,7 +32,7 @@ import { hrefForRecord } from '../../app/links.js';
 import { createRealtimeClient } from '../../app/ws.js';
 import { t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
-import { blockWords, DELIVERY_TONE, deliveryLabel, failureWords, reachWords, refusedWords } from './conversationWords.js';
+import { blockWords, DELIVERY_TONE, deliveryLabel, failureWords, reachTitle, reachWords, refusedWords } from './conversationWords.js';
 import {
   markRead,
   mayAnswer,
@@ -59,12 +61,22 @@ function appNames(bootstrap: BootstrapData): Map<string, string> {
 
 const appName = (names: ReadonlyMap<string, string>, app: string | null): string => (app === null ? t('studio:texts.conv.noApp', 'No app') : (names.get(app) ?? app));
 
-/** The number as this person may see it, always left to right in its own run. */
-function PhoneRun({ thread, className = '' }: { thread: Pick<Thread, 'phone' | 'masked'>; className?: string }) {
+/** The number as this person may see it, always left to right in its own run. A number masked for them stays masked. */
+function PhoneRun({ thread, className = '' }: { thread: Pick<Thread, 'phone' | 'masked' | 'phoneHidden'>; className?: string }) {
   return (
     <bdi dir="ltr" className={`font-mono ${className}`}>
-      {thread.phone ?? thread.masked ?? '—'}
+      {(thread.phoneHidden === 'masked-for-you' ? null : thread.phone) ?? thread.masked ?? '—'}
     </bdi>
+  );
+}
+
+/** Why only the mask shows: said once, quietly. The server decides; nothing here offers to show more. */
+function MaskedNote({ testId, children }: { testId: string; children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[11.5px] text-fg-muted" data-testid={testId}>
+      <EyeOff aria-hidden className="size-3.5 shrink-0" />
+      {children}
+    </span>
   );
 }
 
@@ -320,6 +332,7 @@ function ThreadPane({ id, names, reader, bootstrap, onBack }: { id: string; name
           <PhoneRun thread={thread} />
         </h3>
         <Badge tone="neutral">{appName(names, thread.app)}</Badge>
+        {thread.phoneHidden === 'masked-for-you' ? <MaskedNote testId="texts-thread-masked">{t('studio:texts.conv.maskedForYou', 'Your role doesn’t show full phone numbers.')}</MaskedNote> : null}
         {slug !== null && thread.record !== null ? (
           <a href={hrefForRecord(slug, thread.record.key)} className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-accent hover:underline" data-testid="texts-thread-record">
             {t('studio:texts.conv.openRecord', 'Open the record')}
@@ -370,7 +383,7 @@ function ThreadPane({ id, names, reader, bootstrap, onBack }: { id: string; name
 
 // ─── the tab ────────────────────────────────────────────────────────────────
 
-export function ConversationsTab({ reader, canManage }: { reader: TextReader; canManage: boolean }): ReactNode {
+export function ConversationsTab({ reader, canManage, onOpenSetup }: { reader: TextReader; canManage: boolean; onOpenSetup?: (() => void) | undefined }): ReactNode {
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
   const names = useMemo(() => appNames(bootstrap), [bootstrap]);
   const [app, setApp] = useState<string>('*');
@@ -384,6 +397,8 @@ export function ConversationsTab({ reader, canManage }: { reader: TextReader; ca
 
   const appChoices = reader.everything !== null ? [...names.keys()] : [...reader.apps.keys()];
   const threads = list.data?.threads ?? [];
+  const someMasked = threads.some((one) => one.phoneHidden === 'masked-for-you');
+  const replies = list.data?.replies;
 
   const switchesButton = canManage ? (
     <Button variant="secondary" size="sm" iconLeft={<Settings2 className="size-4" />} onClick={() => setSwitches(true)} data-testid="texts-replies-open">
@@ -405,7 +420,21 @@ export function ConversationsTab({ reader, canManage }: { reader: TextReader; ca
 
   return (
     <div className="flex flex-col gap-3.5" data-testid="texts-conversations">
-      {list.data !== undefined && !list.data.replies.canArrive ? <Alert tone="warn" title={t('studio:texts.conv.reach.title', 'Replies can’t reach this server')} body={reachWords(list.data.replies.state)} data-testid="texts-conv-no-door" /> : null}
+      {replies !== undefined && !replies.canArrive ? (
+        <Alert
+          tone="warn"
+          title={reachTitle(replies.state)}
+          body={reachWords(replies.state)}
+          action={
+            replies.state === 'not-heard' && canManage && onOpenSetup !== undefined ? (
+              <Button variant="secondary" size="sm" onClick={onOpenSetup} data-testid="texts-conv-open-setup">
+                {t('studio:texts.templates.openSetup', 'Open Setup')}
+              </Button>
+            ) : undefined
+          }
+          data-testid={replies.state === 'not-heard' ? 'texts-conv-not-heard' : 'texts-conv-no-door'}
+        />
+      ) : null}
       <div className="flex flex-wrap items-center gap-2.5">
         <Select aria-label={t('studio:texts.conv.filterApp', 'App')} value={app} onChange={(event) => setApp(event.target.value)} wrapperClassName="w-auto" className="h-[36px] font-semibold" data-testid="texts-conv-app">
           <option value="*">{t('studio:texts.conv.allApps', 'Every app')}</option>
@@ -427,8 +456,9 @@ export function ConversationsTab({ reader, canManage }: { reader: TextReader; ca
         ) : null}
         <span className="ms-auto">{switchesButton}</span>
       </div>
-      <p className="text-[12px] text-fg-muted" data-testid="texts-conv-recorded">
-        {t('studio:texts.conv.recorded', 'Reading and replying are recorded.')}
+      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-fg-muted">
+        <span data-testid="texts-conv-recorded">{t('studio:texts.conv.recorded', 'Reading and replying are recorded.')}</span>
+        {someMasked ? <MaskedNote testId="texts-conv-masked">{t('studio:texts.conv.maskedList', 'Your role shows only part of each number.')}</MaskedNote> : null}
       </p>
       {list.isError ? (
         <Alert tone="danger" role="alert" title={t('studio:texts.loadFailed', 'This could not be loaded')} body={failureWords(list.error)} />

@@ -38667,6 +38667,22 @@
     "status": "mt",
     "srcHash": "88a157878715"
   },
+  "studio.privacy.phone.notNumber": {
+    "status": "mt",
+    "srcHash": "f69d37a139a1"
+  },
+  "studio.privacy.phone.q": {
+    "status": "mt",
+    "srcHash": "8961d3bf56ef"
+  },
+  "studio.privacy.phone.sub": {
+    "status": "mt",
+    "srcHash": "e3e14eceb2cf"
+  },
+  "studio.privacy.phone.unavailable": {
+    "status": "mt",
+    "srcHash": "6944d0343cb3"
+  },
   "studio.privacy.reach.proxyUnchecked": {
     "status": "mt",
     "srcHash": "3122d3aa8d57"
@@ -45427,6 +45443,14 @@
     "status": "mt",
     "srcHash": "ce771bbfd1f7"
   },
+  "studio.texts.conv.maskedForYou": {
+    "status": "mt",
+    "srcHash": "0ef4330d2b1e"
+  },
+  "studio.texts.conv.maskedList": {
+    "status": "mt",
+    "srcHash": "62b67d5748dc"
+  },
   "studio.texts.conv.messages": {
     "status": "mt",
     "srcHash": "f1702b468627"
@@ -45482,6 +45506,14 @@
   "studio.texts.conv.reach.notConnected": {
     "status": "mt",
     "srcHash": "908d2a716aba"
+  },
+  "studio.texts.conv.reach.notHeard": {
+    "status": "mt",
+    "srcHash": "c2f77c7f60ed"
+  },
+  "studio.texts.conv.reach.notHeardTitle": {
+    "status": "mt",
+    "srcHash": "bc4945d819eb"
   },
   "studio.texts.conv.reach.title": {
     "status": "mt",
@@ -45766,6 +45798,10 @@
   "studio.texts.editor.noReplies": {
     "status": "mt",
     "srcHash": "137402dca7cb"
+  },
+  "studio.texts.editor.notHeard": {
+    "status": "mt",
+    "srcHash": "732d8ebf9ccd"
   },
   "studio.texts.editor.optOutCounts": {
     "status": "mt",
@@ -46370,6 +46406,14 @@
   "studio.texts.mkt.refusal.notConnected": {
     "status": "mt",
     "srcHash": "8cfb2d488def"
+  },
+  "studio.texts.mkt.refusal.notHeard": {
+    "status": "mt",
+    "srcHash": "1500edb34e8e"
+  },
+  "studio.texts.mkt.refusal.notHeardDetail": {
+    "status": "mt",
+    "srcHash": "787218c8a72e"
   },
   "studio.texts.mkt.refusal.operatorOff": {
     "status": "mt",

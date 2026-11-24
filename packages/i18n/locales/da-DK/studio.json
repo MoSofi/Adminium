@@ -5010,6 +5010,12 @@
       "visits": "Sider de så",
       "visitsCount": "{count, plural, one {# sidebesøg} other {# sidebesøg}}",
       "visitsGoes": "{count, plural, one {# sidebesøg} other {# sidebesøg}}"
+    },
+    "phone": {
+      "q": "Telefonnummer",
+      "sub": "For en person, I kun kender via telefonnummeret: alt, der er gemt med nummeret, dets sms’er og personens sms-samtykke, som én .zip. Skriv det med landekode.",
+      "notNumber": "Det er ikke et telefonnummer, der kan læses. Skriv det med landekode.",
+      "unavailable": "Download efter telefonnummer er ikke tilgængelig på denne server."
     }
   },
   "marketingMail": {
@@ -6640,7 +6646,8 @@
       "unicode": "Dette tegn bruger Unicode-taksten:",
       "whereTo": "Hvor den sendes hen, og hvem den er fra",
       "words": "Teksten",
-      "optOutCounts": "Den tæller med i længden og kan ikke redigeres."
+      "optOutCounts": "Den tæller med i længden og kan ikke redigeres.",
+      "notHeard": "Intet svar har nået denne server endnu, så hver sms angiver din telefon eller e-mail til afmelding. Vælg “Vis svaradressen” under Opsætning, og send et testsvar."
     },
     "field": {
       "accountSid": "Account SID",
@@ -6963,7 +6970,9 @@
         "notConnected": "Ingen udbyder er forbundet, så intet svar kan nå frem her. Forbind en under Opsætning.",
         "desktop": "Skrivebordsappen kan sende sms’er, men svar og STOP kan ikke nå den, så ingen ny besked kommer her.",
         "keyUnreadable": "Udbyderens nøgle kan ikke læses på serveren, så intet svar kan nå frem her. Indsæt den igen under Opsætning.",
-        "noDoor": "Denne server har ingen offentlig https-adresse. Den kan sende sms’er, men svar og STOP kan ikke nå den, så ingen ny besked kommer her."
+        "noDoor": "Denne server har ingen offentlig https-adresse. Den kan sende sms’er, men svar og STOP kan ikke nå den, så ingen ny besked kommer her.",
+        "notHeardTitle": "Intet svar har nået denne server endnu",
+        "notHeard": "Sat op, men der er endnu ikke kommet noget svar. Vælg “Vis svaradressen” under Opsætning, giv den til din udbyder, og send derefter et testsvar. Kundernes svar vises her, så snart et kommer frem."
       },
       "filterApp": "App",
       "allApps": "Alle apps",
@@ -6994,7 +7003,9 @@
         "forbidden": "Du må ikke svare i denne samtale.",
         "gone": "Denne samtale findes ikke længere.",
         "network": "Serveren kunne ikke nås. Intet blev sendt. Prøv igen."
-      }
+      },
+      "maskedForYou": "Din rolle viser ikke fulde telefonnumre.",
+      "maskedList": "Din rolle viser kun en del af hvert nummer."
     },
     "replies": {
       "title": "Svar pr. app",
@@ -7159,7 +7170,9 @@
         "other": "Markedsførings-sms’er kan ikke sendes fra denne server lige nu.",
         "desktop": "Skrivebordsappen kan ikke modtage svar fra en udbyder.",
         "networkOff": "Serverens netværksfunktioner er slået fra, så et STOP-svar kan ikke nå den.",
-        "noDoorDetail": "Den har ingen offentlig https-adresse, så et STOP-svar kan ikke nå den."
+        "noDoorDetail": "Den har ingen offentlig https-adresse, så et STOP-svar kan ikke nå den.",
+        "notHeard": "Intet svar har nået denne server endnu, så markedsførings-sms’er er slået fra, indtil et gør.",
+        "notHeardDetail": "Vælg “Vis svaradressen” under Opsætning, giv den til din udbyder, og send derefter et testsvar."
       },
       "skip": {
         "noPhone": "Ikke sendt. Rækken har intet mobilnummer.",

@@ -325,6 +325,28 @@ describe('Templates', () => {
     expect(screen.getByTestId('texts-preview-text').textContent).toContain('Reply STOP to opt out.');
   });
 
+  it('words a server not yet heard from as waiting for its first reply, not as unreachable', async () => {
+    const user = userEvent.setup();
+    mount({ setup: setupOf({ repliesCanArrive: false, replies: { state: 'not-heard', heardAt: null } }) });
+    await openTab(user, 'Templates');
+    await user.click(await screen.findByTestId('texts-template-hotel-prearrival'));
+    const note = await screen.findByTestId('texts-editor-not-heard');
+    expect(note.textContent).toContain('No reply has reached this server yet');
+    expect(note.textContent).toContain('“Show the reply address”');
+    expect(screen.queryByTestId('texts-editor-no-replies')).toBeNull();
+    // Until a reply is heard, the text gives the business's own contact, never "Reply STOP".
+    expect(screen.getByTestId('texts-preview-text').textContent).not.toContain('Reply STOP');
+  });
+
+  it('says the server can’t receive STOP only when it has no public address', async () => {
+    const user = userEvent.setup();
+    mount({ setup: setupOf({ repliesCanArrive: false, replies: { state: 'not-set', heardAt: null }, reachability: { state: 'not-set', origin: null, notPort443: false } }) });
+    await openTab(user, 'Templates');
+    await user.click(await screen.findByTestId('texts-template-hotel-prearrival'));
+    expect((await screen.findByTestId('texts-editor-no-replies')).textContent).toContain('This server can’t receive STOP replies');
+    expect(screen.queryByTestId('texts-editor-not-heard')).toBeNull();
+  });
+
   it('turns Unicode on one character, points at it, and offers a plain one', async () => {
     const user = userEvent.setup();
     mount();

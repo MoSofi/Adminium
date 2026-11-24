@@ -20,7 +20,8 @@ import { TEXTS_QUERY_KEY } from './textsApi.js';
 export type ThreadKind = 'message' | 'help' | 'stop' | 'start' | 'reply' | 'text';
 export type ThreadDeliveryStatus = 'sending' | 'sent' | 'delivered' | 'failed' | 'unknown' | 'skipped' | 'not-sent';
 export type ReplyBlock = 'not-allowed' | 'stopped' | 'not-connected' | 'no-consent' | 'cannot-receive-text' | 'country-blocked';
-export type ReplyReach = 'reachable' | 'unreachable' | 'unknown' | 'not-connected' | 'key-unreadable' | string;
+/** `not-heard`: set up, but no signed reply has reached this server yet. */
+export type ReplyReach = 'reachable' | 'unreachable' | 'unknown' | 'not-connected' | 'key-unreadable' | 'not-heard' | string;
 
 export interface ThreadPerson {
   id: string;
@@ -34,6 +35,8 @@ export interface Thread {
   /** In full only for someone who may see it; else null and `masked` holds `+1 ••• 161`. */
   phone: string | null;
   masked: string | null;
+  /** `masked-for-you`: the number exists, but this person's role shows only its mask. Nothing here asks for more. */
+  phoneHidden: 'masked-for-you' | null;
   /** The business number this conversation runs on, when it is a number. */
   line: string | null;
   record: { connectionId: string; table: string; key: string } | null;

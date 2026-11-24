@@ -32,6 +32,7 @@ const thread = (over: Partial<Thread> = {}): Thread => ({
   app: 'hotel',
   phone: null,
   masked: '+1 ••• 161',
+  phoneHidden: null,
   line: '+12075550187',
   record: null,
   lastAt: AT,
@@ -249,6 +250,65 @@ describe('Conversations', () => {
     expect((await screen.findByTestId('texts-conv-no-door')).textContent).toContain('This server has no public https address.');
   });
 
+  it('words a server set up but not yet heard from as waiting, and points to the reply address in Setup', async () => {
+    const user = userEvent.setup();
+    mount({ replies: { 'GET /api/v1/texts/threads': { status: 200, body: { data: list({ replies: { canArrive: false, state: 'not-heard' } }) } } } });
+    await openTab(user, 'Conversations');
+    const waiting = await screen.findByTestId('texts-conv-not-heard');
+    expect(waiting.textContent).toContain('No reply has reached this server yet');
+    expect(waiting.textContent).toContain('In Setup, choose “Show the reply address”');
+    expect(waiting.textContent).not.toContain('no public https address');
+    expect(screen.queryByTestId('texts-conv-no-door')).toBeNull();
+    await user.click(within(waiting).getByTestId('texts-conv-open-setup'));
+    expect(screen.getByRole('tab', { name: 'Setup' }).getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('offers a desk no way into Setup from the not-yet-heard note', async () => {
+    const user = userEvent.setup();
+    mount({ actions: [], textApps: [{ app: 'hotel', may: 'read' }], replies: { 'GET /api/v1/texts/threads': { status: 200, body: { data: list({ replies: { canArrive: false, state: 'not-heard' } }) } } } });
+    await openTab(user, 'Conversations');
+    expect((await screen.findByTestId('texts-conv-not-heard')).textContent).toContain('No reply has reached this server yet');
+    expect(screen.queryByTestId('texts-conv-open-setup')).toBeNull();
+  });
+
+  it('shows a number masked for this person’s role with a quiet note, and never asks for more', async () => {
+    const user = userEvent.setup();
+    // Even if a full number slipped into a masked thread, the mask is what shows.
+    const masked = thread({ phone: '+12075550161', phoneHidden: 'masked-for-you' });
+    const { calls } = mount({
+      actions: [],
+      textApps: [{ app: 'hotel', may: 'reply' }],
+      replies: {
+        'GET /api/v1/texts/threads': { status: 200, body: { data: list({ threads: [masked] }) } },
+        'GET /api/v1/texts/threads/tth_zoe': { status: 200, body: { data: detail({ thread: masked }) } },
+      },
+    });
+    await openTab(user, 'Conversations');
+    const row = await screen.findByTestId('texts-thread-row');
+    expect(row.textContent).toContain('+1 ••• 161');
+    expect(screen.getByTestId('texts-conv-masked').textContent).toBe('Your role shows only part of each number.');
+    await user.click(row);
+    const pane = await screen.findByTestId('texts-thread');
+    expect(within(pane).getByRole('heading', { level: 3 }).textContent).toBe('+1 ••• 161');
+    expect(within(pane).getByTestId('texts-thread-masked').textContent).toBe('Your role doesn’t show full phone numbers.');
+    expect(document.body.textContent).not.toContain('5550161');
+    expect(within(pane).queryByRole('button', { name: /show|reveal/i })).toBeNull();
+    const reads = calls.filter((call) => call.method === 'GET').map((call) => call.url.replace(/\?.*$/, ''));
+    expect(new Set(reads)).toEqual(new Set(['/api/v1/texts/threads', '/api/v1/texts/threads/tth_zoe']));
+  });
+
+  it('shows no masked note to someone who sees the number', async () => {
+    const user = userEvent.setup();
+    const full = thread({ phone: '+12075550161' });
+    mount({ replies: { 'GET /api/v1/texts/threads': { status: 200, body: { data: list({ threads: [full] }) } }, 'GET /api/v1/texts/threads/tth_zoe': { status: 200, body: { data: detail({ thread: full }) } } } });
+    await openTab(user, 'Conversations');
+    await user.click(await screen.findByTestId('texts-thread-row'));
+    const pane = await screen.findByTestId('texts-thread');
+    expect(within(pane).getByRole('heading', { level: 3 }).textContent).toBe('+12075550161');
+    expect(screen.queryByTestId('texts-conv-masked')).toBeNull();
+    expect(within(pane).queryByTestId('texts-thread-masked')).toBeNull();
+  });
+
   it('filters by app and by unread on the wire', async () => {
     const user = userEvent.setup();
     const { calls } = mount();
@@ -410,6 +470,16 @@ describe('Marketing', () => {
     expect(reasons[0]).toBe('Marketing can’t go from a sender name because it can’t receive STOP. Add a number for this country in your provider’s account.');
     expect(reasons[1]).toBe('This server can’t receive STOP, so marketing texts are off. It has no public https address, so a STOP reply can’t reach it.');
     expect((screen.getByTestId('texts-mkt-open-new') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('words a server not yet heard from as waiting for its first reply, not as one with no address', async () => {
+    const user = userEvent.setup();
+    const waiting = setupOf({ preflight: { ok: false, refusals: [{ reason: 'marketing-without-replies', detail: 'not-heard' }], sender: { kind: 'number', value: '+12075550187' }, replies: { canReceiveStop: false, state: 'not-heard' } } });
+    mount({ replies: { 'GET /api/v1/sms/marketing/setup': { status: 200, body: { data: waiting } } } });
+    await openTab(user, 'Marketing');
+    const line = (await screen.findAllByTestId('texts-mkt-refusal')).find((one) => one.getAttribute('data-reason') === 'marketing-without-replies');
+    expect(line?.textContent).toBe('No reply has reached this server yet, so marketing texts are off until one does. In Setup, choose “Show the reply address”, give it to your provider, then send a test reply.');
+    expect(line?.textContent).not.toContain('can’t receive STOP');
   });
 
   it('while locked, says so calmly, lets the preview count, and offers no way to send', async () => {

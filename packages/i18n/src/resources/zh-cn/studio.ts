@@ -5020,6 +5020,12 @@ export default {
       "visits": "其看过的页面",
       "visitsCount": "{count, plural, other {# 次页面访问}}",
       "visitsGoes": "{count, plural, other {# 次页面访问}}"
+    },
+    "phone": {
+      "q": "电话号码",
+      "sub": "适用于只知道电话号码的人：与该号码一起保存的所有内容、其短信及短信同意记录，打包为一个 .zip。请连同国家代码一起填写。",
+      "notNumber": "这不是可识别的电话号码。请连同国家代码一起填写。",
+      "unavailable": "此服务器不支持按电话号码下载。"
     }
   },
   "marketingMail": {
@@ -6650,7 +6656,8 @@ export default {
       "unicode": "此字符按 Unicode 计算：",
       "whereTo": "发送对象和发送方",
       "words": "短信内容",
-      "optOutCounts": "它计入长度，且不能编辑。"
+      "optOutCounts": "它计入长度，且不能编辑。",
+      "notHeard": "此服务器还没有收到任何回复，因此每条短信都会附上你的电话或邮箱，供对方退订。请在“设置”中选择“显示回复地址”，然后发送一条测试回复。"
     },
     "field": {
       "accountSid": "Account SID",
@@ -6973,7 +6980,9 @@ export default {
         "notConnected": "未连接服务商，因此这里不会收到回复。请在“设置”中连接。",
         "desktop": "桌面应用可以发送短信，但回复和 STOP 无法到达，因此这里不会收到新消息。",
         "keyUnreadable": "此服务器无法读取服务商密钥，因此这里不会收到回复。请在“设置”中重新粘贴。",
-        "noDoor": "此服务器没有公开的 https 地址。它可以发送短信，但回复和 STOP 无法到达，因此这里不会收到新消息。"
+        "noDoor": "此服务器没有公开的 https 地址。它可以发送短信，但回复和 STOP 无法到达，因此这里不会收到新消息。",
+        "notHeardTitle": "此服务器还没有收到任何回复",
+        "notHeard": "已设置，但还没有收到任何回复。请在“设置”中选择“显示回复地址”，把它交给你的服务商，然后发送一条测试回复。收到回复后，客户的回复会显示在这里。"
       },
       "filterApp": "应用",
       "allApps": "所有应用",
@@ -7004,7 +7013,9 @@ export default {
         "forbidden": "您无权回复此对话。",
         "gone": "此对话已不存在。",
         "network": "无法连接服务器。未发送任何内容。请重试。"
-      }
+      },
+      "maskedForYou": "你的角色无法查看完整的电话号码。",
+      "maskedList": "你的角色只能看到每个号码的一部分。"
     },
     "replies": {
       "title": "按应用设置回复",
@@ -7169,7 +7180,9 @@ export default {
         "other": "此服务器目前无法发送营销短信。",
         "desktop": "桌面应用无法接收服务商转来的回复。",
         "networkOff": "此服务器的网络功能已关闭，因此 STOP 回复无法到达。",
-        "noDoorDetail": "它没有公开的 https 地址，因此 STOP 回复无法到达。"
+        "noDoorDetail": "它没有公开的 https 地址，因此 STOP 回复无法到达。",
+        "notHeard": "此服务器还没有收到任何回复，因此在收到之前，营销短信保持关闭。",
+        "notHeardDetail": "请在“设置”中选择“显示回复地址”，把它交给你的服务商，然后发送一条测试回复。"
       },
       "skip": {
         "noPhone": "未发送。其记录中没有手机号码。",

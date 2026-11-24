@@ -5010,6 +5010,12 @@
       "visits": "Pages they saw",
       "visitsCount": "{count, plural, one {# page visit} other {# page visits}}",
       "visitsGoes": "{count, plural, one {# page visit} other {# page visits}}"
+    },
+    "phone": {
+      "q": "Phone number",
+      "sub": "For someone known only by phone: everything kept with their number, its texts and their text consent, as one .zip. Write it with its country code.",
+      "notNumber": "That isn’t a phone number that can be read. Write it with its country code.",
+      "unavailable": "Downloads by phone number aren’t available on this server."
     }
   },
   "marketingMail": {
@@ -6640,7 +6646,8 @@
       "unicode": "This character uses the Unicode rate:",
       "whereTo": "Where it goes and who it is from",
       "words": "The text",
-      "optOutCounts": "It counts toward the length, and can’t be edited."
+      "optOutCounts": "It counts toward the length, and can’t be edited.",
+      "notHeard": "No reply has reached this server yet, so every text gives your phone or e-mail for stopping. In Setup, choose “Show the reply address” and send a test reply."
     },
     "field": {
       "accountSid": "Account SID",
@@ -6963,7 +6970,9 @@
         "notConnected": "No provider is connected, so no reply can arrive here. Connect one in Setup.",
         "desktop": "The desktop app can send texts, but replies and STOP can’t reach it, so no new message will arrive here.",
         "keyUnreadable": "The provider key can’t be read on this server, so no reply can arrive here. Paste it again in Setup.",
-        "noDoor": "This server has no public https address. It can send texts, but replies and STOP can’t reach it, so no new message will arrive here."
+        "noDoor": "This server has no public https address. It can send texts, but replies and STOP can’t reach it, so no new message will arrive here.",
+        "notHeardTitle": "No reply has reached this server yet",
+        "notHeard": "Set up, but no reply has arrived yet. In Setup, choose “Show the reply address”, give it to your provider, then send a test reply. Customers’ replies show here once one arrives."
       },
       "filterApp": "App",
       "allApps": "Every app",
@@ -6994,7 +7003,9 @@
         "forbidden": "You may not answer this conversation.",
         "gone": "This conversation is no longer there.",
         "network": "The server could not be reached. Nothing was sent. Try again."
-      }
+      },
+      "maskedForYou": "Your role doesn’t show full phone numbers.",
+      "maskedList": "Your role shows only part of each number."
     },
     "replies": {
       "title": "Replies by app",
@@ -7159,7 +7170,9 @@
         "other": "Marketing texts can’t go from this server now.",
         "desktop": "The desktop app can’t receive replies from a provider.",
         "networkOff": "This server’s network features are switched off, so a STOP reply can’t reach it.",
-        "noDoorDetail": "It has no public https address, so a STOP reply can’t reach it."
+        "noDoorDetail": "It has no public https address, so a STOP reply can’t reach it.",
+        "notHeard": "No reply has reached this server yet, so marketing texts are off until one does.",
+        "notHeardDetail": "In Setup, choose “Show the reply address”, give it to your provider, then send a test reply."
       },
       "skip": {
         "noPhone": "Not sent. Their row has no mobile number.",

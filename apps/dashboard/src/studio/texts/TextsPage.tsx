@@ -155,7 +155,7 @@ function TextsConsole({ rights, allowed }: { rights: Rights; allowed: readonly T
         {has('conversations') ? (
           <TabsContent value="conversations" className="pt-4">
             <Suspense fallback={<Loading />}>
-              <ConversationsTab reader={rights.reader} canManage={canManage} />
+              <ConversationsTab reader={rights.reader} canManage={canManage} onOpenSetup={has('setup') && canManage ? () => setTab('setup') : undefined} />
             </Suspense>
           </TabsContent>
         ) : null}

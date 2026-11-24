@@ -5020,6 +5020,12 @@ export default {
       "visits": "Stránky, které viděli",
       "visitsCount": "{count, plural, one {# návštěva stránky} few {# návštěvy stránek} many {# návštěvy stránky} other {# návštěv stránek}}",
       "visitsGoes": "{count, plural, one {# návštěva stránky} few {# návštěvy stránek} many {# návštěvy stránky} other {# návštěv stránek}}"
+    },
+    "phone": {
+      "q": "Telefonní číslo",
+      "sub": "Pro někoho, koho znáte jen podle telefonu: vše uložené k jeho číslu, jeho SMS a souhlas se SMS v jednom souboru .zip. Zadejte číslo s předvolbou země.",
+      "notNumber": "Toto není čitelné telefonní číslo. Zadejte ho s předvolbou země.",
+      "unavailable": "Stahování podle telefonního čísla není na tomto serveru k dispozici."
     }
   },
   "marketingMail": {
@@ -6650,7 +6656,8 @@ export default {
       "unicode": "Kvůli tomuto znaku se SMS počítá jako Unicode:",
       "whereTo": "Kam jde a od koho je",
       "words": "Text",
-      "optOutCounts": "Započítává se do délky a nelze ho upravit."
+      "optOutCounts": "Započítává se do délky a nelze ho upravit.",
+      "notHeard": "Na tento server zatím nedorazila žádná odpověď, proto každá SMS uvádí váš telefon nebo e-mail pro odhlášení. V Nastavení zvolte „Zobrazit adresu pro odpovědi“ a pošlete zkušební odpověď."
     },
     "field": {
       "accountSid": "Account SID",
@@ -6973,7 +6980,9 @@ export default {
         "notConnected": "Není připojen žádný poskytovatel, takže sem nemůže dorazit žádná odpověď. Připojte ho v Nastavení.",
         "desktop": "Desktopová aplikace umí SMS odesílat, ale odpovědi a STOP se k ní nedostanou, takže sem žádná nová zpráva nepřijde.",
         "keyUnreadable": "Klíč poskytovatele nelze na tomto serveru přečíst, takže sem žádná odpověď nedorazí. Vložte ho znovu v Nastavení.",
-        "noDoor": "Tento server nemá veřejnou adresu https. Umí SMS odesílat, ale odpovědi a STOP se k němu nedostanou, takže sem žádná nová zpráva nepřijde."
+        "noDoor": "Tento server nemá veřejnou adresu https. Umí SMS odesílat, ale odpovědi a STOP se k němu nedostanou, takže sem žádná nová zpráva nepřijde.",
+        "notHeardTitle": "Na tento server zatím nedorazila žádná odpověď",
+        "notHeard": "Nastaveno, ale zatím nepřišla žádná odpověď. V Nastavení zvolte „Zobrazit adresu pro odpovědi“, předejte ji poskytovateli a pošlete zkušební odpověď. Odpovědi zákazníků se tu zobrazí, jakmile nějaká přijde."
       },
       "filterApp": "Aplikace",
       "allApps": "Všechny aplikace",
@@ -7004,7 +7013,9 @@ export default {
         "forbidden": "Na tuto konverzaci nesmíte odpovídat.",
         "gone": "Tato konverzace už neexistuje.",
         "network": "Server se nepodařilo zastihnout. Nic neodešlo. Zkuste to znovu."
-      }
+      },
+      "maskedForYou": "Vaše role nezobrazuje celá telefonní čísla.",
+      "maskedList": "Vaše role zobrazuje jen část každého čísla."
     },
     "replies": {
       "title": "Odpovědi podle aplikace",
@@ -7169,7 +7180,9 @@ export default {
         "other": "Marketingové SMS teď z tohoto serveru odejít nemohou.",
         "desktop": "Desktopová aplikace nemůže přijímat odpovědi od poskytovatele.",
         "networkOff": "Síťové funkce tohoto serveru jsou vypnuté, takže se k němu odpověď STOP nedostane.",
-        "noDoorDetail": "Nemá veřejnou adresu https, takže se k němu odpověď STOP nedostane."
+        "noDoorDetail": "Nemá veřejnou adresu https, takže se k němu odpověď STOP nedostane.",
+        "notHeard": "Na tento server zatím nedorazila žádná odpověď, proto jsou marketingové SMS vypnuté, dokud nějaká nepřijde.",
+        "notHeardDetail": "V Nastavení zvolte „Zobrazit adresu pro odpovědi“, předejte ji poskytovateli a pošlete zkušební odpověď."
       },
       "skip": {
         "noPhone": "Neodesláno. Řádek nemá mobilní číslo.",

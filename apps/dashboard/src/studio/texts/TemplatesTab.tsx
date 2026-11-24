@@ -242,7 +242,7 @@ function PhonePreview({ composed, locale, country, fallbackNote }: { composed: C
 
 // ─── The editor ─────────────────────────────────────────────────────────────
 
-function Editor({ template, repliesReachUs, defaultCountry, defaultSender, onBack, onSaved }: { template: TextTemplate; repliesReachUs: boolean; defaultCountry: string; defaultSender: 'number' | 'name'; onBack: () => void; onSaved: (next: TextTemplate) => void }) {
+function Editor({ template, repliesReachUs, notHeard, defaultCountry, defaultSender, onBack, onSaved }: { template: TextTemplate; repliesReachUs: boolean; notHeard: boolean; defaultCountry: string; defaultSender: 'number' | 'name'; onBack: () => void; onSaved: (next: TextTemplate) => void }) {
   const ids = useId();
   const locale = activeLocale();
   const area = useRef<HTMLTextAreaElement | null>(null);
@@ -446,7 +446,15 @@ function Editor({ template, repliesReachUs, defaultCountry, defaultSender, onBac
                   <option value="tollFree">{t('studio:texts.editor.tableTollFree', 'US and Canada, toll-free')}</option>
                 </Select>
               </FormField>
-              {!repliesReachUs ? <p className="text-[12px] text-fg-muted">{t('studio:texts.editor.noReplies', 'This server can’t receive STOP replies, so every text gives your phone or e-mail for stopping.')}</p> : null}
+              {repliesReachUs ? null : notHeard ? (
+                <p className="text-[12px] text-fg-muted" data-testid="texts-editor-not-heard">
+                  {t('studio:texts.editor.notHeard', 'No reply has reached this server yet, so every text gives your phone or e-mail for stopping. In Setup, choose “Show the reply address” and send a test reply.')}
+                </p>
+              ) : (
+                <p className="text-[12px] text-fg-muted" data-testid="texts-editor-no-replies">
+                  {t('studio:texts.editor.noReplies', 'This server can’t receive STOP replies, so every text gives your phone or e-mail for stopping.')}
+                </p>
+              )}
             </CardBody>
           </Card>
           <Card>
@@ -486,7 +494,10 @@ export function TemplatesTab({ onOpenSetup }: { onOpenSetup: () => void }): Reac
     );
   }
   if (list.isError) return <Alert tone="danger" role="alert" title={t('studio:texts.loadFailed', 'This could not be loaded')} body={list.error.message} />;
+  // Heard: a reply has arrived, so a text may say "Reply STOP" (the server's own rule for the line).
   const repliesReachUs = setup.data?.repliesCanArrive ?? false;
+  // Not heard yet is not unreachable: the server has a public address, and the first reply is still to come.
+  const notHeard = !repliesReachUs && setup.data?.reachability.state === 'reachable';
   const account = setup.data?.account ?? null;
   const template = open === null ? null : (list.data.data.find((one) => one.key === open) ?? null);
   return (
@@ -509,6 +520,7 @@ export function TemplatesTab({ onOpenSetup }: { onOpenSetup: () => void }): Reac
           key={template.key}
           template={template}
           repliesReachUs={repliesReachUs}
+          notHeard={notHeard}
           defaultCountry={account?.defaultCountry ?? 'US'}
           defaultSender={account?.sender?.kind === 'name' || account?.sender?.kind === 'pool' ? 'name' : 'number'}
           onBack={() => setOpen(null)}
