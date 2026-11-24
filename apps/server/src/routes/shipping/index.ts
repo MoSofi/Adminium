@@ -27,7 +27,7 @@
  */
 import type { CustomsDeclaration, Parcel, ShipmentPurpose } from '@adminium/add-on-contracts';
 import { validateManifest, type ShippingOrder } from '@adminium/manifest';
-import { appTablesRepo, realTableOf, shippingRepo, type InstalledManifest, type ManifestsRepo, type MetaDb, type ShippingSlot } from '@adminium/meta';
+import { appTablesRepo, connectionTenantConfig, realTableOf, shippingRepo, type InstalledManifest, type ManifestsRepo, type MetaDb, type ShippingSlot } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
@@ -47,7 +47,7 @@ import { pricesHiddenFrom, readsPartOf, shippingPerson, shippingViewerOf, type S
 import { cleanShipFrom, orderAddress, readShipFrom, recipientAbroad, recipientForRates, shipFromAddress, shipFromChanges } from '../../shipping/addresses.js';
 import { askForRates, carrierHttpFor, shippingCarrierFor, type ShippingCarrierDeps } from '../../shipping/carriers.js';
 import type { BookingDeps, BookingFaults } from '../../shipping/bookings.js';
-import { declarationOf, deliversTo, draftOf, exporterFor, filingCodeFor, readGoods, readInternational, signerName, codeListUrlOf, type CustomsChoice, type InternationalSettings } from '../../shipping/customs.js';
+import { declarationOf, deliversTo, draftOf, exporterFor, filingCodeFor, orderFactsOf, readGoods, readInternational, signerName, codeListUrlOf, type CustomsChoice, type InternationalSettings } from '../../shipping/customs.js';
 import { checkedAccount, type KeyLock, type OpenBookings } from '../../shipping/keys.js';
 import { bookingState, createQuoteGate, mayShipAbroad, orderCancelled, rateWithinLimit } from '../../shipping/limits.js';
 import { carrierLocked } from '../../shipping/locks.js';
@@ -177,6 +177,7 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
         ),
         international: sendsAbroad(install, international),
         customs: international === null ? null : { ...international, signerName: await signerName(meta, install, international.signerId) },
+        shopCurrency: (await connectionTenantConfig(meta, connectionId))?.currency ?? null,
         codeListUrl: codeListUrlOf(shop.shipFrom?.country),
         labelSize: await labelSizeOf(meta, install.row.id),
         limits: {
@@ -282,7 +283,7 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
     const { table, row } = reached;
     const mapping = reached.mapping as ShippingOrder;
     // It may have been cancelled while its rates were open. A return is for an order that went out, and is judged by its own state.
-    if (purpose === 'outbound' && orderCancelled(orderStates(install, mapping.table), row)) throw new ShippingRefusal('ORDER_CANCELLED', 'This order was cancelled, so no label can be bought for it.');
+    if (purpose !== 'return' && orderCancelled(orderStates(install, mapping.table), row)) throw new ShippingRefusal('ORDER_CANCELLED', 'This order was cancelled, so no label can be bought for it.');
 
     // Refused before a carrier is asked or a key read: a quote can cost the shop money.
     const repo = shippingRepo(meta);
@@ -342,8 +343,8 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
       order: order.row,
       orderTable: order.table as unknown as Pick<ResolvedTable, 'primaryKey'>,
     });
-    const currency = mapping.customs.currency === undefined ? undefined : order.row[mapping.customs.currency];
-    const draft = draftOf(goods, international, currency, order.to, choice.edits);
+    const shopCurrency = (await connectionTenantConfig(meta, connectionId))?.currency ?? null;
+    const draft = draftOf(goods, international, orderFactsOf(mapping.customs, order.row, shopCurrency), order.to, choice.edits);
     return { declaration: declarationOf(draft, signer, parcel.weightKg, exporterFor(international, order.to, draft), filingCodeFor(international, order.from, order.to, draft)), signerId: international.signerId };
   }
 

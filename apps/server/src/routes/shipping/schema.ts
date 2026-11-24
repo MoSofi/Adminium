@@ -111,6 +111,8 @@ export const shippingStatusReply = z.object({
       })
       .strict()
       .nullable(),
+    /** The database's currency as it stands now, which is what a declaration is made in. Null when none is set. */
+    shopCurrency: z.string().nullable(),
     /** The official code list for the shop's own country, where one is known. */
     codeListUrl: z.string().nullable(),
     /** The label size this shop asks carriers for. */
@@ -214,7 +216,7 @@ export const customsFormReply = z.object({
         signer: z.string().nullable(),
         currency: z.string().nullable(),
         lines: z.array(customsLineView),
-        problems: z.array(z.object({ line: z.string().optional(), field: z.enum(['lines', 'description', 'quantity', 'unitValue', 'currency', 'originCountry', 'weight']) }).strict()),
+        problems: z.array(z.object({ line: z.string().optional(), field: z.enum(['lines', 'description', 'quantity', 'unitValue', 'currency', 'originCountry', 'weight']), reason: z.enum(['refunded', 'shop-currency', 'no-line-weight']).optional() }).strict()),
         warnings: z.array(z.object({ line: z.string(), field: z.enum(['hsCode', 'skuCode', 'manufacturerCode']) }).strict()),
       })
       .strict(),

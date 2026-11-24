@@ -13,7 +13,7 @@
  * A carrier is never called here.
  */
 import type { ShippingOrder } from '@adminium/manifest';
-import { shippingRepo, type InstalledManifest, type ManifestsRepo, type MetaDb } from '@adminium/meta';
+import { connectionTenantConfig, shippingRepo, type InstalledManifest, type ManifestsRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -27,7 +27,7 @@ import { appShippingPermission, PERMISSIONS } from '../../rbac/permissions.js';
 import { tagRoutes } from '../../security/route-audience.js';
 import { shippingPerson, shippingViewerOf } from '../../shipping/access.js';
 import { orderCountry, readShipFrom } from '../../shipping/addresses.js';
-import { cleanInternational, customsSigners, deliversTo, draftOf, internationalBody, readGoods, readInternational, signerName, codeListUrlOf } from '../../shipping/customs.js';
+import { cleanInternational, customsSigners, deliversTo, draftOf, internationalBody, orderFactsOf, readGoods, readInternational, signerName, codeListUrlOf } from '../../shipping/customs.js';
 import { mayShipAbroad } from '../../shipping/limits.js';
 import { ShippingRefusal } from '../../shipping/refusals.js';
 import type { ReachedOrder } from './bookings.js';
@@ -124,7 +124,8 @@ export function shippingCustomsRoutes(deps: ShippingCustomsRoutesDeps): FastifyP
           order: order.row,
           orderTable: order.table as unknown as Pick<ResolvedTable, 'primaryKey'>,
         });
-        const draft = draftOf(goods, international, mapping.customs.currency === undefined ? undefined : order.row[mapping.customs.currency], { country: to });
+        const shopCurrency = (await connectionTenantConfig(meta, connectionId))?.currency ?? null;
+        const draft = draftOf(goods, international, orderFactsOf(mapping.customs, order.row, shopCurrency), { country: to });
         const signer = await signerName(meta, install, international.signerId);
         return { data: { abroad: true as const, offered: true as const, ownCountry: from, to, codeListUrl: codeListUrlOf(from), signer, ...draft } };
       },

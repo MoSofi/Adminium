@@ -21,7 +21,7 @@ import { composeServer, type ComposedServer } from '../src/compose.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
-import { cleanInternational, declarationOf, draftOf, exporterFor, filingCodeFor, hsDigits, internationalBody, type GoodsLine, type InternationalSettings } from '../src/shipping/customs.js';
+import { cleanInternational, declarationOf, draftOf, exporterFor, filingCodeFor, hsDigits, internationalBody, orderFactsOf, type GoodsLine, type InternationalSettings, type OrderFacts } from '../src/shipping/customs.js';
 import { accountFingerprintOf, credentialHash } from '../src/shipping/fingerprint.js';
 import { ShippingRefusal } from '../src/shipping/refusals.js';
 import { addOnHarness, addOnManifest, type Harness } from './app-add-ons.helpers.js';
@@ -86,7 +86,22 @@ function shopDoc(key: string, customs: boolean): Record<string, unknown> {
         { ref: 'products', columns: [{ ref: 'id', type: 'int', role: 'pk' }, text('code', 40)] },
         {
           ref: 'orders',
-          columns: [{ ref: 'id', type: 'int', role: 'pk' }, text('number', 40), text('ship_name'), text('ship_line1'), text('ship_city'), text('ship_postcode', 20), text('ship_country', 40), text('ship_phone', 40), text('ship_email'), text('tracking', 64), text('carrier_name', 80)],
+          states: { column: 'status', initial: 'placed', moves: { placed: ['cancelled'] } },
+          columns: [
+            { ref: 'id', type: 'int', role: 'pk' },
+            text('number', 40),
+            text('ship_name'),
+            text('ship_line1'),
+            text('ship_city'),
+            text('ship_postcode', 20),
+            text('ship_country', 40),
+            text('ship_phone', 40),
+            text('ship_email'),
+            text('tracking', 64),
+            text('carrier_name', 80),
+            { ref: 'status', type: 'enum', enum: ['placed', 'cancelled'], default: 'placed', nullable: true },
+            { ref: 'refunded', type: 'decimal', scale: 'currency', nullable: true },
+          ],
         },
         {
           ref: 'order_lines',
@@ -99,6 +114,7 @@ function shopDoc(key: string, customs: boolean): Record<string, unknown> {
             { ref: 'unit_price', type: 'decimal', scale: 'currency', nullable: true },
             { ref: 'grams', type: 'int', nullable: true },
             text('cancelled_at'),
+            { ref: 'stage', type: 'enum', enum: ['make', 'ready', 'cancelled'], nullable: true },
           ],
         },
       ],
@@ -118,7 +134,7 @@ function shopDoc(key: string, customs: boolean): Record<string, unknown> {
           carrier: 'carrier_name',
           address: { name: 'ship_name', lines: ['ship_line1'], city: 'ship_city', postcode: 'ship_postcode', country: 'ship_country', phone: 'ship_phone', email: 'ship_email' },
           ...(customs
-            ? { customs: { lines: { table: 'order_lines', order: 'order_id', quantity: 'qty', unitValue: 'unit_price', description: 'name', unitWeight: 'grams', weightUnit: 'g', product: { column: 'product_id', table: 'products', sku: 'code' }, unlessSet: 'cancelled_at' } } }
+            ? { customs: { lines: { table: 'order_lines', order: 'order_id', quantity: 'qty', unitValue: 'unit_price', description: 'name', unitWeight: 'grams', weightUnit: 'g', product: { column: 'product_id', table: 'products', sku: 'code' }, unlessSet: 'cancelled_at', unless: { column: 'stage', in: ['cancelled'] } }, refunded: 'refunded' } }
             : {}),
         },
       ],
@@ -202,6 +218,7 @@ describe.each(LEGS)('a parcel going abroad on %s', (dialect, available) => {
     globals.__customsFake = { quotes: [], books: [], fetches: [], made: 0 };
     h = await addOnHarness(dialect, { unbuiltWords: {} });
     conn = h.connectionId;
+    await h.manager.connections.update(conn, { currency: 'GBP' });
     repo = manifestsRepo(h.meta, addOnCredentialCryptoFromSecret(TEST_SECRET));
     for (const [key, customs] of [['shop', true], ['plain', false]] as const) {
       await h.stageApp(shopDoc(key, customs));
@@ -305,6 +322,66 @@ describe.each(LEGS)('a parcel going abroad on %s', (dialect, available) => {
     const lines = ((await form(id)).json() as Doc)['data']['lines'] as { description: string; quantity: number }[];
     expect(lines.map((line) => [line.description, line.quantity])).toEqual([['Kept cards', 2]]);
     expect((await setUp({ countries: [] })).statusCode).toBe(200);
+  });
+
+  it.skipIf(!available)('leaves a line out by the value of its state, and keeps a line with no state', async () => {
+    expect((await setUp()).statusCode).toBe(200);
+    const id = await order({}, [
+      { name: 'Lamp', qty: 1, unit_price: '40.00', grams: 500, product_id: 1, stage: 'ready' },
+      { name: 'Sign', qty: 2, unit_price: '30.00', grams: 400, product_id: 1, stage: 'cancelled' },
+      { name: 'Old line', qty: 1, unit_price: '5.00', grams: 100, product_id: 1 },
+    ]);
+    const lines = ((await form(id)).json() as Doc)['data']['lines'] as { description: string }[];
+    expect(lines.map((line) => line.description)).toEqual(['Lamp', 'Old line']);
+    const res = await quote(id, ticked);
+    expect(res.statusCode, res.body).toBe(200);
+    expect((fake().quotes.at(-1)!.options['customs']['items'] as { description: string }[]).map((one) => one.description)).toEqual(['Lamp', 'Old line']);
+  });
+
+  it.skipIf(!available)('stops the form and the quote while an order has a refund', async () => {
+    expect((await setUp()).statusCode).toBe(200);
+    for (const none of [null, '0.00']) {
+      const clean = await order({ refunded: none });
+      expect((await form(clean)).json()).toMatchObject({ data: { problems: [] } });
+    }
+    const id = await order({ refunded: '30.00' });
+    expect(((await form(id)).json() as Doc)['data']['problems']).toContainEqual({ field: 'unitValue', reason: 'refunded' });
+    const res = await quote(id, ticked);
+    expect(res.statusCode, res.body).toBe(422);
+    expect((res.json() as Doc)['error']).toMatchObject({ code: 'CUSTOMS_INCOMPLETE', details: { problems: [{ field: 'unitValue', reason: 'refunded' }] } });
+    expect(fake().quotes).toHaveLength(0);
+  });
+
+  it.skipIf(!available)('stops when the shop has no currency, or another one than the declarations were set up in', async () => {
+    expect((await setUp()).statusCode).toBe(200);
+    const id = await order();
+    expect((await form(id)).json()).toMatchObject({ data: { currency: 'GBP', problems: [] } });
+    try {
+      for (const now of ['USD', null]) {
+        await h.manager.connections.update(conn, { currency: now });
+        const data = ((await form(id)).json() as Doc)['data'];
+        expect(data['currency']).toBeNull();
+        expect(data['problems']).toContainEqual({ field: 'currency', reason: 'shop-currency' });
+        const res = await quote(id, ticked);
+        expect(res.statusCode, res.body).toBe(422);
+        expect((res.json() as Doc)['error']['code']).toBe('CUSTOMS_INCOMPLETE');
+      }
+      expect(fake().quotes).toHaveLength(0);
+      // The status says what the shop's currency is now, so a save can follow it.
+      await h.manager.connections.update(conn, { currency: 'USD' });
+      expect(((await call('boss', 'GET', 'shop/shipping')).json() as Doc)['data']['shopCurrency']).toBe('USD');
+    } finally {
+      await h.manager.connections.update(conn, { currency: 'GBP' });
+    }
+  });
+
+  it.skipIf(!available)('refuses every label but a return for a cancelled order', async () => {
+    expect((await setUp()).statusCode).toBe(200);
+    const home = await order({ ship_country: 'GB', ship_city: 'Leeds', ship_postcode: 'LS1 4AB', status: 'cancelled' });
+    for (const purpose of ['outbound', 'replacement']) {
+      const res = await quote(home, { purpose });
+      expect(code(res), res.body).toBe('ORDER_CANCELLED');
+    }
   });
 
   it.skipIf(!available)('listing no country takes a shop back to its own', async () => {
@@ -561,7 +638,17 @@ describe.each(LEGS)('a parcel going abroad on %s', (dialect, available) => {
     expect(saved.statusCode, saved.body).toBe(200);
     expect((saved.json() as Doc)['data']['customs']['exporter']).toEqual({ eori: 'GB123456789000', ioss: 'IM3720000224', taxId: { type: 'VAT', number: 'GB123456789' } });
     expect((await quote(id, ticked)).statusCode).toBe(200);
-    expect(fake().quotes.at(-1)!.options['customs']['exporter']).toEqual({ eori: 'GB123456789000', ioss: 'IM3720000224', taxId: { type: 'VAT', number: 'GB123456789' } });
+    // In pounds there is no way to know the parcel is under the euro limit, so the IOSS number stays home.
+    expect(fake().quotes.at(-1)!.options['customs']['exporter']).toEqual({ eori: 'GB123456789000', taxId: { type: 'VAT', number: 'GB123456789' } });
+    await h.manager.connections.update(conn, { currency: 'EUR' });
+    try {
+      expect((await setUp({ currency: 'EUR' })).statusCode).toBe(200);
+      expect((await quote(id, ticked)).statusCode).toBe(200);
+      expect(fake().quotes.at(-1)!.options['customs']['exporter']).toEqual({ eori: 'GB123456789000', ioss: 'IM3720000224', taxId: { type: 'VAT', number: 'GB123456789' } });
+    } finally {
+      await h.manager.connections.update(conn, { currency: 'GBP' });
+      await setUp();
+    }
 
     // A save that does not mention them keeps them, and an IOSS number never leaves on a parcel outside the EU.
     expect((await setUp({ description: 'Cards' })).statusCode).toBe(200);
@@ -604,51 +691,52 @@ describe.each(LEGS)('a parcel going abroad on %s', (dialect, available) => {
 });
 
 describe('what a declaration states', () => {
+  const plain = (currency?: string): OrderFacts => ({ currency, shopCurrency: 'GBP', refunded: false });
+  const refusal = (run: () => unknown) => {
+    try {
+      run();
+    } catch (error) {
+      return error as ShippingRefusal;
+    }
+    throw new Error('expected a refusal');
+  };
   const settings: InternationalSettings = { countries: ['DE'], currency: 'GBP', originCountry: 'GB', signerId: 'usr_1', products: [{ sku: 'OWN', hsCode: '12345678', originCountry: 'CN', manufacturerCode: 'MFR' }] };
   const good = (over: Partial<GoodsLine> = {}): GoodsLine => ({ key: '1', description: 'Cards', quantity: 2, unitValue: '4.50', unitWeightKg: null, ...over });
 
   it('takes a product\'s own codes over the shop\'s, and a person\'s correction over both', () => {
-    const line = draftOf([good({ sku: 'OWN' })], { ...settings, hsCode: '99999999' }, undefined, { country: 'US' }).lines[0]!;
+    const line = draftOf([good({ sku: 'OWN' })], { ...settings, hsCode: '99999999' }, plain(), { country: 'US' }).lines[0]!;
     expect(line).toMatchObject({ hsCode: '12345678', originCountry: 'CN', manufacturerCode: 'MFR' });
-    const edited = draftOf([good({ sku: 'OWN' })], settings, undefined, { country: 'US' }, [{ line: '1', hsCode: '1111.11', manufacturerCode: 'NEW' }]).lines[0]!;
+    const edited = draftOf([good({ sku: 'OWN' })], settings, plain(), { country: 'US' }, [{ line: '1', hsCode: '1111.11', manufacturerCode: 'NEW' }]).lines[0]!;
     expect(edited).toMatchObject({ hsCode: '111111', manufacturerCode: 'NEW' });
   });
 
   it('never makes up a code, and warns only where the rule applies', () => {
     // A line's own name wins: a shop-wide default must not declare one product as another on a single tick.
-    expect(draftOf([good({ description: 'Waxed cap' })], { ...settings, description: 'Canvas bags' }, undefined, { country: 'US' }).lines[0]!.description).toBe('Waxed cap');
-    expect(draftOf([good({ description: null })], { ...settings, description: 'Canvas bags' }, undefined, { country: 'US' }).lines[0]!.description).toBe('Canvas bags');
-    const toEu = draftOf([good()], settings, undefined, { country: 'FR' });
+    expect(draftOf([good({ description: 'Waxed cap' })], { ...settings, description: 'Canvas bags' }, plain(), { country: 'US' }).lines[0]!.description).toBe('Waxed cap');
+    expect(draftOf([good({ description: null })], { ...settings, description: 'Canvas bags' }, plain(), { country: 'US' }).lines[0]!.description).toBe('Canvas bags');
+    const toEu = draftOf([good()], settings, plain(), { country: 'FR' });
     expect(toEu.warnings.map((one) => one.field)).toEqual(['hsCode', 'skuCode', 'manufacturerCode']);
     expect(toEu.lines[0]).not.toHaveProperty('hsCode');
-    const toUs = draftOf([good()], settings, undefined, { country: 'US' });
+    const toUs = draftOf([good()], settings, plain(), { country: 'US' });
     expect(toUs.warnings.map((one) => one.field)).toEqual(['hsCode']);
-    const madeInEu = draftOf([good()], { ...settings, originCountry: 'DE' }, undefined, { country: 'FR' });
+    const madeInEu = draftOf([good()], { ...settings, originCountry: 'DE' }, plain(), { country: 'FR' });
     expect(madeInEu.warnings.map((one) => one.field)).toEqual(['hsCode']);
   });
 
   it('shares a parcel\'s weight across units with no weight of their own, never adding up to more', () => {
-    const declared = declarationOf(draftOf([good({ quantity: 3 })], settings, undefined, { country: 'US' }), 'Ada', 1);
+    const declared = declarationOf(draftOf([good({ quantity: 3 })], settings, plain(), { country: 'US' }), 'Ada', 1);
     expect(declared.items[0]!.unitWeightKg).toBe(0.333);
     expect(declared.items[0]!.unitWeightKg * 3).toBeLessThanOrEqual(1);
   });
 
   it('refuses goods heavier than their parcel, a parcel too light to share, and an unreadable currency', () => {
-    const refusal = (run: () => unknown) => {
-      try {
-        run();
-      } catch (error) {
-        return error as ShippingRefusal;
-      }
-      throw new Error('expected a refusal');
-    };
-    expect(refusal(() => declarationOf(draftOf([good({ unitWeightKg: 1 })], settings, undefined, { country: 'US' }), 'Ada', 1.5)).code).toBe('CUSTOMS_INCOMPLETE');
-    expect(refusal(() => declarationOf(draftOf([good({ quantity: 5000 })], settings, undefined, { country: 'US' }), 'Ada', 1)).code).toBe('CUSTOMS_INCOMPLETE');
-    expect(refusal(() => declarationOf(draftOf([good()], settings, 'pounds', { country: 'US' }), 'Ada', 1)).code).toBe('CUSTOMS_INCOMPLETE');
+    expect(refusal(() => declarationOf(draftOf([good({ unitWeightKg: 1 })], settings, plain(), { country: 'US' }), 'Ada', 1.5)).code).toBe('CUSTOMS_INCOMPLETE');
+    expect(refusal(() => declarationOf(draftOf([good({ quantity: 5000 })], settings, plain(), { country: 'US' }), 'Ada', 1)).code).toBe('CUSTOMS_INCOMPLETE');
+    expect(refusal(() => declarationOf(draftOf([good()], settings, plain('pounds'), { country: 'US' }), 'Ada', 1)).code).toBe('CUSTOMS_INCOMPLETE');
   });
 
   it('refuses a correction to a line the order does not have', () => {
-    const draft = draftOf([good()], settings, undefined, { country: 'US' }, [{ line: '99', description: 'Other' }]);
+    const draft = draftOf([good()], settings, plain(), { country: 'US' }, [{ line: '99', description: 'Other' }]);
     expect(draft.problems).toEqual([{ line: '99', field: 'lines' }]);
   });
 
@@ -657,17 +745,24 @@ describe('what a declaration states', () => {
     const withNumbers: InternationalSettings = { ...settings, exporter: numbers };
 
     it('states nothing for a shop that has none', () => {
-      expect(exporterFor(settings, { country: 'DE' }, draftOf([good()], settings, 'EUR', { country: 'DE' }))).toBeUndefined();
-      expect(declarationOf(draftOf([good()], settings, undefined, { country: 'US' }), 'Ada', 1)).not.toHaveProperty('exporter');
+      expect(exporterFor(settings, { country: 'DE' }, draftOf([good()], settings, plain('EUR'), { country: 'DE' }))).toBeUndefined();
+      expect(declarationOf(draftOf([good()], settings, plain(), { country: 'US' }), 'Ada', 1)).not.toHaveProperty('exporter');
     });
 
-    it('keeps an IOSS number to parcels into the EU', () => {
-      expect(exporterFor(withNumbers, { country: 'FR' }, draftOf([good()], withNumbers, 'GBP', { country: 'FR' }))).toEqual(numbers);
-      expect(exporterFor(withNumbers, { country: 'US' }, draftOf([good()], withNumbers, 'GBP', { country: 'US' }))).toEqual({ eori: numbers.eori, taxId: numbers.taxId });
+    it('keeps an IOSS number to parcels into the EU, in euros', () => {
+      expect(exporterFor(withNumbers, { country: 'FR' }, draftOf([good()], withNumbers, plain('EUR'), { country: 'FR' }))).toEqual(numbers);
+      expect(exporterFor(withNumbers, { country: 'US' }, draftOf([good()], withNumbers, plain('EUR'), { country: 'US' }))).toEqual({ eori: numbers.eori, taxId: numbers.taxId });
+    });
+
+    it('sends no IOSS number when the value in euros is not known', () => {
+      const noIoss = { eori: numbers.eori, taxId: numbers.taxId };
+      expect(exporterFor(withNumbers, { country: 'DE' }, draftOf([good({ unitValue: '900.00' })], withNumbers, plain('GBP'), { country: 'DE' }))).toEqual(noIoss);
+      expect(exporterFor(withNumbers, { country: 'DE' }, draftOf([good({ unitValue: '1.00' })], withNumbers, plain('USD'), { country: 'DE' }))).toEqual(noIoss);
+      expect(exporterFor(withNumbers, { country: 'DE' }, draftOf([good({ unitValue: null })], withNumbers, plain('EUR'), { country: 'DE' }))).toEqual(noIoss);
     });
 
     it('leaves an IOSS number off goods in euros above its 150 ceiling, to the cent', () => {
-      const at = (unitValue: string) => exporterFor(withNumbers, { country: 'FR' }, draftOf([good({ quantity: 2, unitValue })], withNumbers, 'EUR', { country: 'FR' }));
+      const at = (unitValue: string) => exporterFor(withNumbers, { country: 'FR' }, draftOf([good({ quantity: 2, unitValue })], withNumbers, plain('EUR'), { country: 'FR' }));
       expect(at('75.00')).toHaveProperty('ioss');
       expect(at('75.01')).not.toHaveProperty('ioss');
     });
@@ -685,15 +780,15 @@ describe('what a declaration states', () => {
     const canada: InternationalSettings = { ...settings, filingCode: 'NOEEI_30_36' };
     const us = { country: 'US' };
     const code = (held: InternationalSettings, from: { country: string }, to: { country: string }, goods: GoodsLine[], currency = 'USD') =>
-      filingCodeFor(held, from, to, draftOf(goods, held, currency, to));
+      filingCodeFor(held, from, to, draftOf(goods, held, plain(currency), to));
 
     it('states nothing for a shop that chose none', () => {
       expect(code(settings, us, { country: 'DE' }, [good()])).toBeUndefined();
-      expect(declarationOf(draftOf([good()], settings, 'USD', { country: 'DE' }), 'Ada', 1)).not.toHaveProperty('filingCode');
+      expect(declarationOf(draftOf([good()], settings, plain('USD'), { country: 'DE' }), 'Ada', 1)).not.toHaveProperty('filingCode');
     });
 
     it('carries a chosen statement on the declaration', () => {
-      const draft = draftOf([good()], low, 'USD', { country: 'DE' });
+      const draft = draftOf([good()], low, plain('USD'), { country: 'DE' });
       expect(declarationOf(draft, 'Ada', 1, undefined, filingCodeFor(low, us, { country: 'DE' }, draft)).filingCode).toBe('NOEEI_30_37_a');
     });
 
@@ -731,8 +826,62 @@ describe('what a declaration states', () => {
     });
   });
 
+  describe('what cannot be trusted stops it', () => {
+    const facts = (over: Partial<OrderFacts> = {}): OrderFacts => ({ currency: undefined, shopCurrency: 'GBP', refunded: false, ...over });
+
+    it('reads a refund from the order: nothing, zero, or else it stands', () => {
+      const columns = { refunded: 'refunded' } as never;
+      for (const none of [null, 0, '0', '0.00', 0n]) expect(orderFactsOf(columns, { refunded: none }, 'GBP').refunded).toBe(false);
+      for (const some of ['30.00', 0.01, '-1.00', 'not a number', undefined]) expect(orderFactsOf(columns, { refunded: some }, 'GBP').refunded).toBe(true);
+      expect(orderFactsOf({} as never, {}, 'GBP').refunded).toBe(false);
+    });
+
+    it('stops on a refund, on the value and for the whole order', () => {
+      const draft = draftOf([good()], settings, facts({ refunded: true }), { country: 'DE' });
+      expect(draft.problems).toContainEqual({ field: 'unitValue', reason: 'refunded' });
+      expect(refusal(() => declarationOf(draft, 'Ada', 1)).code).toBe('CUSTOMS_INCOMPLETE');
+    });
+
+    it('declares only in the shop\'s real currency', () => {
+      for (const shopCurrency of [null, '', '  ', 'USD']) {
+        const draft = draftOf([good()], settings, facts({ shopCurrency }), { country: 'DE' });
+        expect(draft.currency).toBeNull();
+        expect(draft.problems).toContainEqual({ field: 'currency', reason: 'shop-currency' });
+      }
+      expect(draftOf([good()], settings, facts({ shopCurrency: 'gbp' }), { country: 'DE' })).toMatchObject({ currency: 'GBP', problems: [] });
+      // An order that says its own currency is not held to the shop's.
+      expect(draftOf([good()], settings, facts({ currency: 'EUR', shopCurrency: 'USD' }), { country: 'DE' })).toMatchObject({ currency: 'EUR', problems: [] });
+    });
+
+    it('keeps the shop-wide code off an order of several products, and warns', () => {
+      const held: InternationalSettings = { ...settings, hsCode: '49090000' };
+      const two = draftOf([good({ key: '1', sku: 'A' }), good({ key: '2', sku: 'B' })], held, facts(), { country: 'US' });
+      expect(two.lines.map((line) => line.hsCode)).toEqual([undefined, undefined]);
+      expect(two.warnings.filter((one) => one.field === 'hsCode').map((one) => one.line)).toEqual(['1', '2']);
+      expect(two.problems).toEqual([]);
+      // No SKU to tell them apart: two products as far as anyone can say.
+      const unnamed = draftOf([good({ key: '1' }), good({ key: '2' })], held, facts(), { country: 'US' });
+      expect(unnamed.warnings.filter((one) => one.field === 'hsCode')).toHaveLength(2);
+      // One product over two lines is one product, and a product's own code is never lost.
+      const same = draftOf([good({ key: '1', sku: 'A' }), good({ key: '2', sku: 'A' })], held, facts(), { country: 'US' });
+      expect(same.lines.map((line) => line.hsCode)).toEqual(['49090000', '49090000']);
+      expect(same.warnings.filter((one) => one.field === 'hsCode')).toEqual([]);
+      const own = draftOf([good({ key: '1', sku: 'OWN' }), good({ key: '2', sku: 'B' })], held, facts(), { country: 'US' });
+      expect(own.lines[0]!.hsCode).toBe('12345678');
+      expect(own.warnings.filter((one) => one.field === 'hsCode').map((one) => one.line)).toEqual(['2']);
+    });
+
+    it('stops when only some lines have a weight, rather than share the parcel over them', () => {
+      const draft = draftOf([good({ key: '1', unitWeightKg: 0.2 }), good({ key: '2', unitWeightKg: null })], settings, facts(), { country: 'DE' });
+      expect(draft.problems).toEqual([{ line: '2', field: 'weight', reason: 'no-line-weight' }]);
+      expect(refusal(() => declarationOf(draft, 'Ada', 2)).code).toBe('CUSTOMS_INCOMPLETE');
+      // None at all is still shared, as it always was.
+      expect(draftOf([good({ key: '1' }), good({ key: '2' })], settings, facts(), { country: 'DE' }).problems).toEqual([]);
+    });
+  });
+
   it('reads an order\'s own currency, and an HS code with its dots and spaces', () => {
-    expect(draftOf([good()], settings, 'eur', { country: 'US' }).currency).toBe('EUR');
+    expect(draftOf([good()], settings, plain('eur'), { country: 'US' }).currency).toBe('EUR');
     expect(hsDigits('4909.00 10')).toBe('49090010');
   });
 });

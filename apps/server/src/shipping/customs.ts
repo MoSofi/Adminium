@@ -11,8 +11,11 @@
  *    right. Who actually ticked the box is recorded separately.
  *  - No code is ever filled in for a person. A code the destination asks for
  *    and the order lacks is a warning they can act on, and the carrier has the
- *    final word.
+ *    final word. A shop-wide code stands only for an order of one product.
  *  - A value is an exact decimal, and no exchange rate is guessed.
+ *  - What cannot be trusted stops the form with a plain reason: a refund on the
+ *    order, a shop whose currency is not the one set up here, a line with no
+ *    weight among lines that have one.
  */
 import { CUSTOMS_TAX_ID_TYPES, customsExporterSchema, type Address, type CustomsDeclaration, type CustomsExporter, type CustomsFilingCode, type CustomsItem } from '@adminium/add-on-contracts';
 import type { ShippingOrder } from '@adminium/manifest';
@@ -296,6 +299,8 @@ export async function readGoods(
     .select(wanted.map((column) => db.dynamic.ref<string>(column)))
     .where((eb) => eb(db.dynamic.ref(lines.order), '=', order[orderKey]))
     .$if(lines.unlessSet !== undefined, (query) => query.where((eb) => eb(db.dynamic.ref(lines.unlessSet!), 'is', null)))
+    // An empty state is a line still in the parcel: a bare NOT IN would drop it from the declaration.
+    .$if(lines.unless !== undefined, (query) => query.where((eb) => eb.or([eb(db.dynamic.ref(lines.unless!.column), 'is', null), eb(db.dynamic.ref(lines.unless!.column), 'not in', lines.unless!.in as never[])])))
     .orderBy(db.dynamic.ref(lineKey))
     .limit(MAX_CUSTOMS_LINES + 1)
     .execute()) as Row[];
@@ -340,6 +345,8 @@ export async function readGoods(
 export interface CustomsProblem {
   line?: string;
   field: 'lines' | 'description' | 'quantity' | 'unitValue' | 'currency' | 'originCountry' | 'weight';
+  /** Why, where the field alone would send a person to the wrong fix. */
+  reason?: 'refunded' | 'shop-currency' | 'no-line-weight';
 }
 
 export interface CustomsWarning {
@@ -366,16 +373,49 @@ export interface CustomsDraft {
   warnings: CustomsWarning[];
 }
 
+/** What a declaration needs of the order beyond its lines, read afresh each time it is built. */
+export interface OrderFacts {
+  /** The order's own currency, where the app keeps one. */
+  currency: unknown;
+  /** The database's currency as it stands now. */
+  shopCurrency: string | null;
+  /** Whether any money went back on this order. */
+  refunded: boolean;
+}
+
+/** Nothing refunded is an empty column or an exact zero. Anything else, an unreadable value too, is not a value to declare over. */
+function refundStands(value: unknown): boolean {
+  if (value === null) return false;
+  if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'bigint') return true;
+  return !/^0+(\.0+)?$/.test(String(value).trim());
+}
+
+export function orderFactsOf(columns: CustomsColumns, row: Row, shopCurrency: string | null): OrderFacts {
+  return {
+    currency: columns.currency === undefined ? undefined : row[columns.currency],
+    shopCurrency,
+    refunded: columns.refunded !== undefined && refundStands(row[columns.refunded]),
+  };
+}
+
 /**
  * The order's goods with the shop's defaults and a person's corrections on
  * them. A product's own code beats the shop's, and a correction beats both.
  */
-export function draftOf(goods: readonly GoodsLine[], settings: InternationalSettings, orderCurrency: unknown, to: Pick<Address, 'country'>, edits: CustomsChoice['edits'] = []): CustomsDraft {
-  const stated = textOf(orderCurrency)?.toUpperCase();
-  const currency = stated === undefined ? settings.currency : /^[A-Z]{3}$/.test(stated) ? stated : null;
-  const problems: CustomsProblem[] = currency === null ? [{ field: 'currency' }] : [];
+export function draftOf(goods: readonly GoodsLine[], settings: InternationalSettings, facts: OrderFacts, to: Pick<Address, 'country'>, edits: CustomsChoice['edits'] = []): CustomsDraft {
+  const stated = textOf(facts.currency)?.toUpperCase();
+  // With no currency of its own, an order is in the shop's: the one the database says now, never one remembered from an earlier save.
+  const shopMoved = stated === undefined && textOf(facts.shopCurrency)?.toUpperCase() !== settings.currency;
+  const currency = shopMoved ? null : stated === undefined ? settings.currency : /^[A-Z]{3}$/.test(stated) ? stated : null;
+  const problems: CustomsProblem[] = currency === null ? [{ field: 'currency', ...(shopMoved ? { reason: 'shop-currency' as const } : {}) }] : [];
+  // A refund is on the order, and splitting it across lines would be a guess.
+  if (facts.refunded) problems.push({ field: 'unitValue', reason: 'refunded' });
   const warnings: CustomsWarning[] = [];
   if (goods.length === 0) problems.push({ field: 'lines' });
+  // Lines with no SKU cannot be told apart, so each counts as its own product.
+  const products = new Set(goods.map((good) => (good.sku === undefined ? `line:${good.key}` : `sku:${good.sku}`)));
+  const shopCode = products.size > 1 ? undefined : settings.hsCode;
+  const weighed = goods.filter((good) => good.unitWeightKg !== null).length;
   const known = new Set(goods.map((line) => line.key));
   for (const edit of edits) if (!known.has(edit.line)) problems.push({ line: edit.line, field: 'lines' });
   const lines = goods.map((good): DeclaredLine => {
@@ -384,12 +424,14 @@ export function draftOf(goods: readonly GoodsLine[], settings: InternationalSett
     // The line's own name first: a shop-wide default over it would declare one product as another on a single tick.
     const description = edit?.description ?? good.description ?? settings.description ?? null;
     const editedHs = edit?.hsCode === undefined ? '' : hsDigits(edit.hsCode);
-    const hsCode = editedHs !== '' ? editedHs : (product?.hsCode ?? settings.hsCode);
+    const hsCode = editedHs !== '' ? editedHs : (product?.hsCode ?? shopCode);
     const manufacturerCode = edit?.manufacturerCode ?? product?.manufacturerCode;
     const originCountry = product?.originCountry ?? settings.originCountry;
     if (description === null) problems.push({ line: good.key, field: 'description' });
     if (good.quantity === null) problems.push({ line: good.key, field: 'quantity' });
     if (good.unitValue === null) problems.push({ line: good.key, field: 'unitValue' });
+    // Sharing the parcel's weight would replace the weights that are known.
+    if (good.unitWeightKg === null && weighed > 0) problems.push({ line: good.key, field: 'weight', reason: 'no-line-weight' });
     if (hsCode === undefined) warnings.push({ line: good.key, field: 'hsCode' });
     // Goods made outside the EU and sold into it: both codes, by the rule carriers now apply.
     if (EU_COUNTRIES.has(to.country) && !EU_COUNTRIES.has(originCountry)) {
@@ -412,8 +454,8 @@ export function draftOf(goods: readonly GoodsLine[], settings: InternationalSett
 }
 
 /**
- * Each unit's net weight in kg. Where the app keeps none, the parcel's weight
- * is shared across its units, rounded down so the lines never add up to more
+ * Each unit's net weight in kg. Where the app keeps none for any line, the
+ * parcel's weight is shared across its units, rounded down so the lines never add up to more
  * than the parcel. A parcel lighter than its goods is a wrong weight, and is
  * refused rather than declared.
  */
@@ -470,14 +512,14 @@ export function filingCodeFor(settings: InternationalSettings, from: Pick<Addres
 
 /**
  * The shop's numbers that belong on this parcel. An IOSS number covers goods
- * sold into the EU, up to 150 euros, so it stays off any other parcel and off
- * one in euros above that. No exchange rate is guessed for another currency.
+ * sold into the EU, up to 150 euros. No exchange rate is guessed, so a parcel
+ * in another currency, or with a value not known, states none.
  */
 export function exporterFor(settings: InternationalSettings, to: Pick<Address, 'country'>, draft: CustomsDraft): CustomsExporter | undefined {
   if (settings.exporter === undefined) return undefined;
   const { eori, ioss, taxId } = settings.exporter;
   const total = draft.currency === 'EUR' ? totalMillionths(draft.lines) : null;
-  const iossFits = ioss !== undefined && EU_COUNTRIES.has(to.country) && (draft.currency !== 'EUR' || (total !== null && total <= IOSS_CEILING));
+  const iossFits = ioss !== undefined && EU_COUNTRIES.has(to.country) && total !== null && total <= IOSS_CEILING;
   const out: CustomsExporter = { ...(eori === undefined ? {} : { eori }), ...(iossFits ? { ioss } : {}), ...(taxId === undefined ? {} : { taxId }) };
   return Object.keys(out).length === 0 ? undefined : out;
 }

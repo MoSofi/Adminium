@@ -170404,6 +170404,12 @@
                             }
                           ]
                         },
+                        "shopCurrency": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "codeListUrl": {
                           "type": [
                             "string",
@@ -170474,6 +170480,7 @@
                         "shipFromMissing",
                         "international",
                         "customs",
+                        "shopCurrency",
                         "codeListUrl",
                         "labelSize",
                         "limits"
@@ -170817,6 +170824,12 @@
                             }
                           ]
                         },
+                        "shopCurrency": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "codeListUrl": {
                           "type": [
                             "string",
@@ -170887,6 +170900,7 @@
                         "shipFromMissing",
                         "international",
                         "customs",
+                        "shopCurrency",
                         "codeListUrl",
                         "labelSize",
                         "limits"
@@ -171397,6 +171411,12 @@
                             }
                           ]
                         },
+                        "shopCurrency": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "codeListUrl": {
                           "type": [
                             "string",
@@ -171467,6 +171487,7 @@
                         "shipFromMissing",
                         "international",
                         "customs",
+                        "shopCurrency",
                         "codeListUrl",
                         "labelSize",
                         "limits"
@@ -174263,6 +174284,12 @@
                             }
                           ]
                         },
+                        "shopCurrency": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "codeListUrl": {
                           "type": [
                             "string",
@@ -174333,6 +174360,7 @@
                         "shipFromMissing",
                         "international",
                         "customs",
+                        "shopCurrency",
                         "codeListUrl",
                         "labelSize",
                         "limits"
@@ -174621,6 +174649,14 @@
                                       "currency",
                                       "originCountry",
                                       "weight"
+                                    ]
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                    "enum": [
+                                      "refunded",
+                                      "shop-currency",
+                                      "no-line-weight"
                                     ]
                                   }
                                 },
@@ -176511,6 +176547,12 @@
                             }
                           ]
                         },
+                        "shopCurrency": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "codeListUrl": {
                           "type": [
                             "string",
@@ -176581,6 +176623,7 @@
                         "shipFromMissing",
                         "international",
                         "customs",
+                        "shopCurrency",
                         "codeListUrl",
                         "labelSize",
                         "limits"
@@ -176937,6 +176980,12 @@
                             }
                           ]
                         },
+                        "shopCurrency": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "codeListUrl": {
                           "type": [
                             "string",
@@ -177007,6 +177056,7 @@
                         "shipFromMissing",
                         "international",
                         "customs",
+                        "shopCurrency",
                         "codeListUrl",
                         "labelSize",
                         "limits"
@@ -177395,6 +177445,12 @@
                             }
                           ]
                         },
+                        "shopCurrency": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "codeListUrl": {
                           "type": [
                             "string",
@@ -177465,6 +177521,7 @@
                         "shipFromMissing",
                         "international",
                         "customs",
+                        "shopCurrency",
                         "codeListUrl",
                         "labelSize",
                         "limits"
