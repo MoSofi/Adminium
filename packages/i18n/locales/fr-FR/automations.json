@@ -123,7 +123,9 @@
     "stopDesc": "Interrompre cette exécution ici",
     "document": "Générer un document",
     "digest": "Envoyer un récapitulatif à chacun",
-    "digestDesc": "Un e-mail par personne, avec ses propres lignes"
+    "digestDesc": "Un e-mail par personne, avec ses propres lignes",
+    "text": "Envoyer un SMS",
+    "textDesc": "Un SMS court, depuis un modèle de SMS"
   },
   "node": {
     "email": {
@@ -174,6 +176,10 @@
     },
     "digest": {
       "summary": "{template} · {count, plural, one {# section} other {# sections}}"
+    },
+    "text": {
+      "sub": "Modèle · à choisir",
+      "summary": "SMS · {template} → {to}"
     }
   },
   "event": {
@@ -564,5 +570,21 @@
     "budget": "Jusqu’à 50 recherches par jour pour les règles, sur chaque registre.",
     "pick": "Registres · en choisir un",
     "summary": "Champs vides depuis {registers}"
+  },
+  "text": {
+    "characters": "caractères",
+    "checked": "Le consentement, la liste « pas de SMS », les heures d’envoi et la limite du jour sont vérifiés au moment de l’envoi. Un SMS qui ne peut pas partir est ignoré, et l’exécution continue.",
+    "estimate": "estimation, pour un enregistrement d’exemple",
+    "fillWith": "Un texte, ou une colonne de l’enregistrement",
+    "noMoment": "Pas de moment précis : envoyer dès que les heures le permettent",
+    "noProvider": "Connectez d’abord un fournisseur dans SMS.",
+    "noTemplates": "Aucune application n’a encore installé de modèle de SMS.",
+    "notAfter": "Ne jamais envoyer après",
+    "openTexts": "Ouvrir SMS",
+    "segments": "segments",
+    "standard": "Standard",
+    "template": "Modèle de SMS",
+    "to": "Colonne du numéro de téléphone",
+    "unicode": "Unicode"
   }
 }

@@ -108,6 +108,11 @@ const PaymentsPageLazy = lazy(async () => {
   return { default: mod.PaymentsPage };
 });
 
+const TextsPageLazy = lazy(async () => {
+  const mod = await import('./texts/TextsPage.js');
+  return { default: mod.TextsPage };
+});
+
 const ShippingPageLazy = lazy(async () => {
   const mod = await import('./shipping/ShippingPage.js');
   return { default: mod.ShippingPage };
@@ -330,6 +335,7 @@ function SettingsRouteComponent() {
           onOpenStorage={() => void navigate({ to: '/studio/storage' })}
           onOpenPayments={() => void navigate({ to: '/studio/payments' })}
           onOpenShipping={() => void navigate({ to: '/studio/shipping' })}
+          onOpenTexts={() => void navigate({ to: '/studio/texts' })}
           onOpenLists={() => void navigate({ to: '/studio/lists' })}
           onOpenAddOns={() => void navigate({ to: '/studio/add-ons' })}
           onOpenDocuments={() => void navigate({ to: '/studio/documents' })}
@@ -465,6 +471,15 @@ function PaymentsRouteComponent() {
         <PaymentsPageLazy onOpenSettings={() => void navigate({ to: '/studio/settings' })} />
       </StudioBody>
     </StudioGuard>
+  );
+}
+
+function TextsRouteComponent() {
+  // No `StudioGuard`: the page gates on `sms.manage` (and a desk's `privacy.people`) itself, and tells anyone else who to ask.
+  return (
+    <StudioBody>
+      <TextsPageLazy />
+    </StudioBody>
   );
 }
 
@@ -698,6 +713,12 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     component: ShippingRouteComponent,
   });
 
+  const textsRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/studio/texts',
+    component: TextsRouteComponent,
+  });
+
   const addOnsRoute = createRoute({
     getParentRoute: () => parent,
     path: '/studio/add-ons',
@@ -725,6 +746,7 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     storageRoute,
     paymentsRoute,
     shippingRoute,
+    textsRoute,
     addOnsRoute,
     reviewRoute,
     remapRoute,

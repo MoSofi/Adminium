@@ -37,6 +37,7 @@ import {
   ListChecks,
   Mail,
   MapPinned,
+  MessageSquareText,
   ShieldCheck,
   Sparkles,
   TriangleAlert,
@@ -1680,6 +1681,8 @@ export interface StudioSettingsPageProps {
   onOpenPayments?: (() => void) | undefined;
   /** `/studio/shipping`: the carrier each app ships with, its key, label size and limits. */
   onOpenShipping?: (() => void) | undefined;
+  /** `/studio/texts`: the business's own text provider, templates, activity and the do-not-text list. */
+  onOpenTexts?: (() => void) | undefined;
   /** `/studio/documents`: which table a document is drawn from. */
   onOpenDocuments?: (() => void) | undefined;
   /** `/studio/public-api`. */
@@ -1742,6 +1745,7 @@ function StudioSettingsHub({
   onOpenDocuments,
   onOpenPayments,
   onOpenShipping,
+  onOpenTexts,
   onOpenPublicApi,
   onOpenProject,
   onOpenExport,
@@ -1938,6 +1942,17 @@ function StudioSettingsHub({
                 </button>
               ) : null
             }
+          />
+        ) : null}
+
+        {/* Texts (/studio/texts): every route behind it checks `sms.manage`, or a desk's `privacy.people`. */}
+        {(holds('sms.manage') || holds('privacy.people')) && onOpenTexts !== undefined ? (
+          <LinkRow
+            icon={<MessageSquareText />}
+            heading={t('studio:settingsHub.textsCard.heading', 'Texts')}
+            body={t('studio:settingsHub.textsCard.body', 'Send customers short texts from your own Twilio or Telnyx account.')}
+            cta={t('studio:settingsHub.textsCard.cta', 'Open texts')}
+            onOpen={onOpenTexts}
           />
         ) : null}
 

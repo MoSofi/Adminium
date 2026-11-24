@@ -2966,6 +2966,11 @@ export default {
       "body": "Vyberte dopravce, s nímž každá aplikace odesílá, připojte jeho klíč a nastavte velikost štítků a kdo je smí kupovat.",
       "cta": "Otevřít dopravu",
       "heading": "Doprava"
+    },
+    "textsCard": {
+      "body": "Posílejte zákazníkům krátké SMS z vlastního účtu Twilio nebo Telnyx.",
+      "cta": "Otevřít SMS",
+      "heading": "SMS"
     }
   },
   "source": {
@@ -6437,5 +6442,466 @@ export default {
       "subtitle": "{carrier} posílá každý sken dopravce na tento server.",
       "waiting": "Čeká se"
     }
+  },
+  "texts": {
+    "activity": {
+      "askOwner": "Požádejte vlastníka, aby to ověřil u poskytovatele {provider}.",
+      "calledAt": "Předáno v",
+      "clear": "Vymazat filtry",
+      "code": "Odpověď poskytovatele {provider}:",
+      "col": {
+        "about": "Týká se",
+        "number": "Číslo",
+        "price": "Cena",
+        "segments": "Segmenty",
+        "status": "Stav",
+        "when": "Kdy"
+      },
+      "confirmResend": "Nebyla odeslána. Odeslat znovu",
+      "confirmTitle": "Odeslat tuto SMS znovu?",
+      "declare": "Ověřeno u poskytovatele {provider}: tato SMS nebyla odeslána.",
+      "emptyBody": "Když aplikace nebo automatizace odešle SMS, objeví se zde.",
+      "emptyTitle": "Zatím žádné SMS",
+      "filter": {
+        "about": "Týká se",
+        "all": "Vše",
+        "code": "Předvolba země",
+        "status": "Stav"
+      },
+      "kind": "Druh",
+      "loading": "Načítají se SMS",
+      "marketing": "Marketing",
+      "noBody": "Samotná zpráva se neukládá, proto ji zde nelze zobrazit.",
+      "noMatch": "Těmto filtrům neodpovídá žádná SMS.",
+      "notSent": "Nebyla odeslána, odeslat znovu",
+      "openLog": "Otevřít protokol zpráv poskytovatele {provider}",
+      "provider": "Poskytovatel",
+      "rechecked": "Než odejde znovu, znovu se zkontroluje souhlas, seznam bez SMS, doba odesílání a dnešní limit. Přesto může být přeskočena.",
+      "reported": "hlášeno poskytovatelem",
+      "rule": "Automatizace",
+      "service": "Servisní",
+      "story": {
+        "handed": "Předáno poskytovateli {provider}",
+        "queued": "Ve frontě",
+        "retried": "Bezpečně zopakováno se stejným klíčem"
+      },
+      "text": "Text",
+      "twice": "Pokud to není pravda, dostane ji dotyčný dvakrát a firma zaplatí dvakrát.",
+      "unknownCount": "{count, plural, one {# SMS vyžaduje kontrolu} few {# SMS vyžadují kontrolu} many {# SMS vyžaduje kontrolu} other {# SMS vyžaduje kontrolu}}",
+      "viewOnly": "SMS zde můžete prohlížet. O vyřešení SMS nebo změnu nastavení požádejte vlastníka.",
+      "went": "Byla odeslána",
+      "whatHappened": "Co se stalo"
+    },
+    "askOwner": {
+      "body": "SMS nastavuje ten, kdo má oprávnění „Nastavit textové zprávy“.",
+      "title": "Požádejte vlastníka o změnu"
+    },
+    "cancel": "Zrušit",
+    "changed": {
+      "body": "SMS se teď budou účtovat na účet {account} místo na nyní připojený účet.",
+      "bodyNoName": "SMS se teď budou účtovat na jiný účet, než je nyní připojený.",
+      "confirm": "Účtovat na nový účet",
+      "kept": "Zatím se nic nezměnilo. Stávající klíč platí, dokud to nepotvrdíte. Odesílatel se vymaže, protože patří ke starému účtu.",
+      "title": "Toto je jiný účet"
+    },
+    "check": {
+      "bad": {
+        "line": "Zkopírujte klíč znovu z konzole poskytovatele.",
+        "title": "Poskytovatel tento klíč nepřijal"
+      },
+      "closed": {
+        "line": "Vyřešte to v konzoli poskytovatele a pak zkontrolujte znovu.",
+        "title": "Poskytovatel tento účet uzavřel nebo pozastavil"
+      },
+      "networkOff": {
+        "line": "Dokud se nezapnou, nelze se spojit s žádným poskytovatelem.",
+        "title": "Síťové funkce jsou na tomto serveru vypnuté"
+      },
+      "noSender": {
+        "line": "Přidejte v konzoli poskytovatele číslo nebo jméno odesílatele a pak ho zadejte sem.",
+        "title": "Připojeno, ale zatím nelze nic odeslat"
+      },
+      "operatorOff": {
+        "line": "Ten, kdo tento server provozuje, je vypnul.",
+        "title": "SMS jsou na tomto serveru vypnuté"
+      },
+      "profile": {
+        "line": "Zkopírujte ID profilu zpráv znovu z Telnyx.",
+        "title": "Tento profil zpráv nebyl nalezen"
+      },
+      "trial": {
+        "line": "Zkušební účet Twilio posílá jen vlastní šablony Twilio na ověřená čísla. Změňte ho v Twilio na placený účet a pak zkontrolujte znovu.",
+        "title": "Toto je zkušební účet"
+      },
+      "unreachable": {
+        "line": "Váš uložený klíč se nezměnil. Zkontrolujte připojení tohoto serveru k internetu a zkuste to znovu.",
+        "title": "Nepodařilo se spojit s poskytovatelem"
+      }
+    },
+    "close": "Zavřít",
+    "cn": {
+      "sentence": "Adminium neposílá SMS do pevninské Číny (+86). Žádný z poskytovatelů tam nemůže slíbit doručení, odpovědi ani fungující odhlášení. Tchaj-wanu a Hongkongu se to netýká."
+    },
+    "connect": {
+      "heading": "Připojte svého poskytovatele",
+      "sub": "Jeden účet u poskytovatele slouží celému tomuto serveru."
+    },
+    "connected": {
+      "badge": "Připojeno",
+      "badgeProblem": "Vyžaduje pozornost",
+      "checkAgain": "Zkontrolovat znovu",
+      "checkFirst": "Po vypršení časového limitu musíte před opětovným odesláním ověřit stav.",
+      "disconnect": "Odpojit",
+      "key": "Klíč",
+      "lastChecked": "Naposledy zkontrolováno",
+      "replace": "Nahradit klíč",
+      "sameKey": "Po vypršení časového limitu bezpečně opakuje, po dobu 24 hodin.",
+      "saved": "Uloženo",
+      "title": "Připojeno k účtu {account}",
+      "titleNoName": "Připojeno k poskytovateli {provider}",
+      "unreadable": "Uložený klíč už nelze otevřít",
+      "unreadableLine": "Tajný klíč tohoto serveru se změnil. Chcete-li posílat SMS, vložte klíč znovu."
+    },
+    "counter": {
+      "announce": "{count, plural, one {# segment} few {# segmenty} many {# segmentu} other {# segmentů}}",
+      "characters": "znaků",
+      "estimate": "odhad",
+      "left": "zbývá v tomto segmentu",
+      "segments": "segmentů",
+      "standard": "Standardní",
+      "tooLong": "Příliš dlouhá k odeslání. Zkraťte ji. SMS, která má víc segmentů než {count}, se nikdy neodešle.",
+      "unicode": "Unicode"
+    },
+    "countries": {
+      "col": {
+        "country": "Země",
+        "dial": "Předvolba",
+        "marketing": "Marketingové SMS",
+        "replies": "Odpovědi",
+        "sender": "Odesílatel",
+        "service": "Servisní SMS",
+        "stop": "Jak se příjemce odhlásí"
+      },
+      "heading": "Kam můžete posílat SMS",
+      "no": "Ne",
+      "search": "Hledat země",
+      "serviceOnly": "Jen servisní",
+      "stopReply": "Odpoví STOP",
+      "stopThroughYou": "Bez odpovědí, takže odhlášení jde přes vás",
+      "yes": "Ano"
+    },
+    "country": {
+      "AE": "Jen registrovaná jména odesílatele. V textu žádná čísla ani odkazy.",
+      "AU": "Neregistrovaná jména přicházejí s označením „Unverified“.",
+      "CA": "Žádná jména odesílatele. Použijte dlouhé číslo, ověřené bezplatné číslo nebo krátký kód.",
+      "CZ": "T-Mobile a O2 blokují neregistrovaná jména. Pro plné pokrytí se zaregistrujte.",
+      "EG": "Odpovědi nejsou podporovány.",
+      "ES": "Neregistrovaná jména odesílatele jsou blokována.",
+      "FR": "Zaregistrujte své jméno odesílatele. Zdroje se rozcházejí, proto to berte jako povinné.",
+      "HK": "Jména odesílatele vyžadují registraci. Odpovědi fungují.",
+      "IN": "Domácí trasa vyžaduje registraci DLT.",
+      "SA": "Jen registrovaná jména odesílatele. Místní saúdská firma potřebuje místního poskytovatele.",
+      "TW": "Každá SMS musí začínat názvem značky. Odkazy musí být na seznamu povolených.",
+      "US": "Registrace 10DLC nebo bezplatného čísla. SMS se neposílají, dokud není schválena. Může to trvat dny až týdny.",
+      "nameFree": "Jména odesílatele nevyžadují registraci."
+    },
+    "disconnect": {
+      "body": "SMS se okamžitě zastaví a klíče se z tohoto serveru smažou. SMS už předané poskytovateli {provider} se nezruší.",
+      "title": "Odpojit poskytovatele {provider}?",
+      "yes": "Odpojit a smazat klíče"
+    },
+    "editor": {
+      "addedForYou": "Přidáno za vás",
+      "back": "Všechny šablony",
+      "businessContact": "Telefon nebo e-mail pro odhlášení",
+      "businessContactHelp": "Pro náhled. SMS používají telefon aplikace nebo adresu pro odpověď vašeho odesílatele e-mailů.",
+      "businessName": "Název firmy",
+      "country": "Země",
+      "emptyChip": "prázdné",
+      "fallback": "Lidé s jazykem {language} to dostanou v angličtině.",
+      "insert": "Vložit",
+      "insertOne": "Vložit {name}",
+      "languages": "Jazyky",
+      "noReplies": "Tento server nemůže přijímat odpovědi STOP, proto každá SMS uvádí váš telefon nebo e-mail pro odhlášení.",
+      "optOutNote": "Započítává se do délky a nelze ho upravit. Je v angličtině, dokud nebudou přidány ostatní jazyky.",
+      "ownStop": "Vaše SMS sama obsahuje STOP, proto se nic nepřidává.",
+      "plain": "Použít jednoduchou verzi",
+      "preview": "Náhled",
+      "problem": {
+        "credential": "SMS nesmí obsahovat odkaz pro přihlášení, kód, odkaz na průzkum ani hodnotu QR: {names}",
+        "empty": "Nejdřív napište text.",
+        "missing": "Tato SMS se neodešle, dokud nebude mít hodnotu: {names}.",
+        "noContact": "Tento odesílatel nemůže přijmout odpověď STOP a není uveden telefon ani e-mail pro odhlášení, proto se SMS neodešle.",
+        "shortLink": "Veřejné zkrácené odkazy operátoři filtrují. Adminium nemá zkracovač odkazů, proto odkaz vynechte.",
+        "tooLong": "Příliš dlouhá k odeslání. Zkraťte ji.",
+        "yes": "Nežádejte lidi, aby odpověděli YES. Odpověď YES může u poskytovatele zrušit odhlášení. Požádejte lidi raději o souhlas ve formuláři."
+      },
+      "sampleBusiness": "Vaše firma",
+      "samples": "Ukázkové hodnoty pro náhled",
+      "saveEmpty": "Uložit jako prázdnou",
+      "sender": "Odesláno z",
+      "table": "Počítá se jako",
+      "tableCanada": "Kanada, dlouhé číslo",
+      "tableStandard": "Většina zemí",
+      "tableTollFree": "USA a Kanada, bezplatné číslo",
+      "taiwan": "Každá SMS musí začínat názvem značky.",
+      "undo": "Vrátit změny",
+      "unicode": "Kvůli tomuto znaku se SMS počítá jako Unicode:",
+      "whereTo": "Kam jde a od koho je",
+      "words": "Text"
+    },
+    "field": {
+      "accountSid": "Account SID",
+      "apiKey": "Klíč API",
+      "authToken": "Auth Token",
+      "authTokenHelp": "Odesílá SMS a ověřuje, že aktualizace opravdu přišly od Twilio.",
+      "profile": "ID profilu zpráv",
+      "publicKey": "Veřejný klíč",
+      "publicKeyHelp": "Slouží jen k ověření, že aktualizace opravdu přišly od Telnyx."
+    },
+    "intro": "Krátké zprávy pro vaše zákazníky, odeslané z vašeho vlastního účtu u poskytovatele. Adminium nikdy nevede účet ani nedrží peníze.",
+    "key": {
+      "billed": "SMS se odesílají a účtují na vašem účtu {provider}. Telefonní čísla zákazníků a text zpráv se posílají poskytovateli {provider} a operátorům.",
+      "checking": "Kontroluje se…",
+      "keep": "Ponechat stávající klíč",
+      "kept": "Uložený klíč se používá dál, dokud poskytovatel neodpoví."
+    },
+    "limits": {
+      "anyTime": "SMS, na které zákazník právě čeká, například „Váš pokoj je připraven“, mohou odejít kdykoli. Každá aplikace uvádí, které její SMS to jsou.",
+      "clock": "Doba pro servisní SMS se řídí časem firmy. SMS, která má odejít mimo ni, počká na nejbližší začátek a přeskočí se, pokud ten připadne až po jejím okamžiku.",
+      "from": "Servisní SMS od",
+      "heading": "Denní limit a doba odesílání",
+      "hoursBad": "Dva různé časy, například 08:00 a 21:00.",
+      "limit": "Nejvýše SMS za den",
+      "limitBad": "Celé číslo od 1 do 100 000.",
+      "marketing": "Marketingové SMS: 09:00–20:00, pondělí až sobota. Pevně dáno.",
+      "raise": "Zvýšit limit",
+      "reached": "Dnešní limit je vyčerpán. SMS čekají do zítřka, pokud dřív nemine jejich okamžik.",
+      "to": "Do",
+      "today": "Odesláno dnes",
+      "warnAt": "Upozornění začíná od {count}. Počet se nuluje o půlnoci, {zone}.",
+      "why": "Chrání to vaše vyúčtování u poskytovatele, pokud se automatizace pokazí."
+    },
+    "loadFailed": "Nepodařilo se načíst",
+    "noAccess": "Požádejte toho, kdo tento server provozuje, aby vám dal oprávnění „Nastavit textové zprávy“.",
+    "notAffiliated": "Adminium není spojeno s Twilio, Telnyx ani žádným operátorem.",
+    "paste": {
+      "empty": "Sem vložte hodnotu.",
+      "keySid": "Tato hodnota je API key SID. Sem vložte Account SID. Začíná AC.",
+      "notKey": "Tohle nevypadá jako klíč. Zkopírujte ho znovu.",
+      "notSid": "Toto není Account SID. Začíná AC.",
+      "profile": "Toto není ID profilu zpráv. Zkopírujte ho ze stránky profilu.",
+      "publicKey": "Toto není veřejný klíč. Zkopírujte ho ze stránky Public key.",
+      "sidInToken": "Tato hodnota je Account SID. Sem vložte Auth Token.",
+      "spaces": "Vložte ji bez čehokoli před ní a za ní."
+    },
+    "provider": {
+      "legend": "Váš poskytovatel",
+      "price": "Spojené státy, za segment: {price} plus poplatky operátorů. Ceny se mohou změnit.",
+      "telnyxLine": "Samoobslužně, může vyžadovat ověření totožnosti. Po vypršení časového limitu může bezpečně opakovat.",
+      "twilioLine": "Samoobslužně. Po vypršení časového limitu musíte před opětovným odesláním ověřit stav."
+    },
+    "reach": {
+      "heading": "Dostanou se odpovědi na tento server?",
+      "no": "Bez odpovědí",
+      "ok": "Odpovědi a doručenky se na tento server dostanou.",
+      "problem": "Tento server nemá veřejnou adresu https. Může posílat servisní SMS, ale nemůže přijímat odpovědi STOP ani doručenky. Marketingové SMS jsou vypnuté.",
+      "yes": "Odpovědi přicházejí"
+    },
+    "reason": {
+      "badNumber": "Neodesláno. Číslo nelze přečíst jako skutečné telefonní číslo.",
+      "cannotReceive": "Neodesláno. Toto číslo nemůže přijímat SMS.",
+      "countryNotEnabled": "Neodesláno. Váš účet u poskytovatele zatím nemůže posílat SMS do této země. Zapněte to v konzoli poskytovatele.",
+      "dailyLimit": "Neodesláno. Dnešní limit byl vyčerpán.",
+      "marketingCountry": "Neodesláno. Marketingové SMS nemohou jít do této země, protože lidé tam nemohou odpovědět STOP.",
+      "marketingName": "Neodesláno. Marketing nemůže jít ze jména odesílatele, protože to nemůže přijmout STOP.",
+      "missingValue": "Neodesláno. Zástupný symbol neměl hodnotu.",
+      "needsConfirm": "Neodesláno. V této zemi musí dotyčný nejdřív potvrdit souhlas.",
+      "noCn": "Neodesláno. Adminium neposílá SMS do pevninské Číny (+86).",
+      "noConsent": "Neodesláno. Tato osoba nesouhlasila se zasíláním SMS.",
+      "noDoor": "Neodesláno. Tento server nemůže přijímat STOP, proto jsou marketingové SMS vypnuté.",
+      "noLongerNeeded": "Neodesláno. To, čeho se týkala, bylo během čekání zrušeno.",
+      "noOptOut": "Neodesláno. Pro tohoto odesílatele nešlo uvést žádný způsob odhlášení. Přidejte telefon nebo e-mail firmy.",
+      "notConnected": "Neodesláno. Žádný funkční účet u poskytovatele ani odesílatel. Zkontrolujte Nastavení.",
+      "notReached": "Neodesláno. S poskytovatelem se nepodařilo spojit a nic nebylo předáno.",
+      "operatorOff": "Neodesláno. SMS jsou na tomto serveru vypnuté.",
+      "other": "Neodesláno. Poskytovatel ji odmítl.",
+      "sender": "Neodesláno. Poskytovatel odmítl odesílatele. Zkontrolujte ho v konzoli poskytovatele.",
+      "spendLimit": "Neodesláno. Byl dosažen limit útraty vašeho účtu u poskytovatele.",
+      "stopped": "Neodesláno. Tato osoba požádala, aby jí už SMS nechodily.",
+      "tooLate": "Neodesláno. Nejbližší doba odesílání připadá až po okamžiku, pro který byla SMS určena.",
+      "waitingRegistration": "Neodesláno. Vaše registrace pro tuto zemi stále čeká na vyřízení.",
+      "words": "Neodesláno. Šablonu nebo hodnotu v ní nelze odeslat jako SMS."
+    },
+    "registration": {
+      "between": "Registrace je věcí vaší firmy a poskytovatele {provider}. Adminium ji nemůže vidět, schválit ani urychlit.",
+      "heading": "Registrace",
+      "open": "Otevřít registraci u poskytovatele {provider}",
+      "sub": "Některé země vyžadují, aby se firma před posíláním SMS zaregistrovala.",
+      "unknown": "{provider} nám to pro vašeho odesílatele nesděluje. Zkontrolujte to tam.",
+      "us": "SMS do Spojených států se nedoručují, dokud není vaše registrace 10DLC nebo bezplatného čísla schválena. To může trvat dny až týdny."
+    },
+    "save": "Uložit",
+    "saveFailed": "Nepodařilo se uložit",
+    "sender": {
+      "badCountry": "Vyberte zemi ze seznamu.",
+      "badName": "Až 11 písmen, číslic a mezer, alespoň jedno písmeno.",
+      "badNumber": "Napište celé číslo, začínající + a předvolbou země.",
+      "badPool": "Vložte Messaging Service SID (MG…), nebo u Telnyx ID tohoto profilu.",
+      "contact": "Když SMS nemůže přijmout odpověď STOP, končí telefonním číslem aplikace nebo adresou pro odpověď vašeho odesílatele e-mailů, aby vás dotyčný mohl požádat o zastavení. Zaměstnanci to pak zapíšou do seznamu bez SMS.",
+      "country": "Země pro místní čísla",
+      "countryHelp": "Číslo napsané bez + se čte jako číslo z této země.",
+      "heading": "Od koho SMS přicházejí",
+      "kind": "Druh odesílatele",
+      "name": "Jméno odesílatele",
+      "nameLine": "Nemůže přijímat odpovědi, proto každá SMS uvádí váš telefon nebo e-mail pro odhlášení.",
+      "noCountry": "Žádná: jen čísla s +",
+      "number": "Číslo",
+      "numberLine": "Může přijímat odpovědi.",
+      "otherProfile": "Toto číslo je v jiném profilu zpráv. Přesuňte ho v Telnyx do tohoto profilu.",
+      "pool": "Služba zpráv nebo skupina čísel",
+      "poolLine": "Odpovědi závisí na odesílatelích v ní, proto SMS uvádějí váš telefon nebo e-mail pro odhlášení.",
+      "refused": "Tohoto odesílatele se nepodařilo uložit.",
+      "sub": "Číslo nebo jméno odesílatele z konzole vašeho poskytovatele. Adminium žádné nekupuje ani neregistruje."
+    },
+    "status": {
+      "checkedNotSent": "Ověřeno: nebyla odeslána",
+      "checkedWent": "Ověřeno: byla odeslána",
+      "delivered": "Doručeno",
+      "failed": "Selhalo",
+      "notSent": "Neodesláno",
+      "sent": "Předáno poskytovateli",
+      "skipped": "Přeskočeno",
+      "undelivered": "Nedoručeno",
+      "unknown": "Neznámé, před opětovným odesláním ověřte",
+      "waiting": "Čeká"
+    },
+    "statusLine": {
+      "checkedNotSent": "Někdo ověřil u poskytovatele, že nebyla odeslána. Aplikace ji může odeslat znovu, až znovu proběhnou všechny kontroly.",
+      "checkedWent": "Někdo ověřil u poskytovatele, že byla odeslána.",
+      "delivered": "Poskytovatel hlásí, že dorazila do telefonu.",
+      "failed": "Nebyla odeslána. Důvod níže říká, co opravit.",
+      "notSent": "Poskytovateli určitě nebyla předána.",
+      "sent": "Poskytovatel {provider} ji převzal. Zatím není známo, zda dorazila do telefonu.",
+      "skipped": "Pravidlo ji zastavilo dřív, než se cokoli odeslalo.",
+      "undelivered": "Operátor ji nemohl doručit. Před dalším odesláním si ověřte číslo u dotyčného.",
+      "unknown": "Od poskytovatele {provider} nepřišla odpověď. Tuto SMS možná odeslal. Adminium ji samo znovu neodešle.",
+      "waiting": "Ve frontě. Odejde, až začne doba odesílání a dnešní limit bude mít volno."
+    },
+    "steps": {
+      "check": "Zkontrolovat připojení",
+      "checkLine": "Klíč se před uložením ověří u poskytovatele.",
+      "openConsole": "Otevřít konzoli",
+      "openPortal": "Otevřít portál",
+      "openTelnyx": "Otevřít Telnyx",
+      "openTwilio": "Otevřít Twilio",
+      "paste": "Vložte je níže",
+      "pasteLine": "Každou hodnotu zvlášť, bez čehokoli před ní a za ní.",
+      "telnyx": {
+        "account": "Založte si účet Telnyx",
+        "accountLine": "Samoobslužně. Telnyx může vyžadovat ověření totožnosti.",
+        "keys": "Vytvořte klíč API a zkopírujte veřejný klíč",
+        "keysLine": "Obojí najdete v portálu Telnyx v části Auth.",
+        "profile": "Zkopírujte ID svého profilu zpráv",
+        "profileLine": "Profil, který obsahuje čísla, ze kterých posíláte."
+      },
+      "twilio": {
+        "account": "Založte si placený účet Twilio",
+        "accountLine": "Zkušební účet tyto SMS odesílat nemůže.",
+        "keys": "Zkopírujte Account SID a Auth Token",
+        "keysLine": "Obojí je na domovské stránce konzole v části Account info."
+      }
+    },
+    "stop": {
+      "added": "SMS na toto číslo jsou zastavené.",
+      "already": "Toto číslo už na seznamu je.",
+      "badNumber": "Toto není telefonní číslo, na které lze poslat SMS. Napište ho s + a předvolbou země.",
+      "col": {
+        "actions": "Akce",
+        "from": "Odkud",
+        "number": "Číslo",
+        "when": "Kdy",
+        "why": "Proč"
+      },
+      "confirmSent": "Odešlo jedno prosté potvrzení, bez otázky a bez nabídky.",
+      "count": "{count, plural, one {# záznam} few {# záznamy} many {# záznamu} other {# záznamů}}",
+      "empty": "Na seznamu zatím nikdo není.",
+      "erased": "Vymazaná osoba, ponechaná, aby jí už nikdy nepřišla SMS",
+      "from": {
+        "email": "Žádost e-mailem. Zapsáno: {name}",
+        "erased": "Vymazáno na žádost",
+        "inPerson": "Žádost osobně. Zapsáno: {name}",
+        "phone": "Žádost telefonicky. Zapsáno: {name}",
+        "provider": "Poskytovatel {provider} nahlásil odhlášení",
+        "reply": "Odpověď STOP na SMS"
+      },
+      "how": "Způsob žádosti",
+      "asked": {
+        "email": "E-mailem",
+        "inPerson": "Osobně",
+        "phone": "Telefonicky"
+      },
+      "line": "Nikdo z tohoto seznamu nedostane od této firmy žádnou SMS, ani servisní.",
+      "noConfirm": "Bez potvrzení přes SMS, protože tato osoba požádala firmu přímo.",
+      "noMatch": "Žádný záznam neodpovídá.",
+      "number": "Telefonní číslo",
+      "record": "Zapsat žádost o zastavení",
+      "recordWhy": "Pro někoho, kdo vás jinak než přes SMS požádal, aby mu SMS už nechodily. Na SMS od jména odesílatele nelze odpovědět STOP, takže se odhlásí takto.",
+      "recordedBy": "Zapíše se pod vaším jménem. Platí okamžitě pro každou SMS od této firmy.",
+      "remove": "Odebrat",
+      "removeBody": "Jen pokud tato osoba znovu souhlasila se zasíláním SMS. Odebráním se nezaznamená souhlas: dál dostane jen SMS, se kterými souhlasila.",
+      "removeTitle": "Odebrat toto číslo ze seznamu?",
+      "save": "Zastavit SMS na toto číslo",
+      "search": "Hledat čísla",
+      "start": "Odpověď START zruší blokaci u poskytovatele a odebere číslo z tohoto seznamu, ale neznamená souhlas. Dotyčný musí před jakoukoli SMS znovu souhlasit.",
+      "why": {
+        "erased": "Vymazaná osoba",
+        "hand": "Žádost u firmy",
+        "provider": "Nahlášeno poskytovatelem",
+        "reply": "Odpověď STOP"
+      },
+      "whyAny": "Důvod: jakýkoli"
+    },
+    "tab": {
+      "activity": "Aktivita",
+      "setup": "Nastavení",
+      "stop": "Seznam bez SMS",
+      "templates": "Šablony"
+    },
+    "templates": {
+      "col": {
+        "app": "Aplikace",
+        "languages": "Jazyky",
+        "name": "Šablona",
+        "segments": "Nejvíc segmentů"
+      },
+      "emptyBody": "Aplikace, které posílají SMS, mají vlastní šablony. Nainstalujte některou na stránce aplikací a její šablony se tu objeví k úpravě.",
+      "emptyTitle": "Žádná aplikace zatím nenainstalovala šablonu SMS",
+      "languagesOf": "{count} z {total}",
+      "notConnected": "Není připojen žádný poskytovatel, takže tyto šablony zatím nic neposílají.",
+      "openApps": "Otevřít doplňky a aplikace",
+      "openSetup": "Otevřít Nastavení",
+      "segmentsNote": "Segmenty se počítají se zástupnými hodnotami a řádkem pro odhlášení. Vlastní hodnoty každého zákazníka to mohou změnit."
+    },
+    "test": {
+      "cost": "Použije se váš účet u poskytovatele a může to stát malý poplatek.",
+      "fixed": "Testovací SMS má vždy tento text, takže toto tlačítko nemůže poslat nic jiného.",
+      "limited": "Příliš mnoho testovacích SMS. Zkuste to znovu za pár minut.",
+      "message": "Testovací SMS",
+      "notReady": "Nejdřív připojte poskytovatele a vyberte odesílatele.",
+      "notTaken": "Neodesláno",
+      "open": "Odeslat testovací SMS",
+      "refused": "Neodesláno",
+      "send": "Odeslat test",
+      "sending": "Odesílá se…",
+      "sent": "Předáno poskytovateli {provider}",
+      "sentLine": "Testovací SMS zde nedostane doručenku, takže se podívejte do telefonu. S testovacím klíčem se nic nedoručí.",
+      "sub": "Jedna pevně daná SMS na telefon, který máte u sebe.",
+      "title": "Odeslat testovací SMS",
+      "to": "Telefonní číslo",
+      "toHelp": "S + a předvolbou země, nebo místní číslo země nastavené výše.",
+      "unknownLine": "Od poskytovatele {provider} nepřišla odpověď. Než pošlete další, podívejte se do jeho protokolu zpráv."
+    },
+    "title": "SMS"
   }
 } as const;

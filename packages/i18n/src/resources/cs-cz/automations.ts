@@ -133,7 +133,9 @@ export default {
     "stopDesc": "Ukončit tento běh zde",
     "document": "Vytvořit dokument",
     "digest": "Poslat každému souhrn",
-    "digestDesc": "Každému jeden e-mail s jeho řádky"
+    "digestDesc": "Každému jeden e-mail s jeho řádky",
+    "text": "Odeslat SMS",
+    "textDesc": "Krátká SMS ze šablony SMS"
   },
   "node": {
     "email": {
@@ -184,6 +186,10 @@ export default {
     },
     "digest": {
       "summary": "{template} · {count, plural, one {# oddíl} few {# oddíly} many {# oddílu} other {# oddílů}}"
+    },
+    "text": {
+      "sub": "Šablona · vyberte",
+      "summary": "SMS · {template} → {to}"
     }
   },
   "event": {
@@ -574,5 +580,21 @@ export default {
     "budget": "Pravidla smí denně hledat nejvýše 50krát v každém rejstříku.",
     "pick": "Rejstříky · vyberte jeden",
     "summary": "Prázdné údaje z {registers}"
+  },
+  "text": {
+    "characters": "znaků",
+    "checked": "Při odesílání se kontroluje souhlas, seznam bez SMS, doba odesílání a dnešní limit. SMS, která nesmí odejít, se přeskočí a běh pokračuje.",
+    "estimate": "odhad pro ukázkový záznam",
+    "fillWith": "Text, nebo sloupec záznamu",
+    "noMoment": "Bez okamžiku: odeslat, kdykoli to doba odesílání dovolí",
+    "noProvider": "Nejdřív připojte poskytovatele v části SMS.",
+    "noTemplates": "Žádná aplikace zatím nenainstalovala šablonu SMS.",
+    "notAfter": "Nikdy neodesílat po",
+    "openTexts": "Otevřít SMS",
+    "segments": "segmentů",
+    "standard": "Standardní",
+    "template": "Šablona SMS",
+    "to": "Sloupec s telefonním číslem",
+    "unicode": "Unicode"
   }
 } as const;

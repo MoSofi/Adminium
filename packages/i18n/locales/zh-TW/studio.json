@@ -2956,6 +2956,11 @@
       "body": "選擇每個應用程式使用的貨運業者，連接它的金鑰，並設定標籤尺寸以及誰可以購買標籤。",
       "cta": "開啟寄送設定",
       "heading": "寄送"
+    },
+    "textsCard": {
+      "body": "用你自己的 Twilio 或 Telnyx 帳戶，傳送簡短的簡訊給顧客。",
+      "cta": "開啟簡訊",
+      "heading": "簡訊"
     }
   },
   "source": {
@@ -6427,5 +6432,466 @@
       "subtitle": "{carrier} 會把貨運業者的每次掃描傳送到這台伺服器。",
       "waiting": "等待中"
     }
+  },
+  "texts": {
+    "activity": {
+      "askOwner": "請擁有者向 {provider} 確認這件事。",
+      "calledAt": "交付時間",
+      "clear": "清除篩選條件",
+      "code": "{provider} 回覆：",
+      "col": {
+        "about": "事由",
+        "number": "號碼",
+        "price": "價格",
+        "segments": "段數",
+        "status": "狀態",
+        "when": "時間"
+      },
+      "confirmResend": "沒有送出，再傳送一次",
+      "confirmTitle": "要再傳送一次這則簡訊嗎？",
+      "declare": "我已在 {provider} 確認，這則簡訊沒有送出。",
+      "emptyBody": "應用程式或自動化傳送簡訊後，會顯示在這裡。",
+      "emptyTitle": "還沒有簡訊",
+      "filter": {
+        "about": "事由",
+        "all": "全部",
+        "code": "國碼",
+        "status": "狀態"
+      },
+      "kind": "類型",
+      "loading": "正在載入簡訊",
+      "marketing": "行銷",
+      "noBody": "簡訊內容本身不會保留，因此無法在這裡顯示。",
+      "noMatch": "沒有符合這些篩選條件的簡訊。",
+      "notSent": "沒有送出，再傳送一次",
+      "openLog": "開啟 {provider} 的訊息記錄",
+      "provider": "服務商",
+      "rechecked": "再次傳送前，會重新檢查同意、簡訊拒收名單、傳送時段和今日上限。它仍可能被略過。",
+      "reported": "由服務商回報",
+      "rule": "自動化",
+      "service": "服務",
+      "story": {
+        "handed": "已交給 {provider}",
+        "queued": "已排入佇列",
+        "retried": "以同一個金鑰安全重試"
+      },
+      "text": "簡訊",
+      "twice": "如果判斷錯了，對方會收到兩次，商家也要付兩次費用。",
+      "unknownCount": "{count, plural, other {# 則簡訊需要確認}}",
+      "viewOnly": "你可以在這裡查看簡訊。要處理某則簡訊或變更設定，請洽擁有者。",
+      "went": "已送出",
+      "whatHappened": "發生了什麼"
+    },
+    "askOwner": {
+      "body": "簡訊由擁有「設定簡訊」權限的人設定。",
+      "title": "請擁有者變更此設定"
+    },
+    "cancel": "取消",
+    "changed": {
+      "body": "簡訊今後將向 {account} 收費，而不是目前連接的帳戶。",
+      "bodyNoName": "簡訊今後將向另一個帳戶收費，而不是目前連接的帳戶。",
+      "confirm": "向新帳戶收費",
+      "kept": "目前還沒有任何變動。在你確認之前，目前的金鑰繼續有效。傳送者已清除，因為它屬於舊帳戶。",
+      "title": "這是另一個帳戶"
+    },
+    "check": {
+      "bad": {
+        "line": "請重新從服務商的主控台複製金鑰。",
+        "title": "服務商不接受這個金鑰"
+      },
+      "closed": {
+        "line": "請在服務商的主控台處理後，再檢查一次。",
+        "title": "服務商已關閉或暫停此帳戶"
+      },
+      "networkOff": {
+        "line": "在開啟這些功能之前，無法連到任何服務商。",
+        "title": "這台伺服器已關閉網路功能"
+      },
+      "noSender": {
+        "line": "請在服務商的主控台新增號碼或傳送者名稱，然後在這裡輸入。",
+        "title": "已連接，但還無法傳送"
+      },
+      "operatorOff": {
+        "line": "營運這台伺服器的人已將其關閉。",
+        "title": "這台伺服器已關閉簡訊"
+      },
+      "profile": {
+        "line": "請重新從 Telnyx 複製訊息設定檔 ID。",
+        "title": "找不到這個訊息設定檔"
+      },
+      "trial": {
+        "line": "Twilio 試用帳戶只能傳送 Twilio 自己的範本給已驗證的號碼。請在 Twilio 中改為付費帳戶，再檢查一次。",
+        "title": "這是試用帳戶"
+      },
+      "unreachable": {
+        "line": "已儲存的金鑰沒有變動。請檢查這台伺服器的網路連線後再試一次。",
+        "title": "無法連到服務商"
+      }
+    },
+    "close": "關閉",
+    "cn": {
+      "sentence": "Adminium 不傳送簡訊至中國大陸（+86）。兩家服務商都無法保證在當地的送達、回覆或有效退訂。臺灣和香港不受影響。"
+    },
+    "connect": {
+      "heading": "連接你的服務商",
+      "sub": "一個服務商帳戶供整台伺服器使用。"
+    },
+    "connected": {
+      "badge": "已連接",
+      "badgeProblem": "需要檢查",
+      "checkAgain": "再次檢查",
+      "checkFirst": "逾時後，需先確認再重新傳送。",
+      "disconnect": "中斷連接",
+      "key": "金鑰",
+      "lastChecked": "上次檢查",
+      "replace": "替換金鑰",
+      "sameKey": "逾時後 24 小時內可安全重試。",
+      "saved": "已儲存",
+      "title": "已連接到 {account}",
+      "titleNoName": "已連接到 {provider}",
+      "unreadable": "已儲存的金鑰無法再開啟",
+      "unreadableLine": "這台伺服器的密鑰已變更。請重新貼上金鑰才能傳送簡訊。"
+    },
+    "counter": {
+      "announce": "{count, plural, other {# 段}}",
+      "characters": "個字元",
+      "estimate": "估計值",
+      "left": "此段剩餘",
+      "segments": "段",
+      "standard": "標準",
+      "tooLong": "太長，無法傳送。請縮短。超過 {count} 段的簡訊一律不會傳送。",
+      "unicode": "Unicode"
+    },
+    "countries": {
+      "col": {
+        "country": "國家或地區",
+        "dial": "國碼",
+        "marketing": "行銷簡訊",
+        "replies": "回覆",
+        "sender": "傳送者",
+        "service": "服務簡訊",
+        "stop": "對方如何退訂"
+      },
+      "heading": "可以傳送簡訊的地區",
+      "no": "否",
+      "search": "搜尋國家或地區",
+      "serviceOnly": "僅限服務簡訊",
+      "stopReply": "回覆 STOP",
+      "stopThroughYou": "無法回覆，因此由你處理退訂",
+      "yes": "是"
+    },
+    "country": {
+      "AE": "僅限已登記的傳送者名稱。簡訊中不可有號碼或連結。",
+      "AU": "未登記的名稱送達時會標示為「Unverified」。",
+      "CA": "不支援傳送者名稱。請使用長號碼、已驗證的免付費號碼或短碼。",
+      "CZ": "T-Mobile 和 O2 會封鎖未登記的名稱。登記後才能完整涵蓋。",
+      "EG": "不支援回覆。",
+      "ES": "未登記的傳送者名稱會被封鎖。",
+      "FR": "請登記你的傳送者名稱。各方說法不一，請視為必要。",
+      "HK": "傳送者名稱需要登記。可以回覆。",
+      "IN": "國內路由需要 DLT 登記。",
+      "SA": "僅限已登記的傳送者名稱。沙烏地阿拉伯當地的企業需要使用當地的服務商。",
+      "TW": "每則簡訊開頭必須是品牌名稱。連結需要加入允許清單。",
+      "US": "需要 10DLC 或免付費號碼登記。核准之前不會傳送簡訊，可能需要數天到數週。",
+      "nameFree": "傳送者名稱無需登記。"
+    },
+    "disconnect": {
+      "body": "簡訊會立即停止，金鑰也會從這台伺服器刪除。已交給 {provider} 的簡訊不會被撤回。",
+      "title": "要中斷與 {provider} 的連接嗎？",
+      "yes": "中斷連接並刪除金鑰"
+    },
+    "editor": {
+      "addedForYou": "已為你加上",
+      "back": "所有範本",
+      "businessContact": "用於退訂的電話或電子郵件",
+      "businessContactHelp": "用於預覽。簡訊會使用應用程式的電話，或你電子郵件寄件者的回覆地址。",
+      "businessName": "商家名稱",
+      "country": "國家或地區",
+      "emptyChip": "空白",
+      "fallback": "使用{language}的人會收到英文版本。",
+      "insert": "插入",
+      "insertOne": "插入 {name}",
+      "languages": "語言",
+      "noReplies": "這台伺服器無法接收 STOP 回覆，因此每則簡訊都會附上你的退訂電話或電子郵件。",
+      "optOutNote": "這段文字計入長度，且無法編輯。在加入其他語言之前，它會以英文顯示。",
+      "ownStop": "你的簡訊已自行寫明 STOP，因此不會另外加上。",
+      "plain": "使用簡單版本",
+      "preview": "預覽",
+      "problem": {
+        "credential": "簡訊不能包含登入連結、驗證碼、問卷連結或 QR 值：{names}",
+        "empty": "請先撰寫簡訊。",
+        "missing": "在 {names} 有值之前，這則簡訊不會傳送。",
+        "noContact": "這個傳送者無法接收 STOP 回覆，也沒有提供退訂用的電話或電子郵件，因此不會傳送。",
+        "shortLink": "公開短網址會被電信業者過濾。Adminium 沒有縮網址功能，請不要放入連結。",
+        "tooLong": "太長，無法傳送。請縮短。",
+        "yes": "不要請對方回覆 YES。回覆 YES 可能會解除服務商端的退訂。請改用表單取得對方同意。"
+      },
+      "sampleBusiness": "你的商家",
+      "samples": "預覽用的範例值",
+      "saveEmpty": "儲存為空白",
+      "sender": "傳送自",
+      "table": "計算方式",
+      "tableCanada": "加拿大，長號碼",
+      "tableStandard": "大多數國家",
+      "tableTollFree": "美國和加拿大，免付費號碼",
+      "taiwan": "每則簡訊開頭必須是品牌名稱。",
+      "undo": "復原變更",
+      "unicode": "這個字元以 Unicode 計費：",
+      "whereTo": "傳送對象與傳送者",
+      "words": "簡訊內容"
+    },
+    "field": {
+      "accountSid": "Account SID",
+      "apiKey": "API 金鑰",
+      "authToken": "Auth Token",
+      "authTokenHelp": "用於傳送簡訊，並確認更新確實來自 Twilio。",
+      "profile": "訊息設定檔 ID",
+      "publicKey": "公開金鑰",
+      "publicKeyHelp": "只用於確認更新確實來自 Telnyx。"
+    },
+    "intro": "用你自己的服務商帳戶，傳送簡短訊息給顧客。Adminium 從不持有帳戶或款項。",
+    "key": {
+      "billed": "簡訊透過你的 {provider} 帳戶傳送並計費。顧客的電話號碼和簡訊內容會傳送給 {provider} 和電信業者。",
+      "checking": "檢查中…",
+      "keep": "保留目前的金鑰",
+      "kept": "在服務商回應之前，已儲存的金鑰繼續使用。"
+    },
+    "limits": {
+      "anyTime": "顧客正在等候的簡訊，例如「你的房間已準備好」，可以隨時傳送。每個應用程式會說明哪些簡訊屬於這一類。",
+      "clock": "服務時段以商家的時區為準。在時段外到期的簡訊會等到下一個時段開始；如果那時已超過它的指定時刻，就會略過。",
+      "from": "服務簡訊傳送時間：從",
+      "heading": "每日上限與傳送時段",
+      "hoursBad": "請輸入兩個不同的時間，例如 08:00 和 21:00。",
+      "limit": "每日最多簡訊數",
+      "limitBad": "請輸入 1 到 100,000 的整數。",
+      "marketing": "行銷簡訊：週一至週六 09:00–20:00。固定不變。",
+      "raise": "提高上限",
+      "reached": "已達今日上限。簡訊會等到明天，除非指定時刻先過了。",
+      "to": "至",
+      "today": "今日已傳送",
+      "warnAt": "達到 {count} 時開始警告。計數在 {zone} 時間午夜歸零。",
+      "why": "如果自動化出錯，這能保護你的服務商帳單。"
+    },
+    "loadFailed": "無法載入",
+    "noAccess": "請讓營運這台伺服器的人授予你「設定簡訊」權限。",
+    "notAffiliated": "Adminium 與 Twilio、Telnyx 及任何電信業者皆無關聯。",
+    "paste": {
+      "empty": "請在這裡貼上一個值。",
+      "keySid": "這個值是 API key SID。請在這裡貼上 Account SID，它以 AC 開頭。",
+      "notKey": "這看起來不像金鑰。請重新複製。",
+      "notSid": "這不是 Account SID。Account SID 以 AC 開頭。",
+      "profile": "這不是訊息設定檔 ID。請從該設定檔的頁面複製。",
+      "publicKey": "這不是公開金鑰。請從 Public key 頁面複製。",
+      "sidInToken": "這個值是 Account SID。請在這裡貼上 Auth Token。",
+      "spaces": "貼上時，前後不要帶任何字元。"
+    },
+    "provider": {
+      "legend": "你的服務商",
+      "price": "美國，每段：{price}，另加電信業者費用。價格可能變動。",
+      "telnyxLine": "自助申請，可能要求身分驗證。逾時後可安全重試。",
+      "twilioLine": "自助申請。逾時後，需先確認再重新傳送。"
+    },
+    "reach": {
+      "heading": "回覆能送達這台伺服器嗎？",
+      "no": "無法接收回覆",
+      "ok": "回覆和送達回報可以送達這台伺服器。",
+      "problem": "這台伺服器沒有公開的 https 網址。它可以傳送服務簡訊，但無法接收 STOP 回覆或送達回報。行銷簡訊已關閉。",
+      "yes": "可接收回覆"
+    },
+    "reason": {
+      "badNumber": "未傳送。無法將此號碼辨識為有效的電話號碼。",
+      "cannotReceive": "未傳送。此號碼無法接收簡訊。",
+      "countryNotEnabled": "未傳送。你的服務商帳戶還無法傳送簡訊到這個國家或地區。請在服務商的主控台開啟。",
+      "dailyLimit": "未傳送。已達今日上限。",
+      "marketingCountry": "未傳送。行銷簡訊無法傳送到這個國家或地區，因為當地的人無法回覆 STOP。",
+      "marketingName": "未傳送。行銷簡訊不能從傳送者名稱發出，因為它無法接收 STOP。",
+      "missingValue": "未傳送。有一個預留位置沒有值。",
+      "needsConfirm": "未傳送。這個國家或地區需要對方先確認。",
+      "noCn": "未傳送。Adminium 不傳送簡訊至中國大陸（+86）。",
+      "noConsent": "未傳送。此人尚未同意接收簡訊。",
+      "noDoor": "未傳送。這台伺服器無法接收 STOP，因此行銷簡訊已關閉。",
+      "noLongerNeeded": "未傳送。等待期間，相關事項已取消。",
+      "noOptOut": "未傳送。無法為此傳送者提供退訂方式。請加入商家的電話或電子郵件。",
+      "notConnected": "未傳送。沒有可用的服務商帳戶或傳送者。請檢查「設定」。",
+      "notReached": "未傳送。無法連到服務商，沒有交出任何內容。",
+      "operatorOff": "未傳送。這台伺服器已關閉簡訊。",
+      "other": "未傳送。服務商拒絕了它。",
+      "sender": "未傳送。服務商拒絕了此傳送者。請在服務商的主控台檢查。",
+      "spendLimit": "未傳送。已達你服務商帳戶的支出上限。",
+      "stopped": "未傳送。此人已要求不再接收簡訊。",
+      "tooLate": "未傳送。下一個傳送時段晚於這則簡訊的指定時刻。",
+      "waitingRegistration": "未傳送。你在這個國家或地區的登記仍在等待審核。",
+      "words": "未傳送。範本或其中的某個值無法以簡訊傳送。"
+    },
+    "registration": {
+      "between": "登記是你的商家與 {provider} 之間的事。Adminium 無法查看、核准或加快登記。",
+      "heading": "登記",
+      "open": "在 {provider} 中開啟登記",
+      "sub": "有些國家要求商家先登記，才能在當地傳送簡訊。",
+      "unknown": "{provider} 沒有提供你的傳送者的這項資訊。請到那裡查看。",
+      "us": "在你的 10DLC 或免付費號碼登記獲得核准之前，傳往美國的簡訊不會送達。這可能需要數天到數週。"
+    },
+    "save": "儲存",
+    "saveFailed": "無法儲存",
+    "sender": {
+      "badCountry": "請從清單中選擇國家或地區。",
+      "badName": "最多 11 個字母、數字和空格，至少要有一個字母。",
+      "badNumber": "請寫出完整號碼，以 + 和國碼開頭。",
+      "badPool": "請貼上 Messaging Service SID（MG…）；若是 Telnyx，則貼上此設定檔的 ID。",
+      "contact": "當簡訊無法接收 STOP 回覆時，結尾會附上應用程式的電話號碼，或你電子郵件寄件者的回覆地址，讓對方可以要求你停止。員工再將其記錄到簡訊拒收名單。",
+      "country": "本地號碼所屬國家或地區",
+      "countryHelp": "沒有 + 的號碼會視為這裡的號碼。",
+      "heading": "簡訊的傳送者",
+      "kind": "傳送者類型",
+      "name": "傳送者名稱",
+      "nameLine": "無法接收回覆，因此每則簡訊會附上你的退訂電話或電子郵件。",
+      "noCountry": "無：只接受帶 + 的號碼",
+      "number": "號碼",
+      "numberLine": "可以接收回覆。",
+      "otherProfile": "這個號碼在另一個訊息設定檔上。請在 Telnyx 中把它移到這個設定檔。",
+      "pool": "訊息服務或號碼池",
+      "poolLine": "能否回覆取決於其中的傳送者，因此簡訊會附上你的退訂電話或電子郵件。",
+      "refused": "無法儲存這個傳送者。",
+      "sub": "來自服務商主控台的號碼或傳送者名稱。Adminium 不購買號碼，也不代為登記。"
+    },
+    "status": {
+      "checkedNotSent": "已確認：沒有送出",
+      "checkedWent": "已確認：已送出",
+      "delivered": "已送達",
+      "failed": "失敗",
+      "notSent": "未傳送",
+      "sent": "已交給服務商",
+      "skipped": "已略過",
+      "undelivered": "未送達",
+      "unknown": "不明，重新傳送前請先確認",
+      "waiting": "等待中"
+    },
+    "statusLine": {
+      "checkedNotSent": "有人已向服務商確認：沒有送出。應用程式可能會再次傳送，但所有檢查都會重新執行。",
+      "checkedWent": "有人已向服務商確認：已送出。",
+      "delivered": "服務商回報已送達手機。",
+      "failed": "沒有送出。下方的原因說明需要修正什麼。",
+      "notSent": "確定沒有交給服務商。",
+      "sent": "{provider} 已接收。目前還不知道是否已送達手機。",
+      "skipped": "在傳送任何內容之前，一條規則攔下了它。",
+      "undelivered": "電信業者無法送達。再次傳送前，請先向對方確認號碼。",
+      "unknown": "{provider} 沒有回應。它可能已傳送這則簡訊。Adminium 不會自行再次傳送。",
+      "waiting": "已排入佇列。在傳送時段開始且今日上限還有空間時傳送。"
+    },
+    "steps": {
+      "check": "檢查連線",
+      "checkLine": "儲存金鑰前，會先向服務商確認。",
+      "openConsole": "開啟主控台",
+      "openPortal": "開啟入口網站",
+      "openTelnyx": "開啟 Telnyx",
+      "openTwilio": "開啟 Twilio",
+      "paste": "貼到下方",
+      "pasteLine": "每個值分開貼上，前後不要帶任何字元。",
+      "telnyx": {
+        "account": "開設 Telnyx 帳戶",
+        "accountLine": "自助申請。Telnyx 可能會要求身分驗證。",
+        "keys": "建立 API 金鑰並複製公開金鑰",
+        "keysLine": "兩者都在 Telnyx 入口網站的 Auth 下。",
+        "profile": "複製你的訊息設定檔 ID",
+        "profileLine": "存放你傳送用號碼的那個設定檔。"
+      },
+      "twilio": {
+        "account": "開設付費的 Twilio 帳戶",
+        "accountLine": "試用帳戶無法傳送這些簡訊。",
+        "keys": "複製你的 Account SID 和 Auth Token",
+        "keysLine": "兩者都在主控台首頁的 Account info 下。"
+      }
+    },
+    "stop": {
+      "added": "已停止傳送簡訊到這個號碼。",
+      "already": "這個號碼已在名單上。",
+      "badNumber": "這不是可接收簡訊的電話號碼。請加上 + 和國碼。",
+      "col": {
+        "actions": "操作",
+        "from": "來源",
+        "number": "號碼",
+        "when": "時間",
+        "why": "原因"
+      },
+      "confirmSent": "已傳送一則簡單的確認，不含任何提問或優惠。",
+      "count": "{count, plural, other {# 筆}}",
+      "empty": "名單上還沒有任何人。",
+      "erased": "已刪除資料的人，保留號碼以確保不再傳送簡訊給對方",
+      "from": {
+        "email": "透過電子郵件要求。由 {name} 記錄",
+        "erased": "應要求刪除",
+        "inPerson": "當面要求。由 {name} 記錄",
+        "phone": "透過電話要求。由 {name} 記錄",
+        "provider": "{provider} 回報了退訂",
+        "reply": "回覆簡訊 STOP"
+      },
+      "how": "要求方式",
+      "asked": {
+        "email": "電子郵件",
+        "inPerson": "當面",
+        "phone": "電話"
+      },
+      "line": "名單上的人不會收到這個商家的任何簡訊，包括服務簡訊。",
+      "noConfirm": "不以簡訊確認，因為此人是直接向商家提出要求。",
+      "noMatch": "沒有符合的項目。",
+      "number": "電話號碼",
+      "record": "記錄停止要求",
+      "recordWhy": "適用於不是透過簡訊、而是直接向你要求停止接收簡訊的人。從傳送者名稱發出的簡訊無法接收 STOP 回覆，所以他們要用這種方式停止。",
+      "recordedBy": "以你的名義記錄。立即生效，適用於這個商家的所有簡訊。",
+      "remove": "移除",
+      "removeBody": "只在此人再次同意接收簡訊時才這樣做。移出名單並不代表記錄了同意：對方仍只會收到自己同意的簡訊。",
+      "removeTitle": "要將這個號碼移出名單嗎？",
+      "save": "停止傳送簡訊到這個號碼",
+      "search": "搜尋號碼",
+      "start": "回覆 START 會解除服務商的封鎖，並將號碼移出這份名單，但這不代表同意。對方仍須再次同意，才能收到任何簡訊。",
+      "why": {
+        "erased": "已刪除資料的人",
+        "hand": "已向商家要求",
+        "provider": "由服務商回報",
+        "reply": "回覆 STOP"
+      },
+      "whyAny": "原因：全部"
+    },
+    "tab": {
+      "activity": "活動",
+      "setup": "設定",
+      "stop": "簡訊拒收名單",
+      "templates": "範本"
+    },
+    "templates": {
+      "col": {
+        "app": "應用程式",
+        "languages": "語言",
+        "name": "範本",
+        "segments": "最多段數"
+      },
+      "emptyBody": "傳送簡訊的應用程式會自帶範本。從應用程式頁面安裝一個，它的範本就會出現在這裡供你編輯。",
+      "emptyTitle": "還沒有應用程式安裝簡訊範本",
+      "languagesOf": "{count} / {total}",
+      "notConnected": "尚未連接服務商，因此這些範本目前不會傳送任何內容。",
+      "openApps": "開啟外掛與應用程式",
+      "openSetup": "開啟「設定」",
+      "segmentsNote": "段數以替代值和退訂文字計算。每位顧客自己的值可能會改變段數。"
+    },
+    "test": {
+      "cost": "這會使用你的服務商帳戶，可能產生少量費用。",
+      "fixed": "測試簡訊的內容固定不變，因此這個按鈕不會傳送其他內容。",
+      "limited": "測試簡訊太多。請幾分鐘後再試。",
+      "message": "測試簡訊",
+      "notReady": "請先連接服務商並選擇傳送者。",
+      "notTaken": "未傳送",
+      "open": "傳送測試簡訊",
+      "refused": "未傳送",
+      "send": "傳送測試",
+      "sending": "傳送中…",
+      "sent": "已交給 {provider}",
+      "sentLine": "測試簡訊在這裡不會有送達回報，請直接查看手機。使用測試金鑰時不會送達任何內容。",
+      "sub": "一則固定的簡訊，傳到你手邊的手機。",
+      "title": "傳送測試簡訊",
+      "to": "電話號碼",
+      "toHelp": "加上 + 和國碼，或使用上方所設國家或地區的本地號碼。",
+      "unknownLine": "{provider} 沒有回應。再傳送另一則之前，請先查看它的訊息記錄。"
+    },
+    "title": "簡訊"
   }
 }

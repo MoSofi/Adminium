@@ -161,6 +161,22 @@ export type Action =
    * its number, else its name and town.
    */
   | { kind: 'company.fill'; addOn: string; sources: string[]; addOnName?: string | undefined }
+  /**
+   * SEND TEXT: one installed text template, to the number in a column of the
+   * record. Whether it may go (consent, the do-not-text list, the country, the
+   * sending hours, today's limit) is the server's send path to decide when it
+   * runs, never this step's.
+   */
+  | {
+      kind: 'text';
+      templateKey: string | null;
+      /** The column that holds the number: `mobile`, or `<link>.<column>`. */
+      to: { kind: 'field'; column: string } | null;
+      /** What fills a placeholder the record does not. */
+      vars?: Record<string, string> | undefined;
+      /** A date-and-time column: the text is never sent after that moment. */
+      notAfter?: string | undefined;
+    }
   | {
       kind: 'webhook';
       url: string | null;

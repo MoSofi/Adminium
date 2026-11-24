@@ -2956,6 +2956,11 @@
       "body": "选择每个应用使用的承运商，连接它的密钥，并设置标签尺寸以及谁可以购买标签。",
       "cta": "打开发货设置",
       "heading": "发货"
+    },
+    "textsCard": {
+      "body": "使用你自己的 Twilio 或 Telnyx 账户，向顾客发送简短短信。",
+      "cta": "打开短信",
+      "heading": "短信"
     }
   },
   "source": {
@@ -6427,5 +6432,466 @@
       "subtitle": "{carrier} 会把承运商的每次扫描发送到这台服务器。",
       "waiting": "等待中"
     }
+  },
+  "texts": {
+    "activity": {
+      "askOwner": "请让所有者向 {provider} 核实此事。",
+      "calledAt": "移交时间",
+      "clear": "清除筛选",
+      "code": "{provider} 的回复：",
+      "col": {
+        "about": "相关内容",
+        "number": "号码",
+        "price": "价格",
+        "segments": "段数",
+        "status": "状态",
+        "when": "时间"
+      },
+      "confirmResend": "没有发出。再发一次",
+      "confirmTitle": "再次发送这条短信？",
+      "declare": "我已在 {provider} 中核实，这条短信没有发出。",
+      "emptyBody": "应用或自动化发送短信后，会显示在这里。",
+      "emptyTitle": "还没有短信",
+      "filter": {
+        "about": "相关内容",
+        "all": "全部",
+        "code": "国家代码",
+        "status": "状态"
+      },
+      "kind": "类型",
+      "loading": "正在加载短信",
+      "marketing": "营销",
+      "noBody": "短信正文不会保存，因此无法在此显示。",
+      "noMatch": "没有符合这些筛选条件的短信。",
+      "notSent": "没有发出，再发一次",
+      "openLog": "打开 {provider} 的消息日志",
+      "provider": "服务商",
+      "rechecked": "再次发送前，会重新检查同意情况、短信拒收名单、发送时段和今日上限。它仍可能被跳过。",
+      "reported": "由服务商报告",
+      "rule": "一条自动化",
+      "service": "服务",
+      "story": {
+        "handed": "已交给 {provider}",
+        "queued": "已排队",
+        "retried": "已使用同一标识安全重试"
+      },
+      "text": "短信",
+      "twice": "如果判断错了，对方会收到两次，商家也要付两次费用。",
+      "unknownCount": "{count, plural, other {# 条短信需要核实}}",
+      "viewOnly": "你可以在这里查看短信。如需处理某条短信或更改设置，请联系所有者。",
+      "went": "已发出",
+      "whatHappened": "发生了什么"
+    },
+    "askOwner": {
+      "body": "短信由拥有“设置短信”权限的人设置。",
+      "title": "请让所有者更改此项"
+    },
+    "cancel": "取消",
+    "changed": {
+      "body": "短信费用将改为向 {account} 收取，而不是当前连接的账户。",
+      "bodyNoName": "短信费用将改为向另一个账户收取，而不是当前连接的账户。",
+      "confirm": "向新账户计费",
+      "kept": "目前还没有任何改动。在你确认之前，当前密钥继续有效。发送方会被清除，因为它属于旧账户。",
+      "title": "这是另一个账户"
+    },
+    "check": {
+      "bad": {
+        "line": "请重新从服务商控制台复制密钥。",
+        "title": "服务商不接受这个密钥"
+      },
+      "closed": {
+        "line": "请在服务商控制台中处理，然后再次检查。",
+        "title": "服务商已关闭或暂停此账户"
+      },
+      "networkOff": {
+        "line": "在开启之前，无法连接任何服务商。",
+        "title": "此服务器的联网功能已关闭"
+      },
+      "noSender": {
+        "line": "请在服务商控制台中添加号码或发送方名称，然后在这里填写。",
+        "title": "已连接，但还没有可用的发送方"
+      },
+      "operatorOff": {
+        "line": "运营这台服务器的人已将其关闭。",
+        "title": "此服务器已关闭短信功能"
+      },
+      "profile": {
+        "line": "请重新从 Telnyx 复制消息配置文件 ID。",
+        "title": "找不到这个消息配置文件"
+      },
+      "trial": {
+        "line": "Twilio 试用账户只能向已验证的号码发送 Twilio 自己的模板。请在 Twilio 中将其转为付费账户，然后再次检查。",
+        "title": "这是试用账户"
+      },
+      "unreachable": {
+        "line": "你保存的密钥没有改变。请检查此服务器的网络连接，然后重试。",
+        "title": "无法连接服务商"
+      }
+    },
+    "close": "关闭",
+    "cn": {
+      "sentence": "Adminium 不向中国大陆（+86）发送短信。两家服务商都无法保证在当地的送达、回复或有效退订。台湾和香港不受影响。"
+    },
+    "connect": {
+      "heading": "连接你的服务商",
+      "sub": "一个服务商账户供整台服务器使用。"
+    },
+    "connected": {
+      "badge": "已连接",
+      "badgeProblem": "需要查看",
+      "checkAgain": "再次检查",
+      "checkFirst": "超时后，需要你先核实再重新发送。",
+      "disconnect": "断开连接",
+      "key": "密钥",
+      "lastChecked": "上次检查",
+      "replace": "替换密钥",
+      "sameKey": "超时后可在 24 小时内安全重试。",
+      "saved": "已保存",
+      "title": "已连接到 {account}",
+      "titleNoName": "已连接到 {provider}",
+      "unreadable": "已保存的密钥无法再打开",
+      "unreadableLine": "此服务器的加密密钥已更改。请重新粘贴密钥才能发送短信。"
+    },
+    "counter": {
+      "announce": "{count, plural, other {# 段}}",
+      "characters": "字符",
+      "estimate": "估算",
+      "left": "本段剩余",
+      "segments": "段",
+      "standard": "标准",
+      "tooLong": "太长，无法发送。请缩短。超过 {count} 段的短信一律不会发送。",
+      "unicode": "Unicode"
+    },
+    "countries": {
+      "col": {
+        "country": "国家/地区",
+        "dial": "国家代码",
+        "marketing": "营销短信",
+        "replies": "回复",
+        "sender": "发送方",
+        "service": "服务短信",
+        "stop": "如何退订"
+      },
+      "heading": "可以发送短信的地区",
+      "no": "否",
+      "search": "搜索国家/地区",
+      "serviceOnly": "仅服务短信",
+      "stopReply": "回复 STOP",
+      "stopThroughYou": "无法回复，因此需通过你退订",
+      "yes": "是"
+    },
+    "country": {
+      "AE": "仅限已注册的发送方名称。短信中不能包含号码或链接。",
+      "AU": "未注册的名称送达时会被标为“Unverified”（未验证）。",
+      "CA": "不支持发送方名称。请使用长号码、已验证的 toll-free 号码或短代码。",
+      "CZ": "T-Mobile 和 O2 会拦截未注册的名称。注册后才能完整覆盖。",
+      "EG": "不支持回复。",
+      "ES": "未注册的发送方名称会被拦截。",
+      "FR": "请注册你的发送方名称。各方说法不一，请视为必需。",
+      "HK": "发送方名称需要注册。支持回复。",
+      "IN": "国内线路需要 DLT 注册。",
+      "SA": "仅限已注册的发送方名称。沙特本地企业需要使用本地服务商。",
+      "TW": "每条短信必须以品牌名称开头。链接需要加入允许列表。",
+      "US": "需要 10DLC 或 toll-free 注册。获批前短信不会发送。可能需要几天到几周。",
+      "nameFree": "发送方名称无需注册。"
+    },
+    "disconnect": {
+      "body": "短信会立即停止，密钥会从此服务器删除。已交给 {provider} 的短信不会被撤回。",
+      "title": "断开与 {provider} 的连接？",
+      "yes": "断开连接并删除密钥"
+    },
+    "editor": {
+      "addedForYou": "已为你添加",
+      "back": "所有模板",
+      "businessContact": "用于退订的电话或邮箱",
+      "businessContactHelp": "仅用于预览。短信使用应用的电话，或你的邮件发件人的回复地址。",
+      "businessName": "商家名称",
+      "country": "国家/地区",
+      "emptyChip": "空",
+      "fallback": "阅读 {language} 的人会收到英文版本。",
+      "insert": "插入",
+      "insertOne": "插入 {name}",
+      "languages": "语言",
+      "noReplies": "此服务器无法接收 STOP 回复，因此每条短信都会附上你的电话或邮箱，供对方退订。",
+      "optOutNote": "它计入长度，且不能编辑。在添加其他语言之前，它是英文。",
+      "ownStop": "你的短信本身已写明 STOP，因此不会额外添加。",
+      "plain": "使用简单版本",
+      "preview": "预览",
+      "problem": {
+        "credential": "短信不能包含登录链接、验证码、调查链接或二维码内容：{names}",
+        "empty": "请先编写短信内容。",
+        "missing": "在 {names} 有值之前，这条短信不会发送。",
+        "noContact": "此发送方无法接收 STOP 回复，也没有提供用于退订的电话或邮箱，因此不会发送。",
+        "shortLink": "公共短链接会被运营商过滤。Adminium 没有短链接服务，请不要放链接。",
+        "tooLong": "太长，无法发送。请缩短。",
+        "yes": "不要让人回复 YES。回复 YES 可能会在服务商处解除退订。请改为让人在表单上表示同意。"
+      },
+      "sampleBusiness": "你的商家",
+      "samples": "预览用的示例值",
+      "saveEmpty": "保存为空",
+      "sender": "发自",
+      "table": "计为",
+      "tableCanada": "加拿大，长号码",
+      "tableStandard": "大多数国家/地区",
+      "tableTollFree": "美国和加拿大，toll-free 号码",
+      "taiwan": "每条短信必须以品牌名称开头。",
+      "undo": "撤销更改",
+      "unicode": "此字符按 Unicode 计算：",
+      "whereTo": "发送对象和发送方",
+      "words": "短信内容"
+    },
+    "field": {
+      "accountSid": "Account SID",
+      "apiKey": "API 密钥",
+      "authToken": "Auth Token",
+      "authTokenHelp": "用于发送短信，并核实更新确实来自 Twilio。",
+      "profile": "消息配置文件 ID",
+      "publicKey": "公钥",
+      "publicKeyHelp": "仅用于核实更新确实来自 Telnyx。"
+    },
+    "intro": "从你自己的服务商账户向顾客发送简短消息。Adminium 不持有任何账户，也不经手任何款项。",
+    "key": {
+      "billed": "短信通过你的 {provider} 账户发送并计费。顾客的电话号码和短信内容会发送给 {provider} 和运营商。",
+      "checking": "正在检查…",
+      "keep": "保留当前密钥",
+      "kept": "在服务商回应之前，已保存的密钥继续使用。"
+    },
+    "limits": {
+      "anyTime": "顾客此刻正在等待的短信，例如“你的房间已准备好”，可以随时发送。每个应用会说明它的哪些短信属于这一类。",
+      "clock": "服务时段按商家所在时区计算。在时段之外到期的短信会等到下一个时段开始；如果那时已过它的时间点，就会被跳过。",
+      "from": "服务短信发送时间，从",
+      "heading": "每日上限和发送时段",
+      "hoursBad": "请填写两个不同的时间，例如 08:00 和 21:00。",
+      "limit": "每天最多发送的短信数",
+      "limitBad": "请填写 1 到 100,000 之间的整数。",
+      "marketing": "营销短信：周一至周六 09:00–20:00。固定不变。",
+      "raise": "提高上限",
+      "reached": "已达到今日上限。短信会等到明天发送，除非它的时间点先过去。",
+      "to": "至",
+      "today": "今日已发送",
+      "warnAt": "达到 {count} 时开始提醒。计数在午夜（{zone}）重新开始。",
+      "why": "这样可以在自动化出错时保护你的服务商账单。"
+    },
+    "loadFailed": "无法加载",
+    "noAccess": "请让运营这台服务器的人授予你“设置短信”权限。",
+    "notAffiliated": "Adminium 与 Twilio、Telnyx 及任何运营商均无关联。",
+    "paste": {
+      "empty": "请在这里粘贴一个值。",
+      "keySid": "这是 API key SID。请在这里粘贴 Account SID，它以 AC 开头。",
+      "notKey": "这看起来不像密钥。请重新复制。",
+      "notSid": "这不是 Account SID。Account SID 以 AC 开头。",
+      "profile": "这不是消息配置文件 ID。请从该配置文件的页面复制。",
+      "publicKey": "这不是公钥。请从 Public key 页面复制。",
+      "sidInToken": "这是 Account SID。请在这里粘贴 Auth Token。",
+      "spaces": "粘贴时前后不要带任何字符。"
+    },
+    "provider": {
+      "legend": "你的服务商",
+      "price": "美国，每段：{price}，另加运营商费用。价格可能变动。",
+      "telnyxLine": "自助开通，可能要求身份核验。超时后可安全重试。",
+      "twilioLine": "自助开通。超时后，需要你先核实再重新发送。"
+    },
+    "reach": {
+      "heading": "回复能到达此服务器吗？",
+      "no": "无法回复",
+      "ok": "回复和送达报告可以到达此服务器。",
+      "problem": "此服务器没有公网 https 地址。它可以发送服务短信，但无法接收 STOP 回复或送达报告。营销短信已关闭。",
+      "yes": "可接收回复"
+    },
+    "reason": {
+      "badNumber": "未发送。无法将该号码识别为真实的电话号码。",
+      "cannotReceive": "未发送。此号码无法接收短信。",
+      "countryNotEnabled": "未发送。你的服务商账户还不能向此国家/地区发送短信。请在服务商控制台中开启。",
+      "dailyLimit": "未发送。已达到今日上限。",
+      "marketingCountry": "未发送。营销短信不能发往此国家/地区，因为那里的人无法回复 STOP。",
+      "marketingName": "未发送。营销短信不能用发送方名称发送，因为它无法接收 STOP。",
+      "missingValue": "未发送。有一个占位符没有值。",
+      "needsConfirm": "未发送。此国家/地区需要对方先确认。",
+      "noCn": "未发送。Adminium 不向中国大陆（+86）发送短信。",
+      "noConsent": "未发送。此人没有同意接收短信。",
+      "noDoor": "未发送。此服务器无法接收 STOP，因此营销短信已关闭。",
+      "noLongerNeeded": "未发送。等待期间，相关事项已被取消。",
+      "noOptOut": "未发送。无法为此发送方提供退订方式。请添加商家的电话或邮箱。",
+      "notConnected": "未发送。没有可用的服务商账户或发送方。请检查“设置”。",
+      "notReached": "未发送。无法连接服务商，没有移交任何内容。",
+      "operatorOff": "未发送。此服务器已关闭短信功能。",
+      "other": "未发送。服务商拒绝了它。",
+      "sender": "未发送。服务商拒绝了该发送方。请在服务商控制台中检查。",
+      "spendLimit": "未发送。已达到你的服务商账户的消费上限。",
+      "stopped": "未发送。此人已要求不再接收短信。",
+      "tooLate": "未发送。下一个发送时段晚于这条短信的时间点。",
+      "waitingRegistration": "未发送。你在此国家/地区的注册仍在等待审核。",
+      "words": "未发送。模板或其中的某个值无法作为短信发送。"
+    },
+    "registration": {
+      "between": "注册是你的商家与 {provider} 之间的事。Adminium 无法查看、批准或加快它。",
+      "heading": "注册",
+      "open": "在 {provider} 中打开注册",
+      "sub": "有些国家/地区要求商家先注册，才能向当地发送短信。",
+      "unknown": "{provider} 没有告诉我们你的发送方的这项信息。请到那里查看。",
+      "us": "在你的 10DLC 或 toll-free 注册获批之前，发往美国的短信不会送达。这可能需要几天到几周。"
+    },
+    "save": "保存",
+    "saveFailed": "无法保存",
+    "sender": {
+      "badCountry": "请从列表中选择国家/地区。",
+      "badName": "最多 11 个字母、数字和空格，至少包含一个字母。",
+      "badNumber": "请填写完整号码，以 + 和国家代码开头。",
+      "badPool": "请粘贴 Messaging Service SID（MG…）；如果是 Telnyx，请粘贴此配置文件的 ID。",
+      "contact": "当短信无法接收 STOP 回复时，它会以应用的电话号码或你的邮件发件人的回复地址结尾，以便对方请你停止发送。员工随后将其记录到短信拒收名单。",
+      "country": "本地号码所属国家/地区",
+      "countryHelp": "不带 + 的号码会被视为此处的号码。",
+      "heading": "短信由谁发送",
+      "kind": "发送方类型",
+      "name": "发送方名称",
+      "nameLine": "无法接收回复，因此每条短信都会附上你的电话或邮箱，供对方退订。",
+      "noCountry": "无：只接受带 + 的号码",
+      "number": "号码",
+      "numberLine": "可以接收回复。",
+      "otherProfile": "该号码在另一个消息配置文件中。请在 Telnyx 中把它移到此配置文件。",
+      "pool": "消息服务或号码池",
+      "poolLine": "能否回复取决于其中的发送方，因此短信会附上你的电话或邮箱，供对方退订。",
+      "refused": "无法保存该发送方。",
+      "sub": "使用服务商控制台中的号码或发送方名称。Adminium 不购买号码，也不代为注册。"
+    },
+    "status": {
+      "checkedNotSent": "已核实：没有发出",
+      "checkedWent": "已核实：已发出",
+      "delivered": "已送达",
+      "failed": "失败",
+      "notSent": "未发送",
+      "sent": "已交给服务商",
+      "skipped": "已跳过",
+      "undelivered": "未送达",
+      "unknown": "未知，重新发送前请核实",
+      "waiting": "等待中"
+    },
+    "statusLine": {
+      "checkedNotSent": "有人已向服务商核实：没有发出。应用可能会再次发送，届时会重新进行所有检查。",
+      "checkedWent": "有人已向服务商核实：已发出。",
+      "delivered": "服务商报告已送达手机。",
+      "failed": "没有发出。下方的原因说明了需要修正的地方。",
+      "notSent": "确定没有交给服务商。",
+      "sent": "{provider} 已接收。目前还不知道是否已送达手机。",
+      "skipped": "一条规则在发送前拦下了它。",
+      "undelivered": "运营商无法送达。请先与对方核对号码，再重新发送。",
+      "unknown": "我们没有收到 {provider} 的回应。它可能已经发出了这条短信。Adminium 不会自行重新发送。",
+      "waiting": "已排队。发送时段开始且今日上限仍有余量时发送。"
+    },
+    "steps": {
+      "check": "检查连接",
+      "checkLine": "保存密钥之前，会先向服务商核实。",
+      "openConsole": "打开控制台",
+      "openPortal": "打开门户",
+      "openTelnyx": "打开 Telnyx",
+      "openTwilio": "打开 Twilio",
+      "paste": "粘贴到下方",
+      "pasteLine": "每个值单独粘贴，前后不要带任何字符。",
+      "telnyx": {
+        "account": "开设 Telnyx 账户",
+        "accountLine": "自助开通。Telnyx 可能要求身份核验。",
+        "keys": "创建 API 密钥并复制公钥",
+        "keysLine": "两者都在 Telnyx 门户的 Auth 下。",
+        "profile": "复制你的消息配置文件 ID",
+        "profileLine": "即包含你用来发送的号码的那个配置文件。"
+      },
+      "twilio": {
+        "account": "开设付费 Twilio 账户",
+        "accountLine": "试用账户无法发送这些短信。",
+        "keys": "复制你的 Account SID 和 Auth Token",
+        "keysLine": "两者都在控制台首页的 Account info 下。"
+      }
+    },
+    "stop": {
+      "added": "已停止向此号码发送短信。",
+      "already": "此号码已在名单中。",
+      "badNumber": "这不是短信可以送达的电话号码。请以 + 和国家代码填写。",
+      "col": {
+        "actions": "操作",
+        "from": "来源",
+        "number": "号码",
+        "when": "时间",
+        "why": "原因"
+      },
+      "confirmSent": "已发出一条简单的确认短信，不含任何提问或优惠。",
+      "count": "{count, plural, other {# 条记录}}",
+      "empty": "名单中还没有人。",
+      "erased": "已删除数据的人，保留在名单中，确保不再向其发送短信",
+      "from": {
+        "email": "通过邮件提出。由 {name} 记录",
+        "erased": "应要求删除",
+        "inPerson": "当面提出。由 {name} 记录",
+        "phone": "通过电话提出。由 {name} 记录",
+        "provider": "{provider} 报告了一次退订",
+        "reply": "回复短信 STOP"
+      },
+      "how": "提出方式",
+      "asked": {
+        "email": "通过邮件",
+        "inPerson": "当面",
+        "phone": "通过电话"
+      },
+      "line": "名单中的人不会收到此商家的任何短信，包括服务短信。",
+      "noConfirm": "不发送确认短信，因为此人是直接向商家提出的。",
+      "noMatch": "没有匹配的记录。",
+      "number": "电话号码",
+      "record": "记录退订请求",
+      "recordWhy": "适用于不是通过短信、而是直接向你提出不再接收短信的人。使用发送方名称发出的短信无法接收 STOP 回复，因此他们通过这种方式退订。",
+      "recordedBy": "以你的名义记录。立即生效，适用于此商家的所有短信。",
+      "remove": "移除",
+      "removeBody": "仅在此人再次同意接收短信时才这样做。移出名单不等于记录同意：他们仍然只会收到自己同意接收的短信。",
+      "removeTitle": "将此号码移出名单？",
+      "save": "停止向此号码发送短信",
+      "search": "搜索号码",
+      "start": "回复 START 会解除服务商的拦截，并将号码移出此名单，但这不等于同意。在发送任何短信之前，对方仍需再次同意。",
+      "why": {
+        "erased": "已删除数据的人",
+        "hand": "向商家提出",
+        "provider": "由服务商报告",
+        "reply": "回复了 STOP"
+      },
+      "whyAny": "原因：全部"
+    },
+    "tab": {
+      "activity": "动态",
+      "setup": "设置",
+      "stop": "短信拒收名单",
+      "templates": "模板"
+    },
+    "templates": {
+      "col": {
+        "app": "应用",
+        "languages": "语言",
+        "name": "模板",
+        "segments": "最多段数"
+      },
+      "emptyBody": "发送短信的应用会自带模板。在应用页面安装一个应用，它的模板就会出现在这里供你编辑。",
+      "emptyTitle": "还没有应用安装短信模板",
+      "languagesOf": "{count} / {total}",
+      "notConnected": "尚未连接服务商，因此这些模板目前不会发送任何短信。",
+      "openApps": "打开插件和应用",
+      "openSetup": "打开“设置”",
+      "segmentsNote": "段数按占位示例值和退订语句计算。每位顾客的实际值可能会改变段数。"
+    },
+    "test": {
+      "cost": "这会使用你的服务商账户，可能产生少量费用。",
+      "fixed": "测试短信始终是这段文字，因此此按钮不会发送其他内容。",
+      "limited": "测试短信太多。请几分钟后再试。",
+      "message": "测试短信",
+      "notReady": "请先连接服务商并选择发送方。",
+      "notTaken": "未发送",
+      "open": "发送测试短信",
+      "refused": "未发送",
+      "send": "发送测试",
+      "sending": "正在发送…",
+      "sent": "已交给 {provider}",
+      "sentLine": "测试短信在这里不会有送达报告，请查看手机。使用测试密钥时不会送达任何内容。",
+      "sub": "一条固定短信，发往你手中的手机。",
+      "title": "发送测试短信",
+      "to": "电话号码",
+      "toHelp": "以 + 和国家代码开头，或填写上方所设国家/地区的本地号码。",
+      "unknownLine": "我们没有收到 {provider} 的回应。再次发送之前，请先查看它的消息日志。"
+    },
+    "title": "短信"
   }
 }

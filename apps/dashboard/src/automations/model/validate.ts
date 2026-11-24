@@ -36,6 +36,8 @@ export function isActionComplete(action: Action): boolean {
       if (action.templateKey === null || action.templateKey === '') return false;
       if (action.to === null) return false;
       return action.to.kind === 'fixed' ? action.to.addresses.length > 0 : action.to.kind === 'listed' ? action.to.table !== '' : action.to.column !== '';
+    case 'text':
+      return action.templateKey !== null && action.templateKey !== '' && action.to !== null && action.to.column !== '';
     case 'notification':
       if (action.to === null || action.title.trim() === '') return false;
       return 'users' in action.to ? action.to.users.length > 0 : 'column' in action.to ? action.to.column !== '' : 'listed' in action.to ? action.to.listed !== '' : action.to.roles.length > 0;

@@ -214,6 +214,10 @@ export interface Sources {
    */
   hiddenTemplates?: SourceTemplate[] | undefined;
   roles: { id: string; name: string }[];
+  /** What a Send text step may name, with its US English words for the counter. Absent from a server before texts. */
+  textTemplates?: { key: string; name: string; body: string }[] | undefined;
+  /** Whether a text provider is connected. Absent: not known. */
+  textsConnected?: boolean | undefined;
 }
 
 /**

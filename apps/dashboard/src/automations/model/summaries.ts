@@ -117,6 +117,11 @@ function actionSentence(action: Action, table: SourceTable | null): string {
         to,
       });
     }
+    case 'text': {
+      if (action.templateKey === null || action.templateKey === '' || action.to === null || action.to.column === '') return t('automations:node.text.sub', 'Template · pick one');
+      const column = action.to.column;
+      return t('automations:node.text.summary', 'Text · {template} → {to}', { template: action.templateKey, to: table?.columns.find((one) => one.name === column)?.label ?? column });
+    }
     case 'notification': {
       if (action.to === null) return t('automations:node.notification.sub', 'Choose who to tell');
       if ('column' in action.to) {

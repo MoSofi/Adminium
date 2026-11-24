@@ -2956,6 +2956,11 @@
       "body": "Wählen Sie den Versanddienstleister, mit dem jede App versendet, verbinden Sie seinen Schlüssel und legen Sie die Etikettengröße fest und wer Etiketten kaufen darf.",
       "cta": "Versand öffnen",
       "heading": "Versand"
+    },
+    "textsCard": {
+      "body": "Senden Sie Kunden kurze SMS über Ihr eigenes Twilio- oder Telnyx-Konto.",
+      "cta": "SMS öffnen",
+      "heading": "SMS"
     }
   },
   "source": {
@@ -6427,5 +6432,466 @@
       "subtitle": "{carrier} sendet jeden Scan der Versanddienstleister an diesen Server.",
       "waiting": "Wartet"
     }
+  },
+  "texts": {
+    "activity": {
+      "askOwner": "Bitten Sie den Inhaber, das bei {provider} zu prüfen.",
+      "calledAt": "Übergeben um",
+      "clear": "Filter zurücksetzen",
+      "code": "{provider} meldete:",
+      "col": {
+        "about": "Anlass",
+        "number": "Nummer",
+        "price": "Preis",
+        "segments": "Segmente",
+        "status": "Status",
+        "when": "Wann"
+      },
+      "confirmResend": "Sie wurde nicht gesendet. Erneut senden",
+      "confirmTitle": "Diese SMS erneut senden?",
+      "declare": "Ich habe bei {provider} nachgesehen: Diese SMS wurde nicht gesendet.",
+      "emptyBody": "Wenn eine App oder eine Automatisierung eine SMS sendet, erscheint sie hier.",
+      "emptyTitle": "Noch keine SMS",
+      "filter": {
+        "about": "Anlass",
+        "all": "Alle",
+        "code": "Ländervorwahl",
+        "status": "Status"
+      },
+      "kind": "Art",
+      "loading": "SMS werden geladen",
+      "marketing": "Marketing",
+      "noBody": "Der Nachrichtentext wird nicht gespeichert und kann daher hier nicht gezeigt werden.",
+      "noMatch": "Keine SMS passt zu diesen Filtern.",
+      "notSent": "Sie wurde nicht gesendet, erneut senden",
+      "openLog": "Nachrichtenprotokoll von {provider} öffnen",
+      "provider": "Anbieter",
+      "rechecked": "Bevor sie erneut geht, werden Einwilligung, Keine-SMS-Liste, Sendezeiten und das heutige Limit noch einmal geprüft. Sie kann trotzdem übersprungen werden.",
+      "reported": "vom Anbieter gemeldet",
+      "rule": "Eine Automatisierung",
+      "service": "Service",
+      "story": {
+        "handed": "An {provider} übergeben",
+        "queued": "Eingereiht",
+        "retried": "Sicher mit demselben Schlüssel wiederholt"
+      },
+      "text": "SMS",
+      "twice": "Wenn das falsch ist, erhält die Person sie zweimal und das Unternehmen zahlt zweimal.",
+      "unknownCount": "{count, plural, one {# SMS muss geprüft werden} other {# SMS müssen geprüft werden}}",
+      "viewOnly": "Sie können SMS hier sehen. Bitten Sie den Inhaber, einen Fall zu klären oder Einstellungen zu ändern.",
+      "went": "Sie wurde gesendet",
+      "whatHappened": "Was passiert ist"
+    },
+    "askOwner": {
+      "body": "SMS richtet ein, wer die Berechtigung „Textnachrichten einrichten“ hat.",
+      "title": "Bitten Sie den Inhaber, das zu ändern"
+    },
+    "cancel": "Abbrechen",
+    "changed": {
+      "body": "SMS werden künftig {account} in Rechnung gestellt statt dem jetzt verbundenen Konto.",
+      "bodyNoName": "SMS werden künftig einem anderen Konto in Rechnung gestellt als dem jetzt verbundenen.",
+      "confirm": "Neues Konto belasten",
+      "kept": "Noch hat sich nichts geändert. Der aktuelle Schlüssel gilt, bis Sie bestätigen. Der Absender wird geleert, weil er zum alten Konto gehört.",
+      "title": "Das ist ein anderes Konto"
+    },
+    "check": {
+      "bad": {
+        "line": "Kopieren Sie den Schlüssel erneut aus der Konsole Ihres Anbieters.",
+        "title": "Der Anbieter hat diesen Schlüssel nicht angenommen"
+      },
+      "closed": {
+        "line": "Klären Sie das in der Konsole des Anbieters und prüfen Sie dann erneut.",
+        "title": "Der Anbieter hat dieses Konto geschlossen oder pausiert"
+      },
+      "networkOff": {
+        "line": "Kein Anbieter ist erreichbar, bis sie eingeschaltet sind.",
+        "title": "Netzwerkfunktionen sind auf diesem Server ausgeschaltet"
+      },
+      "noSender": {
+        "line": "Fügen Sie in der Konsole Ihres Anbieters eine Nummer oder einen Absendernamen hinzu und tragen Sie ihn hier ein.",
+        "title": "Verbunden, aber noch kann nichts senden"
+      },
+      "operatorOff": {
+        "line": "Der Betreiber dieses Servers hat sie ausgeschaltet.",
+        "title": "SMS sind auf diesem Server ausgeschaltet"
+      },
+      "profile": {
+        "line": "Kopieren Sie die ID des Messaging-Profils erneut aus Telnyx.",
+        "title": "Dieses Messaging-Profil wurde nicht gefunden"
+      },
+      "trial": {
+        "line": "Ein Twilio-Testkonto sendet nur die eigenen Vorlagen von Twilio an verifizierte Nummern. Machen Sie es in Twilio zu einem bezahlten Konto und prüfen Sie dann erneut.",
+        "title": "Das ist ein Testkonto"
+      },
+      "unreachable": {
+        "line": "Ihr gespeicherter Schlüssel ist unverändert. Prüfen Sie die Internetverbindung dieses Servers und versuchen Sie es erneut.",
+        "title": "Der Anbieter war nicht erreichbar"
+      }
+    },
+    "close": "Schließen",
+    "cn": {
+      "sentence": "Adminium sendet keine SMS nach Festlandchina (+86). Keiner der beiden Anbieter kann dort Zustellung, Antworten oder eine funktionierende Abmeldung zusagen. Taiwan und Hongkong sind nicht betroffen."
+    },
+    "connect": {
+      "heading": "Ihren Anbieter verbinden",
+      "sub": "Ein Anbieterkonto gilt für diesen ganzen Server."
+    },
+    "connected": {
+      "badge": "Verbunden",
+      "badgeProblem": "Bitte prüfen",
+      "checkAgain": "Erneut prüfen",
+      "checkFirst": "Nach einer Zeitüberschreitung prüfen Sie, bevor Sie erneut senden.",
+      "disconnect": "Trennen",
+      "key": "Schlüssel",
+      "lastChecked": "Zuletzt geprüft",
+      "replace": "Schlüssel ersetzen",
+      "sameKey": "Wiederholt nach einer Zeitüberschreitung sicher, 24 Stunden lang.",
+      "saved": "Gespeichert",
+      "title": "Verbunden mit {account}",
+      "titleNoName": "Verbunden mit {provider}",
+      "unreadable": "Der gespeicherte Schlüssel lässt sich nicht mehr öffnen",
+      "unreadableLine": "Das Geheimnis dieses Servers hat sich geändert. Fügen Sie den Schlüssel erneut ein, um SMS zu senden."
+    },
+    "counter": {
+      "announce": "{count, plural, one {# Segment} other {# Segmente}}",
+      "characters": "Zeichen",
+      "estimate": "Schätzung",
+      "left": "übrig in diesem Segment",
+      "segments": "Segmente",
+      "standard": "Standard",
+      "tooLong": "Zu lang zum Senden. Kürzen Sie sie. Eine SMS mit mehr als {count} Segmenten wird nie gesendet.",
+      "unicode": "Unicode"
+    },
+    "countries": {
+      "col": {
+        "country": "Land",
+        "dial": "Vorwahl",
+        "marketing": "Marketing-SMS",
+        "replies": "Antworten",
+        "sender": "Absender",
+        "service": "Service-SMS",
+        "stop": "Wie eine Person abbestellt"
+      },
+      "heading": "Wohin Sie SMS senden können",
+      "no": "Nein",
+      "search": "Länder suchen",
+      "serviceOnly": "Nur Service",
+      "stopReply": "Antwortet STOP",
+      "stopThroughYou": "Keine Antworten, daher läuft die Abmeldung über Sie",
+      "yes": "Ja"
+    },
+    "country": {
+      "AE": "Nur registrierte Absendernamen. Keine Nummern oder Links in der SMS.",
+      "AU": "Nicht registrierte Namen kommen mit dem Hinweis „Unverified“ an.",
+      "CA": "Keine Absendernamen. Verwenden Sie eine Langnummer, eine verifizierte gebührenfreie Nummer oder eine Kurzwahlnummer.",
+      "CZ": "T-Mobile und O2 sperren nicht registrierte Namen. Registrieren Sie sich für volle Abdeckung.",
+      "EG": "Antworten werden nicht unterstützt.",
+      "ES": "Nicht registrierte Absendernamen werden gesperrt.",
+      "FR": "Registrieren Sie Ihren Absendernamen. Die Quellen widersprechen sich, behandeln Sie es also als Pflicht.",
+      "HK": "Absendernamen müssen registriert werden. Antworten funktionieren.",
+      "IN": "Der Inlandsweg braucht eine DLT-Registrierung.",
+      "SA": "Nur registrierte Absendernamen. Ein lokales saudisches Unternehmen braucht einen lokalen Anbieter.",
+      "TW": "Der Markenname muss jede SMS einleiten. Links müssen freigegeben werden.",
+      "US": "10DLC- oder Toll-free-Registrierung. SMS werden erst gesendet, wenn sie genehmigt ist. Das kann Tage bis Wochen dauern.",
+      "nameFree": "Absendernamen brauchen keine Registrierung."
+    },
+    "disconnect": {
+      "body": "SMS stoppen sofort, und die Schlüssel werden von diesem Server gelöscht. SMS, die bereits an {provider} übergeben wurden, werden nicht zurückgeholt.",
+      "title": "{provider} trennen?",
+      "yes": "Trennen und Schlüssel löschen"
+    },
+    "editor": {
+      "addedForYou": "Für Sie hinzugefügt",
+      "back": "Alle Vorlagen",
+      "businessContact": "Telefon oder E-Mail zum Abbestellen",
+      "businessContactHelp": "Für die Vorschau. SMS verwenden das Telefon der App oder die Antwortadresse Ihres E-Mail-Absenders.",
+      "businessName": "Name des Unternehmens",
+      "country": "Land",
+      "emptyChip": "leer",
+      "fallback": "Wer {language} liest, erhält diese SMS auf Englisch.",
+      "insert": "Einfügen",
+      "insertOne": "{name} einfügen",
+      "languages": "Sprachen",
+      "noReplies": "Dieser Server kann keine STOP-Antworten empfangen, daher nennt jede SMS Ihr Telefon oder Ihre E-Mail zum Abbestellen.",
+      "optOutNote": "Sie zählt zur Länge und kann nicht bearbeitet werden. Sie ist auf Englisch, bis die anderen Sprachen hinzugefügt sind.",
+      "ownStop": "Ihre SMS nennt STOP selbst, daher wird nichts hinzugefügt.",
+      "plain": "Eine einfache verwenden",
+      "preview": "Vorschau",
+      "problem": {
+        "credential": "Eine SMS darf keinen Anmeldelink, keinen Code, keinen Umfragelink und keinen QR-Wert enthalten: {names}",
+        "empty": "Schreiben Sie zuerst den Text.",
+        "missing": "Diese SMS wird erst gesendet, wenn {names} einen Wert hat.",
+        "noContact": "Dieser Absender kann keine STOP-Antwort empfangen, und es ist kein Telefon und keine E-Mail zum Abbestellen angegeben. Daher wird sie nicht gesendet.",
+        "shortLink": "Öffentliche Kurzlinks werden von Netzbetreibern gefiltert. Adminium hat keinen Linkkürzer, lassen Sie den Link also weg.",
+        "tooLong": "Zu lang zum Senden. Kürzen Sie sie.",
+        "yes": "Bitten Sie niemanden, mit YES zu antworten. Eine YES-Antwort kann eine Sperre beim Anbieter aufheben. Lassen Sie Personen stattdessen in einem Formular zustimmen."
+      },
+      "sampleBusiness": "Ihr Unternehmen",
+      "samples": "Beispielwerte für die Vorschau",
+      "saveEmpty": "Leer speichern",
+      "sender": "Gesendet von",
+      "table": "Gezählt als",
+      "tableCanada": "Kanada, Langnummer",
+      "tableStandard": "Die meisten Länder",
+      "tableTollFree": "USA und Kanada, gebührenfrei",
+      "taiwan": "Der Markenname muss jede SMS einleiten.",
+      "undo": "Änderungen verwerfen",
+      "unicode": "Dieses Zeichen nutzt den Unicode-Satz:",
+      "whereTo": "Wohin sie geht und von wem sie kommt",
+      "words": "Der Text"
+    },
+    "field": {
+      "accountSid": "Account SID",
+      "apiKey": "API-Schlüssel",
+      "authToken": "Auth Token",
+      "authTokenHelp": "Sendet die SMS und prüft, dass Meldungen wirklich von Twilio kommen.",
+      "profile": "ID des Messaging-Profils",
+      "publicKey": "Öffentlicher Schlüssel",
+      "publicKeyHelp": "Dient nur zur Prüfung, dass Meldungen wirklich von Telnyx kommen."
+    },
+    "intro": "Kurze Nachrichten an Ihre Kunden, gesendet über Ihr eigenes Anbieterkonto. Adminium hält nie das Konto oder das Geld.",
+    "key": {
+      "billed": "SMS werden über Ihr {provider}-Konto gesendet und abgerechnet. Telefonnummern der Kunden und Nachrichtentexte gehen an {provider} und die Netzbetreiber.",
+      "checking": "Wird geprüft…",
+      "keep": "Aktuellen Schlüssel behalten",
+      "kept": "Der gespeicherte Schlüssel bleibt in Gebrauch, bis der Anbieter antwortet."
+    },
+    "limits": {
+      "anyTime": "SMS, auf die eine Kundin oder ein Kunde gerade wartet, etwa „Ihr Zimmer ist bereit“, dürfen jederzeit gehen. Jede App gibt an, welche ihrer SMS das sind.",
+      "clock": "Die Servicezeiten richten sich nach der Uhr des Unternehmens. Eine SMS, die außerhalb fällig ist, wartet auf die nächste Öffnung und wird übersprungen, wenn diese nach ihrem Zeitpunkt liegt.",
+      "from": "Service-SMS ab",
+      "heading": "Tageslimit und Sendezeiten",
+      "hoursBad": "Zwei verschiedene Uhrzeiten, etwa 08:00 und 21:00.",
+      "limit": "Höchstens SMS am Tag",
+      "limitBad": "Eine ganze Zahl von 1 bis 100.000.",
+      "marketing": "Marketing-SMS: 09:00–20:00, Montag bis Samstag. Fest.",
+      "raise": "Limit erhöhen",
+      "reached": "Das heutige Limit ist erreicht. SMS warten bis morgen, außer ihr Zeitpunkt ist vorher vorbei.",
+      "to": "Bis",
+      "today": "Heute gesendet",
+      "warnAt": "Die Warnung beginnt bei {count}. Die Zählung beginnt um Mitternacht neu, {zone}.",
+      "why": "Das schützt Ihre Anbieterrechnung, falls eine Automatisierung schiefläuft."
+    },
+    "loadFailed": "Das konnte nicht geladen werden",
+    "noAccess": "Bitten Sie den Betreiber dieses Servers, Ihnen die Berechtigung „Textnachrichten einrichten“ zu geben.",
+    "notAffiliated": "Adminium steht in keiner Verbindung zu Twilio, Telnyx oder einem Netzbetreiber.",
+    "paste": {
+      "empty": "Fügen Sie hier einen Wert ein.",
+      "keySid": "Dieser Wert ist eine API key SID. Fügen Sie hier die Account SID ein. Sie beginnt mit AC.",
+      "notKey": "Das sieht nicht wie ein Schlüssel aus. Kopieren Sie ihn erneut.",
+      "notSid": "Das ist keine Account SID. Sie beginnt mit AC.",
+      "profile": "Das ist keine ID eines Messaging-Profils. Kopieren Sie sie von der Seite des Profils.",
+      "publicKey": "Das ist kein öffentlicher Schlüssel. Kopieren Sie ihn von der Seite Public key.",
+      "sidInToken": "Dieser Wert ist eine Account SID. Fügen Sie hier das Auth Token ein.",
+      "spaces": "Fügen Sie ihn ohne etwas davor oder danach ein."
+    },
+    "provider": {
+      "legend": "Ihr Anbieter",
+      "price": "Vereinigte Staaten, je Segment: {price}, zuzüglich Netzbetreibergebühren. Preise können sich ändern.",
+      "telnyxLine": "Selbstbedienung, kann Identitätsprüfungen verlangen. Kann nach einer Zeitüberschreitung sicher wiederholen.",
+      "twilioLine": "Selbstbedienung. Nach einer Zeitüberschreitung prüfen Sie, bevor Sie erneut senden."
+    },
+    "reach": {
+      "heading": "Können Antworten diesen Server erreichen?",
+      "no": "Keine Antworten",
+      "ok": "Antworten und Zustellberichte können diesen Server erreichen.",
+      "problem": "Dieser Server hat keine öffentliche https-Adresse. Er kann Service-SMS senden, aber keine STOP-Antworten oder Zustellberichte empfangen. Marketing-SMS sind aus.",
+      "yes": "Antworten kommen an"
+    },
+    "reason": {
+      "badNumber": "Nicht gesendet. Die Nummer lässt sich nicht als echte Telefonnummer lesen.",
+      "cannotReceive": "Nicht gesendet. Diese Nummer kann keine SMS empfangen.",
+      "countryNotEnabled": "Nicht gesendet. Ihr Anbieterkonto kann dieses Land noch nicht erreichen. Schalten Sie es in der Konsole des Anbieters ein.",
+      "dailyLimit": "Nicht gesendet. Das heutige Limit war erreicht.",
+      "marketingCountry": "Nicht gesendet. Marketing-SMS können nicht in dieses Land gehen, weil Personen dort nicht mit STOP antworten können.",
+      "marketingName": "Nicht gesendet. Marketing kann nicht von einem Absendernamen gehen, weil er kein STOP empfangen kann.",
+      "missingValue": "Nicht gesendet. Ein Platzhalter hatte keinen Wert.",
+      "needsConfirm": "Nicht gesendet. In diesem Land muss die Person zuerst bestätigen.",
+      "noCn": "Nicht gesendet. Adminium sendet keine SMS nach Festlandchina (+86).",
+      "noConsent": "Nicht gesendet. Diese Person hat SMS nicht zugestimmt.",
+      "noDoor": "Nicht gesendet. Dieser Server kann kein STOP empfangen, daher sind Marketing-SMS aus.",
+      "noLongerNeeded": "Nicht gesendet. Worum es ging, wurde abgesagt, während sie wartete.",
+      "noOptOut": "Nicht gesendet. Für diesen Absender ließ sich kein Weg zum Abbestellen angeben. Fügen Sie Telefon oder E-Mail des Unternehmens hinzu.",
+      "notConnected": "Nicht gesendet. Kein funktionierendes Anbieterkonto oder kein Absender. Prüfen Sie die Einrichtung.",
+      "notReached": "Nicht gesendet. Der Anbieter war nicht erreichbar, und nichts wurde übergeben.",
+      "operatorOff": "Nicht gesendet. SMS sind auf diesem Server ausgeschaltet.",
+      "other": "Nicht gesendet. Der Anbieter hat sie abgelehnt.",
+      "sender": "Nicht gesendet. Der Anbieter hat den Absender abgelehnt. Prüfen Sie ihn in der Konsole des Anbieters.",
+      "spendLimit": "Nicht gesendet. Das Ausgabenlimit Ihres Anbieterkontos ist erreicht.",
+      "stopped": "Nicht gesendet. Diese Person möchte keine SMS mehr.",
+      "tooLate": "Nicht gesendet. Die nächsten Sendezeiten liegen nach dem Zeitpunkt, für den diese SMS bestimmt war.",
+      "waitingRegistration": "Nicht gesendet. Ihre Registrierung für dieses Land steht noch aus.",
+      "words": "Nicht gesendet. Die Vorlage oder ein Wert darin kann nicht als SMS gesendet werden."
+    },
+    "registration": {
+      "between": "Die Registrierung läuft zwischen Ihrem Unternehmen und {provider}. Adminium kann sie weder sehen noch genehmigen noch beschleunigen.",
+      "heading": "Registrierung",
+      "open": "Registrierung bei {provider} öffnen",
+      "sub": "Manche Länder verlangen, dass sich ein Unternehmen registriert, bevor es dort SMS senden kann.",
+      "unknown": "{provider} teilt uns das für Ihren Absender nicht mit. Prüfen Sie es dort.",
+      "us": "SMS in die Vereinigten Staaten werden erst zugestellt, wenn Ihre 10DLC- oder Toll-free-Registrierung genehmigt ist. Das kann Tage bis Wochen dauern."
+    },
+    "save": "Speichern",
+    "saveFailed": "Das konnte nicht gespeichert werden",
+    "sender": {
+      "badCountry": "Wählen Sie ein Land aus der Liste.",
+      "badName": "Bis zu 11 Buchstaben, Ziffern und Leerzeichen, mit mindestens einem Buchstaben.",
+      "badNumber": "Schreiben Sie die Nummer vollständig, beginnend mit + und der Ländervorwahl.",
+      "badPool": "Fügen Sie die Messaging Service SID (MG…) ein, oder bei Telnyx die ID dieses Profils.",
+      "contact": "Kann eine SMS keine STOP-Antwort empfangen, endet sie mit der Telefonnummer der App oder der Antwortadresse Ihres E-Mail-Absenders, damit die Person Sie um das Abbestellen bitten kann. Das Team trägt sie dann in die Keine-SMS-Liste ein.",
+      "country": "Land für lokale Nummern",
+      "countryHelp": "Eine Nummer ohne + wird als Nummer aus diesem Land gelesen.",
+      "heading": "Von wem SMS kommen",
+      "kind": "Art des Absenders",
+      "name": "Absendername",
+      "nameLine": "Kann keine Antworten empfangen, daher nennt jede SMS Ihr Telefon oder Ihre E-Mail zum Abbestellen.",
+      "noCountry": "Keins: nur Nummern mit +",
+      "number": "Nummer",
+      "numberLine": "Kann Antworten empfangen.",
+      "otherProfile": "Diese Nummer gehört zu einem anderen Messaging-Profil. Verschieben Sie sie in Telnyx in dieses Profil.",
+      "pool": "Messaging-Service oder Nummernpool",
+      "poolLine": "Antworten hängen von den enthaltenen Absendern ab, daher nennen SMS Ihr Telefon oder Ihre E-Mail zum Abbestellen.",
+      "refused": "Dieser Absender konnte nicht gespeichert werden.",
+      "sub": "Eine Nummer oder ein Absendername aus der Konsole Ihres Anbieters. Adminium kauft keine und registriert keine."
+    },
+    "status": {
+      "checkedNotSent": "Geprüft: nicht gesendet",
+      "checkedWent": "Geprüft: gesendet",
+      "delivered": "Zugestellt",
+      "failed": "Fehlgeschlagen",
+      "notSent": "Nicht gesendet",
+      "sent": "An den Anbieter übergeben",
+      "skipped": "Übersprungen",
+      "undelivered": "Nicht zugestellt",
+      "unknown": "Unbekannt, vor erneutem Senden prüfen",
+      "waiting": "Wartet"
+    },
+    "statusLine": {
+      "checkedNotSent": "Jemand hat beim Anbieter nachgesehen: Sie wurde nicht gesendet. Die App darf sie erneut senden, nachdem alle Prüfungen noch einmal gelaufen sind.",
+      "checkedWent": "Jemand hat beim Anbieter nachgesehen: Sie wurde gesendet.",
+      "delivered": "Der Anbieter meldet, dass sie das Telefon erreicht hat.",
+      "failed": "Sie wurde nicht gesendet. Der Grund unten sagt, was zu beheben ist.",
+      "notSent": "Sie wurde sicher nicht an den Anbieter übergeben.",
+      "sent": "{provider} hat sie angenommen. Ob sie das Telefon erreicht hat, ist noch nicht bekannt.",
+      "skipped": "Eine Regel hat sie gestoppt, bevor etwas gesendet wurde.",
+      "undelivered": "Der Netzbetreiber konnte sie nicht zustellen. Prüfen Sie die Nummer mit der Person, bevor Sie erneut senden.",
+      "unknown": "Wir haben keine Antwort von {provider} erhalten. Die SMS wurde vielleicht gesendet. Adminium sendet sie nicht von selbst erneut.",
+      "waiting": "Eingereiht. Sie geht, sobald die Sendezeiten beginnen und das heutige Limit Platz hat."
+    },
+    "steps": {
+      "check": "Verbindung prüfen",
+      "checkLine": "Der Anbieter wird zum Schlüssel befragt, bevor er gespeichert wird.",
+      "openConsole": "Konsole öffnen",
+      "openPortal": "Portal öffnen",
+      "openTelnyx": "Telnyx öffnen",
+      "openTwilio": "Twilio öffnen",
+      "paste": "Unten einfügen",
+      "pasteLine": "Jeden Wert einzeln, ohne etwas davor oder danach.",
+      "telnyx": {
+        "account": "Ein Telnyx-Konto eröffnen",
+        "accountLine": "Selbstbedienung. Telnyx kann Identitätsprüfungen verlangen.",
+        "keys": "Einen API-Schlüssel erstellen und den öffentlichen Schlüssel kopieren",
+        "keysLine": "Beides finden Sie unter Auth im Telnyx-Portal.",
+        "profile": "Die ID Ihres Messaging-Profils kopieren",
+        "profileLine": "Das Profil mit den Nummern, von denen Sie senden."
+      },
+      "twilio": {
+        "account": "Ein bezahltes Twilio-Konto eröffnen",
+        "accountLine": "Ein Testkonto kann diese SMS nicht senden.",
+        "keys": "Account SID und Auth Token kopieren",
+        "keysLine": "Beides steht auf der Startseite der Konsole, unter Account info."
+      }
+    },
+    "stop": {
+      "added": "SMS an diese Nummer sind gestoppt.",
+      "already": "Diese Nummer steht bereits auf der Liste.",
+      "badNumber": "Das ist keine Telefonnummer, die eine SMS erreichen kann. Schreiben Sie sie mit + und der Ländervorwahl.",
+      "col": {
+        "actions": "Aktionen",
+        "from": "Herkunft",
+        "number": "Nummer",
+        "when": "Wann",
+        "why": "Grund"
+      },
+      "confirmSent": "Eine einfache Bestätigung wurde gesendet, ohne Frage und ohne Angebot.",
+      "count": "{count, plural, one {# Eintrag} other {# Einträge}}",
+      "empty": "Noch steht niemand auf der Liste.",
+      "erased": "Gelöschte Person, aufbewahrt, damit sie nie wieder eine SMS erhält",
+      "from": {
+        "email": "Per E-Mail gebeten. Erfasst von {name}",
+        "erased": "Auf Anfrage gelöscht",
+        "inPerson": "Persönlich gebeten. Erfasst von {name}",
+        "phone": "Telefonisch gebeten. Erfasst von {name}",
+        "provider": "{provider} hat eine Abmeldung gemeldet",
+        "reply": "Hat auf eine SMS mit STOP geantwortet"
+      },
+      "how": "Wie die Person gebeten hat",
+      "asked": {
+        "email": "Per E-Mail",
+        "inPerson": "Persönlich",
+        "phone": "Telefonisch"
+      },
+      "line": "Niemand auf dieser Liste erhält eine SMS von diesem Unternehmen, auch keine Service-SMS.",
+      "noConfirm": "Keine Bestätigung per SMS, weil diese Person sich direkt an das Unternehmen gewandt hat.",
+      "noMatch": "Kein Eintrag passt.",
+      "number": "Telefonnummer",
+      "record": "Abbestellung erfassen",
+      "recordWhy": "Für jemanden, der Sie nicht per SMS gebeten hat, keine SMS mehr zu erhalten. Eine SMS von einem Absendernamen kann keine STOP-Antwort empfangen, daher bestellt man so ab.",
+      "recordedBy": "Unter Ihrem Namen erfasst. Es gilt sofort, für jede SMS von diesem Unternehmen.",
+      "remove": "Entfernen",
+      "removeBody": "Nur wenn diese Person wieder zugestimmt hat, SMS zu erhalten. Das Entfernen erfasst keine Zustimmung: Sie erhält weiterhin nur die SMS, denen sie zugestimmt hat.",
+      "removeTitle": "Diese Nummer von der Liste nehmen?",
+      "save": "SMS an diese Nummer stoppen",
+      "search": "Nummern suchen",
+      "start": "Eine START-Antwort hebt die Sperre beim Anbieter auf und nimmt die Nummer von dieser Liste, ist aber keine Zustimmung. Die Person muss vor jeder SMS erneut zustimmen.",
+      "why": {
+        "erased": "Gelöschte Person",
+        "hand": "Hat das Unternehmen gebeten",
+        "provider": "Vom Anbieter gemeldet",
+        "reply": "Hat STOP geantwortet"
+      },
+      "whyAny": "Grund: alle"
+    },
+    "tab": {
+      "activity": "Aktivität",
+      "setup": "Einrichtung",
+      "stop": "Keine-SMS-Liste",
+      "templates": "Vorlagen"
+    },
+    "templates": {
+      "col": {
+        "app": "App",
+        "languages": "Sprachen",
+        "name": "Vorlage",
+        "segments": "Höchstens Segmente"
+      },
+      "emptyBody": "Apps, die SMS senden, bringen ihre eigenen Vorlagen mit. Installieren Sie eine auf der Seite der Apps, dann erscheinen ihre Vorlagen hier zum Bearbeiten.",
+      "emptyTitle": "Noch keine App hat eine SMS-Vorlage installiert",
+      "languagesOf": "{count} von {total}",
+      "notConnected": "Es ist kein Anbieter verbunden, daher senden diese Vorlagen noch nichts.",
+      "openApps": "Add-ons und Apps öffnen",
+      "openSetup": "Einrichtung öffnen",
+      "segmentsNote": "Segmente werden mit Platzhalterwerten und der Abmeldezeile gezählt. Die eigenen Werte jeder Kundin und jedes Kunden können das ändern."
+    },
+    "test": {
+      "cost": "Das nutzt Ihr Anbieterkonto und kann eine kleine Gebühr kosten.",
+      "fixed": "Die Test-SMS hat immer diesen Wortlaut, daher kann diese Schaltfläche nichts anderes senden.",
+      "limited": "Zu viele Test-SMS. Versuchen Sie es in ein paar Minuten erneut.",
+      "message": "Die Test-SMS",
+      "notReady": "Verbinden Sie zuerst einen Anbieter und wählen Sie einen Absender.",
+      "notTaken": "Nicht gesendet",
+      "open": "Test-SMS senden",
+      "refused": "Nicht gesendet",
+      "send": "Test senden",
+      "sending": "Wird gesendet…",
+      "sent": "An {provider} übergeben",
+      "sentLine": "Eine Test-SMS erhält hier keinen Zustellbericht, sehen Sie also auf das Telefon. Mit einem Testschlüssel wird nichts zugestellt.",
+      "sub": "Eine feste SMS an ein Telefon, das Sie bei sich haben.",
+      "title": "Test-SMS senden",
+      "to": "Telefonnummer",
+      "toHelp": "Mit + und der Ländervorwahl, oder eine lokale Nummer des oben eingestellten Landes.",
+      "unknownLine": "Wir haben keine Antwort von {provider} erhalten. Sehen Sie in dessen Nachrichtenprotokoll nach, bevor Sie eine weitere senden."
+    },
+    "title": "SMS"
   }
 }
