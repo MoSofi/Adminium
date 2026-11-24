@@ -17,7 +17,7 @@
  * ordinary reply is kept in its thread, or answered "not read" when its app's
  * replies are off. Their answers go through the same send path.
  */
-import { readJsonFrom, type ConsentPerson, type EnqueueJobInput, type MetaDb } from '@adminium/meta';
+import { readJsonFrom, settingsRepo, type ConsentPerson, type EnqueueJobInput, type MetaDb } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
@@ -36,6 +36,7 @@ import { smsRoutes } from './routes.js';
 import { createTextSendStore, textPhoneKeys, TEXT_SETTLE_JOB, TEXT_SETTLE_SCHEDULE, type TextReport, type TextSendPath, type TextSendStore } from './send/index.js';
 import { createTextMarketingStore, type TextMarketingStore } from './marketing/store.js';
 import { createSmsService, type SmsService } from './service.js';
+import { createSmsTestGate } from './test-gate.js';
 import { createTextThreads, textsRoutes, type RecordPhone, type TextApp, type TextThreads, type TextThreadsDeps } from './threads/index.js';
 
 export interface SmsWiringDeps {
@@ -198,6 +199,8 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
         desktop: deps.desktop,
         trustProxy: deps.trustProxy,
         publicOrigin: () => storedPublicOrigin(meta),
+        // The send path's own settings: a test takes a slot of the same day's limit.
+        testGate: createSmsTestGate({ meta, secret, store: deliveries, policy: () => settingsRepo(meta).get('sms.sendPolicy').catch(() => null), now }),
       }),
 
     consoleRoutes: () =>

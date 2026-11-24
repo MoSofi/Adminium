@@ -6,7 +6,7 @@
  *   PUT    /sms/account   save keys: refused unless the provider accepts them
  *   PUT    /sms/sending   the sender and the default country
  *   POST   /sms/check     ask the provider about the saved keys again
- *   POST   /sms/test      one fixed test text
+ *   POST   /sms/test      one fixed test text, to the person's own number (`test-gate.ts`)
  *   DELETE /sms/account   remove the keys
  *
  * Everything needs `sms.manage`, and every change a signed-in person: an API
@@ -28,6 +28,7 @@ import { tagRoutes } from '../security/route-audience.js';
 import type { LockReason } from '../trial/operator-lock.js';
 import { phoneHint } from './destination.js';
 import type { SmsAccountView, SmsService } from './service.js';
+import type { SmsTestGate } from './test-gate.js';
 import { SMS_CHECK_REASONS, SMS_PROVIDERS } from './types.js';
 
 export interface SmsRoutesDeps {
@@ -44,6 +45,8 @@ export interface SmsRoutesDeps {
   trustProxy: boolean;
   /** This server's stored public address (`storedPublicOrigin`). */
   publicOrigin: () => Promise<string | null>;
+  /** What a test text may cost, kept in meta (`test-gate.ts`). Without it, the service's own memory limit. */
+  testGate?: SmsTestGate | undefined;
 }
 
 const field = z.string().max(1024);
@@ -194,14 +197,16 @@ export function smsRoutes(deps: SmsRoutesDeps): FastifyPluginAsyncZod {
       '/sms/test',
       { preHandler: manage, config: { audit: audited('rbac') }, schema: { body: testBody, response: { 200: testReply } } },
       async (request) => {
-        requirePerson(request);
+        const userId = requirePerson(request);
         refuseOffline();
-        const result = await service.sendTest(request.body.to);
+        const gate = deps.testGate;
+        const result = await service.sendTest(request.body.to, gate === undefined ? undefined : (e164) => gate(userId, e164));
         const reason = result.outcome === 'accepted' ? null : result.reason;
         await app.rbac.audit(request, {
           category: 'settings',
           action: 'sms.test.sent',
-          changes: { after: { provider: result.provider, outcome: result.outcome, reason, to: phoneHint(result.to) } },
+          // The person's own number, by its last two digits; it took a slot of the day's text limit.
+          changes: { after: { provider: result.provider, outcome: result.outcome, reason, to: phoneHint(result.to), ownNumber: true, countedInDailyLimit: gate !== undefined } },
         });
         return {
           data: {
