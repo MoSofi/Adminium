@@ -492,6 +492,13 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'people.lead',
   // Where an app's orders keep what a carrier needs: the address of a quote is read from those columns (routes/shipping).
   'shipping',
+  // Where an order's goods are for a customs declaration, the line state that leaves one out, and the refund that
+  // stops one (shipping/customs.ts, routes/shipping/customs.ts).
+  'shipping.customs',
+  'shipping.customs.lineUnless',
+  'shipping.customs.refunded',
+  // A person's copy erased with them even from a row the law keeps, such as a phone on an order (privacy/erase-rows.ts).
+  'people.copyEvenIfKept',
   // A record action the generated record page shows on a kind of declared table, and the notes under the fields a
   // source filled (leads/record-actions.ts, routes/leads/notes.ts).
   'addOn.slots.on',
