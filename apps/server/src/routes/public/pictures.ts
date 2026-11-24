@@ -30,7 +30,7 @@
  */
 import { withOpenDoors } from '../../rbac/app-parts.js';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { filesRepo, publicKeysRepo, type DsnCrypto, type MetaDb } from '@adminium/meta';
+import { SHIPPING_LABEL_FILE_KIND, filesRepo, publicKeysRepo, type DsnCrypto, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
 
 import type { ConnectionManager } from '../../connections/manager.js';
@@ -185,6 +185,7 @@ export function registerPictures(app: FastifyInstance, deps: PictureDeps): void 
     const file = await filesRepo(deps.meta).findById(fileId);
     if (
       file === null ||
+      file.kind === SHIPPING_LABEL_FILE_KIND ||
       file.deletedAt !== null ||
       file.entityConnectionId !== key.connectionId ||
       // The row the file was attached to, and no other: a column made to name another row's file shows nothing.

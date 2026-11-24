@@ -92,6 +92,7 @@ export default {
     "paymentsRefund": "Vracet peníze",
     "paymentsView": "Zobrazit aktivitu plateb a exportovat ji",
     "smsManage": "Nastavit textové zprávy",
+    "shippingManage": "Nastavit dopravu",
     "privacyManage": "Najít, stáhnout a spravovat údaje osoby",
     "privacyPeople": "Najít, stáhnout a vymazat údaje osoby"
   },
@@ -118,7 +119,10 @@ export default {
   },
   "apps": {
     "every": "Otevírat obrazovky pro personál všech aplikací",
-    "one": "Otevírat obrazovky pro personál aplikace {app}"
+    "one": "Otevírat obrazovky pro personál aplikace {app}",
+    "shippingBook": "{app}: kupovat štítky v mezích, které nastavíte",
+    "shippingCancel": "{app}: žádat o vrácení peněz za štítek",
+    "shippingCustoms": "{app}: podávat celní prohlášení"
   },
   "rows": {
     "locked": "Super Admin dosáhne na každý řádek.",

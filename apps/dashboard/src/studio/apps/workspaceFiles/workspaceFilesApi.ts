@@ -154,6 +154,8 @@ export interface WorkspaceFileApp {
   target: string | null;
   state: WorkspaceAppState;
   refusal: { reason: string; message: string } | null;
+  /** Label rights its install did not give, because a workspace file carries no answer for them. */
+  shippingWithheld?: { role: string; roleName: string; action: 'book' | 'cancel' | 'customs' }[];
   route: 'install' | 'update' | 'install-another';
   installs: { installId: string; connectionId: string | null; connectionName: string; version: string }[];
 }

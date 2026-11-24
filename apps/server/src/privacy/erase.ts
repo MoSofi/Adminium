@@ -90,7 +90,8 @@ import type { ChatForget } from '../chat/transcripts.js';
 import type { AnswerFilesRemover } from '../forms/answers.js';
 import { personHash, personHashes } from './export.js';
 import type { AppScope } from './scope.js';
-import { erasedNameOf, findPerson, searchAddress } from './sources.js';
+import { erasedNameOf, findPerson, searchAddress, type PersonFound } from './sources.js';
+import { bookingsOfRows, eraseLabelsOfRows, type LabelPersonRow } from '../shipping/labels.js';
 import { countHeldByAddress, forgetHeldByAddress } from './held-values.js';
 import { whatStays, type StaysItem } from './what-stays.js';
 
@@ -187,7 +188,7 @@ async function withSoleTraders(deps: EraseDeps, rows: PersonRows, found: readonl
 }
 
 /** What goes, as the erase dialog counts it. */
-export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations' | 'page-visits' | 'found-people' | 'reviews' | 'text-records';
+export type GoesKind = 'people' | 'copy' | 'outbox' | 'consent' | 'campaign-mail' | 'files' | 'shipping-labels' | 'form-answers' | 'form-invitations' | 'form-files' | 'chat-conversations' | 'page-visits' | 'found-people' | 'reviews' | 'text-records';
 
 export interface GoesItem {
   kind: GoesKind;
@@ -268,6 +269,14 @@ function copyLinks(rows: PersonRows): CopyLink[] {
 }
 
 /** Their own rows and their copies: what a chat that became one of them is found by. */
+/** Every row the search found of theirs, those of a table the law keeps too. */
+function rowsInSources(found: PersonFound): LabelPersonRow[] {
+  const own = found.sources
+    .filter((source) => (source.kind === 'people' || source.kind === 'copy') && source.connectionId !== null && source.table !== null)
+    .flatMap((source) => source.keys.map((key) => ({ connectionId: source.connectionId!, table: source.table!, key })));
+  const linked = found.lawLinked.flatMap((one) => one.keys.map((key) => ({ connectionId: one.connectionId, table: one.table, key })));
+  return [...own, ...linked, ...found.parcelRows.map(({ connectionId, table, key }) => ({ connectionId, table, key }))];
+}
 function theirRows(rows: PersonRows): TheirRow[] {
   return rows.databases.flatMap((database) =>
     database.sources.filter((source) => (source.kind === 'people' || source.kind === 'copy') && source.numberOnly !== true).flatMap((source) => source.rows.map((row) => ({ connectionId: source.connectionId, table: source.table.id, key: row.key }))),
@@ -406,7 +415,10 @@ async function previewTarget(deps: EraseDeps, address: string, phone: PhoneTarge
   if (visits > 0) goes.push({ kind: 'page-visits', count: visits });
   const sends = (await campaignSendIds(deps.meta, address, people, byAddress)).length;
   if (sends > 0) goes.push({ kind: 'campaign-mail', count: sends });
-  const files = new Set([...(await rowFileIds(deps.meta, people)), ...(await copyFileIds(deps.meta, copyRows(rows)))]).size;
+  // Every row of theirs, a kept one too: an order the law keeps stays, and its label is not that record.
+  const labelFiles = new Set((await bookingsOfRows(deps.meta, [...theirRows(rows), ...(address === '' ? [] : rowsInSources(await findPerson(deps, address, apps, { rowsOnly: true })))])).flatMap((one) => [one.labelRef, one.customsRef].filter((id): id is string => id !== null)));
+  if (labelFiles.size > 0) goes.push({ kind: 'shipping-labels', count: labelFiles.size });
+  const files = new Set([...(await rowFileIds(deps.meta, people)), ...(await copyFileIds(deps.meta, copyRows(rows)))].filter((id) => !labelFiles.has(id))).size;
   if (files > 0) goes.push({ kind: 'files', count: files });
   // By phone there is no address to search the stores with: what stays is the law's tables that hold the number.
   const stays: StaysItem[] =
@@ -453,6 +465,8 @@ async function eraseTarget(deps: EraseDeps, address: string, phone: PhoneTarget 
   // A sole trader's company row is theirs: emptied with them.
   const rows = await withSoleTraders(deps, narrowed, foundPeople, erasedName);
   const people = peopleRefs(rows);
+  // Found while their rows still hold their address. A narrowed erasure takes only the rows it was given.
+  const labelRows = [...theirRows(rows), ...(only === undefined && address !== '' ? rowsInSources(await findPerson(deps, address, apps, { rowsOnly: true })) : [])];
   const counts: Record<string, number> = {};
 
   // 1. Still stopped, by the hash alone. The do-not-email list is the workspace's: an erasure for some apps leaves it.
@@ -522,6 +536,9 @@ async function eraseTarget(deps: EraseDeps, address: string, phone: PhoneTarget 
     }
   }
   counts['downloads'] = downloads.deleted;
+  const labels = await eraseLabelsOfRows({ meta, storage: deps.storage }, labelRows, now());
+  if (labels.deleted > 0) counts['shipping-labels'] = labels.deleted;
+  filesFailed += labels.failed;
   const files = await purgeRowFiles(meta, deps.storage, [...new Set([...(await rowFileIds(meta, people)), ...(await copyFileIds(meta, copyRows(rows)))])]);
   counts['files'] = files.purged;
   filesFailed += files.failed;
@@ -539,8 +556,16 @@ async function eraseTarget(deps: EraseDeps, address: string, phone: PhoneTarget 
   const removed = await scrubRemovedRows(meta, targets, copyLinks(rows));
   let audit = await scrubAuditImages(meta, [...targets, ...removed.copies]);
   // With no address there is nothing to look for, and the search would read the whole log.
-  const swept = address === '' ? { audit: 0, removedRows: 0 } : await sweepAddress(meta, address);
+  const swept = address === '' ? { audit: 0, removedRows: 0, rows: [] } : await sweepAddress(meta, address);
   counts['removed-rows'] = removed.changed + swept.removedRows;
+  // An order already deleted is in no search, and its label is still in the bin until its 90 days are up.
+  const removedLabels = await eraseLabelsOfRows(
+    { meta, storage: deps.storage },
+    [...removed.copies.flatMap((one) => one.keys.map((key) => ({ connectionId: one.connectionId, table: one.table, key }))), ...(whole ? swept.rows : [])],
+    now(),
+  );
+  if (removedLabels.deleted > 0) counts['shipping-labels'] = (counts['shipping-labels'] ?? 0) + removedLabels.deleted;
+  filesFailed += removedLabels.failed;
 
   // 6. Their rows.
   Object.assign(counts, await writePersonRows(rows));

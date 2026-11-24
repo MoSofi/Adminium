@@ -134,7 +134,7 @@ import { inTransaction, withNamedLock } from './capacity-guard.js';
 import { evaluateAll, placesFor, touchedFormulas, workOut } from './formulas.js';
 import { bandsAfterFormulas, settleBands } from './band.js';
 import { claimsNumbers, insertNumbered, numberLockName, prepareNumbers, seriesOf, withSeriesLocks } from './gapless.js';
-import { fillFromElsewhere, fillLinksFromElsewhere, settingsReaderOn, type RuleSettingsStore } from './rule-settings.js';
+import { defaultOfColumn, fillFromElsewhere, fillLinksFromElsewhere, settingsReaderOn, type RuleSettingsStore } from './rule-settings.js';
 import { attachSeals, sealRows, sealsOf, type WriteSeals } from './seal.js';
 import { attachExpect, attachGuard, createdBy, dayOf, deleteRefusal, expectOf, guardOf, guardedDelete, holdLinkedFirst, holdParentsFirst, instantOf, guardedInsert, guardedUpdate, movesParentsOnCreate, rowMoved, StateMoveRefused, supersedesOnCreate, tiedToStates, type ClearColumns, type EffectWriter, type EffectWritten } from './states.js';
 import { attachWindows, holds, statesReadClock, waitVias, type StateWindow } from './state-conditions.js';
@@ -1898,6 +1898,9 @@ export interface RecordWriteService {
   settlesInside(target: WriteTarget, values: Row, before: Row): boolean;
 }
 
+/** Where a person is behind a write, so a move back can be asked about a paid label. */
+const PAID_LABEL_ORIGINS: ReadonlySet<WriteOrigin> = new Set<WriteOrigin>(['dashboard', 'bulk', 'public', 'action', 'undo']);
+
 export interface WriteServiceOptions {
   /** Read on every write, so a reload swaps the hooks for the next one. */
   hooks?: (() => RecordHooks) | undefined;
@@ -2049,6 +2052,8 @@ export interface WriteServiceOptions {
    * Without it, no payment is known of and no move is refused for one.
    */
   paymentInFlight?: ((target: Pick<WriteTarget, 'connectionId' | 'table'>, row: Row) => Promise<boolean>) | undefined;
+  /** A person's move back or to cancelled on a row with a paid shipping label: refuses it (`shipping/order-guard.ts`). */
+  paidLabelMove?: ((target: Pick<WriteTarget, 'connectionId' | 'table'>, context: Pick<WriteContext, 'origin' | 'request'>, row: Row, from: string, to: string) => Promise<void>) | undefined;
 }
 
 /** What {@link WriteServiceOptions.paymentRows} says of a payable's payments table, or of an app's refund table. */
@@ -2100,6 +2105,7 @@ export function writtenByAdminium(context: Pick<WriteContext, 'origin' | 'stamps
     case 'undo':
     case 'ledger':
     case 'payment':
+    case 'shipping':
       return true;
     case 'import':
       return context.stamps !== 'left-out';
@@ -3022,6 +3028,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         ...(action === 'update' && opts.paymentInFlight !== undefined && waitsForNoPayment(rules)
           ? { paymentInFlight: (row: Row) => opts.paymentInFlight!(target, row) }
           : {}),
+        // A person's move, wherever it was made. A move Adminium makes itself has nobody to answer the question.
+        ...(action === 'update' && !history && context.declared === undefined && opts.paidLabelMove !== undefined && PAID_LABEL_ORIGINS.has(context.origin)
+          ? { paidLabelMove: (row: Row, from: string, to: string) => opts.paidLabelMove!(target, context, row, from, to) }
+          : {}),
       });
     }
     const seals = history || action === 'delete' ? [] : (rules.seals ?? []).filter((stamp) => stampFires(stamp, action, values, stored));
@@ -3354,7 +3364,15 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         await fillLinksFromElsewhere(rules, action, target, localize(rules, target, fill(rules, action, target, context, withoutTypedCodes(rules, context, values), now), await zoneFor(rules, target)), settingsReaderOn(opts.settings, target.connectionId)),
         memo,
         context.origin === 'undo',
-        { origin: context.origin, provedAddress: context.provedAddress ?? null, zone: await zoneFor(rules, target), now, stored, rights: target.rights },
+        {
+          origin: context.origin,
+          provedAddress: context.provedAddress ?? null,
+          zone: await zoneFor(rules, target),
+          now,
+          stored,
+          rights: target.rights,
+          defaultOf: (column) => defaultOfColumn(rules, column, target, settingsReaderOn(opts.settings, target.connectionId)),
+        },
       ),
       settingsReaderOn(opts.settings, target.connectionId),
     );

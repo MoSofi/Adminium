@@ -21,6 +21,8 @@ export const SOURCE_KINDS = [
   'automation-runs',
   'notifications',
   'files',
+  // Parcels booked for one of their orders, and whether a label file is held.
+  'shipping-labels',
   // A forms add-on's answers given by the address, and the survey invitations sent to it.
   'form-answers',
   'form-invitations',

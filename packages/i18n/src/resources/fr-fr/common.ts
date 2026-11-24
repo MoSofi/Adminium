@@ -169,7 +169,8 @@ export default {
     "signOut": "Se déconnecter",
     "toggleSidebar": "Afficher/masquer la barre latérale",
     "payments": "Paiements",
-    "putOnline": "Mettre en ligne…"
+    "putOnline": "Mettre en ligne…",
+    "shipping": "Expédition"
   },
   "palette": {
     "dialog": "Palette de commandes",

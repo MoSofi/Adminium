@@ -24,7 +24,7 @@
  * count is touched. Counted as pictures are, per address and per key.
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { filesRepo, publicKeysRepo, type DsnCrypto, type MetaDb } from '@adminium/meta';
+import { SHIPPING_LABEL_FILE_KIND, filesRepo, publicKeysRepo, type DsnCrypto, type MetaDb } from '@adminium/meta';
 import { PUBLIC_ASSET_MAX_BYTES } from '@adminium/manifest';
 import { z } from 'zod';
 
@@ -208,6 +208,7 @@ export function registerAssets(app: FastifyInstance, deps: AssetDeps): void {
     const kind = file === null ? null : assetKindOf(file.mime);
     if (
       file === null ||
+      file.kind === SHIPPING_LABEL_FILE_KIND ||
       kind === null ||
       file.deletedAt !== null ||
       file.entityConnectionId !== key.connectionId ||

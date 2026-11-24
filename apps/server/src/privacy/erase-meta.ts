@@ -210,7 +210,7 @@ export async function scrubRemovedRows(meta: MetaDb, targets: readonly ImageTarg
 }
 
 /** Every audit entry and removed-row image that still holds the address in a text: that text nulled. Answers the entries and rows changed. */
-export async function sweepAddress(meta: MetaDb, address: string): Promise<{ audit: number; removedRows: number }> {
+export async function sweepAddress(meta: MetaDb, address: string): Promise<{ audit: number; removedRows: number; rows: { connectionId: string; table: string; key: string }[] }> {
   const { db } = meta;
   // An account's pending move to this address: it holds the address in clear, and opening its link would bring it back.
   await db.deleteFrom('adminium_email_changes').where('newEmail', '=', address.trim().toLowerCase()).execute();
@@ -238,8 +238,10 @@ export async function sweepAddress(meta: MetaDb, address: string): Promise<{ aud
   audit = changed;
   changed = 0;
   after = null;
+  /** The removed rows that held the address: a label printed for one of them goes too. */
+  const held: { connectionId: string; table: string; key: string }[] = [];
   for (;;) {
-    let query = db.selectFrom('adminium_removed_rows').select(['id', 'image']).where(holdsAny(meta, 'image', [address]));
+    let query = db.selectFrom('adminium_removed_rows').select(['id', 'image', 'connectionId', 'entityTable', 'entityId']).where(holdsAny(meta, 'image', [address]));
     if (after !== null) query = query.where('id', '>', after);
     const rows = await query.orderBy('id', 'asc').limit(BATCH).execute();
     for (const row of rows) {
@@ -247,11 +249,12 @@ export async function sweepAddress(meta: MetaDb, address: string): Promise<{ aud
       if (!image.changed) continue;
       await db.updateTable('adminium_removed_rows').set({ image: packJson(image.value ?? {}) }).where('id', '=', row.id).execute();
       changed += 1;
+      held.push({ connectionId: row.connectionId, table: row.entityTable, key: row.entityId });
     }
     if (rows.length < BATCH) break;
     after = rows.at(-1)!.id;
   }
-  return { audit, removedRows: changed };
+  return { audit, removedRows: changed, rows: held };
 }
 
 /** One of their rows, as a store that keeps the table by id or by name finds it. */

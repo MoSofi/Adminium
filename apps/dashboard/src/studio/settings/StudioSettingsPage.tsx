@@ -42,6 +42,7 @@ import {
   TriangleAlert,
   UploadCloud,
   Webhook,
+  Truck,
 } from 'lucide-react';
 import {
   Alert,
@@ -1677,6 +1678,8 @@ export interface StudioSettingsPageProps {
   onOpenAddOns: () => void;
   /** `/studio/payments`: payment services, ways to pay, the pay page. */
   onOpenPayments?: (() => void) | undefined;
+  /** `/studio/shipping`: the carrier each app ships with, its key, label size and limits. */
+  onOpenShipping?: (() => void) | undefined;
   /** `/studio/documents`: which table a document is drawn from. */
   onOpenDocuments?: (() => void) | undefined;
   /** `/studio/public-api`. */
@@ -1738,6 +1741,7 @@ function StudioSettingsHub({
   onOpenAddOns,
   onOpenDocuments,
   onOpenPayments,
+  onOpenShipping,
   onOpenPublicApi,
   onOpenProject,
   onOpenExport,
@@ -1934,6 +1938,17 @@ function StudioSettingsHub({
                 </button>
               ) : null
             }
+          />
+        ) : null}
+
+        {/* Shipping (/studio/shipping): every route behind it checks `shipping.manage`. */}
+        {holds('shipping.manage') && onOpenShipping !== undefined ? (
+          <LinkRow
+            icon={<Truck />}
+            heading={t('studio:settingsHub.shippingCard.heading', 'Shipping')}
+            body={t('studio:settingsHub.shippingCard.body', 'Choose the carrier each app ships with, connect its key, and set label size and who can buy labels.')}
+            cta={t('studio:settingsHub.shippingCard.cta', 'Open shipping')}
+            onOpen={onOpenShipping}
           />
         ) : null}
 

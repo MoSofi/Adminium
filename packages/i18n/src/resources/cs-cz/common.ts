@@ -169,7 +169,8 @@ export default {
     "signOut": "Odhlásit se",
     "toggleSidebar": "Přepnout postranní panel",
     "payments": "Platby",
-    "putOnline": "Zveřejnit na internetu…"
+    "putOnline": "Zveřejnit na internetu…",
+    "shipping": "Doprava"
   },
   "palette": {
     "dialog": "Paleta příkazů",

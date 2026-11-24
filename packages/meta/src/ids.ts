@@ -192,6 +192,12 @@ export const ID_PREFIXES = {
   cai: 'adminium_chat_ai_addresses',
   // wave 0097 — one counted view of a visitor who said yes to "Per visitor".
   vst: 'adminium_visits',
+  /** One order slot's live quote (wave 0107). */
+  shq: 'adminium_shipping_quotes',
+  /** One attempt to buy a label (wave 0109). */
+  shb: 'adminium_shipping_bookings',
+  /** One webhook event about a parcel (wave 0111). */
+  ste: 'adminium_shipping_track_events',
   // wave 0125 — the server's SMS account.
   sms: 'adminium_sms_accounts',
   // wave 0126 — a stopped number, and a text consent event.

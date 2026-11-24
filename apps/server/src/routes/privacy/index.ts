@@ -87,7 +87,7 @@ import { erasePerson, erasePhonePerson, previewErasure, previewPhoneErasure, typ
 import { peopleFoundNotice } from '../../leads/notice.js';
 import type { AnswerFilesRemover } from '../../forms/answers.js';
 import { countsOf, PRIVACY_EXPORT_KIND, personHash } from '../../privacy/export.js';
-import { chatTranscriptsKeeping, foundPeopleKeeping, formAnswersKeeping, KEEPING_ROWS, keepingRows } from '../../privacy/keeping.js';
+import { chatTranscriptsKeeping, foundPeopleKeeping, formAnswersKeeping, KEEPING_ROWS, keepingRows, shippingLabelsKeeping } from '../../privacy/keeping.js';
 import type { TrackingLevel } from '../../views/level.js';
 import { changeCounting, countingState, PerVisitorNeedsNotice } from '../../views/tracking.js';
 import { defaultBannerWords } from '../../views/visitor.js';
@@ -400,7 +400,7 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
     );
 
     const keepingNow = async () => ({
-      data: { rows: [...(await keepingRows((key) => settings.get(key))), ...(await formAnswersKeeping({ meta, manager: deps.manager })), ...(await chatTranscriptsKeeping({ meta, manager: deps.manager })), ...(await foundPeopleKeeping({ meta, manager: deps.manager }))] },
+      data: { rows: [...(await keepingRows((key) => settings.get(key))), ...(await shippingLabelsKeeping(meta)), ...(await formAnswersKeeping({ meta, manager: deps.manager })), ...(await chatTranscriptsKeeping({ meta, manager: deps.manager })), ...(await foundPeopleKeeping({ meta, manager: deps.manager }))] },
     });
 
     app.get('/privacy/keeping', { preHandler: privacy, schema: { response: { 200: keepingReply } } }, async () => keepingNow());

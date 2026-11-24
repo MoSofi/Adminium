@@ -92,6 +92,7 @@ export default {
     "paymentsRefund": "Give refunds",
     "paymentsView": "See payment activity and export it",
     "smsManage": "Set up text messages",
+    "shippingManage": "Set up shipping",
     "privacyManage": "Find, download and manage a person’s data",
     "privacyPeople": "Find, download and erase a person’s data"
   },
@@ -118,7 +119,10 @@ export default {
   },
   "apps": {
     "every": "Open every app’s staff screens",
-    "one": "Open {app}’s staff screens"
+    "one": "Open {app}’s staff screens",
+    "shippingBook": "{app}: buy labels, within the limits you set",
+    "shippingCancel": "{app}: ask for a label’s refund",
+    "shippingCustoms": "{app}: declare customs"
   },
   "rows": {
     "locked": "Super Admin reaches every row.",

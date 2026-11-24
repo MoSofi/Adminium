@@ -161,6 +161,10 @@ Two rows belong to visitor counting: **View counts** (13 months by default) and
 **Pages a visitor saw** (6 months). See
 [Visitor counting](/guides/privacy/visitor-counting/#how-long-things-are-kept).
 
+Once a shop has booked a parcel, a **Shipping labels** row appears. A label's file is deleted 90 days
+after its last state, and erasing a person deletes theirs. See
+[Ship parcels](/guides/shipping/#what-is-shared-and-kept).
+
 ## The privacy notice and the postal address
 
 - **Business name** and **Privacy notice address** (`PUT /api/v1/privacy/notice`).

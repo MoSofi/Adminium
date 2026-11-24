@@ -52,6 +52,12 @@ is sent to the app instead of the dashboard:
   changing it for a pay link, made or closed; a refund asks the refund right besides (`payments:@:refund` in their app's
   role, or the install's). Pairing readers, the pay address, the ways to pay and the rest of
   Payments stay the dashboard's.
+- getting a carrier's services for an order at their app's packing bench and buying its label, when
+  their role holds `shipping:@:book` (`GET /api/v1/apps/<key>/shipping/access`,
+  `POST /api/v1/apps/<key>/shipping/quotes`, `GET` and `POST /api/v1/apps/<key>/shipping/bookings`, and
+  `POST …/bookings/<id>/check`, Adminium 0.3.72). The owner's limits apply, and a role that cannot read
+  the order's money sees no price. Carrier keys, limits, releasing a purchase with no known result and
+  the rest of shipping's setup stay the dashboard's.
 - the [assistant](https://docs.adminium.dev/guides/llm-assist/milo/#on-an-apps-own-staff-address), when an administrator
   has given their role the assistant permission: its button is on the app's staff screens, and it
   answers about their app's data within what their roles read. An app's manifest cannot grant

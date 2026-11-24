@@ -2352,6 +2352,203 @@ export interface AdminiumSourceDaysTable {
 }
 
 /**
+ * Wave 0107 — one app install's shipping choices: its carrier and its Ship
+ * from address (JSON, parsed by the engine with a schema).
+ */
+export interface AdminiumShippingSettingsTable {
+  installId: string;
+  activeCarrier: string | null;
+  shipFrom: ColumnType<unknown, string | null | undefined, string | null>;
+  /** Wave 0110: the label size this shop asks carriers for. */
+  labelSize: ColumnType<string | null, string | null | undefined, string | null>;
+  /** Wave 0113: the countries this shop delivers to and its customs defaults. */
+  international: ColumnType<unknown, string | null | undefined, string | null>;
+  updatedBy: string | null;
+  updatedAt: Ts;
+}
+
+/**
+ * Wave 0107 — the one live quote of an order slot. Holds a keyed hash of what
+ * it was given for, never a name, an address or a phone.
+ */
+export interface AdminiumShippingQuotesTable {
+  id: Id;
+  installId: string;
+  connectionId: string;
+  tableRef: string;
+  rowKey: string;
+  purpose: string;
+  parcelNumber: number;
+  carrierKey: string;
+  /** Wave 0108: the account the quote was priced under. */
+  accountFingerprint: ColumnType<string | null, string | null | undefined, string | null>;
+  /** Wave 0109: what was weighed and measured, so a purchase names only a quote and a rate. */
+  parcel: ColumnType<unknown, string | null | undefined, string | null>;
+  /** Wave 0113: what the person who ticked the customs declaration chose. */
+  customs: ColumnType<unknown, string | null | undefined, string | null>;
+  detailsHash: string;
+  rates: JsonColumn;
+  createdBy: string | null;
+  createdAt: Ts;
+  expiresAt: Ts;
+}
+
+/**
+ * Wave 0108 — what a carrier said of the key saved for one carrier install.
+ * The key itself is in the encrypted credential store; this holds its last
+ * four characters and keyed hashes.
+ */
+export interface AdminiumShippingAccountsTable {
+  carrierInstallId: string;
+  mode: string;
+  fingerprint: string;
+  keyHash: string;
+  keyHint: string;
+  state: string;
+  carriers: JsonColumn;
+  checkedBy: string | null;
+  checkedAt: Ts;
+}
+
+/** Wave 0108 — what one app install lets people spend who do not manage shipping. */
+export interface AdminiumShippingLimitsTable {
+  installId: string;
+  labelLimit: string | null;
+  labelCurrency: string | null;
+  dailyLabels: number | null;
+  packersAbroad: ColumnType<unknown, boolean, boolean>;
+  updatedBy: string | null;
+  updatedAt: Ts;
+}
+
+/** Wave 0111 — one carrier install's webhook, its health and its refresh pace. The token is held only as a keyed hash. */
+export interface AdminiumShippingTrackInstallsTable {
+  carrierInstallId: string;
+  tokenHash: ColumnType<string | null, string | null | undefined, string | null>;
+  tokenHint: ColumnType<string | null, string | null | undefined, string | null>;
+  tokenMadeAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  firstAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  lastAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  lastBadAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  refreshedAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  pollOnAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  pollMonth: ColumnType<string | null, string | null | undefined, string | null>;
+  pollCalls: number;
+  updatedAt: Ts;
+}
+
+/** Wave 0111 — where one booked parcel is. */
+export interface AdminiumShippingParcelsTable {
+  bookingId: string;
+  carrierInstallId: string;
+  status: ColumnType<string | null, string | null | undefined, string | null>;
+  statusRank: number;
+  statusAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  triedAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  checkedAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  polledAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  flag: ColumnType<string | null, string | null | undefined, string | null>;
+  numberChangedAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  numberAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  oldNumbers: ColumnType<string | null, string | null | undefined, string | null>;
+  updatedAt: Ts;
+}
+
+/** Wave 0111 — what a webhook said, stored once. Never an address or a name. */
+export interface AdminiumShippingTrackEventsTable {
+  id: Id;
+  carrierInstallId: string;
+  dedupeHash: string;
+  kind: string;
+  tracking: string | null;
+  transactionId: string | null;
+  rateRef: string | null;
+  status: string;
+  statusAt: Ts | null;
+  trackingUrl: string | null;
+  state: string;
+  outcome: ColumnType<string | null, string | null | undefined, string | null>;
+  receivedAt: Ts;
+  processedAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+}
+
+/**
+ * Wave 0109 — one attempt to buy a label, written before the carrier is
+ * called. Holds a keyed hash of the shipment, never a name or an address.
+ */
+export interface AdminiumShippingBookingsTable {
+  id: Id;
+  installId: string;
+  carrierInstallId: string;
+  carrierKey: string;
+  connectionId: string;
+  tableRef: string;
+  tableName: string;
+  rowKey: string;
+  purpose: string;
+  parcelNumber: number;
+  reference: string;
+  openKey: string | null;
+  state: string;
+  mode: string;
+  accountFingerprint: string;
+  detailsHash: string;
+  service: string;
+  rateCode: string;
+  handleSealed: string | null;
+  quotedAmount: string;
+  quotedCurrency: string;
+  amount: string | null;
+  currency: string | null;
+  chargeDiffers: ColumnType<unknown, boolean, boolean>;
+  carrierShipmentId: string | null;
+  tracking: string | null;
+  carrierName: string | null;
+  carrierToken: string | null;
+  trackingUrl: string | null;
+  labelRef: string | null;
+  /** Wave 0110: the stored customs invoice, the size asked for and got, and when the label's file stops being kept. */
+  customsRef: ColumnType<string | null, string | null | undefined, string | null>;
+  /** Wave 0113: the carrier said this label has a customs invoice. */
+  customsDue: ColumnType<unknown, boolean | null | undefined, boolean | null>;
+  labelSize: ColumnType<string | null, string | null | undefined, string | null>;
+  labelSizeGot: ColumnType<string | null, string | null | undefined, string | null>;
+  labelClockAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  labelGoneAt: ColumnType<Ts | null, number | null | undefined, number | null>;
+  labelGoneWhy: ColumnType<string | null, string | null | undefined, string | null>;
+  voidState: ColumnType<string | null, string | null | undefined, string | null>;
+  voidBy: ColumnType<string | null, string | null | undefined, string | null>;
+  voidAskedAt: ColumnType<number | null, number | null | undefined, number | null>;
+  voidHeardAt: ColumnType<number | null, number | null | undefined, number | null>;
+  voidSettledAt: ColumnType<number | null, number | null | undefined, number | null>;
+  voidReference: ColumnType<string | null, string | null | undefined, string | null>;
+  voidAmount: ColumnType<string | null, string | null | undefined, string | null>;
+  voidCurrency: ColumnType<string | null, string | null | undefined, string | null>;
+  voidMessage: ColumnType<string | null, string | null | undefined, string | null>;
+  countedDay: string | null;
+  countHeld: ColumnType<unknown, boolean, boolean>;
+  reason: string | null;
+  duplicates: number;
+  createdBy: string | null;
+  releasedBy: string | null;
+  createdAt: Ts;
+  calledAt: ColumnType<number | null, number | null | undefined, number | null>;
+  answeredAt: ColumnType<number | null, number | null | undefined, number | null>;
+  releasedAt: ColumnType<number | null, number | null | undefined, number | null>;
+  checkedAt: ColumnType<number | null, number | null | undefined, number | null>;
+  copiedAt: ColumnType<number | null, number | null | undefined, number | null>;
+  appliedAt: ColumnType<number | null, number | null | undefined, number | null>;
+  updatedAt: Ts;
+}
+
+/** Wave 0108 — the labels counted against one app install's daily limit, per shop day. */
+export interface AdminiumShippingDayLabelsTable {
+  installId: string;
+  day: string;
+  labels: number;
+}
+
+/**
  * Wave 0095 (made again over 0094's) — one model call the chat answerer made
  * for a network address (a keyed hash, never the address), with no
  * conversation id: read for three hours, then swept.
@@ -2711,6 +2908,15 @@ export interface MetaDB {
   adminium_visitors: AdminiumVisitorsTable;
   adminium_visits: AdminiumVisitsTable;
   adminium_source_days: AdminiumSourceDaysTable;
+  adminium_shipping_settings: AdminiumShippingSettingsTable;
+  adminium_shipping_quotes: AdminiumShippingQuotesTable;
+  adminium_shipping_accounts: AdminiumShippingAccountsTable;
+  adminium_shipping_limits: AdminiumShippingLimitsTable;
+  adminium_shipping_day_labels: AdminiumShippingDayLabelsTable;
+  adminium_shipping_bookings: AdminiumShippingBookingsTable;
+  adminium_shipping_track_installs: AdminiumShippingTrackInstallsTable;
+  adminium_shipping_parcels: AdminiumShippingParcelsTable;
+  adminium_shipping_track_events: AdminiumShippingTrackEventsTable;
   adminium_calendar_feeds: AdminiumCalendarFeedsTable;
   adminium_sms_accounts: AdminiumSmsAccountsTable;
   adminium_text_stop_list: AdminiumTextStopListTable;
@@ -2838,6 +3044,15 @@ export const META_TABLE_NAMES = [
   'adminium_visitors',
   'adminium_visits',
   'adminium_source_days',
+  'adminium_shipping_settings',
+  'adminium_shipping_quotes',
+  'adminium_shipping_accounts',
+  'adminium_shipping_limits',
+  'adminium_shipping_day_labels',
+  'adminium_shipping_bookings',
+  'adminium_shipping_track_installs',
+  'adminium_shipping_parcels',
+  'adminium_shipping_track_events',
   'adminium_calendar_feeds',
   'adminium_sms_accounts',
   'adminium_text_stop_list',

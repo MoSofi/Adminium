@@ -54,6 +54,8 @@ export function goesWords(item: GoesItem): string {
       return t('studio:privacy.erase.goes.campaignMail', '{count, plural, one {# campaign e-mail} other {# campaign e-mails}}', { count });
     case 'files':
       return t('studio:privacy.erase.goes.files', '{count, plural, one {# file} other {# files}}', { count });
+    case 'shipping-labels':
+      return t('studio:privacy.erase.goes.shippingLabels', '{count, plural, one {# shipping label file} other {# shipping label files}}', { count });
     case 'form-answers':
       return t('studio:privacy.erase.goes.answers', '{count, plural, one {# form answer} other {# form answers}} in {label}', { count, label });
     case 'form-files':
@@ -107,6 +109,8 @@ export function staysWords(item: StaysItem): { line: string; kept: string | null
       return { line: t('studio:privacy.erase.stays.invoices', '{count, plural, one {# invoice, because tax law needs it.} other {# invoices, because tax law needs them.}}', { count }), kept };
     case 'payments':
       return { line: t('studio:privacy.erase.stays.payments', '{count, plural, one {# payment record.} other {# payment records.}}', { count }), kept };
+    case 'shipping-bookings':
+      return { line: t('studio:privacy.erase.stays.shippingBookings', '{count, plural, one {# parcel booking with its tracking number. The carrier and the shipping service keep their own copy.} other {# parcel bookings with their tracking numbers. The carriers and the shipping service keep their own copies.}}', { count }), kept };
     case 'payment-events':
       return { line: t('studio:privacy.erase.stays.paymentEvents', '{count, plural, one {# message from a payment service.} other {# messages from the payment services.}}', { count }), kept };
     case 'automation-runs':

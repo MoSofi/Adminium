@@ -457,6 +457,7 @@ export type SystemAction =
   | 'payments.manage'
   | 'payments.refund'
   | 'payments.view'
+  | 'shipping.manage'
   | 'sms.manage'
   | 'privacy.manage'
   | 'privacy.people';
@@ -474,7 +475,7 @@ export type SystemAction =
  * Admin role is not seeded with it, and a server that sends no list has none.
  * Nor does `sms.manage`: its key spends the business's money.
  */
-const NEVER_GUESSED: ReadonlySet<SystemAction> = new Set<SystemAction>(['payments.manage', 'payments.refund', 'payments.view', 'sms.manage', 'privacy.manage', 'privacy.people']);
+const NEVER_GUESSED: ReadonlySet<SystemAction> = new Set<SystemAction>(['payments.manage', 'payments.refund', 'payments.view', 'shipping.manage', 'sms.manage', 'privacy.manage', 'privacy.people']);
 
 export function holdsSystemAction(bootstrap: BootstrapData, action: SystemAction): boolean {
   if (bootstrap.systemActions === undefined) {

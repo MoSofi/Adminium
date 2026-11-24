@@ -11,7 +11,8 @@
  *
  * On such a row the declared copies kept through that link are emptied, as
  * the staff erasure empties them (`erase-rows.ts`, `erase-values.ts`). Never a
- * key, a link or a secret. A table the law keeps stays whole.
+ * key, a link or a secret. A table the law keeps stays whole, but for a copy
+ * declared `evenIfKept`, which goes whether or not the app says `forget.copies`.
  *
  * The writes are direct, inside the transaction that empties the person's own
  * row: all of it happens or none does. Not a save: a save would judge the
@@ -42,8 +43,12 @@ export interface OwnCopyTable {
 
 const roleOf = (copy: DeclaredCopy): ErasedRole => (copy.json === true ? 'json' : copy.holds === 'email' ? 'email' : copy.holds === 'name' ? 'name' : 'other');
 
-/** The declared copies of this people table that are reached by a link of their own, on tables the law does not keep. */
-export async function ownCopyTables(meta: MetaDb, connectionId: string, view: SnapshotView, person: ResolvedTable): Promise<OwnCopyTable[]> {
+/**
+ * The declared copies of this people table that are reached by a link of their
+ * own, on tables the law does not keep. With `every` false, only those marked
+ * `evenIfKept`: what goes with the person even from an app without `forget.copies`.
+ */
+export async function ownCopyTables(meta: MetaDb, connectionId: string, view: SnapshotView, person: ResolvedTable, every = true): Promise<OwnCopyTable[]> {
   const installed = (await manifestsRepo(meta, NO_SECRETS).list('app')).filter((entry) => entry.row.connectionId === connectionId && PRESENT.has(entry.row.status));
   const apps: AppOnDatabase[] = installed.map((entry) => ({ appKey: entry.row.manifestKey, document: entry.document as AppOnDatabase['document'] }));
   const kept = await keptTablesOf(meta, connectionId, apps, view);
@@ -52,9 +57,9 @@ export async function ownCopyTables(meta: MetaDb, connectionId: string, view: Sn
   for (const entry of declared) {
     for (const copy of entry.copies) {
       // A copy on an add-on's table is reached through the app's own line: the add-on keeps it, and other people's lines may name it.
-      if (copy.via === null || copy.through !== undefined) continue;
+      if (copy.via === null || copy.through !== undefined || (!every && copy.evenIfKept !== true)) continue;
       const table = tableOf(view, copy.table);
-      if (table === null || table.primaryKey.length === 0 || kept.has(table.id)) continue;
+      if (table === null || table.primaryKey.length === 0 || (kept.has(table.id) && copy.evenIfKept !== true)) continue;
       // Only a link that really points at the person's table.
       const linked = view.model.relations.some((relation) => relation.from.tableId === table.id && relation.to.tableId === person.id && relation.from.columns.length === 1 && relation.from.columns[0] === copy.via);
       if (!linked) continue;

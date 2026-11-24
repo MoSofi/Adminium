@@ -123,6 +123,13 @@ import { up as up0103 } from './0103_email_changes.js';
 import { up as up0104 } from './0104_connect_link_address.js';
 import { up as up0105 } from './0105_revoke_stopped_keys.js';
 import { up as up0106 } from './0106_owner_row_limits_pending.js';
+import { up as up0107 } from './0107_shipping.js';
+import { up as up0108 } from './0108_shipping_keys.js';
+import { up as up0109 } from './0109_shipping_bookings.js';
+import { up as up0110 } from './0110_shipping_labels.js';
+import { up as up0111 } from './0111_shipping_tracking.js';
+import { up as up0112 } from './0112_shipping_refunds.js';
+import { up as up0113 } from './0113_shipping_customs.js';
 import { up as up0120 } from './0120_text_templates.js';
 import { up as up0125 } from './0125_sms_accounts.js';
 import { up as up0126 } from './0126_text_consent.js';
@@ -239,6 +246,13 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0104_connect_link_address', up: up0104 },
   { name: '0105_revoke_stopped_keys', up: up0105 },
   { name: '0106_owner_row_limits_pending', up: up0106 },
+  { name: '0107_shipping', up: up0107 },
+  { name: '0108_shipping_keys', up: up0108 },
+  { name: '0109_shipping_bookings', up: up0109 },
+  { name: '0110_shipping_labels', up: up0110 },
+  { name: '0111_shipping_tracking', up: up0111 },
+  { name: '0112_shipping_refunds', up: up0112 },
+  { name: '0113_shipping_customs', up: up0113 },
   { name: '0120_text_templates', up: up0120 },
   { name: '0125_sms_accounts', up: up0125 },
   { name: '0126_text_consent', up: up0126 },

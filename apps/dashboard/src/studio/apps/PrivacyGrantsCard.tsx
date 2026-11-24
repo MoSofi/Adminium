@@ -37,13 +37,17 @@ export function RoleGrantsAddedCard({
   privacy,
   addOn,
   refund = [],
+  shipping = [],
 }: {
   privacy: readonly { role: string; roleName: string }[];
   addOn: readonly { role: string; roleName: string; addOn: string }[];
   /** Roles newly given the app's refund right (`payments:@:refund`). */
   refund?: readonly { role: string; roleName: string }[];
+  /** Roles newly given a right on the app's own labels (`shipping:@:book`, `:cancel`, `:customs`). */
+  shipping?: readonly { role: string; roleName: string; action: 'book' | 'cancel' | 'customs' }[];
 }) {
-  if (privacy.length === 0 && addOn.length === 0 && refund.length === 0) return null;
+  if (privacy.length === 0 && addOn.length === 0 && refund.length === 0 && shipping.length === 0) return null;
+  const shippers = (action: 'book' | 'cancel' | 'customs') => [...new Set(shipping.filter((grant) => grant.action === action).map((grant) => grant.roleName))];
   const addOns = [...new Set(addOn.map((grant) => grant.addOn))];
   return (
     <section className="rounded-[14px] border border-warn/30 bg-warn-soft p-[14px]" data-testid="role-grants-added">
@@ -63,6 +67,21 @@ export function RoleGrantsAddedCard({
           {t('studio:hostedApps.update.grantsAdded.refund', '{roles} can give back money customers paid online for this app’s records.', {
             roles: namesList(refund.map((grant) => grant.roleName)),
           })}
+        </p>
+      )}
+      {shippers('book').length === 0 ? null : (
+        <p className="mt-1 text-[12px] leading-[1.5] text-fg-muted">
+          {t('studio:hostedApps.update.grantsAdded.shippingBook', '{roles} can buy shipping labels, within the limits you set.', { roles: namesList(shippers('book')) })}
+        </p>
+      )}
+      {shippers('cancel').length === 0 ? null : (
+        <p className="mt-1 text-[12px] leading-[1.5] text-fg-muted">
+          {t('studio:hostedApps.update.grantsAdded.shippingCancel', '{roles} can ask for a shipping label to be refunded.', { roles: namesList(shippers('cancel')) })}
+        </p>
+      )}
+      {shippers('customs').length === 0 ? null : (
+        <p className="mt-1 text-[12px] leading-[1.5] text-fg-muted">
+          {t('studio:hostedApps.update.grantsAdded.shippingCustoms', '{roles} can declare customs for a parcel.', { roles: namesList(shippers('customs')) })}
         </p>
       )}
       {addOns.map((key) => (

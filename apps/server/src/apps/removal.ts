@@ -26,7 +26,7 @@
  * applied while the question waits.
  */
 
-import { addOnSettingsRef } from '../rbac/permissions.js';
+import { addOnSettingsRef, SHIPPING_ACTIONS, appShippingPermission, matrixRowsFromGrants } from '../rbac/permissions.js';
 import type { Manifest, RequiredColumn } from '@adminium/manifest';
 import type { DatabaseModel } from '@adminium/engine';
 import {
@@ -75,6 +75,8 @@ export interface RemovalDeps {
   names?: (() => Promise<Map<string, string>>) | undefined;
   /** Endpoints about to go: every live key that grants one loses the grant (`endpoint-service.ts` `dropEndpointGrants`). */
   dropEndpointGrants?: ((connectionId: string, endpointIds: readonly string[]) => Promise<unknown>) | undefined;
+  /** Tables about to be deleted: their shipping labels let go of them, as a reinstall restarts their ids. */
+  retireShippingTables?: ((connectionId: string, tableNames: readonly string[]) => Promise<unknown>) | undefined;
 }
 
 /** Whether an uninstall also deletes the tables it may, and who asks. */
@@ -463,6 +465,10 @@ export function createRemovals(deps: RemovalDeps) {
      */
     await permissionsRepo(deps.meta).revokeAllForResource('app', list.address);
     await permissionsRepo(deps.meta).revokeAllForResource('app', addOnSettingsRef(list.address));
+    for (const action of SHIPPING_ACTIONS) {
+      const right = matrixRowsFromGrants([appShippingPermission(list.address, action)]).rows[0];
+      if (right !== undefined) await permissionsRepo(deps.meta).revokeAllForResource('app', right.resourceRef);
+    }
     /*
      * 4. The column rules it wrote, while they are still as it wrote them.
      *    One the operator changed, switched off or re-saved differently is
@@ -488,6 +494,8 @@ export function createRemovals(deps: RemovalDeps) {
      */
     const dropped: string[] = [];
     if (doomed.length > 0 && deps.schemaTarget !== undefined && list.connectionId !== null) {
+      // First: if this stops here, nothing was dropped, and running it again does the same.
+      await deps.retireShippingTables?.(list.connectionId, doomed.map((entry) => realTableOf(entry.record)));
       await deps.schemaTarget.edit(list.connectionId, dropEdit(doomed), { superAdmin: opts.superAdmin, createdBy: opts.createdBy });
       for (const entry of doomed) {
         await tables.setState(entry.record.id, 'dropped');

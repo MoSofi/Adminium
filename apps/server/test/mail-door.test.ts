@@ -357,7 +357,8 @@ for (const engine of META_ENGINES) {
         // A changed link is no genuine one: counted by the address, and refused with the junk.
         const changed = `${path.slice(0, 30)}${path[30] === 'A' ? 'B' : 'A'}${path.slice(31)}`;
         expect((await app.inject({ method: 'POST', url: changed, ...oneClick, ...proxy })).statusCode).toBe(429);
-      });
+        // Spends two whole rate budgets one request at a time: 16 s alone on MySQL, past 30 s in a full run.
+      }, 90_000);
     });
 
     describe('languages', () => {

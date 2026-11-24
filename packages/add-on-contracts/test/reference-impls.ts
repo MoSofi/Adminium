@@ -33,6 +33,9 @@ import {
   type ArtworkRef,
   type ArtworkSource,
   type AvailabilityVerdict,
+  type CancelResult,
+  type CarrierCredentialCheck,
+  type CredentialCheckQuery,
   type DocumentError,
   type DocumentKind,
   type DocumentOutline,
@@ -49,7 +52,10 @@ import {
   type ProductPersonalizer,
   type ProductRef,
   type Rate,
+  type RecoveryResult,
   type Shipment,
+  type ShipmentDocumentFile,
+  type ShipmentDocumentKind,
   type ShippingCarrier,
   type Template,
   type TrackEvent,
@@ -317,6 +323,121 @@ export class ReferenceShippingCarrier implements ShippingCarrier {
      * forgetting it ever existed.
      */
     this.#cancelled.add(shipmentId);
+    return Promise.resolve();
+  }
+
+  fetchDocument(shipmentId: string, kind: ShipmentDocumentKind): Promise<ShipmentDocumentFile> {
+    const shipment = [...this.#byOrder.values()].find((s) => s.id === shipmentId);
+    if (shipment === undefined) {
+      return Promise.reject(
+        new CarrierError({
+          code: 'SHIPMENT_UNKNOWN',
+          carrierMessage: `No shipment ${shipmentId}.`,
+          retryable: false,
+          outcome: 'refused',
+        }),
+      );
+    }
+    return Promise.resolve({
+      kind,
+      mediaType: 'application/pdf',
+      filename: `${shipment.tracking}-${kind}.pdf`,
+      bytes: new TextEncoder().encode('%PDF-1.7 reference'),
+    });
+  }
+
+  requestCancel(shipmentId: string): Promise<CancelResult> {
+    this.#cancelled.add(shipmentId);
+    return Promise.resolve({ state: 'requested', reference: `RF-${shipmentId}` });
+  }
+
+  cancelStatus(shipmentId: string): Promise<CancelResult> {
+    return Promise.resolve({
+      state: this.#cancelled.has(shipmentId) ? 'pending' : 'refused',
+      reference: `RF-${shipmentId}`,
+    });
+  }
+
+  checkCredentials(query?: CredentialCheckQuery): Promise<CarrierCredentialCheck> {
+    const served = query?.country === undefined || SERVED_COUNTRIES.has(query.country);
+    return Promise.resolve({ outcome: 'ok', mode: 'test', carriers: served ? ['Reference Post'] : [] });
+  }
+
+  recover(order: OrderRef): Promise<RecoveryResult> {
+    const shipment = this.#byOrder.get(order.reference);
+    return Promise.resolve(shipment === undefined ? { outcome: 'no-match' } : { outcome: 'found', shipment });
+  }
+}
+
+/**
+ * The shape of a real label service: every `book` is a new purchase, a new label
+ * has no scans yet, and each quote carries a fresh handle and no arrival date.
+ * It proves the suite can be passed honestly without a fake idempotency map.
+ */
+export class ReferencePurchaseCarrier implements ShippingCarrier {
+  readonly key = 'reference-purchase-carrier';
+
+  #quotes = 0;
+  #purchases = 0;
+
+  quote(_parcel: Parcel, from: Address, to: Address): Promise<Rate[]> {
+    for (const address of [from, to]) {
+      if (!SERVED_COUNTRIES.has(address.country)) {
+        return Promise.reject(
+          new CarrierError({
+            code: 'COUNTRY_NOT_SERVED',
+            carrierMessage: `No service for ${address.country}.`,
+            retryable: false,
+            outcome: 'refused',
+            reason: 'address',
+          }),
+        );
+      }
+    }
+    this.#quotes += 1;
+    return Promise.resolve([
+      {
+        code: 'post_ground',
+        service: 'Ground',
+        amount: 8.76,
+        amountDecimal: '8.76',
+        currency: 'EUR',
+        ref: `quote-${this.#quotes}`,
+        carrier: 'Reference Post',
+        carrierToken: 'reference_post',
+        handover: 'drop-off',
+      },
+    ]);
+  }
+
+  book(rate: Rate): Promise<Shipment> {
+    this.#purchases += 1;
+    return Promise.resolve({
+      id: `PUR-${this.#purchases}`,
+      tracking: `RP${String(this.#purchases).padStart(9, '0')}`,
+      labelFileId: `file-${this.#purchases}`,
+      rate,
+      carrier: 'Reference Post',
+      carrierToken: 'reference_post',
+      test: true,
+      documents: [{ kind: 'label', mediaType: 'application/pdf' }],
+    });
+  }
+
+  track(): Promise<TrackEvent[]> {
+    return Promise.resolve([]);
+  }
+
+  label(shipmentId: string): Promise<FileRef> {
+    return Promise.resolve({
+      fileId: `file-${shipmentId}`,
+      filename: `${shipmentId}.pdf`,
+      mediaType: 'application/pdf',
+      bytes: 2048,
+    });
+  }
+
+  cancel(): Promise<void> {
     return Promise.resolve();
   }
 }

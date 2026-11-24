@@ -67,6 +67,73 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.75',
+    date: '2026-11-24',
+    title: 'Add-ons 1.0.36',
+    summary: 'This release carries add-ons 1.0.36. Shipping labels 1.0.36, added from the marketplace, brings the customs form, the countries a shop delivers to and its customs defaults.',
+    changes: [
+      { tag: 'Improved', text: 'The bundled add-ons move to 1.0.36.' },
+    ],
+  },
+  {
+    version: '0.3.74',
+    date: '2026-11-24',
+    title: 'Shipping abroad with customs',
+    summary:
+      'Maker Shop and Print Shop can now sell to the countries you list and buy customs labels through your own Shippo account. Nothing changes for a shop until its owner lists a country.',
+    notice: {
+      title: 'Before you upgrade',
+      items: [
+        'A customs declaration is a legal statement made by your business. Adminium fills it from the order, and a person must read it and tick it before any rates appear.',
+        'Your shop tax rate still applies to an order abroad. Ask your accountant what to charge for each country before you list one.',
+      ],
+    },
+    changes: [
+      { tag: 'New', text: 'A shop lists the countries it delivers to, with a price for each, and checkout offers only those.' },
+      { tag: 'New', text: 'A customs form filled from the order, a stored customs invoice, shop defaults for goods and tariff codes, and optional export numbers.' },
+      { tag: 'New', text: 'A US shop can choose its export filing code, which is checked against the destination and the value and never sent by default.' },
+      { tag: 'Security', text: 'Erasing a person now also takes their phone number off orders kept for tax.' },
+      { tag: 'Security', text: 'A customer who deletes their own details now also has their stored labels and customs invoices deleted, as staff erasure already did.' },
+      { tag: 'Fixed', text: 'A customs form stops and says why when its values cannot be trusted: a refund on the order, a shop currency that changed, or only some lines with a weight. A cancelled line is left off.' },
+      { tag: 'Fixed', text: 'A label can no longer be bought for an order cancelled while its rates were open.' },
+      { tag: 'Fixed', text: 'A replacement label now reaches the order once the first label is refunded.' },
+      { tag: 'Fixed', text: 'A purchase restored from a backup is looked up before anyone can buy that label again.' },
+    ],
+  },
+  {
+    version: '0.3.73',
+    date: '2026-11-23',
+    title: 'Add-ons 1.0.35',
+    summary: 'This release carries add-ons 1.0.35, with the screens for real shipping labels: refunds, the question before an order with a paid label moves back, and DHL named plainly as a demo.',
+    changes: [
+      { tag: 'Improved', text: 'The bundled add-ons move to 1.0.35.' },
+    ],
+  },
+  {
+    version: '0.3.72',
+    date: '2026-11-23',
+    title: 'Real shipping labels',
+    summary:
+      'Maker Shop, Print Shop and Online Shop can now buy real carrier labels through your own Shippo account, inside your own country. Shippo bills you for each label. The DHL add-on stays a demo and books no real parcel.',
+    notice: {
+      title: 'Before you upgrade',
+      items: [
+        'An order that holds a live, paid label can no longer be moved back or cancelled without saying what happens to the label: request a refund, keep it, or go back.',
+        'Super Admin gains the right to manage shipping. No other role gains a shipping right from the upgrade or from an app update.',
+        'An app must be updated before it can use a real carrier. Until then its existing screens keep working, and the engine refuses its carrier calls.',
+      ],
+    },
+    changes: [
+      { tag: 'New', text: 'A Shipping page in the Studio connects a Shippo test or live key, checks it, sets the label size and spending limits, and shows the webhook address once.' },
+      { tag: 'New', text: 'Buying a label is safe to repeat. A second press, a reload or a restart makes one shipment, and a purchase with no answer reads unknown and blocks another until someone checks it.' },
+      { tag: 'New', text: 'Each app has book, cancel and customs rights per role. A first install asks which roles get them, and an install with no answer grants none.' },
+      { tag: 'New', text: 'A label can be refunded for 30 days after buying it. The refund is tracked to its end, and a label with a refund requested can no longer be downloaded or printed.' },
+      { tag: 'New', text: 'Tracking arrives by webhook or a Refresh press, never moves an order by itself, and a Needs attention list shows the labels that need a person.' },
+      { tag: 'New', text: 'Online Shop can buy a return label on an approved return, from the customer to the shop.' },
+      { tag: 'Security', text: 'A booking keeps a hash of the address and never the address. Label files are deleted 90 days after their last state, and erasing a person deletes theirs.' },
+    ],
+  },
+  {
     version: '0.3.71',
     date: '2026-11-23',
     title: 'Online bookings, calendars and access rules',

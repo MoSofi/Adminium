@@ -311,6 +311,10 @@ export const SYSTEM_ACTION_KEYS = [
   'payments.manage',
   'payments.refund',
   'payments.view',
+  // Shipping: which carrier a shop uses, its Ship from address and asking for
+  // rates. A key of its own because a carrier account spends real money. Held
+  // as the payments keys are: only the Super Admin, unless granted on purpose.
+  'shipping.manage',
   // Connecting the business's text message provider: its key spends the business's money.
   'sms.manage',
   // A person's data: finding everything kept about one address, downloading
@@ -2949,6 +2953,15 @@ export const fileKindSchema = z.enum([
    * while a live page names it (`apps/server/src/landing/pictures.ts`).
    */
   'landing',
+  /*
+   * A carrier's label or customs invoice: a customer's name, address and
+   * perhaps phone. Not `upload`, because the files routes serve an upload to
+   * anyone who reads its record, and a person who may read an order without
+   * its personal columns must not get the address on its label. It is served
+   * only by the shipping label route, and goes by `shipping/labels.ts`'s rules.
+   * Short because the column holds twelve characters.
+   */
+  'ship-label',
 ]);
 
 // --- storage destinations --------------------------------------

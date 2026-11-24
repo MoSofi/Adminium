@@ -18,7 +18,7 @@
  */
 import { addOnSettingsRef, PERMISSIONS } from '../rbac/permissions.js';
 import { installsLikeAnApp, isAddOnManifest, validateManifest, type AddOnManifest } from '@adminium/manifest';
-import { appTablesRepo, auditRepo, manifestsRepo, permissionsRepo, realTableOf, type InstalledManifest } from '@adminium/meta';
+import { shippingBookingsRepo, appTablesRepo, auditRepo, manifestsRepo, permissionsRepo, realTableOf, type InstalledManifest } from '@adminium/meta';
 import { grantKeyOf, resolveInstall, type InstallSelector } from '../installs/resolve.js';
 
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.js';
@@ -63,6 +63,16 @@ function manifestOf(installed: InstalledManifest): AddOnManifest | null {
 
 /** Refuses a removal while a rule of the owner's, or a feature of an app, still hands rows to the add-on. */
 async function refuseWhileInUse(deps: AddOnInstallerDeps, key: string, install: { id: string; scopeKey: string }): Promise<void> {
+  // A purchase with no known result: its key is the only way to find out what happened to it.
+  const unresolved = await shippingBookingsRepo(deps.meta).unresolved(install.id, 20);
+  if (unresolved.length > 0) {
+    throw new AppError(409, 'ADD_ON_IN_USE', `"${key}" can’t be removed while a label it was asked to buy has no known result. Settle those first.`, {
+      addOn: key,
+      postings: [],
+      features: [],
+      bookings: unresolved.map((booking) => booking.reference),
+    });
+  }
   const inUse = await addOnInUse(deps.meta, key, install);
   if (inUse.postings.length + inUse.features.length === 0) return;
   throw new AppError(

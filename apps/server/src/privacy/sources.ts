@@ -47,7 +47,7 @@
  * lower case on both sides; nothing else is folded.
  */
 import { KEPT_BY_LAW_REASONS, type KeptByLawReason, type Outbox } from '@adminium/manifest';
-import { appOutboxesRepo, appTablesRepo, manifestsRepo, realTableOf, type MetaDb } from '@adminium/meta';
+import { appOutboxesRepo, appTablesRepo, manifestsRepo, realTableOf, type MetaDb, shippingBookingsRepo } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 
 import { looksLikeAddress, type ConsentEvent, type ConsentService } from '../consent/index.js';
@@ -86,6 +86,24 @@ export interface LawLinkedRows {
   label: string;
   reason: KeptByLawReason;
   count: number;
+  /** Their row keys: a label on one of these orders goes, though the order stays. */
+  keys: string[];
+}
+
+/** How many rows of one table an erasure reads when it looks for what hangs on them. */
+const ERASURE_ROWS_MAX = 1_000_000;
+
+export interface FindOptions {
+  /** Only their rows in the apps' tables, past the download's cap: what an erasure needs to find their labels. */
+  rowsOnly?: boolean;
+}
+
+/** An order that points at one of their rows by a key alone, on a table that has parcels booked. */
+export interface ParcelRow {
+  connectionId: string;
+  table: string;
+  tableName: string;
+  key: string;
 }
 
 export interface PersonFound {
@@ -96,6 +114,8 @@ export interface PersonFound {
   sources: FoundSource[];
   /** Kept-by-law rows that point at them. */
   lawLinked: LawLinkedRows[];
+  /** Orders with a parcel booked that point at them by a key alone: their labels are theirs. */
+  parcelRows: ParcelRow[];
 }
 
 export interface PrivacyFindDeps {
@@ -159,13 +179,13 @@ function exported(table: ResolvedTable, row: Row, only?: ReadonlySet<string>, js
 /** `lower(trim(column)) = address`: the address as stored, in either case, spaces around it or not. */
 export const addressIs = (column: string, address: string) => sql<boolean>`lower(trim(${sql.ref(column)})) = ${address}`;
 
-async function rowsWhere(db: Kysely<SourceDatabase>, table: ResolvedTable, conditions: ReturnType<typeof sql<boolean>>[]): Promise<Row[]> {
+async function rowsWhere(db: Kysely<SourceDatabase>, table: ResolvedTable, conditions: ReturnType<typeof sql<boolean>>[], limit: number = ROWS_MAX): Promise<Row[]> {
   if (conditions.length === 0) return [];
   return (await db
     .selectFrom(table.id as never)
     .selectAll()
     .where(sql<boolean>`(${sql.join(conditions, sql` or `)})`)
-    .limit(ROWS_MAX)
+    .limit(limit)
     .execute()) as Row[];
 }
 
@@ -254,12 +274,14 @@ export async function erasedNameOf(meta: MetaDb): Promise<string> {
  * `apps` (none: the whole workspace). `rawAddress` is refused when it is no
  * address.
  */
-export async function findPerson(deps: PrivacyFindDeps, rawAddress: string, apps?: AppScope): Promise<PersonFound> {
+export async function findPerson(deps: PrivacyFindDeps, rawAddress: string, apps?: AppScope, options: FindOptions = {}): Promise<PersonFound> {
+  const rowLimit = options.rowsOnly === true ? ERASURE_ROWS_MAX : ROWS_MAX;
   const whole = apps === undefined || apps === null;
   const { meta, consent } = deps;
   const address = searchAddress(rawAddress);
   const sources: FoundSource[] = [];
   const lawLinked: LawLinkedRows[] = [];
+  const parcelRows: ParcelRow[] = [];
   const appRows: FoundRow[] = [];
   /** Their copies' rows the erasure empties: their files are read from them (`copyFileIds`). */
   const copyRows: CopyRowFiles[] = [];
@@ -297,7 +319,7 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string, apps
     for (const entry of declared) {
       const table = tableOf(view, entry.table);
       if (table === null || entry.email === null) continue;
-      const rows = await rowsWhere(db, table, [addressIs(entry.email, address)]);
+      const rows = await rowsWhere(db, table, [addressIs(entry.email, address)], rowLimit);
       if (rows.length === 0) continue;
       const found = appSource('people', `people-${entry.appKey}-${entry.ref}`, connectionId, table, entry.appKey, entry.ref, kept.get(table.id)?.reason ?? null);
       for (const row of rows) {
@@ -318,7 +340,7 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string, apps
       const owner = tableOf(view, entry.table);
       const pks = owner === null ? [] : (keysOf.get(owner.id) ?? []);
       const ownRows = owner === null ? [] : (rowsOf.get(owner.id) ?? []);
-      const copyTables = await theirCopyRows({ db, view, copies: entry.copies, address, pks, ownRows, ownTable: owner, tableOf: (id) => tableOf(view, id), limit: ROWS_MAX });
+      const copyTables = await theirCopyRows({ db, view, copies: entry.copies, address, pks, ownRows, ownTable: owner, tableOf: (id) => tableOf(view, id), limit: rowLimit });
       for (const { table, copies, rows } of copyTables) {
         const found = appSource('copy', `copy-${entry.appKey}-${entry.ref}-${copies[0]!.ref}`, connectionId, table, entry.appKey, copies[0]!.ref, kept.get(table.id)?.reason ?? null);
         for (const theirs of rows) {
@@ -380,11 +402,29 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string, apps
         db,
         table,
         links.map((relation) => sql<boolean>`${sql.ref(relation.from.columns[0]!)} in (${sql.join(keysOf.get(relation.to.tableId)!.map((pk) => sql`${pk as never}`))})`),
+        rowLimit,
       );
       if (rows.length === 0) continue;
-      lawLinked.push({ connectionId, table: table.id, app: law.app, label: table.table.label ?? table.name, reason: law.reason, count: rows.length });
+      lawLinked.push({ connectionId, table: table.id, app: law.app, label: table.table.label ?? table.name, reason: law.reason, count: rows.length, keys: rows.map((row) => rowKeyOf(table, row)) });
       // Their invoice's rendered document and its payment are theirs too.
       note(table, rows);
+    }
+
+    // ── orders with a parcel booked that point at them by a key alone ───────
+    // Such an order is not theirs to empty, but the label printed for it shows their name and address.
+    for (const tableId of await shippingBookingsRepo(meta).tablesOn(connectionId)) {
+      if (kept.has(tableId)) continue;
+      const table = tableOf(view, tableId);
+      if (table === null) continue;
+      const links = view.model.relations.filter((relation) => relation.through === null && relation.from.tableId === tableId && relation.from.columns.length === 1 && (keysOf.get(relation.to.tableId)?.length ?? 0) > 0);
+      if (links.length === 0) continue;
+      const rows = await rowsWhere(
+        db,
+        table,
+        links.map((relation) => sql<boolean>`${sql.ref(relation.from.columns[0]!)} in (${sql.join(keysOf.get(relation.to.tableId)!.map((pk) => sql`${pk as never}`))})`),
+        rowLimit,
+      );
+      for (const row of rows) parcelRows.push({ connectionId, table: table.id, tableName: table.name, key: rowKeyOf(table, row) });
     }
   }
 
@@ -417,6 +457,8 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string, apps
     });
   }
 
+  if (options.rowsOnly === true) return { address, person, sources, lawLinked, parcelRows };
+
   // ── the forms add-ons: their answers, and the invitations sent to them ───
   const forms = whole ? await formSources(await findFormRows(deps, address, ROWS_MAX)) : [];
   sources.push(...forms);
@@ -444,7 +486,7 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string, apps
   if (whole) sources.push(...foundPeopleSources(await findFoundPeopleRows(deps, address, theirs, ROWS_MAX)));
 
   // ── what Adminium keeps itself ────────────────────────────────────────────
-  sources.push(...(await findInMeta(meta, address, appRows, { byAddress: whole, copyFiles: await copyFileIds(meta, copyRows) })));
+  sources.push(...(await findInMeta(meta, address, appRows, { byAddress: whole, copyFiles: await copyFileIds(meta, copyRows), parcelRows })));
 
-  return { address, person, sources, lawLinked };
+  return { address, person, sources, lawLinked, parcelRows };
 }

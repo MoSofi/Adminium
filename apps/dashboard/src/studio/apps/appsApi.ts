@@ -889,6 +889,8 @@ export interface AppInstallPlan {
   privacyGrants?: { role: string; roleName: string; added?: true }[];
   /** The roles that would refund the app's own online payments (`payments:@:refund`), each ticked on the check. */
   refundGrants?: { role: string; roleName: string; added?: true }[];
+  /** The roles that would hold a right on the app's own labels, one entry per role and right. */
+  shippingGrants?: { role: string; roleName: string; action: 'book' | 'cancel' | 'customs'; added?: true }[];
   /**
    * What each role would hold of the tables of the add-ons the app names, with
    * the columns of each action, cut to each add-on's own words. Absent when
@@ -1130,6 +1132,8 @@ export function installApp(
     publicAccess?: boolean;
     /** The roles (by slug) unticked on the check: not given the app's refund right. */
     refundsUnticked?: string[];
+    /** The rights on the app's labels unticked on the check, by role and right: those are not given. */
+    shippingUnticked?: { role: string; action: 'book' | 'cancel' | 'customs' }[];
     /** The add-ons to install, connect or update with the app. */
     addOns?: AddOnChoice[];
     /** The parts of the app to start with, by id; one left out starts as the app says. */

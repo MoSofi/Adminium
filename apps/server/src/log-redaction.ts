@@ -135,6 +135,12 @@ export const SECRET_FIELD_NAMES_CANONICAL: readonly string[] = [
   // mail as the owner's domain.
   'signingKey',
   'privateKey',
+  // A delivery carrier's saved fields, under the names its manifest gives them. The
+  // matcher is exact, so `apiKey` above does not reach `api_key`.
+  'api_key',
+  'api_secret',
+  'account_number',
+  'credentials',
   // A text message provider's token, as `PUT /sms/account` carries it, and the sealed
   // places SMS keeps: the keys, a stopped number's copy, and a stored inbound event.
   'authToken',

@@ -16,7 +16,7 @@ const id = { ref: 'id', type: 'int', role: 'pk' };
 
 function manifest(): Record<string, unknown> {
   return invoicingManifest([
-    { ref: 'units', columns: [id, { ref: 'code', type: 'text', maxLength: 12 }, { ref: 'places', type: 'int', default: 0 }] },
+    { ref: 'units', columns: [id, { ref: 'code', type: 'text', maxLength: 12 }, { ref: 'places', type: 'int', nullable: true, default: 0 }] },
     // One row, linking nowhere: what a rule may read a setting from.
     { ref: 'prefs', columns: [id, { ref: 'default_unit', type: 'int', nullable: true }, { ref: 'house_rate', type: 'int', nullable: true }] },
     {
@@ -72,6 +72,20 @@ for (const [dialect, available] of LEGS) {
       // The link came from the settings; the rate is copied through it (3), not taken from the settings (7).
       const made = await w.create('things', { name: 'Flour' });
       expect(Number((await row(made['id']))['rate'])).toBe(3);
+    });
+
+    it('on a change of link, falls back to the settings where the new row holds nothing', async () => {
+      const { h, w, each, kilo, row, prefs } = await harness();
+      await prefs(null, 7);
+      const blank = await w.create('units', { code: 'none', places: 0 });
+      await h.rows(`update ${h.real('units')} set places = null where id = ${String(blank['id'])}`).catch(() => undefined);
+      const made = await w.create('things', { name: 'Flour', unit_id: kilo['id'] });
+      expect(Number((await row(made['id']))['rate'])).toBe(3);
+      await w.update('things', made['id'], { unit_id: blank['id'] });
+      expect(Number((await row(made['id']))['rate'])).toBe(7);
+      // Moving again, to a unit that holds a value, copies it as before.
+      await w.update('things', made['id'], { unit_id: each['id'] });
+      expect(Number((await row(made['id']))['rate'])).toBe(0);
     });
 
     it('fills nothing where the settings hold no unit', async () => {

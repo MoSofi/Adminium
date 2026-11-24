@@ -20,12 +20,15 @@
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
+import { validateManifest } from '@adminium/manifest';
 import {
   GRANTABLE_SYSTEM_ACTION_KEYS,
+  type MetaDb,
   type ReservedSystemActionKey,
   type SystemActionKey,
 } from '@adminium/meta';
 
+import { grantKeyOf, installsOf } from '../../installs/resolve.js';
 import { PAGE_ACTIONS, PERMISSIONS, TABLE_ACTIONS } from '../../rbac/permissions.js';
 import { SMS_MANAGE_LABEL } from '../../sms/permission.js';
 
@@ -47,6 +50,12 @@ export const permissionCatalogReply = z.object({
   tableActions: z.array(z.string()),
   /** `page:<pageId>:<action>` action vocabulary. */
   pageActions: z.array(z.string()),
+  /**
+   * Each app install that declares shipping, one entry per copy: its rights
+   * are `shipping:<grantKey>:book|cancel|customs`, and a later copy has a
+   * `<key>~<slug>` grant key of its own.
+   */
+  shippingApps: z.array(z.object({ grantKey: z.string(), name: z.string(), connectionName: z.string().nullable() })),
 });
 export type PermissionCatalogReply = z.infer<typeof permissionCatalogReply>;
 
@@ -104,6 +113,8 @@ const SYSTEM_PERMISSION_META: Record<
   'payments.manage': { label: 'Set up payments', category: 'workspace' },
   'payments.refund': { label: 'Give refunds', category: 'workspace' },
   'payments.view': { label: 'See payment activity and export it', category: 'workspace' },
+  // `workspace`: which carrier a shop uses and the address its parcels leave from.
+  'shipping.manage': { label: 'Set up shipping', category: 'workspace' },
   'sms.manage': SMS_MANAGE_LABEL,
   // `workspace`: the privacy notice is the business's own words, and finding a
   // person's data reads every people table past the role's limits.
@@ -117,6 +128,21 @@ function grantStringFor(key: GrantableActionKey): string {
   return `system:${key.slice(0, dot)}:${key.slice(dot + 1)}`;
 }
 
+/** The app installs whose labels a role can be given rights on. */
+async function shippingAppsOf(meta: MetaDb): Promise<PermissionCatalogReply['shippingApps']> {
+  const declared = (await installsOf(meta).list('app')).flatMap((install) => {
+    const read = validateManifest(install.document);
+    return read.ok && read.manifest.kind === 'app' && read.manifest.shipping !== undefined ? [{ install, name: read.manifest.name }] : [];
+  });
+  if (declared.length === 0) return [];
+  const connections = new Map((await meta.db.selectFrom('adminium_connections').select(['id', 'name']).execute()).map((row) => [row.id, row.name]));
+  return declared.map(({ install, name }) => ({
+    grantKey: grantKeyOf(install.row),
+    name,
+    connectionName: install.row.connectionId === null ? null : (connections.get(install.row.connectionId) ?? null),
+  }));
+}
+
 export const permissionsRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
     '/permissions/catalog',
@@ -125,6 +151,7 @@ export const permissionsRoutes: FastifyPluginAsyncZod = async (app) => {
       schema: { response: { 200: permissionCatalogReply } },
     },
     async () => ({
+      shippingApps: await shippingAppsOf(app.rbac.meta),
       system: GRANTABLE_SYSTEM_ACTION_KEYS.map((key) => ({
         key: grantStringFor(key),
         ...SYSTEM_PERMISSION_META[key],

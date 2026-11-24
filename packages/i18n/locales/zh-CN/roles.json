@@ -82,6 +82,7 @@
     "paymentsRefund": "办理退款",
     "paymentsView": "查看付款活动并导出",
     "smsManage": "设置短信",
+    "shippingManage": "设置配送",
     "privacyManage": "查找、下载和管理某人的数据",
     "privacyPeople": "查找、下载并删除某人的数据"
   },
@@ -108,7 +109,10 @@
   },
   "apps": {
     "every": "打开所有应用的员工界面",
-    "one": "打开 {app} 的员工界面"
+    "one": "打开 {app} 的员工界面",
+    "shippingBook": "{app}：在你设定的限额内购买标签",
+    "shippingCancel": "{app}：申请退还标签费用",
+    "shippingCustoms": "{app}：申报海关"
   },
   "rows": {
     "locked": "超级管理员可访问每一行。",

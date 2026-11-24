@@ -108,6 +108,8 @@ export const PERMISSIONS = {
   paymentsManage: 'system:payments:manage',
   paymentsRefund: 'system:payments:refund',
   paymentsView: 'system:payments:view',
+  // Shipping: the shop's carrier, its Ship from address and asking for rates.
+  shippingManage: 'system:shipping:manage',
   // Text messages: connecting the business's own provider account, its sender and a test text. The key spends the
   // business's money, so only the Super Admin holds it unless it is granted on purpose.
   smsManage: 'system:sms:manage',
@@ -153,6 +155,30 @@ export function appRefundPermission(appKey: string): string {
 }
 const APP_REFUND_REF_PREFIX = 'payments-refund/';
 
+/** What an app's role may do with a carrier: three rights, because a packer who books is promised never to cancel. */
+export const SHIPPING_ACTIONS = ['book', 'cancel', 'customs'] as const;
+export type ShippingAction = (typeof SHIPPING_ACTIONS)[number];
+
+/**
+ * `shipping:<install grant key>:book|cancel|customs` — one app install's
+ * labels, as an app's role is given them (`shipping:@:book`). Keyed by the
+ * install (`grantKeyOf`), because a carrier account is per database: a right
+ * on one shop's labels never reaches another's. Stored as an `app` row whose
+ * ref has a `/` no app key can hold.
+ */
+export function appShippingPermission(grantKey: string, action: ShippingAction): string {
+  return `shipping:${grantKey}:${action}`;
+}
+const APP_SHIPPING_REF_PREFIX = 'shipping-';
+const shippingRefOf = (grantKey: string, action: ShippingAction) => `${APP_SHIPPING_REF_PREFIX}${action}/${grantKey}`;
+function shippingGrantOfRef(ref: string): string | null {
+  for (const action of SHIPPING_ACTIONS) {
+    const prefix = `${APP_SHIPPING_REF_PREFIX}${action}/`;
+    if (ref.startsWith(prefix) && ref.length > prefix.length) return appShippingPermission(ref.slice(prefix.length), action);
+  }
+  return null;
+}
+
 /** What a person may do about a row's connected account, for ONE app: named so an app's role can be given each alone. */
 export const ACCOUNT_ACTIONS = ['connect', 'send-link', 'disconnect'] as const;
 export type AccountAction = (typeof ACCOUNT_ACTIONS)[number];
@@ -180,6 +206,7 @@ export type ParsedGrant =
   | { kind: 'app'; appKey: string; action: 'staff' }
   | { kind: 'addOn'; addOnKey: string; action: 'settings' }
   | { kind: 'payments'; appKey: string; action: 'refund' }
+  | { kind: 'shipping'; appKey: string; action: ShippingAction }
   | { kind: 'accounts'; appKey: string; action: AccountAction };
 
 /** A concrete (wildcard-free) permission, as passed to `can()`/`require()`. */
@@ -190,6 +217,7 @@ export type ParsedPermission =
   | { kind: 'app'; appKey: string; action: 'staff' }
   | { kind: 'addOn'; addOnKey: string; action: 'settings' }
   | { kind: 'payments'; appKey: string; action: 'refund' }
+  | { kind: 'shipping'; appKey: string; action: ShippingAction }
   | { kind: 'accounts'; appKey: string; action: AccountAction };
 
 const SYSTEM_KEY_SET: ReadonlySet<string> = new Set(SYSTEM_ACTION_KEYS);
@@ -252,6 +280,12 @@ export function parseGrant(input: string): ParsedGrant | null {
     return { kind: 'payments', appKey, action: 'refund' };
   }
 
+  if (kind === 'shipping' && segments.length === 3) {
+    const [, appKey, action] = segments as [string, string, string];
+    // Concrete only: one shop's labels, never "every shop's".
+    if (!validSegment(appKey) || appKey === '*' || !(SHIPPING_ACTIONS as readonly string[]).includes(action)) return null;
+    return { kind: 'shipping', appKey, action: action as ShippingAction };
+  }
   if (kind === 'accounts' && segments.length === 3) {
     const [, appKey, action] = segments as [string, string, string];
     // Concrete only: one app's accounts, never "every app's".
@@ -320,6 +354,10 @@ export function grantMatches(grant: string, required: string): boolean {
       const gp = g as Extract<ParsedGrant, { kind: 'payments' }>;
       return gp.appKey === r.appKey;
     }
+    case 'shipping': {
+      const gs = g as Extract<ParsedGrant, { kind: 'shipping' }>;
+      return gs.appKey === r.appKey && gs.action === r.action;
+    }
     case 'accounts': {
       const ga = g as Extract<ParsedGrant, { kind: 'accounts' }>;
       return ga.appKey === r.appKey && ga.action === r.action;
@@ -384,6 +422,8 @@ export function grantsFromMatrixRows(rows: readonly RolePermission[]): string[] 
         grants.push(appAccountsPermission(accounts[2]!, accounts[1] as AccountAction));
       } else if (row.resourceRef.startsWith(APP_REFUND_REF_PREFIX)) {
         grants.push(appRefundPermission(row.resourceRef.slice(APP_REFUND_REF_PREFIX.length)));
+      } else if (shippingGrantOfRef(row.resourceRef) !== null) {
+        grants.push(shippingGrantOfRef(row.resourceRef)!);
       } else if (row.resourceRef.startsWith(ADD_ON_SETTINGS_REF_PREFIX)) {
         grants.push(addOnSettingsPermission(row.resourceRef.slice(ADD_ON_SETTINGS_REF_PREFIX.length)));
       } else {
@@ -447,6 +487,10 @@ export function matrixRowsFromGrants(grants: readonly string[]): MatrixConversio
     }
     if (parsed.kind === 'payments') {
       appRefs.add(`${APP_REFUND_REF_PREFIX}${parsed.appKey}`);
+      continue;
+    }
+    if (parsed.kind === 'shipping') {
+      appRefs.add(shippingRefOf(parsed.appKey, parsed.action));
       continue;
     }
     if (parsed.kind === 'accounts') {

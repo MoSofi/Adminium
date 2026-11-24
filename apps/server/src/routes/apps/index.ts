@@ -78,6 +78,8 @@ import {
   roleNameFor,
   realTableOf,
   type AppTableRecord,
+  shippingBookingsRepo,
+  shippingRepo,
 } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
@@ -2554,6 +2556,11 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             reason: 'CONFIRM_KEY_MISMATCH',
           });
         }
+        // A label with no known result: only this app's address can still settle it.
+        const unresolved = await shippingBookingsRepo(deps.meta).unresolvedOfInstall(row.row.id);
+        if (unresolved.length > 0) {
+          throw new AppError(409, 'SHIPPING_UNRESOLVED', `"${key}" can’t be removed while a label it was asked to buy has no known result. Settle those first.`, { orders: unresolved.map((booking) => booking.reference) });
+        }
         const plan = await uninstallPlanOf(row);
         const superAdmin = await isSuperAdmin(request);
         // Everything that could refuse the drop is asked first; then the steps, in order (`apps/removal.ts`).
@@ -2562,6 +2569,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         const { rulesRemoved, emailsRemoved, dropped, kept, instanceRestored } = await service.removals.remove(plan, { dropTables, superAdmin, settingsManage, createdBy: userId });
         // Its own settings go with it (the row's cascade too); a reinstall starts from the manifest's defaults.
         await addOnSettingsRepo(deps.meta).clearForInstall(row.row.id);
+        // Its carrier choice, Ship from address and quotes: no foreign key takes them (0107).
+        await shippingRepo(deps.meta).forgetInstall(row.row.id);
         /*
          * Its links to add-ons go; the add-ons stay installed — they are
          * shared, and removing one is its own decision, made in Add-ons. The

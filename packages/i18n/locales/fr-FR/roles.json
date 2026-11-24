@@ -82,6 +82,7 @@
     "paymentsRefund": "Effectuer des remboursements",
     "paymentsView": "Voir l’activité des paiements et l’exporter",
     "smsManage": "Configurer les SMS",
+    "shippingManage": "Configurer la livraison",
     "privacyManage": "Trouver, télécharger et gérer les données d’une personne",
     "privacyPeople": "Trouver, télécharger et effacer les données d’une personne"
   },
@@ -108,7 +109,10 @@
   },
   "apps": {
     "every": "Ouvrir les écrans du personnel de toutes les apps",
-    "one": "Ouvrir les écrans du personnel de {app}"
+    "one": "Ouvrir les écrans du personnel de {app}",
+    "shippingBook": "{app} : acheter des étiquettes, dans les limites que vous fixez",
+    "shippingCancel": "{app} : demander le remboursement d’une étiquette",
+    "shippingCustoms": "{app} : faire la déclaration en douane"
   },
   "rows": {
     "locked": "Super Admin atteint toutes les lignes.",

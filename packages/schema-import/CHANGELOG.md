@@ -1,5 +1,29 @@
 # @adminium/schema-import
 
+## 0.3.75
+
+### Patch Changes
+
+- @adminium/engine@0.3.75
+
+## 0.3.74
+
+### Patch Changes
+
+- @adminium/engine@0.3.74
+
+## 0.3.73
+
+### Patch Changes
+
+- @adminium/engine@0.3.73
+
+## 0.3.72
+
+### Patch Changes
+
+- @adminium/engine@0.3.72
+
 ## 0.3.71
 
 ### Patch Changes

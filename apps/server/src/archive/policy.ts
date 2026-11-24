@@ -57,6 +57,8 @@ export const NEVER_ARCHIVED_TABLES: readonly string[] = [
   'adminium_visits',
   // What each source of a lead source add-on was asked today: never set back by a file.
   'adminium_source_days',
+  // A carrier's rates for one order, good for an hour and sealed to this server's secret: an old one must never come back.
+  'adminium_shipping_quotes',
   // A sign-in in progress and a one-time connect link: another copy of this server must not finish or open them.
   'adminium_oauth_flows',
   'adminium_connect_links',
@@ -77,7 +79,7 @@ const EXPORT_SKIPPED_TABLES: readonly string[] = ['adminium_jobs'];
  * owes its server's operator (`operator/events.ts`). Another server, or this
  * one restored elsewhere, must not send them, signed with its own token.
  */
-export const NEVER_ARCHIVED_JOB_KINDS: readonly string[] = ['operator.event'];
+export const NEVER_ARCHIVED_JOB_KINDS: readonly string[] = ['operator.event', 'shipping.apply', 'shipping.track'];
 
 export const NEVER_ARCHIVED_SETTINGS: readonly string[] = ['addOns.deciderTrust', 'designer.live', 'designer.liveId', 'connections.allowLocalDatabases', 'email.builtinsSeededFor', 'addOns.keptCopyTrust', 'addOns.trustCarriedOver'];
 
@@ -285,6 +287,28 @@ export function sanitizeDump(tables: Map<string, MetaTableDump>, opts: SanitizeO
     const kept = rows.filter((row) => !NEVER_ARCHIVED_JOB_KINDS.includes(String(row.kind)));
     if (kept.length !== rows.length) report.droppedRows.adminium_jobs = rows.length - kept.length;
     commitRows(jobs, kept);
+  }
+
+  /*
+   * A LABEL BEING BOUGHT AS THE BACKUP WAS MADE may or may not have been paid
+   * for. Nothing is still waiting for that answer once this file is opened, so
+   * it comes back as unknown, which holds the order until someone checks.
+   */
+  const bookings = tables.get('adminium_shipping_bookings');
+  if (bookings !== undefined) {
+    commitRows(
+      bookings,
+      rowsOf(bookings).map((row) => (row.state === 'reserved' || row.state === 'calling' ? { ...row, state: 'unknown', reason: 'restored' } : row)),
+    );
+  }
+
+  // A copy moved to another server must not answer to this server's webhook address.
+  const trackInstalls = tables.get('adminium_shipping_track_installs');
+  if (trackInstalls !== undefined && exporting) {
+    commitRows(
+      trackInstalls,
+      rowsOf(trackInstalls).map((row) => ({ ...row, tokenHash: null, tokenHint: null, tokenMadeAt: null })),
+    );
   }
 
   const settings = tables.get('adminium_settings');

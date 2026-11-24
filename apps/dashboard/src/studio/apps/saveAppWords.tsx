@@ -362,6 +362,8 @@ export function checkSentence(item: CheckItem): ReactNode {
     case 'APP_SCREENS':
       // The server names the app, or says every app in words of its own.
       return item.field === 'every app' ? named(item, t('studio:saveApp.info.appScreensAll', 'A grant on the screens of every app is not carried.'), false) : named(item, t('studio:saveApp.info.appScreens', 'A grant on another app’s screens is not carried.'));
+    case 'SHIPPING_RIGHT':
+      return named(item, t('studio:saveApp.info.shippingRight', 'A right on shipping labels is not carried. Give it to the role after installing.'));
     case 'SCREENS_ONLY':
       return named(item, t('studio:saveApp.info.screensOnly', 'The app has no screens of its own, so the role opens the dashboard.'));
 

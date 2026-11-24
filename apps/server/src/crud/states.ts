@@ -159,6 +159,60 @@ export interface StateGuard {
    * a write service built without the meta store: it knows of no payment.
    */
   paymentInFlight?: ((row: Row) => Promise<boolean>) | undefined;
+  /**
+   * A person's move back or to cancelled, on the row as held: refused while
+   * the row has a paid shipping label nobody has decided about
+   * (`shipping/order-guard.ts`). Absent where nobody is there to answer.
+   */
+  paidLabelMove?: ((row: Row, from: string, to: string) => Promise<void>) | undefined;
+}
+
+/** How many steps each state is from where a row starts. An undo is never a step forward. */
+function stepsFromStart(states: Pick<TableStatesRule, 'moves'> & Partial<Pick<TableStatesRule, 'initial'>>): ReadonlyMap<string, number> {
+  const forward = (name: string) => (states.moves[name] ?? []).flatMap((next) => (typeof next === 'string' ? [next] : next.undo === true ? [] : [next.to]));
+  const reached = new Set(Object.keys(states.moves).flatMap(forward));
+  const starts = Object.keys(states.moves).filter((name) => !reached.has(name));
+  if (states.initial !== undefined && !starts.includes(states.initial)) starts.push(states.initial);
+  const steps = new Map(starts.map((name) => [name, 0]));
+  const queue = [...starts];
+  for (let at = 0; at < queue.length; at += 1) {
+    const name = queue[at]!;
+    for (const target of forward(name)) {
+      if (steps.has(target)) continue;
+      steps.set(target, steps.get(name)! + 1);
+      queue.push(target);
+    }
+  }
+  return steps;
+}
+
+/**
+ * Whether a move takes a row back: a declared undo, a cancel, or a move to a
+ * state nearer the start. Two states that can each reach the other are told
+ * apart by that distance, so the step forward of a reversible pair is not a
+ * move back. Where the distance cannot say, a move to a state the row can come
+ * forward from counts as back, and the person is asked.
+ */
+export function movesBack(states: Pick<TableStatesRule, 'moves'> & Partial<Pick<TableStatesRule, 'initial'>>, from: string, to: string, move: unknown): boolean {
+  if (typeof move === 'object' && move !== null && (move as { undo?: unknown }).undo === true) return true;
+  if (/^cancell?ed$/i.test(to)) return true;
+  const steps = stepsFromStart(states);
+  const fromSteps = steps.get(from);
+  const toSteps = steps.get(to);
+  if (fromSteps !== undefined && toSteps !== undefined && fromSteps !== toSteps) return toSteps < fromSteps;
+  const seen = new Set<string>([to]);
+  const walk = [to];
+  while (walk.length > 0) {
+    for (const next of states.moves[walk.pop()!] ?? []) {
+      const target = typeof next === 'string' ? next : next.to;
+      if (target === from) return true;
+      if (!seen.has(target)) {
+        seen.add(target);
+        walk.push(target);
+      }
+    }
+  }
+  return false;
 }
 
 /** A row a move of another row moved too (an effect), as it was and as it is. */
@@ -671,6 +725,8 @@ async function judgeOwnUpdate(
       }
     }
     if (to !== null && !guard.history) await judgeLate(db, table, states, stored, values, from, to, guard, judging);
+    // Judged last: someone the move is closed to is told that, and not about a label.
+    if (guard.paidLabelMove !== undefined && to !== null && movesBack(states, from, to, move)) await guard.paidLabelMove(stored, from, to);
   }
   if (await lockedNow(db, dialect, table, stored)) {
     const lateFlags = (states.late ?? []).flatMap((rule) => (rule.flag === undefined ? [] : [rule.flag]));

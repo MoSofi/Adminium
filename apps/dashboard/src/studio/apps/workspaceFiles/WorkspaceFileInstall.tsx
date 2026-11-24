@@ -875,6 +875,13 @@ function DoneScreen({
                   {t('studio:workspaceFiles.done.waiting', 'not installed yet')}
                 </span>
               )}
+              {(app.shippingWithheld?.length ?? 0) === 0 ? null : (
+                <p className="m-0 basis-full text-[12.5px] leading-snug text-fg-muted" data-testid={`withheld-${app.key}`}>
+                  {sentence('studio:workspaceFiles.done.shippingWithheld', 'Shipping rights were not given to {roles}. You can give them on the Roles page.', {
+                    roles: <span className="font-semibold text-fg">{[...new Set(app.shippingWithheld!.map((one) => one.roleName))].join(', ')}</span>,
+                  })}
+                </p>
+              )}
             </li>
           ))}
           {workspace === null || joined.length === 0 ? null : (

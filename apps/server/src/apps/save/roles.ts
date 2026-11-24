@@ -210,6 +210,11 @@ export const convertRoles: ConvertPart = async (ctx) => {
         give('payments:@:refund');
         continue;
       }
+      // A saved app carries no `shipping` block, which these rights need, and a carrier account is one business's own.
+      if (/^shipping-(book|cancel|customs)\//.test(row.resourceRef)) {
+        info('SHIPPING_RIGHT', 'A right on shipping labels is not carried. Give it to the role after installing.');
+        continue;
+      }
       // So do what its roles may do about a row's connected account.
       const accounts = /^accounts-(connect|send-link|disconnect)\//.exec(row.resourceRef);
       if (accounts !== null) {

@@ -157,6 +157,7 @@ import { getPrincipal } from '../../rbac/principal.js';
 import { APP_VERSION } from '../../version.js';
 import { isRetiredAddOn } from '../../add-ons/retired.js';
 import { speaksForSources } from '../../lead-sources/state.js';
+import { declaresShippingCarrier, isShippingCarrier } from '../../shipping/shop.js';
 import { registerSourceRoutes } from './sources.js';
 import {
   addOnBundleParams,
@@ -2055,6 +2056,11 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         if (speaksForSources(manifest)) {
           throw new ValidationFailedError(`"${key}" keeps a key for each of its sources. Set up its sources on its own Sources screen.`, { reason: 'sources' });
         }
+        // A carrier's key spends the shop's money and receives its customers' addresses, so it is checked as it is saved,
+        // by a signed-in person who may manage shipping. This form takes an API key and checks nothing.
+        if (isShippingCarrier(manifest)) {
+          throw new ValidationFailedError(`"${key}" is a delivery carrier. Connect it in its app's shipping settings.`, { reason: 'shipping' });
+        }
 
         if (kind === 'none') {
           // Not an error the caller can fix by sending different values, so it
@@ -2125,6 +2131,10 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const { key } = request.params;
         const { manifest } = await oauthContextFor(request, key);
+        // A carrier's credential is saved at its own door, checked, and by nobody else.
+        if (isShippingCarrier(manifest)) {
+          throw new ValidationFailedError(`"${key}" is a delivery carrier. Connect it in its app's shipping settings.`, { reason: 'shipping' });
+        }
         let authorizeUrl: string;
         let state: string;
         try {
@@ -2234,6 +2244,10 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         }
         if (read.ok && isAddOnManifest(read.manifest) && speaksForSources(read.manifest)) {
           throw new ValidationFailedError(`"${key}" keeps a key for each of its sources. Remove them on its own Sources screen.`, { reason: 'sources' });
+        }
+        // Removed at its own door, which first asks whether a booking still depends on it.
+        if (declaresShippingCarrier(installed.document)) {
+          throw new ValidationFailedError(`"${key}" is a delivery carrier. Remove its key in its app's shipping settings.`, { reason: 'shipping' });
         }
 
         // A registration people are connected through: they are disconnected first, each with what that undoes at the provider.

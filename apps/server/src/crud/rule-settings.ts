@@ -133,3 +133,10 @@ export async function fillFromElsewhere(
   }
   return out ?? values;
 }
+
+/** One column's `default {from}` as it stands now, or undefined where it names nothing. */
+export async function defaultOfColumn(rules: TableRules | null, column: string, target: { db: Db; connectionId: string }, reader: RuleSettingsReader | undefined): Promise<unknown> {
+  const rule = rules?.defaultsFrom?.find((one) => one.column === column);
+  if (rule === undefined) return undefined;
+  return (await fillFromElsewhere({ ...rules!, defaultsFrom: [rule] }, 'create', target, {}, reader))[column];
+}

@@ -27,6 +27,7 @@ import {
   describeProductPersonalizer,
   describeShippingCarrier,
   type DocumentRendererFixtures,
+  type ShippingCarrierFixtures,
 } from '../src/testing/index.js';
 import {
   CarrierError,
@@ -50,6 +51,7 @@ import {
   ReferenceArtworkSource,
   ReferenceDocumentRenderer,
   ReferenceProductPersonalizer,
+  ReferencePurchaseCarrier,
   ReferenceShippingCarrier,
 } from './reference-impls.js';
 
@@ -121,12 +123,18 @@ const MCMURDO: Address = {
   country: 'AQ',
 };
 
-describeShippingCarrier(new ReferenceShippingCarrier(), {
+const SHIPPING_FIXTURES = {
   parcel: PARCEL,
   from: BERLIN,
   to: LYON,
   rejectedTo: MCMURDO,
   order: { reference: 'MP-4118' },
+} satisfies ShippingCarrierFixtures;
+
+describeShippingCarrier(new ReferenceShippingCarrier(), SHIPPING_FIXTURES);
+describeShippingCarrier(new ReferencePurchaseCarrier(), SHIPPING_FIXTURES, {
+  bookIsIdempotent: false,
+  eventsAfterBooking: false,
 });
 
 // -- product-personalizer@1 --------------------------------------------------

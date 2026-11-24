@@ -268,6 +268,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'roles.privacyPeople',
   // An app role that gives back the money paid online for the app's own records (`payments:@:refund`).
   'roles.paymentsRefund',
+  // An app role that books, cancels or declares customs for the app's own labels (`shipping:@:book`, `:cancel`, `:customs`).
+  'roles.shippingGrants',
   // The columns a records page's list opens on, in order (`config.columns`).
   'config.columns',
   // An add-on kept once per server rather than installed per database.
@@ -404,8 +406,17 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'provides.lead-source',
   'addOn.leads',
   'people.lead',
+  // A person's copy on a kept table that is not part of the record, erased with them all the same.
+  'people.copyEvenIfKept',
   // A record action Adminium's own record page shows on a kind of declared table (a companies table's "Fill in details").
   'addOn.slots.on',
+  // Where an app's orders keep what a carrier needs: without it, the engine calls no real carrier for the app.
+  'shipping',
+  // Where an order's goods are, for a parcel that leaves the shop's country.
+  'shipping.customs',
+  // The values that leave a line out of a declaration, and the order column that stops one while a refund stands.
+  'shipping.customs.lineUnless',
+  'shipping.customs.refunded',
   // An add-on whose people each connect their own outside account, and the app's table those people are rows of.
   'addOn.connect.accounts',
   'table.connectedAccounts',
@@ -657,6 +668,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'appGrants.more': '0.3.47',
   'roles.privacyPeople': '0.3.47',
   'roles.paymentsRefund': '0.3.60',
+  // A release before refuses the grant.
+  'roles.shippingGrants': '0.3.72',
   // A release before ignores the key, and the list opens on the columns Adminium picks.
   'config.columns': '0.3.47',
   'addOn.scope': '0.3.49',
@@ -739,7 +752,13 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'provides.lead-source': '0.3.66',
   'addOn.leads': '0.3.66',
   'people.lead': '0.3.66',
+  'people.copyEvenIfKept': '0.3.74',
   'addOn.slots.on': '0.3.66',
+  'shipping': '0.3.72',
+  // A release before refuses the key.
+  'shipping.customs': '0.3.74',
+  'shipping.customs.lineUnless': '0.3.74',
+  'shipping.customs.refunded': '0.3.74',
   'addOn.connect.accounts': '0.3.71',
   'table.connectedAccounts': '0.3.71',
   'roles.accounts': '0.3.71',
@@ -900,6 +919,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
         if (ref !== undefined && !ownPages.has(ref)) out.push({ word: 'roles.addOnPages', path: `roles.${String(r)}.permissions.${String(g)}` });
         if (grant === 'privacy:@:people') out.push({ word: 'roles.privacyPeople', path: `roles.${String(r)}.permissions.${String(g)}` });
         if (grant === 'payments:@:refund') out.push({ word: 'roles.paymentsRefund', path: `roles.${String(r)}.permissions.${String(g)}` });
+        if (typeof grant === 'string' && /^shipping:@:(book|cancel|customs)$/.test(grant)) out.push({ word: 'roles.shippingGrants', path: `roles.${String(r)}.permissions.${String(g)}` });
         if (typeof grant === 'string' && grant.startsWith('accounts:@:')) out.push({ word: 'roles.accounts', path: `roles.${String(r)}.permissions.${String(g)}` });
       });
     });
@@ -940,10 +960,21 @@ export function installFloorWords(document: unknown): ManifestWord[] {
         if (isDoc(copy) && copy['addOn'] !== undefined) out.push({ word: 'people.addOnCopies', path: `people.${String(e)}.copies.${String(c)}.addOn` });
         if (isDoc(copy) && copy['holds'] === 'details') out.push({ word: 'people.copyDetails', path: `people.${String(e)}.copies.${String(c)}.holds` });
         if (isDoc(copy) && copy['from'] !== undefined) out.push({ word: 'people.addOnCopyFrom', path: `people.${String(e)}.copies.${String(c)}.from` });
+        if (isDoc(copy) && copy['evenIfKept'] !== undefined) out.push({ word: 'people.copyEvenIfKept', path: `people.${String(e)}.copies.${String(c)}.evenIfKept` });
       });
       if (isDoc(entry) && entry['lead'] !== undefined) out.push({ word: 'people.lead', path: `people.${String(e)}.lead` });
       if (isDoc(entry) && entry['phone'] !== undefined) out.push({ word: 'people.phone', path: `people.${String(e)}.phone` });
     });
+    if (document['shipping'] !== undefined) out.push({ word: 'shipping', path: 'shipping' });
+    if (isDoc(document['shipping'])) {
+      list(document['shipping']['orders']).forEach((order, o) => {
+        if (!isDoc(order) || order['customs'] === undefined) return;
+        out.push({ word: 'shipping.customs', path: `shipping.orders.${String(o)}.customs` });
+        const customs = order['customs'];
+        if (isDoc(customs) && isDoc(customs['lines']) && customs['lines']['unless'] !== undefined) out.push({ word: 'shipping.customs.lineUnless', path: `shipping.orders.${String(o)}.customs.lines.unless` });
+        if (isDoc(customs) && customs['refunded'] !== undefined) out.push({ word: 'shipping.customs.refunded', path: `shipping.orders.${String(o)}.customs.refunded` });
+      });
+    }
   }
 
   // An agreement on a text's length, on an entry or on its child rows (two levels).

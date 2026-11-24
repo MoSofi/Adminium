@@ -42,6 +42,7 @@ import { DKIM_KEY_SALT } from '../../../email/sender/dkim-keys.js';
 import { storageCryptoFromSecret } from '../../../files/crypto.js';
 import { linkSealFromSecret } from '../../../payments/links.js';
 import { SIGN_IN_LINK_JOB_KIND } from '../../../public-api/sign-in-link.js';
+import { openRateHandle } from '../../../shipping/quotes.js';
 import { smsSecretKey } from '../../../sms/credentials.js';
 import { SMS_INBOUND_CHANNEL } from '../../../sms/inbound/payload.js';
 import type { CheckItem } from '../check.js';
@@ -68,6 +69,8 @@ export const SECRET_SOURCES = [
   'adminium_public_keys.tokenEncrypted',
   'adminium_public_challenges.newDestinationEnc',
   'adminium_payment_links.tokenSealed',
+  'adminium_shipping_bookings.handleSealed',
+  'adminium_shipping_quotes.rates#sealed',
   'adminium_address_keys.keyEncrypted',
   'adminium_stop_list.addressEncrypted',
   'adminium_email_notice_endpoints.tokenEncrypted',
@@ -414,6 +417,20 @@ export async function collectKnownSecrets(meta: MetaDb, masterSecret: string, pr
   }
   for (const row of await db.selectFrom('adminium_payment_links').select(['tokenSealed']).execute()) {
     list.add('a pay link\'s token', link(row.tokenSealed), 'opaque');
+  }
+  // A carrier's handles for one rate: no credential, so a hit in a file is asked about and never refuses on its own.
+  const addRateHandle = (sealed: unknown): void => {
+    if (typeof sealed !== 'string' || sealed === '') return;
+    const handle = openRateHandle(masterSecret, sealed);
+    list.add('a carrier\'s handle for a rate', handle?.ref, 'whole', true);
+    list.add('a carrier\'s token for a parcel', handle?.carrierToken, 'whole', true);
+  };
+  for (const row of await db.selectFrom('adminium_shipping_bookings').select(['handleSealed']).where('handleSealed', 'is not', null).execute()) {
+    addRateHandle(row.handleSealed);
+  }
+  for (const row of await db.selectFrom('adminium_shipping_quotes').select(['rates']).execute()) {
+    const rates = readJsonFrom<unknown>(meta, row.rates);
+    if (Array.isArray(rates)) for (const rate of rates as { sealed?: unknown }[]) addRateHandle(rate?.sealed);
   }
   for (const row of await db.selectFrom('adminium_address_keys').select(['keyEncrypted']).execute()) {
     list.add('a key email addresses are kept under', addressKeys(row.keyEncrypted), 'opaque');

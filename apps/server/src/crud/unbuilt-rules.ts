@@ -390,6 +390,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'roles.privacyPeople',
   // An app role that refunds the app's own online payments (apps/manifest-roles.ts, rbac/permissions.ts payments:<app>:refund).
   'roles.paymentsRefund',
+  // An app role's rights on the app's own labels (apps/manifest-roles.ts, rbac/permissions.ts shipping:<install>:<action>).
+  'roles.shippingGrants',
   // The columns a records page's list opens on, written to the page at install (apps/manifest-page-config.ts).
   'config.columns',
   // A form's reference picker narrowed by another field: kept in the form at install, read by the picker (widgets reference.tsx).
@@ -489,6 +491,15 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // Where a found company's details go on a companies table: the lead door adds and fills through those columns only,
   // and decides "already here" by them (routes/leads, leads/).
   'people.lead',
+  // Where an app's orders keep what a carrier needs: the address of a quote is read from those columns (routes/shipping).
+  'shipping',
+  // Where an order's goods are for a customs declaration, the line state that leaves one out, and the refund that
+  // stops one (shipping/customs.ts, routes/shipping/customs.ts).
+  'shipping.customs',
+  'shipping.customs.lineUnless',
+  'shipping.customs.refunded',
+  // A person's copy erased with them even from a row the law keeps, such as a phone on an order (privacy/erase-rows.ts).
+  'people.copyEvenIfKept',
   // A record action the generated record page shows on a kind of declared table, and the notes under the fields a
   // source filled (leads/record-actions.ts, routes/leads/notes.ts).
   'addOn.slots.on',

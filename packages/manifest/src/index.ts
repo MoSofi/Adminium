@@ -204,6 +204,7 @@ export {
   TEXT_CONSENT_CLASSES,
   type PublicTextConsent,
 } from './people.js';
+export { shippingIssues, shippingOrderSchema, shippingSchema, type Shipping, type ShippingAddressColumns, type ShippingOrder } from './shipping.js';
 export {
   CALENDAR_GOOGLE_VARIABLE,
   CALENDAR_OUTLOOK_VARIABLE,

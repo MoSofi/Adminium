@@ -92,6 +92,7 @@ export default {
     "paymentsRefund": "辦理退款",
     "paymentsView": "查看付款活動並匯出",
     "smsManage": "設定簡訊",
+    "shippingManage": "設定配送",
     "privacyManage": "尋找、下載和管理某人的資料",
     "privacyPeople": "尋找、下載並刪除某人的資料"
   },
@@ -118,7 +119,10 @@ export default {
   },
   "apps": {
     "every": "開啟所有應用程式的員工畫面",
-    "one": "開啟 {app} 的員工畫面"
+    "one": "開啟 {app} 的員工畫面",
+    "shippingBook": "{app}：在你設定的額度內購買標籤",
+    "shippingCancel": "{app}：申請退還標籤費用",
+    "shippingCustoms": "{app}：申報海關"
   },
   "rows": {
     "locked": "超級管理員可存取每一列。",

@@ -92,6 +92,7 @@ export default {
     "paymentsRefund": "Give refusioner",
     "paymentsView": "Se betalingsaktivitet og eksportere den",
     "smsManage": "Opsæt sms-beskeder",
+    "shippingManage": "Konfigurere forsendelse",
     "privacyManage": "Finde, downloade og administrere en persons data",
     "privacyPeople": "Find, hent og slet en persons data"
   },
@@ -118,7 +119,10 @@ export default {
   },
   "apps": {
     "every": "Åbn alle apps’ personaleskærme",
-    "one": "Åbn personaleskærmene i {app}"
+    "one": "Åbn personaleskærmene i {app}",
+    "shippingBook": "{app}: købe etiketter inden for de grænser, du sætter",
+    "shippingCancel": "{app}: bede om refusion af en etiket",
+    "shippingCustoms": "{app}: lave tolddeklaration"
   },
   "rows": {
     "locked": "Super Admin når alle rækker.",

@@ -169,7 +169,8 @@ export default {
     "signOut": "Abmelden",
     "toggleSidebar": "Seitenleiste umschalten",
     "payments": "Zahlungen",
-    "putOnline": "Online stellen…"
+    "putOnline": "Online stellen…",
+    "shipping": "Versand"
   },
   "palette": {
     "dialog": "Befehlspalette",

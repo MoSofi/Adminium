@@ -128,7 +128,7 @@ import { AddOnStoreError } from '../add-ons/store.js';
 import { refusalReason } from '../add-ons/upload-refusal.js';
 import { SURFACE_SIDES, type SurfaceSide } from '../cli/surfaces-root.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.js';
-import { PERMISSIONS } from '../rbac/permissions.js';
+import { PERMISSIONS, type ShippingAction } from '../rbac/permissions.js';
 import {
   type SampleDataDeps,
 } from './sample-data.js';
@@ -138,6 +138,7 @@ import {
   addOnGrantsOf,
   privacyGrantsOf,
   refundGrantsOf,
+  shippingGrantsOf,
   grantsAdded,
   addOnPageGrantIssues,
   plannedAfterInstallOfRoles,
@@ -229,6 +230,8 @@ export interface AppRoutesDeps {
    * that does is refused with a reason rather than half-applied.
    */
   schemaTarget?: AppSchemaTarget | undefined;
+  /** Tables an uninstall is about to delete: their shipping labels let go of them. */
+  retireShippingTables?: ((connectionId: string, tableNames: readonly string[]) => Promise<unknown>) | undefined;
   /**
    * The consent log and the do-not-email list, for what an update carries
    * over once (`people-carry.ts`). Absent, an update with a carry says so in
@@ -733,6 +736,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     meta: deps.meta,
     credentialCrypto: deps.credentialCrypto,
     schemaTarget: deps.schemaTarget,
+    retireShippingTables: deps.retireShippingTables,
     invalidateKey: (keyId) => deps.publicAccess?.invalidateKey?.(keyId),
     names: () => installedAppNames(),
     dropEndpointGrants: async (connectionId, endpointIds) => deps.publicAccess?.service.dropEndpointGrants({ connectionId, endpointIds }),
@@ -1342,6 +1346,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const isAdded = (role: string, addOn?: string) =>
       addOn === undefined ? added.privacyGrants.some((grant) => grant.role === role) : added.addOnGrants.some((grant) => grant.role === role && grant.addOn === addOn);
     const refundAdded = (role: string) => added.refundGrants.some((grant) => grant.role === role);
+    const shippingAdded = (role: string, action: string) => added.shippingGrants.some((grant) => grant.role === role && grant.action === action);
     return {
       plan,
       shapeRecords: shapes === null ? new Map() : shapeRecordsFor(manifest, shapes),
@@ -1410,6 +1415,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         ...(privacyGrantsOf(manifest).length === 0 ? {} : { privacyGrants: privacyGrantsOf(manifest).map((grant) => (isAdded(grant.role) ? { ...grant, added: true as const } : grant)) }),
         // The roles that would refund the app's own online payments: each ticked, for the installer to untick.
         ...(refundGrantsOf(manifest).length === 0 ? {} : { refundGrants: refundGrantsOf(manifest).map((grant) => (refundAdded(grant.role) ? { ...grant, added: true as const } : grant)) }),
+        ...(shippingGrantsOf(manifest).length === 0 ? {} : { shippingGrants: shippingGrantsOf(manifest).map((grant) => (shippingAdded(grant.role, grant.action) ? { ...grant, added: true as const } : grant)) }),
         // What each role would hold of the tables of the add-ons the app names, once each is there for it: with the columns, cut to the add-on's words.
         ...(roleTables.length === 0 ? {} : { roleTables }),
         pageWarnings:
@@ -1990,6 +1996,10 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     wider?: ReadonlyMap<string, readonly string[]>,
     /** The roles the installer unticked on the check: not given the app's refund right (`payments:@:refund`). */
     refundsUnticked?: readonly string[],
+    /** An install's answer on the app's label rights (`writeManifestRoles`); undefined when nothing asked. */
+    shippingUnticked?: readonly { role: string; action: ShippingAction }[],
+    /** A first install that got no answer on those rights: it gives none of them. An update never sets this. */
+    shippingUnanswered = false,
   ): Promise<
     | {
         pages: MaterialiseResult;
@@ -2051,6 +2061,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
               connectionId,
               names: names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key)),
               ...(refundsUnticked === undefined ? {} : { refundsUnticked }),
+              ...(shippingUnticked === undefined ? {} : { shippingUnticked }),
+              ...(shippingUnanswered ? { shippingUnanswered } : {}),
             });
       // What the app's roles hold of the tables of the add-ons that are here for it: written with the roles, taken back for any that is not.
       const roleTables = connectionId === null || manifest.kind !== 'app' ? [] : await settleRoleTables({ meta: deps.meta, app: manifest, connectionId, live: await liveAddOnsFor(deps.meta, manifest, connectionId) });
@@ -3344,6 +3356,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         answers.pages,
         undefined,
         input.refundsUnticked,
+        // A list is the card's answer, none unticked included. Absent, nobody was asked, so none is given.
+        input.shippingUnticked,
+        input.shippingUnticked === undefined,
       );
       /*
        * The rows its tables start with (`seeds`): after the rules, so each
@@ -3448,6 +3463,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       ...(writtenPages === undefined ? {} : { pages: writtenPages.pages }),
       ...(writtenPages?.rules === undefined ? {} : { rules: writtenPages.rules }),
       ...(writtenPages?.roles === undefined ? {} : { roles: writtenPages.roles }),
+      ...((writtenPages?.roles?.shippingWithheld?.length ?? 0) === 0 ? {} : { shippingWithheld: writtenPages!.roles!.shippingWithheld }),
       ...(writtenPages?.publicAccess === undefined ? {} : { publicAccess: writtenPages.publicAccess }),
       ...(writtenPages?.outbox === undefined ? {} : { outbox: writtenPages.outbox }),
       ...documentsWaiting(writtenPages?.documents),
@@ -3685,16 +3701,17 @@ export function createAppInstallService(deps: AppRoutesDeps) {
      * before anything moves.
      */
     const newGrants = grantsAdded(installed.document as Manifest | null, manifest);
-    if ((newGrants.privacyGrants.length > 0 || newGrants.addOnGrants.length > 0 || newGrants.refundGrants.length > 0) && input.body?.roleGrants !== true) {
+    if ((newGrants.privacyGrants.length > 0 || newGrants.addOnGrants.length > 0 || newGrants.refundGrants.length > 0 || newGrants.shippingGrants.length > 0) && input.body?.roleGrants !== true) {
       const said = [
         ...newGrants.privacyGrants.map((grant) => `"${grant.roleName}" may find, download and erase people's data`),
         ...newGrants.refundGrants.map((grant) => `"${grant.roleName}" may refund the app's online payments`),
+        ...newGrants.shippingGrants.map((grant) => `"${grant.roleName}" may ${grant.action === 'book' ? 'buy shipping labels' : grant.action === 'cancel' ? 'ask for a shipping label to be refunded' : 'declare customs'}`),
         ...newGrants.addOnGrants.map((grant) => `"${grant.roleName}" may change the settings of the add-on "${grant.addOn}"`),
       ];
       throw new ValidationFailedError(
         `"${key}" ${to} gives its roles more than ${from} did: ${said.join('; ')}. ` +
           'Check the update and allow it ("roleGrants": true), or keep the running version.',
-        { reason: 'ROLE_GRANTS_ADDED', privacyGrants: newGrants.privacyGrants, addOnGrants: newGrants.addOnGrants, refundGrants: newGrants.refundGrants },
+        { reason: 'ROLE_GRANTS_ADDED', privacyGrants: newGrants.privacyGrants, addOnGrants: newGrants.addOnGrants, refundGrants: newGrants.refundGrants, shippingGrants: newGrants.shippingGrants },
       );
     }
 

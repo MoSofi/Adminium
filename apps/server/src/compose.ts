@@ -74,6 +74,8 @@ import {
   snapshotsRepo,
   assistantSessionsRepo,
   type PayableRef,
+  shippingBookingsRepo,
+  shippingRepo,
 } from '@adminium/meta';
 
 import { z } from 'zod';
@@ -96,6 +98,7 @@ import { createLocalDatabases, localDatabasesMode } from './connections/local-da
 import type { ConnectionManager } from './connections/manager.js';
 import { privilegesOf } from './connections/privileges.js';
 import { addOnWriteJudges } from './crud/add-on-write-judges.js';
+import { paidLabelJudge } from './shipping/order-guard.js';
 import { UndoStore } from './crud/undo.js';
 import { seedBuiltinEmailTemplatesIfChanged } from './email/builtins.js';
 import { configureSmtpNetwork, emailSecretKey } from './email/config.js';
@@ -332,6 +335,7 @@ import { markOwnerRowLimits } from './apps/mark-owner-row-limits.js';
 import { apiKeysRoutes } from './routes/api-keys/index.js';
 import { createAddOnSchemaTarget } from './add-ons/schema-target.js';
 import { addOnRoutes } from './routes/add-ons/index.js';
+import { readReachedRow } from './crud/row-reached.js';
 import { factsViewFor } from './routes/pages/column-facts.js';
 import { fetchByPk, parseRecordId } from './crud/records.js';
 import { rowLimitContextOf } from './crud/row-limit-context.js';
@@ -406,6 +410,12 @@ import { schemaRoutes } from './routes/schema/index.js';
 import { schemaImportRoutes } from './routes/schema-import/index.js';
 import { searchRoutes } from './routes/search/index.js';
 import { geoRoutes } from './routes/geo/index.js';
+import { shippingRoutes } from './routes/shipping/index.js';
+import { shippingWebhookRoutes } from './routes/shipping/webhook.js';
+import { carrierHttpFor } from './shipping/carriers.js';
+import { registerShippingPolling } from './shipping/polling.js';
+import { registerShippingTracking } from './shipping/tracking.js';
+import { SHIPPING_APPLY_PICKUP_CRON, SHIPPING_APPLY_PICKUP_NAME, enqueueApply, pickUpApplies, registerShippingApplyHandler } from './shipping/apply.js';
 import { paymentsRoutes } from './routes/payments/index.js';
 import { textSubject } from './sms/consent/index.js';
 import { SMS_STOP_EVENT_KINDS } from './sms/inbound/index.js';
@@ -427,6 +437,7 @@ import { registerPrivacyExportHandler, sweepPrivacyExports } from './privacy/exp
 import { moveHeldToAddress, sweepKeptHolders } from './privacy/held-values.js';
 import { installedCustomerKey } from './public-api/customer-key.js';
 import { sweepFormAnswers } from './forms/answers.js';
+import { retireDeletedRow, retireDroppedTables, SHIPPING_LABELS_SWEEP_CRON, SHIPPING_LABELS_SWEEP_NAME, sweepLabelFiles } from './shipping/labels.js';
 import { ADD_ON_EXPIRE_SWEEP_CRON, ADD_ON_EXPIRE_SWEEP_NAME, sweepExpiredRows } from './add-ons/expire.js';
 import { mailNoticeRoutes } from './routes/mail-door/notices.js';
 import { createPayPageReader, payRoutes, type PayRoutesDeps } from './routes/pay/index.js';
@@ -729,6 +740,8 @@ export interface ComposeServerOptions {
    * For tests only: how the free-picture sources are reached (Openverse, Pexels, Unsplash, Pixabay, and the
    * pictures they name), so a fake answers in their place. There is no setting for this either.
    */
+  /** Tests only: how many carrier quotes one person may ask for in a minute. */
+  shippingQuotesPerMinute?: number;
   pictureSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
   /** A test's own picture makers: given what the real one would be built with. */
   pictureMakerSeam?: import('./llm/connections.js').AiConnectionsDeps['createPictureMaker'] | undefined;
@@ -1433,6 +1446,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // A guest's file for an app's file column: held for the public write that names it, then that row's own.
   const columnUploads = createColumnUploads({ meta, data: (connectionId) => manager.data(connectionId), viewFor: (connectionId) => publicViews.viewFor(connectionId), log: app.log });
   app.decorate('formsFiles', formsFiles);
+  app.decorate('shippingRows', {
+    onRowDeleted: async (connectionId: string, tableName: string, rowKey: string) => {
+      try {
+        await retireDeletedRow({ meta, storage }, connectionId, tableName, rowKey, Date.now());
+      } catch (error) {
+        app.log.warn({ err: error, connectionId, tableName }, 'a deleted row kept its shipping labels');
+      }
+    },
+  });
   const ledgers = createLedgerRuntime({
     installs: () => addOnInstalls.current(),
     refresh: () => addOnInstalls.fresh(),
@@ -1495,6 +1517,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // A landing pages add-on's pages: a page goes live, or its published copy is written, only whole, unmarked and at an address no other page holds.
     // What is installed is read once per write for all of them (`crud/add-on-write-judges.ts`).
     ...addOnWriteJudges(addOnInstalls),
+    // A person's move back or to cancelled on an order with a paid label is asked about first (`shipping/order-guard.ts`).
+    paidLabelMove: paidLabelJudge(meta, appManifests),
     // A file column names only a file its writer uploaded and no record holds; a picture, one cleaned as it came in.
     // A page's file column too, when a person saves it: what it newly names is an upload of theirs.
     files: createFileColumnJudge({
@@ -2061,6 +2085,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     const swept = await sweepPrivacyExports(meta, storage);
     if (swept > 0) app.log.info({ swept }, 'privacy downloads sweep');
   });
+  // A label's file, 90 days after its last state. The booking and tracking number stay.
+  jobs.scheduler.registerSchedule(SHIPPING_LABELS_SWEEP_NAME, SHIPPING_LABELS_SWEEP_CRON, async () => {
+    const swept = await sweepLabelFiles({ meta, storage, now: Date.now, log: (message, fields) => app.log.warn(fields, message) });
+    if (swept.deleted > 0 || swept.failed > 0 || swept.orphans > 0) app.log.info(swept, 'shipping: label files swept');
+  }, { jitterMs: 60_000 });
   // A forms add-on's answers past the time its settings keep them: deleted by the engine, the add-on runs no timer.
   jobs.scheduler.registerSchedule(FORM_ANSWERS_SWEEP_NAME, FORM_ANSWERS_SWEEP_CRON, async () => {
     const swept = await sweepFormAnswers({ meta, manager, answerFiles: formsFiles.removeAnswerFiles, log: app.log });
@@ -2353,6 +2382,21 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   jobs.scheduler.registerSchedule(PAYMENTS_INTEGRITY_NAME, PAYMENTS_INTEGRITY_CRON, async () => {
     await runPaymentIntegrity(paymentWatchDeps);
   }, { jitterMs: 60_000 });
+  // What follows a bought label: the copy and the order's tracking number. Calls no carrier.
+  registerShippingApplyHandler(jobs.registry, { meta, manifests: appManifests, sources: paymentSources, writes: recordWrites, app });
+  // What a carrier's webhook said. Calls no carrier; polling registers nothing while its code lock is off.
+  const shippingTrackDeps = { meta, secret: env.ADMINIUM_SECRET, now: () => Date.now(), enqueueApply: (bookingId: string) => enqueueApply((input) => jobs.enqueue(input), bookingId), log: (message: string, fields: Record<string, unknown>) => app.log.warn(fields, message) };
+  registerShippingTracking(jobs, shippingTrackDeps);
+  registerShippingPolling({ registry: jobs.registry, scheduler: jobs.scheduler, enqueue: (input) => jobs.enqueue(input) }, { ...shippingTrackDeps, manifests: appManifests, carrierDeps: { runtime: () => addOnRuntime, manifests: appManifests, httpFor: (manifest) => carrierHttpFor(meta, manifest, app.trialPolicy) } });
+  jobs.scheduler.registerSchedule(
+    SHIPPING_APPLY_PICKUP_NAME,
+    SHIPPING_APPLY_PICKUP_CRON,
+    async () => {
+      const queued = await pickUpApplies(meta, (input) => jobs.enqueue(input));
+      if (queued > 0) app.log.info({ queued }, 'shipping: bought labels picked up again');
+    },
+    { jitterMs: 30_000 },
+  );
   jobs.scheduler.registerSchedule(
     PAYMENTS_RECORD_PICKUP_NAME,
     PAYMENTS_RECORD_PICKUP_CRON,
@@ -2956,6 +3000,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       );
       // Where a payment service calls back: no session, the signature is the gate.
       await api.register(paymentWebhookRoutes({ meta, providerFor: paymentProviderLookup, enqueue: (input) => jobs.enqueue(input), notices: paymentNotices }));
+      // Where a carrier calls back about a parcel: no session, the token in its address is the gate.
+      await api.register(shippingWebhookRoutes({ meta, manifests: appManifests, secret: env.ADMINIUM_SECRET, enqueue: (input) => jobs.enqueue(input) }));
       // Where a mail service tells of bounces, spam reports and its own unsubscribes: no session, its own proof is the gate.
       await api.register(mailNoticeRoutes({ meta, secret: env.ADMINIUM_SECRET, consent, networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY }));
       // Studio → Text messages, and the door a provider hands texts and reports to. Its token is scrubbed from the request log (`log-scrub.ts`).
@@ -3158,6 +3204,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       });
       const appDeps: AppRoutesDeps = {
         meta,
+        retireShippingTables: (connectionId, tableNames) => retireDroppedTables({ meta, storage }, connectionId, tableNames, Date.now()),
         store: appStore,
         files: appFiles,
         installed: installedApps,
@@ -3871,15 +3918,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           // A record panel's code is served for one row the reader reaches, as the data routes judge a row's read.
           panels: {
             installs: () => addOnInstalls.fresh(),
-            rowReached: async (request, connectionId, tableId, row) => {
-              const view = await factsViewFor(meta, connectionId);
-              if (view === null) return false;
-              const table = view.table(tableId);
-              const pk = parseRecordId(table, row);
-              const rows = await rowLimitContextOf(meta, await app.rbac.resolve(request), connectionId, view.model);
-              const { db } = await manager.data(connectionId);
-              return (rows === null ? await fetchByPk(db, table, pk) : await fetchVisible(rows, db, table, pk, 'read')) !== undefined;
-            },
+            rowReached: async (request, connectionId, tableId, row) => (await readReachedRow({ meta, data: (id) => manager.data(id), resolve: (one) => app.rbac.resolve(one) }, request, connectionId, tableId, row)) !== undefined,
           },
           // Without this a provider installed at 10am is unreachable until the
           // process restarts, round trip cannot pass.
@@ -3916,6 +3955,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             await addOnSettingsRepo(meta).clearForInstall(install.row.id);
             // A lead source add-on's sources: what was kept of each (last four, switch, caps) and its daily counts.
             await forgetSources(meta, install.row.id);
+            // A carrier add-on's account record: what it said of a key that is gone with the install.
+            await shippingRepo(meta).forgetAccount(install.row.id);
           },
           credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
           schemaTarget: addOnInstaller.schemaTarget,
@@ -3949,6 +3990,27 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           },
           connectionNames: async () => new Map((await meta.db.selectFrom('adminium_connections').select(['id', 'name']).execute()).map((row) => [row.id, row.name])),
           viewFor: (connectionId) => publicViews.viewFor(connectionId),
+        }),
+      );
+      // An app's carrier, Ship from address and rates: a signed-in person only (the routes refuse an API key).
+      await api.register(
+        shippingRoutes({
+          meta,
+          manifests: appManifests,
+          secret: env.ADMINIUM_SECRET,
+          runtime: () => addOnRuntime,
+          networkFeatures: () => addOnCatalog.networkFeaturesAllowed(),
+          policy: app.trialPolicy,
+          sources: paymentSources,
+          storage,
+          openBookings: async (carrierInstallId, installId) => {
+            const bookings = shippingBookingsRepo(meta);
+            const [count, own] = await Promise.all([bookings.countUnresolved(carrierInstallId), bookings.unresolvedOfAppOn(carrierInstallId, installId, 100)]);
+            return { count, own };
+          },
+          ...(opts.shippingQuotesPerMinute === undefined ? {} : { quotesPerMinute: opts.shippingQuotesPerMinute }),
+          enqueueApply: (bookingId) => enqueueApply((input) => jobs.enqueue(input), bookingId),
+          readRow: (request, connectionId, tableId, row) => readReachedRow({ meta, data: (id) => manager.data(id), resolve: (one) => app.rbac.resolve(one) }, request, connectionId, tableId, row),
         }),
       );
       await api.register(rolesRoutes);

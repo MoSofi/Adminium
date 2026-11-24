@@ -159,7 +159,8 @@
     "signOut": "Sign out",
     "toggleSidebar": "Toggle sidebar",
     "payments": "Payments",
-    "putOnline": "Put this online…"
+    "putOnline": "Put this online…",
+    "shipping": "Shipping"
   },
   "palette": {
     "dialog": "Command palette",

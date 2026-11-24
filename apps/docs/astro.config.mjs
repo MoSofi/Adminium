@@ -197,6 +197,10 @@ export default defineConfig({
               items: [{ label: 'Take payments', link: '/guides/take-payments/' }],
             },
             {
+              label: 'Shipping',
+              items: [{ label: 'Ship parcels', link: '/guides/shipping/' }],
+            },
+            {
               label: 'Public API',
               items: [
                 { label: 'Endpoints and keys', link: '/guides/public-api/endpoints-and-keys/' },

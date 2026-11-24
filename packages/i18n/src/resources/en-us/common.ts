@@ -169,7 +169,8 @@ export default {
     "signOut": "Sign out",
     "toggleSidebar": "Toggle sidebar",
     "payments": "Payments",
-    "putOnline": "Put this online…"
+    "putOnline": "Put this online…",
+    "shipping": "Shipping"
   },
   "shortcuts": {
     "title": "Keyboard shortcuts",
