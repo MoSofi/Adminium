@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { ALL_MIGRATIONS, applyMigrations } from '../src/index.js';
 import { TEST_DIALECTS } from './helpers/db.js';
 
-const WAVES = ['0100_connected_accounts', '0101_calendar_feeds', '0102_calendar_sync', '0103_email_changes', '0104_connect_link_address', '0105_revoke_stopped_keys', '0106_owner_row_limits_pending', '0125_sms_accounts', '0126_text_consent', '0127_inbound_events', '0128_text_deliveries'];
+const WAVES = ['0100_connected_accounts', '0101_calendar_feeds', '0102_calendar_sync', '0103_email_changes', '0104_connect_link_address', '0105_revoke_stopped_keys', '0106_owner_row_limits_pending', '0125_sms_accounts', '0126_text_consent', '0127_inbound_events', '0128_text_deliveries', '0134_text_threads', '0135_text_reply_switches', '0136_text_delivery_about'];
 
 /** Stops the run at the wave's ledger row: every statement of the wave has run. */
 function stopAtLedgerRow(): KyselyPlugin {

@@ -2330,6 +2330,9 @@ export interface AdminiumTextDeliveriesTable {
   settleOwedAt: Ts | null;
   createdAt: Ts;
   updatedAt: Ts;
+  /** The app that sent it, and its template (0136). Null for a text no app sent. */
+  aboutApp: string | null;
+  aboutTemplate: string | null;
 }
 
 /** The daily limit's count for one business day (0128). */
@@ -2337,6 +2340,66 @@ export interface AdminiumTextSendDaysTable {
   day: string;
   used: number;
   updatedAt: Ts;
+}
+
+/** A conversation with one number, for one app (0134). */
+export interface AdminiumTextThreadsTable {
+  id: Id;
+  phoneHash: string;
+  keyVersion: number;
+  /** Empty when no app texted the number. */
+  appKey: string;
+  /** The number, sealed under a key from the address keys. */
+  phoneEncrypted: string | null;
+  phoneMasked: string | null;
+  /** The business's own number the customer wrote to. */
+  line: string | null;
+  recordConnection: string | null;
+  recordTable: string | null;
+  recordKey: string | null;
+  lastAt: Ts;
+  lastDirection: string;
+  lastKind: string;
+  unread: number;
+  readAt: Ts | null;
+  readById: string | null;
+  readByLabel: string | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
+/** One message of a conversation (0134). */
+export interface AdminiumTextThreadMessagesTable {
+  id: Id;
+  threadId: string;
+  direction: string;
+  kind: string;
+  /** The words, sealed under a key from the address keys. */
+  sealedBody: string | null;
+  eventId: string | null;
+  deliveryId: string | null;
+  outcome: string | null;
+  byId: string | null;
+  byLabel: string | null;
+  at: Ts;
+  createdAt: Ts;
+}
+
+/** Whether one app's replies are read, as a person set it (0135). */
+export interface AdminiumTextReplySwitchesTable {
+  appKey: string;
+  replies: string;
+  changedById: string | null;
+  changedByLabel: string | null;
+  changedAt: Ts;
+}
+
+/** When a number last got the "this number is not read" answer (0135). */
+export interface AdminiumTextAutoAnswersTable {
+  id: Id;
+  phoneHash: string;
+  keyVersion: number;
+  answeredAt: Ts;
 }
 
 export interface AdminiumSourceDaysTable {
@@ -2924,6 +2987,10 @@ export interface MetaDB {
   adminium_inbound_events: AdminiumInboundEventsTable;
   adminium_text_deliveries: AdminiumTextDeliveriesTable;
   adminium_text_send_days: AdminiumTextSendDaysTable;
+  adminium_text_threads: AdminiumTextThreadsTable;
+  adminium_text_thread_messages: AdminiumTextThreadMessagesTable;
+  adminium_text_reply_switches: AdminiumTextReplySwitchesTable;
+  adminium_text_auto_answers: AdminiumTextAutoAnswersTable;
 }
 
 /**
@@ -3060,4 +3127,8 @@ export const META_TABLE_NAMES = [
   'adminium_inbound_events',
   'adminium_text_deliveries',
   'adminium_text_send_days',
+  'adminium_text_threads',
+  'adminium_text_thread_messages',
+  'adminium_text_reply_switches',
+  'adminium_text_auto_answers',
 ] as const satisfies readonly (keyof MetaDB)[];
