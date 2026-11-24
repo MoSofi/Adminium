@@ -38,6 +38,15 @@ export const OBJECT_LINK_VARIABLE = 'object_link';
 export const CALENDAR_GOOGLE_VARIABLE = 'calendarGoogle';
 export const CALENDAR_OUTLOOK_VARIABLE = 'calendarOutlook';
 
+/**
+ * Whether staff read the texts customers send back (`textReplies`). `off` is for
+ * an app whose customers may write what nobody should hold in a shared inbox,
+ * such as a clinic's patients writing symptoms: nothing is kept, and the sender
+ * gets one fixed answer saying the number is not read.
+ */
+export const TEXT_REPLIES = ['on', 'off'] as const;
+export type TextReplies = (typeof TEXT_REPLIES)[number];
+
 /** Links the engine mints for one person. */
 const MINTED_LINKS: ReadonlySet<string> = new Set(['signInLink', SURVEY_LINK_VARIABLE, REVIEW_LINK_VARIABLE, STOP_LINK_VARIABLE, OBJECT_LINK_VARIABLE, CALENDAR_GOOGLE_VARIABLE, CALENDAR_OUTLOOK_VARIABLE]);
 

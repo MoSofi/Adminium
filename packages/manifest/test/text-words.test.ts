@@ -171,6 +171,45 @@ describe('the words of texts', () => {
   });
 });
 
+describe('replies a clinic does not read, and an app role\'s conversations', () => {
+  const withReplies = (): Doc => {
+    const doc = clone(app());
+    doc['textReplies'] = 'off';
+    doc['roles'] = [
+      { key: 'desk', name: 'Front desk', permissions: ['table:@patients:read', 'texts:@:read'] },
+      { key: 'nurse', name: 'Nurse', permissions: ['table:@patients:read', 'texts:@:reply'] },
+    ];
+    return doc;
+  };
+
+  it('says on or off, at the texts\' floor, where it is written', () => {
+    expect(messages(withReplies())).toEqual([]);
+    for (const word of ['textReplies', 'roles.texts'] as const) {
+      expect(INSTALL_FLOOR_WORD_NAMES).toContain(word);
+      expect(WORD_FLOORS[word], word).toBe(SMS_WORDS_FLOOR);
+    }
+    const found = installFloorWords(withReplies()).filter((one) => one.word === 'textReplies' || one.word === 'roles.texts');
+    expect(found.map((one) => one.path).sort()).toEqual(['roles.0.permissions.1', 'roles.1.permissions.1', 'textReplies']);
+    refusedWith((doc) => (doc['textReplies'] = 'sometimes'), 'textReplies');
+  });
+
+  it('is refused below the floor with the release to ask for', () => {
+    const doc = withReplies();
+    doc['compatibility'].minAdminiumVersion = '0.3.71';
+    const said = messages(doc).join('\n');
+    expect(said).toContain(`"textReplies" is read by Adminium ${SMS_WORDS_FLOOR}`);
+    expect(said).toContain(`"roles.texts" is read by Adminium ${SMS_WORDS_FLOOR}`);
+  });
+
+  it('a folder keeps it with the texts, and reads it back', () => {
+    const files = splitManifest(withReplies());
+    expect(JSON.stringify(files.find((file) => file.path.endsWith('emails.json')))).toContain('textReplies');
+    const composed = composeManifest(files);
+    expect(composed.problems ?? []).toEqual([]);
+    expect((composed.document as Doc)['textReplies']).toBe('off');
+  });
+});
+
 describe('what a text template may say', () => {
   const body = (words: string) => (doc: Doc) => {
     doc['textTemplates'][0].locales['en-US'].body = words;

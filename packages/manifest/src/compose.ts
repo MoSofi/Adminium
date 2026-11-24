@@ -50,7 +50,7 @@ const PAGES_DIR = 'pages';
 const BLOCK_PARTS: ReadonlyArray<{ file: string; fields: readonly string[]; whole: boolean }> = [
   { file: 'roles.json', fields: ['roles'], whole: true },
   { file: 'access.json', fields: ['publicAccess', 'publicKeys'], whole: false },
-  { file: 'emails.json', fields: ['outbox', 'emailTemplates', 'textTemplates'], whole: false },
+  { file: 'emails.json', fields: ['outbox', 'emailTemplates', 'textTemplates', 'textReplies'], whole: false },
   { file: 'add-ons.json', fields: ['addOns'], whole: true },
   { file: 'sample.json', fields: ['sampleData', 'seeds'], whole: false },
   { file: 'settings.json', fields: ['settings'], whole: true },

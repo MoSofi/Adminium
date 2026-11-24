@@ -65,7 +65,7 @@ import { appsBlockSchema, requiredAppIssues } from './app-requires.js';
 import { instanceIssues, instanceSchema } from './instance.js';
 import { assistantIssues, type AssistantTableShape } from './assistant.js';
 import { stepsIssues, type StepTableShape } from './steps.js';
-import { outboxTextIssues, publicTextConsentIssues, textTemplateIssues, textTemplateSchema, TEXT_TEMPLATES_MAX } from './text-messages.js';
+import { outboxTextIssues, publicTextConsentIssues, textTemplateIssues, textTemplateSchema, TEXT_REPLIES, TEXT_TEMPLATES_MAX } from './text-messages.js';
 import { WORD_FLOORS, installFloorWords } from './words.js';
 import { savedPartsIssues, savedPartsShape } from './saved-parts.js';
 import { tableNameIssue, tableSchemaIssue } from './table-names.js';
@@ -4047,6 +4047,13 @@ export const appManifestSchema = z
     ...installBlocksShape,
     /** The app's text messages, each language's words (see `text-messages.ts`). An app's alone: an add-on's outbox sends email. */
     textTemplates: z.array(textTemplateSchema).max(TEXT_TEMPLATES_MAX).optional(),
+    /**
+     * Whether staff read the texts customers send back (see `text-messages.ts`).
+     * `off`: a reply is not kept, and the sender gets one fixed "this number is
+     * not read" answer. The owner can switch it either way after install; this is
+     * where it starts. Absent: on.
+     */
+    textReplies: z.enum(TEXT_REPLIES).optional(),
     /** Report documents, invoice layouts, scheduled reports and payments: a file made on an Adminium only (see `saved-parts.ts`). */
     ...savedPartsShape,
     widgets: z.array(manifestWidgetSchema).optional(),

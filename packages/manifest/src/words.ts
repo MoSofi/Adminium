@@ -432,6 +432,9 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'publicAccess.textConsent',
   // A rule's step that sends one of those templates as a text.
   'automations.text',
+  // Whether staff read the texts customers send back, and an app role that reads or answers the app's conversations.
+  'textReplies',
+  'roles.texts',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -794,6 +797,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'people.phone': SMS_WORDS_FLOOR,
   'publicAccess.textConsent': SMS_WORDS_FLOOR,
   'automations.text': SMS_WORDS_FLOOR,
+  textReplies: SMS_WORDS_FLOOR,
+  'roles.texts': SMS_WORDS_FLOOR,
 };
 
 /** The kinds of file a column takes from the release that cleans SVG and reads models and fonts whole (`ASSET_FILE_KINDS`). */
@@ -921,6 +926,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
         if (grant === 'payments:@:refund') out.push({ word: 'roles.paymentsRefund', path: `roles.${String(r)}.permissions.${String(g)}` });
         if (typeof grant === 'string' && /^shipping:@:(book|cancel|customs)$/.test(grant)) out.push({ word: 'roles.shippingGrants', path: `roles.${String(r)}.permissions.${String(g)}` });
         if (typeof grant === 'string' && grant.startsWith('accounts:@:')) out.push({ word: 'roles.accounts', path: `roles.${String(r)}.permissions.${String(g)}` });
+        if (typeof grant === 'string' && /^texts:@:(read|reply)$/.test(grant)) out.push({ word: 'roles.texts', path: `roles.${String(r)}.permissions.${String(g)}` });
       });
     });
     // What only a file made on an Adminium carries.
@@ -1234,6 +1240,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
   if (outbox['surveyLinks'] !== undefined) out.push({ word: 'outbox.surveyLinks', path: 'outbox.surveyLinks' });
   if (outbox['reviewLinks'] !== undefined) out.push({ word: 'outbox.reviewLinks', path: 'outbox.reviewLinks' });
   if (document['textTemplates'] !== undefined) out.push({ word: 'textTemplates', path: 'textTemplates' });
+  if (document['textReplies'] !== undefined) out.push({ word: 'textReplies', path: 'textReplies' });
   if (outbox['channels'] !== undefined) out.push({ word: 'outbox.channels', path: 'outbox.channels' });
   if (outbox['waiting'] !== undefined) out.push({ word: 'outbox.waiting', path: 'outbox.waiting' });
   if (isDoc(outbox['recipient']) && outbox['recipient']['phone'] !== undefined) out.push({ word: 'outbox.recipient.phone', path: 'outbox.recipient.phone' });
