@@ -2237,6 +2237,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         messageKey: `app-outbox:${box.appKey}:${ctx.outbox.id}:${String(row[key])}`,
         claimKey: String(ctx.now),
         report: { app: box.appKey, connectionId: box.connectionId, table: ctx.outbox.id, pk: { [key]: row[key] as string | number }, sentAt: ctx.now },
+        // What the conversation with this number shows of it: never its words.
+        about: { app: box.appKey, template: ready.template },
       });
     } catch {
       deps.logger?.warn({ appKey: box.appKey, pk: row[key] }, 'an app text could not be queued');
@@ -2272,7 +2274,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       labels?: ((locale: string) => ChoiceLabels) | undefined;
     },
     row: Row,
-  ): Promise<Outcome | { path: Pick<TextSendPath, 'prepare' | 'queue'>; text: Extract<TextPrepared, { action: 'send' }>; language?: string }> {
+  ): Promise<Outcome | { path: Pick<TextSendPath, 'prepare' | 'queue'>; text: Extract<TextPrepared, { action: 'send' }>; template: string; language?: string }> {
     const cols = box.definition.columns;
     const recipient = box.definition.recipient;
     const kind = String(row[cols.kind] ?? '');
@@ -2342,7 +2344,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     });
     if (prepared.action === 'skip') return { status: 'skipped', error: textReasonSentence(prepared.reason) };
     if (prepared.action === 'fail') return { status: 'failed', error: TEXT_NOT_CHECKED };
-    return { path, text: prepared, ...(typeof language === 'string' && language !== '' && language !== own ? { language } : {}) };
+    return { path, text: prepared, template: templateKey, ...(typeof language === 'string' && language !== '' && language !== own ? { language } : {}) };
   }
 
   /**

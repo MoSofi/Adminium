@@ -33,7 +33,7 @@ import { deliveryMoves, deliveryStatusOf } from '../inbound/delivery.js';
 import type { SmsPrice, SmsProviderKey } from '../types.js';
 import { readReportTarget, SEALED_TEXT_GONE, SMS_SEND_JOB_KIND } from './job.js';
 import { warningAt } from './policy.js';
-import { TEXT_DELIVERY_STATES, TEXT_OPEN_STATES, TEXT_UNSETTLED_STATES, type TextDelivery, type TextDeliveryReason, type TextDeliveryState, type TextSendReport } from './types.js';
+import { TEXT_DELIVERY_STATES, TEXT_OPEN_STATES, TEXT_UNSETTLED_STATES, type TextAbout, type TextDelivery, type TextDeliveryReason, type TextDeliveryState, type TextSendReport } from './types.js';
 
 interface TextDeliveryTable {
   id: string;
@@ -67,6 +67,8 @@ interface TextDeliveryTable {
   settleOwedAt: number | null;
   createdAt: number;
   updatedAt: number;
+  aboutApp: string | null;
+  aboutTemplate: string | null;
 }
 
 interface JobKeyTable {
@@ -93,6 +95,8 @@ interface SendTables {
 export type TextDeliveryInput = Pick<TextDelivery, 'claimHash' | 'messageHash' | 'phone' | 'phoneMasked' | 'textClass' | 'estimatedSegments' | 'encoding' | 'createdAt'> & {
   /** The source row to tell how this ended; null when there is none. */
   reportTarget: TextSendReport | null;
+  /** The app that sends it, and its template, for the conversation with the number. */
+  about?: TextAbout | null | undefined;
 };
 
 /** A claim's row, or `row: null` when another delivery of this message is still open. */
@@ -225,6 +229,7 @@ function decode(row: TextDeliveryTable): TextDelivery {
     settleOwedAt: orNull(row.settleOwedAt),
     createdAt: Number(row.createdAt),
     updatedAt: Number(row.updatedAt),
+    about: row.aboutApp === null || row.aboutApp === undefined ? null : { app: row.aboutApp, template: row.aboutTemplate ?? null },
   };
 }
 
@@ -391,6 +396,8 @@ export function createTextSendStore(meta: MetaDb): TextSendStore {
         settleOwedAt: null,
         createdAt: input.createdAt,
         updatedAt: input.createdAt,
+        aboutApp: input.about?.app ?? null,
+        aboutTemplate: input.about?.template ?? null,
       };
       const insert = db.insertInto('adminium_text_deliveries').values(row);
       // Either unique key may refuse it: this claim is already here, or the message has another open delivery.

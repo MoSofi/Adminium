@@ -139,7 +139,7 @@ function momentOf(action: TextAction, ctx: ActionContext): number | null {
 }
 
 /** Everything but the last line: what the real run and the Test button both do. */
-async function prepareStep(action: TextAction, ctx: ActionContext): Promise<{ result: ActionResult } | { ready: Ready; texts: Pick<TextSendPath, 'queue'> }> {
+async function prepareStep(action: TextAction, ctx: ActionContext): Promise<{ result: ActionResult } | { ready: Ready; texts: Pick<TextSendPath, 'queue'>; template: string }> {
   if (action.to === null || action.to.column === '') throw new ActionFailure('This step has nobody to text.');
   const source = ctx.source;
   if (source === null) throw new ActionFailure('This rule has no record to read a number from.');
@@ -171,17 +171,22 @@ async function prepareStep(action: TextAction, ctx: ActionContext): Promise<{ re
   }
   if (prepared.action === 'fail') throw new ActionFailure(COULD_NOT_CHECK);
   if (prepared.action === 'skip') return { result: skipped(ctx, prepared.reason) };
-  return { ready: prepared, texts };
+  return { ready: prepared, texts, template: template.key };
 }
 
 export async function runTextAction(action: TextAction, ctx: ActionContext, nodeId: string): Promise<ActionResult> {
   const step = await prepareStep(action, ctx);
   if ('result' in step) return step.result;
-  const { ready, texts } = step;
+  const { ready, texts, template } = step;
   let queued: Awaited<ReturnType<TextSendPath['queue']>>;
   try {
     // One claim per run and step: walking this run again finds this delivery and queues nothing new.
-    queued = await texts.queue(ready, { messageKey: `automation:${ctx.rule.id}:${ctx.runId}:${nodeId}`, claimKey: 'step' });
+    queued = await texts.queue(ready, {
+      messageKey: `automation:${ctx.rule.id}:${ctx.runId}:${nodeId}`,
+      claimKey: 'step',
+      // A rule an app installed: the conversation with this number shows it by its template, never its words.
+      ...(ctx.rule.managedBy === null ? {} : { about: { app: ctx.rule.managedBy, template } }),
+    });
   } catch {
     throw new ActionFailure(COULD_NOT_QUEUE);
   }

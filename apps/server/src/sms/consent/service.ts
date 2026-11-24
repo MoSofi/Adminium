@@ -152,6 +152,10 @@ export function createTextConsentService(deps: TextConsentDeps): TextConsentServ
 
       const hashes = await ring.hashesOf(textSubject(phone.e164));
       if ((await store.stop.findAny(hashes)).length > 0) return { send: false, reason: 'stopped' };
+      // They wrote first, and this answers them: what they asked for needs no yes of its own. A later no still wins.
+      if (request.answering === true && request.class === 'service' && (await standingOn(hashes, request.person, purpose)).state !== 'no') {
+        return { send: true, e164: phone.e164, country: phone.country, optOut: optOutFor(phone, request) };
+      }
 
       const standing = await standingOn(hashes, request.person, purpose);
       if (standing.state !== 'yes') return { send: false, reason: 'no-consent' };
