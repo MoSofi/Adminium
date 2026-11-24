@@ -201,8 +201,12 @@ export {
   type PeopleEntry,
   type PublicConsent,
   publicTextConsentSchema,
+  publicTextConsentsSchema,
+  textConsentBoxes,
+  TEXT_CONSENT_BOXES_MAX,
   TEXT_CONSENT_CLASSES,
   type PublicTextConsent,
+  type PublicTextConsents,
 } from './people.js';
 export { shippingIssues, shippingOrderSchema, shippingSchema, type Shipping, type ShippingAddressColumns, type ShippingOrder } from './shipping.js';
 export {
@@ -283,6 +287,7 @@ export {
 export {
   OUTBOX_WRITTEN,
   REPEAT_KEY_LENGTH,
+  TEXT_REASON_LENGTH,
   WAS_MIN_LENGTH,
   NOT_ON_REMOVAL,
   removalTableOf,

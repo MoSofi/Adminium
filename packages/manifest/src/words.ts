@@ -430,6 +430,11 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'outbox.waiting',
   'people.phone',
   'publicAccess.textConsent',
+  // The setting an app's automatic texts name the business by (a neutral name for a sensitive practice), the
+  // number a text kind goes to when it is the one typed on the row it is about, and a column for each text's reason code.
+  'outbox.settings.textName',
+  'outbox.recipient.textPhone',
+  'outbox.columns.textReason',
   // A rule's step that sends one of those templates as a text.
   'automations.text',
   // A saved copy of the mail that asks a person to confirm marketing texts (double opt-in).
@@ -796,6 +801,9 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'outbox.channels': SMS_WORDS_FLOOR,
   'outbox.recipient.phone': SMS_WORDS_FLOOR,
   'outbox.waiting': SMS_WORDS_FLOOR,
+  'outbox.settings.textName': SMS_WORDS_FLOOR,
+  'outbox.recipient.textPhone': SMS_WORDS_FLOOR,
+  'outbox.columns.textReason': SMS_WORDS_FLOOR,
   'people.phone': SMS_WORDS_FLOOR,
   'publicAccess.textConsent': SMS_WORDS_FLOOR,
   'automations.text': SMS_WORDS_FLOOR,
@@ -1251,6 +1259,9 @@ export function installFloorWords(document: unknown): ManifestWord[] {
   if (document['textReplies'] !== undefined) out.push({ word: 'textReplies', path: 'textReplies' });
   if (outbox['channels'] !== undefined) out.push({ word: 'outbox.channels', path: 'outbox.channels' });
   if (outbox['waiting'] !== undefined) out.push({ word: 'outbox.waiting', path: 'outbox.waiting' });
+  if (isDoc(outbox['settings']) && outbox['settings']['textName'] !== undefined) out.push({ word: 'outbox.settings.textName', path: 'outbox.settings.textName' });
+  if (isDoc(outbox['recipient']) && outbox['recipient']['textPhone'] !== undefined) out.push({ word: 'outbox.recipient.textPhone', path: 'outbox.recipient.textPhone' });
+  if (isDoc(outbox['columns']) && outbox['columns']['textReason'] !== undefined) out.push({ word: 'outbox.columns.textReason', path: 'outbox.columns.textReason' });
   if (isDoc(outbox['recipient']) && outbox['recipient']['phone'] !== undefined) out.push({ word: 'outbox.recipient.phone', path: 'outbox.recipient.phone' });
   if (isDoc(outbox['recipient']) && isDoc(outbox['recipient']['fallback']) && outbox['recipient']['fallback']['phone'] !== undefined) out.push({ word: 'outbox.recipient.phone', path: 'outbox.recipient.fallback.phone' });
   if (list(outbox['producers']).length > OUTBOX_PRODUCERS_BEFORE) out.push({ word: 'outbox.manyProducers', path: 'outbox.producers' });

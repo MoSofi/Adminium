@@ -70,7 +70,7 @@ import { WORD_FLOORS, installFloorWords } from './words.js';
 import { savedPartsIssues, savedPartsShape } from './saved-parts.js';
 import { tableNameIssue, tableSchemaIssue } from './table-names.js';
 import { mailClassFloorIssues } from './mail-class.js';
-import { keepSchema, peopleIssues, peopleSchema, publicConsentIssues } from './people.js';
+import { keepSchema, peopleIssues, peopleSchema, publicConsentIssues, textConsentBoxes, type PublicTextConsent } from './people.js';
 import { shippingIssues, shippingSchema } from './shipping.js';
 import { expireIssues, expireSchema } from './expire.js';
 import { holdersIssues, holdersSchema } from './holders.js';
@@ -4513,6 +4513,8 @@ export interface FormsEntry {
   module?: string;
   /** The `writable` text column a form's fixed "Source" value goes into; absent when the entry names none. */
   source?: string;
+  /** The entry's boxes for texts, one per class at most: the forms door draws each under the form's questions. Empty when it draws none. */
+  textConsent: PublicTextConsent[];
 }
 
 /**
@@ -4526,7 +4528,7 @@ export function formsEntriesOf(m: Manifest): FormsEntry[] {
 }
 
 /** One table an app opens to a chat's question left outside hours: the entry under the key `chat`, as the chat door reads it. */
-export type ChatEntry = Omit<FormsEntry, 'source'>;
+export type ChatEntry = Omit<FormsEntry, 'source' | 'textConsent'>;
 
 /**
  * The tables an app opens to a chat's question left outside hours, each with
@@ -4537,7 +4539,7 @@ export function chatEntriesOf(m: Manifest): ChatEntry[] {
   // Under an older floor `chat` is an ordinary key: its entries are the public API's, and no chat's.
   if (!chatKeyReserved(m)) return [];
   // A chat entry names no source (the validator refuses one), so none is handed on.
-  return entriesUnder(m, CHAT_KEY).map(({ source: _source, ...entry }) => entry);
+  return entriesUnder(m, CHAT_KEY).map(({ source: _source, textConsent: _boxes, ...entry }) => entry);
 }
 
 /** The entries under one reserved key, as the door that writes through them reads them. */
@@ -4567,6 +4569,7 @@ function entriesUnder(m: Manifest, key: typeof FORMS_KEY | typeof CHAT_KEY): For
       requireSetting: (entry.requireSetting ?? []).map((setting) => ({ table: setting.table, column: setting.column, ...(setting.in === undefined ? {} : { in: [...setting.in] }) })),
       ...(entry.module === undefined ? {} : { module: entry.module }),
       ...(entry.source === undefined ? {} : { source: entry.source }),
+      textConsent: structuredClone(textConsentBoxes(entry.textConsent)),
     };
   });
 }

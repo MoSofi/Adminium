@@ -23,7 +23,7 @@
 import { z } from 'zod';
 
 import { GROUPED_FORM, isCodeColumn, REVIEW_LINK_VARIABLE, STOP_LINK_VARIABLE, SURVEY_LINK_VARIABLE, type Outbox } from './outbox.js';
-import type { People, PublicConsent, PublicTextConsent } from './people.js';
+import { textConsentBoxes, type People, type PublicConsent, type PublicTextConsents } from './people.js';
 import { placeholdersIn } from './placeholders.js';
 import { personalColumn } from './public-access.js';
 import { bcp47TagSchema, textOrLabels, type ReferenceIssue, type TableIndex } from './refs.js';
@@ -274,7 +274,7 @@ export function publicTextConsentIssues(
           requires?: readonly string[] | undefined;
           requiresWhen?: Readonly<Record<string, unknown>> | undefined;
           consent?: PublicConsent | undefined;
-          textConsent?: PublicTextConsent | undefined;
+          textConsent?: PublicTextConsents | undefined;
           identity?: { table: string } | undefined;
           claimedBy?: { table: string } | undefined;
         }[]
@@ -284,41 +284,77 @@ export function publicTextConsentIssues(
 ): ReferenceIssue[] {
   const out: ReferenceIssue[] = [];
   (m.publicAccess ?? []).forEach((entry, e) => {
-    const box = entry.textConsent;
-    if (box === undefined) return;
-    const at = (...rest: (string | number)[]) => ['publicAccess', e, 'textConsent', ...rest];
-    const writable = entry.writable ?? [];
-    if (!entry.methods.includes('POST') && !entry.methods.includes('PATCH')) out.push({ path: at(), message: 'a tick is given on a create or a change: this entry writes nothing' });
-    if (entry.consent?.column === box.column) out.push({ path: at('column'), message: `"${entry.table}.${box.column}" is the entry's e-mail tick: a yes to mail is not a yes to texts, so the text box has a column of its own` });
-
-    const column = index.column(entry.table, box.column) as TextColumn | undefined;
-    if (column === undefined) out.push({ path: at('column'), message: `"${entry.table}" has no column "${box.column}"` });
-    else if (column.type !== 'bool') out.push({ path: at('column'), message: `"${entry.table}.${box.column}" is not a bool (a tick)` });
-    else {
-      if (!writable.includes(box.column)) out.push({ path: at('column'), message: `"${entry.table}.${box.column}" is not writable through this entry, so no tick reaches it` });
-      // Unticked: nothing but the person's own tick may set it.
-      const preset = entry.defaults?.[box.column] !== undefined || entry.writableValues?.[box.column] !== undefined || (column.default !== undefined && column.default !== false && column.default !== 0 && column.default !== 'false' && column.default !== '0') || ['default', 'copy', 'formula'].some((rule) => column.rules?.[rule] !== undefined);
-      if (preset) out.push({ path: at('column'), message: `"${entry.table}.${box.column}" starts unticked and only the person ticks it: it takes no default of yes, and nothing else may set it` });
-      // Never a condition of booking or buying.
-      const required = column.rules?.['required'] !== undefined || column.rules?.['requiredWhen'] !== undefined || (entry.requires ?? []).includes(box.column) || entry.requiresWhen?.[box.column] !== undefined || (column.nullable !== true && column.default === undefined);
-      if (required) out.push({ path: at('column'), message: `"${entry.table}.${box.column}" is never required to book or buy: make it optional (nullable, or a default of false)` });
+    const boxes = textConsentBoxes(entry.textConsent);
+    const several = Array.isArray(entry.textConsent);
+    // One box per class, each with a column of its own: a yes to offers is never read as a yes to service texts.
+    if (several) {
+      const classes = new Set<string>();
+      const columns = new Set<string>();
+      boxes.forEach((box, b) => {
+        if (classes.has(box.class)) out.push({ path: ['publicAccess', e, 'textConsent', b, 'class'], message: `two boxes ask about ${box.class} texts: one box per class` });
+        classes.add(box.class);
+        if (columns.has(box.column)) out.push({ path: ['publicAccess', e, 'textConsent', b, 'column'], message: `"${entry.table}.${box.column}" is the column of another box: each box has a column of its own` });
+        columns.add(box.column);
+      });
     }
-
-    const phone = index.column(entry.table, box.phone);
-    if (phone === undefined) out.push({ path: at('phone'), message: `"${entry.table}" has no column "${box.phone}"` });
-    else if (phone.type !== 'text') out.push({ path: at('phone'), message: `"${entry.table}.${box.phone}" is not a text column (a phone number)` });
-    else if (!writable.includes(box.phone)) out.push({ path: at('phone'), message: `"${entry.table}.${box.phone}" is not writable through this entry, so the number the answer is for never reaches it` });
-
-    for (const [locale, text] of Object.entries(box.wording.text)) {
-      if (asksForYes(text)) out.push({ path: at('wording', 'text', locale), message: REFUSALS['asks-for-yes'] });
-    }
-
-    // Kept for a person the erasure can find by that number.
-    const person = entry.identity?.table ?? entry.claimedBy?.table ?? entry.table;
-    const declared = (m.people ?? []).find((candidate) => candidate.table === person && candidate.kind === 'people');
-    if (declared === undefined) out.push({ path: at(), message: `a tick is kept for a person: "${person}" is not one of the app's people tables (people), and the entry finds no other (identity, claimedBy)` });
-    else if (declared.phone === undefined) out.push({ path: at(), message: `a text answer is kept with the person's number: name the column that holds it on "${person}" (people.phone)` });
-    else if (person === entry.table && declared.phone !== box.phone) out.push({ path: at('phone'), message: `the people of "${person}" keep their number in "${declared.phone}" (people.phone): this box is for that number` });
+    boxes.forEach((box, b) => out.push(...boxIssues(m, entry, box, several ? ['publicAccess', e, 'textConsent', b] : ['publicAccess', e, 'textConsent'], index)));
   });
+  return out;
+}
+
+/** Everything wrong with one box for texts of a public entry. */
+function boxIssues(
+  m: { people?: People | undefined },
+  entry: {
+    table: string;
+    methods: readonly string[];
+    writable?: readonly string[] | undefined;
+    writableValues?: Readonly<Record<string, unknown>> | undefined;
+    defaults?: Readonly<Record<string, unknown>> | undefined;
+    requires?: readonly string[] | undefined;
+    requiresWhen?: Readonly<Record<string, unknown>> | undefined;
+    consent?: PublicConsent | undefined;
+    identity?: { table: string } | undefined;
+    claimedBy?: { table: string } | undefined;
+  },
+  box: ReturnType<typeof textConsentBoxes>[number],
+  path: readonly (string | number)[],
+  index: TableIndex,
+): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  const at = (...rest: (string | number)[]) => [...path, ...rest];
+  const writable = entry.writable ?? [];
+  if (!entry.methods.includes('POST') && !entry.methods.includes('PATCH')) out.push({ path: at(), message: 'a tick is given on a create or a change: this entry writes nothing' });
+  if (entry.consent?.column === box.column) out.push({ path: at('column'), message: `"${entry.table}.${box.column}" is the entry's e-mail tick: a yes to mail is not a yes to texts, so the text box has a column of its own` });
+
+  const column = index.column(entry.table, box.column) as TextColumn | undefined;
+  if (column === undefined) out.push({ path: at('column'), message: `"${entry.table}" has no column "${box.column}"` });
+  else if (column.type !== 'bool') out.push({ path: at('column'), message: `"${entry.table}.${box.column}" is not a bool (a tick)` });
+  else {
+    if (!writable.includes(box.column)) out.push({ path: at('column'), message: `"${entry.table}.${box.column}" is not writable through this entry, so no tick reaches it` });
+    // Unticked: nothing but the person's own tick may set it.
+    const preset = entry.defaults?.[box.column] !== undefined || entry.writableValues?.[box.column] !== undefined || (column.default !== undefined && column.default !== false && column.default !== 0 && column.default !== 'false' && column.default !== '0') || ['default', 'copy', 'formula'].some((rule) => column.rules?.[rule] !== undefined);
+    if (preset) out.push({ path: at('column'), message: `"${entry.table}.${box.column}" starts unticked and only the person ticks it: it takes no default of yes, and nothing else may set it` });
+    // Never a condition of booking or buying.
+    const required = column.rules?.['required'] !== undefined || column.rules?.['requiredWhen'] !== undefined || (entry.requires ?? []).includes(box.column) || entry.requiresWhen?.[box.column] !== undefined || (column.nullable !== true && column.default === undefined);
+    if (required) out.push({ path: at('column'), message: `"${entry.table}.${box.column}" is never required to book or buy: make it optional (nullable, or a default of false)` });
+  }
+
+  const phone = index.column(entry.table, box.phone);
+  if (phone === undefined) out.push({ path: at('phone'), message: `"${entry.table}" has no column "${box.phone}"` });
+  else if (phone.type !== 'text') out.push({ path: at('phone'), message: `"${entry.table}.${box.phone}" is not a text column (a phone number)` });
+  // A create gives the number with the answer. A change reads the number the row holds: answering about texts never needs leave to change the number.
+  else if (entry.methods.includes('POST') && !writable.includes(box.phone)) out.push({ path: at('phone'), message: `"${entry.table}.${box.phone}" is not writable through this entry, so the number the answer is for never reaches a new row` });
+
+  for (const [locale, text] of Object.entries(box.wording.text)) {
+    if (asksForYes(text)) out.push({ path: at('wording', 'text', locale), message: REFUSALS['asks-for-yes'] });
+  }
+
+  // Kept for a person the erasure can find by that number.
+  const person = entry.identity?.table ?? entry.claimedBy?.table ?? entry.table;
+  const declared = (m.people ?? []).find((candidate) => candidate.table === person && candidate.kind === 'people');
+  if (declared === undefined) out.push({ path: at(), message: `a tick is kept for a person: "${person}" is not one of the app's people tables (people), and the entry finds no other (identity, claimedBy)` });
+  else if (declared.phone === undefined) out.push({ path: at(), message: `a text answer is kept with the person's number: name the column that holds it on "${person}" (people.phone)` });
+  else if (person === entry.table && declared.phone !== box.phone) out.push({ path: at('phone'), message: `the people of "${person}" keep their number in "${declared.phone}" (people.phone): this box is for that number` });
   return out;
 }
