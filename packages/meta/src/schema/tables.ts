@@ -2339,6 +2339,72 @@ export interface AdminiumTextSendDaysTable {
   updatedAt: Ts;
 }
 
+// waves 0130–0132 — marketing texts: runs, who each reaches, double opt-in
+
+/** One marketing text run: a template sent to the people of one table (0130). */
+export interface AdminiumTextRunsTable {
+  id: Id;
+  name: string;
+  templateKey: string;
+  /** The template's languages as they were when the run was made: JSON `{ locale: body }`. */
+  content: string;
+  connectionId: Id;
+  personTable: string;
+  viewId: Id | null;
+  status: string;
+  reason: string | null;
+  scheduledAt: Ts;
+  startedAt: Ts | null;
+  finishedAt: Ts | null;
+  waitingUntil: Ts | null;
+  jobId: Id | null;
+  createdBy: Id;
+  cancelledBy: Id | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
+/** One person a marketing text run judged. Holds no number and no word of the message (0131). */
+export interface AdminiumTextRunRecipientsTable {
+  id: Id;
+  runId: Id;
+  connectionId: Id;
+  personTable: string;
+  personKey: string;
+  name: string | null;
+  phoneHash: string | null;
+  keyVersion: number | null;
+  phoneMasked: string | null;
+  country: string | null;
+  locale: string | null;
+  state: string;
+  reason: string | null;
+  deliveryId: Id | null;
+  tries: number;
+  claim: string | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
+/** A marketing yes waiting for its confirmation (0132). */
+export interface AdminiumTextConfirmationsTable {
+  id: Id;
+  consentEventId: Id;
+  phoneHash: string;
+  keyVersion: number;
+  phoneMasked: string | null;
+  connectionId: Id | null;
+  personTable: string | null;
+  personKey: string | null;
+  language: string | null;
+  state: string;
+  requestedAt: Ts;
+  requestedBy: Id | null;
+  confirmedAt: Ts | null;
+  ip: string | null;
+  userAgent: string | null;
+}
+
 export interface AdminiumSourceDaysTable {
   installId: string;
   source: string;
@@ -2924,6 +2990,9 @@ export interface MetaDB {
   adminium_inbound_events: AdminiumInboundEventsTable;
   adminium_text_deliveries: AdminiumTextDeliveriesTable;
   adminium_text_send_days: AdminiumTextSendDaysTable;
+  adminium_text_runs: AdminiumTextRunsTable;
+  adminium_text_run_recipients: AdminiumTextRunRecipientsTable;
+  adminium_text_confirmations: AdminiumTextConfirmationsTable;
 }
 
 /**
@@ -3060,4 +3129,7 @@ export const META_TABLE_NAMES = [
   'adminium_inbound_events',
   'adminium_text_deliveries',
   'adminium_text_send_days',
+  'adminium_text_runs',
+  'adminium_text_run_recipients',
+  'adminium_text_confirmations',
 ] as const satisfies readonly (keyof MetaDB)[];
