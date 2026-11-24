@@ -46179,6 +46179,10 @@
     "status": "mt",
     "srcHash": "213994eef1d3"
   },
+  "studio.texts.stop.deskWhy": {
+    "status": "mt",
+    "srcHash": "f47324421d27"
+  },
   "studio.texts.stop.empty": {
     "status": "mt",
     "srcHash": "e096e703dcad"
@@ -46218,6 +46222,18 @@
   "studio.texts.stop.line": {
     "status": "mt",
     "srcHash": "ec1e09f6f3a6"
+  },
+  "studio.texts.stop.lookup": {
+    "status": "mt",
+    "srcHash": "6d7049b88568"
+  },
+  "studio.texts.stop.lookupFound": {
+    "status": "mt",
+    "srcHash": "b4abb1713d1d"
+  },
+  "studio.texts.stop.lookupNone": {
+    "status": "mt",
+    "srcHash": "14dbf517d05e"
   },
   "studio.texts.stop.noConfirm": {
     "status": "mt",

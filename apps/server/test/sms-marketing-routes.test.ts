@@ -8,12 +8,14 @@
  * from Twilio's documentation, so no text can leave.
  */
 import { SMS_WORDS_FLOOR } from '@adminium/manifest';
-import { apiKeysRepo, permissionsRepo, rolesRepo, settingsRepo } from '@adminium/meta';
+import { apiKeysRepo, auditRepo, permissionsRepo, rolesRepo, settingsRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { generateApiKey } from '../src/rbac/api-keys.js';
 import { LEGS, said, wholeServer, type Reply, type WholeServer } from './whole-server.helpers.js';
 import { stubProvider } from './sms-send.helpers.js';
+import { twilioRepliesHeard } from './helpers/sms-heard.js';
+import { TEST_SECRET } from './helpers.js';
 
 vi.mock('../src/version.js', async (original) => ({ ...(await original<typeof import('../src/version.js')>()), APP_VERSION: SMS_WORDS_FLOOR }));
 // What marketing does once the release offers it: the lock itself is `sms-marketing-lock.test.ts`.
@@ -115,6 +117,8 @@ for (const [dialect, reachable] of LEGS) {
 
     it('staff record a marketing yes in the words they gave; a German one is confirmed in person or by the mail’s link', async () => {
       await settingsRepo(s.meta).set('system.publicOrigin', ORIGIN, { updatedBy: null });
+      // A signed reply has reached the address: marketing may go.
+      await twilioRepliesHeard(s.meta, { secret: TEST_SECRET, origin: ORIGIN, accountSid: `AC${'ab'.repeat(16)}` });
       for (const name of ['Anna', 'Ben']) {
         const res = await s.send('owner', 'POST', '/api/v1/sms/marketing/consent', { ...who(name), how: 'in-person', wording: WORDING });
         expect(res.statusCode, res.body).toBe(200);
@@ -158,6 +162,9 @@ for (const [dialect, reachable] of LEGS) {
       const who = data(await s.send('owner', 'POST', '/api/v1/sms/marketing/preview/people', { audience: { connectionId: s.connectionId, table: table() }, reason: 'ok' }));
       expect((who['people'] as unknown[]).length).toBe(4);
       expect(JSON.stringify(who)).not.toContain('123451');
+      const seen = (await auditRepo(s.meta).list({ limit: 20 })).filter((row) => row.action === 'sms.marketing.people.read');
+      expect(seen).toHaveLength(1);
+      expect(JSON.stringify(seen)).not.toContain('123451');
 
       const made = await s.send('owner', 'POST', '/api/v1/sms/marketing/runs', { name: 'Autumn', templateKey: 'stays-autumn', audience: { connectionId: s.connectionId, table: table() } });
       expect(made.statusCode, made.body).toBe(202);

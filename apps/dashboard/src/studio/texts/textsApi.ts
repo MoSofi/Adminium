@@ -198,6 +198,11 @@ export async function recordStop(phone: string, asked: StopAsked): Promise<{ dat
   return api.post<{ data: StopEntry; added: boolean }>(`${BASE}/stop-list`, { phone, asked });
 }
 
+/** One number on the do-not-text list, or null: what a desk may ask. Audited on the server, by the mask. */
+export async function lookupStop(phone: string): Promise<StopEntry | null> {
+  return (await api.post<{ data: StopEntry | null }>(`${BASE}/stop-list/lookup`, { phone })).data;
+}
+
 export async function removeStop(id: string): Promise<void> {
   await api.delete(`${BASE}/stop-list/${encodeURIComponent(id)}`);
 }

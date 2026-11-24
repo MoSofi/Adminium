@@ -221,7 +221,8 @@ export function textsRoutes(deps: TextsRoutesDeps): FastifyPluginAsyncZod {
         // `app=` alone asks for the threads no app owns.
         const listed = await threads.list(viewer, { app: query.app === undefined ? undefined : query.app === '' ? null : query.app, unreadOnly: query.unread === 'true', limit: query.limit ?? 50, cursor: query.cursor }).catch(cursorRefused);
         const reach = await deps.replyReach();
-        await app.rbac.audit(request, { category: 'data', action: 'texts.threads.read', changes: { after: { threads: listed.threads.length, app: query.app ?? null, unreadOnly: query.unread === 'true' } } });
+        // Which conversations were shown, by their ids: never a number or a word.
+        await app.rbac.audit(request, { category: 'data', action: 'texts.threads.read', changes: { after: { threads: listed.threads.map((one) => one.id), app: query.app ?? null, unreadOnly: query.unread === 'true', page: query.cursor === undefined ? 'first' : 'later' } } });
         return { data: { threads: listed.threads.map(threadOut), next: listed.next, unread: listed.unread, replies: { canArrive: reach.canReceiveStop, state: reach.state } } };
       },
     );

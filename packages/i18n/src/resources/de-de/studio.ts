@@ -6865,7 +6865,11 @@ export default {
         "provider": "Vom Anbieter gemeldet",
         "reply": "Hat STOP geantwortet"
       },
-      "whyAny": "Grund: alle"
+      "whyAny": "Grund: alle",
+      "deskWhy": "Schlagen Sie eine Nummer nach der anderen nach. Die ganze Liste enthält die Kunden aller Apps, darum sieht sie nur, wer die SMS verwaltet.",
+      "lookup": "Nachschlagen",
+      "lookupNone": "Diese Nummer steht nicht auf der Liste.",
+      "lookupFound": "Auf der Liste seit {date}: {why}."
     },
     "tab": {
       "activity": "Aktivität",

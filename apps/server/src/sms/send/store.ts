@@ -182,7 +182,8 @@ export interface TextSendStore {
   /** How many delivery records {@link TextSendStore.eraseFor} would delete. */
   countFor(hashes: readonly AddressHash[]): Promise<number>;
   /** Newest first, for the console's Activity. `before` is the last row's `createdAt` and id, so a page never repeats a row. */
-  list(opts: { limit: number; before?: { at: number; id: string } | null | undefined; states?: readonly TextDeliveryState[] | undefined }): Promise<TextDelivery[]>;
+  /** `apps`: only the texts these apps sent (a desk's reach); left out, every text. */
+  list(opts: { limit: number; before?: { at: number; id: string } | null | undefined; states?: readonly TextDeliveryState[] | undefined; apps?: readonly string[] | undefined }): Promise<TextDelivery[]>;
 }
 
 const STATE_SET: ReadonlySet<string> = new Set(TEXT_DELIVERY_STATES);
@@ -547,10 +548,16 @@ export function createTextSendStore(meta: MetaDb): TextSendStore {
     async list(opts) {
       let query = db.selectFrom('adminium_text_deliveries').selectAll();
       if (opts.states !== undefined && opts.states.length > 0) query = query.where('state', 'in', [...opts.states]);
+      if (opts.apps !== undefined) {
+        if (opts.apps.length === 0) return [];
+        query = query.where('aboutApp', 'in', [...opts.apps]);
+      }
       const before = opts.before ?? null;
       if (before !== null) query = query.where((eb) => eb.or([eb('createdAt', '<', before.at), eb.and([eb('createdAt', '=', before.at), eb('id', '<', before.id)])]));
       const rows = await query.orderBy('createdAt', 'desc').orderBy('id', 'desc').limit(opts.limit).execute();
-      return rows.map((row) => decode(row as TextDeliveryTable));
+      // The exact app: a column's collation never widens whose texts these are.
+      const allowed = opts.apps === undefined ? null : new Set(opts.apps);
+      return rows.filter((row) => allowed === null || (row.aboutApp !== null && allowed.has(row.aboutApp))).map((row) => decode(row as TextDeliveryTable));
     },
 
     async resolveUnknown(id, to, at) {

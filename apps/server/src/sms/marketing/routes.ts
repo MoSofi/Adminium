@@ -240,10 +240,13 @@ export function textMarketingRoutes(deps: TextMarketingRoutesDeps): FastifyPlugi
 
     app.post(
       '/sms/marketing/preview/people',
-      { preHandler: manage, config: { audit: auditExempt('lists the people of one group of a marketing text, as the sender reads them: writes nothing') }, schema: { body: peopleBody, response: { 200: peopleReply } } },
+      { preHandler: manage, config: { audit: audited('rbac') }, schema: { body: peopleBody, response: { 200: peopleReply } } },
       async (request) => {
         const userId = signedIn(request);
         const found = await runs.peopleFor(userId, request.body.audience, request.body.reason, { limit: request.body.limit, offset: request.body.offset });
+        // Names and masked numbers were shown: the row says whose, by their keys, never their names or numbers.
+        const { connectionId, table } = request.body.audience;
+        await app.rbac.audit(request, { category: 'data', action: 'sms.marketing.people.read', changes: { after: { connectionId, table, reason: request.body.reason, offset: request.body.offset, keys: found.people.map((one) => one.key) } } });
         return { data: { people: found.people.map((one) => ({ key: one.key, name: one.name, phone: one.masked, country: one.country, reason: one.skip })), more: found.more } };
       },
     );

@@ -366,6 +366,8 @@ describe.each(META_ENGINES)('two-way text conversations — $name', (engine) => 
       const entries = await auditRepo(handle.meta).list({ limit: 50 });
       const actions = entries.map((entry) => entry.action);
       expect(actions).toEqual(expect.arrayContaining(['texts.threads.read', 'texts.thread.read', 'texts.thread.replied']));
+      // The list's row names the threads it showed.
+      expect(JSON.stringify(entries.find((entry) => entry.action === 'texts.threads.read'))).toContain(id);
       for (const entry of entries.filter((one) => one.action.startsWith('texts.'))) expect(entry.actorId).toBe(s.people.bistroReplier.id);
       const text = await auditText();
       expect(text).toContain('+49 ••• 789');

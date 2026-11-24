@@ -6855,7 +6855,11 @@
         "provider": "由服務商回報",
         "reply": "回覆 STOP"
       },
-      "whyAny": "原因：全部"
+      "whyAny": "原因：全部",
+      "deskWhy": "每次查詢一個號碼。完整名單包含所有應用程式的客戶，因此只有管理簡訊的人才能看到。",
+      "lookup": "查詢",
+      "lookupNone": "此號碼不在名單上。",
+      "lookupFound": "自 {date} 起在名單上：{why}。"
     },
     "tab": {
       "activity": "活動",

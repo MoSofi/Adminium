@@ -6865,7 +6865,11 @@ export default {
         "provider": "Reported by the provider",
         "reply": "Replied STOP"
       },
-      "whyAny": "Why: any"
+      "whyAny": "Why: any",
+      "deskWhy": "Look up one number at a time. The whole list holds every app’s customers, so only whoever manages texts sees it.",
+      "lookup": "Look up",
+      "lookupNone": "This number is not on the list.",
+      "lookupFound": "On the list since {date}: {why}."
     },
     "tab": {
       "activity": "Activity",

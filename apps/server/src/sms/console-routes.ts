@@ -6,7 +6,8 @@
  *   PUT    /sms/sending-limits          change the limit and the hours
  *   GET    /sms/deliveries              Activity: one row per text, newest first, with no number and no words
  *   POST   /sms/deliveries/:id/settle   a person checked an `unknown` at the provider
- *   GET    /sms/stop-list               the do-not-text list
+ *   GET    /sms/stop-list               the do-not-text list (`sms.manage`)
+ *   POST   /sms/stop-list/lookup        whether one number is on it
  *   POST   /sms/stop-list               record a stop request a person made to the business
  *   DELETE /sms/stop-list/:id           take a number off (Super Admin only)
  *   GET    /sms/text-templates          the installed text templates, every language
@@ -14,15 +15,18 @@
  *   DELETE /sms/text-templates/:key/:locale     empty one language, so it falls back to US English
  *
  * WHO. `sms.manage` opens all of it. `privacy.people`, which an app's role may
- * carry so a desk can answer a customer, opens the do-not-text list and
- * recording a request on it, and reading Activity: a desk is who hears "stop
- * texting me" from a sender name, and who is asked "did my text go?". Neither
- * may settle an unknown or take a number off the list.
+ * carry so a desk can answer a customer, opens a look-up of one number on the
+ * do-not-text list, recording a request on it, and Activity for the apps its
+ * roles give it (as the privacy routes narrow the same grant): a desk is who
+ * hears "stop texting me" from a sender name, and who is asked "did my text
+ * go?". It never pages through the whole list, which holds every app's
+ * customers, and may not settle an unknown or take a number off the list.
  *
  * WHAT NEVER LEAVES. A delivery row holds no number and no words, so none is
  * sent. The stop list shows the number, because staff must be able to find it,
- * only to the two grants above. Every change is made by a signed-in person and
- * audited, a number only by its mask.
+ * to `sms.manage` whole and to a desk one typed number at a time. Every read and
+ * every change is made by a signed-in person, never an API key, and audited: a
+ * number only by its mask, a page by its count and filter.
  */
 import { TEXT_TEMPLATE_BODY_MAX, checkTextTemplate } from '@adminium/manifest';
 import { settingsRepo, textTemplatesRepo, type MetaDb } from '@adminium/meta';
@@ -34,6 +38,8 @@ import { hashOf } from '../apps/manifest-text-templates.js';
 import { auditExempt, audited } from '../audit/coverage.js';
 import type { StaffMember } from '../consent/types.js';
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../errors.js';
+import { parsePhone } from '../phone/index.js';
+import { privacyScopeOf, type PrivacyScope } from '../privacy/scope.js';
 import { tagRoutes } from '../security/route-audience.js';
 import { maskPhone } from './consent/redact.js';
 import { TEXT_STOP_REASONS, type TextConsentService, type TextStopView } from './consent/types.js';
@@ -54,6 +60,8 @@ export interface SmsConsoleRoutesDeps {
   manageGrant: string;
   /** `PERMISSIONS.privacyPeople`. */
   peopleGrant: string;
+  /** The apps a desk's `privacy.people` reaches (`privacyScopeOf`); null apps reach every one. */
+  privacyScope?: ((userId: string) => Promise<PrivacyScope | null>) | undefined;
   now?: (() => number) | undefined;
 }
 
@@ -133,6 +141,8 @@ const stopListReply = z.object({ data: z.array(stopView), next: z.string().nulla
 const STOP_ASKED = ['phone', 'email', 'in-person'] as const;
 const stopBody = z.object({ phone: z.string().min(1).max(64), asked: z.enum(STOP_ASKED) }).strict();
 const stopAddReply = z.object({ data: stopView, added: z.boolean() });
+const lookupBody = z.object({ phone: z.string().min(1).max(64) }).strict();
+const lookupReply = z.object({ data: stopView.nullable() });
 
 const templateLanguage = z.object({ locale: z.string(), body: z.string(), enabled: z.boolean(), edited: z.boolean(), updatedAt: z.number() }).strict();
 const templateView = z.object({ key: z.string(), name: z.string(), app: z.string().nullable(), languages: z.array(templateLanguage) }).strict();
@@ -194,6 +204,7 @@ const stopOf = (entry: TextStopView): z.infer<typeof stopView> => ({
 
 export function smsConsoleRoutes(deps: SmsConsoleRoutesDeps): FastifyPluginAsyncZod {
   const now = deps.now ?? Date.now;
+  const scopeOf = deps.privacyScope ?? ((userId: string) => privacyScopeOf(deps.meta, userId));
   const settings = settingsRepo(deps.meta);
   const templates = textTemplatesRepo(deps.meta);
 
@@ -254,13 +265,31 @@ export function smsConsoleRoutes(deps: SmsConsoleRoutesDeps): FastifyPluginAsync
     );
 
     // ── Activity ────────────────────────────────────────────────────────────
-    app.get('/sms/deliveries', { preHandler: desk, config: { audit: auditExempt('read-only text activity, no numbers or words') }, schema: { querystring: deliveriesQuery, response: { 200: deliveriesReply } } }, async (request) => {
-      const limit = request.query.limit ?? 50;
-      const rows = await deps.deliveries.list({ limit: limit + 1, before: readBefore(request.query.before), ...(request.query.state === undefined ? {} : { states: [request.query.state] }) });
-      const shown = rows.slice(0, limit);
-      const last = shown.at(-1);
-      return { data: shown.map(deliveryOf), next: rows.length > limit && last !== undefined ? `${last.createdAt}:${last.id}` : null };
-    });
+    app.get(
+      '/sms/deliveries',
+      { preHandler: desk, config: { audit: audited('rbac') }, schema: { querystring: deliveriesQuery, response: { 200: deliveriesReply } } },
+      async (request) => {
+        const person = personOf(request);
+        // A desk reads the apps its roles give it, as the privacy routes narrow the same grant. `sms.manage` reads all.
+        let apps: readonly string[] | null = null;
+        if (!(await request.can(deps.manageGrant))) {
+          const scope = await scopeOf(person.id);
+          if (scope === null) throw new ForbiddenError('You do not have the required permission.', 'FORBIDDEN', { permission: deps.peopleGrant });
+          apps = scope.apps === null ? null : [...scope.apps].sort();
+        }
+        const limit = request.query.limit ?? 50;
+        const rows = await deps.deliveries.list({
+          limit: limit + 1,
+          before: readBefore(request.query.before),
+          ...(request.query.state === undefined ? {} : { states: [request.query.state] }),
+          ...(apps === null ? {} : { apps }),
+        });
+        const shown = rows.slice(0, limit);
+        const last = shown.at(-1);
+        await app.rbac.audit(request, { category: 'data', action: 'sms.deliveries.read', changes: { after: { rows: shown.length, state: request.query.state ?? null, apps, page: request.query.before === undefined ? 'first' : 'later' } } });
+        return { data: shown.map(deliveryOf), next: rows.length > limit && last !== undefined ? `${last.createdAt}:${last.id}` : null };
+      },
+    );
 
     app.post(
       '/sms/deliveries/:id/settle',
@@ -284,10 +313,30 @@ export function smsConsoleRoutes(deps: SmsConsoleRoutesDeps): FastifyPluginAsync
     );
 
     // ── the do-not-text list ────────────────────────────────────────────────
-    app.get('/sms/stop-list', { preHandler: desk, config: { audit: auditExempt('read-only do-not-text list') }, schema: { querystring: stopQuery, response: { 200: stopListReply } } }, async (request) => {
-      const page = await deps.consent.stop.list({ limit: 100, cursor: request.query.cursor ?? null, ...(request.query.reason === undefined ? {} : { reason: request.query.reason }) });
-      return { data: page.entries.map(stopOf), next: page.next };
-    });
+    app.get(
+      '/sms/stop-list',
+      { preHandler: manage, config: { audit: audited('rbac') }, schema: { querystring: stopQuery, response: { 200: stopListReply } } },
+      async (request) => {
+        personOf(request);
+        const page = await deps.consent.stop.list({ limit: 100, cursor: request.query.cursor ?? null, ...(request.query.reason === undefined ? {} : { reason: request.query.reason }) });
+        // Which page and how many, never a number.
+        await app.rbac.audit(request, { category: 'data', action: 'sms.stop-list.read', changes: { after: { entries: page.entries.length, reason: request.query.reason ?? null, page: request.query.cursor === undefined ? 'first' : 'later' } } });
+        return { data: page.entries.map(stopOf), next: page.next };
+      },
+    );
+
+    app.post(
+      '/sms/stop-list/lookup',
+      { preHandler: desk, config: { audit: audited('rbac') }, schema: { body: lookupBody, response: { 200: lookupReply } } },
+      async (request) => {
+        personOf(request);
+        const country = (await deps.service.view())?.defaultCountry ?? null;
+        const entry = await deps.consent.stop.entryFor(request.body.phone, country);
+        const typed = parsePhone(request.body.phone, country);
+        await app.rbac.audit(request, { category: 'data', action: 'sms.stop.looked-up', changes: { after: { to: maskPhone(typed.ok ? typed.e164 : request.body.phone), found: entry !== null } } });
+        return { data: entry === null ? null : stopOf(entry) };
+      },
+    );
 
     app.post(
       '/sms/stop-list',

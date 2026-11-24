@@ -426,6 +426,21 @@ describe('the do-not-text list', () => {
     expect(await screen.findAllByTestId('texts-stop-remove')).toHaveLength(2);
   });
 
+  it('gives a desk a look-up of one number, never the list', async () => {
+    const user = userEvent.setup();
+    const { calls } = mount({ actions: ['privacy.people'], stops: STOPS, replies: { 'POST /stop-list/lookup': [{ status: 200, body: { data: STOPS[0] } }, { status: 200, body: { data: null } }] } });
+    await openTab(user, 'Do-not-text list');
+    await screen.findByTestId('texts-stop-desk');
+    expect(screen.queryByTestId('texts-stop-row')).toBeNull();
+    await user.type(screen.getByTestId('texts-stop-lookup-phone'), '+12075550169');
+    await user.click(screen.getByTestId('texts-stop-lookup'));
+    expect((await screen.findByTestId('texts-stop-lookup-found')).textContent).toContain('On the list since');
+    await user.click(screen.getByTestId('texts-stop-lookup'));
+    expect(await screen.findByTestId('texts-stop-lookup-none')).toBeTruthy();
+    expect(calls.some((call) => call.method === 'GET' && call.url.includes('/stop-list'))).toBe(false);
+    expect(calls.filter((call) => call.url.endsWith('/stop-list/lookup')).map((call) => call.body)).toEqual([{ phone: '+12075550169' }, { phone: '+12075550169' }]);
+  });
+
   it('lets a desk record a stop request made in person', async () => {
     const user = userEvent.setup();
     const { writes } = mount({ actions: ['privacy.people'], replies: { 'POST /stop-list': { status: 200, body: { data: STOPS[1], added: true } } } });

@@ -6865,7 +6865,11 @@ export default {
         "provider": "Meldt af udbyderen",
         "reply": "Svarede STOP"
       },
-      "whyAny": "Hvorfor: alle"
+      "whyAny": "Hvorfor: alle",
+      "deskWhy": "Slå ét nummer op ad gangen. Hele listen rummer alle apps’ kunder, så kun den, der administrerer sms’er, kan se den.",
+      "lookup": "Slå op",
+      "lookupNone": "Dette nummer er ikke på listen.",
+      "lookupFound": "På listen siden {date}: {why}."
     },
     "tab": {
       "activity": "Aktivitet",

@@ -104,7 +104,7 @@ function TextsConsole({ canManage, isSuperAdmin }: { canManage: boolean; isSuper
           <ActivityTab canManage={canManage} />
         </TabsContent>
         <TabsContent value="stop" className="pt-4">
-          <StopListTab isSuperAdmin={isSuperAdmin} />
+          <StopListTab isSuperAdmin={isSuperAdmin} canManage={canManage} />
         </TabsContent>
       </Tabs>
     </Frame>

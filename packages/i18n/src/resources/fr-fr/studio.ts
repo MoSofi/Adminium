@@ -6865,7 +6865,11 @@ export default {
         "provider": "Signalé par le fournisseur",
         "reply": "A répondu STOP"
       },
-      "whyAny": "Motif : tous"
+      "whyAny": "Motif : tous",
+      "deskWhy": "Recherchez un numéro à la fois. La liste complète contient les clients de toutes les applications : seule la personne qui gère les SMS la voit.",
+      "lookup": "Rechercher",
+      "lookupNone": "Ce numéro n’est pas sur la liste.",
+      "lookupFound": "Sur la liste depuis le {date} : {why}."
     },
     "tab": {
       "activity": "Activité",

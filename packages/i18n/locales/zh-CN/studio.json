@@ -6855,7 +6855,11 @@
         "provider": "由服务商报告",
         "reply": "回复了 STOP"
       },
-      "whyAny": "原因：全部"
+      "whyAny": "原因：全部",
+      "deskWhy": "每次查询一个号码。完整名单包含所有应用的客户，因此只有管理短信的人才能看到。",
+      "lookup": "查询",
+      "lookupNone": "此号码不在名单上。",
+      "lookupFound": "自 {date} 起在名单上：{why}。"
     },
     "tab": {
       "activity": "动态",

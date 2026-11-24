@@ -6865,7 +6865,11 @@ export default {
         "provider": "Nahlášeno poskytovatelem",
         "reply": "Odpověď STOP"
       },
-      "whyAny": "Důvod: jakýkoli"
+      "whyAny": "Důvod: jakýkoli",
+      "deskWhy": "Vyhledávejte po jednom čísle. Celý seznam obsahuje zákazníky všech aplikací, proto ho vidí jen ten, kdo spravuje SMS.",
+      "lookup": "Vyhledat",
+      "lookupNone": "Toto číslo na seznamu není.",
+      "lookupFound": "Na seznamu od {date}: {why}."
     },
     "tab": {
       "activity": "Aktivita",
