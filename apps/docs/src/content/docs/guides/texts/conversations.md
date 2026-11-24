@@ -61,6 +61,11 @@ When an app's replies are **off**:
 - a HELP reply gets the same answer, unless the provider answered HELP itself;
 - a STOP still works as always.
 
+The answer, a STOP's confirmation and a country's opt-out line name the business by the name chosen
+for texts: the app's own name for texts (a neutral name a clinic saves, `outbox.settings.textName`),
+else the sender name set in Studio → Texts, else the business's name. The name an app's emails are
+signed with is never used in a text.
+
 A reply to no app is treated as off when any installed app's replies are off. A server that runs a
 clinic keeps no stranger's symptoms either.
 
@@ -70,6 +75,10 @@ An app can offer **Send a text** on a record's page. Sales CRM has it beside **L
 the number in a phone column of the record, through the same send path, and the text joins that
 number's conversation. It needs **Answer customers' texts**, or the app's reply grant, and a record
 the person can open. Someone who may not see the number is not shown it afterwards either.
+
+`POST /api/v1/texts/send` names the record by `connection`, `table`, `row` and the phone `column`.
+The table may be named by its id, by its name as the data routes take it, or, on an app's own page
+that sends `X-Adminium-Install`, by the app's own name for it (`contacts`).
 
 ## What is kept
 

@@ -4647,6 +4647,9 @@ longer ships.
 | `outbox.recipient.phone` | A `text` column of the person's table that holds their mobile number, marked personal (`"rules": { "personal": true }`). Required when any kind is a text. An outbox whose every kind is a text may leave out `recipient.email`: a person known only by phone. |
 | `outbox.recipient.fallback.phone` | The number on the row the fallback link points at, for a person not yet on file. Needs `recipient.phone` too. |
 | `outbox.waiting` | Up to 16 text kinds a customer is waiting for right now ("your order is ready"). They may go outside the business's sending hours. Only a `service` text kind can be one. |
+| `outbox.recipient.textPhone` | `{ "via": "<outbox column>", "column": "<text column>" }`: text kinds go to the number on the row `via` links (an order's `mobile`, the number the person typed with the order's box), instead of the person's own. Consent and the stop list are judged for that number. A row that holds none: the person's own number. Needs Adminium 0.3.76. |
+| `outbox.columns.textReason` | A `text` column (40 characters or more) that Adminium fills, beside the sentence in `error`, with one code for each text row: `queued`, `waiting`, `sent`, `unknown`, `no-number`, `not-set-up` (no provider, no sender, or texts switched off), `no-consent`, `stopped`, `opted-out`, `unconfirmed-consent`, `daily-limit`, `sample`, `rehearsal`, and the other reasons a text is not sent. Read it instead of the sentence. Needs Adminium 0.3.76. |
+| `outbox.settings.textName` | A `text` column of the settings table: the name automatic texts give the business by (the "not read" answer, a STOP's confirmation, a country's opt-out line), such as a neutral name for a clinic. Empty: the sender name set in Studio → Texts, else the business's name. The name the emails are signed with (`settings.name`) is never used in a text. Needs Adminium 0.3.76. |
 
 Every text kind has a class in `classes`, `service` or `marketing`. A `service` text needs the
 person's yes to service texts, a `marketing` one their yes to marketing texts. See
@@ -5338,17 +5341,44 @@ needs Adminium 0.3.76 or later:
 | Field | Rule |
 |---|---|
 | `column` | A `bool` of the entry's table that the entry writes. Never the e-mail tick's column: a yes to mail is not a yes to texts. It starts unticked: no default of yes, and no rule, formula or copy sets it. It is never required to book or buy, so it is nullable or defaults to false. |
-| `phone` | A `text` column of the same table that the entry writes: the number the answer is for. On a [people](#people) table's own entry, it is that table's `phone`. |
+| `phone` | A `text` column of the same table: the number the answer is for. An entry that creates (`POST`) must write it; an entry that only changes rows (`PATCH`) need not, because the box reads the number the row already holds, so a person can answer without being let change their number. On a [people](#people) table's own entry, it is that table's `phone`. |
 | `class` | `service` (texts about what the person booked or bought) or `marketing` (offers). One box is a yes to one of them, never both. |
 | `means` | `yes` (the default) or `no`: a ticked box that records the person's no. |
 | `wording` | The sentence shown beside the box, in several languages with `en-US` among them, and its `version`. It may not ask for a YES reply. |
 
 The answer is kept in the text consent log for the person the entry finds (`identity`, `claimedBy`,
-or the row itself), whose table is declared in `people` with a `phone`. It is kept for that exact
-number, with the sentence and version shown, the language, the network address and the browser. A
-yes never overrules a no already standing for the number. A marketing yes to a number in a country
-that expects double opt-in (Germany) is mailed a confirmation; see
+or the row itself), whose table is declared in `people` with a `phone`. A create that nobody is
+linked to yet (an optional `claimedBy` left empty, such as a first booking the desk links later)
+keeps the answer on the row it made; the app's texts to that number count it. It is kept for that
+exact number, with the sentence and version shown, the language, the network address and the
+browser.
+
+A stranger's yes never overrules a no already standing for the number. A person signed in by a
+mailed link, or with a session a mailed code raised to verified, is the exception: their own fresh
+yes, for the number their own row holds, replaces their own earlier no for this app, whether they
+gave it on a form, by a reply, or to staff. It never lifts the stop list: after a STOP only the
+person's START does, and their Prefs say so (see
+[an app's own reads](/guides/texts/stop-and-consent/#an-apps-own-reads)). A marketing yes to a
+number in a country that expects double opt-in (Germany) is mailed a confirmation; see
 [Marketing texts](/guides/texts/marketing/#double-opt-in-in-germany).
+
+`textConsent` may also be a list of two boxes, one per class, so a form asks about service texts
+and offers separately. Each has its own `column`, `wording` and version, and each tick is recorded
+under its own class:
+
+```json
+"textConsent": [
+  { "column": "texts_ok", "phone": "mobile", "class": "service", "wording": { "version": 1, "text": { "en-US": "Text me about my stay" } } },
+  { "column": "offers_ok", "phone": "mobile", "class": "marketing", "wording": { "version": 1, "text": { "en-US": "Text me offers now and then" } } }
+]
+```
+
+A staff member who ticks or unticks a box's column (on the record page, or an app's own staff
+screen saving through the data routes) records their yes in the box's words, or their no, in the
+same log, named to them. A save that leaves the column as it was records nothing.
+
+On a [`forms` entry](#forms), the forms door draws the box itself, unticked, under any form whose
+"becomes" fills the box's `phone`; a form may not fill the box's `column` from a question.
 
 ### A row's own link
 
@@ -7426,7 +7456,7 @@ table:
 
 The entry says the words a forms entry may: `table`, `methods` (only `["POST"]`), `key`,
 `writable` (at least one), `writableValues`, `defaults`, `requires`, `agrees`, `anonymous`
-(required), `requireSetting` and `module`. It names no `source`. One `chat` entry per table, and no
+(required), `requireSetting` and `module`. It names no `source` and no `textConsent`. One `chat` entry per table, and no
 entry lets anyone read that table's rows. A table may carry both a `forms` and a `chat` entry. The
 app's key and the table's ref, as `<app>:<table>`, fit in 64 characters. No browser key is named
 `chat`, and the public API never serves the entry. A manifest that uses it sets
