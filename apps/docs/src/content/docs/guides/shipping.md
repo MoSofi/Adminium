@@ -103,7 +103,18 @@ the rates, so they are fetched again.
 
 Someone must tick the declaration before rates appear. **That is a legal statement about your goods,
 made by your business.** Read it before you tick it. After the purchase, the customs invoice is stored
-with the label.
+with the label. The customs invoice is deleted with the label after 90 days, so keep your own copy for
+your export records.
+
+The form stops, and says why, when what it would declare cannot be trusted:
+
+- **The order has a refund.** Its values no longer match what the customer paid, so it cannot be declared.
+- **The shop's currency is not set, or has changed** since Customs was saved. Set it, then save **Customs**
+  again.
+- **Only some lines have a weight.** Add the missing weight to the product.
+
+A cancelled line is left off the form. Your shop-wide tariff code fills in only on an order of one
+product. On an order of several, each line needs its own code, and the form warns about any without one.
 
 Only someone with the customs right can declare a parcel. A packer also needs **Packers can ship
 abroad** switched on and a spending limit.
@@ -113,8 +124,8 @@ abroad** switched on and a spending limit.
 - It does not work out duties, and it does not change your tax. **Your shop's tax rate still applies to
   an order abroad.** Ask your accountant what you should charge for each country.
 - A parcel abroad carries the whole order. A second parcel, a replacement or a return abroad is refused.
-- It uses no exchange rates. An IOSS number is held back from a euro order over €150. On an order in
-  another currency it is sent, so check that limit yourself.
+- It uses no exchange rates. An IOSS number is sent only on a parcel into the EU, in euros, worth €150
+  or less. In any other case it is not sent.
 
 ## What is shared and kept
 
