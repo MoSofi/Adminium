@@ -67,6 +67,29 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.74',
+    date: '2026-11-24',
+    title: 'Shipping abroad with customs',
+    summary:
+      'Maker Shop and Print Shop can now sell to the countries you list and buy customs labels through your own Shippo account. Nothing changes for a shop until its owner lists a country.',
+    notice: {
+      title: 'Before you upgrade',
+      items: [
+        'A customs declaration is a legal statement made by your business. Adminium fills it from the order, and a person must read it and tick it before any rates appear.',
+        'Your shop tax rate still applies to an order abroad. Ask your accountant what to charge for each country before you list one.',
+      ],
+    },
+    changes: [
+      { tag: 'New', text: 'A shop lists the countries it delivers to, with a price for each, and checkout offers only those.' },
+      { tag: 'New', text: 'A customs form filled from the order, a stored customs invoice, shop defaults for goods and tariff codes, and optional export numbers.' },
+      { tag: 'New', text: 'A US shop can choose its export filing code, which is checked against the destination and the value and never sent by default.' },
+      { tag: 'Security', text: 'Erasing a person now also takes their phone number off orders kept for tax.' },
+      { tag: 'Fixed', text: 'A label can no longer be bought for an order cancelled while its rates were open.' },
+      { tag: 'Fixed', text: 'A replacement label now reaches the order once the first label is refunded.' },
+      { tag: 'Fixed', text: 'A purchase restored from a backup is looked up before anyone can buy that label again.' },
+    ],
+  },
+  {
     version: '0.3.73',
     date: '2026-11-23',
     title: 'Add-ons 1.0.35',

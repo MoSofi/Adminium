@@ -1,16 +1,17 @@
 ---
 title: Ship parcels
-description: Buy real carrier labels through your own Shippo account, inside your own country. Setting it up, who may do what, refunds, tracking and what is shared.
+description: Buy real carrier labels through your own Shippo account, at home or abroad with customs. Setting it up, who may do what, refunds, tracking and what is shared.
 ---
 
-From Adminium 0.3.72.
+From Adminium 0.3.72. Parcels abroad from Adminium 0.3.74, add-ons 1.0.36, Maker Shop 0.2.7 and Print Shop 0.2.7.
 
 Maker Shop, Print Shop and Online Shop can buy a real carrier label for an order through the
 **Shippo** add-on. You use your own Shippo account: Shippo bills you for each label, and any refund
 is between you, Shippo and the carrier. Adminium is not a party to that payment.
 
-This release ships **inside the shop's own country**. A label to any other country is refused with
-a plain message. Online Shop ships inside the United States.
+A shop ships **inside its own country** until its owner lists other countries. Until then, a label to
+any other country is refused with a plain message. Maker Shop and Print Shop can
+[send parcels abroad](#sending-parcels-abroad). Online Shop ships inside the United States.
 
 The **DHL** add-on is a demo carrier. It lets you practise the flow with a sample label and books no
 real parcel.
@@ -77,13 +78,53 @@ moves an order by itself.
 In Online Shop, the owner can buy a return label on an approved return. It runs from the customer to
 the shop.
 
+## Sending parcels abroad
+
+Maker Shop and Print Shop can sell to the countries you list. Nothing changes for your customers
+until you list one.
+
+### Set it up
+
+1. In the shop's settings, open **Countries** and add each country with its delivery price.
+2. Open **Customs** and fill in what the goods are, their tariff code, where they were made and who
+   signs the declarations. Look the code up on your government's list: Adminium never picks one.
+3. Add your export numbers if you have them: EORI, IOSS or a tax number. Each goes to the carrier only
+   when it is filled in. A US shop can also choose its export filing code. None is sent by default.
+
+Checkout then offers only the countries you listed, each at its price, and asks a customer abroad for a
+phone number, because carriers need one for customs.
+
+### Declaring a parcel
+
+The form is filled from the order: each line's own name, its quantity, what the customer paid for it,
+its currency and its weight. A person may correct the description, the tariff code and the
+manufacturer's code. Quantities and values always come from the order. Changing the order voids
+the rates, so they are fetched again.
+
+Someone must tick the declaration before rates appear. **That is a legal statement about your goods,
+made by your business.** Read it before you tick it. After the purchase, the customs invoice is stored
+with the label.
+
+Only someone with the customs right can declare a parcel. A packer also needs **Packers can ship
+abroad** switched on and a spending limit.
+
+### What it does not do
+
+- It does not work out duties, and it does not change your tax. **Your shop's tax rate still applies to
+  an order abroad.** Ask your accountant what you should charge for each country.
+- A parcel abroad carries the whole order. A second parcel, a replacement or a return abroad is refused.
+- It uses no exchange rates. An IOSS number is held back from a euro order over €150. On an order in
+  another currency it is sent, so check that limit yourself.
+
 ## What is shared and kept
 
 To buy a label, Adminium sends Shippo the sender and recipient names and addresses, and the parcel's
 size and weight. A phone number is sent only when the carrier needs it. Shippo passes what the
-carrier needs to the carrier you chose.
+carrier needs to the carrier you chose. For a parcel abroad it also receives the goods, their values and
+codes, the signer's name and any export numbers you entered.
 
 A booking stores a hash of the address, never the address itself. Label files are deleted 90 days
 after delivery. A label that was never delivered goes 90 days after its last state: a settled refund,
 the last tracking event, or the purchase if it was never handed over. Erasing a person also deletes
-their label files. See [A person's data](/guides/email/privacy/).
+their label files and the phone number on their orders, even on an order kept for tax. See
+[A person's data](/guides/email/privacy/).
