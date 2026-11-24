@@ -64,7 +64,7 @@ export type TextRunRefusal = (typeof TEXT_RUN_REFUSALS)[number];
 export const TEXT_AUDIENCE_REFUSALS = [
   /** Not a people table an installed app declares with a mobile column. */
   'not-people',
-  /** The person may no longer send marketing (`system:settings:manage`), or is no longer active. */
+  /** The person may no longer send marketing (`system:settings:manage` and `sms.manage`), or is no longer active. */
   'cannot-send',
   /** They cannot read the table. */
   'cannot-read',

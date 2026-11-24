@@ -156,8 +156,9 @@ describe('filling a text', () => {
     expect(fillText('Hi {{name}}', { name: value })).toEqual({ ok: false, reason: 'value-has-link' });
   });
 
-  it('keeps a link written in the template, and an address in a value', () => {
-    expect(fillText('See https://lumen.example {{who}}', { who: 'tom@lumen.example' }).ok).toBe(true);
+  it('keeps a link written in the template, and refuses an address in a value, which a phone makes a link of', () => {
+    expect(fillText('See https://lumen.example {{who}}', { who: 'Tom' }).ok).toBe(true);
+    expect(fillText('See https://lumen.example {{who}}', { who: 'tom@lumen.example' })).toEqual({ ok: false, reason: 'value-has-link' });
   });
 });
 
@@ -306,9 +307,12 @@ describe('send windows', () => {
     expect(ask('2026-06-16T00:00:00Z', late)).toEqual(until('2026-06-16T16:00:00Z'));
   });
 
-  it('an unusable zone reads as UTC', () => {
-    expect(ask('2026-06-15T07:59:00Z', { zone: 'Mars/Olympus' })).toEqual(until('2026-06-15T08:00:00Z'));
-    expect(ask('2026-06-15T08:00:00Z', { zone: null })).toEqual({ go: true });
+  it('no zone, or an unusable one, reads the destination country\'s zones, never UTC', () => {
+    // 08:00 UTC is 10:00 in Berlin: open for a German number, though UTC would say so too.
+    expect(ask('2026-06-15T05:59:00Z', { zone: 'Mars/Olympus' })).toEqual(until('2026-06-15T06:00:00Z'));
+    expect(ask('2026-06-15T05:59:00Z', { zone: null })).toEqual(until('2026-06-15T06:00:00Z'));
+    // 20:00 UTC is 22:00 in Berlin: shut, though UTC would read it open.
+    expect(ask('2026-06-15T20:00:00Z', { zone: null })).toEqual(until('2026-06-16T06:00:00Z'));
   });
 
   it.each([

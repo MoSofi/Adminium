@@ -80,6 +80,28 @@ export interface TextRequest {
    * marketing yes, and the stop list refuses it as any other.
    */
   answering?: boolean | undefined;
+  /**
+   * Whose yes counts. Absent, any yes to this number for the purpose does.
+   * Given, only a yes given on a row of this app's tables, on this record, or
+   * recorded with no row at all (see {@link TextConsentScope}).
+   */
+  scope?: TextConsentScope | undefined;
+}
+
+/**
+ * Which yes may stand for a text. A person who ticked "remind me by text" on
+ * one app's form agreed to that app's texts, not to whatever another app's
+ * staff choose to write to them. So a text written by a person, or sent by a
+ * rule, counts only a yes given on a row of its own app's tables (`app`), on
+ * the record it is sent from (`record`), or recorded with no row, which only
+ * a business-wide record is. When `app` is absent the record's own app is
+ * used. A no counts from anywhere, always.
+ */
+export interface TextConsentScope {
+  /** The app that sends it; null for none. Absent: the app whose table `record` is. */
+  app?: string | null | undefined;
+  /** The row it is sent from or about. */
+  record?: ConsentPerson | null | undefined;
 }
 
 export interface TextStopRecord {
@@ -225,8 +247,8 @@ export interface TextConsentService {
   record(input: TextConsentInput & { state: 'yes' | 'no' }): Promise<TextConsentEvent>;
   /** Confirms a marketing yes that still stands: a copy of it with `confirmedAt`, so the log keeps both. */
   confirm(input: TextConfirmInput): Promise<TextConfirmResult>;
-  /** Their standing for one purpose on this exact number. */
-  standing(who: TextWho, purpose: TextPurpose): Promise<TextStanding>;
+  /** Their standing for one purpose on this exact number; with a scope, only a yes that scope counts stands (see {@link TextConsentScope}). */
+  standing(who: TextWho, purpose: TextPurpose, scope?: TextConsentScope | undefined): Promise<TextStanding>;
   /** Their events, newest first. */
   history(who: TextWho, opts?: { limit?: number | undefined }): Promise<TextConsentEvent[]>;
   /** The erasure: events deleted, and the stop entry kept as a hash alone. */

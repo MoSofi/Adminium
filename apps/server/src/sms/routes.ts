@@ -7,7 +7,7 @@
  *   PUT    /sms/account   save keys: refused unless the provider accepts them
  *   PUT    /sms/sending   the sender and the default country
  *   POST   /sms/check     ask the provider about the saved keys again
- *   POST   /sms/test      one fixed test text
+ *   POST   /sms/test      one fixed test text, to the person's own number (`test-gate.ts`)
  *   DELETE /sms/account   remove the keys
  *
  * Everything needs `sms.manage`, and every change a signed-in person: an API
@@ -39,6 +39,7 @@ import type { LockReason } from '../trial/operator-lock.js';
 import { phoneHint } from './destination.js';
 import type { SmsReplyReach } from './inbound/index.js';
 import type { SmsAccountView, SmsService } from './service.js';
+import type { SmsTestGate } from './test-gate.js';
 import { SMS_CHECK_REASONS, SMS_PROVIDERS } from './types.js';
 
 /** Every state `SmsInboundChannel.replyReach` answers. */
@@ -60,6 +61,10 @@ export interface SmsRoutesDeps {
   publicOrigin: () => Promise<string | null>;
   /** Whether a reply can reach this server, and the address to give the provider (`SmsInboundChannel.replyReach`). */
   replyReach: () => Promise<SmsReplyReach>;
+  /** The language a person reads in, for the test text they send themselves. */
+  languageOf?: ((userId: string) => Promise<string | null>) | undefined;
+  /** What a test text may cost, kept in meta (`test-gate.ts`). Without it, the service's own memory limit. */
+  testGate?: SmsTestGate | undefined;
 }
 
 const field = z.string().max(1024);
@@ -238,14 +243,16 @@ export function smsRoutes(deps: SmsRoutesDeps): FastifyPluginAsyncZod {
       '/sms/test',
       { preHandler: manage, config: { audit: audited('rbac') }, schema: { body: testBody, response: { 200: testReply } } },
       async (request) => {
-        requirePerson(request);
+        const userId = requirePerson(request);
         refuseOffline();
-        const result = await service.sendTest(request.body.to);
+        const gate = deps.testGate;
+        const result = await service.sendTest(request.body.to, (await deps.languageOf?.(userId)) ?? null, gate === undefined ? undefined : (e164) => gate(userId, e164));
         const reason = result.outcome === 'accepted' ? null : result.reason;
         await app.rbac.audit(request, {
           category: 'settings',
           action: 'sms.test.sent',
-          changes: { after: { provider: result.provider, outcome: result.outcome, reason, to: phoneHint(result.to) } },
+          // The person's own number, by its last two digits; it took a slot of the day's text limit.
+          changes: { after: { provider: result.provider, outcome: result.outcome, reason, to: phoneHint(result.to), ownNumber: true, countedInDailyLimit: gate !== undefined } },
         });
         return {
           data: {

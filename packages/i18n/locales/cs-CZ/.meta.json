@@ -20595,6 +20595,30 @@
     "status": "mt",
     "srcHash": "1f7839a87bb1"
   },
+  "email.texts.notRead.alone": {
+    "status": "mt",
+    "srcHash": "a1a39e9ca092"
+  },
+  "email.texts.notRead.withContact": {
+    "status": "mt",
+    "srcHash": "6f4639c9691e"
+  },
+  "email.texts.optOut.contact": {
+    "status": "mt",
+    "srcHash": "636b7c0926de"
+  },
+  "email.texts.optOut.reply": {
+    "status": "mt",
+    "srcHash": "7fedab30259d"
+  },
+  "email.texts.stopConfirmed": {
+    "status": "mt",
+    "srcHash": "2ce5986cbf1c"
+  },
+  "email.texts.test": {
+    "status": "mt",
+    "srcHash": "292c305aa7df"
+  },
   "email.title": {
     "status": "mt",
     "srcHash": "5cdc6a6d5345"

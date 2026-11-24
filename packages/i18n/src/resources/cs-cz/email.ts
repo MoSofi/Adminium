@@ -1064,5 +1064,17 @@ export default {
     "purpose": "Stiskněte Potvrdit a budete dostávat nabídky od {business} v SMS na číslo {phone}.",
     "action": "Potvrdit",
     "notice": "Odkaz platí {days} dní. Pokud jste o nic nežádali, tento e-mail ignorujte: bez stisknutí tlačítka Potvrdit žádné nabídky v SMS nedostanete."
+  },
+  "texts": {
+    "optOut": {
+      "reply": "Odpovězte STOP pro odhlášení.",
+      "contact": "Zrušení SMS: kontaktujte {contact}."
+    },
+    "stopConfirmed": "Jste odhlášeni a od této firmy už nedostanete žádné další SMS.",
+    "notRead": {
+      "withContact": "{business}: Toto číslo nikdo nečte. Kontakt: {contact}",
+      "alone": "{business}: Toto číslo nikdo nečte."
+    },
+    "test": "Testovací SMS z aplikace Adminium. Připojení pro SMS funguje."
   }
 } as const;

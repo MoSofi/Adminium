@@ -31,4 +31,4 @@ export {
 } from './delivery.js';
 export { SMS_STOP_EVENT_KINDS } from './payload.js';
 export { TELNYX_WINDOW_SECONDS, twilioAddressForms, twilioSignedText, verifyTelnyx, verifyTwilio } from './signature.js';
-export { SMS_STOP_CONFIRMATION, SMS_STOP_CONFIRM_WINDOW_MS, decideStopConfirmation, type SmsStopConfirmation, type StopConfirmationDecision } from './stop-reply.js';
+export { SMS_STOP_CONFIRMATION, SMS_STOP_CONFIRM_WINDOW_MS, decideStopConfirmation, stopConfirmationIn, type SmsStopConfirmation, type StopConfirmationDecision } from './stop-reply.js';

@@ -409,7 +409,8 @@ describe.each(META_ENGINES)('two-way text conversations — $name', (engine) => 
       const id = (await raw('adminium_text_threads'))[0]!['id'] as string;
       const first = await s.call(s.people.owner, 'POST', `/texts/threads/${id}/replies`, { body: 'We do, at eight.', clientKey: KEY });
       expect(first.statusCode, first.body).toBe(200);
-      expect((first.json() as { data: { result: { outcome: string }; item: { body: string } } }).data).toMatchObject({ result: { outcome: 'queued' }, item: { body: 'We do, at eight. Reply STOP to opt out.' } });
+      // The opt-out line is in the business's language (German here), whatever the words typed.
+      expect((first.json() as { data: { result: { outcome: string }; item: { body: string } } }).data).toMatchObject({ result: { outcome: 'queued' }, item: { body: 'We do, at eight. Antworten Sie STOP zum Abmelden.' } });
       const again = await s.call(s.people.owner, 'POST', `/texts/threads/${id}/replies`, { body: 'We do, at eight.', clientKey: KEY });
       expect(again.statusCode).toBe(200);
       expect(await raw('adminium_text_thread_messages')).toHaveLength(2);
@@ -419,7 +420,7 @@ describe.each(META_ENGINES)('two-way text conversations — $name', (engine) => 
       const posted = new URLSearchParams(s.provider.posts[0]!.body);
       expect(posted.get('To')).toBe(GUEST);
       expect(posted.get('From')).toBe(FROM);
-      expect(posted.get('Body')).toBe('We do, at eight. Reply STOP to opt out.');
+      expect(posted.get('Body')).toBe('We do, at eight. Antworten Sie STOP zum Abmelden.');
       expect((await raw('adminium_text_threads'))[0]).toMatchObject({ unread: 0, lastDirection: 'out', lastKind: 'reply' });
       const items = ((await s.call(s.people.owner, 'GET', `/texts/threads/${id}`)).json() as ThreadReply).data.items;
       expect(items[0]).toMatchObject({ direction: 'out', kind: 'reply', delivery: { status: 'sent' } });
@@ -472,7 +473,7 @@ describe.each(META_ENGINES)('two-way text conversations — $name', (engine) => 
       expect(s.jobs).toHaveLength(1);
       await s.handOverAll();
       const body = new URLSearchParams(s.provider.posts.at(-1)!.body).get('Body');
-      expect(body).toBe('Lumen: Diese Nummer wird nicht gelesen. Kontakt: hello@lumen.example Reply STOP to opt out.');
+      expect(body).toBe('Lumen: Diese Nummer wird nicht gelesen. Kontakt: hello@lumen.example Antworten Sie STOP zum Abmelden.');
       // Two automatic answerers writing to each other stop at one answer.
       for (let n = 0; n < 3; n += 1) await s.reply(PATIENT, 'This is an automatic reply.');
       expect(s.jobs).toHaveLength(0);
@@ -551,6 +552,23 @@ describe.each(META_ENGINES)('two-way text conversations — $name', (engine) => 
       const refused = await s.call(s.people.owner, 'POST', '/texts/send', SEND);
       expect((refused.json() as { data: unknown }).data).toMatchObject({ threadId: null, sentTo: '+49 ••• 789', result: { outcome: 'refused', reason: 'no-consent' } });
       expect(await raw('adminium_text_threads')).toEqual([]);
+    });
+
+    it.runIf(engine.available)('counts only a yes given to the app it is sent as: another app\'s yes is no blank cheque', async () => {
+      const tables: Record<string, string> = { 'main.patients': 'clinic', 'main.crm_contacts': 'crm', 'main.crm_leads': 'crm' };
+      consent = createTextConsentService({ meta: handle.meta, secret: SECRET, appOf: async (person) => tables[person.table] ?? null, now: () => clock.now });
+      const s = await stack({ apps: [{ key: 'crm', name: 'Sales CRM', replies: 'on' }, { key: 'clinic', name: 'Clinic', replies: 'off' }] });
+      const yes = (person: { connectionId: string; table: string; key: string }, at: number) =>
+        consent.record({ phone: GUEST, person, purpose: 'text-service', state: 'yes', source: 'form', detail: 'Booking form', wording: { text: 'Remind me of my visits by text.', version: 'v1' }, at });
+      s.recordPhone.value = { rowKey: '7', app: 'crm', phoneColumn: true, value: GUEST, mayReadNumber: true };
+      // The patient ticked the clinic's box: the sales team may not write to them on it.
+      await yes({ connectionId: 'con_1', table: 'main.patients', key: '3' }, clock.now - 2000);
+      const refused = await s.call(s.people.owner, 'POST', '/texts/send', SEND);
+      expect((refused.json() as { data: unknown }).data).toMatchObject({ threadId: null, result: { outcome: 'refused', reason: 'no-consent' } });
+      // A yes given on one of the CRM's own rows counts for the CRM.
+      await yes({ connectionId: 'con_1', table: 'main.crm_leads', key: '1' }, clock.now - 1000);
+      const sent = await s.call(s.people.owner, 'POST', '/texts/send', { ...SEND, clientKey: 'dddddddddddddddddddddddddddddddd' });
+      expect((sent.json() as { data: unknown }).data).toMatchObject({ result: { outcome: 'queued' } });
     });
   });
 

@@ -24,7 +24,10 @@ import {
   verifyTelnyx,
   verifyTwilio,
   type SmsDeliveryStatus,
+  stopConfirmationIn,
 } from '../src/sms/inbound/index.js';
+import { estimateLength, limitsFor } from '../src/sms/send/length.js';
+import { TEXT_LANGUAGES } from '../src/sms/words.js';
 
 const kindOf = (text: unknown): string => readControlWord(text).kind;
 
@@ -192,9 +195,24 @@ describe('the one confirmation', () => {
   });
 
   it('has plain words: no question, no link, no offer', () => {
-    expect(SMS_STOP_CONFIRMATION).not.toMatch(/[?؟？]/);
-    expect(SMS_STOP_CONFIRMATION).not.toMatch(/https?:|www\.|reply|offer|sale|%/i);
-    expect(SMS_STOP_CONFIRMATION.length).toBeLessThanOrEqual(160);
+    expect(SMS_STOP_CONFIRMATION).toBe('You are unsubscribed and will get no more texts from this business.');
+    for (const language of TEXT_LANGUAGES) {
+      const words = stopConfirmationIn(language);
+      expect(words, language).not.toMatch(/[?؟？]/);
+      expect(words, language).not.toMatch(/https?:|www\.|reply|offer|sale|%|\d/i);
+      // One segment, from any sender.
+      expect(estimateLength(words, limitsFor('US', { kind: 'number', value: '+12025550100' })).segments, language).toBe(1);
+      // Nothing in it reads as a control word if it is sent back.
+      expect(readControlWord(words).kind, language).toBe('none');
+    }
+  });
+
+  it('writes the confirmation in the language asked, and US English for any other', () => {
+    expect(stopConfirmationIn('de_DE')).toBe('Sie sind abgemeldet und erhalten keine weiteren SMS von diesem Unternehmen.');
+    expect(stopConfirmationIn('zh-Hant-TW')).toBe('您已退訂，將不再收到該商家的簡訊。');
+    expect(stopConfirmationIn('pt-BR')).toBe(SMS_STOP_CONFIRMATION);
+    expect(stopConfirmationIn(null)).toBe(SMS_STOP_CONFIRMATION);
+    expect(new Set(TEXT_LANGUAGES.map(stopConfirmationIn)).size).toBe(8);
   });
 });
 

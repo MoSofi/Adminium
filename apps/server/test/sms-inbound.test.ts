@@ -654,6 +654,14 @@ describe.each(META_ENGINES)('SMS inbound — $name', (engine) => {
       await twilioReply('ABMELDEN');
       await drain();
       expect(asked[0]?.language).toBe('de-DE');
+      expect(asked[0]?.body).toBe('Sie sind abgemeldet und erhalten keine weiteren SMS von diesem Unternehmen.');
+    });
+
+    only('answers a word every language shares in the business’s own language', async () => {
+      await twilioReply('STOP PLEASE');
+      await drain();
+      expect(asked[0]?.language).toBeNull();
+      expect(asked[0]?.body).toBe(SMS_STOP_CONFIRMATION);
     });
 
     only('asks for none on a word the provider already answers', async () => {

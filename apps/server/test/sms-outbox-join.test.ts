@@ -21,7 +21,7 @@ import { createWriteService } from '../src/crud/write-service.js';
 import { createInboundCore, inboundRoutes, type InboundCore } from '../src/inbound/index.js';
 import { createOutboxProducers } from '../src/outbox/producers.js';
 import { createOutboxSender, type OutboxSender } from '../src/outbox/sender.js';
-import { TEXT_EARLIER_OPEN, TEXT_NOT_CHECKED, TEXT_NOT_CONNECTED, TEXT_NOT_PREPARED, TEXT_NO_NUMBER, TEXT_REHEARSAL, TEXT_SAMPLE, TEXT_UNKNOWN, textReasonSentence } from '../src/outbox/text-words.js';
+import { TEXT_EARLIER_OPEN, TEXT_NOT_CHECKED, TEXT_NOT_CONNECTED, TEXT_NOT_PREPARED, TEXT_NO_NUMBER, TEXT_REHEARSAL, TEXT_SAMPLE, TEXT_UNKNOWN, TEXT_WAITING_PREFIX, textReasonSentence } from '../src/outbox/text-words.js';
 import { noteRehearsalRow } from '../src/payments/rehearsal-state.js';
 import { createPublicViews } from '../src/public-api/runtime.js';
 import { createTextConsentService, textSubject, type TextConsentService } from '../src/sms/consent/index.js';
@@ -57,6 +57,7 @@ const NIGHT = Date.parse('2026-06-15T22:00:00Z');
 const MORNING = Date.parse('2026-06-16T08:00:00Z');
 const VISIT = '2026-06-16T10:00:00.000Z';
 const WORDS = 'Your visit is confirmed.';
+const WORTE = 'Ihr Termin ist bestätigt.';
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
 const text = (ref: string, maxLength = 120, more: Record<string, unknown> = {}) => ({ ref, type: 'text', maxLength, nullable: true, ...more });
@@ -88,7 +89,7 @@ function clinicManifest(): Record<string, unknown> {
     compatibility: { minAdminiumVersion: SMS_WORDS_FLOOR },
     people: [{ table: 'patients', kind: 'people', phone: 'mobile', name: 'name' }],
     textTemplates: [
-      { key: 'clinic-confirm', name: 'Visit confirmed', locales: { 'en-US': { body: WORDS } } },
+      { key: 'clinic-confirm', name: 'Visit confirmed', locales: { 'en-US': { body: WORDS }, 'de-DE': { body: WORTE } } },
       { key: 'clinic-reminder', name: 'Visit reminder', locales: { 'en-US': { body: 'Your visit is at {{visit.starts_at.time}}.' } } },
     ],
     outbox: {
@@ -310,6 +311,31 @@ describe.each(LEGS)('a text kind joined to the engine — %s', (dialect, availab
     expect(JSON.stringify(await meta.db.selectFrom('adminium_jobs').selectAll().execute())).not.toContain(MIA);
   });
 
+  it.skipIf(!available)('a business that writes in German sends the German template with the German opt-out line, and confirms a STOP in German', async () => {
+    // The outbox reads the install's settings; the STOP side reads the texts' own.
+    const both = [settingsRepo(meta), settingsRepo(h.meta)];
+    for (const settings of both) await settings.set('locale.default', 'de_DE');
+    try {
+      const { sender, provider, postTwilio, drain, runJobs } = await wire();
+      const mia = await patient('Mia Okada', MIA);
+      await agree(MIA);
+      await queued(mia);
+      await sender.sendApp('clinic', clock.now);
+      await runJobs();
+      expect(provider.posts).toHaveLength(1);
+      expect(new URLSearchParams(provider.posts[0]!.body).get('Body')).toBe(`${WORTE} Antworten Sie STOP zum Abmelden.`);
+
+      // "STOP PLEASE" is a word every language shares: the confirmation is in the business's language.
+      const stop = `SM${'cd'.repeat(16)}`;
+      expect((await postTwilio({ MessageSid: stop, SmsSid: stop, From: MIA, To: FROM, Body: 'STOP PLEASE', NumSegments: '1' })).statusCode).toBeLessThan(300);
+      await drain();
+      await runJobs();
+      expect(provider.posts.slice(1).map((post) => new URLSearchParams(post.body).get('Body'))).toEqual(['Sie sind abgemeldet und erhalten keine weiteren SMS von diesem Unternehmen.']);
+    } finally {
+      for (const settings of both) await settings.set('locale.default', 'en_US');
+    }
+  });
+
   it.skipIf(!available)('one reminder across a shut window stays one row, keeps its due, and sends one text', async () => {
     const { sender, provider, runJobs } = await wire();
     const mia = await patient('Mia Okada', MIA);
@@ -327,6 +353,8 @@ describe.each(LEGS)('a text kind joined to the engine — %s', (dialect, availab
     expect(rows).toHaveLength(1);
     const before = await message(Number(rows[0]!['id']));
     expect(before.status).toBe('sent');
+    // Claimed, so never queued twice, and saying it has not gone yet, with when it will.
+    expect(before.error).toBe(`${TEXT_WAITING_PREFIX}: goes at ${new Date(MORNING).toISOString().slice(0, 16).replace('T', ' ')} UTC`);
     expect(new Date(String(before.due)).getTime()).toBe(Date.parse(VISIT));
     expect(provider.posts).toHaveLength(0);
     const [job] = (await jobRows()).open;
@@ -339,6 +367,8 @@ describe.each(LEGS)('a text kind joined to the engine — %s', (dialect, availab
     expect(provider.posts).toHaveLength(1);
     expect(await h.rows(`SELECT id FROM ${h.real('messages')}`)).toHaveLength(1);
     expect(new Date(String((await message(Number(rows[0]!['id']))).due)).getTime()).toBe(Date.parse(VISIT));
+    // The provider took it: the waiting line is gone.
+    expect(await message(Number(rows[0]!['id']))).toMatchObject({ status: 'sent', error: null });
   });
 
   it.skipIf(!available)('a visit called off while its text waits for the window sends nothing, and the row says so', async () => {

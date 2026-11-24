@@ -155,6 +155,8 @@ export interface TextSendStore {
   accept(id: string, fields: TextAcceptFields): Promise<TextDelivery | null>;
   stopWritten(id: string, at: number): Promise<void>;
   reserve(id: string, version: number, day: string, limit: number, at: number): Promise<TextSlot>;
+  /** One slot of the day for a text with no delivery record (a test text). False when the day is used up. Never given back. */
+  takeSlot(day: string, limit: number, at: number): Promise<boolean>;
   usedOn(day: string): Promise<number>;
   /**
    * Deliveries nothing will come back for. A marker older than `before` becomes
@@ -465,6 +467,17 @@ export function createTextSendStore(meta: MetaDb): TextSendStore {
 
     async stopWritten(id, at) {
       await db.updateTable('adminium_text_deliveries').set({ stopOwedAt: null, updatedAt: at }).where('id', '=', id).execute();
+    },
+
+    async takeSlot(day, limit, at) {
+      await ensureDay(day, at);
+      const counted = await db
+        .updateTable('adminium_text_send_days')
+        .set((eb) => ({ used: eb('used', '+', 1), updatedAt: at }))
+        .where('day', '=', day)
+        .where('used', '<', limit)
+        .executeTakeFirst();
+      return Number(counted.numUpdatedRows) === 1;
     },
 
     async reserve(id, version, day, limit, at) {

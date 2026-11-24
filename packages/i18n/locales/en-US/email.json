@@ -1054,5 +1054,17 @@
     "purpose": "Press Confirm to get offers from {business} by text at {phone}.",
     "action": "Confirm",
     "notice": "The link works for {days} days. If you didn’t ask for this, ignore this e-mail: you get no offers by text unless you press Confirm."
+  },
+  "texts": {
+    "optOut": {
+      "reply": "Reply STOP to opt out.",
+      "contact": "To stop these texts, contact {contact}."
+    },
+    "stopConfirmed": "You are unsubscribed and will get no more texts from this business.",
+    "notRead": {
+      "withContact": "{business}: This number is not read. Contact us: {contact}",
+      "alone": "{business}: This number is not read."
+    },
+    "test": "Test text from Adminium. Your text message connection works."
   }
 }

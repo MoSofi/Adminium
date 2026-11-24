@@ -421,6 +421,7 @@ import { textSubject } from './sms/consent/index.js';
 import { SMS_STOP_EVENT_KINDS } from './sms/inbound/index.js';
 import { createTextSendPath, registerSmsSendHandler, textPhoneKeys, TEXT_SETTLE_AFTER_MS, TEXT_SETTLE_CRON, TEXT_SETTLE_JOB, TEXT_SETTLE_SCHEDULE, type TextSendPath } from './sms/send/index.js';
 import { recordPhoneReader, textConversationDeps } from './sms/threads/server-deps.js';
+import { appOfRow } from './sms/app-of-row.js';
 import { createSmsWiring } from './sms/wiring.js';
 import { createTextMarketing } from './sms/marketing/index.js';
 import { textConfirmDoorRoutes } from './routes/mail-door/text-confirm.js';
@@ -2029,6 +2030,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     trustProxy: env.ADMINIUM_TRUST_PROXY,
     operator: () => app.trialPolicy.allows('smsProviders'),
     log: app.log,
+    // A text yes counts for the app it was given to: the app a row's table belongs to.
+    appOfRow: appOfRow(meta),
     // Conversations: who an answer is from, the business's clock and language, and the `texts` realtime notice.
     conversations: textConversationDeps({ meta, manager, hub: jobs.hub }),
   });
@@ -2049,6 +2052,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     phoneKeys: textPhoneKeys(meta, env.ADMINIUM_SECRET),
     enqueue: (job) => jobs.enqueue(job),
     viewFor: (connectionId) => publicViews.viewFor(connectionId),
+    // The mail door's do-not-email list: a confirmation mail never goes to an address on it.
+    mailStopped: (address) => consent.stop.has(address),
     logger: app.log,
   });
   textMarketing.registerJobs(jobs.registry);

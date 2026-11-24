@@ -32,7 +32,7 @@ that uses it sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
 | `module` | Optional. The [part](https://docs.adminium.dev/reference/manifest/#parts) of the app the rule belongs to: it starts no run while that part is off. Needs Adminium 0.3.28. |
 | `graph` | `{ "version": 1, "nodes" }`: up to 40 steps with unique ids, the trigger first and only once. A step is a `trigger`, an `action`, a `condition`, a `wait` (up to 30 days), a `stop`, or a `branch` with two branches of up to 20 steps. |
 
-A step's action is one of eight:
+A step's action is one of nine:
 
 | `kind` | Keys | What it does |
 |---|---|---|
@@ -44,6 +44,7 @@ A step's action is one of eight:
 | `add-on.step` | `addOn`, `step`, `inputs` | Runs a [step an add-on gives](https://docs.adminium.dev/reference/manifest/#steps-for-automations): the add-on's key, the step's key, and a text for each input. An add-on's own step is checked here; another add-on's is checked where the rule is installed, and fails by name while that add-on is not there. Needs `minAdminiumVersion` `0.3.22`. |
 | `webhook` | `method`? (`POST`, `PUT`), `bodyKind`? (`json`, `text`, `slack`), `body`? (up to 8,000 characters, may carry `{{record.<column>}}`), `headerName`? | Calls a web address. The address and any header's value are never in a file: the step arrives empty and its rule switched off, for the owner to fill in after the install and turn on. Needs Adminium 0.3.49. |
 | `document.render` | `document: { "table", "kind", "addOn"? }` | Draws one of the app's [documents](https://docs.adminium.dev/reference/manifest/#documents) for the record: the document of `kind` on the rule's own table (and of `addOn`, when two draw that kind). Needs Adminium 0.3.49. |
+| `text` | `templateKey`, `to: { "kind": "field", "column" }`, `vars`?, `notAfter`? | Sends one of the manifest's own [`textTemplates`](https://docs.adminium.dev/reference/manifest/#texttemplates) to the number in a column of the record, as a service text, through the same send path as an outbox text. `notAfter` is a `timestamptz` column of the record: the text is never sent after that moment. `vars` fills placeholders the record does not. Needs Adminium 0.3.76. See ["Send text" in automations](https://docs.adminium.dev/guides/texts/automations/). |
 
 A value is a text, which may carry `{{record.<column>}}`, or `{ "now": true }`. It may also carry
 [the record as it was](https://docs.adminium.dev/reference/manifest/#the-record-as-it-was) and [the name of a person](https://docs.adminium.dev/reference/manifest/#a-persons-name-and-the-records-address),
