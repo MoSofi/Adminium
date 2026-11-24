@@ -1,5 +1,21 @@
 # @adminium/server
 
+## 0.3.75
+
+### Patch Changes
+
+- 943c809: Bundle add-ons 1.0.36.
+- @adminium/adapter-mysql@0.3.75
+  - @adminium/adapter-postgres@0.3.75
+  - @adminium/adapter-sqlite@0.3.75
+  - @adminium/add-on-contracts@0.3.75
+  - @adminium/engine@0.3.75
+  - @adminium/i18n@0.3.75
+  - @adminium/llm@0.3.75
+  - @adminium/manifest@0.3.75
+  - @adminium/meta@0.3.75
+  - @adminium/schema-import@0.3.75
+
 ## 0.3.74
 
 ### Patch Changes
