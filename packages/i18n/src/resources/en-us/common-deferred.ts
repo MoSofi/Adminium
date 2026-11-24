@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog, onboarding, audit, capabilities, palette, account, templates, consent, shownIn, workspaces, appFiles, appCopies, operatorLock, operatorSwitches, board, calendar, scheduler, chat, planning, trial groups: en-US's deferred part of `common`) — do not edit by hand.
+ * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog, onboarding, audit, capabilities, palette, account, templates, consent, shownIn, workspaces, appFiles, appCopies, operatorLock, operatorSwitches, board, calendar, scheduler, chat, planning, trial, setup, prefs, notifications groups: en-US's deferred part of `common`) — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
@@ -1592,6 +1592,113 @@ export default {
       "noDatabase": "the database does not exist",
       "noPermission": "this login may not read it",
       "empty": "it has no tables"
+    }
+  },
+  "setup": {
+    "title": "Set up Adminium",
+    "subtitle": "Create the first administrator. This happens once.",
+    "progress": "Setup progress",
+    "steps": {
+      "account": "Admin account",
+      "consent": "Privacy"
+    },
+    "account": {
+      "name": "Your name",
+      "email": "Email",
+      "emailInvalid": "Enter a valid email address.",
+      "password": "Password",
+      "passwordHelper": "At least {min} characters.",
+      "passwordTooShort": "Use at least {min} characters.",
+      "confirm": "Confirm password",
+      "passwordMismatch": "Passwords do not match.",
+      "continue": "Continue",
+      "strength": "Password strength",
+      "strengthLevels": {
+        "weak": "Weak",
+        "fair": "Fair",
+        "good": "Good",
+        "strong": "Strong"
+      }
+    },
+    "consent": {
+      "telemetry": {
+        "title": "Share anonymous usage data",
+        "description": "Helps us see which database engines to prioritize. Off unless you turn it on."
+      },
+      "updates": {
+        "title": "Check for new releases",
+        "description": "Shows a notice when a new version — including a security fix — is available. This asks GitHub for the latest release, which reveals this instance’s IP address and version to GitHub. Nothing else is sent."
+      },
+      "sentTitle": "Exactly what is sent:",
+      "sent": {
+        "instanceId": "A random instance ID (a UUID generated here; not derived from your name, host, or database)",
+        "version": "The Adminium version this instance runs",
+        "engines": "Which database engine types are connected (e.g. \"postgres\") — types only"
+      },
+      "neverTitle": "Never sent:",
+      "never": {
+        "schema": "Your schema — no table, column, or enum names",
+        "rows": "Your data — not a single row, ever",
+        "connections": "Connection strings, hostnames, or credentials",
+        "people": "User emails, names, or IDs",
+        "llm": "AI prompts or run contents"
+      },
+      "reversible": "Both are off by default and you can change either one later in Settings.",
+      "back": "Back",
+      "finish": "Create admin account"
+    },
+    "error": {
+      "alreadyCompleted": "This instance has already been set up. Sign in with the existing admin account.",
+      "rejected": "The server rejected those details. Check the email and password and try again.",
+      "failed": "Setup failed. Check your connection and try again."
+    }
+  },
+  "prefs": {
+    "theme": {
+      "label": "Theme",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "accent": {
+      "label": "Accent color",
+      "indigo": "Indigo",
+      "blue": "Blue",
+      "teal": "Teal",
+      "violet": "Violet",
+      "rose": "Rose",
+      "red": "Red",
+      "orange": "Orange",
+      "black": "Black"
+    },
+    "density": {
+      "label": "Density",
+      "comfortable": "Comfortable",
+      "compact": "Compact"
+    },
+    "locale": {
+      "label": "Language",
+      "directionNote": "Text direction: right to left (set automatically by the language)",
+      "communityDraft": "This translation is a community draft — it has not been reviewed by a native speaker yet."
+    }
+  },
+  "notifications": {
+    "channel": {
+      "inApp": "In-app",
+      "email": "Email",
+      "push": "Push"
+    },
+    "event": {
+      "reportReady": "Scheduled report ready",
+      "reportFailed": "Scheduled report failed",
+      "backupCompleted": "Backup completed",
+      "ruleNotice": "A notice from a rule",
+      "mention": "Somebody mentioned me",
+      "formsAnswer": "A form has a new answer",
+      "formsLimit": "A form hit its limit",
+      "chatBudget": "A chat’s automatic answers stopped for the day",
+      "chatWaiting": "A website chat is waiting for a person",
+      "chatPaused": "New website chats were paused"
     }
   }
 } as const;

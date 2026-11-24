@@ -288,9 +288,13 @@ export const UI_DEFERRED_GROUPS = ['widgets', 'templates', 'pages'] as const;
  * `scheduler`, `chat`, `planning`), each read by one binding the page fetches
  * with its template and by nothing else. And `trial`: the trial's strips, its
  * Upgrade and its read-only state, drawn by a chunk the shell asks for only on
- * a trial.
+ * a trial. Then `setup` (the first-run wizard's account checks and its
+ * consent card, both on the lazy `/setup` screen) and `prefs` (the theme,
+ * accent, density and language controls of the preferences screen, the
+ * server defaults page and the desktop wizard's account step, each lazy), and
+ * `notifications` (the notification settings screen's events and channels).
  */
-export const COMMON_DEFERRED_GROUPS = ['builder', 'kb', 'about', 'team', 'quietHours', 'security', 'reports', 'changelog', 'onboarding', 'audit', 'capabilities', 'palette', 'account', 'templates', 'consent', 'shownIn', 'workspaces', 'appFiles', 'appCopies', 'operatorLock', 'operatorSwitches', 'board', 'calendar', 'scheduler', 'chat', 'planning', 'trial'] as const;
+export const COMMON_DEFERRED_GROUPS = ['builder', 'kb', 'about', 'team', 'quietHours', 'security', 'reports', 'changelog', 'onboarding', 'audit', 'capabilities', 'palette', 'account', 'templates', 'consent', 'shownIn', 'workspaces', 'appFiles', 'appCopies', 'operatorLock', 'operatorSwitches', 'board', 'calendar', 'scheduler', 'chat', 'planning', 'trial', 'setup', 'prefs', 'notifications'] as const;
 
 /** The namespaces en-US delivers in two parts, and the groups of each that come later. */
 export const DEFERRED_GROUPS = { ui: UI_DEFERRED_GROUPS, common: COMMON_DEFERRED_GROUPS } as const;

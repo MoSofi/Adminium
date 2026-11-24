@@ -38,7 +38,8 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
   'team/TeamPage.tsx': ['team/peopleRefusals.ts'],
   // The account and preferences screens: their group joined to make room for the rail's People and Teams.
   'pages/AccountPage.tsx': [],
-  'account/PreferencesPage.tsx': [],
+  // The preference controls (`prefs`) are drawn by three screens that each wait: this one, the server defaults and the desktop wizard.
+  'account/PreferencesPage.tsx': ['account/prefControls.tsx'],
   // Teams, a page of its own beside the People list: it waits for the same group's words.
   'team/TeamsPage.tsx': [],
   // The Figma card is drawn by the Security page alone, with its words.
@@ -58,6 +59,8 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
   'onboarding/OnboardingEntry.tsx': [],
   // A card of the notification settings that waits for its own words: the page around it is drawn without them.
   'account/QuietHoursCard.tsx': [],
+  // The notification settings (`notifications`): the binding the page fetches with its template waits for its words.
+  'pages/PageSettingsBinding.tsx': [],
   'desktop/updates.tsx': [],
   // The desktop first-run wizard (`onboarding.desktopSetup`): the host waits, and draws its steps and their rules.
   'desktop/setup/desktopSetupHost.tsx': [
@@ -67,7 +70,11 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
     'desktop/setup/steps/DataLocationStep.tsx',
     'desktop/setup/steps/GenerateStep.tsx',
     'desktop/setup/steps/SourceStep.tsx',
+    'account/prefControls.tsx',
+    'setup/accountValidation.ts',
   ],
+  // The first-run wizard (`setup`): its account checks are worded by the group, and its consent card waits on its own.
+  'setup/onboarding/OnboardingPage.tsx': ['setup/accountValidation.ts'],
   // "Connect Supabase" (`onboarding.connectProvider`): the card waits for its words itself, in each of the three connect front doors.
   'connect/ProviderConnect.tsx': [],
   'pages/builders/PageBuilderBinding.tsx': [],
@@ -103,7 +110,7 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
   'shell/workspaces/WorkspaceFollower.tsx': [],
   'shell/workspaces/listWorkspace.tsx': [],
   'studio/hub/ConnectionsHub.tsx': ['studio/hub/WorkspaceDialogs.tsx', 'studio/hub/WorkspacesCard.tsx'],
-  'settings/GlobalDefaultsPage.tsx': [],
+  'settings/GlobalDefaultsPage.tsx': ['account/prefControls.tsx'],
   // An app's own file and its copies (`appFiles`, `appCopies`): the Download dialog, the two lists that open it, and a retired address.
   'apps/DownloadAppDialog.tsx': [],
   'apps/RetiredAddress.tsx': [],
@@ -174,18 +181,21 @@ describe('the modules that read a deferred group of common', () => {
   });
 
   it('a part is drawn by its screen and nothing else', () => {
+    // A part several screens draw is listed under each of them, and may be imported from any of their families.
+    const screensOf = (part: string): string[] => Object.entries(SCREENS).flatMap(([root, parts]) => (parts.includes(part) ? [root] : []));
     for (const [root, parts] of Object.entries(SCREENS)) {
       for (const part of parts) {
         const name = (part.split('/').pop() as string).replace(/\.tsx?$/, '');
         // By the file an import leads to, not by its name alone: `model.js` is the name of more than one module here.
+        // A type-only import draws nothing, so it is no importer.
         const leadsHere = (file: string): boolean =>
-          [...readFileSync(file, 'utf8').matchAll(new RegExp(`from '([^']*/${name})\\.js'`, 'g'))].some(
+          [...readFileSync(file, 'utf8').matchAll(new RegExp(`(?:import|export) (?!type )[^;]*?from '([^']*/${name})\\.js'`, 'g'))].some(
             (found) => relative(SRC, join(file, '..', found[1] as string)).split('\\').join('/') === part.replace(/\.tsx?$/, ''),
           );
         const importers = sourceFiles(SRC)
           .filter(leadsHere)
           .map((file) => relative(SRC, file).split('\\').join('/'));
-        const family = [root, ...parts];
+        const family = screensOf(part).flatMap((screen) => [screen, ...(SCREENS[screen] ?? [])]);
         // Every importer is the screen, one of its parts, or a module of the same folder that the screen draws.
         const strangers = importers.filter(
           (file) => !file.startsWith(`${KIT}parts/`) && !family.includes(file) && !family.some((member) => member.split('/').slice(0, -1).join('/') === file.split('/').slice(0, -1).join('/')),
