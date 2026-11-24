@@ -144,7 +144,8 @@ export default {
     "drawerTitle": "導覽",
     "emptyPartsOff": "目前沒有為你開啟的內容。請聯絡管理員。",
     "teams": "團隊",
-    "otherDatabases": "其他資料庫"
+    "otherDatabases": "其他資料庫",
+    "texts": "簡訊"
   },
   "apps": {
     "frame": {

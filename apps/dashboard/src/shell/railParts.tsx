@@ -17,6 +17,7 @@ import {
   Mail,
   Package,
   Paperclip,
+  MessageSquareText,
   ScrollText,
   ShieldCheck,
   SlidersHorizontal,
@@ -105,6 +106,8 @@ export interface PlatformNavLink {
   imports?: true;
   /** Offered unless the server says this person can export nothing (`canExport`); an older server says nothing. */
   exports?: true;
+  /** Offered to whoever reads customers' texts: the console-wide keys, or one app's by an app role (`textApps`). */
+  texts?: true;
 }
 
 export const PLATFORM_NAV: ReadonlyArray<{ group: NavGroupKey; links: readonly PlatformNavLink[] }> = [
@@ -188,6 +191,8 @@ export const PLATFORM_NAV: ReadonlyArray<{ group: NavGroupKey; links: readonly P
         icon: ScrollText,
         requires: 'audit.read',
       },
+      // Customers' texts: the Texts page, where a desk given one app's conversations reads and answers them.
+      { to: '/studio/texts', labelKey: 'nav.texts', fallback: 'Texts', icon: MessageSquareText, texts: true },
     ],
   },
   {
@@ -572,7 +577,9 @@ export function useRailRows(bootstrap: BootstrapData) {
   const admin = hasStudioAccess(bootstrap.roles);
   const platformLinksFor = (group: NavGroupKey): readonly PlatformNavLink[] =>
     (PLATFORM_NAV.find((entry) => entry.group === group)?.links ?? []).filter((link) =>
-      link.requires !== undefined
+      link.texts === true
+        ? holdsSystemAction(bootstrap, 'texts.read') || holdsSystemAction(bootstrap, 'texts.reply') || (bootstrap.textApps?.length ?? 0) > 0
+        : link.requires !== undefined
         ? holdsSystemAction(bootstrap, link.requires)
         : (admin || link.adminOnly !== true || (link.alsoFor !== undefined && holdsSystemAction(bootstrap, link.alsoFor))) && !(link.imports && bootstrap.canImport === false) && !(link.exports && bootstrap.canExport === false),
     );

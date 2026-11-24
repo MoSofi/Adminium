@@ -299,6 +299,13 @@ export interface BootstrapData {
    */
   canImport?: boolean | undefined;
   /**
+   * The apps whose customers' texts this person reads, or answers too, by an
+   * app role (`texts:<app>:read|reply`); the console-wide keys are
+   * `texts.read` and `texts.reply` in `systemActions`. Discovery only. Absent
+   * from an older server, which is read as none.
+   */
+  textApps?: { app: string; may: 'read' | 'reply' }[] | undefined;
+  /**
    * Whether this person could export from at least one table, or manages
    * everyone's exports: the menu offers "Data exports" unless this is false.
    * A hint only, read as `canImport` is; absent from an older server.

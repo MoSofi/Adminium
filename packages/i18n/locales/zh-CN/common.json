@@ -134,7 +134,8 @@
     "drawerTitle": "导航",
     "emptyPartsOff": "目前没有为你开启的内容。请联系管理员。",
     "teams": "团队",
-    "otherDatabases": "其他数据库"
+    "otherDatabases": "其他数据库",
+    "texts": "短信"
   },
   "apps": {
     "frame": {

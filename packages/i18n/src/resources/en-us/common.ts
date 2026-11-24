@@ -144,7 +144,8 @@ export default {
     "drawerTitle": "Navigation",
     "emptyPartsOff": "Nothing is switched on for you right now. Ask an administrator.",
     "teams": "Teams",
-    "otherDatabases": "Other databases"
+    "otherDatabases": "Other databases",
+    "texts": "Texts"
   },
   "apps": {
     "frame": {

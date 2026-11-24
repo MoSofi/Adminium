@@ -6856,7 +6856,9 @@
       "activity": "Activity",
       "setup": "Setup",
       "stop": "Do-not-text list",
-      "templates": "Templates"
+      "templates": "Templates",
+      "conversations": "Conversations",
+      "marketing": "Marketing"
     },
     "templates": {
       "col": {
@@ -6892,6 +6894,275 @@
       "toHelp": "With + and the country code, or a local number of the country set above.",
       "unknownLine": "We didn’t get an answer from {provider}. Look in its message log before sending another."
     },
-    "title": "Texts"
+    "title": "Texts",
+    "conv": {
+      "noApp": "No app",
+      "lastAutomated": "An automated text",
+      "unreadCount": "{count, plural, one {# unread message} other {# unread messages}}",
+      "stoppedBadge": "Asked to stop",
+      "stopLine": "Replied STOP. No text from this business goes to this number now.",
+      "stopConfirmed": "One plain confirmation went out, with no question and no offer.",
+      "stopNotConfirmed": "No confirmation went out.",
+      "startLine": "Replied START. The provider’s block is lifted, but this is not a yes: they must agree again before any text.",
+      "appText": "Automated text from {app}, template {template}. Its words are not kept.",
+      "helpLine": "Asked for HELP. The provider answered with your contact details.",
+      "by": "Answered by {name}",
+      "held": "Your answer waits for the sending hours. It goes at {time}.",
+      "queued": "Your answer is queued to go now.",
+      "replyLabel": "Your answer",
+      "optOutContact": "A line giving your phone or e-mail for stopping texts is added to the end. Staff record a stop request they get that way.",
+      "optOutReply": "“Reply STOP to opt out.” is added to the end, and counts toward the length.",
+      "answering": "They wrote in the last 7 days, so an answer needs no yes of its own. A STOP still stops it.",
+      "send": "Send answer",
+      "markedRead": "Marked as read.",
+      "back": "All conversations",
+      "openRecord": "Open the record",
+      "markRead": "Mark as read",
+      "readBy": "Read by {name}",
+      "stopState": "Stop list",
+      "stoppedYes": "On the do-not-text list. Nothing goes to this number.",
+      "stoppedNo": "Not on the do-not-text list.",
+      "consentState": "Answering",
+      "answeringYes": "They wrote in the last 7 days: an answer needs no other yes.",
+      "answeringNo": "An answer needs their yes to texts, as any text does.",
+      "replyState": "Their replies",
+      "canReplyYes": "They can reply by text.",
+      "canReplyNo": "This person can’t reply by text.",
+      "messages": "Messages",
+      "older": "Show earlier messages",
+      "noAccess": "You can’t read customers’ texts. Whoever runs this server can give you the right, for every app or for one.",
+      "reach": {
+        "title": "Replies can’t reach this server",
+        "notConnected": "No provider is connected, so no reply can arrive here. Connect one in Setup.",
+        "desktop": "The desktop app can send texts, but replies and STOP can’t reach it, so no new message will arrive here.",
+        "keyUnreadable": "The provider key can’t be read on this server, so no reply can arrive here. Paste it again in Setup.",
+        "noDoor": "This server has no public https address. It can send texts, but replies and STOP can’t reach it, so no new message will arrive here."
+      },
+      "filterApp": "App",
+      "allApps": "Every app",
+      "unreadOnly": "Unread only",
+      "unreadTotal": "{count, plural, =0 {Nothing unread} one {# unread} other {# unread}}",
+      "recorded": "Reading and replying are recorded.",
+      "emptyUnread": "Nothing unread.",
+      "empty": "No conversations yet.",
+      "emptyBody": "When a customer answers a text, the conversation shows here. Only apps whose replies are on keep them.",
+      "listLabel": "Conversations",
+      "noMatch": "No conversation matches.",
+      "pick": "Choose a conversation to read it.",
+      "block": {
+        "notAllowed": "You can read this conversation, but not answer it. Ask the owner for the right to answer.",
+        "stopped": "This person asked for no more texts. You can’t reply here.",
+        "notConnected": "No provider is connected, so nothing can be sent. Connect one in Setup.",
+        "noConsent": "This person has not agreed to texts and has not written in the last 7 days, so an answer can’t go.",
+        "cannotReceive": "This number can’t receive texts.",
+        "other": "An answer can’t go from here now."
+      },
+      "refused": {
+        "notAllowed": "Not sent. You may read this conversation, but not answer it.",
+        "earlierOpen": "Not sent. The same answer is still on its way. Wait for it before sending again.",
+        "other": "Not sent."
+      },
+      "fail": {
+        "forbidden": "You may not answer this conversation.",
+        "gone": "This conversation is no longer there.",
+        "network": "The server could not be reached. Nothing was sent. Try again."
+      }
+    },
+    "replies": {
+      "title": "Replies by app",
+      "on": "Replies kept",
+      "off": "Replies off",
+      "startsOff": "Off when installed: customers of this app may text things as private as symptoms.",
+      "changedBy": "Changed by {name}",
+      "askTitle": "Keep replies to {app}?",
+      "askBody": "This app starts with replies off because its customers may text things as private as symptoms. Once on, whatever they write is kept here for a year and can be read by everyone allowed to read this app’s texts.",
+      "askYes": "Turn replies on",
+      "subtitle": "Whether a customer’s reply to an app’s texts is kept as a conversation.",
+      "notRead": "When an app’s replies are off, the reply is not kept. The sender gets one fixed answer, at most once a month: “This number is not read”, with your phone or e-mail. A STOP still works.",
+      "none": "No app is installed yet.",
+      "noAppOn": "A reply to a text no app sent is kept too.",
+      "noAppOff": "A reply to a text no app sent is not kept, because some app here has its replies off."
+    },
+    "mkt": {
+      "hours": {
+        "days": "Monday to Saturday",
+        "line": "Marketing texts go {from}–{to}, {days}, on each person’s clock. A time outside them moves to the next opening. A country with several time zones gets them only when the hours are open in all of them.",
+        "short": "They go {from}–{to}, {days}, on each person’s clock."
+      },
+      "refusals": {
+        "title": "Marketing texts can’t go from this server yet",
+        "serviceStill": "Service texts still go as before."
+      },
+      "locked": {
+        "title": "Marketing texts are not yet available",
+        "preview": "You can still see who a marketing text would reach. Sending and scheduling open in a later version.",
+        "short": "Not yet available in this version",
+        "body": "Marketing texts are not yet available in this version. Service texts and conversations work as normal."
+      },
+      "yes": {
+        "saved": "Their marketing yes is recorded under your name. Where their country expects it, a confirmation e-mail goes to them now.",
+        "title": "Record a marketing yes",
+        "why": "Only for someone who said yes to marketing texts, in these words, to you. An e-mail or newsletter yes never counts. Nobody is asked to reply YES.",
+        "how": "How they said yes",
+        "paper": "On paper",
+        "wording": "The words they agreed to",
+        "version": "Version of those words",
+        "save": "Record their yes"
+      },
+      "confirm": {
+        "ask": "Ask to confirm by e-mail",
+        "inPerson": "They confirmed in person",
+        "sent": "A confirmation e-mail is on its way. They get marketing texts once they confirm.",
+        "notNeeded": "Their country needs no confirmation.",
+        "already": "They have confirmed already.",
+        "noConsent": "They have no marketing yes to confirm. Record their yes first.",
+        "noRow": "Their row or its mobile number is gone.",
+        "noEmail": "Can’t be confirmed yet: they have no e-mail address. Ask them in person.",
+        "noOrigin": "This server has no public address, so the link in the e-mail couldn’t open. Ask them in person.",
+        "noMail": "No mail server is set up, so no e-mail can go. Ask them in person.",
+        "notSent": "No confirmation e-mail went. Ask them in person."
+      },
+      "who": {
+        "ok": "Who gets it",
+        "title": "Who is left out",
+        "okLine": "{count, plural, one {# person} other {# people}} can get this text.",
+        "confirmWhy": "Each is waiting to confirm by e-mail. Someone with no e-mail can’t be confirmed yet: ask them in person, then record it here.",
+        "previous": "Previous",
+        "next": "Next"
+      },
+      "reach": {
+        "line": "{canSend} of {people} can get it.",
+        "seeWho": "See who"
+      },
+      "unfilled": "Nothing fills {names} in this template. Give it a backup in Templates, or take it out.",
+      "country": {
+        "title": "Marketing texts can’t go to these countries because people there can’t reply STOP.",
+        "service": "Service texts to them still work, with a way to stop through you."
+      },
+      "countries": {
+        "caption": "By country",
+        "country": "Country",
+        "people": "People",
+        "canSend": "Can get it",
+        "when": "When",
+        "noWindow": "No sending hours open in all its time zones within two weeks",
+        "now": "At the time chosen",
+        "opens": "Moves to {time}, when the hours open"
+      },
+      "daily": {
+        "days": "Today has {left} of {limit} texts left, so this goes over {days} days.",
+        "today": "Today has {left} of {limit} texts left.",
+        "used": "Today: {used} of {limit} texts used, service texts included."
+      },
+      "new": {
+        "title": "New marketing text",
+        "onlyAgreed": "Only people who agreed to marketing texts.",
+        "name": "Name",
+        "nameHelp": "For you and your team. Customers never see it.",
+        "template": "Template",
+        "noTemplate": "No text template yet",
+        "table": "People",
+        "noTable": "No people table you can text",
+        "tableHidden": "{app} · {table} (numbers hidden from you)",
+        "view": "Saved view",
+        "everyone": "Everyone in the table",
+        "when": "When",
+        "now": "As soon as the hours allow",
+        "later": "At a time",
+        "at": "Send at",
+        "check": "See who it reaches",
+        "schedule": "Schedule for {count, plural, one {# person} other {# people}}",
+        "send": "Send to {count, plural, one {# person} other {# people}}",
+        "look": "See who a marketing text would reach"
+      },
+      "results": {
+        "people": "People",
+        "sent": "Handed to the provider",
+        "delivered": "Delivered",
+        "failed": "Failed",
+        "unknown": "Unknown",
+        "skipped": "Skipped",
+        "waiting": "Still to go",
+        "optOuts": "Opted out after it",
+        "sentNote": "“Handed to the provider” is not “delivered”: delivered shows only when the provider reports it.",
+        "waitingUntil": "Today’s limit is used. It goes on at {time}.",
+        "skippedBy": "Skipped, by reason",
+        "who": "Each person",
+        "forbidden": "You can read only some of these people, or none of their numbers, so the list is not shown to you.",
+        "open": "Results"
+      },
+      "cancel": {
+        "open": "Cancel this run",
+        "title": "Cancel “{name}”?",
+        "body": "Nothing more is handed to the provider, and texts still waiting for their hours are not sent. Texts already handed over can’t be called back.",
+        "keep": "Keep it",
+        "yes": "Cancel the run",
+        "done": "The run is cancelled."
+      },
+      "title": "Marketing texts",
+      "never": "Never to a found lead or a bought list, never from a sender name, and never where people can’t reply STOP.",
+      "empty": "No marketing text has been sent yet.",
+      "runs": "Marketing texts",
+      "col": {
+        "name": "Name",
+        "status": "Status",
+        "when": "When",
+        "reached": "Handed over · delivered",
+        "of": "of {count}"
+      },
+      "made": {
+        "scheduled": "Scheduled for {time}.",
+        "now": "It is going out now, within the sending hours."
+      },
+      "refusal": {
+        "operatorOff": "Texts are switched off on this server by whoever runs it.",
+        "marketingOff": "Marketing is switched off on this server by whoever runs it.",
+        "notConnected": "No provider is connected, or its key can’t be read. Connect one in Setup.",
+        "noSender": "Your provider account has no number to send from. Add one in Setup.",
+        "fromName": "Marketing can’t go from a sender name because it can’t receive STOP. Add a number for this country in your provider’s account.",
+        "noDoor": "This server can’t receive STOP, so marketing texts are off.",
+        "templateOff": "This template has no language switched on.",
+        "asksYes": "This template asks people to reply YES. A YES reply can lift a stop at the provider. Ask people to agree on a form instead.",
+        "templateRefused": "This template can’t go as a text: it carries a code, a sign-in or survey link, or a QR value.",
+        "other": "Marketing texts can’t go from this server now.",
+        "desktop": "The desktop app can’t receive replies from a provider.",
+        "networkOff": "This server’s network features are switched off, so a STOP reply can’t reach it.",
+        "noDoorDetail": "It has no public https address, so a STOP reply can’t reach it."
+      },
+      "skip": {
+        "noPhone": "Not sent. Their row has no mobile number.",
+        "sample": "Not sent. This is a row of the app’s sample data.",
+        "foundLead": "Not sent. A lead finder found this person. Marketing never goes to found leads.",
+        "sameNumber": "Not sent again. Another row holds the same number, and it gets one text.",
+        "outOfReach": "Not sent. Their row is gone, or out of your reach now.",
+        "phoneChanged": "Not sent. Their row holds another number now.",
+        "runFailed": "Not sent. The run stopped before their turn.",
+        "noLanguage": "Not sent. The template has no language they can be written in.",
+        "needsConfirm": "Not sent. Their country expects them to confirm first, by the e-mail link or in person. Nobody is ever asked to reply YES.",
+        "other": "Not sent."
+      },
+      "state": {
+        "scheduled": "Scheduled",
+        "running": "Sending",
+        "waiting": "Waiting for tomorrow’s limit",
+        "done": "Handed over",
+        "cancelled": "Cancelled",
+        "failed": "Stopped"
+      },
+      "audience": {
+        "notPeople": "This table is not a people table an app declares with a mobile number.",
+        "cannotSend": "You may no longer send marketing.",
+        "cannotRead": "You can’t read this table.",
+        "phones": "Your role doesn’t show this table’s mobile numbers in full, so you can’t text its people.",
+        "viewGone": "That saved view is gone, or isn’t yours to use.",
+        "viewSearch": "A saved view with a search can’t choose who gets a text. Use one with filters only.",
+        "viewHidden": "That saved view filters on a column your role can’t read.",
+        "other": "This table can’t be texted."
+      },
+      "inPerson": {
+        "confirmed": "Recorded under your name: they confirmed.",
+        "superseded": "A newer answer replaced that yes. Record their yes again first."
+      }
+    }
   }
 }

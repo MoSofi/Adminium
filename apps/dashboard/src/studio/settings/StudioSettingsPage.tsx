@@ -1961,8 +1961,8 @@ function StudioSettingsHub({
           />
         ) : null}
 
-        {/* Texts (/studio/texts): every route behind it checks `sms.manage`, or a desk's `privacy.people`. */}
-        {(holds('sms.manage') || holds('privacy.people')) && onOpenTexts !== undefined ? (
+        {/* Texts (/studio/texts): every route behind it checks `sms.manage`, a desk's `privacy.people`, or the right to read customers' texts. */}
+        {(holds('sms.manage') || holds('privacy.people') || holds('texts.read') || holds('texts.reply')) && onOpenTexts !== undefined ? (
           <LinkRow
             icon={<MessageSquareText />}
             heading={t('studio:settingsHub.textsCard.heading', 'Texts')}
