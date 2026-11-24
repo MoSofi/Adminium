@@ -9,11 +9,14 @@
  *    address is the person's (any case, spaces around it or not).
  *  - The erasure (`POST /privacy/erase`) sends the typed text as `confirm`;
  *    the server checks it again and answers 409 without repeating it.
+ *  - A person known only by phone goes the same way, by their number
+ *    (`POST /privacy/phone/erase/preview`, `POST /privacy/phone/erase`): the
+ *    same lists, the shared-line warning, and the number typed again.
  *  - Focus starts in the confirm field, stays in the dialog, and Escape or
  *    Cancel closes it (not while the erasure runs).
  *
- * Nothing here logs or stores the address: it is the one the person typed
- * to find them, shown back under the title and nowhere else.
+ * Nothing here logs or stores the address or number: it is the one the
+ * person typed to find them, shown back under the title and nowhere else.
  */
 import { useQuery } from '@tanstack/react-query';
 import { Trash2 } from 'lucide-react';
@@ -22,8 +25,8 @@ import { Alert, Button, Input, Modal, ModalBody, ModalFooter, ModalHeader, Skele
 
 import { ApiError } from '../../app/api.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
-import { erasePerson, previewErasure, type EraseResult } from './privacyApi.js';
-import { confirmMatches, goesWords, isStaffAddress, lockedWords, staffAddressWords, staysWords } from './privacyWords.js';
+import { erasePerson, erasePhonePerson, previewErasure, previewPhoneErasure, type EraseResult } from './privacyApi.js';
+import { confirmMatches, goesWords, isStaffAddress, lockedWords, phoneConfirmMatches, staffAddressWords, staysWords } from './privacyWords.js';
 
 /** Digits in mono, the words around them as they are (the comp's counts). */
 function Numbered({ text }: { text: string }): ReactNode {
@@ -59,27 +62,49 @@ function JoinedList({ items }: { items: string[] }): ReactNode {
 
 const MICRO = 'text-micro uppercase';
 
-export function EraseDialog({ address, onClose, onErased }: { address: string; onClose: () => void; onErased: (result: EraseResult) => Promise<void> }): ReactNode {
+/** Who is erased: the person found by their address, or someone known only by a phone number. */
+export type EraseSubject = { kind: 'address'; address: string } | { kind: 'phone'; phone: string };
+
+/** Why the preview could not be had, in words of its own. */
+function previewFailureWords(failure: unknown, byPhone: boolean): string {
+  if (failure instanceof ApiError && failure.status === 503) return lockedWords();
+  if (isStaffAddress(failure)) return staffAddressWords();
+  if (byPhone && failure instanceof ApiError && failure.status === 422) return t('studio:privacy.phone.notNumber', 'That isn’t a phone number that can be read. Write it with its country code.');
+  if (byPhone && failure instanceof ApiError && failure.status === 404) return t('studio:privacy.phone.eraseUnavailable', 'Erasing by phone number isn’t available on this server.');
+  return t('studio:privacy.erase.previewFailed', 'What an erasure would do could not be worked out. Close this and try again.');
+}
+
+export function EraseDialog({ subject, onClose, onErased }: { subject: EraseSubject; onClose: () => void; onErased: (result: EraseResult) => Promise<void> }): ReactNode {
   const confirmId = useId();
   const previewKey = useId();
   const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const byPhone = subject.kind === 'phone';
+  const shown = subject.kind === 'phone' ? subject.phone : subject.address;
   // Not cached: each opening asks again (an erasure in another tab changes the answer).
-  const preview = useQuery({ queryKey: ['privacy', 'erase-preview', previewKey], queryFn: () => previewErasure(address), gcTime: 0, retry: false });
-  const ready = preview.data !== undefined && confirmMatches(typed, preview.data.address);
+  const preview = useQuery({
+    queryKey: ['privacy', 'erase-preview', previewKey],
+    queryFn: () => (subject.kind === 'phone' ? previewPhoneErasure(subject.phone) : previewErasure(subject.address)),
+    gcTime: 0,
+    retry: false,
+  });
+  // By phone, the preview gives back only the mask: the number is matched against the one typed to open this.
+  const ready = preview.data !== undefined && (subject.kind === 'phone' ? phoneConfirmMatches(typed, subject.phone) : confirmMatches(typed, preview.data.address));
 
   async function erase(): Promise<void> {
     if (!ready) return;
     setBusy(true);
     setError(null);
     try {
-      await onErased(await erasePerson(address, typed));
+      await onErased(subject.kind === 'phone' ? await erasePhonePerson(subject.phone, typed) : await erasePerson(subject.address, typed));
     } catch (failure) {
       setBusy(false);
       setError(
         failure instanceof ApiError && failure.status === 409
-          ? t('studio:privacy.erase.mismatch', 'That isn’t the same address. Type it again.')
+          ? byPhone
+            ? t('studio:privacy.erase.phoneMismatch', 'That isn’t the same number. Type it again.')
+            : t('studio:privacy.erase.mismatch', 'That isn’t the same address. Type it again.')
           : failure instanceof ApiError && failure.status === 503
             ? lockedWords()
             : t('studio:privacy.erase.failed', 'The erasure did not finish. Erase again to finish it: what was already done stays done.'),
@@ -106,7 +131,7 @@ export function EraseDialog({ address, onClose, onErased }: { address: string; o
         title={t('studio:privacy.erase.title', 'Erase everything about this person?')}
         subtitle={
           <span dir="ltr" className="font-mono text-[12px] text-fg-muted [overflow-wrap:anywhere]">
-            {address}
+            {shown}
           </span>
         }
         closeLabel={t('studio:privacy.erase.cancel', 'Cancel')}
@@ -114,10 +139,7 @@ export function EraseDialog({ address, onClose, onErased }: { address: string; o
       />
       <ModalBody className="flex flex-col gap-3.5 py-5">
         {preview.isError ? (
-          <Alert
-            tone="danger"
-            title={preview.error instanceof ApiError && preview.error.status === 503 ? lockedWords() : isStaffAddress(preview.error) ? staffAddressWords() : t('studio:privacy.erase.previewFailed', 'What an erasure would do could not be worked out. Close this and try again.')}
-          />
+          <Alert tone="danger" title={previewFailureWords(preview.error, byPhone)} data-testid="erase-preview-failed" />
         ) : preview.data === undefined ? (
           <div className="flex flex-col gap-2" aria-busy="true">
             <span className="sr-only">{t('studio:privacy.erase.loading', 'Working out what goes…')}</span>
@@ -178,11 +200,13 @@ export function EraseDialog({ address, onClose, onErased }: { address: string; o
         )}
         <div className="flex flex-col gap-1.5">
           <label htmlFor={confirmId} className="text-body-sm font-bold text-fg">
-            {t('studio:privacy.erase.confirm', 'Type the address to confirm')}
+            {byPhone ? t('studio:privacy.erase.confirmPhone', 'Type the number to confirm') : t('studio:privacy.erase.confirm', 'Type the address to confirm')}
           </label>
           <Input
             id={confirmId}
             autoFocus
+            type={byPhone ? 'tel' : 'text'}
+            inputMode={byPhone ? 'tel' : undefined}
             dir="ltr"
             mono
             autoComplete="off"

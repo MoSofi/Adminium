@@ -4821,7 +4821,9 @@
       "confirm": "Pro potvrzení zadejte adresu",
       "eraseForGood": "Vymazat natrvalo",
       "sharedTitle": "Jedno z jejich čísel je i v řádku někoho jiného",
-      "sharedBody": "{numbers}: sdílená nebo předaná linka. Smažou se jen jejich vlastní SMS záznamy. SMS a konverzace čísla s druhou osobou zůstanou."
+      "sharedBody": "{numbers}: sdílená nebo předaná linka. Smažou se jen jejich vlastní SMS záznamy. SMS a konverzace čísla s druhou osobou zůstanou.",
+      "confirmPhone": "Pro potvrzení zadejte číslo",
+      "phoneMismatch": "To není stejné číslo. Zadejte ho znovu."
     },
     "title": "Soukromí a veřejné stránky",
     "tab": {
@@ -5013,9 +5015,12 @@
     },
     "phone": {
       "q": "Telefonní číslo",
-      "sub": "Pro někoho, koho znáte jen podle telefonu: vše uložené k jeho číslu, jeho SMS a souhlas se SMS v jednom souboru .zip. Zadejte číslo s předvolbou země.",
+      "sub": "Pro někoho, koho znáte jen podle telefonu: stáhněte nebo vymažte vše uložené k jeho číslu, jeho SMS a souhlas se SMS. Zadejte číslo s předvolbou země.",
       "notNumber": "Toto není čitelné telefonní číslo. Zadejte ho s předvolbou země.",
-      "unavailable": "Stahování podle telefonního čísla není na tomto serveru k dispozici."
+      "unavailable": "Stahování podle telefonního čísla není na tomto serveru k dispozici.",
+      "eraseUnavailable": "Mazání podle telefonního čísla není na tomto serveru k dispozici.",
+      "downloadLabel": "Stáhnout vše uložené k tomuto číslu",
+      "eraseLabel": "Vymazat… vše uložené k tomuto číslu"
     }
   },
   "marketingMail": {
@@ -6723,7 +6728,7 @@
       "needsConfirm": "Neodesláno. V této zemi musí dotyčný nejdřív potvrdit souhlas.",
       "noCn": "Neodesláno. Adminium neposílá SMS do pevninské Číny (+86).",
       "noConsent": "Neodesláno. Tato osoba nesouhlasila se zasíláním SMS.",
-      "noDoor": "Neodesláno. Tento server nemůže přijímat STOP, proto jsou marketingové SMS vypnuté.",
+      "noDoor": "Neodesláno. Odpovědi se na tento server zatím nedostanou, proto nelze přijmout STOP a marketingové SMS jsou vypnuté.",
       "noLongerNeeded": "Neodesláno. To, čeho se týkala, bylo během čekání zrušeno.",
       "noOptOut": "Neodesláno. Pro tohoto odesílatele nešlo uvést žádný způsob odhlášení. Přidejte telefon nebo e-mail firmy.",
       "notConnected": "Neodesláno. Žádný funkční účet u poskytovatele ani odesílatel. Zkontrolujte Nastavení.",

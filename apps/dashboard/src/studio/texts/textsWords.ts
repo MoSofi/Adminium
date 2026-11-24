@@ -147,8 +147,9 @@ export function reasonWords(reason: string | null): string | null {
       return t('studio:texts.reason.marketingCountry', 'Not sent. Marketing texts can’t go to this country because people there can’t reply STOP.');
     case 'marketing-from-name':
       return t('studio:texts.reason.marketingName', 'Not sent. Marketing can’t go from a sender name because it can’t receive STOP.');
+    // Said so it holds both when the server has no public address and when no reply has been heard yet.
     case 'marketing-without-replies':
-      return t('studio:texts.reason.noDoor', 'Not sent. This server can’t receive STOP, so marketing texts are off.');
+      return t('studio:texts.reason.noDoor', 'Not sent. Replies can’t reach this server yet, so STOP can’t be received and marketing texts are off.');
     case 'sender-not-registered':
       return t('studio:texts.reason.waitingRegistration', 'Not sent. Your registration for this country is still waiting.');
     case 'past-its-moment':

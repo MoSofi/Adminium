@@ -119,6 +119,19 @@ const FOUND: PersonFound = {
   ],
 };
 
+/** A walk-in known only by their mobile, whose line is also on another guest's row. The server answers with the mask. */
+const PHONE_PREVIEW: ErasePreview = {
+  address: '+44 ••• 123',
+  found: true,
+  sharedNumbers: ['+44 ••• 123'],
+  goes: [
+    { kind: 'people', count: 1, connectionId: 'con_1', table: 'guests', app: 'hotel', label: 'Guests' },
+    { kind: 'consent', count: 2 },
+  ],
+  stays: [{ kind: 'exports', reason: 'kept-a-while', count: null, keptDays: 30, forever: false }],
+  left: [],
+};
+
 const PREVIEW: ErasePreview = {
   address: MARTA,
   found: true,
@@ -220,6 +233,11 @@ function stub(): Call[] {
       }
       if (url === '/api/v1/privacy/erase/preview') return previewHangs ? new Promise(() => undefined) : ok({ data: PREVIEW });
       if (url === '/api/v1/privacy/erase') return ok(eraseReply.body, eraseReply.status);
+      if (url === '/api/v1/privacy/phone/erase/preview') {
+        if (!(body as { phone: string }).phone.startsWith('+')) return ok({ error: { code: 'VALIDATION_FAILED', message: 'That is not a phone number that can be read.', details: { field: 'phone' } } }, 422);
+        return ok({ data: PHONE_PREVIEW });
+      }
+      if (url === '/api/v1/privacy/phone/erase') return ok(eraseReply.body, eraseReply.status);
       return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: `no route: ${method} ${url}` } }));
     }),
   );
@@ -504,6 +522,70 @@ describe('a person’s data', () => {
     expect((await screen.findByTestId('privacy-phone-error')).textContent).toBe('That isn’t a phone number that can be read. Write it with its country code.');
     expect(screen.getByLabelText('Phone number').getAttribute('aria-invalid')).toBe('true');
     expect(screen.queryByTestId('privacy-download-row')).toBeNull();
+  });
+
+  it('erases a person known only by phone: the server’s lists, the shared-line warning, then the number typed again', async () => {
+    roles = ['shop-owner'];
+    systemActions = ['privacy.people'];
+    const { calls, router } = await renderAt('/studio/privacy?tab=person');
+    const field = await screen.findByLabelText('Phone number');
+    expect((screen.getByTestId('privacy-phone-erase') as HTMLButtonElement).disabled).toBe(true);
+    await userEvent.type(field, '+44 7700 900123');
+    await userEvent.click(screen.getByTestId('privacy-phone-erase'));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByRole('heading', { name: 'Erase everything about this person?' })).toBeDefined();
+    expect(within(dialog).getByText('+44 7700 900123')).toBeDefined();
+    expect((await within(dialog).findByTestId('erase-goes')).textContent).toBe('What goes1 row in Guests, 2 consent entries');
+    expect(within(dialog).getByTestId('erase-stays').textContent).toContain('Data exports staff made of a table may hold them');
+    const shared = within(dialog).getByTestId('erase-shared-numbers');
+    expect(shared.textContent).toContain('A number of theirs is also on someone else’s row');
+    expect(shared.textContent).toContain('+44 ••• 123: a shared or passed-on line. Only their own text records go.');
+    const confirm = within(dialog).getByLabelText('Type the number to confirm');
+    expect(document.activeElement).toBe(confirm);
+    const eraseButton = within(dialog).getByTestId('erase-for-good') as HTMLButtonElement;
+    await userEvent.type(confirm, '+44 7700 90012');
+    expect(eraseButton.disabled).toBe(true);
+    // The same digits, written another way, confirm it: the server compares them as numbers again.
+    await userEvent.clear(confirm);
+    await userEvent.type(confirm, '+447700900123');
+    expect(eraseButton.disabled).toBe(false);
+    await userEvent.click(eraseButton);
+    expect(await screen.findByText('Erased. Saved in the audit log.')).toBeDefined();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect((screen.getByLabelText('Phone number') as HTMLInputElement).value).toBe('');
+    expect(calls.find((call) => call.url === '/api/v1/privacy/phone/erase/preview')!.body).toEqual({ phone: '+44 7700 900123' });
+    expect(calls.find((call) => call.url === '/api/v1/privacy/phone/erase')!.body).toEqual({ phone: '+44 7700 900123', confirm: '+447700900123' });
+    // Nothing by address was asked, and the number went in bodies only.
+    expect(calls.some((call) => call.url === '/api/v1/privacy/erase' || call.url === '/api/v1/privacy/erase/preview')).toBe(false);
+    expect(calls.filter((call) => call.url.includes('7700'))).toHaveLength(0);
+    expect(router.state.location.href).not.toContain('7700');
+  });
+
+  it('says plainly when the number to erase can’t be read, and never offers "Erase for good"', async () => {
+    asSuperAdmin();
+    const { calls } = await renderAt('/studio/privacy?tab=person');
+    await userEvent.type(await screen.findByLabelText('Phone number'), '07700 900123');
+    await userEvent.click(screen.getByTestId('privacy-phone-erase'));
+    const dialog = await screen.findByRole('dialog');
+    expect((await within(dialog).findByTestId('erase-preview-failed')).textContent).toBe('That isn’t a phone number that can be read. Write it with its country code.');
+    await userEvent.type(within(dialog).getByLabelText('Type the number to confirm'), '07700 900123');
+    expect((within(dialog).getByTestId('erase-for-good') as HTMLButtonElement).disabled).toBe(true);
+    expect(calls.some((call) => call.url === '/api/v1/privacy/phone/erase')).toBe(false);
+  });
+
+  it('a refused number confirm says so without repeating the number, and nothing is shown as erased', async () => {
+    eraseReply = { status: 409, body: { error: { code: 'CONFLICT', message: 'Type the number again to confirm the erasure.', details: { reason: 'confirm-mismatch' } } } };
+    asSuperAdmin();
+    await renderAt('/studio/privacy?tab=person');
+    await userEvent.type(await screen.findByLabelText('Phone number'), '+44 7700 900123');
+    await userEvent.click(screen.getByTestId('privacy-phone-erase'));
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByTestId('erase-goes');
+    await userEvent.type(within(dialog).getByLabelText('Type the number to confirm'), '+44 7700 900123');
+    await userEvent.click(within(dialog).getByTestId('erase-for-good'));
+    const refusal = await within(dialog).findByText('That isn’t the same number. Type it again.');
+    expect(refusal.textContent).not.toContain('7700');
+    expect(screen.queryByText('Erased. Saved in the audit log.')).toBeNull();
   });
 
   it('the erase dialog shows the server’s lists and opens "Erase for good" only to the typed address', async () => {

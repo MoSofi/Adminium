@@ -4821,7 +4821,9 @@
       "confirm": "Type the address to confirm",
       "eraseForGood": "Erase for good",
       "sharedTitle": "A number of theirs is also on someone else’s row",
-      "sharedBody": "{numbers}: a shared or passed-on line. Only their own text records go. The texts and conversations of the number with the other person stay."
+      "sharedBody": "{numbers}: a shared or passed-on line. Only their own text records go. The texts and conversations of the number with the other person stay.",
+      "confirmPhone": "Type the number to confirm",
+      "phoneMismatch": "That isn’t the same number. Type it again."
     },
     "title": "Privacy & public pages",
     "tab": {
@@ -5013,9 +5015,12 @@
     },
     "phone": {
       "q": "Phone number",
-      "sub": "For someone known only by phone: everything kept with their number, its texts and their text consent, as one .zip. Write it with its country code.",
+      "sub": "For someone known only by phone: download or erase everything kept with their number, its texts and their text consent. Write it with its country code.",
       "notNumber": "That isn’t a phone number that can be read. Write it with its country code.",
-      "unavailable": "Downloads by phone number aren’t available on this server."
+      "unavailable": "Downloads by phone number aren’t available on this server.",
+      "eraseUnavailable": "Erasing by phone number isn’t available on this server.",
+      "downloadLabel": "Download everything kept with this number",
+      "eraseLabel": "Erase… everything kept with this number"
     }
   },
   "marketingMail": {
@@ -6723,7 +6728,7 @@
       "needsConfirm": "Not sent. This country needs the person to confirm first.",
       "noCn": "Not sent. Adminium does not send texts to mainland China (+86).",
       "noConsent": "Not sent. This person has not agreed to texts.",
-      "noDoor": "Not sent. This server can’t receive STOP, so marketing texts are off.",
+      "noDoor": "Not sent. Replies can’t reach this server yet, so STOP can’t be received and marketing texts are off.",
       "noLongerNeeded": "Not sent. What it was about was called off while it waited.",
       "noOptOut": "Not sent. No way to opt out could be given for this sender. Add the business’s phone or e-mail.",
       "notConnected": "Not sent. No working provider account or sender. Check Setup.",

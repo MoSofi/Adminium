@@ -4831,7 +4831,9 @@ export default {
       "confirm": "Saisissez l’adresse pour confirmer",
       "eraseForGood": "Effacer définitivement",
       "sharedTitle": "Un de ses numéros figure aussi sur la ligne de quelqu’un d’autre",
-      "sharedBody": "{numbers} : une ligne partagée ou transmise. Seules ses propres données SMS sont supprimées. Les SMS et conversations du numéro avec l’autre personne restent."
+      "sharedBody": "{numbers} : une ligne partagée ou transmise. Seules ses propres données SMS sont supprimées. Les SMS et conversations du numéro avec l’autre personne restent.",
+      "confirmPhone": "Saisissez le numéro pour confirmer",
+      "phoneMismatch": "Ce n’est pas le même numéro. Saisissez-le à nouveau."
     },
     "title": "Confidentialité et pages publiques",
     "tab": {
@@ -5023,9 +5025,12 @@ export default {
     },
     "phone": {
       "q": "Numéro de téléphone",
-      "sub": "Pour une personne connue seulement par son téléphone : tout ce qui est conservé avec son numéro, ses SMS et son consentement aux SMS, en un seul .zip. Saisissez-le avec l’indicatif du pays.",
+      "sub": "Pour une personne connue seulement par son téléphone : téléchargez ou effacez tout ce qui est conservé avec son numéro, ses SMS et son consentement aux SMS. Saisissez-le avec l’indicatif du pays.",
       "notNumber": "Ce n’est pas un numéro de téléphone lisible. Saisissez-le avec l’indicatif du pays.",
-      "unavailable": "Les téléchargements par numéro de téléphone ne sont pas disponibles sur ce serveur."
+      "unavailable": "Les téléchargements par numéro de téléphone ne sont pas disponibles sur ce serveur.",
+      "eraseUnavailable": "L’effacement par numéro de téléphone n’est pas disponible sur ce serveur.",
+      "downloadLabel": "Tout télécharger ce qui est conservé avec ce numéro",
+      "eraseLabel": "Effacer… tout ce qui est conservé avec ce numéro"
     }
   },
   "marketingMail": {
@@ -6733,7 +6738,7 @@ export default {
       "needsConfirm": "Non envoyé. Ce pays exige d’abord la confirmation de la personne.",
       "noCn": "Non envoyé. Adminium n’envoie pas de SMS vers la Chine continentale (+86).",
       "noConsent": "Non envoyé. Cette personne n’a pas accepté de recevoir des SMS.",
-      "noDoor": "Non envoyé. Ce serveur ne peut pas recevoir STOP : les SMS marketing sont donc désactivés.",
+      "noDoor": "Non envoyé. Les réponses n’atteignent pas encore ce serveur : STOP ne peut donc pas être reçu et les SMS marketing sont désactivés.",
       "noLongerNeeded": "Non envoyé. Ce qu’il concernait a été annulé pendant son attente.",
       "noOptOut": "Non envoyé. Aucun moyen de se désinscrire n’a pu être indiqué pour cet expéditeur. Ajoutez le téléphone ou l’e-mail de l’entreprise.",
       "notConnected": "Non envoyé. Aucun compte fournisseur ni expéditeur qui fonctionne. Vérifiez la Configuration.",

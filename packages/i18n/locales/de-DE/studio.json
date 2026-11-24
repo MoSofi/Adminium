@@ -4821,7 +4821,9 @@
       "confirm": "Geben Sie zur Bestätigung die Adresse ein",
       "eraseForGood": "Endgültig löschen",
       "sharedTitle": "Eine ihrer Nummern steht auch bei jemand anderem",
-      "sharedBody": "{numbers}: eine geteilte oder weitergegebene Nummer. Nur ihre eigenen SMS-Daten werden gelöscht. Die SMS und Unterhaltungen der Nummer mit der anderen Person bleiben."
+      "sharedBody": "{numbers}: eine geteilte oder weitergegebene Nummer. Nur ihre eigenen SMS-Daten werden gelöscht. Die SMS und Unterhaltungen der Nummer mit der anderen Person bleiben.",
+      "confirmPhone": "Geben Sie zur Bestätigung die Nummer ein",
+      "phoneMismatch": "Das ist nicht dieselbe Nummer. Geben Sie sie erneut ein."
     },
     "title": "Datenschutz & öffentliche Seiten",
     "tab": {
@@ -5013,9 +5015,12 @@
     },
     "phone": {
       "q": "Telefonnummer",
-      "sub": "Für jemanden, den Sie nur über die Telefonnummer kennen: alles, was zu der Nummer gespeichert ist, ihre SMS und die SMS-Einwilligung, als eine .zip-Datei. Geben Sie sie mit Ländervorwahl ein.",
+      "sub": "Für jemanden, den Sie nur über die Telefonnummer kennen: alles herunterladen oder löschen, was zu der Nummer gespeichert ist, ihre SMS und die SMS-Einwilligung. Geben Sie sie mit Ländervorwahl ein.",
       "notNumber": "Das ist keine lesbare Telefonnummer. Geben Sie sie mit Ländervorwahl ein.",
-      "unavailable": "Downloads nach Telefonnummer sind auf diesem Server nicht verfügbar."
+      "unavailable": "Downloads nach Telefonnummer sind auf diesem Server nicht verfügbar.",
+      "eraseUnavailable": "Löschen nach Telefonnummer ist auf diesem Server nicht verfügbar.",
+      "downloadLabel": "Alles herunterladen, was zu dieser Nummer gespeichert ist",
+      "eraseLabel": "Löschen… alles, was zu dieser Nummer gespeichert ist"
     }
   },
   "marketingMail": {
@@ -6723,7 +6728,7 @@
       "needsConfirm": "Nicht gesendet. In diesem Land muss die Person zuerst bestätigen.",
       "noCn": "Nicht gesendet. Adminium sendet keine SMS nach Festlandchina (+86).",
       "noConsent": "Nicht gesendet. Diese Person hat SMS nicht zugestimmt.",
-      "noDoor": "Nicht gesendet. Dieser Server kann kein STOP empfangen, daher sind Marketing-SMS aus.",
+      "noDoor": "Nicht gesendet. Antworten erreichen diesen Server noch nicht, daher kann kein STOP empfangen werden und Marketing-SMS sind aus.",
       "noLongerNeeded": "Nicht gesendet. Worum es ging, wurde abgesagt, während sie wartete.",
       "noOptOut": "Nicht gesendet. Für diesen Absender ließ sich kein Weg zum Abbestellen angeben. Fügen Sie Telefon oder E-Mail des Unternehmens hinzu.",
       "notConnected": "Nicht gesendet. Kein funktionierendes Anbieterkonto oder kein Absender. Prüfen Sie die Einrichtung.",

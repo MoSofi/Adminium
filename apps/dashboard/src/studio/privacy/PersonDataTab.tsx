@@ -13,7 +13,8 @@
  *    below with their expiry, each fetched by its id alone.
  *  - A person known only by phone gets the same .zip from their number
  *    (`POST /privacy/phone/exports`): the rows that hold it, its texts, its
- *    text consent and its do-not-text entry.
+ *    text consent and its do-not-text entry. "Erase…" beside it opens the
+ *    same erase dialog by that number.
  *  - "Erase…" opens the erase dialog (`EraseDialog.tsx`); once it is done,
  *    the "Erased" line with the way to the audit log.
  *
@@ -63,7 +64,7 @@ import { ApiError } from '../../app/api.js';
 import { bootstrapQuery, holdsSystemAction } from '../../app/bootstrap.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
-import { EraseDialog } from './EraseDialog.js';
+import { EraseDialog, type EraseSubject } from './EraseDialog.js';
 import { isStaffAddress, lockedWords, staffAddressWords } from './privacyWords.js';
 import { PRIVACY_EXPORTS_QUERY_KEY, exportDownloadHref, findPerson, privacyExportsQuery, requestExport, requestPhoneExport, type FoundSource, type PersonFound, type PrivacyExport, type SourceKind } from './privacyApi.js';
 
@@ -211,7 +212,8 @@ export function PersonDataTab(): ReactNode {
   const [busy, setBusy] = useState(false);
   const [found, setFound] = useState<PersonFound | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [erasing, setErasing] = useState(false);
+  const [erasing, setErasing] = useState<EraseSubject | null>(null);
+  const [phone, setPhone] = useState('');
   const [done, setDone] = useState<{ filesFailed: number } | null>(null);
   const [asking, setAsking] = useState(false);
   const doneRef = useRef<HTMLElement>(null);
@@ -304,7 +306,7 @@ export function PersonDataTab(): ReactNode {
       )}
 
       {found === null || done !== null ? null : found.found ? (
-        <ResultCard found={found} asking={asking} onDownload={() => void download(found.address)} onErase={() => setErasing(true)} />
+        <ResultCard found={found} asking={asking} onDownload={() => void download(found.address)} onErase={() => setErasing({ kind: 'address', address: found.address })} />
       ) : (
         <section role="status" className="flex flex-col items-center gap-2.5 rounded-lg border border-border bg-surface px-[var(--card-pad)] py-10 text-center shadow-card" data-testid="privacy-none">
           <div className="flex size-14 items-center justify-center rounded-lg bg-surface-3 text-fg-muted">
@@ -315,16 +317,17 @@ export function PersonDataTab(): ReactNode {
         </section>
       )}
 
-      <PhoneDownload />
+      <PhoneCard phone={phone} onPhone={setPhone} onErase={() => setErasing({ kind: 'phone', phone: phone.trim() })} />
 
       <Downloads />
 
-      {erasing && found !== null ? (
+      {erasing !== null ? (
         <EraseDialog
-          address={found.address}
-          onClose={() => setErasing(false)}
+          subject={erasing}
+          onClose={() => setErasing(null)}
           onErased={async (result) => {
-            setErasing(false);
+            if (erasing.kind === 'phone') setPhone('');
+            setErasing(null);
             setFound(null);
             setDone({ filesFailed: result.filesFailed });
             // Their downloads went with them.
@@ -345,12 +348,16 @@ function phoneFailureWords(failure: unknown): string {
   return t('studio:privacy.person.downloadFailed', 'The download could not be asked for. Try again.');
 }
 
-/** "Download everything" for someone known only by phone, beside the search by address: same .zip, same Downloads list. */
-function PhoneDownload(): ReactNode {
+/**
+ * Someone known only by phone, beside the search by address: "Download
+ * everything" (same .zip, same Downloads list) and "Erase…" (the same erase
+ * dialog, by the number). The number is held in the tab's state alone.
+ */
+function PhoneCard({ phone, onPhone, onErase }: { phone: string; onPhone: (next: string) => void; onErase: () => void }): ReactNode {
   const toasts = useAppToasts();
   const queryClient = useQueryClient();
   const ids = useId();
-  const [phone, setPhone] = useState('');
+  const setPhone = onPhone;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -384,7 +391,7 @@ function PhoneDownload(): ReactNode {
           {t('studio:privacy.phone.q', 'Phone number')}
         </label>
         <p id={`${ids}-sub`} className="text-caption text-fg-subtle">
-          {t('studio:privacy.phone.sub', 'For someone known only by phone: everything kept with their number, its texts and their text consent, as one .zip. Write it with its country code.')}
+          {t('studio:privacy.phone.sub', 'For someone known only by phone: download or erase everything kept with their number, its texts and their text consent. Write it with its country code.')}
         </p>
         <div className="flex flex-wrap gap-2">
           <Input
@@ -405,8 +412,28 @@ function PhoneDownload(): ReactNode {
             className="min-w-[200px] flex-1 bg-surface-2 text-[12.5px] max-sm:min-h-11"
             data-testid="privacy-phone-q"
           />
-          <Button type="submit" variant="secondary" iconLeft={<Download />} loading={busy} disabled={phone.trim() === ''} className="font-bold max-sm:min-h-11" data-testid="privacy-phone-download">
+          <Button
+            type="submit"
+            variant="secondary"
+            iconLeft={<Download />}
+            loading={busy}
+            disabled={phone.trim() === ''}
+            aria-label={t('studio:privacy.phone.downloadLabel', 'Download everything kept with this number')}
+            className="font-bold max-sm:min-h-11"
+            data-testid="privacy-phone-download"
+          >
             {t('studio:privacy.person.download', 'Download everything')}
+          </Button>
+          <Button
+            variant="outline"
+            iconLeft={<Trash2 />}
+            disabled={phone.trim() === ''}
+            onClick={onErase}
+            aria-label={t('studio:privacy.phone.eraseLabel', 'Erase… everything kept with this number')}
+            className="border-danger font-bold text-danger hover:bg-danger-soft max-sm:min-h-11"
+            data-testid="privacy-phone-erase"
+          >
+            {t('studio:privacy.person.erase', 'Erase…')}
           </Button>
         </div>
         {error === null ? null : (

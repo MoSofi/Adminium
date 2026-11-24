@@ -4821,7 +4821,9 @@
       "confirm": "Skriv adressen for at bekræfte",
       "eraseForGood": "Slet for altid",
       "sharedTitle": "Et af deres numre står også på en anden persons række",
-      "sharedBody": "{numbers}: et delt eller videregivet nummer. Kun deres egne sms-data slettes. Nummerets sms’er og samtaler med den anden person bliver."
+      "sharedBody": "{numbers}: et delt eller videregivet nummer. Kun deres egne sms-data slettes. Nummerets sms’er og samtaler med den anden person bliver.",
+      "confirmPhone": "Skriv nummeret for at bekræfte",
+      "phoneMismatch": "Det er ikke det samme nummer. Skriv det igen."
     },
     "title": "Privatliv & offentlige sider",
     "tab": {
@@ -5013,9 +5015,12 @@
     },
     "phone": {
       "q": "Telefonnummer",
-      "sub": "For en person, I kun kender via telefonnummeret: alt, der er gemt med nummeret, dets sms’er og personens sms-samtykke, som én .zip. Skriv det med landekode.",
+      "sub": "For en person, I kun kender via telefonnummeret: download eller slet alt, der er gemt med nummeret, dets sms’er og personens sms-samtykke. Skriv det med landekode.",
       "notNumber": "Det er ikke et telefonnummer, der kan læses. Skriv det med landekode.",
-      "unavailable": "Download efter telefonnummer er ikke tilgængelig på denne server."
+      "unavailable": "Download efter telefonnummer er ikke tilgængelig på denne server.",
+      "eraseUnavailable": "Sletning efter telefonnummer er ikke tilgængelig på denne server.",
+      "downloadLabel": "Download alt, der er gemt med dette nummer",
+      "eraseLabel": "Slet… alt, der er gemt med dette nummer"
     }
   },
   "marketingMail": {
@@ -6723,7 +6728,7 @@
       "needsConfirm": "Ikke sendt. Dette land kræver, at personen bekræfter først.",
       "noCn": "Ikke sendt. Adminium sender ikke sms’er til det kinesiske fastland (+86).",
       "noConsent": "Ikke sendt. Denne person har ikke givet samtykke til sms’er.",
-      "noDoor": "Ikke sendt. Denne server kan ikke modtage STOP, så markedsførings-sms’er er slået fra.",
+      "noDoor": "Ikke sendt. Svar kan endnu ikke nå denne server, så STOP kan ikke modtages, og markedsførings-sms’er er slået fra.",
       "noLongerNeeded": "Ikke sendt. Det, den handlede om, blev aflyst, mens den ventede.",
       "noOptOut": "Ikke sendt. Der kunne ikke gives en måde at afmelde sig på for denne afsender. Tilføj virksomhedens telefon eller e-mail.",
       "notConnected": "Ikke sendt. Ingen fungerende udbyderkonto eller afsender. Tjek Opsætning.",

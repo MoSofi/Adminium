@@ -38051,6 +38051,10 @@
     "status": "mt",
     "srcHash": "ef8073be8df3"
   },
+  "studio.privacy.erase.confirmPhone": {
+    "status": "mt",
+    "srcHash": "8531085713a2"
+  },
   "studio.privacy.erase.eraseForGood": {
     "status": "mt",
     "srcHash": "78a21a4e7930"
@@ -38142,6 +38146,10 @@
   "studio.privacy.erase.nothingGoes": {
     "status": "mt",
     "srcHash": "e69e688d4018"
+  },
+  "studio.privacy.erase.phoneMismatch": {
+    "status": "mt",
+    "srcHash": "73242bc23ee0"
   },
   "studio.privacy.erase.previewFailed": {
     "status": "mt",
@@ -38666,6 +38674,18 @@
   "studio.privacy.person.staffAddress": {
     "status": "mt",
     "srcHash": "88a157878715"
+  },
+  "studio.privacy.phone.downloadLabel": {
+    "status": "mt",
+    "srcHash": "c299dd257105"
+  },
+  "studio.privacy.phone.eraseLabel": {
+    "status": "mt",
+    "srcHash": "05a7acde6cac"
+  },
+  "studio.privacy.phone.eraseUnavailable": {
+    "status": "mt",
+    "srcHash": "20f05fa4c784"
   },
   "studio.privacy.phone.notNumber": {
     "status": "mt",

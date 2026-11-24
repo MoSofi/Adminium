@@ -37,6 +37,17 @@ export function confirmMatches(typed: string, address: string): boolean {
   return want !== '' && typed.trim().toLowerCase() === want;
 }
 
+/**
+ * The number typed again to confirm an erasure by phone: the same digits as
+ * the number they were looked up by, spaces, dashes and brackets aside. The
+ * server compares the two as numbers and refuses a mismatch on its own.
+ */
+export function phoneConfirmMatches(typed: string, phone: string): boolean {
+  const digits = (value: string): string => value.trim().replace(/[\s().-]/gu, '');
+  const want = digits(phone);
+  return /\d{3}/u.test(want) && digits(typed) === want;
+}
+
 /** One "What goes" item, its count first so the number can be set in mono. */
 export function goesWords(item: GoesItem): string {
   const label = item.label ?? item.table ?? '';

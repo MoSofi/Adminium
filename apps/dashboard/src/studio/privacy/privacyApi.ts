@@ -193,6 +193,16 @@ export async function erasePerson(address: string, confirm: string): Promise<Era
   return (await api.post<{ data: EraseResult }>('/api/v1/privacy/erase', { address, confirm })).data;
 }
 
+/** What erasing a person known only by phone would do. The reply's `address` is the number's mask. */
+export async function previewPhoneErasure(phone: string): Promise<ErasePreview> {
+  return (await api.post<{ data: ErasePreview }>('/api/v1/privacy/phone/erase/preview', { phone })).data;
+}
+
+/** The erasure by phone, confirmed by the number typed again. Both go in the body, never in an address. */
+export async function erasePhonePerson(phone: string, confirm: string): Promise<EraseResult> {
+  return (await api.post<{ data: EraseResult }>('/api/v1/privacy/phone/erase', { phone, confirm })).data;
+}
+
 // --- "Download everything" ------------------------------------------------------
 
 export interface PrivacyExport {
