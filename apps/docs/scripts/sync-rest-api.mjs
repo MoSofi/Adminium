@@ -200,6 +200,10 @@ const DESCRIPTIONS = {
     'First-boot super-admin creation, whether setup is still open, the one-time setup token, and — in that same ' +
     'window — checking a database for an Adminium store already in it and adopting that store',
   system: 'Version and instance information',
+  sms:
+    'Studio → Texts: connect the business’s own text provider (sms.manage, a signed-in person), and marketing texts ' +
+    '(system:settings:manage): who a run reaches and why not, runs and their numbers, and a person’s marketing yes ' +
+    'with its double opt-in. A run reads its table as the person who makes it.',
   users: 'People on the server — invite, suspend, delete, assign roles',
   teams: 'Teams and who leads them: a lead reaches the rows of the people in the team',
   workspaces:
