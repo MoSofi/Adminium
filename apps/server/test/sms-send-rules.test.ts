@@ -156,8 +156,9 @@ describe('filling a text', () => {
     expect(fillText('Hi {{name}}', { name: value })).toEqual({ ok: false, reason: 'value-has-link' });
   });
 
-  it('keeps a link written in the template, and an address in a value', () => {
-    expect(fillText('See https://lumen.example {{who}}', { who: 'tom@lumen.example' }).ok).toBe(true);
+  it('keeps a link written in the template, and refuses an address in a value, which a phone makes a link of', () => {
+    expect(fillText('See https://lumen.example {{who}}', { who: 'Tom' }).ok).toBe(true);
+    expect(fillText('See https://lumen.example {{who}}', { who: 'tom@lumen.example' })).toEqual({ ok: false, reason: 'value-has-link' });
   });
 });
 
