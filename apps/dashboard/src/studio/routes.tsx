@@ -108,11 +108,6 @@ const PaymentsPageLazy = lazy(async () => {
   return { default: mod.PaymentsPage };
 });
 
-const TextsPageLazy = lazy(async () => {
-  const mod = await import('./texts/TextsPage.js');
-  return { default: mod.TextsPage };
-});
-
 const ShippingPageLazy = lazy(async () => {
   const mod = await import('./shipping/ShippingPage.js');
   return { default: mod.ShippingPage };
@@ -474,11 +469,15 @@ function PaymentsRouteComponent() {
   );
 }
 
+/**
+ * Texts: no `StudioGuard`, because the page gates on `sms.manage` (and a desk's
+ * `privacy.people`) itself and tells anyone else who to ask. It rides the
+ * settings hub's chunk, as Privacy does, so it adds no lazy ref to the entry.
+ */
 function TextsRouteComponent() {
-  // No `StudioGuard`: the page gates on `sms.manage` (and a desk's `privacy.people`) itself, and tells anyone else who to ask.
   return (
     <StudioBody>
-      <TextsPageLazy />
+      <StudioSettingsPageLazy texts />
     </StudioBody>
   );
 }

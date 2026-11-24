@@ -628,6 +628,25 @@ describe('StudioSettingsPage', () => {
     expect(screen.queryByRole('button', { name: 'Open payments' })).toBeNull();
   });
 
+  it('offers Texts to sms.manage, right after Payments, and opens /studio/texts', async () => {
+    systemActions = ['settings.manage', 'payments.manage', 'sms.manage', 'shipping.manage'];
+    const { router } = await renderPage(['admin']);
+    const open = await screen.findByRole('button', { name: 'Open texts' });
+    const order = screen.getAllByRole('button').map((button) => button.textContent);
+    expect(order.indexOf('Open payments')).toBeLessThan(order.indexOf('Open texts'));
+    expect(order.indexOf('Open texts')).toBeLessThan(order.indexOf('Open shipping'));
+    expect(screen.getByText('Send customers short texts from your own Twilio or Telnyx account.')).toBeDefined();
+    open.click();
+    await waitFor(() => expect(router.state.location.pathname).toBe('/studio/texts'));
+  });
+
+  it('hides Texts from someone who holds neither texts key', async () => {
+    systemActions = ['settings.manage', 'payments.manage'];
+    await renderPage(['admin']);
+    expect(await screen.findByRole('button', { name: 'Open payments' })).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Open texts' })).toBeNull();
+  });
+
   it('offers "Privacy & public pages" to privacy.manage alone, after Payments and before API keys', async () => {
     systemActions = ['settings.manage', 'payments.manage', 'api-keys.manage', 'privacy.manage'];
     await renderPage(['super-admin']);
