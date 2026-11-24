@@ -21,6 +21,12 @@
  *
  * A server with no public https address can send but never hear a reply: the
  * list says so in `replies`, and the conversations page shows it plainly.
+ *
+ * A NUMBER IN FULL only to whoever reads every conversation (Super Admin,
+ * `texts.read`, `texts.reply`), or to someone who sees personal columns of the
+ * record the thread is about (`read_pii` there). Anyone else gets the mask,
+ * and `phoneHidden: 'masked-for-you'` says why: a role that may text a contact
+ * without seeing the number must not read it back from the conversation.
  */
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -35,6 +41,7 @@ import { tagRoutes } from '../../security/route-audience.js';
 import type { SmsReplyReach } from '../inbound/channel.js';
 import { maskPhone } from '../consent/redact.js';
 import { TEXTS_READ_PERMISSION, TEXTS_REPLY_PERMISSION } from './permission.js';
+import { canReadPii } from '../../crud/mask.js';
 import { mayReplyApp, readsAny, TEXT_BODY_MAX, TextCursorError, type TextItemView, type TextThreads, type TextThreadView, type TextViewer } from './service.js';
 import { TEXT_THREAD_KINDS, type TextSendOutcome } from './types.js';
 
@@ -59,6 +66,8 @@ export interface TextsRoutesDeps {
   replyReach: () => Promise<Pick<SmsReplyReach, 'state' | 'canReceiveStop'>>;
   /** The country a local number on a record is read in. */
   country: () => Promise<string | null>;
+  /** Whether this person sees personal columns of a table (`canReadPii`). */
+  mayReadPii?: ((request: FastifyRequest, connectionId: string, table: string) => Promise<boolean>) | undefined;
   /** The record as this person reaches it for reading, under their row limits; null when they do not. */
   recordPhone?: ((request: FastifyRequest, input: { connection: string; table: string; row: string; column: string }) => Promise<RecordPhone | null>) | undefined;
 }
@@ -93,8 +102,11 @@ const threadDto = z
   .object({
     id: z.string(),
     app: z.string().nullable(),
+    /** Null when this person may not see it in full: see `phoneHidden`. */
     phone: z.string().nullable(),
     masked: z.string().nullable(),
+    /** `masked-for-you`: the number exists, and this person sees only its mask. */
+    phoneHidden: z.enum(['masked-for-you']).nullable(),
     line: z.string().nullable(),
     record: recordRef.nullable(),
     lastAt: z.number(),
@@ -179,7 +191,6 @@ const resultOf = (outcome: TextSendOutcome): z.infer<typeof outcomeDto> =>
     ? { outcome: 'refused', deliveryId: null, opensAt: null, reason: outcome.reason }
     : { outcome: outcome.outcome, deliveryId: outcome.deliveryId, opensAt: outcome.outcome === 'held' ? outcome.opensAt : null, reason: null };
 
-const threadOut = (view: TextThreadView): z.infer<typeof threadDto> => ({ ...view });
 const itemOut = (view: TextItemView): z.infer<typeof itemDto> => ({ ...view });
 
 export function textsRoutes(deps: TextsRoutesDeps): FastifyPluginAsyncZod {
@@ -190,6 +201,14 @@ export function textsRoutes(deps: TextsRoutesDeps): FastifyPluginAsyncZod {
     const manage = app.rbac.require(deps.manageGrant);
 
     const viewerOf = (request: FastifyRequest) => textViewerOf(request, (one) => app.rbac.resolve(one));
+    const mayReadPii = deps.mayReadPii ?? canReadPii;
+
+    /** The thread as this person may see it: the number in full, or its mask and why. */
+    async function threadOut(request: FastifyRequest, viewer: TextViewer, view: TextThreadView): Promise<z.infer<typeof threadDto>> {
+      if (view.phone === null || viewer.everything !== null) return { ...view, phoneHidden: null };
+      if (view.record !== null && (await mayReadPii(request, view.record.connectionId, view.record.table))) return { ...view, phoneHidden: null };
+      return { ...view, phone: null, phoneHidden: 'masked-for-you' };
+    }
 
     /** Refused as `rbac.require` refuses: a 403 with its audit row. */
     async function refuse(request: FastifyRequest, permission: string): Promise<never> {
@@ -223,7 +242,9 @@ export function textsRoutes(deps: TextsRoutesDeps): FastifyPluginAsyncZod {
         const reach = await deps.replyReach();
         // Which conversations were shown, by their ids: never a number or a word.
         await app.rbac.audit(request, { category: 'data', action: 'texts.threads.read', changes: { after: { threads: listed.threads.map((one) => one.id), app: query.app ?? null, unreadOnly: query.unread === 'true', page: query.cursor === undefined ? 'first' : 'later' } } });
-        return { data: { threads: listed.threads.map(threadOut), next: listed.next, unread: listed.unread, replies: { canArrive: reach.canReceiveStop, state: reach.state } } };
+        const shown = [];
+        for (const one of listed.threads) shown.push(await threadOut(request, viewer, one));
+        return { data: { threads: shown, next: listed.next, unread: listed.unread, replies: { canArrive: reach.canReceiveStop, state: reach.state } } };
       },
     );
 
@@ -235,7 +256,7 @@ export function textsRoutes(deps: TextsRoutesDeps): FastifyPluginAsyncZod {
         const detail = await threads.thread(viewer, request.params.id, { limit: request.query.limit ?? 50, cursor: request.query.cursor }).catch(cursorRefused);
         if (detail === null) throw new NotFoundError('No such conversation.');
         await app.rbac.audit(request, { category: 'data', action: 'texts.thread.read', changes: { after: { thread: detail.thread.id, app: detail.thread.app, phone: detail.thread.masked, items: detail.items.length } } });
-        return { data: { thread: threadOut(detail.thread), items: detail.items.map(itemOut), next: detail.next, answering: detail.answering, canReply: detail.canReply } };
+        return { data: { thread: await threadOut(request, viewer, detail.thread), items: detail.items.map(itemOut), next: detail.next, answering: detail.answering, canReply: detail.canReply } };
       },
     );
 

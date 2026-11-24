@@ -104,6 +104,15 @@ for (const [dialect, reachable] of LEGS) {
       const threads = await s.meta.db.selectFrom('adminium_text_threads').selectAll().execute();
       expect(threads).toHaveLength(1);
       expect(threads[0]).toMatchObject({ appKey: 'crmx', recordKey: '1', lastKind: 'text' });
+      // The thread it hands back does not show her the number either: only its mask, and why.
+      const threadId = (sent.json() as { data: { threadId: string } }).data.threadId;
+      const opened = (await s.get('rita', `/api/v1/texts/threads/${threadId}`)).json() as { data: { thread: Record<string, unknown> } };
+      expect(opened.data.thread).toMatchObject({ phone: null, phoneHidden: 'masked-for-you', masked: '+49 ••• 789' });
+      const listed = (await s.get('rita', '/api/v1/texts/threads')).json() as { data: { threads: Record<string, unknown>[] } };
+      expect(listed.data.threads[0]).toMatchObject({ phone: null, phoneHidden: 'masked-for-you' });
+      expect(JSON.stringify(listed)).not.toContain(RITA_CONTACT);
+      // Whoever reads every conversation sees it in full.
+      expect(((await s.get('owner', `/api/v1/texts/threads/${threadId}`)).json() as { data: { thread: Record<string, unknown> } }).data.thread).toMatchObject({ phone: RITA_CONTACT, phoneHidden: null });
       // The same key again sends nothing twice.
       expect((await s.send('rita', 'POST', '/api/v1/texts/send', body(1, KEY(1)))).statusCode).toBe(200);
       await s.jobs();
@@ -131,7 +140,9 @@ for (const [dialect, reachable] of LEGS) {
       const list = await s.get('dan', '/api/v1/texts/threads');
       expect(list.statusCode, list.body).toBe(200);
       const [thread] = (list.json() as { data: { threads: { id: string; app: string; phone: string }[] } }).data.threads;
-      expect(thread).toMatchObject({ app: 'crmx', phone: RITA_CONTACT });
+      // The desk reads the contacts without their personal columns: the conversation shows it the mask alone.
+      expect(thread).toMatchObject({ app: 'crmx', phone: null, phoneHidden: 'masked-for-you' });
+      expect(list.body).not.toContain(RITA_CONTACT);
       const detail = await s.get('dan', `/api/v1/texts/threads/${thread!.id}`);
       expect((detail.json() as { data: { canReply: unknown; items: { kind: string; body: string }[] } }).data).toMatchObject({ canReply: { ok: false, reason: 'not-allowed' }, items: [{ kind: 'text', body: 'Your quote is ready. Reply STOP to opt out.' }] });
       expect(said(await s.get('tom', '/api/v1/texts/threads'))).toBe('403 FORBIDDEN');
