@@ -5377,7 +5377,7 @@ A staff member who ticks or unticks a box's column (on the record page, or an ap
 screen saving through the data routes) records their yes in the box's words, or their no, in the
 same log, named to them. A save that leaves the column as it was records nothing.
 
-On a [`forms` entry](#forms), the forms door draws the box itself, unticked, under any form whose
+On a [`forms` entry](/guides/add-ons-with-tables/) (the `publicAccess` entry under the key `forms`), the forms door draws the box itself, unticked, under any form whose
 "becomes" fills the box's `phone`; a form may not fill the box's `column` from a question.
 
 ### A row's own link
