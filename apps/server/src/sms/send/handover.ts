@@ -36,7 +36,7 @@ import type { TextConsentService } from '../consent/types.js';
 import { accountRefOf } from '../credentials.js';
 import { TEXT_MARKETING_AVAILABLE } from '../marketing/availability.js';
 import { afterAttempt, type SmsEarlierAttempt, type SmsService } from '../service.js';
-import type { SmsProviderKey } from '../types.js';
+import type { SmsProviderKey, SmsSender } from '../types.js';
 import { openText, SMS_SEND_ATTEMPTS, SMS_SEND_JOB_KIND, type SmsSendPayload } from './job.js';
 import { dayKey, readTextPolicy, type TextSendPolicy } from './policy.js';
 import { isFailedStatus, type TextSendStore } from './store.js';
@@ -50,7 +50,8 @@ export interface TextLimitWarning {
 }
 
 export interface HandOverDeps {
-  sms: Pick<SmsService, 'send' | 'credentials'>;
+  /** `view`: the account's sender now, for a text sealed with the account's own. */
+  sms: Pick<SmsService, 'send' | 'credentials'> & Partial<Pick<SmsService, 'view'>>;
   consent: Pick<TextConsentService, 'decide' | 'stop'>;
   store: TextSendStore;
   secret: string;
@@ -190,6 +191,24 @@ export function createHandOver(deps: HandOverDeps) {
       }
     }
 
+    // The account's sender may have changed while the text waited for its window.
+    let sender: SmsSender = text.sender;
+    // Never on a retry of a try that may have gone: that one is repeated exactly as it was, or not at all.
+    if (text.accountSender === true && earlier === null && deps.sms.view !== undefined) {
+      let current: SmsSender | null;
+      try {
+        current = (await deps.sms.view())?.sender ?? null;
+      } catch {
+        return cannotCheck();
+      }
+      if (current !== null && (current.kind !== text.sender.kind || current.value !== text.sender.value)) {
+        // A marketing text promised "Reply STOP" to the sender it named, and only a number takes that reply.
+        if (text.textClass === 'marketing') return close('skipped', current.kind === 'number' ? 'sender-changed' : 'marketing-from-name');
+        // A service text goes as the business sends now; its last line is checked against that sender below.
+        sender = current;
+      }
+    }
+
     // Asked again as late as it can be: a STOP may have come in since the text was prepared.
     let decision;
     try {
@@ -198,7 +217,7 @@ export function createHandOver(deps: HandOverDeps) {
         country: text.country,
         class: text.textClass,
         // A pool can hold names, and only a number certainly takes a reply.
-        sender: { kind: text.sender.kind === 'number' ? 'number' : 'name' },
+        sender: { kind: sender.kind === 'number' ? 'number' : 'name' },
         repliesReachUs: await deps.repliesReachUs(),
         person: text.person,
         answering: text.answering === true,
@@ -239,7 +258,7 @@ export function createHandOver(deps: HandOverDeps) {
       to: decision.e164,
       body: text.body,
       idempotencyKey: row.id,
-      sender: text.sender,
+      sender,
       callbackUrl,
       earlier,
       signal: ctx.signal,

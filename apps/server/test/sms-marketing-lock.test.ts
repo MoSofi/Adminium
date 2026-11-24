@@ -115,7 +115,7 @@ describe.each(META_ENGINES)('the lock in the send path — $name', (engine) => {
   it.runIf(engine.available)('refuses a marketing text already queued, at the hand-over', async () => {
     const built = await rig();
     // As one queued by a build without the lock would stand in the queue.
-    const text = { to: DE, body: 'Autumn stays are 15% off. Reply STOP to opt out.', textClass: 'marketing' as const, timing: 'marketing' as const, country: 'DE', zone: null, notAfter: null, sender: { kind: 'number' as const, value: '+14155550100' }, optOut: 'reply-stop' as const, person: null };
+    const text = { to: DE, body: 'Autumn stays are 15% off. Reply STOP to opt out.', textClass: 'marketing' as const, timing: 'marketing' as const, country: 'DE', zone: null, notAfter: null, sender: { kind: 'number' as const, value: '+14155550100' }, accountSender: true, optOut: 'reply-stop' as const, person: null };
     const queued = await built.path.queue({ action: 'send', text, estimate: { segments: 1, encoding: 'gsm-7', units: text.body.length }, opensAt: null }, { messageKey: 'old', claimKey: 'c' });
     expect(queued.queued).toBe(true);
     const outcome = await built.path.handOver(built.jobs.at(-1)!.payload as SmsSendPayload, { attempt: 1, maxAttempts: SMS_SEND_ATTEMPTS, signal: new AbortController().signal });

@@ -37,6 +37,7 @@ const REASONS: Partial<Record<TextDeliveryReason, string>> = {
   'off-by-operator': 'Texts are switched off on this server',
   'daily-limit': 'Not sent: the daily text limit is reached',
   'marketing-not-yet-available': 'Not sent: marketing texts are not available in this release',
+  'sender-changed': 'Not sent: the sender changed while it waited for its hours',
   'past-its-moment': 'Not sent: the send window would hold it past its moment',
   'no-send-window': 'Not sent: no send window opens soon',
   'opt-out-changed': 'Not sent: the way to opt out changed after it was written',

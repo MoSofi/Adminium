@@ -188,7 +188,21 @@ export function createTextSendPath(deps: TextSendDeps): TextSendPath {
       action: 'send',
       opensAt,
       estimate: composed.estimate,
-      text: { to: decision.e164, body: composed.body, textClass: input.textClass, timing, country: decision.country, zone: input.zone, notAfter, sender, optOut: decision.optOut, person: input.person ?? null, ...(input.answering === true ? { answering: true } : {}) },
+      text: {
+        to: decision.e164,
+        body: composed.body,
+        textClass: input.textClass,
+        timing,
+        country: decision.country,
+        zone: input.zone,
+        notAfter,
+        sender,
+        // The account's own sender, not a line or a workspace's: the hand-over checks it is still the account's.
+        accountSender: input.sender === undefined,
+        optOut: decision.optOut,
+        person: input.person ?? null,
+        ...(input.answering === true ? { answering: true } : {}),
+      },
     };
   }
 
