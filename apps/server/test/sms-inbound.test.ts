@@ -31,6 +31,8 @@ import {
   type SmsStopConfirmation,
 } from '../src/sms/inbound/index.js';
 import type { SmsAccountView } from '../src/sms/service.js';
+import { corePlugin, RATE_BUCKETS } from '../src/plugins/core.js';
+import { makeEnv } from './helpers.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 
 const SECRET = 'an-sms-inbound-test-secret-of-length';
@@ -185,7 +187,7 @@ describe.each(META_ENGINES)('SMS inbound — $name', (engine) => {
     return (await sql<Record<string, unknown>>`select * from adminium_inbound_events`.execute(handle.meta.db)).rows;
   }
 
-  async function serve(over: Partial<SmsInboundDeps> = {}): Promise<void> {
+  async function serve(over: Partial<SmsInboundDeps> = {}, opts: { limited?: boolean } = {}): Promise<void> {
     channel = createSmsInboundChannel({
       meta: handle.meta,
       secret: SECRET,
@@ -214,6 +216,8 @@ describe.each(META_ENGINES)('SMS inbound — $name', (engine) => {
     app = Fastify({ logger: { level: 'trace', stream: { write: (line: string) => logs.push(line) } } });
     app.setValidatorCompiler(validatorCompiler);
     app.setSerializerCompiler(serializerCompiler);
+    // The server's own rate limits, as the composed server registers them first.
+    if (opts.limited === true) await app.register(corePlugin, { env: makeEnv() });
     await app.register(async (api) => api.register(inboundRoutes({ core, channels: [channel], secret: SECRET, now: () => clock })), { prefix: '/api/v1' });
     await app.ready();
   }
@@ -1095,6 +1099,28 @@ describe.each(META_ENGINES)('SMS inbound — $name', (engine) => {
       const decision = await consent.decide({ phone: PERSON, country: null, class: 'marketing', sender: { kind: 'number' }, repliesReachUs: canReceiveStop });
       expect(decision).toMatchObject({ send: false, reason: 'marketing-without-replies' });
     });
+  });
+
+  describe('the rate limit', () => {
+    only('unsigned junk behind one shared address spends its own budget, never the provider\'s', async () => {
+      await app.close();
+      await serve({}, { limited: true });
+      // Everybody behind a proxy that is not trusted comes from the proxy's one address.
+      const proxy = { remoteAddress: '203.0.113.9' };
+      let last = 0;
+      for (let i = 0; i < RATE_BUCKETS['inbound-door'].max; i += 1) {
+        last = (await app.inject({ method: 'POST', url: `/api/v1/inbound/sms/twilio/made-up-${String(i)}`, payload: 'x=1', headers: { 'content-type': 'application/x-www-form-urlencoded' }, ...proxy })).statusCode;
+      }
+      expect(last).toBe(401);
+      expect((await app.inject({ method: 'POST', url: '/api/v1/inbound/sms/twilio/made-up-again', payload: 'x=1', headers: { 'content-type': 'application/x-www-form-urlencoded' }, ...proxy })).statusCode).toBe(429);
+      // Twilio's real STOP, from that same address, still gets in.
+      const form = new URLSearchParams({ AccountSid: ACCOUNT_SID, MessageSid: nextSid(), From: PERSON, To: OURS, Body: 'STOP' });
+      const target = path('twilio', twilio);
+      const real = await app.inject({ method: 'POST', url: target, payload: form.toString(), headers: { 'content-type': 'application/x-www-form-urlencoded', 'x-twilio-signature': signTwilio(`${ORIGIN}${target}`, form) }, ...proxy });
+      expect(real.statusCode).toBe(200);
+      await drain();
+      expect(await stopped()).toBe(true);
+    }, 120_000);
   });
 
   describe('privacy', () => {

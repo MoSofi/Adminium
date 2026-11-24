@@ -19,10 +19,17 @@
  *
  * The address a signature is checked against is built from the STORED public
  * address, because a proxy changes what the request says about itself.
+ *
+ * THE RATE LIMIT. Behind a proxy that is not trusted, every caller shares the
+ * proxy's address, so junk could spend the budget a provider's real webhook
+ * needs. A request whose path token is this install's own for a connected
+ * account is counted apart, by that account, so unsigned junk without the
+ * token can never crowd out the provider. Those counters are a bounded set:
+ * one per channel, source and account.
  */
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
 import { auditExempt } from '../audit/coverage.js';
@@ -80,12 +87,21 @@ export function inboundRoutes(deps: InboundRoutesDeps): FastifyPluginAsync {
     });
 
     for (const channel of deps.channels) {
+      /** Its own counter for a request that carries the genuine token, before any byte of the body is read. */
+      const rateSubject = async (request: FastifyRequest): Promise<string | null> => {
+        const given = request.params as { source?: unknown; token?: unknown };
+        if (typeof given.source !== 'string' || typeof given.token !== 'string' || given.source.length > INBOUND_SOURCE_MAX || given.token.length > 200) return null;
+        const account = await channel.account(given.source);
+        if (account.state !== 'ready') return null;
+        return sameToken(given.token, inboundToken(deps.secret, channel.channel, given.source, account.account)) ? `${channel.channel}:${given.source}:${account.account}` : null;
+      };
       app.post<{ Params: { source: string; token: string } }>(
         `${INBOUND_PATH}/${channel.channel}/:source/:token`,
         {
           bodyLimit: channel.bodyLimit,
           config: {
             rateLimitBucket: 'inbound-door',
+            rateLimitSubject: rateSubject,
             csrf: 'exempt',
             audit: auditExempt('a provider calling back: the stored event is the record, and a refused call writes nothing'),
           },
