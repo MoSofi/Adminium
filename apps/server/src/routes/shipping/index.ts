@@ -47,7 +47,7 @@ import { pricesHiddenFrom, readsPartOf, shippingPerson, shippingViewerOf, type S
 import { cleanShipFrom, orderAddress, readShipFrom, recipientAbroad, recipientForRates, shipFromAddress, shipFromChanges } from '../../shipping/addresses.js';
 import { askForRates, carrierHttpFor, shippingCarrierFor, type ShippingCarrierDeps } from '../../shipping/carriers.js';
 import type { BookingDeps, BookingFaults } from '../../shipping/bookings.js';
-import { declarationOf, deliversTo, draftOf, exporterFor, readGoods, readInternational, signerName, codeListUrlOf, type CustomsChoice, type InternationalSettings } from '../../shipping/customs.js';
+import { declarationOf, deliversTo, draftOf, exporterFor, filingCodeFor, readGoods, readInternational, signerName, codeListUrlOf, type CustomsChoice, type InternationalSettings } from '../../shipping/customs.js';
 import { checkedAccount, type KeyLock, type OpenBookings } from '../../shipping/keys.js';
 import { bookingState, createQuoteGate, mayShipAbroad, orderCancelled, rateWithinLimit } from '../../shipping/limits.js';
 import { carrierLocked } from '../../shipping/locks.js';
@@ -344,7 +344,7 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
     });
     const currency = mapping.customs.currency === undefined ? undefined : order.row[mapping.customs.currency];
     const draft = draftOf(goods, international, currency, order.to, choice.edits);
-    return { declaration: declarationOf(draft, signer, parcel.weightKg, exporterFor(international, order.to, draft)), signerId: international.signerId };
+    return { declaration: declarationOf(draft, signer, parcel.weightKg, exporterFor(international, order.to, draft), filingCodeFor(international, order.from, order.to, draft)), signerId: international.signerId };
   }
 
   /** A refusal as someone who cannot see money is told it: what it was about, and none of the carrier's own words. */

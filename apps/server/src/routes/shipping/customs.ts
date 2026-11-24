@@ -72,7 +72,7 @@ export function shippingCustomsRoutes(deps: ShippingCustomsRoutesDeps): FastifyP
         await repo.setInternational(install.row.id, next, by, app.rbac.now());
         // A rate was priced for the declaration these defaults made.
         await repo.clearQuotes(install.row.id);
-        const shown = (one: typeof before) => (one === null ? null : { countries: one.countries, currency: one.currency, originCountry: one.originCountry, signer: one.signerId, products: one.products.length, exporter: { eori: one.exporter?.eori !== undefined, ioss: one.exporter?.ioss !== undefined, taxId: one.exporter?.taxId !== undefined } });
+        const shown = (one: typeof before) => (one === null ? null : { countries: one.countries, currency: one.currency, originCountry: one.originCountry, signer: one.signerId, products: one.products.length, exporter: { eori: one.exporter?.eori !== undefined, ioss: one.exporter?.ioss !== undefined, taxId: one.exporter?.taxId !== undefined }, filingCode: one.filingCode ?? null });
         await app.rbac.audit(request, {
           category: 'settings',
           action: 'shipping.international.saved',

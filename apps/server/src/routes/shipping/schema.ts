@@ -12,7 +12,7 @@ import { z } from 'zod';
 
 import { shipFromBodySchema, shipFromSchema } from '../../shipping/addresses.js';
 import { ATTENTION_REASONS } from '../../shipping/attention.js';
-import { customsQuoteBody } from '../../shipping/customs.js';
+import { customsQuoteBody, SHOP_FILING_CODES } from '../../shipping/customs.js';
 
 const finite = (max: number) => z.number().finite().gt(0).max(max);
 
@@ -106,6 +106,8 @@ export const shippingStatusReply = z.object({
         products: z.array(z.object({ sku: z.string(), hsCode: z.string().optional(), originCountry: z.string().optional(), manufacturerCode: z.string().optional() }).strict()),
         /** The shop's export numbers. This reply is only for who manages shipping. */
         exporter: customsExporterSchema.optional(),
+        /** The US export filing statement the shop chose. Absent means none is ever stated. */
+        filingCode: z.enum(SHOP_FILING_CODES).optional(),
       })
       .strict()
       .nullable(),

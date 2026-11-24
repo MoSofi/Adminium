@@ -170380,6 +170380,13 @@
                                     }
                                   },
                                   "additionalProperties": false
+                                },
+                                "filingCode": {
+                                  "type": "string",
+                                  "enum": [
+                                    "NOEEI_30_37_a",
+                                    "NOEEI_30_36"
+                                  ]
                                 }
                               },
                               "required": [
@@ -170786,6 +170793,13 @@
                                     }
                                   },
                                   "additionalProperties": false
+                                },
+                                "filingCode": {
+                                  "type": "string",
+                                  "enum": [
+                                    "NOEEI_30_37_a",
+                                    "NOEEI_30_36"
+                                  ]
                                 }
                               },
                               "required": [
@@ -171359,6 +171373,13 @@
                                     }
                                   },
                                   "additionalProperties": false
+                                },
+                                "filingCode": {
+                                  "type": "string",
+                                  "enum": [
+                                    "NOEEI_30_37_a",
+                                    "NOEEI_30_36"
+                                  ]
                                 }
                               },
                               "required": [
@@ -173900,6 +173921,20 @@
                       }
                     },
                     "additionalProperties": false
+                  },
+                  "filingCode": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "NOEEI_30_37_a",
+                          "NOEEI_30_36"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "required": [
@@ -174204,6 +174239,13 @@
                                     }
                                   },
                                   "additionalProperties": false
+                                },
+                                "filingCode": {
+                                  "type": "string",
+                                  "enum": [
+                                    "NOEEI_30_37_a",
+                                    "NOEEI_30_36"
+                                  ]
                                 }
                               },
                               "required": [
@@ -176445,6 +176487,13 @@
                                     }
                                   },
                                   "additionalProperties": false
+                                },
+                                "filingCode": {
+                                  "type": "string",
+                                  "enum": [
+                                    "NOEEI_30_37_a",
+                                    "NOEEI_30_36"
+                                  ]
                                 }
                               },
                               "required": [
@@ -176864,6 +176913,13 @@
                                     }
                                   },
                                   "additionalProperties": false
+                                },
+                                "filingCode": {
+                                  "type": "string",
+                                  "enum": [
+                                    "NOEEI_30_37_a",
+                                    "NOEEI_30_36"
+                                  ]
                                 }
                               },
                               "required": [
@@ -177315,6 +177371,13 @@
                                     }
                                   },
                                   "additionalProperties": false
+                                },
+                                "filingCode": {
+                                  "type": "string",
+                                  "enum": [
+                                    "NOEEI_30_37_a",
+                                    "NOEEI_30_36"
+                                  ]
                                 }
                               },
                               "required": [
