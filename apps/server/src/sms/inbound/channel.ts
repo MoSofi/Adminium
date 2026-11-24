@@ -133,8 +133,15 @@ export interface SmsInboundChannel extends InboundChannel {
   replyReach(): Promise<SmsReplyReach>;
 }
 
-/** The address as the setting keeps it: a digest, because the address holds the door's token. */
-const doorDigest = (door: string): string => createHash('sha256').update(door).digest('hex');
+/** The address as the setting keeps it: a digest, because the address holds the door's token. Twilio's `#` part is not the address. */
+const doorDigest = (door: string): string => createHash('sha256').update(door.split('#')[0]!).digest('hex');
+
+/** Records that a signed reply reached this address at `at`. What the door does on the first one; a test stands in for the provider with it. */
+export async function markReplyAddressHeard(meta: MetaDb, address: string, at: number): Promise<{ door: string; at: number }> {
+  const next = { door: doorDigest(address), at };
+  await settingsRepo(meta).set('sms.replyHeard', next, { updatedBy: null, at });
+  return next;
+}
 
 const isProvider = (source: string): source is SmsProviderKey => (SMS_PROVIDERS as readonly string[]).includes(source);
 
@@ -212,9 +219,7 @@ export function createSmsInboundChannel(deps: SmsInboundDeps): SmsInboundChannel
         heard = stored;
         return;
       }
-      const next = { door: digest, at: now() };
-      await settingsRepo(deps.meta).set('sms.replyHeard', next, { updatedBy: null, at: next.at });
-      heard = next;
+      heard = await markReplyAddressHeard(deps.meta, door, now());
     } catch {
       // The next signed reply tries again.
     }

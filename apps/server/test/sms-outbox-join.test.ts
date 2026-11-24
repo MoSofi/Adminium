@@ -40,6 +40,7 @@ import { SMTP } from './outbox-rows-fixture.js';
 import { servePublic, type Served } from './public-lane.helpers.js';
 import { json, stubProvider, type ProviderStep } from './sms-send.helpers.js';
 import { LEGS as WHOLE_LEGS, said, wholeServer, type WholeServer } from './whole-server.helpers.js';
+import { twilioRepliesHeard } from './helpers/sms-heard.js';
 
 vi.mock('../src/version.js', async (original) => ({ ...(await original<typeof import('../src/version.js')>()), APP_VERSION: SMS_WORDS_FLOOR }));
 
@@ -172,6 +173,8 @@ describe.each(LEGS)('a text kind joined to the engine — %s', (dialect, availab
     for (const table of ['adminium_text_deliveries', 'adminium_text_send_days', 'adminium_text_stop_list', 'adminium_text_consent_log', 'adminium_inbound_events', 'adminium_jobs']) await db.deleteFrom(table).execute();
     for (const table of ['messages', 'visits', 'patients']) await h.rows(`DELETE FROM ${h.real(table)}`);
     await settingsRepo(meta).set('system.publicOrigin', ORIGIN, { updatedBy: null });
+    // A signed reply has reached the address, so texts from a number say "Reply STOP".
+    await twilioRepliesHeard(meta, { secret: TEST_SECRET, origin: ORIGIN, accountSid: ACCOUNT_SID });
     clock = { now: NOON };
     consent = createTextConsentService({ meta, secret: TEST_SECRET, now: () => clock.now });
     store = createTextSendStore(meta);

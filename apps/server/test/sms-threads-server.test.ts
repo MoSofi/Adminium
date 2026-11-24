@@ -17,6 +17,7 @@ import { createSmsService } from '../src/sms/index.js';
 import { TEST_SECRET } from './helpers.js';
 import { stubProvider } from './sms-send.helpers.js';
 import { LEGS, said, wholeServer, type WholeServer } from './whole-server.helpers.js';
+import { twilioRepliesHeard } from './helpers/sms-heard.js';
 
 vi.mock('../src/version.js', async (original) => ({ ...(await original<typeof import('../src/version.js')>()), APP_VERSION: SMS_WORDS_FLOOR }));
 
@@ -76,8 +77,9 @@ for (const [dialect, reachable] of LEGS) {
       s = await wholeServer(dialect, crm(), { people: { rita: ['rep'], dan: ['desk'], tom: ['reader'] } });
       // Before the public address: no reply can arrive, and the list says so.
       expect(((await s.get('owner', '/api/v1/texts/threads')).json() as { data: { replies: unknown } }).data.replies).toEqual({ canArrive: false, state: 'not-set' });
-      // A public https address: replies can arrive, so a text from a number says "Reply STOP".
+      // A public https address, and a signed reply has reached it: a text from a number says "Reply STOP".
       await settingsRepo(s.meta).set('system.publicOrigin', 'https://crm.lumen.example', { updatedBy: null });
+      await twilioRepliesHeard(s.meta, { secret: TEST_SECRET, origin: 'https://crm.lumen.example', accountSid: `AC${'ab'.repeat(16)}` });
       // The business's own account, as Studio → Text messages saves it.
       const sms = createSmsService({ store: createSmsAccountStore(s.meta), secret: TEST_SECRET, stopList: { isStopped: async () => false, recordProviderOptOut: async () => undefined } });
       await sms.connect({ provider: 'twilio', accountSid: `AC${'ab'.repeat(16)}`, authToken: 'made-up-token-for-these-tests' }, null);

@@ -12,6 +12,7 @@ export {
   SMS_SWEEP_CATCH_UP_MAX_PAGES,
   TWILIO_RETRY_OVERRIDE,
   createSmsInboundChannel,
+  markReplyAddressHeard,
   type SmsInboundChannel,
   type SmsInboundDeps,
   type SmsReplyReach,
