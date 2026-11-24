@@ -575,6 +575,7 @@ export function useFormTables(): UseFormTablesResult {
           columns: host.columns ?? [],
           ...(host.page === undefined ? {} : { page: host.page }),
           ...(host.sourceColumn === undefined ? {} : { sourceColumn: host.sourceColumn }),
+          ...(host.textBoxes === undefined ? {} : { textBoxes: host.textBoxes }),
         })),
     }),
     [kit],

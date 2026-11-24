@@ -451,6 +451,44 @@ export interface PublicPayments {
   state(ref: string, id: string, signal?: AbortSignal): Promise<PublicPaymentState>;
 }
 
+/**
+ * Texts from the app's own screens. `ready` says whether a text can come at
+ * all (a provider and a sender are set, and texts are not switched off): draw
+ * a box for texts only when it is true. `standing` says where the signed-in
+ * person stands on the app's texts, for their Prefs: it needs a VERIFIED
+ * session (a 403 `PUBLIC_CLAIM_LEVEL` otherwise).
+ */
+export interface PublicTexts {
+  ready(signal?: AbortSignal): Promise<boolean>;
+  standing(signal?: AbortSignal): Promise<PublicTextStanding>;
+}
+
+/**
+ * Where a person stands on one purpose of the app's texts: `yes`, `no`,
+ * `not-asked`, `stopped` (see {@link PublicTextStanding.stopped}), or
+ * `no-phone` (their row holds no number a text can reach).
+ */
+export interface PublicTextPurpose {
+  state: 'yes' | 'no' | 'not-asked' | 'stopped' | 'no-phone';
+  /** The answer that makes it so: when, from where (`form`, `staff`, `person`, `reply`, `provider`) and its wording's version. */
+  answer: { at: number; source: string; how: string | null; by: { id: string; label: string } | null; wordingVersion: string | null } | null;
+}
+
+/**
+ * A verified person's own standing on the app's texts. `stopped` is set while
+ * their number is on the stop list: no yes lifts it. When `liftBy` is
+ * `start` (they replied STOP), say they text START to the business's number
+ * to lift it; `business`: they ask the business; `never`: it stays.
+ */
+export interface PublicTextStanding {
+  ready: boolean;
+  /** Their number as `+49 ••• 789`; null when their row holds none. */
+  masked: string | null;
+  service: PublicTextPurpose;
+  marketing: PublicTextPurpose;
+  stopped: { since: number; reason: string; liftBy: 'start' | 'business' | 'never' } | null;
+}
+
 /** How a record's newest online payment stands, as `payments.state` answers it. */
 export interface PublicPaymentState {
   state: 'none' | 'open' | 'confirming' | 'paid' | 'failed' | 'expired';
@@ -1214,6 +1252,8 @@ export interface PublicClient {
   documents: PublicDocuments;
   /** Paying online from the app's own screens (see {@link PublicPayments}). */
   payments: PublicPayments;
+  /** Texts: whether they can come, and where the signed-in person stands (see {@link PublicTexts}). */
+  texts: PublicTexts;
   /**
    * Assert the live scope carries what this app needs.
    *
@@ -1974,6 +2014,17 @@ export function createPublicClient(
         const query = new URLSearchParams({ ref, id }).toString();
         const out = await request<{ data: { state: PublicPaymentState['state']; test?: boolean } }>(`/api/v1/public/payments/state?${query}`, signal === undefined ? {} : { signal });
         return { state: out.data.state, ...(out.data.test === true ? { test: true as const } : {}) };
+      },
+    },
+
+    texts: {
+      async ready(signal?: AbortSignal) {
+        const out = await request<{ data: { ready: boolean } }>('/api/v1/public/texts', signal === undefined ? {} : { signal });
+        return out.data.ready === true;
+      },
+      async standing(signal?: AbortSignal) {
+        const out = await request<{ data: PublicTextStanding }>('/api/v1/public/texts/standing', signal === undefined ? {} : { signal });
+        return out.data;
       },
     },
 

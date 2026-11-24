@@ -16,6 +16,8 @@ export const TEXT_NOT_QUEUED = 'The text could not be queued';
 export const TEXT_NOT_CHECKED = 'Not sent: the stop list or the settings could not be read';
 export const TEXT_EARLIER_OPEN = 'An earlier send is still open: check it before resending';
 export const TEXT_UNKNOWN = 'Unknown: check with the provider before resending';
+const PROVIDER_FAILED = 'Not delivered: the provider reports it failed';
+const CHECKED_NOT_SENT = 'Checked with the provider: it did not go';
 
 /** A prefix every waiting row's line starts with, so a page can tell a wait from a failure. */
 export const TEXT_WAITING_PREFIX = 'Waiting for the sending hours';
@@ -89,10 +91,48 @@ export function textRowMark(delivery: Pick<TextDelivery, 'state' | 'reason'>): T
     case 'not-sent':
       return { mark: 'failed', error: textReasonSentence(delivery.reason) };
     case 'provider-failed':
-      return { mark: 'failed', error: 'Not delivered: the provider reports it failed' };
+      return { mark: 'failed', error: PROVIDER_FAILED };
     case 'checked-not-sent':
-      return { mark: 'failed', error: 'Checked with the provider: it did not go' };
+      return { mark: 'failed', error: CHECKED_NOT_SENT };
     default:
       return null;
   }
+}
+
+/**
+ * The code an outbox's `textReason` column holds beside each line above, for
+ * an app to read instead of the sentence: `queued` (handed to the send path),
+ * `waiting` (held for the sending hours), `sent`, `unknown`, `no-number`,
+ * `not-set-up` (no provider, no sender, or texts switched off), `sample`,
+ * `rehearsal`, `no-words`, `not-prepared`, `earlier-send-open`,
+ * `provider-failed`, `checked-not-sent`, or a send path reason
+ * (`no-consent`, `stopped`, `opted-out`, `daily-limit`, …).
+ */
+export type TextReasonCode = string;
+
+/** A send path reason, as the column keeps it: the three of "not set up" as one. */
+export function textReasonCode(reason: TextDeliveryReason | null): TextReasonCode {
+  if (reason === null) return 'not-sent';
+  if (reason === 'not-connected' || reason === 'no-sender' || reason === 'off-by-operator') return 'not-set-up';
+  return reason;
+}
+
+const LINE_CODES: ReadonlyMap<string, TextReasonCode> = new Map<string, TextReasonCode>([
+  [TEXT_NO_NUMBER, 'no-number'],
+  [TEXT_SAMPLE, 'sample'],
+  [TEXT_REHEARSAL, 'rehearsal'],
+  [TEXT_NO_WORDS, 'no-words'],
+  [TEXT_NOT_PREPARED, 'not-prepared'],
+  [TEXT_EARLIER_OPEN, 'earlier-send-open'],
+  [TEXT_UNKNOWN, 'unknown'],
+  [PROVIDER_FAILED, 'provider-failed'],
+  [CHECKED_NOT_SENT, 'checked-not-sent'],
+  ...(Object.entries(REASONS) as [TextDeliveryReason, string][]).map(([reason, line]): [string, TextReasonCode] => [line, textReasonCode(reason)]).reverse(),
+]);
+
+/** The code of one of the lines above (a waiting line too); `not-sent` for any other. */
+export function textLineCode(line: string | null): TextReasonCode {
+  if (line === null) return 'sent';
+  if (line.startsWith(TEXT_WAITING_PREFIX)) return 'waiting';
+  return LINE_CODES.get(line) ?? 'not-sent';
 }

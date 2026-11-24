@@ -23,8 +23,20 @@ A person agrees with a **box on an app's form**, beside the e-mail box and never
 starts unticked, and nobody is refused a booking or a sale for leaving it so. The consent log keeps
 the sentence they saw, its version and language, and when they ticked it.
 
+A form may ask twice, with **one box for service texts and another for offers**: each is its own
+answer, with its own words.
+
+Staff can record a yes too, when a person agrees at the desk, on the phone or on paper: ticking an
+app's text box on the record page records it in the box's words, named to the staff member, and
+unticking it records a no. An app's own staff screen can record one with the words it showed (see
+[An app's own reads](#an-apps-own-reads)).
+
 A yes is for one exact number. If the number on a person's row changes, the new number needs a new
 yes, because numbers get passed on to new owners. A no covers every number the row ever had.
+
+A stranger's yes never overrules an earlier no. A person signed in by a link or code mailed to them
+can change their mind: their own fresh yes replaces their own earlier no for that app. It never
+lifts a STOP.
 
 A person who texted the business in the last seven days has asked for an answer, so a service text
 that answers them needs no yes of its own. A STOP still refuses it.
@@ -64,6 +76,26 @@ lifts a stop in Adminium, so no template may ask anyone to reply YES.
 
 A text from a sender name cannot take a reply. It ends with your phone or e-mail instead, and the
 person asks you. Record their request on the do-not-text list.
+
+## An app's own reads
+
+An app's pages can ask:
+
+- **Whether texts can go at all:** `GET /api/v1/texts/ready` for staff, `GET /api/v1/public/texts`
+  (`client.texts.ready()`) for a public page. It is true when a provider and a sender are set and
+  texts are not switched off on the server, and says nothing else of the account. Draw no box while
+  it is false.
+- **Where a person stands:** `GET /api/v1/texts/consent?connection=&table=&row=&column=` for a
+  record its staff can open, and `GET /api/v1/public/texts/standing` (`client.texts.standing()`) for
+  the verified person's own Prefs. Each purpose reads `yes`, `no`, `not-asked`, `stopped` or
+  `no-phone`, with when, how and by whom the answer was given.
+- **Recording an answer:** `POST /api/v1/texts/consent` with `state` (`yes` or `no`), `how`
+  (`in-person`, `phone`, `paper` or `email`) and, for a yes, `wording` (`text` and `version`). It is
+  allowed to whoever may change the record, or text the app's people.
+
+A number on the do-not-text list reads `stopped` whatever the log says, with `liftBy`: `start` when
+the person replied STOP (say "Text START to our number to get texts again"), `business` when staff
+put it there, `never` for an erased person.
 
 ## The do-not-text list
 

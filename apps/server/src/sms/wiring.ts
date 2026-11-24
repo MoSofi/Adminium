@@ -24,10 +24,10 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { storedPublicOrigin } from '../email/door-reach.js';
 import { recipientLocale } from '../i18n/server-i18n.js';
 import type { InboundCore, InboundWiring } from '../inbound/index.js';
-import { businessName } from '../privacy/business.js';
 import { PERMISSIONS } from '../rbac/permissions.js';
 import type { LockReason } from '../trial/operator-lock.js';
 import { createSmsAccountStore } from './account-store.js';
+import { textBusinessName } from './text-name.js';
 import { createTextConsentService, type TextConsentService } from './consent/index.js';
 import { storedDefaultCountry } from './country.js';
 import { createTextErasure, type TextErasure } from './erasure.js';
@@ -96,6 +96,8 @@ export interface SmsWiring {
   /** Two-way conversations: the replies hook, the threads and their answers. */
   threads: TextThreads;
   defaultCountry: () => Promise<string | null>;
+  /** The country a local number is read in: the server's own setting, else the text account's, as the send path reads it. */
+  readingCountry: () => Promise<string | null>;
   settingsRoutes(): FastifyPluginAsyncZod;
   /** Studio → Texts beside the provider card: limits, Activity, the do-not-text list, text templates. */
   consoleRoutes(): FastifyPluginAsyncZod;
@@ -107,6 +109,12 @@ export interface SmsWiring {
   catchUpAtBoot(): Promise<SmsCatchUpResult | null>;
   /** The text send path, for whatever sends a text. Null until it is joined. */
   readonly texts: TextSendPath | null;
+  /**
+   * Whether a text can go at all: a provider account is saved, a sender is
+   * set, and the operator has not switched texts off. A plain yes or no that
+   * names nothing of the account: an app hides a box no text would follow.
+   */
+  ready(): Promise<boolean>;
   joinSendPath(path: TextSendPath): void;
 }
 
@@ -117,6 +125,14 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
   const accounts = createSmsAccountStore(meta);
   const consent = createTextConsentService({ meta, secret, now, appOf: deps.appOfRow });
   const deliveries = createTextSendStore(meta);
+  async function readingCountry(): Promise<string | null> {
+    return (await defaultCountry()) ?? (await accounts.read().catch(() => null))?.defaultCountry ?? null;
+  }
+  async function ready(): Promise<boolean> {
+    if (!deps.operator().allowed) return false;
+    const account = await accounts.read().catch(() => null);
+    return account !== null && account.sender !== null;
+  }
   const service = createSmsService({
     store: accounts,
     secret,
@@ -139,7 +155,7 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
     consent,
     sms: { view: () => service.view() },
     texts: () => sendPath,
-    business: conversations.business ?? (async () => ({ name: await businessName(meta) })),
+    business: conversations.business ?? (async () => ({ name: await textBusinessName(meta, null) })),
     zone: conversations.zone ?? (async () => null),
     locale: conversations.locale ?? (async () => null),
     apps: conversations.apps ?? (() => installedTextApps(meta)),
@@ -229,9 +245,14 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
         threads,
         manageGrant: PERMISSIONS.smsManage,
         replyReach: () => channel.replyReach(),
-        country: defaultCountry,
+        country: readingCountry,
         recordPhone: input.recordPhone,
+        consent,
+        ready: () => ready(),
       }),
+
+    ready,
+    readingCountry,
 
     async enqueueTextSettle(enqueue) {
       // Deliveries to settle, or conversations to keep to their time.

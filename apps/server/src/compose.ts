@@ -422,6 +422,7 @@ import { SMS_STOP_EVENT_KINDS } from './sms/inbound/index.js';
 import { createTextSendPath, registerSmsSendHandler, textPhoneKeys, TEXT_SETTLE_AFTER_MS, TEXT_SETTLE_CRON, TEXT_SETTLE_JOB, TEXT_SETTLE_SCHEDULE, type TextSendPath } from './sms/send/index.js';
 import { recordPhoneReader, textConversationDeps } from './sms/threads/server-deps.js';
 import { appOfRow } from './sms/app-of-row.js';
+import { createConsentTicks } from './public-api/consent-tick.js';
 import { createSmsWiring } from './sms/wiring.js';
 import { createTextMarketing } from './sms/marketing/index.js';
 import { textConfirmDoorRoutes } from './routes/mail-door/text-confirm.js';
@@ -1504,7 +1505,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // A running number counts in the meta store; a venue's clock is its connection's.
     ...writeStores(meta),
     // A consent column changed by a write, or a public tick, told to the consent log in the same write (made below, with the log).
-    people: { ...writeStores(meta).people!, written: (write) => (peopleConsent === null ? Promise.resolve() : peopleConsent.written(write)) },
+    people: {
+      ...writeStores(meta).people!,
+      written: (write) => (peopleConsent === null ? Promise.resolve() : peopleConsent.written(write)),
+      textBoxesOn: (target) => (peopleConsent === null ? Promise.resolve(false) : peopleConsent.hasTextBoxes(target)),
+    },
     // An update of a table an app's email watches for a change reads the row first.
     // …and so does one of a table a rule watches for one column's change ("status became paid").
     watched: async (connectionId, tableId) =>
@@ -2057,6 +2062,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     logger: app.log,
   });
   textMarketing.registerJobs(jobs.registry);
+  const rowApp = appOfRow(meta);
+  const tableBoxes = createConsentTicks(meta);
   peopleConsent = createPeopleConsent({
     meta,
     consent,
@@ -2065,8 +2072,14 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     log: app.log,
     // A public form's own box for texts: its yes is kept apart from any yes to mail.
     textConsent: sms.consent,
-    textCountry: sms.defaultCountry,
+    textCountry: () => sms.readingCountry(),
     textMarketingYes: (person) => textMarketing.afterFormYes(person),
+    textAppOf: rowApp,
+    // A staff change of a box's column: the boxes the row's app declares on its table.
+    textBoxesOn: async (target) => {
+      const app = await rowApp({ connectionId: target.connectionId, table: target.tableId, key: '' });
+      return app === null ? [] : tableBoxes.textBoxesOn({ connectionId: target.connectionId, app, view: target.view, tableId: target.tableId });
+    },
   });
   const consentMirror = peopleConsent;
   inboundEvents.registerJobs(jobs.registry);
@@ -4573,6 +4586,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         rehearsal: { ledgerFor: ledgerMaker(meta, (app, connectionId) => createSampleDataService(sampleDataDeps).ledgerFor(app, connectionId)) },
         // "Delete my details" withdraws a yes before it empties the column that held it.
         peopleConsent: consentMirror,
+        // A verified person's own standing on the app's texts, for their Prefs.
+        texts: { consent: sms.consent, country: () => sms.readingCountry(), ready: () => sms.ready() },
         // A guest's file for an app's column, and the holds a write that names it makes.
         uploads: { store: publicUploads, columns: columnUploads },
         // A guest's own draft removed through its link: its files to the bin, as a staff delete sends them.

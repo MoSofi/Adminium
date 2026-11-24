@@ -9,6 +9,24 @@
  *   GET  /texts/replies               each app's replies switch (`sms.manage`)
  *   PUT  /texts/replies/:app          switches one app's replies on or off
  *   POST /texts/send                  a text to the number on a record
+ *   GET  /texts/ready                 whether a text can go at all (a provider, a sender, not switched off)
+ *   GET  /texts/consent               where the person on a record stands on the app's texts
+ *   POST /texts/consent               a staff member records their yes or no to the app's service texts
+ *
+ * A RECORD is named by its database, its table (its id, its name, or for an
+ * app's page sending `X-Adminium-Install`, the app's own name for one of its
+ * tables), its row and the column holding the number. A record the person
+ * cannot read answers as one that is not there.
+ *
+ * RECORDING an answer is a change of the person's row, as e-mail consent is
+ * (`routes/consent`): the table's update grant with the row inside their
+ * update reach, so a desk role may; or the right to text the app's people
+ * (`texts:<app>:reply`, `texts.reply`). It never needs leave to change the
+ * number. A yes keeps the words the person was given and their version, how
+ * they gave it (in person, by phone, on paper, by e-mail) and the staff
+ * member's name. Only service texts: a marketing yes is Studio → Texts'
+ * (`/sms/marketing/consent`), which asks for its confirmation. A yes never
+ * lifts the stop list: only the person's START does.
  *
  * Who may do what is `permission.ts`. A signed-in person only: an API key never
  * reads or answers a customer's text. Every read and every answer writes an
@@ -44,9 +62,14 @@ import { textAppGrants, TEXTS_READ_PERMISSION, TEXTS_REPLY_PERMISSION } from './
 import { canReadPii } from '../../crud/mask.js';
 import { mayReplyApp, readsAny, TEXT_BODY_MAX, TextCursorError, type TextItemView, type TextThreads, type TextThreadView, type TextViewer } from './service.js';
 import { TEXT_THREAD_KINDS, type TextSendOutcome } from './types.js';
+import { CONSENT_HOWS } from '@adminium/meta';
+import type { TextConsentService } from '../consent/types.js';
+import { TEXT_STANDING_STATES, TEXT_STOP_LIFTS, textStandingOf } from '../consent/standing-view.js';
 
 /** The number on a record, as the person asking reaches the record. */
 export interface RecordPhone {
+  /** The table's id in the snapshot, whichever name the request gave it by. */
+  tableId: string;
   /** The record's canonical key. */
   rowKey: string;
   /** The app whose table it is; null for a table no app declares. */
@@ -56,6 +79,8 @@ export interface RecordPhone {
   value: unknown;
   /** The person may see the number on this table. */
   mayReadNumber: boolean;
+  /** The person may change the row: the table's update grant, and the row inside their update reach. */
+  mayChange: boolean;
 }
 
 export interface TextsRoutesDeps {
@@ -68,8 +93,16 @@ export interface TextsRoutesDeps {
   country: () => Promise<string | null>;
   /** Whether this person sees personal columns of a table (`canReadPii`). */
   mayReadPii?: ((request: FastifyRequest, connectionId: string, table: string) => Promise<boolean>) | undefined;
-  /** The record as this person reaches it for reading, under their row limits; null when they do not. */
+  /**
+   * The record as this person reaches it for reading, under their row limits;
+   * null when they may not read the table or the row. The table is named by
+   * its id, its name, or (for an app's page) the app's own name for it.
+   */
   recordPhone?: ((request: FastifyRequest, input: { connection: string; table: string; row: string; column: string }) => Promise<RecordPhone | null>) | undefined;
+  /** The text consent log: without it, the consent routes are not served. */
+  consent?: Pick<TextConsentService, 'standing' | 'stop' | 'record'> | undefined;
+  /** Whether a text can go at all (`SmsWiring.ready`): false when absent. */
+  ready?: (() => Promise<boolean>) | undefined;
 }
 
 /** What this person may do with conversations, from the grants they hold. */
@@ -302,6 +335,103 @@ export function textsRoutes(deps: TextsRoutesDeps): FastifyPluginAsyncZod {
       },
     );
 
+
+    const recordQuery = z
+      .object({
+        connection: z.string().min(1).max(36),
+        table: z.string().min(1).max(255),
+        row: z.string().min(1).max(191),
+        /** The column holding the number: one that holds a phone. */
+        column: z.string().min(1).max(128),
+      })
+      .strict();
+    const answerDto = z.object({ at: z.number(), source: z.string(), how: z.string().nullable(), by: person.nullable(), wordingVersion: z.string().nullable() });
+    const purposeDto = z.object({ state: z.enum(TEXT_STANDING_STATES), answer: answerDto.nullable() });
+    const standingReply = z.object({
+      data: z.object({
+        connection: z.string(),
+        table: z.string(),
+        row: z.string(),
+        app: z.string().nullable(),
+        /** Whether a text can go at all: false while no provider and sender are set, or the operator switched texts off. */
+        ready: z.boolean(),
+        masked: z.string().nullable(),
+        service: purposeDto,
+        marketing: purposeDto,
+        stopped: z.object({ since: z.number(), reason: z.string(), liftBy: z.enum(TEXT_STOP_LIFTS) }).nullable(),
+      }),
+    });
+    const answerBody = recordQuery
+      .extend({
+        state: z.enum(['yes', 'no']),
+        how: z.enum(CONSENT_HOWS),
+        /** The words the person was given, and their version: required for a yes. */
+        wording: z.object({ text: z.string().trim().min(1).max(2000), version: z.string().trim().min(1).max(40) }).strict().optional(),
+        note: z.string().max(500).optional(),
+      })
+      .strict()
+      .refine((body) => body.state === 'no' || body.wording !== undefined, { message: 'A yes keeps the words the person was given, and their version.', path: ['wording'] });
+
+    /** The record and the person on it, as this person reaches it: refused as missing otherwise. */
+    async function consentRecord(request: FastifyRequest, input: z.infer<typeof recordQuery>) {
+      const missing = () => new NotFoundError('No such record.');
+      if (deps.recordPhone === undefined || deps.consent === undefined) throw missing();
+      const record = await deps.recordPhone(request, input);
+      if (record === null) throw missing();
+      if (!record.phoneColumn) throw new ValidationFailedError('That column does not hold a phone number.', { field: 'column', reason: 'not-a-phone-column' });
+      return { record, person: { connectionId: input.connection, table: record.tableId, key: record.rowKey } };
+    }
+
+    async function standingOut(input: z.infer<typeof recordQuery>, found: Awaited<ReturnType<typeof consentRecord>>): Promise<z.infer<typeof standingReply>['data']> {
+      const view = await textStandingOf(deps.consent!, { phone: found.record.value, country: await deps.country(), person: found.person, app: found.record.app });
+      return { connection: input.connection, table: found.record.tableId, row: found.record.rowKey, app: found.record.app, ready: (await deps.ready?.()) ?? false, ...view };
+    }
+
+    app.get('/texts/ready', { preHandler: app.requireAuth, schema: { response: { 200: z.object({ data: z.object({ ready: z.boolean() }) }) } } }, async () => ({ data: { ready: (await deps.ready?.()) ?? false } }));
+
+    app.get('/texts/consent', { preHandler: app.requireAuth, config: { audit: audited('rbac') }, schema: { querystring: recordQuery, response: { 200: standingReply } } }, async (request) => {
+      personOf(request);
+      const found = await consentRecord(request, request.query);
+      const data = await standingOut(request.query, found);
+      // Whose standing was read, by its keys: never the number, never a word of an answer.
+      await app.rbac.audit(request, { category: 'data', action: 'texts.consent.read', changes: { after: { connection: data.connection, table: data.table, row: data.row, app: data.app } } });
+      return { data };
+    });
+
+    app.post('/texts/consent', { preHandler: app.requireAuth, config: { audit: audited('rbac') }, schema: { body: answerBody, response: { 200: standingReply } } }, async (request) => {
+      const by = personOf(request);
+      const body = request.body;
+      const input = { connection: body.connection, table: body.table, row: body.row, column: body.column };
+      const found = await consentRecord(request, input);
+      // A change of the person's row, or the right to text the app's people.
+      if (!found.record.mayChange && !mayReplyApp(await viewerOf(request), found.record.app ?? '')) await refuse(request, `table:${body.connection}:${found.record.tableId}:update`);
+      try {
+        await deps.consent!.record({
+          phone: found.record.value,
+          country: await deps.country(),
+          person: found.person,
+          purpose: 'text-service',
+          state: body.state,
+          source: 'staff',
+          detail: 'staff',
+          how: body.how,
+          note: body.note ?? null,
+          staff: by,
+          wording: body.wording ?? null,
+        });
+      } catch (error) {
+        if (error instanceof ValidationFailedError) throw new ValidationFailedError('The number on this record is not one a text can reach.', { field: 'column', reason: 'unreadable-phone' });
+        throw error;
+      }
+      const data = await standingOut(input, found);
+      await app.rbac.audit(request, {
+        category: 'data',
+        action: 'texts.consent.recorded',
+        changes: { after: { connection: data.connection, table: data.table, row: data.row, app: data.app, purpose: 'text-service', state: body.state, how: body.how, version: body.wording?.version ?? null, phone: data.masked } },
+      });
+      return { data };
+    });
+
     app.post(
       '/texts/send',
       {
@@ -328,18 +458,17 @@ export function textsRoutes(deps: TextsRoutesDeps): FastifyPluginAsyncZod {
         const missing = () => new NotFoundError('No such record.');
         if (deps.recordPhone === undefined) throw missing();
         // A record this person cannot read answers as one that is not there.
-        if (!(await request.can(`table:${input.connection}:${input.table}:read`))) throw missing();
         const record = await deps.recordPhone(request, { connection: input.connection, table: input.table, row: input.row, column: input.column });
         if (record === null) throw missing();
         if (!record.phoneColumn) throw new ValidationFailedError('That column does not hold a phone number.', { field: 'column', reason: 'not-a-phone-column' });
         const viewer = await viewerOf(request);
         if (!mayReplyApp(viewer, record.app ?? '')) await refuse(request, TEXTS_REPLY_PERMISSION);
-        const sent = await threads.sendToRecord({ body: input.body, clientKey: input.clientKey, by, app: record.app, phone: record.value, country: await deps.country(), record: { connectionId: input.connection, table: input.table, key: record.rowKey } });
+        const sent = await threads.sendToRecord({ body: input.body, clientKey: input.clientKey, by, app: record.app, phone: record.value, country: await deps.country(), record: { connectionId: input.connection, table: record.tableId, key: record.rowKey } });
         const result = resultOf(sent.outcome);
         await app.rbac.audit(request, {
           category: 'data',
           action: 'texts.record.texted',
-          changes: { after: { connection: input.connection, table: input.table, row: record.rowKey, app: record.app, thread: sent.threadId, phone: sent.masked ?? maskPhone(null), outcome: result.outcome, reason: result.reason, delivery: result.deliveryId } },
+          changes: { after: { connection: input.connection, table: record.tableId, row: record.rowKey, app: record.app, thread: sent.threadId, phone: sent.masked ?? maskPhone(null), outcome: result.outcome, reason: result.reason, delivery: result.deliveryId } },
         });
         return { data: { threadId: sent.threadId, sentTo: record.mayReadNumber ? sent.masked : null, result } };
       },

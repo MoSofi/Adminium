@@ -69,7 +69,8 @@ function clinicManifest(): Record<string, unknown> {
     ...invoicingManifest([
       ...invoicingTables(),
       { ref: 'patients', columns: [id, text('name'), text('mobile', 32, { rules: { personal: true } }), { ref: 'lead_hours', type: 'int', nullable: true }] },
-      { ref: 'visits', columns: [id, fk('patient_id', 'patients'), { ref: 'starts_at', type: 'timestamptz', nullable: true }, text('state', 16)] },
+      // A visit keeps the number typed when it was booked: a visit's own texts may go there (`recipient.textPhone`).
+      { ref: 'visits', columns: [id, fk('patient_id', 'patients'), { ref: 'starts_at', type: 'timestamptz', nullable: true }, text('state', 16), text('mobile', 32, { rules: { personal: true } })] },
       {
         ref: 'messages',
         columns: [
@@ -82,6 +83,7 @@ function clinicManifest(): Record<string, unknown> {
           text('error', 200),
           { ref: 'sent_at', type: 'timestamptz', nullable: true },
           { ref: 'due_at', type: 'timestamptz', nullable: true },
+          text('text_reason', 40),
         ],
       },
     ]),
@@ -94,9 +96,9 @@ function clinicManifest(): Record<string, unknown> {
     ],
     outbox: {
       table: 'messages',
-      columns: { kind: 'kind', status: 'status', to: 'to_address', error: 'error', sentAt: 'sent_at', due: 'due_at' },
+      columns: { kind: 'kind', status: 'status', to: 'to_address', error: 'error', sentAt: 'sent_at', due: 'due_at', textReason: 'text_reason' },
       links: { visit: 'visit_id' },
-      recipient: { via: 'patient_id', table: 'patients', name: 'name', phone: 'mobile' },
+      recipient: { via: 'patient_id', table: 'patients', name: 'name', phone: 'mobile', textPhone: { via: 'visit_id', column: 'mobile' } },
       kinds: { confirm_text: 'clinic-confirm', reminder_text: 'clinic-reminder' },
       channels: { confirm_text: 'sms', reminder_text: 'sms' },
       classes: { confirm_text: 'service', reminder_text: 'service' },
@@ -267,6 +269,67 @@ describe.each(LEGS)('a text kind joined to the engine — %s', (dialect, availab
     };
     return { sender, texts, provider, postTwilio, drain, runJobs };
   }
+
+  it.skipIf(!available)('each text row keeps a reason code beside its sentence: queued, sent, no-consent, stopped, no-number, not-set-up', async () => {
+    const reason = async (mid: number) => (await h.rows(`SELECT text_reason FROM ${h.real('messages')} WHERE id = ${mid}`))[0]!['text_reason'];
+    const offline = await wire({ connected: false });
+    const kai = await patient('Kai Renner', KAI);
+    const unset = await queued(kai);
+    await offline.sender.sendApp('clinic', clock.now);
+    expect(await message(unset)).toMatchObject({ status: 'skipped', error: TEXT_NOT_CONNECTED });
+    expect(await reason(unset)).toBe('not-set-up');
+    await app?.close();
+    app = null;
+
+    const { sender, runJobs } = await wire();
+    const refused = await queued(kai);
+    await sender.sendApp('clinic', clock.now);
+    expect(await message(refused)).toMatchObject({ status: 'skipped', error: textReasonSentence('no-consent') });
+    expect(await reason(refused)).toBe('no-consent');
+
+    const nobody = await patient('Ida Nobody', null);
+    const none = await queued(nobody);
+    await sender.sendApp('clinic', clock.now);
+    expect(await reason(none)).toBe('no-number');
+
+    const mia = await patient('Mia Okada', MIA);
+    await agree(MIA);
+    const fine = await queued(mia);
+    await sender.sendApp('clinic', clock.now);
+    expect(await reason(fine)).toBe('queued');
+    await runJobs();
+    expect(await message(fine)).toMatchObject({ status: 'sent', error: null });
+    expect(await reason(fine)).toBe('sent');
+
+    await consent.stop.add({ phone: MIA, reason: 'text-stop' });
+    const stopped = await queued(mia);
+    await sender.sendApp('clinic', clock.now);
+    await runJobs();
+    expect(await reason(stopped)).toBe('stopped');
+  });
+
+  it.skipIf(!available)('a visit\'s text goes to the number typed on the visit, judged for that number, when the outbox says so', async () => {
+    const { sender, provider, runJobs } = await wire();
+    // On file with an old number; the visit was booked with a new one, and the yes was given for the new one.
+    const mia = await patient('Mia Okada', KAI);
+    await agree(MIA);
+    await h.rows(`INSERT INTO ${h.real('visits')} (patient_id, state, mobile) VALUES (${mia}, 'booked', '${MIA}')`);
+    const visit = Number((await h.rows(`SELECT max(id) AS id FROM ${h.real('visits')}`))[0]!['id']);
+    await h.rows(`INSERT INTO ${h.real('messages')} (kind, status, patient_id, visit_id) VALUES ('confirm_text', 'queued', ${mia}, ${visit})`);
+    const mid = Number((await h.rows(`SELECT max(id) AS id FROM ${h.real('messages')}`))[0]!['id']);
+    await sender.sendApp('clinic', clock.now);
+    await runJobs();
+    expect(await message(mid)).toMatchObject({ status: 'sent', error: null, to: MIA });
+    expect(provider.posts.map((post) => new URLSearchParams(post.body).get('To'))).toEqual([MIA]);
+
+    // A visit with no number of its own: the person's, judged for theirs (no yes for it).
+    await h.rows(`INSERT INTO ${h.real('visits')} (patient_id, state) VALUES (${mia}, 'booked')`);
+    const bare = Number((await h.rows(`SELECT max(id) AS id FROM ${h.real('visits')}`))[0]!['id']);
+    await h.rows(`INSERT INTO ${h.real('messages')} (kind, status, patient_id, visit_id) VALUES ('confirm_text', 'queued', ${mia}, ${bare})`);
+    const other = Number((await h.rows(`SELECT max(id) AS id FROM ${h.real('messages')}`))[0]!['id']);
+    await sender.sendApp('clinic', clock.now);
+    expect(await message(other)).toMatchObject({ status: 'skipped', error: textReasonSentence('no-consent') });
+  });
 
   it.skipIf(!available)('a person known only by phone: row, job, provider, delivery report, STOP, and the next text refused', async () => {
     const { sender, provider, postTwilio, drain, runJobs } = await wire();

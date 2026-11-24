@@ -201,7 +201,8 @@ import { rehearsalRowOwner } from '../payments/rehearsal-state.js';
 import { holds, isSampleRow, verdictsFor, type LiveOutbox, type OutboxLogger } from './producers.js';
 import { addressFor, numberOnFile, plausibleAddress, referenced, rowOf, type Addressed } from './recipient.js';
 import type { TextDelivery, TextPrepared, TextSendPath, TextSendReport } from '../sms/send/index.js';
-import { TEXT_EARLIER_OPEN, TEXT_NO_NUMBER, TEXT_NO_WORDS, TEXT_NOT_CHECKED, TEXT_NOT_CONNECTED, TEXT_NOT_PREPARED, TEXT_NOT_QUEUED, TEXT_REHEARSAL, TEXT_SAMPLE, textReasonSentence, textRowMark, textWaitingSentence } from './text-words.js';
+import { textBusinessName } from '../sms/text-name.js';
+import { TEXT_EARLIER_OPEN, TEXT_NO_NUMBER, TEXT_NO_WORDS, TEXT_NOT_CHECKED, TEXT_NOT_CONNECTED, TEXT_NOT_PREPARED, TEXT_NOT_QUEUED, TEXT_REHEARSAL, TEXT_SAMPLE, textLineCode, textReasonCode, textReasonSentence, textRowMark, textWaitingSentence } from './text-words.js';
 import { columnRecipientOf } from './column-recipient.js';
 import { staffReplyTo } from './staff-reply-to.js';
 import { CALENDAR_GOOGLE_VARIABLE, CALENDAR_OUTLOOK_VARIABLE, calendarPartFor } from './calendar-part.js';
@@ -2079,6 +2080,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
             deps.logger?.warn({ appKey: box.appKey, pk: row[key] }, 'an app text could not be written');
             const values: Row = { [cols.status]: 'failed' };
             if (cols.error !== undefined) values[cols.error] = TEXT_NOT_PREPARED;
+            if (cols.textReason !== undefined) values[cols.textReason] = textLineCode(TEXT_NOT_PREPARED);
             const failed = await settle(box, target, pk, values, (q) => q.where(sql.ref(cols.status), '=', 'queued')).catch(() => null);
             if (failed !== null) settled.push(failed);
             continue;
@@ -2211,6 +2213,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const refused = async (status: 'skipped' | 'failed', error: string) => {
       const values: Row = { [cols.status]: status };
       if (cols.error !== undefined) values[cols.error] = sentence(error);
+      if (cols.textReason !== undefined) values[cols.textReason] = textLineCode(error);
       const done = await write.claim(values);
       return done === null ? null : { row: done, queued: false };
     };
@@ -2227,6 +2230,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     if (cols.sentAt !== undefined) claim[cols.sentAt] = write.at;
     // Held for its sending hours: `sent` keeps it from being queued again, and the line says it has not gone yet.
     if (cols.error !== undefined) claim[cols.error] = ready.text.opensAt === null ? null : textWaitingSentence(ready.text.opensAt);
+    if (cols.textReason !== undefined) claim[cols.textReason] = ready.text.opensAt === null ? 'queued' : 'waiting';
     if (ready.language !== undefined && cols.language !== undefined) claim[cols.language] = ready.language;
     const claimed = await write.claim(claim);
     if (claimed === null) return null;
@@ -2248,11 +2252,15 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     if (queued.queued) return { row: claimed, queued: true };
     if (queued.reason === 'earlier-send-open') {
       // It stays sent: the earlier try may have gone, and this row must not read as safe to queue again.
-      if (cols.error === undefined) return { row: claimed, queued: false };
-      return { row: (await write.afterClaim({ [cols.error]: TEXT_EARLIER_OPEN })) ?? claimed, queued: false };
+      const open: Row = {};
+      if (cols.error !== undefined) open[cols.error] = TEXT_EARLIER_OPEN;
+      if (cols.textReason !== undefined) open[cols.textReason] = textLineCode(TEXT_EARLIER_OPEN);
+      if (Object.keys(open).length === 0) return { row: claimed, queued: false };
+      return { row: (await write.afterClaim(open)) ?? claimed, queued: false };
     }
     const values: Row = { [cols.status]: 'failed' };
     if (cols.error !== undefined) values[cols.error] = TEXT_NOT_QUEUED;
+    if (cols.textReason !== undefined) values[cols.textReason] = textReasonCode('could-not-queue');
     if (cols.sentAt !== undefined) values[cols.sentAt] = null;
     return { row: (await write.afterClaim(values)) ?? claimed, queued: false };
   }
@@ -2341,7 +2349,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       codeNames: codeNamesIn(body, codeColumns),
       zone: ctx.clock,
       notAfter: producer !== undefined && 'before' in producer ? (slotInstant(cols.due === undefined ? null : row[cols.due])?.getTime() ?? null) : null,
-      business: { name: vars['appName'] ?? '', phone: line(settings?.phone), email: line(settings?.replyTo) },
+      // Named by the name chosen for texts (`sms/text-name.ts`), never by the one the app's emails are signed with.
+      business: { name: await textBusinessName(deps.meta, line(settings?.textName)), phone: line(settings?.phone), email: line(settings?.replyTo) },
       person,
     });
     if (prepared.action === 'skip') return { status: 'skipped', error: textReasonSentence(prepared.reason) };
@@ -2636,17 +2645,21 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const cols = definition.columns;
     const values: Row = {};
     let from: readonly string[] = ['sent'];
+    const reason = cols.textReason;
     if (mark.mark === 'went') {
       // Clears what an earlier report wrote: a provider can move a message from failed to delivered.
-      if (cols.error === undefined) return;
+      if (cols.error === undefined && reason === undefined) return;
       values[cols.status] = 'sent';
-      values[cols.error] = null;
+      if (cols.error !== undefined) values[cols.error] = null;
+      if (reason !== undefined) values[reason] = 'sent';
       from = ['sent', 'failed'];
     } else if (mark.mark === 'unknown') {
       // Stays sent, so nobody reads it as safe to queue again.
-      if (cols.error === undefined) return;
-      values[cols.error] = mark.error;
+      if (cols.error === undefined && reason === undefined) return;
+      if (cols.error !== undefined) values[cols.error] = mark.error;
+      if (reason !== undefined) values[reason] = textLineCode(mark.error);
     } else {
+      if (reason !== undefined) values[reason] = delivery.reason === null ? textLineCode(mark.error) : textReasonCode(delivery.reason);
       values[cols.status] = mark.mark === 'dropped' ? 'skipped' : 'failed';
       if (cols.error !== undefined) values[cols.error] = sentence(mark.error);
       else if (mark.mark === 'failed' && cols.sentAt !== undefined) values[cols.sentAt] = null;
@@ -2669,7 +2682,15 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
           still = still.where(sql.ref(sentAt.name), '>', spelled(report.sentAt - 1_000)).where(sql.ref(sentAt.name), '<', spelled(report.sentAt + 1_000));
         }
         // Nothing to clear: a report that says what the row already says writes nothing, and audits nothing.
-        if (mark.mark === 'went') still = still.where((eb) => eb.or([eb(sql.ref(cols.status), '=', 'failed'), eb(sql.ref(cols.error!), 'is not', null)]));
+        if (mark.mark === 'went') {
+          still = still.where((eb) =>
+            eb.or([
+              eb(sql.ref(cols.status), '=', 'failed'),
+              ...(cols.error === undefined ? [] : [eb(sql.ref(cols.error), 'is not', null)]),
+              ...(reason === undefined ? [] : [eb(sql.ref(reason), 'is', null), eb(sql.ref(reason), '<>', 'sent' as never)]),
+            ]),
+          );
+        }
         return still;
       },
       skipIfNone: true,

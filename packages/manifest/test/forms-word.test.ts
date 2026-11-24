@@ -228,6 +228,7 @@ describe('a table an app opens to forms', () => {
         ],
         anonymous: { perValue: { columns: ['email'], n: 5 }, perKeyHour: 200 },
         requireSetting: [],
+        textConsent: [],
       },
     ]);
     expect(decidedColumnsOf(result.manifest).get('enquiries')?.has('code')).toBe(true);

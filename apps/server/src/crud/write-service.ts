@@ -2118,6 +2118,8 @@ export function writtenByAdminium(context: Pick<WriteContext, 'origin' | 'stamps
 export interface PeopleWrites {
   tableOf(target: WriteTarget): Promise<PeopleOfTable | null>;
   written?(write: PeopleWrite): Promise<void>;
+  /** Whether an app's public entry draws a box for texts whose column is on this table (`people/consent-writes.ts`). */
+  textBoxesOn?(target: WriteTarget): Promise<boolean>;
 }
 
 /** How many times a create whose generated code collided is tried again. */
@@ -2547,8 +2549,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   const mirrored = async (target: WriteTarget, context?: WriteContext): Promise<boolean> => {
     if (opts.people?.written === undefined) return false;
     if (context?.consentTick !== undefined && context.consentTick.table === target.table.id) return true;
-    if (context?.textConsentTick !== undefined && context.textConsentTick.table === target.table.id) return true;
-    return (await opts.people.tableOf(target))?.consent != null;
+    if (context?.textConsentTicks?.some((tick) => tick.table === target.table.id) === true) return true;
+    if ((await opts.people.tableOf(target))?.consent != null) return true;
+    // A column a public box for texts writes: a staff change of it is told to the text consent log.
+    return (await opts.people.textBoxesOn?.(target)) === true;
   };
 
   /** A row written, told to the consent log (a staff change of a consent column, a public tick): after the statement, before the after hooks. */

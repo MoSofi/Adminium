@@ -38,6 +38,8 @@ export interface KitReply {
     columns?: { name: string; label: string; kind: string; required: boolean; link: boolean; values?: string[]; maxLength?: number }[];
     page?: string;
     sourceColumn?: string;
+    /** A table opened to forms: the app's boxes for texts (from 0.3.76). */
+    textBoxes?: { class: 'service' | 'marketing'; phone: string; column: string }[];
     /** A companies table (`via: 'companies'`, for a lead source add-on): the column each of a company's details goes in. */
     lead?: {
       number?: string;

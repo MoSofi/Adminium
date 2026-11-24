@@ -330,6 +330,14 @@ const recipientSchema = z
      */
     phone: refSchema.optional(),
     /**
+     * Where a text kind's number comes from instead of the person's row: a
+     * text column (`column`) of the row an outbox column links (`via`), the
+     * number the person typed on that order and gave their yes for. Consent
+     * and the stop list are judged for that number. A row that holds none:
+     * the person's own number, as without it.
+     */
+    textPhone: z.object({ via: refSchema, column: refSchema }).strict().optional(),
+    /**
      * Where the address comes from when `via` is empty — a first visit made
      * by someone not yet on file carries their details on the row itself.
      */
@@ -366,6 +374,14 @@ export const outboxSchema = z
         repeatKey: refSchema.optional(),
         /** A text column (unbounded, or at least 1000 characters) Adminium fills with a producer's `was` columns, as they were. */
         was: refSchema.optional(),
+        /**
+         * A text column (at least 40 characters) Adminium fills, beside the
+         * sentence in `error`, with one code saying how a text kind's row
+         * stands (`TEXT_REASON_CODES`): `queued`, `waiting`, `sent`,
+         * `no-number`, `not-set-up`, `no-consent`, `stopped`, and every other
+         * reason a text is not sent. An app reads it instead of the sentence.
+         */
+        textReason: refSchema.optional(),
       })
       .strict(),
     /**
@@ -386,6 +402,14 @@ export const outboxSchema = z
         enabled: refSchema.optional(),
         name: refSchema.optional(),
         phone: refSchema.optional(),
+        /**
+         * The column holding the name the app's automatic texts give the
+         * business by (the "not read" answer, a STOP's confirmation, a
+         * country's opt-out line): a neutral name a sensitive practice chose
+         * for texts. Empty or absent: the sender name set in Studio → Texts,
+         * never the name the emails are signed with.
+         */
+        textName: refSchema.optional(),
         /** The address a reply to any of the app's messages goes to (the house's own): a Reply-To on each. Empty or not an address: none. */
         replyTo: refSchema.optional(),
       })
@@ -624,6 +648,8 @@ export function removalTableOf(producer: OutboxProducer): string | undefined {
 
 /** How long a `repeatKey` is: a SHA-256 digest in base64url. */
 export const REPEAT_KEY_LENGTH = 43;
+/** The least a `textReason` column holds: the longest reason code, and room to grow. */
+export const TEXT_REASON_LENGTH = 40;
 /** The fewest characters a bounded `was` column holds: the columns a message keeps, as they were. */
 export const WAS_MIN_LENGTH = 1000;
 /** The mark on a template's block that is sent only with the document the template carries (`attach.optional`). */
@@ -643,6 +669,7 @@ export const OUTBOX_WRITTEN = {
   effectError: [...DECIDING_RULES, ...REFUSING_RULES],
   repeatKey: [...DECIDING_RULES, ...REFUSING_RULES],
   was: [...DECIDING_RULES, ...REFUSING_RULES],
+  textReason: [...DECIDING_RULES, ...REFUSING_RULES],
   // Left empty by a desk that asks Adminium to look the address up, and written when it sends.
   to: [...DECIDING_RULES, 'options', 'required', 'requiredWhen'],
   language: [...DECIDING_RULES, 'options', 'required', 'requiredWhen'],
@@ -816,6 +843,12 @@ export function outboxIssues(
       out.push({ path: at('columns', 'repeatKey'), message: `"${box.table}.${found.ref}" must hold ${REPEAT_KEY_LENGTH} characters (a digest)` });
     }
   }
+  if (box.columns.textReason !== undefined) {
+    const found = col(box.table, box.columns.textReason, ['text'], at('columns', 'textReason'), 'a text column');
+    if (found !== undefined && found.maxLength !== undefined && found.maxLength < TEXT_REASON_LENGTH) {
+      out.push({ path: at('columns', 'textReason'), message: `"${box.table}.${found.ref}" holds a text's reason code: it holds ${TEXT_REASON_LENGTH} characters or more` });
+    }
+  }
   if (box.columns.was !== undefined) {
     const found = col(box.table, box.columns.was, ['text'], at('columns', 'was'), 'a text column');
     if (found !== undefined && found.maxLength !== undefined && found.maxLength < WAS_MIN_LENGTH) {
@@ -898,6 +931,11 @@ export function outboxIssues(
     out.push({ path: at('recipient', 'language'), message: 'a message\'s language read from the row it is about is kept in the outbox\'s language column: name it' });
   }
   if (r.optIn !== undefined) col(r.table, r.optIn, ['bool'], at('recipient', 'optIn'), 'a bool');
+  if (r.textPhone !== undefined) {
+    const holder = fk(box.table, r.textPhone.via, undefined, at('recipient', 'textPhone', 'via'))?.references;
+    if (holder !== undefined) col(holder, r.textPhone.column, ['text'], at('recipient', 'textPhone', 'column'), 'a text column (a phone number)');
+    if (!Object.keys(box.kinds).some((kind) => box.channels?.[kind] === 'sms')) out.push({ path: at('recipient', 'textPhone'), message: 'a number a text goes to is read only for a text kind: this outbox sends no text (channels)' });
+  }
   if (r.fallback !== undefined) {
     const via = fk(box.table, r.fallback.via, undefined, at('recipient', 'fallback', 'via'));
     const holder = via?.references;
@@ -915,6 +953,7 @@ export function outboxIssues(
     if (box.settings.enabled !== undefined) col(box.settings.table, box.settings.enabled, ['bool'], at('settings', 'enabled'), 'a bool');
     if (box.settings.name !== undefined) col(box.settings.table, box.settings.name, ['text'], at('settings', 'name'), 'a text column');
     if (box.settings.phone !== undefined) col(box.settings.table, box.settings.phone, ['text'], at('settings', 'phone'), 'a text column');
+    if (box.settings.textName !== undefined) col(box.settings.table, box.settings.textName, ['text'], at('settings', 'textName'), 'a text column');
     if (box.settings.replyTo !== undefined) col(box.settings.table, box.settings.replyTo, ['text'], at('settings', 'replyTo'), 'a text column (an address)');
   }
 

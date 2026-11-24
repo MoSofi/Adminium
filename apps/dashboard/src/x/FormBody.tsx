@@ -136,6 +136,8 @@ export function FormBody(props: FormBodyProps): ReactNode {
   const sendingFiles = useRef(new Set<Promise<void>>());
   const rowSeq = useRef(0);
   const [trap, setTrap] = useState('');
+  // The app's boxes for texts: unticked until the visitor ticks one, and never asked for.
+  const [texts, setTexts] = useState<ReadonlySet<'service' | 'marketing'>>(new Set());
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [checked, setChecked] = useState(false);
   const [sending, setSending] = useState(false);
@@ -274,7 +276,15 @@ export function FormBody(props: FormBodyProps): ReactNode {
     say(t('x:sending', 'Sending…'));
     try {
       const parent = frame ? (props.parentOrigin?.() ?? null) : null;
-      const answer = { language: form.language, values: answerValues(vocabularyForm, now), query, website: trap, ...(parent === null ? {} : { from: parent }), ...(token === null ? {} : { t: token }) };
+      const answer = {
+        language: form.language,
+        values: answerValues(vocabularyForm, now),
+        query,
+        website: trap,
+        ...(parent === null ? {} : { from: parent }),
+        ...(token === null ? {} : { t: token }),
+        ...(texts.size === 0 ? {} : { texts: [...texts] }),
+      };
       let reply: Awaited<ReturnType<typeof postAnswer>> = { state: 'proof' };
       // The human check's solver is fetched at the first Send, off the page's first load: no page needs it before.
       const { solve } = await import('../pay/proof.js');
@@ -374,6 +384,34 @@ export function FormBody(props: FormBodyProps): ReactNode {
                   : undefined
               }
             />
+          </div>
+        );
+      })}
+      {(form.textBoxes ?? []).map((box) => {
+        const id = `x-texts-${box.class}${scope === '' ? '' : `-${scope}`}`;
+        return (
+          <div key={box.class} className="x-question">
+            <div className="x-field x-tick" data-kind="texts">
+              <div className="x-tick-row">
+                <input
+                  id={id}
+                  type="checkbox"
+                  checked={texts.has(box.class)}
+                  onChange={(event) => {
+                    const on = event.target.checked;
+                    setTexts((held) => {
+                      const next = new Set(held);
+                      if (on) next.add(box.class);
+                      else next.delete(box.class);
+                      return next;
+                    });
+                  }}
+                />
+                <label htmlFor={id} className="x-tick-label">
+                  {box.label}
+                </label>
+              </div>
+            </div>
           </div>
         );
       })}

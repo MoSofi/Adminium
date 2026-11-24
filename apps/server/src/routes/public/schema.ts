@@ -725,3 +725,18 @@ export const publicReviewLinkTakeBody = publicReviewBody.extend({ token: z.strin
 export const publicCalendarReply = z.object({ data: z.object({ ics: z.string(), google: z.string(), outlook: z.string() }) });
 /** A review taken: the moment the row was stamped. */
 export const publicReviewTakenReply = z.object({ data: z.object({ reviewedAt: z.string() }) });
+/** A verified person's own standing on the app's texts (`GET /public/texts/standing`, `sms/consent/standing-view.ts`). */
+const publicTextAnswer = z.object({ at: z.number(), source: z.string(), how: z.string().nullable(), by: z.object({ id: z.string(), label: z.string() }).nullable(), wordingVersion: z.string().nullable() });
+const publicTextPurpose = z.object({ state: z.enum(['yes', 'no', 'not-asked', 'stopped', 'no-phone']), answer: publicTextAnswer.nullable() });
+export const publicTextStandingReply = z.object({
+  data: z.object({
+    /** Whether a text can come at all: false while the business has no provider and sender, or texts are switched off. */
+    ready: z.boolean(),
+    masked: z.string().nullable(),
+    service: publicTextPurpose,
+    marketing: publicTextPurpose,
+    stopped: z.object({ since: z.number(), reason: z.string(), liftBy: z.enum(['start', 'business', 'never']) }).nullable(),
+  }),
+});
+/** Whether texts can come at all (`GET /public/texts`): a plain yes or no, nothing of the account. */
+export const publicTextsReply = z.object({ data: z.object({ ready: z.boolean() }) });

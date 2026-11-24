@@ -387,3 +387,100 @@ describe('a public form\'s box for texts', () => {
     refusedWith((doc) => delete doc['people'][0].phone, 'a text answer is kept with the person');
   });
 });
+
+describe('boxes for texts, one per class', () => {
+  const OFFERS = { version: 1, text: { 'en-US': 'Text me offers now and then.' } };
+  const withOffers = (doc: Doc) => {
+    doc['requiredSchema'].tables[0].columns.push({ ref: 'may_offers', type: 'bool', nullable: true });
+    doc['publicAccess'][0].writable.push('may_offers');
+    doc['publicAccess'][0].textConsent = [doc['publicAccess'][0].textConsent, { column: 'may_offers', phone: 'mobile', class: 'marketing', wording: OFFERS }];
+  };
+
+  it('a service box and a separate marketing box, each its own column and words', () => {
+    const doc = clone(app());
+    withOffers(doc);
+    expect(messages(doc)).toEqual([]);
+  });
+
+  it('never two boxes of one class, nor two on one column', () => {
+    refusedWith((doc) => {
+      withOffers(doc);
+      doc['publicAccess'][0].textConsent[1].class = 'service';
+    }, 'one box per class');
+    refusedWith((doc) => {
+      withOffers(doc);
+      doc['publicAccess'][0].textConsent[1].column = 'may_text';
+    }, 'a column of its own');
+    refusedWith((doc) => {
+      withOffers(doc);
+      doc['publicAccess'][0].textConsent.push(doc['publicAccess'][0].textConsent[0]);
+    }, 'textConsent');
+  });
+
+  it('a wrong box in a list says what is wrong with it', () => {
+    refusedWith((doc) => {
+      withOffers(doc);
+      delete doc['publicAccess'][0].textConsent[1].wording;
+    }, 'wording');
+  });
+});
+
+describe('a box on a change of a person\'s own row', () => {
+  it('needs no leave to change the number: it reads the number the row holds', () => {
+    const doc = clone(app());
+    doc['publicAccess'][0] = { ...doc['publicAccess'][0], methods: ['GET', 'PATCH'], select: ['name'], writable: ['name', 'may_text'], claim: { verify: 'email-link', email: 'email' }, humanCheck: true };
+    delete doc['publicAccess'][0].consent;
+    expect(messages(doc)).toEqual([]);
+  });
+
+  it('a create still writes the number it is for', () => {
+    refusedWith((doc) => (doc['publicAccess'][0].writable = ['name', 'may_email', 'may_text']), 'never reaches a new row');
+  });
+});
+
+describe('a forms entry\'s box for texts', () => {
+  const formsEntry = (doc: Doc, key: 'forms' | 'chat') => {
+    doc['publicAccess'] = [
+      { table: 'patients', key, methods: ['POST'], writable: ['name', 'mobile', 'may_text'], anonymous: { perKeyHour: 20 }, textConsent: { column: 'may_text', phone: 'mobile', class: 'service', wording: WORDING } },
+    ];
+  };
+
+  it('a forms entry may carry the box', () => {
+    const doc = clone(app());
+    formsEntry(doc, 'forms');
+    expect(messages(doc)).toEqual([]);
+  });
+
+  it('a chat entry may not: a chat\'s row has no form to draw it on', () => {
+    refusedWith((doc) => formsEntry(doc, 'chat'), '"textConsent" is not said on it');
+  });
+});
+
+describe('an outbox\'s text words', () => {
+  it('a text kind may go to the number typed on the row it is about, and keep a reason code, and the business a name for texts', () => {
+    const doc = clone(app());
+    doc['requiredSchema'].tables[2].columns.push({ ref: 'text_reason', type: 'text', maxLength: 40, nullable: true });
+    doc['requiredSchema'].tables.push({ ref: 'settings', keyField: 'id', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'text_name', type: 'text', maxLength: 60, nullable: true }] });
+    doc['outbox'].recipient.textPhone = { via: 'visit_id', column: 'mobile' };
+    doc['outbox'].columns.textReason = 'text_reason';
+    doc['outbox'].settings = { table: 'settings', textName: 'text_name' };
+    expect(messages(doc)).toEqual([]);
+    expect(installFloorWords(doc).map((one) => one.word)).toEqual(
+      expect.arrayContaining(['outbox.recipient.textPhone', 'outbox.columns.textReason', 'outbox.settings.textName']),
+    );
+    for (const word of ['outbox.recipient.textPhone', 'outbox.columns.textReason', 'outbox.settings.textName'] as const) expect(WORD_FLOORS[word]).toBe(SMS_WORDS_FLOOR);
+  });
+
+  it('each is checked', () => {
+    refusedWith((doc) => (doc['outbox'].recipient.textPhone = { via: 'visit_id', column: 'nope' }), 'no column "nope"');
+    refusedWith((doc) => (doc['outbox'].recipient.textPhone = { via: 'to', column: 'mobile' }), 'a foreign key');
+    refusedWith((doc) => {
+      doc['requiredSchema'].tables[2].columns.push({ ref: 'text_reason', type: 'text', maxLength: 10, nullable: true });
+      doc['outbox'].columns.textReason = 'text_reason';
+    }, 'reason code');
+    refusedWith((doc) => {
+      doc['requiredSchema'].tables.push({ ref: 'settings', keyField: 'id', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'opens', type: 'int', nullable: true }] });
+      doc['outbox'].settings = { table: 'settings', textName: 'opens' };
+    }, 'a text column');
+  });
+});

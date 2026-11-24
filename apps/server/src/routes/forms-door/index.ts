@@ -9,7 +9,7 @@
  *   GET  /x/forms/api/:slug                what a stranger is shown of the form, in one of its languages; `?on=<page key>`:
  *                                          the form block on a landing page asking (counted as "opened" on that page)
  *   GET  /x/forms/api/:slug/challenge      the human check, bound to the form (solved when Send is pressed)
- *   POST /x/forms/api/:slug/answers        a stranger's answer (`forms/answer.ts`)
+ *   POST /x/forms/api/:slug/answers        a stranger's answer (`forms/answer.ts`), with the boxes for texts ticked (`texts`)
  *   POST /x/forms/api/:slug/files          the file door: one file for a file question (`files.ts`)
  *   GET  /x/api/logo                       the business's logo (the pay page's)
  *   GET  /x/assets/*                       the bundle's own hashed files, and nothing else
@@ -101,7 +101,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
 import { auditExempt } from '../../audit/coverage.js';
-import { answerBodySchema, formProofKeyId, HARDER_DIFFICULTY, type AnswerDoor } from '../../forms/answer.js';
+import { answerBodySchema, formProofKeyId, HARDER_DIFFICULTY, type AnswerDoor, type TextBoxView } from '../../forms/answer.js';
 import type { FormsCatalog, LiveForm } from '../../forms/catalog.js';
 import { isNamedSurvey, type OpenInvitation, type SurveyInvitations } from '../../forms/invitation.js';
 import type { PublicUploads } from '../../public-uploads/store.js';
@@ -299,6 +299,13 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
     return { ...form, definition: await deps.endings.serve(definition, connectionId, servedOrigin(request)) };
   }
 
+  /** The boxes for texts the page draws (`forms/answer.ts`), as the read carries them: absent when there are none. */
+  async function textBoxesOf(live: LiveForm, language: string): Promise<{ textBoxes?: TextBoxView[] }> {
+    const read = deps.answers?.textBoxesFor;
+    const boxes = read === undefined ? [] : await read(live, language).catch(() => []);
+    return boxes.length === 0 ? {} : { textBoxes: boxes };
+  }
+
   /** The requests answered with a preview: framed by this host alone. */
   const previewing = new WeakSet<FastifyRequest>();
 
@@ -374,7 +381,8 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
         state: 'live',
         ...shared,
         ...visitor,
-        form: await withEnding(request, strangerForm(live.form, language), live.connectionId),
+        // With the app's own boxes for texts, unticked, under the questions: only where the form fills the number they are about.
+        form: { ...(await withEnding(request, strangerForm(live.form, language), live.connectionId)), ...(await textBoxesOf(live, language)) },
         today: await businessToday(meta, live.connectionId, now()),
         // Only a frame asks which websites it may answer: the loader's first message must come from one.
         ...(frame ? { frameOrigins: [...(await deps.websites())] } : {}),

@@ -28,7 +28,7 @@
  */
 import { z } from 'zod';
 
-import { publicConsentSchema, publicTextConsentSchema } from './people.js';
+import { publicConsentSchema, publicTextConsentsSchema } from './people.js';
 
 import { kindOf, rulesOf, type Capacity } from './capacity.js';
 import { formulaColumns, type FormulaExpr } from './formula.js';
@@ -68,7 +68,7 @@ export const FORMS_KEY = 'forms';
  * claims, sessions, children, files and the entry's own confirmation mail is
  * left out: forms send their own.
  */
-export const FORMS_ENTRY_WORDS = ['table', 'methods', 'key', 'writable', 'writableValues', 'defaults', 'requires', 'agrees', 'anonymous', 'requireSetting', 'module', 'source'] as const;
+export const FORMS_ENTRY_WORDS = ['table', 'methods', 'key', 'writable', 'writableValues', 'defaults', 'requires', 'agrees', 'anonymous', 'requireSetting', 'module', 'source', 'textConsent'] as const;
 
 /**
  * The reserved key name of the entries that open a table to a CHAT's
@@ -80,8 +80,8 @@ export const FORMS_ENTRY_WORDS = ['table', 'methods', 'key', 'writable', 'writab
  */
 export const CHAT_KEY = 'chat';
 
-/** What a chat entry may say: a forms entry's words, but a chat's row has no form, so no form's "Source". */
-export const CHAT_ENTRY_WORDS = FORMS_ENTRY_WORDS.filter((word): word is Exclude<(typeof FORMS_ENTRY_WORDS)[number], 'source'> => word !== 'source');
+/** What a chat entry may say: a forms entry's words, but a chat's row has no form, so no form's "Source" and no box a form draws. */
+export const CHAT_ENTRY_WORDS = FORMS_ENTRY_WORDS.filter((word): word is Exclude<(typeof FORMS_ENTRY_WORDS)[number], 'source' | 'textConsent'> => word !== 'source' && word !== 'textConsent');
 
 /** The reserved keys whose entries a door of Adminium's own writes through, and the public API never serves. */
 export const DOOR_KEYS: readonly string[] = [FORMS_KEY, CHAT_KEY];
@@ -683,9 +683,12 @@ export const publicAccessSchema = z
     /**
      * A separate box for texts, beside `consent` and never the same one: an
      * e-mail yes is not a text yes. It starts unticked, and no create or
-     * change is ever refused for leaving it so (see `text-messages.ts`).
+     * change is ever refused for leaving it so (see `text-messages.ts`). One
+     * box, or one per class (a service box and a marketing box, each with
+     * its own column, wording and version). On a forms entry the forms door
+     * draws it under the form's questions.
      */
-    textConsent: publicTextConsentSchema.optional(),
+    textConsent: publicTextConsentsSchema.optional(),
     /**
      * On an add-on's entry, which rides the key of every app it is attached
      * to: a text column of the table that holds the key of the app a row is

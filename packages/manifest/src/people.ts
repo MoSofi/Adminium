@@ -149,6 +149,30 @@ export const publicTextConsentSchema = z
   .strict();
 export type PublicTextConsent = z.infer<typeof publicTextConsentSchema>;
 
+/** The most boxes for texts one entry draws: one per class. */
+export const TEXT_CONSENT_BOXES_MAX = TEXT_CONSENT_CLASSES.length;
+
+/**
+ * An entry's boxes for texts: one box, or a list of one per class (a service
+ * box and a separate marketing box). Each keeps its own column, wording and
+ * version; `textConsentBoxes` reads either shape as the list.
+ */
+const textConsentListSchema = z.array(publicTextConsentSchema).min(1).max(TEXT_CONSENT_BOXES_MAX);
+export type PublicTextConsents = PublicTextConsent | PublicTextConsent[];
+/** Read by its shape, so a box that is wrong says what is wrong with it (a union would say only "invalid"). */
+export const publicTextConsentsSchema = z.unknown().transform((value, ctx): PublicTextConsents => {
+  const parsed = (Array.isArray(value) ? textConsentListSchema : publicTextConsentSchema).safeParse(value);
+  if (parsed.success) return parsed.data;
+  for (const issue of parsed.error.issues) ctx.addIssue({ ...issue, code: 'custom', message: issue.message, path: issue.path } as never);
+  return z.NEVER;
+});
+
+/** An entry's boxes for texts as a list: empty when it draws none. */
+export function textConsentBoxes(value: PublicTextConsents | undefined): PublicTextConsent[] {
+  if (value === undefined) return [];
+  return Array.isArray(value) ? [...value] : [value];
+}
+
 /** A table's `keep`: the law keeps its rows, for this reason. */
 export const keepSchema = z.object({ law: z.enum(KEPT_BY_LAW_REASONS) }).strict();
 export type Keep = z.infer<typeof keepSchema>;

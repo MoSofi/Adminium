@@ -70,6 +70,7 @@ import { ValidationFailedError } from '../errors.js';
 import type { NotificationPublisher } from '../notifications/notify.js';
 import { publishPublicWrite } from '../public-api/publish.js';
 import type { RealtimeHub } from '../realtime/hub.js';
+import { wordingLanguage } from '../people/consent-writes.js';
 import { peopleTablesOf } from '../people/tables-of.js';
 import { appPartIsOn } from '../rbac/app-parts.js';
 import { capKey } from '../public-api/anonymous-caps.js';
@@ -154,7 +155,22 @@ export const answerBodySchema = z.object({
   from: z.string().max(2048).optional(),
   /** A named survey's one-use token, from its invitation's link (`?t=`). */
   t: z.string().max(2000).optional(),
+  /** The boxes for texts the visitor ticked, by class: only a box the page was given ({@link TextBoxView}) counts. */
+  texts: z.array(z.enum(['service', 'marketing'])).max(2).optional(),
 });
+
+/**
+ * A box for texts the page draws under a form's questions: the app's own
+ * (`publicAccess[].textConsent` on its forms entry), never the form's. It is
+ * drawn only when the form fills the number it is about, starts unticked and
+ * is never required. `label` is the app's declared wording in the form's
+ * language: the very words the log keeps with a yes.
+ */
+export interface TextBoxView {
+  class: 'service' | 'marketing';
+  label: string;
+  version: number;
+}
 export type AnswerBody = z.infer<typeof answerBodySchema>;
 
 /** The door's answer, as the route sends it. */
@@ -515,9 +531,19 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
     } else {
       let made: Awaited<ReturnType<typeof becomeRow>>;
       try {
-        made = await becomeRow(request, live, checked, writeAnswer, body.language, at, invitation, () => {
-          progress.committed = true;
-        });
+        made = await becomeRow(
+          request,
+          live,
+          checked,
+          writeAnswer,
+          body.language,
+          at,
+          invitation,
+          () => {
+            progress.committed = true;
+          },
+          body.texts ?? [],
+        );
       } catch (error) {
         // Nothing was kept: the form's and the address's counts go back.
         return notKept(error);
@@ -606,6 +632,24 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
     return { status: 200, body: endingOf(form, checked.values), kept: { email: checked.email } };
   }
 
+  /** The boxes for texts the page draws for a form that becomes a row of this table: those whose number the form fills. */
+  function drawnBoxes(opened: FormsTable, becomes: NonNullable<LiveForm['form']['settings']['becomes']>) {
+    const filled = new Set(Object.values(becomes.map));
+    return opened.entry.textConsent.filter((box) => filled.has(box.phone) && !filled.has(box.column) && opened.resource.writable.has(box.column));
+  }
+
+  /** The boxes for texts a stranger is shown under a live form, in its language (see {@link TextBoxView}). */
+  async function textBoxesFor(live: LiveForm, language: string): Promise<TextBoxView[]> {
+    const becomes = live.form.settings.becomes;
+    if (becomes === null) return [];
+    const opened = openedTable(await deps.scopes.scopeFor(live.connectionId, live.addOn), becomes.table);
+    if (opened === undefined) return [];
+    return drawnBoxes(opened, becomes).map((box) => {
+      const tag = wordingLanguage(box.wording.text, null, language);
+      return { class: box.class, label: box.wording.text[tag]!, version: box.wording.version };
+    });
+  }
+
   type Became =
     | { state: 'made'; opened: FormsTable; view: SnapshotView; row: Row }
     | { state: 'refused'; errors: Record<string, string> }
@@ -636,6 +680,7 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
     at: number,
     invitation: OpenInvitation | null,
     committed: () => void,
+    ticks: readonly ('service' | 'marketing')[] = [],
   ): Promise<Became> {
     const becomes = live.form.settings.becomes!;
     const broken = (why: string): Became => {
@@ -661,7 +706,10 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
     const links = new Set(view.model.relations.filter((relation) => relation.from.tableId === table.id && relation.through === null).flatMap((relation) => [...relation.from.columns]));
     const decided = new Set(opened.entry.decided);
     const filled = [...Object.values(becomes.map), ...(becomes.source === undefined ? [] : [becomes.source.column])];
+    // A box for texts is the app's, drawn by the door: no question ever fills its column.
+    const boxColumns = new Set(opened.entry.textConsent.map((box) => box.column));
     for (const column of filled) {
+      if (boxColumns.has(column)) return broken(`"${column}" is a box for texts, which the page draws itself`);
       if (!opened.resource.writable.has(column) || decided.has(column)) return broken(`"${column}" is not a column the app opens to forms`);
       // A link column is never filled from a question: a stranger never names another row.
       if (links.has(column)) return broken(`"${column}" links to another row`);
@@ -687,6 +735,9 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
     }
     if (becomes.source !== undefined) raw[becomes.source.column] = becomes.source.value;
     Object.assign(raw, fromInvitation);
+    // The boxes for texts the visitor ticked, of those the page drew (the form fills the number): each its own yes.
+    const ticked = drawnBoxes(opened, becomes).filter((box) => ticks.includes(box.class));
+    for (const box of ticked) raw[box.column] = true;
     const { db, dialect } = await deps.data(opened.connectionId);
     // One row per record (a job's one feedback): a record that has its row already is answered already.
     for (const [column, value] of Object.entries(fromInvitation)) {
@@ -717,6 +768,25 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
       claimed: null,
       provedAddress: null,
       adjust: { locale: language.replace('-', '_') },
+      ...(ticked.length === 0
+        ? {}
+        : {
+            textConsentTicks: ticked.map((box) => ({
+              table: table.id,
+              column: box.column,
+              phone: box.phone,
+              purpose: box.class === 'marketing' ? ('text-marketing' as const) : ('text-service' as const),
+              means: box.means ?? 'yes',
+              wording: { version: box.wording.version, text: box.wording.text },
+              // A form's row is its own person: a forms entry finds nobody else.
+              person: { table: table.id, link: null },
+              form: `${opened.appKey}:${opened.ref}`.slice(0, 255),
+              ip: request.ip === '' ? null : request.ip,
+              userAgent: typeof request.headers['user-agent'] === 'string' ? request.headers['user-agent'] : null,
+              // The words were shown in the form's language: the log keeps those.
+              acceptLanguage: language,
+            })),
+          }),
     };
     const installs = await deps.installs();
     const refused = (columns: readonly string[]): Record<string, string> => {
@@ -770,7 +840,7 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
     }
   }
 
-  return { takeAnswer };
+  return { takeAnswer, textBoxesFor };
 }
 
 export type AnswerDoor = ReturnType<typeof createAnswerDoor>;
