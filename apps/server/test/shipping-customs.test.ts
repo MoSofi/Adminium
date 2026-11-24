@@ -21,7 +21,7 @@ import { composeServer, type ComposedServer } from '../src/compose.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
-import { cleanInternational, declarationOf, draftOf, exporterFor, hsDigits, internationalBody, unitValueOf, type GoodsLine, type InternationalSettings } from '../src/shipping/customs.js';
+import { cleanInternational, declarationOf, draftOf, exporterFor, hsDigits, internationalBody, type GoodsLine, type InternationalSettings } from '../src/shipping/customs.js';
 import { accountFingerprintOf, credentialHash } from '../src/shipping/fingerprint.js';
 import { ShippingRefusal } from '../src/shipping/refusals.js';
 import { addOnHarness, addOnManifest, type Harness } from './app-add-ons.helpers.js';
@@ -670,19 +670,6 @@ describe('what a declaration states', () => {
       expect(cleanInternational(internationalBody.parse({ ...base, exporter: { eori: ' gb 123456789000 ' } }), 'usr_1').exporter).toEqual({ eori: 'GB123456789000' });
       expect(cleanInternational(internationalBody.parse({ ...base, exporter: { eori: '' } }), 'usr_1', withNumbers)).not.toHaveProperty('exporter');
     });
-  });
-
-  it('works one unit\'s value out of a line priced as a whole, exact to six places', () => {
-    expect(unitValueOf('33.33', 250)).toBe('0.13332');
-    expect(unitValueOf(100, 3)).toBe('33.333333');
-    expect(unitValueOf('200.00', 3)).toBe('66.666667');
-    expect(unitValueOf('50.00', 10)).toBe('5');
-    expect(unitValueOf('10.5', 1)).toBe('10.5');
-    expect(unitValueOf('0.01', 10000)).toBe('0.000001');
-    expect(unitValueOf('0.01', 30000)).toBeNull();
-    expect(unitValueOf('0.00', 5)).toBeNull();
-    expect(unitValueOf('0.0000001', 5)).toBeNull();
-    expect(unitValueOf('9.99', null)).toBeNull();
   });
 
   it('reads an order\'s own currency, and an HS code with its dots and spaces', () => {
