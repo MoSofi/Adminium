@@ -35,7 +35,7 @@ export const FILE_COLUMN_EARLIER_MAX_BYTES = 25 * 1024 * 1024;
  * The first Adminium that reads the words of texts. The one place it is
  * written: if the release number moves, this line moves.
  */
-export const SMS_WORDS_FLOOR = '0.3.72';
+export const SMS_WORDS_FLOOR = '0.3.76';
 
 /** The top-level blocks an add-on shares with an app since the install floor. */
 export const ADD_ON_INSTALL_BLOCKS = [
