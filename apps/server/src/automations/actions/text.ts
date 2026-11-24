@@ -38,13 +38,22 @@
  * step does. A run is never retried by the queue (`jobs/automation-run.ts`),
  * so neither answer can send anything again.
  *
+ * --- Its class and whose yes counts -------------------------------------------
+ *
+ * The step takes its template's class: an app's template that one of its
+ * outbox kinds sends as marketing is a marketing text here too, with every
+ * rule marketing has (its own yes, its hours, double opt-in, the release's
+ * lock). A template no app ships is the business's own, a service text. Either
+ * way only a yes given to the rule's app counts, or for a rule of the
+ * business's own, to the app whose record it runs on (`TextConsentScope`).
+ *
  * --- Sample rows ------------------------------------------------------------
  *
  * A sample row's number belongs to nobody who agreed to anything. Its run
  * skips the step before the send path is asked.
  */
 import { codeNamesIn } from '@adminium/manifest';
-import { connectionTenantConfig, textTemplatesRepo, type AutomationAction, type AutomationGraph, type StoredTextTemplate } from '@adminium/meta';
+import { connectionTenantConfig, readJsonFrom, textTemplatesRepo, type AutomationAction, type AutomationGraph, type MetaDb, type StoredTextTemplate } from '@adminium/meta';
 
 import { keptCodeColumnsOf } from '../../crud/mask.js';
 import { readInstant } from '../../crud/moments.js';
@@ -122,6 +131,21 @@ function codeColumnsOf(ctx: ActionContext): Set<string> {
   return out;
 }
 
+/**
+ * The template's class: marketing when its app sends it as a marketing outbox
+ * kind (`outbox.classes`), else service. A template no app ships has no such
+ * word, so it is the business's own service text.
+ */
+export async function templateClassOf(meta: MetaDb, template: Pick<StoredTextTemplate, 'key' | 'managedBy'>): Promise<'service' | 'marketing'> {
+  if (template.managedBy === null) return 'service';
+  const rows = await meta.db.selectFrom('adminium_manifests').select('manifest').where('kind', '=', 'app').where('manifestKey', '=', template.managedBy).execute();
+  for (const row of rows) {
+    const outbox = readJsonFrom<{ outbox?: { kinds?: Record<string, unknown>; classes?: Record<string, unknown> } } | null>(meta, row.manifest)?.outbox;
+    for (const [kind, key] of Object.entries(outbox?.kinds ?? {})) if (key === template.key && outbox?.classes?.[kind] === 'marketing') return 'marketing';
+  }
+  return 'service';
+}
+
 /** Who the text is from, for the opt-out line of a sender that cannot take a reply. */
 async function businessOf(ctx: ActionContext, connectionId: string): Promise<BusinessContact> {
   const app = ctx.rule.managedBy === null ? { name: null, phone: null } : await appContact(ctx.meta, ctx.manager, ctx.rule.managedBy, connectionId);
@@ -155,16 +179,19 @@ async function prepareStep(action: TextAction, ctx: ActionContext): Promise<{ re
   let prepared: TextPrepared;
   try {
     const tenant = await connectionTenantConfig(ctx.meta, source.connectionId);
+    const person = personOf(action, ctx);
     prepared = await texts.prepare({
       phone,
-      textClass: 'service',
+      textClass: await templateClassOf(ctx.meta, template),
       template: template.body,
       values: await varsFor(action, ctx, template.locale),
       codeNames: codeNamesIn(template.body, codeColumnsOf(ctx)),
       zone: tenant?.timezone ?? null,
       notAfter,
       business: await businessOf(ctx, source.connectionId),
-      person: personOf(action, ctx),
+      person,
+      // Only a yes given to this rule's app, or for the business's own rule, to the app of the record it runs on.
+      scope: { ...(ctx.rule.managedBy === null ? {} : { app: ctx.rule.managedBy }), record: person },
     });
   } catch {
     // Never the error's own words: it could quote the number.

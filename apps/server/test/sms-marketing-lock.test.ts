@@ -9,10 +9,11 @@
  * behaviour is `sms-marketing-routes.test.ts`.
  */
 import { SMS_WORDS_FLOOR } from '@adminium/manifest';
-import { settingsRepo, type EnqueueJobInput } from '@adminium/meta';
+import { manifestsRepo, settingsRepo, type EnqueueJobInput } from '@adminium/meta';
 import type { Kysely } from 'kysely';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { templateClassOf } from '../src/automations/actions/text.js';
 import { textRowMark, textReasonSentence } from '../src/outbox/text-words.js';
 import { createTextConsentService, type TextConsentService } from '../src/sms/consent/index.js';
 import { createSmsService } from '../src/sms/index.js';
@@ -126,6 +127,19 @@ describe.each(META_ENGINES)('the lock in the send path — $name', (engine) => {
   it.runIf(engine.available)('an outbox row and a rule\'s step say why, in words of their own', async () => {
     expect(textRowMark({ state: 'skipped', reason: 'marketing-not-yet-available' })).toEqual({ mark: 'failed', error: textReasonSentence('marketing-not-yet-available') });
     expect(textReasonSentence('marketing-not-yet-available')).toBe('Not sent: marketing texts are not available in this release');
+  });
+
+  it.runIf(engine.available)('a rule\'s step takes its template\'s class: an app\'s marketing kind makes a marketing text', async () => {
+    await manifestsRepo(handle.meta, {} as never).install({
+      manifestKey: 'stays',
+      version: '0.1.0',
+      kind: 'app',
+      source: 'file',
+      document: { key: 'stays', outbox: { kinds: { autumn: 'stays-autumn', reminder: 'stays-reminder' }, classes: { autumn: 'marketing', reminder: 'service' }, channels: { autumn: 'sms', reminder: 'sms' } } },
+    });
+    expect(await templateClassOf(handle.meta, { key: 'stays-autumn', managedBy: 'stays' })).toBe('marketing');
+    expect(await templateClassOf(handle.meta, { key: 'stays-reminder', managedBy: 'stays' })).toBe('service');
+    expect(await templateClassOf(handle.meta, { key: 'my-own', managedBy: null })).toBe('service');
   });
 });
 

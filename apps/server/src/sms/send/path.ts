@@ -23,7 +23,7 @@ import { addressKeyRing } from '../../consent/keys.js';
 import { parsePhone } from '../../phone/index.js';
 import { maskPhone } from '../consent/redact.js';
 import { textSubject } from '../consent/service.js';
-import type { TextClass, TextRefusal } from '../consent/types.js';
+import type { TextClass, TextConsentScope, TextRefusal } from '../consent/types.js';
 import type { SmsStopConfirmation } from '../inbound/stop-reply.js';
 import { TEXT_MARKETING_AVAILABLE } from '../marketing/availability.js';
 import type { SmsService } from '../service.js';
@@ -83,6 +83,12 @@ export interface TextPrepareInput {
    * them (`TextRequest.answering`). The stop list still refuses it.
    */
   answering?: boolean | undefined;
+  /**
+   * Whose yes counts for it (`TextConsentScope`): a text a person writes, or a
+   * rule sends, counts only a yes given to its own app. Asked again at the
+   * hand-over the same way.
+   */
+  scope?: TextConsentScope | undefined;
 }
 
 export type TextPrepared =
@@ -161,6 +167,7 @@ export function createTextSendPath(deps: TextSendDeps): TextSendPath {
         repliesReachUs: await deps.repliesReachUs(),
         person: input.person ?? null,
         answering: input.answering === true,
+        ...(input.scope === undefined ? {} : { scope: input.scope }),
       });
       policy = readTextPolicy(await deps.policy());
     } catch {
@@ -202,6 +209,7 @@ export function createTextSendPath(deps: TextSendDeps): TextSendPath {
         optOut: decision.optOut,
         person: input.person ?? null,
         ...(input.answering === true ? { answering: true } : {}),
+        ...(input.scope === undefined ? {} : { scope: input.scope }),
       },
     };
   }

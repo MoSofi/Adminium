@@ -67,6 +67,12 @@ const sealedSchema: z.ZodType<SealedText> = z.object({
   optOut: z.enum(['reply-stop', 'through-business']),
   person: z.object({ connectionId: z.string(), table: z.string(), key: z.string() }).nullable(),
   answering: z.boolean().optional(),
+  scope: z
+    .object({
+      app: z.string().nullable().optional(),
+      record: z.object({ connectionId: z.string(), table: z.string(), key: z.string() }).nullable().optional(),
+    })
+    .optional(),
 });
 
 export function sealText(text: SealedText, secret: string): string {

@@ -221,6 +221,7 @@ export function createHandOver(deps: HandOverDeps) {
         repliesReachUs: await deps.repliesReachUs(),
         person: text.person,
         answering: text.answering === true,
+        ...(text.scope === undefined ? {} : { scope: text.scope }),
       });
     } catch {
       return cannotCheck();

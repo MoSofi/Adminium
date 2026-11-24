@@ -17,7 +17,7 @@
  * ordinary reply is kept in its thread, or answered "not read" when its app's
  * replies are off. Their answers go through the same send path.
  */
-import { readJsonFrom, type EnqueueJobInput, type MetaDb } from '@adminium/meta';
+import { readJsonFrom, type ConsentPerson, type EnqueueJobInput, type MetaDb } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
@@ -50,6 +50,8 @@ export interface SmsWiringDeps {
   /** The operator's answer for `smsProviders`. */
   operator: () => { allowed: boolean; reason: LockReason | null };
   log: { info(fields: Record<string, unknown>, message: string): void };
+  /** The app whose table a row is in: what makes a text yes count for that app alone. Without it a yes on a row counts for that row alone. */
+  appOfRow?: ((person: ConsentPerson) => Promise<string | null>) | undefined;
   /** For conversations: who a text is from, the business's clock and language, and a realtime notice. Each has a plain default. */
   conversations?: Partial<Pick<TextThreadsDeps, 'business' | 'zone' | 'locale' | 'apps' | 'notify'>> | undefined;
   fetch?: typeof globalThis.fetch | undefined;
@@ -108,7 +110,7 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
   const now = deps.now ?? Date.now;
   const defaultCountry = storedDefaultCountry(meta);
   const accounts = createSmsAccountStore(meta);
-  const consent = createTextConsentService({ meta, secret, now });
+  const consent = createTextConsentService({ meta, secret, now, appOf: deps.appOfRow });
   const deliveries = createTextSendStore(meta);
   const service = createSmsService({
     store: accounts,

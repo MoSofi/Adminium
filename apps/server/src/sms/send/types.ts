@@ -21,7 +21,7 @@
  */
 import type { AddressHash, ConsentPerson } from '@adminium/meta';
 
-import type { TextClass, TextOptOut, TextRefusal } from '../consent/types.js';
+import type { TextClass, TextConsentScope, TextOptOut, TextRefusal } from '../consent/types.js';
 import type { SmsNotTakenReason, SmsPrice, SmsProviderKey, SmsRefusalReason, SmsSender, SmsUnknownReason } from '../types.js';
 
 export const TEXT_DELIVERY_STATES = ['prepared', 'retrying', 'handing-over', 'accepted', 'provider-failed', 'refused', 'unknown', 'skipped', 'not-sent', 'checked-went', 'checked-not-sent'] as const;
@@ -171,4 +171,6 @@ export interface SealedText {
   person: ConsentPerson | null;
   /** It answers a person who wrote to the business (`TextRequest.answering`): asked again at the hand-over the same way. */
   answering?: boolean | undefined;
+  /** Whose yes counts for it (`TextConsentScope`): asked again at the hand-over the same way. */
+  scope?: TextConsentScope | undefined;
 }

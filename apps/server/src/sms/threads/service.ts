@@ -34,6 +34,11 @@
  * an answer, so a service text to them needs no yes of its own
  * (`answering`). A STOP, or a later no, still refuses it.
  *
+ * Otherwise a person's words go only on a yes given to the app the text is
+ * from: on a row of its tables, on the record it is sent from, or with no row
+ * (`TextConsentScope`). A yes to the clinic's reminders is not a yes to
+ * whatever the sales team chooses to write.
+ *
  * ─── WHAT IS KEPT ──────────────────────────────────────────────────────────
  * The number and every message's words are sealed under keys taken from the
  * address keys. Nothing here logs a number or a word. A message is kept
@@ -389,7 +394,7 @@ export function createTextThreads(deps: TextThreadsDeps): TextThreads {
   }
 
   /** Prepare, queue, keep: the one way a person's text goes. */
-  async function send(input: TextSendInput & { phone: unknown; country: string | null; app: string; answering: boolean; waiting: boolean; sender: SmsSender | undefined; messageKey: string; kind: 'reply' | 'text'; record?: TextThreadRecordRef | undefined }): Promise<{ thread: TextThreadRecord | null; outcome: TextSendOutcome; message: TextThreadMessageRecord | null }> {
+  async function send(input: TextSendInput & { phone: unknown; country: string | null; app: string; answering: boolean; waiting: boolean; sender: SmsSender | undefined; messageKey: string; kind: 'reply' | 'text'; record?: TextThreadRecordRef | undefined; about?: TextThreadRecordRef | null | undefined }): Promise<{ thread: TextThreadRecord | null; outcome: TextSendOutcome; message: TextThreadMessageRecord | null }> {
     const texts = deps.texts();
     if (texts === null) return { thread: null, outcome: { outcome: 'refused', reason: 'not-connected' }, message: null };
     const app = input.app === '' ? null : input.app;
@@ -402,6 +407,7 @@ export function createTextThreads(deps: TextThreadsDeps): TextThreads {
         textClass: 'service',
         waiting: input.waiting,
         answering: input.answering,
+        scope: { app, record: input.record ?? input.about ?? null },
         template: input.body,
         values: {},
         zone: await deps.zone(app),
@@ -455,7 +461,7 @@ export function createTextThreads(deps: TextThreadsDeps): TextThreads {
     const parsed = parsePhone(phone, null);
     if (parsed.ok && parsed.callingCode === '86') return no('country-blocked');
     if (parsed.ok && parsed.receivesText === 'no') return no('cannot-receive-text');
-    if (!answering && (await deps.consent.standing({ phone }, 'text-service')).state !== 'yes') return no('no-consent');
+    if (!answering && (await deps.consent.standing({ phone }, 'text-service', { app: thread.appKey === '' ? null : thread.appKey, record: thread.record })).state !== 'yes') return no('no-consent');
     return { ok: true, reason: null };
   }
 
@@ -580,6 +586,7 @@ export function createTextThreads(deps: TextThreadsDeps): TextThreads {
         sender: senderOf(thread.line),
         messageKey: `texts-reply:${thread.id}:${input.clientKey}`,
         kind: 'reply',
+        about: thread.record,
       });
       const message = sent.message;
       const states = message?.deliveryId == null ? new Map() : await store.deliveryStates([message.deliveryId]);
