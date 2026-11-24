@@ -432,6 +432,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'publicAccess.textConsent',
   // A rule's step that sends one of those templates as a text.
   'automations.text',
+  // A saved copy of the mail that asks a person to confirm marketing texts (double opt-in).
+  'instance.textMarketingConfirm',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -794,6 +796,7 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'people.phone': SMS_WORDS_FLOOR,
   'publicAccess.textConsent': SMS_WORDS_FLOOR,
   'automations.text': SMS_WORDS_FLOOR,
+  'instance.textMarketingConfirm': SMS_WORDS_FLOOR,
 };
 
 /** The kinds of file a column takes from the release that cleans SVG and reads models and fonts whole (`ASSET_FILE_KINDS`). */
@@ -1150,6 +1153,11 @@ export function installFloorWords(document: unknown): ManifestWord[] {
   if (document['icon'] !== undefined) out.push({ word: 'app.icon', path: 'icon' });
   if (isDoc(document['apps']) && document['apps']['requires'] !== undefined) out.push({ word: 'apps.requires', path: 'apps.requires' });
   if (document['instance'] !== undefined) out.push({ word: 'instance', path: 'instance' });
+  if (isDoc(document['instance'])) {
+    list(document['instance']['systemEmails']).forEach((email, e) => {
+      if (isDoc(email) && email['key'] === 'text-marketing-confirm') out.push({ word: 'instance.textMarketingConfirm', path: `instance.systemEmails.${String(e)}.key` });
+    });
+  }
   list(schema['tables']).forEach((table, t) => {
     if (!isDoc(table)) return;
     const at = `requiredSchema.tables.${String(t)}`;
