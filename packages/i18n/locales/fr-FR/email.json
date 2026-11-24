@@ -1045,5 +1045,14 @@
     "name": "Confirmer une nouvelle adresse de connexion",
     "notice": "Ouvrez ce lien en étant connecté à ce compte. Il ne fonctionne qu’une fois et expire dans {expiresInHours} heures. Si vous ne connaissez pas ce compte, ignorez cet e-mail : rien ne change.",
     "subject": "Confirmez votre nouvelle adresse de connexion à {appName}"
+  },
+  "textMarketingConfirm": {
+    "name": "Confirmer les SMS promotionnels",
+    "subject": "Confirmez les offres par SMS de {business}",
+    "preheader": "Un clic, et rien ne se passe sans lui.",
+    "heading": "Merci de confirmer que vous souhaitez recevoir des offres par SMS",
+    "purpose": "Appuyez sur Confirmer pour recevoir les offres de {business} par SMS au {phone}.",
+    "action": "Confirmer",
+    "notice": "Le lien est valable {days} jours. Si vous n’avez rien demandé, ignorez cet e-mail : vous ne recevrez aucune offre par SMS sans appuyer sur Confirmer."
   }
 }

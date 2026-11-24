@@ -20495,6 +20495,34 @@
     "status": "mt",
     "srcHash": "b98cc23a0165"
   },
+  "email.textMarketingConfirm.action": {
+    "status": "mt",
+    "srcHash": "04a212215ef9"
+  },
+  "email.textMarketingConfirm.heading": {
+    "status": "mt",
+    "srcHash": "c85caf22713f"
+  },
+  "email.textMarketingConfirm.name": {
+    "status": "mt",
+    "srcHash": "6166c8746475"
+  },
+  "email.textMarketingConfirm.notice": {
+    "status": "mt",
+    "srcHash": "b6f91e4ff88d"
+  },
+  "email.textMarketingConfirm.preheader": {
+    "status": "mt",
+    "srcHash": "7003eb50d42a"
+  },
+  "email.textMarketingConfirm.purpose": {
+    "status": "mt",
+    "srcHash": "8d71ab8f6694"
+  },
+  "email.textMarketingConfirm.subject": {
+    "status": "mt",
+    "srcHash": "1f7839a87bb1"
+  },
   "email.title": {
     "status": "mt",
     "srcHash": "5cdc6a6d5345"
@@ -21462,6 +21490,42 @@
   "mailDoor.reason.tooMany": {
     "status": "mt",
     "srcHash": "1dc99f540fd8"
+  },
+  "mailDoor.textConfirm.already": {
+    "status": "mt",
+    "srcHash": "fca7cb3b13a8"
+  },
+  "mailDoor.textConfirm.button": {
+    "status": "mt",
+    "srcHash": "04a212215ef9"
+  },
+  "mailDoor.textConfirm.done": {
+    "status": "mt",
+    "srcHash": "c4698ebcadf5"
+  },
+  "mailDoor.textConfirm.line": {
+    "status": "mt",
+    "srcHash": "fbfa265ae30a"
+  },
+  "mailDoor.textConfirm.stop": {
+    "status": "mt",
+    "srcHash": "c1f45e209597"
+  },
+  "mailDoor.textConfirm.title": {
+    "status": "mt",
+    "srcHash": "d14e0ac5f2a1"
+  },
+  "mailDoor.textConfirm.tooOld": {
+    "status": "mt",
+    "srcHash": "8aa4a76ce69c"
+  },
+  "mailDoor.textConfirm.withdrawn": {
+    "status": "mt",
+    "srcHash": "d89587ad56e5"
+  },
+  "mailDoor.textConfirm.withdrawnLine": {
+    "status": "mt",
+    "srcHash": "f68d30a13f88"
   },
   "mailDoor.unavailable.title": {
     "status": "mt",

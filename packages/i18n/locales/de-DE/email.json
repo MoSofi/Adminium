@@ -1045,5 +1045,14 @@
     "name": "Neue Anmeldeadresse bestätigen",
     "notice": "Öffne diesen Link, während du in diesem Konto angemeldet bist. Er funktioniert nur einmal und läuft in {expiresInHours} Stunden ab. Wenn du dieses Konto nicht kennst, ignoriere diese E-Mail: Es ändert sich nichts.",
     "subject": "Bestätige deine neue Anmeldeadresse für {appName}"
+  },
+  "textMarketingConfirm": {
+    "name": "Werbe-SMS bestätigen",
+    "subject": "Bestätigen Sie Angebote per SMS von {business}",
+    "preheader": "Ein Klick – ohne ihn geschieht nichts.",
+    "heading": "Bitte bestätigen Sie, dass Sie Angebote per SMS erhalten möchten",
+    "purpose": "Drücken Sie auf Bestätigen, um Angebote von {business} per SMS an {phone} zu erhalten.",
+    "action": "Bestätigen",
+    "notice": "Der Link gilt {days} Tage. Wenn Sie das nicht angefordert haben, ignorieren Sie diese E-Mail: Ohne Ihren Klick auf Bestätigen erhalten Sie keine Angebote per SMS."
   }
 }

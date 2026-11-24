@@ -65,5 +65,16 @@ export default {
     "already": "您已经提出过反对。{business} 不保留您的信息。",
     "dead": "此链接无效。请写信至 {email}。",
     "deadAsk": "此链接无效。请写信给 {business}。"
+  },
+  "textConfirm": {
+    "title": "通过短信接收{business}的优惠？",
+    "line": "点击“确认”后，{business}可以通过短信向此号码发送优惠信息。您可以回复 STOP 退订其中任何一条。",
+    "button": "确认",
+    "done": "已确认。{business}现在可以通过短信向您发送优惠信息。",
+    "stop": "回复其中任何一条 STOP 即可退订。",
+    "already": "您已确认过。",
+    "withdrawn": "此请求已无法确认。",
+    "withdrawnLine": "除非您再次同意，否则不会收到{business}的任何短信优惠。",
+    "tooOld": "此链接已过期。"
   }
 } as const;

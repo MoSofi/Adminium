@@ -1055,5 +1055,14 @@ export default {
     "name": "Confirm a new sign-in address",
     "notice": "Open this link while signed in to that account. It works only once and expires in {expiresInHours} hours. If you don’t know this account, ignore this email: nothing changes.",
     "subject": "Confirm your new {appName} sign-in address"
+  },
+  "textMarketingConfirm": {
+    "name": "Confirm marketing texts",
+    "subject": "Confirm offers by text from {business}",
+    "preheader": "One click, and nothing happens without it.",
+    "heading": "Please confirm you want offers by text",
+    "purpose": "Press Confirm to get offers from {business} by text at {phone}.",
+    "action": "Confirm",
+    "notice": "The link works for {days} days. If you didn’t ask for this, ignore this e-mail: you get no offers by text unless you press Confirm."
   }
 } as const;

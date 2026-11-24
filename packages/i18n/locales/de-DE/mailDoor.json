@@ -55,5 +55,16 @@
     "already": "Sie haben bereits widersprochen. {business} bewahrt Ihre Daten nicht auf.",
     "dead": "Dieser Link funktioniert nicht. Schreiben Sie an {email}.",
     "deadAsk": "Dieser Link funktioniert nicht. Schreiben Sie an {business}."
+  },
+  "textConfirm": {
+    "title": "Angebote von {business} per SMS erhalten?",
+    "line": "Drücken Sie auf Bestätigen, dann darf {business} Ihnen Angebote per SMS an diese Nummer senden. Sie können auf jede davon mit STOP antworten, um sie abzubestellen.",
+    "button": "Bestätigen",
+    "done": "Bestätigt. {business} darf Ihnen jetzt Angebote per SMS senden.",
+    "stop": "Antworten Sie auf eine davon mit STOP, und sie hören auf.",
+    "already": "Sie haben bereits bestätigt.",
+    "withdrawn": "Dies kann nicht mehr bestätigt werden.",
+    "withdrawnLine": "Sie erhalten keine Angebote per SMS von {business}, solange Sie nicht erneut zustimmen.",
+    "tooOld": "Dieser Link ist zu alt."
   }
 }

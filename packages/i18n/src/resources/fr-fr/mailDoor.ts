@@ -65,5 +65,16 @@ export default {
     "already": "Vous vous êtes déjà opposé. {business} ne garde pas vos coordonnées.",
     "dead": "Ce lien ne fonctionne pas. Écrivez à {email}.",
     "deadAsk": "Ce lien ne fonctionne pas. Écrivez à {business}."
+  },
+  "textConfirm": {
+    "title": "Recevoir les offres de {business} par SMS ?",
+    "line": "Appuyez sur Confirmer, et {business} pourra vous envoyer des offres par SMS à ce numéro. Vous pouvez répondre STOP à n’importe lequel pour arrêter.",
+    "button": "Confirmer",
+    "done": "C’est confirmé. {business} peut désormais vous envoyer des offres par SMS.",
+    "stop": "Répondez STOP à l’un d’eux, et ils s’arrêtent.",
+    "already": "Vous avez déjà confirmé.",
+    "withdrawn": "Cette demande ne peut plus être confirmée.",
+    "withdrawnLine": "Vous ne recevrez aucune offre par SMS de {business} sans un nouvel accord de votre part.",
+    "tooOld": "Ce lien est trop ancien."
   }
 } as const;
