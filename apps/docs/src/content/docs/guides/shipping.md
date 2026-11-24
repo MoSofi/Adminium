@@ -111,6 +111,8 @@ The form stops, and says why, when what it would declare cannot be trusted:
 - **The order has a refund.** Its values no longer match what the customer paid, so it cannot be declared.
 - **The shop's currency is not set, or has changed** since Customs was saved. Set it, then save **Customs**
   again.
+- **The order was placed before the shop's currency changed.** Adminium cannot tell which currency it was
+  paid in, so it will not declare it. Book that parcel directly with your carrier.
 - **Only some lines have a weight.** Add the missing weight to the product.
 
 A cancelled line is left off the form. Your shop-wide tariff code fills in only on an order of one

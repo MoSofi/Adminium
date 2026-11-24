@@ -101,6 +101,7 @@ function shopDoc(key: string, customs: boolean): Record<string, unknown> {
             text('carrier_name', 80),
             { ref: 'status', type: 'enum', enum: ['placed', 'cancelled'], default: 'placed', nullable: true },
             { ref: 'refunded', type: 'decimal', scale: 'currency', nullable: true },
+            { ref: 'placed_at', type: 'timestamptz', nullable: true },
           ],
         },
         {
@@ -134,7 +135,7 @@ function shopDoc(key: string, customs: boolean): Record<string, unknown> {
           carrier: 'carrier_name',
           address: { name: 'ship_name', lines: ['ship_line1'], city: 'ship_city', postcode: 'ship_postcode', country: 'ship_country', phone: 'ship_phone', email: 'ship_email' },
           ...(customs
-            ? { customs: { lines: { table: 'order_lines', order: 'order_id', quantity: 'qty', unitValue: 'unit_price', description: 'name', unitWeight: 'grams', weightUnit: 'g', product: { column: 'product_id', table: 'products', sku: 'code' }, unlessSet: 'cancelled_at', unless: { column: 'stage', in: ['cancelled'] } }, refunded: 'refunded' } }
+            ? { customs: { lines: { table: 'order_lines', order: 'order_id', quantity: 'qty', unitValue: 'unit_price', description: 'name', unitWeight: 'grams', weightUnit: 'g', product: { column: 'product_id', table: 'products', sku: 'code' }, unlessSet: 'cancelled_at', unless: { column: 'stage', in: ['cancelled'] } }, placedAt: 'placed_at', refunded: 'refunded' } }
             : {}),
         },
       ],
@@ -149,6 +150,9 @@ const carrierDoc = () =>
     settings: [{ key: 'api_key', type: 'string', secret: true }],
     addOn: { provides: [{ contract: 'shipping-carrier', version: 1, server: 'dist/server.js' }], network: { allow: ['api.carrier.example'] } },
   });
+
+/** A stored time, days from any change a test makes, so a server's time zone cannot move it across one. */
+const stamp = (ms: number) => new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
 
 const SETUP = { countries: ['DE', 'US'], currency: 'GBP', originCountry: 'GB', hsCode: '4909.00', description: 'Printed greeting cards' };
 
@@ -181,7 +185,7 @@ describe.each(LEGS)('a parcel going abroad on %s', (dialect, available) => {
     const { db } = await h.manager.data(conn);
     await db
       .insertInto(tables[`${app}:orders`]! as never)
-      .values({ id: nextId, number: `MP-${String(nextId)}`, ship_name: 'Kund', ship_line1: 'Hauptstr. 1', ship_city: 'Berlin', ship_postcode: '10115', ship_country: 'DE', ship_phone: PHONE, ship_email: EMAIL, ...over } as never)
+      .values({ id: nextId, number: `MP-${String(nextId)}`, ship_name: 'Kund', ship_line1: 'Hauptstr. 1', ship_city: 'Berlin', ship_postcode: '10115', ship_country: 'DE', ship_phone: PHONE, ship_email: EMAIL, placed_at: stamp(Date.now() + 172_800_000), ...over } as never)
       .execute();
     for (const line of lines) {
       nextId += 1;
@@ -372,6 +376,30 @@ describe.each(LEGS)('a parcel going abroad on %s', (dialect, available) => {
       expect(((await call('boss', 'GET', 'shop/shipping')).json() as Doc)['data']['shopCurrency']).toBe('USD');
     } finally {
       await h.manager.connections.update(conn, { currency: 'GBP' });
+    }
+  });
+
+  it.skipIf(!available)('will not declare an order placed before the shop changed its currency', async () => {
+    expect((await setUp()).statusCode).toBe(200);
+    const older = await order({ placed_at: stamp(Date.now() - 172_800_000) });
+    const unknown = await order({ placed_at: null });
+    try {
+      await h.manager.connections.update(conn, { currency: 'USD' });
+      expect((await setUp({ currency: 'USD' })).statusCode).toBe(200);
+      for (const id of [older, unknown]) {
+        const data = ((await form(id)).json() as Doc)['data'];
+        expect(data['currency']).toBeNull();
+        expect(data['problems']).toContainEqual({ field: 'currency', reason: 'order-currency' });
+        expect(code(await quote(id, ticked))).toBe('CUSTOMS_INCOMPLETE');
+      }
+      const newer = await order({ placed_at: stamp(Date.now() + 172_800_000) });
+      expect((await form(newer)).json()).toMatchObject({ data: { currency: 'USD', problems: [] } });
+      // Saving again without a change does not move the moment.
+      expect((await setUp({ currency: 'USD', description: 'Cards' })).statusCode).toBe(200);
+      expect((await form(newer)).json()).toMatchObject({ data: { currency: 'USD', problems: [] } });
+    } finally {
+      await h.manager.connections.update(conn, { currency: 'GBP' });
+      await setUp();
     }
   });
 
@@ -851,6 +879,23 @@ describe('what a declaration states', () => {
       expect(draftOf([good()], settings, facts({ shopCurrency: 'gbp' }), { country: 'DE' })).toMatchObject({ currency: 'GBP', problems: [] });
       // An order that says its own currency is not held to the shop's.
       expect(draftOf([good()], settings, facts({ currency: 'EUR', shopCurrency: 'USD' }), { country: 'DE' })).toMatchObject({ currency: 'EUR', problems: [] });
+    });
+
+    it('dates a currency change and holds an older order to it', () => {
+      const base = { countries: ['DE'], currency: 'USD', originCountry: 'GB' };
+      const moved = cleanInternational(internationalBody.parse(base), 'usr_1', settings, 5_000);
+      expect(moved.currencySince).toBe(5_000);
+      expect(cleanInternational(internationalBody.parse(base), 'usr_1', moved, 9_000).currencySince).toBe(5_000);
+      expect(cleanInternational(internationalBody.parse(base), 'usr_1', null, 9_000).currencySince).toBeUndefined();
+      const after = { ...settings, currencySince: 5_000 };
+      for (const placedAt of [new Date(4_999), undefined, null, 'not a time']) {
+        expect(draftOf([good()], after, facts({ placedAt }), { country: 'DE' }).problems).toContainEqual({ field: 'currency', reason: 'order-currency' });
+      }
+      for (const placedAt of [new Date(5_000), new Date(6_000).toISOString()]) {
+        expect(draftOf([good()], after, facts({ placedAt }), { country: 'DE' })).toMatchObject({ currency: 'GBP', problems: [] });
+      }
+      // An order that says its own currency needs no date.
+      expect(draftOf([good()], after, facts({ currency: 'EUR' }), { country: 'DE' })).toMatchObject({ currency: 'EUR', problems: [] });
     });
 
     it('keeps the shop-wide code off an order of several products, and warns', () => {

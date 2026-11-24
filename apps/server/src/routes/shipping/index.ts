@@ -47,7 +47,7 @@ import { pricesHiddenFrom, readsPartOf, shippingPerson, shippingViewerOf, type S
 import { cleanShipFrom, orderAddress, readShipFrom, recipientAbroad, recipientForRates, shipFromAddress, shipFromChanges } from '../../shipping/addresses.js';
 import { askForRates, carrierHttpFor, shippingCarrierFor, type ShippingCarrierDeps } from '../../shipping/carriers.js';
 import type { BookingDeps, BookingFaults } from '../../shipping/bookings.js';
-import { declarationOf, deliversTo, draftOf, exporterFor, filingCodeFor, orderFactsOf, readGoods, readInternational, signerName, codeListUrlOf, type CustomsChoice, type InternationalSettings } from '../../shipping/customs.js';
+import { codeListUrlOf, type CustomsChoice, declarationOf, deliversTo, draftOf, exporterFor, filingCodeFor, type InternationalSettings, orderFactsOf, readGoods, readInternational, shownInternational, signerName } from '../../shipping/customs.js';
 import { checkedAccount, type KeyLock, type OpenBookings } from '../../shipping/keys.js';
 import { bookingState, createQuoteGate, mayShipAbroad, orderCancelled, rateWithinLimit } from '../../shipping/limits.js';
 import { carrierLocked } from '../../shipping/locks.js';
@@ -176,7 +176,7 @@ export function shippingRoutes(deps: ShippingRoutesDeps): FastifyPluginAsyncZod 
           }),
         ),
         international: sendsAbroad(install, international),
-        customs: international === null ? null : { ...international, signerName: await signerName(meta, install, international.signerId) },
+        customs: international === null ? null : { ...shownInternational(international), signerName: await signerName(meta, install, international.signerId) },
         shopCurrency: (await connectionTenantConfig(meta, connectionId))?.currency ?? null,
         codeListUrl: codeListUrlOf(shop.shipFrom?.country),
         labelSize: await labelSizeOf(meta, install.row.id),

@@ -216,7 +216,7 @@ export const customsFormReply = z.object({
         signer: z.string().nullable(),
         currency: z.string().nullable(),
         lines: z.array(customsLineView),
-        problems: z.array(z.object({ line: z.string().optional(), field: z.enum(['lines', 'description', 'quantity', 'unitValue', 'currency', 'originCountry', 'weight']), reason: z.enum(['refunded', 'shop-currency', 'no-line-weight']).optional() }).strict()),
+        problems: z.array(z.object({ line: z.string().optional(), field: z.enum(['lines', 'description', 'quantity', 'unitValue', 'currency', 'originCountry', 'weight']), reason: z.enum(['refunded', 'shop-currency', 'order-currency', 'no-line-weight']).optional() }).strict()),
         warnings: z.array(z.object({ line: z.string(), field: z.enum(['hsCode', 'skuCode', 'manufacturerCode']) }).strict()),
       })
       .strict(),

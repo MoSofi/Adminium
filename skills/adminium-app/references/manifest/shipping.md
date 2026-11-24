@@ -68,7 +68,7 @@ owner has listed that country. The block needs Adminium 0.3.74 or later.
 | `lines.order` | yes | Its column naming the order. |
 | `lines.quantity` | yes | A whole-number column. |
 | `lines.unitValue` | one of | A `decimal` or `money` column: what one unit was sold for. |
-| `lines.description` | yes | Text or enum. The shop's own customs description replaces it when one is set. |
+| `lines.description` | yes | Text or enum. The line's own name is declared first. The shop's customs description fills in only a line with none. |
 | `lines.sku` | no | A text column on the line. |
 | `lines.product` | no | Where a line's SKU is kept when the line has none: its column, the products table and that table's text column. |
 | `lines.unitWeight`, `lines.weightUnit` | no | One unit's net weight and `g` or `kg`, both or neither. Without them the parcel's weight is shared across its units. When only some lines have a weight, the order cannot be declared. |
@@ -77,6 +77,7 @@ owner has listed that country. The block needs Adminium 0.3.74 or later.
 | `lines.unless` | no | `{ "column", "in": [...] }`: a text or enum column of the line, and the values that mean it is not in the parcel (`{ "column": "stage", "in": ["cancelled"] }`). An empty value is a line still in it. An enum column must be able to hold each value. |
 | `currency` | no | The order's column holding its currency. Without it the shop's customs currency is used, and the order cannot be declared while that differs from the database's currency. |
 | `refunded` | no | A `decimal` or `money` column of the order holding what was refunded. While it is above zero the declared values are not what the customer paid, so the order cannot be declared. |
+| `placedAt` | no | A time column of the order saying when it was placed. Once the shop's currency has changed, an order with no `currency` of its own is declared only if this shows it was placed after the change. Without it, such an order cannot be declared. |
 
 Quantities and values are read from these columns and cannot be changed by a request.
 

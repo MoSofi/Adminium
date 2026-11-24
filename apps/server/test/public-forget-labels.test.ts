@@ -34,7 +34,7 @@ function shop(): Doc {
 }
 
 describe.each(LEGS)('"delete my details" and the parcels — %s', (dialect, available) => {
-  let h: InvoicingHarness;
+  let h: InvoicingHarness & { reply: Record<string, unknown> };
   let customer: Awaited<ReturnType<typeof servePublic>>;
   let g: ReturnType<typeof guest>;
   const bookings: Record<string, string> = {};

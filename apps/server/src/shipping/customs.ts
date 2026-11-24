@@ -24,6 +24,7 @@ import { z } from 'zod';
 
 import type { ResolvedTable } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
+import { readInstant } from '../crud/moments.js';
 import { grantKeyOf } from '../installs/resolve.js';
 import type { PayableSources } from '../payments/payables.js';
 import { appShippingPermission, PERMISSIONS } from '../rbac/permissions.js';
@@ -141,6 +142,8 @@ const internationalSchema = z
     products: z.array(storedProduct),
     exporter: customsExporterSchema.optional(),
     filingCode: z.enum(SHOP_FILING_CODES).optional(),
+    /** When a save last changed `currency`. An order with no currency of its own, placed before this, was paid in another one. */
+    currencySince: z.number().int().nonnegative().optional(),
   })
   .strict();
 
@@ -152,11 +155,17 @@ export function readInternational(stored: unknown): InternationalSettings | null
   return parsed.success ? parsed.data : null;
 }
 
+/** The settings as a manager sees them. When the currency last changed is the engine's own bookkeeping. */
+export function shownInternational({ currencySince: _since, ...shown }: InternationalSettings): Omit<InternationalSettings, 'currencySince'> {
+  return shown;
+}
+
 /** A form's values as stored: blanks out, codes as bare digits, countries once each. */
-export function cleanInternational(body: z.infer<typeof internationalBody>, signerId: string, before: InternationalSettings | null = null): InternationalSettings {
+export function cleanInternational(body: z.infer<typeof internationalBody>, signerId: string, before: InternationalSettings | null = null, now: number = Date.now()): InternationalSettings {
   const hs = hsDigits(body.hsCode ?? '');
   const exporter = body.exporter === undefined ? before?.exporter : cleanExporter(body.exporter);
   const filingCode = body.filingCode === undefined ? before?.filingCode : (body.filingCode ?? undefined);
+  const currencySince = before === null ? undefined : before.currency === body.currency ? before.currencySince : now;
   return internationalSchema.parse({
     countries: [...new Set(body.countries)].sort(),
     currency: body.currency,
@@ -170,6 +179,7 @@ export function cleanInternational(body: z.infer<typeof internationalBody>, sign
     }),
     ...(exporter === undefined ? {} : { exporter }),
     ...(filingCode === undefined ? {} : { filingCode }),
+    ...(currencySince === undefined ? {} : { currencySince }),
   });
 }
 
@@ -346,7 +356,7 @@ export interface CustomsProblem {
   line?: string;
   field: 'lines' | 'description' | 'quantity' | 'unitValue' | 'currency' | 'originCountry' | 'weight';
   /** Why, where the field alone would send a person to the wrong fix. */
-  reason?: 'refunded' | 'shop-currency' | 'no-line-weight';
+  reason?: 'refunded' | 'shop-currency' | 'order-currency' | 'no-line-weight';
 }
 
 export interface CustomsWarning {
@@ -381,6 +391,8 @@ export interface OrderFacts {
   shopCurrency: string | null;
   /** Whether any money went back on this order. */
   refunded: boolean;
+  /** When the order was placed, where the app says. */
+  placedAt?: unknown;
 }
 
 /** Nothing refunded is an empty column or an exact zero. Anything else, an unreadable value too, is not a value to declare over. */
@@ -395,6 +407,7 @@ export function orderFactsOf(columns: CustomsColumns, row: Row, shopCurrency: st
     currency: columns.currency === undefined ? undefined : row[columns.currency],
     shopCurrency,
     refunded: columns.refunded !== undefined && refundStands(row[columns.refunded]),
+    placedAt: columns.placedAt === undefined ? undefined : row[columns.placedAt],
   };
 }
 
@@ -406,8 +419,12 @@ export function draftOf(goods: readonly GoodsLine[], settings: InternationalSett
   const stated = textOf(facts.currency)?.toUpperCase();
   // With no currency of its own, an order is in the shop's: the one the database says now, never one remembered from an earlier save.
   const shopMoved = stated === undefined && textOf(facts.shopCurrency)?.toUpperCase() !== settings.currency;
-  const currency = shopMoved ? null : stated === undefined ? settings.currency : /^[A-Z]{3}$/.test(stated) ? stated : null;
-  const problems: CustomsProblem[] = currency === null ? [{ field: 'currency', ...(shopMoved ? { reason: 'shop-currency' as const } : {}) }] : [];
+  // Its amounts were paid in the currency of its day. A time that cannot be read is not proof it came after the change.
+  const placed = readInstant(facts.placedAt);
+  const paidInOld = stated === undefined && !shopMoved && settings.currencySince !== undefined && (placed === null || placed.getTime() < settings.currencySince);
+  const currency = shopMoved || paidInOld ? null : stated === undefined ? settings.currency : /^[A-Z]{3}$/.test(stated) ? stated : null;
+  const currencyReason = shopMoved ? { reason: 'shop-currency' as const } : paidInOld ? { reason: 'order-currency' as const } : {};
+  const problems: CustomsProblem[] = currency === null ? [{ field: 'currency', ...currencyReason }] : [];
   // A refund is on the order, and splitting it across lines would be a guess.
   if (facts.refunded) problems.push({ field: 'unitValue', reason: 'refunded' });
   const warnings: CustomsWarning[] = [];

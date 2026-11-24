@@ -68,8 +68,9 @@ export function shippingCustomsRoutes(deps: ShippingCustomsRoutesDeps): FastifyP
         if ((await signerName(meta, install, signerId)) === null) {
           throw new ShippingRefusal('CUSTOMS_SIGNER', 'The person named on customs declarations must hold the customs right.', { reason: 'not-allowed' });
         }
-        const next = cleanInternational(body, signerId, before);
-        await repo.setInternational(install.row.id, next, by, app.rbac.now());
+        const at = app.rbac.now();
+        const next = cleanInternational(body, signerId, before, at);
+        await repo.setInternational(install.row.id, next, by, at);
         // A rate was priced for the declaration these defaults made.
         await repo.clearQuotes(install.row.id);
         const shown = (one: typeof before) => (one === null ? null : { countries: one.countries, currency: one.currency, originCountry: one.originCountry, signer: one.signerId, products: one.products.length, exporter: { eori: one.exporter?.eori !== undefined, ioss: one.exporter?.ioss !== undefined, taxId: one.exporter?.taxId !== undefined }, filingCode: one.filingCode ?? null });

@@ -174656,6 +174656,7 @@
                                     "enum": [
                                       "refunded",
                                       "shop-currency",
+                                      "order-currency",
                                       "no-line-weight"
                                     ]
                                   }
