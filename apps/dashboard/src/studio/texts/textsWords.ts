@@ -195,6 +195,10 @@ export function reasonWords(reason: string | null): string | null {
       return t('studio:texts.reason.spendLimit', 'Not sent. Your provider account’s spending limit is reached.');
     case 'off-by-operator':
       return t('studio:texts.reason.operatorOff', 'Not sent. Texts are switched off on this server.');
+    case 'marketing-not-yet-available':
+      return t('studio:texts.reason.marketingLocked', 'Not sent. Marketing texts are not yet available in this version.');
+    case 'sender-changed':
+      return t('studio:texts.reason.senderChanged', 'Not sent. The sender changed while it waited for its hours, and its opt-out line was written for the old one.');
     case 'no-longer-needed':
       return t('studio:texts.reason.noLongerNeeded', 'Not sent. What it was about was called off while it waited.');
     case 'rate-limited':

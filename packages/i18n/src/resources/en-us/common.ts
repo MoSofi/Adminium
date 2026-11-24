@@ -144,7 +144,8 @@ export default {
     "drawerTitle": "Navigation",
     "emptyPartsOff": "Nothing is switched on for you right now. Ask an administrator.",
     "teams": "Teams",
-    "otherDatabases": "Other databases"
+    "otherDatabases": "Other databases",
+    "texts": "Texts"
   },
   "apps": {
     "frame": {
@@ -366,35 +367,6 @@ export default {
     "run": "Run",
     "selected": "{count, plural, one {# record} other {# records}}"
   },
-  "prefs": {
-    "theme": {
-      "label": "Theme",
-      "light": "Light",
-      "dark": "Dark",
-      "system": "System"
-    },
-    "accent": {
-      "label": "Accent color",
-      "indigo": "Indigo",
-      "blue": "Blue",
-      "teal": "Teal",
-      "violet": "Violet",
-      "rose": "Rose",
-      "red": "Red",
-      "orange": "Orange",
-      "black": "Black"
-    },
-    "density": {
-      "label": "Density",
-      "comfortable": "Comfortable",
-      "compact": "Compact"
-    },
-    "locale": {
-      "label": "Language",
-      "directionNote": "Text direction: right to left (set automatically by the language)",
-      "communityDraft": "This translation is a community draft — it has not been reviewed by a native speaker yet."
-    }
-  },
   "settings": {
     "defaults": {
       "title": "Global defaults",
@@ -515,65 +487,6 @@ export default {
     "defaultToast": "“{name}” is now the default view.",
     "deletedToast": "View “{name}” deleted."
   },
-  "setup": {
-    "title": "Set up Adminium",
-    "subtitle": "Create the first administrator. This happens once.",
-    "progress": "Setup progress",
-    "steps": {
-      "account": "Admin account",
-      "consent": "Privacy"
-    },
-    "account": {
-      "name": "Your name",
-      "email": "Email",
-      "emailInvalid": "Enter a valid email address.",
-      "password": "Password",
-      "passwordHelper": "At least {min} characters.",
-      "passwordTooShort": "Use at least {min} characters.",
-      "confirm": "Confirm password",
-      "passwordMismatch": "Passwords do not match.",
-      "continue": "Continue",
-      "strength": "Password strength",
-      "strengthLevels": {
-        "weak": "Weak",
-        "fair": "Fair",
-        "good": "Good",
-        "strong": "Strong"
-      }
-    },
-    "consent": {
-      "telemetry": {
-        "title": "Share anonymous usage data",
-        "description": "Helps us see which database engines to prioritize. Off unless you turn it on."
-      },
-      "updates": {
-        "title": "Check for new releases",
-        "description": "Shows a notice when a new version — including a security fix — is available. This asks GitHub for the latest release, which reveals this instance’s IP address and version to GitHub. Nothing else is sent."
-      },
-      "sentTitle": "Exactly what is sent:",
-      "sent": {
-        "instanceId": "A random instance ID (a UUID generated here; not derived from your name, host, or database)",
-        "version": "The Adminium version this instance runs",
-        "engines": "Which database engine types are connected (e.g. \"postgres\") — types only"
-      },
-      "neverTitle": "Never sent:",
-      "never": {
-        "schema": "Your schema — no table, column, or enum names",
-        "rows": "Your data — not a single row, ever",
-        "connections": "Connection strings, hostnames, or credentials",
-        "people": "User emails, names, or IDs",
-        "llm": "AI prompts or run contents"
-      },
-      "reversible": "Both are off by default and you can change either one later in Settings.",
-      "back": "Back",
-      "finish": "Create admin account"
-    },
-    "error": {
-      "alreadyCompleted": "This instance has already been set up. Sign in with the existing admin account.",
-      "rejected": "The server rejected those details. Check the email and password and try again.",
-      "failed": "Setup failed. Check your connection and try again."
-    }
-  },
   "desktop": {
     "settings": {
       "explainer": "These settings apply to the Adminium app on this computer only. They are stored on this machine, not in the server’s settings.",
@@ -645,25 +558,6 @@ export default {
     "shared": {
       "banner": "This project is shared on your network. The Designer is off while it is.",
       "details": "Sharing details"
-    }
-  },
-  "notifications": {
-    "channel": {
-      "inApp": "In-app",
-      "email": "Email",
-      "push": "Push"
-    },
-    "event": {
-      "reportReady": "Scheduled report ready",
-      "reportFailed": "Scheduled report failed",
-      "backupCompleted": "Backup completed",
-      "ruleNotice": "A notice from a rule",
-      "mention": "Somebody mentioned me",
-      "formsAnswer": "A form has a new answer",
-      "formsLimit": "A form hit its limit",
-      "chatBudget": "A chat’s automatic answers stopped for the day",
-      "chatWaiting": "A website chat is waiting for a person",
-      "chatPaused": "New website chats were paused"
     }
   },
   "theme": {

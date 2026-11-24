@@ -643,6 +643,7 @@ function TestDialog({ open, onClose, provider }: { open: boolean; onClose: () =>
           <p className="text-[12px] text-fg-muted">{t('studio:texts.test.fixed', 'The test text is always these words, so this button can’t send anything else.')}</p>
         </div>
         <p className="text-[12.5px]">{t('studio:texts.test.cost', 'This uses your provider account and may cost a small charge.')}</p>
+        <p className="text-[12.5px] text-fg-muted" data-testid="texts-test-own">{t('studio:texts.test.own', 'Send it to your own phone. It counts toward today’s text limit, and you can test at most two different numbers a day.')}</p>
         <div role="status" aria-live="polite">
           {test.isPending ? (
             <span className="inline-flex items-center gap-2 text-fg-muted">
@@ -650,6 +651,10 @@ function TestDialog({ open, onClose, provider }: { open: boolean; onClose: () =>
             </span>
           ) : result !== null ? (
             <Alert tone={result.tone} title={result.title} body={result.line} data-testid="texts-test-result" />
+          ) : limited && refusalReason(test.error) === 'test-number' ? (
+            <Alert tone="warn" title={t('studio:texts.test.ownNumber', 'A test text goes to your own number. You have tested other numbers today: try again tomorrow.')} data-testid="texts-test-own-number" />
+          ) : limited && refusalReason(test.error) === 'daily-limit' ? (
+            <Alert tone="warn" title={t('studio:texts.test.dailyLimit', 'Today’s text limit is used up, test texts included.')} data-testid="texts-test-daily-limit" />
           ) : limited ? (
             <Alert tone="warn" title={t('studio:texts.test.limited', 'Too many test texts. Try again in a few minutes.')} />
           ) : test.isError ? (

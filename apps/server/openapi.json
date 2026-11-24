@@ -2658,6 +2658,29 @@
                         "canExport": {
                           "type": "boolean"
                         },
+                        "textApps": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "app": {
+                                "type": "string"
+                              },
+                              "may": {
+                                "type": "string",
+                                "enum": [
+                                  "read",
+                                  "reply"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "app",
+                              "may"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
                         "prefs": {
                           "type": "object",
                           "properties": {
@@ -4497,6 +4520,7 @@
                         "hasConnections",
                         "canImport",
                         "canExport",
+                        "textApps",
                         "prefs",
                         "nav",
                         "version",

@@ -274,6 +274,18 @@ describe('Setup', () => {
     expect((await screen.findByTestId('texts-test-result')).textContent).toContain('Handed to Twilio');
     expect(writes()).toEqual([{ method: 'POST', url: '/api/v1/sms/test', body: { to: '+12075550161' } }]);
   });
+
+  it('says a test goes to your own phone and counts toward today, and words each limit', async () => {
+    const user = userEvent.setup();
+    mount({ replies: { 'POST /test': [refusal(429, 'RATE_LIMITED', { reason: 'test-number' }), refusal(429, 'RATE_LIMITED', { reason: 'daily-limit' })] } });
+    await user.click(await screen.findByTestId('texts-test-open'));
+    expect(screen.getByTestId('texts-test-own').textContent).toContain('counts toward today’s text limit');
+    await user.type(screen.getByTestId('texts-test-to'), '+12075550161');
+    await user.click(screen.getByTestId('texts-test-send'));
+    expect((await screen.findByTestId('texts-test-own-number')).textContent).toContain('try again tomorrow');
+    await user.click(screen.getByTestId('texts-test-send'));
+    expect((await screen.findByTestId('texts-test-daily-limit')).textContent).toBe('Today’s text limit is used up, test texts included.');
+  });
 });
 
 describe('Templates', () => {

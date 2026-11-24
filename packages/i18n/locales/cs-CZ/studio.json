@@ -6613,7 +6613,6 @@
       "insertOne": "Vložit {name}",
       "languages": "Jazyky",
       "noReplies": "Tento server nemůže přijímat odpovědi STOP, proto každá SMS uvádí váš telefon nebo e-mail pro odhlášení.",
-      "optOutNote": "Započítává se do délky a nelze ho upravit. Je v angličtině, dokud nebudou přidány ostatní jazyky.",
       "ownStop": "Vaše SMS sama obsahuje STOP, proto se nic nepřidává.",
       "plain": "Použít jednoduchou verzi",
       "preview": "Náhled",
@@ -6638,7 +6637,8 @@
       "undo": "Vrátit změny",
       "unicode": "Kvůli tomuto znaku se SMS počítá jako Unicode:",
       "whereTo": "Kam jde a od koho je",
-      "words": "Text"
+      "words": "Text",
+      "optOutCounts": "Započítává se do délky a nelze ho upravit."
     },
     "field": {
       "accountSid": "Account SID",
@@ -6721,7 +6721,9 @@
       "stopped": "Neodesláno. Tato osoba požádala, aby jí už SMS nechodily.",
       "tooLate": "Neodesláno. Nejbližší doba odesílání připadá až po okamžiku, pro který byla SMS určena.",
       "waitingRegistration": "Neodesláno. Vaše registrace pro tuto zemi stále čeká na vyřízení.",
-      "words": "Neodesláno. Šablonu nebo hodnotu v ní nelze odeslat jako SMS."
+      "words": "Neodesláno. Šablonu nebo hodnotu v ní nelze odeslat jako SMS.",
+      "marketingLocked": "Neodesláno. Marketingové SMS v této verzi zatím nejsou k dispozici.",
+      "senderChanged": "Neodesláno. Odesílatel se změnil, zatímco čekala na své hodiny, a její řádek pro odhlášení byl psán pro původního."
     },
     "registration": {
       "between": "Registrace je věcí vaší firmy a poskytovatele {provider}. Adminium ji nemůže vidět, schválit ani urychlit.",
@@ -6856,7 +6858,9 @@
       "activity": "Aktivita",
       "setup": "Nastavení",
       "stop": "Seznam bez SMS",
-      "templates": "Šablony"
+      "templates": "Šablony",
+      "conversations": "Konverzace",
+      "marketing": "Marketing"
     },
     "templates": {
       "col": {
@@ -6890,8 +6894,285 @@
       "title": "Odeslat testovací SMS",
       "to": "Telefonní číslo",
       "toHelp": "S + a předvolbou země, nebo místní číslo země nastavené výše.",
-      "unknownLine": "Od poskytovatele {provider} nepřišla odpověď. Než pošlete další, podívejte se do jeho protokolu zpráv."
+      "unknownLine": "Od poskytovatele {provider} nepřišla odpověď. Než pošlete další, podívejte se do jeho protokolu zpráv.",
+      "own": "Pošlete ji na svůj vlastní telefon. Započítá se do dnešního limitu SMS a denně můžete otestovat nejvýš dvě různá čísla.",
+      "ownNumber": "Testovací SMS jde na vaše vlastní číslo. Dnes jste už testovali jiná čísla: zkuste to zítra.",
+      "dailyLimit": "Dnešní limit SMS je vyčerpán, včetně testovacích."
     },
-    "title": "SMS"
+    "title": "SMS",
+    "conv": {
+      "noApp": "Žádná aplikace",
+      "lastAutomated": "Automatická SMS",
+      "unreadCount": "{count, plural, one {# nepřečtená zpráva} few {# nepřečtené zprávy} many {# nepřečtené zprávy} other {# nepřečtených zpráv}}",
+      "stoppedBadge": "Požádal o zastavení",
+      "stopLine": "Odpověď STOP. Na toto číslo teď nejde žádná SMS od této firmy.",
+      "stopConfirmed": "Odešlo jedno prosté potvrzení, bez otázky a bez nabídky.",
+      "stopNotConfirmed": "Žádné potvrzení neodešlo.",
+      "startLine": "Odpověď START. Blokace u poskytovatele je zrušena, ale není to souhlas: před každou SMS musí znovu souhlasit.",
+      "appText": "Automatická SMS z {app}, šablona {template}. Její text se neukládá.",
+      "helpLine": "Poslal HELP. Poskytovatel odpověděl vašimi kontaktními údaji.",
+      "by": "Odpověděl(a) {name}",
+      "held": "Vaše odpověď čeká na hodiny odesílání. Odejde v {time}.",
+      "queued": "Vaše odpověď je ve frontě a odchází teď.",
+      "replyLabel": "Vaše odpověď",
+      "optOutContact": "Na konec se přidá řádek s vaším telefonem nebo e-mailem pro odhlášení. Takto přijaté žádosti zapíše personál.",
+      "optOutReply": "„{line}“ se přidá na konec a počítá se do délky.",
+      "answering": "Osoba psala během posledních 7 dní, takže odpověď nepotřebuje vlastní souhlas. STOP ji přesto zastaví.",
+      "send": "Odeslat odpověď",
+      "markedRead": "Označeno jako přečtené.",
+      "back": "Všechny konverzace",
+      "openRecord": "Otevřít záznam",
+      "markRead": "Označit jako přečtené",
+      "readBy": "Přečetl(a) {name}",
+      "stopState": "Seznam bez SMS",
+      "stoppedYes": "Na seznamu bez SMS. Na toto číslo nic nejde.",
+      "stoppedNo": "Není na seznamu bez SMS.",
+      "consentState": "Odpovídání",
+      "answeringYes": "Osoba psala během posledních 7 dní: odpověď nepotřebuje další souhlas.",
+      "answeringNo": "Odpověď potřebuje souhlas se SMS jako každá SMS.",
+      "replyState": "Odpovědi osoby",
+      "canReplyYes": "Osoba může odpovědět SMS.",
+      "canReplyNo": "Tato osoba nemůže odpovědět SMS.",
+      "messages": "Zprávy",
+      "older": "Zobrazit starší zprávy",
+      "noAccess": "Nemůžete číst SMS zákazníků. Kdo spravuje tento server, vám může dát právo pro všechny aplikace nebo pro jednu.",
+      "reach": {
+        "title": "Odpovědi se na tento server nedostanou",
+        "notConnected": "Není připojen žádný poskytovatel, takže sem nemůže dorazit žádná odpověď. Připojte ho v Nastavení.",
+        "desktop": "Desktopová aplikace umí SMS odesílat, ale odpovědi a STOP se k ní nedostanou, takže sem žádná nová zpráva nepřijde.",
+        "keyUnreadable": "Klíč poskytovatele nelze na tomto serveru přečíst, takže sem žádná odpověď nedorazí. Vložte ho znovu v Nastavení.",
+        "noDoor": "Tento server nemá veřejnou adresu https. Umí SMS odesílat, ale odpovědi a STOP se k němu nedostanou, takže sem žádná nová zpráva nepřijde."
+      },
+      "filterApp": "Aplikace",
+      "allApps": "Všechny aplikace",
+      "unreadOnly": "Jen nepřečtené",
+      "unreadTotal": "{count, plural, =0 {Nic nepřečteného} one {# nepřečtená} few {# nepřečtené} many {# nepřečtené} other {# nepřečtených}}",
+      "recorded": "Čtení a odpovídání se zaznamenává.",
+      "emptyUnread": "Nic nepřečteného.",
+      "empty": "Zatím žádné konverzace.",
+      "emptyBody": "Když zákazník odpoví na SMS, konverzace se zobrazí zde. Ukládají je jen aplikace se zapnutými odpověďmi.",
+      "listLabel": "Konverzace",
+      "noMatch": "Žádná konverzace neodpovídá.",
+      "pick": "Vyberte konverzaci, kterou chcete číst.",
+      "block": {
+        "notAllowed": "Tuto konverzaci můžete číst, ale ne na ni odpovídat. Požádejte vlastníka o právo odpovídat.",
+        "stopped": "Tato osoba požádala, aby jí už SMS nechodily. Zde nemůžete odpovědět.",
+        "notConnected": "Není připojen žádný poskytovatel, nic nelze odeslat. Připojte ho v Nastavení.",
+        "noConsent": "Tato osoba nedala této aplikaci souhlas se SMS a za posledních 7 dní nepsala, odpověď tedy nemůže odejít.",
+        "cannotReceive": "Toto číslo nemůže přijímat SMS.",
+        "other": "Odsud teď nemůže odejít žádná odpověď."
+      },
+      "refused": {
+        "notAllowed": "Neodesláno. Tuto konverzaci smíte číst, ale ne na ni odpovídat.",
+        "earlierOpen": "Neodesláno. Stejná odpověď je ještě na cestě. Počkejte na ni, než odešlete znovu.",
+        "other": "Neodesláno.",
+        "noConsent": "Neodesláno. Tato osoba nedala této aplikaci souhlas se SMS."
+      },
+      "fail": {
+        "forbidden": "Na tuto konverzaci nesmíte odpovídat.",
+        "gone": "Tato konverzace už neexistuje.",
+        "network": "Server se nepodařilo zastihnout. Nic neodešlo. Zkuste to znovu."
+      }
+    },
+    "replies": {
+      "title": "Odpovědi podle aplikace",
+      "on": "Odpovědi se ukládají",
+      "off": "Odpovědi vypnuty",
+      "startsOff": "Při instalaci vypnuto: zákazníci této aplikace mohou psát i tak soukromé věci jako příznaky.",
+      "changedBy": "Změnil(a) {name}",
+      "askTitle": "Ukládat odpovědi pro {app}?",
+      "askBody": "Tato aplikace začíná s vypnutými odpověďmi, protože její zákazníci mohou psát i příznaky. Po zapnutí se vše, co napíší, uchová zde na rok a přečte si to každý, kdo smí číst SMS této aplikace.",
+      "askYes": "Zapnout odpovědi",
+      "subtitle": "Zda se odpověď zákazníka na SMS aplikace uloží jako konverzace.",
+      "notRead": "Když má aplikace odpovědi vypnuté, odpověď se neukládá. Odesílatel dostane nejvýš jednou měsíčně jednu pevnou odpověď: „Toto číslo nikdo nečte“ s vaším telefonem nebo e-mailem. STOP stále funguje.",
+      "none": "Zatím není nainstalovaná žádná aplikace.",
+      "noAppOn": "Ukládá se i odpověď na SMS, kterou neposlala žádná aplikace.",
+      "noAppOff": "Odpověď na SMS, kterou neposlala žádná aplikace, se neukládá, protože některá aplikace zde má odpovědi vypnuté."
+    },
+    "mkt": {
+      "hours": {
+        "days": "od pondělí do soboty",
+        "line": "Marketingové SMS odcházejí {from}–{to}, {days}, podle času každého člověka. Čas mimo ně se přesune na nejbližší otevření. Země s více časovými pásmy je dostane, jen když jsou hodiny otevřené ve všech.",
+        "short": "Odcházejí {from}–{to}, {days}, podle času každého člověka."
+      },
+      "refusals": {
+        "title": "Marketingové SMS zatím z tohoto serveru odejít nemohou",
+        "serviceStill": "Servisní SMS odcházejí jako dřív."
+      },
+      "locked": {
+        "title": "Marketingové SMS zatím nejsou k dispozici",
+        "preview": "Stále můžete vidět, koho by marketingová SMS zasáhla. Odesílání a plánování přijde v pozdější verzi.",
+        "short": "V této verzi zatím není k dispozici",
+        "body": "Marketingové SMS v této verzi zatím nejsou k dispozici. Servisní SMS a konverzace fungují normálně."
+      },
+      "yes": {
+        "saved": "Jejich souhlas s marketingem je zapsán pod vaším jménem. Kde to země vyžaduje, odchází teď potvrzovací e-mail.",
+        "title": "Zapsat souhlas s marketingem",
+        "why": "Jen pro někoho, kdo vám těmito slovy souhlasil s marketingovými SMS. Souhlas s e-maily nebo newsletterem se nikdy nepočítá. Nikoho nežádáme o odpověď YES.",
+        "how": "Jak souhlasil(a)",
+        "paper": "Na papíře",
+        "wording": "Znění, se kterým souhlasil(a)",
+        "version": "Verze tohoto znění",
+        "save": "Zapsat souhlas",
+        "savedLocked": "Jejich souhlas s marketingem je zapsán pod vaším jménem."
+      },
+      "confirm": {
+        "ask": "Požádat o potvrzení e-mailem",
+        "inPerson": "Potvrdil(a) osobně",
+        "sent": "Potvrzovací e-mail je na cestě. Marketingové SMS dostane až po potvrzení.",
+        "notNeeded": "Jejich země potvrzení nevyžaduje.",
+        "already": "Už potvrdil(a).",
+        "noConsent": "Nemá souhlas s marketingem, který by šlo potvrdit. Nejprve zapište souhlas.",
+        "noRow": "Řádek nebo jeho mobilní číslo zmizel.",
+        "noEmail": "Zatím nelze potvrdit: nemá e-mailovou adresu. Zeptejte se osobně.",
+        "noOrigin": "Tento server nemá veřejnou adresu, odkaz v e-mailu by se neotevřel. Zeptejte se osobně.",
+        "noMail": "Není nastaven poštovní server, žádný e-mail nemůže odejít. Zeptejte se osobně.",
+        "notSent": "Žádný potvrzovací e-mail neodešel. Zeptejte se osobně.",
+        "locked": "Dokud nejsou marketingové SMS v této verzi k dispozici, žádný potvrzovací e-mail neodchází.",
+        "held": "Potvrzovací e-mail už dnes odešel této osobě nebo na tuto adresu. Požádejte znovu zítra.",
+        "doNotEmail": "Jejich e-mailová adresa je na seznamu bez e-mailů, takže potvrzovací e-mail neodejde. Zeptejte se osobně."
+      },
+      "who": {
+        "ok": "Kdo ji dostane",
+        "title": "Kdo je vynechán",
+        "okLine": "{count, plural, one {Tuto SMS může dostat # osoba.} few {Tuto SMS mohou dostat # osoby.} many {Tuto SMS může dostat # osoby.} other {Tuto SMS může dostat # osob.}}",
+        "confirmWhy": "Každý čeká na potvrzení e-mailem. Kdo nemá e-mail, zatím potvrzen být nemůže: zeptejte se osobně a pak to zapište sem.",
+        "previous": "Předchozí",
+        "next": "Další"
+      },
+      "reach": {
+        "line": "{canSend} z {people} ji může dostat.",
+        "seeWho": "Zobrazit kdo"
+      },
+      "unfilled": "Nic nevyplní {names} v této šabloně. Dejte mu záložní hodnotu v Šablonách, nebo ho odstraňte.",
+      "country": {
+        "title": "Marketingové SMS nemohou jít do těchto zemí, protože lidé tam nemohou odpovědět STOP.",
+        "service": "Servisní SMS k nim stále fungují, s odhlášením přes vás."
+      },
+      "countries": {
+        "caption": "Podle země",
+        "country": "Země",
+        "people": "Lidé",
+        "canSend": "Mohou ji dostat",
+        "when": "Kdy",
+        "noWindow": "Do dvou týdnů nejsou hodiny odesílání otevřené ve všech jejích časových pásmech",
+        "now": "Ve zvolený čas",
+        "opens": "Přesune se na {time}, kdy se hodiny otevřou"
+      },
+      "daily": {
+        "days": "Dnes zbývá {left} z {limit} SMS, takže se to rozloží do {days} dnů.",
+        "today": "Dnes zbývá {left} z {limit} SMS.",
+        "used": "Dnes: využito {used} z {limit} SMS, včetně servisních."
+      },
+      "new": {
+        "title": "Nová marketingová SMS",
+        "onlyAgreed": "Jen lidé, kteří souhlasili s marketingovými SMS.",
+        "name": "Název",
+        "nameHelp": "Pro vás a váš tým. Zákazníci ho nikdy neuvidí.",
+        "template": "Šablona",
+        "noTemplate": "Zatím žádná šablona SMS",
+        "table": "Lidé",
+        "noTable": "Žádná tabulka lidí, kterým můžete psát",
+        "tableHidden": "{app} · {table} (čísla jsou před vámi skrytá)",
+        "view": "Uložené zobrazení",
+        "everyone": "Všichni v tabulce",
+        "when": "Kdy",
+        "now": "Jakmile to hodiny dovolí",
+        "later": "V určitý čas",
+        "at": "Odeslat v",
+        "check": "Zobrazit, koho zasáhne",
+        "schedule": "Naplánovat pro {count, plural, one {# osobu} few {# osoby} many {# osoby} other {# osob}}",
+        "send": "Odeslat {count, plural, one {# osobě} few {# osobám} many {# osobě} other {# osobám}}",
+        "look": "Zobrazit, koho by marketingová SMS zasáhla"
+      },
+      "results": {
+        "people": "Lidé",
+        "sent": "Předáno poskytovateli",
+        "delivered": "Doručeno",
+        "failed": "Selhalo",
+        "unknown": "Neznámé",
+        "skipped": "Přeskočeno",
+        "waiting": "Ještě zbývá",
+        "optOuts": "Odhlásili se potom",
+        "sentNote": "„Předáno poskytovateli“ neznamená „doručeno“: doručeno se ukáže, jen když to poskytovatel ohlásí.",
+        "waitingUntil": "Dnešní limit je vyčerpán. Pokračuje se v {time}.",
+        "skippedBy": "Přeskočeno, podle důvodu",
+        "who": "Každá osoba",
+        "forbidden": "Můžete číst jen některé z těchto lidí nebo žádné z jejich čísel, proto se vám seznam nezobrazí.",
+        "open": "Výsledky"
+      },
+      "cancel": {
+        "open": "Zrušit toto rozesílání",
+        "title": "Zrušit „{name}“?",
+        "body": "Poskytovateli se už nic nepředá a SMS, které ještě čekají na své hodiny, neodejdou. Již předané SMS nelze vrátit.",
+        "keep": "Ponechat",
+        "yes": "Zrušit rozesílání",
+        "done": "Rozesílání je zrušeno."
+      },
+      "title": "Marketingové SMS",
+      "never": "Nikdy nalezeným kontaktům ani koupeným seznamům, nikdy ze jména odesílatele a nikdy tam, kde nelze odpovědět STOP.",
+      "empty": "Zatím nebyla odeslána žádná marketingová SMS.",
+      "runs": "Marketingové SMS",
+      "col": {
+        "name": "Název",
+        "status": "Stav",
+        "when": "Kdy",
+        "reached": "Předáno · doručeno",
+        "of": "z {count}"
+      },
+      "made": {
+        "scheduled": "Naplánováno na {time}.",
+        "now": "Odchází teď, v rámci hodin odesílání."
+      },
+      "refusal": {
+        "operatorOff": "SMS jsou na tomto serveru vypnuté tím, kdo ho spravuje.",
+        "marketingOff": "Marketing je na tomto serveru vypnutý tím, kdo ho spravuje.",
+        "notConnected": "Není připojen žádný poskytovatel, nebo jeho klíč nelze přečíst. Připojte ho v Nastavení.",
+        "noSender": "Váš účet u poskytovatele nemá číslo k odesílání. Přidejte ho v Nastavení.",
+        "fromName": "Marketing nemůže jít ze jména odesílatele, protože to nemůže přijmout STOP. Přidejte číslo pro tuto zemi ve svém účtu u poskytovatele.",
+        "noDoor": "Tento server nemůže přijmout STOP, proto jsou marketingové SMS vypnuté.",
+        "templateOff": "Tato šablona nemá zapnutý žádný jazyk.",
+        "asksYes": "Tato šablona žádá o odpověď YES. Odpověď YES může zrušit blokaci u poskytovatele. Nechte lidi souhlasit raději ve formuláři.",
+        "templateRefused": "Tato šablona nemůže odejít jako SMS: obsahuje kód, přihlašovací či průzkumný odkaz nebo hodnotu QR.",
+        "other": "Marketingové SMS teď z tohoto serveru odejít nemohou.",
+        "desktop": "Desktopová aplikace nemůže přijímat odpovědi od poskytovatele.",
+        "networkOff": "Síťové funkce tohoto serveru jsou vypnuté, takže se k němu odpověď STOP nedostane.",
+        "noDoorDetail": "Nemá veřejnou adresu https, takže se k němu odpověď STOP nedostane."
+      },
+      "skip": {
+        "noPhone": "Neodesláno. Řádek nemá mobilní číslo.",
+        "sample": "Neodesláno. Jde o řádek ukázkových dat aplikace.",
+        "foundLead": "Neodesláno. Tuto osobu našel vyhledávač kontaktů. Marketing nikdy nejde nalezeným kontaktům.",
+        "sameNumber": "Neodesláno znovu. Jiný řádek má stejné číslo a to dostane jednu SMS.",
+        "outOfReach": "Neodesláno. Řádek zmizel, nebo k němu už nemáte přístup.",
+        "phoneChanged": "Neodesláno. Řádek teď obsahuje jiné číslo.",
+        "runFailed": "Neodesláno. Rozesílání se zastavilo dřív, než přišla na řadu.",
+        "noLanguage": "Neodesláno. Šablona nemá jazyk, ve kterém jí lze napsat.",
+        "needsConfirm": "Neodesláno. Jejich země vyžaduje nejprve potvrzení, odkazem v e-mailu nebo osobně. Nikoho nikdy nežádáme o odpověď YES.",
+        "other": "Neodesláno."
+      },
+      "state": {
+        "scheduled": "Naplánováno",
+        "running": "Odesílá se",
+        "waiting": "Čeká na zítřejší limit",
+        "done": "Předáno",
+        "cancelled": "Zrušeno",
+        "failed": "Zastaveno"
+      },
+      "audience": {
+        "notPeople": "Tato tabulka není tabulka lidí, kterou aplikace uvádí s mobilním číslem.",
+        "cannotSend": "Marketing už odesílat nesmíte.",
+        "cannotRead": "Tuto tabulku nemůžete číst.",
+        "phones": "Vaše role nezobrazuje mobilní čísla této tabulky celá, proto jejím lidem nemůžete psát.",
+        "viewGone": "Toto uložené zobrazení zmizelo, nebo není vaše.",
+        "viewSearch": "Uložené zobrazení s vyhledáváním nemůže určit, kdo dostane SMS. Použijte zobrazení jen s filtry.",
+        "viewHidden": "Toto uložené zobrazení filtruje podle sloupce, který vaše role nemůže číst.",
+        "other": "Této tabulce nelze posílat SMS."
+      },
+      "inPerson": {
+        "confirmed": "Zapsáno pod vaším jménem: potvrdil(a).",
+        "superseded": "Novější odpověď tento souhlas nahradila. Nejprve znovu zapište souhlas."
+      }
+    }
   }
 }

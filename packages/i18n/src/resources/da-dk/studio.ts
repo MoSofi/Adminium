@@ -6623,7 +6623,6 @@ export default {
       "insertOne": "Indsæt {name}",
       "languages": "Sprog",
       "noReplies": "Denne server kan ikke modtage STOP-svar, så hver sms angiver din telefon eller e-mail til afmelding.",
-      "optOutNote": "Den tæller med i længden og kan ikke redigeres. Den er på engelsk, indtil de andre sprog er tilføjet.",
       "ownStop": "Din sms nævner selv STOP, så intet tilføjes.",
       "plain": "Brug et almindeligt tegn",
       "preview": "Forhåndsvisning",
@@ -6648,7 +6647,8 @@ export default {
       "undo": "Fortryd ændringer",
       "unicode": "Dette tegn bruger Unicode-taksten:",
       "whereTo": "Hvor den sendes hen, og hvem den er fra",
-      "words": "Teksten"
+      "words": "Teksten",
+      "optOutCounts": "Den tæller med i længden og kan ikke redigeres."
     },
     "field": {
       "accountSid": "Account SID",
@@ -6731,7 +6731,9 @@ export default {
       "stopped": "Ikke sendt. Denne person har bedt om ikke at få flere sms’er.",
       "tooLate": "Ikke sendt. De næste sendetider ligger efter det tidspunkt, sms’en var tiltænkt.",
       "waitingRegistration": "Ikke sendt. Din registrering for dette land afventer stadig.",
-      "words": "Ikke sendt. Skabelonen eller en værdi i den kan ikke sendes som sms."
+      "words": "Ikke sendt. Skabelonen eller en værdi i den kan ikke sendes som sms.",
+      "marketingLocked": "Ikke sendt. Markedsførings-sms’er er endnu ikke tilgængelige i denne version.",
+      "senderChanged": "Ikke sendt. Afsenderen blev ændret, mens den ventede på sine tider, og afmeldingslinjen var skrevet til den gamle."
     },
     "registration": {
       "between": "Registreringen er mellem din virksomhed og {provider}. Adminium kan ikke se den, godkende den eller fremskynde den.",
@@ -6866,7 +6868,9 @@ export default {
       "activity": "Aktivitet",
       "setup": "Opsætning",
       "stop": "Ingen-sms-liste",
-      "templates": "Skabeloner"
+      "templates": "Skabeloner",
+      "conversations": "Samtaler",
+      "marketing": "Markedsføring"
     },
     "templates": {
       "col": {
@@ -6900,8 +6904,285 @@ export default {
       "title": "Send en test-sms",
       "to": "Telefonnummer",
       "toHelp": "Med + og landekoden, eller et lokalt nummer fra det land, der er valgt ovenfor.",
-      "unknownLine": "Vi fik intet svar fra {provider}. Se i dens beskedlog, før du sender en til."
+      "unknownLine": "Vi fik intet svar fra {provider}. Se i dens beskedlog, før du sender en til.",
+      "own": "Send den til din egen telefon. Den tæller med i dagens sms-grænse, og du kan højst teste to forskellige numre om dagen.",
+      "ownNumber": "En test-sms går til dit eget nummer. Du har testet andre numre i dag: prøv igen i morgen.",
+      "dailyLimit": "Dagens sms-grænse er brugt, test-sms’er medregnet."
     },
-    "title": "Sms"
+    "title": "Sms",
+    "conv": {
+      "noApp": "Ingen app",
+      "lastAutomated": "En automatisk sms",
+      "unreadCount": "{count, plural, one {# ulæst besked} other {# ulæste beskeder}}",
+      "stoppedBadge": "Har bedt om stop",
+      "stopLine": "Svarede STOP. Ingen sms fra denne virksomhed går nu til nummeret.",
+      "stopConfirmed": "Én enkel bekræftelse blev sendt, uden spørgsmål og uden tilbud.",
+      "stopNotConfirmed": "Der blev ikke sendt nogen bekræftelse.",
+      "startLine": "Svarede START. Udbyderens blokering er ophævet, men det er ikke et ja: personen skal sige ja igen før enhver sms.",
+      "appText": "Automatisk sms fra {app}, skabelon {template}. Ordlyden gemmes ikke.",
+      "helpLine": "Sendte HELP. Udbyderen svarede med jeres kontaktoplysninger.",
+      "by": "Besvaret af {name}",
+      "held": "Dit svar venter på sendetiderne. Det sendes {time}.",
+      "queued": "Dit svar står i kø og sendes nu.",
+      "replyLabel": "Dit svar",
+      "optOutContact": "En linje med jeres telefon eller e-mail til afmelding tilføjes til sidst. Personalet registrerer de stopanmodninger, de får på den måde.",
+      "optOutReply": "“{line}” tilføjes til sidst og tæller med i længden.",
+      "answering": "Personen skrev inden for de sidste 7 dage, så et svar kræver ikke sit eget ja. Et STOP stopper det stadig.",
+      "send": "Send svar",
+      "markedRead": "Markeret som læst.",
+      "back": "Alle samtaler",
+      "openRecord": "Åbn posten",
+      "markRead": "Markér som læst",
+      "readBy": "Læst af {name}",
+      "stopState": "Ingen-sms-liste",
+      "stoppedYes": "På ingen-sms-listen. Intet sendes til nummeret.",
+      "stoppedNo": "Ikke på ingen-sms-listen.",
+      "consentState": "Svar",
+      "answeringYes": "Personen skrev inden for de sidste 7 dage: et svar kræver ikke andet ja.",
+      "answeringNo": "Et svar kræver personens ja til sms, som enhver sms.",
+      "replyState": "Personens svar",
+      "canReplyYes": "Personen kan svare med sms.",
+      "canReplyNo": "Denne person kan ikke svare med sms.",
+      "messages": "Beskeder",
+      "older": "Vis tidligere beskeder",
+      "noAccess": "Du kan ikke læse kunders sms’er. Den, der driver serveren, kan give dig retten, for alle apps eller for én.",
+      "reach": {
+        "title": "Svar kan ikke nå denne server",
+        "notConnected": "Ingen udbyder er forbundet, så intet svar kan nå frem her. Forbind en under Opsætning.",
+        "desktop": "Skrivebordsappen kan sende sms’er, men svar og STOP kan ikke nå den, så ingen ny besked kommer her.",
+        "keyUnreadable": "Udbyderens nøgle kan ikke læses på serveren, så intet svar kan nå frem her. Indsæt den igen under Opsætning.",
+        "noDoor": "Denne server har ingen offentlig https-adresse. Den kan sende sms’er, men svar og STOP kan ikke nå den, så ingen ny besked kommer her."
+      },
+      "filterApp": "App",
+      "allApps": "Alle apps",
+      "unreadOnly": "Kun ulæste",
+      "unreadTotal": "{count, plural, =0 {Intet ulæst} one {# ulæst} other {# ulæste}}",
+      "recorded": "Læsning og svar registreres.",
+      "emptyUnread": "Intet ulæst.",
+      "empty": "Ingen samtaler endnu.",
+      "emptyBody": "Når en kunde svarer på en sms, vises samtalen her. Kun apps med svar slået til gemmer dem.",
+      "listLabel": "Samtaler",
+      "noMatch": "Ingen samtale passer.",
+      "pick": "Vælg en samtale for at læse den.",
+      "block": {
+        "notAllowed": "Du kan læse samtalen, men ikke svare. Bed ejeren om retten til at svare.",
+        "stopped": "Denne person har bedt om ikke at få flere sms’er. Du kan ikke svare her.",
+        "notConnected": "Ingen udbyder er forbundet, så intet kan sendes. Forbind en under Opsætning.",
+        "noConsent": "Denne person har ikke givet denne app et ja til sms og har ikke skrevet de sidste 7 dage, så et svar kan ikke sendes.",
+        "cannotReceive": "Dette nummer kan ikke modtage sms’er.",
+        "other": "Et svar kan ikke sendes herfra lige nu."
+      },
+      "refused": {
+        "notAllowed": "Ikke sendt. Du må læse samtalen, men ikke svare.",
+        "earlierOpen": "Ikke sendt. Det samme svar er stadig på vej. Vent på det, før du sender igen.",
+        "other": "Ikke sendt.",
+        "noConsent": "Ikke sendt. Denne person har ikke givet denne app et ja til sms."
+      },
+      "fail": {
+        "forbidden": "Du må ikke svare i denne samtale.",
+        "gone": "Denne samtale findes ikke længere.",
+        "network": "Serveren kunne ikke nås. Intet blev sendt. Prøv igen."
+      }
+    },
+    "replies": {
+      "title": "Svar pr. app",
+      "on": "Svar gemmes",
+      "off": "Svar slået fra",
+      "startsOff": "Slået fra ved installation: kunder i denne app kan skrive noget så privat som symptomer.",
+      "changedBy": "Ændret af {name}",
+      "askTitle": "Gem svar til {app}?",
+      "askBody": "Denne app starter med svar slået fra, fordi kunderne kan skrive noget så privat som symptomer. Når de er slået til, gemmes alt, de skriver, her i et år og kan læses af alle, der må læse appens sms’er.",
+      "askYes": "Slå svar til",
+      "subtitle": "Om en kundes svar på en apps sms’er gemmes som en samtale.",
+      "notRead": "Når en apps svar er slået fra, gemmes svaret ikke. Afsenderen får ét fast svar, højst én gang om måneden: “Dette nummer læses ikke” med jeres telefon eller e-mail. STOP virker stadig.",
+      "none": "Ingen app er installeret endnu.",
+      "noAppOn": "Et svar på en sms, som ingen app sendte, gemmes også.",
+      "noAppOff": "Et svar på en sms, som ingen app sendte, gemmes ikke, fordi en app her har svar slået fra."
+    },
+    "mkt": {
+      "hours": {
+        "days": "mandag til lørdag",
+        "line": "Markedsførings-sms’er sendes {from}–{to}, {days}, efter hver persons ur. Et tidspunkt udenfor flyttes til næste åbning. Et land med flere tidszoner får dem kun, når tiderne er åbne i dem alle.",
+        "short": "De sendes {from}–{to}, {days}, efter hver persons ur."
+      },
+      "refusals": {
+        "title": "Markedsførings-sms’er kan endnu ikke sendes fra denne server",
+        "serviceStill": "Service-sms’er sendes stadig som før."
+      },
+      "locked": {
+        "title": "Markedsførings-sms’er er endnu ikke tilgængelige",
+        "preview": "Du kan stadig se, hvem en markedsførings-sms ville nå. Afsendelse og planlægning kommer i en senere version.",
+        "short": "Endnu ikke tilgængelig i denne version",
+        "body": "Markedsførings-sms’er er endnu ikke tilgængelige i denne version. Service-sms’er og samtaler virker som normalt."
+      },
+      "yes": {
+        "saved": "Personens ja til markedsføring er registreret i dit navn. Hvor landet forventer det, sendes der nu en bekræftelsesmail.",
+        "title": "Registrér et ja til markedsføring",
+        "why": "Kun for en person, der har sagt ja til markedsførings-sms’er til dig med disse ord. Et ja til e-mail eller nyhedsbrev tæller aldrig. Ingen bliver bedt om at svare YES.",
+        "how": "Hvordan personen sagde ja",
+        "paper": "På papir",
+        "wording": "Ordlyden, personen sagde ja til",
+        "version": "Version af ordlyden",
+        "save": "Registrér ja",
+        "savedLocked": "Personens ja til markedsføring er registreret i dit navn."
+      },
+      "confirm": {
+        "ask": "Bed om bekræftelse pr. e-mail",
+        "inPerson": "Bekræftet personligt",
+        "sent": "En bekræftelsesmail er på vej. Personen får markedsførings-sms’er, når de har bekræftet.",
+        "notNeeded": "Landet kræver ingen bekræftelse.",
+        "already": "Personen har allerede bekræftet.",
+        "noConsent": "Personen har intet ja til markedsføring at bekræfte. Registrér først deres ja.",
+        "noRow": "Rækken eller dens mobilnummer er væk.",
+        "noEmail": "Kan ikke bekræftes endnu: personen har ingen e-mailadresse. Spørg personligt.",
+        "noOrigin": "Serveren har ingen offentlig adresse, så linket i e-mailen kunne ikke åbnes. Spørg personligt.",
+        "noMail": "Der er ingen mailserver sat op, så ingen e-mail kan sendes. Spørg personligt.",
+        "notSent": "Der blev ikke sendt nogen bekræftelsesmail. Spørg personligt.",
+        "locked": "Der sendes ingen bekræftelsesmail, så længe markedsførings-sms’er ikke er tilgængelige i denne version.",
+        "held": "En bekræftelsesmail er allerede sendt til personen eller adressen i dag. Spørg igen i morgen.",
+        "doNotEmail": "E-mailadressen er på ingen-e-mail-listen, så der sendes ingen bekræftelsesmail. Spørg personligt."
+      },
+      "who": {
+        "ok": "Hvem der får den",
+        "title": "Hvem der udelades",
+        "okLine": "{count, plural, one {# person kan} other {# personer kan}} få denne sms.",
+        "confirmWhy": "Hver venter på at bekræfte pr. e-mail. En person uden e-mail kan ikke bekræftes endnu: spørg personligt, og registrér det så her.",
+        "previous": "Forrige",
+        "next": "Næste"
+      },
+      "reach": {
+        "line": "{canSend} af {people} kan få den.",
+        "seeWho": "Se hvem"
+      },
+      "unfilled": "Intet udfylder {names} i skabelonen. Giv en reserve under Skabeloner, eller fjern den.",
+      "country": {
+        "title": "Markedsførings-sms’er kan ikke sendes til disse lande, fordi folk dér ikke kan svare STOP.",
+        "service": "Service-sms’er til dem virker stadig, med afmelding gennem jer."
+      },
+      "countries": {
+        "caption": "Efter land",
+        "country": "Land",
+        "people": "Personer",
+        "canSend": "Kan få den",
+        "when": "Hvornår",
+        "noWindow": "Ingen sendetider åbne i alle landets tidszoner inden for to uger",
+        "now": "På det valgte tidspunkt",
+        "opens": "Flyttes til {time}, når tiderne åbner"
+      },
+      "daily": {
+        "days": "I dag er der {left} af {limit} sms’er tilbage, så det fordeles over {days} dage.",
+        "today": "I dag er der {left} af {limit} sms’er tilbage.",
+        "used": "I dag: {used} af {limit} sms’er brugt, service-sms’er medregnet."
+      },
+      "new": {
+        "title": "Ny markedsførings-sms",
+        "onlyAgreed": "Kun personer, der har sagt ja til markedsførings-sms’er.",
+        "name": "Navn",
+        "nameHelp": "Til dig og dit team. Kunder ser det aldrig.",
+        "template": "Skabelon",
+        "noTemplate": "Ingen sms-skabelon endnu",
+        "table": "Personer",
+        "noTable": "Ingen persontabel, du kan sende sms til",
+        "tableHidden": "{app} · {table} (numre skjult for dig)",
+        "view": "Gemt visning",
+        "everyone": "Alle i tabellen",
+        "when": "Hvornår",
+        "now": "Så snart tiderne tillader det",
+        "later": "På et tidspunkt",
+        "at": "Send kl.",
+        "check": "Se, hvem den når",
+        "schedule": "Planlæg til {count, plural, one {# person} other {# personer}}",
+        "send": "Send til {count, plural, one {# person} other {# personer}}",
+        "look": "Se, hvem en markedsførings-sms ville nå"
+      },
+      "results": {
+        "people": "Personer",
+        "sent": "Overdraget til udbyderen",
+        "delivered": "Leveret",
+        "failed": "Mislykkedes",
+        "unknown": "Ukendt",
+        "skipped": "Sprunget over",
+        "waiting": "Mangler endnu",
+        "optOuts": "Afmeldt bagefter",
+        "sentNote": "“Overdraget til udbyderen” er ikke “leveret”: leveret vises kun, når udbyderen melder det.",
+        "waitingUntil": "Dagens grænse er brugt. Det fortsætter {time}.",
+        "skippedBy": "Sprunget over, efter årsag",
+        "who": "Hver person",
+        "forbidden": "Du kan kun læse nogle af disse personer eller ingen af deres numre, så listen vises ikke for dig.",
+        "open": "Resultater"
+      },
+      "cancel": {
+        "open": "Annullér denne udsendelse",
+        "title": "Annullér “{name}”?",
+        "body": "Intet mere overdrages til udbyderen, og sms’er, der stadig venter på deres tider, sendes ikke. Allerede overdragne sms’er kan ikke kaldes tilbage.",
+        "keep": "Behold den",
+        "yes": "Annullér udsendelsen",
+        "done": "Udsendelsen er annulleret."
+      },
+      "title": "Markedsførings-sms’er",
+      "never": "Aldrig til fundne leads eller købte lister, aldrig fra et afsendernavn og aldrig dér, hvor folk ikke kan svare STOP.",
+      "empty": "Der er endnu ikke sendt nogen markedsførings-sms.",
+      "runs": "Markedsførings-sms’er",
+      "col": {
+        "name": "Navn",
+        "status": "Status",
+        "when": "Hvornår",
+        "reached": "Overdraget · leveret",
+        "of": "af {count}"
+      },
+      "made": {
+        "scheduled": "Planlagt til {time}.",
+        "now": "Den sendes nu, inden for sendetiderne."
+      },
+      "refusal": {
+        "operatorOff": "Sms er slået fra på denne server af den, der driver den.",
+        "marketingOff": "Markedsføring er slået fra på denne server af den, der driver den.",
+        "notConnected": "Ingen udbyder er forbundet, eller dens nøgle kan ikke læses. Forbind en under Opsætning.",
+        "noSender": "Jeres udbyderkonto har intet nummer at sende fra. Tilføj et under Opsætning.",
+        "fromName": "Markedsføring kan ikke sendes fra et afsendernavn, fordi det ikke kan modtage STOP. Tilføj et nummer for landet i jeres udbyderkonto.",
+        "noDoor": "Denne server kan ikke modtage STOP, så markedsførings-sms’er er slået fra.",
+        "templateOff": "Skabelonen har intet sprog slået til.",
+        "asksYes": "Skabelonen beder folk svare YES. Et YES-svar kan ophæve en blokering hos udbyderen. Lad folk sige ja på en formular i stedet.",
+        "templateRefused": "Skabelonen kan ikke sendes som sms: den indeholder en kode, et login- eller undersøgelseslink eller en QR-værdi.",
+        "other": "Markedsførings-sms’er kan ikke sendes fra denne server lige nu.",
+        "desktop": "Skrivebordsappen kan ikke modtage svar fra en udbyder.",
+        "networkOff": "Serverens netværksfunktioner er slået fra, så et STOP-svar kan ikke nå den.",
+        "noDoorDetail": "Den har ingen offentlig https-adresse, så et STOP-svar kan ikke nå den."
+      },
+      "skip": {
+        "noPhone": "Ikke sendt. Rækken har intet mobilnummer.",
+        "sample": "Ikke sendt. Det er en række fra appens eksempeldata.",
+        "foundLead": "Ikke sendt. En leadfinder fandt denne person. Markedsføring sendes aldrig til fundne leads.",
+        "sameNumber": "Ikke sendt igen. En anden række har samme nummer, og det får én sms.",
+        "outOfReach": "Ikke sendt. Rækken er væk eller uden for din rækkevidde nu.",
+        "phoneChanged": "Ikke sendt. Rækken har et andet nummer nu.",
+        "runFailed": "Ikke sendt. Udsendelsen stoppede før personens tur.",
+        "noLanguage": "Ikke sendt. Skabelonen har intet sprog, personen kan skrives til på.",
+        "needsConfirm": "Ikke sendt. Landet forventer først en bekræftelse, via linket i e-mailen eller personligt. Ingen bliver nogensinde bedt om at svare YES.",
+        "other": "Ikke sendt."
+      },
+      "state": {
+        "scheduled": "Planlagt",
+        "running": "Sendes",
+        "waiting": "Venter på morgendagens grænse",
+        "done": "Overdraget",
+        "cancelled": "Annulleret",
+        "failed": "Stoppet"
+      },
+      "audience": {
+        "notPeople": "Tabellen er ikke en persontabel, som en app angiver med et mobilnummer.",
+        "cannotSend": "Du må ikke længere sende markedsføring.",
+        "cannotRead": "Du kan ikke læse denne tabel.",
+        "phones": "Din rolle viser ikke tabellens mobilnumre fuldt ud, så du kan ikke sende sms til dens personer.",
+        "viewGone": "Den gemte visning er væk eller ikke din at bruge.",
+        "viewSearch": "En gemt visning med en søgning kan ikke vælge, hvem der får en sms. Brug en med kun filtre.",
+        "viewHidden": "Den gemte visning filtrerer på en kolonne, din rolle ikke kan læse.",
+        "other": "Der kan ikke sendes sms til denne tabel."
+      },
+      "inPerson": {
+        "confirmed": "Registreret i dit navn: personen har bekræftet.",
+        "superseded": "Et nyere svar har erstattet det ja. Registrér først deres ja igen."
+      }
+    }
   }
 } as const;

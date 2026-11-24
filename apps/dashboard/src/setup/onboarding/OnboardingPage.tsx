@@ -21,6 +21,7 @@ import { engineForDsn } from '@adminium/widgets';
 
 import { api, ApiError } from '../../app/api.js';
 import { systemInfoQuery, type SystemInfo } from '../../app/capabilities.js';
+import { useCommonWords } from '../../i18n/commonWords.js';
 import { t } from '../../i18n/t.js';
 import { hasPendingBridgeTicket } from '../../studio/connect/bridgeTicket.js';
 import { studioApi, waitForRestart } from '../../studio/api.js';
@@ -77,6 +78,8 @@ export function OnboardingPage({
   passwordMinLength,
   databaseConnected = false,
 }: OnboardingPageProps): ReactNode {
+  // The account step's checks are worded by a deferred group (`setup`).
+  useCommonWords();
   const router = useRouter();
   const queryClient = useQueryClient();
   // A trial leaves out storage and team (`wizardState.ts`): the operator fixes the one, the owner invites people later.

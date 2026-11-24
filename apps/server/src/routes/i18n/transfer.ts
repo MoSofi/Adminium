@@ -19,7 +19,7 @@
  * untrusted content ARRIVING; this is that counterpart.
  */
 import type { Namespace } from '@adminium/i18n';
-import { sourceMessage } from '@adminium/i18n/editing';
+import { isFixedKey, sourceMessage } from '@adminium/i18n/editing';
 
 /** One exported locale file. */
 export interface TranslationExport {
@@ -103,6 +103,10 @@ export function parseImport(payload: unknown, opts: ParseImportOptions): ParsedI
       // silently fills the table with junk nobody can find or delete.
       if (sourceMessage(namespace, key) === null) {
         rejected.push({ namespace, key, reason: 'No such key in this version of Adminium.' });
+        continue;
+      }
+      if (isFixedKey(namespace, key)) {
+        rejected.push({ namespace, key, reason: 'These words are fixed: the server sends them as they ship.' });
         continue;
       }
       if (isSensitive(namespace, key)) {

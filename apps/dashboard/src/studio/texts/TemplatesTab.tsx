@@ -14,13 +14,14 @@
  *  - What a text may not say is refused beside the words, the same rules the
  *    server applies at the save and again at every send.
  */
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Ban, Lock, MessageSquareText, Plus } from 'lucide-react';
 import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Alert, Badge, Button, Card, CardBody, CardHeader, EmptyState, FormField, IconTile, Input, Select, Spinner, Textarea } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
 import { TEXT_COUNTRIES, countryName } from './textCountries.js';
+import { lineWordsQuery } from './textLineWords.js';
 import {
   LOCALE_NAMES,
   PLAIN_FOR,
@@ -35,6 +36,7 @@ import {
   type Composed,
   type SegmentTable,
   type TextLocale,
+  type TextLineWords,
   type TextProblem,
 } from './textCounter.js';
 import { CounterLine } from './TextCounterView.js';
@@ -58,9 +60,10 @@ interface Preview {
   business: { name: string; contact: string };
 }
 
-function compose(body: string, preview: Preview, repliesReachUs: boolean): Composed {
+function compose(body: string, preview: Preview, repliesReachUs: boolean, words: TextLineWords | undefined): Composed {
   const contact = preview.business.contact.trim();
   return composeText({
+    words,
     template: body,
     values: preview.values,
     optOut: optOutFor(preview.sender, preview.country, repliesReachUs),
@@ -74,12 +77,15 @@ function bodyOf(template: TextTemplate, locale: string): string | null {
   return template.languages.find((one) => one.locale === locale)?.body ?? null;
 }
 
+/** A language's line words once a preview has fetched them; US English until then. */
+const cachedWords = (client: QueryClient, locale: string): TextLineWords | undefined => client.getQueryData(lineWordsQuery(locale).queryKey);
+
 /** The most segments any language of a template runs to, with stand-in values. */
-function mostSegments(template: TextTemplate, repliesReachUs: boolean): number {
+function mostSegments(template: TextTemplate, repliesReachUs: boolean, client: QueryClient): number {
   let most = 0;
   for (const language of template.languages) {
     const values = Object.fromEntries(placeholderNames(language.body).map((name) => [name, sampleValue(name)]));
-    const composed = compose(language.body, { country: 'US', sender: 'number', table: 'standard', values, business: { name: 'Business', contact: '+1 555 0100' } }, repliesReachUs);
+    const composed = compose(language.body, { country: 'US', sender: 'number', table: 'standard', values, business: { name: 'Business', contact: '+1 555 0100' } }, repliesReachUs, cachedWords(client, language.locale));
     most = Math.max(most, composed.estimate.segments);
   }
   return most;
@@ -88,6 +94,7 @@ function mostSegments(template: TextTemplate, repliesReachUs: boolean): number {
 // ─── The list ───────────────────────────────────────────────────────────────
 
 function TemplateList({ templates, repliesReachUs, onOpen }: { templates: readonly TextTemplate[]; repliesReachUs: boolean; onOpen: (key: string) => void }) {
+  const client = useQueryClient();
   if (templates.length === 0) {
     return (
       <Card data-testid="texts-templates-empty">
@@ -132,7 +139,7 @@ function TemplateList({ templates, repliesReachUs, onOpen }: { templates: readon
                 <td className="px-3 py-2.5">{t('studio:texts.templates.languagesOf', '{count} of {total}', { count: template.languages.length, total: TEXT_LOCALES.length })}</td>
                 <td className="px-3 py-2.5">
                   <bdi dir="ltr" className="font-mono">
-                    {mostSegments(template, repliesReachUs)}
+                    {mostSegments(template, repliesReachUs, client)}
                   </bdi>
                 </td>
               </tr>
@@ -221,9 +228,9 @@ function PhonePreview({ composed, locale, country, fallbackNote }: { composed: C
         <Marked text={composed.line === null ? composed.body : composed.words} highlight={costlyCharacters(composed.body)} />
         {composed.line === null ? null : (
           <>
-            {' '}
-            {/* The product's line is English for now: its own isolated run, so a right-to-left text cannot reorder it. */}
-            <bdi lang="en" dir="ltr" data-testid="texts-preview-line">
+            {locale.startsWith('zh') ? '' : ' '}
+            {/* The product's line, in the text's language: its own isolated run, so a number inside it keeps its place. */}
+            <bdi lang={localeTag(locale)} dir={localeDir(locale)} data-testid="texts-preview-line">
               {composed.line}
             </bdi>
           </>
@@ -255,8 +262,12 @@ function Editor({ template, repliesReachUs, defaultCountry, defaultSender, onBac
   const values = { ...Object.fromEntries(names.map((name) => [name, sampleValue(name)])), ...preview.values };
   const emptyHere = body.trim() === '';
   const shownBody = emptyHere ? english : body;
-  const composed = compose(shownBody, { ...preview, values }, repliesReachUs);
-  const ownProblems = emptyHere ? [] : compose(body, { ...preview, values }, repliesReachUs).problems;
+  // Each language's opt-out line comes from the shipped catalogue; until a language's words are in, its count waits.
+  const lineWords = useQueries({ queries: TEXT_LOCALES.map((one) => lineWordsQuery(one)) });
+  const wordsOf = (one: string): TextLineWords | undefined => lineWords[TEXT_LOCALES.indexOf(one as TextLocale)]?.data;
+  const shownLocale = emptyHere ? FALLBACK : language;
+  const composed = compose(shownBody, { ...preview, values }, repliesReachUs, wordsOf(shownLocale));
+  const ownProblems = emptyHere ? [] : compose(body, { ...preview, values }, repliesReachUs, wordsOf(language)).problems;
   const blocking = ownProblems.some((problem) => BLOCKS_SAVE.has(problem.kind));
   const unicode = costlyCharacters(body);
   const plainable = unicode.filter((one) => PLAIN_FOR[one] !== undefined);
@@ -289,8 +300,9 @@ function Editor({ template, repliesReachUs, defaultCountry, defaultSender, onBac
   const countries = TEXT_COUNTRIES.map((one) => ({ code: one.code, name: countryName(one.code, locale) }));
   const languageSegments = (one: TextLocale): number | null => {
     const text = drafts[one] ?? bodyOf(template, one);
-    if (text === null || text.trim() === '') return null;
-    return compose(text, { ...preview, values }, repliesReachUs).estimate.segments;
+    const words = wordsOf(one);
+    if (text === null || text.trim() === '' || words === undefined) return null;
+    return compose(text, { ...preview, values }, repliesReachUs, words).estimate.segments;
   };
 
   return (
@@ -359,10 +371,14 @@ function Editor({ template, repliesReachUs, defaultCountry, defaultSender, onBac
               <Lock aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" />
               <div className="min-w-0">
                 <span className={caption}>{t('studio:texts.editor.addedForYou', 'Added for you')}</span>
-                <p lang="en" dir="ltr" className="text-start text-[12.5px]">
-                  {composed.line ?? t('studio:texts.editor.ownStop', 'Your text says STOP itself, so nothing is added.')}
-                </p>
-                <p className="text-[11.5px] text-fg-subtle">{t('studio:texts.editor.optOutNote', 'It counts toward the length, and can’t be edited. It is in English until the other languages are added.')}</p>
+                {composed.line === null ? (
+                  <p className="text-start text-[12.5px]">{t('studio:texts.editor.ownStop', 'Your text says STOP itself, so nothing is added.')}</p>
+                ) : (
+                  <p lang={localeTag(shownLocale)} dir={localeDir(shownLocale)} className="text-start text-[12.5px]" data-testid="texts-editor-optout-line">
+                    {composed.line}
+                  </p>
+                )}
+                <p className="text-[11.5px] text-fg-subtle">{t('studio:texts.editor.optOutCounts', 'It counts toward the length, and can’t be edited.')}</p>
               </div>
             </div>
             <CounterLine estimate={composed.estimate} />

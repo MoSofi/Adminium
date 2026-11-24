@@ -144,7 +144,8 @@ export default {
     "drawerTitle": "Navigace",
     "emptyPartsOff": "Právě pro vás není nic zapnuto. Obraťte se na správce.",
     "teams": "Týmy",
-    "otherDatabases": "Ostatní databáze"
+    "otherDatabases": "Ostatní databáze",
+    "texts": "SMS"
   },
   "apps": {
     "frame": {

@@ -6623,7 +6623,6 @@ export default {
       "insertOne": "Insérer {name}",
       "languages": "Langues",
       "noReplies": "Ce serveur ne peut pas recevoir les réponses STOP : chaque SMS indique donc votre téléphone ou votre e-mail pour se désinscrire.",
-      "optOutNote": "Elle compte dans la longueur et ne peut pas être modifiée. Elle est en anglais tant que les autres langues ne sont pas ajoutées.",
       "ownStop": "Votre SMS mentionne déjà STOP : rien n’est donc ajouté.",
       "plain": "En utiliser une simple",
       "preview": "Aperçu",
@@ -6648,7 +6647,8 @@ export default {
       "undo": "Annuler les modifications",
       "unicode": "Ce caractère utilise le tarif Unicode :",
       "whereTo": "Où il va et de qui il vient",
-      "words": "Le texte"
+      "words": "Le texte",
+      "optOutCounts": "Elle compte dans la longueur et ne peut pas être modifiée."
     },
     "field": {
       "accountSid": "Account SID",
@@ -6731,7 +6731,9 @@ export default {
       "stopped": "Non envoyé. Cette personne a demandé à ne plus recevoir de SMS.",
       "tooLate": "Non envoyé. Les prochaines heures d’envoi tombent après le moment prévu pour ce SMS.",
       "waitingRegistration": "Non envoyé. Votre enregistrement pour ce pays est toujours en attente.",
-      "words": "Non envoyé. Le modèle, ou une valeur qu’il contient, ne peut pas être envoyé par SMS."
+      "words": "Non envoyé. Le modèle, ou une valeur qu’il contient, ne peut pas être envoyé par SMS.",
+      "marketingLocked": "Non envoyé. Les SMS marketing ne sont pas encore disponibles dans cette version.",
+      "senderChanged": "Non envoyé. L’expéditeur a changé pendant qu’il attendait ses heures, et sa ligne de désinscription était écrite pour l’ancien."
     },
     "registration": {
       "between": "L’enregistrement se fait entre votre entreprise et {provider}. Adminium ne peut ni le voir, ni l’approuver, ni l’accélérer.",
@@ -6866,7 +6868,9 @@ export default {
       "activity": "Activité",
       "setup": "Configuration",
       "stop": "Liste « pas de SMS »",
-      "templates": "Modèles"
+      "templates": "Modèles",
+      "conversations": "Conversations",
+      "marketing": "Marketing"
     },
     "templates": {
       "col": {
@@ -6900,8 +6904,285 @@ export default {
       "title": "Envoyer un SMS de test",
       "to": "Numéro de téléphone",
       "toHelp": "Avec + et l’indicatif du pays, ou un numéro local du pays défini ci-dessus.",
-      "unknownLine": "Nous n’avons pas reçu de réponse de {provider}. Consultez son journal des messages avant d’en envoyer un autre."
+      "unknownLine": "Nous n’avons pas reçu de réponse de {provider}. Consultez son journal des messages avant d’en envoyer un autre.",
+      "own": "Envoyez-le sur votre propre téléphone. Il compte dans la limite de SMS du jour, et vous pouvez tester au plus deux numéros différents par jour.",
+      "ownNumber": "Un SMS de test part vers votre propre numéro. Vous avez déjà testé d’autres numéros aujourd’hui : réessayez demain.",
+      "dailyLimit": "La limite de SMS du jour est atteinte, SMS de test compris."
     },
-    "title": "SMS"
+    "title": "SMS",
+    "conv": {
+      "noApp": "Aucune app",
+      "lastAutomated": "Un SMS automatique",
+      "unreadCount": "{count, plural, one {# message non lu} other {# messages non lus}}",
+      "stoppedBadge": "A demandé l’arrêt",
+      "stopLine": "A répondu STOP. Plus aucun SMS de cette entreprise ne part vers ce numéro.",
+      "stopConfirmed": "Une seule confirmation simple est partie, sans question ni offre.",
+      "stopNotConfirmed": "Aucune confirmation n’est partie.",
+      "startLine": "A répondu START. Le blocage chez le fournisseur est levé, mais ce n’est pas un oui : la personne doit de nouveau accepter avant tout SMS.",
+      "appText": "SMS automatique de {app}, modèle {template}. Son texte n’est pas conservé.",
+      "helpLine": "A envoyé HELP. Le fournisseur a répondu avec vos coordonnées.",
+      "by": "Répondu par {name}",
+      "held": "Votre réponse attend les heures d’envoi. Elle part à {time}.",
+      "queued": "Votre réponse est en file pour partir maintenant.",
+      "replyLabel": "Votre réponse",
+      "optOutContact": "Une ligne donnant votre téléphone ou e-mail pour arrêter les SMS est ajoutée à la fin. L’équipe enregistre les demandes reçues ainsi.",
+      "optOutReply": "« {line} » est ajouté à la fin et compte dans la longueur.",
+      "answering": "La personne a écrit ces 7 derniers jours : une réponse n’a pas besoin de son propre oui. Un STOP l’arrête quand même.",
+      "send": "Envoyer la réponse",
+      "markedRead": "Marqué comme lu.",
+      "back": "Toutes les conversations",
+      "openRecord": "Ouvrir la fiche",
+      "markRead": "Marquer comme lu",
+      "readBy": "Lu par {name}",
+      "stopState": "Liste « pas de SMS »",
+      "stoppedYes": "Sur la liste « pas de SMS ». Rien ne part vers ce numéro.",
+      "stoppedNo": "Pas sur la liste « pas de SMS ».",
+      "consentState": "Répondre",
+      "answeringYes": "La personne a écrit ces 7 derniers jours : une réponse n’a pas besoin d’un autre oui.",
+      "answeringNo": "Une réponse a besoin de son oui aux SMS, comme tout SMS.",
+      "replyState": "Ses réponses",
+      "canReplyYes": "La personne peut répondre par SMS.",
+      "canReplyNo": "Cette personne ne peut pas répondre par SMS.",
+      "messages": "Messages",
+      "older": "Afficher les messages précédents",
+      "noAccess": "Vous ne pouvez pas lire les SMS des clients. La personne qui gère ce serveur peut vous en donner le droit, pour toutes les apps ou pour une seule.",
+      "reach": {
+        "title": "Les réponses n’atteignent pas ce serveur",
+        "notConnected": "Aucun fournisseur n’est connecté : aucune réponse ne peut arriver ici. Connectez-en un dans Configuration.",
+        "desktop": "L’app de bureau peut envoyer des SMS, mais les réponses et STOP ne l’atteignent pas : aucun nouveau message n’arrivera ici.",
+        "keyUnreadable": "La clé du fournisseur est illisible sur ce serveur : aucune réponse ne peut arriver ici. Collez-la de nouveau dans Configuration.",
+        "noDoor": "Ce serveur n’a pas d’adresse https publique. Il peut envoyer des SMS, mais les réponses et STOP ne l’atteignent pas : aucun nouveau message n’arrivera ici."
+      },
+      "filterApp": "App",
+      "allApps": "Toutes les apps",
+      "unreadOnly": "Non lus uniquement",
+      "unreadTotal": "{count, plural, =0 {Rien de non lu} one {# non lu} other {# non lus}}",
+      "recorded": "La lecture et les réponses sont enregistrées.",
+      "emptyUnread": "Rien de non lu.",
+      "empty": "Aucune conversation pour l’instant.",
+      "emptyBody": "Quand un client répond à un SMS, la conversation s’affiche ici. Seules les apps dont les réponses sont activées les conservent.",
+      "listLabel": "Conversations",
+      "noMatch": "Aucune conversation ne correspond.",
+      "pick": "Choisissez une conversation pour la lire.",
+      "block": {
+        "notAllowed": "Vous pouvez lire cette conversation, mais pas y répondre. Demandez au propriétaire le droit de répondre.",
+        "stopped": "Cette personne a demandé à ne plus recevoir de SMS. Vous ne pouvez pas répondre ici.",
+        "notConnected": "Aucun fournisseur n’est connecté : rien ne peut partir. Connectez-en un dans Configuration.",
+        "noConsent": "Cette personne n’a pas donné son oui aux SMS à cette app et n’a pas écrit ces 7 derniers jours : aucune réponse ne peut partir.",
+        "cannotReceive": "Ce numéro ne peut pas recevoir de SMS.",
+        "other": "Aucune réponse ne peut partir d’ici pour le moment."
+      },
+      "refused": {
+        "notAllowed": "Non envoyé. Vous pouvez lire cette conversation, mais pas y répondre.",
+        "earlierOpen": "Non envoyé. La même réponse est encore en route. Attendez-la avant de renvoyer.",
+        "other": "Non envoyé.",
+        "noConsent": "Non envoyé. Cette personne n’a pas donné son oui aux SMS à cette app."
+      },
+      "fail": {
+        "forbidden": "Vous ne pouvez pas répondre à cette conversation.",
+        "gone": "Cette conversation n’existe plus.",
+        "network": "Le serveur est injoignable. Rien n’est parti. Réessayez."
+      }
+    },
+    "replies": {
+      "title": "Réponses par app",
+      "on": "Réponses conservées",
+      "off": "Réponses désactivées",
+      "startsOff": "Désactivé à l’installation : les clients de cette app peuvent écrire des choses aussi privées que des symptômes.",
+      "changedBy": "Modifié par {name}",
+      "askTitle": "Conserver les réponses à {app} ?",
+      "askBody": "Cette app démarre réponses désactivées, car ses clients peuvent écrire des choses aussi privées que des symptômes. Une fois activées, tout ce qu’ils écrivent est conservé ici un an et lisible par toute personne autorisée à lire les SMS de cette app.",
+      "askYes": "Activer les réponses",
+      "subtitle": "Si la réponse d’un client aux SMS d’une app est conservée comme conversation.",
+      "notRead": "Quand les réponses d’une app sont désactivées, la réponse n’est pas conservée. L’expéditeur reçoit une seule réponse fixe, au plus une fois par mois : « ce numéro n’est pas consulté », avec votre téléphone ou e-mail. Un STOP fonctionne toujours.",
+      "none": "Aucune app n’est encore installée.",
+      "noAppOn": "Une réponse à un SMS qu’aucune app n’a envoyé est aussi conservée.",
+      "noAppOff": "Une réponse à un SMS qu’aucune app n’a envoyé n’est pas conservée, car une app ici a ses réponses désactivées."
+    },
+    "mkt": {
+      "hours": {
+        "days": "du lundi au samedi",
+        "line": "Les SMS marketing partent de {from} à {to}, {days}, à l’heure de chaque personne. Une heure en dehors passe à la prochaine ouverture. Un pays à plusieurs fuseaux horaires ne les reçoit que lorsque les heures sont ouvertes dans tous.",
+        "short": "Ils partent de {from} à {to}, {days}, à l’heure de chaque personne."
+      },
+      "refusals": {
+        "title": "Les SMS marketing ne peuvent pas encore partir de ce serveur",
+        "serviceStill": "Les SMS de service partent comme avant."
+      },
+      "locked": {
+        "title": "Les SMS marketing ne sont pas encore disponibles",
+        "preview": "Vous pouvez quand même voir qui un SMS marketing atteindrait. L’envoi et la programmation arrivent dans une version ultérieure.",
+        "short": "Pas encore disponible dans cette version",
+        "body": "Les SMS marketing ne sont pas encore disponibles dans cette version. Les SMS de service et les conversations fonctionnent normalement."
+      },
+      "yes": {
+        "saved": "Son oui au marketing est enregistré à votre nom. Là où son pays l’exige, un e-mail de confirmation lui part maintenant.",
+        "title": "Enregistrer un oui au marketing",
+        "why": "Uniquement pour une personne qui vous a dit oui aux SMS marketing, avec ces mots. Un oui par e-mail ou à une newsletter ne compte jamais. Personne n’est invité à répondre YES.",
+        "how": "Comment la personne a dit oui",
+        "paper": "Sur papier",
+        "wording": "Les mots qu’elle a acceptés",
+        "version": "Version de ces mots",
+        "save": "Enregistrer son oui",
+        "savedLocked": "Son oui au marketing est enregistré à votre nom."
+      },
+      "confirm": {
+        "ask": "Demander une confirmation par e-mail",
+        "inPerson": "Confirmé en personne",
+        "sent": "Un e-mail de confirmation est en route. La personne reçoit les SMS marketing une fois qu’elle a confirmé.",
+        "notNeeded": "Son pays n’exige pas de confirmation.",
+        "already": "La personne a déjà confirmé.",
+        "noConsent": "La personne n’a pas de oui au marketing à confirmer. Enregistrez d’abord son oui.",
+        "noRow": "Sa ligne ou son numéro de mobile a disparu.",
+        "noEmail": "Pas encore confirmable : la personne n’a pas d’adresse e-mail. Demandez-lui en personne.",
+        "noOrigin": "Ce serveur n’a pas d’adresse publique : le lien de l’e-mail ne pourrait pas s’ouvrir. Demandez-lui en personne.",
+        "noMail": "Aucun serveur de messagerie n’est configuré : aucun e-mail ne peut partir. Demandez-lui en personne.",
+        "notSent": "Aucun e-mail de confirmation n’est parti. Demandez-lui en personne.",
+        "locked": "Aucun e-mail de confirmation ne part tant que les SMS marketing ne sont pas disponibles dans cette version.",
+        "held": "Un e-mail de confirmation est déjà parti aujourd’hui vers cette personne ou cette adresse. Redemandez demain.",
+        "doNotEmail": "Son adresse e-mail est sur la liste « pas d’e-mail » : aucun e-mail de confirmation ne part. Demandez-lui en personne."
+      },
+      "who": {
+        "ok": "Qui le reçoit",
+        "title": "Qui est exclu",
+        "okLine": "{count, plural, one {# personne peut} other {# personnes peuvent}} recevoir ce SMS.",
+        "confirmWhy": "Chacun attend de confirmer par e-mail. Une personne sans e-mail ne peut pas encore être confirmée : demandez-lui en personne, puis enregistrez-le ici.",
+        "previous": "Précédent",
+        "next": "Suivant"
+      },
+      "reach": {
+        "line": "{canSend} sur {people} peuvent le recevoir.",
+        "seeWho": "Voir qui"
+      },
+      "unfilled": "Rien ne remplit {names} dans ce modèle. Donnez-lui une valeur de secours dans Modèles, ou retirez-le.",
+      "country": {
+        "title": "Les SMS marketing ne peuvent pas aller vers ces pays, car on ne peut pas y répondre STOP.",
+        "service": "Les SMS de service vers eux fonctionnent toujours, avec un arrêt passant par vous."
+      },
+      "countries": {
+        "caption": "Par pays",
+        "country": "Pays",
+        "people": "Personnes",
+        "canSend": "Peuvent le recevoir",
+        "when": "Quand",
+        "noWindow": "Aucune heure d’envoi ouverte dans tous ses fuseaux horaires d’ici deux semaines",
+        "now": "À l’heure choisie",
+        "opens": "Déplacé à {time}, à l’ouverture des heures"
+      },
+      "daily": {
+        "days": "Il reste {left} SMS sur {limit} aujourd’hui : l’envoi s’étalera sur {days} jours.",
+        "today": "Il reste {left} SMS sur {limit} aujourd’hui.",
+        "used": "Aujourd’hui : {used} SMS sur {limit} utilisés, SMS de service compris."
+      },
+      "new": {
+        "title": "Nouveau SMS marketing",
+        "onlyAgreed": "Uniquement les personnes qui ont accepté les SMS marketing.",
+        "name": "Nom",
+        "nameHelp": "Pour vous et votre équipe. Les clients ne le voient jamais.",
+        "template": "Modèle",
+        "noTemplate": "Aucun modèle de SMS pour l’instant",
+        "table": "Personnes",
+        "noTable": "Aucune table de personnes à qui vous pouvez écrire",
+        "tableHidden": "{app} · {table} (numéros masqués pour vous)",
+        "view": "Vue enregistrée",
+        "everyone": "Tout le monde dans la table",
+        "when": "Quand",
+        "now": "Dès que les heures le permettent",
+        "later": "À une heure précise",
+        "at": "Envoyer à",
+        "check": "Voir qui il atteint",
+        "schedule": "Programmer pour {count, plural, one {# personne} other {# personnes}}",
+        "send": "Envoyer à {count, plural, one {# personne} other {# personnes}}",
+        "look": "Voir qui un SMS marketing atteindrait"
+      },
+      "results": {
+        "people": "Personnes",
+        "sent": "Transmis au fournisseur",
+        "delivered": "Remis",
+        "failed": "Échec",
+        "unknown": "Inconnu",
+        "skipped": "Ignorés",
+        "waiting": "Encore à envoyer",
+        "optOuts": "Désinscrits ensuite",
+        "sentNote": "« Transmis au fournisseur » n’est pas « remis » : remis ne s’affiche que lorsque le fournisseur le signale.",
+        "waitingUntil": "La limite du jour est atteinte. L’envoi reprend à {time}.",
+        "skippedBy": "Ignorés, par raison",
+        "who": "Chaque personne",
+        "forbidden": "Vous ne pouvez lire que certaines de ces personnes, ou aucun de leurs numéros : la liste ne vous est pas montrée.",
+        "open": "Résultats"
+      },
+      "cancel": {
+        "open": "Annuler cet envoi",
+        "title": "Annuler « {name} » ?",
+        "body": "Plus rien n’est transmis au fournisseur, et les SMS qui attendent encore leurs heures ne partent pas. Les SMS déjà transmis ne peuvent pas être rappelés.",
+        "keep": "Le garder",
+        "yes": "Annuler l’envoi",
+        "done": "L’envoi est annulé."
+      },
+      "title": "SMS marketing",
+      "never": "Jamais vers un prospect trouvé ou une liste achetée, jamais depuis un nom d’expéditeur, et jamais là où l’on ne peut pas répondre STOP.",
+      "empty": "Aucun SMS marketing n’a encore été envoyé.",
+      "runs": "SMS marketing",
+      "col": {
+        "name": "Nom",
+        "status": "Statut",
+        "when": "Quand",
+        "reached": "Transmis · remis",
+        "of": "sur {count}"
+      },
+      "made": {
+        "scheduled": "Programmé pour {time}.",
+        "now": "Il part maintenant, dans les heures d’envoi."
+      },
+      "refusal": {
+        "operatorOff": "Les SMS sont désactivés sur ce serveur par la personne qui le gère.",
+        "marketingOff": "Le marketing est désactivé sur ce serveur par la personne qui le gère.",
+        "notConnected": "Aucun fournisseur n’est connecté, ou sa clé est illisible. Connectez-en un dans Configuration.",
+        "noSender": "Votre compte fournisseur n’a pas de numéro d’envoi. Ajoutez-en un dans Configuration.",
+        "fromName": "Le marketing ne peut pas partir d’un nom d’expéditeur, car celui-ci ne peut pas recevoir STOP. Ajoutez un numéro pour ce pays dans votre compte fournisseur.",
+        "noDoor": "Ce serveur ne peut pas recevoir STOP : les SMS marketing sont désactivés.",
+        "templateOff": "Ce modèle n’a aucune langue activée.",
+        "asksYes": "Ce modèle demande de répondre YES. Une réponse YES peut lever un blocage chez le fournisseur. Faites plutôt accepter sur un formulaire.",
+        "templateRefused": "Ce modèle ne peut pas partir en SMS : il contient un code, un lien de connexion ou de sondage, ou une valeur QR.",
+        "other": "Les SMS marketing ne peuvent pas partir de ce serveur pour le moment.",
+        "desktop": "L’app de bureau ne peut pas recevoir les réponses d’un fournisseur.",
+        "networkOff": "Les fonctions réseau de ce serveur sont désactivées : une réponse STOP ne peut pas l’atteindre.",
+        "noDoorDetail": "Il n’a pas d’adresse https publique : une réponse STOP ne peut pas l’atteindre."
+      },
+      "skip": {
+        "noPhone": "Non envoyé. Sa ligne n’a pas de numéro de mobile.",
+        "sample": "Non envoyé. C’est une ligne des données d’exemple de l’app.",
+        "foundLead": "Non envoyé. Un outil de recherche de prospects a trouvé cette personne. Le marketing ne part jamais vers des prospects trouvés.",
+        "sameNumber": "Pas envoyé deux fois. Une autre ligne a le même numéro, qui reçoit un seul SMS.",
+        "outOfReach": "Non envoyé. Sa ligne a disparu, ou n’est plus à votre portée.",
+        "phoneChanged": "Non envoyé. Sa ligne contient maintenant un autre numéro.",
+        "runFailed": "Non envoyé. L’envoi s’est arrêté avant son tour.",
+        "noLanguage": "Non envoyé. Le modèle n’a aucune langue dans laquelle lui écrire.",
+        "needsConfirm": "Non envoyé. Son pays exige d’abord une confirmation, par le lien de l’e-mail ou en personne. Personne n’est jamais invité à répondre YES.",
+        "other": "Non envoyé."
+      },
+      "state": {
+        "scheduled": "Programmé",
+        "running": "En cours d’envoi",
+        "waiting": "Attend la limite de demain",
+        "done": "Transmis",
+        "cancelled": "Annulé",
+        "failed": "Arrêté"
+      },
+      "audience": {
+        "notPeople": "Cette table n’est pas une table de personnes déclarée par une app avec un numéro de mobile.",
+        "cannotSend": "Vous ne pouvez plus envoyer de marketing.",
+        "cannotRead": "Vous ne pouvez pas lire cette table.",
+        "phones": "Votre rôle n’affiche pas en entier les numéros de mobile de cette table : vous ne pouvez pas écrire à ses personnes.",
+        "viewGone": "Cette vue enregistrée n’existe plus, ou n’est pas à vous.",
+        "viewSearch": "Une vue enregistrée avec une recherche ne peut pas choisir qui reçoit un SMS. Utilisez-en une avec des filtres seulement.",
+        "viewHidden": "Cette vue enregistrée filtre sur une colonne que votre rôle ne peut pas lire.",
+        "other": "Impossible d’envoyer des SMS à cette table."
+      },
+      "inPerson": {
+        "confirmed": "Enregistré à votre nom : la personne a confirmé.",
+        "superseded": "Une réponse plus récente a remplacé ce oui. Enregistrez d’abord de nouveau son oui."
+      }
+    }
   }
 } as const;

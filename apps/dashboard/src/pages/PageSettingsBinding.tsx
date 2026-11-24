@@ -23,11 +23,12 @@ import {
   type NotificationChannelsDto,
   type NotificationPrefsDto,
 } from '../api/notifications.js';
+import { useCommonWords } from '../i18n/commonWords.js';
 import { t } from '../i18n/t.js';
 import type { PageTemplateProps } from './template-types.js';
 
 /** Known event keys → human labels (new producers add a line + i18n key). */
-// Under `notifications.event`, which every first load carries: `chat` is a group of words deferred to the chat page's chunk.
+// Under `notifications.event`, a deferred group of `common` this screen waits for (as does the quiet-hours card, which reads them too).
 const EVENT_LABELS: Record<string, { key: string; en: string }> = {
   'report.ready': { key: 'notifications.event.reportReady', en: 'Scheduled report ready' },
   'report.failed': { key: 'notifications.event.reportFailed', en: 'Scheduled report failed' },
@@ -59,6 +60,7 @@ const CHANNEL_LABELS: Record<string, { key: string; en: string }> = {
 };
 
 export function PageSettingsBinding({ page }: PageTemplateProps) {
+  useCommonWords();
   const queryClient = useQueryClient();
   const prefs = useQuery(notificationPrefsQuery());
   const [pendingCells, setPendingCells] = useState<ReadonlySet<string>>(new Set());

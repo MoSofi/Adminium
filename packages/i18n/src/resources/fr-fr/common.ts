@@ -144,7 +144,8 @@ export default {
     "drawerTitle": "Navigation",
     "emptyPartsOff": "Rien n’est activé pour vous pour le moment. Adressez-vous à un administrateur.",
     "teams": "Équipes",
-    "otherDatabases": "Autres bases de données"
+    "otherDatabases": "Autres bases de données",
+    "texts": "SMS"
   },
   "apps": {
     "frame": {

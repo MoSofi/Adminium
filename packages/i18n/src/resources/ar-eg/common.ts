@@ -144,7 +144,8 @@ export default {
     "drawerTitle": "التنقل",
     "emptyPartsOff": "لا يوجد شيء مشغَّل لك الآن. اسأل أحد المسؤولين.",
     "teams": "الفِرق",
-    "otherDatabases": "قواعد بيانات أخرى"
+    "otherDatabases": "قواعد بيانات أخرى",
+    "texts": "الرسائل النصية"
   },
   "apps": {
     "frame": {

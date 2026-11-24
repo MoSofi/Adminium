@@ -144,7 +144,8 @@ export default {
     "drawerTitle": "Navigation",
     "emptyPartsOff": "Intet er slået til for dig lige nu. Spørg en administrator.",
     "teams": "Teams",
-    "otherDatabases": "Andre databaser"
+    "otherDatabases": "Andre databaser",
+    "texts": "Sms"
   },
   "apps": {
     "frame": {
