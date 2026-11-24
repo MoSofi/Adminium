@@ -196,6 +196,9 @@ const DESCRIPTIONS = {
   search: 'Cross-resource search for the command palette',
   surfaces: 'Hosted app surfaces — placement in the dashboard, and attaching your own domains',
   settings: 'Instance settings — defaults, branding, email, security, telemetry',
+  sms:
+    'Text messages: the business’s own Twilio or Telnyx account, its sender, the daily limit and sending hours, ' +
+    'Activity, the do-not-text list and text templates. Changes need a signed-in person, never an API key',
   setup:
     'First-boot super-admin creation, whether setup is still open, the one-time setup token, and — in that same ' +
     'window — checking a database for an Adminium store already in it and adopting that store',

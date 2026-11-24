@@ -218,7 +218,16 @@ function PhonePreview({ composed, locale, country, fallbackNote }: { composed: C
       <span className={caption}>{t('studio:texts.editor.preview', 'Preview')}</span>
       {fallbackNote === null ? null : <p className="text-[12px] font-semibold text-warn">{fallbackNote}</p>}
       <p lang={localeTag(locale)} dir={localeDir(locale)} className="max-w-[92%] self-start whitespace-pre-wrap rounded-[16px] rounded-ss-[4px] bg-surface px-3 py-2 text-start text-[13.5px] leading-[1.45] shadow-sm [overflow-wrap:anywhere]" data-testid="texts-preview-text">
-        <Marked text={composed.body} highlight={costlyCharacters(composed.body)} />
+        <Marked text={composed.line === null ? composed.body : composed.words} highlight={costlyCharacters(composed.body)} />
+        {composed.line === null ? null : (
+          <>
+            {' '}
+            {/* The product's line is English for now: its own isolated run, so a right-to-left text cannot reorder it. */}
+            <bdi lang="en" dir="ltr" data-testid="texts-preview-line">
+              {composed.line}
+            </bdi>
+          </>
+        )}
       </p>
     </div>
   );

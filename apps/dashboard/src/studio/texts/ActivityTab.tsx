@@ -382,7 +382,7 @@ export function ActivityTab({ canManage }: { canManage: boolean }): ReactNode {
                 <li key={row.id} className="border-b border-border last:border-0">
                   <button type="button" className="flex w-full flex-col gap-1.5 px-4 py-3 text-start" onClick={(event) => open(row, event.currentTarget)}>
                     <span className="flex w-full items-baseline gap-2.5">
-                      <bdi dir="ltr" className="font-mono text-[13px] font-semibold">
+                      <bdi dir="ltr" className="whitespace-nowrap font-mono text-[13px] font-semibold">
                         {row.phoneMasked ?? '—'}
                       </bdi>
                       <span className="ms-auto">
