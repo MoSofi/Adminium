@@ -67,6 +67,28 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.76',
+    date: '2026-11-24',
+    title: 'Text messages',
+    summary:
+      'Send texts to customers through your own Twilio or Telnyx account. Adminium holds no account and takes no money. Nothing is texted until you connect a provider on Studio → Texts and an app declares a text.',
+    notice: {
+      title: 'Before you upgrade',
+      items: [
+        '"Download everything" about a person now also holds their text records. On a server that never sent a text they are empty.',
+        'The words a text carries (the opt-out line, the STOP confirmation) are no longer listed in the Translations editor: they come only from the shipped words.',
+      ],
+    },
+    changes: [
+      { tag: 'New', text: 'Studio → Texts: connect Twilio or Telnyx, choose a sender, set a daily limit and sending hours, see the reply address to give your provider, and see every text and its delivery.' },
+      { tag: 'New', text: 'Text templates with a live counter of characters and segments, in all eight languages, and a "Send text" step for automations.' },
+      { tag: 'New', text: 'Each form can carry its own unticked box for texts, and staff can record a yes given in person. A yes to e-mail never counts for texts.' },
+      { tag: 'New', text: 'STOP, in eight languages, stops every text from the business and gets one plain confirmation. A do-not-text list, and erasure and export by phone number.' },
+      { tag: 'New', text: 'Read and answer customers’ replies on Studio → Texts → Conversations. Every read and reply is audited, and each app can switch its replies off.' },
+      { tag: 'New', text: 'Marketing texts are built but not yet available: every marketing text is refused until their wording has been reviewed.' },
+    ],
+  },
+  {
     version: '0.3.75',
     date: '2026-11-24',
     title: 'Add-ons 1.0.36',

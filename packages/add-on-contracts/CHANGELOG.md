@@ -1,5 +1,7 @@
 # @adminium/add-on-contracts
 
+## 0.3.76
+
 ## 0.3.75
 
 ## 0.3.74
