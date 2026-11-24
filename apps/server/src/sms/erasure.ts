@@ -8,11 +8,14 @@
  * log rows on the person's own row: the stop list and the stores matched by
  * the number alone are the whole workspace's.
  *
+ * A marketing run's record of the person and a request to confirm their
+ * marketing yes go by the number and by their row alike: each names both.
+ *
  * The sealed payload of an `sms.send` job goes with its delivery row: it is
  * found by the delivery id beside the envelope, so no other person's envelope
  * is opened, and what is left can never be sent.
  */
-import type { ConsentPerson, MetaDb } from '@adminium/meta';
+import type { AddressHash, ConsentPerson, MetaDb } from '@adminium/meta';
 
 import type { InboundCore } from '../inbound/index.js';
 import { parsePhone } from '../phone/index.js';
@@ -38,6 +41,14 @@ export interface TextErased {
   consentRows: number;
   inboundEvents: number;
   deliveries: number;
+  /** The person's rows of marketing runs, and their requests to confirm a marketing yes. */
+  marketing: number;
+}
+
+/** What the erasure asks of the marketing store (`sms/marketing/store.ts`). */
+export interface MarketingErasure {
+  eraseFor(who: { hashes: readonly AddressHash[]; person?: ConsentPerson | null | undefined }): Promise<number>;
+  countFor(who: { hashes: readonly AddressHash[]; person?: ConsentPerson | null | undefined }): Promise<number>;
 }
 
 export interface TextErasure {
@@ -59,6 +70,7 @@ export interface TextErasureDeps {
   deliveries: Pick<TextSendStore, 'eraseFor' | 'countFor'>;
   phoneKeys: TextPhoneKeys;
   country: () => Promise<string | null>;
+  marketing?: MarketingErasure | undefined;
 }
 
 function exactNumber(value: unknown, country: string | null): string | null {
@@ -74,29 +86,35 @@ export function createTextErasure(deps: TextErasureDeps): TextErasure {
 
     async erase({ phone, country, person, at, everywhere }) {
       if (!everywhere) {
-        if (person === null) return { stopEntry: 0, consentRows: 0, inboundEvents: 0, deliveries: 0 };
+        if (person === null) return { stopEntry: 0, consentRows: 0, inboundEvents: 0, deliveries: 0, marketing: 0 };
         const narrowed = await deps.consent.erase({ phone: null, person, at });
-        return { stopEntry: 0, consentRows: narrowed.consentRows, inboundEvents: 0, deliveries: 0 };
+        const marketing = (await deps.marketing?.eraseFor({ hashes: [], person })) ?? 0;
+        return { stopEntry: 0, consentRows: narrowed.consentRows, inboundEvents: 0, deliveries: 0, marketing };
       }
       // The stop entry first: an event erased while still pending is honoured only because of it.
       const result = await deps.consent.erase({ phone, country, person, at });
       const stopEntry = result.stopList === 'erased' || result.stopList === 'added' ? 1 : 0;
       const e164 = exactNumber(phone, country);
-      if (e164 === null) return { stopEntry, consentRows: result.consentRows, inboundEvents: 0, deliveries: 0 };
+      const hashes = e164 === null ? [] : await deps.phoneKeys.all(e164);
+      const marketing = (await deps.marketing?.eraseFor({ hashes, person })) ?? 0;
+      if (e164 === null) return { stopEntry, consentRows: result.consentRows, inboundEvents: 0, deliveries: 0, marketing };
       const { events } = await deps.inbound.erase({ subject: textSubject(e164) });
-      const deliveries = await deps.deliveries.eraseFor(await deps.phoneKeys.all(e164));
-      return { stopEntry, consentRows: result.consentRows, inboundEvents: events, deliveries };
+      const deliveries = await deps.deliveries.eraseFor(hashes);
+      return { stopEntry, consentRows: result.consentRows, inboundEvents: events, deliveries, marketing };
     },
 
     async count({ phone, country, person, everywhere }) {
       const e164 = everywhere ? exactNumber(phone, country) : null;
       const history = await deps.consent.history({ phone: e164, country, person }, { limit: 500 });
-      if (e164 === null) return { stopEntry: 0, consentRows: history.length, inboundEvents: 0, deliveries: 0 };
+      const hashes = e164 === null ? [] : await deps.phoneKeys.all(e164);
+      const marketing = (await deps.marketing?.countFor({ hashes, person })) ?? 0;
+      if (e164 === null) return { stopEntry: 0, consentRows: history.length, inboundEvents: 0, deliveries: 0, marketing };
       return {
         stopEntry: (await deps.consent.stop.entryFor(e164, country)) === null ? 0 : 1,
         consentRows: history.length,
         inboundEvents: await deps.inbound.countFrom(textSubject(e164)),
-        deliveries: await deps.deliveries.countFor(await deps.phoneKeys.all(e164)),
+        deliveries: await deps.deliveries.countFor(hashes),
+        marketing,
       };
     },
 

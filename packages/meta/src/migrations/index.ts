@@ -136,6 +136,9 @@ import { up as up0126 } from './0126_text_consent.js';
 import { up as up0127 } from './0127_inbound_events.js';
 import { up as up0128 } from './0128_text_deliveries.js';
 import { up as up0129 } from './0129_inbound_lost_claims.js';
+import { up as up0130 } from './0130_text_runs.js';
+import { up as up0131 } from './0131_text_run_recipients.js';
+import { up as up0132 } from './0132_text_confirmations.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -259,4 +262,7 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0127_inbound_events', up: up0127 },
   { name: '0128_text_deliveries', up: up0128 },
   { name: '0129_inbound_lost_claims', up: up0129 },
+  { name: '0130_text_runs', up: up0130 },
+  { name: '0131_text_run_recipients', up: up0131 },
+  { name: '0132_text_confirmations', up: up0132 },
 ];

@@ -55,5 +55,16 @@
     "already": "Námitku jste už vznesli. {business} vaše údaje neuchovává.",
     "dead": "Tento odkaz nefunguje. Napište na {email}.",
     "deadAsk": "Tento odkaz nefunguje. Napište firmě {business}."
+  },
+  "textConfirm": {
+    "title": "Dostávat nabídky od {business} v SMS?",
+    "line": "Stiskněte Potvrdit a {business} vám smí posílat nabídky v SMS na toto číslo. Na kteroukoli z nich můžete odpovědět STOP a přestanou chodit.",
+    "button": "Potvrdit",
+    "done": "Potvrzeno. {business} vám nyní smí posílat nabídky v SMS.",
+    "stop": "Odpovězte na kteroukoli z nich STOP a přestanou chodit.",
+    "already": "Už jste potvrdili.",
+    "withdrawn": "Toto už nelze potvrdit.",
+    "withdrawnLine": "Dokud znovu nesouhlasíte, nebudete od {business} dostávat žádné nabídky v SMS.",
+    "tooOld": "Tento odkaz je příliš starý."
   }
 }

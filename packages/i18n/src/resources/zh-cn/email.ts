@@ -1055,5 +1055,14 @@ export default {
     "name": "确认新的登录地址",
     "notice": "请在登录该账户的状态下打开此链接。链接只能使用一次，将在 {expiresInHours} 小时后失效。如果你不认识此账户，请忽略这封邮件，一切都不会改变。",
     "subject": "确认你的 {appName} 新登录地址"
+  },
+  "textMarketingConfirm": {
+    "name": "确认营销短信",
+    "subject": "确认接收{business}的短信优惠",
+    "preheader": "只需一次点击，不点击则不会有任何变化。",
+    "heading": "请确认您希望通过短信接收优惠",
+    "purpose": "点击“确认”，即可通过短信在 {phone} 接收{business}的优惠信息。",
+    "action": "确认",
+    "notice": "此链接 {days} 天内有效。如果这不是您的请求，请忽略此邮件：除非您点击“确认”，否则不会收到任何短信优惠。"
   }
 } as const;

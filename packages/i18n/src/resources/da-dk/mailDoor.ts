@@ -65,5 +65,16 @@ export default {
     "already": "Du har allerede gjort indsigelse. {business} gemmer ikke dine oplysninger.",
     "dead": "Dette link virker ikke. Skriv til {email}.",
     "deadAsk": "Dette link virker ikke. Skriv til {business}."
+  },
+  "textConfirm": {
+    "title": "Vil du have tilbud fra {business} på sms?",
+    "line": "Tryk på Bekræft, så må {business} sende dig tilbud på sms til dette nummer. Du kan svare STOP på enhver af dem for at stoppe.",
+    "button": "Bekræft",
+    "done": "Bekræftet. {business} må nu sende dig tilbud på sms.",
+    "stop": "Svar STOP på en af dem, så stopper de.",
+    "already": "Du har allerede bekræftet.",
+    "withdrawn": "Dette kan ikke længere bekræftes.",
+    "withdrawnLine": "Du får ingen tilbud på sms fra {business}, medmindre du giver samtykke igen.",
+    "tooOld": "Dette link er for gammelt."
   }
 } as const;

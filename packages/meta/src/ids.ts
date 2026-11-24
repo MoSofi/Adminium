@@ -207,6 +207,10 @@ export const ID_PREFIXES = {
   ibe: 'adminium_inbound_events',
   // wave 0128 — one text's delivery. Also the Telnyx `Idempotency-Key`, so it keeps to `[A-Za-z0-9_-]`.
   tdl: 'adminium_text_deliveries',
+  // waves 0130–0132 — a marketing text run, one person it reaches, and a marketing yes waiting to be confirmed.
+  txr: 'adminium_text_runs',
+  txp: 'adminium_text_run_recipients',
+  tcf: 'adminium_text_confirmations',
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;

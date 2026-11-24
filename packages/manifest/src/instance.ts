@@ -63,6 +63,7 @@ export const INSTANCE_SYSTEM_EMAIL_KEYS = [
   'chat-reply',
   'connect-link',
   'account-connected',
+  'text-marketing-confirm',
 ] as const;
 
 /**

@@ -28,6 +28,7 @@ import { createSmsCatchUp, createSmsInboundChannel, type SmsCatchUpResult, type 
 import { smsConsoleRoutes } from './console-routes.js';
 import { smsRoutes } from './routes.js';
 import { createTextSendStore, textPhoneKeys, TEXT_SETTLE_JOB, TEXT_SETTLE_SCHEDULE, type TextReport, type TextSendPath, type TextSendStore } from './send/index.js';
+import { createTextMarketingStore, type TextMarketingStore } from './marketing/store.js';
 import { createSmsService, type SmsService } from './service.js';
 
 export interface SmsWiringDeps {
@@ -58,6 +59,8 @@ export interface SmsWiring {
   channel: SmsInboundChannel;
   inbound: InboundCore;
   deliveries: TextSendStore;
+  /** Marketing runs, who they reach, and requests to confirm a marketing yes (`marketing/`). */
+  marketing: TextMarketingStore;
   erasure: TextErasure;
   defaultCountry: () => Promise<string | null>;
   settingsRoutes(): FastifyPluginAsyncZod;
@@ -114,7 +117,16 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
   });
   deps.inbound.addChannel(channel);
   const inbound = deps.inbound.core;
-  const erasure = createTextErasure({ meta, consent, inbound, deliveries, phoneKeys: textPhoneKeys(meta, secret), country: defaultCountry });
+  const marketing = createTextMarketingStore(meta);
+  const erasure = createTextErasure({
+    meta,
+    consent,
+    inbound,
+    deliveries,
+    phoneKeys: textPhoneKeys(meta, secret),
+    country: defaultCountry,
+    marketing: { eraseFor: async (who) => (await marketing.recipients.eraseFor(who)) + (await marketing.confirmations.eraseFor(who)), countFor: async (who) => (await marketing.recipients.countFor(who)) + (await marketing.confirmations.countFor(who)) },
+  });
 
   return {
     service,
@@ -122,6 +134,7 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
     channel,
     inbound,
     deliveries,
+    marketing,
     erasure,
     defaultCountry,
 

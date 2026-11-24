@@ -1045,5 +1045,14 @@
     "name": "Potvrzení nové přihlašovací adresy",
     "notice": "Otevřete tento odkaz, když jste přihlášeni k tomuto účtu. Funguje jen jednou a vyprší za {expiresInHours} h. Pokud tento účet neznáte, e-mail ignorujte: nic se nezmění.",
     "subject": "Potvrďte svou novou přihlašovací adresu pro {appName}"
+  },
+  "textMarketingConfirm": {
+    "name": "Potvrzení marketingových SMS",
+    "subject": "Potvrďte nabídky v SMS od {business}",
+    "preheader": "Jedno kliknutí – bez něj se nic nestane.",
+    "heading": "Potvrďte prosím, že chcete dostávat nabídky v SMS",
+    "purpose": "Stiskněte Potvrdit a budete dostávat nabídky od {business} v SMS na číslo {phone}.",
+    "action": "Potvrdit",
+    "notice": "Odkaz platí {days} dní. Pokud jste o nic nežádali, tento e-mail ignorujte: bez stisknutí tlačítka Potvrdit žádné nabídky v SMS nedostanete."
   }
 }

@@ -209,7 +209,7 @@ export interface AudienceAccess extends PeopleTableAccess {
 type Opened<T> = { ok: T } | { refuse: AudienceRefusal; label: string };
 
 /** Whether a user may read one table's personal columns in clear (`crud/mask.ts`, without a request). */
-function piiAllowedFor(set: PermissionSet, connectionId: string, tableId: string): boolean {
+export function piiAllowedFor(set: PermissionSet, connectionId: string, tableId: string): boolean {
   return permissionSetAllows(set, UNMASK_PERMISSION) || permissionSetAllows(set, `table:${connectionId}:${tableId}:read_pii`);
 }
 
@@ -284,7 +284,7 @@ interface ViewQuery {
 }
 
 /** The filters of a saved view of the table, as the sender may use it, or why not. */
-async function viewFilters(meta: MetaDb, access: PeopleTableAccess, viewId: string | null | undefined): Promise<{ filters: unknown[] | undefined } | { refuse: AudienceRefusal }> {
+export async function viewFilters(meta: MetaDb, access: Pick<PeopleTableAccess, 'userId' | 'whole' | 'wholeTable'>, viewId: string | null | undefined): Promise<{ filters: unknown[] | undefined } | { refuse: AudienceRefusal }> {
   if (viewId === null || viewId === undefined) return { filters: undefined };
   const saved = await viewsRepo(meta).findById(viewId);
   // Somebody else's private view reads as no view at all: whether it exists is its owner's business.
@@ -305,7 +305,7 @@ async function viewFilters(meta: MetaDb, access: PeopleTableAccess, viewId: stri
 }
 
 /** One list read as the sender, `limit` rows from `cursor`; a filter on a column they may not read is refused by name. */
-async function listAsSender(access: PeopleTableAccess, filters: unknown[] | undefined, page: { cursor?: string; offset?: number; limit: number }) {
+export async function listAsSender(access: Pick<PeopleTableAccess, 'db' | 'view' | 'table' | 'canReadPii' | 'dialect' | 'rowTest'>, filters: unknown[] | undefined, page: { cursor?: string; offset?: number; limit: number }) {
   const where = filtersToWhere(filters);
   return runList({
     db: access.db,
@@ -359,7 +359,7 @@ export interface PersonRow {
 }
 
 /** Rows of `table` by their keys, in one statement. */
-async function wholeRowsOf(db: Kysely<SourceDatabase>, table: ResolvedTable, rows: readonly Row[]): Promise<Map<string, Row>> {
+export async function wholeRowsOf(db: Kysely<SourceDatabase>, table: ResolvedTable, rows: readonly Row[]): Promise<Map<string, Row>> {
   const out = new Map<string, Row>();
   if (rows.length === 0) return out;
   const pk = table.primaryKey;
@@ -522,7 +522,7 @@ export function audienceVariableNames(access: PeopleTableAccess): string[] {
 }
 
 /** A value as a mail prints it; null for one it does not (a list, a map position). */
-function asText(value: unknown): string | null {
+export function asText(value: unknown): string | null {
   if (value === null || value === undefined) return '';
   if (typeof value === 'string') return value;
   if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') return String(value);
@@ -531,7 +531,7 @@ function asText(value: unknown): string | null {
 }
 
 /** The person's name and first name, by the app's rule (a column, or the first word of the name). */
-function namesOf(declared: DeclaredPeopleTable, seen: Row): { name: string; first: string } {
+export function namesOf(declared: Pick<DeclaredPeopleTable, 'name' | 'firstName'>, seen: Row): { name: string; first: string } {
   const raw = declared.name === null ? '' : seen[declared.name];
   const name = typeof raw === 'string' ? raw.trim() : '';
   const firstWord = name.split(/\s+/)[0] ?? '';

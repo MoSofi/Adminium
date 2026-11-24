@@ -421,6 +421,8 @@ import { textSubject } from './sms/consent/index.js';
 import { SMS_STOP_EVENT_KINDS } from './sms/inbound/index.js';
 import { createTextSendPath, registerSmsSendHandler, textPhoneKeys, TEXT_SETTLE_AFTER_MS, TEXT_SETTLE_CRON, TEXT_SETTLE_JOB, TEXT_SETTLE_SCHEDULE, type TextSendPath } from './sms/send/index.js';
 import { createSmsWiring } from './sms/wiring.js';
+import { createTextMarketing } from './sms/marketing/index.js';
+import { textConfirmDoorRoutes } from './routes/mail-door/text-confirm.js';
 import { paymentPayablesRoutes } from './routes/payments/payables.js';
 import { paymentWaysRoutes } from './routes/payments/ways.js';
 import { createLinkRights, paymentLinksRoutes } from './routes/payments/links.js';
@@ -2027,6 +2029,26 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     operator: () => app.trialPolicy.allows('smsProviders'),
     log: app.log,
   });
+  // Marketing texts: their consent and double opt-in, the audience, runs through the one send path (`sms/marketing/`).
+  const textMarketing = createTextMarketing({
+    meta,
+    secret: env.ADMINIUM_SECRET,
+    manager,
+    consent: sms.consent,
+    store: sms.marketing,
+    sms: sms.service,
+    texts: () => sms.texts,
+    replyReach: () => sms.channel.replyReach(),
+    policy: app.trialPolicy,
+    country: sms.defaultCountry,
+    // The same settings the send path reads: the console's own setting comes with its page.
+    sendPolicy: async () => null,
+    phoneKeys: textPhoneKeys(meta, env.ADMINIUM_SECRET),
+    enqueue: (job) => jobs.enqueue(job),
+    viewFor: (connectionId) => publicViews.viewFor(connectionId),
+    logger: app.log,
+  });
+  textMarketing.registerJobs(jobs.registry);
   peopleConsent = createPeopleConsent({
     meta,
     consent,
@@ -2036,6 +2058,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // A public form's own box for texts: its yes is kept apart from any yes to mail.
     textConsent: sms.consent,
     textCountry: sms.defaultCountry,
+    textMarketingYes: (person) => textMarketing.afterFormYes(person),
   });
   const consentMirror = peopleConsent;
   inboundEvents.registerJobs(jobs.registry);
@@ -2059,8 +2082,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     enqueue: (job) => jobs.enqueue(job),
     callbackUrl: async () => (await sms.channel.replyReach()).address,
     inboundWaiting: (e164) => sms.inbound.waitingFrom(textSubject(e164), SMS_STOP_EVENT_KINDS),
-    stillWanted: (report, e164) => outboxSender.textStillWanted(report, e164),
-    onSettled: (report, delivery) => outboxSender.markText(report, delivery),
+    // A marketing run's text asks its run; every other text its outbox row.
+    stillWanted: (report, e164) => (textMarketing.owns(report) ? textMarketing.stillWanted(report, e164) : outboxSender.textStillWanted(report, e164)),
+    onSettled: (report, delivery) => (textMarketing.owns(report) ? textMarketing.settled(report, delivery) : outboxSender.markText(report, delivery)),
   });
   registerSmsSendHandler(jobs.registry, textSendPath.handOver);
   sms.joinSendPath(textSendPath);
@@ -3015,6 +3039,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // Studio → Text messages, and the door a provider hands texts and reports to. Its token is scrubbed from the request log (`log-scrub.ts`).
       await api.register(sms.settingsRoutes());
       await api.register(sms.consoleRoutes());
+      await api.register(textMarketing.routes());
       await api.register(inboundEvents.doorRoutes());
       // Refunding a payment: what the dialog shows, and the confirm step.
       await api.register(paymentRefundRoutes(paymentRefundDeps));
@@ -4209,6 +4234,18 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       desktop: env.ADMINIUM_RUNTIME === 'desktop',
       trustProxy: env.ADMINIUM_TRUST_PROXY,
       erase: eraseAsEngine,
+    }),
+  );
+  // The marketing text confirm page (`/m/t/`): double opt-in, by the link in the mail that asks. Beside the unsubscribe page.
+  await app.register(
+    textConfirmDoorRoutes({
+      meta,
+      secret: env.ADMINIUM_SECRET,
+      consent,
+      networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+      desktop: env.ADMINIUM_RUNTIME === 'desktop',
+      trustProxy: env.ADMINIUM_TRUST_PROXY,
+      texts: textMarketing.confirm,
     }),
   );
   /*

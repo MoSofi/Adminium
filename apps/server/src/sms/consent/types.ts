@@ -188,11 +188,37 @@ export interface TextEraseResult {
   consentRows: number;
 }
 
+/** A marketing yes confirmed (double opt-in): by the link in a mail, or by a named staff member who asked them in person. */
+export interface TextConfirmInput {
+  /** The yes of the log being confirmed. */
+  eventId: string;
+  /** The number that yes was given for, as the person's row holds it now. */
+  phone: unknown;
+  country?: string | null | undefined;
+  source: 'form' | 'staff';
+  /** A fixed word: `confirmed-by-email`, `confirmed-in-person`. */
+  detail: string;
+  how?: ConsentHow | null | undefined;
+  staff?: StaffMember | null | undefined;
+  ip?: string | null | undefined;
+  userAgent?: string | null | undefined;
+  at?: number | undefined;
+}
+
+/**
+ * What a confirmation did. `superseded`: a later answer stands for that number
+ * (a no, a STOP, or another yes), so this yes can no longer be confirmed.
+ * `missing`: no such yes, or it was given for another number.
+ */
+export type TextConfirmResult = { outcome: 'confirmed'; event: TextConsentEvent } | { outcome: 'already' | 'superseded' | 'stopped' | 'missing' };
+
 export interface TextConsentService {
   /** May this text go? Reads the stop list and the log; throws rather than answers when they cannot be read. */
   decide(request: TextRequest): Promise<TextDecision>;
   /** Add a yes or a no. A yes needs an exact number, its wording, and a form or a named staff member. */
   record(input: TextConsentInput & { state: 'yes' | 'no' }): Promise<TextConsentEvent>;
+  /** Confirms a marketing yes that still stands: a copy of it with `confirmedAt`, so the log keeps both. */
+  confirm(input: TextConfirmInput): Promise<TextConfirmResult>;
   /** Their standing for one purpose on this exact number. */
   standing(who: TextWho, purpose: TextPurpose): Promise<TextStanding>;
   /** Their events, newest first. */

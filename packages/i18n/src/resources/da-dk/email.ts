@@ -1055,5 +1055,14 @@ export default {
     "name": "Bekræft en ny login-adresse",
     "notice": "Åbn linket, mens du er logget ind på den konto. Det virker kun én gang og udløber om {expiresInHours} timer. Hvis du ikke kender kontoen, kan du ignorere denne e-mail: Intet ændres.",
     "subject": "Bekræft din nye login-adresse til {appName}"
+  },
+  "textMarketingConfirm": {
+    "name": "Bekræft markedsførings-sms’er",
+    "subject": "Bekræft tilbud på sms fra {business}",
+    "preheader": "Ét klik – uden det sker der intet.",
+    "heading": "Bekræft venligst, at du vil have tilbud på sms",
+    "purpose": "Tryk på Bekræft for at få tilbud fra {business} på sms til {phone}.",
+    "action": "Bekræft",
+    "notice": "Linket virker i {days} dage. Hvis du ikke har bedt om dette, kan du se bort fra denne e-mail: du får ingen tilbud på sms, medmindre du trykker på Bekræft."
   }
 } as const;

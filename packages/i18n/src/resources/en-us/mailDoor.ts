@@ -65,5 +65,16 @@ export default {
     "already": "You’ve already objected. {business} doesn’t keep your details.",
     "dead": "This link doesn’t work. Write to {email}.",
     "deadAsk": "This link doesn’t work. Write to {business}."
+  },
+  "textConfirm": {
+    "title": "Get offers from {business} by text?",
+    "line": "Press Confirm, and {business} may send you offers by text at this number. You can reply STOP to any of them to stop.",
+    "button": "Confirm",
+    "done": "Confirmed. {business} may now send you offers by text.",
+    "stop": "Reply STOP to any of them, and they stop.",
+    "already": "You’ve already confirmed.",
+    "withdrawn": "This can’t be confirmed any more.",
+    "withdrawnLine": "You’ll get no offers by text from {business} unless you agree again.",
+    "tooOld": "This link is too old."
   }
 } as const;

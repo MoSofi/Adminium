@@ -55,5 +55,16 @@
     "already": "您已經提出過反對。{business} 不保留您的資料。",
     "dead": "此連結無效。請寫信至 {email}。",
     "deadAsk": "此連結無效。請寫信給 {business}。"
+  },
+  "textConfirm": {
+    "title": "透過簡訊接收{business}的優惠？",
+    "line": "點擊「確認」後，{business}可以透過簡訊向此號碼傳送優惠資訊。您可以回覆 STOP 退訂其中任何一則。",
+    "button": "確認",
+    "done": "已確認。{business}現在可以透過簡訊向您傳送優惠資訊。",
+    "stop": "回覆其中任何一則 STOP 即可退訂。",
+    "already": "您已確認過。",
+    "withdrawn": "此請求已無法確認。",
+    "withdrawnLine": "除非您再次同意，否則不會收到{business}的任何簡訊優惠。",
+    "tooOld": "此連結已過期。"
   }
 }

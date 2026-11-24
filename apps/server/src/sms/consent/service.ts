@@ -194,6 +194,47 @@ export function createTextConsentService(deps: TextConsentDeps): TextConsentServ
       });
     },
 
+    async confirm(input) {
+      const e164 = exactNumber(input.phone, input.country);
+      if (e164 === null) return { outcome: 'missing' };
+      if (input.source === 'staff' && input.staff == null) throw new ValidationFailedError('A staff record names the staff member.', { field: 'staff' });
+      const subject = textSubject(e164);
+      const hashes = await ring.hashesOf(subject);
+      const event = await store.log.byId(input.eventId);
+      const sameNumber = event?.phone != null && hashes.some((one) => one.hash === event.phone!.hash && one.version === event.phone!.version);
+      if (event === null || !sameNumber || event.purpose !== 'text-marketing' || event.state !== 'yes') return { outcome: 'missing' };
+      if ((await store.stop.findAny(hashes)).length > 0) return { outcome: 'stopped' };
+      const standing = await standingOn(hashes, event.person, 'text-marketing');
+      if (standing.event?.id !== event.id) {
+        // Its own confirmation stands: pressed twice, or confirmed by staff meanwhile.
+        const own = standing.state === 'yes' && standing.event?.confirmedAt != null && standing.event.wording === event.wording && standing.event.wordingVersion === event.wordingVersion;
+        return { outcome: own ? 'already' : 'superseded' };
+      }
+      if (event.confirmedAt !== null) return { outcome: 'already' };
+      const at = input.at ?? now();
+      const staffed = input.source === 'staff';
+      const confirmed = await store.log.append({
+        person: event.person,
+        phone: await ring.hashForWrite(subject),
+        purpose: 'text-marketing',
+        state: 'yes',
+        source: input.source,
+        detail: keepClean(input.detail),
+        how: staffed ? (input.how ?? null) : null,
+        note: null,
+        staffId: staffed ? input.staff!.id : null,
+        staffLabel: staffed ? input.staff!.label : null,
+        // The words the person agreed to: the yes being confirmed is about them, and nothing else.
+        wording: event.wording,
+        wordingVersion: event.wordingVersion,
+        ip: input.ip ?? null,
+        userAgent: input.userAgent ?? null,
+        at: Math.max(at, event.at),
+        confirmedAt: at,
+      });
+      return { outcome: 'confirmed', event: confirmed };
+    },
+
     async standing(who, purpose) {
       return standingOn(await hashesOf(who.phone, who.country), who.person, purpose);
     },
