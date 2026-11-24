@@ -5,6 +5,10 @@
  * with the number and every message in them, and any job error that quotes the
  * number.
  *
+ * A number another person's row still holds is a shared or reassigned line
+ * (`shared`): only what links to the erased person goes, and the stop entry
+ * keeps its hash. Either way, another person's yes on the number stays.
+ *
  * `everywhere: false` is an erasure narrowed to some apps. It takes only the
  * log rows on the person's own row: the stop list and the stores matched by
  * the number alone are the whole workspace's.
@@ -36,6 +40,12 @@ export interface TextEraseRequest {
   person: ConsentPerson | null;
   at: number;
   everywhere: boolean;
+  /**
+   * Another person's row still holds this number (a shared or reassigned line). Then only what links to the
+   * erased person goes: their consent rows, the person-less ones of the number, and the conversations about
+   * these rows of theirs. The number's other conversations, its delivery records and its stored events stay.
+   */
+  shared?: { theirs: readonly ConsentPerson[] } | undefined;
 }
 
 export interface TextErased {
@@ -73,11 +83,13 @@ export interface TextErasureDeps {
   inbound: Pick<InboundCore, 'erase' | 'countFrom'>;
   deliveries: Pick<TextSendStore, 'eraseFor' | 'countFor'>;
   /** Conversations; none are kept without it. */
-  threads?: Pick<TextThreads, 'eraseFor' | 'countFor'> | undefined;
+  threads?: Pick<TextThreads, 'eraseFor' | 'countFor' | 'eraseForRecords' | 'countForRecords'> | undefined;
   phoneKeys: TextPhoneKeys;
   country: () => Promise<string | null>;
   marketing?: MarketingErasure | undefined;
 }
+
+const samePerson = (a: ConsentPerson, b: ConsentPerson): boolean => a.connectionId === b.connectionId && a.table === b.table && a.key === b.key;
 
 function exactNumber(value: unknown, country: string | null): string | null {
   const phone = parsePhone(value, country);
@@ -90,7 +102,7 @@ export function createTextErasure(deps: TextErasureDeps): TextErasure {
     country: deps.country,
     exact: exactNumber,
 
-    async erase({ phone, country, person, at, everywhere }) {
+    async erase({ phone, country, person, at, everywhere, shared }) {
       if (!everywhere) {
         if (person === null) return { stopEntry: 0, consentRows: 0, inboundEvents: 0, deliveries: 0, marketing: 0, conversations: 0 };
         const narrowed = await deps.consent.erase({ phone: null, person, at });
@@ -102,6 +114,12 @@ export function createTextErasure(deps: TextErasureDeps): TextErasure {
       const stopEntry = result.stopList === 'erased' || result.stopList === 'added' ? 1 : 0;
       const e164 = exactNumber(phone, country);
       const hashes = e164 === null ? [] : await deps.phoneKeys.all(e164);
+      if (e164 !== null && shared !== undefined) {
+        // A shared line: the number's own stores are the other person's too.
+        const marketing = (await deps.marketing?.eraseFor({ hashes: [], person })) ?? 0;
+        const threads = (await deps.threads?.eraseForRecords(e164, shared.theirs)) ?? { threads: 0, messages: 0 };
+        return { stopEntry, consentRows: result.consentRows, inboundEvents: 0, deliveries: 0, marketing, conversations: threads.messages + threads.threads };
+      }
       const marketing = (await deps.marketing?.eraseFor({ hashes, person })) ?? 0;
       if (e164 === null) return { stopEntry, consentRows: result.consentRows, inboundEvents: 0, deliveries: 0, marketing, conversations: 0 };
       const { events } = await deps.inbound.erase({ subject: textSubject(e164) });
@@ -111,10 +129,16 @@ export function createTextErasure(deps: TextErasureDeps): TextErasure {
       return { stopEntry, consentRows: result.consentRows, inboundEvents: events, deliveries, marketing, conversations: threads.messages + threads.threads };
     },
 
-    async count({ phone, country, person, everywhere }) {
+    async count({ phone, country, person, everywhere, shared }) {
       const e164 = everywhere ? exactNumber(phone, country) : null;
-      const history = await deps.consent.history({ phone: e164, country, person }, { limit: 500 });
+      // What the erasure takes of the log: the rows on their row, and the number's rows that name nobody.
+      const history = (await deps.consent.history({ phone: e164, country, person }, { limit: 500 })).filter((event) => event.person === null || (person !== null && samePerson(event.person, person)));
       const hashes = e164 === null ? [] : await deps.phoneKeys.all(e164);
+      if (e164 !== null && shared !== undefined) {
+        const marketing = (await deps.marketing?.countFor({ hashes: [], person })) ?? 0;
+        const threads = (await deps.threads?.countForRecords(e164, shared.theirs)) ?? { threads: 0, messages: 0 };
+        return { stopEntry: (await deps.consent.stop.entryFor(e164, country)) === null ? 0 : 1, consentRows: history.length, inboundEvents: 0, deliveries: 0, marketing, conversations: threads.messages + threads.threads };
+      }
       const marketing = (await deps.marketing?.countFor({ hashes, person })) ?? 0;
       if (e164 === null) return { stopEntry: 0, consentRows: history.length, inboundEvents: 0, deliveries: 0, marketing, conversations: 0 };
       const threads = (await deps.threads?.countFor(e164)) ?? { threads: 0, messages: 0 };

@@ -18,6 +18,7 @@ import { PERMISSIONS } from '../src/rbac/permissions.js';
 import { smsConsoleRoutes } from '../src/sms/console-routes.js';
 import { createTextConsentService, type TextConsentService } from '../src/sms/consent/index.js';
 import { createTextSendStore, type TextSendStore } from '../src/sms/send/index.js';
+import type { InboundFailedView } from '../src/inbound/index.js';
 import type { SmsAccountView } from '../src/sms/service.js';
 
 const SECRET = 'an-sms-console-test-secret-of-length';
@@ -34,6 +35,10 @@ describe('Texts console routes', () => {
   let consent: TextConsentService;
   let store: TextSendStore;
   let view: SmsAccountView | null;
+  let deskApps: ReadonlySet<string> | null;
+  let failed: InboundFailedView[];
+  let retried: string[];
+  let dismissed: string[];
 
   beforeEach(async () => {
     meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
@@ -57,6 +62,14 @@ describe('Texts console routes', () => {
     consent = createTextConsentService({ meta, secret: SECRET, now: () => NOW });
     store = createTextSendStore(meta);
     view = null;
+    deskApps = null;
+    retried = [];
+    dismissed = [];
+    const base = { channel: 'sms', source: 'twilio', attempts: 5, receivedAt: NOW - 3_600_000, occurredAt: null, finishedAt: NOW - 3_000_000, retryable: true };
+    failed = [
+      { ...base, id: 'ibe_plain', kind: 'reply', reason: 'handler-error', masked: '+49 ••• 789', holds: false, holdsUntil: null },
+      { ...base, id: 'ibe_stop', kind: 'reply', reason: 'store-unreachable', masked: '+1 ••• 169', holds: true, holdsUntil: NOW + 29 * 86_400_000 },
+    ];
 
     app = Fastify({ logger: false });
     app.setValidatorCompiler(validatorCompiler);
@@ -82,6 +95,24 @@ describe('Texts console routes', () => {
             texts: () => ({ resolveUnknown: (id, to) => store.resolveUnknown(id, to, NOW) }),
             manageGrant: PERMISSIONS.smsManage,
             peopleGrant: PERMISSIONS.privacyPeople,
+            inbound: {
+              failed: {
+                list: async () => ({ events: failed, next: null }),
+                get: async (id) => failed.find((one) => one.id === id) ?? null,
+                count: async () => ({ failed: failed.length, holding: failed.filter((one) => one.holds).length, more: false }),
+                retry: async (id) => {
+                  retried.push(id);
+                  return true;
+                },
+                retryAll: async () => ({ retried: failed.length, more: false }),
+                dismiss: async (id) => {
+                  dismissed.push(id);
+                  return true;
+                },
+              },
+            },
+            // The desk's reach, as `privacyScopeOf` gives it for an app's role.
+            privacyScope: async (userId) => (userId === desk.id ? { manage: false, apps: deskApps } : null),
             now: () => NOW,
           }),
         ),
@@ -118,6 +149,7 @@ describe('Texts console routes', () => {
         ['GET', '/sms/deliveries', undefined],
         ['POST', '/sms/deliveries/x/settle', { answer: 'went' }],
         ['GET', '/sms/stop-list', undefined],
+        ['POST', '/sms/stop-list/lookup', { phone: '+12075550169' }],
         ['POST', '/sms/stop-list', { phone: '+12075550169', asked: 'phone' }],
         ['DELETE', '/sms/stop-list/x', undefined],
         ['GET', '/sms/text-templates', undefined],
@@ -129,10 +161,12 @@ describe('Texts console routes', () => {
       }
     });
 
-    it('lets the desk read Activity and the list and record a stop, and nothing else', async () => {
+    it('lets the desk read Activity, look up one number and record a stop, and nothing else', async () => {
       expect((await call(desk, 'GET', '/sms/deliveries')).statusCode).toBe(200);
-      expect((await call(desk, 'GET', '/sms/stop-list')).statusCode).toBe(200);
+      expect((await call(desk, 'POST', '/sms/stop-list/lookup', { phone: '+12075550169' })).statusCode).toBe(200);
       expect((await call(desk, 'POST', '/sms/stop-list', { phone: '+12075550169', asked: 'phone' })).statusCode).toBe(200);
+      // The whole list holds every app's customers: never a desk's to page through.
+      expect((await call(desk, 'GET', '/sms/stop-list')).statusCode).toBe(403);
       const id = await unknownDelivery();
       expect((await call(desk, 'POST', `/sms/deliveries/${id}/settle`, { answer: 'went' })).statusCode).toBe(403);
       expect((await call(desk, 'GET', '/sms/sending-limits')).statusCode).toBe(403);
@@ -144,6 +178,18 @@ describe('Texts console routes', () => {
       await apiKeysRepo(meta).create({ name: 'script', prefix: generated.prefix, tokenHash: generated.tokenHash, roleId: managerRole });
       const answer = await app.inject({ method: 'PUT', url: '/api/v1/sms/sending-limits', headers: { authorization: `Bearer ${generated.key}` }, payload: { dailyLimit: 9000, serviceHours: { from: '08:00', to: '21:00' } } });
       expect(answer.statusCode).toBe(403);
+    });
+
+    it('refuses an API key the stop list, a look-up and Activity, even one holding the grant', async () => {
+      await consent.stop.add({ phone: '+12075550169', reason: 'text-stop', origin: '+15005550006' });
+      const generated = generateApiKey();
+      await apiKeysRepo(meta).create({ name: 'script', prefix: generated.prefix, tokenHash: generated.tokenHash, roleId: managerRole });
+      const headers = { authorization: `Bearer ${generated.key}` };
+      for (const [method, url, payload] of [['GET', '/sms/stop-list', undefined], ['GET', '/sms/deliveries', undefined], ['POST', '/sms/stop-list/lookup', { phone: '+12075550169' }]] as const) {
+        const answer = await app.inject({ method, url: `/api/v1${url}`, headers, ...(payload === undefined ? {} : { payload }) });
+        expect(answer.statusCode, url).toBe(403);
+        expect(answer.body).not.toContain('2075550169');
+      }
     });
   });
 
@@ -176,6 +222,22 @@ describe('Texts console routes', () => {
       expect(answer.body).not.toContain('"pk"');
     });
 
+    it('gives a desk only the texts of the apps its roles reach, and audits each read', async () => {
+      for (const [n, app] of [[1, 'hotel'], [2, 'clinic'], [3, null]] as const) {
+        await store.create({ claimHash: `claim-${n}`, messageHash: `message-${n}`, phone: null, phoneMasked: '+1 ••• 177', textClass: 'service', estimatedSegments: 1, encoding: 'gsm-7', createdAt: NOW - n * 1000, reportTarget: null, about: app === null ? null : { app, template: 'reminder' } });
+      }
+      expect(((await call(desk, 'GET', '/sms/deliveries')).json().data as unknown[]).length).toBe(3);
+      deskApps = new Set(['hotel']);
+      const scoped = (await call(desk, 'GET', '/sms/deliveries')).json().data as { id: string }[];
+      expect(scoped).toHaveLength(1);
+      deskApps = new Set();
+      expect(((await call(desk, 'GET', '/sms/deliveries')).json().data as unknown[]).length).toBe(0);
+      expect(((await call(manager, 'GET', '/sms/deliveries')).json().data as unknown[]).length).toBe(3);
+      const audit = JSON.stringify(await auditRepo(meta).list({ limit: 20 }));
+      expect(audit).toContain('sms.deliveries.read');
+      expect(audit).toContain('"apps":["hotel"]');
+    });
+
     it('lets sms.manage settle an unknown once, and says so when it is already settled', async () => {
       const id = await unknownDelivery();
       const settled = await call(manager, 'POST', `/sms/deliveries/${id}/settle`, { answer: 'not-sent' });
@@ -187,6 +249,43 @@ describe('Texts console routes', () => {
     });
   });
 
+  describe('replies that could not be acted on', () => {
+    it('shows sms.manage the failed list with the mask, the hold and its end, never a word', async () => {
+      const answer = await call(manager, 'GET', '/sms/inbound/failed');
+      expect(answer.statusCode).toBe(200);
+      expect(answer.json()).toMatchObject({ summary: { failed: 2, holding: 1 }, data: [{ id: 'ibe_plain', holds: false }, { id: 'ibe_stop', holds: true, masked: '+1 ••• 169' }] });
+      expect(JSON.stringify(await auditRepo(meta).list({ limit: 5 }))).toContain('sms.inbound.failed.read');
+    });
+
+    it('retries one, retries all, and closes one, each audited by the mask', async () => {
+      expect((await call(manager, 'POST', '/sms/inbound/failed/ibe_plain/retry')).json()).toEqual({ data: { retried: true } });
+      expect((await call(manager, 'POST', '/sms/inbound/failed/retry-all')).json()).toEqual({ data: { retried: 2, more: false } });
+      expect((await call(manager, 'POST', '/sms/inbound/failed/ibe_stop/dismiss')).statusCode).toBe(204);
+      expect(retried).toEqual(['ibe_plain']);
+      expect(dismissed).toEqual(['ibe_stop']);
+      const audit = JSON.stringify(await auditRepo(meta).list({ limit: 10 }));
+      for (const action of ['sms.inbound.retried', 'sms.inbound.retried-all', 'sms.inbound.dismissed']) expect(audit).toContain(action);
+      expect(audit).toContain('"held":true');
+      expect((await call(manager, 'POST', '/sms/inbound/failed/nope/retry')).statusCode).toBe(404);
+    });
+
+    it('refuses a retry whose content is gone', async () => {
+      failed[0] = { ...failed[0]!, retryable: false };
+      expect((await call(manager, 'POST', '/sms/inbound/failed/ibe_plain/retry')).statusCode).toBe(409);
+    });
+
+    it('is sms.manage\'s alone: never a desk, a clerk or an API key', async () => {
+      for (const [method, url] of [['GET', '/sms/inbound/failed'], ['POST', '/sms/inbound/failed/ibe_plain/retry'], ['POST', '/sms/inbound/failed/retry-all'], ['POST', '/sms/inbound/failed/ibe_plain/dismiss']] as const) {
+        expect((await call(desk, method, url)).statusCode, url).toBe(403);
+        expect((await call(clerk, method, url)).statusCode, url).toBe(403);
+      }
+      const generated = generateApiKey();
+      await apiKeysRepo(meta).create({ name: 'script', prefix: generated.prefix, tokenHash: generated.tokenHash, roleId: managerRole });
+      expect((await app.inject({ method: 'GET', url: '/api/v1/sms/inbound/failed', headers: { authorization: `Bearer ${generated.key}` } })).statusCode).toBe(403);
+      expect(retried).toEqual([]);
+    });
+  });
+
   describe('the do-not-text list', () => {
     it('records a request made to the business, once, by the person signed in', async () => {
       const first = await call(desk, 'POST', '/sms/stop-list', { phone: '+1 207 555 0169', asked: 'email' });
@@ -195,14 +294,54 @@ describe('Texts console routes', () => {
       const again = await call(manager, 'POST', '/sms/stop-list', { phone: '+12075550169', asked: 'phone' });
       expect(again.json().added).toBe(false);
       expect(await consent.stop.has('+12075550169', null)).toBe(true);
-      const list = (await call(desk, 'GET', '/sms/stop-list')).json();
+      const list = (await call(manager, 'GET', '/sms/stop-list')).json();
       expect(list.data).toHaveLength(1);
+    });
+
+    it('audits a read of the list by its count and filter, never a number', async () => {
+      await consent.stop.add({ phone: '+12075550169', reason: 'text-stop', origin: '+15005550006' });
+      expect((await call(manager, 'GET', '/sms/stop-list?reason=text-stop')).statusCode).toBe(200);
+      const rows = (await auditRepo(meta).list({ limit: 5 })).filter((row) => row.action === 'sms.stop-list.read');
+      expect(rows).toHaveLength(1);
+      expect(JSON.stringify(rows)).toContain('"entries":1');
+      expect(JSON.stringify(rows)).toContain('"reason":"text-stop"');
+      expect(JSON.stringify(rows)).not.toContain('2075550169');
+    });
+
+    it('a desk looks up one number: its entry or none, each look-up audited by the mask', async () => {
+      view = { defaultCountry: 'US' } as SmsAccountView;
+      await consent.stop.add({ phone: '+12075550169', reason: 'text-stop', origin: '+15005550006' });
+      await consent.stop.add({ phone: '+12075550170', reason: 'text-stop', origin: '+15005550006' });
+      const found = await call(desk, 'POST', '/sms/stop-list/lookup', { phone: '(207) 555-0169' });
+      expect(found.json()).toMatchObject({ data: { phone: '+12075550169', reason: 'text-stop' } });
+      expect(found.body).not.toContain('2075550170');
+      expect((await call(desk, 'POST', '/sms/stop-list/lookup', { phone: '+12075550199' })).json()).toEqual({ data: null });
+      const rows = (await auditRepo(meta).list({ limit: 10 })).filter((row) => row.action === 'sms.stop.looked-up');
+      expect(rows).toHaveLength(2);
+      expect(JSON.stringify(rows)).toContain('+1 ••• 169');
+      expect(JSON.stringify(rows)).not.toContain('2075550169');
     });
 
     it('reads a local number in the account’s country, and refuses one it cannot read', async () => {
       view = { defaultCountry: 'US' } as SmsAccountView;
       expect((await call(desk, 'POST', '/sms/stop-list', { phone: '(207) 555-0169', asked: 'in-person' })).json().data.phone).toBe('+12075550169');
       expect((await call(desk, 'POST', '/sms/stop-list', { phone: 'not a number', asked: 'phone' })).statusCode).toBe(422);
+    });
+
+    it('lets only the Super Admin lift an erased person\'s entry, with a fresh named yes, audited by the mask', async () => {
+      await consent.erase({ phone: '+12075550169' });
+      const id = (await consent.stop.entryFor('+12075550169', null))!.id;
+      const body = { phone: '+12075550169', purpose: 'text-service', wording: { text: 'Text me about my lessons', version: 'd2' }, how: 'in-person' };
+      expect((await call(owner, 'DELETE', `/sms/stop-list/${id}`)).statusCode).toBe(409);
+      expect((await call(manager, 'POST', `/sms/stop-list/${id}/lift-erased`, body)).statusCode).toBe(403);
+      expect((await call(desk, 'POST', `/sms/stop-list/${id}/lift-erased`, body)).statusCode).toBe(403);
+      expect((await call(owner, 'POST', `/sms/stop-list/${id}/lift-erased`, { ...body, phone: '+12075550170' })).statusCode).toBe(409);
+      expect((await call(owner, 'POST', `/sms/stop-list/${id}/lift-erased`, { ...body, wording: { text: '', version: 'd2' } })).statusCode).toBe(400);
+      expect((await call(owner, 'POST', `/sms/stop-list/${id}/lift-erased`, body)).statusCode).toBe(204);
+      expect(await consent.stop.has('+12075550169', null)).toBe(false);
+      const audit = JSON.stringify((await auditRepo(meta).list({ limit: 10 })).filter((row) => row.action === 'sms.stop.erased-lifted'));
+      expect(audit).toContain('+1 ••• 169');
+      expect(audit).not.toContain('2075550169');
     });
 
     it('lets only the Super Admin take a number off', async () => {

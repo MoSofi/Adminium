@@ -4829,7 +4829,9 @@ export default {
       "leftSub": "Diese Spalten können nicht geleert werden, ihr Inhalt bleibt:",
       "leftRows": "{count, plural, one {# Zeile} other {# Zeilen}}",
       "confirm": "Geben Sie zur Bestätigung die Adresse ein",
-      "eraseForGood": "Endgültig löschen"
+      "eraseForGood": "Endgültig löschen",
+      "sharedTitle": "Eine ihrer Nummern steht auch bei jemand anderem",
+      "sharedBody": "{numbers}: eine geteilte oder weitergegebene Nummer. Nur ihre eigenen SMS-Daten werden gelöscht. Die SMS und Unterhaltungen der Nummer mit der anderen Person bleiben."
     },
     "title": "Datenschutz & öffentliche Seiten",
     "tab": {
@@ -6706,7 +6708,12 @@ export default {
       "no": "Keine Antworten",
       "ok": "Antworten und Zustellberichte können diesen Server erreichen.",
       "problem": "Dieser Server hat keine öffentliche https-Adresse. Er kann Service-SMS senden, aber keine STOP-Antworten oder Zustellberichte empfangen. Marketing-SMS sind aus.",
-      "yes": "Antworten kommen an"
+      "yes": "Antworten kommen an",
+      "waiting": "Noch nichts empfangen",
+      "heardAt": "Die erste Antwort kam am {date} an.",
+      "waitingLine": "Eingerichtet, aber noch ist keine Antwort angekommen. Geben Sie Ihrem Anbieter die Antwortadresse dieses Servers und senden Sie dann eine Testantwort.",
+      "waitingWhy": "Bis eine Antwort ankommt, nennen SMS zum Abbestellen Ihre Telefonnummer oder E-Mail statt „Antworten Sie STOP“, und Marketing-SMS sind aus.",
+      "connectFirst": "Verbinden Sie unten Ihren Anbieter. Danach zeigt diese Karte die Antwortadresse, die Sie dort einfügen."
     },
     "reason": {
       "badNumber": "Nicht gesendet. Die Nummer lässt sich nicht als echte Telefonnummer lesen.",
@@ -6841,7 +6848,8 @@ export default {
       "asked": {
         "email": "Per E-Mail",
         "inPerson": "Persönlich",
-        "phone": "Telefonisch"
+        "phone": "Telefonisch",
+        "paper": "Auf Papier"
       },
       "line": "Niemand auf dieser Liste erhält eine SMS von diesem Unternehmen, auch keine Service-SMS.",
       "noConfirm": "Keine Bestätigung per SMS, weil diese Person sich direkt an das Unternehmen gewandt hat.",
@@ -6862,7 +6870,21 @@ export default {
         "provider": "Vom Anbieter gemeldet",
         "reply": "Hat STOP geantwortet"
       },
-      "whyAny": "Grund: alle"
+      "whyAny": "Grund: alle",
+      "deskWhy": "Schlagen Sie eine Nummer nach der anderen nach. Die ganze Liste enthält die Kunden aller Apps, darum sieht sie nur, wer die SMS verwaltet.",
+      "lookup": "Nachschlagen",
+      "lookupNone": "Diese Nummer steht nicht auf der Liste.",
+      "lookupFound": "Auf der Liste seit {date}: {why}.",
+      "liftTitle": "Einer gelöschten Person wieder SMS senden?",
+      "liftWhy": "Nur für eine Nummer, die den Besitzer gewechselt hat oder geteilt wird, wenn ihr Inhaber wieder in SMS eingewilligt hat. Geben Sie die Nummer und die Worte ein, denen er zugestimmt hat: Sie werden unter Ihrem Namen gespeichert.",
+      "liftFailed": "Nicht aufgehoben. Prüfen Sie, ob es die Nummer ist, für die dieser Eintrag gespeichert wurde.",
+      "liftPurpose": "Eingewilligt in",
+      "liftService": "Service-SMS",
+      "liftMarketing": "Marketing-SMS",
+      "liftWords": "Die Worte, denen sie zugestimmt haben",
+      "liftVersion": "Version dieser Worte",
+      "lift": "Einwilligung speichern und aufheben",
+      "liftOpen": "Aufheben"
     },
     "tab": {
       "activity": "Aktivität",
@@ -7183,6 +7205,42 @@ export default {
         "confirmed": "Unter Ihrem Namen eingetragen: Die Person hat bestätigt.",
         "superseded": "Eine neuere Antwort hat dieses Ja ersetzt. Tragen Sie zuerst erneut ihr Ja ein."
       }
+    },
+    "address": {
+      "copied": "In die Zwischenablage kopiert.",
+      "twilio": {
+        "open": "Öffnen Sie in Twilio „Phone Numbers“, dann „Active numbers“, und wählen Sie die Nummer, von der Sie senden.",
+        "paste": "Stellen Sie unter „Messaging“ „A message comes in“ auf „Webhook“, fügen Sie die Antwortadresse vollständig ein, einschließlich des Teils nach #, und lassen Sie HTTP POST stehen. Speichern.",
+        "service": "Gehört die Nummer zu einem Messaging Service, fügen Sie die Adresse stattdessen in dessen Integration-Einstellungen ein."
+      },
+      "test": "Schicken Sie von Ihrem eigenen Telefon ein beliebiges Wort an Ihre Nummer. Sobald es ankommt, zeigt diese Karte „Antworten kommen an“.",
+      "telnyx": {
+        "open": "Öffnen Sie in Telnyx „Messaging“ und wählen Sie Ihr Messaging-Profil.",
+        "paste": "Fügen Sie unter „Inbound“ die Antwortadresse als Webhook-URL ein, mit API-Version 2. Speichern."
+      },
+      "show": "Antwortadresse zeigen",
+      "none": "Es gibt noch keine Adresse: Dieser Server ist von außen nicht erreichbar.",
+      "inbound": "Antwortadresse",
+      "copyInbound": "Antwortadresse kopieren",
+      "status": "Zustellberichte (Status-Callback)",
+      "copyStatus": "Adresse für Zustellberichte kopieren",
+      "statusLine": "Dieselbe Adresse. Adminium gibt sie mit jeder SMS mit, Sie fügen sie also nur dort ein, wo Ihr Anbieter nach einem Status-Callback fragt.",
+      "secret": "Geben Sie diese Adresse nur Ihrem Anbieter. Wer sie kennt, kann nur anklopfen: Jede Nachricht muss trotzdem von Ihrem Anbieter signiert sein."
+    },
+    "failed": {
+      "kind": {
+        "reply": "Antwort",
+        "delivery": "Zustellbericht",
+        "optOut": "Abmeldung beim Anbieter"
+      },
+      "holds": "Hält SMS an diese Nummer zurück",
+      "when": "Empfangen {date} · {reason}",
+      "until": "Es könnte eine Bitte sein, keine SMS mehr zu senden. Darum geht keine SMS an diese Nummer, bis Sie es erneut versuchen oder schließen, oder bis {date}, wenn sein Inhalt gelöscht wird.",
+      "retry": "Erneut versuchen",
+      "close": "Schließen",
+      "heading": "Antworten, die nicht gelesen werden konnten",
+      "summary": "{failed, plural, one {# konnte nicht verarbeitet werden} other {# konnten nicht verarbeitet werden}}, {holding, plural, one {# hält SMS zurück} other {# halten SMS zurück}}.",
+      "retryAll": "Alle erneut versuchen"
     }
   }
 } as const;

@@ -4829,7 +4829,9 @@ export default {
       "leftSub": "These columns can’t be emptied, so what they hold stays:",
       "leftRows": "{count, plural, one {# row} other {# rows}}",
       "confirm": "Type the address to confirm",
-      "eraseForGood": "Erase for good"
+      "eraseForGood": "Erase for good",
+      "sharedTitle": "A number of theirs is also on someone else’s row",
+      "sharedBody": "{numbers}: a shared or passed-on line. Only their own text records go. The texts and conversations of the number with the other person stay."
     },
     "title": "Privacy & public pages",
     "tab": {
@@ -6706,7 +6708,12 @@ export default {
       "no": "No replies",
       "ok": "Replies and delivery reports can reach this server.",
       "problem": "This server has no public https address. It can send service texts, but it can’t receive STOP replies or delivery reports. Marketing texts are off.",
-      "yes": "Replies arrive"
+      "yes": "Replies arrive",
+      "waiting": "Not yet heard from",
+      "heardAt": "The first reply arrived on {date}.",
+      "waitingLine": "Set up, but no reply has arrived yet. Give your provider this server’s reply address, then send a test reply.",
+      "waitingWhy": "Until a reply arrives, texts give your phone or e-mail for stopping instead of “Reply STOP”, and marketing texts are off.",
+      "connectFirst": "Connect your provider below. Then this card gives the reply address to paste into it."
     },
     "reason": {
       "badNumber": "Not sent. The number can’t be read as a real phone number.",
@@ -6841,7 +6848,8 @@ export default {
       "asked": {
         "email": "By e-mail",
         "inPerson": "In person",
-        "phone": "By phone"
+        "phone": "By phone",
+        "paper": "On paper"
       },
       "line": "Nobody here gets any text from this business, including service texts.",
       "noConfirm": "No confirmation by text, because this person asked the business directly.",
@@ -6862,7 +6870,21 @@ export default {
         "provider": "Reported by the provider",
         "reply": "Replied STOP"
       },
-      "whyAny": "Why: any"
+      "whyAny": "Why: any",
+      "deskWhy": "Look up one number at a time. The whole list holds every app’s customers, so only whoever manages texts sees it.",
+      "lookup": "Look up",
+      "lookupNone": "This number is not on the list.",
+      "lookupFound": "On the list since {date}: {why}.",
+      "liftTitle": "Text an erased person again?",
+      "liftWhy": "Only for a number that changed hands or is shared, when its holder has agreed to texts again. Type the number, and the words they agreed to: they are kept under your name.",
+      "liftFailed": "This was not lifted. Check that the number is the one this entry was kept for.",
+      "liftPurpose": "They agreed to",
+      "liftService": "Service texts",
+      "liftMarketing": "Marketing texts",
+      "liftWords": "The words they agreed to",
+      "liftVersion": "Version of those words",
+      "lift": "Record the yes and lift",
+      "liftOpen": "Lift"
     },
     "tab": {
       "activity": "Activity",
@@ -7183,6 +7205,42 @@ export default {
         "confirmed": "Recorded under your name: they confirmed.",
         "superseded": "A newer answer replaced that yes. Record their yes again first."
       }
+    },
+    "address": {
+      "copied": "Copied to the clipboard.",
+      "twilio": {
+        "open": "In Twilio, open Phone Numbers, then Active numbers, and choose the number you send from.",
+        "paste": "Under Messaging, set “A message comes in” to Webhook, paste the reply address in full, including the part after #, and keep HTTP POST. Save.",
+        "service": "If the number belongs to a Messaging Service, paste it in that service’s Integration settings instead."
+      },
+      "test": "From your own phone, text any word to your number. When it arrives, this card says “Replies arrive”.",
+      "telnyx": {
+        "open": "In Telnyx, open Messaging and choose your messaging profile.",
+        "paste": "Under Inbound, paste the reply address as the webhook URL, with API version 2. Save."
+      },
+      "show": "Show the reply address",
+      "none": "There is no address to give yet: this server can’t be reached from outside.",
+      "inbound": "Reply address",
+      "copyInbound": "Copy the reply address",
+      "status": "Delivery reports (status callback)",
+      "copyStatus": "Copy the delivery report address",
+      "statusLine": "The same address. Adminium gives it with each text, so you paste it only where your provider asks for a status callback.",
+      "secret": "Keep this address to yourself and your provider. Anyone who has it can only knock: every message must still be signed by your provider."
+    },
+    "failed": {
+      "kind": {
+        "reply": "Reply",
+        "delivery": "Delivery report",
+        "optOut": "Opt-out from the provider"
+      },
+      "holds": "Holds texts to this number",
+      "when": "Received {date} · {reason}",
+      "until": "It may be a request to stop, so no text goes to this number until you try it again or close it, or until {date}, when its content is deleted.",
+      "retry": "Try again",
+      "close": "Close",
+      "heading": "Replies that could not be read",
+      "summary": "{failed, plural, one {# could not be acted on} other {# could not be acted on}}, {holding, plural, one {# holds texts} other {# hold texts}}.",
+      "retryAll": "Try all again"
     }
   }
 } as const;

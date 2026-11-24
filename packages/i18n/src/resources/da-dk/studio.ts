@@ -4829,7 +4829,9 @@ export default {
       "leftSub": "Disse kolonner kan ikke tømmes, så deres indhold bliver:",
       "leftRows": "{count, plural, one {# række} other {# rækker}}",
       "confirm": "Skriv adressen for at bekræfte",
-      "eraseForGood": "Slet for altid"
+      "eraseForGood": "Slet for altid",
+      "sharedTitle": "Et af deres numre står også på en anden persons række",
+      "sharedBody": "{numbers}: et delt eller videregivet nummer. Kun deres egne sms-data slettes. Nummerets sms’er og samtaler med den anden person bliver."
     },
     "title": "Privatliv & offentlige sider",
     "tab": {
@@ -6706,7 +6708,12 @@ export default {
       "no": "Ingen svar",
       "ok": "Svar og leveringsrapporter kan nå denne server.",
       "problem": "Denne server har ingen offentlig https-adresse. Den kan sende service-sms’er, men den kan ikke modtage STOP-svar eller leveringsrapporter. Markedsførings-sms’er er slået fra.",
-      "yes": "Svar kommer frem"
+      "yes": "Svar kommer frem",
+      "waiting": "Intet modtaget endnu",
+      "heardAt": "Det første svar kom den {date}.",
+      "waitingLine": "Sat op, men der er endnu ikke kommet noget svar. Giv din udbyder denne servers svaradresse, og send derefter et testsvar.",
+      "waitingWhy": "Indtil et svar kommer frem, giver sms’er din telefon eller e-mail til afmelding i stedet for “Svar STOP”, og markedsførings-sms’er er slået fra.",
+      "connectFirst": "Forbind din udbyder nedenfor. Derefter giver dette kort den svaradresse, du skal indsætte der."
     },
     "reason": {
       "badNumber": "Ikke sendt. Nummeret kan ikke læses som et rigtigt telefonnummer.",
@@ -6841,7 +6848,8 @@ export default {
       "asked": {
         "email": "På e-mail",
         "inPerson": "Personligt",
-        "phone": "I telefonen"
+        "phone": "I telefonen",
+        "paper": "På papir"
       },
       "line": "Ingen her får nogen sms fra denne virksomhed, heller ikke service-sms’er.",
       "noConfirm": "Ingen bekræftelse på sms, fordi personen bad virksomheden direkte.",
@@ -6862,7 +6870,21 @@ export default {
         "provider": "Meldt af udbyderen",
         "reply": "Svarede STOP"
       },
-      "whyAny": "Hvorfor: alle"
+      "whyAny": "Hvorfor: alle",
+      "deskWhy": "Slå ét nummer op ad gangen. Hele listen rummer alle apps’ kunder, så kun den, der administrerer sms’er, kan se den.",
+      "lookup": "Slå op",
+      "lookupNone": "Dette nummer er ikke på listen.",
+      "lookupFound": "På listen siden {date}: {why}.",
+      "liftTitle": "Sende sms’er til en slettet person igen?",
+      "liftWhy": "Kun for et nummer, der har skiftet ejer eller deles, når indehaveren igen har sagt ja til sms’er. Skriv nummeret og de ord, vedkommende sagde ja til: De gemmes under dit navn.",
+      "liftFailed": "Dette blev ikke ophævet. Tjek, at det er det nummer, denne post blev gemt for.",
+      "liftPurpose": "Har sagt ja til",
+      "liftService": "Service-sms’er",
+      "liftMarketing": "Markedsførings-sms’er",
+      "liftWords": "De ord, de sagde ja til",
+      "liftVersion": "Version af disse ord",
+      "lift": "Gem ja’et og ophæv",
+      "liftOpen": "Ophæv"
     },
     "tab": {
       "activity": "Aktivitet",
@@ -7183,6 +7205,42 @@ export default {
         "confirmed": "Registreret i dit navn: personen har bekræftet.",
         "superseded": "Et nyere svar har erstattet det ja. Registrér først deres ja igen."
       }
+    },
+    "address": {
+      "copied": "Kopieret til udklipsholderen.",
+      "twilio": {
+        "open": "Åbn Phone Numbers og derefter Active numbers i Twilio, og vælg det nummer, du sender fra.",
+        "paste": "Under Messaging skal du sætte “A message comes in” til Webhook, indsætte hele svaradressen, også delen efter #, og beholde HTTP POST. Gem.",
+        "service": "Hvis nummeret hører til en Messaging Service, skal du i stedet indsætte den i tjenestens Integration-indstillinger."
+      },
+      "test": "Send et vilkårligt ord til dit nummer fra din egen telefon. Når det kommer frem, står der “Svar kommer frem” på dette kort.",
+      "telnyx": {
+        "open": "Åbn Messaging i Telnyx, og vælg din beskedprofil.",
+        "paste": "Under Inbound skal du indsætte svaradressen som webhook-URL med API-version 2. Gem."
+      },
+      "show": "Vis svaradressen",
+      "none": "Der er endnu ingen adresse at give: Denne server kan ikke nås udefra.",
+      "inbound": "Svaradresse",
+      "copyInbound": "Kopiér svaradressen",
+      "status": "Leveringsrapporter (status callback)",
+      "copyStatus": "Kopiér adressen til leveringsrapporter",
+      "statusLine": "Den samme adresse. Adminium sender den med hver sms, så du indsætter den kun, hvor din udbyder beder om en status callback.",
+      "secret": "Hold denne adresse mellem dig og din udbyder. Den, der har den, kan kun banke på: Hver besked skal stadig være signeret af din udbyder."
+    },
+    "failed": {
+      "kind": {
+        "reply": "Svar",
+        "delivery": "Leveringsrapport",
+        "optOut": "Afmelding hos udbyderen"
+      },
+      "holds": "Holder sms’er til dette nummer tilbage",
+      "when": "Modtaget {date} · {reason}",
+      "until": "Det kan være en anmodning om at stoppe, så ingen sms går til dette nummer, før du prøver det igen eller lukker det, eller indtil {date}, hvor indholdet slettes.",
+      "retry": "Prøv igen",
+      "close": "Luk",
+      "heading": "Svar, der ikke kunne læses",
+      "summary": "{failed, plural, one {# kunne ikke behandles} other {# kunne ikke behandles}}, {holding, plural, one {# holder sms’er tilbage} other {# holder sms’er tilbage}}.",
+      "retryAll": "Prøv alle igen"
     }
   }
 } as const;

@@ -57,8 +57,12 @@ export interface InboundEventStore {
   stateOf(id: string): Promise<InboundState | null>;
   /** The event held under any of these digests of one provider id (one per key version). */
   byProviderIds(channel: string, account: string, digests: readonly string[]): Promise<InboundEventHead | null>;
-  /** Whether an event of these kinds from this person is unread: waiting, running, or failed with its body still here. */
+  /** Whether an event of these kinds from this person is waiting or running. A failed one is {@link InboundEventStore.failedFrom}'s. */
   anyWaiting(hashes: readonly AddressHash[], kinds: readonly string[]): Promise<boolean>;
+  /** This person's failed events of these kinds that still hold their body, oldest first, at most `limit`. */
+  failedFrom(hashes: readonly AddressHash[], kinds: readonly string[], limit: number): Promise<{ id: string; channel: string; kind: string; sealedBody: string }[]>;
+  /** The sealed bodies of these failed events, by id. */
+  failedBodies(ids: readonly string[]): Promise<Map<string, string>>;
   /** Takes a pending event, or one whose worker went quiet before `staleBefore`, which counts as a crash. Null when it is not there to take. */
   claim(id: string, at: number, staleBefore: number): Promise<InboundEventRecord | null>;
   /** Ends a claim. False when the claim was lost. A failed event keeps its body; every other state drops it. */
@@ -155,13 +159,35 @@ export function createInboundEventStore(meta: MetaDb): InboundEventStore {
       const row = await db
         .selectFrom(TABLE)
         .select('id')
-        // A failed event may be the STOP nobody could read, so it holds until staff retry or close it.
-        .where((eb) => eb.or([eb('state', 'in', ['pending', 'working']), eb.and([eb('state', '=', 'failed'), eb('sealedBody', 'is not', null)])]))
+        .where('state', 'in', ['pending', 'working'])
         .where('kind', 'in', [...kinds])
         .where((eb) => eb.or(hashes.map((one) => eb.and([eb('subjectHash', '=', one.hash), eb('keyVersion', '=', one.version)]))))
         .limit(1)
         .executeTakeFirst();
       return row !== undefined;
+    },
+
+    async failedFrom(hashes, kinds, limit) {
+      if (hashes.length === 0 || kinds.length === 0) return [];
+      const rows = await db
+        .selectFrom(TABLE)
+        .select(['id', 'channel', 'kind', 'sealedBody'])
+        .where('state', '=', 'failed')
+        .where('sealedBody', 'is not', null)
+        .where('kind', 'in', [...kinds])
+        .where((eb) => eb.or(hashes.map((one) => eb.and([eb('subjectHash', '=', one.hash), eb('keyVersion', '=', one.version)]))))
+        .orderBy('receivedAt', 'asc')
+        .limit(limit)
+        .execute();
+      return rows.flatMap((row) => (row.sealedBody === null ? [] : [{ id: row.id, channel: row.channel, kind: row.kind, sealedBody: row.sealedBody }]));
+    },
+
+    async failedBodies(ids) {
+      const out = new Map<string, string>();
+      if (ids.length === 0) return out;
+      const rows = await db.selectFrom(TABLE).select(['id', 'sealedBody']).where('id', 'in', [...ids]).where('state', '=', 'failed').execute();
+      for (const row of rows) if (row.sealedBody !== null) out.set(row.id, row.sealedBody);
+      return out;
     },
 
     async put(input) {

@@ -127,6 +127,8 @@ export const erasePreviewReply = z.object({
     ),
     stays: z.array(staysItem),
     left: z.array(leftColumn),
+    /** Their numbers another person's row still holds, masked: only what links to this person goes from the number's records. */
+    sharedNumbers: z.array(z.string()),
   }),
 });
 

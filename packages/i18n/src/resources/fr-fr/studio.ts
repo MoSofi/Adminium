@@ -4829,7 +4829,9 @@ export default {
       "leftSub": "Ces colonnes ne peuvent pas être vidées, leur contenu reste :",
       "leftRows": "{count, plural, one {# ligne} other {# lignes}}",
       "confirm": "Saisissez l’adresse pour confirmer",
-      "eraseForGood": "Effacer définitivement"
+      "eraseForGood": "Effacer définitivement",
+      "sharedTitle": "Un de ses numéros figure aussi sur la ligne de quelqu’un d’autre",
+      "sharedBody": "{numbers} : une ligne partagée ou transmise. Seules ses propres données SMS sont supprimées. Les SMS et conversations du numéro avec l’autre personne restent."
     },
     "title": "Confidentialité et pages publiques",
     "tab": {
@@ -6706,7 +6708,12 @@ export default {
       "no": "Pas de réponses",
       "ok": "Les réponses et les rapports de remise peuvent atteindre ce serveur.",
       "problem": "Ce serveur n’a pas d’adresse https publique. Il peut envoyer des SMS de service, mais il ne peut pas recevoir les réponses STOP ni les rapports de remise. Les SMS marketing sont désactivés.",
-      "yes": "Les réponses arrivent"
+      "yes": "Les réponses arrivent",
+      "waiting": "Rien reçu pour l’instant",
+      "heardAt": "La première réponse est arrivée le {date}.",
+      "waitingLine": "Configuré, mais aucune réponse n’est encore arrivée. Donnez à votre fournisseur l’adresse de réponse de ce serveur, puis envoyez une réponse de test.",
+      "waitingWhy": "Tant qu’aucune réponse n’arrive, les SMS donnent votre téléphone ou votre e-mail pour se désinscrire au lieu de « Répondez STOP », et les SMS marketing sont désactivés.",
+      "connectFirst": "Connectez votre fournisseur ci-dessous. Cette carte donnera ensuite l’adresse de réponse à y coller."
     },
     "reason": {
       "badNumber": "Non envoyé. Le numéro ne peut pas être lu comme un vrai numéro de téléphone.",
@@ -6841,7 +6848,8 @@ export default {
       "asked": {
         "email": "Par e-mail",
         "inPerson": "En personne",
-        "phone": "Par téléphone"
+        "phone": "Par téléphone",
+        "paper": "Sur papier"
       },
       "line": "Personne sur cette liste ne reçoit de SMS de cette entreprise, y compris les SMS de service.",
       "noConfirm": "Pas de confirmation par SMS, car cette personne s’est adressée directement à l’entreprise.",
@@ -6862,7 +6870,21 @@ export default {
         "provider": "Signalé par le fournisseur",
         "reply": "A répondu STOP"
       },
-      "whyAny": "Motif : tous"
+      "whyAny": "Motif : tous",
+      "deskWhy": "Recherchez un numéro à la fois. La liste complète contient les clients de toutes les applications : seule la personne qui gère les SMS la voit.",
+      "lookup": "Rechercher",
+      "lookupNone": "Ce numéro n’est pas sur la liste.",
+      "lookupFound": "Sur la liste depuis le {date} : {why}.",
+      "liftTitle": "Envoyer de nouveau des SMS à une personne effacée ?",
+      "liftWhy": "Uniquement pour un numéro qui a changé de main ou qui est partagé, quand son titulaire a de nouveau accepté les SMS. Saisissez le numéro et les mots qu’il a acceptés : ils sont conservés à votre nom.",
+      "liftFailed": "Rien n’a été levé. Vérifiez qu’il s’agit bien du numéro pour lequel cette entrée a été conservée.",
+      "liftPurpose": "A accepté",
+      "liftService": "SMS de service",
+      "liftMarketing": "SMS marketing",
+      "liftWords": "Les mots acceptés",
+      "liftVersion": "Version de ces mots",
+      "lift": "Enregistrer l’accord et lever",
+      "liftOpen": "Lever"
     },
     "tab": {
       "activity": "Activité",
@@ -7183,6 +7205,42 @@ export default {
         "confirmed": "Enregistré à votre nom : la personne a confirmé.",
         "superseded": "Une réponse plus récente a remplacé ce oui. Enregistrez d’abord de nouveau son oui."
       }
+    },
+    "address": {
+      "copied": "Copié dans le presse-papiers.",
+      "twilio": {
+        "open": "Dans Twilio, ouvrez « Phone Numbers », puis « Active numbers », et choisissez le numéro depuis lequel vous envoyez.",
+        "paste": "Sous « Messaging », réglez « A message comes in » sur « Webhook », collez l’adresse de réponse en entier, y compris la partie après #, et gardez HTTP POST. Enregistrez.",
+        "service": "Si le numéro fait partie d’un Messaging Service, collez-la plutôt dans les réglages Integration de ce service."
+      },
+      "test": "Depuis votre propre téléphone, envoyez n’importe quel mot à votre numéro. Dès son arrivée, cette carte indique « Les réponses arrivent ».",
+      "telnyx": {
+        "open": "Dans Telnyx, ouvrez « Messaging » et choisissez votre profil de messagerie.",
+        "paste": "Sous « Inbound », collez l’adresse de réponse comme URL de webhook, avec la version 2 de l’API. Enregistrez."
+      },
+      "show": "Afficher l’adresse de réponse",
+      "none": "Il n’y a pas encore d’adresse à donner : ce serveur n’est pas joignable de l’extérieur.",
+      "inbound": "Adresse de réponse",
+      "copyInbound": "Copier l’adresse de réponse",
+      "status": "Rapports de remise (status callback)",
+      "copyStatus": "Copier l’adresse des rapports de remise",
+      "statusLine": "La même adresse. Adminium la transmet avec chaque SMS : collez-la seulement là où votre fournisseur demande un status callback.",
+      "secret": "Gardez cette adresse pour vous et votre fournisseur. Qui l’a ne peut que frapper à la porte : chaque message doit quand même être signé par votre fournisseur."
+    },
+    "failed": {
+      "kind": {
+        "reply": "Réponse",
+        "delivery": "Rapport de remise",
+        "optOut": "Désinscription chez le fournisseur"
+      },
+      "holds": "Retient les SMS vers ce numéro",
+      "when": "Reçu le {date} · {reason}",
+      "until": "Il peut s’agir d’une demande d’arrêt : aucun SMS ne part vers ce numéro tant que vous ne l’avez pas réessayé ou fermé, ou jusqu’au {date}, quand son contenu est supprimé.",
+      "retry": "Réessayer",
+      "close": "Fermer",
+      "heading": "Réponses qui n’ont pas pu être lues",
+      "summary": "{failed, plural, one {# n’a pas pu être traité} other {# n’ont pas pu être traités}}, {holding, plural, one {# retient des SMS} other {# retiennent des SMS}}.",
+      "retryAll": "Tout réessayer"
     }
   }
 } as const;

@@ -40,11 +40,24 @@ export interface SmsAccount {
   timeoutRetry: 'never' | 'same-key';
 }
 
+/** Whether replies reach this server: `not-heard` until the first signed reply arrives at the address in use now. */
+export type ReplyState = ReachabilityState | 'not-connected' | 'key-unreadable' | 'not-heard';
+
 export interface SmsSetup {
   reachability: { state: ReachabilityState; origin: string | null; notPort443: boolean };
-  /** False: texts can go, but STOP replies and delivery reports cannot arrive. */
+  /** True once a signed reply has reached this server. Until then texts give the business's own contact for stopping, and marketing is off. */
   repliesCanArrive: boolean;
+  replies: { state: ReplyState; heardAt: number | null };
   account: SmsAccount | null;
+}
+
+/** The address to paste into the provider. It holds a secret part, so it is fetched only when a person asks for it. */
+export interface ReplyAddress {
+  provider: SmsProvider | null;
+  state: ReplyState;
+  heardAt: number | null;
+  inbound: string | null;
+  statusCallback: string | null;
 }
 
 export interface SendingLimits {
@@ -78,6 +91,27 @@ export interface Delivery {
   attempts: number;
   mayHaveGoneAt: number | null;
   source: { app: string; table: string } | null;
+}
+
+/** A reply or report the server took in and could not act on. Never a word of it. */
+export interface FailedReply {
+  id: string;
+  kind: string;
+  reason: string | null;
+  /** `+49 ••• 789`. */
+  masked: string | null;
+  receivedAt: number;
+  attempts: number;
+  retryable: boolean;
+  /** It may be a request to stop: texts to the number wait until it is tried again or closed. */
+  holds: boolean;
+  holdsUntil: number | null;
+}
+
+export interface FailedReplies {
+  data: FailedReply[];
+  next: string | null;
+  summary: { failed: number; holding: number; more: boolean };
 }
 
 export const STOP_REASONS = ['text-stop', 'provider-opt-out', 'staff', 'erased'] as const;
@@ -127,8 +161,14 @@ export const limitsKey = [...TEXTS_QUERY_KEY, 'limits'] as const;
 export const deliveriesKey = [...TEXTS_QUERY_KEY, 'deliveries'] as const;
 export const stopListKey = [...TEXTS_QUERY_KEY, 'stop-list'] as const;
 export const templatesKey = [...TEXTS_QUERY_KEY, 'templates'] as const;
+export const failedRepliesKey = [...TEXTS_QUERY_KEY, 'failed'] as const;
 
 export const smsSetupQuery = () => queryOptions({ queryKey: setupKey, queryFn: async () => (await api.get<{ data: SmsSetup }>(`${BASE}/setup`)).data });
+/** Audited on the server: called when a person opens the address, never on page load. */
+export async function fetchReplyAddress(): Promise<ReplyAddress> {
+  return (await api.get<{ data: ReplyAddress }>(`${BASE}/reply-address`)).data;
+}
+
 export const sendingLimitsQuery = () => queryOptions({ queryKey: limitsKey, queryFn: async () => (await api.get<{ data: SendingLimits }>(`${BASE}/sending-limits`)).data });
 
 export const deliveriesQuery = () =>
@@ -139,6 +179,9 @@ export const deliveriesQuery = () =>
       return page;
     },
   });
+
+/** Audited on the server. Read only by whoever manages texts. */
+export const failedRepliesQuery = () => queryOptions({ queryKey: failedRepliesKey, queryFn: async () => api.get<FailedReplies>(`${BASE}/inbound/failed`) });
 
 export const stopListQuery = () => queryOptions({ queryKey: stopListKey, queryFn: async () => api.get<{ data: StopEntry[]; next: string | null }>(`${BASE}/stop-list`) });
 export const textTemplatesQuery = () => queryOptions({ queryKey: templatesKey, queryFn: async () => api.get<{ data: TextTemplate[]; connected: boolean }>(`${BASE}/text-templates`) });
@@ -178,6 +221,28 @@ export async function settleDelivery(id: string, answer: 'went' | 'not-sent'): P
 
 export async function recordStop(phone: string, asked: StopAsked): Promise<{ data: StopEntry; added: boolean }> {
   return api.post<{ data: StopEntry; added: boolean }>(`${BASE}/stop-list`, { phone, asked });
+}
+
+/** One number on the do-not-text list, or null: what a desk may ask. Audited on the server, by the mask. */
+export async function lookupStop(phone: string): Promise<StopEntry | null> {
+  return (await api.post<{ data: StopEntry | null }>(`${BASE}/stop-list/lookup`, { phone })).data;
+}
+
+export async function retryFailed(id: string): Promise<void> {
+  await api.post(`${BASE}/inbound/failed/${encodeURIComponent(id)}/retry`);
+}
+
+export async function retryAllFailed(): Promise<void> {
+  await api.post(`${BASE}/inbound/failed/retry-all`);
+}
+
+export async function dismissFailed(id: string): Promise<void> {
+  await api.post(`${BASE}/inbound/failed/${encodeURIComponent(id)}/dismiss`);
+}
+
+/** An erased person's entry, lifted by the Super Admin with a fresh yes they gave a named person, in its words. */
+export async function liftErasedStop(id: string, body: { phone: string; purpose: 'text-service' | 'text-marketing'; wording: { text: string; version: string }; how: 'in-person' | 'phone' | 'email' | 'paper' }): Promise<void> {
+  await api.post(`${BASE}/stop-list/${encodeURIComponent(id)}/lift-erased`, body);
 }
 
 export async function removeStop(id: string): Promise<void> {

@@ -461,11 +461,14 @@ describe.each(META_ENGINES)('the send path and the inbound channel, wired — $n
       await wired.drain();
       expect(await consent.stop.has(DE, null)).toBe(true);
 
+      // One call a day of the look-back, then nothing until the next turn, which resumes from the mark: today alone.
+      const first = wired.listCalls.length;
+      expect(first).toBe(3);
       await wired.core.sweep();
-      expect(wired.listCalls).toHaveLength(1);
+      expect(wired.listCalls).toHaveLength(first);
       clock.now += SMS_SWEEP_CATCH_UP_EVERY_MS;
       await wired.core.sweep();
-      expect(wired.listCalls).toHaveLength(2);
+      expect(wired.listCalls).toHaveLength(first + 1);
       const db = handle.meta.db as unknown as Kysely<Record<string, Record<string, unknown>>>;
       expect(await db.selectFrom('adminium_inbound_events').select('id').execute()).toHaveLength(1);
     });

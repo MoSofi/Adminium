@@ -19,7 +19,7 @@ import { AppToastProvider } from '../../pages/toasts.js';
 import { PageActionsProvider, PageActionsSlot } from '../../shell/PageActionsProvider.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
 
-import type { Delivery, SendingLimits, SmsAccount, SmsSetup, StopEntry, TextTemplate } from './textsApi.js';
+import type { Delivery, FailedReplies, SendingLimits, SmsAccount, SmsSetup, StopEntry, TextTemplate } from './textsApi.js';
 import { TextsPage } from './TextsPage.js';
 
 const AT = Date.UTC(2026, 6, 28, 13, 5);
@@ -39,7 +39,7 @@ const account = (over: Partial<SmsAccount> = {}): SmsAccount => ({
   ...over,
 });
 
-const setupOf = (over: Partial<SmsSetup> = {}): SmsSetup => ({ reachability: { state: 'reachable', origin: 'https://admin.wren.example', notPort443: false }, repliesCanArrive: true, account: account(), ...over });
+const setupOf = (over: Partial<SmsSetup> = {}): SmsSetup => ({ reachability: { state: 'reachable', origin: 'https://admin.wren.example', notPort443: false }, repliesCanArrive: true, replies: { state: 'reachable', heardAt: AT }, account: account(), ...over });
 const limitsOf = (over: Partial<SendingLimits> = {}): SendingLimits => ({ dailyLimit: 500, serviceHours: { from: '08:00', to: '21:00' }, usedToday: 412, warnAt: 400, day: '2026-07-28', dayZone: 'UTC', ...over });
 
 const delivery = (over: Partial<Delivery>): Delivery => ({
@@ -95,6 +95,7 @@ interface Stage {
   stops?: StopEntry[];
   templates?: TextTemplate[];
   connected?: boolean;
+  failed?: FailedReplies;
   /** The answer to a write, by `METHOD /tail`; a list is used up in order. */
   replies?: Record<string, Reply | Reply[]>;
 }
@@ -115,6 +116,7 @@ function mount(stage: Stage = {}) {
       if (tail === 'GET /setup') return Promise.resolve(jsonResponse(200, { data: stage.setup ?? setupOf() }));
       if (tail === 'GET /sending-limits') return Promise.resolve(jsonResponse(200, { data: stage.limits ?? limitsOf() }));
       if (tail === 'GET /deliveries') return Promise.resolve(jsonResponse(200, { data: stage.deliveries ?? [], next: null }));
+      if (tail === 'GET /inbound/failed') return Promise.resolve(jsonResponse(200, stage.failed ?? { data: [], next: null, summary: { failed: 0, holding: 0, more: false } }));
       if (tail === 'GET /stop-list') return Promise.resolve(jsonResponse(200, { data: stage.stops ?? [], next: null }));
       if (tail === 'GET /text-templates') return Promise.resolve(jsonResponse(200, { data: stage.templates ?? [PREARRIVAL], connected: stage.connected ?? true }));
       return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: 'no', requestId: 'r' } }));
@@ -166,9 +168,32 @@ describe('the gate', () => {
 
 describe('Setup', () => {
   it('says plainly when replies cannot arrive, and keeps the provider card usable', async () => {
-    mount({ setup: setupOf({ repliesCanArrive: false, reachability: { state: 'not-set', origin: null, notPort443: false }, account: null }) });
+    mount({ setup: setupOf({ repliesCanArrive: false, replies: { state: 'not-set', heardAt: null }, reachability: { state: 'not-set', origin: null, notPort443: false }, account: null }) });
     expect((await screen.findByTestId('texts-reach-problem')).textContent).toContain('can’t receive STOP replies or delivery reports. Marketing texts are off.');
     expect(screen.getByTestId('texts-connect')).toBeTruthy();
+  });
+
+  it('says “not yet heard from” until a reply arrives, and gives the address only when asked', async () => {
+    const user = userEvent.setup();
+    const address = 'https://admin.wren.example/api/v1/inbound/sms/twilio/made-up-door#rp=all&rc=5';
+    const { calls } = mount({
+      setup: setupOf({ repliesCanArrive: false, replies: { state: 'not-heard', heardAt: null } }),
+      replies: { 'GET /reply-address': { status: 200, body: { data: { provider: 'twilio', state: 'not-heard', heardAt: null, inbound: address, statusCallback: address } } } },
+    });
+    const card = await screen.findByTestId('texts-reach');
+    expect(card.textContent).toContain('Not yet heard from');
+    expect(screen.getByTestId('texts-reach-waiting').textContent).toContain('marketing texts are off');
+    expect(calls.some((call) => call.url.includes('/reply-address'))).toBe(false);
+    await user.click(screen.getByTestId('texts-address-show'));
+    expect((await screen.findByTestId('texts-address-inbound')).textContent).toBe(address);
+    expect(screen.getByTestId('texts-address-steps-twilio').textContent).toContain('A message comes in');
+    expect(calls.filter((call) => call.url.includes('/reply-address'))).toHaveLength(1);
+  });
+
+  it('says replies arrive once one has, with the day the first came', async () => {
+    mount();
+    expect((await screen.findByTestId('texts-reach')).textContent).toContain('Replies arrive');
+    expect(screen.getByTestId('texts-reach-heard')).toBeTruthy();
   });
 
   it('connects Twilio: secrets are password fields, and the keys go out once', async () => {
@@ -392,6 +417,35 @@ describe('Activity', () => {
     await waitFor(() => expect(writes()).toEqual([{ method: 'POST', url: '/api/v1/sms/deliveries/u1/settle', body: { answer: 'not-sent' } }]));
   });
 
+  it('shows the owner the replies that could not be read, says which hold texts, and tries one again', async () => {
+    const user = userEvent.setup();
+    const failed: FailedReplies = {
+      data: [
+        { id: 'ibe_1', kind: 'reply', reason: 'handler-error', masked: '+49 ••• 789', receivedAt: AT, attempts: 5, retryable: true, holds: false, holdsUntil: null },
+        { id: 'ibe_2', kind: 'reply', reason: 'store-unreachable', masked: '+1 ••• 169', receivedAt: AT, attempts: 5, retryable: true, holds: true, holdsUntil: AT + 30 * 86_400_000 },
+      ],
+      next: null,
+      summary: { failed: 2, holding: 1, more: false },
+    };
+    const { writes } = mount({ failed, deliveries: rows, replies: { 'POST /inbound/failed/ibe_1/retry': { status: 200, body: { data: { retried: true } } } } });
+    await openTab(user, 'Activity');
+    const card = await screen.findByTestId('texts-failed');
+    expect(within(card).getAllByTestId('texts-failed-row')).toHaveLength(2);
+    expect(within(card).getByTestId('texts-failed-until').textContent).toContain('no text goes to this number');
+    expect(card.textContent).not.toContain('handler-error-body');
+    await user.click(within(card).getAllByTestId('texts-failed-retry')[0]!);
+    await waitFor(() => expect(writes()).toEqual([{ method: 'POST', url: '/api/v1/sms/inbound/failed/ibe_1/retry', body: undefined }]));
+  });
+
+  it('shows no failed card when nothing failed, and never asks for it as a desk', async () => {
+    const user = userEvent.setup();
+    const { calls } = mount({ actions: ['privacy.people'], deliveries: rows });
+    await openTab(user, 'Activity');
+    await screen.findByTestId('texts-activity');
+    expect(screen.queryByTestId('texts-failed')).toBeNull();
+    expect(calls.some((call) => call.url.includes('/inbound/failed'))).toBe(false);
+  });
+
   it('shows a desk “ask the owner” and no way to settle', async () => {
     const user = userEvent.setup();
     mount({ actions: ['privacy.people'], deliveries: rows });
@@ -413,6 +467,33 @@ describe('the do-not-text list', () => {
     mount({ stops: STOPS, roles: ['super-admin'] });
     await openTab(user, 'Do-not-text list');
     expect(await screen.findAllByTestId('texts-stop-remove')).toHaveLength(2);
+  });
+
+  it('lets the Super Admin lift an erased entry with the number typed again and the words of a fresh yes', async () => {
+    const user = userEvent.setup();
+    const { writes } = mount({ stops: STOPS, roles: ['super-admin'], replies: { 'POST /stop-list/s6/lift-erased': { status: 204, body: null } } });
+    await openTab(user, 'Do-not-text list');
+    await user.click(await screen.findByTestId('texts-stop-lift'));
+    await user.type(screen.getByTestId('texts-stop-lift-phone'), '+12075550111');
+    await user.type(screen.getByTestId('texts-stop-lift-words'), 'Text me about my lessons');
+    await user.type(screen.getByTestId('texts-stop-lift-version'), 'v2');
+    await user.click(screen.getByTestId('texts-stop-lift-yes'));
+    await waitFor(() => expect(writes()).toEqual([{ method: 'POST', url: '/api/v1/sms/stop-list/s6/lift-erased', body: { phone: '+12075550111', purpose: 'text-service', how: 'in-person', wording: { text: 'Text me about my lessons', version: 'v2' } } }]));
+  });
+
+  it('gives a desk a look-up of one number, never the list', async () => {
+    const user = userEvent.setup();
+    const { calls } = mount({ actions: ['privacy.people'], stops: STOPS, replies: { 'POST /stop-list/lookup': [{ status: 200, body: { data: STOPS[0] } }, { status: 200, body: { data: null } }] } });
+    await openTab(user, 'Do-not-text list');
+    await screen.findByTestId('texts-stop-desk');
+    expect(screen.queryByTestId('texts-stop-row')).toBeNull();
+    await user.type(screen.getByTestId('texts-stop-lookup-phone'), '+12075550169');
+    await user.click(screen.getByTestId('texts-stop-lookup'));
+    expect((await screen.findByTestId('texts-stop-lookup-found')).textContent).toContain('On the list since');
+    await user.click(screen.getByTestId('texts-stop-lookup'));
+    expect(await screen.findByTestId('texts-stop-lookup-none')).toBeTruthy();
+    expect(calls.some((call) => call.method === 'GET' && call.url.includes('/stop-list'))).toBe(false);
+    expect(calls.filter((call) => call.url.endsWith('/stop-list/lookup')).map((call) => call.body)).toEqual([{ phone: '+12075550169' }, { phone: '+12075550169' }]);
   });
 
   it('lets a desk record a stop request made in person', async () => {

@@ -38147,6 +38147,14 @@
     "status": "mt",
     "srcHash": "230aba2a132f"
   },
+  "studio.privacy.erase.sharedBody": {
+    "status": "mt",
+    "srcHash": "b130dba7a415"
+  },
+  "studio.privacy.erase.sharedTitle": {
+    "status": "mt",
+    "srcHash": "f96a0e617af4"
+  },
   "studio.privacy.erase.stays.automationRuns": {
     "status": "mt",
     "srcHash": "6668e6a5beeb"
@@ -45075,6 +45083,66 @@
     "status": "mt",
     "srcHash": "7661e6591fd9"
   },
+  "studio.texts.address.copied": {
+    "status": "mt",
+    "srcHash": "fee2a7f7af20"
+  },
+  "studio.texts.address.copyInbound": {
+    "status": "mt",
+    "srcHash": "e0d1a5245ab5"
+  },
+  "studio.texts.address.copyStatus": {
+    "status": "mt",
+    "srcHash": "8deca3265c7b"
+  },
+  "studio.texts.address.inbound": {
+    "status": "mt",
+    "srcHash": "9358c1b7fdad"
+  },
+  "studio.texts.address.none": {
+    "status": "mt",
+    "srcHash": "9eda38b22612"
+  },
+  "studio.texts.address.secret": {
+    "status": "mt",
+    "srcHash": "d36e9e03c362"
+  },
+  "studio.texts.address.show": {
+    "status": "mt",
+    "srcHash": "b015e1e84919"
+  },
+  "studio.texts.address.status": {
+    "status": "mt",
+    "srcHash": "2495407a707d"
+  },
+  "studio.texts.address.statusLine": {
+    "status": "mt",
+    "srcHash": "957b52cdc494"
+  },
+  "studio.texts.address.telnyx.open": {
+    "status": "mt",
+    "srcHash": "5129a491a5f5"
+  },
+  "studio.texts.address.telnyx.paste": {
+    "status": "mt",
+    "srcHash": "2898f3f82c5b"
+  },
+  "studio.texts.address.test": {
+    "status": "mt",
+    "srcHash": "43f2752a5782"
+  },
+  "studio.texts.address.twilio.open": {
+    "status": "mt",
+    "srcHash": "c07399a6b30e"
+  },
+  "studio.texts.address.twilio.paste": {
+    "status": "mt",
+    "srcHash": "f5250e0633e6"
+  },
+  "studio.texts.address.twilio.service": {
+    "status": "mt",
+    "srcHash": "b08d0f190185"
+  },
   "studio.texts.askOwner.body": {
     "status": "mt",
     "srcHash": "0f440d37e7d8"
@@ -45794,6 +45862,50 @@
   "studio.texts.editor.words": {
     "status": "mt",
     "srcHash": "4cb5a4878d48"
+  },
+  "studio.texts.failed.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "studio.texts.failed.heading": {
+    "status": "mt",
+    "srcHash": "17dbe7113473"
+  },
+  "studio.texts.failed.holds": {
+    "status": "mt",
+    "srcHash": "3fb4b0e85542"
+  },
+  "studio.texts.failed.kind.delivery": {
+    "status": "mt",
+    "srcHash": "ee20dc641033"
+  },
+  "studio.texts.failed.kind.optOut": {
+    "status": "mt",
+    "srcHash": "8930f42a0ddc"
+  },
+  "studio.texts.failed.kind.reply": {
+    "status": "mt",
+    "srcHash": "6c2bb735a46a"
+  },
+  "studio.texts.failed.retry": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "studio.texts.failed.retryAll": {
+    "status": "mt",
+    "srcHash": "496a6f27c559"
+  },
+  "studio.texts.failed.summary": {
+    "status": "mt",
+    "srcHash": "d9e107ec7b61"
+  },
+  "studio.texts.failed.until": {
+    "status": "mt",
+    "srcHash": "2d127dfd3491"
+  },
+  "studio.texts.failed.when": {
+    "status": "mt",
+    "srcHash": "bd2fe95ab7e0"
   },
   "studio.texts.field.accountSid": {
     "status": "src",
@@ -46531,9 +46643,17 @@
     "status": "mt",
     "srcHash": "bd2dba42d865"
   },
+  "studio.texts.reach.connectFirst": {
+    "status": "mt",
+    "srcHash": "343fdcee3cf8"
+  },
   "studio.texts.reach.heading": {
     "status": "mt",
     "srcHash": "2e4b6b4c7c13"
+  },
+  "studio.texts.reach.heardAt": {
+    "status": "mt",
+    "srcHash": "2b4d7e57db96"
   },
   "studio.texts.reach.no": {
     "status": "mt",
@@ -46546,6 +46666,18 @@
   "studio.texts.reach.problem": {
     "status": "mt",
     "srcHash": "59145bbd4f94"
+  },
+  "studio.texts.reach.waiting": {
+    "status": "mt",
+    "srcHash": "9b413cf2321e"
+  },
+  "studio.texts.reach.waitingLine": {
+    "status": "mt",
+    "srcHash": "9186a1d4cb79"
+  },
+  "studio.texts.reach.waitingWhy": {
+    "status": "mt",
+    "srcHash": "472d8d82a13f"
   },
   "studio.texts.reach.yes": {
     "status": "mt",
@@ -46979,6 +47111,10 @@
     "status": "mt",
     "srcHash": "fb95e850a658"
   },
+  "studio.texts.stop.asked.paper": {
+    "status": "mt",
+    "srcHash": "370e3f5868d5"
+  },
   "studio.texts.stop.asked.phone": {
     "status": "mt",
     "srcHash": "0737ba24a8bd"
@@ -47014,6 +47150,10 @@
   "studio.texts.stop.count": {
     "status": "mt",
     "srcHash": "213994eef1d3"
+  },
+  "studio.texts.stop.deskWhy": {
+    "status": "mt",
+    "srcHash": "f47324421d27"
   },
   "studio.texts.stop.empty": {
     "status": "mt",
@@ -47051,9 +47191,61 @@
     "status": "mt",
     "srcHash": "e27e611ac70c"
   },
+  "studio.texts.stop.lift": {
+    "status": "mt",
+    "srcHash": "31b8605eb679"
+  },
+  "studio.texts.stop.liftFailed": {
+    "status": "mt",
+    "srcHash": "2ee4b2bdbb6a"
+  },
+  "studio.texts.stop.liftMarketing": {
+    "status": "mt",
+    "srcHash": "20f46524f9e8"
+  },
+  "studio.texts.stop.liftOpen": {
+    "status": "mt",
+    "srcHash": "efd0976a0ad5"
+  },
+  "studio.texts.stop.liftPurpose": {
+    "status": "mt",
+    "srcHash": "373f650885f5"
+  },
+  "studio.texts.stop.liftService": {
+    "status": "mt",
+    "srcHash": "f72a083dcc7a"
+  },
+  "studio.texts.stop.liftTitle": {
+    "status": "mt",
+    "srcHash": "72935eec44cf"
+  },
+  "studio.texts.stop.liftVersion": {
+    "status": "mt",
+    "srcHash": "3f81c0249b32"
+  },
+  "studio.texts.stop.liftWhy": {
+    "status": "mt",
+    "srcHash": "0bf1edce8815"
+  },
+  "studio.texts.stop.liftWords": {
+    "status": "mt",
+    "srcHash": "f9bcae8ce117"
+  },
   "studio.texts.stop.line": {
     "status": "mt",
     "srcHash": "ec1e09f6f3a6"
+  },
+  "studio.texts.stop.lookup": {
+    "status": "mt",
+    "srcHash": "6d7049b88568"
+  },
+  "studio.texts.stop.lookupFound": {
+    "status": "mt",
+    "srcHash": "b4abb1713d1d"
+  },
+  "studio.texts.stop.lookupNone": {
+    "status": "mt",
+    "srcHash": "14dbf517d05e"
   },
   "studio.texts.stop.noConfirm": {
     "status": "mt",

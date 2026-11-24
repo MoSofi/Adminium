@@ -2,7 +2,9 @@
 /**
  * Texts → Setup (comp `Texts Setup`, X03–X20).
  *
- *  - Can replies reach this server: the payments page's reach card shell.
+ *  - Can replies reach this server: the payments page's reach card shell. It
+ *    says "Not yet heard from" until a signed reply arrives, and gives the
+ *    reply address to paste into the provider, with each provider's steps.
  *  - The provider: Twilio or Telnyx, one per server. A guided card with its
  *    steps, the key fields, and the check. A key the provider did not accept
  *    is never saved, and the saved one stays while a check runs. Keys that
@@ -15,12 +17,13 @@
  *  - Where you can text, a test text, the daily limit and the sending hours.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CircleCheckBig, CircleX, Clock, FlaskConical, Gauge, Globe, KeyRound, MessageSquareText, PlugZap, RefreshCw, Search, Send, Unplug } from 'lucide-react';
+import { CircleCheckBig, CircleX, Clock, Copy, FlaskConical, Gauge, Globe, KeyRound, Link2, MessageSquareText, PlugZap, RefreshCw, Search, Send, Unplug } from 'lucide-react';
 import { useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { Alert, Badge, Button, Card, CardBody, CardHeader, FormField, IconTile, Input, Modal, ModalBody, ModalFooter, ModalHeader, ProgressBar, Select, Spinner } from '@adminium/ui';
+import { Alert, Badge, Button, Card, CardBody, CardHeader, FormField, IconButton, IconTile, Input, Modal, ModalBody, ModalFooter, ModalHeader, ProgressBar, Select, Spinner } from '@adminium/ui';
 
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
+import { useAppToasts } from '../../pages/toasts.js';
 import { ReachCard, reachToneOf } from '../reach/ReachCard.js';
 import { OutLink } from '../shipping/shippingWords.js';
 import { TEXT_COUNTRIES, countryName, countryNote, marketingAllowed } from './textCountries.js';
@@ -30,6 +33,7 @@ import {
   changedAccountOf,
   checkAccount,
   disconnectAccount,
+  fetchReplyAddress,
   limitsKey,
   refusalReason,
   saveAccount,
@@ -40,6 +44,7 @@ import {
   setupKey,
   smsSetupQuery,
   type AccountKeys,
+  type ReplyAddress,
   type SenderKind,
   type SmsAccount,
   type SmsProvider,
@@ -56,24 +61,149 @@ export const TEST_TEXT = 'Test text from Adminium. Your text message connection 
 
 // ─── Can replies reach this server ─────────────────────────────────────────
 
+/** A mono box with a copy button. A refused clipboard leaves the text on screen to select by hand. */
+function CopyBox({ value, label, testId }: { value: string; label: string; testId: string }): ReactNode {
+  const toasts = useAppToasts();
+  return (
+    <div className="flex items-center gap-2.5 rounded-[10px] border border-border-strong bg-surface-2 py-2 pe-2 ps-3">
+      <code dir="ltr" data-testid={testId} className="min-w-0 flex-1 font-mono text-[12px] [overflow-wrap:anywhere]">
+        {value}
+      </code>
+      <IconButton
+        variant="bordered"
+        size="md"
+        label={label}
+        onClick={() =>
+          void navigator.clipboard.writeText(value).then(
+            () => toasts.push({ variant: 'success', title: t('studio:texts.address.copied', 'Copied to the clipboard.') }),
+            () => {
+              // Left on screen to select by hand.
+            },
+          )
+        }
+      >
+        <Copy />
+      </IconButton>
+    </div>
+  );
+}
+
+/** Where the business pastes the address, step by step, in its own provider's words. */
+function addressSteps(provider: SmsProvider): string[] {
+  return provider === 'twilio'
+    ? [
+        t('studio:texts.address.twilio.open', 'In Twilio, open Phone Numbers, then Active numbers, and choose the number you send from.'),
+        t('studio:texts.address.twilio.paste', 'Under Messaging, set “A message comes in” to Webhook, paste the reply address in full, including the part after #, and keep HTTP POST. Save.'),
+        t('studio:texts.address.twilio.service', 'If the number belongs to a Messaging Service, paste it in that service’s Integration settings instead.'),
+        t('studio:texts.address.test', 'From your own phone, text any word to your number. When it arrives, this card says “Replies arrive”.'),
+      ]
+    : [
+        t('studio:texts.address.telnyx.open', 'In Telnyx, open Messaging and choose your messaging profile.'),
+        t('studio:texts.address.telnyx.paste', 'Under Inbound, paste the reply address as the webhook URL, with API version 2. Save.'),
+        t('studio:texts.address.test', 'From your own phone, text any word to your number. When it arrives, this card says “Replies arrive”.'),
+      ];
+}
+
+/**
+ * The address holds a secret part, so it is fetched only when a person asks,
+ * and each showing leaves an audit row. Adminium does not set it in the
+ * provider: the account is the business's own.
+ */
+function ReplyAddressPanel({ provider }: { provider: SmsProvider }): ReactNode {
+  const [shown, setShown] = useState<ReplyAddress | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  async function open() {
+    setBusy(true);
+    setFailed(false);
+    try {
+      setShown(await fetchReplyAddress());
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+  const links = TEXTS_LINKS[provider];
+  if (shown === null || shown.inbound === null) {
+    return (
+      <div className="flex flex-col gap-2">
+        <div>
+          <Button variant="secondary" loading={busy} iconLeft={<Link2 className="size-4" />} onClick={() => void open()} data-testid="texts-address-show">
+            {t('studio:texts.address.show', 'Show the reply address')}
+          </Button>
+        </div>
+        {failed ? <Alert tone="danger" role="alert" title={t('studio:texts.loadFailed', 'This could not be loaded')} /> : null}
+        {shown !== null && shown.inbound === null ? <p className="text-[12.5px] text-fg-muted">{t('studio:texts.address.none', 'There is no address to give yet: this server can’t be reached from outside.')}</p> : null}
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-3" data-testid="texts-address">
+      <div className="flex flex-col gap-1.5">
+        <span className={caption}>{t('studio:texts.address.inbound', 'Reply address')}</span>
+        <CopyBox value={shown.inbound} label={t('studio:texts.address.copyInbound', 'Copy the reply address')} testId="texts-address-inbound" />
+      </div>
+      {shown.statusCallback === null ? null : (
+        <div className="flex flex-col gap-1.5">
+          <span className={caption}>{t('studio:texts.address.status', 'Delivery reports (status callback)')}</span>
+          <CopyBox value={shown.statusCallback} label={t('studio:texts.address.copyStatus', 'Copy the delivery report address')} testId="texts-address-status" />
+          <span className="text-[12px] text-fg-muted">{t('studio:texts.address.statusLine', 'The same address. Adminium gives it with each text, so you paste it only where your provider asks for a status callback.')}</span>
+        </div>
+      )}
+      <ol className="flex flex-col gap-2 text-[12.5px]" data-testid={`texts-address-steps-${provider}`}>
+        {addressSteps(provider).map((line, index) => (
+          <li key={line} className="flex gap-2.5">
+            <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-3 font-mono text-[11px] font-semibold">
+              {index + 1}
+            </span>
+            <span>{line}</span>
+          </li>
+        ))}
+      </ol>
+      <OutLink href={links.senders}>{provider === 'twilio' ? t('studio:texts.steps.openConsole', 'Open the console') : t('studio:texts.steps.openPortal', 'Open the portal')}</OutLink>
+      <p className="text-[12px] text-fg-muted">{t('studio:texts.address.secret', 'Keep this address to yourself and your provider. Anyone who has it can only knock: every message must still be signed by your provider.')}</p>
+    </div>
+  );
+}
+
 function RepliesCard({ setup }: { setup: SmsSetup }) {
-  const ok = setup.repliesCanArrive;
+  const heard = setup.repliesCanArrive;
+  const provider = setup.account?.provider ?? null;
+  const waiting = !heard && setup.replies.state === 'not-heard' && provider !== null;
+  const locale = activeLocale();
   return (
     <ReachCard
       testId="texts-reach"
       state={setup.reachability.state}
-      tone={reachToneOf(setup.reachability.state)}
+      tone={waiting ? 'warn' : reachToneOf(setup.reachability.state)}
       icon={<Globe />}
       heading={t('studio:texts.reach.heading', 'Can replies reach this server?')}
-      badge={ok ? t('studio:texts.reach.yes', 'Replies arrive') : t('studio:texts.reach.no', 'No replies')}
+      badge={heard ? t('studio:texts.reach.yes', 'Replies arrive') : waiting ? t('studio:texts.reach.waiting', 'Not yet heard from') : t('studio:texts.reach.no', 'No replies')}
     >
-      {ok ? (
-        <p data-testid="texts-reach-ok">
-          {t('studio:texts.reach.ok', 'Replies and delivery reports can reach this server.')}{' '}
-          <bdi dir="ltr" className="font-mono text-[12.5px]">
-            {setup.reachability.origin}
-          </bdi>
-        </p>
+      {heard ? (
+        <div className="flex flex-col gap-3">
+          <p data-testid="texts-reach-ok">
+            {t('studio:texts.reach.ok', 'Replies and delivery reports can reach this server.')}{' '}
+            <bdi dir="ltr" className="font-mono text-[12.5px]">
+              {setup.reachability.origin}
+            </bdi>
+          </p>
+          {setup.replies.heardAt === null ? null : (
+            <p className="text-[12.5px] text-fg-muted" data-testid="texts-reach-heard">
+              {t('studio:texts.reach.heardAt', 'The first reply arrived on {date}.', { date: stamp(setup.replies.heardAt, locale) })}
+            </p>
+          )}
+          {provider === null ? null : <ReplyAddressPanel provider={provider} />}
+        </div>
+      ) : waiting ? (
+        <div className="flex flex-col gap-3" data-testid="texts-reach-waiting">
+          <p className="font-semibold">{t('studio:texts.reach.waitingLine', 'Set up, but no reply has arrived yet. Give your provider this server’s reply address, then send a test reply.')}</p>
+          <p className="text-[12.5px] text-fg-muted">{t('studio:texts.reach.waitingWhy', 'Until a reply arrives, texts give your phone or e-mail for stopping instead of “Reply STOP”, and marketing texts are off.')}</p>
+          <ReplyAddressPanel provider={provider} />
+        </div>
+      ) : setup.reachability.state === 'reachable' ? (
+        <p data-testid="texts-reach-connect-first">{t('studio:texts.reach.connectFirst', 'Connect your provider below. Then this card gives the reply address to paste into it.')}</p>
       ) : (
         <p className="font-semibold" data-testid="texts-reach-problem">
           {t('studio:texts.reach.problem', 'This server has no public https address. It can send service texts, but it can’t receive STOP replies or delivery reports. Marketing texts are off.')}

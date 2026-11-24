@@ -26,7 +26,9 @@ import { createSmsService, type SmsService } from '../src/sms/index.js';
 import { createTextSendPath, createTextSendStore, SMS_SEND_ATTEMPTS, textPhoneKeys, type SmsSendPayload, type TextPrepareInput, type TextSendPath, type TextSendStore } from '../src/sms/send/index.js';
 import {
   createTextThreads,
+  NOT_READ_DAILY_MAX,
   NOT_READ_EVERY_MS,
+  OFF_APP_HOLDS_MS,
   NOT_READ_LANGUAGES,
   notReadText,
   TEXT_ANSWER_WINDOW_MS,
@@ -366,6 +368,8 @@ describe.each(META_ENGINES)('two-way text conversations — $name', (engine) => 
       const entries = await auditRepo(handle.meta).list({ limit: 50 });
       const actions = entries.map((entry) => entry.action);
       expect(actions).toEqual(expect.arrayContaining(['texts.threads.read', 'texts.thread.read', 'texts.thread.replied']));
+      // The list's row names the threads it showed.
+      expect(JSON.stringify(entries.find((entry) => entry.action === 'texts.threads.read'))).toContain(id);
       for (const entry of entries.filter((one) => one.action.startsWith('texts.'))) expect(entry.actorId).toBe(s.people.bistroReplier.id);
       const text = await auditText();
       expect(text).toContain('+49 ••• 789');
@@ -505,7 +509,8 @@ describe.each(META_ENGINES)('two-way text conversations — $name', (engine) => 
       const s = await stack();
       await s.reply(STRANGER, 'Hello?');
       expect(await raw('adminium_text_threads')).toEqual([]);
-      expect(s.jobs).toHaveLength(1);
+      // Nobody here ever texted that number: whoever writes from it gets no paid answer.
+      expect(s.jobs).toHaveLength(0);
       const switches = await s.call(s.people.bistroReplier, 'GET', '/texts/replies');
       expect((switches.json() as { data: unknown }).data).toMatchObject({ noApp: 'off', apps: [{ app: 'bistro', replies: 'on', starts: 'on' }, { app: 'clinic', replies: 'off', starts: 'off' }] });
       expect((await s.call(s.people.bistroDesk, 'PUT', '/texts/replies/clinic', { replies: 'on' })).statusCode).toBe(403);
@@ -515,6 +520,78 @@ describe.each(META_ENGINES)('two-way text conversations — $name', (engine) => 
       expect(await auditText()).toContain('texts.replies.switched');
       await s.reply(STRANGER, 'Hello again?');
       expect(await raw('adminium_text_threads')).toHaveLength(1);
+    });
+  });
+
+  describe('"not read" answers cannot be farmed', () => {
+    it.runIf(engine.available)('at most twenty go in a day, and texts the business sends still go', async () => {
+      const s = await stack();
+      const numbers = Array.from({ length: NOT_READ_DAILY_MAX + 5 }, (_, i) => `+49151200000${String(i).padStart(2, '0')}`);
+      for (const number of numbers) await s.appText(number, 'clinic', 'visit-reminder');
+      for (const number of numbers) await s.reply(number, 'Hello?');
+      expect(s.jobs).toHaveLength(NOT_READ_DAILY_MAX);
+      await s.handOverAll();
+      // A reminder that day still goes.
+      await s.appText(GUEST, 'bistro', 'table-ready');
+      expect(new URLSearchParams(s.provider.posts.at(-1)!.body).get('To')).toBe(GUEST);
+      // A day on, the next one is answered again.
+      clock.now += 24 * 60 * 60 * 1000 + 1000;
+      await s.appText(STRANGER, 'clinic', 'visit-reminder');
+      await s.reply(STRANGER, 'Hello?');
+      expect(s.jobs).toHaveLength(1);
+    });
+
+    it.runIf(engine.available)('keeps to the service hours: written at three in the morning, answered when they open', async () => {
+      const s = await stack();
+      await s.appText(PATIENT, 'clinic', 'visit-reminder');
+      clock.now = Date.parse('2026-06-16T03:00:00Z');
+      await s.reply(PATIENT, 'Hello?');
+      expect(s.jobs).toHaveLength(1);
+      expect(s.jobs[0]!.runAt).toBe(Date.parse('2026-06-16T08:00:00Z'));
+    });
+  });
+
+  describe('whose conversation a reply joins', () => {
+    it.runIf(engine.available)('another app\'s one line cannot pull a patient\'s reply out of a clinic whose replies are off', async () => {
+      const s = await stack();
+      await s.appText(PATIENT, 'clinic', 'visit-reminder');
+      clock.now += 60_000;
+      await s.appText(PATIENT, 'bistro', 'table-ready');
+      await s.reply(PATIENT, 'About my visit: the rash is worse.');
+      expect(await raw('adminium_text_threads')).toEqual([]);
+      expect(await raw('adminium_text_thread_messages')).toEqual([]);
+      // Once the clinic has not texted them for a month, the bistro's own conversation takes their replies.
+      clock.now += OFF_APP_HOLDS_MS + 60_000;
+      await s.appText(PATIENT, 'bistro', 'table-ready');
+      await s.reply(PATIENT, 'Table for two, please.');
+      expect(await raw('adminium_text_threads')).toEqual([expect.objectContaining({ appKey: 'bistro' })]);
+    });
+  });
+
+  describe('a reply the catch-up found', () => {
+    const found = (s: Stack, from: string, to: string, text = 'Hello') => s.threads.received({ eventId: `ibe_${randomUUID().slice(0, 12)}`, from, to, text, kind: 'message', at: clock.now, answered: false, via: 'catch-up' });
+
+    const open = () => stack({ apps: [{ key: 'bistro', name: 'Bistro', replies: 'on' }] });
+
+    it.runIf(engine.available)('to another number of the account, from someone never texted, is not this business\'s: nothing is kept', async () => {
+      const s = await open();
+      expect(await found(s, GUEST, '+14155550999')).toBe('not-ours');
+      expect(await raw('adminium_text_threads')).toEqual([]);
+      // To the business's own sender, it is kept.
+      expect(await found(s, GUEST, FROM)).toBe('kept');
+    });
+
+    it.runIf(engine.available)('from someone this business texted is kept, whichever number it reached', async () => {
+      const s = await open();
+      await s.appText(GUEST, 'bistro', 'table-ready');
+      expect(await found(s, GUEST, '+14155550999')).toBe('kept');
+    });
+
+    it.runIf(engine.available)('is never answered "not read", days later, at any hour', async () => {
+      const s = await stack();
+      await s.appText(PATIENT, 'clinic', 'visit-reminder');
+      expect(await found(s, PATIENT, FROM)).toBe('not-read');
+      expect(s.jobs).toHaveLength(0);
     });
   });
 

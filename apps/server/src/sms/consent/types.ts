@@ -202,6 +202,21 @@ export type TextStartResult = 'lifted' | 'not-on-list' | 'kept' | 'unreadable';
 
 export type TextStopRemoveResult = 'removed' | 'missing' | 'erased';
 
+/** Lifting an erased person's entry: the number typed again, and a fresh yes they gave a named member of staff. */
+export interface TextStopLiftInput {
+  id: string;
+  phone: unknown;
+  country?: string | null | undefined;
+  purpose: TextPurpose;
+  wording: { text: string; version: string };
+  how?: ConsentHow | null | undefined;
+  staff: StaffMember;
+  at?: number | undefined;
+}
+
+/** `other-number`: the number typed is not the one the entry was kept for. `not-erased`: an ordinary entry, taken off by `remove`. */
+export type TextStopLiftResult = 'lifted' | 'missing' | 'not-erased' | 'other-number';
+
 export interface TextEraseInput {
   /** The number on their row, if any. One that cannot be read still erases the row's own events. */
   phone?: unknown;
@@ -260,6 +275,12 @@ export interface TextConsentService {
     start(input: { phone: unknown; at?: number | undefined }): Promise<TextStartResult>;
     /** Staff take an entry off. An erased person's stays. Consent is not restored. */
     remove(id: string): Promise<TextStopRemoveResult>;
+    /**
+     * An erased person's entry (a hash alone) comes off only with a fresh, named staff yes that keeps its words, for
+     * the number typed again: a shared or reassigned line is otherwise never texted again. The yes and the lift are
+     * one transaction. Whether the caller may is the route's (the Super Admin alone).
+     */
+    liftErased(input: TextStopLiftInput): Promise<TextStopLiftResult>;
     /** Whether this number is stopped. A value that names no exact number answers true. */
     has(phone: unknown, country: string | null): Promise<boolean>;
     entryFor(phone: unknown, country: string | null): Promise<TextStopView | null>;

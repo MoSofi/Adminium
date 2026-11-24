@@ -31,7 +31,8 @@ import { createSmsAccountStore } from './account-store.js';
 import { createTextConsentService, type TextConsentService } from './consent/index.js';
 import { storedDefaultCountry } from './country.js';
 import { createTextErasure, type TextErasure } from './erasure.js';
-import { createSmsCatchUp, createSmsInboundChannel, type SmsCatchUpResult, type SmsInboundChannel, type SmsStopConfirmation } from './inbound/index.js';
+import { createTextExport, type TextExport } from './export.js';
+import { createSmsCatchUp, createSmsInboundChannel, settingsCatchUpMark, type SmsCatchUpResult, type SmsInboundChannel, type SmsStopConfirmation } from './inbound/index.js';
 import { smsConsoleRoutes } from './console-routes.js';
 import { smsRoutes } from './routes.js';
 import { createTextSendStore, textPhoneKeys, TEXT_SETTLE_JOB, TEXT_SETTLE_SCHEDULE, type TextReport, type TextSendPath, type TextSendStore } from './send/index.js';
@@ -90,6 +91,8 @@ export interface SmsWiring {
   /** Marketing runs, who they reach, and requests to confirm a marketing yes (`marketing/`). */
   marketing: TextMarketingStore;
   erasure: TextErasure;
+  /** A person's text records, for "Download everything". */
+  textExport: TextExport;
   /** Two-way conversations: the replies hook, the threads and their answers. */
   threads: TextThreads;
   defaultCountry: () => Promise<string | null>;
@@ -176,6 +179,8 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
     marketing: { eraseFor: async (who) => (await marketing.recipients.eraseFor(who)) + (await marketing.confirmations.eraseFor(who)), countFor: async (who) => (await marketing.recipients.countFor(who)) + (await marketing.confirmations.countFor(who)) },
   });
 
+  const textExport = createTextExport({ meta, secret, consent, threads, country: defaultCountry, exact: erasure.exact });
+
   return {
     service,
     consent,
@@ -184,6 +189,7 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
     deliveries,
     marketing,
     erasure,
+    textExport,
     threads,
     defaultCountry,
 
@@ -200,6 +206,7 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
         desktop: deps.desktop,
         trustProxy: deps.trustProxy,
         publicOrigin: () => storedPublicOrigin(meta),
+        replyReach: () => channel.replyReach(),
         languageOf: (userId) => recipientLocale(meta, userId),
         // The send path's own settings: a test takes a slot of the same day's limit.
         testGate: createSmsTestGate({ meta, secret, store: deliveries, policy: () => settingsRepo(meta).get('sms.sendPolicy').catch(() => null), now }),
@@ -214,6 +221,7 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
         texts: () => sendPath,
         manageGrant: PERMISSIONS.smsManage,
         peopleGrant: PERMISSIONS.privacyPeople,
+        inbound,
         now,
       }),
     conversationRoutes: (input) =>
@@ -235,7 +243,7 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
     async catchUpAtBoot() {
       // A server told not to reach out does not, whatever it may have missed.
       if (!deps.networkFeatures || !deps.operator().allowed) return null;
-      const result = await createSmsCatchUp({ core: inbound, sms: service, fetch: deps.fetch, now }).run();
+      const result = await createSmsCatchUp({ core: inbound, sms: service, mark: settingsCatchUpMark(meta), fetch: deps.fetch, now }).run();
       if (result.outcome !== 'not-connected') deps.log.info({ catchUp: result.outcome, stored: result.stored, truncated: result.truncated, unreadable: result.unreadable, otherProfile: result.otherProfile }, 'sms catch-up');
       return result;
     },

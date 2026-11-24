@@ -15,6 +15,7 @@ import { errorEnvelope, RateLimitedError } from '../src/errors.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { generateApiKey } from '../src/rbac/api-keys.js';
 import { parsePermission, PERMISSIONS } from '../src/rbac/permissions.js';
+import type { SmsReplyReach } from '../src/sms/inbound/index.js';
 import { createSmsService, SMS_MANAGE_PERMISSION, smsRoutes, type SmsRoutesDeps } from '../src/sms/index.js';
 import { memorySmsStore } from './helpers/sms-store.js';
 
@@ -23,6 +24,8 @@ const SID = `AC${'ab'.repeat(16)}`;
 const TOKEN = 'made-up-token-for-these-tests';
 const GRANT = SMS_MANAGE_PERMISSION;
 const NUMBER = '+447400123456';
+/** Stands for the door's token in the address: it must never reach an audit row. */
+const DOOR_TOKEN = 'door-token-made-up-for-these-tests';
 
 const json = (status: number, value: unknown): Response => new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } });
 
@@ -39,6 +42,7 @@ describe('SMS settings routes', () => {
   let operatorAllowed: boolean;
   let networkFeatures: boolean;
   let origin: string | null;
+  let reach: SmsReplyReach;
 
   async function serve(extra: Partial<SmsRoutesDeps> = {}): Promise<FastifyInstance> {
     const server = Fastify({ logger: false });
@@ -77,6 +81,7 @@ describe('SMS settings routes', () => {
             desktop: false,
             trustProxy: true,
             publicOrigin: async () => origin,
+            replyReach: async () => reach,
             ...extra,
           }),
         ),
@@ -93,6 +98,7 @@ describe('SMS settings routes', () => {
     operatorAllowed = true;
     networkFeatures = true;
     origin = 'https://crm.lumen.example';
+    reach = { state: 'not-heard', canReceiveStop: false, origin, address: `${origin}/api/v1/inbound/sms/twilio/${DOOR_TOKEN}#rp=all&rc=5`, heardAt: null };
     meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
     await firstRun(meta);
     const users = usersRepo(meta);
@@ -122,6 +128,7 @@ describe('SMS settings routes', () => {
 
   const ROUTES: ['GET' | 'PUT' | 'POST' | 'DELETE', string, object | undefined][] = [
     ['GET', '/sms/setup', undefined],
+    ['GET', '/sms/reply-address', undefined],
     ['PUT', '/sms/account', { provider: 'twilio', accountSid: SID, authToken: TOKEN }],
     ['PUT', '/sms/sending', { sender: { kind: 'number', value: '+14155550100' }, defaultCountry: null }],
     ['POST', '/sms/check', undefined],
@@ -143,7 +150,7 @@ describe('SMS settings routes', () => {
     await apiKeysRepo(meta).create({ name: 'script', prefix: generated.prefix, tokenHash: generated.tokenHash, roleId: managerRole });
     for (const [method, url, payload] of ROUTES) {
       const answer = await app.inject({ method, url: `/api/v1${url}`, headers: { authorization: `Bearer ${generated.key}` }, ...(payload === undefined ? {} : { payload }) });
-      if (method === 'GET') expect(answer.statusCode).toBe(200);
+      if (method === 'GET' && url === '/sms/setup') expect(answer.statusCode).toBe(200);
       else expect(answer.statusCode, `${method} ${url}`).toBe(403);
     }
     expect(calls).toHaveLength(0);
@@ -214,6 +221,7 @@ describe('SMS settings routes', () => {
   it('shows the masked account and how a timeout is treated', async () => {
     await connect();
     await setSender();
+    reach = { ...reach, state: 'reachable', canReceiveStop: true, heardAt: 1_800_000_000_000 };
     const setup = (await call(manager, 'GET', '/sms/setup')).json() as { data: { repliesCanArrive: boolean; account: Record<string, unknown> } };
     expect(setup.data.repliesCanArrive).toBe(true);
     expect(setup.data.account).toMatchObject({ provider: 'twilio', accountName: 'ow•••le', accountHint: '…abab', timeoutRetry: 'never', senderTakesReplies: 'yes', defaultCountry: 'GB' });
@@ -224,6 +232,30 @@ describe('SMS settings routes', () => {
     await store.write({ ...store.row!, sealedCredentials: 'enc:v1:AAAA' }, store.row!.revision);
     await connect();
     expect(JSON.stringify(await auditRepo(meta).list({ limit: 10 }))).toContain('sms.account.changed');
+  });
+
+  it('an address no signed reply has reached yet is not "replies arrive", however reachable', async () => {
+    await connect();
+    await setSender();
+    const setup = (await call(manager, 'GET', '/sms/setup')).json() as { data: { repliesCanArrive: boolean; reachability: { state: string }; replies: { state: string; heardAt: number | null } } };
+    expect(setup.data.reachability.state).toBe('reachable');
+    expect(setup.data.repliesCanArrive).toBe(false);
+    expect(setup.data.replies).toEqual({ state: 'not-heard', heardAt: null });
+  });
+
+  it('gives the reply address to whoever manages texts, and audits that it was shown without any of it', async () => {
+    await connect();
+    const answer = await call(manager, 'GET', '/sms/reply-address');
+    expect(answer.statusCode).toBe(200);
+    expect(answer.json()).toEqual({ data: { provider: 'twilio', state: 'not-heard', heardAt: null, inbound: reach.address, statusCallback: reach.address } });
+    const audit = JSON.stringify(await auditRepo(meta).list({ limit: 10 }));
+    expect(audit).toContain('sms.reply-address.read');
+    expect(audit).not.toContain(DOOR_TOKEN);
+  });
+
+  it('gives no address while the server cannot be reached', async () => {
+    reach = { state: 'private-network', canReceiveStop: false, origin: null, address: null, heardAt: null };
+    expect((await call(manager, 'GET', '/sms/reply-address')).json()).toMatchObject({ data: { state: 'private-network', inbound: null, statusCallback: null } });
   });
 
   it('says plainly when replies cannot reach this server', async () => {
@@ -238,7 +270,7 @@ describe('SMS settings routes', () => {
     await setSender();
     calls = [];
     operatorAllowed = false;
-    for (const [method, url, payload] of [['PUT', '/sms/account', ROUTES[1]![2]], ['POST', '/sms/check', undefined], ['POST', '/sms/test', { to: NUMBER }]] as const) {
+    for (const [method, url, payload] of [['PUT', '/sms/account', ROUTES[2]![2]], ['POST', '/sms/check', undefined], ['POST', '/sms/test', { to: NUMBER }]] as const) {
       const answer = await call(manager, method, url, payload);
       expect(answer.statusCode, url).toBe(403);
       expect(answer.json()).toMatchObject({ error: { code: 'OFF_BY_OPERATOR', details: { question: 'smsProviders', reason: 'trial-mode' } } });
@@ -246,7 +278,7 @@ describe('SMS settings routes', () => {
     expect(((await call(manager, 'GET', '/sms/setup')).json() as { data: { reachability: { state: string } } }).data.reachability.state).toBe('operator-off');
     operatorAllowed = true;
     networkFeatures = false;
-    for (const [method, url, payload] of [['PUT', '/sms/account', ROUTES[1]![2]], ['POST', '/sms/check', undefined], ['POST', '/sms/test', { to: NUMBER }]] as const) {
+    for (const [method, url, payload] of [['PUT', '/sms/account', ROUTES[2]![2]], ['POST', '/sms/check', undefined], ['POST', '/sms/test', { to: NUMBER }]] as const) {
       const answer = await call(manager, method, url, payload);
       expect(answer.statusCode, url).toBe(422);
       expect(answer.json()).toMatchObject({ error: { details: { reason: 'network-off' } } });

@@ -19,6 +19,7 @@
  *   POST /privacy/erase                  erase the person in place, confirmed by the address typed again
  *   POST /privacy/phone/erase/preview    the same preview for a person known only by phone
  *   POST /privacy/phone/erase            erase them, confirmed by the number typed again
+ *   POST /privacy/phone/exports          "Download everything" for a person known only by phone
  *   GET  /privacy/reach                  "Can visitors reach your public pages?": the forms door's own answer
  *   GET  /privacy/counting               "Visitor counting": the level, when counting started, the banner's words, the notice
  *   PUT  /privacy/counting               change the level and the banner's words ("Per visitor" needs the notice: 409)
@@ -86,7 +87,7 @@ import { businessName, privacyNoticeOf, senderPostalAddress } from '../../privac
 import { erasePerson, erasePhonePerson, previewErasure, previewPhoneErasure, type EraseDeps } from '../../privacy/erase.js';
 import { peopleFoundNotice } from '../../leads/notice.js';
 import type { AnswerFilesRemover } from '../../forms/answers.js';
-import { countsOf, PRIVACY_EXPORT_KIND, personHash } from '../../privacy/export.js';
+import { countsOf, PHONE_SUBJECT, PRIVACY_EXPORT_KIND, personHash } from '../../privacy/export.js';
 import { chatTranscriptsKeeping, foundPeopleKeeping, formAnswersKeeping, KEEPING_ROWS, keepingRows, shippingLabelsKeeping } from '../../privacy/keeping.js';
 import type { TrackingLevel } from '../../views/level.js';
 import { changeCounting, countingState, PerVisitorNeedsNotice } from '../../views/tracking.js';
@@ -573,6 +574,22 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
           changes: { after: { phone: await hashOf(textSubject(e164)), goes: Object.fromEntries(preview.goes.map((item) => [item.table ?? item.kind, item.count])) } },
         });
         return { data: { ...preview, address: maskPhone(e164) } };
+      },
+    );
+
+    app.post(
+      '/privacy/phone/exports',
+      { preHandler: people, config: { audit: audited('rbac'), rateLimitBucket: 'privacy-export' }, schema: { body: phoneEraseBody, response: { 202: privacyExportCreateReply } } },
+      async (request, reply) => {
+        const userId = personOf(request);
+        const e164 = await phoneOf(request.body.phone);
+        await peopleScope(request);
+        // The request keeps the number's keyed hash; the job's payload carries it sealed, as an address is.
+        const hash = await hashOf(textSubject(e164));
+        const row = await exports.create({ requestedBy: userId, address: hash }, app.rbac.now());
+        const job = await deps.enqueue({ kind: PRIVACY_EXPORT_KIND, payload: { exportId: row.id, userId, address: sealAddress(secret, `${PHONE_SUBJECT}${e164}`) }, maxAttempts: 1 });
+        await app.rbac.audit(request, { category: 'export', action: 'privacy.export.request', changes: { after: { exportId: row.id, phone: hash } } });
+        return reply.status(202).send({ data: { ...exportView(row), jobId: job.id } });
       },
     );
 

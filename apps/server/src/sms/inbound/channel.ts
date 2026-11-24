@@ -21,24 +21,27 @@
  * retry override, in a `#` part that Twilio leaves out of the signature. The
  * sweep also runs a short catch-up, for whatever outlasts those retries.
  */
-import type { MetaDb } from '@adminium/meta';
+import { createHash } from 'node:crypto';
+
+import { settingsRepo, type MetaDb } from '@adminium/meta';
 
 import { storedPublicOrigin } from '../../email/door-reach.js';
 import { ValidationFailedError } from '../../errors.js';
 import { recipientLocale } from '../../i18n/server-i18n.js';
-import { InboundFailedError, InboundRetryError, inboundAddress, inboundToken, type InboundAccept, type InboundChannel, type InboundHandled, type InboundOpened, type InboundProof } from '../../inbound/index.js';
+import { InboundFailedError, InboundRetryError, inboundAddress, inboundToken, type InboundAccept, type InboundCandidate, type InboundChannel, type InboundHandled, type InboundOpened, type InboundProof } from '../../inbound/index.js';
 import { reachability, type ReachabilityState } from '../../payments/reachability.js';
 import type { TextConsentService } from '../consent/index.js';
+import { maskPhone } from '../consent/redact.js';
 import { accountRefOf, type SmsCredentials } from '../credentials.js';
 import type { TextReport } from '../send/store.js';
 import type { SmsService } from '../service.js';
 import { TELNYX_CODES } from '../telnyx.js';
 import { TWILIO_CODES } from '../twilio.js';
 import { SMS_PROVIDERS, type SmsProviderKey } from '../types.js';
-import { createSmsCatchUp, type SmsCatchUp, type SmsCatchUpResult } from './catch-up.js';
+import { createSmsCatchUp, settingsCatchUpMark, type SmsCatchUp, type SmsCatchUpResult } from './catch-up.js';
 import { readControlWord } from './control-words.js';
 import { deliveryStatusOf } from './delivery.js';
-import { SMS_INBOUND_CHANNEL, readTelnyxBody, readTwilioForm, smsEventBody, type SmsEventBody } from './payload.js';
+import { SMS_EVENT_KINDS, SMS_INBOUND_CHANNEL, readTelnyxBody, readTwilioForm, smsEventBody, type SmsEventBody } from './payload.js';
 import { verifyTelnyx, verifyTwilio } from './signature.js';
 import { decideStopConfirmation, stopConfirmationIn, type SmsStopConfirmation } from './stop-reply.js';
 
@@ -59,6 +62,14 @@ export const SMS_CONTROL_RETAIN_MS = 400 * DAY_MS;
  */
 export const TWILIO_RETRY_OVERRIDE = '#rp=all&rc=5';
 
+/**
+ * A failed event keeps its body this long for a retry, and a possible STOP
+ * among them holds texts to its sender as long. Shorter than the core's
+ * default, because a hold stops every text to that person: staff see it on
+ * the failed list, with the day it ends.
+ */
+export const SMS_FAILED_BODY_MS = 30 * DAY_MS;
+
 /** How often the sweep's catch-up asks the provider, and how far back. A run that could not finish is tried at the next sweep. */
 export const SMS_SWEEP_CATCH_UP_EVERY_MS = 30 * 60 * 1000;
 export const SMS_SWEEP_CATCH_UP_LOOKBACK_MS = 2 * DAY_MS;
@@ -67,15 +78,22 @@ export const SMS_SWEEP_CATCH_UP_MAX_PAGES = 3;
 /** An empty TwiML answer: Twilio reads a webhook's reply as instructions, and this one says "send nothing". */
 const TWIML_NOTHING = { contentType: 'text/xml', body: '<?xml version="1.0" encoding="UTF-8"?><Response></Response>' };
 
-export type SmsReplyState = ReachabilityState | 'not-connected' | 'key-unreadable';
+/**
+ * `not-heard`: the address is ready, but no signed reply has reached it yet, so
+ * nobody knows the provider was given it. Texts then give the business's own
+ * contact for stopping, and marketing stays refused, until one arrives.
+ */
+export type SmsReplyState = ReachabilityState | 'not-connected' | 'key-unreadable' | 'not-heard';
 
 export interface SmsReplyReach {
   state: SmsReplyState;
-  /** The answer for the marketing check's `repliesReachUs`, and the card. */
+  /** The answer for the marketing check's `repliesReachUs`, and the card: a signed reply has reached the address in use now. */
   canReceiveStop: boolean;
   origin: string | null;
-  /** The address to give the provider. It holds the door's token: only for whoever manages SMS. */
+  /** The address to give the provider, for replies and delivery reports. It holds the door's token: only for whoever manages SMS. */
   address: string | null;
+  /** When the first signed reply reached this address; null until one has. */
+  heardAt: number | null;
 }
 
 export interface SmsReplyReceived {
@@ -90,6 +108,8 @@ export interface SmsReplyReceived {
   answered: boolean;
   /** A STOP's one confirmation was asked for. */
   confirmed?: boolean | undefined;
+  /** `catch-up`: found later by asking the provider, which lists every number of the account. */
+  via?: 'webhook' | 'catch-up' | undefined;
 }
 
 export interface SmsInboundDeps {
@@ -125,6 +145,16 @@ export interface SmsInboundChannel extends InboundChannel {
   replyReach(): Promise<SmsReplyReach>;
 }
 
+/** The address as the setting keeps it: a digest, because the address holds the door's token. Twilio's `#` part is not the address. */
+const doorDigest = (door: string): string => createHash('sha256').update(door.split('#')[0]!).digest('hex');
+
+/** Records that a signed reply reached this address at `at`. What the door does on the first one; a test stands in for the provider with it. */
+export async function markReplyAddressHeard(meta: MetaDb, address: string, at: number): Promise<{ door: string; at: number }> {
+  const next = { door: doorDigest(address), at };
+  await settingsRepo(meta).set('sms.replyHeard', next, { updatedBy: null, at });
+  return next;
+}
+
 const isProvider = (source: string): source is SmsProviderKey => (SMS_PROVIDERS as readonly string[]).includes(source);
 
 function headerOf(headers: Readonly<Record<string, string | string[] | undefined>>, name: string): string | undefined {
@@ -144,6 +174,8 @@ export function createSmsInboundChannel(deps: SmsInboundDeps): SmsInboundChannel
   const now = deps.now ?? Date.now;
   let sweepCatchUp: SmsCatchUp | null = null;
   let nextCatchUpAt = 0;
+  /** The last address known to be heard, so a busy door reads the setting once. */
+  let heard: { door: string; at: number } | null = null;
 
   async function connected(source: string): Promise<SmsCredentials | null> {
     const credentials = await deps.sms.credentials();
@@ -160,7 +192,7 @@ export function createSmsInboundChannel(deps: SmsInboundDeps): SmsInboundChannel
       publicOrigin: origin,
       forwarded: false,
     });
-    const closed = (state: SmsReplyState): SmsReplyReach => ({ state, canReceiveStop: false, origin: answer.origin, address: null });
+    const closed = (state: SmsReplyState): SmsReplyReach => ({ state, canReceiveStop: false, origin: answer.origin, address: null, heardAt: null });
     if (answer.state !== 'reachable') return closed(answer.state);
     const view = await deps.sms.view();
     if (view === null) return closed('not-connected');
@@ -168,7 +200,50 @@ export function createSmsInboundChannel(deps: SmsInboundDeps): SmsInboundChannel
     if (credentials === null || answer.origin === null) return closed('key-unreadable');
     const token = inboundToken(deps.secret, SMS_INBOUND_CHANNEL, credentials.provider, accountRefOf(credentials));
     const door = inboundAddress(answer.origin, SMS_INBOUND_CHANNEL, credentials.provider, token);
-    return { state: 'reachable', canReceiveStop: true, origin: answer.origin, address: credentials.provider === 'twilio' ? `${door}${TWILIO_RETRY_OVERRIDE}` : door };
+    const address = credentials.provider === 'twilio' ? `${door}${TWILIO_RETRY_OVERRIDE}` : door;
+    const heardAt = await heardAtFor(door);
+    return { state: heardAt === null ? 'not-heard' : 'reachable', canReceiveStop: heardAt !== null, origin: answer.origin, address, heardAt };
+  }
+
+  /** When a signed reply first reached this address, or null. An address that changed (another account, origin or secret) has not been heard. */
+  async function heardAtFor(door: string): Promise<number | null> {
+    const digest = doorDigest(door);
+    if (heard?.door === digest) return heard.at;
+    let stored: { door: string; at: number } | null;
+    try {
+      stored = await settingsRepo(deps.meta).get('sms.replyHeard');
+    } catch {
+      // A value this version cannot read: not heard, which promises nothing.
+      return null;
+    }
+    if (stored?.door !== digest) return null;
+    heard = stored;
+    return stored.at;
+  }
+
+  /** A signed reply reached this address: from now on, texts may promise "Reply STOP". Its failure costs only the promise. */
+  async function markHeard(door: string): Promise<void> {
+    const digest = doorDigest(door);
+    if (heard?.door === digest) return;
+    try {
+      const stored = await settingsRepo(deps.meta).get('sms.replyHeard');
+      if (stored?.door === digest) {
+        heard = stored;
+        return;
+      }
+      heard = await markReplyAddressHeard(deps.meta, door, now());
+    } catch {
+      // The next signed reply tries again.
+    }
+  }
+
+  /**
+   * A signed reply is the proof that the provider was given the reply address:
+   * a delivery report proves nothing, because the address of a report is the
+   * one this server hands over with each text.
+   */
+  async function heardIfReply(door: string, events: readonly InboundCandidate[]): Promise<void> {
+    if (events.some((one) => one.kind === SMS_EVENT_KINDS.reply)) await markHeard(door);
   }
 
   async function addStop(phone: string, reason: 'text-stop' | 'provider-opt-out', provider: SmsProviderKey, at: number): Promise<boolean> {
@@ -228,7 +303,7 @@ export function createSmsInboundChannel(deps: SmsInboundDeps): SmsInboundChannel
       return { outcome: 'processed', retainMs: SMS_CONTROL_RETAIN_MS, reason: `start-${lifted}` };
     }
 
-    await deps.replies?.({ eventId: event.id, from: reply.from, to: reply.to, text: reply.text, kind: control.kind === 'help' ? 'help' : 'message', at, answered: reply.answered });
+    await deps.replies?.({ eventId: event.id, from: reply.from, to: reply.to, text: reply.text, kind: control.kind === 'help' ? 'help' : 'message', at, answered: reply.answered, via: reply.via });
     return { outcome: 'processed' };
   }
 
@@ -247,12 +322,29 @@ export function createSmsInboundChannel(deps: SmsInboundDeps): SmsInboundChannel
   return {
     channel: SMS_INBOUND_CHANNEL,
     bodyLimit: SMS_INBOUND_BODY_LIMIT,
+    failedBodyMs: SMS_FAILED_BODY_MS,
     replyReach,
+
+    summarize({ body }) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(body) as unknown;
+      } catch {
+        return { masked: null, holds: true };
+      }
+      const read = smsEventBody.safeParse(parsed);
+      // Unreadable: it may be anything, a STOP too.
+      if (!read.success) return { masked: null, holds: true };
+      const event = read.data;
+      if (event.type === 'reply') return { masked: maskPhone(event.from), holds: readControlWord(event.text).kind === 'stop' };
+      if (event.type === 'opt-out') return { masked: maskPhone(event.phone), holds: true };
+      return { masked: event.to === null ? null : maskPhone(event.to), holds: false };
+    },
 
     async reach() {
       const answer = await replyReach();
-      // Open on the address alone: an unconnected account is the next step's 503.
-      const open = answer.state === 'reachable' || answer.state === 'not-connected' || answer.state === 'key-unreadable';
+      // Open on the address alone: an unconnected account is the next step's 503, and an address not yet heard is waiting for exactly this.
+      const open = answer.state === 'reachable' || answer.state === 'not-heard' || answer.state === 'not-connected' || answer.state === 'key-unreadable';
       return { open, origin: answer.origin };
     },
 
@@ -272,7 +364,9 @@ export function createSmsInboundChannel(deps: SmsInboundDeps): SmsInboundChannel
         const form = new URLSearchParams(delivery.body.toString('utf8'));
         if (form.get('AccountSid') !== credentials.accountSid) return { genuine: false, answer: 403, reason: 'other-account' };
         const read = readTwilioForm(form);
-        return read.ok ? { genuine: true, events: read.events, reply: TWIML_NOTHING } : { genuine: false, answer: 400, reason: read.reason };
+        if (!read.ok) return { genuine: false, answer: 400, reason: read.reason };
+        await heardIfReply(delivery.publicUrl, read.events);
+        return { genuine: true, events: read.events, reply: TWIML_NOTHING };
       }
 
       const verdict = verifyTelnyx({
@@ -285,7 +379,9 @@ export function createSmsInboundChannel(deps: SmsInboundDeps): SmsInboundChannel
       if (verdict !== 'genuine') return { genuine: false, answer: 403, reason: verdict };
       const sender = (await deps.sms.view())?.sender;
       const read = readTelnyxBody(delivery.body, credentials.messagingProfileId, sender?.kind === 'number' ? [sender.value] : []);
-      return read.ok ? { genuine: true, events: read.events } : { genuine: false, answer: 400, reason: read.reason };
+      if (!read.ok) return { genuine: false, answer: 400, reason: read.reason };
+      await heardIfReply(delivery.publicUrl, read.events);
+      return { genuine: true, events: read.events };
     },
 
     async catchUp(accept: InboundAccept) {
@@ -293,7 +389,7 @@ export function createSmsInboundChannel(deps: SmsInboundDeps): SmsInboundChannel
       if (!deps.networkFeatures || deps.operatorOff?.() === true) return;
       const at = now();
       if (at < nextCatchUpAt) return;
-      sweepCatchUp ??= createSmsCatchUp({ core: { accept }, sms: deps.sms, fetch: deps.fetch, now, lookbackMs: SMS_SWEEP_CATCH_UP_LOOKBACK_MS, maxPages: SMS_SWEEP_CATCH_UP_MAX_PAGES });
+      sweepCatchUp ??= createSmsCatchUp({ core: { accept }, sms: deps.sms, mark: settingsCatchUpMark(deps.meta), fetch: deps.fetch, now, lookbackMs: SMS_SWEEP_CATCH_UP_LOOKBACK_MS, maxPages: SMS_SWEEP_CATCH_UP_MAX_PAGES });
       const result = await sweepCatchUp.run();
       if (result.outcome === 'done') nextCatchUpAt = at + SMS_SWEEP_CATCH_UP_EVERY_MS;
       deps.onCatchUp?.(result);

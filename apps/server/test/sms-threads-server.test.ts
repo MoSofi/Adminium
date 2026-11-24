@@ -17,6 +17,7 @@ import { createSmsService } from '../src/sms/index.js';
 import { TEST_SECRET } from './helpers.js';
 import { stubProvider } from './sms-send.helpers.js';
 import { LEGS, said, wholeServer, type WholeServer } from './whole-server.helpers.js';
+import { twilioRepliesHeard } from './helpers/sms-heard.js';
 
 vi.mock('../src/version.js', async (original) => ({ ...(await original<typeof import('../src/version.js')>()), APP_VERSION: SMS_WORDS_FLOOR }));
 
@@ -76,8 +77,9 @@ for (const [dialect, reachable] of LEGS) {
       s = await wholeServer(dialect, crm(), { people: { rita: ['rep'], dan: ['desk'], tom: ['reader'] } });
       // Before the public address: no reply can arrive, and the list says so.
       expect(((await s.get('owner', '/api/v1/texts/threads')).json() as { data: { replies: unknown } }).data.replies).toEqual({ canArrive: false, state: 'not-set' });
-      // A public https address: replies can arrive, so a text from a number says "Reply STOP".
+      // A public https address, and a signed reply has reached it: a text from a number says "Reply STOP".
       await settingsRepo(s.meta).set('system.publicOrigin', 'https://crm.lumen.example', { updatedBy: null });
+      await twilioRepliesHeard(s.meta, { secret: TEST_SECRET, origin: 'https://crm.lumen.example', accountSid: `AC${'ab'.repeat(16)}` });
       // The business's own account, as Studio → Text messages saves it.
       const sms = createSmsService({ store: createSmsAccountStore(s.meta), secret: TEST_SECRET, stopList: { isStopped: async () => false, recordProviderOptOut: async () => undefined } });
       await sms.connect({ provider: 'twilio', accountSid: `AC${'ab'.repeat(16)}`, authToken: 'made-up-token-for-these-tests' }, null);
@@ -102,6 +104,15 @@ for (const [dialect, reachable] of LEGS) {
       const threads = await s.meta.db.selectFrom('adminium_text_threads').selectAll().execute();
       expect(threads).toHaveLength(1);
       expect(threads[0]).toMatchObject({ appKey: 'crmx', recordKey: '1', lastKind: 'text' });
+      // The thread it hands back does not show her the number either: only its mask, and why.
+      const threadId = (sent.json() as { data: { threadId: string } }).data.threadId;
+      const opened = (await s.get('rita', `/api/v1/texts/threads/${threadId}`)).json() as { data: { thread: Record<string, unknown> } };
+      expect(opened.data.thread).toMatchObject({ phone: null, phoneHidden: 'masked-for-you', masked: '+49 ••• 789' });
+      const listed = (await s.get('rita', '/api/v1/texts/threads')).json() as { data: { threads: Record<string, unknown>[] } };
+      expect(listed.data.threads[0]).toMatchObject({ phone: null, phoneHidden: 'masked-for-you' });
+      expect(JSON.stringify(listed)).not.toContain(RITA_CONTACT);
+      // Whoever reads every conversation sees it in full.
+      expect(((await s.get('owner', `/api/v1/texts/threads/${threadId}`)).json() as { data: { thread: Record<string, unknown> } }).data.thread).toMatchObject({ phone: RITA_CONTACT, phoneHidden: null });
       // The same key again sends nothing twice.
       expect((await s.send('rita', 'POST', '/api/v1/texts/send', body(1, KEY(1)))).statusCode).toBe(200);
       await s.jobs();
@@ -129,7 +140,9 @@ for (const [dialect, reachable] of LEGS) {
       const list = await s.get('dan', '/api/v1/texts/threads');
       expect(list.statusCode, list.body).toBe(200);
       const [thread] = (list.json() as { data: { threads: { id: string; app: string; phone: string }[] } }).data.threads;
-      expect(thread).toMatchObject({ app: 'crmx', phone: RITA_CONTACT });
+      // The desk reads the contacts without their personal columns: the conversation shows it the mask alone.
+      expect(thread).toMatchObject({ app: 'crmx', phone: null, phoneHidden: 'masked-for-you' });
+      expect(list.body).not.toContain(RITA_CONTACT);
       const detail = await s.get('dan', `/api/v1/texts/threads/${thread!.id}`);
       expect((detail.json() as { data: { canReply: unknown; items: { kind: string; body: string }[] } }).data).toMatchObject({ canReply: { ok: false, reason: 'not-allowed' }, items: [{ kind: 'text', body: 'Your quote is ready. Reply STOP to opt out.' }] });
       expect(said(await s.get('tom', '/api/v1/texts/threads'))).toBe('403 FORBIDDEN');

@@ -12,6 +12,12 @@
  *  - Remove is the Super Admin's only, and says the person must have agreed
  *    again. A START reply is never a yes: it lifts the provider's block and
  *    leaves the list entry's job to the business.
+ *  - An erased person's entry comes off only by the Super Admin, with the
+ *    number typed again and a fresh yes the person gave, in its own words: a
+ *    shared or passed-on line is otherwise never texted again.
+ *  - A desk (`privacy.people` without `sms.manage`) never sees the list, which
+ *    holds every app's customers. It looks up one number at a time, and the
+ *    server audits each look-up.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MessageSquareOff, Plus, Search, UserX } from 'lucide-react';
@@ -20,7 +26,7 @@ import { Alert, Button, FormField, Input, Modal, ModalBody, ModalFooter, ModalHe
 
 import { useAppToasts } from '../../pages/toasts.js';
 import { t } from '../../i18n/t.js';
-import { STOP_REASONS, recordStop, removeStop, stopListKey, stopListQuery, type StopAsked, type StopEntry, type StopReason } from './textsApi.js';
+import { STOP_REASONS, liftErasedStop, lookupStop, recordStop, removeStop, stopListKey, stopListQuery, type StopAsked, type StopEntry, type StopReason } from './textsApi.js';
 import { activeLocale, stopFrom, stopWhy } from './textsWords.js';
 
 const COLUMNS = 'grid-cols-[minmax(220px,1.4fr)_190px_120px_minmax(220px,1.4fr)_96px]';
@@ -59,6 +65,56 @@ function RecordStop({ onClose, onDone }: { onClose: () => void; onDone: (entry: 
   );
 }
 
+function LiftErased({ entry, onClose, onLifted }: { entry: StopEntry; onClose: () => void; onLifted: () => void }) {
+  const ids = useId();
+  const [phone, setPhone] = useState('');
+  const [purpose, setPurpose] = useState<'text-service' | 'text-marketing'>('text-service');
+  const [how, setHow] = useState<'in-person' | 'phone' | 'email' | 'paper'>('in-person');
+  const [words, setWords] = useState('');
+  const [version, setVersion] = useState('');
+  const lift = useMutation({ mutationFn: () => liftErasedStop(entry.id, { phone: phone.trim(), purpose, how, wording: { text: words.trim(), version: version.trim() } }), onSuccess: onLifted });
+  const ready = phone.trim() !== '' && words.trim() !== '' && version.trim() !== '';
+  return (
+    <Modal open size="md" onOpenChange={(open) => (open || lift.isPending ? undefined : onClose())}>
+      <ModalHeader tone="warn" title={t('studio:texts.stop.liftTitle', 'Text an erased person again?')} closeLabel={t('studio:texts.close', 'Close')} />
+      <ModalBody className="flex flex-col gap-4 text-[13px]" data-testid="texts-stop-lift-form">
+        <p>{t('studio:texts.stop.liftWhy', 'Only for a number that changed hands or is shared, when its holder has agreed to texts again. Type the number, and the words they agreed to: they are kept under your name.')}</p>
+        <FormField label={t('studio:texts.stop.number', 'Phone number')} required controlId={`${ids}-phone`} error={lift.isError ? t('studio:texts.stop.liftFailed', 'This was not lifted. Check that the number is the one this entry was kept for.') : undefined}>
+          <Input id={`${ids}-phone`} type="tel" dir="ltr" className="font-mono" value={phone} onChange={(event) => setPhone(event.target.value)} data-testid="texts-stop-lift-phone" />
+        </FormField>
+        <FormField label={t('studio:texts.stop.liftPurpose', 'They agreed to')} controlId={`${ids}-purpose`}>
+          <Select id={`${ids}-purpose`} value={purpose} onChange={(event) => setPurpose(event.target.value as 'text-service' | 'text-marketing')}>
+            <option value="text-service">{t('studio:texts.stop.liftService', 'Service texts')}</option>
+            <option value="text-marketing">{t('studio:texts.stop.liftMarketing', 'Marketing texts')}</option>
+          </Select>
+        </FormField>
+        <FormField label={t('studio:texts.stop.how', 'How they asked')} controlId={`${ids}-how`}>
+          <Select id={`${ids}-how`} value={how} onChange={(event) => setHow(event.target.value as 'in-person' | 'phone' | 'email' | 'paper')}>
+            <option value="in-person">{t('studio:texts.stop.asked.inPerson', 'In person')}</option>
+            <option value="phone">{t('studio:texts.stop.asked.phone', 'By phone')}</option>
+            <option value="email">{t('studio:texts.stop.asked.email', 'By e-mail')}</option>
+            <option value="paper">{t('studio:texts.stop.asked.paper', 'On paper')}</option>
+          </Select>
+        </FormField>
+        <FormField label={t('studio:texts.stop.liftWords', 'The words they agreed to')} required controlId={`${ids}-words`}>
+          <Input id={`${ids}-words`} value={words} onChange={(event) => setWords(event.target.value)} data-testid="texts-stop-lift-words" />
+        </FormField>
+        <FormField label={t('studio:texts.stop.liftVersion', 'Version of those words')} required controlId={`${ids}-version`}>
+          <Input id={`${ids}-version`} value={version} onChange={(event) => setVersion(event.target.value)} data-testid="texts-stop-lift-version" />
+        </FormField>
+      </ModalBody>
+      <ModalFooter>
+        <Button variant="secondary" disabled={lift.isPending} onClick={onClose}>
+          {t('studio:texts.cancel', 'Cancel')}
+        </Button>
+        <Button loading={lift.isPending} disabled={!ready} onClick={() => lift.mutate()} data-testid="texts-stop-lift-yes">
+          {t('studio:texts.stop.lift', 'Record the yes and lift')}
+        </Button>
+      </ModalFooter>
+    </Modal>
+  );
+}
+
 function RemoveStop({ entry, onClose, onRemoved }: { entry: StopEntry; onClose: () => void; onRemoved: () => void }) {
   const remove = useMutation({ mutationFn: () => removeStop(entry.id), onSuccess: onRemoved });
   return (
@@ -83,7 +139,71 @@ function RemoveStop({ entry, onClose, onRemoved }: { entry: StopEntry; onClose: 
   );
 }
 
-export function StopListTab({ isSuperAdmin }: { isSuperAdmin: boolean }): ReactNode {
+/** A desk's view: one number at a time, never the list. */
+function DeskLookup(): ReactNode {
+  const toasts = useAppToasts();
+  const ids = useId();
+  const locale = activeLocale();
+  const [phone, setPhone] = useState('');
+  const [adding, setAdding] = useState(false);
+  const lookup = useMutation({ mutationFn: () => lookupStop(phone.trim()) });
+  const found = lookup.data;
+  return (
+    <div className="flex flex-col gap-3.5" data-testid="texts-stop-desk">
+      <p className="text-[13px] font-semibold" data-testid="texts-stop-line">
+        {t('studio:texts.stop.line', 'Nobody here gets any text from this business, including service texts.')}
+      </p>
+      <p className="text-[12.5px] text-fg-muted">{t('studio:texts.stop.deskWhy', 'Look up one number at a time. The whole list holds every app’s customers, so only whoever manages texts sees it.')}</p>
+      <form
+        className="flex flex-wrap items-end gap-2.5"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (phone.trim() !== '') lookup.mutate();
+        }}
+      >
+        <FormField label={t('studio:texts.stop.number', 'Phone number')} controlId={`${ids}-lookup`} className="w-full sm:w-[260px]">
+          <Input id={`${ids}-lookup`} type="tel" dir="ltr" className="font-mono" value={phone} onChange={(event) => setPhone(event.target.value)} data-testid="texts-stop-lookup-phone" />
+        </FormField>
+        <Button type="submit" variant="secondary" loading={lookup.isPending} disabled={phone.trim() === ''} iconLeft={<Search className="size-4" />} data-testid="texts-stop-lookup">
+          {t('studio:texts.stop.lookup', 'Look up')}
+        </Button>
+        <span className="ms-auto">
+          <Button iconLeft={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="texts-stop-add">
+            {t('studio:texts.stop.record', 'Record a stop request')}
+          </Button>
+        </span>
+      </form>
+      <div role="status" aria-live="polite">
+        {lookup.isError ? (
+          <Alert tone="danger" title={t('studio:texts.loadFailed', 'This could not be loaded')} />
+        ) : found === undefined ? null : found === null ? (
+          <p className="text-[13px]" data-testid="texts-stop-lookup-none">
+            {t('studio:texts.stop.lookupNone', 'This number is not on the list.')}
+          </p>
+        ) : (
+          <p className="text-[13px]" data-testid="texts-stop-lookup-found">
+            {t('studio:texts.stop.lookupFound', 'On the list since {date}: {why}.', { date: new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(found.addedAt)), why: stopWhy(found.reason) })}
+          </p>
+        )}
+      </div>
+      {adding ? (
+        <RecordStop
+          onClose={() => setAdding(false)}
+          onDone={(entry, added) => {
+            setAdding(false);
+            toasts.push({ variant: added ? 'success' : 'warning', title: added ? t('studio:texts.stop.added', 'Texts to this number are stopped.') : t('studio:texts.stop.already', 'This number is on the list already.'), description: entry.phone ?? undefined });
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+export function StopListTab({ isSuperAdmin, canManage }: { isSuperAdmin: boolean; canManage: boolean }): ReactNode {
+  return canManage ? <WholeList isSuperAdmin={isSuperAdmin} /> : <DeskLookup />;
+}
+
+function WholeList({ isSuperAdmin }: { isSuperAdmin: boolean }): ReactNode {
   const client = useQueryClient();
   const toasts = useAppToasts();
   const list = useQuery(stopListQuery());
@@ -92,6 +212,7 @@ export function StopListTab({ isSuperAdmin }: { isSuperAdmin: boolean }): ReactN
   const [reason, setReason] = useState<StopReason | ''>('');
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<StopEntry | null>(null);
+  const [lifting, setLifting] = useState<StopEntry | null>(null);
   const all = list.data?.data ?? [];
   const digits = typed.replace(/[^\d+]/g, '');
   const entries = all.filter((entry) => (reason === '' || entry.reason === reason) && (digits === '' || (entry.phone ?? '').includes(digits)));
@@ -194,6 +315,11 @@ export function StopListTab({ isSuperAdmin }: { isSuperAdmin: boolean }): ReactN
                           {t('studio:texts.stop.remove', 'Remove')}
                         </Button>
                       ) : null}
+                      {entry.phone === null && isSuperAdmin ? (
+                        <Button variant="secondary" size="sm" onClick={() => setLifting(entry)} data-testid="texts-stop-lift">
+                          {t('studio:texts.stop.liftOpen', 'Lift')}
+                        </Button>
+                      ) : null}
                     </span>
                   </div>
                 ))
@@ -213,6 +339,16 @@ export function StopListTab({ isSuperAdmin }: { isSuperAdmin: boolean }): ReactN
           }}
         />
       ) : null}
+      {lifting === null ? null : (
+        <LiftErased
+          entry={lifting}
+          onClose={() => setLifting(null)}
+          onLifted={() => {
+            setLifting(null);
+            refresh();
+          }}
+        />
+      )}
       {removing === null ? null : (
         <RemoveStop
           entry={removing}

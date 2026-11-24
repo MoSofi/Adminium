@@ -6,26 +6,33 @@
  *   PUT    /sms/sending-limits          change the limit and the hours
  *   GET    /sms/deliveries              Activity: one row per text, newest first, with no number and no words
  *   POST   /sms/deliveries/:id/settle   a person checked an `unknown` at the provider
- *   GET    /sms/stop-list               the do-not-text list
+ *   GET    /sms/inbound/failed          replies and reports that could not be acted on (`sms.manage`)
+ *   POST   /sms/inbound/failed/:id/retry, /retry-all, /:id/dismiss
+ *   GET    /sms/stop-list               the do-not-text list (`sms.manage`)
+ *   POST   /sms/stop-list/lookup        whether one number is on it
  *   POST   /sms/stop-list               record a stop request a person made to the business
  *   DELETE /sms/stop-list/:id           take a number off (Super Admin only)
+ *   POST   /sms/stop-list/:id/lift-erased   an erased person's entry, with a fresh named yes (Super Admin only)
  *   GET    /sms/text-templates          the installed text templates, every language
  *   PUT    /sms/text-templates/:key/:locale     change one language's words
  *   DELETE /sms/text-templates/:key/:locale     empty one language, so it falls back to US English
  *
  * WHO. `sms.manage` opens all of it. `privacy.people`, which an app's role may
- * carry so a desk can answer a customer, opens the do-not-text list and
- * recording a request on it, and reading Activity: a desk is who hears "stop
- * texting me" from a sender name, and who is asked "did my text go?". Neither
- * may settle an unknown or take a number off the list.
+ * carry so a desk can answer a customer, opens a look-up of one number on the
+ * do-not-text list, recording a request on it, and Activity for the apps its
+ * roles give it (as the privacy routes narrow the same grant): a desk is who
+ * hears "stop texting me" from a sender name, and who is asked "did my text
+ * go?". It never pages through the whole list, which holds every app's
+ * customers, and may not settle an unknown or take a number off the list.
  *
  * WHAT NEVER LEAVES. A delivery row holds no number and no words, so none is
  * sent. The stop list shows the number, because staff must be able to find it,
- * only to the two grants above. Every change is made by a signed-in person and
- * audited, a number only by its mask.
+ * to `sms.manage` whole and to a desk one typed number at a time. Every read and
+ * every change is made by a signed-in person, never an API key, and audited: a
+ * number only by its mask, a page by its count and filter.
  */
 import { TEXT_TEMPLATE_BODY_MAX, checkTextTemplate } from '@adminium/manifest';
-import { settingsRepo, textTemplatesRepo, type MetaDb } from '@adminium/meta';
+import { CONSENT_HOWS, settingsRepo, textTemplatesRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -34,9 +41,13 @@ import { hashOf } from '../apps/manifest-text-templates.js';
 import { auditExempt, audited } from '../audit/coverage.js';
 import type { StaffMember } from '../consent/types.js';
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../errors.js';
+import type { InboundCore, InboundFailedView } from '../inbound/index.js';
+import { parsePhone } from '../phone/index.js';
+import { privacyScopeOf, type PrivacyScope } from '../privacy/scope.js';
 import { tagRoutes } from '../security/route-audience.js';
 import { maskPhone } from './consent/redact.js';
-import { TEXT_STOP_REASONS, type TextConsentService, type TextStopView } from './consent/types.js';
+import { SMS_INBOUND_CHANNEL } from './inbound/index.js';
+import { TEXT_PURPOSES, TEXT_STOP_REASONS, type TextConsentService, type TextStopView } from './consent/types.js';
 import { dayKey, MAX_TEXT_DAILY_LIMIT, readTextPolicy, warningAt } from './send/policy.js';
 import type { TextSendPath } from './send/path.js';
 import type { TextSendStore } from './send/store.js';
@@ -54,6 +65,10 @@ export interface SmsConsoleRoutesDeps {
   manageGrant: string;
   /** `PERMISSIONS.privacyPeople`. */
   peopleGrant: string;
+  /** The inbound core's failed list, for the events of the text channel. */
+  inbound?: Pick<InboundCore, 'failed'> | undefined;
+  /** The apps a desk's `privacy.people` reaches (`privacyScopeOf`); null apps reach every one. */
+  privacyScope?: ((userId: string) => Promise<PrivacyScope | null>) | undefined;
   now?: (() => number) | undefined;
 }
 
@@ -133,6 +148,50 @@ const stopListReply = z.object({ data: z.array(stopView), next: z.string().nulla
 const STOP_ASKED = ['phone', 'email', 'in-person'] as const;
 const stopBody = z.object({ phone: z.string().min(1).max(64), asked: z.enum(STOP_ASKED) }).strict();
 const stopAddReply = z.object({ data: stopView, added: z.boolean() });
+const lookupBody = z.object({ phone: z.string().min(1).max(64) }).strict();
+/** The number typed again, and the fresh yes the person gave, in the words they were shown. */
+const liftBody = z
+  .object({
+    phone: z.string().min(1).max(64),
+    purpose: z.enum(TEXT_PURPOSES),
+    wording: z.object({ text: z.string().min(1).max(2000), version: z.string().min(1).max(40) }).strict(),
+    how: z.enum(CONSENT_HOWS),
+  })
+  .strict();
+const lookupReply = z.object({ data: stopView.nullable() });
+
+const failedView = z
+  .object({
+    id: z.string(),
+    /** `reply`, `delivery` or `opt-out`. Never a word of what was sent. */
+    kind: z.string(),
+    reason: z.string().nullable(),
+    /** Who it is from: `+49 ••• 789`, never the number. */
+    masked: z.string().nullable(),
+    receivedAt: z.number(),
+    attempts: z.number(),
+    retryable: z.boolean(),
+    /** It may be a request to stop: texts to its sender wait until it is retried or closed, or until `holdsUntil`. */
+    holds: z.boolean(),
+    holdsUntil: z.number().nullable(),
+  })
+  .strict();
+const failedQuery = z.object({ cursor: z.string().max(400).optional() });
+const failedReply = z.object({ data: z.array(failedView), next: z.string().nullable(), summary: z.object({ failed: z.number(), holding: z.number(), more: z.boolean() }) });
+const failedParams = z.object({ id: z.string().min(1).max(64) });
+const failedOf = (event: InboundFailedView): z.infer<typeof failedView> => ({
+  id: event.id,
+  kind: event.kind,
+  reason: event.reason,
+  masked: event.masked,
+  receivedAt: event.receivedAt,
+  attempts: event.attempts,
+  retryable: event.retryable,
+  holds: event.holds,
+  holdsUntil: event.holdsUntil,
+});
+/** How many failed events the count reads, at most. */
+const FAILED_COUNT_MAX = 200;
 
 const templateLanguage = z.object({ locale: z.string(), body: z.string(), enabled: z.boolean(), edited: z.boolean(), updatedAt: z.number() }).strict();
 const templateView = z.object({ key: z.string(), name: z.string(), app: z.string().nullable(), languages: z.array(templateLanguage) }).strict();
@@ -194,6 +253,7 @@ const stopOf = (entry: TextStopView): z.infer<typeof stopView> => ({
 
 export function smsConsoleRoutes(deps: SmsConsoleRoutesDeps): FastifyPluginAsyncZod {
   const now = deps.now ?? Date.now;
+  const scopeOf = deps.privacyScope ?? ((userId: string) => privacyScopeOf(deps.meta, userId));
   const settings = settingsRepo(deps.meta);
   const templates = textTemplatesRepo(deps.meta);
 
@@ -254,13 +314,31 @@ export function smsConsoleRoutes(deps: SmsConsoleRoutesDeps): FastifyPluginAsync
     );
 
     // ── Activity ────────────────────────────────────────────────────────────
-    app.get('/sms/deliveries', { preHandler: desk, config: { audit: auditExempt('read-only text activity, no numbers or words') }, schema: { querystring: deliveriesQuery, response: { 200: deliveriesReply } } }, async (request) => {
-      const limit = request.query.limit ?? 50;
-      const rows = await deps.deliveries.list({ limit: limit + 1, before: readBefore(request.query.before), ...(request.query.state === undefined ? {} : { states: [request.query.state] }) });
-      const shown = rows.slice(0, limit);
-      const last = shown.at(-1);
-      return { data: shown.map(deliveryOf), next: rows.length > limit && last !== undefined ? `${last.createdAt}:${last.id}` : null };
-    });
+    app.get(
+      '/sms/deliveries',
+      { preHandler: desk, config: { audit: audited('rbac') }, schema: { querystring: deliveriesQuery, response: { 200: deliveriesReply } } },
+      async (request) => {
+        const person = personOf(request);
+        // A desk reads the apps its roles give it, as the privacy routes narrow the same grant. `sms.manage` reads all.
+        let apps: readonly string[] | null = null;
+        if (!(await request.can(deps.manageGrant))) {
+          const scope = await scopeOf(person.id);
+          if (scope === null) throw new ForbiddenError('You do not have the required permission.', 'FORBIDDEN', { permission: deps.peopleGrant });
+          apps = scope.apps === null ? null : [...scope.apps].sort();
+        }
+        const limit = request.query.limit ?? 50;
+        const rows = await deps.deliveries.list({
+          limit: limit + 1,
+          before: readBefore(request.query.before),
+          ...(request.query.state === undefined ? {} : { states: [request.query.state] }),
+          ...(apps === null ? {} : { apps }),
+        });
+        const shown = rows.slice(0, limit);
+        const last = shown.at(-1);
+        await app.rbac.audit(request, { category: 'data', action: 'sms.deliveries.read', changes: { after: { rows: shown.length, state: request.query.state ?? null, apps, page: request.query.before === undefined ? 'first' : 'later' } } });
+        return { data: shown.map(deliveryOf), next: rows.length > limit && last !== undefined ? `${last.createdAt}:${last.id}` : null };
+      },
+    );
 
     app.post(
       '/sms/deliveries/:id/settle',
@@ -283,11 +361,90 @@ export function smsConsoleRoutes(deps: SmsConsoleRoutesDeps): FastifyPluginAsync
       },
     );
 
+    // ── replies and reports that could not be acted on ─────────────────────
+    function failedList(): Pick<InboundCore, 'failed'>['failed'] {
+      if (deps.inbound === undefined) throw new ConflictError('Texts are not ready on this server yet. Try again in a moment.');
+      return deps.inbound.failed;
+    }
+
+    app.get(
+      '/sms/inbound/failed',
+      { preHandler: manage, config: { audit: audited('rbac') }, schema: { querystring: failedQuery, response: { 200: failedReply } } },
+      async (request) => {
+        personOf(request);
+        const failed = failedList();
+        const page = await failed.list({ channel: SMS_INBOUND_CHANNEL, limit: 50, cursor: request.query.cursor ?? null });
+        const summary = await failed.count({ channel: SMS_INBOUND_CHANNEL, limit: FAILED_COUNT_MAX });
+        await app.rbac.audit(request, { category: 'data', action: 'sms.inbound.failed.read', changes: { after: { events: page.events.map((one) => one.id) } } });
+        return { data: page.events.map(failedOf), next: page.next, summary };
+      },
+    );
+
+    app.post(
+      '/sms/inbound/failed/:id/retry',
+      { preHandler: manage, config: { audit: audited('rbac') }, schema: { params: failedParams, response: { 200: z.object({ data: z.object({ retried: z.boolean() }) }) } } },
+      async (request) => {
+        personOf(request);
+        const failed = failedList();
+        const before = await failed.get(request.params.id);
+        if (before === null || before.channel !== SMS_INBOUND_CHANNEL) throw new NotFoundError('No such failed event.');
+        if (!before.retryable) throw new ConflictError('Its content is gone, so it cannot be tried again. Close it instead.', 'CONFLICT', { reason: 'body-gone' });
+        const retried = await failed.retry(before.id);
+        if (retried) await app.rbac.audit(request, { category: 'settings', action: 'sms.inbound.retried', changes: { after: { id: before.id, kind: before.kind, from: before.masked } } });
+        return { data: { retried } };
+      },
+    );
+
+    app.post(
+      '/sms/inbound/failed/retry-all',
+      { preHandler: manage, config: { audit: audited('rbac') }, schema: { response: { 200: z.object({ data: z.object({ retried: z.number(), more: z.boolean() }) }) } } },
+      async (request) => {
+        personOf(request);
+        const result = await failedList().retryAll({ channel: SMS_INBOUND_CHANNEL, limit: FAILED_COUNT_MAX });
+        await app.rbac.audit(request, { category: 'settings', action: 'sms.inbound.retried-all', changes: { after: result } });
+        return { data: result };
+      },
+    );
+
+    app.post(
+      '/sms/inbound/failed/:id/dismiss',
+      { preHandler: manage, config: { audit: audited('rbac') }, schema: { params: failedParams, response: { 204: z.null() } } },
+      async (request, reply) => {
+        personOf(request);
+        const failed = failedList();
+        const before = await failed.get(request.params.id);
+        if (before === null || before.channel !== SMS_INBOUND_CHANNEL) throw new NotFoundError('No such failed event.');
+        // Closing a possible STOP lets texts go to that person again: the audit row says so.
+        if (await failed.dismiss(before.id)) await app.rbac.audit(request, { category: 'settings', action: 'sms.inbound.dismissed', changes: { before: { id: before.id, kind: before.kind, from: before.masked, held: before.holds } } });
+        return reply.status(204).send(null);
+      },
+    );
+
     // ── the do-not-text list ────────────────────────────────────────────────
-    app.get('/sms/stop-list', { preHandler: desk, config: { audit: auditExempt('read-only do-not-text list') }, schema: { querystring: stopQuery, response: { 200: stopListReply } } }, async (request) => {
-      const page = await deps.consent.stop.list({ limit: 100, cursor: request.query.cursor ?? null, ...(request.query.reason === undefined ? {} : { reason: request.query.reason }) });
-      return { data: page.entries.map(stopOf), next: page.next };
-    });
+    app.get(
+      '/sms/stop-list',
+      { preHandler: manage, config: { audit: audited('rbac') }, schema: { querystring: stopQuery, response: { 200: stopListReply } } },
+      async (request) => {
+        personOf(request);
+        const page = await deps.consent.stop.list({ limit: 100, cursor: request.query.cursor ?? null, ...(request.query.reason === undefined ? {} : { reason: request.query.reason }) });
+        // Which page and how many, never a number.
+        await app.rbac.audit(request, { category: 'data', action: 'sms.stop-list.read', changes: { after: { entries: page.entries.length, reason: request.query.reason ?? null, page: request.query.cursor === undefined ? 'first' : 'later' } } });
+        return { data: page.entries.map(stopOf), next: page.next };
+      },
+    );
+
+    app.post(
+      '/sms/stop-list/lookup',
+      { preHandler: desk, config: { audit: audited('rbac') }, schema: { body: lookupBody, response: { 200: lookupReply } } },
+      async (request) => {
+        personOf(request);
+        const country = (await deps.service.view())?.defaultCountry ?? null;
+        const entry = await deps.consent.stop.entryFor(request.body.phone, country);
+        const typed = parsePhone(request.body.phone, country);
+        await app.rbac.audit(request, { category: 'data', action: 'sms.stop.looked-up', changes: { after: { to: maskPhone(typed.ok ? typed.e164 : request.body.phone), found: entry !== null } } });
+        return { data: entry === null ? null : stopOf(entry) };
+      },
+    );
 
     app.post(
       '/sms/stop-list',
@@ -312,6 +469,32 @@ export function smsConsoleRoutes(deps: SmsConsoleRoutesDeps): FastifyPluginAsync
         if (outcome === 'missing') throw new NotFoundError('That number is not on the list.');
         if (outcome === 'erased') throw new ConflictError('An erased person stays on the list, so they are never texted again.', 'CONFLICT', { reason: 'erased' });
         await app.rbac.audit(request, { category: 'settings', action: 'sms.stop.removed', changes: { before: { id: request.params.id } } });
+        return reply.status(204).send(null);
+      },
+    );
+
+    app.post(
+      '/sms/stop-list/:id/lift-erased',
+      {
+        preHandler: manage,
+        config: { audit: audited('rbac') },
+        schema: { params: z.object({ id: z.string().min(1).max(64) }), body: liftBody, response: { 204: z.null() } },
+      },
+      async (request, reply) => {
+        const staff = personOf(request);
+        // An erased person's entry: only the Super Admin, and only with a fresh yes they gave a named person, in its words.
+        if (!(await app.rbac.resolve(request)).superAdmin) throw new ForbiddenError('Only a Super Admin can take an erased person’s number off the do-not-text list.', 'FORBIDDEN', { reason: 'super-admin' });
+        const country = (await deps.service.view())?.defaultCountry ?? null;
+        const outcome = await deps.consent.stop.liftErased({ id: request.params.id, phone: request.body.phone, country, purpose: request.body.purpose, wording: request.body.wording, how: request.body.how, staff });
+        if (outcome === 'missing') throw new NotFoundError('That number is not on the list.');
+        if (outcome === 'not-erased') throw new ConflictError('This entry still has its number: take it off with Remove.', 'CONFLICT', { reason: 'not-erased' });
+        if (outcome === 'other-number') throw new ConflictError('That is not the number this entry was kept for.', 'CONFLICT', { reason: 'other-number' });
+        const typed = parsePhone(request.body.phone, country);
+        await app.rbac.audit(request, {
+          category: 'settings',
+          action: 'sms.stop.erased-lifted',
+          changes: { before: { id: request.params.id }, after: { to: maskPhone(typed.ok ? typed.e164 : null), purpose: request.body.purpose, how: request.body.how, wordingVersion: request.body.wording.version } },
+        });
         return reply.status(204).send(null);
       },
     );

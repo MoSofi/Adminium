@@ -79,4 +79,5 @@ export type TextSendOutcome =
 export type TextReplyBlock = 'not-allowed' | 'stopped' | 'not-connected' | 'no-consent' | 'cannot-receive-text' | 'country-blocked';
 
 /** What happened to a reply that arrived. Stable words, for the event's own reason. */
-export type TextReceived = 'kept' | 'already-kept' | 'noted' | 'not-noted' | 'answered-not-read' | 'not-read' | 'own-sender';
+/** `not-ours`: found by the catch-up, to another number of the account and from someone this business never texted. */
+export type TextReceived = 'kept' | 'already-kept' | 'noted' | 'not-noted' | 'answered-not-read' | 'not-read' | 'own-sender' | 'not-ours';

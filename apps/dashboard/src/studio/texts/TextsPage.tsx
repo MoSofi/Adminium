@@ -149,7 +149,7 @@ function TextsConsole({ rights, allowed }: { rights: Rights; allowed: readonly T
         ) : null}
         {has('stop') ? (
           <TabsContent value="stop" className="pt-4">
-            <StopListTab isSuperAdmin={isSuperAdmin} />
+            <StopListTab isSuperAdmin={isSuperAdmin} canManage={canManage} />
           </TabsContent>
         ) : null}
         {has('conversations') ? (

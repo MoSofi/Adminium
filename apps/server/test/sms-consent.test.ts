@@ -519,6 +519,34 @@ describe.each(META_ENGINES)('text consent — $name', (engine) => {
       expect(await service.erase({ person: marta })).toEqual({ stopList: 'none', consentRows: 0 });
     });
 
+    it.runIf(engine.available)('on a shared line, erasing one person leaves another person\'s yes, with its words, and takes the rows that name nobody', async () => {
+      const daughter = { connectionId: 'con_1', table: 'public.people', key: 'daughter-7' };
+      await yes(DE, 'text-service', { person: marta });
+      await yes(DE, 'text-service', { person: daughter, wording: { text: 'Text me about my lessons', version: 'd1' } });
+      await service.stop.add({ phone: DE, reason: 'text-stop', origin: 'twilio' });
+      // Marta's own yes, and the two noes the STOP wrote for the number alone.
+      expect((await service.erase({ phone: DE, person: marta })).consentRows).toBe(3);
+      const left = await service.history({ phone: DE });
+      expect(left.map((one) => [one.person?.key, one.state, one.wording])).toEqual([['daughter-7', 'yes', 'Text me about my lessons']]);
+    });
+
+    it.runIf(engine.available)('the Super Admin\'s lift takes an erased entry off with a fresh named yes, for the number typed again', async () => {
+      await yes(DE);
+      await service.erase({ phone: DE, at: 9_000 });
+      const entry = (await service.stop.entryFor(DE, null))!;
+      const lift = { id: entry.id, purpose: 'text-service' as const, wording: { text: 'Text me about my lessons', version: 'd2' }, how: 'in-person' as const, staff: { id: 'usr_owner', label: 'Owner' }, at: 10_000 };
+      expect(await service.stop.liftErased({ ...lift, phone: GB })).toBe('other-number');
+      expect(await service.stop.has(DE, null)).toBe(true);
+      expect(await service.stop.liftErased({ ...lift, phone: DE })).toBe('lifted');
+      expect(await service.stop.has(DE, null)).toBe(false);
+      // The fresh yes is what sends now, in its own words and under the staff member's name.
+      expect(await service.standing({ phone: DE }, 'text-service')).toMatchObject({ state: 'yes', event: { wording: 'Text me about my lessons', staffLabel: 'Owner', source: 'staff' } });
+      expect(await service.stop.liftErased({ ...lift, phone: DE })).toBe('missing');
+      // An ordinary entry is not this route's: it has its number, and Remove.
+      await service.stop.add({ phone: GB, reason: 'text-stop', origin: 'twilio' });
+      expect(await service.stop.liftErased({ ...lift, id: (await service.stop.entryFor(GB, null))!.id, phone: GB })).toBe('not-erased');
+    });
+
     it.runIf(engine.available)('leaves another person alone', async () => {
       await yes(DE);
       await yes(GB);

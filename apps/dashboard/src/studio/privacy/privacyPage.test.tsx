@@ -122,6 +122,7 @@ const FOUND: PersonFound = {
 const PREVIEW: ErasePreview = {
   address: MARTA,
   found: true,
+  sharedNumbers: ['+49 ••• 789'],
   goes: [
     { kind: 'people', count: 1, connectionId: 'con_1', table: 'contacts', app: 'sales-crm', label: 'Contacts' },
     { kind: 'consent', count: 4 },
@@ -481,6 +482,8 @@ describe('a person’s data', () => {
     expect(stays).toContain('Data exports staff made of a table may hold them, until each one expires. Kept for 30 days.');
     expect(stays).toContain('Their address stays on the do-not-email list as a code, so they’re never e-mailed again.');
     expect(within(dialog).getByTestId('erase-left').textContent).toContain('contacts.joined_on');
+    // A number of theirs another person's row holds: said, masked.
+    expect(within(dialog).getByTestId('erase-shared-numbers').textContent).toContain('+49 ••• 789');
     const confirm = within(dialog).getByLabelText('Type the address to confirm');
     expect(document.activeElement).toBe(confirm);
     const eraseButton = within(dialog).getByTestId('erase-for-good') as HTMLButtonElement;

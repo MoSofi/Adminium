@@ -156,7 +156,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/people` | 1 | Names and ids of staff, for picking somebody (an owner, a hand-over) |
 | `/api/v1/permissions` | 1 | The permission catalog every role is built from |
 | `/api/v1/presence` | 1 | Someone is using this dashboard: an empty answer the dashboard asks for once a minute while its person is active, only where the operator set ADMINIUM_PRESENCE=on, for a proxy that counts any request as use |
-| `/api/v1/privacy/*` | 24 | A person’s data by their e-mail address — finding everything kept about them, downloading it as a .zip of JSON and CSV, erasing them in place (with a preview of what goes and what stays), and how long things are kept — plus the privacy notice (business name, notice address), the sender’s postal address and visitor counting (Off, Counts only or Per visitor, and the visitor banner’s words). Needs privacy.manage (only the Super Admin holds it unless granted) and a signed-in person; the postal address needs settings.manage. |
+| `/api/v1/privacy/*` | 25 | A person’s data by their e-mail address — finding everything kept about them, downloading it as a .zip of JSON and CSV, erasing them in place (with a preview of what goes and what stays), and how long things are kept — plus the privacy notice (business name, notice address), the sender’s postal address and visitor counting (Off, Counts only or Per visitor, and the visitor banner’s words). Needs privacy.manage (only the Super Admin holds it unless granted) and a signed-in person; the postal address needs settings.manage. |
 | `/api/v1/project/*` | 11 | A project folder on the server that runs one — which pages and schema customizations differ from the deployed files, settling a page changed on both sides, the changed copies `adminium pull --from` writes into the project, running the project’s actions, the built files of its own pages and widgets, and what Studio shows about the project |
 | `/api/v1/public/*` | 42 | The scoped public API for customer- and staff-facing pages (off by default) |
 | `/api/v1/public-api/*` | 3 | Turn the public API on or off, and see whether this instance opted in |
@@ -171,7 +171,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/search` | 1 | Cross-resource search for the command palette |
 | `/api/v1/settings/*` | 15 | Instance settings — defaults, branding, email, security, telemetry |
 | `/api/v1/setup/*` | 5 | First-boot super-admin creation, whether setup is still open, the one-time setup token, and — in that same window — checking a database for an Adminium store already in it and adopting that store |
-| `/api/v1/sms/*` | 28 | Text messages: the business’s own Twilio or Telnyx account, its sender, the daily limit and sending hours, Activity, the do-not-text list, text templates, and marketing texts (who a run reaches and why not, runs and their numbers, a person’s marketing yes with its double opt-in). Changes need a signed-in person, never an API key |
+| `/api/v1/sms/*` | 35 | Text messages: the business’s own Twilio or Telnyx account, its sender, the daily limit and sending hours, Activity, the do-not-text list, text templates, and marketing texts (who a run reaches and why not, runs and their numbers, a person’s marketing yes with its double opt-in). Changes need a signed-in person, never an API key |
 | `/api/v1/storage/*` | 8 | Where uploaded and generated files are stored — configure destinations (this server’s disk, an S3-compatible bucket, a WebDAV server), test one, choose the default, and move existing files between them |
 | `/api/v1/surfaces/*` | 6 | Hosted app surfaces — placement in the dashboard, and attaching your own domains |
 | `/api/v1/system/*` | 2 | Version and instance information |
@@ -1010,6 +1010,7 @@ GET /api/v1/privacy/exports/{id}/download
 POST /api/v1/privacy/erase/preview
 POST /api/v1/privacy/erase
 POST /api/v1/privacy/phone/erase/preview
+POST /api/v1/privacy/phone/exports
 POST /api/v1/privacy/phone/erase
 ```
 
@@ -1202,6 +1203,7 @@ POST /api/v1/setup/adopt
 
 ```http
 GET /api/v1/sms/setup
+GET /api/v1/sms/reply-address
 PUT /api/v1/sms/account
 DELETE /api/v1/sms/account
 PUT /api/v1/sms/sending
@@ -1211,9 +1213,15 @@ GET /api/v1/sms/sending-limits
 PUT /api/v1/sms/sending-limits
 GET /api/v1/sms/deliveries
 POST /api/v1/sms/deliveries/{id}/settle
+GET /api/v1/sms/inbound/failed
+POST /api/v1/sms/inbound/failed/{id}/retry
+POST /api/v1/sms/inbound/failed/retry-all
+POST /api/v1/sms/inbound/failed/{id}/dismiss
 GET /api/v1/sms/stop-list
 POST /api/v1/sms/stop-list
+POST /api/v1/sms/stop-list/lookup
 DELETE /api/v1/sms/stop-list/{id}
+POST /api/v1/sms/stop-list/{id}/lift-erased
 GET /api/v1/sms/text-templates
 PUT /api/v1/sms/text-templates/{key}/{locale}
 DELETE /api/v1/sms/text-templates/{key}/{locale}

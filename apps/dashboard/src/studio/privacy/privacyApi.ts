@@ -174,6 +174,8 @@ export interface ErasePreview {
   goes: GoesItem[];
   stays: StaysItem[];
   left: LeftColumn[];
+  /** Their numbers another person's row still holds, masked: a shared or reassigned line. */
+  sharedNumbers?: string[] | undefined;
 }
 
 export async function previewErasure(address: string): Promise<ErasePreview> {

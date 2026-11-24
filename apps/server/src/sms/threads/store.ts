@@ -165,6 +165,12 @@ export interface TextThreadStore {
   sentByApp(hashes: readonly AddressHash[], appKey: string, opts: { limit: number; before?: number | undefined }): Promise<TextSentByApp[]>;
   /** The app that texted the number last, or null. */
   lastAppOf(hashes: readonly AddressHash[]): Promise<string | null>;
+  /** The apps that texted the number at or after `since`, the latest first, each once. */
+  appsTextedSince(hashes: readonly AddressHash[], since: number): Promise<string[]>;
+  /** Whether this business ever texted the number, by any app or none. */
+  textedBefore(hashes: readonly AddressHash[]): Promise<boolean>;
+  /** How many "not read" answers went at or after `since`, for every number. */
+  answersSince(since: number): Promise<number>;
   deliveryStates(ids: readonly string[]): Promise<Map<string, { state: string; reason: string | null; providerStatus: string | null }>>;
   switches(): Promise<TextReplySwitchRecord[]>;
   setSwitch(appKey: string, replies: 'on' | 'off', by: { id: string; label: string } | null, at: number): Promise<void>;
@@ -173,6 +179,9 @@ export interface TextThreadStore {
   /** Removes every thread, message and answer mark of these hashes. Answers how many threads and messages went. */
   eraseFor(hashes: readonly AddressHash[]): Promise<{ threads: number; messages: number }>;
   countFor(hashes: readonly AddressHash[]): Promise<{ threads: number; messages: number }>;
+  /** Only the threads of these hashes about one of these records, with their messages. */
+  eraseForRecords(hashes: readonly AddressHash[], records: readonly TextThreadRecordRef[]): Promise<{ threads: number; messages: number }>;
+  countForRecords(hashes: readonly AddressHash[], records: readonly TextThreadRecordRef[]): Promise<{ threads: number; messages: number }>;
   /** Messages older than `before`, then threads left with none, then answer marks older than `answersBefore`. */
   sweep(before: number, answersBefore: number, batch: number): Promise<{ messages: number; threads: number; answers: number }>;
 }
@@ -251,6 +260,13 @@ export function createTextThreadStore(meta: MetaDb): TextThreadStore {
   async function threadIdsOf(hashes: readonly AddressHash[]): Promise<string[]> {
     if (hashes.length === 0) return [];
     return (await db.selectFrom('adminium_text_threads').select('id').where(ofHashes(hashes)).execute()).map((row) => row.id);
+  }
+
+  /** The threads of these hashes about one of these records: compared exactly, whatever a column's collation. */
+  async function recordThreadIds(hashes: readonly AddressHash[], records: readonly TextThreadRecordRef[]): Promise<string[]> {
+    if (hashes.length === 0 || records.length === 0) return [];
+    const rows = (await db.selectFrom('adminium_text_threads').selectAll().where(ofHashes(hashes)).where('recordKey', 'is not', null).execute()) as ThreadTable[];
+    return rows.filter((row) => records.some((one) => one.connectionId === row.recordConnection && one.table === row.recordTable && one.key === row.recordKey)).map((row) => row.id);
   }
 
   async function messageCount(threadIds: readonly string[]): Promise<number> {
@@ -436,6 +452,35 @@ export function createTextThreadStore(meta: MetaDb): TextThreadStore {
       return row?.aboutApp ?? null;
     },
 
+    async appsTextedSince(hashes, since) {
+      if (hashes.length === 0) return [];
+      const rows = await db
+        .selectFrom('adminium_text_deliveries')
+        .select(['aboutApp', 'createdAt'])
+        .where(ofHashes(hashes))
+        .where('aboutApp', 'is not', null)
+        .where('createdAt', '>=', since)
+        .orderBy('createdAt', 'desc')
+        .orderBy('id', 'desc')
+        .limit(DELETE_BATCH)
+        .execute();
+      return [...new Set(rows.flatMap((row) => (row.aboutApp === null ? [] : [row.aboutApp])))];
+    },
+
+    async textedBefore(hashes) {
+      if (hashes.length === 0) return false;
+      return (await db.selectFrom('adminium_text_deliveries').select('id').where(ofHashes(hashes)).limit(1).executeTakeFirst()) !== undefined;
+    },
+
+    async answersSince(since) {
+      const row = await db
+        .selectFrom('adminium_text_auto_answers')
+        .select((eb) => eb.fn.countAll<number | string>().as('count'))
+        .where('answeredAt', '>=', since)
+        .executeTakeFirstOrThrow();
+      return Number(row.count);
+    },
+
     async deliveryStates(ids) {
       const out = new Map<string, { state: string; reason: string | null; providerStatus: string | null }>();
       for (let at = 0; at < ids.length; at += DELETE_BATCH) {
@@ -497,6 +542,23 @@ export function createTextThreadStore(meta: MetaDb): TextThreadStore {
 
     async countFor(hashes) {
       const ids = await threadIdsOf(hashes);
+      return { threads: ids.length, messages: await messageCount(ids) };
+    },
+
+    async eraseForRecords(hashes, records) {
+      const ids = await recordThreadIds(hashes, records);
+      let messages = 0;
+      let threads = 0;
+      for (let at = 0; at < ids.length; at += DELETE_BATCH) {
+        const batch = ids.slice(at, at + DELETE_BATCH);
+        messages += Number((await db.deleteFrom('adminium_text_thread_messages').where('threadId', 'in', batch).executeTakeFirst()).numDeletedRows);
+        threads += Number((await db.deleteFrom('adminium_text_threads').where('id', 'in', batch).executeTakeFirst()).numDeletedRows);
+      }
+      return { threads, messages };
+    },
+
+    async countForRecords(hashes, records) {
+      const ids = await recordThreadIds(hashes, records);
       return { threads: ids.length, messages: await messageCount(ids) };
     },
 

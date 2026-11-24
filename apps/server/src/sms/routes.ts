@@ -3,6 +3,7 @@
  * Studio → Text messages: connecting the business's own provider account.
  *
  *   GET    /sms/setup     what is connected, and whether replies can reach this server
+ *   GET    /sms/reply-address   the address to give the provider, for replies and reports
  *   PUT    /sms/account   save keys: refused unless the provider accepts them
  *   PUT    /sms/sending   the sender and the default country
  *   POST   /sms/check     ask the provider about the saved keys again
@@ -16,6 +17,15 @@
  * only by its masked hint, and a test's number only by its last two digits.
  * Replies are serialised through closed schemas, so a field added to a view by
  * mistake does not leave the server.
+ *
+ * THE REPLY ADDRESS. A customer's reply reaches this server only once the
+ * business pastes the address into its provider: Twilio's "A message comes in"
+ * on the number (or its Messaging Service), Telnyx's messaging profile webhook.
+ * Adminium does not set it through the provider's API: the account is the
+ * business's, and its numbers may answer other software too. The address holds
+ * the door's token, so it is given only here, to `sms.manage`, with an audit row
+ * that names no part of it. Replies count as arriving only after the first
+ * signed one does (`not-heard` until then).
  */
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -27,9 +37,13 @@ import { reachability, REACHABILITY_STATES } from '../payments/reachability.js';
 import { tagRoutes } from '../security/route-audience.js';
 import type { LockReason } from '../trial/operator-lock.js';
 import { phoneHint } from './destination.js';
+import type { SmsReplyReach } from './inbound/index.js';
 import type { SmsAccountView, SmsService } from './service.js';
 import type { SmsTestGate } from './test-gate.js';
 import { SMS_CHECK_REASONS, SMS_PROVIDERS } from './types.js';
+
+/** Every state `SmsInboundChannel.replyReach` answers. */
+const SMS_REPLY_STATES = [...REACHABILITY_STATES, 'not-connected', 'key-unreadable', 'not-heard'] as const;
 
 export interface SmsRoutesDeps {
   service: SmsService;
@@ -45,6 +59,8 @@ export interface SmsRoutesDeps {
   trustProxy: boolean;
   /** This server's stored public address (`storedPublicOrigin`). */
   publicOrigin: () => Promise<string | null>;
+  /** Whether a reply can reach this server, and the address to give the provider (`SmsInboundChannel.replyReach`). */
+  replyReach: () => Promise<SmsReplyReach>;
   /** The language a person reads in, for the test text they send themselves. */
   languageOf?: ((userId: string) => Promise<string | null>) | undefined;
   /** What a test text may cost, kept in meta (`test-gate.ts`). Without it, the service's own memory limit. */
@@ -82,9 +98,22 @@ const accountView = z
 const setupReply = z.object({
   data: z.object({
     reachability: z.object({ state: z.enum(REACHABILITY_STATES), origin: z.string().nullable(), notPort443: z.boolean() }),
-    /** False: texts can go, but STOP replies and delivery reports cannot arrive. */
+    /** True once a signed reply has reached the address in use now. Until then texts give the business's own contact for stopping, and marketing is refused. */
     repliesCanArrive: z.boolean(),
+    replies: z.object({ state: z.enum(SMS_REPLY_STATES), heardAt: z.number().nullable() }),
     account: accountView.nullable(),
+  }),
+});
+
+const replyAddressReply = z.object({
+  data: z.object({
+    provider: z.enum(SMS_PROVIDERS).nullable(),
+    state: z.enum(SMS_REPLY_STATES),
+    heardAt: z.number().nullable(),
+    /** Where the provider sends a customer's reply. Null while the server cannot be reached. */
+    inbound: z.string().nullable(),
+    /** Where it sends delivery reports. Adminium hands it over with every text; a provider's own field for it may take the same address. */
+    statusCallback: z.string().nullable(),
   }),
 });
 
@@ -142,8 +171,23 @@ export function smsRoutes(deps: SmsRoutesDeps): FastifyPluginAsyncZod {
         trustProxy: deps.trustProxy,
         forwarded,
       });
-      return { data: { reachability: reach, repliesCanArrive: reach.state === 'reachable', account: await service.view() } };
+      const replies = await deps.replyReach();
+      return { data: { reachability: reach, repliesCanArrive: replies.canReceiveStop, replies: { state: replies.state, heardAt: replies.heardAt }, account: await service.view() } };
     });
+
+    app.get(
+      '/sms/reply-address',
+      { preHandler: manage, config: { audit: audited('rbac') }, schema: { response: { 200: replyAddressReply } } },
+      async (request) => {
+        requirePerson(request);
+        const reach = await deps.replyReach();
+        const view = await service.view();
+        // The address holds the door's token: the row says it was shown, never what it is.
+        await app.rbac.audit(request, { category: 'settings', action: 'sms.reply-address.read', changes: { after: { provider: view?.provider ?? null, state: reach.state } } });
+        // One door takes both, and tells them apart by what arrives: the same address, as each text hands it over.
+        return { data: { provider: view?.provider ?? null, state: reach.state, heardAt: reach.heardAt, inbound: reach.address, statusCallback: reach.address } };
+      },
+    );
 
     app.put(
       '/sms/account',

@@ -4819,7 +4819,9 @@
       "leftSub": "這些欄無法清空，因此其中的內容會保留：",
       "leftRows": "{count, plural, other {# 列}}",
       "confirm": "輸入地址以確認",
-      "eraseForGood": "永久刪除"
+      "eraseForGood": "永久刪除",
+      "sharedTitle": "其某個號碼也在他人的記錄中",
+      "sharedBody": "{numbers}：共用或已轉給他人的號碼。只刪除其本人的簡訊記錄。該號碼與另一人的簡訊和對話會保留。"
     },
     "title": "隱私與公開頁面",
     "tab": {
@@ -6696,7 +6698,12 @@
       "no": "無法接收回覆",
       "ok": "回覆和送達回報可以送達這台伺服器。",
       "problem": "這台伺服器沒有公開的 https 網址。它可以傳送服務簡訊，但無法接收 STOP 回覆或送達回報。行銷簡訊已關閉。",
-      "yes": "可接收回覆"
+      "yes": "可接收回覆",
+      "waiting": "尚未收到回覆",
+      "heardAt": "第一則回覆於 {date} 送達。",
+      "waitingLine": "已設定，但還沒有收到任何回覆。請把此伺服器的回覆地址交給你的服務商，然後傳送一則測試回覆。",
+      "waitingWhy": "在收到回覆之前，簡訊會提供你的電話或電子郵件用於退訂，而不是「回覆 STOP」，行銷簡訊也處於關閉狀態。",
+      "connectFirst": "請在下方連接你的服務商。之後此卡片會給出要貼到服務商處的回覆地址。"
     },
     "reason": {
       "badNumber": "未傳送。無法將此號碼辨識為有效的電話號碼。",
@@ -6831,7 +6838,8 @@
       "asked": {
         "email": "電子郵件",
         "inPerson": "當面",
-        "phone": "電話"
+        "phone": "電話",
+        "paper": "紙本"
       },
       "line": "名單上的人不會收到這個商家的任何簡訊，包括服務簡訊。",
       "noConfirm": "不以簡訊確認，因為此人是直接向商家提出要求。",
@@ -6852,7 +6860,21 @@
         "provider": "由服務商回報",
         "reply": "回覆 STOP"
       },
-      "whyAny": "原因：全部"
+      "whyAny": "原因：全部",
+      "deskWhy": "每次查詢一個號碼。完整名單包含所有應用程式的客戶，因此只有管理簡訊的人才能看到。",
+      "lookup": "查詢",
+      "lookupNone": "此號碼不在名單上。",
+      "lookupFound": "自 {date} 起在名單上：{why}。",
+      "liftTitle": "再次向已刪除的人傳送簡訊？",
+      "liftWhy": "僅適用於已易主或共用的號碼，且其持有人已再次同意接收簡訊。請輸入號碼及其同意的文字：它們會以你的名義保存。",
+      "liftFailed": "未能解除。請檢查該號碼是否就是此項目所記錄的號碼。",
+      "liftPurpose": "同意接收",
+      "liftService": "服務簡訊",
+      "liftMarketing": "行銷簡訊",
+      "liftWords": "其同意的文字",
+      "liftVersion": "這些文字的版本",
+      "lift": "記錄同意並解除",
+      "liftOpen": "解除"
     },
     "tab": {
       "activity": "活動",
@@ -7173,6 +7195,42 @@
         "confirmed": "已以您的名義記錄：對方已確認。",
         "superseded": "較新的答覆已取代該同意。請先重新記錄其同意。"
       }
+    },
+    "address": {
+      "copied": "已複製到剪貼簿。",
+      "twilio": {
+        "open": "在 Twilio 中開啟 Phone Numbers，再開啟 Active numbers，選擇你用來傳送的號碼。",
+        "paste": "在 Messaging 下，把「A message comes in」設為 Webhook，完整貼上回覆地址（包括 # 之後的部分），並保留 HTTP POST。儲存。",
+        "service": "如果該號碼屬於某個 Messaging Service，請改為貼到該服務的 Integration 設定中。"
+      },
+      "test": "用你自己的手機傳任意一個字到你的號碼。收到後，此卡片會顯示「可接收回覆」。",
+      "telnyx": {
+        "open": "在 Telnyx 中開啟 Messaging，選擇你的訊息設定檔。",
+        "paste": "在 Inbound 下，把回覆地址貼為 webhook URL，API 版本選 2。儲存。"
+      },
+      "show": "顯示回覆地址",
+      "none": "暫時沒有可提供的地址：外部無法連到此伺服器。",
+      "inbound": "回覆地址",
+      "copyInbound": "複製回覆地址",
+      "status": "送達報告（狀態回呼）",
+      "copyStatus": "複製送達報告地址",
+      "statusLine": "同一個地址。Adminium 會隨每則簡訊一併提供，因此只在服務商要求填寫狀態回呼的地方貼上即可。",
+      "secret": "此地址只給你自己和你的服務商。拿到它的人也只能敲門：每則訊息仍須由你的服務商簽署。"
+    },
+    "failed": {
+      "kind": {
+        "reply": "回覆",
+        "delivery": "送達報告",
+        "optOut": "服務商處的退訂"
+      },
+      "holds": "暫停發往此號碼的簡訊",
+      "when": "收到於 {date} · {reason}",
+      "until": "這可能是一則停止請求，因此在你重試或關閉它之前，或在 {date} 其內容被刪除之前，不會向此號碼傳送任何簡訊。",
+      "retry": "重試",
+      "close": "關閉",
+      "heading": "無法讀取的回覆",
+      "summary": "{failed, plural, other {# 則無法處理}}，{holding, plural, other {# 則正在暫停簡訊}}。",
+      "retryAll": "全部重試"
     }
   }
 }
