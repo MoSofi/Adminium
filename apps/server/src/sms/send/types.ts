@@ -61,6 +61,8 @@ export type TextSkipReason =
   | 'no-sender'
   | 'off-by-operator'
   | 'daily-limit'
+  /** A marketing text, in a release that does not offer marketing texts yet (`marketing/availability.ts`). */
+  | 'marketing-not-yet-available'
   /** The send window would hold it past the moment it is about. */
   | 'past-its-moment'
   /** No moment within two weeks has the window open in every time zone. */

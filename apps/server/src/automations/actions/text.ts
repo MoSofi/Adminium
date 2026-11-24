@@ -70,6 +70,7 @@ export const TEXT_NOT_SENT: Readonly<Record<TextPrepareSkipReason, string>> = {
   'country-blocked': 'texts do not go to this country',
   'country-blocked-for-marketing': 'texts do not go to this country',
   'marketing-from-name': 'this kind of text cannot go from here',
+  'marketing-not-yet-available': 'this kind of text cannot go from here',
   'marketing-without-replies': 'this kind of text cannot go from here',
   'unknown-class': 'this kind of text cannot go from here',
   stopped: 'this person asked for no more texts',

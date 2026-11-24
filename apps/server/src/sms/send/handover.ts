@@ -34,6 +34,7 @@ import type { EnqueueJobInput } from '@adminium/meta';
 
 import type { TextConsentService } from '../consent/types.js';
 import { accountRefOf } from '../credentials.js';
+import { TEXT_MARKETING_AVAILABLE } from '../marketing/availability.js';
 import { afterAttempt, type SmsEarlierAttempt, type SmsService } from '../service.js';
 import type { SmsProviderKey } from '../types.js';
 import { openText, SMS_SEND_ATTEMPTS, SMS_SEND_JOB_KIND, type SmsSendPayload } from './job.js';
@@ -156,6 +157,8 @@ export function createHandOver(deps: HandOverDeps) {
 
     if (text === null) return close('not-sent', 'envelope-unreadable');
     if (!deps.operatorAllows()) return close('skipped', 'off-by-operator');
+    // The same lock as at prepare: a text queued before it was put on stays unsent.
+    if (text.textClass === 'marketing' && !TEXT_MARKETING_AVAILABLE) return close('skipped', 'marketing-not-yet-available');
 
     let policy: TextSendPolicy;
     try {

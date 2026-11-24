@@ -25,6 +25,7 @@ import { maskPhone } from '../consent/redact.js';
 import { textSubject } from '../consent/service.js';
 import type { TextClass, TextRefusal } from '../consent/types.js';
 import type { SmsStopConfirmation } from '../inbound/stop-reply.js';
+import { TEXT_MARKETING_AVAILABLE } from '../marketing/availability.js';
 import type { SmsService } from '../service.js';
 import type { SmsSender } from '../types.js';
 import { composeText } from './compose.js';
@@ -141,6 +142,8 @@ export function createTextSendPath(deps: TextSendDeps): TextSendPath {
 
   async function prepare(input: TextPrepareInput): Promise<TextPrepared> {
     if (!deps.operatorAllows()) return { action: 'skip', reason: 'off-by-operator' };
+    // Whoever asks: a run, an app's outbox kind, a rule's step. The hand-over asks again.
+    if (input.textClass === 'marketing' && !TEXT_MARKETING_AVAILABLE) return { action: 'skip', reason: 'marketing-not-yet-available' };
     const view = await deps.sms.view();
     if (view === null || !view.keyReadable) return { action: 'skip', reason: 'not-connected' };
     const sender = input.sender ?? view.sender;

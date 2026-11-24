@@ -21,6 +21,7 @@ import type { TextConsentService } from '../consent/types.js';
 import type { SmsService } from '../service.js';
 import type { TextPhoneKeys, TextSendPath } from '../send/path.js';
 import type { TextDelivery, TextSendReport } from '../send/types.js';
+import { TEXT_MARKETING_AVAILABLE } from './availability.js';
 import { createTextConfirm, type TextConfirm } from './confirm.js';
 import { textMarketingRoutes } from './routes.js';
 import { createTextRuns, registerTextRunHandler, TEXT_RUN_REPORT_APP, type TextRuns } from './runs.js';
@@ -125,7 +126,9 @@ export function createTextMarketing(deps: TextMarketingDeps): TextMarketing {
       registerTextRunHandler(registry, () => runs);
       registry.registerJobHandler(TEXT_CONFIRM_JOB, confirmPayloadSchema, async (payload) => ({ outcome: await confirm.request({ person: payload }) }), { internal: true });
     },
-    afterFormYes: (person) => deps.enqueue({ kind: TEXT_CONFIRM_JOB, payload: { connectionId: person.connectionId, table: person.table, key: person.key }, runAt: (deps.now ?? Date.now)() + CONFIRM_DELAY_MS, maxAttempts: 3 }),
+    // Nobody is asked to confirm a yes to texts this release does not send.
+    afterFormYes: async (person) =>
+      !TEXT_MARKETING_AVAILABLE ? null : deps.enqueue({ kind: TEXT_CONFIRM_JOB, payload: { connectionId: person.connectionId, table: person.table, key: person.key }, runAt: (deps.now ?? Date.now)() + CONFIRM_DELAY_MS, maxAttempts: 3 }),
     owns: (report) => report.app === TEXT_RUN_REPORT_APP,
     stillWanted: (report, e164) => runs.stillWanted(report, e164),
     settled: (report, delivery) => runs.settled(report, delivery),
