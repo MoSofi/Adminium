@@ -84,6 +84,8 @@ const RAW: unknown = [
       { tag: 'New', text: 'A customs form filled from the order, a stored customs invoice, shop defaults for goods and tariff codes, and optional export numbers.' },
       { tag: 'New', text: 'A US shop can choose its export filing code, which is checked against the destination and the value and never sent by default.' },
       { tag: 'Security', text: 'Erasing a person now also takes their phone number off orders kept for tax.' },
+      { tag: 'Security', text: 'A customer who deletes their own details now also has their stored labels and customs invoices deleted, as staff erasure already did.' },
+      { tag: 'Fixed', text: 'A customs form stops and says why when its values cannot be trusted: a refund on the order, a shop currency that changed, or only some lines with a weight. A cancelled line is left off.' },
       { tag: 'Fixed', text: 'A label can no longer be bought for an order cancelled while its rates were open.' },
       { tag: 'Fixed', text: 'A replacement label now reaches the order once the first label is refunded.' },
       { tag: 'Fixed', text: 'A purchase restored from a backup is looked up before anyone can buy that label again.' },
