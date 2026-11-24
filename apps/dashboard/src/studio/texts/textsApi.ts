@@ -93,6 +93,27 @@ export interface Delivery {
   source: { app: string; table: string } | null;
 }
 
+/** A reply or report the server took in and could not act on. Never a word of it. */
+export interface FailedReply {
+  id: string;
+  kind: string;
+  reason: string | null;
+  /** `+49 ••• 789`. */
+  masked: string | null;
+  receivedAt: number;
+  attempts: number;
+  retryable: boolean;
+  /** It may be a request to stop: texts to the number wait until it is tried again or closed. */
+  holds: boolean;
+  holdsUntil: number | null;
+}
+
+export interface FailedReplies {
+  data: FailedReply[];
+  next: string | null;
+  summary: { failed: number; holding: number; more: boolean };
+}
+
 export const STOP_REASONS = ['text-stop', 'provider-opt-out', 'staff', 'erased'] as const;
 export type StopReason = (typeof STOP_REASONS)[number];
 
@@ -140,6 +161,7 @@ export const limitsKey = [...TEXTS_QUERY_KEY, 'limits'] as const;
 export const deliveriesKey = [...TEXTS_QUERY_KEY, 'deliveries'] as const;
 export const stopListKey = [...TEXTS_QUERY_KEY, 'stop-list'] as const;
 export const templatesKey = [...TEXTS_QUERY_KEY, 'templates'] as const;
+export const failedRepliesKey = [...TEXTS_QUERY_KEY, 'failed'] as const;
 
 export const smsSetupQuery = () => queryOptions({ queryKey: setupKey, queryFn: async () => (await api.get<{ data: SmsSetup }>(`${BASE}/setup`)).data });
 /** Audited on the server: called when a person opens the address, never on page load. */
@@ -157,6 +179,9 @@ export const deliveriesQuery = () =>
       return page;
     },
   });
+
+/** Audited on the server. Read only by whoever manages texts. */
+export const failedRepliesQuery = () => queryOptions({ queryKey: failedRepliesKey, queryFn: async () => api.get<FailedReplies>(`${BASE}/inbound/failed`) });
 
 export const stopListQuery = () => queryOptions({ queryKey: stopListKey, queryFn: async () => api.get<{ data: StopEntry[]; next: string | null }>(`${BASE}/stop-list`) });
 export const textTemplatesQuery = () => queryOptions({ queryKey: templatesKey, queryFn: async () => api.get<{ data: TextTemplate[]; connected: boolean }>(`${BASE}/text-templates`) });
@@ -201,6 +226,18 @@ export async function recordStop(phone: string, asked: StopAsked): Promise<{ dat
 /** One number on the do-not-text list, or null: what a desk may ask. Audited on the server, by the mask. */
 export async function lookupStop(phone: string): Promise<StopEntry | null> {
   return (await api.post<{ data: StopEntry | null }>(`${BASE}/stop-list/lookup`, { phone })).data;
+}
+
+export async function retryFailed(id: string): Promise<void> {
+  await api.post(`${BASE}/inbound/failed/${encodeURIComponent(id)}/retry`);
+}
+
+export async function retryAllFailed(): Promise<void> {
+  await api.post(`${BASE}/inbound/failed/retry-all`);
+}
+
+export async function dismissFailed(id: string): Promise<void> {
+  await api.post(`${BASE}/inbound/failed/${encodeURIComponent(id)}/dismiss`);
 }
 
 export async function removeStop(id: string): Promise<void> {

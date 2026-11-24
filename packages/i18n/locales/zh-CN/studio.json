@@ -6922,6 +6922,21 @@
       "copyStatus": "复制送达报告地址",
       "statusLine": "同一个地址。Adminium 会随每条短信一并提供，因此只在服务商要求填写状态回调的地方粘贴即可。",
       "secret": "此地址只给你自己和你的服务商。拿到它的人也只能敲门：每条消息仍须由你的服务商签名。"
+    },
+    "failed": {
+      "kind": {
+        "reply": "回复",
+        "delivery": "送达报告",
+        "optOut": "服务商处的退订"
+      },
+      "holds": "暂停发往此号码的短信",
+      "when": "收到于 {date} · {reason}",
+      "until": "这可能是一条停止请求，因此在你重试或关闭它之前，或在 {date} 其内容被删除之前，不会向此号码发送任何短信。",
+      "retry": "重试",
+      "close": "关闭",
+      "heading": "无法读取的回复",
+      "summary": "{failed, plural, other {# 条无法处理}}，{holding, plural, other {# 条正在暂停短信}}。",
+      "retryAll": "全部重试"
     }
   }
 }

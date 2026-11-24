@@ -125,6 +125,14 @@ export interface InboundHandled {
   reason?: InboundReason | undefined;
 }
 
+/** A failed event as staff see it, beside its head. */
+export interface InboundSummary {
+  /** The sender, masked (`+49 ••• 789`); null when it cannot be read. */
+  masked: string | null;
+  /** It may be a request to stop: what is sent to its sender waits until staff retry or close it. */
+  holds: boolean;
+}
+
 /** Stores events once, as a door or a catch-up hands them over. */
 export type InboundAccept = (input: { channel: string; account: string; source: string; events: readonly InboundCandidate[] }) => Promise<{ stored: number; duplicates: number }>;
 
@@ -144,6 +152,13 @@ export interface InboundChannel {
   prove(delivery: InboundDelivery): Promise<InboundProof>;
   /** Does an event's work. Must be safe to run twice. */
   handle(event: InboundOpened): Promise<InboundHandled>;
+  /**
+   * What a failed event tells staff and the send path, read from its opened
+   * body: who it is from, masked, and whether it may hold a request to stop
+   * (an ordinary message does not). Never a word of the body. Left out, every
+   * failed event holds, and no subject is shown.
+   */
+  summarize?(event: { kind: string; body: string }): InboundSummary;
   /**
    * Asks the source for what this server may have missed, and hands it to
    * `accept`. Run from the sweep, so it must be bounded and safe to repeat.

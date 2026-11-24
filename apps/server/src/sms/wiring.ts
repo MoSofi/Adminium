@@ -208,6 +208,7 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
         texts: () => sendPath,
         manageGrant: PERMISSIONS.smsManage,
         peopleGrant: PERMISSIONS.privacyPeople,
+        inbound,
         now,
       }),
     conversationRoutes: (input) =>

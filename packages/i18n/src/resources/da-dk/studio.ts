@@ -6932,6 +6932,21 @@ export default {
       "copyStatus": "Kopiér adressen til leveringsrapporter",
       "statusLine": "Den samme adresse. Adminium sender den med hver sms, så du indsætter den kun, hvor din udbyder beder om en status callback.",
       "secret": "Hold denne adresse mellem dig og din udbyder. Den, der har den, kan kun banke på: Hver besked skal stadig være signeret af din udbyder."
+    },
+    "failed": {
+      "kind": {
+        "reply": "Svar",
+        "delivery": "Leveringsrapport",
+        "optOut": "Afmelding hos udbyderen"
+      },
+      "holds": "Holder sms’er til dette nummer tilbage",
+      "when": "Modtaget {date} · {reason}",
+      "until": "Det kan være en anmodning om at stoppe, så ingen sms går til dette nummer, før du prøver det igen eller lukker det, eller indtil {date}, hvor indholdet slettes.",
+      "retry": "Prøv igen",
+      "close": "Luk",
+      "heading": "Svar, der ikke kunne læses",
+      "summary": "{failed, plural, one {# kunne ikke behandles} other {# kunne ikke behandles}}, {holding, plural, one {# holder sms’er tilbage} other {# holder sms’er tilbage}}.",
+      "retryAll": "Prøv alle igen"
     }
   }
 } as const;

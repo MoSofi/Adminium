@@ -6932,6 +6932,21 @@ export default {
       "copyStatus": "Adresse für Zustellberichte kopieren",
       "statusLine": "Dieselbe Adresse. Adminium gibt sie mit jeder SMS mit, Sie fügen sie also nur dort ein, wo Ihr Anbieter nach einem Status-Callback fragt.",
       "secret": "Geben Sie diese Adresse nur Ihrem Anbieter. Wer sie kennt, kann nur anklopfen: Jede Nachricht muss trotzdem von Ihrem Anbieter signiert sein."
+    },
+    "failed": {
+      "kind": {
+        "reply": "Antwort",
+        "delivery": "Zustellbericht",
+        "optOut": "Abmeldung beim Anbieter"
+      },
+      "holds": "Hält SMS an diese Nummer zurück",
+      "when": "Empfangen {date} · {reason}",
+      "until": "Es könnte eine Bitte sein, keine SMS mehr zu senden. Darum geht keine SMS an diese Nummer, bis Sie es erneut versuchen oder schließen, oder bis {date}, wenn sein Inhalt gelöscht wird.",
+      "retry": "Erneut versuchen",
+      "close": "Schließen",
+      "heading": "Antworten, die nicht gelesen werden konnten",
+      "summary": "{failed, plural, one {# konnte nicht verarbeitet werden} other {# konnten nicht verarbeitet werden}}, {holding, plural, one {# hält SMS zurück} other {# halten SMS zurück}}.",
+      "retryAll": "Alle erneut versuchen"
     }
   }
 } as const;

@@ -6922,6 +6922,21 @@
       "copyStatus": "Copy the delivery report address",
       "statusLine": "The same address. Adminium gives it with each text, so you paste it only where your provider asks for a status callback.",
       "secret": "Keep this address to yourself and your provider. Anyone who has it can only knock: every message must still be signed by your provider."
+    },
+    "failed": {
+      "kind": {
+        "reply": "Reply",
+        "delivery": "Delivery report",
+        "optOut": "Opt-out from the provider"
+      },
+      "holds": "Holds texts to this number",
+      "when": "Received {date} · {reason}",
+      "until": "It may be a request to stop, so no text goes to this number until you try it again or close it, or until {date}, when its content is deleted.",
+      "retry": "Try again",
+      "close": "Close",
+      "heading": "Replies that could not be read",
+      "summary": "{failed, plural, one {# could not be acted on} other {# could not be acted on}}, {holding, plural, one {# holds texts} other {# hold texts}}.",
+      "retryAll": "Try all again"
     }
   }
 }

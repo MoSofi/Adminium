@@ -30,6 +30,7 @@ import { ValidationFailedError } from '../../errors.js';
 import { InboundFailedError, InboundRetryError, inboundAddress, inboundToken, type InboundAccept, type InboundCandidate, type InboundChannel, type InboundHandled, type InboundOpened, type InboundProof } from '../../inbound/index.js';
 import { reachability, type ReachabilityState } from '../../payments/reachability.js';
 import type { TextConsentService } from '../consent/index.js';
+import { maskPhone } from '../consent/redact.js';
 import { accountRefOf, type SmsCredentials } from '../credentials.js';
 import type { TextReport } from '../send/store.js';
 import type { SmsService } from '../service.js';
@@ -59,6 +60,14 @@ export const SMS_CONTROL_RETAIN_MS = 400 * DAY_MS;
  * Its default retries only a failed connection, once, so a 503 would be final.
  */
 export const TWILIO_RETRY_OVERRIDE = '#rp=all&rc=5';
+
+/**
+ * A failed event keeps its body this long for a retry, and a possible STOP
+ * among them holds texts to its sender as long. Shorter than the core's
+ * default, because a hold stops every text to that person: staff see it on
+ * the failed list, with the day it ends.
+ */
+export const SMS_FAILED_BODY_MS = 30 * DAY_MS;
 
 /** How often the sweep's catch-up asks the provider, and how far back. A run that could not finish is tried at the next sweep. */
 export const SMS_SWEEP_CATCH_UP_EVERY_MS = 30 * 60 * 1000;
@@ -308,7 +317,24 @@ export function createSmsInboundChannel(deps: SmsInboundDeps): SmsInboundChannel
   return {
     channel: SMS_INBOUND_CHANNEL,
     bodyLimit: SMS_INBOUND_BODY_LIMIT,
+    failedBodyMs: SMS_FAILED_BODY_MS,
     replyReach,
+
+    summarize({ body }) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(body) as unknown;
+      } catch {
+        return { masked: null, holds: true };
+      }
+      const read = smsEventBody.safeParse(parsed);
+      // Unreadable: it may be anything, a STOP too.
+      if (!read.success) return { masked: null, holds: true };
+      const event = read.data;
+      if (event.type === 'reply') return { masked: maskPhone(event.from), holds: readControlWord(event.text).kind === 'stop' };
+      if (event.type === 'opt-out') return { masked: maskPhone(event.phone), holds: true };
+      return { masked: event.to === null ? null : maskPhone(event.to), holds: false };
+    },
 
     async reach() {
       const answer = await replyReach();

@@ -6922,6 +6922,21 @@
       "copyStatus": "複製送達報告地址",
       "statusLine": "同一個地址。Adminium 會隨每則簡訊一併提供，因此只在服務商要求填寫狀態回呼的地方貼上即可。",
       "secret": "此地址只給你自己和你的服務商。拿到它的人也只能敲門：每則訊息仍須由你的服務商簽署。"
+    },
+    "failed": {
+      "kind": {
+        "reply": "回覆",
+        "delivery": "送達報告",
+        "optOut": "服務商處的退訂"
+      },
+      "holds": "暫停發往此號碼的簡訊",
+      "when": "收到於 {date} · {reason}",
+      "until": "這可能是一則停止請求，因此在你重試或關閉它之前，或在 {date} 其內容被刪除之前，不會向此號碼傳送任何簡訊。",
+      "retry": "重試",
+      "close": "關閉",
+      "heading": "無法讀取的回覆",
+      "summary": "{failed, plural, other {# 則無法處理}}，{holding, plural, other {# 則正在暫停簡訊}}。",
+      "retryAll": "全部重試"
     }
   }
 }

@@ -50,6 +50,7 @@ import {
   type InboundEventRecord,
   type InboundReason,
   type InboundState,
+  type InboundSummary,
 } from './types.js';
 
 export const INBOUND_PARSE_JOB = 'inbound.parse';
@@ -75,6 +76,8 @@ export const INBOUND_FAILED_BODY_MS = 90 * DAY_MS;
 export const INBOUND_FAILED_ROW_MS = 400 * DAY_MS;
 /** Rows handled in one sweep step. */
 export const INBOUND_SWEEP_BATCH = 500;
+/** A sender's failed events read for a hold, at most. Past that many, it holds: so many failures are for staff to look at. */
+const WAITING_FAILED_READ = 20;
 
 const BODY_PURPOSE = INBOUND_BODY_PURPOSE;
 /** The purpose of the key provider ids are digested under. */
@@ -116,6 +119,12 @@ export interface InboundFailedView {
   finishedAt: number | null;
   /** False once its body has gone, so a retry cannot work. */
   retryable: boolean;
+  /** Who it is from, masked, as its channel reads the body; null when it cannot say. */
+  masked: string | null;
+  /** It may be a request to stop, so what is sent to its sender waits until it is retried or closed. */
+  holds: boolean;
+  /** When its body goes, and with it the hold: the retry is then lost. Null when it holds nothing. */
+  holdsUntil: number | null;
 }
 
 export interface InboundSweepResult {
@@ -131,6 +140,10 @@ export interface InboundCore {
   run(eventId: string): Promise<{ state: InboundState | 'skipped' }>;
   failed: {
     list(opts: { channel?: string | undefined; limit: number; cursor?: string | null | undefined }): Promise<{ events: InboundFailedView[]; next: string | null }>;
+    /** One failed event, or null when it is not failed (any more). */
+    get(id: string): Promise<InboundFailedView | null>;
+    /** How many are failed, and how many of them hold what is sent to their sender. Reads at most `limit` bodies. */
+    count(opts: { channel?: string | undefined; limit: number }): Promise<{ failed: number; holding: number; more: boolean }>;
     retry(id: string): Promise<boolean>;
     /** Retries up to `limit` of them, leaving any that crashed the server: those are retried one at a time, on purpose. */
     retryAll(opts: { channel?: string | undefined; limit: number }): Promise<{ retried: number; more: boolean }>;
@@ -161,18 +174,6 @@ function readCursor(cursor: string | null | undefined): { receivedAt: number; id
   throw new ValidationFailedError('That page cursor is not one this list gave.', { field: 'cursor' });
 }
 
-const viewOf = (event: InboundEventHead): InboundFailedView => ({
-  id: event.id,
-  channel: event.channel,
-  source: event.source,
-  kind: event.kind,
-  reason: event.reason,
-  attempts: event.attempts,
-  receivedAt: event.receivedAt,
-  occurredAt: event.occurredAt,
-  finishedAt: event.finishedAt,
-  retryable: event.hasBody,
-});
 
 export function createInboundCore(deps: InboundCoreDeps): InboundCore {
   const now = deps.now ?? Date.now;
@@ -198,6 +199,44 @@ export function createInboundCore(deps: InboundCoreDeps): InboundCore {
       }
     }
     throw new InboundFailedError('body-unreadable');
+  }
+
+  /** What the channel reads from a failed body. A body that cannot be opened, or a channel that cannot say, holds. */
+  async function summaryOf(channelName: string, kind: string, sealed: string | null, hasBody = sealed !== null): Promise<InboundSummary> {
+    if (!hasBody) return { masked: null, holds: false };
+    const channel = channelNamed(channelName);
+    if (channel?.summarize === undefined || sealed === null) return { masked: null, holds: true };
+    try {
+      return channel.summarize({ kind, body: await open(sealed) });
+    } catch {
+      return { masked: null, holds: true };
+    }
+  }
+
+  /** The failed events whose body a summary needs: only a channel that reads one ever has it fetched. */
+  const readable = (events: readonly InboundEventHead[]): string[] => events.filter((one) => one.hasBody && channelNamed(one.channel)?.summarize !== undefined).map((one) => one.id);
+
+  function bodyKeptFor(channelName: string): number {
+    return channelNamed(channelName)?.failedBodyMs ?? INBOUND_FAILED_BODY_MS;
+  }
+
+  async function viewOf(event: InboundEventHead, sealed: string | null): Promise<InboundFailedView> {
+    const summary = await summaryOf(event.channel, event.kind, sealed, event.hasBody);
+    return {
+      id: event.id,
+      channel: event.channel,
+      source: event.source,
+      kind: event.kind,
+      reason: event.reason,
+      attempts: event.attempts,
+      receivedAt: event.receivedAt,
+      occurredAt: event.occurredAt,
+      finishedAt: event.finishedAt,
+      retryable: event.hasBody,
+      masked: summary.masked,
+      holds: summary.holds,
+      holdsUntil: summary.holds ? event.receivedAt + bodyKeptFor(event.channel) : null,
+    };
   }
 
   /** The job is a convenience: the row is what is safe, and the sweep queues whatever this misses. */
@@ -323,7 +362,26 @@ export function createInboundCore(deps: InboundCoreDeps): InboundCore {
         const limit = Math.min(Math.max(opts.limit, 1), 200);
         const rows = await store.failedPage({ channel: opts.channel, limit: limit + 1, after: readCursor(opts.cursor) });
         const shown = rows.slice(0, limit);
-        return { events: shown.map(viewOf), next: rows.length > limit ? cursorOf(shown.at(-1)!) : null };
+        const bodies = await store.failedBodies(readable(shown));
+        const events: InboundFailedView[] = [];
+        for (const one of shown) events.push(await viewOf(one, bodies.get(one.id) ?? null));
+        return { events, next: rows.length > limit ? cursorOf(shown.at(-1)!) : null };
+      },
+
+      async get(id) {
+        const event = await store.byId(id);
+        if (event === null || event.state !== 'failed') return null;
+        const { sealedBody, ...head } = event;
+        return viewOf({ ...head, hasBody: sealedBody !== null }, sealedBody);
+      },
+
+      async count(opts) {
+        const rows = await store.failedPage({ channel: opts.channel, limit: opts.limit + 1 });
+        const shown = rows.slice(0, opts.limit);
+        const bodies = await store.failedBodies(readable(shown));
+        let holding = 0;
+        for (const one of shown) if ((await summaryOf(one.channel, one.kind, bodies.get(one.id) ?? null, one.hasBody)).holds) holding += 1;
+        return { failed: shown.length, holding, more: rows.length > opts.limit };
       },
 
       async retry(id) {
@@ -369,7 +427,14 @@ export function createInboundCore(deps: InboundCoreDeps): InboundCore {
     },
 
     async waitingFrom(subject, kinds) {
-      return store.anyWaiting(await ring.hashesOf(subject), kinds);
+      const hashes = await ring.hashesOf(subject);
+      if (await store.anyWaiting(hashes, kinds)) return true;
+      // A failed one holds only when it may be the request to stop that nobody could act on: an ordinary message
+      // that failed must not keep every text from its sender for as long as its body is kept.
+      const failed = await store.failedFrom(hashes, kinds, WAITING_FAILED_READ);
+      if (failed.length >= WAITING_FAILED_READ) return true;
+      for (const one of failed) if ((await summaryOf(one.channel, one.kind, one.sealedBody)).holds) return true;
+      return false;
     },
 
     async erase(input) {

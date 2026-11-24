@@ -18,6 +18,7 @@ import { PERMISSIONS } from '../src/rbac/permissions.js';
 import { smsConsoleRoutes } from '../src/sms/console-routes.js';
 import { createTextConsentService, type TextConsentService } from '../src/sms/consent/index.js';
 import { createTextSendStore, type TextSendStore } from '../src/sms/send/index.js';
+import type { InboundFailedView } from '../src/inbound/index.js';
 import type { SmsAccountView } from '../src/sms/service.js';
 
 const SECRET = 'an-sms-console-test-secret-of-length';
@@ -35,6 +36,9 @@ describe('Texts console routes', () => {
   let store: TextSendStore;
   let view: SmsAccountView | null;
   let deskApps: ReadonlySet<string> | null;
+  let failed: InboundFailedView[];
+  let retried: string[];
+  let dismissed: string[];
 
   beforeEach(async () => {
     meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
@@ -59,6 +63,13 @@ describe('Texts console routes', () => {
     store = createTextSendStore(meta);
     view = null;
     deskApps = null;
+    retried = [];
+    dismissed = [];
+    const base = { channel: 'sms', source: 'twilio', attempts: 5, receivedAt: NOW - 3_600_000, occurredAt: null, finishedAt: NOW - 3_000_000, retryable: true };
+    failed = [
+      { ...base, id: 'ibe_plain', kind: 'reply', reason: 'handler-error', masked: '+49 ••• 789', holds: false, holdsUntil: null },
+      { ...base, id: 'ibe_stop', kind: 'reply', reason: 'store-unreachable', masked: '+1 ••• 169', holds: true, holdsUntil: NOW + 29 * 86_400_000 },
+    ];
 
     app = Fastify({ logger: false });
     app.setValidatorCompiler(validatorCompiler);
@@ -84,6 +95,22 @@ describe('Texts console routes', () => {
             texts: () => ({ resolveUnknown: (id, to) => store.resolveUnknown(id, to, NOW) }),
             manageGrant: PERMISSIONS.smsManage,
             peopleGrant: PERMISSIONS.privacyPeople,
+            inbound: {
+              failed: {
+                list: async () => ({ events: failed, next: null }),
+                get: async (id) => failed.find((one) => one.id === id) ?? null,
+                count: async () => ({ failed: failed.length, holding: failed.filter((one) => one.holds).length, more: false }),
+                retry: async (id) => {
+                  retried.push(id);
+                  return true;
+                },
+                retryAll: async () => ({ retried: failed.length, more: false }),
+                dismiss: async (id) => {
+                  dismissed.push(id);
+                  return true;
+                },
+              },
+            },
             // The desk's reach, as `privacyScopeOf` gives it for an app's role.
             privacyScope: async (userId) => (userId === desk.id ? { manage: false, apps: deskApps } : null),
             now: () => NOW,
@@ -219,6 +246,43 @@ describe('Texts console routes', () => {
       expect((await call(manager, 'POST', `/sms/deliveries/${id}/settle`, { answer: 'went' })).statusCode).toBe(409);
       expect((await call(manager, 'POST', '/sms/deliveries/nope/settle', { answer: 'went' })).statusCode).toBe(404);
       expect(JSON.stringify(await auditRepo(meta).list({ limit: 5 }))).toContain('sms.delivery.checked-not-sent');
+    });
+  });
+
+  describe('replies that could not be acted on', () => {
+    it('shows sms.manage the failed list with the mask, the hold and its end, never a word', async () => {
+      const answer = await call(manager, 'GET', '/sms/inbound/failed');
+      expect(answer.statusCode).toBe(200);
+      expect(answer.json()).toMatchObject({ summary: { failed: 2, holding: 1 }, data: [{ id: 'ibe_plain', holds: false }, { id: 'ibe_stop', holds: true, masked: '+1 ••• 169' }] });
+      expect(JSON.stringify(await auditRepo(meta).list({ limit: 5 }))).toContain('sms.inbound.failed.read');
+    });
+
+    it('retries one, retries all, and closes one, each audited by the mask', async () => {
+      expect((await call(manager, 'POST', '/sms/inbound/failed/ibe_plain/retry')).json()).toEqual({ data: { retried: true } });
+      expect((await call(manager, 'POST', '/sms/inbound/failed/retry-all')).json()).toEqual({ data: { retried: 2, more: false } });
+      expect((await call(manager, 'POST', '/sms/inbound/failed/ibe_stop/dismiss')).statusCode).toBe(204);
+      expect(retried).toEqual(['ibe_plain']);
+      expect(dismissed).toEqual(['ibe_stop']);
+      const audit = JSON.stringify(await auditRepo(meta).list({ limit: 10 }));
+      for (const action of ['sms.inbound.retried', 'sms.inbound.retried-all', 'sms.inbound.dismissed']) expect(audit).toContain(action);
+      expect(audit).toContain('"held":true');
+      expect((await call(manager, 'POST', '/sms/inbound/failed/nope/retry')).statusCode).toBe(404);
+    });
+
+    it('refuses a retry whose content is gone', async () => {
+      failed[0] = { ...failed[0]!, retryable: false };
+      expect((await call(manager, 'POST', '/sms/inbound/failed/ibe_plain/retry')).statusCode).toBe(409);
+    });
+
+    it('is sms.manage\'s alone: never a desk, a clerk or an API key', async () => {
+      for (const [method, url] of [['GET', '/sms/inbound/failed'], ['POST', '/sms/inbound/failed/ibe_plain/retry'], ['POST', '/sms/inbound/failed/retry-all'], ['POST', '/sms/inbound/failed/ibe_plain/dismiss']] as const) {
+        expect((await call(desk, method, url)).statusCode, url).toBe(403);
+        expect((await call(clerk, method, url)).statusCode, url).toBe(403);
+      }
+      const generated = generateApiKey();
+      await apiKeysRepo(meta).create({ name: 'script', prefix: generated.prefix, tokenHash: generated.tokenHash, roleId: managerRole });
+      expect((await app.inject({ method: 'GET', url: '/api/v1/sms/inbound/failed', headers: { authorization: `Bearer ${generated.key}` } })).statusCode).toBe(403);
+      expect(retried).toEqual([]);
     });
   });
 

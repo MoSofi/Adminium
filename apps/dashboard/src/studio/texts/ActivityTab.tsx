@@ -13,6 +13,9 @@
  * every check again (consent, the stop list, the hours, today's limit). A desk
  * sees "Ask the owner". Telnyx retries such a text itself with the same key
  * for 24 hours, so its rows end delivered or, past that, unknown the same way.
+ *
+ * Above the list, for `sms.manage`: the replies that could not be read
+ * (`FailedRepliesCard`), when there are any.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CircleHelp, Eye, MessageSquareText } from 'lucide-react';
@@ -21,6 +24,7 @@ import { Alert, Badge, Button, Card, CardBody, CardHeader, Drawer, DrawerBody, D
 
 import { t } from '../../i18n/t.js';
 import { OutLink } from '../shipping/shippingWords.js';
+import { FailedRepliesCard } from './FailedRepliesCard.js';
 import { encodingWord } from './TextCounterView.js';
 import { deliveriesKey, deliveriesQuery, settleDelivery, type Delivery } from './textsApi.js';
 import { TEXTS_LINKS } from './textsLinks.js';
@@ -243,6 +247,7 @@ export function ActivityTab({ canManage }: { canManage: boolean }): ReactNode {
 
   return (
     <div className="flex flex-col gap-[18px]" data-testid="texts-activity">
+      {canManage ? <FailedRepliesCard /> : null}
       {!canManage ? (
         <div role="note" className="flex items-center gap-2.5 rounded-[14px] bg-info-soft px-4 py-3 text-[13px] font-semibold" data-testid="texts-activity-view-only">
           <Eye className="size-[17px] shrink-0 text-info" aria-hidden="true" />

@@ -18,7 +18,9 @@ import { createTextConsentService, type TextConsentService } from '../src/sms/co
 import { SmsSecret, accountRefOf, type SmsCredentials } from '../src/sms/credentials.js';
 import {
   SMS_CONTROL_RETAIN_MS,
+  SMS_FAILED_BODY_MS,
   SMS_INBOUND_BODY_LIMIT,
+  SMS_STOP_EVENT_KINDS,
   SMS_STOP_CONFIRMATION,
   createSmsCatchUp,
   createSmsInboundChannel,
@@ -570,6 +572,51 @@ describe.each(META_ENGINES)('SMS inbound — $name', (engine) => {
       await drain();
       expect(await stopped()).toBe(true);
       expect((await core.failed.list({ limit: 5 })).events).toHaveLength(0);
+    });
+
+    only('a failed ordinary reply holds no text to its sender; a failed possible STOP holds them, and says until when', async () => {
+      await serve({
+        replies: async () => {
+          throw new Error('the conversations store is away');
+        },
+      });
+      await twilioReply('see you then');
+      for (const id of queued) await toTheEnd(core, id);
+      queued = [];
+      const [plain] = (await core.failed.list({ channel: 'sms', limit: 5 })).events;
+      expect(plain).toMatchObject({ kind: 'reply', reason: 'handler-error', masked: '+49 ••• 789', holds: false, holdsUntil: null });
+      expect(await core.waitingFrom(`tel:${PERSON}`, SMS_STOP_EVENT_KINDS)).toBe(false);
+
+      // A STOP in words the provider does not catch, whose stop list write fails: it may be the STOP, so it holds.
+      await serve({ consent: { stop: { ...consent.stop, add: async () => Promise.reject(new Error('the stop list is away')) } } });
+      await twilioReply('STOP PLEASE');
+      for (const id of queued) await toTheEnd(core, id);
+      queued = [];
+      const listed = (await core.failed.list({ channel: 'sms', limit: 5 })).events;
+      const held = listed.find((one) => one.holds);
+      expect(held).toMatchObject({ kind: 'reply', masked: '+49 ••• 789', holdsUntil: held!.receivedAt + SMS_FAILED_BODY_MS });
+      expect(await core.waitingFrom(`tel:${PERSON}`, SMS_STOP_EVENT_KINDS)).toBe(true);
+      expect(await core.failed.count({ channel: 'sms', limit: 50 })).toEqual({ failed: 2, holding: 1, more: false });
+      expect(JSON.stringify(listed)).not.toContain(PERSON);
+      expect(JSON.stringify(listed)).not.toContain('PLEASE');
+
+      // Closed by staff: the hold ends.
+      expect(await core.failed.dismiss(held!.id)).toBe(true);
+      expect(await core.waitingFrom(`tel:${PERSON}`, SMS_STOP_EVENT_KINDS)).toBe(false);
+    });
+
+    only('a failed possible STOP stops holding once its body is gone, after the shorter text hold', async () => {
+      await serve({ consent: { stop: { ...consent.stop, add: async () => Promise.reject(new Error('the stop list is away')) } } });
+      await twilioReply('STOP PLEASE');
+      for (const id of queued) await toTheEnd(core, id);
+      queued = [];
+      expect(await core.waitingFrom(`tel:${PERSON}`, SMS_STOP_EVENT_KINDS)).toBe(true);
+      clock = T0 + SMS_FAILED_BODY_MS + 60_000;
+      // The sweep's catch-up would ask the provider: not here.
+      facts.networkFeatures = false;
+      await core.sweep();
+      expect(await core.waitingFrom(`tel:${PERSON}`, SMS_STOP_EVENT_KINDS)).toBe(false);
+      expect((await core.failed.list({ channel: 'sms', limit: 5 })).events[0]).toMatchObject({ retryable: false, holds: false });
     });
 
     only('a sender that is no number goes on the failed list at once', async () => {

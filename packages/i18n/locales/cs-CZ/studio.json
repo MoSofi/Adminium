@@ -6922,6 +6922,21 @@
       "copyStatus": "Zkopírovat adresu pro zprávy o doručení",
       "statusLine": "Stejná adresa. Adminium ji předává s každou SMS, takže ji vložíte jen tam, kde se váš poskytovatel ptá na status callback.",
       "secret": "Tuto adresu znáte jen vy a váš poskytovatel. Kdo ji má, může jen zaklepat: každá zpráva musí být stejně podepsána vaším poskytovatelem."
+    },
+    "failed": {
+      "kind": {
+        "reply": "Odpověď",
+        "delivery": "Zpráva o doručení",
+        "optOut": "Odhlášení u poskytovatele"
+      },
+      "holds": "Zadržuje SMS na toto číslo",
+      "when": "Přijato {date} · {reason}",
+      "until": "Může jít o žádost o zastavení, proto na toto číslo nepůjde žádná SMS, dokud to nezkusíte znovu nebo to nezavřete, nebo do {date}, kdy se jeho obsah smaže.",
+      "retry": "Zkusit znovu",
+      "close": "Zavřít",
+      "heading": "Odpovědi, které nešlo přečíst",
+      "summary": "{failed, plural, one {# nešlo zpracovat} few {# nešly zpracovat} other {# nešlo zpracovat}}, {holding, plural, one {# zadržuje SMS} few {# zadržují SMS} other {# zadržuje SMS}}.",
+      "retryAll": "Zkusit vše znovu"
     }
   }
 }

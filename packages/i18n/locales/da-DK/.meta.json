@@ -45571,6 +45571,50 @@
     "status": "mt",
     "srcHash": "4cb5a4878d48"
   },
+  "studio.texts.failed.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "studio.texts.failed.heading": {
+    "status": "mt",
+    "srcHash": "17dbe7113473"
+  },
+  "studio.texts.failed.holds": {
+    "status": "mt",
+    "srcHash": "3fb4b0e85542"
+  },
+  "studio.texts.failed.kind.delivery": {
+    "status": "mt",
+    "srcHash": "ee20dc641033"
+  },
+  "studio.texts.failed.kind.optOut": {
+    "status": "mt",
+    "srcHash": "8930f42a0ddc"
+  },
+  "studio.texts.failed.kind.reply": {
+    "status": "mt",
+    "srcHash": "6c2bb735a46a"
+  },
+  "studio.texts.failed.retry": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "studio.texts.failed.retryAll": {
+    "status": "mt",
+    "srcHash": "496a6f27c559"
+  },
+  "studio.texts.failed.summary": {
+    "status": "mt",
+    "srcHash": "d9e107ec7b61"
+  },
+  "studio.texts.failed.until": {
+    "status": "mt",
+    "srcHash": "2d127dfd3491"
+  },
+  "studio.texts.failed.when": {
+    "status": "mt",
+    "srcHash": "bd2fe95ab7e0"
+  },
   "studio.texts.field.accountSid": {
     "status": "src",
     "srcHash": "7f62f6005230"

@@ -19,7 +19,7 @@ import { AppToastProvider } from '../../pages/toasts.js';
 import { PageActionsProvider, PageActionsSlot } from '../../shell/PageActionsProvider.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
 
-import type { Delivery, SendingLimits, SmsAccount, SmsSetup, StopEntry, TextTemplate } from './textsApi.js';
+import type { Delivery, FailedReplies, SendingLimits, SmsAccount, SmsSetup, StopEntry, TextTemplate } from './textsApi.js';
 import { TextsPage } from './TextsPage.js';
 
 const AT = Date.UTC(2026, 6, 28, 13, 5);
@@ -95,6 +95,7 @@ interface Stage {
   stops?: StopEntry[];
   templates?: TextTemplate[];
   connected?: boolean;
+  failed?: FailedReplies;
   /** The answer to a write, by `METHOD /tail`; a list is used up in order. */
   replies?: Record<string, Reply | Reply[]>;
 }
@@ -115,6 +116,7 @@ function mount(stage: Stage = {}) {
       if (tail === 'GET /setup') return Promise.resolve(jsonResponse(200, { data: stage.setup ?? setupOf() }));
       if (tail === 'GET /sending-limits') return Promise.resolve(jsonResponse(200, { data: stage.limits ?? limitsOf() }));
       if (tail === 'GET /deliveries') return Promise.resolve(jsonResponse(200, { data: stage.deliveries ?? [], next: null }));
+      if (tail === 'GET /inbound/failed') return Promise.resolve(jsonResponse(200, stage.failed ?? { data: [], next: null, summary: { failed: 0, holding: 0, more: false } }));
       if (tail === 'GET /stop-list') return Promise.resolve(jsonResponse(200, { data: stage.stops ?? [], next: null }));
       if (tail === 'GET /text-templates') return Promise.resolve(jsonResponse(200, { data: stage.templates ?? [PREARRIVAL], connected: stage.connected ?? true }));
       return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: 'no', requestId: 'r' } }));
@@ -401,6 +403,35 @@ describe('Activity', () => {
     expect(writes()).toEqual([]);
     await user.click(screen.getByTestId('texts-settle-not-sent-yes'));
     await waitFor(() => expect(writes()).toEqual([{ method: 'POST', url: '/api/v1/sms/deliveries/u1/settle', body: { answer: 'not-sent' } }]));
+  });
+
+  it('shows the owner the replies that could not be read, says which hold texts, and tries one again', async () => {
+    const user = userEvent.setup();
+    const failed: FailedReplies = {
+      data: [
+        { id: 'ibe_1', kind: 'reply', reason: 'handler-error', masked: '+49 ••• 789', receivedAt: AT, attempts: 5, retryable: true, holds: false, holdsUntil: null },
+        { id: 'ibe_2', kind: 'reply', reason: 'store-unreachable', masked: '+1 ••• 169', receivedAt: AT, attempts: 5, retryable: true, holds: true, holdsUntil: AT + 30 * 86_400_000 },
+      ],
+      next: null,
+      summary: { failed: 2, holding: 1, more: false },
+    };
+    const { writes } = mount({ failed, deliveries: rows, replies: { 'POST /inbound/failed/ibe_1/retry': { status: 200, body: { data: { retried: true } } } } });
+    await openTab(user, 'Activity');
+    const card = await screen.findByTestId('texts-failed');
+    expect(within(card).getAllByTestId('texts-failed-row')).toHaveLength(2);
+    expect(within(card).getByTestId('texts-failed-until').textContent).toContain('no text goes to this number');
+    expect(card.textContent).not.toContain('handler-error-body');
+    await user.click(within(card).getAllByTestId('texts-failed-retry')[0]!);
+    await waitFor(() => expect(writes()).toEqual([{ method: 'POST', url: '/api/v1/sms/inbound/failed/ibe_1/retry', body: undefined }]));
+  });
+
+  it('shows no failed card when nothing failed, and never asks for it as a desk', async () => {
+    const user = userEvent.setup();
+    const { calls } = mount({ actions: ['privacy.people'], deliveries: rows });
+    await openTab(user, 'Activity');
+    await screen.findByTestId('texts-activity');
+    expect(screen.queryByTestId('texts-failed')).toBeNull();
+    expect(calls.some((call) => call.url.includes('/inbound/failed'))).toBe(false);
   });
 
   it('shows a desk “ask the owner” and no way to settle', async () => {

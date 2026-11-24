@@ -6932,6 +6932,21 @@ export default {
       "copyStatus": "Copier l’adresse des rapports de remise",
       "statusLine": "La même adresse. Adminium la transmet avec chaque SMS : collez-la seulement là où votre fournisseur demande un status callback.",
       "secret": "Gardez cette adresse pour vous et votre fournisseur. Qui l’a ne peut que frapper à la porte : chaque message doit quand même être signé par votre fournisseur."
+    },
+    "failed": {
+      "kind": {
+        "reply": "Réponse",
+        "delivery": "Rapport de remise",
+        "optOut": "Désinscription chez le fournisseur"
+      },
+      "holds": "Retient les SMS vers ce numéro",
+      "when": "Reçu le {date} · {reason}",
+      "until": "Il peut s’agir d’une demande d’arrêt : aucun SMS ne part vers ce numéro tant que vous ne l’avez pas réessayé ou fermé, ou jusqu’au {date}, quand son contenu est supprimé.",
+      "retry": "Réessayer",
+      "close": "Fermer",
+      "heading": "Réponses qui n’ont pas pu être lues",
+      "summary": "{failed, plural, one {# n’a pas pu être traité} other {# n’ont pas pu être traités}}, {holding, plural, one {# retient des SMS} other {# retiennent des SMS}}.",
+      "retryAll": "Tout réessayer"
     }
   }
 } as const;

@@ -6,6 +6,8 @@
  *   PUT    /sms/sending-limits          change the limit and the hours
  *   GET    /sms/deliveries              Activity: one row per text, newest first, with no number and no words
  *   POST   /sms/deliveries/:id/settle   a person checked an `unknown` at the provider
+ *   GET    /sms/inbound/failed          replies and reports that could not be acted on (`sms.manage`)
+ *   POST   /sms/inbound/failed/:id/retry, /retry-all, /:id/dismiss
  *   GET    /sms/stop-list               the do-not-text list (`sms.manage`)
  *   POST   /sms/stop-list/lookup        whether one number is on it
  *   POST   /sms/stop-list               record a stop request a person made to the business
@@ -38,10 +40,12 @@ import { hashOf } from '../apps/manifest-text-templates.js';
 import { auditExempt, audited } from '../audit/coverage.js';
 import type { StaffMember } from '../consent/types.js';
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../errors.js';
+import type { InboundCore, InboundFailedView } from '../inbound/index.js';
 import { parsePhone } from '../phone/index.js';
 import { privacyScopeOf, type PrivacyScope } from '../privacy/scope.js';
 import { tagRoutes } from '../security/route-audience.js';
 import { maskPhone } from './consent/redact.js';
+import { SMS_INBOUND_CHANNEL } from './inbound/index.js';
 import { TEXT_STOP_REASONS, type TextConsentService, type TextStopView } from './consent/types.js';
 import { dayKey, MAX_TEXT_DAILY_LIMIT, readTextPolicy, warningAt } from './send/policy.js';
 import type { TextSendPath } from './send/path.js';
@@ -60,6 +64,8 @@ export interface SmsConsoleRoutesDeps {
   manageGrant: string;
   /** `PERMISSIONS.privacyPeople`. */
   peopleGrant: string;
+  /** The inbound core's failed list, for the events of the text channel. */
+  inbound?: Pick<InboundCore, 'failed'> | undefined;
   /** The apps a desk's `privacy.people` reaches (`privacyScopeOf`); null apps reach every one. */
   privacyScope?: ((userId: string) => Promise<PrivacyScope | null>) | undefined;
   now?: (() => number) | undefined;
@@ -143,6 +149,39 @@ const stopBody = z.object({ phone: z.string().min(1).max(64), asked: z.enum(STOP
 const stopAddReply = z.object({ data: stopView, added: z.boolean() });
 const lookupBody = z.object({ phone: z.string().min(1).max(64) }).strict();
 const lookupReply = z.object({ data: stopView.nullable() });
+
+const failedView = z
+  .object({
+    id: z.string(),
+    /** `reply`, `delivery` or `opt-out`. Never a word of what was sent. */
+    kind: z.string(),
+    reason: z.string().nullable(),
+    /** Who it is from: `+49 ••• 789`, never the number. */
+    masked: z.string().nullable(),
+    receivedAt: z.number(),
+    attempts: z.number(),
+    retryable: z.boolean(),
+    /** It may be a request to stop: texts to its sender wait until it is retried or closed, or until `holdsUntil`. */
+    holds: z.boolean(),
+    holdsUntil: z.number().nullable(),
+  })
+  .strict();
+const failedQuery = z.object({ cursor: z.string().max(400).optional() });
+const failedReply = z.object({ data: z.array(failedView), next: z.string().nullable(), summary: z.object({ failed: z.number(), holding: z.number(), more: z.boolean() }) });
+const failedParams = z.object({ id: z.string().min(1).max(64) });
+const failedOf = (event: InboundFailedView): z.infer<typeof failedView> => ({
+  id: event.id,
+  kind: event.kind,
+  reason: event.reason,
+  masked: event.masked,
+  receivedAt: event.receivedAt,
+  attempts: event.attempts,
+  retryable: event.retryable,
+  holds: event.holds,
+  holdsUntil: event.holdsUntil,
+});
+/** How many failed events the count reads, at most. */
+const FAILED_COUNT_MAX = 200;
 
 const templateLanguage = z.object({ locale: z.string(), body: z.string(), enabled: z.boolean(), edited: z.boolean(), updatedAt: z.number() }).strict();
 const templateView = z.object({ key: z.string(), name: z.string(), app: z.string().nullable(), languages: z.array(templateLanguage) }).strict();
@@ -309,6 +348,65 @@ export function smsConsoleRoutes(deps: SmsConsoleRoutesDeps): FastifyPluginAsync
           changes: { after: { id: row.id, to: row.phoneMasked, provider: row.provider } },
         });
         return { data: deliveryOf(row) };
+      },
+    );
+
+    // ── replies and reports that could not be acted on ─────────────────────
+    function failedList(): Pick<InboundCore, 'failed'>['failed'] {
+      if (deps.inbound === undefined) throw new ConflictError('Texts are not ready on this server yet. Try again in a moment.');
+      return deps.inbound.failed;
+    }
+
+    app.get(
+      '/sms/inbound/failed',
+      { preHandler: manage, config: { audit: audited('rbac') }, schema: { querystring: failedQuery, response: { 200: failedReply } } },
+      async (request) => {
+        personOf(request);
+        const failed = failedList();
+        const page = await failed.list({ channel: SMS_INBOUND_CHANNEL, limit: 50, cursor: request.query.cursor ?? null });
+        const summary = await failed.count({ channel: SMS_INBOUND_CHANNEL, limit: FAILED_COUNT_MAX });
+        await app.rbac.audit(request, { category: 'data', action: 'sms.inbound.failed.read', changes: { after: { events: page.events.map((one) => one.id) } } });
+        return { data: page.events.map(failedOf), next: page.next, summary };
+      },
+    );
+
+    app.post(
+      '/sms/inbound/failed/:id/retry',
+      { preHandler: manage, config: { audit: audited('rbac') }, schema: { params: failedParams, response: { 200: z.object({ data: z.object({ retried: z.boolean() }) }) } } },
+      async (request) => {
+        personOf(request);
+        const failed = failedList();
+        const before = await failed.get(request.params.id);
+        if (before === null || before.channel !== SMS_INBOUND_CHANNEL) throw new NotFoundError('No such failed event.');
+        if (!before.retryable) throw new ConflictError('Its content is gone, so it cannot be tried again. Close it instead.', 'CONFLICT', { reason: 'body-gone' });
+        const retried = await failed.retry(before.id);
+        if (retried) await app.rbac.audit(request, { category: 'settings', action: 'sms.inbound.retried', changes: { after: { id: before.id, kind: before.kind, from: before.masked } } });
+        return { data: { retried } };
+      },
+    );
+
+    app.post(
+      '/sms/inbound/failed/retry-all',
+      { preHandler: manage, config: { audit: audited('rbac') }, schema: { response: { 200: z.object({ data: z.object({ retried: z.number(), more: z.boolean() }) }) } } },
+      async (request) => {
+        personOf(request);
+        const result = await failedList().retryAll({ channel: SMS_INBOUND_CHANNEL, limit: FAILED_COUNT_MAX });
+        await app.rbac.audit(request, { category: 'settings', action: 'sms.inbound.retried-all', changes: { after: result } });
+        return { data: result };
+      },
+    );
+
+    app.post(
+      '/sms/inbound/failed/:id/dismiss',
+      { preHandler: manage, config: { audit: audited('rbac') }, schema: { params: failedParams, response: { 204: z.null() } } },
+      async (request, reply) => {
+        personOf(request);
+        const failed = failedList();
+        const before = await failed.get(request.params.id);
+        if (before === null || before.channel !== SMS_INBOUND_CHANNEL) throw new NotFoundError('No such failed event.');
+        // Closing a possible STOP lets texts go to that person again: the audit row says so.
+        if (await failed.dismiss(before.id)) await app.rbac.audit(request, { category: 'settings', action: 'sms.inbound.dismissed', changes: { before: { id: before.id, kind: before.kind, from: before.masked, held: before.holds } } });
+        return reply.status(204).send(null);
       },
     );
 
