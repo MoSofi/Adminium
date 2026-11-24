@@ -915,3 +915,28 @@ describe('the emailed code', () => {
     expect(headersOf(calls.at(-1))['x-adminium-public-session']).toBeUndefined();
   });
 });
+
+describe('texts', () => {
+  const make = (handler: Parameters<typeof stub>[0]) => {
+    const s = stub(handler);
+    const client = createPublicClient({ baseUrl: 'https://x', publishableKey: 'adm_pub_k', fetch: s.fetch });
+    return { client: client as NonNullable<typeof client>, calls: s.calls };
+  };
+
+  it('says texts are ready only on a plain true, so a page draws no box for a server that cannot text', async () => {
+    const { client, calls } = make((url) => ({ data: { ready: url.endsWith('/texts') } }));
+    expect(await client.texts.ready()).toBe(true);
+    expect(calls[0]?.url).toBe('https://x/api/v1/public/texts');
+    const off = make(() => ({ data: {} }));
+    expect(await off.client.texts.ready(new AbortController().signal)).toBe(false);
+  });
+
+  it('hands back where the verified person stands, STOP and how to lift it included', async () => {
+    const standing = { ready: true, service: { state: 'stopped', liftBy: 'start' }, marketing: { state: 'not-asked' } };
+    const { client, calls } = make(() => ({ data: standing }));
+    expect(await client.texts.standing()).toEqual(standing);
+    expect(calls[0]?.url).toBe('https://x/api/v1/public/texts/standing');
+    const second = make(() => ({ data: standing }));
+    expect(await second.client.texts.standing(new AbortController().signal)).toEqual(standing);
+  });
+});
