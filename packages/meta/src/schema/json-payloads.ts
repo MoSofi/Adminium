@@ -317,6 +317,11 @@ export const SYSTEM_ACTION_KEYS = [
   'shipping.manage',
   // Connecting the business's text message provider: its key spends the business's money.
   'sms.manage',
+  // Customers' texts and the answers to them: reading every conversation, and replying or texting a record's
+  // number. What a customer writes can be anything, so only the Super Admin holds either unless it is granted on
+  // purpose; an app's own role reads and answers its app's conversations alone (`texts:@:read`, `texts:@:reply`).
+  'texts.read',
+  'texts.reply',
   // A person's data: finding everything kept about one address, downloading
   // it for them, and the privacy notice. It reads every people table whole,
   // past any role's table and row limits, so it is a key of its own. Only the

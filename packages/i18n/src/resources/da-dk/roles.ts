@@ -92,6 +92,8 @@ export default {
     "paymentsRefund": "Give refusioner",
     "paymentsView": "Se betalingsaktivitet og eksportere den",
     "smsManage": "Opsæt sms-beskeder",
+    "textsRead": "Læs kunders sms-beskeder",
+    "textsReply": "Besvar kunders sms-beskeder",
     "shippingManage": "Konfigurere forsendelse",
     "privacyManage": "Finde, downloade og administrere en persons data",
     "privacyPeople": "Find, hent og slet en persons data"

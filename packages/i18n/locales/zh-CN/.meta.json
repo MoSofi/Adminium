@@ -24711,6 +24711,14 @@
     "status": "mt",
     "srcHash": "3a4d20b7746a"
   },
+  "roles.permission.textsRead": {
+    "status": "mt",
+    "srcHash": "7219efdc7f9a"
+  },
+  "roles.permission.textsReply": {
+    "status": "mt",
+    "srcHash": "e97b1091d544"
+  },
   "roles.permission.usersManage": {
     "status": "mt",
     "srcHash": "b7ee3c4dd0a4"

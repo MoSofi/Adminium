@@ -182,6 +182,10 @@ function permissionLabel(entry: GrantableCatalogEntry): string {
       return t('roles:permission.shippingManage', 'Set up shipping');
     case 'system:sms:manage':
       return t('roles:permission.smsManage', 'Set up text messages');
+    case 'system:texts:read':
+      return t('roles:permission.textsRead', 'Read customers’ texts');
+    case 'system:texts:reply':
+      return t('roles:permission.textsReply', 'Answer customers’ texts');
     case 'system:privacy:manage':
       return t('roles:permission.privacyManage', 'Find, download and manage a person’s data');
     case 'system:privacy:people':

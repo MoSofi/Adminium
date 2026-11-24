@@ -92,6 +92,8 @@ export default {
     "paymentsRefund": "Give refunds",
     "paymentsView": "See payment activity and export it",
     "smsManage": "Set up text messages",
+    "textsRead": "Read customers’ texts",
+    "textsReply": "Answer customers’ texts",
     "shippingManage": "Set up shipping",
     "privacyManage": "Find, download and manage a person’s data",
     "privacyPeople": "Find, download and erase a person’s data"

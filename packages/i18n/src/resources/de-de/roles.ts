@@ -92,6 +92,8 @@ export default {
     "paymentsRefund": "Erstattungen geben",
     "paymentsView": "Zahlungsaktivität sehen und exportieren",
     "smsManage": "Textnachrichten einrichten",
+    "textsRead": "Textnachrichten von Kunden lesen",
+    "textsReply": "Textnachrichten von Kunden beantworten",
     "shippingManage": "Versand einrichten",
     "privacyManage": "Daten einer Person finden, herunterladen und verwalten",
     "privacyPeople": "Daten einer Person finden, herunterladen und löschen"

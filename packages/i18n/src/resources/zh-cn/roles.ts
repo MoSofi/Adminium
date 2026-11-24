@@ -92,6 +92,8 @@ export default {
     "paymentsRefund": "办理退款",
     "paymentsView": "查看付款活动并导出",
     "smsManage": "设置短信",
+    "textsRead": "查看客户短信",
+    "textsReply": "回复客户短信",
     "shippingManage": "设置配送",
     "privacyManage": "查找、下载和管理某人的数据",
     "privacyPeople": "查找、下载并删除某人的数据"

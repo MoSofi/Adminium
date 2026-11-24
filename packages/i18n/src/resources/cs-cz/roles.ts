@@ -92,6 +92,8 @@ export default {
     "paymentsRefund": "Vracet peníze",
     "paymentsView": "Zobrazit aktivitu plateb a exportovat ji",
     "smsManage": "Nastavit textové zprávy",
+    "textsRead": "Číst textové zprávy zákazníků",
+    "textsReply": "Odpovídat na textové zprávy zákazníků",
     "shippingManage": "Nastavit dopravu",
     "privacyManage": "Najít, stáhnout a spravovat údaje osoby",
     "privacyPeople": "Najít, stáhnout a vymazat údaje osoby"

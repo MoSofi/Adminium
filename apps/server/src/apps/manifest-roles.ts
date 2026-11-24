@@ -22,6 +22,10 @@
  *                              notice or the websites. Shown on the install check.
  *   `accounts:@:connect|send-link|disconnect`  a row's connected account, for
  *                              the rows this role reaches
+ *   `texts:@:read`             THIS app's text conversations: reading them, or
+ *   `texts:@:reply`            reading and answering them and texting the
+ *                              number on a row this role reaches
+ *                              (`texts:<appKey>:read|reply`)
  *   `payments:@:refund`        give back the money paid online for THIS app's
  *                              records (`payments:<appKey>:refund`, D20); never
  *                              the install's refund right. Shown on the install
@@ -59,7 +63,7 @@ import { parseDatabaseModel } from '@adminium/engine';
 import type { Manifest, RowReach } from '@adminium/manifest';
 import { pagesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type RowLimit, type RowReach as StoredRowReach, type TableActions, type UpdateLimit } from '@adminium/meta';
 
-import { matrixRowsFromGrants, appAccountsPermission, appRefundPermission, appShippingPermission, type AccountAction, type ShippingAction } from '../rbac/permissions.js';
+import { matrixRowsFromGrants, appAccountsPermission, appRefundPermission, appShippingPermission, appTextsPermission, type AccountAction, type ShippingAction, type TextAction } from '../rbac/permissions.js';
 import type { RoleTableResult } from '@adminium/manifest';
 import { grantKeyOf, installRoleSlug, type InstallAddress } from '../installs/resolve.js';
 import { OWNER_ROW_LIMITS_PENDING_KEY, ownerRowsOf, rowLimitWith } from './owner-row-limits.js';
@@ -95,6 +99,8 @@ const PAYMENTS_REFUND = /^payments:@:refund$/;
 const SHIPPING_GRANT = /^shipping:@:(book|cancel|customs)$/;
 /** What a role may do about a row's connected account: connect it, send a link for it, or end it. */
 const ACCOUNTS = /^accounts:@:(connect|send-link|disconnect)$/;
+/** What a role may do with the app's own text conversations: read them, or read and answer them. */
+const TEXTS = /^texts:@:(read|reply)$/;
 
 /**
  * An app role's slug: `<key>-<role>` for the install holding the bare
@@ -290,6 +296,9 @@ export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIE
       } else if (ACCOUNTS.test(grant)) {
         // Whose outside account is connected is the business's to say, through its own app's roles.
         if ((manifest as Manifest).kind === 'add-on') refuse(`"${grant}" is given by an app's role, never an add-on's`);
+      } else if (TEXTS.test(grant)) {
+        // What the business's customers write to it is the business's, through its own app's roles.
+        if ((manifest as Manifest).kind === 'add-on') refuse(`"${grant}" is given by an app's role, never an add-on's`);
       } else if (PRIVACY_PEOPLE.test(grant)) {
         // An add-on's role is never given people's data: it is the business's to give, through its own apps' roles.
         if ((manifest as Manifest).kind === 'add-on') refuse(`"${grant}" is given by an app's role, never an add-on's`);
@@ -301,7 +310,7 @@ export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIE
         const theirs = /([a-z][a-z0-9_]*):(?:read|create|update)$/.exec(grant);
         refuse(
           named === undefined
-            ? `"${grant}" is not a grant an app can give (table:@…, page:@…, app:@:staff, privacy:@:people, payments:@:refund, accounts:@:connect|send-link|disconnect or shipping:@:book, :cancel or :customs)`
+            ? `"${grant}" is not a grant an app can give (table:@…, page:@…, app:@:staff, privacy:@:people, payments:@:refund, accounts:@:connect|send-link|disconnect, texts:@:read|reply or shipping:@:book, :cancel or :customs)`
             : `"${grant}" is not a grant an app can give. A table of the add-on "${named.key}" is granted beside "permissions", on the role itself: "tables": [{ "addOn": "${named.key}", "table": "${theirs?.[1] ?? '<its table>'}", "actions": ["read"] }]`,
         );
       }
@@ -571,6 +580,9 @@ export async function writeManifestRoles(input: {
     } else if (ACCOUNTS.test(grant)) {
       const row = matrixRowsFromGrants([appAccountsPermission(manifest.key, ACCOUNTS.exec(grant)![1] as AccountAction)]).rows[0];
       if (row !== undefined) await permissions.revoke(roleId, row.resourceKind, row.resourceRef);
+    } else if (TEXTS.test(grant)) {
+      const row = matrixRowsFromGrants([appTextsPermission(manifest.key, TEXTS.exec(grant)![1] as TextAction)]).rows[0];
+      if (row !== undefined) await permissions.revoke(roleId, row.resourceKind, row.resourceRef);
     } else if (ADD_ON_SETTINGS.test(grant)) {
       const row = matrixRowsFromGrants([grant]).rows[0];
       if (row !== undefined) await permissions.revoke(roleId, row.resourceKind, row.resourceRef);
@@ -713,6 +725,11 @@ export async function writeManifestRoles(input: {
       } else if (ACCOUNTS.test(grant)) {
         if (manifest.kind !== 'app') continue;
         const row = matrixRowsFromGrants([appAccountsPermission(manifest.key, ACCOUNTS.exec(grant)![1] as AccountAction)]).rows[0];
+        if (row === undefined) continue;
+        await permissions.grant(role.id, row.resourceKind, row.resourceRef, row.actions);
+      } else if (TEXTS.test(grant)) {
+        if (manifest.kind !== 'app') continue;
+        const row = matrixRowsFromGrants([appTextsPermission(manifest.key, TEXTS.exec(grant)![1] as TextAction)]).rows[0];
         if (row === undefined) continue;
         await permissions.grant(role.id, row.resourceKind, row.resourceRef, row.actions);
       } else if (ADD_ON_SETTINGS.test(grant)) {

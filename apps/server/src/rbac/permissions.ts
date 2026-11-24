@@ -113,6 +113,10 @@ export const PERMISSIONS = {
   // Text messages: connecting the business's own provider account, its sender and a test text. The key spends the
   // business's money, so only the Super Admin holds it unless it is granted on purpose.
   smsManage: 'system:sms:manage',
+  // Customers' texts: reading every conversation, and replying or texting a record's number. What a customer writes
+  // can be anything, so only the Super Admin holds these unless they are granted on purpose.
+  textsRead: 'system:texts:read',
+  textsReply: 'system:texts:reply',
   // A person's data, by address: find, download, the privacy notice. Read past
   // every role's table and row limits, so only the Super Admin holds it unless
   // granted on purpose.
@@ -193,6 +197,21 @@ export function appAccountsPermission(appKey: string, action: AccountAction): st
 }
 const APP_ACCOUNTS_REF = /^accounts-(connect|send-link|disconnect)\/(.+)$/;
 
+/** What an app's role may do with the app's own conversations: read them, or read and answer them. */
+export const TEXT_ACTIONS = ['read', 'reply'] as const;
+export type TextAction = (typeof TEXT_ACTIONS)[number];
+
+/**
+ * `texts:<appKey>:read|reply`: ONE app's conversations, as its role is given
+ * them (`texts:@:reply`). Stored like the refund right, as an `app` row whose
+ * ref holds a `/` no app key can. Concrete only: a conversation that belongs to
+ * no app is read by the console's own keys alone.
+ */
+export function appTextsPermission(appKey: string, action: TextAction): string {
+  return `texts:${appKey}:${action}`;
+}
+const APP_TEXTS_REF = /^texts-(read|reply)\/(.+)$/;
+
 /** The matrix row ref an add-on's settings grant is stored under. */
 export function addOnSettingsRef(addOnKey: string): string {
   return `${ADD_ON_SETTINGS_REF_PREFIX}${addOnKey}`;
@@ -207,7 +226,8 @@ export type ParsedGrant =
   | { kind: 'addOn'; addOnKey: string; action: 'settings' }
   | { kind: 'payments'; appKey: string; action: 'refund' }
   | { kind: 'shipping'; appKey: string; action: ShippingAction }
-  | { kind: 'accounts'; appKey: string; action: AccountAction };
+  | { kind: 'accounts'; appKey: string; action: AccountAction }
+  | { kind: 'texts'; appKey: string; action: TextAction };
 
 /** A concrete (wildcard-free) permission, as passed to `can()`/`require()`. */
 export type ParsedPermission =
@@ -218,7 +238,8 @@ export type ParsedPermission =
   | { kind: 'addOn'; addOnKey: string; action: 'settings' }
   | { kind: 'payments'; appKey: string; action: 'refund' }
   | { kind: 'shipping'; appKey: string; action: ShippingAction }
-  | { kind: 'accounts'; appKey: string; action: AccountAction };
+  | { kind: 'accounts'; appKey: string; action: AccountAction }
+  | { kind: 'texts'; appKey: string; action: TextAction };
 
 const SYSTEM_KEY_SET: ReadonlySet<string> = new Set(SYSTEM_ACTION_KEYS);
 const TABLE_ACTION_SET: ReadonlySet<string> = new Set(TABLE_ACTIONS);
@@ -292,6 +313,12 @@ export function parseGrant(input: string): ParsedGrant | null {
     if (!validSegment(appKey) || appKey === '*' || !(ACCOUNT_ACTIONS as readonly string[]).includes(action)) return null;
     return { kind: 'accounts', appKey, action: action as AccountAction };
   }
+  if (kind === 'texts' && segments.length === 3) {
+    const [, appKey, action] = segments as [string, string, string];
+    // Concrete only: one app's conversations, never "every app's".
+    if (!validSegment(appKey) || appKey === '*' || !(TEXT_ACTIONS as readonly string[]).includes(action)) return null;
+    return { kind: 'texts', appKey, action: action as TextAction };
+  }
 
   return null;
 }
@@ -362,6 +389,10 @@ export function grantMatches(grant: string, required: string): boolean {
       const ga = g as Extract<ParsedGrant, { kind: 'accounts' }>;
       return ga.appKey === r.appKey && ga.action === r.action;
     }
+    case 'texts': {
+      const gt = g as Extract<ParsedGrant, { kind: 'texts' }>;
+      return gt.appKey === r.appKey && gt.action === r.action;
+    }
   }
 }
 
@@ -418,8 +449,11 @@ export function grantsFromMatrixRows(rows: readonly RolePermission[]): string[] 
     if (row.resourceKind === 'app') {
       if ((row.actions as { staff?: boolean }).staff !== true) continue;
       const accounts = APP_ACCOUNTS_REF.exec(row.resourceRef);
+      const texts = APP_TEXTS_REF.exec(row.resourceRef);
       if (accounts !== null) {
         grants.push(appAccountsPermission(accounts[2]!, accounts[1] as AccountAction));
+      } else if (texts !== null) {
+        grants.push(appTextsPermission(texts[2]!, texts[1] as TextAction));
       } else if (row.resourceRef.startsWith(APP_REFUND_REF_PREFIX)) {
         grants.push(appRefundPermission(row.resourceRef.slice(APP_REFUND_REF_PREFIX.length)));
       } else if (shippingGrantOfRef(row.resourceRef) !== null) {
@@ -495,6 +529,10 @@ export function matrixRowsFromGrants(grants: readonly string[]): MatrixConversio
     }
     if (parsed.kind === 'accounts') {
       appRefs.add(`accounts-${parsed.action}/${parsed.appKey}`);
+      continue;
+    }
+    if (parsed.kind === 'texts') {
+      appRefs.add(`texts-${parsed.action}/${parsed.appKey}`);
       continue;
     }
     if (parsed.kind === 'table') {
