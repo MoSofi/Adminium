@@ -142,8 +142,12 @@ export interface WriteContext {
   optOut?: { shown: boolean; carried: unknown } | undefined;
   /** A public entry's consent tick, on a write through that entry (`public-api/consent-tick.ts`). */
   consentTick?: PublicConsentTick | undefined;
-  /** A public entry's separate box for texts, on a write through that entry (`public-api/consent-tick.ts`). */
-  textConsentTick?: PublicTextConsentTick | undefined;
+  /**
+   * A public entry's separate boxes for texts (one per class at most), on a
+   * write through that entry (`public-api/consent-tick.ts`), or a form's
+   * through the forms door (`forms/answer.ts`).
+   */
+  textConsentTicks?: readonly PublicTextConsentTick[] | undefined;
   /**
    * The public API key a stranger's write came through (`routes/public`):
    * set there, and only there. Such a write is a stranger's, never
@@ -201,6 +205,14 @@ export interface PublicConsentTick {
 export interface PublicTextConsentTick extends Omit<PublicConsentTick, 'purpose'> {
   phone: string;
   purpose: 'text-service' | 'text-marketing';
+  /**
+   * The write came in a session that proved the person (signed in by a
+   * mailed link, or raised to `verified` by a mailed code), on an entry
+   * whose rows are theirs alone: their own fresh yes may replace their own
+   * earlier "no" for this app (`people/consent-writes.ts`). Never set from
+   * anything a browser sent.
+   */
+  verified?: boolean | undefined;
 }
 
 /** What the write path reads of a table an app declares as people (`people/declared.ts`). */

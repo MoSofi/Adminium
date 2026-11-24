@@ -81,6 +81,9 @@ import { downloadFile, googleCalendarLink, outlookCalendarLink } from '../../cal
 import { mailLinkKeys } from '../../email/link-keys.js';
 import { settingReader } from '../../outbox/timing.js';
 import { pkOfRowKey, rowKeyOf } from '../../payments/payables.js';
+import { peopleTablesOf } from '../../people/tables-of.js';
+import { textStandingOf } from '../../sms/consent/standing-view.js';
+import type { TextConsentService } from '../../sms/consent/types.js';
 import { reviewText } from '../../public-api/plain-text.js';
 import type { AddOnInstalls } from '../../apps/table-ref.js';
 import type { PublicKeyResolver, ResolvedKey } from '../../public-api/resolve.js';
@@ -260,6 +263,8 @@ import {
   publicVerifyReply,
   publicConfigReply,
   publicErrorReply,
+  publicTextStandingReply,
+  publicTextsReply,
   linkPeekReply,
   linkResendReply,
   linkStartBody,
@@ -346,6 +351,11 @@ export interface PublicRoutesDeps {
   peopleConsent?: Pick<PeopleConsent, 'withdrawOnForget'> | undefined;
   /** The add-ons a stock-words entry is answered by. Absent = nothing answers, and such an entry says every row is in. */
   ledgers?: LedgerRuntime | undefined;
+  /**
+   * The text consent log, for a verified person's own standing on the app's
+   * texts (`GET /public/texts/standing`). Absent, that read answers 404.
+   */
+  texts?: { consent: Pick<TextConsentService, 'standing' | 'stop'>; country: () => Promise<string | null>; ready: () => Promise<boolean> } | undefined;
   /** What is installed, for a customer's review of a row (`reviews/`): the app's word and its keeping add-on. Absent: no review is taken. */
   reviews?: { installs: () => Promise<AddOnInstalls> } | undefined;
   /** The calendar sync: rows a forgetting blanked put a name in staff calendars, and are written again without it. */
@@ -1054,7 +1064,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     // A consent tick the entry declares: what the write path keeps of it, and whose it is.
     const view = await viewFor(ok.key.connectionId);
     const consentTick = view === null ? undefined : await consentTicks.tickFor({ request, key: ok.key, view });
-    const textConsentTick = view === null ? undefined : await consentTicks.textTickFor({ request, key: ok.key, view });
+    // A session that proved the person (a mailed link, or a mailed code that raised it to verified): their own boxes for texts may replace their own earlier no.
+    const proved = ok.session !== null && ok.session.kind !== 'token' && (ok.session.level === 'verified' || ok.session.kind === 'link');
+    const textConsentTicks = view === null ? undefined : (await consentTicks.textTicksFor({ request, key: ok.key, view }))?.map((tick) => ({ ...tick, verified: proved && claimed !== null }));
     return {
     origin: 'public',
     hops: 0,
@@ -1064,7 +1076,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     request,
     claimed,
     ...(consentTick === undefined ? {} : { consentTick }),
-    ...(textConsentTick === undefined ? {} : { textConsentTick }),
+    ...(textConsentTicks === undefined ? {} : { textConsentTicks }),
     provedAddress: provedAddressOf(ok.key.scope, ok.session, claimed, addressSecret),
     adjust: {
       ...(negotiateLocale(request.headers['accept-language']) === null ? {} : { locale: negotiateLocale(request.headers['accept-language'])! }),
@@ -5931,6 +5943,57 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * other devices are told why on their next request. A row's own link is
      * not a session of the person's and stays; "Make a new link" closes one.
      */
+
+    /**
+     * WHERE I STAND ON TEXTS. A verified person's own standing on the app's
+     * texts, for their Prefs: per purpose `yes`, `no`, `not-asked`, `stopped`
+     * (and who may lift a stop: `start`, they text START to the business's
+     * number), or `no-phone`, for the number their own row holds
+     * (`people.phone`). Only a session that proved them; never the number in
+     * full, never who else asked (`sms/consent/standing-view.ts`).
+     */
+    app.options('/public/texts/standing', { schema: { hide: true } }, preflight);
+    app.get(
+      '/public/texts/standing',
+      {
+        config: { rateLimitBucket: 'public' },
+        schema: { response: { 200: publicTextStandingReply, 401: publicErrorReply, 403: publicErrorReply, 404: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply } },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-code');
+        if (ok === null) return reply;
+        if (deps.texts === undefined) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        const person = await accountOf(request, reply, ok);
+        if (person === null) return reply;
+        const { found, row } = person;
+        if (row === null || found.table.primaryKey.length === 0) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        const declared = await peopleTablesOf(meta).of(ok.key.connectionId, found.view.model, found.table.id);
+        const view = await textStandingOf(deps.texts.consent, {
+          phone: declared?.phone === undefined ? null : row[declared.phone],
+          country: await deps.texts.country(),
+          person: { connectionId: ok.key.connectionId, table: found.table.id, key: rowKeyOf(found.table, row) },
+          app: ok.key.managedBy,
+        });
+        return reply.send({ data: { ready: await deps.texts.ready(), ...view } });
+      },
+    );
+
+    /**
+     * WHETHER TEXTS CAN COME: a provider and a sender are set and the operator
+     * has not switched texts off. A plain yes or no for any key, so a page
+     * draws no box a text would never follow; it names nothing of the account.
+     */
+    app.options('/public/texts', { schema: { hide: true } }, preflight);
+    app.get(
+      '/public/texts',
+      { config: { rateLimitBucket: 'public' }, schema: { response: { 200: publicTextsReply, 401: publicErrorReply, 403: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply } } },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-read');
+        if (ok === null) return reply;
+        return reply.send({ data: { ready: deps.texts === undefined ? false : await deps.texts.ready() } });
+      },
+    );
+
     app.options('/public/session/revoke-all', { schema: { hide: true } }, preflight);
     app.post(
       '/public/session/revoke-all',

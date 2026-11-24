@@ -187,7 +187,7 @@ describe.each(META_ENGINES)('text templates — $name', (engine) => {
     const view = { table: (name: string) => ({ id: name }) } as never;
     const ticks = createConsentTicks(handle.meta);
     expect((await ticks.tickFor({ request, key, view }))?.column).toBe('may_email');
-    const given = await ticks.textTickFor({ request, key, view });
+    const given = (await ticks.textTicksFor({ request, key, view }))?.[0];
     expect(given).toMatchObject({ column: 'may_text', phone: 'mobile', purpose: 'text-service', means: 'yes', person: { table: 'patients', link: null } });
 
     const texts = createTextConsentService({ meta: handle.meta, secret: 'a-text-template-test-secret-of-some-length' });
@@ -199,7 +199,7 @@ describe.each(META_ENGINES)('text templates — $name', (engine) => {
     await people.written({
       action: 'create',
       target: { connectionId, table: { id: 'patients', primaryKey: ['id'] }, view: { model: undefined } },
-      context: { origin: 'public', textConsentTick: given },
+      context: { origin: 'public', textConsentTicks: given === undefined ? [] : [given] },
       record: { id: 9, name: 'Ada', mobile: phone, may_email: false, may_text: true },
       before: null,
     } as unknown as PeopleWrite);
@@ -257,13 +257,14 @@ describe('a public box for texts', () => {
     ({
       action: before === null ? 'create' : 'update',
       target: { connectionId: 'con_one', table: { id: 'visits', primaryKey: ['id'] }, view: { model: undefined } },
-      context: { origin, textConsentTick: given },
+      context: { origin, textConsentTicks: [given] },
       record,
       before,
     }) as unknown as PeopleWrite;
   const make = (standing: 'yes' | 'no' | 'not-asked' = 'not-asked', failing?: Error, log?: { warn: ReturnType<typeof vi.fn> }) => {
     const door = {
       standing: vi.fn(async () => ({ state: standing })),
+      stop: { has: vi.fn(async () => false) },
       record: vi.fn(async (input: Parameters<TextConsentDoor['record']>[0]): Promise<unknown> => {
         void input;
         if (failing !== undefined) throw failing;
