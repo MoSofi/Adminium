@@ -407,7 +407,8 @@ describe.each(META_ENGINES)('two-way text conversations — $name', (engine) => 
       const id = (await raw('adminium_text_threads'))[0]!['id'] as string;
       const first = await s.call(s.people.owner, 'POST', `/texts/threads/${id}/replies`, { body: 'We do, at eight.', clientKey: KEY });
       expect(first.statusCode, first.body).toBe(200);
-      expect((first.json() as { data: { result: { outcome: string }; item: { body: string } } }).data).toMatchObject({ result: { outcome: 'queued' }, item: { body: 'We do, at eight. Reply STOP to opt out.' } });
+      // The opt-out line is in the business's language (German here), whatever the words typed.
+      expect((first.json() as { data: { result: { outcome: string }; item: { body: string } } }).data).toMatchObject({ result: { outcome: 'queued' }, item: { body: 'We do, at eight. Antworten Sie STOP zum Abmelden.' } });
       const again = await s.call(s.people.owner, 'POST', `/texts/threads/${id}/replies`, { body: 'We do, at eight.', clientKey: KEY });
       expect(again.statusCode).toBe(200);
       expect(await raw('adminium_text_thread_messages')).toHaveLength(2);
@@ -417,7 +418,7 @@ describe.each(META_ENGINES)('two-way text conversations — $name', (engine) => 
       const posted = new URLSearchParams(s.provider.posts[0]!.body);
       expect(posted.get('To')).toBe(GUEST);
       expect(posted.get('From')).toBe(FROM);
-      expect(posted.get('Body')).toBe('We do, at eight. Reply STOP to opt out.');
+      expect(posted.get('Body')).toBe('We do, at eight. Antworten Sie STOP zum Abmelden.');
       expect((await raw('adminium_text_threads'))[0]).toMatchObject({ unread: 0, lastDirection: 'out', lastKind: 'reply' });
       const items = ((await s.call(s.people.owner, 'GET', `/texts/threads/${id}`)).json() as ThreadReply).data.items;
       expect(items[0]).toMatchObject({ direction: 'out', kind: 'reply', delivery: { status: 'sent' } });
@@ -470,7 +471,7 @@ describe.each(META_ENGINES)('two-way text conversations — $name', (engine) => 
       expect(s.jobs).toHaveLength(1);
       await s.handOverAll();
       const body = new URLSearchParams(s.provider.posts.at(-1)!.body).get('Body');
-      expect(body).toBe('Lumen: Diese Nummer wird nicht gelesen. Kontakt: hello@lumen.example Reply STOP to opt out.');
+      expect(body).toBe('Lumen: Diese Nummer wird nicht gelesen. Kontakt: hello@lumen.example Antworten Sie STOP zum Abmelden.');
       // Two automatic answerers writing to each other stop at one answer.
       for (let n = 0; n < 3; n += 1) await s.reply(PATIENT, 'This is an automatic reply.');
       expect(s.jobs).toHaveLength(0);

@@ -30,3 +30,4 @@ export type { SmsAccountFields, SmsAccountRow, SmsAccountStore, SmsCheckRecord }
 export { TELNYX_CODES, telnyxProvider } from './telnyx.js';
 export { TWILIO_CODES, twilioProvider } from './twilio.js';
 export * from './types.js';
+export { STOP_CONFIRMATIONS, TEXT_LANGUAGES, textLanguageOf, textWordsFor, type TextWords } from './words.js';

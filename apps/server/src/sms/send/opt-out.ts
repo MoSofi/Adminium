@@ -15,12 +15,14 @@
  * or link in a text, so the line names the business alone. France bans opting
  * out by phone number, so only an e-mail address will do there.
  *
- * The words are English until the language pass adds the other seven.
+ * The line is written in the template's language, from the catalogue
+ * (`../words.ts`).
  */
 import { placeholdersIn } from '@adminium/manifest';
 
 import type { TextOptOut } from '../consent/types.js';
 import { foldMessage, listedWords } from '../inbound/control-words.js';
+import { textWordsFor } from '../words.js';
 
 export interface BusinessContact {
   /** Named in the line where a country allows no contact details. */
@@ -31,9 +33,6 @@ export interface BusinessContact {
 
 const NO_CONTACT_IN_BODY: ReadonlySet<string> = new Set(['AE']);
 const NO_PHONE_OPT_OUT: ReadonlySet<string> = new Set(['FR']);
-
-const REPLY_STOP_LINE = 'Reply STOP to opt out.';
-const contactLine = (how: string): string => `To stop these texts, contact ${how}.`;
 
 const STOP_WORD = /\bSTOP\b/;
 const SENTENCE = /[^.!?。！？؟\n]+[.!?。！？؟]*/gu;
@@ -144,15 +143,16 @@ export function withoutStopSentence(template: string): string {
   return withHeldPlaceholders(template, (words) => words.replace(SENTENCE, (sentence) => (offersReply(sentence) ? '' : sentence)).replace(/[ \t]{2,}/g, ' ').replace(/ +\n/g, '\n').trim());
 }
 
-/** The line this text ends with; null when a sender that cannot take replies has no contact that is allowed here. */
-export function optOutLine(optOut: TextOptOut, country: string, business: BusinessContact): string | null {
-  if (optOut === 'reply-stop') return REPLY_STOP_LINE;
+/** The line this text ends with, in the template's language; null when a sender that cannot take replies has no contact that is allowed here. */
+export function optOutLine(optOut: TextOptOut, country: string, business: BusinessContact, language?: string | null): string | null {
+  const words = textWordsFor(language);
+  if (optOut === 'reply-stop') return words.replyStop;
   if (NO_CONTACT_IN_BODY.has(country)) {
     const name = plain(business.name);
-    return name === null ? null : contactLine(name);
+    return name === null ? null : words.contactLine(name);
   }
   const email = plain(business.email);
   const phone = NO_PHONE_OPT_OUT.has(country) ? null : plain(business.phone);
   const how = phone ?? email;
-  return how === null ? null : contactLine(how);
+  return how === null ? null : words.contactLine(how);
 }

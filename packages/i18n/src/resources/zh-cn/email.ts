@@ -1064,5 +1064,17 @@ export default {
     "purpose": "点击“确认”，即可通过短信在 {phone} 接收{business}的优惠信息。",
     "action": "确认",
     "notice": "此链接 {days} 天内有效。如果这不是您的请求，请忽略此邮件：除非您点击“确认”，否则不会收到任何短信优惠。"
+  },
+  "texts": {
+    "optOut": {
+      "reply": "回复STOP退订。",
+      "contact": "退订请联系{contact}。"
+    },
+    "stopConfirmed": "您已退订，将不再收到该商家的短信。",
+    "notRead": {
+      "withContact": "{business}：此号码无人查看。请联系：{contact}",
+      "alone": "{business}：此号码无人查看。"
+    },
+    "test": "来自 Adminium 的测试短信。您的短信连接正常。"
   }
 } as const;

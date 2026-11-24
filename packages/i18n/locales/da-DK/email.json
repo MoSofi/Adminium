@@ -1054,5 +1054,17 @@
     "purpose": "Tryk på Bekræft for at få tilbud fra {business} på sms til {phone}.",
     "action": "Bekræft",
     "notice": "Linket virker i {days} dage. Hvis du ikke har bedt om dette, kan du se bort fra denne e-mail: du får ingen tilbud på sms, medmindre du trykker på Bekræft."
+  },
+  "texts": {
+    "optOut": {
+      "reply": "Svar STOP for at framelde.",
+      "contact": "Stop sms'er ved at kontakte {contact}."
+    },
+    "stopConfirmed": "Du er afmeldt og modtager ikke flere sms'er fra denne virksomhed.",
+    "notRead": {
+      "withContact": "{business}: Dette nummer læses ikke. Kontakt: {contact}",
+      "alone": "{business}: Dette nummer læses ikke."
+    },
+    "test": "Test-sms fra Adminium. Din sms-forbindelse virker."
   }
 }

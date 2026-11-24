@@ -66,6 +66,8 @@ export interface TextPrepareInput {
   /** `waiting` only for a kind the customer is waiting for right now. Marketing is always timed as marketing. */
   waiting?: boolean | undefined;
   template: string;
+  /** The template's language (`en_US` or `en-US`), so the opt-out line the text gets is in it too. US English when absent. */
+  language?: string | null | undefined;
   values: Readonly<Record<string, string>>;
   /** Columns the app declares as codes. */
   codeNames?: readonly string[] | undefined;
@@ -168,7 +170,7 @@ export function createTextSendPath(deps: TextSendDeps): TextSendPath {
       return { action: 'skip', reason: refusal, ...(decision.phoneReason === undefined ? {} : { phoneReason: decision.phoneReason }) };
     }
 
-    const composed = composeText({ template: input.template, values: input.values, codeNames: input.codeNames, optOut: decision.optOut, country: decision.country, sender, business: input.business });
+    const composed = composeText({ template: input.template, values: input.values, codeNames: input.codeNames, optOut: decision.optOut, country: decision.country, sender, business: input.business, language: input.language });
     if (!composed.ok) return { action: 'skip', reason: composed.reason };
 
     const timing: TextTiming = input.textClass === 'marketing' ? 'marketing' : input.waiting === true ? 'waiting' : 'service';

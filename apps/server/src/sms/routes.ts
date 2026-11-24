@@ -44,6 +44,8 @@ export interface SmsRoutesDeps {
   trustProxy: boolean;
   /** This server's stored public address (`storedPublicOrigin`). */
   publicOrigin: () => Promise<string | null>;
+  /** The language a person reads in, for the test text they send themselves. */
+  languageOf?: ((userId: string) => Promise<string | null>) | undefined;
 }
 
 const field = z.string().max(1024);
@@ -194,9 +196,9 @@ export function smsRoutes(deps: SmsRoutesDeps): FastifyPluginAsyncZod {
       '/sms/test',
       { preHandler: manage, config: { audit: audited('rbac') }, schema: { body: testBody, response: { 200: testReply } } },
       async (request) => {
-        requirePerson(request);
+        const person = requirePerson(request);
         refuseOffline();
-        const result = await service.sendTest(request.body.to);
+        const result = await service.sendTest(request.body.to, (await deps.languageOf?.(person)) ?? null);
         const reason = result.outcome === 'accepted' ? null : result.reason;
         await app.rbac.audit(request, {
           category: 'settings',
