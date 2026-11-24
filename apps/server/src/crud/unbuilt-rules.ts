@@ -551,6 +551,11 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // Whether an app's replies are kept or answered "not read", and an app role's conversations (sms/threads/).
   'textReplies',
   'roles.texts',
+  // The name automatic texts give the business by (sms/text-name.ts), a text kind sent to the number typed on the row it
+  // is about (outbox/recipient.ts), and the code beside each text's sentence on its outbox row (outbox/sender.ts).
+  'outbox.settings.textName',
+  'outbox.recipient.textPhone',
+  'outbox.columns.textReason',
 ];
 
 /**

@@ -53,15 +53,16 @@
  * skips the step before the send path is asked.
  */
 import { codeNamesIn } from '@adminium/manifest';
-import { connectionTenantConfig, readJsonFrom, textTemplatesRepo, type AutomationAction, type AutomationGraph, type MetaDb, type StoredTextTemplate } from '@adminium/meta';
+import { connectionTenantConfig, textTemplatesRepo, type AutomationAction, type AutomationGraph, type MetaDb, type StoredTextTemplate } from '@adminium/meta';
 
 import { keptCodeColumnsOf } from '../../crud/mask.js';
 import { readInstant } from '../../crud/moments.js';
 import { resolveMailSender } from '../../email/workspace-sender.js';
 import { recipientLocale } from '../../i18n/server-i18n.js';
 import { appContact } from '../../outbox/sender.js';
-import { businessName } from '../../privacy/business.js';
+import { installOnConnection, installsOf } from '../../installs/resolve.js';
 import { maskPhone } from '../../sms/consent/redact.js';
+import { appTextName, textBusinessName } from '../../sms/text-name.js';
 import type { BusinessContact, TextPrepared, TextPrepareSkipReason, TextSendPath } from '../../sms/send/index.js';
 import { parseRelated } from '../related.js';
 import { sampleListsOfRun } from '../sample-rows.js';
@@ -136,13 +137,13 @@ function codeColumnsOf(ctx: ActionContext): Set<string> {
  * kind (`outbox.classes`), else service. A template no app ships has no such
  * word, so it is the business's own service text.
  */
-export async function templateClassOf(meta: MetaDb, template: Pick<StoredTextTemplate, 'key' | 'managedBy'>): Promise<'service' | 'marketing'> {
+export async function templateClassOf(meta: MetaDb, template: Pick<StoredTextTemplate, 'key' | 'managedBy'>, connectionId: string): Promise<'service' | 'marketing'> {
   if (template.managedBy === null) return 'service';
-  const rows = await meta.db.selectFrom('adminium_manifests').select('manifest').where('kind', '=', 'app').where('manifestKey', '=', template.managedBy).execute();
-  for (const row of rows) {
-    const outbox = readJsonFrom<{ outbox?: { kinds?: Record<string, unknown>; classes?: Record<string, unknown> } } | null>(meta, row.manifest)?.outbox;
-    for (const [kind, key] of Object.entries(outbox?.kinds ?? {})) if (key === template.key && outbox?.classes?.[kind] === 'marketing') return 'marketing';
-  }
+  // The app's install on the database the rule runs on (its own, else the one kept for the server).
+  const install = await installOnConnection(installsOf(meta), template.managedBy, connectionId);
+  if (install === null || install.row.kind !== 'app') return 'service';
+  const outbox = (install.document as { outbox?: { kinds?: Record<string, unknown>; classes?: Record<string, unknown> } } | null)?.outbox;
+  for (const [kind, key] of Object.entries(outbox?.kinds ?? {})) if (key === template.key && outbox?.classes?.[kind] === 'marketing') return 'marketing';
   return 'service';
 }
 
@@ -150,7 +151,9 @@ export async function templateClassOf(meta: MetaDb, template: Pick<StoredTextTem
 async function businessOf(ctx: ActionContext, connectionId: string): Promise<BusinessContact> {
   const app = ctx.rule.managedBy === null ? { name: null, phone: null } : await appContact(ctx.meta, ctx.manager, ctx.rule.managedBy, connectionId);
   const sender = await resolveMailSender(ctx.meta, { connectionId });
-  return { name: app.name ?? sender.name ?? (await businessName(ctx.meta)), phone: app.phone, email: sender.replyTo };
+  // Named by the name chosen for texts (`sms/text-name.ts`), never by the one the app's emails are signed with.
+  const own = ctx.rule.managedBy === null ? null : await appTextName(ctx.meta, ctx.manager, ctx.rule.managedBy, connectionId);
+  return { name: await textBusinessName(ctx.meta, own), phone: app.phone, email: sender.replyTo };
 }
 
 /** The moment the text is about, from the record; null when the step names none or the record holds none. */
@@ -182,7 +185,7 @@ async function prepareStep(action: TextAction, ctx: ActionContext): Promise<{ re
     const person = personOf(action, ctx);
     prepared = await texts.prepare({
       phone,
-      textClass: await templateClassOf(ctx.meta, template),
+      textClass: await templateClassOf(ctx.meta, template, source.connectionId),
       template: template.body,
       language: template.locale,
       values: await varsFor(action, ctx, template.locale),

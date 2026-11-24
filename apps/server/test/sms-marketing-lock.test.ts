@@ -137,9 +137,9 @@ describe.each(META_ENGINES)('the lock in the send path — $name', (engine) => {
       source: 'file',
       document: { key: 'stays', outbox: { kinds: { autumn: 'stays-autumn', reminder: 'stays-reminder' }, classes: { autumn: 'marketing', reminder: 'service' }, channels: { autumn: 'sms', reminder: 'sms' } } },
     });
-    expect(await templateClassOf(handle.meta, { key: 'stays-autumn', managedBy: 'stays' })).toBe('marketing');
-    expect(await templateClassOf(handle.meta, { key: 'stays-reminder', managedBy: 'stays' })).toBe('service');
-    expect(await templateClassOf(handle.meta, { key: 'my-own', managedBy: null })).toBe('service');
+    expect(await templateClassOf(handle.meta, { key: 'stays-autumn', managedBy: 'stays' }, 'con_any')).toBe('marketing');
+    expect(await templateClassOf(handle.meta, { key: 'stays-reminder', managedBy: 'stays' }, 'con_any')).toBe('service');
+    expect(await templateClassOf(handle.meta, { key: 'my-own', managedBy: null }, 'con_any')).toBe('service');
   });
 });
 

@@ -9,6 +9,10 @@
  * message goes there or nowhere: it never falls back to the person the row
  * links, who would then read a notice meant for the studio.
  *
+ * A text goes to the number on the person's row, or, where the outbox says
+ * so (`recipient.textPhone`), to the number typed on the row the message is
+ * about (an order's mobile, which the order's box gave its yes for).
+ *
  * `identity` is the person's row when the address came from it: the only row
  * a sign-in link may ever be minted for.
  */
@@ -62,6 +66,14 @@ export async function rowOf(db: Kysely<SourceDatabase>, view: SnapshotView, tabl
   return ((await db.selectFrom(tableId as never).selectAll().where(key as never, '=', id as never).executeTakeFirst()) as Row | undefined) ?? null;
 }
 
+/** The number a linked row holds (`recipient.textPhone`): the row in hand when it is that one, else read by its key. */
+async function numberOnRow(ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; outboxId: string }, row: Row, from: { via: string; column: string }, holder?: { tableId: string; row: Row }): Promise<string | null> {
+  const table = referenced(ctx.view, ctx.outboxId, from.via);
+  if (table === undefined || row[from.via] === null || row[from.via] === undefined) return null;
+  const linked = holder !== undefined && holder.tableId === table && holder.row[ctx.view.table(table).primaryKey[0] ?? ''] === row[from.via] ? holder.row : await rowOf(ctx.db, ctx.view, table, row[from.via]);
+  return linked === null ? null : numberOnFile(linked[from.column]);
+}
+
 /**
  * Where a message goes, for a row of the outbox (or the values a producer is
  * about to write): the producer's setting, else the person, else the
@@ -92,7 +104,10 @@ export async function addressFor(
   // A text goes to the number on the person's row: `address` holds it, and no sign-in link is ever made from it.
   if (isTextKind(definition, String(producer?.kind ?? row[definition.columns.kind] ?? ''))) {
     const language = (from: Row | null, column: unknown) => (typeof column === 'string' && from !== null ? text(from[column]) : null);
-    if (person !== null) return { ...none, person, address: recipient.phone === undefined ? null : numberOnFile(person[recipient.phone]), language: language(person, recipient.language) };
+    // The number typed on the row the message is about (an order's mobile), when the outbox says texts go there and it holds one.
+    const typed = recipient.textPhone === undefined ? null : await numberOnRow(ctx, row, recipient.textPhone, holder);
+    if (person !== null) return { ...none, person, address: typed ?? (recipient.phone === undefined ? null : numberOnFile(person[recipient.phone])), language: language(person, recipient.language) };
+    if (typed !== null) return { ...none, address: typed, language: null };
     const back = recipient.fallback;
     if (back === undefined) return none;
     const backTable = referenced(ctx.view, ctx.outboxId, back.via);
