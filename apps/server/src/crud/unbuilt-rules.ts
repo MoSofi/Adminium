@@ -546,6 +546,9 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'publicAccess.textConsent',
   // A rule's text step, sent through the same path by the automation runner (automations/actions/text.ts).
   'automations.text',
+  // Whether an app's replies are kept or answered "not read", and an app role's conversations (sms/threads/).
+  'textReplies',
+  'roles.texts',
 ];
 
 /**

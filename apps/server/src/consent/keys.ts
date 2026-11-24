@@ -66,6 +66,9 @@ export function stopListAddressKey(secret: string): Buffer {
 export const TEXT_STOP_PHONE_PURPOSE = 'adminium:text-stop-phone';
 /** What a stored inbound event is sealed under (`inbound/core.ts`). */
 export const INBOUND_BODY_PURPOSE = 'adminium:inbound-body';
+/** What a conversation's number and each of its messages are sealed under (`sms/threads`). */
+export const TEXT_THREAD_PHONE_PURPOSE = 'adminium:text-thread-phone';
+export const TEXT_THREAD_BODY_PURPOSE = 'adminium:text-thread-body';
 
 const KEY_BYTES = 32;
 

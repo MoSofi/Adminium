@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * What an erasure does to a phone number: the stop entry kept as a hash alone,
- * the consent log, stored inbound events, delivery records, and any job error
- * that quotes the number.
+ * the consent log, stored inbound events, delivery records, the conversations
+ * with the number and every message in them, and any job error that quotes the
+ * number.
  *
  * `everywhere: false` is an erasure narrowed to some apps. It takes only the
  * log rows on the person's own row: the stop list and the stores matched by
@@ -21,6 +22,7 @@ import { textSubject } from './consent/service.js';
 import type { TextConsentService } from './consent/types.js';
 import type { TextPhoneKeys } from './send/path.js';
 import type { TextSendStore } from './send/store.js';
+import type { TextThreads } from './threads/service.js';
 
 const E164_SHAPE = /^\+[1-9][0-9]{6,14}$/;
 const JOB_BATCH = 500;
@@ -38,6 +40,8 @@ export interface TextErased {
   consentRows: number;
   inboundEvents: number;
   deliveries: number;
+  /** Conversation messages, and the threads that held them. */
+  conversations: number;
 }
 
 export interface TextErasure {
@@ -57,6 +61,8 @@ export interface TextErasureDeps {
   consent: TextConsentService;
   inbound: Pick<InboundCore, 'erase' | 'countFrom'>;
   deliveries: Pick<TextSendStore, 'eraseFor' | 'countFor'>;
+  /** Conversations; none are kept without it. */
+  threads?: Pick<TextThreads, 'eraseFor' | 'countFor'> | undefined;
   phoneKeys: TextPhoneKeys;
   country: () => Promise<string | null>;
 }
@@ -74,29 +80,33 @@ export function createTextErasure(deps: TextErasureDeps): TextErasure {
 
     async erase({ phone, country, person, at, everywhere }) {
       if (!everywhere) {
-        if (person === null) return { stopEntry: 0, consentRows: 0, inboundEvents: 0, deliveries: 0 };
+        if (person === null) return { stopEntry: 0, consentRows: 0, inboundEvents: 0, deliveries: 0, conversations: 0 };
         const narrowed = await deps.consent.erase({ phone: null, person, at });
-        return { stopEntry: 0, consentRows: narrowed.consentRows, inboundEvents: 0, deliveries: 0 };
+        return { stopEntry: 0, consentRows: narrowed.consentRows, inboundEvents: 0, deliveries: 0, conversations: 0 };
       }
       // The stop entry first: an event erased while still pending is honoured only because of it.
       const result = await deps.consent.erase({ phone, country, person, at });
       const stopEntry = result.stopList === 'erased' || result.stopList === 'added' ? 1 : 0;
       const e164 = exactNumber(phone, country);
-      if (e164 === null) return { stopEntry, consentRows: result.consentRows, inboundEvents: 0, deliveries: 0 };
+      if (e164 === null) return { stopEntry, consentRows: result.consentRows, inboundEvents: 0, deliveries: 0, conversations: 0 };
       const { events } = await deps.inbound.erase({ subject: textSubject(e164) });
+      // The conversations before the deliveries: a thread shows an app's texts by reading them.
+      const threads = (await deps.threads?.eraseFor(e164)) ?? { threads: 0, messages: 0 };
       const deliveries = await deps.deliveries.eraseFor(await deps.phoneKeys.all(e164));
-      return { stopEntry, consentRows: result.consentRows, inboundEvents: events, deliveries };
+      return { stopEntry, consentRows: result.consentRows, inboundEvents: events, deliveries, conversations: threads.messages + threads.threads };
     },
 
     async count({ phone, country, person, everywhere }) {
       const e164 = everywhere ? exactNumber(phone, country) : null;
       const history = await deps.consent.history({ phone: e164, country, person }, { limit: 500 });
-      if (e164 === null) return { stopEntry: 0, consentRows: history.length, inboundEvents: 0, deliveries: 0 };
+      if (e164 === null) return { stopEntry: 0, consentRows: history.length, inboundEvents: 0, deliveries: 0, conversations: 0 };
+      const threads = (await deps.threads?.countFor(e164)) ?? { threads: 0, messages: 0 };
       return {
         stopEntry: (await deps.consent.stop.entryFor(e164, country)) === null ? 0 : 1,
         consentRows: history.length,
         inboundEvents: await deps.inbound.countFrom(textSubject(e164)),
         deliveries: await deps.deliveries.countFor(await deps.phoneKeys.all(e164)),
+        conversations: threads.messages + threads.threads,
       };
     },
 

@@ -9,6 +9,8 @@
  * - `jobs:<jobId>`                       — job owner or `system:jobs:read`
  * - `config-changed`                     — any authenticated session
  * - `widget-data:<connectionId>:<table>` — table read permission
+ * - `texts`, `texts:<app>`               — a conversation changed: whoever may
+ *                                          read every one, or that app's
  *
  * Authorization runs at subscribe time (`authorizeChannel`), mirroring the
  * REST RBAC checks; publishing is server-internal and unchecked. Stream
@@ -74,7 +76,8 @@ export type ChannelDescriptor =
   | { kind: 'jobs'; jobId: string }
   | { kind: 'config-changed' }
   | { kind: 'widget-data'; connectionId: string; table: string }
-  | { kind: 'designer'; sessionId: string };
+  | { kind: 'designer'; sessionId: string }
+  | { kind: 'texts'; app: string | null };
 
 /** `designer:<sessionId>` — what one Adminium Designer session says while it works. */
 export function designerChannel(sessionId: string): string {
@@ -101,6 +104,7 @@ export function widgetDataReadPermission(connectionId: string, table: string): s
 export function parseChannel(channel: string): ChannelDescriptor | null {
   if (channel.length === 0 || channel.length > MAX_CHANNEL_LENGTH) return null;
   if (channel === 'config-changed') return { kind: 'config-changed' };
+  if (channel === 'texts') return { kind: 'texts', app: null };
   const sep = channel.indexOf(':');
   if (sep <= 0) return null;
   const prefix = channel.slice(0, sep);
@@ -109,6 +113,7 @@ export function parseChannel(channel: string): ChannelDescriptor | null {
   if (prefix === 'notifications') return { kind: 'notifications', userId: rest };
   if (prefix === 'jobs') return { kind: 'jobs', jobId: rest };
   if (prefix === 'designer') return /^ds_[0-9a-z]{24}$/.test(rest) ? { kind: 'designer', sessionId: rest } : null;
+  if (prefix === 'texts') return /^[a-z0-9][a-z0-9_~-]{0,63}$/.test(rest) ? { kind: 'texts', app: rest } : null;
   if (prefix === WIDGET_DATA_CHANNEL_PREFIX) {
     // `widget-data:<connectionId>:<table>` — split off the connection id; the
     // rest is the qualified table id (`schema.name`, no colons).
@@ -176,6 +181,12 @@ export async function authorizeChannel(
       return deps.can(user, widgetDataReadPermission(parsed.connectionId, parsed.table));
     case 'designer':
       return deps.can(user, DESIGNER_USE_PERMISSION);
+    case 'texts': {
+      // The notice holds no number and no word; still, only whoever may read those conversations hears it.
+      if ((await deps.can(user, 'system:texts:read')) || (await deps.can(user, 'system:texts:reply'))) return true;
+      if (parsed.app === null) return false;
+      return (await deps.can(user, `texts:${parsed.app}:read`)) || (await deps.can(user, `texts:${parsed.app}:reply`));
+    }
   }
 }
 

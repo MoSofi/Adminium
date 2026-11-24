@@ -420,6 +420,7 @@ import { paymentsRoutes } from './routes/payments/index.js';
 import { textSubject } from './sms/consent/index.js';
 import { SMS_STOP_EVENT_KINDS } from './sms/inbound/index.js';
 import { createTextSendPath, registerSmsSendHandler, textPhoneKeys, TEXT_SETTLE_AFTER_MS, TEXT_SETTLE_CRON, TEXT_SETTLE_JOB, TEXT_SETTLE_SCHEDULE, type TextSendPath } from './sms/send/index.js';
+import { recordPhoneReader, textConversationDeps } from './sms/threads/server-deps.js';
 import { createSmsWiring } from './sms/wiring.js';
 import { paymentPayablesRoutes } from './routes/payments/payables.js';
 import { paymentWaysRoutes } from './routes/payments/ways.js';
@@ -2026,6 +2027,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     trustProxy: env.ADMINIUM_TRUST_PROXY,
     operator: () => app.trialPolicy.allows('smsProviders'),
     log: app.log,
+    // Conversations: who an answer is from, the business's clock and language, and the `texts` realtime notice.
+    conversations: textConversationDeps({ meta, manager, hub: jobs.hub }),
   });
   peopleConsent = createPeopleConsent({
     meta,
@@ -2058,7 +2061,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   });
   registerSmsSendHandler(jobs.registry, textSendPath.handOver);
   sms.joinSendPath(textSendPath);
-  jobs.registry.registerJobHandler(TEXT_SETTLE_JOB, z.object({}).passthrough(), async () => ({ ended: await textSendPath?.settleAbandoned(Date.now() - TEXT_SETTLE_AFTER_MS) }), { internal: true });
+  // …and keeps conversations to their time: a message after a year, the "not read" marks after their month.
+  jobs.registry.registerJobHandler(TEXT_SETTLE_JOB, z.object({}).passthrough(), async () => ({ ended: await textSendPath?.settleAbandoned(Date.now() - TEXT_SETTLE_AFTER_MS), conversations: await sms.threads.sweep() }), { internal: true });
   // A text whose worker died, a source row a failed telling never reached, an envelope a job could not blank.
   jobs.scheduler.registerSchedule(TEXT_SETTLE_SCHEDULE, TEXT_SETTLE_CRON, async () => sms.enqueueTextSettle((input) => jobs.enqueue(input)));
   // Without this a stored event whose job could not be queued is never processed, and a STOP lost while the server was up is never found.
@@ -3006,6 +3010,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(mailNoticeRoutes({ meta, secret: env.ADMINIUM_SECRET, consent, networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY }));
       // Studio → Text messages, and the door a provider hands texts and reports to. Its token is scrubbed from the request log (`log-scrub.ts`).
       await api.register(sms.settingsRoutes());
+      // Texts → Conversations, the replies switches, and "Send a text" on a record, read under the person's row limits.
+      await api.register(sms.conversationRoutes({ recordPhone: recordPhoneReader({ meta, manager, resolve: (request) => app.rbac.resolve(request) }) }));
       await api.register(inboundEvents.doorRoutes());
       // Refunding a payment: what the dialog shows, and the confirm step.
       await api.register(paymentRefundRoutes(paymentRefundDeps));
