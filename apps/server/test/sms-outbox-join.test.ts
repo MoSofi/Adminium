@@ -21,7 +21,7 @@ import { createWriteService } from '../src/crud/write-service.js';
 import { createInboundCore, inboundRoutes, type InboundCore } from '../src/inbound/index.js';
 import { createOutboxProducers } from '../src/outbox/producers.js';
 import { createOutboxSender, type OutboxSender } from '../src/outbox/sender.js';
-import { TEXT_EARLIER_OPEN, TEXT_NOT_CHECKED, TEXT_NOT_CONNECTED, TEXT_NOT_PREPARED, TEXT_NO_NUMBER, TEXT_REHEARSAL, TEXT_SAMPLE, TEXT_UNKNOWN, textReasonSentence } from '../src/outbox/text-words.js';
+import { TEXT_EARLIER_OPEN, TEXT_NOT_CHECKED, TEXT_NOT_CONNECTED, TEXT_NOT_PREPARED, TEXT_NO_NUMBER, TEXT_REHEARSAL, TEXT_SAMPLE, TEXT_UNKNOWN, TEXT_WAITING_PREFIX, textReasonSentence } from '../src/outbox/text-words.js';
 import { noteRehearsalRow } from '../src/payments/rehearsal-state.js';
 import { createPublicViews } from '../src/public-api/runtime.js';
 import { createTextConsentService, textSubject, type TextConsentService } from '../src/sms/consent/index.js';
@@ -350,6 +350,8 @@ describe.each(LEGS)('a text kind joined to the engine — %s', (dialect, availab
     expect(rows).toHaveLength(1);
     const before = await message(Number(rows[0]!['id']));
     expect(before.status).toBe('sent');
+    // Claimed, so never queued twice, and saying it has not gone yet, with when it will.
+    expect(before.error).toBe(`${TEXT_WAITING_PREFIX}: goes at ${new Date(MORNING).toISOString().slice(0, 16).replace('T', ' ')} UTC`);
     expect(new Date(String(before.due)).getTime()).toBe(Date.parse(VISIT));
     expect(provider.posts).toHaveLength(0);
     const [job] = (await jobRows()).open;
@@ -362,6 +364,8 @@ describe.each(LEGS)('a text kind joined to the engine — %s', (dialect, availab
     expect(provider.posts).toHaveLength(1);
     expect(await h.rows(`SELECT id FROM ${h.real('messages')}`)).toHaveLength(1);
     expect(new Date(String((await message(Number(rows[0]!['id']))).due)).getTime()).toBe(Date.parse(VISIT));
+    // The provider took it: the waiting line is gone.
+    expect(await message(Number(rows[0]!['id']))).toMatchObject({ status: 'sent', error: null });
   });
 
   it.skipIf(!available)('a visit called off while its text waits for the window sends nothing, and the row says so', async () => {

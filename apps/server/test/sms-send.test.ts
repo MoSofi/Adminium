@@ -9,7 +9,7 @@
  */
 import { jobsRepo, type EnqueueJobInput } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createJobRegistry } from '../src/jobs/registry.js';
 import { JobWorker } from '../src/jobs/worker.js';
@@ -38,6 +38,9 @@ import type { SmsSender } from '../src/sms/types.js';
 import { memorySmsStore } from './helpers/sms-store.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 import { json, networkError, stubProvider, telnyxAccepted, twilioAccepted, type ProviderStep } from './sms-send.helpers.js';
+
+// Marketing's timing is tested here; the release's lock on it is `sms-marketing-lock.test.ts`.
+vi.mock('../src/sms/marketing/availability.js', () => ({ TEXT_MARKETING_AVAILABLE: true }));
 
 const SECRET = 'a-text-send-test-secret-of-some-length';
 const PROFILE = '11111111-2222-4333-8444-555555555555';

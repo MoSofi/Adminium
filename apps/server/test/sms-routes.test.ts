@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { apiKeysRepo, auditRepo, BUILTIN_ROLES, createSqliteMetaDb, firstRun, permissionsRepo, rolesRepo, usersRepo, type MetaDb, type User } from '@adminium/meta';
 
-import { errorEnvelope } from '../src/errors.js';
+import { errorEnvelope, RateLimitedError } from '../src/errors.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { generateApiKey } from '../src/rbac/api-keys.js';
 import { parsePermission, PERMISSIONS } from '../src/rbac/permissions.js';
@@ -263,6 +263,30 @@ describe('SMS settings routes', () => {
     expect(china.json()).toMatchObject({ data: { outcome: 'refused', reason: 'country-blocked-cn' } });
     expect(calls.filter((one) => one.method === 'POST')).toHaveLength(1);
     expect(JSON.stringify(await auditRepo(meta).list({ limit: 20 }))).toContain('+…56');
+  });
+
+  it('asks the test gate as the signed-in person, refuses what it refuses, and says the test was counted', async () => {
+    const asked: [string, string][] = [];
+    let refuse = false;
+    await app.close();
+    app = await serve({
+      testGate: async (userId, e164) => {
+        if (refuse) throw new RateLimitedError('A test text goes to your own number.', { reason: 'test-number' });
+        asked.push([userId, e164]);
+      },
+    });
+    await connect();
+    await setSender();
+    expect((await call(manager, 'POST', '/sms/test', { to: NUMBER })).json()).toMatchObject({ data: { outcome: 'accepted' } });
+    expect(asked).toEqual([[manager.id, NUMBER]]);
+    refuse = true;
+    const refused = await call(manager, 'POST', '/sms/test', { to: NUMBER });
+    expect(refused.statusCode).toBe(429);
+    expect(refused.json()).toMatchObject({ error: { details: { reason: 'test-number' } } });
+    expect(calls.filter((one) => one.method === 'POST')).toHaveLength(1);
+    const audit = JSON.stringify(await auditRepo(meta).list({ limit: 20 }));
+    expect(audit).toContain('"countedInDailyLimit":true');
+    expect(audit).not.toContain(NUMBER);
   });
 
   it('takes the test text\'s words from nowhere but the server', async () => {

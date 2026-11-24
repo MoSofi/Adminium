@@ -551,6 +551,23 @@ describe.each(META_ENGINES)('two-way text conversations — $name', (engine) => 
       expect((refused.json() as { data: unknown }).data).toMatchObject({ threadId: null, sentTo: '+49 ••• 789', result: { outcome: 'refused', reason: 'no-consent' } });
       expect(await raw('adminium_text_threads')).toEqual([]);
     });
+
+    it.runIf(engine.available)('counts only a yes given to the app it is sent as: another app\'s yes is no blank cheque', async () => {
+      const tables: Record<string, string> = { 'main.patients': 'clinic', 'main.crm_contacts': 'crm', 'main.crm_leads': 'crm' };
+      consent = createTextConsentService({ meta: handle.meta, secret: SECRET, appOf: async (person) => tables[person.table] ?? null, now: () => clock.now });
+      const s = await stack({ apps: [{ key: 'crm', name: 'Sales CRM', replies: 'on' }, { key: 'clinic', name: 'Clinic', replies: 'off' }] });
+      const yes = (person: { connectionId: string; table: string; key: string }, at: number) =>
+        consent.record({ phone: GUEST, person, purpose: 'text-service', state: 'yes', source: 'form', detail: 'Booking form', wording: { text: 'Remind me of my visits by text.', version: 'v1' }, at });
+      s.recordPhone.value = { rowKey: '7', app: 'crm', phoneColumn: true, value: GUEST, mayReadNumber: true };
+      // The patient ticked the clinic's box: the sales team may not write to them on it.
+      await yes({ connectionId: 'con_1', table: 'main.patients', key: '3' }, clock.now - 2000);
+      const refused = await s.call(s.people.owner, 'POST', '/texts/send', SEND);
+      expect((refused.json() as { data: unknown }).data).toMatchObject({ threadId: null, result: { outcome: 'refused', reason: 'no-consent' } });
+      // A yes given on one of the CRM's own rows counts for the CRM.
+      await yes({ connectionId: 'con_1', table: 'main.crm_leads', key: '1' }, clock.now - 1000);
+      const sent = await s.call(s.people.owner, 'POST', '/texts/send', { ...SEND, clientKey: 'dddddddddddddddddddddddddddddddd' });
+      expect((sent.json() as { data: unknown }).data).toMatchObject({ result: { outcome: 'queued' } });
+    });
   });
 
   describe('keeping and erasing', () => {

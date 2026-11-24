@@ -17,6 +17,18 @@ export const TEXT_NOT_CHECKED = 'Not sent: the stop list or the settings could n
 export const TEXT_EARLIER_OPEN = 'An earlier send is still open: check it before resending';
 export const TEXT_UNKNOWN = 'Unknown: check with the provider before resending';
 
+/** A prefix every waiting row's line starts with, so a page can tell a wait from a failure. */
+export const TEXT_WAITING_PREFIX = 'Waiting for the sending hours';
+
+/**
+ * Said while the text is held for its sending hours: the row reads `sent`
+ * (it is claimed, and must not be queued again), and this says it has not
+ * gone yet. Cleared when the provider takes it; replaced if it ends otherwise.
+ */
+export function textWaitingSentence(opensAt: number): string {
+  return `${TEXT_WAITING_PREFIX}: goes at ${new Date(opensAt).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+}
+
 const REASONS: Partial<Record<TextDeliveryReason, string>> = {
   'unreadable-phone': 'Not sent: the mobile number cannot be read',
   'bad-number': 'Not sent: the mobile number cannot be read',
@@ -36,6 +48,8 @@ const REASONS: Partial<Record<TextDeliveryReason, string>> = {
   'no-sender': 'No sender is set for texts',
   'off-by-operator': 'Texts are switched off on this server',
   'daily-limit': 'Not sent: the daily text limit is reached',
+  'marketing-not-yet-available': 'Not sent: marketing texts are not available in this release',
+  'sender-changed': 'Not sent: the sender changed while it waited for its hours',
   'past-its-moment': 'Not sent: the send window would hold it past its moment',
   'no-send-window': 'Not sent: no send window opens soon',
   'opt-out-changed': 'Not sent: the way to opt out changed after it was written',

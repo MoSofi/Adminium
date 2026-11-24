@@ -23,8 +23,9 @@ import { addressKeyRing } from '../../consent/keys.js';
 import { parsePhone } from '../../phone/index.js';
 import { maskPhone } from '../consent/redact.js';
 import { textSubject } from '../consent/service.js';
-import type { TextClass, TextRefusal } from '../consent/types.js';
+import type { TextClass, TextConsentScope, TextRefusal } from '../consent/types.js';
 import type { SmsStopConfirmation } from '../inbound/stop-reply.js';
+import { TEXT_MARKETING_AVAILABLE } from '../marketing/availability.js';
 import type { SmsService } from '../service.js';
 import type { SmsSender } from '../types.js';
 import { composeText } from './compose.js';
@@ -84,6 +85,12 @@ export interface TextPrepareInput {
    * them (`TextRequest.answering`). The stop list still refuses it.
    */
   answering?: boolean | undefined;
+  /**
+   * Whose yes counts for it (`TextConsentScope`): a text a person writes, or a
+   * rule sends, counts only a yes given to its own app. Asked again at the
+   * hand-over the same way.
+   */
+  scope?: TextConsentScope | undefined;
 }
 
 export type TextPrepared =
@@ -143,6 +150,8 @@ export function createTextSendPath(deps: TextSendDeps): TextSendPath {
 
   async function prepare(input: TextPrepareInput): Promise<TextPrepared> {
     if (!deps.operatorAllows()) return { action: 'skip', reason: 'off-by-operator' };
+    // Whoever asks: a run, an app's outbox kind, a rule's step. The hand-over asks again.
+    if (input.textClass === 'marketing' && !TEXT_MARKETING_AVAILABLE) return { action: 'skip', reason: 'marketing-not-yet-available' };
     const view = await deps.sms.view();
     if (view === null || !view.keyReadable) return { action: 'skip', reason: 'not-connected' };
     const sender = input.sender ?? view.sender;
@@ -160,6 +169,7 @@ export function createTextSendPath(deps: TextSendDeps): TextSendPath {
         repliesReachUs: await deps.repliesReachUs(),
         person: input.person ?? null,
         answering: input.answering === true,
+        ...(input.scope === undefined ? {} : { scope: input.scope }),
       });
       policy = readTextPolicy(await deps.policy());
     } catch {
@@ -187,7 +197,22 @@ export function createTextSendPath(deps: TextSendDeps): TextSendPath {
       action: 'send',
       opensAt,
       estimate: composed.estimate,
-      text: { to: decision.e164, body: composed.body, textClass: input.textClass, timing, country: decision.country, zone: input.zone, notAfter, sender, optOut: decision.optOut, person: input.person ?? null, ...(input.answering === true ? { answering: true } : {}) },
+      text: {
+        to: decision.e164,
+        body: composed.body,
+        textClass: input.textClass,
+        timing,
+        country: decision.country,
+        zone: input.zone,
+        notAfter,
+        sender,
+        // The account's own sender, not a line or a workspace's: the hand-over checks it is still the account's.
+        accountSender: input.sender === undefined,
+        optOut: decision.optOut,
+        person: input.person ?? null,
+        ...(input.answering === true ? { answering: true } : {}),
+        ...(input.scope === undefined ? {} : { scope: input.scope }),
+      },
     };
   }
 

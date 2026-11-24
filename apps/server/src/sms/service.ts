@@ -150,8 +150,13 @@ export interface SmsService {
   recheck(): Promise<SmsAccountView>;
   disconnect(): Promise<boolean>;
   send(request: SmsSendRequest): Promise<SmsServiceResult>;
-  /** The fixed test text, in `language` (`en_US` or `en-US`; US English when absent or unknown). */
-  sendTest(to: unknown, language?: string | null): Promise<SmsServiceResult>;
+  /**
+   * The one fixed test text, in `language` (`en_US` or `en-US`; US English when absent or unknown). `gate` is
+   * asked once the number reads and is not stopped, right before the provider: it throws to refuse, and takes
+   * the test's counts when it lets it go (`test-gate.ts`). Without one, a limit kept in this process's memory
+   * stands in, for a caller with no meta.
+   */
+  sendTest(to: unknown, language?: string | null, gate?: ((e164: string) => Promise<void>) | undefined): Promise<SmsServiceResult>;
   /** The opened keys, for checking inbound signatures; null when none are connected or they do not open. */
   credentials(): Promise<SmsCredentials | null>;
 }
@@ -346,7 +351,7 @@ export function createSmsService(deps: SmsServiceDeps): SmsService {
 
     send,
 
-    async sendTest(to, language) {
+    async sendTest(to, language, gate) {
       const row = await deps.store.read();
       const destination = checkDestination(to, await countryOf(row));
       if (!destination.ok) return refusedResult(destination.reason, destination.e164, { detail: destination.detail });
@@ -354,10 +359,14 @@ export function createSmsService(deps: SmsServiceDeps): SmsService {
       if (row === null) return refusedResult('not-connected', e164);
       if (await deps.stopList.isStopped(e164)) return refusedResult('opted-out', e164, { provider: row.provider });
 
-      const at = now();
-      testSends = testSends.filter((one) => at - one < SMS_TEST_WINDOW_MS);
-      if (testSends.length >= SMS_TEST_LIMIT) throw new RateLimitedError('Too many test texts. Try again in a few minutes.', { reason: 'test-limit' });
-      testSends.push(at);
+      if (gate !== undefined) {
+        await gate(e164);
+      } else {
+        const at = now();
+        testSends = testSends.filter((one) => at - one < SMS_TEST_WINDOW_MS);
+        if (testSends.length >= SMS_TEST_LIMIT) throw new RateLimitedError('Too many test texts. Try again in a few minutes.', { reason: 'test-limit' });
+        testSends.push(at);
+      }
 
       const result = await send({ to: e164, body: textWordsFor(language).test, idempotencyKey: randomUUID() });
       if (result.outcome === 'refused' && result.reason === 'opted-out' && result.provider !== null) {
