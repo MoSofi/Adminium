@@ -1,0 +1,362 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * Studio → Texts: what the console reads and changes beside the provider card.
+ *
+ *   GET    /sms/sending-limits          the daily limit, the service hours and today's count
+ *   PUT    /sms/sending-limits          change the limit and the hours
+ *   GET    /sms/deliveries              Activity: one row per text, newest first, with no number and no words
+ *   POST   /sms/deliveries/:id/settle   a person checked an `unknown` at the provider
+ *   GET    /sms/stop-list               the do-not-text list
+ *   POST   /sms/stop-list               record a stop request a person made to the business
+ *   DELETE /sms/stop-list/:id           take a number off (Super Admin only)
+ *   GET    /sms/text-templates          the installed text templates, every language
+ *   PUT    /sms/text-templates/:key/:locale     change one language's words
+ *   DELETE /sms/text-templates/:key/:locale     empty one language, so it falls back to US English
+ *
+ * WHO. `sms.manage` opens all of it. `privacy.people`, which an app's role may
+ * carry so a desk can answer a customer, opens the do-not-text list and
+ * recording a request on it, and reading Activity: a desk is who hears "stop
+ * texting me" from a sender name, and who is asked "did my text go?". Neither
+ * may settle an unknown or take a number off the list.
+ *
+ * WHAT NEVER LEAVES. A delivery row holds no number and no words, so none is
+ * sent. The stop list shows the number, because staff must be able to find it,
+ * only to the two grants above. Every change is made by a signed-in person and
+ * audited, a number only by its mask.
+ */
+import { TEXT_TEMPLATE_BODY_MAX, checkTextTemplate } from '@adminium/manifest';
+import { settingsRepo, textTemplatesRepo, type MetaDb } from '@adminium/meta';
+import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import { z } from 'zod';
+
+import { hashOf } from '../apps/manifest-text-templates.js';
+import { auditExempt, audited } from '../audit/coverage.js';
+import type { StaffMember } from '../consent/types.js';
+import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../errors.js';
+import { tagRoutes } from '../security/route-audience.js';
+import { maskPhone } from './consent/redact.js';
+import { TEXT_STOP_REASONS, type TextConsentService, type TextStopView } from './consent/types.js';
+import { dayKey, MAX_TEXT_DAILY_LIMIT, readTextPolicy, warningAt } from './send/policy.js';
+import type { TextSendPath } from './send/path.js';
+import type { TextSendStore } from './send/store.js';
+import { TEXT_DELIVERY_STATES, type TextDelivery } from './send/types.js';
+import type { SmsService } from './service.js';
+
+export interface SmsConsoleRoutesDeps {
+  meta: MetaDb;
+  service: Pick<SmsService, 'view'>;
+  consent: Pick<TextConsentService, 'stop'>;
+  deliveries: Pick<TextSendStore, 'list' | 'byId' | 'usedOn'>;
+  /** The send path, once joined; settling an unknown tells its source row through it. */
+  texts: () => Pick<TextSendPath, 'resolveUnknown'> | null;
+  /** `PERMISSIONS.smsManage`. */
+  manageGrant: string;
+  /** `PERMISSIONS.privacyPeople`. */
+  peopleGrant: string;
+  now?: (() => number) | undefined;
+}
+
+const CLOCK = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+const hoursSchema = z.object({ from: z.string().regex(CLOCK), to: z.string().regex(CLOCK) }).strict();
+
+const limitsBody = z
+  .object({ dailyLimit: z.number().int().min(1).max(MAX_TEXT_DAILY_LIMIT), serviceHours: hoursSchema })
+  .strict()
+  .refine((value) => value.serviceHours.from !== value.serviceHours.to, { message: 'The hours start and end at the same time.', path: ['serviceHours'] });
+
+const limitsReply = z.object({
+  data: z.object({
+    dailyLimit: z.number().int(),
+    serviceHours: hoursSchema,
+    /** Today's count, on the server's one day zone. */
+    usedToday: z.number().int(),
+    /** The count at which the warning shows. */
+    warnAt: z.number().int(),
+    day: z.string(),
+    dayZone: z.string(),
+  }),
+});
+
+const deliveryView = z
+  .object({
+    id: z.string(),
+    createdAt: z.number(),
+    updatedAt: z.number(),
+    /** `+49 ••• 789`: never the number. */
+    phoneMasked: z.string().nullable(),
+    textClass: z.enum(['service', 'marketing']),
+    state: z.enum(TEXT_DELIVERY_STATES),
+    reason: z.string().nullable(),
+    provider: z.enum(['twilio', 'telnyx']).nullable(),
+    providerStatus: z.string().nullable(),
+    providerErrorCode: z.string().nullable(),
+    segments: z.number().nullable(),
+    price: z.object({ amount: z.string(), currency: z.string() }).nullable(),
+    estimatedSegments: z.number(),
+    encoding: z.enum(['gsm-7', 'ucs-2']),
+    attempts: z.number(),
+    /** When the first try that may have gone was handed over. */
+    mayHaveGoneAt: z.number().nullable(),
+    /** The app and table the text was about; never the row's key. */
+    source: z.object({ app: z.string(), table: z.string() }).nullable(),
+  })
+  .strict();
+
+const deliveriesQuery = z.object({
+  /** `createdAt:id` of the last row of the page before. */
+  before: z.string().max(120).optional(),
+  state: z.enum(TEXT_DELIVERY_STATES).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+});
+
+const deliveriesReply = z.object({ data: z.array(deliveryView), next: z.string().nullable() });
+const settleBody = z.object({ answer: z.enum(['went', 'not-sent']) }).strict();
+
+const stopView = z
+  .object({
+    id: z.string(),
+    /** Null once the person was erased: the entry keeps a hash alone. */
+    phone: z.string().nullable(),
+    masked: z.string().nullable(),
+    reason: z.enum(TEXT_STOP_REASONS),
+    origin: z.string().nullable(),
+    addedAt: z.number(),
+    addedBy: z.string().nullable(),
+    erasedAt: z.number().nullable(),
+  })
+  .strict();
+
+const stopQuery = z.object({ cursor: z.string().max(400).optional(), reason: z.enum(TEXT_STOP_REASONS).optional() });
+const stopListReply = z.object({ data: z.array(stopView), next: z.string().nullable() });
+/** How the person asked the business. Kept as the entry's origin. */
+const STOP_ASKED = ['phone', 'email', 'in-person'] as const;
+const stopBody = z.object({ phone: z.string().min(1).max(64), asked: z.enum(STOP_ASKED) }).strict();
+const stopAddReply = z.object({ data: stopView, added: z.boolean() });
+
+const templateLanguage = z.object({ locale: z.string(), body: z.string(), enabled: z.boolean(), edited: z.boolean(), updatedAt: z.number() }).strict();
+const templateView = z.object({ key: z.string(), name: z.string(), app: z.string().nullable(), languages: z.array(templateLanguage) }).strict();
+const templatesReply = z.object({ data: z.array(templateView), connected: z.boolean() });
+const templateParams = z.object({ key: z.string().min(1).max(120), locale: z.string().regex(/^[a-z]{2,3}_[A-Z]{2}$/) });
+const templateBody = z.object({ body: z.string().max(TEXT_TEMPLATE_BODY_MAX) }).strict();
+const templateReply = z.object({ data: templateView });
+
+/** The language every template has, and the one an empty language falls back to. */
+const FALLBACK_LOCALE = 'en_US';
+
+function personOf(request: FastifyRequest): StaffMember {
+  if (request.apiKeyPrincipal != null) throw new ForbiddenError('Texts are changed by a signed-in person, never with an API key.', 'FORBIDDEN', { reason: 'api-key' });
+  const user = (request as unknown as { user?: { id?: string; name?: string | null; email?: string | null } }).user;
+  if (user?.id === undefined) throw new UnauthorizedError();
+  return { id: user.id, label: user.name?.trim() || user.email || 'someone' };
+}
+
+function deliveryOf(row: TextDelivery): z.infer<typeof deliveryView> {
+  return {
+    id: row.id,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    phoneMasked: row.phoneMasked,
+    textClass: row.textClass,
+    state: row.state,
+    reason: row.reason,
+    provider: row.provider,
+    providerStatus: row.providerStatus,
+    providerErrorCode: row.providerErrorCode,
+    segments: row.segments,
+    price: row.price,
+    estimatedSegments: row.estimatedSegments,
+    encoding: row.encoding,
+    attempts: row.attempts,
+    mayHaveGoneAt: row.mayHaveGoneAt,
+    source: row.reportTarget === null ? null : { app: row.reportTarget.app, table: row.reportTarget.table },
+  };
+}
+
+function readBefore(raw: string | undefined): { at: number; id: string } | null {
+  if (raw === undefined || raw === '') return null;
+  const at = raw.indexOf(':');
+  const when = Number(raw.slice(0, at));
+  if (at < 1 || !Number.isSafeInteger(when)) throw new ValidationFailedError('That page cursor is not one this list gave.', { field: 'before' });
+  return { at: when, id: raw.slice(at + 1) };
+}
+
+const stopOf = (entry: TextStopView): z.infer<typeof stopView> => ({
+  id: entry.id,
+  phone: entry.phone,
+  masked: entry.masked,
+  reason: entry.reason,
+  origin: entry.origin,
+  addedAt: entry.addedAt,
+  addedBy: entry.addedBy?.label ?? null,
+  erasedAt: entry.erasedAt,
+});
+
+export function smsConsoleRoutes(deps: SmsConsoleRoutesDeps): FastifyPluginAsyncZod {
+  const now = deps.now ?? Date.now;
+  const settings = settingsRepo(deps.meta);
+  const templates = textTemplatesRepo(deps.meta);
+
+  async function storedPolicy(): Promise<unknown> {
+    try {
+      return await settings.get('sms.sendPolicy');
+    } catch {
+      // A value this version cannot read: the defaults, never "no limit".
+      return null;
+    }
+  }
+
+  async function limitsView() {
+    const policy = readTextPolicy(await storedPolicy());
+    const day = dayKey(now(), policy.dayZone);
+    return { dailyLimit: policy.dailyLimit, serviceHours: policy.serviceHours, usedToday: await deps.deliveries.usedOn(day), warnAt: warningAt(policy.dailyLimit), day, dayZone: policy.dayZone };
+  }
+
+  async function templateOf(key: string): Promise<z.infer<typeof templateView> | null> {
+    const rows = await templates.listByKey(key);
+    if (rows.length === 0) return null;
+    const english = rows.find((row) => row.locale === FALLBACK_LOCALE) ?? rows[0]!;
+    return {
+      key,
+      name: english.name,
+      app: english.managedBy,
+      // `edited`: no longer what the app shipped, so an update of the app keeps these words.
+      languages: rows.map((row) => ({ locale: row.locale, body: row.body, enabled: row.enabled, edited: row.managedBy !== null && row.contentHash !== hashOf(row), updatedAt: row.updatedAt })),
+    };
+  }
+
+  return async (app) => {
+    tagRoutes(app, 'staff');
+    const manage = app.rbac.require(deps.manageGrant);
+    /** `sms.manage`, or the desk's `privacy.people`. */
+    async function desk(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+      if (typeof request.can === 'function' && (await request.can(deps.peopleGrant))) return;
+      await manage(request, reply);
+    }
+
+    // ── the daily limit and the service hours ───────────────────────────────
+    app.get('/sms/sending-limits', { preHandler: manage, schema: { response: { 200: limitsReply } } }, async () => ({ data: await limitsView() }));
+
+    app.put(
+      '/sms/sending-limits',
+      { preHandler: manage, config: { audit: audited('rbac') }, schema: { body: limitsBody, response: { 200: limitsReply } } },
+      async (request) => {
+        const person = personOf(request);
+        const before = readTextPolicy(await storedPolicy());
+        await settings.set('sms.sendPolicy', { dailyLimit: request.body.dailyLimit, serviceHours: request.body.serviceHours }, { updatedBy: person.id, at: now() });
+        await app.rbac.audit(request, {
+          category: 'settings',
+          action: 'sms.limits.saved',
+          changes: { before: { dailyLimit: before.dailyLimit, serviceHours: before.serviceHours }, after: request.body },
+        });
+        return { data: await limitsView() };
+      },
+    );
+
+    // ── Activity ────────────────────────────────────────────────────────────
+    app.get('/sms/deliveries', { preHandler: desk, config: { audit: auditExempt('read-only text activity, no numbers or words') }, schema: { querystring: deliveriesQuery, response: { 200: deliveriesReply } } }, async (request) => {
+      const limit = request.query.limit ?? 50;
+      const rows = await deps.deliveries.list({ limit: limit + 1, before: readBefore(request.query.before), ...(request.query.state === undefined ? {} : { states: [request.query.state] }) });
+      const shown = rows.slice(0, limit);
+      const last = shown.at(-1);
+      return { data: shown.map(deliveryOf), next: rows.length > limit && last !== undefined ? `${last.createdAt}:${last.id}` : null };
+    });
+
+    app.post(
+      '/sms/deliveries/:id/settle',
+      { preHandler: manage, config: { audit: audited('rbac') }, schema: { params: z.object({ id: z.string().min(1).max(64) }), body: settleBody, response: { 200: z.object({ data: deliveryView }) } } },
+      async (request) => {
+        personOf(request);
+        const path = deps.texts();
+        if (path === null) throw new ConflictError('Texts are not ready on this server yet. Try again in a moment.');
+        const before = await deps.deliveries.byId(request.params.id);
+        if (before === null) throw new NotFoundError('No such text.');
+        if (before.state !== 'unknown') throw new ConflictError('This text is no longer waiting for a check.', 'CONFLICT', { reason: 'not-unknown', state: before.state });
+        const row = await path.resolveUnknown(before.id, request.body.answer === 'went' ? 'checked-went' : 'checked-not-sent');
+        if (row === null) throw new ConflictError('This text is no longer waiting for a check.', 'CONFLICT', { reason: 'not-unknown' });
+        await app.rbac.audit(request, {
+          category: 'settings',
+          action: request.body.answer === 'went' ? 'sms.delivery.checked-went' : 'sms.delivery.checked-not-sent',
+          changes: { after: { id: row.id, to: row.phoneMasked, provider: row.provider } },
+        });
+        return { data: deliveryOf(row) };
+      },
+    );
+
+    // ── the do-not-text list ────────────────────────────────────────────────
+    app.get('/sms/stop-list', { preHandler: desk, config: { audit: auditExempt('read-only do-not-text list') }, schema: { querystring: stopQuery, response: { 200: stopListReply } } }, async (request) => {
+      const page = await deps.consent.stop.list({ limit: 100, cursor: request.query.cursor ?? null, ...(request.query.reason === undefined ? {} : { reason: request.query.reason }) });
+      return { data: page.entries.map(stopOf), next: page.next };
+    });
+
+    app.post(
+      '/sms/stop-list',
+      { preHandler: desk, config: { audit: audited('rbac') }, schema: { body: stopBody, response: { 200: stopAddReply } } },
+      async (request) => {
+        const staff = personOf(request);
+        const country = (await deps.service.view())?.defaultCountry ?? null;
+        const { entry, added } = await deps.consent.stop.add({ phone: request.body.phone, country, reason: 'staff', origin: request.body.asked, staff });
+        if (added) await app.rbac.audit(request, { category: 'settings', action: 'sms.stop.recorded', changes: { after: { to: maskPhone(entry.phone), asked: request.body.asked } } });
+        return { data: stopOf(entry), added };
+      },
+    );
+
+    app.delete(
+      '/sms/stop-list/:id',
+      { preHandler: manage, config: { audit: audited('rbac') }, schema: { params: z.object({ id: z.string().min(1).max(64) }), response: { 204: z.null() } } },
+      async (request, reply) => {
+        personOf(request);
+        // Taking a number off means texts may reach someone who said stop: only the Super Admin, and only after a new yes.
+        if (!(await app.rbac.resolve(request)).superAdmin) throw new ForbiddenError('Only a Super Admin can take a number off the do-not-text list.', 'FORBIDDEN', { reason: 'super-admin' });
+        const outcome = await deps.consent.stop.remove(request.params.id);
+        if (outcome === 'missing') throw new NotFoundError('That number is not on the list.');
+        if (outcome === 'erased') throw new ConflictError('An erased person stays on the list, so they are never texted again.', 'CONFLICT', { reason: 'erased' });
+        await app.rbac.audit(request, { category: 'settings', action: 'sms.stop.removed', changes: { before: { id: request.params.id } } });
+        return reply.status(204).send(null);
+      },
+    );
+
+    // ── text templates ──────────────────────────────────────────────────────
+    app.get('/sms/text-templates', { preHandler: manage, config: { audit: auditExempt('read-only text templates') }, schema: { response: { 200: templatesReply } } }, async () => {
+      const keys = [...new Set((await deps.meta.db.selectFrom('adminium_text_templates').select('key').orderBy('key').execute()).map((row) => row.key))];
+      const out = [];
+      for (const key of keys) {
+        const one = await templateOf(key);
+        if (one !== null) out.push(one);
+      }
+      const view = await deps.service.view();
+      return { data: out, connected: view !== null && view.keyReadable };
+    });
+
+    app.put(
+      '/sms/text-templates/:key/:locale',
+      { preHandler: manage, config: { audit: audited('rbac') }, schema: { params: templateParams, body: templateBody, response: { 200: templateReply } } },
+      async (request) => {
+        const person = personOf(request);
+        const { key, locale } = request.params;
+        const existing = await templates.listByKey(key);
+        if (existing.length === 0) throw new NotFoundError('No such text template.');
+        const checked = checkTextTemplate(request.body.body);
+        if (!checked.ok) throw new ValidationFailedError('This text cannot be saved.', { reason: checked.reason, ...(checked.names === undefined ? {} : { names: checked.names }) });
+        const english = existing.find((row) => row.locale === FALLBACK_LOCALE) ?? existing[0]!;
+        const own = existing.find((row) => row.locale === locale);
+        await templates.upsert(key, locale, { name: own?.name ?? english.name, body: request.body.body, enabled: own?.enabled ?? true, updatedBy: person.id }, now());
+        await app.rbac.audit(request, { category: 'settings', action: 'sms.template.saved', changes: { after: { key, locale } } });
+        return { data: (await templateOf(key))! };
+      },
+    );
+
+    app.delete(
+      '/sms/text-templates/:key/:locale',
+      { preHandler: manage, config: { audit: audited('rbac') }, schema: { params: templateParams, response: { 200: templateReply } } },
+      async (request) => {
+        personOf(request);
+        const { key, locale } = request.params;
+        if (locale === FALLBACK_LOCALE) throw new ValidationFailedError('US English is what every other language falls back to, so it cannot be emptied.', { reason: 'fallback' });
+        if (!(await templates.remove(key, locale))) throw new NotFoundError('That language of this template is already empty.');
+        await app.rbac.audit(request, { category: 'settings', action: 'sms.template.emptied', changes: { before: { key, locale } } });
+        return { data: (await templateOf(key)) ?? { key, name: key, app: null, languages: [] } };
+      },
+    );
+  };
+}

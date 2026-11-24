@@ -177,6 +177,8 @@ export interface TextSendStore {
   forgetEndedSealed(limit: number): Promise<number>;
   /** How many delivery records {@link TextSendStore.eraseFor} would delete. */
   countFor(hashes: readonly AddressHash[]): Promise<number>;
+  /** Newest first, for the console's Activity. `before` is the last row's `createdAt` and id, so a page never repeats a row. */
+  list(opts: { limit: number; before?: { at: number; id: string } | null | undefined; states?: readonly TextDeliveryState[] | undefined }): Promise<TextDelivery[]>;
 }
 
 const STATE_SET: ReadonlySet<string> = new Set(TEXT_DELIVERY_STATES);
@@ -533,6 +535,15 @@ export function createTextSendStore(meta: MetaDb): TextSendStore {
 
     async settlementWritten(id, owedAt) {
       await db.updateTable('adminium_text_deliveries').set({ settleOwedAt: null }).where('id', '=', id).where('settleOwedAt', '=', owedAt).execute();
+    },
+
+    async list(opts) {
+      let query = db.selectFrom('adminium_text_deliveries').selectAll();
+      if (opts.states !== undefined && opts.states.length > 0) query = query.where('state', 'in', [...opts.states]);
+      const before = opts.before ?? null;
+      if (before !== null) query = query.where((eb) => eb.or([eb('createdAt', '<', before.at), eb.and([eb('createdAt', '=', before.at), eb('id', '<', before.id)])]));
+      const rows = await query.orderBy('createdAt', 'desc').orderBy('id', 'desc').limit(opts.limit).execute();
+      return rows.map((row) => decode(row as TextDeliveryTable));
     },
 
     async resolveUnknown(id, to, at) {

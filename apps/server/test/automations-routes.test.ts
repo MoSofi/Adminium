@@ -29,6 +29,7 @@ import {
   jobsRepo,
   permissionsRepo,
   overridesRepo,
+  textTemplatesRepo,
   workspacesRepo,
 } from '@adminium/meta';
 
@@ -686,6 +687,17 @@ describe('42 — the automations routes', () => {
       (table) => table.id === 'main.users',
     );
     expect(editorUsers?.canUpdate).toBe(false);
+  });
+
+  it('offers a Send text step every text template with a language switched on, by its US English words', async () => {
+    const texts = textTemplatesRepo(t.meta);
+    await texts.upsert('hotel-ready', 'en_US', { name: 'Your room is ready', body: '{{hotel}}: {{name}}, your room is ready.', enabled: true });
+    await texts.upsert('hotel-ready', 'de_DE', { name: 'Zimmer fertig', body: '{{hotel}}: {{name}}, Ihr Zimmer ist fertig.', enabled: true });
+    await texts.upsert('hotel-off', 'en_US', { name: 'Off', body: 'Off.', enabled: false });
+    const body = (await get('/automations/sources')).json() as { textTemplates: unknown[]; textsConnected?: boolean };
+    expect(body.textTemplates).toEqual([{ key: 'hotel-ready', name: 'Your room is ready', body: '{{hotel}}: {{name}}, your room is ready.' }]);
+    // These routes were built with no provider to ask: they say nothing about one.
+    expect(body.textsConnected).toBeUndefined();
   });
 
   it('offers in one workspace only the templates shown there, and a rule naming a hidden one still saves', async () => {

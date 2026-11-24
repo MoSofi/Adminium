@@ -199,10 +199,20 @@ describe('the check on save', () => {
     expect(again.view.sender).toEqual({ kind: 'number', value: FROM });
 
     const other = await ready();
-    const moved = await other.service.connect({ ...TWILIO, accountSid: OTHER_SID }, 'person-1');
+    const moved = await other.service.connect({ ...TWILIO, accountSid: OTHER_SID }, 'person-1', { confirmAccountChange: true });
     expect(moved).toMatchObject({ replaced: true, accountChanged: true });
     expect(moved.view.sender).toBeNull();
     expect(moved.view.defaultCountry).toBe('US');
+  });
+
+  it('asks before keys that open another account replace the readable one, and keeps the old one meanwhile', async () => {
+    const built = await ready();
+    const hint = built.store.row?.accountHint;
+    const refused = built.service.connect({ ...TWILIO, accountSid: OTHER_SID }, 'person-1');
+    await expect(refused).rejects.toBeInstanceOf(ConflictError);
+    await expect(refused).rejects.toMatchObject({ details: { reason: 'account-changed' } });
+    expect(built.store.row?.accountHint).toBe(hint);
+    expect((await built.service.view())?.sender).toEqual({ kind: 'number', value: FROM });
   });
 
   it('counts a key that no longer opened as another account', async () => {

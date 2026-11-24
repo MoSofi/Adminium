@@ -139,7 +139,12 @@ export interface SmsServiceDeps {
 
 export interface SmsService {
   view(): Promise<SmsAccountView | null>;
-  connect(input: SmsCredentialInput, by: string | null): Promise<SmsConnectResult>;
+  /**
+   * Saves keys the provider accepted. Keys that open ANOTHER account than the
+   * readable one already here are refused (409, `account-changed`) unless
+   * `confirmAccountChange` says the person saw that texts will bill there.
+   */
+  connect(input: SmsCredentialInput, by: string | null, opts?: { confirmAccountChange?: boolean | undefined }): Promise<SmsConnectResult>;
   setSending(input: { sender: SmsSender; defaultCountry: string | null }, by: string | null): Promise<SmsAccountView>;
   recheck(): Promise<SmsAccountView>;
   disconnect(): Promise<boolean>;
@@ -264,7 +269,7 @@ export function createSmsService(deps: SmsServiceDeps): SmsService {
       return row === null ? null : await viewOf(row);
     },
 
-    async connect(input, by) {
+    async connect(input, by, opts) {
       const pasted = readCredentialInput(input);
       if (!pasted.ok) throw new ValidationFailedError('That value cannot be saved in this field.', { reason: pasted.code, field: pasted.field });
       const before = await deps.store.read();
@@ -274,6 +279,10 @@ export function createSmsService(deps: SmsServiceDeps): SmsService {
 
       const previous = before === null ? null : opened(before);
       const sameAccount = previous !== null && accountRefOf(previous) === accountRefOf(pasted.credentials);
+      // Bills move to another account: never without a deliberate yes. Keys that no longer open cannot be compared, so they ask nothing.
+      if (previous !== null && !sameAccount && opts?.confirmAccountChange !== true) {
+        throw new ConflictError('These keys open a different account. Texts would be billed there.', 'CONFLICT', { reason: 'account-changed', accountName: checked.accountName });
+      }
       const at = now();
       const row = await deps.store.write(
         {

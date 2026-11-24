@@ -48,9 +48,10 @@ export interface SmsRoutesDeps {
 
 const field = z.string().max(1024);
 
+/** `confirmAccountChange`: the person has seen that these keys open another account, and texts will bill there. */
 const accountBody = z.discriminatedUnion('provider', [
-  z.object({ provider: z.literal('twilio'), accountSid: field, authToken: field }).strict(),
-  z.object({ provider: z.literal('telnyx'), apiKey: field, publicKey: field, messagingProfileId: field }).strict(),
+  z.object({ provider: z.literal('twilio'), accountSid: field, authToken: field, confirmAccountChange: z.boolean().optional() }).strict(),
+  z.object({ provider: z.literal('telnyx'), apiKey: field, publicKey: field, messagingProfileId: field, confirmAccountChange: z.boolean().optional() }).strict(),
 ]);
 
 const senderSchema = z.object({ kind: z.enum(['number', 'name', 'pool']), value: z.string().min(1).max(64) }).strict();
@@ -145,7 +146,8 @@ export function smsRoutes(deps: SmsRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const person = requirePerson(request);
         refuseOffline();
-        const { view, replaced, accountChanged } = await service.connect(request.body, person);
+        const { confirmAccountChange, ...keys } = request.body;
+        const { view, replaced, accountChanged } = await service.connect(keys, person, { confirmAccountChange: confirmAccountChange === true });
         await app.rbac.audit(request, {
           category: 'settings',
           action: accountChanged ? 'sms.account.changed' : replaced ? 'sms.account.replaced' : 'sms.account.connected',

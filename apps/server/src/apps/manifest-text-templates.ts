@@ -22,7 +22,7 @@ export interface TextTemplatesResult {
 }
 
 /** What a row says, hashed the same however it was written. */
-function hashOf(row: Pick<StoredTextTemplate, 'name' | 'body'>): string {
+export function hashOf(row: Pick<StoredTextTemplate, 'name' | 'body'>): string {
   return createHash('sha256').update(canonicalJson({ name: row.name, body: row.body })).digest('hex');
 }
 
