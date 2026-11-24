@@ -74,8 +74,8 @@
 | `references/manifest/documents--a-list-of-an-add-on-s-rows.md` | Documents — A list of an add-on's rows | 1524 |
 | `references/manifest/documents--documents-that-print-a-money-code.md` | Documents — Documents that print a money code | 987 |
 | `references/manifest/emails.md` | Emails | 850 |
-| `references/manifest/emails--outbox.md` | Emails — outbox | 7593 |
-| `references/manifest/emails--outbox-2.md` | Emails — outbox (part 2) | 4433 |
+| `references/manifest/emails--outbox.md` | Emails — outbox | 6645 |
+| `references/manifest/emails--outbox-2.md` | Emails — outbox (part 2) | 5993 |
 | `references/manifest/emails--outbox-3.md` | Emails — outbox (part 3) | 7593 |
 | `references/manifest/emails--outbox-4.md` | Emails — outbox (part 4) | 1158 |
 | `references/manifest/emails--a-reply-to-the-rep.md` | Emails — A reply to the rep | 1672 |
@@ -85,13 +85,13 @@
 | `references/manifest/emails--held-messages.md` | Emails — Held messages | 2873 |
 | `references/manifest/emails--emailtemplates.md` | Emails — emailTemplates | 7416 |
 | `references/manifest/emails--emailtemplates-2.md` | Emails — emailTemplates (part 2) | 6322 |
+| `references/manifest/texts.md` | Texts | 6804 |
 | `references/manifest/people.md` | People | 979 |
-| `references/manifest/people-2.md` | People (part 2) | 7722 |
-| `references/manifest/people-3.md` | People (part 3) | 308 |
+| `references/manifest/people-2.md` | People (part 2) | 7753 |
+| `references/manifest/people-3.md` | People (part 3) | 731 |
 | `references/manifest/shipping.md` | Shipping | 5707 |
 | `references/manifest/public-access.md` | Public access | 2014 |
 | `references/manifest/public-access-2.md` | Public access (part 2) | 7550 |
 | `references/manifest/public-access-3.md` | Public access (part 3) | 7679 |
-| `references/manifest/public-access--filters.md` | Public access — Filters | 835 |
 
 More: `references/manifest/INDEX-2.md`

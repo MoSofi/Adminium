@@ -4045,8 +4045,12 @@ there for the same kind and source is what stops a second send.
 | `surveyLinks` | no | The kinds whose template prints `{{survey_link}}`: a forms add-on's survey invitations; see [A survey's link](#a-surveys-link). Needs Adminium 0.3.40. |
 | `reviewLinks` | no | `{ "kinds", "link", "page" }`: the kinds whose template prints `{{reviewLink}}`, a link that reviews one row; see [Bookings in a calendar](/guides/apps/booking-calendars/). Needs Adminium 0.3.71. |
 | `producers` | no | Up to 32 rules that queue rows by themselves (more than 24 needs Adminium 0.3.62). See below. |
+| `channels` | no | `{ "<kind>": "sms" }`: the kinds sent as [texts](#texts). A kind not named is email. Needs Adminium 0.3.76. |
+| `waiting` | no | The text kinds a customer is waiting for right now, which may go outside the sending hours; see [Text kinds in the outbox](#text-kinds-in-the-outbox). Needs Adminium 0.3.76. |
 
-**`recipient`** is `{ "via", "table", "email", "name"?, "language"?, "optIn"?, "fallback"? }`.
+**`recipient`** is `{ "via", "table", "email", "name"?, "language"?, "optIn"?, "phone"?, "fallback"? }`.
+`phone` is the mobile number a [text](#texts) kind goes to (Adminium 0.3.76), and an outbox whose
+every kind is a text may leave out `email`.
 `via` is the outbox's foreign key to the person, `table` the person's table, and the rest are its
 columns: `email`, `name` and `language` are `text`, and `optIn` is a bool the person sets (false
 means nothing from a producer that asks `optIn`). `language` may instead be `{ "column" }`, a `text`
@@ -4568,6 +4572,121 @@ While the add-on is absent, detached or switched off the list is empty and the m
 (the block's `empty` text is said, or the block is left out). A `match` column the add-on's table
 no longer has fails the message with a reason.
 
+## Texts
+
+An app can send text messages (SMS) through the business's own Twilio or Telnyx account. Every word
+below needs Adminium 0.3.76 or later: a manifest that uses one sets
+`compatibility.minAdminiumVersion` to `0.3.76`, and an older server refuses it with a message that
+names the word. For what the business sees, see [Set up texts](/guides/texts/).
+
+A text is a template of its own, never an email template with fields left empty. One outbox kind
+has one channel, so "email and text" is two kinds. A text kind is queued, logged and sent through
+the same outbox as an email, and the send path checks consent, the do-not-text list, the country,
+the words, the length, the sending hours and the daily limit for every text.
+
+```json
+"textTemplates": [
+  { "key": "clinic-reminder-text", "name": { "en-US": "Visit reminder", "de-DE": "Terminerinnerung" },
+    "locales": {
+      "en-US": { "body": "{{practice.name}}: your visit is at {{appointment.starts_at.time}}." },
+      "de-DE": { "body": "{{practice.name}}: Ihr Termin ist um {{appointment.starts_at.time}}." } } },
+  { "key": "clinic-ready-text", "name": "Doctor ready",
+    "locales": { "en-US": { "body": "{{practice.name}}: the doctor is ready for you now." } } }
+],
+"outbox": {
+  "recipient": { "via": "patient_id", "table": "patients", "email": "email", "phone": "mobile" },
+  "kinds":    { "reminder_text": "clinic-reminder-text", "ready_text": "clinic-ready-text" },
+  "channels": { "reminder_text": "sms", "ready_text": "sms" },
+  "classes":  { "reminder_text": "service", "ready_text": "service" },
+  "waiting":  ["ready_text"]
+},
+"textReplies": "off"
+```
+
+In a project folder, `textTemplates` and `textReplies` are written in `manifest/emails.json`, beside
+`outbox` and `emailTemplates`.
+
+### textTemplates
+
+Up to 32 templates.
+
+| Field | Required | Rule |
+|---|---|---|
+| `key` | yes | kebab-case, up to 80 characters, starting with the app's key and a dash (`clinic-`). Unique, and never also an email template's key. |
+| `name` | yes | One text, or one per language. |
+| `locales` | yes | Each language's `{ "body" }`, `en-US` always among them. A body holds 1 to 1,000 characters, with placeholders as an email's (`{{appointment.starts_at.time}}`, `{{name\|there}}`). |
+
+Do not write the opt-out line. Adminium adds it after the placeholders are filled, in the template's
+language: "Reply STOP to opt out." from a number that can take replies, or "To stop these texts,
+contact" and the business's phone or e-mail otherwise: the outbox's `settings.phone`, else its
+`settings.replyTo` address. With neither, a text from a sender that cannot take replies is not
+sent. A template that says
+STOP itself gets no second line, and from a sender name its "Reply STOP" sentence is taken out.
+
+A template is refused at install, on save and again at every send when it:
+
+- reads a sign-in link, a link made for one person (`survey_link`, `reviewLink`, a stop link, an
+  object link, a calendar link), a column the app declares as a code, a QR value, or a placeholder
+  whose name ends in `code`, `otp`, `pin`, `password`, `token` or `secret` (`postal_code`,
+  `country_code` and other harmless codes are allowed);
+- asks the person to reply YES, in any of the eight languages;
+- lists rows (`{{row.…}}`), or holds a broken placeholder.
+
+A placeholder with no value stops the text unless it has a backup. A text over 6 segments is never
+sent; see [the length counter](/guides/texts/templates/#the-length-counter).
+
+The install marks each row as the app's, with a hash of what it shipped. An owner's edit survives
+the app's updates and its removal. An update removes the app's unedited rows of a template it no
+longer ships.
+
+### Text kinds in the outbox
+
+| Field | Rule |
+|---|---|
+| `outbox.channels` | `{ "<kind>": "sms" }`: the kinds sent as texts. A kind not named is email. A text kind's template (`kinds`) is one of `textTemplates`. It may name no `purposes`, `surveyLinks` or `reviewLinks`, and its producers no `recipient` or `replyTo`. |
+| `outbox.recipient.phone` | A `text` column of the person's table that holds their mobile number, marked personal (`"rules": { "personal": true }`). Required when any kind is a text. An outbox whose every kind is a text may leave out `recipient.email`: a person known only by phone. |
+| `outbox.recipient.fallback.phone` | The number on the row the fallback link points at, for a person not yet on file. Needs `recipient.phone` too. |
+| `outbox.waiting` | Up to 16 text kinds a customer is waiting for right now ("your order is ready"). They may go outside the business's sending hours. Only a `service` text kind can be one. |
+
+Every text kind has a class in `classes`, `service` or `marketing`. A `service` text needs the
+person's yes to service texts, a `marketing` one their yes to marketing texts. See
+[Consent, STOP and the do-not-text list](/guides/texts/stop-and-consent/).
+
+A row with a number and an empty address is a person who can be texted. A text kind on a row with no
+number is skipped with "No mobile number on file". The language follows the outbox's own rules: the
+row's or the person's `language`, else the install's.
+
+An add-on's outbox sends email only: an add-on may not use `channels`, `waiting` or a phone.
+
+### textReplies
+
+`"on"` or `"off"`: whether staff read the texts customers send back to this app. Absent means `on`.
+
+With `off`, a reply is not kept at all, and the sender gets one fixed answer: "This number is not
+read. Contact us:" and the business's phone or e-mail, in the business's language, at most once in 30
+days. Use it for an app whose customers may write what nobody should hold in a shared inbox, such as
+a clinic's patients writing symptoms. It is where the switch starts: the owner can turn it either way
+after the install, and their choice stands across updates. See
+[Conversations and replies](/guides/texts/conversations/).
+
+### Conversations for an app's roles
+
+A customer's reply can say anything, so nobody but the Super Admin reads conversations until given
+the right. An app's role can be given its own app's conversations:
+
+```json
+"roles": [{ "key": "front-desk", "name": "Front desk",
+            "permissions": ["table:@guests:read", "texts:@:read", "texts:@:reply"] }]
+```
+
+| Grant | What it allows |
+|---|---|
+| `texts:@:read` | Read this app's conversations. |
+| `texts:@:reply` | Read and answer them, and text the number on a record of this app the person can open. |
+
+`@` is this install. The grants need Adminium 0.3.76 or later. Every read and answer is audited. An
+API key never reads or answers a conversation.
+
 ## People
 
 `people` says which of the app's tables hold people (or companies), and where. E-mail to contacts
@@ -4592,8 +4711,9 @@ consent log for the column it keeps in step. One entry per table, up to eight:
 |---|---|---|
 | `table` | yes | One of the app's tables, declared once. |
 | `kind` | yes | `people`, or `companies`. |
-| `email` | for `people` | A `text` column: the address. When the outbox's `recipient.table` is this table, it is `recipient.email`; when a [public entry](#public-access) on this table claims by an emailed code or link, it is that claim's `email`. |
+| `email` | for `people` | A `text` column: the address. From Adminium 0.3.76 a `people` entry may name `phone` instead. When the outbox's `recipient.table` is this table, it is `recipient.email`; when a [public entry](#public-access) on this table claims by an emailed code or link, it is that claim's `email`. |
 | `name` | no | A `text` column that names the person. Default: the table's `keyField`; a table with neither is refused, and so is a name that is the address column. A name kept in parts (`first_name`, `last_name`) is named by a [formula](#formulas) column that joins them. |
+| `phone` | no | A `text` column with the person's mobile number, marked personal: for [texts](#texts), the do-not-text list and an erasure by phone. A `people` entry that names it needs no `email`: a person may be known by their number alone. When the outbox's `recipient.table` is this table, it is `recipient.phone`. Needs Adminium 0.3.76. |
 | `company` | no | A link (`fk`) to the company the person works for. It may not point at a table declared as `people`. |
 | `language` | no | A `text` column of the table with the language the person is written to in. An app that keeps the language only on an order adds one, filled when the person is made (`identity.fill`); rows without one read the install's language. |
 | `firstName` | no | `{ "column" }`, a `text` column, or `"firstWordOfName"`: what a mail's `{{first_name}}` reads. |
@@ -5203,6 +5323,33 @@ person's, never the order's, and then sets their `consent` column when it mirror
 purpose. A signed-in guest's tick is always their own: their create is linked to them whatever
 address they type.
 
+### A box for texts
+
+A public entry can also ask for a yes to texts, with a box of its own beside the e-mail tick. It
+needs Adminium 0.3.76 or later:
+
+```json
+{ "table": "appointments", "methods": ["POST"], "writable": ["mobile", "texts_ok"],
+  "textConsent": { "column": "texts_ok", "phone": "mobile", "class": "service",
+                   "wording": { "version": 1, "text": { "en-US": "Text me reminders about this visit",
+                                                        "de-DE": "Erinnerungen an diesen Termin per SMS" } } } }
+```
+
+| Field | Rule |
+|---|---|
+| `column` | A `bool` of the entry's table that the entry writes. Never the e-mail tick's column: a yes to mail is not a yes to texts. It starts unticked: no default of yes, and no rule, formula or copy sets it. It is never required to book or buy, so it is nullable or defaults to false. |
+| `phone` | A `text` column of the same table that the entry writes: the number the answer is for. On a [people](#people) table's own entry, it is that table's `phone`. |
+| `class` | `service` (texts about what the person booked or bought) or `marketing` (offers). One box is a yes to one of them, never both. |
+| `means` | `yes` (the default) or `no`: a ticked box that records the person's no. |
+| `wording` | The sentence shown beside the box, in several languages with `en-US` among them, and its `version`. It may not ask for a YES reply. |
+
+The answer is kept in the text consent log for the person the entry finds (`identity`, `claimedBy`,
+or the row itself), whose table is declared in `people` with a `phone`. It is kept for that exact
+number, with the sentence and version shown, the language, the network address and the browser. A
+yes never overrules a no already standing for the number. A marketing yes to a number in a country
+that expects double opt-in (Germany) is mailed a confirmation; see
+[Marketing texts](/guides/texts/marketing/#double-opt-in-in-germany).
+
 ### A row's own link
 
 A row's **own link** opens that one row to its owner: an order's confirmation link, a ticket sent
@@ -5625,7 +5772,7 @@ that uses it sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
 | `module` | Optional. The [part](#parts) of the app the rule belongs to: it starts no run while that part is off. Needs Adminium 0.3.28. |
 | `graph` | `{ "version": 1, "nodes" }`: up to 40 steps with unique ids, the trigger first and only once. A step is a `trigger`, an `action`, a `condition`, a `wait` (up to 30 days), a `stop`, or a `branch` with two branches of up to 20 steps. |
 
-A step's action is one of eight:
+A step's action is one of nine:
 
 | `kind` | Keys | What it does |
 |---|---|---|
@@ -5637,6 +5784,7 @@ A step's action is one of eight:
 | `add-on.step` | `addOn`, `step`, `inputs` | Runs a [step an add-on gives](#steps-for-automations): the add-on's key, the step's key, and a text for each input. An add-on's own step is checked here; another add-on's is checked where the rule is installed, and fails by name while that add-on is not there. Needs `minAdminiumVersion` `0.3.22`. |
 | `webhook` | `method`? (`POST`, `PUT`), `bodyKind`? (`json`, `text`, `slack`), `body`? (up to 8,000 characters, may carry `{{record.<column>}}`), `headerName`? | Calls a web address. The address and any header's value are never in a file: the step arrives empty and its rule switched off, for the owner to fill in after the install and turn on. Needs Adminium 0.3.49. |
 | `document.render` | `document: { "table", "kind", "addOn"? }` | Draws one of the app's [documents](#documents) for the record: the document of `kind` on the rule's own table (and of `addOn`, when two draw that kind). Needs Adminium 0.3.49. |
+| `text` | `templateKey`, `to: { "kind": "field", "column" }`, `vars`?, `notAfter`? | Sends one of the manifest's own [`textTemplates`](#texttemplates) to the number in a column of the record, as a service text, through the same send path as an outbox text. `notAfter` is a `timestamptz` column of the record: the text is never sent after that moment. `vars` fills placeholders the record does not. Needs Adminium 0.3.76. See ["Send text" in automations](/guides/texts/automations/). |
 
 A value is a text, which may carry `{{record.<column>}}`, or `{ "now": true }`. It may also carry
 [the record as it was](#the-record-as-it-was) and [the name of a person](#a-persons-name-and-the-records-address),
@@ -6398,7 +6546,7 @@ recorded, so the app's page can put it back.
 | `branding` | `appName` (1–60), `showVersion`, `theme` (`light`, `dark`, `system`), `accent` (`indigo`, `blue`, `teal`, `violet`, `rose`, `red`, `orange`, `black`), `density` (`comfortable`, `compact`), and `logo` and `favicon` as files of the package, each `{ "file", "sha256" }`. |
 | `languages` | `enabled` (1–40 language ids such as `en_US`, each once) and `default`, which must be one of them. A language the target does not have is not switched on. |
 | `wording` | 1–5,000 changed interface words, each `{ "locale", "namespace", "key", "value" }`, each changed once. A blank value is a word left out on purpose. |
-| `systemEmails` | Edited system emails, each `{ "key", "locale", "content" }`, each edited once. `key` is one of `password-reset`, `user-invite`, `notification`, `document-ready`, `booking-confirmation`, `sign-in-code`, `email-changed`, `email-change-confirm`, `sign-in-link`, `details-deleted`, `payment-link`, `payment-receipt`, `sign-up-confirm`. The review shows each one's changes and every place its links go, each ticked on its own. |
+| `systemEmails` | Edited system emails, each `{ "key", "locale", "content" }`, each edited once. `key` is one of `password-reset`, `user-invite`, `notification`, `document-ready`, `booking-confirmation`, `sign-in-code`, `email-changed`, `email-change-confirm`, `sign-in-link`, `details-deleted`, `payment-link`, `payment-receipt`, `sign-up-confirm`, and `text-marketing-confirm` (the mail that asks a person to confirm marketing texts; Adminium 0.3.76). The review shows each one's changes and every place its links go, each ticked on its own. |
 | `settings` | From an allow-list only: `assistant.name`, `privacy.businessName`, `privacy.noticeUrl` (`https` only) and `email.postalAddress`. Any other setting is refused by name. |
 
 It carries something, or it is left out. It never carries any part of a setting that holds a

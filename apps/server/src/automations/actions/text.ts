@@ -158,6 +158,7 @@ async function prepareStep(action: TextAction, ctx: ActionContext): Promise<{ re
       phone,
       textClass: 'service',
       template: template.body,
+      language: template.locale,
       values: await varsFor(action, ctx, template.locale),
       codeNames: codeNamesIn(template.body, codeColumnsOf(ctx)),
       zone: tenant?.timezone ?? null,

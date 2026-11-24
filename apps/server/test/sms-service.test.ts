@@ -386,6 +386,13 @@ describe('the test text', () => {
     expect(form.get('To')).toBe(UK_MOBILE);
   });
 
+  it('sends them in the language of the person who asked', async () => {
+    const { service, remote } = await ready();
+    await service.sendTest(UK_MOBILE, 'de_DE');
+    await service.sendTest(UK_MOBILE, 'pt_BR');
+    expect(remote.sends().map((one) => new URLSearchParams(one.body).get('Body'))).toEqual(['Test-SMS von Adminium. Ihre SMS-Verbindung funktioniert.', SMS_TEST_BODY]);
+  });
+
   it('never texts someone on the stop list', async () => {
     const { service, remote } = await ready({ stopped: [UK_MOBILE] });
     expect(await service.sendTest(UK_MOBILE)).toMatchObject({ outcome: 'refused', reason: 'opted-out', to: UK_MOBILE });

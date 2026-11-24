@@ -22,6 +22,7 @@ import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import { storedPublicOrigin } from '../email/door-reach.js';
+import { recipientLocale } from '../i18n/server-i18n.js';
 import type { InboundCore, InboundWiring } from '../inbound/index.js';
 import { businessName } from '../privacy/business.js';
 import { PERMISSIONS } from '../rbac/permissions.js';
@@ -196,6 +197,7 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
         desktop: deps.desktop,
         trustProxy: deps.trustProxy,
         publicOrigin: () => storedPublicOrigin(meta),
+        languageOf: (userId) => recipientLocale(meta, userId),
       }),
 
     consoleRoutes: () =>

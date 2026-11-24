@@ -22,7 +22,7 @@ file. Every file is 8 KB or less.
 | `references/projects/apps--run-it-from-the-folder.md` | Run it from the folder | 2687 |
 | `references/projects/apps--run-it-from-the-folder--taking-things-out.md` | Run it from the folder — Taking things out | 2175 |
 | `references/projects/apps--run-it-from-the-folder--on-a-server.md` | Run it from the folder — On a server | 4486 |
-| `references/projects/apps--the-manifest-as-parts.md` | The manifest, as parts | 1969 |
+| `references/projects/apps--the-manifest-as-parts.md` | The manifest, as parts | 2038 |
 | `references/projects/apps--an-app-you-made-yourself.md` | An app you made yourself | 920 |
 | `references/projects/apps--check-it.md` | Check it | 999 |
 | `references/projects/apps--try-it-then-pack-it.md` | Try it, then pack it | 2030 |
@@ -56,6 +56,18 @@ file. Every file is 8 KB or less.
 | `references/guides/take-payments--stopping.md` | Stopping | 404 |
 | `references/guides/take-payments--what-it-does-not-do.md` | What it does not do | 481 |
 | `references/guides/take-payments--see-also.md` | See also | 636 |
+| `references/guides/index--overview.md` | Set up texts | 1138 |
+| `references/guides/index--what-you-need.md` | What you need | 770 |
+| `references/guides/index--connect-the-provider.md` | Connect the provider | 2049 |
+| `references/guides/index--who-texts-come-from.md` | Who texts come from | 1053 |
+| `references/guides/index--registration.md` | Registration | 1286 |
+| `references/guides/index--no-texts-to-mainland-china.md` | No texts to mainland China | 402 |
+| `references/guides/index--countries-where-people-cannot-reply.md` | Countries where people cannot reply | 416 |
+| `references/guides/index--a-server-with-no-public-address.md` | A server with no public address | 1375 |
+| `references/guides/index--daily-limit-and-sending-hours.md` | Daily limit and sending hours | 1079 |
+| `references/guides/index--send-a-test-text.md` | Send a test text | 585 |
+| `references/guides/index--what-each-text-carries.md` | What each text carries | 753 |
+| `references/guides/index--who-may-do-what.md` | Who may do what | 914 |
 
 ## self-hosting
 

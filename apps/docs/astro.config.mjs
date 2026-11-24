@@ -201,6 +201,17 @@ export default defineConfig({
               items: [{ label: 'Ship parcels', link: '/guides/shipping/' }],
             },
             {
+              label: 'Texts',
+              items: [
+                { label: 'Set up texts', link: '/guides/texts/' },
+                { label: 'Text templates', link: '/guides/texts/templates/' },
+                { label: '"Send text" in automations', link: '/guides/texts/automations/' },
+                { label: 'Consent, STOP and the do-not-text list', link: '/guides/texts/stop-and-consent/' },
+                { label: 'Marketing texts', link: '/guides/texts/marketing/' },
+                { label: 'Conversations and replies', link: '/guides/texts/conversations/' },
+              ],
+            },
+            {
               label: 'Public API',
               items: [
                 { label: 'Endpoints and keys', link: '/guides/public-api/endpoints-and-keys/' },
