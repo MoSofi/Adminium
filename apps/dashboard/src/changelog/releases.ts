@@ -67,6 +67,15 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.75',
+    date: '2026-11-24',
+    title: 'Add-ons 1.0.36',
+    summary: 'This release carries add-ons 1.0.36. Shipping labels 1.0.36, added from the marketplace, brings the customs form, the countries a shop delivers to and its customs defaults.',
+    changes: [
+      { tag: 'Improved', text: 'The bundled add-ons move to 1.0.36.' },
+    ],
+  },
+  {
     version: '0.3.74',
     date: '2026-11-24',
     title: 'Shipping abroad with customs',
