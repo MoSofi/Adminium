@@ -126517,6 +126517,40 @@
                         "repliesCanArrive": {
                           "type": "boolean"
                         },
+                        "replies": {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "operator-off",
+                                "network-off",
+                                "desktop",
+                                "not-set",
+                                "this-computer",
+                                "private-network",
+                                "dot-local",
+                                "not-https",
+                                "proxy-hidden",
+                                "reachable",
+                                "not-connected",
+                                "key-unreadable",
+                                "not-heard"
+                              ]
+                            },
+                            "heardAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "heardAt"
+                          ],
+                          "additionalProperties": false
+                        },
                         "account": {
                           "anyOf": [
                             {
@@ -126676,7 +126710,93 @@
                       "required": [
                         "reachability",
                         "repliesCanArrive",
+                        "replies",
                         "account"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sms/reply-address": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "provider": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "twilio",
+                                "telnyx"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "operator-off",
+                            "network-off",
+                            "desktop",
+                            "not-set",
+                            "this-computer",
+                            "private-network",
+                            "dot-local",
+                            "not-https",
+                            "proxy-hidden",
+                            "reachable",
+                            "not-connected",
+                            "key-unreadable",
+                            "not-heard"
+                          ]
+                        },
+                        "heardAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "inbound": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "statusCallback": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "provider",
+                        "state",
+                        "heardAt",
+                        "inbound",
+                        "statusCallback"
                       ],
                       "additionalProperties": false
                     }
@@ -128080,6 +128200,228 @@
         }
       }
     },
+    "/api/v1/sms/inbound/failed": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 400
+            },
+            "in": "query",
+            "name": "cursor",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "masked": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "receivedAt": {
+                            "type": "number"
+                          },
+                          "attempts": {
+                            "type": "number"
+                          },
+                          "retryable": {
+                            "type": "boolean"
+                          },
+                          "holds": {
+                            "type": "boolean"
+                          },
+                          "holdsUntil": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "reason",
+                          "masked",
+                          "receivedAt",
+                          "attempts",
+                          "retryable",
+                          "holds",
+                          "holdsUntil"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "next": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "summary": {
+                      "type": "object",
+                      "properties": {
+                        "failed": {
+                          "type": "number"
+                        },
+                        "holding": {
+                          "type": "number"
+                        },
+                        "more": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "failed",
+                        "holding",
+                        "more"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "next",
+                    "summary"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sms/inbound/failed/{id}/retry": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "retried": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "retried"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sms/inbound/failed/retry-all": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "retried": {
+                          "type": "number"
+                        },
+                        "more": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "retried",
+                        "more"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sms/inbound/failed/{id}/dismiss": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/api/v1/sms/stop-list": {
       "get": {
         "parameters": [
@@ -128313,8 +128655,200 @@
         }
       }
     },
+    "/api/v1/sms/stop-list/lookup": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "phone"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "phone": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "masked": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "reason": {
+                              "type": "string",
+                              "enum": [
+                                "text-stop",
+                                "provider-opt-out",
+                                "staff",
+                                "erased"
+                              ]
+                            },
+                            "origin": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "addedAt": {
+                              "type": "number"
+                            },
+                            "addedBy": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "erasedAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "phone",
+                            "masked",
+                            "reason",
+                            "origin",
+                            "addedAt",
+                            "addedBy",
+                            "erasedAt"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sms/stop-list/{id}": {
       "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/sms/stop-list/{id}/lift-erased": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "enum": [
+                      "text-service",
+                      "text-marketing"
+                    ]
+                  },
+                  "wording": {
+                    "type": "object",
+                    "properties": {
+                      "text": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2000
+                      },
+                      "version": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 40
+                      }
+                    },
+                    "required": [
+                      "text",
+                      "version"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "how": {
+                    "type": "string",
+                    "enum": [
+                      "in-person",
+                      "phone",
+                      "email",
+                      "paper"
+                    ]
+                  }
+                },
+                "required": [
+                  "phone",
+                  "purpose",
+                  "wording",
+                  "how"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -130990,6 +131524,19 @@
                                   "null"
                                 ]
                               },
+                              "phoneHidden": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "masked-for-you"
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
                               "line": {
                                 "type": [
                                   "string",
@@ -131094,6 +131641,7 @@
                               "app",
                               "phone",
                               "masked",
+                              "phoneHidden",
                               "line",
                               "record",
                               "lastAt",
@@ -131138,7 +131686,8 @@
                                 "proxy-hidden",
                                 "reachable",
                                 "not-connected",
-                                "key-unreadable"
+                                "key-unreadable",
+                                "not-heard"
                               ]
                             }
                           },
@@ -131235,6 +131784,19 @@
                               "type": [
                                 "string",
                                 "null"
+                              ]
+                            },
+                            "phoneHidden": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "masked-for-you"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
                               ]
                             },
                             "line": {
@@ -131341,6 +131903,7 @@
                             "app",
                             "phone",
                             "masked",
+                            "phoneHidden",
                             "line",
                             "record",
                             "lastAt",
@@ -142729,6 +143292,12 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "sharedNumbers": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
                         }
                       },
                       "required": [
@@ -142736,7 +143305,8 @@
                         "found",
                         "goes",
                         "stays",
-                        "left"
+                        "left",
+                        "sharedNumbers"
                       ],
                       "additionalProperties": false
                     }
@@ -143039,6 +143609,12 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "sharedNumbers": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
                         }
                       },
                       "required": [
@@ -143046,7 +143622,112 @@
                         "found",
                         "goes",
                         "stays",
-                        "left"
+                        "left",
+                        "sharedNumbers"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/privacy/phone/exports": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "phone"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "processing",
+                            "ready",
+                            "failed",
+                            "expired"
+                          ]
+                        },
+                        "counts": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {
+                                "type": "number"
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "number"
+                        },
+                        "completedAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "expiresAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "jobId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "status",
+                        "counts",
+                        "createdAt",
+                        "completedAt",
+                        "expiresAt",
+                        "jobId"
                       ],
                       "additionalProperties": false
                     }
