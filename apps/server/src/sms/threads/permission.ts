@@ -21,3 +21,17 @@ export const TEXTS_REPLY_PERMISSION = 'system:texts:reply';
 /** The entries for the permissions screen's table (`routes/permissions/index.ts`). */
 export const TEXTS_READ_LABEL = { label: "Read customers' texts", category: 'workspace' } as const;
 export const TEXTS_REPLY_LABEL = { label: "Answer customers' texts", category: 'workspace' } as const;
+
+const TEXT_APP_GRANT = /^texts:([^:]+):(read|reply)$/;
+
+/** The apps whose conversations a set of grants opens, and whether to answer them too. Replying includes reading. */
+export function textAppGrants(grants: Iterable<string>): Map<string, 'read' | 'reply'> {
+  const apps = new Map<string, 'read' | 'reply'>();
+  for (const grant of grants) {
+    const match = TEXT_APP_GRANT.exec(grant);
+    if (match === null) continue;
+    const app = match[1]!;
+    if (match[2] === 'reply' || apps.get(app) !== 'reply') apps.set(app, match[2] as 'read' | 'reply');
+  }
+  return apps;
+}

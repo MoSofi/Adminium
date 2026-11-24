@@ -54,6 +54,7 @@ import { toUserView } from '../auth/handlers.js';
 import { APP_VERSION } from '../../version.js';
 import { YOUR_DATABASE_STATUS } from '../../project/your-database-state.js';
 import { YOURS_KEY } from '../../connections/no-app-tables.js';
+import { textAppGrants } from '../../sms/threads/permission.js';
 import { resolveLabel, SURFACES_URL_ROOT, type HostedSurface } from '../../cli/surfaces-root.js';
 import {
   addressForMount,
@@ -1317,6 +1318,8 @@ export async function bootstrapHandler(
       canExport:
         permissions !== null &&
         canExportSomewhere(permissions, new Set(connectionRows.filter((row) => row.disabledAt === null).map((row) => row.id))),
+      // The apps whose customers' texts this person reads (or answers) without the console-wide keys.
+      textApps: permissions === null ? [] : [...textAppGrants(permissions.grants)].map(([app, may]) => ({ app, may })).sort((a, b) => a.app.localeCompare(b.app)),
       prefs,
       nav,
       version: APP_VERSION,

@@ -34,7 +34,7 @@ import { permissionSetAllows, type PermissionSet } from '../../rbac/resolver.js'
 import { tagRoutes } from '../../security/route-audience.js';
 import type { SmsReplyReach } from '../inbound/channel.js';
 import { maskPhone } from '../consent/redact.js';
-import { TEXTS_READ_PERMISSION, TEXTS_REPLY_PERMISSION } from './permission.js';
+import { textAppGrants, TEXTS_READ_PERMISSION, TEXTS_REPLY_PERMISSION } from './permission.js';
 import { mayReplyApp, readsAny, TEXT_BODY_MAX, TextCursorError, type TextItemView, type TextThreads, type TextThreadView, type TextViewer } from './service.js';
 import { TEXT_THREAD_KINDS, type TextSendOutcome } from './types.js';
 
@@ -63,20 +63,11 @@ export interface TextsRoutesDeps {
   recordPhone?: ((request: FastifyRequest, input: { connection: string; table: string; row: string; column: string }) => Promise<RecordPhone | null>) | undefined;
 }
 
-const TEXT_APP_GRANT = /^texts:([^:]+):(read|reply)$/;
-
 /** What this person may do with conversations, from the grants they hold. */
 export async function textViewerOf(request: FastifyRequest, resolve: (request: FastifyRequest) => Promise<PermissionSet>): Promise<TextViewer> {
   const set = await resolve(request);
   const everything = permissionSetAllows(set, TEXTS_REPLY_PERMISSION) ? 'reply' : permissionSetAllows(set, TEXTS_READ_PERMISSION) ? 'read' : null;
-  const apps = new Map<string, 'read' | 'reply'>();
-  for (const grant of set.grants) {
-    const match = TEXT_APP_GRANT.exec(grant);
-    if (match === null) continue;
-    const app = match[1]!;
-    if (match[2] === 'reply' || apps.get(app) !== 'reply') apps.set(app, match[2] as 'read' | 'reply');
-  }
-  return { everything, apps };
+  return { everything, apps: textAppGrants(set.grants) };
 }
 
 const clientKey = z.string().regex(/^[A-Za-z0-9_-]{22,64}$/, 'a key of 22 to 64 letters, digits, - or _');

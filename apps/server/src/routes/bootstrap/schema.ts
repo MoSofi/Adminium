@@ -394,6 +394,13 @@ export const bootstrapReply = z.object({
     canImport: z.boolean(),
     /** Whether this person could export from at least one table, or manages everyone's exports. A hint for the rail. */
     canExport: z.boolean(),
+    /**
+     * The apps whose customers' texts this person may read, or answer too,
+     * through an app role's `texts:<app>:read|reply`. The console-wide keys
+     * are `texts.read` and `texts.reply` in `systemActions`. Discovery only:
+     * every conversation route checks the grant itself.
+     */
+    textApps: z.array(z.object({ app: z.string(), may: z.enum(['read', 'reply']) })),
     /** Resolved axes (system → global → user) + provenance. */
     prefs: mePrefsResolvedView,
     nav: bootstrapNavTree,
