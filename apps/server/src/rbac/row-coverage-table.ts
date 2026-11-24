@@ -320,6 +320,14 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/sms/marketing/consent': rows('visible', 'Records a marketing yes for a row the reader reaches through its row limits.'),
   'POST /api/v1/sms/marketing/consent/confirm-request': rows('visible', 'Mails the confirmation for a row the reader reaches through its row limits.'),
   'POST /api/v1/sms/marketing/consent/confirm-in-person': rows('visible', 'Records a confirmation for a row the reader reaches through its row limits.'),
+  // --- /texts
+  'GET /api/v1/texts/threads': noRows('Conversations with customers\' numbers, kept sealed in meta; no source row is read.'),
+  'GET /api/v1/texts/threads/:id': noRows('One conversation and the delivery records of its texts, kept in meta; no source row is read.'),
+  'POST /api/v1/texts/threads/:id/replies': noRows('An answer to the number a conversation keeps, through the text send path; no source row is read.'),
+  'POST /api/v1/texts/threads/:id/read': noRows('Marks a conversation read in meta.'),
+  'GET /api/v1/texts/replies': noRows('Each installed app\'s replies switch, kept in meta.'),
+  'PUT /api/v1/texts/replies/:app': noRows('Switches one app\'s replies on or off in meta.'),
+  'POST /api/v1/texts/send': rows('visible', 'Texts the number on a row the person reads, through its row limits: a row out of reach answers as one that is not there.'),
   // --- /email/notices
   'POST /api/v1/email/notices/:service/:token': noRows('A mail service calling back: the addresses it reports go on the do-not-email list in meta; no source row is read.'),
   // --- /email-audience

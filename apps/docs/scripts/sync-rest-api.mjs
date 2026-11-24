@@ -200,6 +200,11 @@ const DESCRIPTIONS = {
     'Text messages: the business’s own Twilio or Telnyx account, its sender, the daily limit and sending hours, ' +
     'Activity, the do-not-text list, text templates, and marketing texts (who a run reaches and why not, runs and ' +
     'their numbers, a person’s marketing yes with its double opt-in). Changes need a signed-in person, never an API key',
+  texts:
+    'Customers’ texts and the answers to them: the conversations a person may read (every one with `texts.read` ' +
+    'or `texts.reply`, one app’s with its role’s `texts:@:read` or `texts:@:reply`), one conversation, a reply ' +
+    'through the send path, marking it read, each app’s replies switch (`sms.manage`), and a text to the number ' +
+    'on a record the person reaches. Every read and reply is audited; an API key reaches none of them',
   setup:
     'First-boot super-admin creation, whether setup is still open, the one-time setup token, and — in that same ' +
     'window — checking a database for an Adminium store already in it and adopting that store',

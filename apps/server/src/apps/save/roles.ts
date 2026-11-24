@@ -221,6 +221,12 @@ export const convertRoles: ConvertPart = async (ctx) => {
         give(`accounts:@:${accounts[1]!}`);
         continue;
       }
+      // And what they may do with the app's own text conversations.
+      const texts = /^texts-(read|reply)\//.exec(row.resourceRef);
+      if (texts !== null) {
+        give(`texts:@:${texts[1]!}`);
+        continue;
+      }
       if (row.resourceRef.startsWith(ADD_ON_SETTINGS_REF)) {
         const addOn = row.resourceRef.slice(ADD_ON_SETTINGS_REF.length);
         if (addOns.has(addOn)) give(`addOn:${addOn}:settings`);

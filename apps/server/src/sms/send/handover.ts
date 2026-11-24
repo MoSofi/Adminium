@@ -198,6 +198,7 @@ export function createHandOver(deps: HandOverDeps) {
         sender: { kind: text.sender.kind === 'number' ? 'number' : 'name' },
         repliesReachUs: await deps.repliesReachUs(),
         person: text.person,
+        answering: text.answering === true,
       });
     } catch {
       return cannotCheck();

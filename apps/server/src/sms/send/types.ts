@@ -125,6 +125,16 @@ export interface TextDelivery {
   settleOwedAt: number | null;
   createdAt: number;
   updatedAt: number;
+  /** The app that sent it, and its template; null for a text no app sent. Never the words. */
+  about: TextAbout | null;
+}
+
+/** Which app sends a text, and with which template: what a conversation shows of a text whose words are not kept. */
+export interface TextAbout {
+  /** The app's key. */
+  app: string;
+  /** The template's key; null for words a person typed, which the conversation keeps itself. */
+  template: string | null;
 }
 
 /** The source row a delivery reports to. Its key, never a number or the words. */
@@ -153,4 +163,6 @@ export interface SealedText {
   /** The opt-out its last line was written for. */
   optOut: TextOptOut;
   person: ConsentPerson | null;
+  /** It answers a person who wrote to the business (`TextRequest.answering`): asked again at the hand-over the same way. */
+  answering?: boolean | undefined;
 }

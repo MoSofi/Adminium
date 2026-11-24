@@ -139,6 +139,9 @@ import { up as up0129 } from './0129_inbound_lost_claims.js';
 import { up as up0130 } from './0130_text_runs.js';
 import { up as up0131 } from './0131_text_run_recipients.js';
 import { up as up0132 } from './0132_text_confirmations.js';
+import { up as up0134 } from './0134_text_threads.js';
+import { up as up0135 } from './0135_text_reply_switches.js';
+import { up as up0136 } from './0136_text_delivery_about.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -265,4 +268,7 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0130_text_runs', up: up0130 },
   { name: '0131_text_run_recipients', up: up0131 },
   { name: '0132_text_confirmations', up: up0132 },
+  { name: '0134_text_threads', up: up0134 },
+  { name: '0135_text_reply_switches', up: up0135 },
+  { name: '0136_text_delivery_about', up: up0136 },
 ];

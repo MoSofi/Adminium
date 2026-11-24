@@ -307,11 +307,12 @@ const addErased = (total: TextErased, more: TextErased): void => {
   total.inboundEvents += more.inboundEvents;
   total.deliveries += more.deliveries;
   total.marketing += more.marketing;
+  total.conversations += more.conversations;
 };
 
 /** What the erasure takes of their text records: by each number on their rows, and by the number they were found with. */
 async function countTexts(texts: TextErasure, rows: PersonRows, phone: PhoneTarget | undefined, whole: boolean): Promise<TextErased> {
-  const total: TextErased = { stopEntry: 0, consentRows: 0, inboundEvents: 0, deliveries: 0, marketing: 0 };
+  const total: TextErased = { stopEntry: 0, consentRows: 0, inboundEvents: 0, deliveries: 0, marketing: 0, conversations: 0 };
   const country = phone?.country ?? (await texts.country());
   const seen = new Set<string>();
   if (phone !== undefined) {
@@ -329,7 +330,7 @@ async function countTexts(texts: TextErasure, rows: PersonRows, phone: PhoneTarg
 
 /** Their text records gone, and the numbers that were read, for the job errors. */
 async function eraseTexts(texts: TextErasure, rows: PersonRows, phone: PhoneTarget | undefined, whole: boolean, at: number): Promise<{ erased: TextErased; numbers: string[]; country: string | null }> {
-  const total: TextErased = { stopEntry: 0, consentRows: 0, inboundEvents: 0, deliveries: 0, marketing: 0 };
+  const total: TextErased = { stopEntry: 0, consentRows: 0, inboundEvents: 0, deliveries: 0, marketing: 0, conversations: 0 };
   const country = phone?.country ?? (await texts.country());
   const numbers = new Set<string>();
   if (phone !== undefined) {
@@ -410,7 +411,7 @@ async function previewTarget(deps: EraseDeps, address: string, phone: PhoneTarge
   const texts = deps.texts === undefined ? null : await countTexts(deps.texts, rows, phone, whole);
   const consent = (await consentIds(deps.consent, address, people, byAddress)) + (texts?.consentRows ?? 0);
   if (consent > 0) goes.push({ kind: 'consent', count: consent });
-  const textRecords = (texts?.inboundEvents ?? 0) + (texts?.deliveries ?? 0) + (texts?.marketing ?? 0);
+  const textRecords = (texts?.inboundEvents ?? 0) + (texts?.deliveries ?? 0) + (texts?.marketing ?? 0) + (texts?.conversations ?? 0);
   if (textRecords > 0) goes.push({ kind: 'text-records', count: textRecords });
   const visits = byAddress ? (await findPageVisits(deps.meta, deps.secret, address, 0)).count : 0;
   if (visits > 0) goes.push({ kind: 'page-visits', count: visits });
@@ -486,6 +487,7 @@ async function eraseTarget(deps: EraseDeps, address: string, phone: PhoneTarget 
     if (erased.inboundEvents > 0) counts['inbound-events'] = erased.inboundEvents;
     if (erased.deliveries > 0) counts['text-deliveries'] = erased.deliveries;
     if (erased.marketing > 0) counts['text-marketing'] = erased.marketing;
+    if (erased.conversations > 0) counts['text-conversations'] = erased.conversations;
     if (workspace) quoted = { numbers, country };
   }
 

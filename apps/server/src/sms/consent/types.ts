@@ -74,6 +74,12 @@ export interface TextRequest {
   repliesReachUs: boolean;
   /** The row the number was read from, when there is one. */
   person?: ConsentPerson | null | undefined;
+  /**
+   * The person texted this business a moment ago, and this is the answer they
+   * asked for. A service text only: it stands in for their yes, never for a
+   * marketing yes, and the stop list refuses it as any other.
+   */
+  answering?: boolean | undefined;
 }
 
 export interface TextStopRecord {

@@ -548,6 +548,9 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'automations.text',
   // An edited copy of the mail that asks a person to confirm marketing texts (sms/marketing/confirm.ts).
   'instance.textMarketingConfirm',
+  // Whether an app's replies are kept or answered "not read", and an app role's conversations (sms/threads/).
+  'textReplies',
+  'roles.texts',
 ];
 
 /**

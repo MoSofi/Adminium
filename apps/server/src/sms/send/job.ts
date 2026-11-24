@@ -65,6 +65,7 @@ const sealedSchema: z.ZodType<SealedText> = z.object({
   sender: z.object({ kind: z.enum(['number', 'name', 'pool']), value: z.string().min(1) }),
   optOut: z.enum(['reply-stop', 'through-business']),
   person: z.object({ connectionId: z.string(), table: z.string(), key: z.string() }).nullable(),
+  answering: z.boolean().optional(),
 });
 
 export function sealText(text: SealedText, secret: string): string {

@@ -459,6 +459,8 @@ export type SystemAction =
   | 'payments.view'
   | 'shipping.manage'
   | 'sms.manage'
+  | 'texts.read'
+  | 'texts.reply'
   | 'privacy.manage'
   | 'privacy.people';
 
@@ -473,9 +475,11 @@ export type SystemAction =
  * is not seeded with them, and a server that sends no list has no payments.
  * Nor does the privacy key: it reads a person's data past every limit, the
  * Admin role is not seeded with it, and a server that sends no list has none.
- * Nor does `sms.manage`: its key spends the business's money.
+ * Nor does `sms.manage`: its key spends the business's money. Nor do the
+ * texts keys: a customer's text can say anything, and only the Super Admin
+ * holds them unless they are granted on purpose.
  */
-const NEVER_GUESSED: ReadonlySet<SystemAction> = new Set<SystemAction>(['payments.manage', 'payments.refund', 'payments.view', 'shipping.manage', 'sms.manage', 'privacy.manage', 'privacy.people']);
+const NEVER_GUESSED: ReadonlySet<SystemAction> = new Set<SystemAction>(['payments.manage', 'payments.refund', 'payments.view', 'shipping.manage', 'sms.manage', 'texts.read', 'texts.reply', 'privacy.manage', 'privacy.people']);
 
 export function holdsSystemAction(bootstrap: BootstrapData, action: SystemAction): boolean {
   if (bootstrap.systemActions === undefined) {

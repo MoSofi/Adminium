@@ -34,7 +34,7 @@ import { totpEncryptionKey } from '../../../auth/totp.js';
 import { webhookSecretKey } from '../../../automations/actions/webhook.js';
 import { decryptSecret, deriveKey, encryptSecret, isEncryptedSecret } from '../../../config/secrets.js';
 import { dsnCryptoFromSecret } from '../../../connections/crypto.js';
-import { addressKeyRing, addressKeysWrapKey, INBOUND_BODY_PURPOSE, stopListAddressKey, TEXT_STOP_PHONE_PURPOSE } from '../../../consent/keys.js';
+import { addressKeyRing, addressKeysWrapKey, INBOUND_BODY_PURPOSE, stopListAddressKey, TEXT_STOP_PHONE_PURPOSE, TEXT_THREAD_BODY_PURPOSE, TEXT_THREAD_PHONE_PURPOSE } from '../../../consent/keys.js';
 import { FIGMA_TOKEN_SALT } from '../../../designer/figma/tokens.js';
 import { emailSecretKey } from '../../../email/config.js';
 import { NOTICE_KEY_SALT } from '../../../email/notices/endpoints.js';
@@ -79,6 +79,8 @@ export const SECRET_SOURCES = [
   'adminium_sms_accounts.sealedCredentials',
   'adminium_text_stop_list.phoneEncrypted',
   'adminium_inbound_events.sealedBody',
+  'adminium_text_threads.phoneEncrypted',
+  'adminium_text_thread_messages.sealedBody',
   'adminium_automations.graph#headerValueEncrypted',
   'adminium_jobs.payload#address',
 ] as const;
@@ -363,6 +365,8 @@ export async function collectKnownSecrets(meta: MetaDb, masterSecret: string, pr
   const smsAccount = opener(withKey(smsSecretKey(masterSecret)));
   const textStop = await ringOpener(meta, masterSecret, TEXT_STOP_PHONE_PURPOSE);
   const inboundBody = await ringOpener(meta, masterSecret, INBOUND_BODY_PURPOSE);
+  const threadPhone = await ringOpener(meta, masterSecret, TEXT_THREAD_PHONE_PURPOSE);
+  const threadBody = await ringOpener(meta, masterSecret, TEXT_THREAD_BODY_PURPOSE);
   const llmOpen = opener(llmKeyCryptoFromSecret(masterSecret, { deriveKey, encryptSecret, decryptSecret }).decrypt);
   /** For a column no feature reads: every key there is, first that opens it. */
   const anyKey = (token: unknown): string | null => {
@@ -473,6 +477,23 @@ export async function collectKnownSecrets(meta: MetaDb, masterSecret: string, pr
     }
     morePages = rows.length === INBOUND_SCAN_PAGE;
     after = rows.at(-1)?.id ?? after;
+  }
+  // Conversations, a page at a time for the same reason: a customer's number and every message kept in them.
+  for (const table of ['adminium_text_threads', 'adminium_text_thread_messages'] as const) {
+    let afterId = '';
+    let more = true;
+    while (more) {
+      const rows =
+        table === 'adminium_text_threads'
+          ? (await db.selectFrom(table).select(['id', 'phoneEncrypted']).where('phoneEncrypted', 'is not', null).where('id', '>', afterId).orderBy('id', 'asc').limit(INBOUND_SCAN_PAGE).execute()).map((row) => ({ id: row.id, number: threadPhone(row.phoneEncrypted), words: undefined }))
+          : (await db.selectFrom(table).select(['id', 'sealedBody']).where('sealedBody', 'is not', null).where('id', '>', afterId).orderBy('id', 'asc').limit(INBOUND_SCAN_PAGE).execute()).map((row) => ({ id: row.id, number: undefined, words: threadBody(row.sealedBody) }));
+      for (const row of rows) {
+        list.add('a customer\'s number in a conversation', row.number, 'whole');
+        list.add('a message in a conversation', row.words, 'whole');
+      }
+      more = rows.length === INBOUND_SCAN_PAGE;
+      afterId = rows.at(-1)?.id ?? afterId;
+    }
   }
   for (const row of await db.selectFrom('adminium_automations').select(['graph']).execute()) {
     walkWebhookSteps(readJsonFrom(meta, row.graph), (step) => {

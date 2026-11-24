@@ -35,7 +35,7 @@ import type { TextEstimate } from './length.js';
 import type { BusinessContact } from './opt-out.js';
 import { dayKey, readTextPolicy, warningAt } from './policy.js';
 import type { TextReport } from './store.js';
-import { TEXT_OPEN_STATES, type SealedText, type TextDelivery, type TextPrepareSkipReason, type TextSendReport, type TextTiming } from './types.js';
+import { TEXT_OPEN_STATES, type SealedText, type TextAbout, type TextDelivery, type TextPrepareSkipReason, type TextSendReport, type TextTiming } from './types.js';
 import { judgeWindow } from './window.js';
 
 /** How a number is hashed for the delivery record: the same keyed hash as the stop list's. */
@@ -77,6 +77,11 @@ export interface TextPrepareInput {
   /** A workspace's own sender; the account's when absent. */
   sender?: SmsSender | undefined;
   person?: ConsentPerson | null | undefined;
+  /**
+   * The person texted this business a moment ago, and this service text answers
+   * them (`TextRequest.answering`). The stop list still refuses it.
+   */
+  answering?: boolean | undefined;
 }
 
 export type TextPrepared =
@@ -92,6 +97,8 @@ export interface TextQueueInput {
   /** This one claim of it. */
   claimKey: string;
   report?: TextSendReport | undefined;
+  /** The app that sends it, and its template: what the conversation with the number shows of it. */
+  about?: TextAbout | null | undefined;
 }
 
 export type TextQueued =
@@ -150,6 +157,7 @@ export function createTextSendPath(deps: TextSendDeps): TextSendPath {
         sender: { kind: sender.kind === 'number' ? 'number' : 'name' },
         repliesReachUs: await deps.repliesReachUs(),
         person: input.person ?? null,
+        answering: input.answering === true,
       });
       policy = readTextPolicy(await deps.policy());
     } catch {
@@ -177,7 +185,7 @@ export function createTextSendPath(deps: TextSendDeps): TextSendPath {
       action: 'send',
       opensAt,
       estimate: composed.estimate,
-      text: { to: decision.e164, body: composed.body, textClass: input.textClass, timing, country: decision.country, zone: input.zone, notAfter, sender, optOut: decision.optOut, person: input.person ?? null },
+      text: { to: decision.e164, body: composed.body, textClass: input.textClass, timing, country: decision.country, zone: input.zone, notAfter, sender, optOut: decision.optOut, person: input.person ?? null, ...(input.answering === true ? { answering: true } : {}) },
     };
   }
 
@@ -185,6 +193,7 @@ export function createTextSendPath(deps: TextSendDeps): TextSendPath {
     const at = now();
     const { row } = await store.create({
       reportTarget: where.report ?? null,
+      about: where.about ?? null,
       claimHash: keyed('claim', `${where.messageKey}\u0000${where.claimKey}`),
       messageHash: keyed('message', where.messageKey),
       phone: await deps.phoneKeys.forWrite(ready.text.to),

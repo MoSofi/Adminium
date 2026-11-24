@@ -31,6 +31,7 @@ import {
 import { grantKeyOf, installsOf } from '../../installs/resolve.js';
 import { PAGE_ACTIONS, PERMISSIONS, TABLE_ACTIONS } from '../../rbac/permissions.js';
 import { SMS_MANAGE_LABEL } from '../../sms/permission.js';
+import { TEXTS_READ_LABEL, TEXTS_REPLY_LABEL } from '../../sms/threads/permission.js';
 
 /** Grouping for the matrix's row headers — presentation only. */
 export const permissionCategory = z.enum(['access', 'data', 'workspace', 'operations']);
@@ -116,6 +117,9 @@ const SYSTEM_PERMISSION_META: Record<
   // `workspace`: which carrier a shop uses and the address its parcels leave from.
   'shipping.manage': { label: 'Set up shipping', category: 'workspace' },
   'sms.manage': SMS_MANAGE_LABEL,
+  // `workspace` beside it: what customers write back, and the answers.
+  'texts.read': TEXTS_READ_LABEL,
+  'texts.reply': TEXTS_REPLY_LABEL,
   // `workspace`: the privacy notice is the business's own words, and finding a
   // person's data reads every people table past the role's limits.
   'privacy.manage': { label: "Find, download and manage a person's data", category: 'workspace' },

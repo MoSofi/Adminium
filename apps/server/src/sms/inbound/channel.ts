@@ -5,7 +5,10 @@
  *
  *   a reply     STOP goes on the stop list for every sender of this business,
  *               START lifts a person's own stop and never records a yes, and
- *               anything else goes to the replies store when there is one
+ *               anything else goes to the replies store when there is one. A
+ *               STOP or START is told to that store too, once it is done, as
+ *               a note it may keep: a store that cannot keep it changes
+ *               nothing about the STOP
  *   a report    moves the message's status, and a provider's "this person opted
  *               out" also goes on the stop list
  *   an opt-out  found by the catch-up: on the stop list
@@ -79,8 +82,13 @@ export interface SmsReplyReceived {
   from: string;
   to: string | null;
   text: string;
-  kind: 'help' | 'message';
+  /** `stop` and `start` come once the stop list has them, as a note for the conversation. */
+  kind: 'help' | 'message' | 'stop' | 'start';
   at: number;
+  /** The provider answered this message itself (its own HELP or STOP reply). */
+  answered: boolean;
+  /** A STOP's one confirmation was asked for. */
+  confirmed?: boolean | undefined;
 }
 
 export interface SmsInboundDeps {
@@ -93,7 +101,11 @@ export interface SmsInboundDeps {
   reports: (report: TextReport) => Promise<unknown>;
   /** The send path's `confirmStop`: the one plain confirmation. */
   confirmations: (request: SmsStopConfirmation) => Promise<unknown>;
-  /** Where an ordinary reply is kept. With none, its text goes when the event finishes. */
+  /**
+   * Where an ordinary reply is kept. With none, its text goes when the event
+   * finishes. A throw retries the event, so it must be safe to call twice with
+   * one `eventId`.
+   */
   replies?: ((reply: SmsReplyReceived) => Promise<unknown>) | undefined;
   networkFeatures: boolean;
   desktop: boolean;
@@ -177,16 +189,30 @@ export function createSmsInboundChannel(deps: SmsInboundDeps): SmsInboundChannel
     const at = Math.min(event.occurredAt ?? event.receivedAt, current);
     const control = readControlWord(reply.text);
 
+    /** A STOP or START told to the replies store, after the fact. Its failure must never undo or repeat the stop list's work. */
+    const note = async (kind: 'stop' | 'start', confirmed: boolean): Promise<void> => {
+      try {
+        await deps.replies?.({ eventId: event.id, from: reply.from, to: reply.to, text: reply.text, kind, at, answered: reply.answered, confirmed });
+      } catch {
+        // The conversation misses a line. The stop list, which is what counts, has it.
+      }
+    };
+
     if (control.kind === 'stop') {
       const added = await addStop(reply.from, 'text-stop', provider, at);
       const decision = decideStopConfirmation({ provider, added, answered: reply.answered, whole: control.whole, via: reply.via, occurredAt: at, now: current });
-      if (!decision.send) return { outcome: 'processed', retainMs: SMS_CONTROL_RETAIN_MS, reason: decision.reason };
+      if (!decision.send) {
+        await note('stop', false);
+        return { outcome: 'processed', retainMs: SMS_CONTROL_RETAIN_MS, reason: decision.reason };
+      }
       try {
         await deps.confirmations({ to: reply.from, from: reply.to, body: SMS_STOP_CONFIRMATION, language: control.language, sendBy: decision.sendBy, dedupeKey: `sms-stop-confirm:${event.id}` });
       } catch {
         // The STOP is on the list. A retry would see "already stopped", so at worst no confirmation goes.
+        await note('stop', false);
         return { outcome: 'processed', retainMs: SMS_CONTROL_RETAIN_MS, reason: 'confirmation-failed' };
       }
+      await note('stop', true);
       return { outcome: 'processed', retainMs: SMS_CONTROL_RETAIN_MS, reason: 'confirmation-asked' };
     }
 
@@ -195,10 +221,11 @@ export function createSmsInboundChannel(deps: SmsInboundDeps): SmsInboundChannel
       const entry = await deps.consent.stop.entryFor(reply.from, null);
       if (entry !== null && entry.addedAt >= at) return { outcome: 'processed', retainMs: SMS_CONTROL_RETAIN_MS, reason: 'older-than-stop' };
       const lifted = await deps.consent.stop.start({ phone: reply.from, at });
+      await note('start', false);
       return { outcome: 'processed', retainMs: SMS_CONTROL_RETAIN_MS, reason: `start-${lifted}` };
     }
 
-    await deps.replies?.({ eventId: event.id, from: reply.from, to: reply.to, text: reply.text, kind: control.kind === 'help' ? 'help' : 'message', at });
+    await deps.replies?.({ eventId: event.id, from: reply.from, to: reply.to, text: reply.text, kind: control.kind === 'help' ? 'help' : 'message', at, answered: reply.answered });
     return { outcome: 'processed' };
   }
 
