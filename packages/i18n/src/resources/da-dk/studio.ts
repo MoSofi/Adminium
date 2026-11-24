@@ -6623,7 +6623,6 @@ export default {
       "insertOne": "Indsæt {name}",
       "languages": "Sprog",
       "noReplies": "Denne server kan ikke modtage STOP-svar, så hver sms angiver din telefon eller e-mail til afmelding.",
-      "optOutNote": "Den tæller med i længden og kan ikke redigeres. Den er på engelsk, indtil de andre sprog er tilføjet.",
       "ownStop": "Din sms nævner selv STOP, så intet tilføjes.",
       "plain": "Brug et almindeligt tegn",
       "preview": "Forhåndsvisning",
@@ -6648,7 +6647,8 @@ export default {
       "undo": "Fortryd ændringer",
       "unicode": "Dette tegn bruger Unicode-taksten:",
       "whereTo": "Hvor den sendes hen, og hvem den er fra",
-      "words": "Teksten"
+      "words": "Teksten",
+      "optOutCounts": "Den tæller med i længden og kan ikke redigeres."
     },
     "field": {
       "accountSid": "Account SID",
@@ -6921,7 +6921,7 @@ export default {
       "queued": "Dit svar står i kø og sendes nu.",
       "replyLabel": "Dit svar",
       "optOutContact": "En linje med jeres telefon eller e-mail til afmelding tilføjes til sidst. Personalet registrerer de stopanmodninger, de får på den måde.",
-      "optOutReply": "“Svar STOP for at framelde.” tilføjes til sidst og tæller med i længden.",
+      "optOutReply": "“{line}” tilføjes til sidst og tæller med i længden.",
       "answering": "Personen skrev inden for de sidste 7 dage, så et svar kræver ikke sit eget ja. Et STOP stopper det stadig.",
       "send": "Send svar",
       "markedRead": "Markeret som læst.",
@@ -7017,7 +7017,8 @@ export default {
         "paper": "På papir",
         "wording": "Ordlyden, personen sagde ja til",
         "version": "Version af ordlyden",
-        "save": "Registrér ja"
+        "save": "Registrér ja",
+        "savedLocked": "Personens ja til markedsføring er registreret i dit navn."
       },
       "confirm": {
         "ask": "Bed om bekræftelse pr. e-mail",
@@ -7030,7 +7031,8 @@ export default {
         "noEmail": "Kan ikke bekræftes endnu: personen har ingen e-mailadresse. Spørg personligt.",
         "noOrigin": "Serveren har ingen offentlig adresse, så linket i e-mailen kunne ikke åbnes. Spørg personligt.",
         "noMail": "Der er ingen mailserver sat op, så ingen e-mail kan sendes. Spørg personligt.",
-        "notSent": "Der blev ikke sendt nogen bekræftelsesmail. Spørg personligt."
+        "notSent": "Der blev ikke sendt nogen bekræftelsesmail. Spørg personligt.",
+        "locked": "Der sendes ingen bekræftelsesmail, så længe markedsførings-sms’er ikke er tilgængelige i denne version."
       },
       "who": {
         "ok": "Hvem der får den",

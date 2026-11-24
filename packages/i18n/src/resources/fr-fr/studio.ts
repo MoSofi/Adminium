@@ -6623,7 +6623,6 @@ export default {
       "insertOne": "Insérer {name}",
       "languages": "Langues",
       "noReplies": "Ce serveur ne peut pas recevoir les réponses STOP : chaque SMS indique donc votre téléphone ou votre e-mail pour se désinscrire.",
-      "optOutNote": "Elle compte dans la longueur et ne peut pas être modifiée. Elle est en anglais tant que les autres langues ne sont pas ajoutées.",
       "ownStop": "Votre SMS mentionne déjà STOP : rien n’est donc ajouté.",
       "plain": "En utiliser une simple",
       "preview": "Aperçu",
@@ -6648,7 +6647,8 @@ export default {
       "undo": "Annuler les modifications",
       "unicode": "Ce caractère utilise le tarif Unicode :",
       "whereTo": "Où il va et de qui il vient",
-      "words": "Le texte"
+      "words": "Le texte",
+      "optOutCounts": "Elle compte dans la longueur et ne peut pas être modifiée."
     },
     "field": {
       "accountSid": "Account SID",
@@ -6921,7 +6921,7 @@ export default {
       "queued": "Votre réponse est en file pour partir maintenant.",
       "replyLabel": "Votre réponse",
       "optOutContact": "Une ligne donnant votre téléphone ou e-mail pour arrêter les SMS est ajoutée à la fin. L’équipe enregistre les demandes reçues ainsi.",
-      "optOutReply": "« Répondez STOP pour ne plus recevoir de SMS. » est ajouté à la fin et compte dans la longueur.",
+      "optOutReply": "« {line} » est ajouté à la fin et compte dans la longueur.",
       "answering": "La personne a écrit ces 7 derniers jours : une réponse n’a pas besoin de son propre oui. Un STOP l’arrête quand même.",
       "send": "Envoyer la réponse",
       "markedRead": "Marqué comme lu.",
@@ -7017,7 +7017,8 @@ export default {
         "paper": "Sur papier",
         "wording": "Les mots qu’elle a acceptés",
         "version": "Version de ces mots",
-        "save": "Enregistrer son oui"
+        "save": "Enregistrer son oui",
+        "savedLocked": "Son oui au marketing est enregistré à votre nom."
       },
       "confirm": {
         "ask": "Demander une confirmation par e-mail",
@@ -7030,7 +7031,8 @@ export default {
         "noEmail": "Pas encore confirmable : la personne n’a pas d’adresse e-mail. Demandez-lui en personne.",
         "noOrigin": "Ce serveur n’a pas d’adresse publique : le lien de l’e-mail ne pourrait pas s’ouvrir. Demandez-lui en personne.",
         "noMail": "Aucun serveur de messagerie n’est configuré : aucun e-mail ne peut partir. Demandez-lui en personne.",
-        "notSent": "Aucun e-mail de confirmation n’est parti. Demandez-lui en personne."
+        "notSent": "Aucun e-mail de confirmation n’est parti. Demandez-lui en personne.",
+        "locked": "Aucun e-mail de confirmation ne part tant que les SMS marketing ne sont pas disponibles dans cette version."
       },
       "who": {
         "ok": "Qui le reçoit",

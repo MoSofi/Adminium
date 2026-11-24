@@ -6613,7 +6613,6 @@
       "insertOne": "{name} einfügen",
       "languages": "Sprachen",
       "noReplies": "Dieser Server kann keine STOP-Antworten empfangen, daher nennt jede SMS Ihr Telefon oder Ihre E-Mail zum Abbestellen.",
-      "optOutNote": "Sie zählt zur Länge und kann nicht bearbeitet werden. Sie ist auf Englisch, bis die anderen Sprachen hinzugefügt sind.",
       "ownStop": "Ihre SMS nennt STOP selbst, daher wird nichts hinzugefügt.",
       "plain": "Eine einfache verwenden",
       "preview": "Vorschau",
@@ -6638,7 +6637,8 @@
       "undo": "Änderungen verwerfen",
       "unicode": "Dieses Zeichen nutzt den Unicode-Satz:",
       "whereTo": "Wohin sie geht und von wem sie kommt",
-      "words": "Der Text"
+      "words": "Der Text",
+      "optOutCounts": "Sie zählt zur Länge und kann nicht bearbeitet werden."
     },
     "field": {
       "accountSid": "Account SID",
@@ -6911,7 +6911,7 @@
       "queued": "Ihre Antwort steht zum Senden bereit.",
       "replyLabel": "Ihre Antwort",
       "optOutContact": "Am Ende wird eine Zeile mit Ihrer Telefonnummer oder E-Mail zum Abmelden angefügt. Wer sich so meldet, wird vom Team eingetragen.",
-      "optOutReply": "„Antworten Sie STOP zum Abmelden.“ wird am Ende angefügt und zählt zur Länge.",
+      "optOutReply": "„{line}“ wird am Ende angefügt und zählt zur Länge.",
       "answering": "Die Person hat in den letzten 7 Tagen geschrieben, daher braucht eine Antwort kein eigenes Ja. Ein STOP stoppt sie trotzdem.",
       "send": "Antwort senden",
       "markedRead": "Als gelesen markiert.",
@@ -7007,7 +7007,8 @@
         "paper": "Auf Papier",
         "wording": "Der Wortlaut, dem die Person zugestimmt hat",
         "version": "Version dieses Wortlauts",
-        "save": "Ja eintragen"
+        "save": "Ja eintragen",
+        "savedLocked": "Ihr Ja zu Marketing ist unter Ihrem Namen eingetragen."
       },
       "confirm": {
         "ask": "Per E-Mail um Bestätigung bitten",
@@ -7020,7 +7021,8 @@
         "noEmail": "Noch nicht bestätigbar: Die Person hat keine E-Mail-Adresse. Fragen Sie persönlich.",
         "noOrigin": "Dieser Server hat keine öffentliche Adresse, daher könnte sich der Link in der E-Mail nicht öffnen. Fragen Sie persönlich.",
         "noMail": "Kein Mailserver ist eingerichtet, daher kann keine E-Mail gehen. Fragen Sie persönlich.",
-        "notSent": "Keine Bestätigungs-E-Mail ging hinaus. Fragen Sie persönlich."
+        "notSent": "Keine Bestätigungs-E-Mail ging hinaus. Fragen Sie persönlich.",
+        "locked": "Solange Marketing-SMS in dieser Version noch nicht verfügbar sind, geht keine Bestätigungs-E-Mail hinaus."
       },
       "who": {
         "ok": "Wer sie bekommt",

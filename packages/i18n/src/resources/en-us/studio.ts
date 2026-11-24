@@ -6623,7 +6623,6 @@ export default {
       "insertOne": "Insert {name}",
       "languages": "Languages",
       "noReplies": "This server can’t receive STOP replies, so every text gives your phone or e-mail for stopping.",
-      "optOutNote": "It counts toward the length, and can’t be edited. It is in English until the other languages are added.",
       "ownStop": "Your text says STOP itself, so nothing is added.",
       "plain": "Use a plain one",
       "preview": "Preview",
@@ -6648,7 +6647,8 @@ export default {
       "undo": "Undo changes",
       "unicode": "This character uses the Unicode rate:",
       "whereTo": "Where it goes and who it is from",
-      "words": "The text"
+      "words": "The text",
+      "optOutCounts": "It counts toward the length, and can’t be edited."
     },
     "field": {
       "accountSid": "Account SID",
@@ -6921,7 +6921,7 @@ export default {
       "queued": "Your answer is queued to go now.",
       "replyLabel": "Your answer",
       "optOutContact": "A line giving your phone or e-mail for stopping texts is added to the end. Staff record a stop request they get that way.",
-      "optOutReply": "“Reply STOP to opt out.” is added to the end, and counts toward the length.",
+      "optOutReply": "“{line}” is added to the end, and counts toward the length.",
       "answering": "They wrote in the last 7 days, so an answer needs no yes of its own. A STOP still stops it.",
       "send": "Send answer",
       "markedRead": "Marked as read.",
@@ -7017,7 +7017,8 @@ export default {
         "paper": "On paper",
         "wording": "The words they agreed to",
         "version": "Version of those words",
-        "save": "Record their yes"
+        "save": "Record their yes",
+        "savedLocked": "Their marketing yes is recorded under your name."
       },
       "confirm": {
         "ask": "Ask to confirm by e-mail",
@@ -7030,7 +7031,8 @@ export default {
         "noEmail": "Can’t be confirmed yet: they have no e-mail address. Ask them in person.",
         "noOrigin": "This server has no public address, so the link in the e-mail couldn’t open. Ask them in person.",
         "noMail": "No mail server is set up, so no e-mail can go. Ask them in person.",
-        "notSent": "No confirmation e-mail went. Ask them in person."
+        "notSent": "No confirmation e-mail went. Ask them in person.",
+        "locked": "No confirmation e-mail goes while marketing texts are not yet available in this version."
       },
       "who": {
         "ok": "Who gets it",

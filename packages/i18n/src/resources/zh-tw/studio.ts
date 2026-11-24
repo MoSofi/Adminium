@@ -6623,7 +6623,6 @@ export default {
       "insertOne": "插入 {name}",
       "languages": "語言",
       "noReplies": "這台伺服器無法接收 STOP 回覆，因此每則簡訊都會附上你的退訂電話或電子郵件。",
-      "optOutNote": "這段文字計入長度，且無法編輯。在加入其他語言之前，它會以英文顯示。",
       "ownStop": "你的簡訊已自行寫明 STOP，因此不會另外加上。",
       "plain": "使用簡單版本",
       "preview": "預覽",
@@ -6648,7 +6647,8 @@ export default {
       "undo": "復原變更",
       "unicode": "這個字元以 Unicode 計費：",
       "whereTo": "傳送對象與傳送者",
-      "words": "簡訊內容"
+      "words": "簡訊內容",
+      "optOutCounts": "這段文字計入長度，且無法編輯。"
     },
     "field": {
       "accountSid": "Account SID",
@@ -6921,7 +6921,7 @@ export default {
       "queued": "您的回覆已排入佇列，正在傳送。",
       "replyLabel": "您的回覆",
       "optOutContact": "結尾會加上一行，提供您用於退訂的電話或電子郵件。員工會登記以此方式收到的退訂請求。",
-      "optOutReply": "結尾會加上「回覆STOP退訂。」，並計入長度。",
+      "optOutReply": "結尾會加上「{line}」，並計入長度。",
       "answering": "對方在過去 7 天內傳過訊息，因此回覆無需另行同意。STOP 仍會阻止它。",
       "send": "傳送回覆",
       "markedRead": "已標為已讀。",
@@ -7017,7 +7017,8 @@ export default {
         "paper": "紙本",
         "wording": "對方同意的文字",
         "version": "文字版本",
-        "save": "記錄同意"
+        "save": "記錄同意",
+        "savedLocked": "其行銷同意已以您的名義記錄。"
       },
       "confirm": {
         "ask": "透過電子郵件請求確認",
@@ -7030,7 +7031,8 @@ export default {
         "noEmail": "暫時無法確認：對方沒有電子郵件地址。請當面詢問。",
         "noOrigin": "此伺服器沒有公開位址，郵件中的連結無法開啟。請當面詢問。",
         "noMail": "未設定郵件伺服器，無法寄送郵件。請當面詢問。",
-        "notSent": "未寄出確認郵件。請當面詢問。"
+        "notSent": "未寄出確認郵件。請當面詢問。",
+        "locked": "在此版本提供行銷簡訊之前，不會寄送確認郵件。"
       },
       "who": {
         "ok": "會收到的人",

@@ -6623,7 +6623,6 @@ export default {
       "insertOne": "Vložit {name}",
       "languages": "Jazyky",
       "noReplies": "Tento server nemůže přijímat odpovědi STOP, proto každá SMS uvádí váš telefon nebo e-mail pro odhlášení.",
-      "optOutNote": "Započítává se do délky a nelze ho upravit. Je v angličtině, dokud nebudou přidány ostatní jazyky.",
       "ownStop": "Vaše SMS sama obsahuje STOP, proto se nic nepřidává.",
       "plain": "Použít jednoduchou verzi",
       "preview": "Náhled",
@@ -6648,7 +6647,8 @@ export default {
       "undo": "Vrátit změny",
       "unicode": "Kvůli tomuto znaku se SMS počítá jako Unicode:",
       "whereTo": "Kam jde a od koho je",
-      "words": "Text"
+      "words": "Text",
+      "optOutCounts": "Započítává se do délky a nelze ho upravit."
     },
     "field": {
       "accountSid": "Account SID",
@@ -6921,7 +6921,7 @@ export default {
       "queued": "Vaše odpověď je ve frontě a odchází teď.",
       "replyLabel": "Vaše odpověď",
       "optOutContact": "Na konec se přidá řádek s vaším telefonem nebo e-mailem pro odhlášení. Takto přijaté žádosti zapíše personál.",
-      "optOutReply": "„Odpovězte STOP pro odhlášení.“ se přidá na konec a počítá se do délky.",
+      "optOutReply": "„{line}“ se přidá na konec a počítá se do délky.",
       "answering": "Osoba psala během posledních 7 dní, takže odpověď nepotřebuje vlastní souhlas. STOP ji přesto zastaví.",
       "send": "Odeslat odpověď",
       "markedRead": "Označeno jako přečtené.",
@@ -7017,7 +7017,8 @@ export default {
         "paper": "Na papíře",
         "wording": "Znění, se kterým souhlasil(a)",
         "version": "Verze tohoto znění",
-        "save": "Zapsat souhlas"
+        "save": "Zapsat souhlas",
+        "savedLocked": "Jejich souhlas s marketingem je zapsán pod vaším jménem."
       },
       "confirm": {
         "ask": "Požádat o potvrzení e-mailem",
@@ -7030,7 +7031,8 @@ export default {
         "noEmail": "Zatím nelze potvrdit: nemá e-mailovou adresu. Zeptejte se osobně.",
         "noOrigin": "Tento server nemá veřejnou adresu, odkaz v e-mailu by se neotevřel. Zeptejte se osobně.",
         "noMail": "Není nastaven poštovní server, žádný e-mail nemůže odejít. Zeptejte se osobně.",
-        "notSent": "Žádný potvrzovací e-mail neodešel. Zeptejte se osobně."
+        "notSent": "Žádný potvrzovací e-mail neodešel. Zeptejte se osobně.",
+        "locked": "Dokud nejsou marketingové SMS v této verzi k dispozici, žádný potvrzovací e-mail neodchází."
       },
       "who": {
         "ok": "Kdo ji dostane",

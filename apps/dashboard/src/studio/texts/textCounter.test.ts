@@ -165,3 +165,23 @@ describe('the small helpers', () => {
     expect(placeholderNames('{{hotel}}: {{name}}, {{ name }} {{date|soon}}')).toEqual(['hotel', 'name', 'date']);
   });
 });
+
+describe('the line in the text’s own language', () => {
+  it('reads each language’s line from the shipped catalogue, with no gap before a Chinese one', async () => {
+    const { lineWordsQuery } = await import('./textLineWords.js');
+    const german = await lineWordsQuery('de_DE').queryFn!({} as never);
+    const chinese = await lineWordsQuery('zh_CN').queryFn!({} as never);
+    const de = (await import('../../../../../packages/i18n/locales/de-DE/email.json')).default as { texts: { optOut: { reply: string; contact: string } } };
+    expect(german.replyStop).toBe(de.texts.optOut.reply);
+    expect(german.contactLine('+49 30 1234')).toBe(de.texts.optOut.contact.replace('{contact}', '+49 30 1234'));
+    const composed = composeText({ template: '你好', values: {}, optOut: 'reply-stop', country: 'GB', business: { name: 'Wren House' }, table: 'standard', words: chinese });
+    expect(composed.body).toBe(`你好${chinese.replyStop}`);
+    const english = composeText({ template: 'Hi', values: {}, optOut: 'reply-stop', country: 'US', business: { name: 'Wren House' }, table: 'standard' });
+    expect(english.body).toBe('Hi Reply STOP to opt out.');
+  });
+
+  it('maps a locale in any spelling to one of the eight, as the server does', async () => {
+    const { textLanguageOf } = await import('./textLineWords.js');
+    expect([textLanguageOf('de_DE'), textLanguageOf('zh-Hant-HK'), textLanguageOf('zh'), textLanguageOf('pt-BR'), textLanguageOf(null)]).toEqual(['de-DE', 'zh-TW', 'zh-CN', 'en-US', 'en-US']);
+  });
+});

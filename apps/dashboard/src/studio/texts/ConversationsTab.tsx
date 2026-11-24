@@ -47,7 +47,8 @@ import {
 } from './conversationsApi.js';
 import { RepliesByApp } from './RepliesByApp.js';
 import { CounterLine } from './TextCounterView.js';
-import { estimateLength, limitsOf, REPLY_STOP_LINE } from './textCounter.js';
+import { ENGLISH_LINE_WORDS, estimateLength, limitsOf } from './textCounter.js';
+import { lineWordsQuery } from './textLineWords.js';
 import { activeLocale, reasonWords, stamp } from './textsWords.js';
 
 // ─── names ──────────────────────────────────────────────────────────────────
@@ -207,8 +208,10 @@ function ReplyBox({ detail }: { detail: ThreadDetail }) {
   // One key per message: a retry after a dropped request sends nothing twice.
   const key = useRef<string | null>(null);
   const [outcome, setOutcome] = useState<{ tone: 'info' | 'danger'; text: string } | null>(null);
-  const line = detail.thread.theyCanReply ? REPLY_STOP_LINE : null;
-  const estimate = estimateLength(line === null ? body : `${body} ${line}`, limitsOf('standard'));
+  // The answer's line is in the business's language, which the thread does not say: the console's language stands in for it.
+  const words = useQuery(lineWordsQuery(activeLocale())).data ?? ENGLISH_LINE_WORDS;
+  const line = detail.thread.theyCanReply ? words.replyStop : null;
+  const estimate = estimateLength(line === null ? body : `${body}${words.gap}${line}`, limitsOf('standard'));
   const send = useMutation({
     mutationFn: () => {
       key.current ??= newClientKey();
@@ -266,7 +269,7 @@ function ReplyBox({ detail }: { detail: ThreadDetail }) {
       <p className="text-[11.5px] text-fg-muted" data-testid="texts-reply-optout">
         {line === null
           ? t('studio:texts.conv.optOutContact', 'A line giving your phone or e-mail for stopping texts is added to the end. Staff record a stop request they get that way.')
-          : t('studio:texts.conv.optOutReply', '“Reply STOP to opt out.” is added to the end, and counts toward the length.')}
+          : t('studio:texts.conv.optOutReply', '“{line}” is added to the end, and counts toward the length.', { line })}
         {detail.answering ? ` ${t('studio:texts.conv.answering', 'They wrote in the last 7 days, so an answer needs no yes of its own. A STOP still stops it.')}` : ''}
       </p>
       {outcome === null ? null : (

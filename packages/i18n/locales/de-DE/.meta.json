@@ -45695,9 +45695,9 @@
     "status": "mt",
     "srcHash": "137402dca7cb"
   },
-  "studio.texts.editor.optOutNote": {
+  "studio.texts.editor.optOutCounts": {
     "status": "mt",
-    "srcHash": "b0d3da6d110c"
+    "srcHash": "6240ca2297f7"
   },
   "studio.texts.editor.ownStop": {
     "status": "mt",
@@ -45986,6 +45986,10 @@
   "studio.texts.mkt.confirm.inPerson": {
     "status": "mt",
     "srcHash": "be567eeab3fa"
+  },
+  "studio.texts.mkt.confirm.locked": {
+    "status": "mt",
+    "srcHash": "3a26084e694d"
   },
   "studio.texts.mkt.confirm.noConsent": {
     "status": "mt",
@@ -46438,6 +46442,10 @@
   "studio.texts.mkt.yes.saved": {
     "status": "mt",
     "srcHash": "ab20f7bc4d51"
+  },
+  "studio.texts.mkt.yes.savedLocked": {
+    "status": "mt",
+    "srcHash": "ab56406ff37f"
   },
   "studio.texts.mkt.yes.title": {
     "status": "mt",

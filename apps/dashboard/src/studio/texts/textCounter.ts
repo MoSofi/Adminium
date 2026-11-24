@@ -139,8 +139,20 @@ const NO_CONTACT_IN_BODY: ReadonlySet<string> = new Set(['AE']);
 /** France bans opting out by phone number: only an e-mail address will do. */
 const NO_PHONE_OPT_OUT: ReadonlySet<string> = new Set(['FR']);
 
+/** The words the product adds to a text, in one language: the catalogue's `email:texts.optOut` (`textLineWords.ts` loads them). */
+export interface TextLineWords {
+  /** "Reply STOP to opt out." */
+  replyStop: string;
+  /** "To stop these texts, contact {contact}." */
+  contactLine(contact: string): string;
+  /** What goes between a text and its line. Chinese runs on, with no space. */
+  gap: string;
+}
+
 export const REPLY_STOP_LINE = 'Reply STOP to opt out.';
-const contactLine = (how: string): string => `To stop these texts, contact ${how}.`;
+
+/** US English, as the server falls back to: the words before a language's own are loaded, and in unit tests. */
+export const ENGLISH_LINE_WORDS: TextLineWords = { replyStop: REPLY_STOP_LINE, contactLine: (how) => `To stop these texts, contact ${how}.`, gap: ' ' };
 
 export interface BusinessContact {
   name: string;
@@ -159,16 +171,16 @@ const plain = (value: string | null | undefined): string | null => {
 };
 
 /** The line the product adds; null when a sender that cannot take replies has no contact allowed here. */
-export function optOutLine(optOut: TextOptOut, country: string, business: BusinessContact): string | null {
-  if (optOut === 'reply-stop') return REPLY_STOP_LINE;
+export function optOutLine(optOut: TextOptOut, country: string, business: BusinessContact, words: TextLineWords = ENGLISH_LINE_WORDS): string | null {
+  if (optOut === 'reply-stop') return words.replyStop;
   if (NO_CONTACT_IN_BODY.has(country)) {
     const name = plain(business.name);
-    return name === null ? null : contactLine(name);
+    return name === null ? null : words.contactLine(name);
   }
   const email = plain(business.email);
   const phone = NO_PHONE_OPT_OUT.has(country) ? null : plain(business.phone);
   const how = phone ?? email;
-  return how === null ? null : contactLine(how);
+  return how === null ? null : words.contactLine(how);
 }
 
 // ─── placeholders (`packages/manifest/src/placeholders.ts`) ─────────────────
@@ -243,6 +255,8 @@ export interface ComposeInput {
   country: string;
   business: BusinessContact;
   table: SegmentTable;
+  /** The template language's line words; US English when not given. */
+  words?: TextLineWords | undefined;
 }
 
 export interface Composed {
@@ -298,14 +312,15 @@ export function composeText(input: ComposeInput): Composed {
   if (credentials.length > 0) problems.push({ kind: 'credential', names: credentials });
   if (SHORT_LINK.test(input.template)) problems.push({ kind: 'short-link' });
 
-  const words = input.optOut === 'through-business' ? withoutStopSentence(input.template) : input.template;
-  const filled = fill(words, input.values);
+  const templateWords = input.optOut === 'through-business' ? withoutStopSentence(input.template) : input.template;
+  const filled = fill(templateWords, input.values);
   if (filled.missing.length > 0) problems.push({ kind: 'missing', names: filled.missing });
 
   const ownStop = input.optOut === 'reply-stop' && templateSaysStop(input.template);
-  const line = ownStop ? null : optOutLine(input.optOut, input.country, input.business);
+  const lineWords = input.words ?? ENGLISH_LINE_WORDS;
+  const line = ownStop ? null : optOutLine(input.optOut, input.country, input.business, lineWords);
   if (!ownStop && line === null) problems.push({ kind: 'no-opt-out-contact' });
-  const body = line === null ? filled.text : filled.text === '' ? line : `${filled.text} ${line}`;
+  const body = line === null ? filled.text : filled.text === '' ? line : `${filled.text}${lineWords.gap}${line}`;
   if (asksForYes(input.template) || asksForYes(body)) problems.push({ kind: 'asks-for-yes' });
 
   const estimate = estimateLength(body, limitsOf(input.table));
