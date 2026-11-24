@@ -136,7 +136,8 @@ export async function openTextAudience(deps: TextAudienceDeps, userId: string | 
   const user = userId === null ? null : await usersRepo(deps.meta).findById(userId);
   if (user === null || user.status !== 'active') return { refuse: 'cannot-send', label };
   const set = await resolvePermissionSet(deps.meta, { kind: 'user', id: user.id, label: user.name });
-  if (!permissionSetAllows(set, PERMISSIONS.settingsManage)) return { refuse: 'cannot-send', label };
+  // Both, for as long as the run goes on: settings for the audience, as e-mail asks, and texts for the money.
+  if (!permissionSetAllows(set, PERMISSIONS.settingsManage) || !permissionSetAllows(set, PERMISSIONS.smsManage)) return { refuse: 'cannot-send', label };
   if (!permissionSetAllows(set, `table:${audience.connectionId}:${wholeTable.id}:read`) || wholeTable.table.private === true) return { refuse: 'cannot-read', label };
   const view = readViewOf(whole, set);
   const table = view.linkTable(wholeTable.id) ?? wholeTable;

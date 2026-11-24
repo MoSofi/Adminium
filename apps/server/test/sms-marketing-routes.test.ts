@@ -70,6 +70,7 @@ for (const [dialect, reachable] of LEGS) {
       const roles = rolesRepo(s.meta);
       const scripted = await roles.create({ slug: 'scripted', name: 'Scripted' });
       await permissionsRepo(s.meta).grant(scripted.id, 'system', 'settings.manage', { allowed: true });
+      await permissionsRepo(s.meta).grant(scripted.id, 'system', 'sms.manage', { allowed: true });
       const generated = generateApiKey();
       await apiKeysRepo(s.meta).create({ name: 'script', prefix: generated.prefix, tokenHash: generated.tokenHash, roleId: scripted.id });
       bearer = { authorization: `Bearer ${generated.key}` };
@@ -218,6 +219,21 @@ for (const [dialect, reachable] of LEGS) {
       await s.send('owner', 'POST', '/api/v1/sms/marketing/consent', { ...nora, how: 'phone', wording: WORDING });
       expect(data(await s.send('owner', 'POST', '/api/v1/sms/marketing/consent/confirm-request', nora))).toEqual({ outcome: 'do-not-email' });
       expect((await s.emails()).filter((one) => one.to === 'nomail@stays.example')).toEqual([]);
+    });
+
+    it('a role trusted with settings, and not with texts, may not send or record a yes', async () => {
+      // The clerk now holds settings, as an office manager might, and still not texts.
+      const clerkRole = (await rolesRepo(s.meta).findBySlug('stays-clerk'))!;
+      await permissionsRepo(s.meta).grant(clerkRole.id, 'system', 'settings.manage', { allowed: true });
+      for (const [url, payload] of [
+        ['/api/v1/sms/marketing/runs', { name: 'x', templateKey: 'stays-autumn', audience: { connectionId: s.connectionId, table: table() } }],
+        ['/api/v1/sms/marketing/consent', { ...who('Anna'), how: 'in-person', wording: WORDING }],
+        ['/api/v1/sms/marketing/consent/confirm-request', who('Dora')],
+      ] as const) {
+        const res = await s.send('clerk', 'POST', url, payload);
+        expect(said(res), url).toBe('403 FORBIDDEN');
+        expect((res.json() as { error: { details?: { permission?: string } } }).error.details?.permission, url).toBe('system:sms:manage');
+      }
     });
   });
 }
