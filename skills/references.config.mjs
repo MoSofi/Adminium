@@ -17,6 +17,7 @@ export default {
     { area: 'projects', page: 'projects/apps.md' },
     { area: 'projects', page: 'projects/folder.md' },
     { area: 'guides', page: 'guides/take-payments.md' },
+    { area: 'guides', page: 'guides/texts/index.md' },
     { area: 'self-hosting', page: 'self-hosting/payments.md' },
     { area: 'cli', page: 'reference/cli.md', flat: true },
   ],

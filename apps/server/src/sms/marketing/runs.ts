@@ -343,7 +343,8 @@ export function createTextRuns(deps: TextRunsDeps) {
         await skip('phone-changed');
         continue;
       }
-      const body = run.content[person.locale ?? install] ?? run.content[install] ?? run.content['en_US'];
+      const language = [person.locale ?? install, install, 'en_US'].find((one) => run.content[one] !== undefined);
+      const body = language === undefined ? undefined : run.content[language];
       if (body === undefined) {
         await skip('no-template-language');
         continue;
@@ -353,6 +354,7 @@ export function createTextRuns(deps: TextRunsDeps) {
         country,
         textClass: 'marketing',
         template: body,
+        language,
         values: textValues(access, whole, name),
         codeNames: codeNamesIn(body, codeColumns),
         zone: null,

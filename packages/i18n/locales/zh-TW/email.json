@@ -1054,5 +1054,17 @@
     "purpose": "點擊「確認」，即可透過簡訊在 {phone} 接收{business}的優惠資訊。",
     "action": "確認",
     "notice": "此連結 {days} 天內有效。如果這不是您的請求，請忽略此電子郵件：除非您點擊「確認」，否則不會收到任何簡訊優惠。"
+  },
+  "texts": {
+    "optOut": {
+      "reply": "回覆STOP退訂。",
+      "contact": "退訂請聯絡{contact}。"
+    },
+    "stopConfirmed": "您已退訂，將不再收到該商家的簡訊。",
+    "notRead": {
+      "withContact": "{business}：此號碼無人查看。請聯絡：{contact}",
+      "alone": "{business}：此號碼無人查看。"
+    },
+    "test": "來自 Adminium 的測試簡訊。您的簡訊連線正常。"
   }
 }

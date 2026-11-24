@@ -1064,5 +1064,17 @@ export default {
     "purpose": "Appuyez sur Confirmer pour recevoir les offres de {business} par SMS au {phone}.",
     "action": "Confirmer",
     "notice": "Le lien est valable {days} jours. Si vous n’avez rien demandé, ignorez cet e-mail : vous ne recevrez aucune offre par SMS sans appuyer sur Confirmer."
+  },
+  "texts": {
+    "optOut": {
+      "reply": "Répondez STOP pour ne plus recevoir de SMS.",
+      "contact": "Pour ne plus recevoir de SMS, contactez {contact}."
+    },
+    "stopConfirmed": "Désinscription confirmée. Vous ne recevrez plus de SMS de cette entreprise.",
+    "notRead": {
+      "withContact": "{business} : ce numéro n'est pas consulté. Contact : {contact}",
+      "alone": "{business} : ce numéro n'est pas consulté."
+    },
+    "test": "SMS de test envoyé par Adminium. Votre connexion SMS fonctionne."
   }
 } as const;

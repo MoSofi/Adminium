@@ -2335,6 +2335,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       textClass: mailClassOf(manifest as never, { outboxKind: kind }) === 'marketing' ? 'marketing' : 'service',
       waiting: isWaitingKind(box.definition, kind),
       template: body,
+      language: stored.locale,
       values: vars,
       codeNames: codeNamesIn(body, codeColumns),
       zone: ctx.clock,

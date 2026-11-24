@@ -16,9 +16,10 @@ import type { AddressHash } from '@adminium/meta';
 import { parsePhone } from '../../phone/index.js';
 import { maskPhone } from '../consent/redact.js';
 import { accountRefOf } from '../credentials.js';
-import { SMS_STOP_CONFIRMATION, type SmsStopConfirmation } from '../inbound/stop-reply.js';
+import type { SmsStopConfirmation } from '../inbound/stop-reply.js';
 import type { SmsService } from '../service.js';
 import type { SmsSender } from '../types.js';
+import { STOP_CONFIRMATIONS } from '../words.js';
 import type { HandOverDeps } from './handover.js';
 import { estimateLength, limitsFor } from './length.js';
 import { isFailedStatus } from './store.js';
@@ -40,7 +41,8 @@ export function createStopConfirmer(deps: StopConfirmDeps) {
   const keyed = (purpose: string, value: string): string => createHmac('sha256', deps.secret).update(`adminium:text-delivery:${purpose}:${value}`).digest('hex');
 
   return async function confirmStop(request: SmsStopConfirmation): Promise<StopConfirmOutcome> {
-    if (request.body !== SMS_STOP_CONFIRMATION) return { sent: false, reason: 'not-the-confirmation' };
+    // One of the eight fixed confirmations, word for word, and nothing else.
+    if (!STOP_CONFIRMATIONS.has(request.body)) return { sent: false, reason: 'not-the-confirmation' };
     if (now() >= request.sendBy) return { sent: false, reason: 'too-late' };
     if (!deps.operatorAllows()) return { sent: false, reason: 'off-by-operator' };
     if (!E164.test(request.to)) return { sent: false, reason: 'not-stopped' };

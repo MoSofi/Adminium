@@ -2,6 +2,22 @@
 
 # Manifest spec: Emails — outbox
 
+**Producers.** Each has a `kind` (a key of `kinds`) and a `link`, the outbox's foreign-key column
+that points at the row the message is about and must be one of `links`. Optionally `module`, the
+[part](https://docs.adminium.dev/reference/manifest/#parts) of the app the email belongs to (nothing is queued while it is off), `gate` and
+`optIn: true` (needs `recipient.optIn`: a person who opted out gets nothing). `gate: "enabled"`
+pauses the producer while the settings row's `settings.enabled` bool is false;
+`gate: { "setting": { "table", "column" } }` pauses it while that bool of the settings row is false,
+so each notice can have its own switch; `gate: { "feature": "<id>" }` sends only while one of the
+app's [`addOns.features`](https://docs.adminium.dev/reference/manifest/#add-ons) is on (a receipt, while Invoices & Receipts is attached);
+`gate: { "feature": "<id>", "setting": { "table", "column" } }` queues only while both hold: the
+feature is on AND that bool of the settings row is true (a receipt, while Invoices & Receipts is
+attached and the manager's switch is on). Each half is checked as it is alone. Every gate is judged
+when the message is queued: a message already waiting (held, or due later) still goes when the
+gate closes after it was queued, unless its `dropWhen` drops it. A message of the kind sent from a
+[new link](https://docs.adminium.dev/reference/manifest/#a-rows-own-link) or a "Send it again" is judged by the same gate, and a kind held for
+approval (`hold: true`) cannot be sent from a link at all. Then exactly one of:
+
 | Producer | Shape | Queues a row |
 |---|---|---|
 | `onCreate` | `{ "table", "via"?, "where"? }` | When a row of the table is created. |

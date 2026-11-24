@@ -16,11 +16,19 @@
  * A confirmation that is not sent loses nothing: the STOP is already on the list.
  */
 import type { SmsProviderKey } from '../types.js';
+import { textWordsFor } from '../words.js';
 
 export const SMS_STOP_CONFIRM_WINDOW_MS = 5 * 60 * 1000;
 
-/** Fixed words: no marketing, no question, no link. Translated with the other SMS strings. */
-export const SMS_STOP_CONFIRMATION = 'You are unsubscribed and will get no more texts from this business.';
+/**
+ * Fixed words: no marketing, no question, no link. The catalogue's
+ * `email:texts.stopConfirmed`, in the language of the word the person used,
+ * else the business's own. This is the US English one.
+ */
+export const SMS_STOP_CONFIRMATION = textWordsFor('en-US').stopConfirmed;
+
+/** The confirmation in a language (`en-US` or `en_US`); US English for one the catalogue does not have. */
+export const stopConfirmationIn = (language: string | null): string => textWordsFor(language).stopConfirmed;
 
 /** Each provider's own default opt-out words, folded: a message that is exactly one of these was already answered. */
 const PROVIDER_ANSWERS: Readonly<Record<SmsProviderKey, ReadonlySet<string>>> = {

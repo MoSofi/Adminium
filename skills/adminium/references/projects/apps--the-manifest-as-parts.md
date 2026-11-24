@@ -15,7 +15,7 @@ is written:
 | `pages/<ref>.json` | One page of `pages`. The file is named after the page's `ref` |
 | `roles.json` | `roles`, as the array |
 | `access.json` | An object with `publicAccess` and, when the app has them, `publicKeys` |
-| `emails.json` | An object with `outbox` and `emailTemplates` |
+| `emails.json` | An object with `outbox` and `emailTemplates`, and, for an app that sends texts, `textTemplates` and `textReplies` |
 | `add-ons.json` | `addOns`, as the object |
 | `sample.json` | An object with `sampleData` and, when used, `seeds` |
 | `settings.json` | `settings`, as the array |

@@ -25,6 +25,7 @@ import type { MetaDb } from '@adminium/meta';
 
 import { storedPublicOrigin } from '../../email/door-reach.js';
 import { ValidationFailedError } from '../../errors.js';
+import { recipientLocale } from '../../i18n/server-i18n.js';
 import { InboundFailedError, InboundRetryError, inboundAddress, inboundToken, type InboundAccept, type InboundChannel, type InboundHandled, type InboundOpened, type InboundProof } from '../../inbound/index.js';
 import { reachability, type ReachabilityState } from '../../payments/reachability.js';
 import type { TextConsentService } from '../consent/index.js';
@@ -39,7 +40,7 @@ import { readControlWord } from './control-words.js';
 import { deliveryStatusOf } from './delivery.js';
 import { SMS_INBOUND_CHANNEL, readTelnyxBody, readTwilioForm, smsEventBody, type SmsEventBody } from './payload.js';
 import { verifyTelnyx, verifyTwilio } from './signature.js';
-import { SMS_STOP_CONFIRMATION, decideStopConfirmation, type SmsStopConfirmation } from './stop-reply.js';
+import { decideStopConfirmation, stopConfirmationIn, type SmsStopConfirmation } from './stop-reply.js';
 
 export { SMS_INBOUND_CHANNEL };
 /** A text's webhook is a few kilobytes. Far above that is not one. */
@@ -206,7 +207,9 @@ export function createSmsInboundChannel(deps: SmsInboundDeps): SmsInboundChannel
         return { outcome: 'processed', retainMs: SMS_CONTROL_RETAIN_MS, reason: decision.reason };
       }
       try {
-        await deps.confirmations({ to: reply.from, from: reply.to, body: SMS_STOP_CONFIRMATION, language: control.language, sendBy: decision.sendBy, dedupeKey: `sms-stop-confirm:${event.id}` });
+        // In the language of the word they used; a word several languages share says nothing, so the business's own.
+        const language = control.language ?? (await recipientLocale(deps.meta, null));
+        await deps.confirmations({ to: reply.from, from: reply.to, body: stopConfirmationIn(language), language: control.language, sendBy: decision.sendBy, dedupeKey: `sms-stop-confirm:${event.id}` });
       } catch {
         // The STOP is on the list. A retry would see "already stopped", so at worst no confirmation goes.
         await note('stop', false);

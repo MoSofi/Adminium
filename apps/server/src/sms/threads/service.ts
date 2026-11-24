@@ -323,13 +323,15 @@ export function createTextThreads(deps: TextThreadsDeps): TextThreads {
     try {
       const business = await deps.business(app === '' ? null : app);
       const sender = senderOf(reply.to);
+      const locale = await deps.locale();
       const prepared = await texts.prepare({
         phone: e164,
         textClass: 'service',
         // They wrote a moment ago and are waiting: this answers them, at any hour.
         waiting: true,
         answering: true,
-        template: notReadText({ locale: await deps.locale(), business, to: e164 }),
+        template: notReadText({ locale, business, to: e164 }),
+        language: locale,
         values: {},
         zone: await deps.zone(app === '' ? null : app),
         business,
@@ -403,6 +405,7 @@ export function createTextThreads(deps: TextThreadsDeps): TextThreads {
         waiting: input.waiting,
         answering: input.answering,
         template: input.body,
+        language: await deps.locale(),
         values: {},
         zone: await deps.zone(app),
         business,
