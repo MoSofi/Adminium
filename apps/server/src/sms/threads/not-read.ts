@@ -5,9 +5,8 @@
  * language, the send path adds the opt-out line as it does to every text, and
  * nothing a customer wrote is ever in it.
  *
- * The words are the design run's (`80-design-prompts.md`, NOT_READ), in all
- * eight languages. A country that allows no contact details in a text gets the
- * first sentence alone.
+ * The words are written out in all eight languages. A country that allows no
+ * contact details in a text gets the first sentence alone.
  */
 import { parsePhone } from '../../phone/index.js';
 import type { BusinessContact } from '../send/opt-out.js';

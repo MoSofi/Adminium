@@ -127397,6 +127397,1283 @@
         }
       }
     },
+    "/api/v1/texts/threads": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "app",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "in": "query",
+            "name": "unread",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "in": "query",
+            "name": "cursor",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "threads": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "app": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "phone": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "masked": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "line": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "record": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "connectionId": {
+                                        "type": "string"
+                                      },
+                                      "table": {
+                                        "type": "string"
+                                      },
+                                      "key": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "connectionId",
+                                      "table",
+                                      "key"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "lastAt": {
+                                "type": "number"
+                              },
+                              "lastDirection": {
+                                "type": "string",
+                                "enum": [
+                                  "in",
+                                  "out"
+                                ]
+                              },
+                              "lastKind": {
+                                "type": "string",
+                                "enum": [
+                                  "message",
+                                  "help",
+                                  "stop",
+                                  "start",
+                                  "reply",
+                                  "text"
+                                ]
+                              },
+                              "preview": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "unread": {
+                                "type": "number"
+                              },
+                              "readAt": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "readBy": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "label"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "stopped": {
+                                "type": "boolean"
+                              },
+                              "theyCanReply": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "app",
+                              "phone",
+                              "masked",
+                              "line",
+                              "record",
+                              "lastAt",
+                              "lastDirection",
+                              "lastKind",
+                              "preview",
+                              "unread",
+                              "readAt",
+                              "readBy",
+                              "stopped",
+                              "theyCanReply"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "next": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "unread": {
+                          "type": "number"
+                        },
+                        "replies": {
+                          "type": "object",
+                          "properties": {
+                            "canArrive": {
+                              "type": "boolean"
+                            },
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "operator-off",
+                                "network-off",
+                                "desktop",
+                                "not-set",
+                                "this-computer",
+                                "private-network",
+                                "dot-local",
+                                "not-https",
+                                "proxy-hidden",
+                                "reachable",
+                                "not-connected",
+                                "key-unreadable"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "canArrive",
+                            "state"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "threads",
+                        "next",
+                        "unread",
+                        "replies"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/texts/threads/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "in": "query",
+            "name": "cursor",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "thread": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "app": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "phone": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "masked": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "line": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "record": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "connectionId": {
+                                      "type": "string"
+                                    },
+                                    "table": {
+                                      "type": "string"
+                                    },
+                                    "key": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "connectionId",
+                                    "table",
+                                    "key"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "lastAt": {
+                              "type": "number"
+                            },
+                            "lastDirection": {
+                              "type": "string",
+                              "enum": [
+                                "in",
+                                "out"
+                              ]
+                            },
+                            "lastKind": {
+                              "type": "string",
+                              "enum": [
+                                "message",
+                                "help",
+                                "stop",
+                                "start",
+                                "reply",
+                                "text"
+                              ]
+                            },
+                            "preview": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "unread": {
+                              "type": "number"
+                            },
+                            "readAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "readBy": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "label": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "label"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "stopped": {
+                              "type": "boolean"
+                            },
+                            "theyCanReply": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "app",
+                            "phone",
+                            "masked",
+                            "line",
+                            "record",
+                            "lastAt",
+                            "lastDirection",
+                            "lastKind",
+                            "preview",
+                            "unread",
+                            "readAt",
+                            "readBy",
+                            "stopped",
+                            "theyCanReply"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "source": {
+                                "type": "string",
+                                "enum": [
+                                  "message",
+                                  "app"
+                                ]
+                              },
+                              "direction": {
+                                "type": "string",
+                                "enum": [
+                                  "in",
+                                  "out"
+                                ]
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "message",
+                                  "help",
+                                  "stop",
+                                  "start",
+                                  "reply",
+                                  "text",
+                                  "template"
+                                ]
+                              },
+                              "body": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "template": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "at": {
+                                "type": "number"
+                              },
+                              "by": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "label"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "delivery": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "status": {
+                                        "type": "string",
+                                        "enum": [
+                                          "sending",
+                                          "sent",
+                                          "delivered",
+                                          "failed",
+                                          "unknown",
+                                          "skipped",
+                                          "not-sent"
+                                        ]
+                                      },
+                                      "reason": {
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "status",
+                                      "reason"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "confirmed": {
+                                "type": [
+                                  "boolean",
+                                  "null"
+                                ]
+                              },
+                              "refused": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "source",
+                              "direction",
+                              "kind",
+                              "body",
+                              "template",
+                              "at",
+                              "by",
+                              "delivery",
+                              "confirmed",
+                              "refused"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "next": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "answering": {
+                          "type": "boolean"
+                        },
+                        "canReply": {
+                          "type": "object",
+                          "properties": {
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "not-allowed",
+                                    "stopped",
+                                    "not-connected",
+                                    "no-consent",
+                                    "cannot-receive-text",
+                                    "country-blocked"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "ok",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "thread",
+                        "items",
+                        "next",
+                        "answering",
+                        "canReply"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/texts/threads/{id}/replies": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1600
+                  },
+                  "clientKey": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]{22,64}$"
+                  }
+                },
+                "required": [
+                  "body",
+                  "clientKey"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "threadId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "item": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "source": {
+                                  "type": "string",
+                                  "enum": [
+                                    "message",
+                                    "app"
+                                  ]
+                                },
+                                "direction": {
+                                  "type": "string",
+                                  "enum": [
+                                    "in",
+                                    "out"
+                                  ]
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "message",
+                                    "help",
+                                    "stop",
+                                    "start",
+                                    "reply",
+                                    "text",
+                                    "template"
+                                  ]
+                                },
+                                "body": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "template": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "at": {
+                                  "type": "number"
+                                },
+                                "by": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string"
+                                        },
+                                        "label": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "label"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "delivery": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "status": {
+                                          "type": "string",
+                                          "enum": [
+                                            "sending",
+                                            "sent",
+                                            "delivered",
+                                            "failed",
+                                            "unknown",
+                                            "skipped",
+                                            "not-sent"
+                                          ]
+                                        },
+                                        "reason": {
+                                          "type": [
+                                            "string",
+                                            "null"
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "status",
+                                        "reason"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "confirmed": {
+                                  "type": [
+                                    "boolean",
+                                    "null"
+                                  ]
+                                },
+                                "refused": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "source",
+                                "direction",
+                                "kind",
+                                "body",
+                                "template",
+                                "at",
+                                "by",
+                                "delivery",
+                                "confirmed",
+                                "refused"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "result": {
+                          "type": "object",
+                          "properties": {
+                            "outcome": {
+                              "type": "string",
+                              "enum": [
+                                "queued",
+                                "held",
+                                "refused"
+                              ]
+                            },
+                            "deliveryId": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "opensAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "reason": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "outcome",
+                            "deliveryId",
+                            "opensAt",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "threadId",
+                        "item",
+                        "result"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/texts/threads/{id}/read": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/texts/replies": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "apps": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "app": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "replies": {
+                                "type": "string",
+                                "enum": [
+                                  "on",
+                                  "off"
+                                ]
+                              },
+                              "starts": {
+                                "type": "string",
+                                "enum": [
+                                  "on",
+                                  "off"
+                                ]
+                              },
+                              "changedAt": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "changedBy": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "label"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "app",
+                              "name",
+                              "replies",
+                              "starts",
+                              "changedAt",
+                              "changedBy"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "noApp": {
+                          "type": "string",
+                          "enum": [
+                            "on",
+                            "off"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "apps",
+                        "noApp"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/texts/replies/{app}": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "replies": {
+                    "type": "string",
+                    "enum": [
+                      "on",
+                      "off"
+                    ]
+                  }
+                },
+                "required": [
+                  "replies"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9_~-]{0,63}$"
+            },
+            "in": "path",
+            "name": "app",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "app": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "replies": {
+                          "type": "string",
+                          "enum": [
+                            "on",
+                            "off"
+                          ]
+                        },
+                        "starts": {
+                          "type": "string",
+                          "enum": [
+                            "on",
+                            "off"
+                          ]
+                        },
+                        "changedAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "changedBy": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "label"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "app",
+                        "name",
+                        "replies",
+                        "starts",
+                        "changedAt",
+                        "changedBy"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/texts/send": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connection": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 36
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "row": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "column": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1600
+                  },
+                  "clientKey": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]{22,64}$"
+                  }
+                },
+                "required": [
+                  "connection",
+                  "table",
+                  "row",
+                  "column",
+                  "body",
+                  "clientKey"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "threadId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "sentTo": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "result": {
+                          "type": "object",
+                          "properties": {
+                            "outcome": {
+                              "type": "string",
+                              "enum": [
+                                "queued",
+                                "held",
+                                "refused"
+                              ]
+                            },
+                            "deliveryId": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "opensAt": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "reason": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "outcome",
+                            "deliveryId",
+                            "opensAt",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "threadId",
+                        "sentTo",
+                        "result"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/payments/attempts/{id}/refund": {
       "get": {
         "parameters": [

@@ -196,6 +196,14 @@ const DESCRIPTIONS = {
   search: 'Cross-resource search for the command palette',
   surfaces: 'Hosted app surfaces — placement in the dashboard, and attaching your own domains',
   settings: 'Instance settings — defaults, branding, email, security, telemetry',
+  sms:
+    'Text messages: connecting the business’s own provider account, its sender and default country, checking ' +
+    'the key again, one test text, and removing the account. Every route needs `sms.manage` and a signed-in person',
+  texts:
+    'Customers’ texts and the answers to them: the conversations a person may read (every one with `texts.read` ' +
+    'or `texts.reply`, one app’s with its role’s `texts:@:read` or `texts:@:reply`), one conversation, a reply ' +
+    'through the send path, marking it read, each app’s replies switch (`sms.manage`), and a text to the number ' +
+    'on a record the person reaches. Every read and reply is audited; an API key reaches none of them',
   setup:
     'First-boot super-admin creation, whether setup is still open, the one-time setup token, and — in that same ' +
     'window — checking a database for an Adminium store already in it and adopting that store',

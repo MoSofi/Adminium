@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-/** Two-way text conversations (`80-sms-integration.md` §4.8). */
+/** Two-way text conversations: the replies customers send, and the answers. */
 export { notReadText, NOT_READ_LANGUAGES } from './not-read.js';
 export { TEXTS_READ_ACTION, TEXTS_READ_LABEL, TEXTS_READ_PERMISSION, TEXTS_REPLY_ACTION, TEXTS_REPLY_LABEL, TEXTS_REPLY_PERMISSION } from './permission.js';
 export { textsRoutes, textViewerOf, type RecordPhone, type TextsRoutesDeps } from './routes.js';

@@ -156,7 +156,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/people` | 1 | Names and ids of staff, for picking somebody (an owner, a hand-over) |
 | `/api/v1/permissions` | 1 | The permission catalog every role is built from |
 | `/api/v1/presence` | 1 | Someone is using this dashboard: an empty answer the dashboard asks for once a minute while its person is active, only where the operator set ADMINIUM_PRESENCE=on, for a proxy that counts any request as use |
-| `/api/v1/privacy/*` | 22 | A person’s data by their e-mail address — finding everything kept about them, downloading it as a .zip of JSON and CSV, erasing them in place (with a preview of what goes and what stays), and how long things are kept — plus the privacy notice (business name, notice address), the sender’s postal address and visitor counting (Off, Counts only or Per visitor, and the visitor banner’s words). Needs privacy.manage (only the Super Admin holds it unless granted) and a signed-in person; the postal address needs settings.manage. |
+| `/api/v1/privacy/*` | 24 | A person’s data by their e-mail address — finding everything kept about them, downloading it as a .zip of JSON and CSV, erasing them in place (with a preview of what goes and what stays), and how long things are kept — plus the privacy notice (business name, notice address), the sender’s postal address and visitor counting (Off, Counts only or Per visitor, and the visitor banner’s words). Needs privacy.manage (only the Super Admin holds it unless granted) and a signed-in person; the postal address needs settings.manage. |
 | `/api/v1/project/*` | 11 | A project folder on the server that runs one — which pages and schema customizations differ from the deployed files, settling a page changed on both sides, the changed copies `adminium pull --from` writes into the project, running the project’s actions, the built files of its own pages and widgets, and what Studio shows about the project |
 | `/api/v1/public/*` | 42 | The scoped public API for customer- and staff-facing pages (off by default) |
 | `/api/v1/public-api/*` | 3 | Turn the public API on or off, and see whether this instance opted in |
@@ -171,10 +171,12 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/search` | 1 | Cross-resource search for the command palette |
 | `/api/v1/settings/*` | 15 | Instance settings — defaults, branding, email, security, telemetry |
 | `/api/v1/setup/*` | 5 | First-boot super-admin creation, whether setup is still open, the one-time setup token, and — in that same window — checking a database for an Adminium store already in it and adopting that store |
+| `/api/v1/sms/*` | 6 | Text messages: connecting the business’s own provider account, its sender and default country, checking the key again, one test text, and removing the account. Every route needs `sms.manage` and a signed-in person |
 | `/api/v1/storage/*` | 8 | Where uploaded and generated files are stored — configure destinations (this server’s disk, an S3-compatible bucket, a WebDAV server), test one, choose the default, and move existing files between them |
 | `/api/v1/surfaces/*` | 6 | Hosted app surfaces — placement in the dashboard, and attaching your own domains |
 | `/api/v1/system/*` | 2 | Version and instance information |
 | `/api/v1/teams/*` | 6 | Teams and who leads them: a lead reaches the rows of the people in the team |
+| `/api/v1/texts/*` | 7 | Customers’ texts and the answers to them: the conversations a person may read (every one with `texts.read` or `texts.reply`, one app’s with its role’s `texts:@:read` or `texts:@:reply`), one conversation, a reply through the send path, marking it read, each app’s replies switch (`sms.manage`), and a text to the number on a record the person reaches. Every read and reply is audited; an API key reaches none of them |
 | `/api/v1/users/*` | 11 | People on the server — invite, suspend, delete, assign roles |
 | `/api/v1/views` | 1 | How many times strangers saw a landing page or a form, per day (views, known bots left out; opened and sent for a form on a page), with when counting started. For whoever may read the table the counted rows are in. |
 | `/api/v1/widget-data/*` | 3 | The queries widgets run, singly and in batches |
@@ -1007,6 +1009,8 @@ GET /api/v1/privacy/exports/{id}
 GET /api/v1/privacy/exports/{id}/download
 POST /api/v1/privacy/erase/preview
 POST /api/v1/privacy/erase
+POST /api/v1/privacy/phone/erase/preview
+POST /api/v1/privacy/phone/erase
 ```
 
 ### `/project`
@@ -1194,6 +1198,17 @@ POST /api/v1/setup/probe
 POST /api/v1/setup/adopt
 ```
 
+### `/sms`
+
+```http
+GET /api/v1/sms/setup
+PUT /api/v1/sms/account
+DELETE /api/v1/sms/account
+PUT /api/v1/sms/sending
+POST /api/v1/sms/check
+POST /api/v1/sms/test
+```
+
 ### `/storage`
 
 ```http
@@ -1234,6 +1249,18 @@ PATCH /api/v1/teams/{id}
 DELETE /api/v1/teams/{id}
 PUT /api/v1/teams/{id}/members/{userId}
 DELETE /api/v1/teams/{id}/members/{userId}
+```
+
+### `/texts`
+
+```http
+GET /api/v1/texts/threads
+GET /api/v1/texts/threads/{id}
+POST /api/v1/texts/threads/{id}/replies
+POST /api/v1/texts/threads/{id}/read
+GET /api/v1/texts/replies
+PUT /api/v1/texts/replies/{app}
+POST /api/v1/texts/send
 ```
 
 ### `/users`

@@ -600,7 +600,9 @@ export function createTextThreads(deps: TextThreadsDeps): TextThreads {
 
     async sendToRecord(input) {
       const app = input.app ?? '';
-      const e164 = exact(input.phone, input.country);
+      // A local number is read in the account's own country first, as the send path reads it.
+      const country = (await deps.sms.view())?.defaultCountry ?? input.country;
+      const e164 = exact(input.phone, country);
       if (e164 === null) return { threadId: null, outcome: { outcome: 'refused', reason: 'unreadable-phone' }, masked: null };
       const existing = await store.findThread(await hashesOf(e164), app);
       const lastIn = existing === null ? null : await store.lastIn(existing.id);
@@ -608,7 +610,7 @@ export function createTextThreads(deps: TextThreadsDeps): TextThreads {
       const sent = await send({
         ...input,
         phone: e164,
-        country: input.country,
+        country,
         app,
         answering: since !== null && since <= TEXT_ANSWER_WINDOW_MS,
         waiting: since !== null && since <= TEXT_WAITING_MS,

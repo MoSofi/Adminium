@@ -7,7 +7,7 @@
  */
 import { createHmac, randomUUID } from 'node:crypto';
 
-import { apiKeysRepo, auditRepo, BUILTIN_ROLES, permissionsRepo, rolesRepo, settingsRepo, usersRepo, type User } from '@adminium/meta';
+import { apiKeysRepo, auditRepo, BUILTIN_ROLES, permissionsRepo, rolesRepo, settingsRepo, usersRepo, type EnqueueJobInput, type User } from '@adminium/meta';
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import type { Kysely } from 'kysely';
@@ -94,7 +94,7 @@ describe.each(META_ENGINES)('two-way text conversations — $name', (engine) => 
     channel: SmsInboundChannel;
     core: InboundCore;
     provider: ReturnType<typeof stubProvider>;
-    jobs: { payload: unknown; dedupeKey?: string | undefined }[];
+    jobs: EnqueueJobInput[];
     notices: { threadId: string; app: string | null }[];
     apps: TextApp[];
     /** A text the customer sends, through the signed door, processed. */
@@ -104,7 +104,7 @@ describe.each(META_ENGINES)('two-way text conversations — $name', (engine) => 
     /** Hands every queued text to the provider. */
     handOverAll: () => Promise<void>;
     people: Record<'owner' | 'reader' | 'bistroDesk' | 'bistroReplier' | 'clerk', User>;
-    call: (who: User | null, method: 'GET' | 'POST' | 'PUT', url: string, payload?: object, headers?: Record<string, string>) => ReturnType<FastifyInstance['inject']>;
+    call: (who: User | null, method: 'GET' | 'POST' | 'PUT', url: string, payload?: object, headers?: Record<string, string>) => Promise<Awaited<ReturnType<FastifyInstance['inject']>>>;
     recordPhone: { value: RecordPhone | null };
   }
 
