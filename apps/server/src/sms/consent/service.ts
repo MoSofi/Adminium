@@ -22,7 +22,7 @@
  * does not know its range yet. A real person's STOP is never dropped because
  * our data is older than their number.
  */
-import type { AddressHash, MetaDb } from '@adminium/meta';
+import type { AddressHash, ConsentPerson, MetaDb } from '@adminium/meta';
 
 import { decryptSecret, encryptSecret, SecretFormatError, SecretIntegrityError } from '../../config/secrets.js';
 import { AddressKeysLockedError, addressKeyRing, TEXT_STOP_PHONE_PURPOSE } from '../../consent/keys.js';
@@ -31,7 +31,7 @@ import { parsePhone } from '../../phone/index.js';
 import { maskPhone, redactPhones } from './redact.js';
 import { DOUBLE_OPT_IN_COUNTRIES, judgeBeforeLookup, optOutFor } from './rules.js';
 import { createTextConsentStore, type TextConsentStore } from './store.js';
-import { TEXT_PURPOSES, type TextConsentInput, type TextConsentService, type TextConsentSource, type TextPurpose, type TextStanding, type TextStopReason, type TextStopRecord, type TextStopView, type TextWho } from './types.js';
+import { TEXT_PURPOSES, type TextConsentEvent, type TextConsentInput, type TextConsentScope, type TextConsentService, type TextConsentSource, type TextPurpose, type TextStanding, type TextStopReason, type TextStopRecord, type TextStopView, type TextWho } from './types.js';
 
 export interface TextConsentDeps {
   meta: MetaDb;
@@ -39,8 +39,19 @@ export interface TextConsentDeps {
   secret: string;
   /** Where it is kept; the real tables when left out. */
   store?: TextConsentStore | undefined;
+  /**
+   * The app whose table a row is in, or null for none. Asked only for a scoped
+   * question (`TextConsentScope`); without it, a yes given on a row counts for
+   * that row alone.
+   */
+  appOf?: ((person: ConsentPerson) => Promise<string | null>) | undefined;
   now?: () => number;
 }
+
+/** How far back a scoped question looks for its own yes behind another app's. */
+const SCOPED_LOOKBACK = 200;
+
+const samePerson = (a: ConsentPerson, b: ConsentPerson): boolean => a.connectionId === b.connectionId && a.table === b.table && a.key === b.key;
 
 /** E.164's own shape: what a provider hands over. */
 const E164_SHAPE = /^\+[1-9][0-9]{6,14}$/;
@@ -133,6 +144,40 @@ export function createTextConsentService(deps: TextConsentDeps): TextConsentServ
     return { purpose, state: own.state === 'yes' ? 'yes' : 'no', event: own };
   }
 
+  /** Whether a yes is one this scope counts: no row, the record itself, or a row of the scope's app. */
+  async function counts(event: TextConsentEvent, scope: TextConsentScope, app: () => Promise<string | null>): Promise<boolean> {
+    if (event.person === null) return true;
+    if (scope.record != null && samePerson(event.person, scope.record)) return true;
+    const own = await app();
+    if (own === null || deps.appOf === undefined) return false;
+    return (await deps.appOf(event.person)) === own;
+  }
+
+  /**
+   * The standing, counting only a yes the scope counts. Behind another app's
+   * newer yes, an older one of its own still stands while no no came after it.
+   */
+  async function standingIn(hashes: readonly AddressHash[], person: TextWho['person'], purpose: TextPurpose, scope: TextConsentScope | undefined): Promise<TextStanding> {
+    const standing = await standingOn(hashes, person, purpose);
+    if (scope === undefined || standing.state !== 'yes' || standing.event === null) return standing;
+    let resolved: Promise<string | null> | undefined;
+    const app = (): Promise<string | null> => {
+      resolved ??= scope.app !== undefined ? Promise.resolve(scope.app === '' ? null : scope.app) : scope.record != null && deps.appOf !== undefined ? deps.appOf(scope.record) : Promise.resolve(null);
+      return resolved;
+    };
+    if (await counts(standing.event, scope, app)) return standing;
+    const rowNo = person == null ? null : await store.log.latestNoForPerson(person, purpose);
+    const events = (await store.log.history({ hashes }, SCOPED_LOOKBACK))
+      .filter((event) => event.purpose === purpose && (event.state === 'yes' || event.state === 'no'))
+      // At the same moment, the no first.
+      .sort((a, b) => b.at - a.at || Number(a.state === 'yes') - Number(b.state === 'yes'));
+    for (const event of events) {
+      if (event.state === 'no' || (rowNo !== null && rowNo.at >= event.at)) break;
+      if (await counts(event, scope, app)) return { purpose, state: 'yes', event };
+    }
+    return { purpose, state: 'not-asked', event: null };
+  }
+
   function checkAnswer(input: TextConsentInput & { state: 'yes' | 'no' }): void {
     if (!TEXT_PURPOSES.includes(input.purpose)) throw new ValidationFailedError('That is not a text consent purpose.', { field: 'purpose' });
     if (input.source !== 'form' && input.source !== 'staff' && input.source !== 'person') throw new ValidationFailedError('That source cannot record a text answer.', { field: 'source' });
@@ -157,7 +202,7 @@ export function createTextConsentService(deps: TextConsentDeps): TextConsentServ
         return { send: true, e164: phone.e164, country: phone.country, optOut: optOutFor(phone, request) };
       }
 
-      const standing = await standingOn(hashes, request.person, purpose);
+      const standing = await standingIn(hashes, request.person, purpose, request.scope);
       if (standing.state !== 'yes') return { send: false, reason: 'no-consent' };
       if (request.class === 'marketing' && DOUBLE_OPT_IN_COUNTRIES.has(phone.country) && standing.event?.confirmedAt == null) {
         return { send: false, reason: 'unconfirmed-consent' };
@@ -239,8 +284,8 @@ export function createTextConsentService(deps: TextConsentDeps): TextConsentServ
       return { outcome: 'confirmed', event: confirmed };
     },
 
-    async standing(who, purpose) {
-      return standingOn(await hashesOf(who.phone, who.country), who.person, purpose);
+    async standing(who, purpose, scope) {
+      return standingIn(await hashesOf(who.phone, who.country), who.person, purpose, scope);
     },
 
     async history(who, opts = {}) {

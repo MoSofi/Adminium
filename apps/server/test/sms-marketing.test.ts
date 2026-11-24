@@ -123,8 +123,10 @@ describe.each(LEGS)('marketing texts — %s', (dialect, available) => {
   beforeEach(async () => {
     if (!available) return;
     const db = meta.db as unknown as Kysely<Record<string, Record<string, unknown>>>;
-    for (const table of ['adminium_text_deliveries', 'adminium_text_send_days', 'adminium_text_stop_list', 'adminium_text_consent_log', 'adminium_text_runs', 'adminium_text_run_recipients', 'adminium_text_confirmations', 'adminium_jobs']) await db.deleteFrom(table).execute();
+    for (const table of ['adminium_text_deliveries', 'adminium_text_send_days', 'adminium_text_stop_list', 'adminium_text_consent_log', 'adminium_text_runs', 'adminium_text_run_recipients', 'adminium_text_confirmations', 'adminium_jobs', 'adminium_form_marks']) await db.deleteFrom(table).execute();
     await (h.meta.db as unknown as Kysely<Record<string, Record<string, unknown>>>).deleteFrom('adminium_jobs').execute();
+    // A confirmation mail counts against its address for a day: each case starts with none sent.
+    await (h.meta.db as unknown as Kysely<Record<string, Record<string, unknown>>>).deleteFrom('adminium_form_marks').execute();
     await h.rows(`DELETE FROM ${h.real('guests')}`);
     await settingsRepo(h.meta).unset('system.publicOrigin');
     await settingsRepo(h.meta).unset('email.smtp');

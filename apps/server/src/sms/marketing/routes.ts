@@ -17,7 +17,10 @@
  *   POST /sms/marketing/consent/confirm-in-person a named staff member records that they confirmed in person
  *
  * Mirrors e-mail campaigns: `system:settings:manage` on every route, and the
- * operator's `marketingCampaigns` switch on the send. Texts cost the business
+ * operator's `marketingCampaigns` switch on the send. Texts also spend the
+ * business's money through its provider account, so every route needs
+ * `sms.manage` as well: a role trusted with settings, and deliberately not
+ * with texts, cannot send a run or record a yes. Texts cost the business
  * money, so every change needs a signed-in person, never an API key. The
  * audience is read as that person, so a table, a row or a mobile column their
  * role hides is not theirs to text.
@@ -175,7 +178,7 @@ const recordBody = personSchema
   })
   .strict();
 const requestReply = z.object({
-  data: z.object({ outcome: z.enum(['sent', 'not-yet-available', 'held', 'not-needed', 'already-confirmed', 'no-consent', 'stopped', 'no-phone', 'no-row', 'no-email', 'no-public-origin', 'no-mail-server']) }),
+  data: z.object({ outcome: z.enum(['sent', 'not-yet-available', 'held', 'do-not-email', 'not-needed', 'already-confirmed', 'no-consent', 'stopped', 'no-phone', 'no-row', 'no-email', 'no-public-origin', 'no-mail-server']) }),
 });
 const inPersonBody = personSchema.extend({ how: z.enum(['in-person', 'paper']) }).strict();
 const inPersonReply = z.object({ data: z.object({ outcome: z.enum(['confirmed', 'already', 'not-needed', 'no-consent', 'stopped', 'no-phone', 'no-row', 'superseded']) }) });
@@ -211,7 +214,7 @@ export function textMarketingRoutes(deps: TextMarketingRoutesDeps): FastifyPlugi
 
   return async (app) => {
     tagRoutes(app, 'staff');
-    const manage = app.rbac.require(PERMISSIONS.settingsManage);
+    const manage = [app.rbac.require(PERMISSIONS.settingsManage), app.rbac.require(PERMISSIONS.smsManage)];
 
     app.get('/sms/marketing/setup', { preHandler: manage, schema: { response: { 200: setupReply } } }, async (request) => {
       const userId = signedIn(request);

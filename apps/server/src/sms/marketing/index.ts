@@ -21,6 +21,7 @@ import type { TextConsentService } from '../consent/types.js';
 import type { SmsService } from '../service.js';
 import type { TextPhoneKeys, TextSendPath } from '../send/path.js';
 import type { TextDelivery, TextSendReport } from '../send/types.js';
+import { TEXT_MARKETING_AVAILABLE } from './availability.js';
 import { createTextConfirm, type TextConfirm } from './confirm.js';
 import { textMarketingRoutes } from './routes.js';
 import { createTextRuns, registerTextRunHandler, TEXT_RUN_REPORT_APP, type TextRuns } from './runs.js';
@@ -56,6 +57,8 @@ export interface TextMarketingDeps {
   phoneKeys: TextPhoneKeys;
   enqueue: (job: EnqueueJobInput) => Promise<{ id: string }>;
   viewFor?: ((connectionId: string) => Promise<SnapshotView | null>) | undefined;
+  /** Whether an e-mail address is on the do-not-email list: no confirmation mail goes to it. */
+  mailStopped?: ((address: string) => Promise<boolean>) | undefined;
   logger?: EmailLogger | undefined;
   now?: (() => number) | undefined;
 }
@@ -75,7 +78,7 @@ export interface TextMarketing {
 
 export function createTextMarketing(deps: TextMarketingDeps): TextMarketing {
   const operator = (question: 'smsProviders' | 'marketingCampaigns') => deps.policy.allows(question);
-  const confirm = createTextConfirm({ meta: deps.meta, secret: deps.secret, consent: deps.consent, store: deps.store, phoneKeys: deps.phoneKeys, manager: deps.manager, country: deps.country, viewFor: deps.viewFor, logger: deps.logger, now: deps.now });
+  const confirm = createTextConfirm({ meta: deps.meta, secret: deps.secret, consent: deps.consent, store: deps.store, phoneKeys: deps.phoneKeys, manager: deps.manager, country: deps.country, viewFor: deps.viewFor, mailStopped: deps.mailStopped, logger: deps.logger, now: deps.now });
   const runs = createTextRuns({
     meta: deps.meta,
     secret: deps.secret,
@@ -125,7 +128,9 @@ export function createTextMarketing(deps: TextMarketingDeps): TextMarketing {
       registerTextRunHandler(registry, () => runs);
       registry.registerJobHandler(TEXT_CONFIRM_JOB, confirmPayloadSchema, async (payload) => ({ outcome: await confirm.request({ person: payload }) }), { internal: true });
     },
-    afterFormYes: (person) => deps.enqueue({ kind: TEXT_CONFIRM_JOB, payload: { connectionId: person.connectionId, table: person.table, key: person.key }, runAt: (deps.now ?? Date.now)() + CONFIRM_DELAY_MS, maxAttempts: 3 }),
+    // Nobody is asked to confirm a yes to texts this release does not send.
+    afterFormYes: async (person) =>
+      !TEXT_MARKETING_AVAILABLE ? null : deps.enqueue({ kind: TEXT_CONFIRM_JOB, payload: { connectionId: person.connectionId, table: person.table, key: person.key }, runAt: (deps.now ?? Date.now)() + CONFIRM_DELAY_MS, maxAttempts: 3 }),
     owns: (report) => report.app === TEXT_RUN_REPORT_APP,
     stillWanted: (report, e164) => runs.stillWanted(report, e164),
     settled: (report, delivery) => runs.settled(report, delivery),

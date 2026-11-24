@@ -21,7 +21,7 @@
  */
 import type { AddressHash, ConsentPerson } from '@adminium/meta';
 
-import type { TextClass, TextOptOut, TextRefusal } from '../consent/types.js';
+import type { TextClass, TextConsentScope, TextOptOut, TextRefusal } from '../consent/types.js';
 import type { SmsNotTakenReason, SmsPrice, SmsProviderKey, SmsRefusalReason, SmsSender, SmsUnknownReason } from '../types.js';
 
 export const TEXT_DELIVERY_STATES = ['prepared', 'retrying', 'handing-over', 'accepted', 'provider-failed', 'refused', 'unknown', 'skipped', 'not-sent', 'checked-went', 'checked-not-sent'] as const;
@@ -61,6 +61,10 @@ export type TextSkipReason =
   | 'no-sender'
   | 'off-by-operator'
   | 'daily-limit'
+  /** A marketing text, in a release that does not offer marketing texts yet (`marketing/availability.ts`). */
+  | 'marketing-not-yet-available'
+  /** It waited for its window, and the account's sender changed meanwhile: its last line was written for the old one. */
+  | 'sender-changed'
   /** The send window would hold it past the moment it is about. */
   | 'past-its-moment'
   /** No moment within two weeks has the window open in every time zone. */
@@ -70,8 +74,8 @@ export type TextSkipReason =
   /** What it is about was called off while it waited for its window, or its row no longer holds this number. */
   | 'no-longer-needed';
 
-/** What `prepare` can answer. Calling a text off is only ever found at the hand-over. */
-export type TextPrepareSkipReason = Exclude<TextSkipReason, 'no-longer-needed'>;
+/** What `prepare` can answer. Calling a text off, or a sender changed while it waited, is only ever found at the hand-over. */
+export type TextPrepareSkipReason = Exclude<TextSkipReason, 'no-longer-needed' | 'sender-changed'>;
 
 export type TextNotSentReason = SmsNotTakenReason | 'envelope-unreadable' | 'could-not-check' | 'could-not-queue';
 
@@ -160,9 +164,13 @@ export interface SealedText {
   /** The moment the text is about: it is not sent after this. */
   notAfter: number | null;
   sender: SmsSender;
+  /** The sender is the account's own, as it was at prepare. Absent on a text sealed before this was kept. */
+  accountSender?: boolean | undefined;
   /** The opt-out its last line was written for. */
   optOut: TextOptOut;
   person: ConsentPerson | null;
   /** It answers a person who wrote to the business (`TextRequest.answering`): asked again at the hand-over the same way. */
   answering?: boolean | undefined;
+  /** Whose yes counts for it (`TextConsentScope`): asked again at the hand-over the same way. */
+  scope?: TextConsentScope | undefined;
 }
