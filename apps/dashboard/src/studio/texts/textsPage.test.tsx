@@ -457,6 +457,18 @@ describe('the do-not-text list', () => {
     expect(await screen.findAllByTestId('texts-stop-remove')).toHaveLength(2);
   });
 
+  it('lets the Super Admin lift an erased entry with the number typed again and the words of a fresh yes', async () => {
+    const user = userEvent.setup();
+    const { writes } = mount({ stops: STOPS, roles: ['super-admin'], replies: { 'POST /stop-list/s6/lift-erased': { status: 204, body: null } } });
+    await openTab(user, 'Do-not-text list');
+    await user.click(await screen.findByTestId('texts-stop-lift'));
+    await user.type(screen.getByTestId('texts-stop-lift-phone'), '+12075550111');
+    await user.type(screen.getByTestId('texts-stop-lift-words'), 'Text me about my lessons');
+    await user.type(screen.getByTestId('texts-stop-lift-version'), 'v2');
+    await user.click(screen.getByTestId('texts-stop-lift-yes'));
+    await waitFor(() => expect(writes()).toEqual([{ method: 'POST', url: '/api/v1/sms/stop-list/s6/lift-erased', body: { phone: '+12075550111', purpose: 'text-service', how: 'in-person', wording: { text: 'Text me about my lessons', version: 'v2' } } }]));
+  });
+
   it('gives a desk a look-up of one number, never the list', async () => {
     const user = userEvent.setup();
     const { calls } = mount({ actions: ['privacy.people'], stops: STOPS, replies: { 'POST /stop-list/lookup': [{ status: 200, body: { data: STOPS[0] } }, { status: 200, body: { data: null } }] } });

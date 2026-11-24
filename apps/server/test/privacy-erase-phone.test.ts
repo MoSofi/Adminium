@@ -180,6 +180,8 @@ for (const [dialect, reachable] of LEGS) {
       await auditRepo(s.meta).append({ actorKind: 'user', actorId: s.ids['owner']!, actorLabel: 'Owner', category: 'settings', action: 'note.add', changes: { after: { note: 'Unrelated words stay' } } });
 
       eventId = await seedNumber(SAM, 'sam');
+      // Ben, on the shared line, agreed to texts at the desk, on his own row.
+      await createTextConsentService({ meta: s.meta, secret: TEST_SECRET }).record({ phone: SAM, person: { connectionId: s.connectionId, table: s.t('members'), key: '3' }, purpose: 'text-service', state: 'yes', source: 'staff', staff: { id: s.ids['pia']!, label: 'Pia' }, wording: { text: 'Text Ben about his table', version: 'b1' } });
       otherEventId = await seedNumber(NEAR, 'near');
       await seedNumber(KIM, 'kim');
       const jobs = jobsRepo(s.meta);
@@ -216,9 +218,20 @@ for (const [dialect, reachable] of LEGS) {
       expect(data.goes.find((item) => item.kind === 'people')?.count).toBe(2);
       expect(data.goes.filter((item) => item.kind === 'copy').reduce((sum, item) => sum + item.count, 0)).toBe(3);
       expect(data.goes.find((item) => item.kind === 'consent')?.count).toBe(1);
-      expect(data.goes.find((item) => item.kind === 'text-records')?.count).toBe(2);
+      // The number is also on Ben's row: a shared line. Its delivery and its stored event are not Sam's alone, so they stay.
+      expect(data.goes.find((item) => item.kind === 'text-records')).toBeUndefined();
+      expect((data as unknown as { sharedNumbers: string[] }).sharedNumbers).toEqual(['+49 ••• 789']);
       expect(data.stays).toEqual([expect.objectContaining({ kind: 'app-rows', reason: 'tax', count: 1 })]);
       expect((await member(1))['name']).toBe('Sam Walkin');
+    });
+
+    it('warns, erasing by address, that a number on their row is also another person\'s', async () => {
+      const res = await s.send('pia', 'POST', '/api/v1/privacy/erase/preview', { address: 'ben@household.example' });
+      expect(res.statusCode, res.body).toBe(200);
+      replies.push(res.body);
+      expect((res.json() as { data: { sharedNumbers: string[] } }).data.sharedNumbers).toEqual(['+49 ••• 789']);
+      const kim = await s.send('pia', 'POST', '/api/v1/privacy/erase/preview', { address: 'kim@shop.example' });
+      expect((kim.json() as { data: { sharedNumbers: string[] } }).data.sharedNumbers).toEqual([]);
     });
 
     it('downloads everything by phone and by address, with the text records of every number on their rows', async () => {
@@ -242,6 +255,8 @@ for (const [dialect, reachable] of LEGS) {
       const byPhone = await download('/api/v1/privacy/phone/exports', { phone: SAM_TYPED });
       expect(Object.keys(byPhone).filter((name) => name.endsWith('.json')).sort()).toEqual(expect.arrayContaining(['texts-consent.json', 'texts-deliveries.json', 'texts-messages.json', 'texts-stop-list.json']));
       expect(byPhone['texts-consent.json']).toContain('Text me about my order');
+      // Ben's yes on the shared line is Ben's.
+      expect(byPhone['texts-consent.json']).not.toContain('Text Ben about his table');
       expect(byPhone['texts-messages.json']).toContain('Is my order ready?');
       expect(byPhone['texts-stop-list.json']).toContain('"reason": "staff"');
       // The rows that hold the number are theirs to see too; a near number is not.
@@ -262,8 +277,12 @@ for (const [dialect, reachable] of LEGS) {
       const res = await erase('pia', SAM_TYPED, SAM);
       expect(res.statusCode, res.body).toBe(200);
       const counts = (res.json() as { data: { counts: Record<string, number> } }).data.counts;
-      // The consent rows: the form's yes, and the two noes the stop request the download test recorded wrote.
-      expect(counts).toMatchObject({ 'text-stop-list': 1, 'text-consent': 3, 'text-conversations': 2, 'inbound-events': 1, 'text-deliveries': 1, 'text-errors': 1 });
+      // The consent rows: the form's yes, and the two noes the stop request the download test recorded wrote. A shared
+      // line: the number's stored event and delivery stay, and so does the conversation, which is about no row of Sam's.
+      expect(counts).toMatchObject({ 'text-stop-list': 1, 'text-consent': 3, 'text-errors': 1 });
+      expect(counts['inbound-events']).toBeUndefined();
+      expect(counts['text-deliveries']).toBeUndefined();
+      expect(counts['text-conversations']).toBeUndefined();
 
       // Their own rows are emptied and kept.
       for (const key of [1, 2]) {
@@ -301,9 +320,11 @@ for (const [dialect, reachable] of LEGS) {
       expect(stop).toHaveLength(1);
       // The stop request recorded before keeps its reason, and loses its number.
       expect(stop[0]).toMatchObject({ phoneEncrypted: null, reason: 'staff' });
-      expect(await db.selectFrom('adminium_text_consent_log').select('id').where('phoneHash', 'in', hashes).execute()).toEqual([]);
-      expect(await db.selectFrom('adminium_text_deliveries').select('id').where('phoneHash', 'in', hashes).execute()).toEqual([]);
-      expect(await db.selectFrom('adminium_inbound_events').selectAll().where('id', '=', eventId).executeTakeFirstOrThrow()).toMatchObject({ state: 'erased', sealedBody: null, subjectHash: null });
+      // Only Ben's yes is left on the number, with its words.
+      const left = await db.selectFrom('adminium_text_consent_log').select(['personKey', 'wording']).where('phoneHash', 'in', hashes).execute();
+      expect(left).toEqual([{ personKey: '3', wording: 'Text Ben about his table' }]);
+      expect(await db.selectFrom('adminium_text_deliveries').select('id').where('phoneHash', 'in', hashes).execute()).toHaveLength(1);
+      expect((await db.selectFrom('adminium_inbound_events').select('state').where('id', '=', eventId).executeTakeFirstOrThrow()).state).toBe('pending');
       expect((await db.selectFrom('adminium_jobs').select('lastError').where('id', '=', quotedJob).executeTakeFirstOrThrow()).lastError).toBeNull();
 
       // Somebody else's records stay.

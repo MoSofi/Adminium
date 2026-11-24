@@ -4819,7 +4819,9 @@
       "leftSub": "Ces colonnes ne peuvent pas être vidées, leur contenu reste :",
       "leftRows": "{count, plural, one {# ligne} other {# lignes}}",
       "confirm": "Saisissez l’adresse pour confirmer",
-      "eraseForGood": "Effacer définitivement"
+      "eraseForGood": "Effacer définitivement",
+      "sharedTitle": "Un de ses numéros figure aussi sur la ligne de quelqu’un d’autre",
+      "sharedBody": "{numbers} : une ligne partagée ou transmise. Seules ses propres données SMS sont supprimées. Les SMS et conversations du numéro avec l’autre personne restent."
     },
     "title": "Confidentialité et pages publiques",
     "tab": {
@@ -6834,7 +6836,8 @@
       "asked": {
         "email": "Par e-mail",
         "inPerson": "En personne",
-        "phone": "Par téléphone"
+        "phone": "Par téléphone",
+        "paper": "Sur papier"
       },
       "line": "Personne sur cette liste ne reçoit de SMS de cette entreprise, y compris les SMS de service.",
       "noConfirm": "Pas de confirmation par SMS, car cette personne s’est adressée directement à l’entreprise.",
@@ -6859,7 +6862,17 @@
       "deskWhy": "Recherchez un numéro à la fois. La liste complète contient les clients de toutes les applications : seule la personne qui gère les SMS la voit.",
       "lookup": "Rechercher",
       "lookupNone": "Ce numéro n’est pas sur la liste.",
-      "lookupFound": "Sur la liste depuis le {date} : {why}."
+      "lookupFound": "Sur la liste depuis le {date} : {why}.",
+      "liftTitle": "Envoyer de nouveau des SMS à une personne effacée ?",
+      "liftWhy": "Uniquement pour un numéro qui a changé de main ou qui est partagé, quand son titulaire a de nouveau accepté les SMS. Saisissez le numéro et les mots qu’il a acceptés : ils sont conservés à votre nom.",
+      "liftFailed": "Rien n’a été levé. Vérifiez qu’il s’agit bien du numéro pour lequel cette entrée a été conservée.",
+      "liftPurpose": "A accepté",
+      "liftService": "SMS de service",
+      "liftMarketing": "SMS marketing",
+      "liftWords": "Les mots acceptés",
+      "liftVersion": "Version de ces mots",
+      "lift": "Enregistrer l’accord et lever",
+      "liftOpen": "Lever"
     },
     "tab": {
       "activity": "Activité",

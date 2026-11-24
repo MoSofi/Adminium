@@ -231,6 +231,9 @@ export interface TextThreads {
   /** Every thread and message of this number. */
   eraseFor(e164: string): Promise<{ threads: number; messages: number }>;
   countFor(e164: string): Promise<{ threads: number; messages: number }>;
+  /** On a shared line: only the threads of this number about one of these records, and their messages. */
+  eraseForRecords(e164: string, records: readonly TextThreadRecordRef[]): Promise<{ threads: number; messages: number }>;
+  countForRecords(e164: string, records: readonly TextThreadRecordRef[]): Promise<{ threads: number; messages: number }>;
   /** Whether any thread or answer mark is kept, so the clean-up has work. */
   any(): Promise<boolean>;
 }
@@ -722,6 +725,14 @@ export function createTextThreads(deps: TextThreadsDeps): TextThreads {
 
     async countFor(e164) {
       return store.countFor(await hashesOf(e164));
+    },
+
+    async eraseForRecords(e164, records) {
+      return store.eraseForRecords(await hashesOf(e164), records);
+    },
+
+    async countForRecords(e164, records) {
+      return store.countForRecords(await hashesOf(e164), records);
     },
 
     async any() {

@@ -4819,7 +4819,9 @@
       "leftSub": "这些列无法清空，因此其中的内容会保留：",
       "leftRows": "{count, plural, other {# 行}}",
       "confirm": "输入地址以确认",
-      "eraseForGood": "永久删除"
+      "eraseForGood": "永久删除",
+      "sharedTitle": "其某个号码也在他人的记录中",
+      "sharedBody": "{numbers}：共用或已转给他人的号码。只删除其本人的短信记录。该号码与另一人的短信和对话会保留。"
     },
     "title": "隐私与公开页面",
     "tab": {
@@ -6834,7 +6836,8 @@
       "asked": {
         "email": "通过邮件",
         "inPerson": "当面",
-        "phone": "通过电话"
+        "phone": "通过电话",
+        "paper": "纸质"
       },
       "line": "名单中的人不会收到此商家的任何短信，包括服务短信。",
       "noConfirm": "不发送确认短信，因为此人是直接向商家提出的。",
@@ -6859,7 +6862,17 @@
       "deskWhy": "每次查询一个号码。完整名单包含所有应用的客户，因此只有管理短信的人才能看到。",
       "lookup": "查询",
       "lookupNone": "此号码不在名单上。",
-      "lookupFound": "自 {date} 起在名单上：{why}。"
+      "lookupFound": "自 {date} 起在名单上：{why}。",
+      "liftTitle": "再次向已删除的人发送短信？",
+      "liftWhy": "仅适用于已易主或共用的号码，且其持有人已再次同意接收短信。请输入号码及其同意的文字：它们会以你的名义保存。",
+      "liftFailed": "未能解除。请检查该号码是否就是此条目所记录的号码。",
+      "liftPurpose": "同意接收",
+      "liftService": "服务短信",
+      "liftMarketing": "营销短信",
+      "liftWords": "其同意的文字",
+      "liftVersion": "这些文字的版本",
+      "lift": "记录同意并解除",
+      "liftOpen": "解除"
     },
     "tab": {
       "activity": "动态",

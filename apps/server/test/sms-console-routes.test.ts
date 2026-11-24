@@ -328,6 +328,22 @@ describe('Texts console routes', () => {
       expect((await call(desk, 'POST', '/sms/stop-list', { phone: 'not a number', asked: 'phone' })).statusCode).toBe(422);
     });
 
+    it('lets only the Super Admin lift an erased person\'s entry, with a fresh named yes, audited by the mask', async () => {
+      await consent.erase({ phone: '+12075550169' });
+      const id = (await consent.stop.entryFor('+12075550169', null))!.id;
+      const body = { phone: '+12075550169', purpose: 'text-service', wording: { text: 'Text me about my lessons', version: 'd2' }, how: 'in-person' };
+      expect((await call(owner, 'DELETE', `/sms/stop-list/${id}`)).statusCode).toBe(409);
+      expect((await call(manager, 'POST', `/sms/stop-list/${id}/lift-erased`, body)).statusCode).toBe(403);
+      expect((await call(desk, 'POST', `/sms/stop-list/${id}/lift-erased`, body)).statusCode).toBe(403);
+      expect((await call(owner, 'POST', `/sms/stop-list/${id}/lift-erased`, { ...body, phone: '+12075550170' })).statusCode).toBe(409);
+      expect((await call(owner, 'POST', `/sms/stop-list/${id}/lift-erased`, { ...body, wording: { text: '', version: 'd2' } })).statusCode).toBe(400);
+      expect((await call(owner, 'POST', `/sms/stop-list/${id}/lift-erased`, body)).statusCode).toBe(204);
+      expect(await consent.stop.has('+12075550169', null)).toBe(false);
+      const audit = JSON.stringify((await auditRepo(meta).list({ limit: 10 })).filter((row) => row.action === 'sms.stop.erased-lifted'));
+      expect(audit).toContain('+1 ••• 169');
+      expect(audit).not.toContain('2075550169');
+    });
+
     it('lets only the Super Admin take a number off', async () => {
       const id = (await call(desk, 'POST', '/sms/stop-list', { phone: '+12075550169', asked: 'phone' })).json().data.id as string;
       expect((await call(manager, 'DELETE', `/sms/stop-list/${id}`)).statusCode).toBe(403);

@@ -4829,7 +4829,9 @@ export default {
       "leftSub": "Disse kolonner kan ikke tømmes, så deres indhold bliver:",
       "leftRows": "{count, plural, one {# række} other {# rækker}}",
       "confirm": "Skriv adressen for at bekræfte",
-      "eraseForGood": "Slet for altid"
+      "eraseForGood": "Slet for altid",
+      "sharedTitle": "Et af deres numre står også på en anden persons række",
+      "sharedBody": "{numbers}: et delt eller videregivet nummer. Kun deres egne sms-data slettes. Nummerets sms’er og samtaler med den anden person bliver."
     },
     "title": "Privatliv & offentlige sider",
     "tab": {
@@ -6844,7 +6846,8 @@ export default {
       "asked": {
         "email": "På e-mail",
         "inPerson": "Personligt",
-        "phone": "I telefonen"
+        "phone": "I telefonen",
+        "paper": "På papir"
       },
       "line": "Ingen her får nogen sms fra denne virksomhed, heller ikke service-sms’er.",
       "noConfirm": "Ingen bekræftelse på sms, fordi personen bad virksomheden direkte.",
@@ -6869,7 +6872,17 @@ export default {
       "deskWhy": "Slå ét nummer op ad gangen. Hele listen rummer alle apps’ kunder, så kun den, der administrerer sms’er, kan se den.",
       "lookup": "Slå op",
       "lookupNone": "Dette nummer er ikke på listen.",
-      "lookupFound": "På listen siden {date}: {why}."
+      "lookupFound": "På listen siden {date}: {why}.",
+      "liftTitle": "Sende sms’er til en slettet person igen?",
+      "liftWhy": "Kun for et nummer, der har skiftet ejer eller deles, når indehaveren igen har sagt ja til sms’er. Skriv nummeret og de ord, vedkommende sagde ja til: De gemmes under dit navn.",
+      "liftFailed": "Dette blev ikke ophævet. Tjek, at det er det nummer, denne post blev gemt for.",
+      "liftPurpose": "Har sagt ja til",
+      "liftService": "Service-sms’er",
+      "liftMarketing": "Markedsførings-sms’er",
+      "liftWords": "De ord, de sagde ja til",
+      "liftVersion": "Version af disse ord",
+      "lift": "Gem ja’et og ophæv",
+      "liftOpen": "Ophæv"
     },
     "tab": {
       "activity": "Aktivitet",

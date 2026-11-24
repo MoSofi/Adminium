@@ -148,6 +148,14 @@ export function EraseDialog({ address, onClose, onErased }: { address: string; o
                 })}
               </ul>
             </div>
+            {(preview.data.sharedNumbers ?? []).length === 0 ? null : (
+              <Alert
+                tone="warn"
+                data-testid="erase-shared-numbers"
+                title={t('studio:privacy.erase.sharedTitle', 'A number of theirs is also on someone else’s row')}
+                body={t('studio:privacy.erase.sharedBody', '{numbers}: a shared or passed-on line. Only their own text records go. The texts and conversations of the number with the other person stay.', { numbers: (preview.data.sharedNumbers ?? []).join(', ') })}
+              />
+            )}
             {left.length === 0 ? null : (
               <div className="flex flex-col gap-1" data-testid="erase-left">
                 <span className={`${MICRO} text-warn`}>{t('studio:privacy.erase.leftLabel', 'Left as it is')}</span>

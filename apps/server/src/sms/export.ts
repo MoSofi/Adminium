@@ -5,7 +5,8 @@
  * number they were asked for by).
  *
  *   texts-consent     each yes and no to texts, with the words they were shown,
- *                     where it came from, and when
+ *                     where it came from, and when: theirs, and the number's
+ *                     rows that name nobody, never another person's
  *   texts-stop-list   the stop entry of each number, when there is one
  *   texts-messages    their conversations, every message in clear
  *   texts-deliveries  each text sent to the number: when, which app and
@@ -110,13 +111,17 @@ export function createTextExport(deps: TextExportDeps): TextExport {
 
       const consent: Record<string, unknown>[] = [];
       const seen = new Set<string>();
+      // Theirs: the rows on their own rows, and the number's rows that name nobody. Another person's yes on a
+      // shared line, with its address and words, is that person's.
+      const theirs = new Set(targets.flatMap((one) => (one.person === null ? [] : [JSON.stringify([one.person.connectionId, one.person.table, one.person.key])])));
+      const isTheirs = (event: TextConsentEvent): boolean => event.person === null || theirs.has(JSON.stringify([event.person.connectionId, event.person.table, event.person.key]));
       for (const target of targets) {
         const e164 = deps.exact(target.phone, country);
         // Narrowed: only the rows on their own row. Whole: by the number as well.
         if (!whole && target.person === null) continue;
         const events = await deps.consent.history({ phone: whole ? e164 : null, country, person: target.person }, { limit: 500 });
         for (const event of events) {
-          if (seen.has(event.id)) continue;
+          if (seen.has(event.id) || !isTheirs(event)) continue;
           seen.add(event.id);
           consent.push(consentRow(e164, event));
         }

@@ -4819,7 +4819,9 @@
       "leftSub": "這些欄無法清空，因此其中的內容會保留：",
       "leftRows": "{count, plural, other {# 列}}",
       "confirm": "輸入地址以確認",
-      "eraseForGood": "永久刪除"
+      "eraseForGood": "永久刪除",
+      "sharedTitle": "其某個號碼也在他人的記錄中",
+      "sharedBody": "{numbers}：共用或已轉給他人的號碼。只刪除其本人的簡訊記錄。該號碼與另一人的簡訊和對話會保留。"
     },
     "title": "隱私與公開頁面",
     "tab": {
@@ -6834,7 +6836,8 @@
       "asked": {
         "email": "電子郵件",
         "inPerson": "當面",
-        "phone": "電話"
+        "phone": "電話",
+        "paper": "紙本"
       },
       "line": "名單上的人不會收到這個商家的任何簡訊，包括服務簡訊。",
       "noConfirm": "不以簡訊確認，因為此人是直接向商家提出要求。",
@@ -6859,7 +6862,17 @@
       "deskWhy": "每次查詢一個號碼。完整名單包含所有應用程式的客戶，因此只有管理簡訊的人才能看到。",
       "lookup": "查詢",
       "lookupNone": "此號碼不在名單上。",
-      "lookupFound": "自 {date} 起在名單上：{why}。"
+      "lookupFound": "自 {date} 起在名單上：{why}。",
+      "liftTitle": "再次向已刪除的人傳送簡訊？",
+      "liftWhy": "僅適用於已易主或共用的號碼，且其持有人已再次同意接收簡訊。請輸入號碼及其同意的文字：它們會以你的名義保存。",
+      "liftFailed": "未能解除。請檢查該號碼是否就是此項目所記錄的號碼。",
+      "liftPurpose": "同意接收",
+      "liftService": "服務簡訊",
+      "liftMarketing": "行銷簡訊",
+      "liftWords": "其同意的文字",
+      "liftVersion": "這些文字的版本",
+      "lift": "記錄同意並解除",
+      "liftOpen": "解除"
     },
     "tab": {
       "activity": "活動",

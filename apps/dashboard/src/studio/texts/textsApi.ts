@@ -240,6 +240,11 @@ export async function dismissFailed(id: string): Promise<void> {
   await api.post(`${BASE}/inbound/failed/${encodeURIComponent(id)}/dismiss`);
 }
 
+/** An erased person's entry, lifted by the Super Admin with a fresh yes they gave a named person, in its words. */
+export async function liftErasedStop(id: string, body: { phone: string; purpose: 'text-service' | 'text-marketing'; wording: { text: string; version: string }; how: 'in-person' | 'phone' | 'email' | 'paper' }): Promise<void> {
+  await api.post(`${BASE}/stop-list/${encodeURIComponent(id)}/lift-erased`, body);
+}
+
 export async function removeStop(id: string): Promise<void> {
   await api.delete(`${BASE}/stop-list/${encodeURIComponent(id)}`);
 }

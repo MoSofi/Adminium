@@ -4829,7 +4829,9 @@ export default {
       "leftSub": "Tyto sloupce nelze vyprázdnit, jejich obsah zůstane:",
       "leftRows": "{count, plural, one {# řádek} few {# řádky} many {# řádku} other {# řádků}}",
       "confirm": "Pro potvrzení zadejte adresu",
-      "eraseForGood": "Vymazat natrvalo"
+      "eraseForGood": "Vymazat natrvalo",
+      "sharedTitle": "Jedno z jejich čísel je i v řádku někoho jiného",
+      "sharedBody": "{numbers}: sdílená nebo předaná linka. Smažou se jen jejich vlastní SMS záznamy. SMS a konverzace čísla s druhou osobou zůstanou."
     },
     "title": "Soukromí a veřejné stránky",
     "tab": {
@@ -6844,7 +6846,8 @@ export default {
       "asked": {
         "email": "E-mailem",
         "inPerson": "Osobně",
-        "phone": "Telefonicky"
+        "phone": "Telefonicky",
+        "paper": "Na papíře"
       },
       "line": "Nikdo z tohoto seznamu nedostane od této firmy žádnou SMS, ani servisní.",
       "noConfirm": "Bez potvrzení přes SMS, protože tato osoba požádala firmu přímo.",
@@ -6869,7 +6872,17 @@ export default {
       "deskWhy": "Vyhledávejte po jednom čísle. Celý seznam obsahuje zákazníky všech aplikací, proto ho vidí jen ten, kdo spravuje SMS.",
       "lookup": "Vyhledat",
       "lookupNone": "Toto číslo na seznamu není.",
-      "lookupFound": "Na seznamu od {date}: {why}."
+      "lookupFound": "Na seznamu od {date}: {why}.",
+      "liftTitle": "Znovu posílat SMS vymazané osobě?",
+      "liftWhy": "Jen pro číslo, které změnilo majitele nebo je sdílené, když jeho držitel znovu souhlasil se SMS. Zadejte číslo a slova, se kterými souhlasil: uloží se pod vaším jménem.",
+      "liftFailed": "Nic nebylo zrušeno. Zkontrolujte, že jde o číslo, pro které byl tento záznam uložen.",
+      "liftPurpose": "Souhlasil(a) s",
+      "liftService": "Servisní SMS",
+      "liftMarketing": "Marketingové SMS",
+      "liftWords": "Slova, se kterými souhlasili",
+      "liftVersion": "Verze těchto slov",
+      "lift": "Uložit souhlas a zrušit",
+      "liftOpen": "Zrušit"
     },
     "tab": {
       "activity": "Aktivita",

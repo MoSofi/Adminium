@@ -4819,7 +4819,9 @@
       "leftSub": "Diese Spalten können nicht geleert werden, ihr Inhalt bleibt:",
       "leftRows": "{count, plural, one {# Zeile} other {# Zeilen}}",
       "confirm": "Geben Sie zur Bestätigung die Adresse ein",
-      "eraseForGood": "Endgültig löschen"
+      "eraseForGood": "Endgültig löschen",
+      "sharedTitle": "Eine ihrer Nummern steht auch bei jemand anderem",
+      "sharedBody": "{numbers}: eine geteilte oder weitergegebene Nummer. Nur ihre eigenen SMS-Daten werden gelöscht. Die SMS und Unterhaltungen der Nummer mit der anderen Person bleiben."
     },
     "title": "Datenschutz & öffentliche Seiten",
     "tab": {
@@ -6834,7 +6836,8 @@
       "asked": {
         "email": "Per E-Mail",
         "inPerson": "Persönlich",
-        "phone": "Telefonisch"
+        "phone": "Telefonisch",
+        "paper": "Auf Papier"
       },
       "line": "Niemand auf dieser Liste erhält eine SMS von diesem Unternehmen, auch keine Service-SMS.",
       "noConfirm": "Keine Bestätigung per SMS, weil diese Person sich direkt an das Unternehmen gewandt hat.",
@@ -6859,7 +6862,17 @@
       "deskWhy": "Schlagen Sie eine Nummer nach der anderen nach. Die ganze Liste enthält die Kunden aller Apps, darum sieht sie nur, wer die SMS verwaltet.",
       "lookup": "Nachschlagen",
       "lookupNone": "Diese Nummer steht nicht auf der Liste.",
-      "lookupFound": "Auf der Liste seit {date}: {why}."
+      "lookupFound": "Auf der Liste seit {date}: {why}.",
+      "liftTitle": "Einer gelöschten Person wieder SMS senden?",
+      "liftWhy": "Nur für eine Nummer, die den Besitzer gewechselt hat oder geteilt wird, wenn ihr Inhaber wieder in SMS eingewilligt hat. Geben Sie die Nummer und die Worte ein, denen er zugestimmt hat: Sie werden unter Ihrem Namen gespeichert.",
+      "liftFailed": "Nicht aufgehoben. Prüfen Sie, ob es die Nummer ist, für die dieser Eintrag gespeichert wurde.",
+      "liftPurpose": "Eingewilligt in",
+      "liftService": "Service-SMS",
+      "liftMarketing": "Marketing-SMS",
+      "liftWords": "Die Worte, denen sie zugestimmt haben",
+      "liftVersion": "Version dieser Worte",
+      "lift": "Einwilligung speichern und aufheben",
+      "liftOpen": "Aufheben"
     },
     "tab": {
       "activity": "Aktivität",

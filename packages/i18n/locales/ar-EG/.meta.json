@@ -38143,6 +38143,14 @@
     "status": "mt",
     "srcHash": "230aba2a132f"
   },
+  "studio.privacy.erase.sharedBody": {
+    "status": "mt",
+    "srcHash": "b130dba7a415"
+  },
+  "studio.privacy.erase.sharedTitle": {
+    "status": "mt",
+    "srcHash": "f96a0e617af4"
+  },
   "studio.privacy.erase.stays.automationRuns": {
     "status": "mt",
     "srcHash": "6668e6a5beeb"
@@ -46211,6 +46219,10 @@
     "status": "mt",
     "srcHash": "fb95e850a658"
   },
+  "studio.texts.stop.asked.paper": {
+    "status": "mt",
+    "srcHash": "370e3f5868d5"
+  },
   "studio.texts.stop.asked.phone": {
     "status": "mt",
     "srcHash": "0737ba24a8bd"
@@ -46286,6 +46298,46 @@
   "studio.texts.stop.how": {
     "status": "mt",
     "srcHash": "e27e611ac70c"
+  },
+  "studio.texts.stop.lift": {
+    "status": "mt",
+    "srcHash": "31b8605eb679"
+  },
+  "studio.texts.stop.liftFailed": {
+    "status": "mt",
+    "srcHash": "2ee4b2bdbb6a"
+  },
+  "studio.texts.stop.liftMarketing": {
+    "status": "mt",
+    "srcHash": "20f46524f9e8"
+  },
+  "studio.texts.stop.liftOpen": {
+    "status": "mt",
+    "srcHash": "efd0976a0ad5"
+  },
+  "studio.texts.stop.liftPurpose": {
+    "status": "mt",
+    "srcHash": "373f650885f5"
+  },
+  "studio.texts.stop.liftService": {
+    "status": "mt",
+    "srcHash": "f72a083dcc7a"
+  },
+  "studio.texts.stop.liftTitle": {
+    "status": "mt",
+    "srcHash": "72935eec44cf"
+  },
+  "studio.texts.stop.liftVersion": {
+    "status": "mt",
+    "srcHash": "3f81c0249b32"
+  },
+  "studio.texts.stop.liftWhy": {
+    "status": "mt",
+    "srcHash": "0bf1edce8815"
+  },
+  "studio.texts.stop.liftWords": {
+    "status": "mt",
+    "srcHash": "f9bcae8ce117"
   },
   "studio.texts.stop.line": {
     "status": "mt",

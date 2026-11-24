@@ -12,6 +12,7 @@
  *   POST   /sms/stop-list/lookup        whether one number is on it
  *   POST   /sms/stop-list               record a stop request a person made to the business
  *   DELETE /sms/stop-list/:id           take a number off (Super Admin only)
+ *   POST   /sms/stop-list/:id/lift-erased   an erased person's entry, with a fresh named yes (Super Admin only)
  *   GET    /sms/text-templates          the installed text templates, every language
  *   PUT    /sms/text-templates/:key/:locale     change one language's words
  *   DELETE /sms/text-templates/:key/:locale     empty one language, so it falls back to US English
@@ -31,7 +32,7 @@
  * number only by its mask, a page by its count and filter.
  */
 import { TEXT_TEMPLATE_BODY_MAX, checkTextTemplate } from '@adminium/manifest';
-import { settingsRepo, textTemplatesRepo, type MetaDb } from '@adminium/meta';
+import { CONSENT_HOWS, settingsRepo, textTemplatesRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -46,7 +47,7 @@ import { privacyScopeOf, type PrivacyScope } from '../privacy/scope.js';
 import { tagRoutes } from '../security/route-audience.js';
 import { maskPhone } from './consent/redact.js';
 import { SMS_INBOUND_CHANNEL } from './inbound/index.js';
-import { TEXT_STOP_REASONS, type TextConsentService, type TextStopView } from './consent/types.js';
+import { TEXT_PURPOSES, TEXT_STOP_REASONS, type TextConsentService, type TextStopView } from './consent/types.js';
 import { dayKey, MAX_TEXT_DAILY_LIMIT, readTextPolicy, warningAt } from './send/policy.js';
 import type { TextSendPath } from './send/path.js';
 import type { TextSendStore } from './send/store.js';
@@ -148,6 +149,15 @@ const STOP_ASKED = ['phone', 'email', 'in-person'] as const;
 const stopBody = z.object({ phone: z.string().min(1).max(64), asked: z.enum(STOP_ASKED) }).strict();
 const stopAddReply = z.object({ data: stopView, added: z.boolean() });
 const lookupBody = z.object({ phone: z.string().min(1).max(64) }).strict();
+/** The number typed again, and the fresh yes the person gave, in the words they were shown. */
+const liftBody = z
+  .object({
+    phone: z.string().min(1).max(64),
+    purpose: z.enum(TEXT_PURPOSES),
+    wording: z.object({ text: z.string().min(1).max(2000), version: z.string().min(1).max(40) }).strict(),
+    how: z.enum(CONSENT_HOWS),
+  })
+  .strict();
 const lookupReply = z.object({ data: stopView.nullable() });
 
 const failedView = z
@@ -459,6 +469,32 @@ export function smsConsoleRoutes(deps: SmsConsoleRoutesDeps): FastifyPluginAsync
         if (outcome === 'missing') throw new NotFoundError('That number is not on the list.');
         if (outcome === 'erased') throw new ConflictError('An erased person stays on the list, so they are never texted again.', 'CONFLICT', { reason: 'erased' });
         await app.rbac.audit(request, { category: 'settings', action: 'sms.stop.removed', changes: { before: { id: request.params.id } } });
+        return reply.status(204).send(null);
+      },
+    );
+
+    app.post(
+      '/sms/stop-list/:id/lift-erased',
+      {
+        preHandler: manage,
+        config: { audit: audited('rbac') },
+        schema: { params: z.object({ id: z.string().min(1).max(64) }), body: liftBody, response: { 204: z.null() } },
+      },
+      async (request, reply) => {
+        const staff = personOf(request);
+        // An erased person's entry: only the Super Admin, and only with a fresh yes they gave a named person, in its words.
+        if (!(await app.rbac.resolve(request)).superAdmin) throw new ForbiddenError('Only a Super Admin can take an erased person’s number off the do-not-text list.', 'FORBIDDEN', { reason: 'super-admin' });
+        const country = (await deps.service.view())?.defaultCountry ?? null;
+        const outcome = await deps.consent.stop.liftErased({ id: request.params.id, phone: request.body.phone, country, purpose: request.body.purpose, wording: request.body.wording, how: request.body.how, staff });
+        if (outcome === 'missing') throw new NotFoundError('That number is not on the list.');
+        if (outcome === 'not-erased') throw new ConflictError('This entry still has its number: take it off with Remove.', 'CONFLICT', { reason: 'not-erased' });
+        if (outcome === 'other-number') throw new ConflictError('That is not the number this entry was kept for.', 'CONFLICT', { reason: 'other-number' });
+        const typed = parsePhone(request.body.phone, country);
+        await app.rbac.audit(request, {
+          category: 'settings',
+          action: 'sms.stop.erased-lifted',
+          changes: { before: { id: request.params.id }, after: { to: maskPhone(typed.ok ? typed.e164 : null), purpose: request.body.purpose, how: request.body.how, wordingVersion: request.body.wording.version } },
+        });
         return reply.status(204).send(null);
       },
     );

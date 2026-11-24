@@ -384,6 +384,44 @@ export function createTextConsentService(deps: TextConsentDeps): TextConsentServ
         return (await store.stop.remove(id)) ? 'removed' : 'missing';
       },
 
+      async liftErased(input) {
+        const entry = await store.stop.byId(input.id);
+        if (entry === null) return 'missing';
+        if (entry.phoneEncrypted !== null) return 'not-erased';
+        if (!TEXT_PURPOSES.includes(input.purpose)) throw new ValidationFailedError('That is not a text consent purpose.', { field: 'purpose' });
+        if (input.wording.text.trim() === '' || input.wording.version.trim() === '') throw new ValidationFailedError('A yes to texts keeps the words the person was shown, and their version.', { field: 'wording' });
+        // A yes is about one number we can read.
+        const phone = parsePhone(input.phone, input.country ?? null);
+        if (!phone.ok) throw notAPhone();
+        const subject = textSubject(phone.e164);
+        const hashes = await ring.hashesOf(subject);
+        if (!hashes.some((one) => one.hash === entry.phone.hash && one.version === entry.phone.version)) return 'other-number';
+        const hash = await ring.hashForWrite(subject);
+        const at = input.at ?? now();
+        await store.transaction(async (tx) => {
+          await tx.log.append({
+            person: null,
+            phone: hash,
+            purpose: input.purpose,
+            state: 'yes',
+            source: 'staff',
+            detail: null,
+            how: input.how ?? null,
+            note: null,
+            staffId: input.staff.id,
+            staffLabel: input.staff.label,
+            wording: input.wording.text,
+            wordingVersion: input.wording.version,
+            ip: null,
+            userAgent: null,
+            at,
+            confirmedAt: null,
+          });
+          await tx.stop.remove(entry.id);
+        });
+        return 'lifted';
+      },
+
       async has(phone, country) {
         const e164 = exactNumber(phone, country);
         // A value that names no exact number is not known to be free.

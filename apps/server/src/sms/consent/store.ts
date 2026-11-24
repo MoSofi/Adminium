@@ -76,6 +76,10 @@ export interface TextConsentStore {
     /** The newest no on this row, whichever number it was given for. */
     latestNoForPerson(person: ConsentPerson, purpose: TextPurpose): Promise<TextConsentEvent | null>;
     history(who: { person?: ConsentPerson | null | undefined; hashes: readonly AddressHash[] }, limit: number): Promise<TextConsentEvent[]>;
+    /**
+     * An erasure's: the rows on this person's row, and the rows of these numbers that name no person (STOP, START,
+     * a no kept for a number alone). Another person's yes on the same number stays, with its words and address.
+     */
     deleteFor(who: { person?: ConsentPerson | null | undefined; hashes: readonly AddressHash[] }): Promise<number>;
   };
   transaction<T>(work: (store: TextConsentStore) => Promise<T>): Promise<T>;
@@ -290,7 +294,12 @@ function storeOver(db: Kysely<TextTables>, dialect: MetaDb['dialect']): TextCons
         if (who.person == null && who.hashes.length === 0) return 0;
         const result = await db
           .deleteFrom('adminium_text_consent_log')
-          .where((eb) => whoWhere(eb, who))
+          .where((eb) =>
+            eb.or([
+              ...(who.person == null ? [] : [personIs(eb, who.person, dialect)]),
+              ...(who.hashes.length === 0 ? [] : [eb.and([eb.or(hashIn(eb, who.hashes)), eb('personKey', 'is', null)])]),
+            ]),
+          )
           .executeTakeFirst();
         return Number(result.numDeletedRows);
       },

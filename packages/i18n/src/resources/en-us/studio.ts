@@ -4829,7 +4829,9 @@ export default {
       "leftSub": "These columns can’t be emptied, so what they hold stays:",
       "leftRows": "{count, plural, one {# row} other {# rows}}",
       "confirm": "Type the address to confirm",
-      "eraseForGood": "Erase for good"
+      "eraseForGood": "Erase for good",
+      "sharedTitle": "A number of theirs is also on someone else’s row",
+      "sharedBody": "{numbers}: a shared or passed-on line. Only their own text records go. The texts and conversations of the number with the other person stay."
     },
     "title": "Privacy & public pages",
     "tab": {
@@ -6844,7 +6846,8 @@ export default {
       "asked": {
         "email": "By e-mail",
         "inPerson": "In person",
-        "phone": "By phone"
+        "phone": "By phone",
+        "paper": "On paper"
       },
       "line": "Nobody here gets any text from this business, including service texts.",
       "noConfirm": "No confirmation by text, because this person asked the business directly.",
@@ -6869,7 +6872,17 @@ export default {
       "deskWhy": "Look up one number at a time. The whole list holds every app’s customers, so only whoever manages texts sees it.",
       "lookup": "Look up",
       "lookupNone": "This number is not on the list.",
-      "lookupFound": "On the list since {date}: {why}."
+      "lookupFound": "On the list since {date}: {why}.",
+      "liftTitle": "Text an erased person again?",
+      "liftWhy": "Only for a number that changed hands or is shared, when its holder has agreed to texts again. Type the number, and the words they agreed to: they are kept under your name.",
+      "liftFailed": "This was not lifted. Check that the number is the one this entry was kept for.",
+      "liftPurpose": "They agreed to",
+      "liftService": "Service texts",
+      "liftMarketing": "Marketing texts",
+      "liftWords": "The words they agreed to",
+      "liftVersion": "Version of those words",
+      "lift": "Record the yes and lift",
+      "liftOpen": "Lift"
     },
     "tab": {
       "activity": "Activity",
