@@ -130794,6 +130794,7 @@
                             "sent",
                             "not-yet-available",
                             "held",
+                            "do-not-email",
                             "not-needed",
                             "already-confirmed",
                             "no-consent",

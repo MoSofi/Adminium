@@ -2052,6 +2052,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     phoneKeys: textPhoneKeys(meta, env.ADMINIUM_SECRET),
     enqueue: (job) => jobs.enqueue(job),
     viewFor: (connectionId) => publicViews.viewFor(connectionId),
+    // The mail door's do-not-email list: a confirmation mail never goes to an address on it.
+    mailStopped: (address) => consent.stop.has(address),
     logger: app.log,
   });
   textMarketing.registerJobs(jobs.registry);

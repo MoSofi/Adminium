@@ -57,6 +57,8 @@ export interface TextMarketingDeps {
   phoneKeys: TextPhoneKeys;
   enqueue: (job: EnqueueJobInput) => Promise<{ id: string }>;
   viewFor?: ((connectionId: string) => Promise<SnapshotView | null>) | undefined;
+  /** Whether an e-mail address is on the do-not-email list: no confirmation mail goes to it. */
+  mailStopped?: ((address: string) => Promise<boolean>) | undefined;
   logger?: EmailLogger | undefined;
   now?: (() => number) | undefined;
 }
@@ -76,7 +78,7 @@ export interface TextMarketing {
 
 export function createTextMarketing(deps: TextMarketingDeps): TextMarketing {
   const operator = (question: 'smsProviders' | 'marketingCampaigns') => deps.policy.allows(question);
-  const confirm = createTextConfirm({ meta: deps.meta, secret: deps.secret, consent: deps.consent, store: deps.store, phoneKeys: deps.phoneKeys, manager: deps.manager, country: deps.country, viewFor: deps.viewFor, logger: deps.logger, now: deps.now });
+  const confirm = createTextConfirm({ meta: deps.meta, secret: deps.secret, consent: deps.consent, store: deps.store, phoneKeys: deps.phoneKeys, manager: deps.manager, country: deps.country, viewFor: deps.viewFor, mailStopped: deps.mailStopped, logger: deps.logger, now: deps.now });
   const runs = createTextRuns({
     meta: deps.meta,
     secret: deps.secret,

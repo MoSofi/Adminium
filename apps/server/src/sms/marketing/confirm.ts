@@ -29,10 +29,23 @@
  * ─── When the mail goes ───────────────────────────────────────────────────
  * After a public form records a marketing yes (`people/consent-writes.ts`,
  * through a short job so the row it wrote is there to read), and when staff
- * ask for it again. At most one a day per number. A mail needs this server's
- * public address and a mail server, as every mail a stranger causes does
- * (`forms/mail.ts`); without them nothing is queued, and the console says so.
+ * ask for it again. At most one a day per number, and one a day per e-mail
+ * address: a stranger can fill a public form many times with one victim's
+ * address and a fresh number each time, and the address cap is what stops
+ * that becoming a flood of the business's mail. The address is counted under
+ * its keyed hash, as the forms' own confirmation mail counts it, and a mail
+ * that could not be queued still counts. An address on the do-not-email list
+ * gets none. A mail needs this server's public address and a mail server, as
+ * every mail a stranger causes does (`forms/mail.ts`); without them nothing is
+ * queued, and the console says so. None goes at all while marketing texts are
+ * not offered (`availability.ts`).
+ *
+ * It goes as service mail: it is the one message that asks for consent, so it
+ * cannot need a marketing yes of its own. That is why the two checks above are
+ * made here, where a marketing mail would have its consent check.
  */
+import { createHmac } from 'node:crypto';
+
 import { settingsRepo, type ConsentHow, type ConsentPerson, type MetaDb } from '@adminium/meta';
 
 import { looksLikeAddress } from '../../consent/index.js';
@@ -48,12 +61,14 @@ import { storedPublicOrigin } from '../../email/door-reach.js';
 import { postalAddressOf } from '../../email/sender/marketing-settings.js';
 import { enqueueEmail, TEXT_MARKETING_CONFIRM_TEMPLATE_KEY, type EmailLogger } from '../../email/send.js';
 import { resolveMailSender } from '../../email/workspace-sender.js';
+import { createFormCaps } from '../../forms/caps.js';
 import { firstNameOf, formsMailBlocked } from '../../forms/mail.js';
 import { recipientLocale } from '../../i18n/server-i18n.js';
 import { pkOfRowKey } from '../../payments/payables.js';
 import { peopleTablesOf } from '../../people/tables-of.js';
 import { parsePhone } from '../../phone/index.js';
 import { businessName } from '../../privacy/business.js';
+import { capKey, mailboxOf } from '../../public-api/anonymous-caps.js';
 import { normaliseAddress } from '../../public-api/claim-code.js';
 import { maskPhone } from '../consent/redact.js';
 import { DOUBLE_OPT_IN_COUNTRIES } from '../consent/rules.js';
@@ -64,6 +79,9 @@ import type { TextMarketingStore } from './store.js';
 import { TEXT_MARKETING_AVAILABLE } from './availability.js';
 
 const DAY_MS = 24 * 60 * 60_000;
+/** Confirmation mails one e-mail address may get in a day, whatever number each is about. */
+export const TEXT_CONFIRM_MAILS_PER_ADDRESS_DAY = 1;
+const ADDRESS_CAP_PURPOSE = 'text-confirm';
 
 export interface TextConfirmDeps {
   meta: MetaDb;
@@ -77,6 +95,12 @@ export interface TextConfirmDeps {
   country: () => Promise<string | null>;
   /** A database's current schema; the snapshot when absent. */
   viewFor?: ((connectionId: string) => Promise<SnapshotView | null>) | undefined;
+  /**
+   * Whether an e-mail address is on the do-not-email list: the mail door's own
+   * answer, handed in, because nothing in `sms/` reads the e-mail consent store.
+   * Absent, nothing is known to be stopped.
+   */
+  mailStopped?: ((address: string) => Promise<boolean>) | undefined;
   logger?: EmailLogger | undefined;
   now?: (() => number) | undefined;
 }
@@ -113,8 +137,10 @@ export type ConfirmRequestOutcome =
   | 'sent'
   /** This release does not offer marketing texts yet, so nobody is asked to confirm one. */
   | 'not-yet-available'
-  /** One went to this number in the last day. */
+  /** One went to this number, or to this e-mail address, in the last day. */
   | 'held'
+  /** Their e-mail address is on the do-not-email list. */
+  | 'do-not-email'
   /** The number's country does not expect it. */
   | 'not-needed'
   | 'already-confirmed'
@@ -147,6 +173,14 @@ export function createTextConfirm(deps: TextConfirmDeps) {
   const { meta, store, consent } = deps;
   const now = deps.now ?? Date.now;
   const key = textConfirmKey(deps.secret);
+  const addressKey = capKey(deps.secret);
+  const caps = createFormCaps(meta, addressKey);
+
+  /** Takes this address's one mail of the day; false when it is used. */
+  function takeAddress(address: string, at: number): Promise<boolean> {
+    const subject = `text-confirm:${createHmac('sha256', addressKey).update(mailboxOf(address.trim().toLowerCase())).digest('hex')}`;
+    return caps.once(subject, ADDRESS_CAP_PURPOSE, TEXT_CONFIRM_MAILS_PER_ADDRESS_DAY, DAY_MS, at);
+  }
 
   async function install(): Promise<string> {
     const id = await settingsRepo(meta).get('system.instanceId');
@@ -258,9 +292,14 @@ export function createTextConfirm(deps: TextConfirmDeps) {
     if (held.state !== 'yes' || held.event === null) return 'no-consent';
     if (held.event.confirmedAt !== null) return 'already-confirmed';
     if (facts.email === null) return 'no-email';
+    if ((await deps.mailStopped?.(facts.email)) === true) return 'do-not-email';
     const at = now();
     const hashes = await deps.phoneKeys.all(number.e164);
     if ((await store.confirmations.latestFor(hashes, at - DAY_MS)) !== null) return 'held';
+    // A server that cannot mail spends nobody's day: what it says is what is wrong.
+    const blocked = await formsMailBlocked(meta, deps.secret);
+    if (blocked !== null) return blocked;
+    if (!(await takeAddress(facts.email, at))) return 'held';
     const locale = facts.locale ?? (await recipientLocale(meta, null));
     const masked = maskPhone(number.e164);
     const row = await store.confirmations.create(

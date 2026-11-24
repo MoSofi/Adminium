@@ -175,7 +175,7 @@ const recordBody = personSchema
   })
   .strict();
 const requestReply = z.object({
-  data: z.object({ outcome: z.enum(['sent', 'not-yet-available', 'held', 'not-needed', 'already-confirmed', 'no-consent', 'stopped', 'no-phone', 'no-row', 'no-email', 'no-public-origin', 'no-mail-server']) }),
+  data: z.object({ outcome: z.enum(['sent', 'not-yet-available', 'held', 'do-not-email', 'not-needed', 'already-confirmed', 'no-consent', 'stopped', 'no-phone', 'no-row', 'no-email', 'no-public-origin', 'no-mail-server']) }),
 });
 const inPersonBody = personSchema.extend({ how: z.enum(['in-person', 'paper']) }).strict();
 const inPersonReply = z.object({ data: z.object({ outcome: z.enum(['confirmed', 'already', 'not-needed', 'no-consent', 'stopped', 'no-phone', 'no-row', 'superseded']) }) });

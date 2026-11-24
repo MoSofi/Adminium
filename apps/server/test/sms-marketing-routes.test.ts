@@ -192,5 +192,32 @@ for (const [dialect, reachable] of LEGS) {
       expect(done).toEqual({ status: 'succeeded', lastError: null });
       expect((await s.emails()).filter((one) => one.templateKey === 'text-marketing-confirm')).toEqual([]);
     });
+
+    it('one address gets one confirmation mail a day, whatever number each is for, and none on the do-not-email list', async () => {
+      expect(said(await s.send('owner', 'PUT', '/api/v1/sms/sending', { sender: { kind: 'number', value: '+14155550100' }, defaultCountry: 'GB' }))).toBe('ok');
+      // Each read takes what is new: the count is kept here.
+      let seen = 0;
+      const mails = async () => (seen += (await s.emails()).filter((one) => one.templateKey === 'text-marketing-confirm' && one.to === 'victim@stays.example').length);
+      // A stranger fills the form again and again: one victim's address, a fresh German number each time.
+      const keys: string[] = [];
+      for (const mobile of ['+4915123456711', '+4915123456712', '+4915123456713']) {
+        const made = await s.make('owner', 'guests', { name: 'Vic Tim', mobile, email: 'victim@stays.example', language: 'de' });
+        expect(made.statusCode, made.body).toBeLessThan(300);
+        keys.push(String((made.json() as { data: { id: unknown } }).data.id));
+      }
+      const person = (key: string) => ({ connectionId: s.connectionId, table: table(), key });
+      for (const key of keys) expect(said(await s.send('owner', 'POST', '/api/v1/sms/marketing/consent', { ...person(key), how: 'phone', wording: WORDING }))).toBe('ok');
+      expect(await mails()).toBe(1);
+      expect(data(await s.send('owner', 'POST', '/api/v1/sms/marketing/consent/confirm-request', person(keys[1]!)))).toEqual({ outcome: 'held' });
+      expect(await mails()).toBe(1);
+
+      // An address that asked for no mail gets none, whatever a form says.
+      const stopped = await s.make('owner', 'guests', { name: 'Nora Nomail', mobile: '+4915123456714', email: 'nomail@stays.example', language: 'de' });
+      const nora = person(String((stopped.json() as { data: { id: unknown } }).data.id));
+      expect(said(await s.send('owner', 'POST', '/api/v1/consent/stop-list', { addresses: ['nomail@stays.example'] }))).toBe('ok');
+      await s.send('owner', 'POST', '/api/v1/sms/marketing/consent', { ...nora, how: 'phone', wording: WORDING });
+      expect(data(await s.send('owner', 'POST', '/api/v1/sms/marketing/consent/confirm-request', nora))).toEqual({ outcome: 'do-not-email' });
+      expect((await s.emails()).filter((one) => one.to === 'nomail@stays.example')).toEqual([]);
+    });
   });
 }
