@@ -4,6 +4,7 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/manifest/public-access--filters.md` | Public access — Filters | 835 |
 | `references/manifest/public-access--windows-on-a-moment.md` | Public access — Windows on a moment | 2049 |
 | `references/manifest/public-access--a-person-s-own-rows.md` | Public access — A person's own rows | 7450 |
 | `references/manifest/public-access--rows-visible-with-their-parent.md` | Public access — Rows visible with their parent | 2567 |
@@ -11,6 +12,7 @@
 | `references/manifest/public-access--dry-runs-price-checks-and-retries.md` | Public access — Dry runs, price checks and retries | 1764 |
 | `references/manifest/public-access--a-person-found-by-address.md` | Public access — A person found by address | 2051 |
 | `references/manifest/public-access--a-consent-tick.md` | Public access — A consent tick | 1834 |
+| `references/manifest/public-access--a-box-for-texts.md` | Public access — A box for texts | 2186 |
 | `references/manifest/public-access--a-row-s-own-link.md` | Public access — A row's own link | 3677 |
 | `references/manifest/public-access--delete-my-details.md` | Public access — Delete my details | 1801 |
 | `references/manifest/public-access--reads-for-a-signed-in-guest.md` | Public access — Reads for a signed-in guest | 556 |
@@ -23,7 +25,7 @@
 | `references/manifest/public-access--availability.md` | Public access — Availability | 1991 |
 | `references/manifest/public-access--limits-on-a-stranger-s-create.md` | Public access — Limits on a stranger's create | 4808 |
 | `references/manifest/public-access--publickeys.md` | Public access — publicKeys | 3463 |
-| `references/manifest/automations.md` | Automations | 7120 |
+| `references/manifest/automations.md` | Automations | 7675 |
 | `references/manifest/automations-2.md` | Automations (part 2) | 1062 |
 | `references/manifest/automations--a-notice-in-the-reader-s-language.md` | Automations — A notice in the reader's language | 1558 |
 | `references/manifest/automations--the-lead-of-the-person-on-the-row.md` | Automations — The lead of the person on the row | 1413 |
@@ -51,7 +53,7 @@
 | `references/manifest/a-self-made-app--a-table-s-real-name-and-schema.md` | A self-made app — A table's real name and schema | 1029 |
 | `references/manifest/a-self-made-app--columns-under-their-own-names.md` | A self-made app — Columns under their own names | 932 |
 | `references/manifest/a-self-made-app--apps-requires.md` | A self-made app — `apps.requires` | 1407 |
-| `references/manifest/a-self-made-app--instance.md` | A self-made app — `instance` | 2351 |
+| `references/manifest/a-self-made-app--instance.md` | A self-made app — `instance` | 2455 |
 | `references/manifest/a-self-made-app--reports-invoicelayouts-and-scheduledreports.md` | A self-made app — `reports`, `invoiceLayouts` and `scheduledReports` | 1310 |
 | `references/manifest/a-self-made-app--payments.md` | A self-made app — `payments` | 6915 |
 | `references/manifest/add-on-manifests.md` | Add-on manifests | 5803 |
@@ -71,7 +73,5 @@
 | `references/manifest/add-on-manifests--what-a-typed-code-may-find.md` | Add-on manifests — What a typed code may find | 1966 |
 | `references/manifest/add-on-manifests--live-chat.md` | Add-on manifests — Live chat | 7102 |
 | `references/manifest/add-on-manifests--live-chat-2.md` | Add-on manifests — Live chat (part 2) | 1486 |
-| `references/manifest/add-on-manifests--landing-pages.md` | Add-on manifests — Landing pages | 7632 |
-| `references/manifest/add-on-manifests--landing-pages-2.md` | Add-on manifests — Landing pages (part 2) | 3553 |
 
 More: `references/manifest/INDEX-3.md`

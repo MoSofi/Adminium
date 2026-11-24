@@ -42,8 +42,12 @@
 | `surveyLinks` | no | The kinds whose template prints `{{survey_link}}`: a forms add-on's survey invitations; see [A survey's link](https://docs.adminium.dev/reference/manifest/#a-surveys-link). Needs Adminium 0.3.40. |
 | `reviewLinks` | no | `{ "kinds", "link", "page" }`: the kinds whose template prints `{{reviewLink}}`, a link that reviews one row; see [Bookings in a calendar](https://docs.adminium.dev/guides/apps/booking-calendars/). Needs Adminium 0.3.71. |
 | `producers` | no | Up to 32 rules that queue rows by themselves (more than 24 needs Adminium 0.3.62). See below. |
+| `channels` | no | `{ "<kind>": "sms" }`: the kinds sent as [texts](https://docs.adminium.dev/reference/manifest/#texts). A kind not named is email. Needs Adminium 0.3.76. |
+| `waiting` | no | The text kinds a customer is waiting for right now, which may go outside the sending hours; see [Text kinds in the outbox](https://docs.adminium.dev/reference/manifest/#text-kinds-in-the-outbox). Needs Adminium 0.3.76. |
 
-**`recipient`** is `{ "via", "table", "email", "name"?, "language"?, "optIn"?, "fallback"? }`.
+**`recipient`** is `{ "via", "table", "email", "name"?, "language"?, "optIn"?, "phone"?, "fallback"? }`.
+`phone` is the mobile number a [text](https://docs.adminium.dev/reference/manifest/#texts) kind goes to (Adminium 0.3.76), and an outbox whose
+every kind is a text may leave out `email`.
 `via` is the outbox's foreign key to the person, `table` the person's table, and the rest are its
 columns: `email`, `name` and `language` are `text`, and `optIn` is a bool the person sets (false
 means nothing from a producer that asks `optIn`). `language` may instead be `{ "column" }`, a `text`
@@ -54,19 +58,3 @@ must be named); otherwise the person's language is. `fallback` is `{ "via", "ema
 comes from when `via` is empty. Its `via` is another foreign key of the outbox, and its columns
 belong to the table that key points at; a first visit by someone not yet on file carries their
 details on the visit itself.
-
-**Producers.** Each has a `kind` (a key of `kinds`) and a `link`, the outbox's foreign-key column
-that points at the row the message is about and must be one of `links`. Optionally `module`, the
-[part](https://docs.adminium.dev/reference/manifest/#parts) of the app the email belongs to (nothing is queued while it is off), `gate` and
-`optIn: true` (needs `recipient.optIn`: a person who opted out gets nothing). `gate: "enabled"`
-pauses the producer while the settings row's `settings.enabled` bool is false;
-`gate: { "setting": { "table", "column" } }` pauses it while that bool of the settings row is false,
-so each notice can have its own switch; `gate: { "feature": "<id>" }` sends only while one of the
-app's [`addOns.features`](https://docs.adminium.dev/reference/manifest/#add-ons) is on (a receipt, while Invoices & Receipts is attached);
-`gate: { "feature": "<id>", "setting": { "table", "column" } }` queues only while both hold: the
-feature is on AND that bool of the settings row is true (a receipt, while Invoices & Receipts is
-attached and the manager's switch is on). Each half is checked as it is alone. Every gate is judged
-when the message is queued: a message already waiting (held, or due later) still goes when the
-gate closes after it was queued, unless its `dropWhen` drops it. A message of the kind sent from a
-[new link](https://docs.adminium.dev/reference/manifest/#a-rows-own-link) or a "Send it again" is judged by the same gate, and a kind held for
-approval (`hold: true`) cannot be sent from a link at all. Then exactly one of:
