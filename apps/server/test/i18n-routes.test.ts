@@ -218,6 +218,21 @@ describe('i18n routes', () => {
     expect(blanked.json().error.message).toMatch(/accessible name/i);
   });
 
+  it('never lists or takes an override of the words the server puts in a text', async () => {
+    const listed = await t.app.inject({ method: 'GET', url: '/api/v1/i18n/keys?locale=de_DE&namespace=email&state=all&limit=200&q=texts.', headers: asUser(t.superAdmin) });
+    expect(listed.statusCode).toBe(200);
+    expect((listed.json().items as { key: string }[]).filter((row) => row.key.startsWith('texts.'))).toEqual([]);
+    const searched = await t.app.inject({ method: 'GET', url: `/api/v1/i18n/keys?locale=de_DE&namespace=email&state=all&limit=200&q=${encodeURIComponent('STOP')}`, headers: asUser(t.superAdmin) });
+    expect((searched.json().items as { key: string }[]).some((row) => row.key.startsWith('texts.'))).toBe(false);
+    const written = await put({ locale: 'de_DE', namespace: 'email', key: 'texts.stopConfirmed', value: 'Sie sind abgemeldet. Wollen Sie ein Angebot?' });
+    expect(written.statusCode).toBe(422);
+    expect(written.json().error.message).toMatch(/fixed/i);
+    const bulk = await t.app.inject({ method: 'POST', url: '/api/v1/i18n/keys/bulk', headers: asUser(t.superAdmin), payload: { items: [{ locale: 'de_DE', namespace: 'email', key: 'texts.optOut.reply', value: 'Schreiben Sie uns.' }] } });
+    expect(bulk.json().written).toBe(0);
+    expect(bulk.json().rejected).toHaveLength(1);
+    expect(await translationsRepo(t.meta).get({ locale: 'de_DE', namespace: 'email', key: 'texts.optOut.reply' })).toBeNull();
+  });
+
   it('reports item-wise rejections in a bulk write instead of failing the batch', async () => {
     const res = await t.app.inject({
       method: 'POST',
@@ -399,6 +414,15 @@ describe('i18n transfer', () => {
       headers: asUser(t.superAdmin),
       payload,
     });
+
+  it('refuses to import the words the server puts in a text', async () => {
+    const exported = await exportLocale('de_DE');
+    const imported = await importLocale('de_DE', { ...(exported.json() as Record<string, unknown>), entries: { email: { 'texts.optOut.reply': 'Schreiben Sie uns.' } } });
+    expect(imported.statusCode).toBe(200);
+    expect(imported.json().written).toBe(0);
+    expect(JSON.stringify(imported.json().rejected)).toContain('texts.optOut.reply');
+    expect(await translationsRepo(t.meta).get({ locale: 'de_DE', namespace: 'email', key: 'texts.optOut.reply' })).toBeNull();
+  });
 
   it('round-trips a locale', async () => {
     await t.app.inject({

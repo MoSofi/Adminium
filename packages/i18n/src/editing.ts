@@ -23,6 +23,8 @@ export {
 
 export { A11Y_CRITICAL_KEYS, isA11yCriticalKey } from './a11y-keys.js';
 
+export { isFixedKey } from './fixed-keys.js';
+
 export { validateMessage } from './validate-message.js';
 export type {
   MessageValidation,

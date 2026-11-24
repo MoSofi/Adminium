@@ -45,6 +45,7 @@ import {
 import {
   flattenBundle,
   isA11yCriticalKey,
+  isFixedKey,
   keyGroup,
   sourceIndex,
   sourceMessage,
@@ -261,6 +262,7 @@ export function i18nRoutes(deps: I18nRoutesDeps): FastifyPluginAsyncZod {
   }): Promise<string | null> {
     const source = sourceMessage(input.namespace, input.key);
     if (source === null) return `Unknown key ${input.namespace}:${input.key}.`;
+    if (isFixedKey(input.namespace, input.key)) return 'These words are fixed: the server sends them as they ship, so they cannot be changed here.';
 
     if (input.value === '' && isA11yCriticalKey(input.namespace, input.key)) {
       // No CI gate in this repo can observe a blanked accessible name — the
@@ -346,6 +348,8 @@ export function i18nRoutes(deps: I18nRoutesDeps): FastifyPluginAsyncZod {
         const bundle = index.get(ns);
         if (bundle === undefined) continue;
         for (const [key, source] of bundle) {
+          // Words the server reads from the catalogue alone: an override of them would change nothing.
+          if (isFixedKey(ns, key)) continue;
           const g = keyGroup(key);
           groupCounts.set(g, (groupCounts.get(g) ?? 0) + 1);
           if (group !== undefined && g !== group) continue;
