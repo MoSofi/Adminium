@@ -133,7 +133,9 @@ export default {
     "stopDesc": "Diesen Lauf hier beenden",
     "document": "Dokument erstellen",
     "digest": "Jeder Person eine Übersicht senden",
-    "digestDesc": "Je eine E-Mail mit den eigenen Zeilen"
+    "digestDesc": "Je eine E-Mail mit den eigenen Zeilen",
+    "text": "SMS senden",
+    "textDesc": "Eine kurze SMS aus einer SMS-Vorlage"
   },
   "node": {
     "email": {
@@ -184,6 +186,10 @@ export default {
     },
     "digest": {
       "summary": "{template} · {count, plural, one {# Abschnitt} other {# Abschnitte}}"
+    },
+    "text": {
+      "sub": "Vorlage · auswählen",
+      "summary": "SMS · {template} → {to}"
     }
   },
   "event": {
@@ -574,5 +580,21 @@ export default {
     "budget": "Bis zu 50 Abfragen am Tag für Regeln, je Register.",
     "pick": "Register · eines wählen",
     "summary": "Leere Angaben aus {registers}"
+  },
+  "text": {
+    "characters": "Zeichen",
+    "checked": "Beim Senden werden Einwilligung, Keine-SMS-Liste, Sendezeiten und das heutige Limit geprüft. Eine SMS, die nicht gehen darf, wird übersprungen, und der Lauf geht weiter.",
+    "estimate": "Schätzung, für einen Beispieldatensatz",
+    "fillWith": "Ein Text oder eine Spalte des Datensatzes",
+    "noMoment": "Kein Zeitpunkt: senden, sobald die Sendezeiten es erlauben",
+    "noProvider": "Verbinden Sie zuerst unter SMS einen Anbieter.",
+    "noTemplates": "Noch keine App hat eine SMS-Vorlage installiert.",
+    "notAfter": "Nie senden nach",
+    "openTexts": "SMS öffnen",
+    "segments": "Segmente",
+    "standard": "Standard",
+    "template": "SMS-Vorlage",
+    "to": "Spalte mit der Telefonnummer",
+    "unicode": "Unicode"
   }
 } as const;

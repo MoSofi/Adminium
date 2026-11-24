@@ -171,7 +171,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/search` | 1 | Cross-resource search for the command palette |
 | `/api/v1/settings/*` | 15 | Instance settings — defaults, branding, email, security, telemetry |
 | `/api/v1/setup/*` | 5 | First-boot super-admin creation, whether setup is still open, the one-time setup token, and — in that same window — checking a database for an Adminium store already in it and adopting that store |
-| `/api/v1/sms/*` | 6 | Text messages through the business’s own Twilio or Telnyx account — the provider card, its key check, sending rules, a test text and the daily limit (Super Admin unless granted) |
+| `/api/v1/sms/*` | 16 | Text messages: the business’s own Twilio or Telnyx account, its sender, the daily limit and sending hours, Activity, the do-not-text list and text templates. Changes need a signed-in person, never an API key |
 | `/api/v1/storage/*` | 8 | Where uploaded and generated files are stored — configure destinations (this server’s disk, an S3-compatible bucket, a WebDAV server), test one, choose the default, and move existing files between them |
 | `/api/v1/surfaces/*` | 6 | Hosted app surfaces — placement in the dashboard, and attaching your own domains |
 | `/api/v1/system/*` | 2 | Version and instance information |
@@ -1206,6 +1206,16 @@ DELETE /api/v1/sms/account
 PUT /api/v1/sms/sending
 POST /api/v1/sms/check
 POST /api/v1/sms/test
+GET /api/v1/sms/sending-limits
+PUT /api/v1/sms/sending-limits
+GET /api/v1/sms/deliveries
+POST /api/v1/sms/deliveries/{id}/settle
+GET /api/v1/sms/stop-list
+POST /api/v1/sms/stop-list
+DELETE /api/v1/sms/stop-list/{id}
+GET /api/v1/sms/text-templates
+PUT /api/v1/sms/text-templates/{key}/{locale}
+DELETE /api/v1/sms/text-templates/{key}/{locale}
 ```
 
 ### `/storage`

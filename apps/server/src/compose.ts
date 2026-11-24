@@ -2046,8 +2046,14 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     store: sms.deliveries,
     secret: env.ADMINIUM_SECRET,
     phoneKeys: textPhoneKeys(meta, env.ADMINIUM_SECRET),
-    // The console's own setting comes with its page. Until then, the defaults: 500 a day, 08:00 to 21:00, counted in UTC.
-    policy: async () => null,
+    // Studio → Texts → Setup's limit and hours. A value that cannot be read is the defaults: 500 a day, 08:00 to 21:00, counted in UTC.
+    policy: async () => {
+      try {
+        return await settingsRepo(meta).get('sms.sendPolicy');
+      } catch {
+        return null;
+      }
+    },
     repliesReachUs: async () => (await sms.channel.replyReach()).canReceiveStop,
     operatorAllows: () => app.trialPolicy.allows('smsProviders').allowed,
     enqueue: (job) => jobs.enqueue(job),
@@ -2767,6 +2773,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           runner: { storage, hub: jobs.hub, writes: recordWrites, leadSources: companyFillDeps, ledgers, texts: () => sms.texts ?? undefined },
           // The steps installed add-ons give: offered in the builder, judged at the save, read again by a test run.
           installs: () => addOnInstalls.fresh(),
+          // A Send text step says "connect a provider first" when none is.
+          textsConnected: async () => (await sms.service.view())?.keyReadable === true,
         }),
       );
       await api.register(automationRunsRoutes({ meta }));
@@ -3006,6 +3014,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(mailNoticeRoutes({ meta, secret: env.ADMINIUM_SECRET, consent, networkFeatures: env.ADMINIUM_NETWORK_FEATURES, desktop: env.ADMINIUM_RUNTIME === 'desktop', trustProxy: env.ADMINIUM_TRUST_PROXY }));
       // Studio → Text messages, and the door a provider hands texts and reports to. Its token is scrubbed from the request log (`log-scrub.ts`).
       await api.register(sms.settingsRoutes());
+      await api.register(sms.consoleRoutes());
       await api.register(inboundEvents.doorRoutes());
       // Refunding a payment: what the dialog shows, and the confirm step.
       await api.register(paymentRefundRoutes(paymentRefundDeps));

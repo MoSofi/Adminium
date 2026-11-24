@@ -85,6 +85,8 @@ export function iconForNode(kind: NodeKind, action: Action | null): string {
   switch (action.kind) {
     case 'email':
       return 'mail';
+    case 'text':
+      return 'message-square-text';
     case 'notification':
       return 'bell';
     case 'digest':
@@ -125,6 +127,15 @@ export const ACTION_STEPS: readonly StepDefinition[] = [
     sub: 'Template · pick one',
     desc: 'From a saved template',
     action: { kind: 'email', templateKey: null, to: null },
+  },
+  {
+    key: 'text',
+    kind: 'action',
+    icon: 'message-square-text',
+    label: 'Send text',
+    sub: 'Template · pick one',
+    desc: 'A short text from a text template',
+    action: { kind: 'text', templateKey: null, to: null, vars: {} },
   },
   {
     key: 'notification',

@@ -133,7 +133,9 @@ export default {
     "stopDesc": "Halt this run here",
     "document": "Draw document",
     "digest": "Send each person a summary",
-    "digestDesc": "One email each, of the rows that are theirs"
+    "digestDesc": "One email each, of the rows that are theirs",
+    "text": "Send text",
+    "textDesc": "A short text from a text template"
   },
   "node": {
     "email": {
@@ -184,6 +186,10 @@ export default {
     },
     "digest": {
       "summary": "{template} · {count, plural, one {# section} other {# sections}}"
+    },
+    "text": {
+      "sub": "Template · pick one",
+      "summary": "Text · {template} → {to}"
     }
   },
   "event": {
@@ -574,5 +580,21 @@ export default {
     "budget": "Up to 50 look-ups a day for rules, on each register.",
     "pick": "Registers · pick one",
     "summary": "Empty details from {registers}"
+  },
+  "text": {
+    "characters": "characters",
+    "checked": "Consent, the do-not-text list, the sending hours and today’s limit are checked when it sends. A text that may not go is skipped, and the run goes on.",
+    "estimate": "estimate, for a sample record",
+    "fillWith": "A text, or a column of the record",
+    "noMoment": "No moment: send whenever the hours allow",
+    "noProvider": "Connect a provider in Texts first.",
+    "noTemplates": "No app has installed a text template yet.",
+    "notAfter": "Never send after",
+    "openTexts": "Open Texts",
+    "segments": "segments",
+    "standard": "Standard",
+    "template": "Text template",
+    "to": "Phone number column",
+    "unicode": "Unicode"
   }
 } as const;

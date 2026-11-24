@@ -133,7 +133,9 @@ export default {
     "stopDesc": "Afslut denne kørsel her",
     "document": "Opret dokument",
     "digest": "Send hver person et overblik",
-    "digestDesc": "Én e-mail til hver, med deres egne rækker"
+    "digestDesc": "Én e-mail til hver, med deres egne rækker",
+    "text": "Send sms",
+    "textDesc": "En kort sms fra en sms-skabelon"
   },
   "node": {
     "email": {
@@ -184,6 +186,10 @@ export default {
     },
     "digest": {
       "summary": "{template} · {count, plural, one {# sektion} other {# sektioner}}"
+    },
+    "text": {
+      "sub": "Skabelon · vælg en",
+      "summary": "Sms · {template} → {to}"
     }
   },
   "event": {
@@ -574,5 +580,21 @@ export default {
     "budget": "Op til 50 opslag om dagen for regler i hvert register.",
     "pick": "Registre · vælg et",
     "summary": "Tomme oplysninger fra {registers}"
+  },
+  "text": {
+    "characters": "tegn",
+    "checked": "Samtykke, ingen-sms-listen, sendetiderne og dagens grænse tjekkes, når den sendes. En sms, der ikke må sendes, springes over, og kørslen fortsætter.",
+    "estimate": "skøn, for en eksempelpost",
+    "fillWith": "En tekst eller en kolonne fra posten",
+    "noMoment": "Intet tidspunkt: send, når sendetiderne tillader det",
+    "noProvider": "Tilslut først en udbyder under Sms.",
+    "noTemplates": "Ingen app har installeret en sms-skabelon endnu.",
+    "notAfter": "Send aldrig efter",
+    "openTexts": "Åbn Sms",
+    "segments": "segmenter",
+    "standard": "Standard",
+    "template": "Sms-skabelon",
+    "to": "Kolonne med telefonnummer",
+    "unicode": "Unicode"
   }
 } as const;

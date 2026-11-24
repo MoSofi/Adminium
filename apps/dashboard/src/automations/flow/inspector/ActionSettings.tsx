@@ -21,7 +21,7 @@
  */
 
 import { Button, Checkbox, ChipInput, Combobox, Input, RadioCard, RadioGroup, SegmentedControl, Select, Switch, Textarea, type ComboboxOption } from '@adminium/ui';
-import { AtSign, CircleAlert, Columns3, Info, Link2 } from 'lucide-react';
+import { AtSign, CircleAlert, Columns3, Info, Link2, Phone } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useId, useState, type ReactNode } from 'react';
 
@@ -32,9 +32,10 @@ import { addOnNameOf, columnOfInput, inLanguage, inputMode, pickableRows, stepOf
 import { companyFillSourceOf, type CompanyFillAction } from '../../model/companyFill.js';
 import type { Action, DigestSection, MailClass, MailPurpose, WriteValue } from '../../model/graph.js';
 import { classPatch, classUnsaid, mailClassOf, purposeOf, recipientPatch } from '../../model/mailClass.js';
-import { columnOfValue, holdsAddresses, linkedColumns, placeholderRows, templateOf, varsFor, type PlaceholderRow } from '../../model/placeholders.js';
+import { columnOfValue, holdsAddresses, knowsColumn, linkedColumns, placeholderRows, templateOf, varsFor, type PlaceholderRow } from '../../model/placeholders.js';
 import { writeValueText } from '../../model/summaries.js';
 import { Card, Field } from './primitives.js';
+import { composeText, placeholderNames, type TextEstimate } from '../../../studio/texts/textCounter.js';
 import { HiddenHereNote } from '../../../shown-in/ShownIn.js';
 
 export interface ActionSettingsProps {
@@ -56,6 +57,8 @@ export function ActionSettings(props: ActionSettingsProps): ReactNode {
   switch (props.action.kind) {
     case 'email':
       return <EmailSettings {...props} action={props.action} />;
+    case 'text':
+      return <TextSettings {...props} action={props.action} />;
     case 'notification':
       return <NotificationSettings {...props} action={props.action} />;
     case 'digest':
@@ -577,6 +580,171 @@ function EmailSettings({
           ))}
         </div>
       ) : null}
+    </Card>
+  );
+}
+
+// --- send text ----------------------------------------------------------
+
+type TextAction = Extract<Action, { kind: 'text' }>;
+
+/** A column that looks like it holds a phone number, by its name. */
+const PHONE_NAME = /phone|mobile|cell|tel|sms|handy/i;
+
+/** The columns a number may be read from: phone-like ones first, this table's then a link's. */
+function phoneOptions(table: SourceTable | null, current: string): ComboboxOption[] {
+  if (table === null) return [];
+  const here = t('automations:email.thisTable', 'This table · {table}', { table: table.label });
+  const own = (column: SourceTable['columns'][number]): ComboboxOption => ({
+    value: column.name,
+    label: column.name,
+    description: column.label === column.name ? here : `${column.label} · ${here}`,
+    leading: PHONE_NAME.test(column.name) ? <Phone className="size-[13px] text-fg-subtle" aria-hidden="true" /> : <Columns3 className="size-[13px] text-fg-subtle" aria-hidden="true" />,
+  });
+  const likely = table.columns.filter((column) => PHONE_NAME.test(column.name));
+  const out: ComboboxOption[] = likely.map(own);
+  for (const link of table.links ?? []) {
+    const through = table.columns.find((column) => column.name === link.column)?.label ?? link.column;
+    for (const column of link.columns) {
+      const name = `${link.column}.${column.name}`;
+      if (!PHONE_NAME.test(column.name) && name !== current) continue;
+      out.push({ value: name, label: `${link.column} → ${column.name}`, description: t('automations:email.fromLink', 'From {link} · {table}.{column}', { link: through, table: link.label, column: column.name }), leading: <Link2 className="size-[13px] text-fg-subtle" aria-hidden="true" /> });
+    }
+  }
+  out.push(...table.columns.filter((column) => !PHONE_NAME.test(column.name)).map(own));
+  return out;
+}
+
+/** A stand-in for a sample record: `{{record.first_name}}` reads "First name". */
+function sampleOf(name: string): string {
+  const last = name.slice(name.lastIndexOf('.') + 1).replace(/[_-]+/g, ' ').trim();
+  return last === '' ? name : last.charAt(0).toUpperCase() + last.slice(1);
+}
+
+function TextCounter({ estimate }: { estimate: TextEstimate }): ReactNode {
+  return (
+    <p className="flex flex-wrap gap-x-2.5 gap-y-1 text-[11.5px]" data-testid="text-step-counter" data-segments={estimate.segments}>
+      <span className="font-bold">{estimate.encoding === 'gsm-7' ? t('automations:text.standard', 'Standard') : t('automations:text.unicode', 'Unicode')}</span>
+      <span>
+        <bdi dir="ltr" className="font-mono font-semibold">
+          {estimate.characters}
+        </bdi>{' '}
+        {t('automations:text.characters', 'characters')}
+      </span>
+      <span>
+        <bdi dir="ltr" className="font-mono font-semibold">
+          {estimate.segments}
+        </bdi>{' '}
+        {t('automations:text.segments', 'segments')}
+      </span>
+      <span className="text-fg-subtle">{t('automations:text.estimate', 'estimate, for a sample record')}</span>
+    </p>
+  );
+}
+
+/**
+ * SEND TEXT (comp `Text Templates` X36): the template, the column that holds
+ * the number, the moment it must not be sent after, and what fills the
+ * template's placeholders. Whether it may go is decided when it sends, by the
+ * same send path an app's text uses, so this card says so and decides nothing.
+ */
+function TextSettings({ action, sources, table, onChange }: ActionSettingsProps & { action: TextAction }): ReactNode {
+  const ids = useId();
+  const templates = sources?.textTemplates ?? [];
+  const template = templates.find((one) => one.key === action.templateKey) ?? null;
+  const names = template === null ? [] : placeholderNames(template.body);
+  const fillable = names.filter((name) => !knowsColumn(table, name.startsWith('record.') ? name.slice('record.'.length) : name));
+  const column = action.to?.column ?? '';
+  const dateColumns = (table?.columns ?? []).filter((one) => one.dateLike);
+  const setVar = (name: string, value: string): void => {
+    const next = { ...(action.vars ?? {}) };
+    if (value === '') delete next[name];
+    else next[name] = value;
+    onChange({ vars: next } as Partial<Action>);
+  };
+  const estimate =
+    template === null
+      ? null
+      : composeText({
+          template: template.body,
+          values: Object.fromEntries(names.map((name) => [name, action.vars?.[name] ?? sampleOf(name)])),
+          optOut: 'reply-stop',
+          country: 'US',
+          business: { name: 'Business' },
+          table: 'standard',
+        }).estimate;
+  return (
+    <Card title={t('automations:pick.text', 'Send text')}>
+      {sources?.textsConnected === false ? (
+        <p role="note" className="flex items-start gap-[7px] text-[12px] font-semibold leading-[1.5] text-warn" data-testid="text-step-no-provider">
+          <CircleAlert className="mt-0.5 size-[13px] shrink-0" aria-hidden="true" />
+          <span>
+            {t('automations:text.noProvider', 'Connect a provider in Texts first.')}{' '}
+            <a href="/studio/texts?tab=setup" className="font-bold text-accent underline-offset-2 hover:underline">
+              {t('automations:text.openTexts', 'Open Texts')}
+            </a>
+          </span>
+        </p>
+      ) : null}
+      <Field label={t('automations:text.template', 'Text template')}>
+        <Select
+          value={action.templateKey ?? ''}
+          onChange={(event) => {
+            const templateKey = event.target.value === '' ? null : event.target.value;
+            const picked = templates.find((one) => one.key === templateKey);
+            const reads = new Set(picked === undefined ? [] : placeholderNames(picked.body));
+            onChange({ templateKey, vars: Object.fromEntries(Object.entries(action.vars ?? {}).filter(([name]) => reads.has(name))) } as Partial<Action>);
+          }}
+          data-testid="text-step-template"
+        >
+          <option value="">{t('automations:text.template', 'Text template')}</option>
+          {templates.map((one) => (
+            <option key={one.key} value={one.key}>
+              {one.name}
+            </option>
+          ))}
+          {action.templateKey !== null && action.templateKey !== '' && template === null ? <option value={action.templateKey}>{action.templateKey}</option> : null}
+        </Select>
+        {templates.length === 0 ? <p className="mt-1 text-[11px] leading-[1.45] text-fg-subtle">{t('automations:text.noTemplates', 'No app has installed a text template yet.')}</p> : null}
+      </Field>
+      <Field label={t('automations:text.to', 'Phone number column')} htmlFor={`${ids}-to`}>
+        <Combobox
+          id={`${ids}-to`}
+          options={phoneOptions(table, column)}
+          value={column === '' ? null : column}
+          onValueChange={(next) => onChange({ to: { kind: 'field', column: next ?? '' } } as Partial<Action>)}
+          placeholder={t('automations:email.findColumn', 'Find a column…')}
+          emptyText={t('automations:email.noColumn', 'No column matches.')}
+          mono
+          data-testid="text-step-to"
+        />
+      </Field>
+      <Field label={t('automations:text.notAfter', 'Never send after')}>
+        <Select value={action.notAfter ?? ''} onChange={(event) => onChange({ notAfter: event.target.value === '' ? undefined : event.target.value } as Partial<Action>)} data-testid="text-step-not-after">
+          <option value="">{t('automations:text.noMoment', 'No moment: send whenever the hours allow')}</option>
+          {dateColumns.map((one) => (
+            <option key={one.name} value={one.name}>
+              {one.label}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      {fillable.length > 0 ? (
+        <div className="flex flex-col gap-2" data-testid="text-step-placeholders">
+          <div className="text-[11.5px] font-bold">{t('automations:email.placeholders', 'Placeholders')}</div>
+          {fillable.map((name) => (
+            <label key={name} className="flex flex-col gap-1">
+              <code className="font-mono text-[11.5px]">{`{{${name}}}`}</code>
+              <Input value={action.vars?.[name] ?? ''} placeholder={t('automations:text.fillWith', 'A text, or a column of the record')} onChange={(event) => setVar(name, event.target.value)} data-testid={`text-step-var-${name}`} />
+            </label>
+          ))}
+        </div>
+      ) : null}
+      {estimate === null ? null : <TextCounter estimate={estimate} />}
+      <p className="m-0 flex items-start gap-[7px] text-[11.5px] leading-normal text-fg-muted" data-testid="text-step-checked">
+        <Info className="mt-0.5 size-[13px] shrink-0" aria-hidden="true" />
+        <span>{t('automations:text.checked', 'Consent, the do-not-text list, the sending hours and today’s limit are checked when it sends. A text that may not go is skipped, and the run goes on.')}</span>
+      </p>
     </Card>
   );
 }

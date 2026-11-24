@@ -25,6 +25,7 @@ import { createTextConsentService, type TextConsentService } from './consent/ind
 import { storedDefaultCountry } from './country.js';
 import { createTextErasure, type TextErasure } from './erasure.js';
 import { createSmsCatchUp, createSmsInboundChannel, type SmsCatchUpResult, type SmsInboundChannel, type SmsStopConfirmation } from './inbound/index.js';
+import { smsConsoleRoutes } from './console-routes.js';
 import { smsRoutes } from './routes.js';
 import { createTextSendStore, textPhoneKeys, TEXT_SETTLE_JOB, TEXT_SETTLE_SCHEDULE, type TextReport, type TextSendPath, type TextSendStore } from './send/index.js';
 import { createSmsService, type SmsService } from './service.js';
@@ -60,6 +61,8 @@ export interface SmsWiring {
   erasure: TextErasure;
   defaultCountry: () => Promise<string | null>;
   settingsRoutes(): FastifyPluginAsyncZod;
+  /** Studio → Texts beside the provider card: limits, Activity, the do-not-text list, text templates. */
+  consoleRoutes(): FastifyPluginAsyncZod;
   /** Queues the clean-up of the send path, when there is a delivery for it to look at. */
   enqueueTextSettle(enqueue: (input: EnqueueJobInput) => Promise<{ id: string }>): Promise<{ id: string } | null>;
   /** Asks the provider what arrived while the server was down. Null when it may not reach out. */
@@ -135,6 +138,18 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
         desktop: deps.desktop,
         trustProxy: deps.trustProxy,
         publicOrigin: () => storedPublicOrigin(meta),
+      }),
+
+    consoleRoutes: () =>
+      smsConsoleRoutes({
+        meta,
+        service,
+        consent,
+        deliveries,
+        texts: () => sendPath,
+        manageGrant: PERMISSIONS.smsManage,
+        peopleGrant: PERMISSIONS.privacyPeople,
+        now,
       }),
 
     async enqueueTextSettle(enqueue) {

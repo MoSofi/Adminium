@@ -2956,6 +2956,11 @@
       "body": "Choose the carrier each app ships with, connect its key, and set label size and who can buy labels.",
       "cta": "Open shipping",
       "heading": "Shipping"
+    },
+    "textsCard": {
+      "body": "Send customers short texts from your own Twilio or Telnyx account.",
+      "cta": "Open texts",
+      "heading": "Texts"
     }
   },
   "source": {
@@ -6427,5 +6432,466 @@
       "subtitle": "{carrier} sends each carrier scan to this server.",
       "waiting": "Waiting"
     }
+  },
+  "texts": {
+    "activity": {
+      "askOwner": "Ask the owner to check this with {provider}.",
+      "calledAt": "Handed over at",
+      "clear": "Clear filters",
+      "code": "{provider} said:",
+      "col": {
+        "about": "About",
+        "number": "Number",
+        "price": "Price",
+        "segments": "Segments",
+        "status": "Status",
+        "when": "When"
+      },
+      "confirmResend": "It was not sent. Send again",
+      "confirmTitle": "Send this text again?",
+      "declare": "I checked {provider} and this text was not sent.",
+      "emptyBody": "When an app or an automation sends a text, it appears here.",
+      "emptyTitle": "No texts yet",
+      "filter": {
+        "about": "About",
+        "all": "All",
+        "code": "Country code",
+        "status": "Status"
+      },
+      "kind": "Kind",
+      "loading": "Loading texts",
+      "marketing": "Marketing",
+      "noBody": "The message itself is not kept, so it can’t be shown here.",
+      "noMatch": "No texts match these filters.",
+      "notSent": "It was not sent, send again",
+      "openLog": "Open {provider}’s message log",
+      "provider": "Provider",
+      "rechecked": "Before it goes again, consent, the do-not-text list, the sending hours and today’s limit are all checked again. It may still be skipped.",
+      "reported": "reported by the provider",
+      "rule": "An automation",
+      "service": "Service",
+      "story": {
+        "handed": "Handed to {provider}",
+        "queued": "Queued",
+        "retried": "Retried safely with the same key"
+      },
+      "text": "Text",
+      "twice": "If that’s wrong, the person gets it twice and the business pays twice.",
+      "unknownCount": "{count, plural, one {# text needs a check} other {# texts need a check}}",
+      "viewOnly": "You can see texts here. Ask the owner to settle one or change settings.",
+      "went": "It was sent",
+      "whatHappened": "What happened"
+    },
+    "askOwner": {
+      "body": "Texts are set up by whoever holds the “Set up text messages” permission.",
+      "title": "Ask the owner to change this"
+    },
+    "cancel": "Cancel",
+    "changed": {
+      "body": "Texts will now be billed to {account} instead of the account connected now.",
+      "bodyNoName": "Texts will now be billed to another account than the one connected now.",
+      "confirm": "Bill the new account",
+      "kept": "Nothing has changed yet. The current key stays in force until you confirm. The sender is cleared, because it belongs to the old account.",
+      "title": "This is a different account"
+    },
+    "check": {
+      "bad": {
+        "line": "Copy the key again from your provider’s console.",
+        "title": "The provider did not accept this key"
+      },
+      "closed": {
+        "line": "Sort it out in the provider’s console, then check again.",
+        "title": "The provider has closed or paused this account"
+      },
+      "networkOff": {
+        "line": "No provider can be reached until they are switched on.",
+        "title": "Network features are off on this server"
+      },
+      "noSender": {
+        "line": "Add a number or sender name in your provider’s console, then enter it here.",
+        "title": "Connected, but nothing can send yet"
+      },
+      "operatorOff": {
+        "line": "Whoever runs this server has turned them off.",
+        "title": "Texts are switched off on this server"
+      },
+      "profile": {
+        "line": "Copy the messaging profile id again from Telnyx.",
+        "title": "This messaging profile was not found"
+      },
+      "trial": {
+        "line": "A Twilio trial sends only Twilio’s own templates to verified numbers. Make it a paid account in Twilio, then check again.",
+        "title": "This is a trial account"
+      },
+      "unreachable": {
+        "line": "Your saved key has not changed. Check this server’s internet connection and try again.",
+        "title": "We couldn’t reach the provider"
+      }
+    },
+    "close": "Close",
+    "cn": {
+      "sentence": "Adminium does not send texts to mainland China (+86). Neither provider can promise delivery, replies or a working opt-out there. Taiwan and Hong Kong are not affected."
+    },
+    "connect": {
+      "heading": "Connect your provider",
+      "sub": "One provider account serves this whole server."
+    },
+    "connected": {
+      "badge": "Connected",
+      "badgeProblem": "Needs a look",
+      "checkAgain": "Check again",
+      "checkFirst": "After a timeout, you check before resending.",
+      "disconnect": "Disconnect",
+      "key": "Key",
+      "lastChecked": "Last checked",
+      "replace": "Replace key",
+      "sameKey": "Retries safely after a timeout, for 24 hours.",
+      "saved": "Saved",
+      "title": "Connected to {account}",
+      "titleNoName": "Connected to {provider}",
+      "unreadable": "The saved key can no longer be opened",
+      "unreadableLine": "This server’s secret changed. Paste the key again to send texts."
+    },
+    "counter": {
+      "announce": "{count, plural, one {# segment} other {# segments}}",
+      "characters": "characters",
+      "estimate": "estimate",
+      "left": "left in this segment",
+      "segments": "segments",
+      "standard": "Standard",
+      "tooLong": "Too long to send. Shorten it. A text over {count} segments is never sent.",
+      "unicode": "Unicode"
+    },
+    "countries": {
+      "col": {
+        "country": "Country",
+        "dial": "Code",
+        "marketing": "Marketing texts",
+        "replies": "Replies",
+        "sender": "Sender",
+        "service": "Service texts",
+        "stop": "How a person stops"
+      },
+      "heading": "Where you can text",
+      "no": "No",
+      "search": "Search countries",
+      "serviceOnly": "Service only",
+      "stopReply": "Replies STOP",
+      "stopThroughYou": "No replies, so opt-out goes through you",
+      "yes": "Yes"
+    },
+    "country": {
+      "AE": "Registered sender names only. No numbers or links in the text.",
+      "AU": "Unregistered names arrive labelled “Unverified”.",
+      "CA": "No sender names. Use a long code, a verified toll-free number or a short code.",
+      "CZ": "T-Mobile and O2 block unregistered names. Register for full coverage.",
+      "EG": "Replies are not supported.",
+      "ES": "Unregistered sender names are blocked.",
+      "FR": "Register your sender name. Sources disagree, so treat it as required.",
+      "HK": "Sender names need registration. Replies work.",
+      "IN": "The domestic route needs DLT registration.",
+      "SA": "Registered sender names only. A local Saudi business needs a local provider.",
+      "TW": "The brand name must open each text. Links need allowlisting.",
+      "US": "10DLC or toll-free registration. Texts are not sent until it is approved. It can take days to weeks.",
+      "nameFree": "Sender names need no registration."
+    },
+    "disconnect": {
+      "body": "Texts stop at once, and the keys are deleted from this server. Texts already handed to {provider} are not called back.",
+      "title": "Disconnect {provider}?",
+      "yes": "Disconnect and delete the keys"
+    },
+    "editor": {
+      "addedForYou": "Added for you",
+      "back": "All templates",
+      "businessContact": "Phone or e-mail for stopping",
+      "businessContactHelp": "For the preview. Texts use the app’s phone, or your e-mail sender’s reply-to address.",
+      "businessName": "Business name",
+      "country": "Country",
+      "emptyChip": "empty",
+      "fallback": "People who read {language} get this in English.",
+      "insert": "Insert",
+      "insertOne": "Insert {name}",
+      "languages": "Languages",
+      "noReplies": "This server can’t receive STOP replies, so every text gives your phone or e-mail for stopping.",
+      "optOutNote": "It counts toward the length, and can’t be edited. It is in English until the other languages are added.",
+      "ownStop": "Your text says STOP itself, so nothing is added.",
+      "plain": "Use a plain one",
+      "preview": "Preview",
+      "problem": {
+        "credential": "A text can’t carry a sign-in link, a code, a survey link or a QR value: {names}",
+        "empty": "Write the text first.",
+        "missing": "This text won’t send until {names} has a value.",
+        "noContact": "This sender can’t take a STOP reply, and no phone or e-mail is given for stopping, so it won’t send.",
+        "shortLink": "A public short link is filtered by carriers. Adminium has no link shortener, so leave the link out.",
+        "tooLong": "Too long to send. Shorten it.",
+        "yes": "Don’t ask people to reply YES. A YES reply can lift a stop at the provider. Ask people to agree on a form instead."
+      },
+      "sampleBusiness": "Your business",
+      "samples": "Sample values for the preview",
+      "saveEmpty": "Save as empty",
+      "sender": "Sent from",
+      "table": "Counted as",
+      "tableCanada": "Canada, long code",
+      "tableStandard": "Most countries",
+      "tableTollFree": "US and Canada, toll-free",
+      "taiwan": "The brand name must open each text.",
+      "undo": "Undo changes",
+      "unicode": "This character uses the Unicode rate:",
+      "whereTo": "Where it goes and who it is from",
+      "words": "The text"
+    },
+    "field": {
+      "accountSid": "Account SID",
+      "apiKey": "API key",
+      "authToken": "Auth Token",
+      "authTokenHelp": "Sends the texts, and checks that updates really came from Twilio.",
+      "profile": "Messaging profile id",
+      "publicKey": "Public key",
+      "publicKeyHelp": "Used only to check that updates really came from Telnyx."
+    },
+    "intro": "Short messages to your customers, sent from your own provider account. Adminium never holds the account or the money.",
+    "key": {
+      "billed": "Texts are sent and billed on your {provider} account. Customer phone numbers and message text go to {provider} and the carriers.",
+      "checking": "Checking…",
+      "keep": "Keep the current key",
+      "kept": "The saved key stays in use until the provider answers."
+    },
+    "limits": {
+      "anyTime": "Texts a customer is waiting for right now, such as “Your room is ready”, may go at any time. Each app says which of its texts these are.",
+      "clock": "Service hours are on the business’s clock. A text due outside them waits for the next opening, and is skipped if that is after its moment.",
+      "from": "Service texts from",
+      "heading": "Daily limit and sending hours",
+      "hoursBad": "Two different times, like 08:00 and 21:00.",
+      "limit": "Texts a day, at most",
+      "limitBad": "A whole number from 1 to 100,000.",
+      "marketing": "Marketing texts: 09:00–20:00, Monday to Saturday. Fixed.",
+      "raise": "Raise the limit",
+      "reached": "Today’s limit is reached. Texts wait until tomorrow, unless their moment passes first.",
+      "to": "Until",
+      "today": "Sent today",
+      "warnAt": "The warning starts at {count}. The count starts again at midnight, {zone}.",
+      "why": "This protects your provider bill if an automation goes wrong."
+    },
+    "loadFailed": "This could not be loaded",
+    "noAccess": "Ask whoever runs this server to give you the “Set up text messages” permission.",
+    "notAffiliated": "Adminium is not affiliated with Twilio, Telnyx or any carrier.",
+    "paste": {
+      "empty": "Paste a value here.",
+      "keySid": "That value is an API key SID. Paste the Account SID here. It starts with AC.",
+      "notKey": "This doesn’t look like a key. Copy it again.",
+      "notSid": "This is not an Account SID. It starts with AC.",
+      "profile": "This is not a messaging profile id. Copy it from the profile’s page.",
+      "publicKey": "This is not a public key. Copy it from the Public key page.",
+      "sidInToken": "That value is an Account SID. Paste the Auth Token here.",
+      "spaces": "Paste it with nothing before or after it."
+    },
+    "provider": {
+      "legend": "Your provider",
+      "price": "United States, per segment: {price}, plus carrier fees. Prices can change.",
+      "telnyxLine": "Self-serve, may ask for identity checks. Can retry safely after a timeout.",
+      "twilioLine": "Self-serve. After a timeout, you check before resending."
+    },
+    "reach": {
+      "heading": "Can replies reach this server?",
+      "no": "No replies",
+      "ok": "Replies and delivery reports can reach this server.",
+      "problem": "This server has no public https address. It can send service texts, but it can’t receive STOP replies or delivery reports. Marketing texts are off.",
+      "yes": "Replies arrive"
+    },
+    "reason": {
+      "badNumber": "Not sent. The number can’t be read as a real phone number.",
+      "cannotReceive": "Not sent. This number can’t receive texts.",
+      "countryNotEnabled": "Not sent. Your provider account can’t text this country yet. Switch it on in the provider’s console.",
+      "dailyLimit": "Not sent. Today’s limit was reached.",
+      "marketingCountry": "Not sent. Marketing texts can’t go to this country because people there can’t reply STOP.",
+      "marketingName": "Not sent. Marketing can’t go from a sender name because it can’t receive STOP.",
+      "missingValue": "Not sent. A placeholder had no value.",
+      "needsConfirm": "Not sent. This country needs the person to confirm first.",
+      "noCn": "Not sent. Adminium does not send texts to mainland China (+86).",
+      "noConsent": "Not sent. This person has not agreed to texts.",
+      "noDoor": "Not sent. This server can’t receive STOP, so marketing texts are off.",
+      "noLongerNeeded": "Not sent. What it was about was called off while it waited.",
+      "noOptOut": "Not sent. No way to opt out could be given for this sender. Add the business’s phone or e-mail.",
+      "notConnected": "Not sent. No working provider account or sender. Check Setup.",
+      "notReached": "Not sent. The provider could not be reached, and nothing was handed over.",
+      "operatorOff": "Not sent. Texts are switched off on this server.",
+      "other": "Not sent. The provider refused it.",
+      "sender": "Not sent. The provider refused the sender. Check it in the provider’s console.",
+      "spendLimit": "Not sent. Your provider account’s spending limit is reached.",
+      "stopped": "Not sent. This person asked for no more texts.",
+      "tooLate": "Not sent. The next sending hours fall after the moment this text was for.",
+      "waitingRegistration": "Not sent. Your registration for this country is still waiting.",
+      "words": "Not sent. The template, or a value in it, can’t be sent as a text."
+    },
+    "registration": {
+      "between": "Registration is between your business and {provider}. Adminium can’t see it, approve it or speed it up.",
+      "heading": "Registration",
+      "open": "Open registration in {provider}",
+      "sub": "Some countries ask a business to register before it can text there.",
+      "unknown": "{provider} doesn’t tell us this for your sender. Check it there.",
+      "us": "Texts to the United States are not delivered until your 10DLC or toll-free registration is approved. This can take days to weeks."
+    },
+    "save": "Save",
+    "saveFailed": "This could not be saved",
+    "sender": {
+      "badCountry": "Choose a country from the list.",
+      "badName": "Up to 11 letters, digits and spaces, with at least one letter.",
+      "badNumber": "Write the number in full, starting with + and the country code.",
+      "badPool": "Paste the Messaging Service SID (MG…), or this profile’s id for Telnyx.",
+      "contact": "Where a text can’t take a STOP reply, it ends with the app’s phone number, or the reply-to address of your e-mail sender, so the person can ask you to stop. Staff then record it on the do-not-text list.",
+      "country": "Country for local numbers",
+      "countryHelp": "A number written without + is read as one from here.",
+      "heading": "Who texts come from",
+      "kind": "Kind of sender",
+      "name": "Sender name",
+      "nameLine": "Can’t receive replies, so each text gives your phone or e-mail for stopping.",
+      "noCountry": "None: only numbers with +",
+      "number": "Number",
+      "numberLine": "Can receive replies.",
+      "otherProfile": "That number is on another messaging profile. Move it to this profile in Telnyx.",
+      "pool": "Messaging service or number pool",
+      "poolLine": "Replies depend on the senders in it, so texts give your phone or e-mail for stopping.",
+      "refused": "That sender could not be saved.",
+      "sub": "A number or sender name from your provider’s console. Adminium buys none and registers none."
+    },
+    "status": {
+      "checkedNotSent": "Checked: it was not sent",
+      "checkedWent": "Checked: it was sent",
+      "delivered": "Delivered",
+      "failed": "Failed",
+      "notSent": "Not sent",
+      "sent": "Handed to the provider",
+      "skipped": "Skipped",
+      "undelivered": "Not delivered",
+      "unknown": "Unknown, check before resending",
+      "waiting": "Waiting"
+    },
+    "statusLine": {
+      "checkedNotSent": "Someone checked with the provider: it was not sent. The app may send it again, after every check runs again.",
+      "checkedWent": "Someone checked with the provider: it was sent.",
+      "delivered": "The provider reports it reached the phone.",
+      "failed": "It was not sent. The reason below says what to fix.",
+      "notSent": "It was certainly not handed to the provider.",
+      "sent": "{provider} took it. It is not known yet whether it reached the phone.",
+      "skipped": "A rule stopped it before anything was sent.",
+      "undelivered": "The carrier could not deliver it. Check the number with the person before sending again.",
+      "unknown": "We didn’t get an answer from {provider}. It may have sent this text. Adminium won’t send it again by itself.",
+      "waiting": "Queued. It goes when the sending hours open and today’s limit has room."
+    },
+    "steps": {
+      "check": "Check connection",
+      "checkLine": "The provider is asked about the key before it is saved.",
+      "openConsole": "Open the console",
+      "openPortal": "Open the portal",
+      "openTelnyx": "Open Telnyx",
+      "openTwilio": "Open Twilio",
+      "paste": "Paste them below",
+      "pasteLine": "Each value on its own, with nothing before or after it.",
+      "telnyx": {
+        "account": "Open a Telnyx account",
+        "accountLine": "Self-serve. Telnyx may ask for identity checks.",
+        "keys": "Create an API key and copy the public key",
+        "keysLine": "Both are under Auth in the Telnyx portal.",
+        "profile": "Copy your messaging profile id",
+        "profileLine": "The profile that holds the numbers you send from."
+      },
+      "twilio": {
+        "account": "Open a paid Twilio account",
+        "accountLine": "A trial account can’t send these texts.",
+        "keys": "Copy your Account SID and Auth Token",
+        "keysLine": "Both are on the console’s home page, under Account info."
+      }
+    },
+    "stop": {
+      "added": "Texts to this number are stopped.",
+      "already": "This number is on the list already.",
+      "badNumber": "This is not a phone number a text can reach. Write it with + and the country code.",
+      "col": {
+        "actions": "Actions",
+        "from": "Where from",
+        "number": "Number",
+        "when": "When",
+        "why": "Why"
+      },
+      "confirmSent": "One plain confirmation went out, with no question and no offer.",
+      "count": "{count, plural, one {# entry} other {# entries}}",
+      "empty": "Nobody is on the list yet.",
+      "erased": "Erased person, kept so they’re never texted again",
+      "from": {
+        "email": "Asked by e-mail. Recorded by {name}",
+        "erased": "Erased on request",
+        "inPerson": "Asked in person. Recorded by {name}",
+        "phone": "Asked by phone. Recorded by {name}",
+        "provider": "{provider} reported an opt-out",
+        "reply": "Replied STOP to a text"
+      },
+      "how": "How they asked",
+      "asked": {
+        "email": "By e-mail",
+        "inPerson": "In person",
+        "phone": "By phone"
+      },
+      "line": "Nobody here gets any text from this business, including service texts.",
+      "noConfirm": "No confirmation by text, because this person asked the business directly.",
+      "noMatch": "No entry matches.",
+      "number": "Phone number",
+      "record": "Record a stop request",
+      "recordWhy": "For someone who asked you, not by text, to stop getting texts. A text from a sender name can’t take a STOP reply, so this is how they stop.",
+      "recordedBy": "Recorded under your name. It takes effect at once, for every text from this business.",
+      "remove": "Remove",
+      "removeBody": "Only if this person has agreed again to get texts. Taking them off does not record a yes: they still get only the texts they agreed to.",
+      "removeTitle": "Take this number off the list?",
+      "save": "Stop texts to this number",
+      "search": "Search numbers",
+      "start": "A START reply lifts the provider’s block and takes the number off this list, but it is not a yes. The person still has to agree again before any text.",
+      "why": {
+        "erased": "Erased person",
+        "hand": "Asked the business",
+        "provider": "Reported by the provider",
+        "reply": "Replied STOP"
+      },
+      "whyAny": "Why: any"
+    },
+    "tab": {
+      "activity": "Activity",
+      "setup": "Setup",
+      "stop": "Do-not-text list",
+      "templates": "Templates"
+    },
+    "templates": {
+      "col": {
+        "app": "App",
+        "languages": "Languages",
+        "name": "Template",
+        "segments": "Most segments"
+      },
+      "emptyBody": "Apps that send texts bring their own templates. Install one from the apps page, and its templates appear here to edit.",
+      "emptyTitle": "No app has installed a text template yet",
+      "languagesOf": "{count} of {total}",
+      "notConnected": "No provider is connected, so these templates send nothing yet.",
+      "openApps": "Open add-ons and apps",
+      "openSetup": "Open Setup",
+      "segmentsNote": "Segments are counted with stand-in values and the opt-out line. Each customer’s own values can change it."
+    },
+    "test": {
+      "cost": "This uses your provider account and may cost a small charge.",
+      "fixed": "The test text is always these words, so this button can’t send anything else.",
+      "limited": "Too many test texts. Try again in a few minutes.",
+      "message": "The test text",
+      "notReady": "Connect a provider and choose a sender first.",
+      "notTaken": "Not sent",
+      "open": "Send a test text",
+      "refused": "Not sent",
+      "send": "Send test",
+      "sending": "Sending…",
+      "sent": "Handed to {provider}",
+      "sentLine": "A test text gets no delivery report here, so look at the phone. With a test key nothing is delivered.",
+      "sub": "One fixed text, to a phone you hold.",
+      "title": "Send a test text",
+      "to": "Phone number",
+      "toHelp": "With + and the country code, or a local number of the country set above.",
+      "unknownLine": "We didn’t get an answer from {provider}. Look in its message log before sending another."
+    },
+    "title": "Texts"
   }
 }

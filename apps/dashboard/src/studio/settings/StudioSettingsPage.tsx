@@ -37,6 +37,7 @@ import {
   ListChecks,
   Mail,
   MapPinned,
+  MessageSquareText,
   ShieldCheck,
   Sparkles,
   TriangleAlert,
@@ -1680,6 +1681,8 @@ export interface StudioSettingsPageProps {
   onOpenPayments?: (() => void) | undefined;
   /** `/studio/shipping`: the carrier each app ships with, its key, label size and limits. */
   onOpenShipping?: (() => void) | undefined;
+  /** `/studio/texts`: the business's own text provider, templates, activity and the do-not-text list. */
+  onOpenTexts?: (() => void) | undefined;
   /** `/studio/documents`: which table a document is drawn from. */
   onOpenDocuments?: (() => void) | undefined;
   /** `/studio/public-api`. */
@@ -1694,6 +1697,7 @@ export interface StudioSettingsPageProps {
   maps?: undefined;
   doNotEmail?: undefined;
   privacy?: undefined;
+  texts?: undefined;
 }
 
 /** The privacy page: a chunk of its own, loaded from this one's only when it is opened. */
@@ -1705,21 +1709,36 @@ const PrivacyPageLazy = lazy(async () => {
   return { default: mod.PrivacyPage };
 });
 
+/** The Texts page: a chunk of its own, loaded from this one's only when it is opened. */
+const TextsPageLazy = lazy(async () => {
+  const mod = await import('../texts/TextsPage.js');
+  return { default: mod.TextsPage };
+});
+
 /**
  * What the router mounts from this chunk: the hub, or — for `/settings/maps`,
  * with `maps` — the Maps page, or — for `/email-templates/do-not-email`, with
  * `doNotEmail` — the do-not-email list, or — for `/studio/privacy`, with
- * `privacy` — the privacy page (its own chunk, fetched from here), which
+ * `privacy` — the privacy page (its own chunk, fetched from here), or — for
+ * `/studio/texts`, with `texts` — the Texts page (likewise), which
  * ride in the hub's chunk so that they add no lazy ref of their own to
  * everybody's first load.
  */
 export type StudioSettingsOrMapsProps =
   | StudioSettingsPageProps
-  | { maps: true; doNotEmail?: undefined; privacy?: undefined }
-  | { doNotEmail: true; maps?: undefined; privacy?: undefined }
-  | { privacy: true; maps?: undefined; doNotEmail?: undefined };
+  | { maps: true; doNotEmail?: undefined; privacy?: undefined; texts?: undefined }
+  | { doNotEmail: true; maps?: undefined; privacy?: undefined; texts?: undefined }
+  | { privacy: true; maps?: undefined; doNotEmail?: undefined; texts?: undefined }
+  | { texts: true; maps?: undefined; doNotEmail?: undefined; privacy?: undefined };
 
 export function StudioSettingsPage(props: StudioSettingsOrMapsProps): ReactNode {
+  if (props.texts === true) {
+    return (
+      <Suspense fallback={null}>
+        <TextsPageLazy />
+      </Suspense>
+    );
+  }
   if (props.privacy === true) {
     return (
       <Suspense fallback={null}>
@@ -1742,6 +1761,7 @@ function StudioSettingsHub({
   onOpenDocuments,
   onOpenPayments,
   onOpenShipping,
+  onOpenTexts,
   onOpenPublicApi,
   onOpenProject,
   onOpenExport,
@@ -1938,6 +1958,17 @@ function StudioSettingsHub({
                 </button>
               ) : null
             }
+          />
+        ) : null}
+
+        {/* Texts (/studio/texts): every route behind it checks `sms.manage`, or a desk's `privacy.people`. */}
+        {(holds('sms.manage') || holds('privacy.people')) && onOpenTexts !== undefined ? (
+          <LinkRow
+            icon={<MessageSquareText />}
+            heading={t('studio:settingsHub.textsCard.heading', 'Texts')}
+            body={t('studio:settingsHub.textsCard.body', 'Send customers short texts from your own Twilio or Telnyx account.')}
+            cta={t('studio:settingsHub.textsCard.cta', 'Open texts')}
+            onOpen={onOpenTexts}
           />
         ) : null}
 

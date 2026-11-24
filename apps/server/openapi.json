@@ -45627,6 +45627,32 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "textTemplates": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "body": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "name",
+                          "body"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "textsConnected": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -126690,6 +126716,9 @@
                       "authToken": {
                         "type": "string",
                         "maxLength": 1024
+                      },
+                      "confirmAccountChange": {
+                        "type": "boolean"
                       }
                     },
                     "required": [
@@ -126719,6 +126748,9 @@
                       "messagingProfileId": {
                         "type": "string",
                         "maxLength": 1024
+                      },
+                      "confirmAccountChange": {
+                        "type": "boolean"
                       }
                     },
                     "required": [
@@ -127382,6 +127414,1209 @@
                         "detail",
                         "resend",
                         "providerCode"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sms/sending-limits": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "dailyLimit": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "serviceHours": {
+                          "type": "object",
+                          "properties": {
+                            "from": {
+                              "type": "string",
+                              "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$"
+                            },
+                            "to": {
+                              "type": "string",
+                              "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$"
+                            }
+                          },
+                          "required": [
+                            "from",
+                            "to"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "usedToday": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "warnAt": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "day": {
+                          "type": "string"
+                        },
+                        "dayZone": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "dailyLimit",
+                        "serviceHours",
+                        "usedToday",
+                        "warnAt",
+                        "day",
+                        "dayZone"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dailyLimit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000
+                  },
+                  "serviceHours": {
+                    "type": "object",
+                    "properties": {
+                      "from": {
+                        "type": "string",
+                        "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$"
+                      },
+                      "to": {
+                        "type": "string",
+                        "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$"
+                      }
+                    },
+                    "required": [
+                      "from",
+                      "to"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "dailyLimit",
+                  "serviceHours"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "dailyLimit": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "serviceHours": {
+                          "type": "object",
+                          "properties": {
+                            "from": {
+                              "type": "string",
+                              "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$"
+                            },
+                            "to": {
+                              "type": "string",
+                              "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$"
+                            }
+                          },
+                          "required": [
+                            "from",
+                            "to"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "usedToday": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "warnAt": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "day": {
+                          "type": "string"
+                        },
+                        "dayZone": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "dailyLimit",
+                        "serviceHours",
+                        "usedToday",
+                        "warnAt",
+                        "day",
+                        "dayZone"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sms/deliveries": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "in": "query",
+            "name": "before",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "prepared",
+                "retrying",
+                "handing-over",
+                "accepted",
+                "provider-failed",
+                "refused",
+                "unknown",
+                "skipped",
+                "not-sent",
+                "checked-went",
+                "checked-not-sent"
+              ]
+            },
+            "in": "query",
+            "name": "state",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "number"
+                          },
+                          "updatedAt": {
+                            "type": "number"
+                          },
+                          "phoneMasked": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "textClass": {
+                            "type": "string",
+                            "enum": [
+                              "service",
+                              "marketing"
+                            ]
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "prepared",
+                              "retrying",
+                              "handing-over",
+                              "accepted",
+                              "provider-failed",
+                              "refused",
+                              "unknown",
+                              "skipped",
+                              "not-sent",
+                              "checked-went",
+                              "checked-not-sent"
+                            ]
+                          },
+                          "reason": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "provider": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "twilio",
+                                  "telnyx"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "providerStatus": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "providerErrorCode": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "segments": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "price": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "amount": {
+                                    "type": "string"
+                                  },
+                                  "currency": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "amount",
+                                  "currency"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "estimatedSegments": {
+                            "type": "number"
+                          },
+                          "encoding": {
+                            "type": "string",
+                            "enum": [
+                              "gsm-7",
+                              "ucs-2"
+                            ]
+                          },
+                          "attempts": {
+                            "type": "number"
+                          },
+                          "mayHaveGoneAt": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "source": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "app": {
+                                    "type": "string"
+                                  },
+                                  "table": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "app",
+                                  "table"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "createdAt",
+                          "updatedAt",
+                          "phoneMasked",
+                          "textClass",
+                          "state",
+                          "reason",
+                          "provider",
+                          "providerStatus",
+                          "providerErrorCode",
+                          "segments",
+                          "price",
+                          "estimatedSegments",
+                          "encoding",
+                          "attempts",
+                          "mayHaveGoneAt",
+                          "source"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "next": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "next"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sms/deliveries/{id}/settle": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "answer": {
+                    "type": "string",
+                    "enum": [
+                      "went",
+                      "not-sent"
+                    ]
+                  }
+                },
+                "required": [
+                  "answer"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "number"
+                        },
+                        "updatedAt": {
+                          "type": "number"
+                        },
+                        "phoneMasked": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "textClass": {
+                          "type": "string",
+                          "enum": [
+                            "service",
+                            "marketing"
+                          ]
+                        },
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "prepared",
+                            "retrying",
+                            "handing-over",
+                            "accepted",
+                            "provider-failed",
+                            "refused",
+                            "unknown",
+                            "skipped",
+                            "not-sent",
+                            "checked-went",
+                            "checked-not-sent"
+                          ]
+                        },
+                        "reason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "provider": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "twilio",
+                                "telnyx"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "providerStatus": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "providerErrorCode": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "segments": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "price": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "amount": {
+                                  "type": "string"
+                                },
+                                "currency": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "amount",
+                                "currency"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "estimatedSegments": {
+                          "type": "number"
+                        },
+                        "encoding": {
+                          "type": "string",
+                          "enum": [
+                            "gsm-7",
+                            "ucs-2"
+                          ]
+                        },
+                        "attempts": {
+                          "type": "number"
+                        },
+                        "mayHaveGoneAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "app": {
+                                  "type": "string"
+                                },
+                                "table": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "app",
+                                "table"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "createdAt",
+                        "updatedAt",
+                        "phoneMasked",
+                        "textClass",
+                        "state",
+                        "reason",
+                        "provider",
+                        "providerStatus",
+                        "providerErrorCode",
+                        "segments",
+                        "price",
+                        "estimatedSegments",
+                        "encoding",
+                        "attempts",
+                        "mayHaveGoneAt",
+                        "source"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sms/stop-list": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 400
+            },
+            "in": "query",
+            "name": "cursor",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "text-stop",
+                "provider-opt-out",
+                "staff",
+                "erased"
+              ]
+            },
+            "in": "query",
+            "name": "reason",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "phone": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "masked": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "reason": {
+                            "type": "string",
+                            "enum": [
+                              "text-stop",
+                              "provider-opt-out",
+                              "staff",
+                              "erased"
+                            ]
+                          },
+                          "origin": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "addedAt": {
+                            "type": "number"
+                          },
+                          "addedBy": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "erasedAt": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "phone",
+                          "masked",
+                          "reason",
+                          "origin",
+                          "addedAt",
+                          "addedBy",
+                          "erasedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "next": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "next"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "asked": {
+                    "type": "string",
+                    "enum": [
+                      "phone",
+                      "email",
+                      "in-person"
+                    ]
+                  }
+                },
+                "required": [
+                  "phone",
+                  "asked"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "phone": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "masked": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "text-stop",
+                            "provider-opt-out",
+                            "staff",
+                            "erased"
+                          ]
+                        },
+                        "origin": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "addedAt": {
+                          "type": "number"
+                        },
+                        "addedBy": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "erasedAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "phone",
+                        "masked",
+                        "reason",
+                        "origin",
+                        "addedAt",
+                        "addedBy",
+                        "erasedAt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "added": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "added"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sms/stop-list/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/sms/text-templates": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "app": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "languages": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "locale": {
+                                  "type": "string"
+                                },
+                                "body": {
+                                  "type": "string"
+                                },
+                                "enabled": {
+                                  "type": "boolean"
+                                },
+                                "edited": {
+                                  "type": "boolean"
+                                },
+                                "updatedAt": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "locale",
+                                "body",
+                                "enabled",
+                                "edited",
+                                "updatedAt"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "name",
+                          "app",
+                          "languages"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "connected": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "connected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sms/text-templates/{key}/{locale}": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                },
+                "required": [
+                  "body"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]{2,3}_[A-Z]{2}$"
+            },
+            "in": "path",
+            "name": "locale",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "app": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "languages": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "locale": {
+                                "type": "string"
+                              },
+                              "body": {
+                                "type": "string"
+                              },
+                              "enabled": {
+                                "type": "boolean"
+                              },
+                              "edited": {
+                                "type": "boolean"
+                              },
+                              "updatedAt": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "locale",
+                              "body",
+                              "enabled",
+                              "edited",
+                              "updatedAt"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "name",
+                        "app",
+                        "languages"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]{2,3}_[A-Z]{2}$"
+            },
+            "in": "path",
+            "name": "locale",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "app": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "languages": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "locale": {
+                                "type": "string"
+                              },
+                              "body": {
+                                "type": "string"
+                              },
+                              "enabled": {
+                                "type": "boolean"
+                              },
+                              "edited": {
+                                "type": "boolean"
+                              },
+                              "updatedAt": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "locale",
+                              "body",
+                              "enabled",
+                              "edited",
+                              "updatedAt"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "name",
+                        "app",
+                        "languages"
                       ],
                       "additionalProperties": false
                     }

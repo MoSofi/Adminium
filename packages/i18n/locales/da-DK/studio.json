@@ -2956,6 +2956,11 @@
       "body": "Vælg det fragtfirma, hver app sender med, tilslut dets nøgle, og indstil etiketstørrelse og hvem der må købe etiketter.",
       "cta": "Åbn forsendelse",
       "heading": "Forsendelse"
+    },
+    "textsCard": {
+      "body": "Send korte sms’er til kunderne fra din egen Twilio- eller Telnyx-konto.",
+      "cta": "Åbn Sms",
+      "heading": "Sms"
     }
   },
   "source": {
@@ -6427,5 +6432,466 @@
       "subtitle": "{carrier} sender hver scanning fra fragtfirmaerne til denne server.",
       "waiting": "Venter"
     }
+  },
+  "texts": {
+    "activity": {
+      "askOwner": "Bed ejeren om at tjekke dette hos {provider}.",
+      "calledAt": "Overdraget",
+      "clear": "Ryd filtre",
+      "code": "{provider} sagde:",
+      "col": {
+        "about": "Om",
+        "number": "Nummer",
+        "price": "Pris",
+        "segments": "Segmenter",
+        "status": "Status",
+        "when": "Hvornår"
+      },
+      "confirmResend": "Den blev ikke sendt. Send igen",
+      "confirmTitle": "Send denne sms igen?",
+      "declare": "Jeg har tjekket {provider}, og denne sms blev ikke sendt.",
+      "emptyBody": "Når en app eller en automatisering sender en sms, vises den her.",
+      "emptyTitle": "Ingen sms’er endnu",
+      "filter": {
+        "about": "Om",
+        "all": "Alle",
+        "code": "Landekode",
+        "status": "Status"
+      },
+      "kind": "Type",
+      "loading": "Indlæser sms’er",
+      "marketing": "Markedsføring",
+      "noBody": "Selve beskeden gemmes ikke, så den kan ikke vises her.",
+      "noMatch": "Ingen sms’er passer til disse filtre.",
+      "notSent": "Den blev ikke sendt, send igen",
+      "openLog": "Åbn beskedloggen hos {provider}",
+      "provider": "Udbyder",
+      "rechecked": "Før den sendes igen, tjekkes samtykke, ingen-sms-listen, sendetiderne og dagens grænse igen. Den kan stadig blive sprunget over.",
+      "reported": "meldt af udbyderen",
+      "rule": "En automatisering",
+      "service": "Service",
+      "story": {
+        "handed": "Overdraget til {provider}",
+        "queued": "Sat i kø",
+        "retried": "Prøvet igen sikkert med samme nøgle"
+      },
+      "text": "Sms",
+      "twice": "Hvis det er forkert, får personen den to gange, og virksomheden betaler to gange.",
+      "unknownCount": "{count, plural, one {# sms skal tjekkes} other {# sms’er skal tjekkes}}",
+      "viewOnly": "Du kan se sms’er her. Bed ejeren om at afklare en eller ændre indstillinger.",
+      "went": "Den blev sendt",
+      "whatHappened": "Hvad skete der"
+    },
+    "askOwner": {
+      "body": "Sms’er opsættes af den, der har tilladelsen “Opsæt sms-beskeder”.",
+      "title": "Bed ejeren om at ændre dette"
+    },
+    "cancel": "Annuller",
+    "changed": {
+      "body": "Sms’er faktureres nu til {account} i stedet for den konto, der er tilsluttet nu.",
+      "bodyNoName": "Sms’er faktureres nu til en anden konto end den, der er tilsluttet nu.",
+      "confirm": "Fakturér den nye konto",
+      "kept": "Intet er ændret endnu. Den nuværende nøgle gælder, indtil du bekræfter. Afsenderen ryddes, fordi den hører til den gamle konto.",
+      "title": "Dette er en anden konto"
+    },
+    "check": {
+      "bad": {
+        "line": "Kopiér nøglen igen fra din udbyders konsol.",
+        "title": "Udbyderen accepterede ikke denne nøgle"
+      },
+      "closed": {
+        "line": "Løs det i udbyderens konsol, og tjek så igen.",
+        "title": "Udbyderen har lukket denne konto eller sat den på pause"
+      },
+      "networkOff": {
+        "line": "Ingen udbyder kan nås, før de bliver slået til.",
+        "title": "Netværksfunktioner er slået fra på denne server"
+      },
+      "noSender": {
+        "line": "Tilføj et nummer eller et afsendernavn i din udbyders konsol, og indtast det så her.",
+        "title": "Tilsluttet, men intet kan sende endnu"
+      },
+      "operatorOff": {
+        "line": "Den, der driver denne server, har slået dem fra.",
+        "title": "Sms’er er slået fra på denne server"
+      },
+      "profile": {
+        "line": "Kopiér id’et for beskedprofilen igen fra Telnyx.",
+        "title": "Denne beskedprofil blev ikke fundet"
+      },
+      "trial": {
+        "line": "En Twilio-prøvekonto sender kun Twilios egne skabeloner til bekræftede numre. Gør den til en betalt konto i Twilio, og tjek så igen.",
+        "title": "Dette er en prøvekonto"
+      },
+      "unreachable": {
+        "line": "Din gemte nøgle er ikke ændret. Tjek denne servers internetforbindelse, og prøv igen.",
+        "title": "Vi kunne ikke nå udbyderen"
+      }
+    },
+    "close": "Luk",
+    "cn": {
+      "sentence": "Adminium sender ikke sms’er til det kinesiske fastland (+86). Ingen af udbyderne kan love levering, svar eller en afmelding, der virker, dér. Taiwan og Hongkong er ikke berørt."
+    },
+    "connect": {
+      "heading": "Tilslut din udbyder",
+      "sub": "Én udbyderkonto dækker hele denne server."
+    },
+    "connected": {
+      "badge": "Tilsluttet",
+      "badgeProblem": "Skal tjekkes",
+      "checkAgain": "Tjek igen",
+      "checkFirst": "Efter en timeout tjekker du, før du sender igen.",
+      "disconnect": "Afbryd forbindelsen",
+      "key": "Nøgle",
+      "lastChecked": "Senest tjekket",
+      "replace": "Erstat nøgle",
+      "sameKey": "Prøver sikkert igen efter en timeout, i 24 timer.",
+      "saved": "Gemt",
+      "title": "Tilsluttet {account}",
+      "titleNoName": "Tilsluttet {provider}",
+      "unreadable": "Den gemte nøgle kan ikke længere åbnes",
+      "unreadableLine": "Denne servers hemmelighed er ændret. Indsæt nøglen igen for at sende sms’er."
+    },
+    "counter": {
+      "announce": "{count, plural, one {# segment} other {# segmenter}}",
+      "characters": "tegn",
+      "estimate": "skøn",
+      "left": "tilbage i dette segment",
+      "segments": "segmenter",
+      "standard": "Standard",
+      "tooLong": "For lang til at sende. Gør den kortere. En sms over {count} segmenter sendes aldrig.",
+      "unicode": "Unicode"
+    },
+    "countries": {
+      "col": {
+        "country": "Land",
+        "dial": "Kode",
+        "marketing": "Markedsførings-sms’er",
+        "replies": "Svar",
+        "sender": "Afsender",
+        "service": "Service-sms’er",
+        "stop": "Sådan stopper man"
+      },
+      "heading": "Hvor du kan sende sms’er",
+      "no": "Nej",
+      "search": "Søg i lande",
+      "serviceOnly": "Kun service",
+      "stopReply": "Svarer STOP",
+      "stopThroughYou": "Ingen svar, så afmelding går gennem dig",
+      "yes": "Ja"
+    },
+    "country": {
+      "AE": "Kun registrerede afsendernavne. Ingen numre eller links i beskeden.",
+      "AU": "Uregistrerede navne kommer frem mærket “Unverified”.",
+      "CA": "Ingen afsendernavne. Brug et almindeligt nummer (long code), et bekræftet toll-free-nummer eller et kortnummer (short code).",
+      "CZ": "T-Mobile og O2 blokerer uregistrerede navne. Registrér for fuld dækning.",
+      "EG": "Svar understøttes ikke.",
+      "ES": "Uregistrerede afsendernavne blokeres.",
+      "FR": "Registrér dit afsendernavn. Kilderne er uenige, så regn det som påkrævet.",
+      "HK": "Afsendernavne kræver registrering. Svar virker.",
+      "IN": "Den indenlandske rute kræver DLT-registrering.",
+      "SA": "Kun registrerede afsendernavne. En lokal saudisk virksomhed skal bruge en lokal udbyder.",
+      "TW": "Brandnavnet skal stå først i hver sms. Links skal godkendes på forhånd.",
+      "US": "10DLC- eller toll-free-registrering. Sms’er sendes ikke, før den er godkendt. Det kan tage dage til uger.",
+      "nameFree": "Afsendernavne kræver ingen registrering."
+    },
+    "disconnect": {
+      "body": "Sms’er stopper med det samme, og nøglerne slettes fra denne server. Sms’er, der allerede er overdraget til {provider}, kaldes ikke tilbage.",
+      "title": "Afbryd forbindelsen til {provider}?",
+      "yes": "Afbryd og slet nøglerne"
+    },
+    "editor": {
+      "addedForYou": "Tilføjet for dig",
+      "back": "Alle skabeloner",
+      "businessContact": "Telefon eller e-mail til afmelding",
+      "businessContactHelp": "Til forhåndsvisningen. Sms’er bruger appens telefon eller svaradressen for din e-mailafsender.",
+      "businessName": "Virksomhedens navn",
+      "country": "Land",
+      "emptyChip": "tom",
+      "fallback": "Personer, der læser {language}, får denne på engelsk.",
+      "insert": "Indsæt",
+      "insertOne": "Indsæt {name}",
+      "languages": "Sprog",
+      "noReplies": "Denne server kan ikke modtage STOP-svar, så hver sms angiver din telefon eller e-mail til afmelding.",
+      "optOutNote": "Den tæller med i længden og kan ikke redigeres. Den er på engelsk, indtil de andre sprog er tilføjet.",
+      "ownStop": "Din sms nævner selv STOP, så intet tilføjes.",
+      "plain": "Brug et almindeligt tegn",
+      "preview": "Forhåndsvisning",
+      "problem": {
+        "credential": "En sms kan ikke indeholde et login-link, en kode, et undersøgelseslink eller en QR-værdi: {names}",
+        "empty": "Skriv først teksten.",
+        "missing": "Denne sms sendes ikke, før {names} har en værdi.",
+        "noContact": "Denne afsender kan ikke modtage et STOP-svar, og der er ikke angivet telefon eller e-mail til afmelding, så den sendes ikke.",
+        "shortLink": "Et offentligt kort link filtreres af teleselskaberne. Adminium har ingen linkforkorter, så udelad linket.",
+        "tooLong": "For lang til at sende. Gør den kortere.",
+        "yes": "Bed ikke folk om at svare YES. Et YES-svar kan ophæve en afmelding hos udbyderen. Bed i stedet folk om at give samtykke på en formular."
+      },
+      "sampleBusiness": "Din virksomhed",
+      "samples": "Eksempelværdier til forhåndsvisningen",
+      "saveEmpty": "Gem som tom",
+      "sender": "Sendt fra",
+      "table": "Tælles som",
+      "tableCanada": "Canada, almindeligt nummer",
+      "tableStandard": "De fleste lande",
+      "tableTollFree": "USA og Canada, toll-free",
+      "taiwan": "Brandnavnet skal stå først i hver sms.",
+      "undo": "Fortryd ændringer",
+      "unicode": "Dette tegn bruger Unicode-taksten:",
+      "whereTo": "Hvor den sendes hen, og hvem den er fra",
+      "words": "Teksten"
+    },
+    "field": {
+      "accountSid": "Account SID",
+      "apiKey": "API-nøgle",
+      "authToken": "Auth Token",
+      "authTokenHelp": "Sender sms’erne og tjekker, at opdateringer virkelig kom fra Twilio.",
+      "profile": "Beskedprofil-id",
+      "publicKey": "Offentlig nøgle",
+      "publicKeyHelp": "Bruges kun til at tjekke, at opdateringer virkelig kom fra Telnyx."
+    },
+    "intro": "Korte beskeder til dine kunder, sendt fra din egen udbyderkonto. Adminium har aldrig kontoen eller pengene.",
+    "key": {
+      "billed": "Sms’er sendes og faktureres på din {provider}-konto. Kundernes telefonnumre og beskedtekst sendes til {provider} og teleselskaberne.",
+      "checking": "Tjekker…",
+      "keep": "Behold den nuværende nøgle",
+      "kept": "Den gemte nøgle bruges fortsat, indtil udbyderen svarer."
+    },
+    "limits": {
+      "anyTime": "Sms’er, som en kunde venter på lige nu, f.eks. “Dit værelse er klar”, må sendes når som helst. Hver app angiver, hvilke af dens sms’er det er.",
+      "clock": "Servicetiderne følger virksomhedens ur. En sms, der skal sendes uden for dem, venter til næste åbning og springes over, hvis det er efter dens tidspunkt.",
+      "from": "Service-sms’er fra",
+      "heading": "Daglig grænse og sendetider",
+      "hoursBad": "To forskellige tidspunkter, f.eks. 08:00 og 21:00.",
+      "limit": "Sms’er om dagen, højst",
+      "limitBad": "Et helt tal fra 1 til 100.000.",
+      "marketing": "Markedsførings-sms’er: 09:00–20:00, mandag til lørdag. Fast.",
+      "raise": "Hæv grænsen",
+      "reached": "Dagens grænse er nået. Sms’er venter til i morgen, medmindre deres tidspunkt passerer først.",
+      "to": "Indtil",
+      "today": "Sendt i dag",
+      "warnAt": "Advarslen starter ved {count}. Tællingen starter forfra ved midnat, {zone}.",
+      "why": "Det beskytter din regning hos udbyderen, hvis en automatisering går galt."
+    },
+    "loadFailed": "Dette kunne ikke indlæses",
+    "noAccess": "Bed den, der driver denne server, om at give dig tilladelsen “Opsæt sms-beskeder”.",
+    "notAffiliated": "Adminium er ikke tilknyttet Twilio, Telnyx eller noget teleselskab.",
+    "paste": {
+      "empty": "Indsæt en værdi her.",
+      "keySid": "Denne værdi er et API key SID. Indsæt Account SID her. Det starter med AC.",
+      "notKey": "Det ligner ikke en nøgle. Kopiér den igen.",
+      "notSid": "Dette er ikke et Account SID. Det starter med AC.",
+      "profile": "Dette er ikke et beskedprofil-id. Kopiér det fra profilens side.",
+      "publicKey": "Dette er ikke en offentlig nøgle. Kopiér den fra siden Public key.",
+      "sidInToken": "Denne værdi er et Account SID. Indsæt Auth Token her.",
+      "spaces": "Indsæt den uden noget før eller efter."
+    },
+    "provider": {
+      "legend": "Din udbyder",
+      "price": "USA, pr. segment: {price} plus teleselskabernes gebyrer. Priserne kan ændre sig.",
+      "telnyxLine": "Selvbetjening, kan bede om identitetstjek. Kan prøve sikkert igen efter en timeout.",
+      "twilioLine": "Selvbetjening. Efter en timeout tjekker du, før du sender igen."
+    },
+    "reach": {
+      "heading": "Kan svar nå denne server?",
+      "no": "Ingen svar",
+      "ok": "Svar og leveringsrapporter kan nå denne server.",
+      "problem": "Denne server har ingen offentlig https-adresse. Den kan sende service-sms’er, men den kan ikke modtage STOP-svar eller leveringsrapporter. Markedsførings-sms’er er slået fra.",
+      "yes": "Svar kommer frem"
+    },
+    "reason": {
+      "badNumber": "Ikke sendt. Nummeret kan ikke læses som et rigtigt telefonnummer.",
+      "cannotReceive": "Ikke sendt. Dette nummer kan ikke modtage sms’er.",
+      "countryNotEnabled": "Ikke sendt. Din udbyderkonto kan endnu ikke sende sms’er til dette land. Slå det til i udbyderens konsol.",
+      "dailyLimit": "Ikke sendt. Dagens grænse var nået.",
+      "marketingCountry": "Ikke sendt. Markedsførings-sms’er kan ikke sendes til dette land, fordi folk dér ikke kan svare STOP.",
+      "marketingName": "Ikke sendt. Markedsføring kan ikke sendes fra et afsendernavn, fordi det ikke kan modtage STOP.",
+      "missingValue": "Ikke sendt. En pladsholder havde ingen værdi.",
+      "needsConfirm": "Ikke sendt. Dette land kræver, at personen bekræfter først.",
+      "noCn": "Ikke sendt. Adminium sender ikke sms’er til det kinesiske fastland (+86).",
+      "noConsent": "Ikke sendt. Denne person har ikke givet samtykke til sms’er.",
+      "noDoor": "Ikke sendt. Denne server kan ikke modtage STOP, så markedsførings-sms’er er slået fra.",
+      "noLongerNeeded": "Ikke sendt. Det, den handlede om, blev aflyst, mens den ventede.",
+      "noOptOut": "Ikke sendt. Der kunne ikke gives en måde at afmelde sig på for denne afsender. Tilføj virksomhedens telefon eller e-mail.",
+      "notConnected": "Ikke sendt. Ingen fungerende udbyderkonto eller afsender. Tjek Opsætning.",
+      "notReached": "Ikke sendt. Udbyderen kunne ikke nås, og intet blev overdraget.",
+      "operatorOff": "Ikke sendt. Sms’er er slået fra på denne server.",
+      "other": "Ikke sendt. Udbyderen afviste den.",
+      "sender": "Ikke sendt. Udbyderen afviste afsenderen. Tjek den i udbyderens konsol.",
+      "spendLimit": "Ikke sendt. Din udbyderkontos forbrugsgrænse er nået.",
+      "stopped": "Ikke sendt. Denne person har bedt om ikke at få flere sms’er.",
+      "tooLate": "Ikke sendt. De næste sendetider ligger efter det tidspunkt, sms’en var tiltænkt.",
+      "waitingRegistration": "Ikke sendt. Din registrering for dette land afventer stadig.",
+      "words": "Ikke sendt. Skabelonen eller en værdi i den kan ikke sendes som sms."
+    },
+    "registration": {
+      "between": "Registreringen er mellem din virksomhed og {provider}. Adminium kan ikke se den, godkende den eller fremskynde den.",
+      "heading": "Registrering",
+      "open": "Åbn registrering i {provider}",
+      "sub": "Nogle lande kræver, at en virksomhed registrerer sig, før den kan sende sms’er dér.",
+      "unknown": "{provider} oplyser os ikke om dette for din afsender. Tjek det dér.",
+      "us": "Sms’er til USA leveres ikke, før din 10DLC- eller toll-free-registrering er godkendt. Det kan tage dage til uger."
+    },
+    "save": "Gem",
+    "saveFailed": "Dette kunne ikke gemmes",
+    "sender": {
+      "badCountry": "Vælg et land fra listen.",
+      "badName": "Op til 11 bogstaver, cifre og mellemrum, med mindst ét bogstav.",
+      "badNumber": "Skriv hele nummeret, startende med + og landekoden.",
+      "badPool": "Indsæt Messaging Service SID (MG…) eller denne profils id for Telnyx.",
+      "contact": "Hvor en sms ikke kan modtage et STOP-svar, slutter den med appens telefonnummer eller svaradressen for din e-mailafsender, så personen kan bede dig om at stoppe. Medarbejderne registrerer det derefter på ingen-sms-listen.",
+      "country": "Land for lokale numre",
+      "countryHelp": "Et nummer skrevet uden + læses som et nummer herfra.",
+      "heading": "Hvem sms’erne kommer fra",
+      "kind": "Type afsender",
+      "name": "Afsendernavn",
+      "nameLine": "Kan ikke modtage svar, så hver sms angiver din telefon eller e-mail til afmelding.",
+      "noCountry": "Ingen: kun numre med +",
+      "number": "Nummer",
+      "numberLine": "Kan modtage svar.",
+      "otherProfile": "Det nummer ligger på en anden beskedprofil. Flyt det til denne profil i Telnyx.",
+      "pool": "Beskedtjeneste eller nummerpulje",
+      "poolLine": "Svar afhænger af afsenderne i den, så sms’er angiver din telefon eller e-mail til afmelding.",
+      "refused": "Den afsender kunne ikke gemmes.",
+      "sub": "Et nummer eller afsendernavn fra din udbyders konsol. Adminium køber ingen og registrerer ingen."
+    },
+    "status": {
+      "checkedNotSent": "Tjekket: den blev ikke sendt",
+      "checkedWent": "Tjekket: den blev sendt",
+      "delivered": "Leveret",
+      "failed": "Mislykkedes",
+      "notSent": "Ikke sendt",
+      "sent": "Overdraget til udbyderen",
+      "skipped": "Sprunget over",
+      "undelivered": "Ikke leveret",
+      "unknown": "Ukendt, tjek før du sender igen",
+      "waiting": "Venter"
+    },
+    "statusLine": {
+      "checkedNotSent": "Nogen har tjekket hos udbyderen: den blev ikke sendt. Appen kan sende den igen, efter at alle tjek er kørt igen.",
+      "checkedWent": "Nogen har tjekket hos udbyderen: den blev sendt.",
+      "delivered": "Udbyderen melder, at den nåede telefonen.",
+      "failed": "Den blev ikke sendt. Årsagen nedenfor siger, hvad der skal rettes.",
+      "notSent": "Den blev med sikkerhed ikke overdraget til udbyderen.",
+      "sent": "{provider} modtog den. Det vides endnu ikke, om den nåede telefonen.",
+      "skipped": "En regel stoppede den, før noget blev sendt.",
+      "undelivered": "Teleselskabet kunne ikke levere den. Tjek nummeret med personen, før du sender igen.",
+      "unknown": "Vi fik intet svar fra {provider}. Den kan have sendt denne sms. Adminium sender den ikke igen af sig selv.",
+      "waiting": "I kø. Den sendes, når sendetiderne åbner, og dagens grænse har plads."
+    },
+    "steps": {
+      "check": "Tjek forbindelsen",
+      "checkLine": "Udbyderen bliver spurgt om nøglen, før den gemmes.",
+      "openConsole": "Åbn konsollen",
+      "openPortal": "Åbn portalen",
+      "openTelnyx": "Åbn Telnyx",
+      "openTwilio": "Åbn Twilio",
+      "paste": "Indsæt dem nedenfor",
+      "pasteLine": "Hver værdi for sig, uden noget før eller efter.",
+      "telnyx": {
+        "account": "Opret en Telnyx-konto",
+        "accountLine": "Selvbetjening. Telnyx kan bede om identitetstjek.",
+        "keys": "Opret en API-nøgle, og kopiér den offentlige nøgle",
+        "keysLine": "Begge findes under Auth i Telnyx-portalen.",
+        "profile": "Kopiér id’et for din beskedprofil",
+        "profileLine": "Den profil, der har de numre, du sender fra."
+      },
+      "twilio": {
+        "account": "Opret en betalt Twilio-konto",
+        "accountLine": "En prøvekonto kan ikke sende disse sms’er.",
+        "keys": "Kopiér dit Account SID og din Auth Token",
+        "keysLine": "Begge står på konsollens forside under Account info."
+      }
+    },
+    "stop": {
+      "added": "Sms’er til dette nummer er stoppet.",
+      "already": "Dette nummer er allerede på listen.",
+      "badNumber": "Dette er ikke et telefonnummer, en sms kan nå. Skriv det med + og landekoden.",
+      "col": {
+        "actions": "Handlinger",
+        "from": "Hvorfra",
+        "number": "Nummer",
+        "when": "Hvornår",
+        "why": "Hvorfor"
+      },
+      "confirmSent": "Der blev sendt én enkel bekræftelse uden spørgsmål og uden tilbud.",
+      "count": "{count, plural, one {# post} other {# poster}}",
+      "empty": "Ingen er på listen endnu.",
+      "erased": "Slettet person, beholdt så de aldrig får en sms igen",
+      "from": {
+        "email": "Bad om det på e-mail. Registreret af {name}",
+        "erased": "Slettet efter anmodning",
+        "inPerson": "Bad om det personligt. Registreret af {name}",
+        "phone": "Bad om det i telefonen. Registreret af {name}",
+        "provider": "{provider} meldte en afmelding",
+        "reply": "Svarede STOP på en sms"
+      },
+      "how": "Hvordan de bad om det",
+      "asked": {
+        "email": "På e-mail",
+        "inPerson": "Personligt",
+        "phone": "I telefonen"
+      },
+      "line": "Ingen her får nogen sms fra denne virksomhed, heller ikke service-sms’er.",
+      "noConfirm": "Ingen bekræftelse på sms, fordi personen bad virksomheden direkte.",
+      "noMatch": "Ingen poster passer.",
+      "number": "Telefonnummer",
+      "record": "Registrér en anmodning om stop",
+      "recordWhy": "Til en, der har bedt dig, ikke via sms, om ikke at få flere sms’er. En sms fra et afsendernavn kan ikke modtage et STOP-svar, så det er sådan, de stopper.",
+      "recordedBy": "Registreret under dit navn. Det gælder med det samme for alle sms’er fra denne virksomhed.",
+      "remove": "Fjern",
+      "removeBody": "Kun hvis denne person igen har givet samtykke til at få sms’er. At fjerne nummeret registrerer ikke et ja: de får stadig kun de sms’er, de har givet samtykke til.",
+      "removeTitle": "Fjern dette nummer fra listen?",
+      "save": "Stop sms’er til dette nummer",
+      "search": "Søg i numre",
+      "start": "Et START-svar ophæver udbyderens blokering og fjerner nummeret fra denne liste, men det er ikke et ja. Personen skal stadig give samtykke igen før nogen sms.",
+      "why": {
+        "erased": "Slettet person",
+        "hand": "Bad virksomheden",
+        "provider": "Meldt af udbyderen",
+        "reply": "Svarede STOP"
+      },
+      "whyAny": "Hvorfor: alle"
+    },
+    "tab": {
+      "activity": "Aktivitet",
+      "setup": "Opsætning",
+      "stop": "Ingen-sms-liste",
+      "templates": "Skabeloner"
+    },
+    "templates": {
+      "col": {
+        "app": "App",
+        "languages": "Sprog",
+        "name": "Skabelon",
+        "segments": "Flest segmenter"
+      },
+      "emptyBody": "Apps, der sender sms’er, har deres egne skabeloner med. Installér en fra siden med apps, så vises dens skabeloner her, klar til at redigere.",
+      "emptyTitle": "Ingen app har installeret en sms-skabelon endnu",
+      "languagesOf": "{count} af {total}",
+      "notConnected": "Der er ingen udbyder tilsluttet, så disse skabeloner sender intet endnu.",
+      "openApps": "Åbn tilføjelser og apps",
+      "openSetup": "Åbn Opsætning",
+      "segmentsNote": "Segmenter tælles med eksempelværdier og afmeldingslinjen. Hver kundes egne værdier kan ændre det."
+    },
+    "test": {
+      "cost": "Dette bruger din udbyderkonto og kan koste et lille beløb.",
+      "fixed": "Test-sms’en har altid disse ord, så denne knap kan ikke sende andet.",
+      "limited": "For mange test-sms’er. Prøv igen om et par minutter.",
+      "message": "Test-sms’en",
+      "notReady": "Tilslut først en udbyder, og vælg en afsender.",
+      "notTaken": "Ikke sendt",
+      "open": "Send en test-sms",
+      "refused": "Ikke sendt",
+      "send": "Send test",
+      "sending": "Sender…",
+      "sent": "Overdraget til {provider}",
+      "sentLine": "En test-sms får ingen leveringsrapport her, så se på telefonen. Med en testnøgle leveres intet.",
+      "sub": "Én fast sms til en telefon, du har ved hånden.",
+      "title": "Send en test-sms",
+      "to": "Telefonnummer",
+      "toHelp": "Med + og landekoden, eller et lokalt nummer fra det land, der er valgt ovenfor.",
+      "unknownLine": "Vi fik intet svar fra {provider}. Se i dens beskedlog, før du sender en til."
+    },
+    "title": "Sms"
   }
 }

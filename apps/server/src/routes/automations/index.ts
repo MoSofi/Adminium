@@ -43,6 +43,7 @@ import {
   type EnqueueJobInput,
   type Job,
   type MetaDb,
+  TEXT_TEMPLATE_FALLBACK_LOCALE,
   textTemplatesRepo,
 } from '@adminium/meta';
 
@@ -106,6 +107,8 @@ export interface AutomationsRoutesDeps {
   runner?: Partial<RunnerDeps> | undefined;
   /** What is installed where, read fresh: the steps add-ons give to a rule. Absent: none is offered or judged. */
   installs?: (() => Promise<AddOnInstalls>) | undefined;
+  /** Whether a text provider is connected and its key opens. Absent: the sources say nothing about texts' provider. */
+  textsConnected?: (() => Promise<boolean>) | undefined;
 }
 
 const THIRTY_DAYS = 30 * DAY_MS;
@@ -123,6 +126,17 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
     if (connectionId === null) return () => ({ state: 'no-add-on' });
     const installs = await deps.installs();
     return (addOn, step) => findStep(installs, connectionId, addOn, step);
+  }
+
+  /** The text templates a Send text step may name, each by its US English words (what the step's counter shows). */
+  async function liveTextTemplates(): Promise<{ key: string; name: string; body: string }[]> {
+    const repo = textTemplatesRepo(meta);
+    const out = [];
+    for (const key of await repo.liveKeys()) {
+      const row = await repo.findSendable(key, TEXT_TEMPLATE_FALLBACK_LOCALE);
+      if (row !== null) out.push({ key, name: row.name, body: row.body });
+    }
+    return out;
   }
 
   /** The columns of a table that name a row of a table of people, one hop (a link, or a column that copies one): a step's person. */
@@ -512,6 +526,8 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
           hiddenTemplates: listed.filter((_family, index) => !here(families.live[index]!)),
           templatesOff: families.off,
           roles: roles.map((role) => ({ id: role.id, name: role.name })),
+          textTemplates: await liveTextTemplates(),
+          ...(deps.textsConnected === undefined ? {} : { textsConnected: await deps.textsConnected() }),
         };
       },
     );

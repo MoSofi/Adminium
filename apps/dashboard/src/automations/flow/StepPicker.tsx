@@ -36,6 +36,10 @@ const TILE_TEXT: Readonly<Record<string, { label: [string, string]; desc: [strin
     label: ['automations:pick.email', 'Send email'],
     desc: ['automations:pick.emailDesc', 'From a saved template'],
   },
+  text: {
+    label: ['automations:pick.text', 'Send text'],
+    desc: ['automations:pick.textDesc', 'A short text from a text template'],
+  },
   notification: {
     label: ['automations:pick.notification', 'Send notification'],
     desc: ['automations:pick.notificationDesc', 'Tell people on this server'],

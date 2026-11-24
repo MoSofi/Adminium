@@ -927,6 +927,20 @@ export const SETTINGS_REGISTRY = {
     null,
     'The country a local phone number is read in, as a two-letter code',
   ),
+  // Texts: the required daily limit and the service hours, on the business's clock (Studio → Texts → Setup).
+  // Null reads as the defaults, 500 a day and 08:00 to 21:00, and the send path falls back to them for any
+  // value it cannot read, so a damaged setting never means "no limit". Not portable: it guards this business's bill.
+  'sms.sendPolicy': def<{ dailyLimit: number; serviceHours: { from: string; to: string } } | null>(
+    z
+      .object({
+        dailyLimit: z.number().int().min(1).max(100_000),
+        serviceHours: z.object({ from: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/), to: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/) }).strict(),
+      })
+      .strict()
+      .nullable(),
+    null,
+    'The daily text limit and the service hours for texts',
+  ),
   // ── "Your websites": the sites that may show a form in a frame ────────────
   //
   // Each an origin (`https://shop.example`: lower case, no path, no default

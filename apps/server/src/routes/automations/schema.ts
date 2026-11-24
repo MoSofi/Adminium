@@ -269,6 +269,10 @@ export const automationSourcesReply = z.object({
   hiddenTemplates: z.array(sourceTemplateSchema),
   /** Roles a notification can address. */
   roles: z.array(z.object({ id: z.string(), name: z.string() })),
+  /** What a Send text step may name: every text template with a language switched on, its US English words for the counter. */
+  textTemplates: z.array(z.object({ key: z.string(), name: z.string(), body: z.string() })).optional(),
+  /** Whether a text provider is connected, so the step can say to connect one first. Absent: not known here. */
+  textsConnected: z.boolean().optional(),
 });
 
 // --- stats ------------------------------------------------------------------

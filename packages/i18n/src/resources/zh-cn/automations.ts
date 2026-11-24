@@ -133,7 +133,9 @@ export default {
     "stopDesc": "在此结束本次运行",
     "document": "生成文档",
     "digest": "给每人发送摘要",
-    "digestDesc": "每人一封邮件，只含属于自己的行"
+    "digestDesc": "每人一封邮件，只含属于自己的行",
+    "text": "发送短信",
+    "textDesc": "使用短信模板发送一条简短短信"
   },
   "node": {
     "email": {
@@ -184,6 +186,10 @@ export default {
     },
     "digest": {
       "summary": "{template} · {count, plural, other {# 个分区}}"
+    },
+    "text": {
+      "sub": "模板 · 选择一个",
+      "summary": "短信 · {template} → {to}"
     }
   },
   "event": {
@@ -574,5 +580,21 @@ export default {
     "budget": "规则每天在每个登记机构最多查询 50 次。",
     "pick": "登记机构 · 选择一个",
     "summary": "从 {registers} 补全空白信息"
+  },
+  "text": {
+    "characters": "字符",
+    "checked": "发送时会检查同意情况、短信拒收名单、发送时段和今日上限。不能发送的短信会被跳过，自动化继续运行。",
+    "estimate": "估算，基于一条示例记录",
+    "fillWith": "一段文字，或记录中的某一列",
+    "noMoment": "无时间点：只要在发送时段内就发送",
+    "noProvider": "请先在“短信”中连接服务商。",
+    "noTemplates": "还没有应用安装短信模板。",
+    "notAfter": "此时间之后不再发送",
+    "openTexts": "打开“短信”",
+    "segments": "段",
+    "standard": "标准",
+    "template": "短信模板",
+    "to": "电话号码列",
+    "unicode": "Unicode"
   }
 } as const;

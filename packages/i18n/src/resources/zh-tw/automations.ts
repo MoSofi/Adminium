@@ -133,7 +133,9 @@ export default {
     "stopDesc": "在此結束這次執行",
     "document": "產生文件",
     "digest": "給每人傳送摘要",
-    "digestDesc": "每人一封郵件，只含屬於自己的列"
+    "digestDesc": "每人一封郵件，只含屬於自己的列",
+    "text": "傳送簡訊",
+    "textDesc": "用簡訊範本傳送一則簡短簡訊"
   },
   "node": {
     "email": {
@@ -184,6 +186,10 @@ export default {
     },
     "digest": {
       "summary": "{template} · {count, plural, other {# 個區段}}"
+    },
+    "text": {
+      "sub": "範本 · 請選擇一個",
+      "summary": "簡訊 · {template} → {to}"
     }
   },
   "event": {
@@ -574,5 +580,21 @@ export default {
     "budget": "規則每天在每個登記機構最多查詢 50 次。",
     "pick": "登記機構 · 選擇一個",
     "summary": "從 {registers} 補全空白資料"
+  },
+  "text": {
+    "characters": "個字元",
+    "checked": "傳送時會檢查同意、簡訊拒收名單、傳送時段和今日上限。不能傳送的簡訊會被略過，流程繼續執行。",
+    "estimate": "估計值，以一筆範例記錄計算",
+    "fillWith": "一段文字，或記錄中的某個欄位",
+    "noMoment": "無指定時刻：在時段允許時隨時傳送",
+    "noProvider": "請先在「簡訊」中連接服務商。",
+    "noTemplates": "還沒有應用程式安裝簡訊範本。",
+    "notAfter": "此時間之後不再傳送",
+    "openTexts": "開啟「簡訊」",
+    "segments": "段",
+    "standard": "標準",
+    "template": "簡訊範本",
+    "to": "電話號碼欄位",
+    "unicode": "Unicode"
   }
 } as const;
