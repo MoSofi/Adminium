@@ -70,6 +70,7 @@ export interface TextConsentStore {
   };
   log: {
     append(input: TextEventInput): Promise<TextConsentEvent>;
+    byId(id: string): Promise<TextConsentEvent | null>;
     /** The newest yes or no for this number. At the same moment, a no wins. */
     latestForPhone(hashes: readonly AddressHash[], purpose: TextPurpose): Promise<TextConsentEvent | null>;
     /** The newest no on this row, whichever number it was given for. */
@@ -235,6 +236,11 @@ function storeOver(db: Kysely<TextTables>, dialect: MetaDb['dialect']): TextCons
         };
         await db.insertInto('adminium_text_consent_log').values(row).execute();
         return decodeEvent(row);
+      },
+
+      async byId(id) {
+        const row = await db.selectFrom('adminium_text_consent_log').selectAll().where('id', '=', id).executeTakeFirst();
+        return row === undefined ? null : decodeEvent(row as TextLogTable);
       },
 
       async latestForPhone(hashes, purpose) {
