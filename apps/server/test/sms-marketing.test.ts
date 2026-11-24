@@ -37,6 +37,8 @@ import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 import { stubProvider } from './sms-send.helpers.js';
 
 vi.mock('../src/version.js', async (original) => ({ ...(await original<typeof import('../src/version.js')>()), APP_VERSION: SMS_WORDS_FLOOR }));
+// What marketing does once the release offers it: the lock itself is `sms-marketing-lock.test.ts`.
+vi.mock('../src/sms/marketing/availability.js', () => ({ TEXT_MARKETING_AVAILABLE: true }));
 
 const ACCOUNT_SID = `AC${'ab'.repeat(16)}`;
 const TWILIO: SmsCredentialInput = { provider: 'twilio', accountSid: ACCOUNT_SID, authToken: 'made-up-token-for-these-tests' };

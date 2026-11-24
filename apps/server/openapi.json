@@ -128659,6 +128659,7 @@
                                   "reason": {
                                     "type": "string",
                                     "enum": [
+                                      "marketing-not-yet-available",
                                       "off-by-operator",
                                       "marketing-off-by-operator",
                                       "not-connected",
@@ -128979,6 +128980,7 @@
                                   "reason": {
                                     "type": "string",
                                     "enum": [
+                                      "marketing-not-yet-available",
                                       "off-by-operator",
                                       "marketing-off-by-operator",
                                       "not-connected",
@@ -129067,6 +129069,7 @@
                                   "reason": {
                                     "type": "string",
                                     "enum": [
+                                      "marketing-not-yet-available",
                                       "off-by-operator",
                                       "marketing-off-by-operator",
                                       "not-connected",
@@ -130789,6 +130792,7 @@
                           "type": "string",
                           "enum": [
                             "sent",
+                            "not-yet-available",
                             "held",
                             "not-needed",
                             "already-confirmed",

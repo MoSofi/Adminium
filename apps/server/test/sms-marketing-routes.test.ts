@@ -16,6 +16,8 @@ import { LEGS, said, wholeServer, type Reply, type WholeServer } from './whole-s
 import { stubProvider } from './sms-send.helpers.js';
 
 vi.mock('../src/version.js', async (original) => ({ ...(await original<typeof import('../src/version.js')>()), APP_VERSION: SMS_WORDS_FLOOR }));
+// What marketing does once the release offers it: the lock itself is `sms-marketing-lock.test.ts`.
+vi.mock('../src/sms/marketing/availability.js', () => ({ TEXT_MARKETING_AVAILABLE: true }));
 
 const ORIGIN = 'https://stays.example';
 const GB_ANNA = '+447400123451';

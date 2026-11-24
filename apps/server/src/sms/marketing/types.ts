@@ -40,6 +40,8 @@ export type TextRecipientState = (typeof TEXT_RECIPIENT_STATES)[number];
  * every batch: the same check the console's preflight shows.
  */
 export const TEXT_RUN_REFUSALS = [
+  /** This release does not offer marketing texts yet (`availability.ts`). */
+  'marketing-not-yet-available',
   /** The operator switched texts off on this server. */
   'off-by-operator',
   /** The operator switched marketing off on this server. */

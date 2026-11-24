@@ -51,7 +51,7 @@ function Price({ row }: { row: Delivery }) {
   );
 }
 
-// ─── Unknown, check before resending (X41–X43) ─────────────────────────────
+// ─── Unknown, check before resending ───────────────────────────────────────
 
 function SettleUnknown({ row, canManage, onSettled }: { row: Delivery; canManage: boolean; onSettled: (row: Delivery) => void }) {
   const provider = row.provider === null ? 'Twilio' : providerName(row.provider);
@@ -119,7 +119,7 @@ function SettleUnknown({ row, canManage, onSettled }: { row: Delivery; canManage
   );
 }
 
-// ─── Row detail (X40) ───────────────────────────────────────────────────────
+// ─── Row detail ─────────────────────────────────────────────────────────────
 
 function DeliveryDrawer({ row, canManage, onClose, onSettled }: { row: Delivery | null; canManage: boolean; onClose: () => void; onSettled: (row: Delivery) => void }): ReactNode {
   if (row === null) return null;

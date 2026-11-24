@@ -54,7 +54,7 @@ const caption = 'text-[10.5px] font-bold uppercase tracking-[.05em] text-fg-subt
 /** The server's fixed test text (`SMS_TEST_BODY`): the test route sends nothing else. */
 export const TEST_TEXT = 'Test text from Adminium. Your text message connection works.';
 
-// ─── Can replies reach this server (X03) ───────────────────────────────────
+// ─── Can replies reach this server ─────────────────────────────────────────
 
 function RepliesCard({ setup }: { setup: SmsSetup }) {
   const ok = setup.repliesCanArrive;
@@ -83,7 +83,7 @@ function RepliesCard({ setup }: { setup: SmsSetup }) {
   );
 }
 
-// ─── The provider (X04–X10) ─────────────────────────────────────────────────
+// ─── The provider ───────────────────────────────────────────────────────────
 
 interface FieldSpec {
   name: string;
@@ -401,7 +401,7 @@ function ConnectedCard({ account, locale, onChanged, onGone }: { account: SmsAcc
   );
 }
 
-// ─── The sender (X11) ───────────────────────────────────────────────────────
+// ─── The sender ─────────────────────────────────────────────────────────────
 
 function senderWords(kind: SenderKind): { label: string; line: string } {
   switch (kind) {
@@ -493,7 +493,7 @@ function SenderCard({ account, locale, onSaved }: { account: SmsAccount; locale:
   );
 }
 
-// ─── Registration (X13, X14) ────────────────────────────────────────────────
+// ─── Registration ───────────────────────────────────────────────────────────
 
 function RegistrationCard({ provider }: { provider: SmsProvider }) {
   const name = providerName(provider);
@@ -518,7 +518,7 @@ function RegistrationCard({ provider }: { provider: SmsProvider }) {
   );
 }
 
-// ─── Where you can text (X15, X16) ──────────────────────────────────────────
+// ─── Where you can text ─────────────────────────────────────────────────────
 
 function CountriesCard({ locale }: { locale: string }) {
   const [query, setQuery] = useState('');
@@ -601,7 +601,7 @@ function CountriesCard({ locale }: { locale: string }) {
   );
 }
 
-// ─── A test text (X17) ──────────────────────────────────────────────────────
+// ─── A test text ────────────────────────────────────────────────────────────
 
 function testResultWords(result: TestOutcome, provider: string): { tone: 'pos' | 'warn' | 'danger' | 'info'; title: string; line: string } {
   if (result.outcome === 'accepted') return { tone: 'info', title: t('studio:texts.test.sent', 'Handed to {provider}', { provider }), line: t('studio:texts.test.sentLine', 'A test text gets no delivery report here, so look at the phone. With a test key nothing is delivered.') };
@@ -669,7 +669,7 @@ function TestDialog({ open, onClose, provider }: { open: boolean; onClose: () =>
   );
 }
 
-// ─── The daily limit and the hours (X18–X20) ───────────────────────────────
+// ─── The daily limit and the hours ─────────────────────────────────────────
 
 const CLOCK = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 
