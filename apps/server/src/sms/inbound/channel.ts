@@ -37,7 +37,7 @@ import type { SmsService } from '../service.js';
 import { TELNYX_CODES } from '../telnyx.js';
 import { TWILIO_CODES } from '../twilio.js';
 import { SMS_PROVIDERS, type SmsProviderKey } from '../types.js';
-import { createSmsCatchUp, type SmsCatchUp, type SmsCatchUpResult } from './catch-up.js';
+import { createSmsCatchUp, settingsCatchUpMark, type SmsCatchUp, type SmsCatchUpResult } from './catch-up.js';
 import { readControlWord } from './control-words.js';
 import { deliveryStatusOf } from './delivery.js';
 import { SMS_EVENT_KINDS, SMS_INBOUND_CHANNEL, readTelnyxBody, readTwilioForm, smsEventBody, type SmsEventBody } from './payload.js';
@@ -384,7 +384,7 @@ export function createSmsInboundChannel(deps: SmsInboundDeps): SmsInboundChannel
       if (!deps.networkFeatures || deps.operatorOff?.() === true) return;
       const at = now();
       if (at < nextCatchUpAt) return;
-      sweepCatchUp ??= createSmsCatchUp({ core: { accept }, sms: deps.sms, fetch: deps.fetch, now, lookbackMs: SMS_SWEEP_CATCH_UP_LOOKBACK_MS, maxPages: SMS_SWEEP_CATCH_UP_MAX_PAGES });
+      sweepCatchUp ??= createSmsCatchUp({ core: { accept }, sms: deps.sms, mark: settingsCatchUpMark(deps.meta), fetch: deps.fetch, now, lookbackMs: SMS_SWEEP_CATCH_UP_LOOKBACK_MS, maxPages: SMS_SWEEP_CATCH_UP_MAX_PAGES });
       const result = await sweepCatchUp.run();
       if (result.outcome === 'done') nextCatchUpAt = at + SMS_SWEEP_CATCH_UP_EVERY_MS;
       deps.onCatchUp?.(result);

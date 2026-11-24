@@ -30,7 +30,7 @@ import { createSmsAccountStore } from './account-store.js';
 import { createTextConsentService, type TextConsentService } from './consent/index.js';
 import { storedDefaultCountry } from './country.js';
 import { createTextErasure, type TextErasure } from './erasure.js';
-import { createSmsCatchUp, createSmsInboundChannel, type SmsCatchUpResult, type SmsInboundChannel, type SmsStopConfirmation } from './inbound/index.js';
+import { createSmsCatchUp, createSmsInboundChannel, settingsCatchUpMark, type SmsCatchUpResult, type SmsInboundChannel, type SmsStopConfirmation } from './inbound/index.js';
 import { smsConsoleRoutes } from './console-routes.js';
 import { smsRoutes } from './routes.js';
 import { createTextSendStore, textPhoneKeys, TEXT_SETTLE_JOB, TEXT_SETTLE_SCHEDULE, type TextReport, type TextSendPath, type TextSendStore } from './send/index.js';
@@ -230,7 +230,7 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
     async catchUpAtBoot() {
       // A server told not to reach out does not, whatever it may have missed.
       if (!deps.networkFeatures || !deps.operator().allowed) return null;
-      const result = await createSmsCatchUp({ core: inbound, sms: service, fetch: deps.fetch, now }).run();
+      const result = await createSmsCatchUp({ core: inbound, sms: service, mark: settingsCatchUpMark(meta), fetch: deps.fetch, now }).run();
       if (result.outcome !== 'not-connected') deps.log.info({ catchUp: result.outcome, stored: result.stored, truncated: result.truncated, unreadable: result.unreadable, otherProfile: result.otherProfile }, 'sms catch-up');
       return result;
     },

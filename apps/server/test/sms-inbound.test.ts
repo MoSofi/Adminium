@@ -25,8 +25,11 @@ import {
   createSmsCatchUp,
   createSmsInboundChannel,
   deliveryMoves,
+  settingsCatchUpMark,
   deliveryStatusOf,
   type SmsDeliveryStatus,
+  type SmsCatchUpMark,
+  type SmsCatchUpMarkStore,
   type SmsInboundChannel,
   type SmsInboundDeps,
   type SmsReplyReceived,
@@ -814,7 +817,24 @@ describe.each(META_ENGINES)('SMS inbound — $name', (engine) => {
   describe('catch-up', () => {
     const page = (messages: unknown[], next: string | null = null) => json(200, { messages, next_page_uri: next });
     const inbound = (body: string, sid = nextSid(), at = clock - 60_000, from = PERSON) => ({ sid, direction: 'inbound', from, to: OURS, body, status: 'received', date_sent: new Date(at).toUTCString(), date_created: new Date(at).toUTCString(), account_sid: ACCOUNT_SID });
-    const catchUp = (fetchStub: typeof fetch, extra: { maxPages?: number } = {}) => createSmsCatchUp({ core, sms: { credentials: async () => credentials, view: async () => view }, fetch: fetchStub, now: () => clock, ...extra });
+    const catchUp = (fetchStub: typeof fetch, extra: { maxPages?: number; lookbackMs?: number; mark?: SmsCatchUpMarkStore } = {}) => createSmsCatchUp({ core, sms: { credentials: async () => credentials, view: async () => view }, fetch: fetchStub, now: () => clock, ...extra });
+    const BASE = `/2010-04-01/Accounts/${ACCOUNT_SID}/Messages.json`;
+    const dayOf = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+    /**
+     * Twilio's list as it pages one day (`DateSent`), newest first, in pages of
+     * `size`. `days` holds each day's messages; a day not in it is empty.
+     */
+    function twilioList(days: Record<string, unknown[]>, size = 200, urls: string[] = []) {
+      return (async (url: string | URL | Request) => {
+        const asked = new URL(String(url));
+        urls.push(String(url));
+        const day = asked.searchParams.get('DateSent') ?? '';
+        const at = Number(asked.searchParams.get('Page') ?? '0');
+        const all = days[day] ?? [];
+        const more = (at + 1) * size < all.length;
+        return page(all.slice(at * size, (at + 1) * size), more ? `${BASE}?${new URLSearchParams({ DateSent: day, PageSize: String(size), Page: String(at + 1), PageToken: `PA${String(at + 1)}` }).toString()}` : null);
+      }) as typeof fetch;
+    }
 
     only('the sweep asks no provider while network features or the operator say no', async () => {
       await app.close();
@@ -836,15 +856,13 @@ describe.each(META_ENGINES)('SMS inbound — $name', (engine) => {
 
     only('finds a STOP missed while down, and it reaches the stop list', async () => {
       const urls: string[] = [];
-      const result = await catchUp((async (url: string | URL | Request) => {
-        urls.push(String(url));
-        return page([inbound('STOP'), { ...inbound('STOP'), direction: 'outbound-api', from: OURS, to: '+4915199999999' }]);
-      }) as typeof fetch).run();
-      expect(result).toMatchObject({ outcome: 'done', stored: 1, pages: 1, truncated: false });
+      const result = await catchUp(twilioList({ [dayOf(clock)]: [inbound('STOP'), { ...inbound('STOP'), direction: 'outbound-api', from: OURS, to: '+4915199999999' }] }, 200, urls)).run();
+      // One page a day, from the oldest day of the week back to today.
+      expect(result).toMatchObject({ outcome: 'done', stored: 1, pages: 8, truncated: false });
       expect(urls[0]).toContain(`/Accounts/${ACCOUNT_SID}/Messages.json`);
       // Every inbound message: a STOP sent to an earlier or second number counts too.
       expect(new URL(urls[0]!).searchParams.has('To')).toBe(false);
-      expect(new URL(urls[0]!).searchParams.get('DateSent>')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(urls.map((url) => new URL(url).searchParams.get('DateSent'))).toEqual([7, 6, 5, 4, 3, 2, 1, 0].map((days) => dayOf(clock - days * 86_400_000)));
       await drain();
       expect(await stopped()).toBe(true);
       expect(await stopped('+4915199999999')).toBe(false);
@@ -854,7 +872,7 @@ describe.each(META_ENGINES)('SMS inbound — $name', (engine) => {
       const sid = nextSid();
       await twilioReply('STOP', sid);
       await drain();
-      const fetchStub = (async () => page([inbound('STOP', sid)])) as unknown as typeof fetch;
+      const fetchStub = twilioList({ [dayOf(clock)]: [inbound('STOP', sid)] });
       expect(await catchUp(fetchStub).run()).toMatchObject({ outcome: 'done', stored: 0, duplicates: 1 });
       expect(await catchUp(fetchStub).run()).toMatchObject({ outcome: 'done', stored: 0, duplicates: 1 });
       expect(await rows()).toHaveLength(1);
@@ -890,16 +908,66 @@ describe.each(META_ENGINES)('SMS inbound — $name', (engine) => {
       expect(result).toMatchObject({ outcome: 'partial', truncated: true, stored: 3, pages: 3 });
     });
 
-    only('stops at messages older than the window', async () => {
-      let calls = 0;
-      const base = `/2010-04-01/Accounts/${ACCOUNT_SID}/Messages.json`;
+    only('never asks for a day before the look-back', async () => {
+      const urls: string[] = [];
       const old = clock - 8 * 24 * 60 * 60 * 1000;
-      const result = await catchUp((async () => {
-        calls += 1;
-        return page([inbound('hello'), inbound('STOP', nextSid(), old)], `${base}?Page=${calls}`);
-      }) as unknown as typeof fetch).run();
-      expect(calls).toBe(1);
-      expect(result.stored).toBe(1);
+      const result = await catchUp(twilioList({ [dayOf(old)]: [inbound('STOP', nextSid(), old)] }, 200, urls)).run();
+      expect(urls.map((url) => new URL(url).searchParams.get('DateSent'))).not.toContain(dayOf(old));
+      expect(result.stored).toBe(0);
+    });
+
+    only('reaches a STOP 40 hours old on a busy account within two sweeps, where the newest 600 never would', async () => {
+      // 1,000 texts out over the last two days, and one STOP among them.
+      const days: Record<string, unknown[]> = {};
+      const out = (at: number) => ({ ...inbound('Your table is ready', nextSid(), at), direction: 'outbound-api', from: OURS, to: '+4915199999999' });
+      for (let i = 0; i < 1000; i += 1) {
+        const at = clock - Math.floor((i / 1000) * 47 * 3_600_000) - 1000;
+        (days[dayOf(at)] ??= []).push(out(at));
+      }
+      const stopAt = clock - 40 * 3_600_000;
+      (days[dayOf(stopAt)] ??= []).push(inbound('STOP PLEASE', nextSid(), stopAt));
+      for (const day of Object.keys(days)) days[day]!.sort((a, b) => Date.parse((b as { date_sent: string }).date_sent) - Date.parse((a as { date_sent: string }).date_sent));
+      const sweeps = catchUp(twilioList(days), { maxPages: 3, lookbackMs: 2 * 86_400_000 });
+      const first = await sweeps.run();
+      if (first.stored === 0) {
+        expect(first).toMatchObject({ outcome: 'partial', truncated: true });
+        expect((await sweeps.run()).stored).toBe(1);
+      }
+      await drain();
+      expect(await stopped()).toBe(true);
+    });
+
+    only('resumes where the budget ran out, not from the start, and moves past a day only once it is read to its end', async () => {
+      const yesterday = dayOf(clock - 86_400_000);
+      const days = { [yesterday]: Array.from({ length: 5 }, (_, i) => inbound(`hello ${String(i)}`, nextSid(), clock - 86_400_000 - i * 1000)) };
+      const urls: string[] = [];
+      const marks: SmsCatchUpMark[] = [];
+      const store = { read: async () => marks.at(-1) ?? null, write: async (mark: SmsCatchUpMark) => void marks.push(mark) };
+      const run = catchUp(twilioList(days, 2, urls), { maxPages: 2, lookbackMs: 86_400_000, mark: store });
+      expect(await run.run()).toMatchObject({ outcome: 'partial', truncated: true, stored: 4 });
+      expect(marks.at(-1)).toMatchObject({ day: yesterday, next: expect.stringContaining('Page=2') });
+      urls.length = 0;
+      expect(await run.run()).toMatchObject({ stored: 1 });
+      // The stored page first, then today.
+      expect(new URL(urls[0]!).searchParams.get('Page')).toBe('2');
+      expect(new URL(urls[1]!).searchParams.get('DateSent')).toBe(dayOf(clock));
+      expect(marks.at(-1)).toEqual({ account: expect.any(String), day: dayOf(clock), next: null });
+      // Another account's mark is not this one's: it starts from the look-back.
+      marks.push({ account: 'f'.repeat(32), day: dayOf(clock), next: null });
+      urls.length = 0;
+      await run.run();
+      expect(new URL(urls[0]!).searchParams.get('DateSent')).toBe(yesterday);
+    });
+
+    only('keeps the mark in the server\'s settings, and moves it only once what was read is stored', async () => {
+      const yesterday = dayOf(clock - 86_400_000);
+      const days = { [yesterday]: [inbound('hello', nextSid(), clock - 86_400_000)] };
+      await settingsRepo(handle.meta).unset('sms.catchUpMark');
+      const broken = createSmsCatchUp({ core: { accept: async () => { throw new Error('db down'); } }, sms: { credentials: async () => credentials, view: async () => view }, mark: settingsCatchUpMark(handle.meta), fetch: twilioList(days), now: () => clock, lookbackMs: 86_400_000 });
+      expect(await broken.run()).toMatchObject({ reason: 'store-failed' });
+      expect(await settingsRepo(handle.meta).get('sms.catchUpMark')).toBeNull();
+      await catchUp(twilioList(days), { lookbackMs: 86_400_000, mark: settingsCatchUpMark(handle.meta) }).run();
+      expect(await settingsRepo(handle.meta).get('sms.catchUpMark')).toMatchObject({ day: dayOf(clock), next: null });
     });
 
     only.each(['https://evil.example/2010-04-01/x', '//evil.example/x', '/2010-04-01/Accounts/ACother/Messages.json?x=1', `/2010-04-01/Accounts/${ACCOUNT_SID}/Messages.json?x=1#y`])('will not carry the key to the next page %s', async (next) => {
@@ -943,7 +1011,8 @@ describe.each(META_ENGINES)('SMS inbound — $name', (engine) => {
     only('runs one at a time', async () => {
       let release: (value: Response) => void = () => undefined;
       const held = new Promise<Response>((resolve) => { release = resolve; });
-      const runner = catchUp((async () => held) as unknown as typeof fetch);
+      let calls = 0;
+      const runner = catchUp((async () => (calls++ === 0 ? held : page([]))) as unknown as typeof fetch);
       const first = runner.run();
       await new Promise((resolve) => setTimeout(resolve, 5));
       expect((await runner.run()).outcome).toBe('already-running');

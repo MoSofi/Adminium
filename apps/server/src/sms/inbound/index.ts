@@ -20,7 +20,7 @@ export {
   type SmsReplyReceived,
   type SmsReplyState,
 } from './channel.js';
-export { SMS_CATCH_UP_LOOKBACK_MS, SMS_CATCH_UP_MAX_PAGES, createSmsCatchUp, type SmsCatchUp, type SmsCatchUpDeps, type SmsCatchUpResult } from './catch-up.js';
+export { SMS_CATCH_UP_LOOKBACK_MS, SMS_CATCH_UP_MAX_PAGES, createSmsCatchUp, settingsCatchUpMark, type SmsCatchUp, type SmsCatchUpDeps, type SmsCatchUpMark, type SmsCatchUpMarkStore, type SmsCatchUpResult } from './catch-up.js';
 export { foldMessage, listedWords, readControlWord, type ControlKind, type ControlWord } from './control-words.js';
 export {
   SMS_DELIVERY_STATUSES,

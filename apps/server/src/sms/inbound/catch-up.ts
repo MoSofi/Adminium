@@ -5,12 +5,24 @@
  *
  * Bounded (a fixed look-back and page budget) and safe to repeat: everything
  * goes through the store-once table, so what is already held is a duplicate and
- * does nothing. It keeps no cursor on purpose. A cursor moved by a webhook that
- * arrived right after a restart would hide the gap before it.
+ * does nothing.
  *
- *   Twilio   the account's inbound messages, newest first, by `DateSent`
+ *   Twilio   the account's messages, one UTC day at a time (`DateSent`), from
+ *            the oldest day of the look-back to today, keeping the inbound ones
  *   Telnyx   the opt-out list. Telnyx documents no way to list inbound
  *            messages, so an ordinary reply missed there stays missed
+ *
+ * ─── The mark ─────────────────────────────────────────────────────────────
+ * A busy account sends far more than it receives, and the list holds both, so
+ * a page budget read from the newest end never reached an older STOP. So
+ * Twilio is read oldest day first, and a mark keeps how far: the day being
+ * read and, when the budget ran out inside it, the provider's own link to the
+ * next page. The next run resumes there rather than starting again. The mark
+ * moves past a day only once that day was read to its end after it was over,
+ * and nothing but this reading moves it, so a webhook that arrives after a
+ * restart can never hide the gap before it. Today is read again each run,
+ * because more can still arrive. The mark belongs to one account: another
+ * account starts from the look-back.
  *
  * A provider failure ends the run as `partial`, with what was read so far kept.
  * It never throws for the provider's sake, because it runs during start-up and
@@ -24,6 +36,8 @@
  * whose `to` is one of its senders is read by its `from`, and one that names no
  * customer is counted in `unreadable`, never dropped unseen.
  */
+import { settingsRepo, type MetaDb } from '@adminium/meta';
+
 import type { InboundAccept, InboundCandidate } from '../../inbound/index.js';
 import { accountRefOf, type SmsCredentials, type TelnyxCredentials, type TwilioCredentials } from '../credentials.js';
 import { SMS_CALL_TIMEOUT_MS, asRecord, callProvider, type SmsCallContext } from '../http.js';
@@ -55,8 +69,39 @@ export interface SmsCatchUpResult {
   reason: 'provider-unreachable' | 'provider-refused' | 'unreadable-reply' | 'store-failed' | null;
 }
 
+/** How far the Twilio list has been read: the UTC day, and the provider's link to the next page of it (null: its first). */
+export interface SmsCatchUpMark {
+  account: string;
+  day: string;
+  next: string | null;
+}
+
+/** Where the mark is kept. */
+export interface SmsCatchUpMarkStore {
+  read(): Promise<SmsCatchUpMark | null>;
+  write(mark: SmsCatchUpMark): Promise<void>;
+}
+
+/** The mark in the server's settings, so a restart resumes too. A mark this version cannot read starts from the look-back. */
+export function settingsCatchUpMark(meta: MetaDb): SmsCatchUpMarkStore {
+  return {
+    async read() {
+      try {
+        return await settingsRepo(meta).get('sms.catchUpMark');
+      } catch {
+        return null;
+      }
+    },
+    async write(mark) {
+      await settingsRepo(meta).set('sms.catchUpMark', mark, { updatedBy: null });
+    },
+  };
+}
+
 export interface SmsCatchUpDeps {
   core: { accept: InboundAccept };
+  /** Where the Twilio mark is kept; in this run's memory when left out. */
+  mark?: SmsCatchUpMarkStore | undefined;
   sms: Pick<SmsService, 'credentials' | 'view'>;
   fetch?: typeof globalThis.fetch | undefined;
   now?: (() => number) | undefined;
@@ -72,7 +117,13 @@ interface Collected {
   unreadable: number;
   otherProfile: number;
   reason: SmsCatchUpResult['reason'];
+  /** Where the next run starts, once what was read is stored. Null: nothing to keep. */
+  mark: Omit<SmsCatchUpMark, 'account'> | null;
 }
+
+const dayOf = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
+const dayAfter = (day: string): string => dayOf(Date.parse(`${day}T00:00:00.000Z`) + DAY_MS);
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 function failureOf(call: Awaited<ReturnType<typeof callProvider>>): SmsCatchUpResult['reason'] | null {
   if (call.kind !== 'answered') return 'provider-unreachable';
@@ -80,34 +131,43 @@ function failureOf(call: Awaited<ReturnType<typeof callProvider>>): SmsCatchUpRe
   return asRecord(call.json) === null ? 'unreadable-reply' : null;
 }
 
-async function collectTwilio(credentials: TwilioCredentials, since: number, maxPages: number, context: SmsCallContext): Promise<Collected> {
-  const out: Collected = { events: [], pages: 0, truncated: false, unreadable: 0, otherProfile: 0, reason: null };
-  const base = `/2010-04-01/Accounts/${credentials.accountSid}/Messages.json`;
-  const query = new URLSearchParams({ PageSize: String(TWILIO_PAGE_SIZE), 'DateSent>': new Date(since).toISOString().slice(0, 10) });
-  let path: string | null = `${base}?${query.toString()}`;
-  const authorization = `Basic ${Buffer.from(`${credentials.accountSid}:${credentials.authToken.reveal()}`).toString('base64')}`;
+/** A link to another page of this account's own list, on the fixed host: the only kind the key may travel with. */
+function ownPage(base: string, link: unknown): link is string {
+  return typeof link === 'string' && link.startsWith(`${base}?`) && !/[\s#\\]/.test(link);
+}
 
-  while (path !== null) {
+async function collectTwilio(credentials: TwilioCredentials, window: { since: number; now: number }, maxPages: number, context: SmsCallContext, mark: Omit<SmsCatchUpMark, 'account'> | null): Promise<Collected> {
+  const out: Collected = { events: [], pages: 0, truncated: false, unreadable: 0, otherProfile: 0, reason: null, mark: null };
+  const base = `/2010-04-01/Accounts/${credentials.accountSid}/Messages.json`;
+  const sliceOf = (day: string): string => `${base}?${new URLSearchParams({ DateSent: day, PageSize: String(TWILIO_PAGE_SIZE) }).toString()}`;
+  const authorization = `Basic ${Buffer.from(`${credentials.accountSid}:${credentials.authToken.reveal()}`).toString('base64')}`;
+  const first = dayOf(window.since);
+  const today = dayOf(window.now);
+  // Never before the look-back, never after today, and a stored page only of the day it was stored for.
+  let day = mark !== null && DAY.test(mark.day) && mark.day > first ? (mark.day > today ? today : mark.day) : first;
+  let path = mark !== null && mark.day === day && ownPage(base, mark.next) ? mark.next : sliceOf(day);
+  const here = (): Omit<SmsCatchUpMark, 'account'> => ({ day, next: path === sliceOf(day) ? null : path });
+
+  for (;;) {
     if (out.pages >= maxPages) {
       out.truncated = true;
+      out.mark = here();
       break;
     }
     const call = await callProvider(context, { url: `${TWILIO_API}${path}`, method: 'GET', headers: { authorization, accept: 'application/json' } });
     out.reason = failureOf(call);
-    if (out.reason !== null || call.kind !== 'answered') break;
+    if (out.reason !== null || call.kind !== 'answered') {
+      // This page is read again next time.
+      out.mark = here();
+      break;
+    }
     out.pages += 1;
     const reply = asRecord(call.json);
     const messages: unknown[] = Array.isArray(reply?.['messages']) ? (reply['messages'] as unknown[]) : [];
-    let reachedOlder = false;
     for (const raw of messages) {
       const message = asRecord(raw);
       if (message === null || message['direction'] !== 'inbound') continue;
       const at = Date.parse(String(message['date_sent'] ?? message['date_created'] ?? ''));
-      const when = Number.isFinite(at) ? at : since;
-      if (Number.isFinite(at) && at < since) {
-        reachedOlder = true;
-        continue;
-      }
       const sid = message['sid'];
       const from = message['from'];
       const body = message['body'];
@@ -117,17 +177,27 @@ async function collectTwilio(credentials: TwilioCredentials, since: number, maxP
         continue;
       }
       const to = typeof message['to'] === 'string' ? message['to'] : null;
-      out.events.push(replyCandidate({ providerId: replyProviderId(sid), from, to, text: body, answered: false, via: 'catch-up', occurredAt: when }));
+      out.events.push(replyCandidate({ providerId: replyProviderId(sid), from, to, text: body, answered: false, via: 'catch-up', occurredAt: Number.isFinite(at) ? at : Date.parse(`${day}T00:00:00.000Z`) }));
     }
-    if (reachedOlder) break;
     const next: unknown = reply?.['next_page_uri'];
-    if (next === null || next === undefined || next === '') break;
-    // The key travels with this call: only ever to this account's own list, on the fixed host.
-    if (typeof next !== 'string' || !next.startsWith(`${base}?`) || /[\s#\\]/.test(next)) {
-      out.reason = 'unreadable-reply';
+    if (next !== null && next !== undefined && next !== '') {
+      // The key travels with this call: only ever to this account's own list, on the fixed host.
+      if (!ownPage(base, next)) {
+        out.reason = 'unreadable-reply';
+        out.mark = { day, next: null };
+        break;
+      }
+      path = next;
+      continue;
+    }
+    // This day is read to its end. Today can still grow, so it is read again next time.
+    if (day >= today) {
+      out.mark = { day: today, next: null };
       break;
     }
-    path = next;
+    day = dayAfter(day);
+    path = sliceOf(day);
+    out.mark = here();
   }
   return out;
 }
@@ -140,7 +210,7 @@ function optedOutNumber(to: unknown, from: unknown, senders: readonly string[]):
 }
 
 async function collectTelnyx(credentials: TelnyxCredentials, senders: readonly string[], since: number, maxPages: number, context: SmsCallContext): Promise<Collected> {
-  const out: Collected = { events: [], pages: 0, truncated: false, unreadable: 0, otherProfile: 0, reason: null };
+  const out: Collected = { events: [], pages: 0, truncated: false, unreadable: 0, otherProfile: 0, reason: null, mark: null };
   for (let page = 1; ; page += 1) {
     if (page > maxPages) {
       out.truncated = true;
@@ -194,14 +264,24 @@ export interface SmsCatchUp {
 export function createSmsCatchUp(deps: SmsCatchUpDeps): SmsCatchUp {
   const now = deps.now ?? Date.now;
   let running = false;
+  let held: SmsCatchUpMark | null = null;
+  const marks: SmsCatchUpMarkStore = deps.mark ?? {
+    read: async () => held,
+    write: async (mark) => {
+      held = mark;
+    },
+  };
 
   async function once(credentials: SmsCredentials): Promise<SmsCatchUpResult> {
-    const since = now() - (deps.lookbackMs ?? SMS_CATCH_UP_LOOKBACK_MS);
+    const at = now();
+    const since = at - (deps.lookbackMs ?? SMS_CATCH_UP_LOOKBACK_MS);
     const maxPages = deps.maxPages ?? SMS_CATCH_UP_MAX_PAGES;
     const context: SmsCallContext = { fetch: deps.fetch ?? globalThis.fetch, timeoutMs: deps.timeoutMs ?? SMS_CALL_TIMEOUT_MS };
+    const account = accountRefOf(credentials);
     let collected: Collected;
     if (credentials.provider === 'twilio') {
-      collected = await collectTwilio(credentials, since, maxPages, context);
+      const stored = await marks.read().catch(() => null);
+      collected = await collectTwilio(credentials, { since, now: at }, maxPages, context, stored !== null && stored.account === account ? stored : null);
     } else {
       const sender = (await deps.sms.view())?.sender ?? null;
       collected = await collectTelnyx(credentials, sender?.kind === 'number' ? [sender.value] : [], since, maxPages, context);
@@ -211,7 +291,9 @@ export function createSmsCatchUp(deps: SmsCatchUpDeps): SmsCatchUp {
     const ordered = [...collected.events].sort((a, b) => (a.occurredAt ?? 0) - (b.occurredAt ?? 0));
     const base = { pages: collected.pages, truncated: collected.truncated, unreadable: collected.unreadable, otherProfile: collected.otherProfile };
     try {
-      const { stored, duplicates } = await deps.core.accept({ channel: SMS_INBOUND_CHANNEL, account: accountRefOf(credentials), source: credentials.provider, events: ordered });
+      const { stored, duplicates } = await deps.core.accept({ channel: SMS_INBOUND_CHANNEL, account, source: credentials.provider, events: ordered });
+      // Only once what was read is stored: a mark past something unstored would skip it for good.
+      if (collected.mark !== null) await marks.write({ account, ...collected.mark }).catch(() => undefined);
       const incomplete = collected.reason !== null || collected.truncated;
       return { outcome: incomplete ? 'partial' : 'done', stored, duplicates, ...base, reason: collected.reason };
     } catch {
