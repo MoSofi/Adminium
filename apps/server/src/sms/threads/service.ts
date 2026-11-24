@@ -11,7 +11,8 @@
  *
  * ─── ONE THREAD PER NUMBER AND APP ─────────────────────────────────────────
  * A reply belongs to the app that texted the number last, as the delivery
- * records say; with none, to no app. So a clinic's patient and a hotel's guest
+ * records say; with none, to no app. An app whose replies are off keeps a
+ * number it texted in the last {@link OFF_APP_HOLDS_MS} whoever texted it since. So a clinic's patient and a hotel's guest
  * on one server never share a thread, and a role given one app's
  * conversations reads that app's alone. The texts an app sent appear in its
  * thread by template, from the delivery records, because their words are
@@ -25,7 +26,10 @@
  * for a number, never to a number on the stop list, never to the business's
  * own sender, and through the send path like any text, so the daily limit
  * holds. A reply to no app is off when any installed app's replies are off: a
- * server that runs a clinic keeps no stranger's symptoms either.
+ * server that runs a clinic keeps no stranger's symptoms either. The answer
+ * goes only to a number this business texted before, keeps to the service
+ * hours, and at most {@link NOT_READ_DAILY_MAX} go in a day; a reply the
+ * catch-up found later is never answered.
  *
  * ─── EVERY TEXT GOES THROUGH THE SEND PATH ─────────────────────────────────
  * Consent, the stop list, +86, the words, the length, the sending hours and
@@ -74,6 +78,14 @@ export const TEXT_ANSWER_WINDOW_MS = 7 * DAY_MS;
 export const TEXT_WAITING_MS = 60 * MINUTE_MS;
 /** A number gets the "not read" answer at most once in this long, so two automatic answerers cannot keep each other going. */
 export const NOT_READ_EVERY_MS = 30 * DAY_MS;
+/**
+ * "Not read" answers in any 24 hours, for the whole server. Each is a paid text
+ * that takes a slot of the daily limit, so a crowd of strangers writing in can
+ * spend at most this many.
+ */
+export const NOT_READ_DAILY_MAX = 20;
+/** An app whose replies are off keeps a number it texted this recently, against another app's later line. */
+export const OFF_APP_HOLDS_MS = 30 * DAY_MS;
 /** The longest message a person may write here; the send path's segment limit refuses well before. */
 export const TEXT_BODY_MAX = 1600;
 /** How much of the last line a list shows. */
@@ -318,12 +330,30 @@ export function createTextThreads(deps: TextThreadsDeps): TextThreads {
 
   const senderOf = (line: string | null): SmsSender | undefined => (line !== null && E164.test(line) ? { kind: 'number', value: line } : undefined);
 
-  /** The fixed answer, once in its period, never to a stopped number. Every way it can fail ends quietly: nothing is retried. */
+  /**
+   * The app a reply belongs to: the one that texted the number last. But an app
+   * whose replies are off keeps the number for every app while it texted it in
+   * the last {@link OFF_APP_HOLDS_MS}, so another app's one line cannot pull a
+   * clinic patient's next reply into its own conversation.
+   */
+  async function appOf(hashes: readonly AddressHash[]): Promise<string> {
+    for (const recent of await store.appsTextedSince(hashes, now() - OFF_APP_HOLDS_MS)) if ((await repliesOf(recent)) === 'off') return recent;
+    return (await store.lastAppOf(hashes)) ?? '';
+  }
+
+  /**
+   * The fixed answer, once in its period, never to a stopped number. Every way it can fail ends quietly: nothing is
+   * retried. Each one is a paid text a stranger can ask for by writing in, so it goes only to a number this business
+   * texted before, at most {@link NOT_READ_DAILY_MAX} in a day, and inside the service hours like any service text.
+   */
   async function answerNotRead(e164: string, hashes: readonly AddressHash[], app: string, reply: SmsReplyReceived): Promise<TextReceived> {
     const texts = deps.texts();
     if (texts === null) return 'not-read';
     if (await deps.consent.stop.has(e164, null)) return 'not-read';
+    // A number nobody here ever texted is no reply: whoever writes from it gets nothing back.
+    if (!(await store.textedBefore(hashes))) return 'not-read';
     const at = now();
+    if ((await store.answersSince(at - DAY_MS)) >= NOT_READ_DAILY_MAX) return 'not-read';
     if (!(await store.takeAnswer(await ring.hashForWrite(textSubject(e164)), hashes, at - NOT_READ_EVERY_MS, at))) return 'not-read';
     try {
       const business = await deps.business(app === '' ? null : app);
@@ -332,8 +362,8 @@ export function createTextThreads(deps: TextThreadsDeps): TextThreads {
       const prepared = await texts.prepare({
         phone: e164,
         textClass: 'service',
-        // They wrote a moment ago and are waiting: this answers them, at any hour.
-        waiting: true,
+        // It answers them, so it needs no yes of its own; but it keeps to the service hours, like any text nobody waits for.
+        waiting: false,
         answering: true,
         template: notReadText({ locale, business, to: e164 }),
         language: locale,
@@ -502,10 +532,19 @@ export function createTextThreads(deps: TextThreadsDeps): TextThreads {
       const own = (await deps.sms.view())?.sender;
       if (own?.kind === 'number' && own.value === e164) return 'own-sender';
 
-      const app = (await store.lastAppOf(hashes)) ?? '';
+      // Found later by asking the provider, which lists every number of the account, other software's too: kept
+      // only when it reached this business's sender, or came from someone this business texted.
+      if (reply.via === 'catch-up') {
+        const toOurs = own?.kind === 'number' && reply.to === own.value;
+        if (!toOurs && !(await store.textedBefore(hashes))) return 'not-ours';
+      }
+
+      const app = await appOf(hashes);
       if ((await repliesOf(app)) === 'off') {
         // The provider already answered its own HELP: a second answer would only repeat it.
         if (reply.kind === 'help' && reply.answered) return 'not-read';
+        // Found days later: an answer now would come at any hour, about a message long gone.
+        if (reply.via === 'catch-up') return 'not-read';
         return answerNotRead(e164, hashes, app, reply);
       }
 

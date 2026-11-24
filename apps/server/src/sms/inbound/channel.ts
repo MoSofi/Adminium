@@ -108,6 +108,8 @@ export interface SmsReplyReceived {
   answered: boolean;
   /** A STOP's one confirmation was asked for. */
   confirmed?: boolean | undefined;
+  /** `catch-up`: found later by asking the provider, which lists every number of the account. */
+  via?: 'webhook' | 'catch-up' | undefined;
 }
 
 export interface SmsInboundDeps {
@@ -301,7 +303,7 @@ export function createSmsInboundChannel(deps: SmsInboundDeps): SmsInboundChannel
       return { outcome: 'processed', retainMs: SMS_CONTROL_RETAIN_MS, reason: `start-${lifted}` };
     }
 
-    await deps.replies?.({ eventId: event.id, from: reply.from, to: reply.to, text: reply.text, kind: control.kind === 'help' ? 'help' : 'message', at, answered: reply.answered });
+    await deps.replies?.({ eventId: event.id, from: reply.from, to: reply.to, text: reply.text, kind: control.kind === 'help' ? 'help' : 'message', at, answered: reply.answered, via: reply.via });
     return { outcome: 'processed' };
   }
 

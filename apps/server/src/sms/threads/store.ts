@@ -165,6 +165,12 @@ export interface TextThreadStore {
   sentByApp(hashes: readonly AddressHash[], appKey: string, opts: { limit: number; before?: number | undefined }): Promise<TextSentByApp[]>;
   /** The app that texted the number last, or null. */
   lastAppOf(hashes: readonly AddressHash[]): Promise<string | null>;
+  /** The apps that texted the number at or after `since`, the latest first, each once. */
+  appsTextedSince(hashes: readonly AddressHash[], since: number): Promise<string[]>;
+  /** Whether this business ever texted the number, by any app or none. */
+  textedBefore(hashes: readonly AddressHash[]): Promise<boolean>;
+  /** How many "not read" answers went at or after `since`, for every number. */
+  answersSince(since: number): Promise<number>;
   deliveryStates(ids: readonly string[]): Promise<Map<string, { state: string; reason: string | null; providerStatus: string | null }>>;
   switches(): Promise<TextReplySwitchRecord[]>;
   setSwitch(appKey: string, replies: 'on' | 'off', by: { id: string; label: string } | null, at: number): Promise<void>;
@@ -434,6 +440,35 @@ export function createTextThreadStore(meta: MetaDb): TextThreadStore {
         .limit(1)
         .executeTakeFirst();
       return row?.aboutApp ?? null;
+    },
+
+    async appsTextedSince(hashes, since) {
+      if (hashes.length === 0) return [];
+      const rows = await db
+        .selectFrom('adminium_text_deliveries')
+        .select(['aboutApp', 'createdAt'])
+        .where(ofHashes(hashes))
+        .where('aboutApp', 'is not', null)
+        .where('createdAt', '>=', since)
+        .orderBy('createdAt', 'desc')
+        .orderBy('id', 'desc')
+        .limit(DELETE_BATCH)
+        .execute();
+      return [...new Set(rows.flatMap((row) => (row.aboutApp === null ? [] : [row.aboutApp])))];
+    },
+
+    async textedBefore(hashes) {
+      if (hashes.length === 0) return false;
+      return (await db.selectFrom('adminium_text_deliveries').select('id').where(ofHashes(hashes)).limit(1).executeTakeFirst()) !== undefined;
+    },
+
+    async answersSince(since) {
+      const row = await db
+        .selectFrom('adminium_text_auto_answers')
+        .select((eb) => eb.fn.countAll<number | string>().as('count'))
+        .where('answeredAt', '>=', since)
+        .executeTakeFirstOrThrow();
+      return Number(row.count);
     },
 
     async deliveryStates(ids) {
