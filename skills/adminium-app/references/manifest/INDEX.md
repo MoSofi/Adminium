@@ -85,13 +85,12 @@
 | `references/manifest/emails--held-messages.md` | Emails — Held messages | 2873 |
 | `references/manifest/emails--emailtemplates.md` | Emails — emailTemplates | 7416 |
 | `references/manifest/emails--emailtemplates-2.md` | Emails — emailTemplates (part 2) | 6322 |
-| `references/manifest/texts.md` | Texts | 6804 |
+| `references/manifest/texts.md` | Texts | 1894 |
+| `references/manifest/texts--texttemplates.md` | Texts — textTemplates | 2108 |
+| `references/manifest/texts--text-kinds-in-the-outbox.md` | Texts — Text kinds in the outbox | 3006 |
+| `references/manifest/texts--textreplies.md` | Texts — textReplies | 819 |
+| `references/manifest/texts--conversations-for-an-app-s-roles.md` | Texts — Conversations for an app's roles | 898 |
 | `references/manifest/people.md` | People | 979 |
 | `references/manifest/people-2.md` | People (part 2) | 7753 |
-| `references/manifest/people-3.md` | People (part 3) | 731 |
-| `references/manifest/shipping.md` | Shipping | 5707 |
-| `references/manifest/public-access.md` | Public access | 2014 |
-| `references/manifest/public-access-2.md` | Public access (part 2) | 7550 |
-| `references/manifest/public-access-3.md` | Public access (part 3) | 7679 |
 
 More: `references/manifest/INDEX-2.md`

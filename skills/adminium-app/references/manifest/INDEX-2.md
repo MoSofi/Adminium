@@ -4,6 +4,11 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/manifest/people-3.md` | People (part 3) | 731 |
+| `references/manifest/shipping.md` | Shipping | 5707 |
+| `references/manifest/public-access.md` | Public access | 2014 |
+| `references/manifest/public-access-2.md` | Public access (part 2) | 7550 |
+| `references/manifest/public-access-3.md` | Public access (part 3) | 7679 |
 | `references/manifest/public-access--filters.md` | Public access — Filters | 835 |
 | `references/manifest/public-access--windows-on-a-moment.md` | Public access — Windows on a moment | 2049 |
 | `references/manifest/public-access--a-person-s-own-rows.md` | Public access — A person's own rows | 7450 |
@@ -12,7 +17,7 @@
 | `references/manifest/public-access--dry-runs-price-checks-and-retries.md` | Public access — Dry runs, price checks and retries | 1764 |
 | `references/manifest/public-access--a-person-found-by-address.md` | Public access — A person found by address | 2051 |
 | `references/manifest/public-access--a-consent-tick.md` | Public access — A consent tick | 1834 |
-| `references/manifest/public-access--a-box-for-texts.md` | Public access — A box for texts | 2186 |
+| `references/manifest/public-access--a-box-for-texts.md` | Public access — A box for texts | 4107 |
 | `references/manifest/public-access--a-row-s-own-link.md` | Public access — A row's own link | 3677 |
 | `references/manifest/public-access--delete-my-details.md` | Public access — Delete my details | 1801 |
 | `references/manifest/public-access--reads-for-a-signed-in-guest.md` | Public access — Reads for a signed-in guest | 556 |
@@ -70,8 +75,5 @@
 | `references/manifest/add-on-manifests--a-tab-on-another-table-s-record.md` | Add-on manifests — A tab on another table's record | 3205 |
 | `references/manifest/add-on-manifests--a-panel-on-another-table-s-record.md` | Add-on manifests — A panel on another table's record | 2611 |
 | `references/manifest/add-on-manifests--an-add-on-that-works-with-another.md` | Add-on manifests — An add-on that works with another | 743 |
-| `references/manifest/add-on-manifests--what-a-typed-code-may-find.md` | Add-on manifests — What a typed code may find | 1966 |
-| `references/manifest/add-on-manifests--live-chat.md` | Add-on manifests — Live chat | 7102 |
-| `references/manifest/add-on-manifests--live-chat-2.md` | Add-on manifests — Live chat (part 2) | 1486 |
 
 More: `references/manifest/INDEX-3.md`

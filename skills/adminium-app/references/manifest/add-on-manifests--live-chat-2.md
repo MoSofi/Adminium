@@ -4,7 +4,7 @@
 
 The entry says the words a forms entry may: `table`, `methods` (only `["POST"]`), `key`,
 `writable` (at least one), `writableValues`, `defaults`, `requires`, `agrees`, `anonymous`
-(required), `requireSetting` and `module`. It names no `source`. One `chat` entry per table, and no
+(required), `requireSetting` and `module`. It names no `source` and no `textConsent`. One `chat` entry per table, and no
 entry lets anyone read that table's rows. A table may carry both a `forms` and a `chat` entry. The
 app's key and the table's ref, as `<app>:<table>`, fit in 64 characters. No browser key is named
 `chat`, and the public API never serves the entry. A manifest that uses it sets
