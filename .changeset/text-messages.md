@@ -3,6 +3,7 @@
 '@adminium/manifest': patch
 '@adminium/meta': patch
 '@adminium/i18n': patch
+'@adminium/public-client': patch
 ---
 
 Adminium can send text messages (SMS) through the business's own Twilio or Telnyx account. Adminium holds no account, buys no numbers and takes no money. The owner connects the account on Studio → Texts, where the keys are checked when saved, and sets the sender, the daily limit and the sending hours. The same page shows the reply address to give the provider; replies count as arriving only once the first signed one has.
@@ -29,3 +30,5 @@ Erasing a person also erases their texts. A shared number keeps the other people
 Customers' replies can be read and answered on Studio → Texts → Conversations by the roles given that right, every read and reply is audited, and each app can switch its replies off (`textReplies`).
 
 Marketing texts (runs to people who said yes to them, double opt-in in Germany) are built but not yet available in this release: every marketing text is refused until their wording has been reviewed.
+
+The public client gains `client.texts.ready()` and `client.texts.standing()`.
