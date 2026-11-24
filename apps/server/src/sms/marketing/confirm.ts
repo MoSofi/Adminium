@@ -61,6 +61,7 @@ import type { TextConsentService } from '../consent/types.js';
 import type { TextPhoneKeys } from '../send/path.js';
 import { makeTextConfirmToken, readTextConfirmToken, textConfirmKey, textConfirmLive, textConfirmUrl, TEXT_CONFIRM_DAYS } from './confirm-token.js';
 import type { TextMarketingStore } from './store.js';
+import { TEXT_MARKETING_AVAILABLE } from './availability.js';
 
 const DAY_MS = 24 * 60 * 60_000;
 
@@ -110,6 +111,8 @@ export interface MarketingStanding {
 
 export type ConfirmRequestOutcome =
   | 'sent'
+  /** This release does not offer marketing texts yet, so nobody is asked to confirm one. */
+  | 'not-yet-available'
   /** One went to this number in the last day. */
   | 'held'
   /** The number's country does not expect it. */
@@ -244,6 +247,7 @@ export function createTextConfirm(deps: TextConfirmDeps) {
 
   /** Asks a person to confirm their marketing yes by e-mail (see the header). */
   async function request(input: { person: ConsentPerson; staff?: StaffMember | null | undefined }): Promise<ConfirmRequestOutcome> {
+    if (!TEXT_MARKETING_AVAILABLE) return 'not-yet-available';
     const facts = await factsOf(input.person);
     if (facts === null) return 'no-row';
     const number = await numberOf(facts);

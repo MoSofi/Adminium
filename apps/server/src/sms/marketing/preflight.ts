@@ -8,6 +8,7 @@
  * text. Every refusal that applies is listed, not just the first, so the
  * console can say all of what to put right.
  *
+ *  - marketing texts not offered by this release yet (`availability.ts`);
  *  - texts switched off by the operator, or marketing switched off;
  *  - no provider connected, or its key cannot be read; no sender;
  *  - the sender is a name, or a pool that may hold names: a name cannot
@@ -21,6 +22,7 @@
 import { checkTextTemplate, codeNamesIn, placeholdersIn } from '@adminium/manifest';
 
 import type { SmsService } from '../service.js';
+import { TEXT_MARKETING_AVAILABLE } from './availability.js';
 import type { TextRunRefusal } from './types.js';
 
 export interface PreflightDeps {
@@ -48,6 +50,7 @@ export interface Preflight {
 
 export async function preflight(deps: PreflightDeps): Promise<Preflight> {
   const refusals: RunRefusal[] = [];
+  if (!TEXT_MARKETING_AVAILABLE) refusals.push({ reason: 'marketing-not-yet-available', detail: null });
   if (!deps.operator('smsProviders').allowed) refusals.push({ reason: 'off-by-operator', detail: null });
   if (!deps.operator('marketingCampaigns').allowed) refusals.push({ reason: 'marketing-off-by-operator', detail: null });
   const view = await deps.sms.view();
