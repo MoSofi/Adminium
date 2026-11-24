@@ -270,6 +270,19 @@ export interface FormTable {
   page?: string;
   /** The column a form's fixed "Source" value goes into, as the app names it (from Adminium 0.3.41). */
   sourceColumn?: string;
+  /**
+   * The app's own boxes for texts on this table (from Adminium 0.3.76): the
+   * page a stranger fills draws each one, unticked, under any form whose map
+   * fills its `phone`. Its `column` is never in `columns`: no question fills it.
+   */
+  textBoxes?: readonly FormTextBox[];
+}
+
+/** A box for texts an app's forms entry declares: what it agrees to, the number it is for, and the column it ticks. */
+export interface FormTextBox {
+  class: 'service' | 'marketing';
+  phone: string;
+  column: string;
 }
 
 export interface UseFormTablesResult {

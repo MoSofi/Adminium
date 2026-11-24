@@ -123,6 +123,8 @@ export const addOnKitReply = z.object({
       page: z.string().optional(),
       /** A table opened to forms: the column a form's fixed "Source" value goes into, as the app's entry names it. */
       sourceColumn: z.string().optional(),
+      /** A table opened to forms: the app's boxes for texts, drawn under a form that fills the box's `phone`; a box's `column` is in no `columns`. */
+      textBoxes: z.array(z.object({ class: z.enum(['service', 'marketing']), phone: z.string(), column: z.string() })).optional(),
       /** A companies table: the columns a company's details go in, by the `lead` word's names. */
       lead: companiesLead.optional(),
     }),
@@ -216,7 +218,9 @@ async function formsHosts(
         continue;
       }
       const links = new Set(view.model.relations.filter((relation) => relation.through === null && relation.from.tableId === table.id && relation.from.columns.length === 1).map((relation) => relation.from.columns[0]!));
-      const columns = opened.writable.flatMap((column) => {
+      // A box for texts is drawn by the forms door itself: no question fills its column.
+      const boxes = opened.textConsent.filter((box) => opened.writable.includes(box.column));
+      const columns = opened.writable.filter((column) => !boxes.some((box) => box.column === column)).flatMap((column) => {
         const resolved = table.columns.get(column);
         const facts = table.table.columns.find((candidate) => candidate.name === column);
         if (resolved === undefined || facts === undefined) return [];
@@ -244,6 +248,7 @@ async function formsHosts(
         columns,
         ...(page === null ? {} : { page }),
         ...(opened.source === undefined || !columns.some((column) => column.name === opened.source) ? {} : { sourceColumn: opened.source }),
+        ...(boxes.length === 0 ? {} : { textBoxes: boxes.map((box) => ({ class: box.class, phone: box.phone, column: box.column })) }),
       });
     }
   }

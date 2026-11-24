@@ -112,7 +112,7 @@ describe('the row an answer became, as its answers table keeps it', () => {
 describe('a forms entry compiled', () => {
   it('opens a create alone, with the entry’s columns, defaults and limits', () => {
     const resource = formsResource(
-      { table: 'enquiries', writable: ['person', 'email'], writableValues: {}, defaults: { state: 'open' }, requires: ['person'], decided: [], plainText: [{ column: 'person', max: 80 }], anonymous: { perIpHour: 5 }, requireSetting: [] },
+      { table: 'enquiries', writable: ['person', 'email'], writableValues: {}, defaults: { state: 'open' }, requires: ['person'], decided: [], plainText: [{ column: 'person', max: 80 }], anonymous: { perIpHour: 5 }, requireSetting: [], textConsent: [] },
       'public.crm_enquiries',
       'forms:crm:enquiries',
     );

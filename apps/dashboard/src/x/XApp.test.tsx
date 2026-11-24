@@ -338,6 +338,29 @@ describe('a form a stranger fills', () => {
     expect(screen.getByRole('status').textContent).toContain('Thanks, Marta.');
   });
 
+  it('draws the app\'s boxes for texts unticked under the questions, sends the ones ticked, and nothing when none is', async () => {
+    const boxed = live(SHOWROOM);
+    if (boxed.state === 'live') {
+      boxed.form.textBoxes = [
+        { class: 'service', label: 'Text me about my visit.', version: 2 },
+        { class: 'marketing', label: 'Text me offers now and then.', version: 1 },
+      ];
+    }
+    pages['showroom-visit'] = boxed;
+    const user = userEvent.setup();
+    await show('/x/forms/showroom-visit');
+    await screen.findByRole('heading', { level: 1 });
+    const service = screen.getByRole('checkbox', { name: 'Text me about my visit.' }) as HTMLInputElement;
+    const offers = screen.getByRole('checkbox', { name: 'Text me offers now and then.' }) as HTMLInputElement;
+    expect([service.checked, offers.checked]).toEqual([false, false]);
+    await user.type(screen.getByLabelText(/Your name/), 'Marta');
+    await user.type(screen.getByLabelText(/Work e-mail/), 'marta@cobaltlegal.example');
+    await user.click(service);
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    await screen.findByRole('heading', { level: 1, name: 'Thanks, Marta.' });
+    expect((calls.find((call) => call.url.endsWith('/answers'))!.body as { texts?: string[] }).texts).toEqual(['service']);
+  });
+
   it('never says the e-mail step when the box was left empty', async () => {
     pages['showroom-visit'] = live(SHOWROOM);
     const user = userEvent.setup();
@@ -348,6 +371,8 @@ describe('a form a stranger fills', () => {
     await user.click(screen.getByRole('button', { name: 'Send' }));
     await screen.findByRole('heading', { level: 1, name: 'Thanks, Marta.' });
     expect(screen.queryByText(/check your e-mail/)).toBeNull();
+    // No box for texts drawn, none sent.
+    expect((calls.find((call) => call.url.endsWith('/answers'))!.body as { texts?: string[] }).texts).toBeUndefined();
   });
 
   it('keeps the answers and says when to try again after too many sends', async () => {

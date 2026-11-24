@@ -133,7 +133,8 @@ export function formsResource(entry: FormsEntry, tableId: string, ref: string): 
 export function createFormsScopes(deps: FormsScopesDeps) {
   const stamp = deps.stamp ?? (() => addOnInstallsStamp(deps.meta));
   const door = deps.door ?? 'forms';
-  const entriesOf: (manifest: Manifest) => FormsEntry[] = door === 'chat' ? chatEntriesOf : formsEntriesOf;
+  // A chat's row has no form, so no box for texts is drawn for it.
+  const entriesOf: (manifest: Manifest) => FormsEntry[] = door === 'chat' ? (manifest) => chatEntriesOf(manifest).map((entry) => ({ ...entry, textConsent: [] })) : formsEntriesOf;
   let kept: { stamp: string; scopes: Map<string, Promise<FormsScope>> } | null = null;
 
   /** The tables of one database the apps the add-on serves have opened to forms. */

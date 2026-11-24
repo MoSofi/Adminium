@@ -28,7 +28,9 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { SMS_WORDS_FLOOR } from '@adminium/manifest';
 
 import type { FormDefinitionInput, FormSettingsInput } from '@adminium/add-on-contracts/forms';
 import { paymentSettingsRepo, permissionsRepo, rolesRepo, settingsRepo, usersRepo } from '@adminium/meta';
@@ -49,6 +51,10 @@ import { addOnHarness, type Harness } from './app-add-ons.helpers.js';
 import { published } from './forms-door.helpers.js';
 import { makeEnv, TEST_SECRET } from './helpers.js';
 import { LEGS } from './invoicing-install.helpers.js';
+import { createTextConsentService } from '../src/sms/consent/index.js';
+
+// The forms entry's box for texts is read from the release to come.
+vi.mock('../src/version.js', async (original) => ({ ...(await original<typeof import('../src/version.js')>()), APP_VERSION: SMS_WORDS_FLOOR }));
 
 type Doc = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any -- a reply read freely
 
@@ -70,7 +76,7 @@ function crm(): Record<string, unknown> {
     license: 'AGPL-3.0-only',
     description: { key: 'd', fallback: 'A small CRM.' },
     categories: ['crm'],
-    compatibility: { minAdminiumVersion: '0.3.40', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: SMS_WORDS_FLOOR, engines: ['postgres', 'mysql', 'sqlite'] },
     requiredSchema: {
       prefixed: true,
       tables: [
@@ -88,6 +94,8 @@ function crm(): Record<string, unknown> {
             text('form_name', 200, { nullable: true }),
             { ref: 'claimed_by_id', type: 'fk', references: 'staff', nullable: true },
             { ref: 'contact_id', type: 'fk', references: 'contacts', nullable: true },
+            text('phone', 32, { nullable: true }),
+            { ref: 'may_text', type: 'bool', default: false },
           ],
         },
         { ref: 'secrets', columns: [pk, text('note', 200)] },
@@ -96,7 +104,7 @@ function crm(): Record<string, unknown> {
     },
     people: [
       { table: 'contacts', kind: 'people', email: 'email', name: 'name' },
-      { table: 'enquiries', kind: 'people', email: 'email', name: 'person' },
+      { table: 'enquiries', kind: 'people', email: 'email', name: 'person', phone: 'phone' },
     ],
     publicAccess: [
       {
@@ -104,9 +112,11 @@ function crm(): Record<string, unknown> {
         methods: ['POST'],
         key: 'forms',
         // A link column the entry opens (an invitation fills it): the door never fills it from a question.
-        writable: ['person', 'email', 'message', 'form_name', 'contact_id'],
+        writable: ['person', 'email', 'message', 'form_name', 'contact_id', 'phone', 'may_text'],
         defaults: { state: 'open', source: 'form' },
         anonymous: { plainText: ['person'] },
+        // The app's own unticked box for texts: the door draws it under a form that fills the number.
+        textConsent: { column: 'may_text', phone: 'phone', class: 'service', wording: { version: 2, text: { 'en-US': 'Text me about my visit.', 'de-DE': 'Schreibt mir zu meinem Besuch.' } } },
       },
     ],
     roles: [{ key: 'rep', name: 'Rep', permissions: ['table:@enquiries:read', 'table:@enquiries:read_pii', 'table:@contacts:read'] }],
@@ -147,6 +157,15 @@ const SHOWROOM: FormDefinitionInput = {
     { id: 'qnews', kind: 'tick', purpose: 'newsletter', wordingVersion: 3, wordingChangedAt: '2026-10-01', label: en("Send me Meridian's newsletter.") },
   ],
   ending: { kind: 'words', words: en("We'll be in touch.") },
+};
+
+/** A form that asks for a mobile: the app's box for texts is drawn under it. */
+const TEXTING: FormDefinitionInput = {
+  ...SHOWROOM,
+  questions: [
+    { id: 'qname', kind: 'short', role: 'name', required: true, label: en('Your name') },
+    { id: 'qphone', kind: 'short', label: en('Your mobile') },
+  ],
 };
 
 /** The showroom form with the newsletter's yes taken at once, no confirmation asked. */
@@ -192,7 +211,7 @@ describe.each(LEGS)('the answer door — %s', (dialect, available) => {
     await db.insertInto(formsTable).values({ id, title: slug, slug, kind: definition.kind, state: 'live', definition: '{}', settings: '{}', published: published(definition, settings) } as never).execute();
   };
   /** A stranger's send: a fresh proof for the form, then the answer. */
-  const send = async (slug: string, values: Record<string, unknown>, opts: { website?: string; query?: Record<string, string>; ip?: string; proofFor?: string; headers?: Record<string, string>; from?: string } = {}) => {
+  const send = async (slug: string, values: Record<string, unknown>, opts: { website?: string; query?: Record<string, string>; ip?: string; proofFor?: string; headers?: Record<string, string>; from?: string; texts?: string[] } = {}) => {
     const challenge = (await composed.app.inject({ method: 'GET', url: `/x/forms/api/${opts.proofFor ?? slug}/challenge`, headers: { host: HOST } })).json() as Doc;
     // A door that is shut hands out no challenge: the send then carries none.
     const proof = typeof challenge.salt === 'string' ? `${challenge.id as string}.${solveProof(challenge.salt, challenge.difficulty as number)}` : 'none';
@@ -202,7 +221,7 @@ describe.each(LEGS)('the answer door — %s', (dialect, available) => {
       url: `/x/forms/api/${slug}/answers`,
       remoteAddress: opts.ip ?? `198.51.100.${String(seq % 250)}`,
       headers: { host: HOST, origin: ORIGIN, 'x-adminium-proof': proof, 'user-agent': 'Mozilla/5.0 test', ...(opts.headers ?? {}) },
-      payload: { language: 'en-US', values, query: opts.query ?? {}, website: opts.website ?? '', ...(opts.from === undefined ? {} : { from: opts.from }) },
+      payload: { language: 'en-US', values, query: opts.query ?? {}, website: opts.website ?? '', ...(opts.from === undefined ? {} : { from: opts.from }), ...(opts.texts === undefined ? {} : { texts: opts.texts }) },
     });
   };
   /** The mails queued since the last look, opened. */
@@ -255,6 +274,8 @@ describe.each(LEGS)('the answer door — %s', (dialect, available) => {
     await insertForm('frm_quick', 'quick', { limits: { perHour: 200, harder: false } }, QUICK);
     await insertForm('frm_blank', 'blank-email', { becomes: { table: enquiriesId, map: { qname: 'person', qemail: 'email' } } }, BLANK_EMAIL);
     await insertForm('frm_typed', 'typed-address', { becomes: { table: enquiriesId, map: { qname: 'person', qaddr: 'email' } } }, TYPED_ADDRESS);
+    await insertForm('frm_texting', 'texting', { becomes: { table: enquiriesId, map: { qname: 'person', qphone: 'phone' } } }, TEXTING);
+    await insertForm('frm_box_mapped', 'box-mapped', { becomes: { table: enquiriesId, map: { qname: 'person', qphone: 'may_text' } } }, TEXTING);
 
     const settings = settingsRepo(h.meta);
     await settings.set('system.publicOrigin', ORIGIN, { updatedBy: null });
@@ -325,7 +346,7 @@ describe.each(LEGS)('the answer door — %s', (dialect, available) => {
     expect(sent.json()).toEqual({ state: 'sent', ending: 'sent' });
     const made = (await h.rows(`SELECT * FROM ${enquiries}`)) as Doc[];
     expect(made).toHaveLength(1);
-    const { id: _id, ...row } = made[0]!;
+    const { id: _id, phone: _phone, may_text: _box, ...row } = made[0]!;
     expect(row).toEqual({ person: 'Marta Kovac', email: 'Marta@Cobalt.example', message: 'Two booths, please.', state: 'open', source: 'form', form_name: 'Showroom form', claimed_by_id: null, contact_id: null });
     // The contact with the same address is not touched.
     expect(await h.rows(`SELECT * FROM ${t('contacts')}`)).toEqual(before);
@@ -653,6 +674,39 @@ describe.each(LEGS)('the answer door — %s', (dialect, available) => {
     expect(await noticesOf(nilsId, 'forms.limit')).toBe(0);
     // Lea holds the read grant (limited to other rows): the alert shows no answer, so the grant is enough.
     expect(await noticesOf(leaId, 'forms.limit')).toBe(1);
+  });
+
+  it.skipIf(!available)('a form that fills the number draws the app\'s box for texts, unticked; a tick records a yes with the app\'s words, an unticked box nothing', async () => {
+    const read = (slug: string) => composed.app.inject({ method: 'GET', url: `/x/forms/api/${slug}?lang=en-US`, headers: { host: HOST } });
+    const page = (await read('texting')).json() as Doc;
+    expect(page.form.textBoxes).toEqual([{ class: 'service', label: 'Text me about my visit.', version: 2 }]);
+    // A form that does not fill the number draws no box.
+    expect(((await read('showroom')).json() as Doc).form.textBoxes).toBeUndefined();
+
+    const texts = createTextConsentService({ meta: h.meta, secret: TEST_SECRET });
+    const asked = (phone: string) => texts.decide({ phone, country: 'DE', class: 'service', sender: { kind: 'number' }, repliesReachUs: true });
+    const ticked = await send('texting', { qname: 'Ines Text', qphone: '+4915123456781' }, { texts: ['service'] });
+    expect(ticked.statusCode, ticked.body).toBe(200);
+    const unticked = await send('texting', { qname: 'Olaf Plain', qphone: '+4915123456782' });
+    expect(unticked.statusCode, unticked.body).toBe(200);
+    const rows = (await h.rows(`SELECT person, phone, may_text FROM ${enquiries} WHERE person IN ('Ines Text', 'Olaf Plain') ORDER BY person`)) as Doc[];
+    expect(rows.map((row) => [row['person'], Boolean(Number(row['may_text']))])).toEqual([
+      ['Ines Text', true],
+      ['Olaf Plain', false],
+    ]);
+    expect(await asked('+4915123456781')).toMatchObject({ send: true });
+    expect(await asked('+4915123456782')).toMatchObject({ send: false, reason: 'no-consent' });
+    const event = (await texts.standing({ phone: '+4915123456781', country: 'DE' }, 'text-service')).event;
+    expect(event).toMatchObject({ source: 'form', wording: 'Text me about my visit.', wordingVersion: 'v2 en-US', detail: 'crm:enquiries' });
+    // A box ticked for a class the page never drew counts for nothing.
+    await send('texting', { qname: 'Mara Offers', qphone: '+4915123456783' }, { texts: ['marketing'] });
+    expect(await asked('+4915123456783')).toMatchObject({ send: false, reason: 'no-consent' });
+  });
+
+  it.skipIf(!available)('a form whose map fills the box\'s column itself serves nothing: only the visitor ticks it', async () => {
+    const sent = await send('box-mapped', { qname: 'Forged', qphone: 'true' });
+    expect(sent.statusCode).toBe(404);
+    expect(await count(enquiries, "person = 'Forged'")).toBe(0);
   });
 
   it.skipIf(!available)('a hand-uploaded package that declares forms serves nothing', async () => {

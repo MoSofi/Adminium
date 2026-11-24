@@ -15,7 +15,8 @@
  *                                               a named survey only with its invitation's token (`t`, which each
  *                                               call below carries too), answered `already` or `dead` otherwise
  *   GET  /x/forms/api/<slug>/challenge          the human check, solved when Send is pressed
- *   POST /x/forms/api/<slug>/answers            the answer, with the solved check in `x-adminium-proof`
+ *   POST /x/forms/api/<slug>/answers            the answer, with the solved check in `x-adminium-proof`, and the
+ *                                               boxes for texts ticked (`texts`)
  *   POST /x/forms/api/<slug>/files?q=…&name=…   one file for a file question, as the body, with a check of its own
  *
  * THE ANSWER'S REPLY, as the page reads it (the answer door says these):
@@ -42,6 +43,15 @@ export interface XForm {
   languages: FormLanguage[];
   definition: FormDefinition;
   anonymous: boolean;
+  /** The app's own boxes for texts, drawn unticked under the questions; absent when there are none. */
+  textBoxes?: XTextBox[];
+}
+
+/** A box for texts: the app's words in the form's language, and what it agrees to. Never required. */
+export interface XTextBox {
+  class: 'service' | 'marketing';
+  label: string;
+  version: number;
 }
 
 /** A named survey's invitation, as the page may say it: whom it greets, and what the survey is about. */
@@ -85,6 +95,8 @@ export interface XAnswer {
   from?: string;
   /** A named survey's token, from its link. */
   t?: string;
+  /** The boxes for texts ticked, by class. */
+  texts?: ('service' | 'marketing')[];
 }
 
 const HEADERS = { accept: 'application/json' };
