@@ -440,6 +440,10 @@ const ALLOWED_HOSTS = [
     test: /^apps\.goshippo\.com$|^www\.dhl\.com$/,
     why: 'links a person opens from the shipping setup page (`studio/shipping/shippingLinks.ts`, drawn by `OutLink`). The dashboard never fetches them; carrier calls are made by the server',
   },
+  {
+    test: /^www\.twilio\.com$|^console\.twilio\.com$|^telnyx\.com$|^portal\.telnyx\.com$/,
+    why: 'links a person opens from Studio → Texts to their own text provider\'s sign-up page and console (`studio/texts/`), drawn as anchors and opened outside the app. The dashboard never fetches them; provider calls are made by the server',
+  },
 ];
 
 /**
