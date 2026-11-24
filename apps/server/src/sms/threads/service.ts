@@ -88,6 +88,8 @@ export const NOT_READ_DAILY_MAX = 20;
 export const OFF_APP_HOLDS_MS = 30 * DAY_MS;
 /** The longest message a person may write here; the send path's segment limit refuses well before. */
 export const TEXT_BODY_MAX = 1600;
+/** Messages read at a time for a download. */
+const EXPORT_PAGE = 500;
 /** How much of the last line a list shows. */
 const PREVIEW_MAX = 120;
 /** Rows one sweep step removes. */
@@ -224,6 +226,8 @@ export interface TextThreads {
   repliesOf(app: string): Promise<'on' | 'off'>;
   /** Old messages, threads left empty, and answer marks past their period. */
   sweep(): Promise<{ messages: number; threads: number; answers: number }>;
+  /** Every message of this number's conversations, in clear, oldest first, for "Download everything". `apps`: only those apps' (null: all). */
+  exportFor(e164: string, apps: ReadonlySet<string> | null): Promise<{ app: string | null; direction: 'in' | 'out'; kind: string; text: string | null; at: number; by: string | null }[]>;
   /** Every thread and message of this number. */
   eraseFor(e164: string): Promise<{ threads: number; messages: number }>;
   countFor(e164: string): Promise<{ threads: number; messages: number }>;
@@ -692,6 +696,24 @@ export function createTextThreads(deps: TextThreadsDeps): TextThreads {
     async sweep() {
       const at = now();
       return store.sweep(at - TEXT_THREAD_RETAIN_MS, at - NOT_READ_EVERY_MS, SWEEP_BATCH);
+    },
+
+    async exportFor(e164, apps) {
+      const out: Awaited<ReturnType<TextThreads['exportFor']>> = [];
+      for (const thread of await store.threadsOf(await hashesOf(e164))) {
+        if (apps !== null && !apps.has(thread.appKey)) continue;
+        let before: { at: number; id: string } | undefined;
+        for (;;) {
+          const page = await store.messages(thread.id, { limit: EXPORT_PAGE, ...(before === undefined ? {} : { before }) });
+          for (const message of page) {
+            out.push({ app: thread.appKey === '' ? null : thread.appKey, direction: message.direction, kind: message.kind, text: await open(message.sealedBody, THREAD_BODY_PURPOSE), at: message.at, by: message.by?.label ?? null });
+          }
+          if (page.length < EXPORT_PAGE) break;
+          const last = page.at(-1)!;
+          before = { at: last.at, id: last.id };
+        }
+      }
+      return out.sort((a, b) => a.at - b.at);
     },
 
     async eraseFor(e164) {

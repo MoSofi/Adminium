@@ -31,6 +31,7 @@ import { createSmsAccountStore } from './account-store.js';
 import { createTextConsentService, type TextConsentService } from './consent/index.js';
 import { storedDefaultCountry } from './country.js';
 import { createTextErasure, type TextErasure } from './erasure.js';
+import { createTextExport, type TextExport } from './export.js';
 import { createSmsCatchUp, createSmsInboundChannel, settingsCatchUpMark, type SmsCatchUpResult, type SmsInboundChannel, type SmsStopConfirmation } from './inbound/index.js';
 import { smsConsoleRoutes } from './console-routes.js';
 import { smsRoutes } from './routes.js';
@@ -90,6 +91,8 @@ export interface SmsWiring {
   /** Marketing runs, who they reach, and requests to confirm a marketing yes (`marketing/`). */
   marketing: TextMarketingStore;
   erasure: TextErasure;
+  /** A person's text records, for "Download everything". */
+  textExport: TextExport;
   /** Two-way conversations: the replies hook, the threads and their answers. */
   threads: TextThreads;
   defaultCountry: () => Promise<string | null>;
@@ -176,6 +179,8 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
     marketing: { eraseFor: async (who) => (await marketing.recipients.eraseFor(who)) + (await marketing.confirmations.eraseFor(who)), countFor: async (who) => (await marketing.recipients.countFor(who)) + (await marketing.confirmations.countFor(who)) },
   });
 
+  const textExport = createTextExport({ meta, secret, consent, threads, country: defaultCountry, exact: erasure.exact });
+
   return {
     service,
     consent,
@@ -184,6 +189,7 @@ export function createSmsWiring(deps: SmsWiringDeps): SmsWiring {
     deliveries,
     marketing,
     erasure,
+    textExport,
     threads,
     defaultCountry,
 

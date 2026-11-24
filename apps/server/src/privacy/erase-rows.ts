@@ -423,3 +423,21 @@ export async function writePersonRows(found: PersonRows): Promise<Record<string,
   }
   return counts;
 }
+
+/** The numbers on their own rows, each with the row it is on. A row with no number is listed too: its log rows are still theirs. */
+export function textTargets(rows: PersonRows): { phone: unknown; person: { connectionId: string; table: string; key: string } }[] {
+  const out: { phone: unknown; person: { connectionId: string; table: string; key: string } }[] = [];
+  for (const database of rows.databases) {
+    for (const source of database.sources) {
+      if (source.kind !== 'people') continue;
+      const columns = phoneColumnsOf(source.table);
+      for (const row of source.rows) {
+        const person = { connectionId: source.connectionId, table: source.table.id, key: row.key };
+        const held = columns.map((column) => row.before[column]).filter((value) => value !== null && value !== undefined && String(value).trim() !== '');
+        if (held.length === 0) out.push({ phone: null, person });
+        for (const phone of held) out.push({ phone, person });
+      }
+    }
+  }
+  return out;
+}

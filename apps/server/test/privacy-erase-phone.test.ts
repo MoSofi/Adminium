@@ -15,6 +15,7 @@
 import { Writable } from 'node:stream';
 
 import { apiKeysRepo, auditRepo, jobsRepo, permissionsRepo, rolesRepo, settingsRepo } from '@adminium/meta';
+import { strFromU8, unzipSync } from 'fflate';
 import { pino } from 'pino';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -23,6 +24,7 @@ import { createInboundEventStore } from '../src/inbound/index.js';
 import { generateApiKey } from '../src/rbac/api-keys.js';
 import { createTextConsentService, textSubject } from '../src/sms/consent/index.js';
 import { createTextSendStore } from '../src/sms/send/index.js';
+import { createTextThreads } from '../src/sms/threads/index.js';
 import { TEST_SECRET } from './helpers.js';
 import { LEGS, said, wholeServer, type WholeServer } from './whole-server.helpers.js';
 
@@ -219,11 +221,49 @@ for (const [dialect, reachable] of LEGS) {
       expect((await member(1))['name']).toBe('Sam Walkin');
     });
 
+    it('downloads everything by phone and by address, with the text records of every number on their rows', async () => {
+      // A reply kept in a conversation, as the inbound channel hands it over.
+      const consent = createTextConsentService({ meta: s.meta, secret: TEST_SECRET });
+      const threads = createTextThreads({ meta: s.meta, secret: TEST_SECRET, consent, sms: { view: async () => null }, texts: () => null, business: async () => ({ name: 'Shop' }), zone: async () => null, locale: async () => null, apps: async () => [{ key: 'shop', name: 'Shop', replies: 'on' }] });
+      expect(await threads.received({ eventId: 'ibe_sam_reply_1', from: SAM, to: '+14155550100', text: 'Is my order ready?', kind: 'message', at: Date.now(), answered: false })).toBe('kept');
+      await consent.stop.add({ phone: SAM, reason: 'staff', origin: 'phone', staff: { id: s.ids['pia']!, label: 'Pia' } });
+
+      const download = async (url: string, body: object): Promise<Record<string, string>> => {
+        const asked = await s.send('pia', 'POST', url, body);
+        expect(asked.statusCode, asked.body).toBe(202);
+        replies.push(asked.body);
+        const exportId = (asked.json() as { data: { id: string } }).data.id;
+        await s.jobs();
+        const file = await s.get('pia', `/api/v1/privacy/exports/${exportId}/download`);
+        expect(file.statusCode, file.body).toBe(200);
+        return Object.fromEntries(Object.entries(unzipSync(new Uint8Array(file.rawPayload))).map(([name, bytes]) => [name, strFromU8(bytes)]));
+      };
+
+      const byPhone = await download('/api/v1/privacy/phone/exports', { phone: SAM_TYPED });
+      expect(Object.keys(byPhone).filter((name) => name.endsWith('.json')).sort()).toEqual(expect.arrayContaining(['texts-consent.json', 'texts-deliveries.json', 'texts-messages.json', 'texts-stop-list.json']));
+      expect(byPhone['texts-consent.json']).toContain('Text me about my order');
+      expect(byPhone['texts-messages.json']).toContain('Is my order ready?');
+      expect(byPhone['texts-stop-list.json']).toContain('"reason": "staff"');
+      // The rows that hold the number are theirs to see too; a near number is not.
+      expect(Object.values(byPhone).join('\n')).toContain('Likes oat milk');
+      expect(Object.values(byPhone).join('\n')).not.toContain('A near number');
+
+      const byAddress = await download('/api/v1/privacy/exports', { address: 'kim@shop.example' });
+      expect(byAddress['texts-consent.json']).toContain(KIM);
+      expect(byAddress['texts-deliveries.json']).toContain(KIM);
+      expect(Object.values(byAddress).join('\n')).not.toContain(SAM);
+
+      // A request by phone is refused to a role without the privacy action, and keeps no number in its audit row.
+      expect(said(await s.send('rita', 'POST', '/api/v1/privacy/phone/exports', { phone: SAM }))).toBe('403 FORBIDDEN');
+      expect(JSON.stringify(await auditRepo(s.meta).list({ limit: 50 }))).not.toContain('15123456789');
+    });
+
     it('erases them, and takes their text records', async () => {
       const res = await erase('pia', SAM_TYPED, SAM);
       expect(res.statusCode, res.body).toBe(200);
       const counts = (res.json() as { data: { counts: Record<string, number> } }).data.counts;
-      expect(counts).toMatchObject({ 'text-stop-list': 1, 'text-consent': 1, 'inbound-events': 1, 'text-deliveries': 1, 'text-errors': 1 });
+      // The consent rows: the form's yes, and the two noes the stop request the download test recorded wrote.
+      expect(counts).toMatchObject({ 'text-stop-list': 1, 'text-consent': 3, 'text-conversations': 2, 'inbound-events': 1, 'text-deliveries': 1, 'text-errors': 1 });
 
       // Their own rows are emptied and kept.
       for (const key of [1, 2]) {
@@ -259,7 +299,8 @@ for (const [dialect, reachable] of LEGS) {
       const hashes = (await hashesOf(SAM)).map((one) => one.hash);
       const stop = await db.selectFrom('adminium_text_stop_list').selectAll().where('phoneHash', 'in', hashes).execute();
       expect(stop).toHaveLength(1);
-      expect(stop[0]).toMatchObject({ phoneEncrypted: null, reason: 'erased' });
+      // The stop request recorded before keeps its reason, and loses its number.
+      expect(stop[0]).toMatchObject({ phoneEncrypted: null, reason: 'staff' });
       expect(await db.selectFrom('adminium_text_consent_log').select('id').where('phoneHash', 'in', hashes).execute()).toEqual([]);
       expect(await db.selectFrom('adminium_text_deliveries').select('id').where('phoneHash', 'in', hashes).execute()).toEqual([]);
       expect(await db.selectFrom('adminium_inbound_events').selectAll().where('id', '=', eventId).executeTakeFirstOrThrow()).toMatchObject({ state: 'erased', sealedBody: null, subjectHash: null });

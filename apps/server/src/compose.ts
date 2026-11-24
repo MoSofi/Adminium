@@ -2112,7 +2112,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   }
   // A person's data downloaded for them ("Download everything"): written by a job, deleted once its time is up.
   // "Download everything": their reviews among their data too.
-  registerPrivacyExportHandler(jobs.registry, { meta, manager, consent, storage, secret: env.ADMINIUM_SECRET, reviewInstalls: () => addOnInstalls.fresh() });
+  registerPrivacyExportHandler(jobs.registry, { meta, manager, consent, storage, secret: env.ADMINIUM_SECRET, reviewInstalls: () => addOnInstalls.fresh(), texts: sms.textExport });
   // Files strangers sent that no write took: gone once their time is up. First, a guest's file a write held and did
   // not adopt (the process stopped between): made its row's own where the row names it, let go where none does.
   jobs.scheduler.registerSchedule(PUBLIC_UPLOADS_SWEEP_NAME, PUBLIC_UPLOADS_SWEEP_CRON, async () => {

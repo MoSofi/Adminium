@@ -76,8 +76,7 @@ import type { FileStore } from '../files/store.js';
 import { textSubject } from '../sms/consent/service.js';
 import type { TextErased, TextErasure } from '../sms/erasure.js';
 import { blankCampaignSends, campaignSendIds, copyFileIds, purgeRowFiles, rowFileIds, scrubAuditImages, scrubRemovedRows, sweepAddress, sweepMailAddress, type CopyLink, type CopyRowFiles, type ImageTarget, type PersonRowRef } from './erase-meta.js';
-import { blankRow, findPersonRows, pkOf, writePersonRows, type ErasedSource, type LeftColumn, type PersonRows, type PhoneTarget } from './erase-rows.js';
-import { phoneColumnsOf } from './copy-rows.js';
+import { blankRow, findPersonRows, pkOf, textTargets, writePersonRows, type ErasedSource, type LeftColumn, type PersonRows, type PhoneTarget } from './erase-rows.js';
 import { eraseFormRows, findFormRows, formImageTargets } from './form-answers.js';
 import { blankReviews } from '../reviews/erase.js';
 import { findReviewsOf } from './reviews.js';
@@ -281,24 +280,6 @@ function theirRows(rows: PersonRows): TheirRow[] {
   return rows.databases.flatMap((database) =>
     database.sources.filter((source) => (source.kind === 'people' || source.kind === 'copy') && source.numberOnly !== true).flatMap((source) => source.rows.map((row) => ({ connectionId: source.connectionId, table: source.table.id, key: row.key }))),
   );
-}
-
-/** The numbers on their own rows, each with the row it is on. A row with no number is listed too: its log rows are still theirs. */
-function textTargets(rows: PersonRows): { phone: unknown; person: { connectionId: string; table: string; key: string } }[] {
-  const out: { phone: unknown; person: { connectionId: string; table: string; key: string } }[] = [];
-  for (const database of rows.databases) {
-    for (const source of database.sources) {
-      if (source.kind !== 'people') continue;
-      const columns = phoneColumnsOf(source.table);
-      for (const row of source.rows) {
-        const person = { connectionId: source.connectionId, table: source.table.id, key: row.key };
-        const held = columns.map((column) => row.before[column]).filter((value) => value !== null && value !== undefined && String(value).trim() !== '');
-        if (held.length === 0) out.push({ phone: null, person });
-        for (const phone of held) out.push({ phone, person });
-      }
-    }
-  }
-  return out;
 }
 
 const addErased = (total: TextErased, more: TextErased): void => {
