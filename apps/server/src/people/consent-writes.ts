@@ -50,8 +50,9 @@
  *    "no" standing for that number; a verified person's own yes replaces
  *    their own earlier no for that app, for the number their row holds,
  *    and never lifts the stop list (only their START does).
- *  - A create nobody linked yet (a first booking the desk links later)
- *    keeps the answer on the row it made.
+ *  - A row nobody linked (a first booking the desk links later, a stay for
+ *    a guest with no account) keeps the answer on itself, on its create
+ *    and on every later change of the box.
  *  - A STAFF CHANGE of a box's column (ticked or unticked on the record page,
  *    or an app's own staff screen) writes the staff member's yes or no in
  *    the box's declared words: the column and the log never disagree.
@@ -334,16 +335,20 @@ export function createPeopleConsent(deps: PeopleConsentDeps): PeopleConsent {
 
   /**
    * Whose answer a box on the row written is: the person its link names, or
-   * the row itself. A create made before anyone links it (a first booking,
-   * whose patient the desk links later) keeps the answer on the row it made:
-   * the number is what a text is sent by, and the row's app is its scope.
+   * the row itself. A row nobody links (a first booking, whose patient the
+   * desk links later; a stay for a guest with no account) keeps the answer
+   * on itself, on its create and on every later change of the box: the
+   * number is what a text is sent by, and the row's app is its scope. The
+   * link is read from the row as written, so a person unlinked by this
+   * change or an earlier one is never named.
    */
   function answerOf(write: PeopleWrite, given: { person: { table: string; link: string | null } }): ConsentPerson | null {
     const { target, record } = write;
     if (given.person.link === null) return { connectionId: target.connectionId, table: given.person.table, key: rowKeyOf(target.table, record) };
     const theirs = record[given.person.link];
     if (theirs !== null && theirs !== undefined && theirs !== '') return { connectionId: target.connectionId, table: given.person.table, key: String(theirs) };
-    return write.action === 'create' && target.table.primaryKey.length > 0 ? { connectionId: target.connectionId, table: target.table.id, key: rowKeyOf(target.table, record) } : null;
+    // No person linked: the row answers for itself, on a later change as on its create.
+    return target.table.primaryKey.length > 0 ? { connectionId: target.connectionId, table: target.table.id, key: rowKeyOf(target.table, record) } : null;
   }
 
   /**
