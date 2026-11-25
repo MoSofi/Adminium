@@ -1,5 +1,21 @@
 # @adminium/server
 
+## 0.3.78
+
+### Patch Changes
+
+- 88002ac: An add-on entry an app's key cannot reach is now left out on its own. Before, it took every other add-on entry off that key with it, so Point of Sale lost the gift-card balance page from Offers 1.0.34.
+- @adminium/adapter-mysql@0.3.78
+  - @adminium/adapter-postgres@0.3.78
+  - @adminium/adapter-sqlite@0.3.78
+  - @adminium/add-on-contracts@0.3.78
+  - @adminium/engine@0.3.78
+  - @adminium/i18n@0.3.78
+  - @adminium/llm@0.3.78
+  - @adminium/manifest@0.3.78
+  - @adminium/meta@0.3.78
+  - @adminium/schema-import@0.3.78
+
 ## 0.3.77
 
 ### Patch Changes

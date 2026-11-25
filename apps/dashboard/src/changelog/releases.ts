@@ -67,6 +67,15 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.78',
+    date: '2026-11-25',
+    title: 'Add-on pages on an app\u2019s own key',
+    summary: 'An add-on page an app\u2019s public key cannot reach no longer takes the others with it. Point of Sale\u2019s gift-card balance page works again with Offers 1.0.34 and later.',
+    changes: [
+      { tag: 'Fixed', text: 'An add-on entry an app\u2019s public key cannot reach is now left out on its own, named with its reason in the reply and the audit log. Before, it took every other add-on entry off that key with it.' },
+    ],
+  },
+  {
     version: '0.3.77',
     date: '2026-11-25',
     title: 'Fixes for texts and add-ons 1.0.37',
