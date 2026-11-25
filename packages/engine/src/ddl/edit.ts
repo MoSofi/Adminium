@@ -1481,11 +1481,20 @@ function quotedLiterals(expression: string, quote: "'" | '"'): string[] {
  * planned a DROP and an ADD of the same constraint every time a table with a
  * choice column was merely opened.
  */
+/**
+ * A check that allows one value, as the engines keep `kind IN ('receipt')`:
+ * Postgres `((kind)::text = 'receipt'::text)`, MySQL `` `kind` = 'receipt' ``.
+ * Its list holds that one value. The whole expression, never a comparison
+ * inside a larger one (`a = 'x' OR b > 2`).
+ */
+const ONE_VALUE_CHECK =
+  /^\(*\s*[`"]?[a-z_][\w$]{0,63}[`"]?\s*\)?(?:::[\w "]{1,128}(?:\(\d+(?:,\s*\d+)?\))?)?\s*=\s*'(?:[^']|'')*'(?:::[\w "]{1,128}(?:\(\d+(?:,\s*\d+)?\))?)?\s*\)*$/i;
+
 export function parseEnumCheck(
   expression: string,
   columns: readonly string[],
 ): { column: string; values: string[] } | null {
-  if (!/\bin\s*\(|=\s*any/i.test(expression)) return null;
+  if (!/\bin\s*\(|=\s*any/i.test(expression) && !ONE_VALUE_CHECK.test(expression.trim())) return null;
   const column = enumCheckColumn(expression, columns);
   if (column === null) return null;
   const values: string[] = [];

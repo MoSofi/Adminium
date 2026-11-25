@@ -182,6 +182,14 @@ describe('parseCheckEnum — CHECK (col IN (...)) synthesis', () => {
     ).toEqual({ column: 'mood', values: ["it's fine", 'meh'] });
   });
 
+  it('reads a list of one value, which Postgres keeps as an equality', () => {
+    expect(parseCheckEnum("CHECK (((kind)::text = 'receipt'::text))")).toEqual({ column: 'kind', values: ['receipt'] });
+    expect(parseCheckEnum("CHECK ((kind = 'it''s'::text))")).toEqual({ column: 'kind', values: ["it's"] });
+    // Only the whole check: an equality inside a larger one is no list.
+    expect(parseCheckEnum("CHECK ((((kind)::text = 'receipt'::text) OR (amount > 0)))")).toBeNull();
+    expect(parseCheckEnum("CHECK (((kind)::text <> 'receipt'::text))")).toBeNull();
+  });
+
   it('returns null for non-enum checks', () => {
     expect(parseCheckEnum('CHECK ((price > (0)::numeric))')).toBeNull();
     expect(parseCheckEnum('CHECK ((char_length(name) > 2))')).toBeNull();

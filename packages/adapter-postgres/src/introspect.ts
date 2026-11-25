@@ -466,14 +466,27 @@ function matchDelimitedList(
   return null;
 }
 
-/** Parse `col = ANY (ARRAY['a', 'b'])` / `col IN ('a','b')` check shapes. */
+/**
+ * The whole of a check that allows ONE value: Postgres keeps
+ * `kind IN ('receipt')` as `((kind)::text = 'receipt'::text)`, no list at all.
+ * Anchored at both ends, so a comparison inside a larger expression
+ * (`a = 'x' OR b > 2`) is never read as a list.
+ */
+const CHECK_ONE_VALUE =
+  /^\(?"?([a-zA-Z_][\w$]{0,62})"?\)?(?:::[\w "]{1,128}(?:\(\d+(?:,\s*\d+)?\))?)?\s*=\s*'((?:[^']|'')*)'(?:::[\w "]{1,128}(?:\(\d+(?:,\s*\d+)?\))?)?$/;
+
+/** Parse `col = ANY (ARRAY['a', 'b'])` / `col IN ('a','b')` / `col = 'a'` check shapes. */
 export function parseCheckEnum(
   definition: string,
 ): { column: string; values: string[] } | null {
   const match =
     matchDelimitedList(definition, CHECK_ANY_HEAD, ']') ??
     matchDelimitedList(definition, CHECK_IN_HEAD, ')');
-  if (match === null) return null;
+  if (match === null) {
+    const one = CHECK_ONE_VALUE.exec(checkExpression(definition));
+    if (one === null || one[1] === undefined) return null;
+    return { column: one[1], values: [(one[2] ?? '').replaceAll("''", "'")] };
+  }
   const values: string[] = [];
   for (const literal of match.body.matchAll(/'((?:[^']|'')*)'/g)) {
     values.push((literal[1] ?? '').replaceAll("''", "'"));
