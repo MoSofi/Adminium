@@ -1,5 +1,7 @@
 # @adminium/public-client
 
+## 0.3.77
+
 ## 0.3.76
 
 ### Patch Changes

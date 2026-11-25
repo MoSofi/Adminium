@@ -1,5 +1,25 @@
 # @adminium/server
 
+## 0.3.77
+
+### Patch Changes
+
+- 8a86f35: Bundle add-ons 1.0.37. Forms opens its forms, invitations and answers to the app roles that grant them again, which 1.0.33 had closed.
+- caa559f: A staff change of a text consent box on a row with no person linked, such as a stay booked for a guest with no account, is now recorded, as its first tick was.
+- 1a6fe4a: An app update now adds new values to a list that held only one, on Postgres and MySQL. Those databases keep a one-value list as a plain "equals" check, so Adminium read no list there, widened nothing, and refused every new value: a till updated from Point of Sale 0.3.x could not queue a pickup, table reminder or text receipt. Adminium now reads such a check as a list of one value, so the update adds the new values with no question asked, and they are taken.
+  
+  A till's own screens-only roles (a cashier) can now use texts from the app's screens: whether texts can go, a guest's standing, recording their yes or no, and sending a text. Each still needs the rights their app's role grants on that record (and its `texts:@:reply` to send). Their app's conversations open only to a role given `texts:@:read` or `texts:@:reply`. Everything else of texts stays the dashboard's.
+- @adminium/adapter-mysql@0.3.77
+  - @adminium/adapter-postgres@0.3.77
+  - @adminium/adapter-sqlite@0.3.77
+  - @adminium/add-on-contracts@0.3.77
+  - @adminium/engine@0.3.77
+  - @adminium/i18n@0.3.77
+  - @adminium/llm@0.3.77
+  - @adminium/manifest@0.3.77
+  - @adminium/meta@0.3.77
+  - @adminium/schema-import@0.3.77
+
 ## 0.3.76
 
 ### Patch Changes

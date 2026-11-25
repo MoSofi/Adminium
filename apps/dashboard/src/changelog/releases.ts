@@ -67,6 +67,19 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.77',
+    date: '2026-11-25',
+    title: 'Fixes for texts and add-ons 1.0.37',
+    summary: 'Updated apps can send their new texts on PostgreSQL and MySQL, a till\u2019s own staff can use texts, and the bundled add-ons move to 1.0.37.',
+    changes: [
+      { tag: 'Fixed', text: 'An app update that adds a value to a list with a single value (such as a new kind of message) now widens it on PostgreSQL and MySQL. Before, a Point of Sale updated from 0.3.0 could not send any of its new texts there.' },
+      { tag: 'Fixed', text: 'A till\u2019s screens-only staff can read whether texts are set up, see and record a customer\u2019s answer, and send, with the rights their app gives them.' },
+      { tag: 'Fixed', text: 'A staff change of a text consent box on a row with no person linked, such as a stay booked for a guest with no account, is now recorded.' },
+      { tag: 'Fixed', text: 'Forms 1.0.37 opens its forms, invitations and answers to the app roles that grant them again.' },
+      { tag: 'Improved', text: 'The bundled add-ons move to 1.0.37.' },
+    ],
+  },
+  {
     version: '0.3.76',
     date: '2026-11-24',
     title: 'Text messages',
