@@ -149,6 +149,7 @@ import {
   type RolesResult,
 } from './manifest-roles.js';
 import {
+  grantEachEntry,
   installPublicAccess,
   keysOpenedWithoutStaff,
   linkKeyOf,
@@ -174,7 +175,7 @@ import { addOnGrantsWider, roleTablesAsked, roleTablesChecked, settleRoleTables,
 import { installAppDocuments } from '../documents/app-documents.js';
 import type { AppProfilesResult } from '../documents/app-profiles.js';
 import type { AddOnRuntimeState } from '../add-ons/runtime.js';
-import { EndpointInUse, KeyCreateRefused, type EndpointService } from '../public-api/endpoint-service.js';
+import { EndpointInUse, type EndpointService } from '../public-api/endpoint-service.js';
 import { parseDefinition, printDefinition, type PublicMethod } from '../public-api/endpoint.js';
 import type { SnapshotView } from '../crud/identifiers.js';
 import { refusePlannedOnly, refuseUnbuiltManifest } from '../crud/unbuilt-rules.js';
@@ -1906,6 +1907,19 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     return { problems: [...problems, ...saved], clashes };
   }
 
+  /** The entries an app's key was not given, each with why: audited, as what it was given is. */
+  async function auditLeftOut(actor: InstallActor, app: string, connectionId: string, userId: string | null, skipped: readonly { ref: string; reason: string }[], addOn?: string) {
+    if (skipped.length === 0) return;
+    await auditRepo(deps.meta).append({
+      actorKind: actor.kind ?? 'user',
+      actorId: userId,
+      actorLabel: actor.label,
+      category: 'system',
+      action: 'public-key.left-out',
+      changes: { after: { connectionId, app, ...(addOn === undefined ? {} : { addOn }), skipped: skipped.map(({ ref, reason }) => ({ ref, reason })) } },
+    });
+  }
+
   /**
    * The audit row, and the resolver forgetting the key, for each change to an
    * app's public access the moment it is written — so a step after it that
@@ -2246,6 +2260,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
               ...(manifest.kind === 'app' ? { addOns: await liveAddOnsFor(deps.meta, manifest, connectionId) } : {}),
             });
             made = reply;
+            await auditLeftOut(actor, manifest.key, connectionId, userId, reply.skipped);
             /*
              * A staff screen's key the version turns into a shared link's: its
              * token would open what it reads with no sign-in. Unbound only on
@@ -4401,23 +4416,23 @@ export function createAppInstallService(deps: AppRoutesDeps) {
             leave(input.publicAccess ? 'only someone who may manage API keys can allow it' : 'not allowed: send "publicAccess": true to allow it', short);
             continue;
           }
-          // Everything the key holds now, and this add-on's entries: nothing of the app's own is given by the way.
-          const wanted = new Map<string, readonly string[]>(held);
-          for (const entry of sound) wanted.set(entry.ref, entry.methods);
-          try {
-            const result = await access.service.setManagedAccess({
-              connectionId,
-              keyId: key.id,
-              access: [...wanted].map(([ref, methods]) => ({ ref, methods: methods as PublicMethod[] })),
-            });
-            out.publicAccess.granted.push(...result.gained.filter((ref) => !out.publicAccess.granted.includes(ref)));
-            await record({ kind: 'grant', keyId: key.id, purpose: key.purpose, gained: result.gained, lost: result.lost });
-            // Said, never silent: an entry the key still does not hold.
-            leave('it could not be put on the key', (await shortOf()).short);
-          } catch (error) {
-            if (!(error instanceof KeyCreateRefused)) throw error;
-            leave(error.issues.map((issue) => issue.message).join('; '), short);
-          }
+          // Everything the key holds now, and this add-on's entries, each on its own: nothing of the app's own is given by
+          // the way, and an entry the key cannot take is left out alone, never with the others.
+          const giving = new Set(short.map((entry) => entry.ref));
+          const result = await grantEachEntry({
+            service: access.service,
+            connectionId,
+            keyId: key.id,
+            base: [...held].filter(([ref]) => !giving.has(ref)).map(([ref, methods]) => ({ ref, methods: methods as PublicMethod[] })),
+            adding: short.map((entry) => ({ ref: entry.ref, methods: entry.methods, held: (held.get(entry.ref) ?? []) as PublicMethod[] })),
+            onWritten: async ({ gained, lost }) => {
+              out.publicAccess.granted.push(...gained.filter((ref) => !out.publicAccess.granted.includes(ref)));
+              await record({ kind: 'grant', keyId: key.id, purpose: key.purpose, gained, lost });
+            },
+          });
+          for (const { ref, reason } of result.refused) leave(reason, [{ ref }]);
+          // Said, never silent: an entry the key still does not hold.
+          leave('it could not be put on the key', (await shortOf()).short);
         }
       } catch (error) {
         // The giving half only: told, with nothing of the server's own in the reply.
@@ -4426,6 +4441,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       }
     } finally {
       access.onChange?.();
+      // Whichever way it ended: each entry this app's key was not given, with why.
+      await auditLeftOut(actor, appKey, connectionId, actor.id, out.publicAccess.skipped, addOnKey);
     }
     return out;
   }

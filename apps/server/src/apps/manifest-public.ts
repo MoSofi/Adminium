@@ -831,6 +831,72 @@ export async function publicAccessWarnings(
 }
 
 /**
+ * Give a key add-on entries on top of what it keeps, one entry at a time in
+ * effect: an entry the key cannot take is left out on its own, and never
+ * takes another entry — the same add-on's or another's — with it.
+ *
+ * Asked whole first. Refused, the entries the refusal names are left out,
+ * each with its own reasons, and the rest asked again; a refusal that names
+ * none of them (or none any more) is settled by asking each entry alone. An
+ * entry left out keeps what the key held of it before. `base` is what the
+ * key holds whatever happens to them, and names none of `adding`.
+ */
+export async function grantEachEntry(input: {
+  service: Pick<EndpointService, 'setManagedAccess'>;
+  connectionId: string;
+  keyId: string;
+  base: readonly { ref: string; methods: readonly PublicMethod[] }[];
+  adding: readonly { ref: string; methods: readonly PublicMethod[]; held: readonly PublicMethod[] }[];
+  /** Told of each write the moment it is made, with what the key gained and lost by it. */
+  onWritten?: ((change: { gained: string[]; lost: string[] }) => Promise<void>) | undefined;
+}): Promise<{ gained: string[]; lost: string[]; refused: { ref: string; reason: string }[] }> {
+  const given = new Set<string>();
+  const gained = new Set<string>();
+  const lost = new Set<string>();
+  const refused: { ref: string; reason: string }[] = [];
+  const set = async (trying: ReadonlySet<string>) => {
+    const access = [
+      ...input.base,
+      ...input.adding.flatMap((entry) =>
+        given.has(entry.ref) || trying.has(entry.ref) ? [{ ref: entry.ref, methods: entry.methods }] : entry.held.length > 0 ? [{ ref: entry.ref, methods: entry.held }] : [],
+      ),
+    ];
+    const result = await input.service.setManagedAccess({ connectionId: input.connectionId, keyId: input.keyId, access });
+    for (const ref of result.gained) gained.add(ref);
+    for (const ref of result.lost) lost.add(ref);
+    for (const ref of trying) given.add(ref);
+    if (result.gained.length > 0 || result.lost.length > 0) await input.onWritten?.(result);
+  };
+  const said = (issues: readonly { message: string }[]) => [...new Set(issues.map((issue) => issue.message))].join('; ');
+  const trying = new Set(input.adding.map((entry) => entry.ref));
+  let named = true;
+  while (trying.size > 0 && named) {
+    try {
+      await set(trying);
+      trying.clear();
+    } catch (error) {
+      if (!(error instanceof KeyCreateRefused)) throw error;
+      const its = [...trying].filter((ref) => error.issues.some((issue) => issue.ref === ref));
+      named = its.length > 0;
+      for (const ref of its) {
+        refused.push({ ref, reason: said(error.issues.filter((issue) => issue.ref === ref)) });
+        trying.delete(ref);
+      }
+    }
+  }
+  // Refused for something no entry is named in: each alone, so only the ones that cannot go stay out.
+  for (const ref of [...trying]) {
+    try {
+      await set(new Set([ref]));
+    } catch (error) {
+      if (!(error instanceof KeyCreateRefused)) throw error;
+      refused.push({ ref, reason: said(error.issues) });
+    }
+  }
+  return { gained: [...gained], lost: [...lost], refused };
+}
+
+/**
  * Save the app's endpoints and make its browser keys — after its tables
  * exist and are introspected. Endpoints first: a key is made from them.
  * An endpoint the app already made is saved again (an update may change it).
@@ -1038,17 +1104,18 @@ export async function installPublicAccess(input: {
       for (const entry of declared) if (short(entry)) leftOut(entry.ref, reason);
       continue;
     }
-    // Then what its add-ons add, on its own: refused, it is left out and said, and the app's own stands.
+    // Then what its add-ons add, entry by entry: one refused is left out and said, and the app's own and every other entry stand.
     const adding = guests.filter(short);
     if (adding.length > 0) {
-      try {
-        const more = await input.service.setManagedAccess({ connectionId: input.connectionId, keyId, access: [...own, ...guests.map(asAllowed)] });
-        result = { gained: [...new Set([...result.gained, ...more.gained])], lost: result.lost };
-      } catch (error) {
-        if (!(error instanceof KeyCreateRefused)) throw error;
-        const reason = error.issues.map((issue) => issue.message).join('; ');
-        for (const entry of adding) leftOut(entry.ref, reason);
-      }
+      const more = await grantEachEntry({
+        service: input.service,
+        connectionId: input.connectionId,
+        keyId,
+        base: [...own, ...guests.filter((entry) => !short(entry)).map(asAllowed)],
+        adding: adding.map((entry) => ({ ...asAllowed(entry), held: heldOf(entry) })),
+      });
+      for (const { ref, reason } of more.refused) leftOut(ref, reason);
+      result = { gained: [...new Set([...result.gained, ...more.gained])], lost: result.lost };
     }
     // Settled: it holds exactly what the version declares, as allowed.
     const change = { keyId, purpose, gained: result.gained, lost: result.lost, settled: true };
@@ -1096,21 +1163,20 @@ export async function installPublicAccess(input: {
     const peak = manifest.kind === 'app' ? manifest.publicKeys?.[purpose]?.peak : undefined;
     if (peak !== undefined) await publicKeysRepo(input.meta).setPeak(made.key.id, peak);
     await input.onCommitted?.({ kind: 'key', purpose, keyId: made.key.id, access: [...saved] });
-    // What the app's add-ons serve through this key, added on its own: refused, the key stands with the app's own.
+    // What the app's add-ons serve through this key, entry by entry: one refused is left out and said, and the key stands with the rest.
     const guests = planned.filter((entry) => entry.key === purpose && !mine(entry));
     if (guests.length > 0) {
-      try {
-        const more = await input.service.setManagedAccess({
-          connectionId: input.connectionId,
-          keyId: made.key.id,
-          access: planned.filter((entry) => entry.key === purpose).map((entry) => ({ ref: entry.ref, methods: entry.methods })),
-        });
-        if (more.gained.length > 0) await input.onCommitted?.({ kind: 'grant', keyId: made.key.id, purpose, gained: more.gained, lost: more.lost });
-      } catch (error) {
-        if (!(error instanceof KeyCreateRefused)) throw error;
-        const reason = error.issues.map((issue) => issue.message).join('; ');
-        for (const entry of guests) leftOut(entry.ref, reason);
-      }
+      const more = await grantEachEntry({
+        service: input.service,
+        connectionId: input.connectionId,
+        keyId: made.key.id,
+        base: planned.filter((entry) => entry.key === purpose && mine(entry)).map((entry) => ({ ref: entry.ref, methods: entry.methods })),
+        adding: guests.map((entry) => ({ ref: entry.ref, methods: entry.methods, held: [] })),
+        onWritten: async ({ gained, lost }) => {
+          if (gained.length > 0) await input.onCommitted?.({ kind: 'grant', keyId: made.key.id, purpose, gained, lost });
+        },
+      });
+      for (const { ref, reason } of more.refused) leftOut(ref, reason);
     }
   }
   /*
