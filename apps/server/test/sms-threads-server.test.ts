@@ -20,6 +20,12 @@ import { LEGS, said, wholeServer, type WholeServer } from './whole-server.helper
 import { twilioRepliesHeard } from './helpers/sms-heard.js';
 
 vi.mock('../src/version.js', async (original) => ({ ...(await original<typeof import('../src/version.js')>()), APP_VERSION: SMS_WORDS_FLOOR }));
+// These cases are about consent and threads, not the clock: a service text goes now, whatever hour the run
+// happens at. The sending window has its own tests.
+vi.mock('../src/sms/send/window.js', async (original) => {
+  const real = await original<typeof import('../src/sms/send/window.js')>();
+  return { ...real, judgeWindow: (question: Parameters<typeof real.judgeWindow>[0]) => (question.timing === 'marketing' ? real.judgeWindow(question) : { go: true as const }) };
+});
 
 const FROM = '+14155550100';
 const RITA_CONTACT = '+4915123456789';
