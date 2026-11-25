@@ -119,7 +119,7 @@ import {
   type AddOnRuntimeState,
 } from './add-ons/runtime.js';
 import { createInboundWiring, INBOUND_SWEEP_CRON, INBOUND_SWEEP_SCHEDULE } from './inbound/index.js';
-import { addOnStateOn, installOfRecord, resolveInstall } from './installs/resolve.js';
+import { addOnStateOn, installOfRecord, resolveInstall, splitInstallKey } from './installs/resolve.js';
 import type { LooseTableIdModel } from './installs/table-id.js';
 import { keepAddOnInstalls } from './apps/table-ref.js';
 import { createAnswerDoor } from './forms/answer.js';
@@ -421,6 +421,7 @@ import { textSubject } from './sms/consent/index.js';
 import { SMS_STOP_EVENT_KINDS } from './sms/inbound/index.js';
 import { createTextSendPath, registerSmsSendHandler, textPhoneKeys, TEXT_SETTLE_AFTER_MS, TEXT_SETTLE_CRON, TEXT_SETTLE_JOB, TEXT_SETTLE_SCHEDULE, type TextSendPath } from './sms/send/index.js';
 import { recordPhoneReader, textConversationDeps } from './sms/threads/server-deps.js';
+import { textAppGrants } from './sms/threads/permission.js';
 import { appOfRow } from './sms/app-of-row.js';
 import { createConsentTicks } from './public-api/consent-tick.js';
 import { createSmsWiring } from './sms/wiring.js';
@@ -1021,7 +1022,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     const addOns = asksAnAddOn.includes(route) ? await appAddOns(meta, set.screensOnly, connections) : undefined;
     // The assistant's routes, when their role was given the assistant (never by default, and no app's manifest can).
     const assistant = route.startsWith('/api/v1/assistant/') && isGranted(set.grants, 'system:assistant:use');
-    if (allowedForScreensOnly(request.method, route, request.params, connections, set.screensOnly, addOns, assistant)) return;
+    // Their app's conversations, when their role was given its `texts:@:read` or `texts:@:reply`.
+    const theirApps = set.screensOnly;
+    const textThreads = route.startsWith('/api/v1/texts/threads') && [...textAppGrants(set.grants).keys()].some((key) => theirApps.includes(splitInstallKey(key).key));
+    if (allowedForScreensOnly(request.method, route, request.params, connections, set.screensOnly, addOns, assistant, textThreads)) return;
     throw screensOnlyError(settings, set.screensOnly, request);
   });
 

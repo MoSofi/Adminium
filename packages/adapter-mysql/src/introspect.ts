@@ -367,8 +367,18 @@ function normalizeCheckClause(clause: string): string {
  */
 const CHECK_IN_HEAD = /[`"]?([a-zA-Z_][\w$]{0,63})[`"]?\s+in\s+\(/gi;
 
-/** Parse a `col IN ('a','b')` check shape into a synthesized enum. */
+/**
+ * The whole of a check that allows ONE value: MySQL keeps `kind IN ('receipt')`
+ * as `` (`kind` = _utf8mb4'receipt') ``, no list at all. Read from the clause
+ * with its outer parentheses and introducers gone, anchored at both ends, so a
+ * comparison inside a larger expression is never read as a list.
+ */
+const CHECK_ONE_VALUE = /^[`"]?([a-zA-Z_][\w$]{0,63})[`"]?\s*=\s*'((?:[^']|'')*)'$/;
+
+/** Parse a `col IN ('a','b')` (or `col = 'a'`) check shape into a synthesized enum. */
 export function parseCheckEnum(clause: string): { column: string; values: string[] } | null {
+  const one = CHECK_ONE_VALUE.exec(checkExpression(clause));
+  if (one !== null && one[1] !== undefined) return { column: one[1], values: [(one[2] ?? '').replaceAll("''", "'")] };
   const normalized = normalizeCheckClause(clause);
   CHECK_IN_HEAD.lastIndex = 0;
   for (

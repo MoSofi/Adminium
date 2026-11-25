@@ -15,7 +15,9 @@
  * "Replied" and "They said no" on it), the add-ons connected to their apps, and the server's name and logo to head
  * their screens with, and the code of an add-on of their app that fills a place on those screens, and taking a payment
  * at their app's counter (its card readers, a charge, a pay link made or closed, a refund for whoever may give one),
- * and getting a carrier's services for an order of their app and buying its label, for whoever may book them. Forty-odd routes
+ * and getting a carrier's services for an order of their app and buying its label, for whoever may book them, and a
+ * record's texts (whether texts can go, its standing, a yes or no recorded, a text sent, and their app's conversations
+ * for a role given them). Forty-odd routes
  * check only that someone is signed in, so this
  * list — not those routes — is the boundary.
  */
@@ -203,6 +205,26 @@ const CALENDAR_ROUTES: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Texts from their app's own screens (a till's box, the guest's standing, a text receipt): whether texts can go
+ * at all, a record's standing, a yes or no recorded on it, and a text sent to its number. Each route asks the
+ * person's own rights on that record: reading it, changing it (or their app's `texts:@:reply`) to record an
+ * answer, and their app's `texts:@:reply` to send (`sms/threads/routes`). The number never comes back.
+ */
+const TEXT_ROUTES: ReadonlySet<string> = new Set(['GET /texts/ready', 'GET /texts/consent', 'POST /texts/consent', 'POST /texts/send']);
+
+/**
+ * Their app's conversations, for a role that holds its `texts:@:read` or `texts:@:reply`: the list, one
+ * conversation, a reply and "read". Each route shows only the conversations of the apps the person's grants
+ * name. Who may answer an app's texts at all stays the dashboard's.
+ */
+const TEXT_THREAD_ROUTES: ReadonlySet<string> = new Set([
+  'GET /texts/threads',
+  'GET /texts/threads/:id',
+  'POST /texts/threads/:id/replies',
+  'POST /texts/threads/:id/read',
+]);
+
+/**
  * Whether a screens-only person may make this API call, judged by the ROUTE
  * it matched (`/api/v1/connections/:id/schema`) and its decoded parameters —
  * never by the request line, which can spell the same route another way
@@ -218,6 +240,8 @@ export function allowedForScreensOnly(
   addOns: ReadonlySet<string> = new Set(),
   /** Their role holds the assistant's own permission (the caller asks; this stays a pure function). */
   assistant = false,
+  /** Their role holds `texts:@:read` or `texts:@:reply` of one of their apps (the caller asks). */
+  textThreads = false,
 ): boolean {
   if (!route.startsWith(`${API}/`)) return true;
   const rest = route.slice(API.length);
@@ -268,6 +292,8 @@ export function allowedForScreensOnly(
   if (PAYMENT_ROUTES.has(`${method} ${rest}`)) return true;
   if (ACCOUNT_ROUTES.has(`${method} ${rest}`)) return true;
   if (CALENDAR_ROUTES.has(`${method} ${rest}`)) return true;
+  if (TEXT_ROUTES.has(`${method} ${rest}`)) return true;
+  if (textThreads && TEXT_THREAD_ROUTES.has(`${method} ${rest}`)) return true;
   // The public API has its own gate, and a kiosk's staff-bound key rides it.
   if (rest.startsWith('/public/')) return true;
   if (rest === '/me' || rest.startsWith('/me/')) return true;

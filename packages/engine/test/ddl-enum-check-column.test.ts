@@ -33,6 +33,15 @@ describe("a choice's CHECK, named by its column", () => {
     expect(parseEnumCheck(text, ['text', 'kind'])).toEqual({ column: 'kind', values: ['a', 'b'] });
   });
 
+  it('reads a list of one value, which Postgres and MySQL keep as an equality', () => {
+    for (const text of ["((kind)::text = 'receipt'::text)", "`kind` = 'receipt'", "kind in ('receipt')"]) {
+      expect(parseEnumCheck(text, ['id', 'kind']), text).toEqual({ column: 'kind', values: ['receipt'] });
+    }
+    // Only the whole check: an equality inside a larger one, or another comparison, is no list.
+    expect(parseEnumCheck("((kind)::text = 'receipt'::text) OR (id > 0)", ['id', 'kind'])).toBeNull();
+    expect(parseEnumCheck("(kind)::text <> 'receipt'::text", ['id', 'kind'])).toBeNull();
+  });
+
   it('still prefers the longer of two names it finds outside the values', () => {
     expect(enumCheckColumn("((status_id)::text = ANY ((ARRAY['a'::text])))", ['status', 'status_id'])).toBe('status_id');
     expect(enumCheckColumn("note in ('it''s state')", ['note', 'state'])).toBe('note');

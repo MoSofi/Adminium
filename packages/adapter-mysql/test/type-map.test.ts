@@ -189,6 +189,14 @@ describe('parseCheckEnum — CHECK (col IN (...)) synthesis', () => {
     expect(parseCheckEnum("`kind` in ('a_b','_x','y_')")).toEqual({ column: 'kind', values: ['a_b', '_x', 'y_'] });
   });
 
+  it('reads a list of one value, which MySQL keeps as an equality', () => {
+    expect(parseCheckEnum("(`kind` = _utf8mb4\\'receipt\\')")).toEqual({ column: 'kind', values: ['receipt'] });
+    expect(parseCheckEnum("(`method` = _utf8mb4\\'gift_card\\')")).toEqual({ column: 'method', values: ['gift_card'] });
+    // Only the whole check: an equality inside a larger one is no list.
+    expect(parseCheckEnum("((`kind` = _utf8mb4\\'receipt\\') or (`amount` > 0))")).toBeNull();
+    expect(parseCheckEnum("(`kind` <> _utf8mb4\\'receipt\\')")).toBeNull();
+  });
+
   it('returns null for non-enum checks', () => {
     expect(parseCheckEnum('(`price` > 0)')).toBeNull();
     expect(parseCheckEnum('(char_length(`name`) > 2)')).toBeNull();
