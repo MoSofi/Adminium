@@ -59,6 +59,7 @@ import { createSetupService } from './setup/service.js';
 import { createUpdateCheckService } from './telemetry/update-check.js';
 import { useOwnCodePolicy } from './trial/own-code.js';
 import { trialPolicy } from './trial/policy.js';
+import { livePreviewOf, registerLivePreview } from './designer/live-preview.js';
 import { operatorHostsOf, registerOperatorHosts } from './trial/operator-hosts.js';
 import { registerPublicPages } from './trial/public-pages.js';
 import { createRouteAudienceRegistry } from './security/route-audience.js';
@@ -599,6 +600,10 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     registerOperatorHosts(app, operatorHosts);
     if (opts.metaDb !== undefined && opts.metaDb !== null) await holdOperatorOrigin(opts.metaDb, operatorHosts.origin);
   }
+  // The Designer's preview on its own address (`designer/live-preview.ts`). Never under `adminium design`, which has its own two names.
+  const livePreview = opts.design === undefined ? livePreviewOf(env, operatorHosts) : null;
+  app.decorate('livePreview', livePreview);
+  if (livePreview !== null) registerLivePreview(app, livePreview);
   // What the server's operator holds back (every public page hidden), read before the server answers anything (`operator/holds.ts`).
   // Where an operator can hold the pages, every public page counts as hidden until it has been read once; a
   // failed read is tried again every 30 s.

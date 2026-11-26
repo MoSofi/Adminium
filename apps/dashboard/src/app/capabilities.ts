@@ -56,6 +56,8 @@ export interface SystemInfo {
   designer?: {
     mode: 'local' | 'live' | 'off';
     link: boolean;
+    /** The Designer has a preview here: always under `adminium design`, on a live server only with a preview address. Absent from an older server. */
+    preview?: boolean;
     startPrompt?: boolean;
     /** The start prompt was refused at the operator's AI cap and starts again by itself then (ms); null or absent: nothing waits. */
     startPromptWaitsUntil?: number | null;
