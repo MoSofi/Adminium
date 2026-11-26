@@ -41,6 +41,34 @@ describe('foldTurns', () => {
     expect(isWorking(turns)).toBe(false);
   });
 
+  it('begins a new paragraph where the model began a new reply, and joins the words of one reply', () => {
+    // Seen 2026-11-26: "…tell me if anything is off.The page is dark…" — two replies of a turn read as one sentence.
+    seq = 0;
+    const [turn] = foldTurns([
+      at(1, { kind: 'turn-started', text: 'A cake shop.' }, 0),
+      at(1, { kind: 'text', delta: 'Tell me if anything ' }),
+      at(1, { kind: 'text', delta: 'is off.' }),
+      at(1, { kind: 'usage', step: 1, tokensIn: 100, tokensOut: 10, estimated: false, turnTokens: 110 }),
+      at(1, { kind: 'step', id: 's1', tool: 'check_app', label: 'Checked', state: 'done', ms: 5, count: 0 }),
+      at(1, { kind: 'usage', step: 2, tokensIn: 100, tokensOut: 10, estimated: false, turnTokens: 220 }),
+      // A reply that begins with blank space keeps its break for its first words.
+      at(1, { kind: 'text', delta: '  ' }),
+      at(1, { kind: 'text', delta: 'The page is dark.' }),
+      at(1, { kind: 'usage', step: 3, tokensIn: 100, tokensOut: 10, estimated: false, turnTokens: 330 }),
+      at(1, { kind: 'text', delta: 'Fixed.' }),
+      at(1, { kind: 'turn-finished', outcome: 'done' }),
+    ]);
+    expect(turn?.reply).toBe('Tell me if anything is off.\n\nThe page is dark.\n\nFixed.');
+    // A turn whose first words come after a step starts with them, not with a break.
+    seq = 0;
+    const [quiet] = foldTurns([
+      at(2, { kind: 'turn-started', text: 'Go.' }, 0),
+      at(2, { kind: 'usage', step: 1, tokensIn: 100, tokensOut: 10, estimated: false, turnTokens: 110 }),
+      at(2, { kind: 'text', delta: 'Done.' }),
+    ]);
+    expect(quiet?.reply).toBe('Done.');
+  });
+
   it('says a good apply once, however many times the turn applied', () => {
     seq = 0;
     const turns = foldTurns([
